@@ -4,6 +4,7 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -36,7 +37,10 @@ type Which = "from" | "to";
 type Exposure = {
   dose_ug: number | null;
   avg_conc_ugm3: number | null;
+  peak_conc?: number | null;
   confidence: "high" | "medium" | "low" | "none";
+  coverage?: number;
+  factors?: { microenv: number; ventilation_lpm: number; road_uplift: number };
   dose_vs_best_pct?: number;
   ug_saved_vs_worst?: number;
 };
@@ -84,6 +88,7 @@ export default function App() {
   const [options, setOptions] = useState<CompareOption[]>([]);
   const [selected, setSelected] = useState(0);
   const [depart, setDepart] = useState<Depart>(null);
+  const [showWhy, setShowWhy] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -345,6 +350,7 @@ export default function App() {
               <ActivityIndicator size="small" color="#0f766e" />
             ) : options.length > 0 ? (
               <View>
+                <ScrollView style={{ maxHeight: 236 }} showsVerticalScrollIndicator={false}>
                 {options.map((o, i) => (
                   <Pressable
                     key={o.vehicle}
@@ -366,13 +372,31 @@ export default function App() {
                     </Text>
                   </Pressable>
                 ))}
+                </ScrollView>
                 {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 10 && (
                   <Text style={s.departHint}>
                     leave {hourLabel(depart.best.start, depart.best.hours_ahead)} — same trip,{" "}
                     {depart.ug_saved_vs_now}% less PM2.5
                   </Text>
                 )}
-                <Text style={s.summarySub}>inhaled PM2.5 · live Delhi field</Text>
+                <Pressable onPress={() => setShowWhy((v) => !v)}>
+                  <Text style={s.summarySub}>
+                    inhaled PM2.5 · live Delhi field · {showWhy ? "hide why" : "why?"}
+                  </Text>
+                </Pressable>
+                {showWhy && options[selected]?.exposure && (
+                  <Text style={s.whyTxt}>
+                    {options[selected].label}: breathing-zone ≈ ambient ×{" "}
+                    {options[selected].exposure.factors?.microenv ?? "?"} · breathing{" "}
+                    {options[selected].exposure.factors?.ventilation_lpm ?? "?"} L/min
+                    {options[selected].exposure.peak_conc != null
+                      ? ` · peak ${options[selected].exposure.peak_conc} µg/m³`
+                      : ""}
+                    {options[selected].exposure.coverage != null
+                      ? ` · ${Math.round(options[selected].exposure.coverage * 100)}% of trip covered by field`
+                      : ""}
+                  </Text>
+                )}
               </View>
             ) : (
               <Text style={s.summarySub}>no route found</Text>
@@ -474,4 +498,5 @@ const s = StyleSheet.create({
   summaryMain: { fontSize: 20, fontWeight: "700", color: "#0f172a", fontVariant: ["tabular-nums"] },
   dose: { fontSize: 16, fontWeight: "800", marginTop: 3, fontVariant: ["tabular-nums"] },
   summarySub: { fontSize: 12, color: "#64748b", marginTop: 8, textAlign: "center" },
+  whyTxt: { fontSize: 11.5, color: "#475569", marginTop: 4, textAlign: "center", lineHeight: 16 },
 });
