@@ -257,6 +257,12 @@ class ForecastField:
         ordered = sorted(slots, key=lambda s: s["pm25_ugm3"])
         return {"best": ordered[:3], "worst": ordered[-1]}
 
+    def time_at(self, hour_idx: int) -> Optional[str]:
+        """ISO start label for a forecast slot index, or None."""
+        if not self._aq or not (0 <= hour_idx < self._n_hours()):
+            return None
+        return self._aq[0]["times"][hour_idx]
+
     def status(self) -> dict:
         return {
             "aq_points": len(self._aq),
