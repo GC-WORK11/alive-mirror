@@ -51,6 +51,7 @@ type CompareOption = {
   duration_min: number;
   duration_model?: "osrm" | "estimated";
   geometry: GeoJSON.Geometry;
+  stations?: { board: string; alight: string };
   exposure?: Exposure;
 };
 
@@ -405,6 +406,11 @@ export default function App() {
                         {o.duration_min} min · {o.distance_km} km
                         {o.exposure?.confidence ? ` · ${o.exposure.confidence}` : ""}
                       </Text>
+                      {o.stations ? (
+                        <Text style={s.optMeta}>
+                          {o.stations.board} → {o.stations.alight}
+                        </Text>
+                      ) : null}
                     </View>
                     <Text style={[s.optDose, { color: doseColor(o.exposure?.avg_conc_ugm3) }]}>
                       {o.exposure?.dose_ug != null ? `${o.exposure.dose_ug} µg` : "—"}

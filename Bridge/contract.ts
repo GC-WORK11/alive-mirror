@@ -85,6 +85,8 @@ export interface CompareOption {
   duration_s: number;
   duration_model: "osrm" | "estimated"; // honest flag: non-car times are distance/speed
   geometry: RouteGeometry;
+  stations?: { board: string; alight: string; access_km: number; egress_km: number }; // metro only
+  legs?: unknown[]; // metro walk-metro-walk decomposition
   exposure: Exposure;
 }
 
