@@ -33,14 +33,37 @@ const DELHI: [number, number] = [77.209, 28.6139];
 
 type Place = { name: string; subtitle: string; lat: number; lon: number };
 type Which = "from" | "to";
-type Route = { distance_km: number; duration_min: number; geometry: GeoJSON.Geometry };
+type Exposure = {
+  dose_ug: number | null;
+  avg_conc_ugm3: number | null;
+  confidence: "high" | "medium" | "low" | "none";
+  dose_vs_best_pct?: number;
+  ug_saved_vs_worst?: number;
+};
+type Route = {
+  mode: string;
+  distance_km: number;
+  duration_min: number;
+  geometry: GeoJSON.Geometry;
+  exposure?: Exposure;
+};
 type Mode = "driving" | "cycling" | "walking";
+type Vehicle = "car" | "auto" | "bike";
 
 const MODES: { key: Mode; label: string }[] = [
   { key: "driving", label: "Drive" },
   { key: "cycling", label: "Cycle" },
   { key: "walking", label: "Walk" },
 ];
+
+const VEHICLES: { key: Vehicle; label: string }[] = [
+  { key: "car", label: "Car AC" },
+  { key: "auto", label: "Auto" },
+  { key: "bike", label: "Bike" },
+];
+
+const doseColor = (avg: number | null | undefined) =>
+  avg == null ? "#0d9488" : avg < 60 ? "#0d9488" : avg < 130 ? "#d97706" : "#dc2626";
 
 export default function App() {
   const camRef = useRef<CameraRef>(null);
@@ -53,6 +76,7 @@ export default function App() {
   const [searching, setSearching] = useState(false);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [mode, setMode] = useState<Mode>("driving");
+  const [vehicle, setVehicle] = useState<Vehicle>("car");
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,7 +145,8 @@ export default function App() {
       setLoadingRoute(true);
       try {
         const r = await fetch(
-          `${API}/route?from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}&profile=${mode}`
+          `${API}/route?from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}&profile=${mode}` +
+            (mode === "driving" ? `&vehicle=${vehicle}` : "")
         );
         const j = await r.json();
         if (cancelled) return;
@@ -146,7 +171,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [from, to, mode]);
+  }, [from, to, mode, vehicle]);
 
   const routeFeature = useMemo<GeoJSON.Feature | null>(() => {
     if (!routes[0]) return null;
@@ -313,6 +338,19 @@ export default function App() {
               </Pressable>
             ))}
           </BlurView>
+          {mode === "driving" && (
+            <BlurView intensity={60} tint="light" style={[s.chipRow, { alignSelf: "center" }]}>
+              {VEHICLES.map((v) => (
+                <Pressable
+                  key={v.key}
+                  onPress={() => setVehicle(v.key)}
+                  style={[s.mchip, { paddingHorizontal: 16 }, vehicle === v.key && s.mchipOn]}
+                >
+                  <Text style={[s.mchipTxt, vehicle === v.key && s.mchipTxtOn]}>{v.label}</Text>
+                </Pressable>
+              ))}
+            </BlurView>
+          )}
           <BlurView intensity={60} tint="light" style={s.summary}>
             {loadingRoute ? (
               <ActivityIndicator size="small" color="#0f766e" />
@@ -321,8 +359,16 @@ export default function App() {
                 <Text style={s.summaryMain}>
                   {routes[0].duration_min} min · {routes[0].distance_km} km
                 </Text>
+                {routes[0].exposure?.dose_ug != null && (
+                  <Text style={[s.dose, { color: doseColor(routes[0].exposure.avg_conc_ugm3) }]}>
+                    {routes[0].exposure.dose_ug} µg PM2.5 inhaled
+                  </Text>
+                )}
                 <Text style={s.summarySub}>
-                  {routes.length > 1 ? `${routes.length} routes found · ` : ""}real OSM road graph
+                  {routes[0].exposure?.confidence
+                    ? `${routes[0].exposure.confidence} confidence · `
+                    : ""}
+                  {routes.length > 1 ? `${routes.length} routes · ` : ""}live Delhi field
                 </Text>
               </View>
             ) : (
@@ -402,5 +448,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
   },
   summaryMain: { fontSize: 20, fontWeight: "700", color: "#0f172a", fontVariant: ["tabular-nums"] },
+  dose: { fontSize: 16, fontWeight: "800", marginTop: 3, fontVariant: ["tabular-nums"] },
   summarySub: { fontSize: 12, color: "#64748b", marginTop: 2 },
 });
