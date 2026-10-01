@@ -18,6 +18,7 @@ hour to leave. Not an AQI map. A dose engine.
 | Inhaled dose per mode (µg) | dose = breathing-zone conc × ventilation × time; breathing-zone = field × microenv | microenv/ventilation ratios are published measurements (Delhi commuter studies); shown under "why?" |
 | Car/road durations | OSRM road network | `osrm` |
 | Walk/cycle/bus durations | distance ÷ typical Delhi urban speed (walk 5, cycle 15 km/h; bus/auto/bike scale car time) | flagged `estimated` — the public OSRM demo only has the driving graph |
+| Metro option | real DMRC network: 62 stations with OSM coords (Overpass), walk→metro→walk legs scored per-leg; metro leg at 0.45 breathing-zone | skipped (`null`, not faked) when either endpoint sits >2.5 km from a station — the honest answer is "metro isn't for this trip" |
 | Forecast (leave-later) | Open-Meteo hourly CAMS 120 h + boundary-layer-height/wind stagnation factor (ventilation-coefficient proxy, IMD/IITM convention) | raw model × clamped factor [0.6, 2.5]; factor=1.0 when met data missing |
 | Fire-season modifier | NASA FIRMS VIIRS active fires over the NW-India fire belt, gated by wind quadrant | needs `FIRMS_MAP_KEY`; without it modifier=1.0 and `fire.status` says `no-key` — never invented detections |
 | Station history (decade) | OpenAQ public S3 archive, Delhi stations 2016→ | merged separately |
