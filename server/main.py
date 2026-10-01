@@ -5,6 +5,7 @@ routes come from OSRM on the real OSM road graph. No hardcoded places.
 """
 import asyncio
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -16,6 +17,7 @@ from fires import FIRES
 from forecast import FORECAST
 import transit
 import exposure
+import history
 
 app = FastAPI(title="Delhi-Air-108 API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -40,7 +42,7 @@ def http() -> httpx.AsyncClient:
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "ts": time.time()}
+    return {"ok": True, "ts": time.time(), "history": history.summary()}
 
 
 @app.get("/search")
@@ -297,12 +299,18 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
 
 @app.get("/aqi")
 async def aqi(lat: float, lon: float):
-    """Interpolated PM2.5 field value at a point, with provenance."""
+    """Interpolated PM2.5 field value at a point, with provenance and the
+    decade-climatology context: what this point usually reads, this month,
+    this hour, per 9M measured station-hours."""
     await asyncio.gather(FIELD.refresh(http()), FIRES.refresh(http()))
     mod = FIRES.smoke_modifier()
     v = FIELD.value(lat, lon, "pm2_5")
     if v is None:
         return {"pm25": None, "error": "field unavailable"}
+
+    ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+    band = history.typical_band(lat, lon, ist.month, ist.hour)
+    typical = band.get("median")
     return {
         "pm25": round(v * mod, 1),
         "pm25_ambient": round(v, 1),
@@ -312,6 +320,12 @@ async def aqi(lat: float, lon: float):
         "smoke_modifier": mod,
         "fire": FIRES.status(),
         "field": FIELD.status(),
+        "typical": {
+            "month": ist.month, "hour_ist": ist.hour,
+            "median": typical, "p25": band.get("p25"), "p75": band.get("p75"),
+            "vs_now_pct": round((v * mod - typical) / typical * 100, 1)
+            if typical else None,
+        } if typical is not None else None,
     }
 
 
