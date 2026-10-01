@@ -11,6 +11,9 @@ import httpx
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from airfield import FIELD
+import exposure
+
 app = FastAPI(title="Delhi-Air-108 API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -91,14 +94,36 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     except httpx.HTTPError:
         return {"routes": [], "error": "router unavailable"}
 
-    out = []
+    await FIELD.refresh(http())
+
+    options = []
     for rt in data.get("routes", [])[:3]:
-        out.append({
+        options.append({
+            "mode": prof,
             "distance_km": round(rt["distance"] / 1000, 1),
             "duration_min": round(rt["duration"] / 60),
+            "duration_s": rt["duration"],
             "geometry": rt["geometry"],
         })
-    return {"routes": out}
+
+    exposure.compare(options, FIELD.value, FIELD.nearest_sample_km)
+    return {"routes": options, "field": FIELD.status()}
+
+
+@app.get("/aqi")
+async def aqi(lat: float, lon: float):
+    """Interpolated PM2.5 field value at a point, with provenance."""
+    await FIELD.refresh(http())
+    v = FIELD.value(lat, lon, "pm2_5")
+    if v is None:
+        return {"pm25": None, "error": "field unavailable"}
+    return {
+        "pm25": round(v, 1),
+        "pm10": FIELD.value(lat, lon, "pm10"),
+        "no2": FIELD.value(lat, lon, "nitrogen_dioxide"),
+        "nearest_sample_km": round(FIELD.nearest_sample_km(lat, lon), 1),
+        "field": FIELD.status(),
+    }
 
 
 @app.get("/reverse")
