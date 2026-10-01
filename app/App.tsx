@@ -19,11 +19,14 @@ import {
   type CameraRef,
 } from "@maplibre/maplibre-react-native";
 
-// Android emulator reaches host machine via 10.0.2.2; iOS sim uses localhost.
-const API = Platform.select({
-  android: "http://10.0.2.2:8000",
-  default: "http://localhost:8000",
-});
+// EXPO_PUBLIC_API_URL overrides (e.g. deployed backend or LAN IP for a real
+// device); otherwise the Android emulator reaches the host via 10.0.2.2.
+const API =
+  process.env.EXPO_PUBLIC_API_URL ??
+  Platform.select({
+    android: "http://10.0.2.2:8000",
+    default: "http://localhost:8000",
+  });
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 const DELHI: [number, number] = [77.209, 28.6139];
@@ -53,6 +56,7 @@ export default function App() {
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0);
 
   useEffect(() => {
     fetch(`${API}/health`)
@@ -68,15 +72,17 @@ export default function App() {
       return;
     }
     setSearching(true);
+    const seq = ++searchSeq.current;
     debounce.current = setTimeout(async () => {
       try {
         const r = await fetch(`${API}/search?q=${encodeURIComponent(text)}&limit=8`);
         const j = await r.json();
+        if (seq !== searchSeq.current) return;
         setResults(j.results ?? []);
       } catch {
-        setResults([]);
+        if (seq === searchSeq.current) setResults([]);
       } finally {
-        setSearching(false);
+        if (seq === searchSeq.current) setSearching(false);
       }
     }, 180);
   }, []);
