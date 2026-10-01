@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# expo / react native
+.expo/
+dist/
+web-build/
+
+# generated native projects (Continuous Native Generation — do not hand-edit)
+app/ios/
+app/android/
+
+# builds
+*.apk
+*.aab
+*.ipa
+build/
+
+# python
+.venv/
+.venv312/
+__pycache__/
+*.pyc
+
+# env / secrets
+.env
+.env.*
+
+# os / editor
+.DS_Store
+*.log
