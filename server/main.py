@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from airfield import FIELD
 from fires import FIRES
 from forecast import FORECAST
+import transit
 import exposure
 
 app = FastAPI(title="Delhi-Air-108 API")
@@ -189,12 +190,35 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
         })
 
     exposure.compare(options, FIELD.value, FIELD.nearest_sample_km)
+
+    # metro arrives already scored per-leg — appending after compare()
+    # keeps its walk legs from being billed at the underground 0.45 rate
+    metro = transit.metro_option(from_lat, from_lon, to_lat, to_lon, FIELD.value)
+    if metro:
+        options.append(metro)
+        _rerank(options)
+
     best = options[0] if options else None
     return {
         "options": options,
         "best": best.get("vehicle") if best else None,
         "field": FIELD.status(),
     }
+
+
+def _rerank(options: list) -> None:
+    """Re-sort by dose_ug and refresh best/worst annotations — same math
+    as exposure.compare, for options that carry a precomputed exposure."""
+    scored = [o for o in options if (o.get("exposure") or {}).get("dose_ug") is not None]
+    if not scored:
+        return
+    best = min(o["exposure"]["dose_ug"] for o in scored)
+    worst = max(o["exposure"]["dose_ug"] for o in scored)
+    for o in scored:
+        e = o["exposure"]
+        e["dose_vs_best_pct"] = round((e["dose_ug"] - best) / best * 100, 1) if best else 0.0
+        e["ug_saved_vs_worst"] = round(worst - e["dose_ug"], 1)
+    options.sort(key=lambda o: (o.get("exposure") or {}).get("dose_ug") or float("inf"))
 
 
 VEHICLE_PROFILE = {"car": "driving", "car_open": "driving", "bike": "driving",
