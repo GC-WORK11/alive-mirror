@@ -59,6 +59,14 @@ type Depart = {
   ug_saved_vs_now: number | null;
 } | null;
 
+type FieldRead = {
+  pm25: number;
+  pm10?: number | null;
+  nearest_sample_km?: number;
+  lat: number;
+  lon: number;
+};
+
 const doseColor = (avg: number | null | undefined) =>
   avg == null ? "#0d9488" : avg < 60 ? "#0d9488" : avg < 130 ? "#d97706" : "#dc2626";
 
@@ -89,6 +97,7 @@ export default function App() {
   const [selected, setSelected] = useState(0);
   const [depart, setDepart] = useState<Depart>(null);
   const [showWhy, setShowWhy] = useState(false);
+  const [fieldRead, setFieldRead] = useState<FieldRead | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -218,7 +227,21 @@ export default function App() {
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
-      <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}>
+      <Map
+        mapStyle={STYLE_URL}
+        style={StyleSheet.absoluteFill}
+        onPress={async (f) => {
+          const c = (f.nativeEvent as any)?.features?.[0]?.geometry?.coordinates
+            ?? (f.nativeEvent as any)?.coordinates;
+          if (!c) return;
+          try {
+            const r = await fetch(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`);
+            const j = await r.json();
+            if (j.pm25 != null)
+              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, lat: c[1], lon: c[0] });
+          } catch {}
+        }}
+      >
         <Camera
           ref={camRef}
           initialViewState={{ center: DELHI, zoom: 11 }}
@@ -341,6 +364,23 @@ export default function App() {
           </Text>
         </View>
       </View>
+
+      {/* tapped-point field readout */}
+      {fieldRead && (
+        <View style={s.fieldWrap} pointerEvents="box-none">
+          <Pressable onPress={() => setFieldRead(null)} style={s.fieldChip}>
+            <Text style={[s.fieldDose, { color: doseColor(fieldRead.pm25) }]}>
+              {Math.round(fieldRead.pm25)} µg/m³
+            </Text>
+            <Text style={s.fieldMeta}>
+              PM2.5 here · live field
+              {fieldRead.nearest_sample_km != null
+                ? ` · nearest sample ${fieldRead.nearest_sample_km} km`
+                : ""}
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* dose ranking — every mode, what you actually breathe */}
       {(from && to) && (
@@ -499,4 +539,20 @@ const s = StyleSheet.create({
   dose: { fontSize: 16, fontWeight: "800", marginTop: 3, fontVariant: ["tabular-nums"] },
   summarySub: { fontSize: 12, color: "#64748b", marginTop: 8, textAlign: "center" },
   whyTxt: { fontSize: 11.5, color: "#475569", marginTop: 4, textAlign: "center", lineHeight: 16 },
+  fieldWrap: {
+    position: "absolute",
+    bottom: 110,
+    alignSelf: "center",
+  },
+  fieldChip: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(15,23,42,0.10)",
+  },
+  fieldDose: { fontSize: 22, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  fieldMeta: { fontSize: 11, color: "#64748b", marginTop: 2 },
 });
