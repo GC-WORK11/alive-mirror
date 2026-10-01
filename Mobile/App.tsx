@@ -40,30 +40,37 @@ type Exposure = {
   dose_vs_best_pct?: number;
   ug_saved_vs_worst?: number;
 };
-type Route = {
-  mode: string;
+type CompareOption = {
+  vehicle: string;
+  label: string;
   distance_km: number;
   duration_min: number;
+  duration_model?: "osrm" | "estimated";
   geometry: GeoJSON.Geometry;
   exposure?: Exposure;
 };
-type Mode = "driving" | "cycling" | "walking";
-type Vehicle = "car" | "auto" | "bike";
 
-const MODES: { key: Mode; label: string }[] = [
-  { key: "driving", label: "Drive" },
-  { key: "cycling", label: "Cycle" },
-  { key: "walking", label: "Walk" },
-];
-
-const VEHICLES: { key: Vehicle; label: string }[] = [
-  { key: "car", label: "Car AC" },
-  { key: "auto", label: "Auto" },
-  { key: "bike", label: "Bike" },
-];
+type Depart = {
+  best: { hours_ahead: number; start: string | null; dose_ug: number };
+  ug_saved_vs_now: number | null;
+} | null;
 
 const doseColor = (avg: number | null | undefined) =>
   avg == null ? "#0d9488" : avg < 60 ? "#0d9488" : avg < 130 ? "#d97706" : "#dc2626";
+
+const hourLabel = (iso: string | null, ahead: number) => {
+  if (iso) {
+    const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
+    if (!isNaN(d.getTime())) {
+      const ist = new Date(d.getTime() + 5.5 * 3600 * 1000);
+      const hh = String(ist.getUTCHours()).padStart(2, "0");
+      const today = new Date(Date.now() + 5.5 * 3600 * 1000);
+      const day = ist.getUTCDate() !== today.getUTCDate() ? "tomorrow " : "";
+      return `${day}${hh}:30`;
+    }
+  }
+  return `+${ahead}h`;
+};
 
 export default function App() {
   const camRef = useRef<CameraRef>(null);
@@ -74,9 +81,9 @@ export default function App() {
   const [active, setActive] = useState<Which | null>(null);
   const [results, setResults] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
-  const [routes, setRoutes] = useState<Route[]>([]);
-  const [mode, setMode] = useState<Mode>("driving");
-  const [vehicle, setVehicle] = useState<Vehicle>("car");
+  const [options, setOptions] = useState<CompareOption[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [depart, setDepart] = useState<Depart>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -137,32 +144,39 @@ export default function App() {
     setToText(ft);
   }, [from, to, fromText, toText]);
 
-  // fetch routes when both endpoints set or mode changes
+  // every travel mode, scored live for the same trip — the dose engine
   useEffect(() => {
     if (!from || !to) return;
     let cancelled = false;
     const load = async () => {
       setLoadingRoute(true);
       try {
-        const r = await fetch(
-          `${API}/route?from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}&profile=${mode}` +
-            (mode === "driving" ? `&vehicle=${vehicle}` : "")
-        );
-        const j = await r.json();
+        const qs = `from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}`;
+        const [cr, dr] = await Promise.all([
+          fetch(`${API}/compare?${qs}`),
+          fetch(`${API}/depart?${qs}&vehicle=auto&hours=24`),
+        ]);
+        const [cj, dj] = await Promise.all([cr.json(), dr.json()]);
         if (cancelled) return;
-        const rs: Route[] = j.routes ?? [];
-        setRoutes(rs);
-        if (rs[0]?.geometry?.type === "LineString") {
-          const coords = (rs[0].geometry as GeoJSON.LineString).coordinates;
+        const opts: CompareOption[] = cj.options ?? [];
+        setOptions(opts);
+        setSelected(0);
+        setDepart(dj?.best ? { best: dj.best, ug_saved_vs_now: dj.ug_saved_vs_now } : null);
+        const g = opts[0]?.geometry;
+        if (g?.type === "LineString") {
+          const coords = (g as GeoJSON.LineString).coordinates;
           const lons = coords.map((c) => c[0]);
           const lats = coords.map((c) => c[1]);
           camRef.current?.fitBounds(
             [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)],
-            { padding: { top: 230, bottom: 170, left: 60, right: 60 }, duration: 700 }
+            { padding: { top: 230, bottom: 280, left: 60, right: 60 }, duration: 700 }
           );
         }
       } catch {
-        if (!cancelled) setRoutes([]);
+        if (!cancelled) {
+          setOptions([]);
+          setDepart(null);
+        }
       } finally {
         if (!cancelled) setLoadingRoute(false);
       }
@@ -171,16 +185,13 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [from, to, mode, vehicle]);
+  }, [from, to]);
 
   const routeFeature = useMemo<GeoJSON.Feature | null>(() => {
-    if (!routes[0]) return null;
-    return {
-      type: "Feature",
-      properties: {},
-      geometry: routes[0].geometry,
-    };
-  }, [routes]);
+    const g = options[selected]?.geometry;
+    if (!g) return null;
+    return { type: "Feature", properties: {}, geometry: g };
+  }, [options, selected]);
 
   const markers = useMemo<GeoJSON.FeatureCollection>(() => {
     const feats: GeoJSON.Feature[] = [];
@@ -252,7 +263,8 @@ export default function App() {
               onChangeText={(t) => {
                 setFromText(t);
                 setFrom(null);
-                setRoutes([]);
+                setOptions([]);
+                setDepart(null);
                 setActive("from");
                 doSearch(t);
               }}
@@ -277,7 +289,8 @@ export default function App() {
               onChangeText={(t) => {
                 setToText(t);
                 setTo(null);
-                setRoutes([]);
+                setOptions([]);
+                setDepart(null);
                 setActive("to");
                 doSearch(t);
               }}
@@ -324,52 +337,42 @@ export default function App() {
         </View>
       </View>
 
-      {/* route summary + mode chips */}
+      {/* dose ranking — every mode, what you actually breathe */}
       {(from && to) && (
         <View style={s.bottomWrap}>
-          <BlurView intensity={60} tint="light" style={s.chipRow}>
-            {MODES.map((m) => (
-              <Pressable
-                key={m.key}
-                onPress={() => setMode(m.key)}
-                style={[s.mchip, mode === m.key && s.mchipOn]}
-              >
-                <Text style={[s.mchipTxt, mode === m.key && s.mchipTxtOn]}>{m.label}</Text>
-              </Pressable>
-            ))}
-          </BlurView>
-          {mode === "driving" && (
-            <BlurView intensity={60} tint="light" style={[s.chipRow, { alignSelf: "center" }]}>
-              {VEHICLES.map((v) => (
-                <Pressable
-                  key={v.key}
-                  onPress={() => setVehicle(v.key)}
-                  style={[s.mchip, { paddingHorizontal: 16 }, vehicle === v.key && s.mchipOn]}
-                >
-                  <Text style={[s.mchipTxt, vehicle === v.key && s.mchipTxtOn]}>{v.label}</Text>
-                </Pressable>
-              ))}
-            </BlurView>
-          )}
           <BlurView intensity={60} tint="light" style={s.summary}>
             {loadingRoute ? (
               <ActivityIndicator size="small" color="#0f766e" />
-            ) : routes[0] ? (
-              <View style={{ alignItems: "center" }}>
-                <Text style={s.summaryMain}>
-                  {routes[0].duration_min} min · {routes[0].distance_km} km
-                </Text>
-                {routes[0].exposure?.dose_ug != null && (
-                  <Text style={[s.dose, { color: doseColor(routes[0].exposure.avg_conc_ugm3) }]}>
-                    {routes[0].exposure.dose_ug} µg PM2.5 inhaled
+            ) : options.length > 0 ? (
+              <View>
+                {options.map((o, i) => (
+                  <Pressable
+                    key={o.vehicle}
+                    onPress={() => setSelected(i)}
+                    style={[s.optRow, i === selected && s.optRowSel]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.optLabel}>
+                        {o.label}
+                        {i === 0 ? "  · breathes least" : ""}
+                      </Text>
+                      <Text style={s.optMeta}>
+                        {o.duration_min} min · {o.distance_km} km
+                        {o.exposure?.confidence ? ` · ${o.exposure.confidence}` : ""}
+                      </Text>
+                    </View>
+                    <Text style={[s.optDose, { color: doseColor(o.exposure?.avg_conc_ugm3) }]}>
+                      {o.exposure?.dose_ug != null ? `${o.exposure.dose_ug} µg` : "—"}
+                    </Text>
+                  </Pressable>
+                ))}
+                {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 10 && (
+                  <Text style={s.departHint}>
+                    leave {hourLabel(depart.best.start, depart.best.hours_ahead)} — same trip,{" "}
+                    {depart.ug_saved_vs_now}% less PM2.5
                   </Text>
                 )}
-                <Text style={s.summarySub}>
-                  {routes[0].exposure?.confidence
-                    ? `${routes[0].exposure.confidence} confidence · `
-                    : ""}
-                  {routes.length > 1 ? `${routes.length} routes · ` : ""}live Delhi field
-                </Text>
+                <Text style={s.summarySub}>inhaled PM2.5 · live Delhi field</Text>
               </View>
             ) : (
               <Text style={s.summarySub}>no route found</Text>
@@ -447,7 +450,28 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
+  optRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  optRowSel: { backgroundColor: "rgba(13,148,136,0.10)" },
+  optLabel: { fontSize: 14, fontWeight: "600", color: "#0f172a" },
+  optMeta: { fontSize: 11, color: "#64748b", marginTop: 1 },
+  optDose: { fontSize: 16, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  departHint: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0f766e",
+    textAlign: "center",
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(15,23,42,0.10)",
+  },
   summaryMain: { fontSize: 20, fontWeight: "700", color: "#0f172a", fontVariant: ["tabular-nums"] },
   dose: { fontSize: 16, fontWeight: "800", marginTop: 3, fontVariant: ["tabular-nums"] },
-  summarySub: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  summarySub: { fontSize: 12, color: "#64748b", marginTop: 8, textAlign: "center" },
 });

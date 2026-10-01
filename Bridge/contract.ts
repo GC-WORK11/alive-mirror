@@ -76,10 +76,52 @@ export interface HealthResponse {
   ts: number;
 }
 
+export interface CompareOption {
+  vehicle: string;
+  label: string;
+  mode: VehicleClass;
+  distance_km: number;
+  duration_min: number;
+  duration_s: number;
+  duration_model: "osrm" | "estimated"; // honest flag: non-car times are distance/speed
+  geometry: RouteGeometry;
+  exposure: Exposure;
+}
+
+export interface CompareResponse {
+  options: CompareOption[]; // ranked, best first
+  best: string | null;      // vehicle key of the lowest-dose option
+  field: FieldStatus;
+  error?: string;
+}
+
+export interface DepartSlot {
+  hours_ahead: number;
+  start: string | null;      // ISO hour label
+  dose_ug: number;
+  avg_conc_ugm3: number;
+}
+
+export interface DepartResponse {
+  vehicle: string;
+  mode: VehicleClass;
+  duration_min: number;
+  distance_km: number;
+  now: DepartSlot;
+  best: DepartSlot;
+  worst: DepartSlot;
+  ug_saved_vs_now: number | null; // % less PM2.5 by leaving at best hour
+  slots: DepartSlot[];
+  forecast: { aq_points: number; met_points: number; hours: number; age_s: number | null };
+  error?: string;
+}
+
 export const ENDPOINTS = {
   health: "/health",
   search: "/search",
   route: "/route",
+  compare: "/compare",
+  depart: "/depart",
   reverse: "/reverse",
   aqi: "/aqi",
 } as const;
