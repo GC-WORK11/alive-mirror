@@ -64,6 +64,7 @@ type FieldRead = {
   pm25: number;
   pm10?: number | null;
   nearest_sample_km?: number;
+  typical?: { median: number; vs_now_pct: number | null } | null;
   lat: number;
   lon: number;
 };
@@ -238,7 +239,7 @@ export default function App() {
             const r = await fetch(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`);
             const j = await r.json();
             if (j.pm25 != null)
-              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, lat: c[1], lon: c[0] });
+              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, lat: c[1], lon: c[0] });
           } catch {}
         }}
       >
@@ -378,6 +379,15 @@ export default function App() {
                 ? ` · nearest sample ${fieldRead.nearest_sample_km} km`
                 : ""}
             </Text>
+            {fieldRead.typical?.median != null && (
+              <Text style={s.fieldMeta}>
+                decade median {Math.round(fieldRead.typical.median)} µg/m³ this
+                month·hour
+                {fieldRead.typical.vs_now_pct != null
+                  ? ` · now ${fieldRead.typical.vs_now_pct > 0 ? "+" : ""}${Math.round(fieldRead.typical.vs_now_pct)}%`
+                  : ""}
+              </Text>
+            )}
           </Pressable>
         </View>
       )}
