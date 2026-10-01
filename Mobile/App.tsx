@@ -231,8 +231,7 @@ export default function App() {
         mapStyle={STYLE_URL}
         style={StyleSheet.absoluteFill}
         onPress={async (f) => {
-          const c = (f.nativeEvent as any)?.features?.[0]?.geometry?.coordinates
-            ?? (f.nativeEvent as any)?.coordinates;
+          const c = f.nativeEvent.lngLat;
           if (!c) return;
           try {
             const r = await fetch(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`);
