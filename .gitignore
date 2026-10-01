@@ -6,15 +6,22 @@ node_modules/
 dist/
 web-build/
 
-# generated native projects (Continuous Native Generation — do not hand-edit)
-app/ios/
-app/android/
-
 # builds
 *.apk
 *.aab
 *.ipa
 build/
+.gradle/
+
+# native build artifacts (sources ARE committed under Mobile/android + Mobile/ios)
+Mobile/android/build/
+Mobile/android/app/build/
+Mobile/android/.gradle/
+Mobile/android/local.properties
+Mobile/android/app/release/
+Mobile/ios/Pods/
+Mobile/ios/build/
+Mobile/ios/DerivedData/
 
 # python
 .venv/
