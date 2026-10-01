@@ -12,6 +12,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from airfield import FIELD
+from fires import FIRES
 import exposure
 
 app = FastAPI(title="Delhi-Air-108 API")
@@ -78,11 +79,27 @@ async def search(q: str = Query(min_length=1, max_length=200),
     return {"results": results}
 
 
+# exposure microenv keys the scorer understands (exposure.py MICROENV)
+VEHICLE_TO_EXPOSURE = {
+    "car": "driving_car_ac", "car_ac": "driving_car_ac",
+    "car_open": "driving_car_open", "bike": "driving_two_wheeler",
+    "two_wheeler": "driving_two_wheeler", "scooter": "driving_two_wheeler",
+    "auto": "auto_rickshaw", "rickshaw": "auto_rickshaw",
+    "bus": "bus", "cycle": "cycling", "walk": "walking",
+}
+
+
 @app.get("/route")
 async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
-                profile: str = "driving"):
-    """Real route over the OSM road graph. profile: driving|cycling|walking."""
+                profile: str = "driving", vehicle: Optional[str] = None):
+    """Real route over the OSM road graph + inhaled-PM2.5 dose per option.
+
+    profile: driving|cycling|walking (OSRM). vehicle refines the
+    microenvironment for dose math: car|car_open|bike|auto|bus|cycle|walk.
+    """
     prof = profile if profile in ("driving", "cycling", "walking") else "driving"
+    exposure_mode = VEHICLE_TO_EXPOSURE.get((vehicle or "").lower()) or \
+        ("driving_car_ac" if prof == "driving" else prof)
     url = f"https://router.project-osrm.org/route/v1/{prof}/{from_lon},{from_lat};{to_lon},{to_lat}"
     try:
         r = await http().get(url, params={
@@ -99,7 +116,7 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     options = []
     for rt in data.get("routes", [])[:3]:
         options.append({
-            "mode": prof,
+            "mode": exposure_mode,
             "distance_km": round(rt["distance"] / 1000, 1),
             "duration_min": round(rt["duration"] / 60),
             "duration_s": rt["duration"],
@@ -113,15 +130,19 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
 @app.get("/aqi")
 async def aqi(lat: float, lon: float):
     """Interpolated PM2.5 field value at a point, with provenance."""
-    await FIELD.refresh(http())
+    await asyncio.gather(FIELD.refresh(http()), FIRES.refresh(http()))
+    mod = FIRES.smoke_modifier()
     v = FIELD.value(lat, lon, "pm2_5")
     if v is None:
         return {"pm25": None, "error": "field unavailable"}
     return {
-        "pm25": round(v, 1),
+        "pm25": round(v * mod, 1),
+        "pm25_ambient": round(v, 1),
         "pm10": FIELD.value(lat, lon, "pm10"),
         "no2": FIELD.value(lat, lon, "nitrogen_dioxide"),
         "nearest_sample_km": round(FIELD.nearest_sample_km(lat, lon), 1),
+        "smoke_modifier": mod,
+        "fire": FIRES.status(),
         "field": FIELD.status(),
     }
 
