@@ -101,8 +101,8 @@ const windFrom = (deg: number) => COMPASS[Math.round(deg / 45) % 8];
 const HORIZONS = [0, 6, 12, 24];
 
 const arrivalLabel = (durationMin: number) => {
-  const ist = new Date(Date.now() + 5.5 * 3600 * 1000 + durationMin * 60000);
-  return `${String(ist.getUTCHours()).padStart(2, "0")}:${String(ist.getUTCMinutes()).padStart(2, "0")}`;
+  const d = new Date(Date.now() + durationMin * 60000);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
 const hourLabel = (iso: string | null, ahead: number) => {
@@ -561,7 +561,7 @@ export default function App() {
 
       {/* tapped-point field readout */}
       {fieldRead && !showLedger && (
-        <View style={s.fieldWrap} pointerEvents="box-none">
+        <View style={[s.fieldWrap, options.length > 0 && { bottom: 480 }]} pointerEvents="box-none">
           <Pressable onPress={() => setFieldRead(null)} style={s.fieldChip}>
             <Text style={[s.fieldDose, { color: doseColor(fieldRead.pm25) }]}>
               {Math.round(fieldRead.pm25)} µg/m³

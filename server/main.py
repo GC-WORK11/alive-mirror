@@ -4,6 +4,7 @@ Real data only: search proxies Photon (OpenStreetMap autocomplete),
 routes come from OSRM on the real OSM road graph. No hardcoded places.
 """
 import asyncio
+import math
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -160,6 +161,19 @@ async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float
     return routes[0] if routes else None
 
 
+async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
+    """Route through explicit via-points — used to synthesize alternative
+    geometries the public OSRM demo won't return (it ignores alternatives)."""
+    coords = ";".join(f"{lon},{lat}" for lon, lat in pts)
+    url = f"https://router.project-osrm.org/route/v1/{profile}/{coords}"
+    r = await http().get(url, params={
+        "overview": "full", "geometries": "geojson", "steps": "false",
+    })
+    r.raise_for_status()
+    routes = r.json().get("routes", [])
+    return routes[0] if routes else None
+
+
 # every consumer mode, scored on the geometry that mode actually travels
 COMPARE_MODES = [
     ("driving", "car", "Car (AC)"),
@@ -216,6 +230,19 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
         options.append(metro)
         _rerank(options)
 
+    # quieter-road lever: synthesize alternates by re-routing through
+    # points offset perpendicular to the corridor's midpoint, then keep
+    # the best one if it inhales meaningfully less (the real 5-20%
+    # route-choice lever published for Delhi)
+    if isinstance(geoms["driving"], dict):
+        car = next((o for o in options if o["vehicle"] == "car"), None)
+        if car and car.get("exposure") and car["exposure"].get("dose_ug"):
+            alt = await _quieter_route(from_lon, from_lat, to_lon, to_lat,
+                                       geoms["driving"], car)
+            if alt:
+                options.append(alt)
+                _rerank(options)
+
     _annotate_segments(options)
 
     best = options[0] if options else None
@@ -224,6 +251,46 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
         "best": best.get("vehicle") if best else None,
         "field": FIELD.status(),
     }
+
+
+async def _quieter_route(flon, flat, tlon, tlat, base_rt, car_opt):
+    """Probe via-point routes perpendicular to the direct path; return a
+    'quieter rd' option when one beats the fastest route's dose by >=8%
+    for <=25% extra time."""
+    coords = base_rt["geometry"].get("coordinates", [])
+    if len(coords) < 4:
+        return None
+    mid = coords[len(coords) // 2]
+    dx, dy = tlon - flon, tlat - flat
+    norm = math.hypot(dx, dy) or 1
+    px, py = -dy / norm, dx / norm  # unit perpendicular in deg-space
+    vias = [(mid[0] + px * k, mid[1] + py * k)
+            for k in (0.011, -0.011, 0.02, -0.02)]  # ~1.2km / ~2.2km
+    rts = await asyncio.gather(
+        *[_osrm_via("driving", [(flon, flat), v, (tlon, tlat)]) for v in vias],
+        return_exceptions=True,
+    )
+    base_dose = car_opt["exposure"]["dose_ug"]
+    best = None
+    for rt in rts:
+        if not isinstance(rt, dict):
+            continue
+        dur_s = _scaled_duration_s("car", "driving", rt)
+        if dur_s > car_opt["duration_s"] * 1.25:
+            continue
+        e = exposure.dose(rt["geometry"], dur_s, VEHICLE_TO_EXPOSURE["car"],
+                          FIELD.value, FIELD.nearest_sample_km)
+        if e.get("dose_ug") and e["dose_ug"] <= base_dose * 0.92:
+            if best is None or e["dose_ug"] < best["exposure"]["dose_ug"]:
+                best = {
+                    "vehicle": "car", "label": "Car (AC) · quieter rd",
+                    "mode": VEHICLE_TO_EXPOSURE["car"],
+                    "distance_km": round(rt["distance"] / 1000, 1),
+                    "duration_min": round(dur_s / 60), "duration_s": dur_s,
+                    "duration_model": "osrm",
+                    "geometry": rt["geometry"], "exposure": e,
+                }
+    return best
 
 
 def _rerank(options: list) -> None:
