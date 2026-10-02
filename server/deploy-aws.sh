@@ -112,15 +112,27 @@ else
   EIP=$(aws ec2 describe-addresses --query 'Addresses[0].PublicIp' --output text)
 fi
 
-# re-register the CURRENT task's private IP (deregister the stale one)
-TASK=$(aws ecs list-tasks --cluster alive108 --service-name alive108 \
-  --query 'taskArns[0]' --output text)
-PRIV=$(aws ecs describe-tasks --cluster alive108 --tasks $TASK \
-  --query 'tasks[0].containers[0].networkInterfaces[0].privateIpv4Address' \
+# re-register the CURRENT task's private IP: the newest RUNNING task —
+# list-tasks ordering is not guaranteed, the old task can come first
+TASKS=$(aws ecs list-tasks --cluster alive108 --service-name alive108 \
+  --desired-status RUNNING --query 'taskArns' --output text)
+PRIV=$(aws ecs describe-tasks --cluster alive108 --tasks $TASKS \
+  --query 'sort_by(tasks, &createdAt)[-1].containers[0].networkInterfaces[0].privateIpv4Address' \
   --output text)
-OLD=$(aws elbv2 describe-target-health --target-group-arn $TG \
-  --query 'TargetHealthDescriptions[0].Target.Id' --output text 2>/dev/null)
-[ "$OLD" != "None" ] && [ -n "$OLD" ] && [ "$OLD" != "$PRIV" ] && \
-  aws elbv2 deregister-targets --target-group-arn $TG --targets Id=$OLD,Port=8080 || true
+
+# deregister EVERY stale target, not just the first
+for OLD in $(aws elbv2 describe-target-health --target-group-arn $TG \
+  --query 'TargetHealthDescriptions[*].Target.Id' --output text); do
+  [ "$OLD" != "$PRIV" ] && \
+    aws elbv2 deregister-targets --target-group-arn $TG --targets Id=$OLD,Port=8080
+done
 aws elbv2 register-targets --target-group-arn $TG --targets Id=$PRIV,Port=8080
+
+# wait until the new target is healthy before declaring done
+for i in $(seq 1 10); do
+  S=$(aws elbv2 describe-target-health --target-group-arn $TG --targets Id=$PRIV,Port=8080 \
+    --query 'TargetHealthDescriptions[0].TargetHealth.State' --output text)
+  [ "$S" = "healthy" ] && break
+  sleep 12
+done
 echo "STABLE -> http://$EIP  (try /health, /aqi, /decide, /admin)"
