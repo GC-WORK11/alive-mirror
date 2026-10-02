@@ -1,0 +1,12 @@
+{
+ "pulled_at_utc": "2026-10-02T18:37:29+00:00",
+ "source": "s3://openaq-data-archive/records/csv.gz (anonymous HTTPS)",
+ "note": "archive lags ~1-2 days \u2014 validation source, not a live feed",
+ "stations_with_data": 86,
+ "stations_registry": 125,
+ "day_files": 348,
+ "rows": 51593,
+ "freshest": "2026-09-30T00:00:00+05:30",
+ "oldest": "2026-09-21T01:00:00+05:30",
+ "elapsed_s": 5.8
+}
