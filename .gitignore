@@ -36,3 +36,4 @@ __pycache__/
 # os / editor
 .DS_Store
 *.log
+server/data/community.json
