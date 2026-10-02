@@ -18,6 +18,8 @@ from forecast import FORECAST
 import transit
 import exposure
 import history
+import segments
+import grid
 
 app = FastAPI(title="Delhi-Air-108 API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -130,7 +132,20 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
         })
 
     exposure.compare(options, FIELD.value, FIELD.nearest_sample_km)
+    _annotate_segments(options)
     return {"routes": options, "field": FIELD.status()}
+
+
+def _annotate_segments(options: list) -> None:
+    """Per-option hot-zone decomposition for the route's colour ramp."""
+    for o in options:
+        if not o.get("geometry"):
+            continue
+        segs = segments.segment_doses(
+            o["geometry"], o.get("duration_s", 0), o.get("mode", ""),
+            FIELD.value)
+        o["segments"] = segs
+        o["hotspots"] = segments.hotspots(segs)
 
 
 async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float):
@@ -199,6 +214,8 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
     if metro:
         options.append(metro)
         _rerank(options)
+
+    _annotate_segments(options)
 
     best = options[0] if options else None
     return {
@@ -341,6 +358,14 @@ async def today(lat: float, lon: float):
         "hours_ist": curve,
         "source": "openaq-s3-climatology",
     }
+
+
+@app.get("/grid")
+async def field_grid(cells: int = Query(default=22, le=40)):
+    """The live PM2.5 surface as GeoJSON cells — the map's colour layer.
+    Confidence per cell degrades with distance to the nearest sample."""
+    await FIELD.refresh(http())
+    return grid.as_geojson(FIELD, cells)
 
 
 @app.get("/reverse")
