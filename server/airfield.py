@@ -10,6 +10,7 @@ measurements get blended in with higher weight than the model grid.
 """
 import asyncio
 import math
+import os
 import time
 from typing import Optional
 
@@ -17,6 +18,7 @@ import httpx
 
 OPEN_METEO = "https://air-quality-api.open-meteo.com/v1/air-quality"
 METEO = "https://api.open-meteo.com/v1/forecast"
+OPENAQ = "https://api.openaq.org/v3"
 POLLUTANTS = "pm2_5,pm10,nitrogen_dioxide,ozone"
 CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
 
@@ -86,6 +88,7 @@ class AirField:
         self._fetched_at: float = 0.0
         self._wind: tuple = (0.0, 0.0)  # (speed km/h, FROM-direction deg)
         self._source = "open-meteo/cams"
+        self._station_count = 0  # live OpenAQ sensor readings blended in
         self._lock = asyncio.Lock()
 
     async def refresh(self, client: httpx.AsyncClient, force: bool = False) -> None:
@@ -112,13 +115,96 @@ class AirField:
                     except httpx.HTTPError:
                         pass
 
+            stations = await self._grab_openaq(client)
             await asyncio.gather(
                 *(grab(lat, lon, name) for lat, lon, name in pts),
                 self._grab_wind(client),
             )
             if results:
-                self._samples = results
+                self._samples = results + stations
+                self._station_count = len(stations)
+                if stations:
+                    self._source = "openaq-stations+open-meteo/cams"
                 self._fetched_at = time.time()
+
+    async def _grab_openaq(self, client: httpx.AsyncClient) -> list:
+        """Real government CAAQMS readings via OpenAQ v3 (X-API-Key).
+
+        The model grid interpolates between ~40 synthetic points; these are
+        actual instruments measuring actual Delhi air right now. Each one
+        enters the IDW with the station 3x weight and its real name, so
+        near a working station the field follows the instrument, not the
+        model. Returns [] without a key or on any API failure — the model
+        field stands alone as before.
+        """
+        key = os.environ.get("OPENAQ_API_KEY")
+        if not key:
+            return []
+        headers = {"X-API-Key": key}
+        locations = []
+        for attempt in range(3):
+            try:
+                r = await client.get(f"{OPENAQ}/locations", headers=headers, params={
+                    "bbox": f"{BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]}",
+                    "parameters_id": 2, "limit": 200,
+                })
+                if r.status_code == 429:
+                    await asyncio.sleep(8 * (attempt + 1))
+                    continue
+                r.raise_for_status()
+                locations = r.json().get("results", [])
+                break
+            except httpx.HTTPError:
+                return []
+
+        pm25_sensors: dict[int, dict] = {}  # sensorsId -> {"lat","lon","name"}
+        for loc in locations:
+            coords = loc.get("coordinates") or {}
+            for s in loc.get("sensors", []):
+                if (s.get("parameter") or {}).get("id") == 2:
+                    pm25_sensors[s["id"]] = {
+                        "lat": coords.get("latitude"),
+                        "lon": coords.get("longitude"),
+                        "name": loc.get("name") or f"station {loc.get('id')}",
+                        "loc_id": loc["id"],
+                    }
+        if not pm25_sensors:
+            return []
+
+        loc_ids = sorted({v["loc_id"] for v in pm25_sensors.values()})
+        sem = asyncio.Semaphore(12)
+        out: list = []
+
+        async def latest(loc_id: int):
+            async with sem:
+                try:
+                    for attempt in range(3):
+                        r = await client.get(
+                            f"{OPENAQ}/locations/{loc_id}/latest",
+                            headers=headers, params={"limit": 100})
+                        if r.status_code == 429:
+                            await asyncio.sleep(6 * (attempt + 1))
+                            continue
+                        break
+                    r.raise_for_status()
+                    # multiple pm2.5 instruments can sit at one site (e.g.
+                    # reference + low-cost) — keep the freshest reading
+                    best: dict = {}
+                    for m in r.json().get("results", []):
+                        meta = pm25_sensors.get(m.get("sensorsId"))
+                        v = m.get("value")
+                        if meta and v is not None and 0 <= v <= 1500:
+                            ts = (m.get("datetime") or {}).get("utc") or ""
+                            if not best or ts > best["ts"]:
+                                best = {"ts": ts, "meta": meta, "v": float(v)}
+                    if best:
+                        out.append((best["meta"]["lat"], best["meta"]["lon"],
+                                    best["meta"]["name"], {"pm2_5": best["v"]}))
+                except httpx.HTTPError:
+                    pass
+
+        await asyncio.gather(*(latest(l) for l in loc_ids))
+        return out
 
     async def _grab_wind(self, client: httpx.AsyncClient) -> None:
         """Boundary-layer wind over NCR centre — drives the directional
@@ -192,6 +278,7 @@ class AirField:
         return {
             "source": self._source,
             "samples": len(self._samples),
+            "station_readings": self._station_count,
             "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
             "wind": self.wind(),
         }
