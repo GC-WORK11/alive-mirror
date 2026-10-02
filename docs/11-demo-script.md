@@ -1,68 +1,78 @@
-# ALive-108 — 3-minute demo video script
+# ALive-108 — 3-minute demo video script (v2, matches shipped product)
 
 Judging sees a recorded video, not a live demo. Every number below is a
 real verified response from the server (numbers drift with the live
-field — re-verify on recording day).
+field — re-verify on recording day). Verified today (Oct 1, uniform
+58–74 µg/m³ field): Car AC 2.9 µg → on foot 89.7 µg, depart −83%,
+ledger 11.5 µg / 0.04 cig-eq / avoided 167.9 µg.
 
 ## Beats (≈180 s)
 
-**0:00–0:20 — the problem, in one breath**
-Voiceover over a Delhi smog shot or the app's live field chip:
-"Every Delhi commuter does this twice a day. Nobody checks what the trip
-puts in their lungs — because nobody could. Today they can."
-On screen: tap the map → floating chip "82 µg/m³ · PM2.5 here · live
-field · nearest sample 1.3 km".
+**0:00–0:18 — the problem, in one breath**
+Voiceover over the app's live field (cells tint the map red where the
+air sits): "Every Delhi commuter does this twice a day. Nobody checks
+what the trip puts in their lungs — because nobody could."
+On screen: tap the map → chip "67 µg/m³ · PM2.5 here · nearest sample
+1.3 km".
 
-**0:20–0:50 — the check that doesn't exist anywhere**
-Type FROM: Karol Bagh → TO: India Gate. Real suggestions appear —
-down to personal addresses (Photon over OSM). Say: "not a dashboard.
-A decision."
+**0:18–0:45 — a decision, not a dashboard**
+Type FROM: Karol Bagh → TO: India Gate. Real Photon suggestions down to
+street addresses. Route draws — and it's *coloured by dose*, segment by
+segment (slate→crimson→dark-red): the trip as a hot-zone map.
 
-**0:50–1:30 — the dose card (the money shot)**
-The ranked list fills in, live:
+**0:45–1:25 — the dose card (money shot)**
+8 options sorted by actual inhaled mass:
 
 | Option | Inhaled PM2.5 |
 |---|---|
-| Car (AC) | 3.2–3.8 µg — "breathes least" |
-| Car (windows down) | ~5 µg |
-| Bike | ~7.4 µg |
-| Bus | ~7.4 µg |
-| Auto | ~10.1 µg |
-| Metro + walk | ~37.7 µg (Karol Bagh → Mandi House stations shown) |
-| Bicycle | ~62.7 µg |
-| On foot | ~108.9 µg |
+| Car (AC) | 2.9 µg — "least inhaled" |
+| Car (windows down) | 4.2 µg |
+| Bike / Bus | 6.3 µg |
+| Auto-rickshaw | 8.6 µg |
+| Metro + walk | 31.5 µg (station names shown) |
+| Bicycle | 51.7 µg |
+| On foot | 89.7 µg — 31× the car |
 
-Voiceover: "Every number is real — breathing-zone ratios measured on
-Delhi roads, your ventilation by exertion, ambient concentration from
-live CPCB anchors + CAMS model grid. Tap 'why?' — see the physics."
-Open the why-expander on screen.
+Voiceover: "Breathing-zone ratios measured on Delhi roads, your
+ventilation by exertion, live field from CPCB anchors + CAMS grid. Tap
+'why?' — the physics is on screen." Open why-expander. Then tap Auto —
+the whole polyline repaints crimson.
 
-**1:30–2:10 — time as a lever**
-"leave 12:30 — same trip, 86% less PM2.5" hint under the card.
-Voiceover: "Delhi's boundary layer collapses overnight and traps
-pollution. We model it hourly for five days ahead — the app tells you
-when the same trip costs less." (Longer trip → metro can win on dose;
-show Karol Bagh → Noida for contrast if time allows: metro 28 µg vs
-auto ~75 µg.)
+**1:25–2:05 — the Lung Ledger (the product)**
+Tap "today" pill. Sheet rises: **11.5 µg inhaled today · 0.04
+cigarette-equivalents · 5% of the ~216 µg daily budget · avoided
+167.9 µg** + the 24-hour decade-median curve (current IST hour lit).
+Voiceover: "Every trip rolls into your lung account — cigarettes, not
+abstract AQI. That's Berkeley Earth math. And 'avoided' is the number
+that matters: real µg this commuter did NOT inhale because they picked
+the car over the walk."
+(For the walk commute it's the reverse pitch: the ledger makes the
+invisible cost visible — that's the point.)
 
-**2:10–2:45 — honesty as the feature**
-"AQI apps show you a number that happened an hour ago, at a station
-kilometres away, and call it real-time. We show where every number
-comes from: measured 40 min ago at RK Puram, 1.2 km away — and when the
-field is thin, confidence drops on screen instead of being hidden."
-Show a confidence: medium/low row or the field-status line.
+**2:05–2:35 — time as a lever + ambient**
+"leave 12:30 — same trip, 83% less PM2.5" → tap **remind me** → real
+iOS notification permission → "set ✓". Then crescent → **Ambient
+Mode**: black screen, clock, giant PM2.5, "breathe least at 12:30".
+Voiceover: "Delhi's boundary layer traps pollution overnight; we model
+it hourly five days out. Your phone tells you when the same trip costs
+less — then keeps it on the glass where you glance."
 
-**2:45–3:00 — close**
-"This is ALive-108: a dose engine for Delhi. Same map apps use —
-checked against your lungs." End card: repo link + 'real data only —
-every µg traceable'.
+**2:35–3:00 — honesty close**
+Tap a thin-field point → confidence drops, "nearest sample X km" shows.
+"AQI apps show a number from an hour ago at a station kilometres away
+and call it real-time. We show where every number comes from — and when
+the field is thin, confidence drops instead of hiding. Real data only:
+every µg traceable." End card: repo + tagline.
 
 ## Recording notes
 
-- iOS sim or Android emulator, light theme, notifications off.
-- Server locally: `server/.venv312/bin/uvicorn main:app --port 8000`.
-- Metro: `cd Mobile && npx expo start` (never under `CI=1` — kills
-  watch mode and serves stale bundles).
-- Re-verify the day's numbers first: `curl
-  "localhost:8000/compare?from_lat=28.6517&from_lon=77.1907&to_lat=28.6129&to_lon=77.2295"`.
-- Keep the video to live numbers — never overlay fabricated doses.
+- iOS sim or Android emulator, light theme. Server:
+  `server/.venv312/bin/uvicorn main:app --port 8000`. Metro:
+  `cd Mobile && npx expo start` (never `CI=1`).
+- Text input on sim: `xcrun simctl pbcopy <udid>` + Cmd+V (typing drops
+  chars).
+- Re-verify day-of numbers:
+  `curl "localhost:8000/compare?from_lat=28.6517&from_lon=77.1907&to_lat=28.6129&to_lon=77.2295"`
+- Mixed-colour segment spans need a non-uniform PM day; on uniform days
+  the whole line is one bin — that's honest, narrate it as such.
+- Never overlay fabricated doses. Ever.
