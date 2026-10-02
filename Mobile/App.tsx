@@ -315,18 +315,21 @@ export default function App() {
     const segs = options[selected]?.segments;
     if (!segs?.length) {
       const g = options[selected]?.geometry;
+      const ok = g && (g.type === "LineString" || g.type === "MultiLineString");
       return {
         type: "FeatureCollection",
-        features: g ? [{ type: "Feature", properties: { color: T.accent }, geometry: g }] : [],
+        features: ok ? [{ type: "Feature", properties: { color: T.accent }, geometry: g! }] : [],
       };
     }
     return {
       type: "FeatureCollection",
-      features: segs.map((sg) => ({
-        type: "Feature" as const,
-        properties: { color: sg.color },
-        geometry: { type: "LineString" as const, coordinates: sg.coords },
-      })),
+      features: segs
+        .filter((sg) => Array.isArray(sg.coords) && sg.coords.length >= 2)
+        .map((sg) => ({
+          type: "Feature" as const,
+          properties: { color: sg.color },
+          geometry: { type: "LineString" as const, coordinates: sg.coords },
+        })),
     };
   }, [options, selected]);
 
@@ -474,7 +477,7 @@ export default function App() {
       <View style={s.horizonWrap}>
         {HORIZONS.map((h) => (
           <Pressable key={h} onPress={() => scrubField(h)}
-            style={[s.hChip, horizonH === h && s.hChipOn]}>
+            style={({ pressed }) => [s.hChip, horizonH === h && s.hChipOn, pressed && s.chipPressed]}>
             <Text style={[s.hTxt, horizonH === h && s.hTxtOn]}>
               {h === 0 ? "now" : `+${h}h`}
             </Text>
@@ -486,15 +489,15 @@ export default function App() {
       {/* top-right: journey drawer, ledger, ambient */}
       {!active && (
       <View style={s.topRight}>
-        <Pressable onPress={() => setDrawerOpen(true)} style={s.aodBtn} hitSlop={10}>
+        <Pressable onPress={() => setDrawerOpen(true)} style={({ pressed }) => [s.aodBtn, pressed && s.chipPressed]} hitSlop={10}>
           <Text style={s.aodGlyph}>☰</Text>
         </Pressable>
-        <Pressable onPress={openLedger} style={s.todayPill}>
+        <Pressable onPress={openLedger} style={({ pressed }) => [s.todayPill, pressed && s.chipPressed]}>
           <Text style={s.todayTxt}>
             today {ledger.todayUg > 0 ? `${ledger.todayUg} µg` : "0 µg"}
           </Text>
         </Pressable>
-        <Pressable onPress={openAmbient} style={s.aodBtn} hitSlop={10}>
+        <Pressable onPress={openAmbient} style={({ pressed }) => [s.aodBtn, pressed && s.chipPressed]} hitSlop={10}>
           <View style={s.aodCrescent}><View style={s.aodHalf} /></View>
         </Pressable>
       </View>
@@ -510,11 +513,11 @@ export default function App() {
       {!active && !drawerOpen && (
         <View style={s.fabCol}>
           {hasLoc && (
-            <Pressable style={[s.fab, follow && s.fabOn]} onPress={() => setFollow(!follow)}>
+            <Pressable style={({ pressed }) => [s.fab, follow && s.fabOn, pressed && s.chipPressed]} onPress={() => setFollow(!follow)}>
               <Text style={[s.fabGlyph, follow && s.fabGlyphOn]}>⌖</Text>
             </Pressable>
           )}
-          <Pressable style={s.fab} onPress={() => setReportMode(!reportMode)}>
+          <Pressable style={({ pressed }) => [s.fab, pressed && s.chipPressed]} onPress={() => setReportMode(!reportMode)}>
             <Text style={s.fabGlyph}>◍</Text>
           </Pressable>
         </View>
@@ -525,7 +528,7 @@ export default function App() {
           <Text style={s.reportTitle}>report the air where you are</Text>
           <View style={s.reportRow}>
             {(["dust", "smoke", "burning", "clean"] as ReportKind[]).map((k) => (
-              <Pressable key={k} style={s.reportOpt} onPress={() => sendReport(k)}>
+              <Pressable key={k} style={({ pressed }) => [s.reportOpt, pressed && s.chipPressed]} onPress={() => sendReport(k)}>
                 <Text style={s.reportOptTxt}>{k === "clean" ? "clean air" : k}</Text>
               </Pressable>
             ))}
@@ -580,7 +583,7 @@ export default function App() {
                 <ScrollView style={{ maxHeight: 246 }} showsVerticalScrollIndicator={false}>
                   {options.map((o, i) => (
                     <Pressable key={o.vehicle} onPress={() => setSelected(i)}
-                      style={[s.optRow, i === selected && s.optRowSel]}>
+                      style={({ pressed }) => [s.optRow, i === selected && s.optRowSel, pressed && s.chipPressed]}>
                       <View style={{ flex: 1 }}>
                         <Text style={s.optLabel}>
                           {o.label}
@@ -688,6 +691,7 @@ const s = StyleSheet.create({
   hChipOn: { backgroundColor: T.accentSoft, borderColor: T.accent },
   hTxt: { fontFamily: F.med, fontSize: 11.5, color: T.ink2 },
   hTxtOn: { color: T.accent },
+  chipPressed: { backgroundColor: "rgba(15,118,110,0.18)", transform: [{ scale: 0.96 }] },
   todayPill: {
     backgroundColor: T.glass, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: T.glassBorder,

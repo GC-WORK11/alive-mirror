@@ -23,10 +23,15 @@ export function JourneyDrawer({ week, today, community, onClose }: Props) {
     <>
       <Pressable style={s.scrim} onPress={onClose} />
       <Animated.View style={[s.drawer, { transform: [{ translateX: slide }] }]}>
-        <Text style={s.title}>journey</Text>
+        <Text style={s.title}>your journeys</Text>
         <Text style={s.sub}>
-          {week.totalTrips} trips · this week {week.weekUg} µg · {week.weekCigEq} cig-equiv
-          {week.weekAvoided > 0 ? ` · avoided ${week.weekAvoided} µg` : ""}
+          ALive-108 shows how much pollution you actually breathe on every trip —
+          and turns your journeys into a shared air map for Delhi.
+        </Text>
+        <Text style={s.sub}>
+          this week: {week.totalTrips} trips · {week.weekUg} µg breathed
+          (about {week.weekCigEq} cigarettes)
+          {week.weekAvoided > 0 ? ` · you avoided ${week.weekAvoided} µg` : ""}
         </Text>
 
         <View style={s.weekRow}>
@@ -46,7 +51,7 @@ export function JourneyDrawer({ week, today, community, onClose }: Props) {
 
         <Text style={s.section}>today</Text>
         <ScrollView style={s.trips} showsVerticalScrollIndicator={false}>
-          {today.length === 0 && <Text style={s.sub}>no journeys yet — set a route</Text>}
+          {today.length === 0 && <Text style={s.sub}>no journeys yet — pick a route on the map</Text>}
           {today.map((t, i) => (
             <View key={i} style={s.trip}>
               <Text style={s.tripTxt} numberOfLines={1}>{t.label} · {t.from} → {t.to}</Text>
@@ -57,15 +62,16 @@ export function JourneyDrawer({ week, today, community, onClose }: Props) {
 
         {community && (
           <View style={s.city}>
-            <Text style={s.section}>delhi breathes</Text>
+            <Text style={s.section}>what you gave delhi</Text>
             <Text style={s.sub}>
-              {community.contributors} contributors · {community.km_24h} km logged today ·{" "}
-              {community.avoided_ug_24h} µg avoided
+              every trip you take joins a shared air map built by people like you —
+              {community.contributors} contributors logged {community.km_24h} km today,
+              avoiding {community.avoided_ug_24h} µg of pollution together.
             </Text>
             <Text style={s.sub}>
               {community.active_reports > 0
-                ? `${community.active_reports} air reports live`
-                : "no air reports right now — flag dust, smoke or clean air"}
+                ? `${community.active_reports} air reports live on the map`
+                : "spot dust, smoke or clean air? flag it with the ◍ button"}
             </Text>
           </View>
         )}
