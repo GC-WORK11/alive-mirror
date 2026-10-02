@@ -101,6 +101,57 @@ def reports_geojson() -> dict:
     return {"type": "FeatureCollection", "features": feats}
 
 
+def contributors_detail() -> list[dict]:
+    """Per-contributor rollup for the admin dashboard — anon ids only."""
+    _load()
+    by: dict = {}
+    for o in _obs:
+        c = by.setdefault(o["contributor"] or "anon", {
+            "trips": 0, "dose_ug": 0.0, "avoided_ug": 0.0,
+            "km": 0.0, "last_ts": 0, "modes": set(),
+        })
+        c["trips"] += 1
+        c["dose_ug"] += o["dose_ug"] or 0
+        c["avoided_ug"] += o["avoided_ug"] or 0
+        c["last_ts"] = max(c["last_ts"], o["ts"])
+        c["modes"].add(o["vehicle"])
+        pts = o["points"]
+        for a, b in zip(pts, pts[1:]):
+            c["km"] += 6371 * 2 * math.asin(min(1, math.sqrt(
+                math.sin(math.radians(b[1] - a[1]) / 2) ** 2 +
+                math.cos(math.radians(a[1])) * math.cos(math.radians(b[1])) *
+                math.sin(math.radians(b[0] - a[0]) / 2) ** 2)))
+    out = [{
+        "contributor": k,
+        "trips": v["trips"], "km": round(v["km"], 1),
+        "dose_ug": round(v["dose_ug"], 1), "avoided_ug": round(v["avoided_ug"], 1),
+        "last_seen_min_ago": round((time.time() - v["last_ts"]) / 60),
+        "modes": sorted(v["modes"]),
+    } for k, v in by.items()]
+    out.sort(key=lambda x: x["last_seen_min_ago"])
+    return out
+
+
+def recent_obs(limit: int = 20) -> list[dict]:
+    _load()
+    return [{
+        "ts": o["ts"], "age_min": round((time.time() - o["ts"]) / 60, 1),
+        "vehicle": o["vehicle"], "duration_s": o["duration_s"],
+        "dose_ug": o["dose_ug"], "avoided_ug": o["avoided_ug"],
+        "contributor": o["contributor"],
+    } for o in _obs[-limit:]][::-1]
+
+
+def live_reports() -> list[dict]:
+    _load()
+    _prune_reports()
+    return [{
+        "kind": r["kind"], "lat": r["lat"], "lon": r["lon"],
+        "age_min": round((time.time() - r["ts"]) / 60),
+        "contributor": r.get("contributor"),
+    } for r in _reports]
+
+
 def _cell(lon: float, lat: float) -> tuple[float, float]:
     """~500m snap — groups traversals into corridors."""
     return (round(lon / 0.005) * 0.005, round(lat / 0.005) * 0.005)

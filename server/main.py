@@ -22,6 +22,7 @@ import history
 import segments
 import grid
 import community
+import decide
 
 app = FastAPI(title="Delhi-Air-108 API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -34,6 +35,7 @@ DELHI_CENTER = {"lat": 28.6139, "lon": 77.2090}
 NCR_BBOX = "76.80,28.20,77.90,28.95"
 
 _http: Optional[httpx.AsyncClient] = None
+_BOOT_TS = time.time()
 
 
 def http() -> httpx.AsyncClient:
@@ -492,6 +494,50 @@ async def reports():
 @app.get("/community")
 async def community_totals():
     return community.totals()
+
+
+@app.get("/decide")
+async def decide_route(from_lat: float, from_lon: float, to_lat: float, to_lon: float):
+    """The recommendation endpoint: same options as /compare, each scored
+    safety-first (mode crash-risk tier) then dose then time, with a
+    plain-English reason per option."""
+    base = await compare_modes(from_lat, from_lon, to_lat, to_lon)
+    if not base.get("options"):
+        return base
+    ranked = decide.rank(base["options"])
+    return {
+        "options": ranked["options"],
+        "pick": ranked["decision"].get("label") if ranked["decision"] else None,
+        "best": base.get("best"),
+        "field": base.get("field"),
+    }
+
+
+@app.get("/admin/api")
+async def admin_api():
+    """Live ops snapshot for the admin dashboard — anon ids only."""
+    thirty_min = 30
+    contributors = community.contributors_detail()
+    return {
+        "ts": time.time(),
+        "uptime_s": round(time.time() - _BOOT_TS),
+        "live_users": sum(1 for c in contributors
+                        if c["last_seen_min_ago"] <= thirty_min),
+        "field": FIELD.status(),
+        "fire": FIRES.status(),
+        "community": community.totals(),
+        "corridors": community.corridors(10),
+        "contributors": contributors,
+        "recent_journeys": community.recent_obs(20),
+        "reports": community.live_reports(),
+    }
+
+
+@app.get("/admin")
+async def admin_page():
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(os.path.join(os.path.dirname(__file__), "admin.html"))
 
 
 @app.get("/reverse")

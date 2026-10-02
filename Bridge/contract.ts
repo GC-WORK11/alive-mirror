@@ -99,6 +99,18 @@ export interface CompareResponse {
   error?: string;
 }
 
+export interface DecideResponse {
+  options: CompareOption[]; // safety-first ranked (dose+risk+time)
+  pick: string | null;      // label of the recommended option
+  best: string | null;
+  field: FieldStatus;
+  error?: string;
+}
+
+// CompareOption gains, when served via /decide:
+//   decision_score?: number    // 0-100, higher is better
+//   decision_reasons?: string[] // plain-English, e.g. "safest mode class"
+
 export interface DepartSlot {
   hours_ahead: number;
   start: string | null;      // ISO hour label

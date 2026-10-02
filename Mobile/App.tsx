@@ -66,6 +66,8 @@ type Exposure = {
 };
 type Seg = { start_frac: number; end_frac: number; dose_ug: number | null; avg_conc_ugm3: number | null; color: string; coords: number[][] };
 type CompareOption = {
+  decision_score?: number;
+  decision_reasons?: string[];
   vehicle: string;
   label: string;
   distance_km: number;
@@ -260,7 +262,7 @@ export default function App() {
       try {
         const qs = `from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}`;
         const [cr, dr] = await Promise.all([
-          fetch(`${API}/compare?${qs}`),
+          fetch(`${API}/decide?${qs}`),
           fetch(`${API}/depart?${qs}&vehicle=auto&hours=24`),
         ]);
         const [cj, dj] = await Promise.all([cr.json(), dr.json()]);
@@ -607,13 +609,16 @@ export default function App() {
               <View>
                 <ScrollView style={{ maxHeight: 246 }} showsVerticalScrollIndicator={false}>
                   {options.map((o, i) => (
-                    <Pressable key={o.vehicle} onPress={() => setSelected(i)}
+                    <Pressable key={`${o.vehicle}-${i}`} onPress={() => setSelected(i)}
                       style={({ pressed }) => [s.optRow, i === selected && s.optRowSel, pressed && s.chipPressed]}>
                       <View style={{ flex: 1 }}>
                         <Text style={s.optLabel}>
                           {o.label}
-                          {i === 0 ? <Text style={s.bestTag}>  least inhaled</Text> : null}
+                          {i === 0 ? <Text style={s.bestTag}>  recommended</Text> : null}
                         </Text>
+                        {o.decision_reasons?.length ? (
+                          <Text style={s.optReason}>{o.decision_reasons.join(" · ")}</Text>
+                        ) : null}
                         <Text style={s.optMeta}>
                           {o.duration_min} min · {o.distance_km} km
                           {o.exposure?.confidence ? ` · ${o.exposure.confidence}` : ""}
@@ -782,6 +787,7 @@ const s = StyleSheet.create({
   optLabel: { fontFamily: F.semi, fontSize: 14, color: T.ink },
   bestTag: { fontFamily: F.med, fontSize: 11, color: T.accent },
   optMeta: { fontFamily: F.reg, fontSize: 11, color: T.ink2, marginTop: 1 },
+  optReason: { fontFamily: F.med, fontSize: 10.5, color: T.accent, marginTop: 1 },
   optDose: { fontFamily: F.bold, fontSize: 16, fontVariant: ["tabular-nums"] },
   departRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

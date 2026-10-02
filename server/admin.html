@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ALive-108 · ops</title>
+<style>
+  :root { --ink:#1c1917; --ink2:#57534e; --ink3:#a8a29e; --paper:#f7f6f3;
+          --card:#fff; --line:rgba(28,25,23,.08); --accent:#0f766e; --rose:#9f1239; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font:14px/1.5 -apple-system,"SF Pro Text","Segoe UI",sans-serif;
+         background:var(--paper); color:var(--ink); padding:28px; }
+  h1 { font-size:22px; font-weight:600; letter-spacing:-.02em; }
+  .sub { color:var(--ink2); font-size:12px; margin-top:2px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+          gap:10px; margin:20px 0 26px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+          padding:14px 16px; }
+  .num { font-size:26px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .lbl { font-size:11px; color:var(--ink3); text-transform:uppercase; letter-spacing:.08em; margin-top:2px; }
+  .accent { color:var(--accent); } .rose { color:var(--rose); }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.1em;
+       color:var(--ink3); margin:22px 0 8px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; background:var(--card);
+          border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  th { text-align:left; font-size:11px; color:var(--ink3); font-weight:500;
+       padding:9px 14px; border-bottom:1px solid var(--line); text-transform:uppercase; letter-spacing:.06em; }
+  td { padding:9px 14px; border-bottom:1px solid var(--line); font-size:13px; }
+  tr:last-child td { border-bottom:none; }
+  .pill { display:inline-block; padding:1px 9px; border-radius:99px; font-size:11px;
+          background:rgba(15,118,110,.1); color:var(--accent); font-weight:500; }
+  .muted { color:var(--ink3); font-size:12px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:4px; margin-right:6px; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:10px 26px; }
+  @media(max-width:900px){ .cols{grid-template-columns:1fr} }
+  footer { margin-top:26px; color:var(--ink3); font-size:11px; }
+</style>
+</head>
+<body>
+<h1>ALive-108 · ops</h1>
+<div class="sub" id="stamp">connecting…</div>
+
+<div class="grid" id="stats"></div>
+
+<div class="cols">
+  <div>
+    <h2>contributors</h2>
+    <table><thead><tr><th>id</th><th>last seen</th><th>trips</th><th>km</th><th>avoided</th></tr></thead>
+    <tbody id="contrib"></tbody></table>
+  </div>
+  <div>
+    <h2>top corridors</h2>
+    <table><thead><tr><th>cell</th><th>samples</th><th>avg dose</th><th>top mode</th></tr></thead>
+    <tbody id="corridors"></tbody></table>
+  </div>
+</div>
+
+<h2>recent journeys</h2>
+<table><thead><tr><th>when</th><th>mode</th><th>duration</th><th>dose</th><th>avoided</th><th>contributor</th></tr></thead>
+<tbody id="journeys"></tbody></table>
+
+<h2>live hazard reports</h2>
+<table><thead><tr><th>kind</th><th>location</th><th>age</th><th>reporter</th></tr></thead>
+<tbody id="reports"></tbody></table>
+
+<footer>ALive-108 ops · auto-refresh 10s · all identifiers are anonymous device ids</footer>
+
+<script>
+const fmt = n => n == null ? "—" : (n >= 1000 ? (n/1000).toFixed(1)+"k" : n);
+const ago = m => m == null ? "—" : m < 1 ? "now" : m < 60 ? `${Math.round(m)}m ago` : `${Math.round(m/60)}h ago`;
+
+async function tick() {
+  try {
+    const d = await (await fetch("/admin/api")).json();
+    const c = d.community || {};
+    document.getElementById("stamp").textContent =
+      `uptime ${Math.floor(d.uptime_s/60)} min · field: ${d.field.samples} samples, ${d.field.source}, ${Math.round((d.field.age_s||0)/60)} min old` +
+      (d.field.wind ? ` · wind ${d.field.wind.speed_kmh} km/h` : "") +
+      ` · fires: ${d.fire.status || d.fire.active_fires || "n/a"}`;
+    const stats = [
+      [d.live_users, "live users (30m)", "accent"],
+      [c.contributors, "contributors", ""],
+      [c.obs_total, "journeys stored", ""],
+      [c.km_24h, "km logged 24h", ""],
+      [fmt(c.avoided_ug_all), "µg avoided all-time", "accent"],
+      [c.active_reports, "hazard reports", ""],
+      [d.field.samples, "field samples", ""],
+      [fmt(d.community.dose_ug_24h), "µg breathed 24h", "rose"],
+    ];
+    document.getElementById("stats").innerHTML = stats.map(([v,l,c2]) =>
+      `<div class="card"><div class="num ${c2}">${v ?? "—"}</div><div class="lbl">${l}</div></div>`).join("");
+    document.getElementById("contrib").innerHTML = (d.contributors||[]).map(x =>
+      `<tr><td>${x.contributor}</td><td><span class="pill">${ago(x.last_seen_min_ago)}</span></td>` +
+      `<td>${x.trips}</td><td>${x.km}</td><td class="accent">${x.avoided_ug} µg</td></tr>`).join("")
+      || `<tr><td colspan="5" class="muted">no contributors yet</td></tr>`;
+    document.getElementById("corridors").innerHTML = (d.corridors||[]).map(x =>
+      `<tr><td class="muted">${x.lat.toFixed(3)}, ${x.lon.toFixed(3)}</td><td>${x.samples}</td>` +
+      `<td>${x.avg_dose_ug} µg</td><td>${x.top_mode||"—"}</td></tr>`).join("")
+      || `<tr><td colspan="4" class="muted">no corridors yet</td></tr>`;
+    document.getElementById("journeys").innerHTML = (d.recent_journeys||[]).map(x =>
+      `<tr><td>${ago(x.age_min)}</td><td>${x.vehicle}</td><td>${Math.round(x.duration_s/60)} min</td>` +
+      `<td>${x.dose_ug ?? "—"} µg</td><td class="accent">${x.avoided_ug ?? "—"} µg</td><td class="muted">${x.contributor}</td></tr>`).join("")
+      || `<tr><td colspan="6" class="muted">no journeys yet</td></tr>`;
+    document.getElementById("reports").innerHTML = (d.reports||[]).map(x =>
+      `<tr><td>${x.kind}</td><td class="muted">${x.lat.toFixed(4)}, ${x.lon.toFixed(4)}</td>` +
+      `<td>${ago(x.age_min)}</td><td class="muted">${x.contributor}</td></tr>`).join("")
+      || `<tr><td colspan="4" class="muted">no live reports</td></tr>`;
+  } catch (e) {
+    document.getElementById("stamp").textContent = "server unreachable — " + e;
+  }
+}
+tick(); setInterval(tick, 10000);
+</script>
+</body>
+</html>
