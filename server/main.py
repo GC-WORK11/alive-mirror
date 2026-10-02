@@ -709,6 +709,10 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
                          "dist_km": round(d_km, 1),
                          "confidence": FIELD.nearest_sample_km(cy, cx)})
     cand.sort(key=lambda c: c["pm25"])
+    # honest answers only — on a flat-field day the "best" cells can read
+    # worse than home; better to say "nowhere nearby is cleaner" than lie
+    if home_v is not None:
+        cand = [c for c in cand if c["pm25"] < home_v - 0.05]
     best = cand[:limit]
     for c in best:
         try:
@@ -725,7 +729,8 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
     if home_v is not None:
         for c in best:
             c["pct_less_than_here"] = round(100 * (1 - c["pm25"] / home_v))
-    return {"here_pm25": round(home_v, 1) if home_v else None, "best": best}
+    return {"here_pm25": round(home_v, 1) if home_v else None,
+            "best": best, "none_cleaner": home_v is not None and not best}
 
 
 @app.get("/decide")

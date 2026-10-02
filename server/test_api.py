@@ -166,11 +166,15 @@ async def main():
 
         j = (await c.get("/escape", params={"lat": KB[0], "lon": KB[1], "limit": 5})).json()
         best = j.get("best", [])
-        check("escape returns spots", 3 <= len(best) <= 5, len(best))
+        # honest contract: either 3-5 spots that are all genuinely cleaner,
+        # or an empty list with none_cleaner — flat-field days have no escape
+        check("escape honest shape",
+              (3 <= len(best) <= 5) or (not best and j.get("none_cleaner") is True),
+              {"n": len(best), "none_cleaner": j.get("none_cleaner")})
         check("escape all cleaner", all(
             b["pm25"] < (j.get("here_pm25") or 9999) for b in best),
             [b.get("pm25") for b in best])
-        check("escape named", any(b.get("name") for b in best))
+        check("escape named", not best or any(b.get("name") for b in best))
         check("escape dist sane", all(b.get("dist_km", 0) >= 3 for b in best))
 
     print(f"\n{PASS} passed, {FAIL} failed")
