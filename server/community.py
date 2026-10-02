@@ -101,6 +101,35 @@ def reports_geojson() -> dict:
     return {"type": "FeatureCollection", "features": feats}
 
 
+def _cell(lon: float, lat: float) -> tuple[float, float]:
+    """~500m snap — groups traversals into corridors."""
+    return (round(lon / 0.005) * 0.005, round(lat / 0.005) * 0.005)
+
+
+def corridors(limit: int = 10) -> list[dict]:
+    """Where Delhi actually travels, ranked — donated traversal density
+    per ~500m cell with average inhaled dose. This is street-level
+    movement data no station grid or routing API can produce."""
+    _load()
+    cells: dict = {}
+    for o in _obs:
+        for lon, lat in o["points"]:
+            c = _cell(lon, lat)
+            v = cells.setdefault(c, {"count": 0, "dose_sum": 0.0, "modes": {}})
+            v["count"] += 1
+            v["dose_sum"] += o["dose_ug"] or 0
+            v["modes"][o["vehicle"]] = v["modes"].get(o["vehicle"], 0) + 1
+    out = []
+    for (lon, lat), v in cells.items():
+        out.append({
+            "lon": lon, "lat": lat, "samples": v["count"],
+            "avg_dose_ug": round(v["dose_sum"] / max(v["count"], 1), 1),
+            "top_mode": max(v["modes"], key=v["modes"].get) if v["modes"] else None,
+        })
+    out.sort(key=lambda x: -x["samples"])
+    return out[:limit]
+
+
 def totals() -> dict:
     """City rollup — the collective ledger judges can read at a glance."""
     _load()
@@ -127,4 +156,6 @@ def totals() -> dict:
         "active_reports": len(_reports),
         "modes_24h": {v: sum(1 for o in recent if o["vehicle"] == v)
                       for v in {o["vehicle"] for o in recent}},
+        "latest_obs_age_min": round((time.time() - max((o["ts"] for o in _obs), default=0)) / 60) if _obs else None,
+        "top_corridors": corridors(5),
     }

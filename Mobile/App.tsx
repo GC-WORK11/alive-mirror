@@ -91,6 +91,7 @@ type FieldRead = {
   typical?: { median: number; vs_now_pct: number | null } | null;
   wind?: { speed_kmh: number; from_deg: number; factor: number } | null;
   grap?: { indicative_stage: number | null; basis_pm25: number | null } | null;
+  field?: { age_s: number | null } | null;
   lat: number;
   lon: number;
 };
@@ -98,6 +99,11 @@ type FieldRead = {
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const windFrom = (deg: number) => COMPASS[Math.round(deg / 45) % 8];
 const HORIZONS = [0, 6, 12, 24];
+
+const arrivalLabel = (durationMin: number) => {
+  const ist = new Date(Date.now() + 5.5 * 3600 * 1000 + durationMin * 60000);
+  return `${String(ist.getUTCHours()).padStart(2, "0")}:${String(ist.getUTCMinutes()).padStart(2, "0")}`;
+};
 
 const hourLabel = (iso: string | null, ahead: number) => {
   if (iso) {
@@ -333,6 +339,15 @@ export default function App() {
     };
   }, [options, selected]);
 
+  // faint alternates — every other option's path under the selected one
+  const altSegs = useMemo<GeoJSON.FeatureCollection>(() => ({
+    type: "FeatureCollection",
+    features: options
+      .map((o, i) => ({ o, i }))
+      .filter(({ o, i }) => i !== selected && o.geometry?.type === "LineString")
+      .map(({ o }) => ({ type: "Feature" as const, properties: {}, geometry: o.geometry })),
+  }), [options, selected]);
+
   const markers = useMemo<GeoJSON.FeatureCollection>(() => {
     const feats: GeoJSON.Feature[] = [];
     if (from) feats.push({ type: "Feature", properties: { kind: "from" }, geometry: { type: "Point", coordinates: [from.lon, from.lat] } });
@@ -360,7 +375,7 @@ export default function App() {
       const r = await fetch(`${API}/aqi?lat=${p.lat}&lon=${p.lon}`);
       const j = await r.json();
       if (j.pm25 != null)
-        setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, lat: p.lat, lon: p.lon });
+        setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: p.lat, lon: p.lon });
     } catch {}
   }, [from, to]);
 
@@ -387,7 +402,7 @@ export default function App() {
             const r = await fetch(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`);
             const j = await r.json();
             if (j.pm25 != null)
-              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, lat: c[1], lon: c[0] });
+              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: c[1], lon: c[0] });
           } catch {}
         }}
       >
@@ -409,6 +424,11 @@ export default function App() {
             "fill-extrusion-opacity": 0.55,
           }}
         />
+        <GeoJSONSource id="alts" data={altSegs}>
+          <Layer id="alts-line" type="line"
+            paint={{ "line-color": "rgba(87,83,78,0.35)", "line-width": 2.5, "line-dasharray": [2, 2] }}
+            layout={{ "line-cap": "round", "line-join": "round" }} />
+        </GeoJSONSource>
         <GeoJSONSource id="route" data={routeSegs}>
           <Layer id="route-casing" type="line"
             paint={{ "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.8 }}
@@ -563,6 +583,11 @@ export default function App() {
                 air arrives from {windFrom(fieldRead.wind.from_deg)} · {Math.round(fieldRead.wind.speed_kmh)} km/h
               </Text>
             )}
+            {fieldRead.field?.age_s != null && (
+              <Text style={s.fieldMeta}>
+                field updated {Math.max(1, Math.round(fieldRead.field.age_s / 60))} min ago
+              </Text>
+            )}
             {fieldRead.grap?.indicative_stage != null && fieldRead.grap.indicative_stage > 0 && (
               <Text style={s.grapTxt}>
                 GRAP-{fieldRead.grap.indicative_stage} air (indicative)
@@ -605,6 +630,11 @@ export default function App() {
                     </Pressable>
                   ))}
                 </ScrollView>
+                {options[selected] && (
+                  <Text style={s.arriveTxt}>
+                    arrives ~{arrivalLabel(options[selected].duration_min)} by {options[selected].label}
+                  </Text>
+                )}
                 {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 10 && (
                   <View style={s.departRow}>
                     <Text style={s.departHint}>
@@ -643,7 +673,7 @@ export default function App() {
       )}
 
       {drawerOpen && (
-        <JourneyDrawer week={weekStats(trips)} today={ledger.today}
+        <JourneyDrawer week={weekStats(trips)} stats={ledger}
           community={community} onClose={() => setDrawerOpen(false)} />
       )}
 
@@ -760,5 +790,6 @@ const s = StyleSheet.create({
   departHint: { fontFamily: F.semi, fontSize: 12.5, color: T.accent, flex: 1 },
   remindTxt: { fontFamily: F.med, fontSize: 12, color: T.ink2, paddingLeft: 10 },
   summarySub: { fontFamily: F.reg, fontSize: 11.5, color: T.ink3, marginTop: 9, textAlign: "center" },
+  arriveTxt: { fontFamily: F.reg, fontSize: 11, color: T.ink3, marginTop: 8, textAlign: "center" },
   whyTxt: { fontFamily: F.reg, fontSize: 11.5, color: T.ink2, marginTop: 5, textAlign: "center", lineHeight: 16 },
 });
