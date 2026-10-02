@@ -83,9 +83,13 @@ export interface CompareOption {
   distance_km: number;
   duration_min: number;
   duration_s: number;
-  duration_model: "osrm" | "estimated"; // honest flag: non-car times are distance/speed
+  duration_model: "osrm" | "estimated" | "gtfs"; // osrm=road traffic, estimated=distance/speed, gtfs=GTFS stop_times medians
   geometry: RouteGeometry;
-  stations?: { board: string; alight: string; access_km: number; egress_km: number }; // metro only
+  stations?: { board: string; alight: string; access_km: number; egress_km: number;
+               lines?: string[]; via?: string[]; transfers?: number;
+               stops_ridden?: number }; // metro only
+  transit?: { board_stop: string; board_km: number; alight_stop: string;
+              alight_km: number; direct_routes: string[]; source: string }; // bus only — real DTC/DIMTS stop hint
   segments?: RouteSegment[];  // ~90 s spans, own dose+color each (road modes)
   hotspots?: RouteHotspot[];  // top-3 dose stretches
   legs?: unknown[]; // metro walk-metro-walk decomposition

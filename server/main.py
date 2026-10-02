@@ -386,6 +386,10 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
         options.append(metro)
         _rerank(options)
 
+    # real DTC/cluster bus-stop context when the GTFS cache is loaded —
+    # additive `transit` key on bus options, no contract change
+    transit.annotate_bus_hints(options, from_lat, from_lon, to_lat, to_lon)
+
     # quieter-road lever: synthesize alternates by re-routing through
     # points offset perpendicular to the corridor's midpoint, then keep
     # the best one if it inhales meaningfully less (the real 5-20%

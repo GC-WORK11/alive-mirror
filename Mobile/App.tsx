@@ -80,7 +80,7 @@ type CompareOption = {
   distance_km: number;
   duration_min: number;
   duration_s?: number;
-  duration_model?: "osrm" | "estimated";
+  duration_model?: "osrm" | "estimated" | "gtfs";
   geometry: GeoJSON.Geometry;
   stations?: { board: string; alight: string };
   segments?: Seg[];

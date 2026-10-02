@@ -28,6 +28,11 @@ from typing import Callable, Optional
 
 import exposure
 
+try:
+    import transit_real  # GTFS-backed real metro/bus network when cached
+except Exception:
+    transit_real = None
+
 # --- Stated assumptions (see docs/09-transit.md) ---------------------------
 METRO_DETOUR = 1.35       # network circuity: straight-line x 1.35 approximates
                           # track distance for station-to-station trips
@@ -154,6 +159,12 @@ def metro_option(from_lat: float, from_lon: float, to_lat: float,
     nearest station — at that distance the honest answer is "the metro
     isn't for this trip", not a fake estimate.
     """
+    if transit_real is not None:
+        j = transit_real.metro_journey(from_lat, from_lon, to_lat, to_lon)
+        if j is not None:
+            return _option_from_gtfs(j, from_lat, from_lon,
+                                     to_lat, to_lon, field_value)
+
     sa = nearest_station(from_lat, from_lon)
     sb = nearest_station(to_lat, to_lon)
     if sa[3] > MAX_ACCESS_KM or sb[3] > MAX_ACCESS_KM:
@@ -207,3 +218,86 @@ def metro_option(from_lat: float, from_lon: float, to_lat: float,
                         "road_uplift": 1.0},
         },
     }
+
+
+def _option_from_gtfs(j: dict, from_lat: float, from_lon: float,
+                      to_lat: float, to_lon: float, field_value) -> dict:
+    """Same option shape as the synthetic path, built on the real feed:
+    GTFS station names/lines, real track geometry, stop_times-median
+    ride minutes. `duration_model: "gtfs"` marks the upgrade."""
+    walk_in = _walk_leg(from_lat, from_lon, j["board_lat"], j["board_lon"],
+                        field_value)
+    ride = {"type": "metro",
+            "from": [j["board_lat"], j["board_lon"]],
+            "to": [j["alight_lat"], j["alight_lon"]],
+            "from_station": j["board"], "to_station": j["alight"],
+            "lines": j["lines"], "transfers": j["transfers"],
+            "via": j["via"], "stops": j["stops_ridden"],
+            "distance_km": j["distance_km"],
+            "duration_min": round(j["duration_s"] / 60, 1),
+            "duration_s": round(j["duration_s"]),
+            "geometry": j["geometry"]}
+    ride["exposure"] = exposure.dose(j["geometry"], j["duration_s"],
+                                   "metro", field_value)
+    ride["dose_ug"] = ride["exposure"]["dose_ug"]
+    walk_out = _walk_leg(j["alight_lat"], j["alight_lon"],
+                         to_lat, to_lon, field_value)
+    legs = [walk_in, ride, walk_out]
+
+    dose_parts = [l["dose_ug"] for l in legs]
+    dose_ug = round(sum(d for d in dose_parts if d is not None), 1) \
+        if any(d is not None for d in dose_parts) else None
+    duration_s = sum(l["duration_s"] for l in legs)
+    distance_km = round(sum(l["distance_km"] for l in legs), 1)
+
+    coords = [[from_lon, from_lat]]
+    coords += [list(c) for c in ride["geometry"]["coordinates"]]
+    coords.append([to_lon, to_lat])
+
+    confs = [l["exposure"]["confidence"] for l in legs]
+    return {
+        "vehicle": "metro",
+        "label": "Metro + walk",
+        "mode": "metro",
+        "distance_km": distance_km,
+        "duration_min": round(duration_s / 60),
+        "duration_s": round(duration_s),
+        "duration_model": "gtfs",
+        "geometry": {"type": "LineString", "coordinates": coords},
+        "legs": legs,
+        "stations": {"board": j["board"], "alight": j["alight"],
+                     "access_km": j["access_km"], "egress_km": j["egress_km"],
+                     "lines": j["lines"], "via": j["via"],
+                     "transfers": j["transfers"],
+                     "stops_ridden": j["stops_ridden"]},
+        "assumptions": {
+            "schedule_source": j["time_source"],
+            "transfer_min": 6.0,
+            "access_wait_min": 5.0,
+            "walk_speed_kmh": WALK_SPEED_KMH,
+            "max_access_km": MAX_ACCESS_KM,
+        },
+        "exposure": {
+            "dose_ug": dose_ug,
+            "confidence": "low" if "low" in confs else
+                          ("medium" if "medium" in confs else
+                           ("high" if "high" in confs else "none")),
+            "factors": {"microenv": "walk 1.0 / metro 0.45",
+                        "ventilation_lpm": "walk 14 / metro 7.5",
+                        "road_uplift": 1.0},
+        },
+    }
+
+
+def annotate_bus_hints(options: list, from_lat: float, from_lon: float,
+                       to_lat: float, to_lon: float) -> None:
+    """Attach real DTC/cluster bus-stop context to bus options — additive
+    `transit` key, nothing existing changes."""
+    if transit_real is None:
+        return
+    hint = transit_real.bus_hint(from_lat, from_lon, to_lat, to_lon)
+    if not hint:
+        return
+    for o in options:
+        if o.get("vehicle") == "bus":
+            o["transit"] = hint
