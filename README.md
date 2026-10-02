@@ -20,27 +20,49 @@ Published Delhi microenvironment studies show the mode you choose matters more t
 
 So the highest-leverage "route" in Delhi is often **not a different road — it's a different mode**. Existing clean-air routers (incl. the 2026 LEAP study on Delhi) only re-route cars. We route *decisions*.
 
-## What's built (live, verified numbers)
+## What's built (live, verified)
+
+**Public API on AWS:** `http://65.2.28.40` (ECS Fargate + NLB + Elastic IP,
+`ap-south-1`). Open `http://65.2.28.40/health` in a browser — live now.
 
 `server/` — the dose engine (FastAPI, real data only):
 
 - `GET /compare` — one trip, every mode ranked by inhaled PM2.5.
-  Tonight's live answer for Karol Bagh→India Gate: Car AC **3.8 µg**,
-  auto 11.3, bike 8.3, bus 8.3, bicycle 68.4, on foot **118.6 µg (~31×)**.
+- `GET /decide` — safety-first ranking: dose + MoRTH-anchored mode risk +
+  time, with a plain-English reason per option ("breathes least").
 - `GET /depart` — the same trip across the next 120 h of forecast field +
-  boundary-layer stagnation physics. Live answer: leave 12:30 IST,
-  same trip, **86% less PM2.5**.
-- `GET /route` — OSRM road routes with per-route dose.
-- `GET /aqi` — the interpolated PM2.5 field at any NCR point, with
-  provenance (`nearest_sample_km`, sample age, fire modifier).
-- `GET /search` — every Delhi NCR address, real OSM/Photon autocomplete.
+  boundary-layer stagnation physics.
+- `GET /shift` — occupational dose for Delhi's gig drivers: an 8-hr
+  two-wheeler shift ≈ 1.1–1.5 cigarette-equivalents on heavy days.
+- `GET /aqi` — interpolated PM2.5 at any NCR point + dust, AOD, US-AQI,
+  rain/visibility, wind, GRAP-indicative stage, and the **leave-one-out
+  calibration** of the field itself (MAE 46 µg/m³, bias +0.3, n=94
+  real instruments — honest error, served next to the data).
+- `GET /grid` (+`?h=0–120`) — the PM2.5 field as a forecast surface;
+  `GET /today` — the 24h decade-median curve at a point.
+- `GET /search` `/reverse` `/route` — real OSM/Photon geocoding + OSRM
+  routes with per-route dose and synthesized quieter-road alternates.
+- `GET /reports` `/community` `/observe` `/report` — the contribution
+  layer: anonymized traversals + hazard reports, corridor analytics.
+- `GET /admin` `/admin/api` — live ops board (users, journeys, km,
+  µg avoided, corridors, recent feed).
 
-`Mobile/` — the iOS/Android app: liquid-glass FROM→TO card, the dose
-ranking (every mode, what you actually breathe), the leave-later hint,
-and a "why?" expander that shows the published factors behind each
-number.
+The field blends **105 live CPCB/DPCC/HSPCB instruments** (OpenAQ v3)
+with the CAMS model grid — model samples spatially de-biased against
+the instruments before interpolation (CAMS under-reads Delhi 2–8× at
+hotspots; LOO proved it, then we fixed it).
+
+`Mobile/` — iOS + Android (Expo/RN, MapLibre): FROM→TO search with real
+suggestions, dose-ranked mode card with per-segment dose-colored route,
+Lung Ledger (daily µg → cigarette-equivalents, budget %, avoided total,
+24h typical sparkline), journeys drawer (week bars, streak, city rollup),
+Ambient Mode (always-on glance), horizon scrubber (now→+24h field),
+live-location puck + recenter, hazard reporting, quieter-road lever.
 
 `Bridge/` — the shared wire contract so app and server can never drift.
+
+**Tests:** `server/.venv312/bin/python test_api.py` — 41 assertions
+against live upstreams (no mocks).
 
 ## Docs
 
