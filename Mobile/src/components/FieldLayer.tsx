@@ -16,10 +16,10 @@ export function FieldLayer({ grid }: Props) {
         paint={{
           "fill-color": [
             "interpolate", ["linear"], ["get", "pm25"],
-            0, "rgba(148,163,184,0.05)",
-            60, "rgba(148,163,184,0.09)",
-            130, "rgba(251,113,133,0.22)",
-            300, "rgba(225,29,72,0.34)",
+            0, "rgba(100,116,139,0.05)",
+            60, "rgba(100,116,139,0.08)",
+            130, "rgba(225,29,72,0.16)",
+            300, "rgba(159,18,57,0.26)",
           ],
           "fill-opacity": ["match", ["get", "conf"], "hi", 1.0, "med", 0.55, 0.3],
         }}

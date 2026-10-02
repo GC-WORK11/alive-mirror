@@ -20,6 +20,7 @@ import exposure
 import history
 import segments
 import grid
+import community
 
 app = FastAPI(title="Delhi-Air-108 API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -390,6 +391,40 @@ async def field_grid(cells: int = Query(default=22, le=40),
         return grid.as_geojson(_ForecastSurface(h), cells)
     await FIELD.refresh(http())
     return grid.as_geojson(FIELD, cells)
+
+
+@app.post("/observe")
+async def observe_trip(body: dict):
+    """Donate an anonymized traversal — commuters as the sensor network."""
+    return community.observe(
+        vehicle=str(body.get("vehicle", "unknown")),
+        coords=body.get("coords") or [],
+        duration_s=body.get("duration_s") or 0,
+        dose_ug=body.get("dose_ug"),
+        avoided_ug=body.get("avoided_ug"),
+        contributor=body.get("contributor"),
+    )
+
+
+@app.post("/report")
+async def hazard_report(body: dict):
+    """User-flagged air observation: dust | smoke | burning | clean, 6h TTL."""
+    return community.report(
+        kind=str(body.get("kind", "")),
+        lat=float(body.get("lat", 0)),
+        lon=float(body.get("lon", 0)),
+        contributor=body.get("contributor"),
+    )
+
+
+@app.get("/reports")
+async def reports():
+    return community.reports_geojson()
+
+
+@app.get("/community")
+async def community_totals():
+    return community.totals()
 
 
 @app.get("/reverse")

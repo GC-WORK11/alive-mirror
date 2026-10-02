@@ -1,0 +1,1 @@
+{"obs": [{"ts": 1790908587.6384, "vehicle": "car", "duration_s": 600.0, "dose_ug": 3.4, "avoided_ug": 6.2, "contributor": "sim-device", "points": [[77.2, 28.6], [77.21, 28.62]]}], "reports": [{"ts": 1790908587.653301, "kind": "smoke", "lat": 28.63, "lon": 77.22}]}

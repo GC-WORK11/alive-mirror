@@ -1,16 +1,17 @@
-// Night-operations theme — deep ink canvas, lit glass, dose ramp that
-// glows instead of tinting. Coherent with AmbientMode (#06070a).
+// Light professional theme — clean light canvas, near-opaque cards,
+// deep teal brand, rose semantic dose ramp (not traffic-light colors).
 export const T = {
-  ink: "#e7e5e4",
-  ink2: "#a8a29e",
-  ink3: "#78716c",
-  paper: "#0b0e11",
-  glass: "rgba(17,22,28,0.68)",
-  glassBorder: "rgba(255,255,255,0.10)",
-  accent: "#2dd4bf",
-  doseLow: "#94a3b8",
-  doseMid: "#fb7185",
-  doseHigh: "#e11d48",
+  ink: "#1c1917",
+  ink2: "#57534e",
+  ink3: "#a8a29e",
+  paper: "#f7f6f3",
+  glass: "rgba(255,255,255,0.93)",
+  glassBorder: "rgba(28,25,23,0.08)",
+  accent: "#0f766e",
+  accentSoft: "rgba(15,118,110,0.10)",
+  doseLow: "#64748b",
+  doseMid: "#e11d48",
+  doseHigh: "#9f1239",
   ambient: "#06070a",
 };
 

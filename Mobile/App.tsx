@@ -21,18 +21,23 @@ import {
   Outfit_600SemiBold,
   Outfit_700Bold,
 } from "@expo-google-fonts/outfit";
+import * as Location from "expo-location";
 import {
   Camera,
   GeoJSONSource,
   Layer,
   Map,
+  UserLocation,
   type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { F, T, doseColor } from "./src/theme";
 import { AmbientMode } from "./src/components/AmbientMode";
 import { FieldLayer } from "./src/components/FieldLayer";
 import { LedgerSheet } from "./src/components/LedgerSheet";
-import { loadTrips, logTrip, stats as ledgerStats } from "./src/store/ledger";
+import { JourneyDrawer } from "./src/components/JourneyDrawer";
+import { ReportsLayer } from "./src/components/ReportsLayer";
+import { loadTrips, logTrip, stats as ledgerStats, weekStats } from "./src/store/ledger";
+import { observeTrip, postReport, type CommunityTotals, type ReportKind } from "./src/community";
 import { requestPerms, scheduleDeparture } from "./src/notify";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -44,7 +49,7 @@ const API =
     default: "http://localhost:8000",
   });
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const DELHI: [number, number] = [77.209, 28.6139];
 
 type Place = { name: string; subtitle: string; lat: number; lon: number };
@@ -124,6 +129,13 @@ export default function App() {
   const [fieldRead, setFieldRead] = useState<FieldRead | null>(null);
   const [grid, setGrid] = useState<GeoJSON.FeatureCollection | null>(null);
   const [horizonH, setHorizonH] = useState(0);
+  const [trips, setTrips] = useState<Awaited<ReturnType<typeof loadTrips>>>([]);
+  const [community, setCommunity] = useState<CommunityTotals | null>(null);
+  const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [reportMode, setReportMode] = useState(false);
+  const [follow, setFollow] = useState(false);
+  const [hasLoc, setHasLoc] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [ledger, setLedger] = useState<ReturnType<typeof ledgerStats>>({
@@ -149,7 +161,46 @@ export default function App() {
   useEffect(() => {
     fetch(`${API}/health`).then((r) => setApiOk(r.ok)).catch(() => setApiOk(false));
     fetch(`${API}/grid`).then((r) => r.json()).then(setGrid).catch(() => {});
-    loadTrips().then((t) => setLedger(ledgerStats(t))).catch(() => {});
+    fetch(`${API}/community`).then((r) => r.json()).then(setCommunity).catch(() => {});
+    const poll = () => fetch(`${API}/reports`).then((r) => r.json()).then(setReports).catch(() => {});
+    poll();
+    const iv = setInterval(poll, 60000);
+    loadTrips().then((t) => { setTrips(t); setLedger(ledgerStats(t)); }).catch(() => {});
+    Location.requestForegroundPermissionsAsync().then((r) => setHasLoc(r.granted)).catch(() => {});
+    return () => clearInterval(iv);
+  }, []);
+
+  const useMyLocation = useCallback(async () => {
+    try {
+      const r = await Location.requestForegroundPermissionsAsync();
+      if (!r.granted) return;
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = pos.coords;
+      let name = "my location";
+      try {
+        const rr = await fetch(`${API}/reverse?lat=${latitude}&lon=${longitude}`);
+        const j = await rr.json();
+        if (j.name) name = j.name;
+      } catch {}
+      setFrom({ name, subtitle: "", lat: latitude, lon: longitude });
+      setFromText(name);
+      setActive(null);
+      setResults([]);
+      Keyboard.dismiss();
+      camRef.current?.flyTo({ center: [longitude, latitude], zoom: 14, duration: 900 });
+    } catch {}
+  }, []);
+
+  const sendReport = useCallback(async (kind: ReportKind) => {
+    setReportMode(false);
+    try {
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+      const lat = pos?.coords.latitude ?? DELHI[1];
+      const lon = pos?.coords.longitude ?? DELHI[0];
+      await postReport(API, kind, lat, lon);
+      const r = await fetch(`${API}/reports`);
+      setReports(await r.json());
+    } catch {}
   }, []);
 
   const scrubField = useCallback((h: number) => {
@@ -238,12 +289,26 @@ export default function App() {
     const o = options[selected];
     if (!o?.exposure?.dose_ug || !from || !to) return;
     const worst = Math.max(...options.map((x) => x.exposure?.dose_ug ?? 0));
+    const avoided = Math.max(0, Math.round((worst - o.exposure.dose_ug) * 10) / 10);
     logTrip({
       ts: Date.now(), label: o.label, vehicle: o.vehicle,
       dose_ug: o.exposure.dose_ug,
-      avoided_ug: Math.max(0, Math.round((worst - o.exposure.dose_ug) * 10) / 10),
+      avoided_ug: avoided,
       from: from.name, to: to.name,
-    }).then((t) => setLedger(ledgerStats(t))).catch(() => {});
+    }).then((t) => { setTrips(t); setLedger(ledgerStats(t)); }).catch(() => {});
+    // donate the traversal — commuters become the sensor network
+    const g = o.geometry;
+    const coords = g?.type === "LineString" ? (g as GeoJSON.LineString).coordinates : [];
+    if (coords.length > 1) {
+      const step = Math.max(1, Math.floor(coords.length / 60));
+      observeTrip(API, {
+        vehicle: o.vehicle,
+        coords: coords.filter((_, i) => i % step === 0),
+        duration_s: o.duration_s ?? (o.duration_min || 0) * 60,
+        dose_ug: o.exposure.dose_ug,
+        avoided_ug: avoided,
+      }).then(() => fetch(`${API}/community`).then((r) => r.json()).then(setCommunity)).catch(() => {});
+    }
   }, [selected, options, from, to]);
 
   const routeSegs = useMemo<GeoJSON.FeatureCollection>(() => {
@@ -308,7 +373,7 @@ export default function App() {
 
   return (
     <View style={s.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Map
         mapStyle={STYLE_URL}
         style={StyleSheet.absoluteFill}
@@ -323,8 +388,12 @@ export default function App() {
           } catch {}
         }}
       >
-        <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[76.75, 28.15, 77.95, 28.98]} />
+        <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[76.75, 28.15, 77.95, 28.98]}
+          trackUserLocation={follow ? "default" : undefined}
+          onTrackUserLocationChange={(e) => { if (!e.nativeEvent.trackUserLocation) setFollow(false); }} />
+        {hasLoc && <UserLocation animated accuracy />}
         <FieldLayer grid={grid} />
+        <ReportsLayer reports={reports} />
         <Layer
           id="buildings3d"
           type="fill-extrusion"
@@ -332,14 +401,14 @@ export default function App() {
           source-layer="building"
           minzoom={14}
           paint={{
-            "fill-extrusion-color": "#2a3138",
+            "fill-extrusion-color": "#e3dfd8",
             "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-            "fill-extrusion-opacity": 0.65,
+            "fill-extrusion-opacity": 0.55,
           }}
         />
         <GeoJSONSource id="route" data={routeSegs}>
           <Layer id="route-casing" type="line"
-            paint={{ "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.28 }}
+            paint={{ "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.8 }}
             layout={{ "line-cap": "round", "line-join": "round" }} />
           <Layer id="route-line" type="line"
             paint={{ "line-color": ["get", "color"], "line-width": 4.5 }}
@@ -356,7 +425,7 @@ export default function App() {
 
       {/* search card */}
       <View style={s.cardWrap}>
-        <BlurView intensity={40} tint="dark" style={s.card}>
+        <BlurView intensity={45} tint="light" style={s.card}>
           <View style={s.row}>
             <Text style={s.rowGlyph}>A</Text>
             <TextInput style={s.input} placeholder="From — anywhere in Delhi NCR"
@@ -365,6 +434,11 @@ export default function App() {
               onFocus={() => setActive("from")}
               onChangeText={(t) => { setFromText(t); setFrom(null); setOptions([]); setDepart(null); setActive("from"); doSearch(t); }}
               returnKeyType="search" clearButtonMode="while-editing" />
+            {hasLoc && (
+              <Pressable onPress={useMyLocation} style={s.swap} hitSlop={8}>
+                <Text style={s.swapTxt}>⌖</Text>
+              </Pressable>
+            )}
             <Pressable onPress={swap} style={s.swap} hitSlop={8}><Text style={s.swapTxt}>⇅</Text></Pressable>
           </View>
           <View style={s.div} />
@@ -381,7 +455,7 @@ export default function App() {
         </BlurView>
 
         {active && results.length > 0 && (
-          <BlurView intensity={50} tint="dark" style={[s.card, { marginTop: 8 }]}>
+          <BlurView intensity={50} tint="light" style={[s.card, { marginTop: 8 }]}>
             {results.map((p, i) => (
               <Pressable key={`${p.lat},${p.lon},${i}`} onPress={() => pick(p)}
                 style={({ pressed }) => [s.result, pressed && { opacity: 0.55 }]}>
@@ -409,9 +483,12 @@ export default function App() {
       </View>
       )}
 
-      {/* top-right: ledger + ambient; hidden while a field is focused */}
+      {/* top-right: journey drawer, ledger, ambient */}
       {!active && (
       <View style={s.topRight}>
+        <Pressable onPress={() => setDrawerOpen(true)} style={s.aodBtn} hitSlop={10}>
+          <Text style={s.aodGlyph}>☰</Text>
+        </Pressable>
         <Pressable onPress={openLedger} style={s.todayPill}>
           <Text style={s.todayTxt}>
             today {ledger.todayUg > 0 ? `${ledger.todayUg} µg` : "0 µg"}
@@ -426,6 +503,36 @@ export default function App() {
       {apiOk === false && (
         <View style={s.offlineWrap} pointerEvents="none">
           <Text style={s.offlineTxt}>server offline</Text>
+        </View>
+      )}
+
+      {/* action column: recenter + air report */}
+      {!active && !drawerOpen && (
+        <View style={s.fabCol}>
+          {hasLoc && (
+            <Pressable style={[s.fab, follow && s.fabOn]} onPress={() => setFollow(!follow)}>
+              <Text style={[s.fabGlyph, follow && s.fabGlyphOn]}>⌖</Text>
+            </Pressable>
+          )}
+          <Pressable style={s.fab} onPress={() => setReportMode(!reportMode)}>
+            <Text style={s.fabGlyph}>◍</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {reportMode && (
+        <View style={s.reportCard}>
+          <Text style={s.reportTitle}>report the air where you are</Text>
+          <View style={s.reportRow}>
+            {(["dust", "smoke", "burning", "clean"] as ReportKind[]).map((k) => (
+              <Pressable key={k} style={s.reportOpt} onPress={() => sendReport(k)}>
+                <Text style={s.reportOptTxt}>{k === "clean" ? "clean air" : k}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Pressable onPress={() => setReportMode(false)}>
+            <Text style={s.reportCancel}>cancel</Text>
+          </Pressable>
         </View>
       )}
 
@@ -465,7 +572,7 @@ export default function App() {
       {/* dose ranking */}
       {from && to && (
         <View style={s.bottomWrap}>
-          <BlurView intensity={40} tint="dark" style={s.summary}>
+          <BlurView intensity={45} tint="light" style={s.summary}>
             {loadingRoute ? (
               <ActivityIndicator size="small" color={T.accent} />
             ) : options.length > 0 ? (
@@ -557,7 +664,7 @@ const s = StyleSheet.create({
   input: { flex: 1, fontFamily: F.med, fontSize: 16, color: T.ink, padding: 0 },
   swap: { marginLeft: 8, padding: 4 },
   swapTxt: { fontSize: 17, color: T.ink3, fontFamily: F.reg },
-  div: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginHorizontal: 16 },
+  div: { height: StyleSheet.hairlineWidth, backgroundColor: T.glassBorder, marginHorizontal: 16 },
   result: { paddingHorizontal: 16, paddingVertical: 11 },
   rname: { fontFamily: F.semi, fontSize: 15, color: T.ink },
   rsub: { fontFamily: F.reg, fontSize: 12, color: T.ink2, marginTop: 1 },
@@ -573,7 +680,7 @@ const s = StyleSheet.create({
     backgroundColor: T.glass, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
     borderWidth: 1, borderColor: T.glassBorder,
   },
-  hChipOn: { backgroundColor: "rgba(45,212,191,0.16)", borderColor: "rgba(45,212,191,0.45)" },
+  hChipOn: { backgroundColor: T.accentSoft, borderColor: T.accent },
   hTxt: { fontFamily: F.med, fontSize: 11.5, color: T.ink2 },
   hTxtOn: { color: T.accent },
   todayPill: {
@@ -592,6 +699,30 @@ const s = StyleSheet.create({
   aodHalf: { position: "absolute", right: 0, top: 0, bottom: 0, width: 7, backgroundColor: T.ink },
   offlineWrap: { position: "absolute", top: Platform.select({ ios: 162, android: 142 }), alignSelf: "center" },
   offlineTxt: { fontFamily: F.med, fontSize: 12, color: T.doseMid },
+  fabCol: { position: "absolute", right: 16, bottom: 300, gap: 10 },
+  fab: {
+    width: 42, height: 42, borderRadius: 21, backgroundColor: T.glass,
+    borderWidth: 1, borderColor: T.glassBorder, alignItems: "center", justifyContent: "center",
+    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+  },
+  fabOn: { backgroundColor: T.accentSoft, borderColor: T.accent },
+  fabGlyph: { fontSize: 17, color: T.ink2, fontFamily: F.med },
+  fabGlyphOn: { color: T.accent },
+  aodGlyph: { fontSize: 15, color: T.ink, fontFamily: F.med },
+  reportCard: {
+    position: "absolute", bottom: 300, alignSelf: "center", width: 280,
+    backgroundColor: T.glass, borderRadius: 18, padding: 14,
+    borderWidth: 1, borderColor: T.glassBorder,
+    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
+  },
+  reportTitle: { fontFamily: F.semi, fontSize: 13, color: T.ink, textAlign: "center" },
+  reportRow: { flexDirection: "row", gap: 8, marginTop: 12 },
+  reportOpt: {
+    flex: 1, backgroundColor: T.accentSoft, borderRadius: 12, paddingVertical: 10,
+    alignItems: "center", borderWidth: 1, borderColor: "rgba(15,118,110,0.25)",
+  },
+  reportOptTxt: { fontFamily: F.semi, fontSize: 12, color: T.accent },
+  reportCancel: { fontFamily: F.med, fontSize: 12, color: T.ink3, textAlign: "center", marginTop: 10 },
   fieldWrap: { position: "absolute", bottom: 300, alignSelf: "center" },
   fieldChip: {
     alignItems: "center", backgroundColor: T.glass, paddingHorizontal: 18, paddingVertical: 10,
@@ -608,14 +739,14 @@ const s = StyleSheet.create({
     shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 },
   },
   optRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 14 },
-  optRowSel: { backgroundColor: "rgba(45,212,191,0.10)" },
+  optRowSel: { backgroundColor: T.accentSoft },
   optLabel: { fontFamily: F.semi, fontSize: 14, color: T.ink },
   bestTag: { fontFamily: F.med, fontSize: 11, color: T.accent },
   optMeta: { fontFamily: F.reg, fontSize: 11, color: T.ink2, marginTop: 1 },
   optDose: { fontFamily: F.bold, fontSize: 16, fontVariant: ["tabular-nums"] },
   departRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginTop: 8, paddingTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.10)",
+    marginTop: 8, paddingTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.glassBorder,
   },
   departHint: { fontFamily: F.semi, fontSize: 12.5, color: T.accent, flex: 1 },
   remindTxt: { fontFamily: F.med, fontSize: 12, color: T.ink2, paddingLeft: 10 },

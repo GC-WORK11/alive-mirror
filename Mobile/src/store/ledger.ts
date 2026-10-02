@@ -79,3 +79,28 @@ export function stats(trips: Trip[], now = new Date()) {
     today,
   };
 }
+
+/** Last-7-days rollup for the journey drawer. */
+export function weekStats(trips: Trip[], now = new Date()) {
+  const days: { label: string; ug: number; trips: number; avoided: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const day = trips.filter((t) => dayKey(t.ts) === dayKey(d.getTime()));
+    days.push({
+      label: d.toLocaleDateString("en-IN", { weekday: "short" }),
+      ug: Math.round(day.reduce((s, t) => s + t.dose_ug, 0) * 10) / 10,
+      trips: day.length,
+      avoided: Math.round(day.reduce((s, t) => s + t.avoided_ug, 0) * 10) / 10,
+    });
+  }
+  const weekUg = days.reduce((s, d) => s + d.ug, 0);
+  const weekAvoided = days.reduce((s, d) => s + d.avoided, 0);
+  return {
+    days,
+    weekUg: Math.round(weekUg * 10) / 10,
+    weekAvoided: Math.round(weekAvoided * 10) / 10,
+    weekCigEq: Math.round((weekUg / CIG_UG) * 100) / 100,
+    totalTrips: trips.length,
+  };
+}

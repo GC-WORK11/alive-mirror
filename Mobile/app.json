@@ -30,6 +30,10 @@
       [
         "expo-notifications",
         { "enableBackgroundRemoteNotifications": false }
+      ],
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "ALive-108 uses your position to show live air along your route and to donate anonymized traversal data to Delhi's community air map." }
       ]
     ]
   }
