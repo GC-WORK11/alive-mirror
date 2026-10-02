@@ -98,7 +98,7 @@ export function LedgerSheet({ stats, curve, hourNow, onClose }: Props) {
 const s = StyleSheet.create({
   sheet: {
     position: "absolute", left: 10, right: 10, bottom: 10,
-    backgroundColor: T.glass,
+    backgroundColor: "rgba(11,14,17,0.94)",
     borderRadius: 20, padding: 16,
     borderWidth: 1, borderColor: T.glassBorder,
     shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },

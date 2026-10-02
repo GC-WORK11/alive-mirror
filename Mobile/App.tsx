@@ -395,7 +395,8 @@ export default function App() {
         )}
       </View>
 
-      {/* horizon scrubber — now / +6h / +12h / +24h */}
+      {/* horizon scrubber — now / +6h / +12h / +24h; hidden while a field is focused */}
+      {!active && (
       <View style={s.horizonWrap}>
         {HORIZONS.map((h) => (
           <Pressable key={h} onPress={() => scrubField(h)}
@@ -406,8 +407,10 @@ export default function App() {
           </Pressable>
         ))}
       </View>
+      )}
 
-      {/* top-right: ledger + ambient */}
+      {/* top-right: ledger + ambient; hidden while a field is focused */}
+      {!active && (
       <View style={s.topRight}>
         <Pressable onPress={openLedger} style={s.todayPill}>
           <Text style={s.todayTxt}>
@@ -418,6 +421,7 @@ export default function App() {
           <View style={s.aodCrescent}><View style={s.aodHalf} /></View>
         </Pressable>
       </View>
+      )}
 
       {apiOk === false && (
         <View style={s.offlineWrap} pointerEvents="none">
@@ -558,11 +562,11 @@ const s = StyleSheet.create({
   rname: { fontFamily: F.semi, fontSize: 15, color: T.ink },
   rsub: { fontFamily: F.reg, fontSize: 12, color: T.ink2, marginTop: 1 },
   topRight: {
-    position: "absolute", top: Platform.select({ ios: 108, android: 88 }), right: 16,
+    position: "absolute", top: Platform.select({ ios: 162, android: 142 }), right: 16,
     flexDirection: "row", alignItems: "center", gap: 10,
   },
   horizonWrap: {
-    position: "absolute", top: Platform.select({ ios: 108, android: 88 }), left: 16,
+    position: "absolute", top: Platform.select({ ios: 162, android: 142 }), left: 16,
     flexDirection: "row", gap: 6,
   },
   hChip: {
@@ -586,7 +590,7 @@ const s = StyleSheet.create({
     overflow: "hidden",
   },
   aodHalf: { position: "absolute", right: 0, top: 0, bottom: 0, width: 7, backgroundColor: T.ink },
-  offlineWrap: { position: "absolute", top: Platform.select({ ios: 108, android: 88 }), alignSelf: "center" },
+  offlineWrap: { position: "absolute", top: Platform.select({ ios: 162, android: 142 }), alignSelf: "center" },
   offlineTxt: { fontFamily: F.med, fontSize: 12, color: T.doseMid },
   fieldWrap: { position: "absolute", bottom: 300, alignSelf: "center" },
   fieldChip: {
