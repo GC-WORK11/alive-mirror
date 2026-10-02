@@ -6,10 +6,13 @@ This is what is actually running — verified live 2026-10-01.
 ## Architecture (live)
 
 ```
-Mobile app (Android/iOS, EXPO_PUBLIC_API_URL=http://13.235.89.248:8080)
+Mobile app (Android/iOS, EXPO_PUBLIC_API_URL=http://65.2.28.40)
    |  HTTP
    v
-ECS Fargate service "alive108"  (1 vCPU / 2 GB, public IP, ap-south-1)
+Elastic IP 65.2.28.40 + NLB alive108 :80
+   |
+   v
+ECS Fargate service "alive108"  (1 vCPU / 2 GB, ap-south-1)
    |  FastAPI decision engine (server/Dockerfile image)
    +--> ECR repo "alive108-api"          (container image)
    +--> S3 "alive108-build-<acct>/src.zip" -> CodeBuild "alive108-build"
@@ -34,7 +37,8 @@ subscription, is also serverless, and shows the same skill depth.
    whose `buildspec.yml` does docker build → `docker push` to ECR
 3. `ecsTaskExecutionRole` (managed policies) → task def `alive108` (ECR img)
 4. SG `alive108` :8080 open → ECS service 1 task, `assignPublicIp=ENABLED`
-5. prints the live public URL (~75s to healthy)
+5. NLB+Elastic IP once, then re-registers the current task's private
+   IP so the stable http://65.2.28.40 survives every redeploy
 
 ## Video proof (~10 s of console footage)
 

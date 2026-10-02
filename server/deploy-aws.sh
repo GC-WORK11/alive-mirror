@@ -79,11 +79,39 @@ aws ecs update-service --cluster alive108 --service-name alive108 \
   --task-definition alive108 >/dev/null
 
 sleep 75
+
+# 6. stable address: NLB + Elastic IP (survives task redeploys;
+#    raw Fargate public IPs do NOT — they die with the task)
+TG=$(aws elbv2 describe-target-groups --names alive108-tg \
+     --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo None)
+if [ "$TG" = "None" ]; then
+  VPC=$(aws ec2 describe-vpcs --query 'Vpcs[0].VpcId' --output text)
+  EIP=$(aws ec2 allocate-address --domain vpc --query 'PublicIp' --output text)
+  EPIALLOC=$(aws ec2 describe-addresses --public-ips $EIP \
+    --query 'Addresses[0].AllocationId' --output text)
+  NLB=$(aws elbv2 create-load-balancer --name alive108 --type network \
+    --subnet-mappings SubnetId=$SUBNET,AllocationId=$EPIALLOC \
+    --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+  TG=$(aws elbv2 create-target-group --name alive108-tg --protocol TCP \
+    --port 8080 --vpc-id $VPC --target-type ip \
+    --health-check-protocol HTTP --health-check-path /health \
+    --health-check-interval-seconds 30 \
+    --query 'TargetGroups[0].TargetGroupArn' --output text)
+  aws elbv2 create-listener --load-balancer-arn $NLB --protocol TCP \
+    --port 80 --default-actions Type=forward,TargetGroupArn=$TG >/dev/null
+else
+  EIP=$(aws ec2 describe-addresses --query 'Addresses[0].PublicIp' --output text)
+fi
+
+# re-register the CURRENT task's private IP (deregister the stale one)
 TASK=$(aws ecs list-tasks --cluster alive108 --service-name alive108 \
   --query 'taskArns[0]' --output text)
-ENI=$(aws ecs describe-tasks --cluster alive108 --tasks $TASK \
-  --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value' \
+PRIV=$(aws ecs describe-tasks --cluster alive108 --tasks $TASK \
+  --query 'tasks[0].containers[0].networkInterfaces[0].privateIpv4Address' \
   --output text)
-IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI \
-  --query 'NetworkInterfaces[0].Association.PublicIp' --output text)
-echo "LIVE -> http://$IP:8080  (try /health, /aqi, /decide, /admin)"
+OLD=$(aws elbv2 describe-target-health --target-group-arn $TG \
+  --query 'TargetHealthDescriptions[0].Target.Id' --output text 2>/dev/null)
+[ "$OLD" != "None" ] && [ -n "$OLD" ] && [ "$OLD" != "$PRIV" ] && \
+  aws elbv2 deregister-targets --target-group-arn $TG --targets Id=$OLD,Port=8080 || true
+aws elbv2 register-targets --target-group-arn $TG --targets Id=$PRIV,Port=8080
+echo "STABLE -> http://$EIP  (try /health, /aqi, /decide, /admin)"
