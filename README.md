@@ -60,22 +60,29 @@ Judge-clickable (no install needed):
 - `GET /admin` `/admin/api` — live ops board (users, journeys, km,
   µg avoided, corridors, recent feed).
 
-The field blends **105 live CPCB/DPCC/HSPCB instruments** (OpenAQ v3)
-with the CAMS model grid — model samples spatially de-biased against
-the instruments before interpolation (CAMS under-reads Delhi 2–8× at
-hotspots; LOO proved it, then we fixed it).
+The field blends **CPCB/DPCC/HSPCB instruments** (OpenAQ v3, ~105 in NCR,
+each Kalman-smoothed) with the CAMS model grid — model samples are
+spatially de-biased against instruments, then **ordinary kriging**
+interpolates with a real spatial-variance estimate (exp variogram,
+15 km range). `/aqi` reports `field.station_readings` — exactly how many
+instruments flowed into the current refresh — plus krige-derived
+uncertainty bands (`pm25_lo/hi`, propagated through every dose integral).
+CAMS under-reads Delhi 2–8× at hotspots; LOO proved it, then we fixed it.
 
 `Mobile/` — iOS + Android (Expo/RN, MapLibre): FROM→TO search with real
 suggestions, dose-ranked mode card with per-segment dose-colored route,
 Lung Ledger (daily µg → cigarette-equivalents, budget %, avoided total,
 24h typical sparkline), journeys drawer (week bars, streak, city rollup),
 Ambient Mode (always-on glance), horizon scrubber (now→+24h field),
-live-location puck + recenter, hazard reporting, quieter-road lever.
+live-location puck + recenter, hazard reporting, quieter-road lever,
+instant offline search (bundled 26.5k-POI NCR gazetteer, <10 ms answers),
+live inhaled-dose meter in navigation + dose receipt on arrival.
 
 `Bridge/` — the shared wire contract so app and server can never drift.
 
-**Tests:** `server/.venv312/bin/python test_api.py` — 41 assertions
-against live upstreams (no mocks).
+**Tests:** `server/.venv312/bin/python test_api.py` — 51 assertions
+against the live AWS deployment (no mocks), plus `field_calibration.json`:
+a leave-one-out run over 94 live instruments (MAE 46.1 µg/m³, bias +0.3).
 
 ## Docs
 
