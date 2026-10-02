@@ -856,16 +856,12 @@ export default function App() {
             <Text style={[s.fieldDose, { color: doseColor(fieldRead.pm25) }]}>
               {Math.round(fieldRead.pm25)} µg/m³
             </Text>
-            <Text style={s.fieldMeta}>
-              PM2.5 here
-              {fieldRead.nearest_sample_km != null ? ` · nearest sample ${fieldRead.nearest_sample_km} km` : ""}
-            </Text>
-            {fieldRead.typical?.median != null && (
+            <Text style={s.fieldMeta}>PM2.5 in the air here right now</Text>
+            {fieldRead.typical?.vs_now_pct != null && Math.abs(fieldRead.typical.vs_now_pct) > 8 && (
               <Text style={s.fieldMeta}>
-                decade median {Math.round(fieldRead.typical.median)} µg/m³ this month·hour
-                {fieldRead.typical.vs_now_pct != null
-                  ? ` · now ${fieldRead.typical.vs_now_pct > 0 ? "+" : ""}${Math.round(fieldRead.typical.vs_now_pct)}%`
-                  : ""}
+                {fieldRead.typical.vs_now_pct > 0
+                  ? `${Math.round(fieldRead.typical.vs_now_pct)}% smokier than usual for this hour`
+                  : `${Math.round(-fieldRead.typical.vs_now_pct)}% cleaner than usual for this hour`}
               </Text>
             )}
             {fieldRead.wind && fieldRead.wind.speed_kmh > 0 && (
@@ -875,12 +871,12 @@ export default function App() {
             )}
             {fieldRead.field?.age_s != null && (
               <Text style={s.fieldMeta}>
-                field updated {Math.max(1, Math.round(fieldRead.field.age_s / 60))} min ago
+                updated {Math.max(1, Math.round(fieldRead.field.age_s / 60))} min ago
               </Text>
             )}
             {fieldRead.grap?.indicative_stage != null && fieldRead.grap.indicative_stage > 0 && (
               <Text style={s.grapTxt}>
-                GRAP-{fieldRead.grap.indicative_stage} air (indicative)
+                delhi emergency tier {fieldRead.grap.indicative_stage} air (indicative)
               </Text>
             )}
           </Pressable>
