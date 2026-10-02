@@ -329,6 +329,20 @@ async def aqi(lat: float, lon: float):
     }
 
 
+@app.get("/today")
+async def today(lat: float, lon: float):
+    """24 hourly decade-typical PM2.5 medians at a point (IST hours) —
+    the ledger screen's background curve."""
+    ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+    curve = history.diurnal_curve(lat, lon)
+    return {
+        "month": ist.month,
+        "hour_now_ist": ist.hour,
+        "hours_ist": curve,
+        "source": "openaq-s3-climatology",
+    }
+
+
 @app.get("/reverse")
 async def reverse(lat: float, lon: float):
     try:
