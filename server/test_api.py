@@ -99,6 +99,9 @@ async def main():
         check("aqi wind or honest none", "wind" in j)
         check("aqi us_aqi field", "us_aqi" in j)
         check("aqi conditions block", isinstance(j.get("conditions"), dict))
+        cal = j.get("calibration") or {}
+        check("aqi calibration served", cal.get("mae_ug") is not None
+              and (cal.get("n_stations") or 0) > 50, cal.get("mae_ug"))
 
         j = (await c.get("/today", params={"lat": KB[0], "lon": KB[1]})).json()
         hrs = j.get("hours_ist") or []
