@@ -51,6 +51,8 @@ Judge-clickable (no install needed):
   real instruments — honest error, served next to the data).
 - `GET /grid` (+`?h=0–120`) — the PM2.5 field as a forecast surface;
   `GET /today` — the 24h decade-median curve at a point.
+- `GET /directions` — turn-by-turn maneuvers for a trip (OSRM steps →
+  plain instructions with distances; depart/arrive terminals kept).
 - `GET /search` `/reverse` `/route` — real OSM/Photon geocoding + OSRM
   routes with per-route dose and synthesized quieter-road alternates.
 - `GET /reports` `/community` `/observe` `/report` — the contribution
