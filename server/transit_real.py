@@ -425,6 +425,18 @@ def _bus() -> Optional[dict]:
     return _STATE["bus"]
 
 
+def warm(timeout_s: float = 600) -> dict:
+    """Block until both feeds are loaded (or timeout). Used by env setup:
+    `python -c "import transit_real; transit_real.warm()"`."""
+    ensure_loaded()
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if _STATE["metro"] is not None and _STATE["bus"] is not None:
+            break
+        time.sleep(0.5)
+    return status()
+
+
 def status() -> dict:
     """Ops/debug snapshot — which feeds are live and from where."""
     out = {}
