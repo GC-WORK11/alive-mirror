@@ -31,7 +31,7 @@ breathing in real time.
 
 ## Where AWS fits
 
-- **App Runner** (or EC2 free tier) hosts the FastAPI decision engine —
+- **ECS Fargate** (serverless containers) hosts the FastAPI decision engine —
   `server/Dockerfile` + `server/deploy-aws.sh` deploy in one command.
 - **S3** stores the 9M-measurement climatology (OpenAQ's archive is
   itself S3 — same bucket class, our derived product).

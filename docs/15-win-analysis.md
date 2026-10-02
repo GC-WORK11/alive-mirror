@@ -46,13 +46,13 @@ project's overall impression, not only the trophy.
 | Criterion | Now | Gap |
 |---|---|---|
 | Idea & Impact | Strong — personal dose + collective map; real numbers | Ledger of avoided-µg must be **visible in the video**, not just coded |
-| Built on AWS | **Zero AWS in the running system.** Fatal for prizes | S3 climatology (already real, un-wired visually), App Runner deploy, DynamoDB/S3 community ledger — pick 2 and show them |
+| Built on AWS | **Zero AWS in the running system.** Fatal for prizes | ECS Fargate deploy (LIVE — public URL serving the engine), S3+CodeBuild+ECR pipeline, S3 climatology — all running, all filmable |
 | Design & Usability | Functional light theme, real data, working drawer | Onboarding: a first-time judge needs 10 seconds to "get it" — the explainer line exists but the first screen is still dense |
 | Execution | Works end-to-end on both platforms, proven | Android re-proof pending; make the video itself the proof |
 
 ## What wins (ranked by leverage/effort)
 
-1. **Deploy + show AWS.** App Runner (uvicorn) or EC2 free tier; S3 for
+1. **Deploy + show AWS.** DONE — ECS Fargate live at a public URL (App Runner refused on new accounts; Fargate is the same serverless story). S3 for
    the climatology parquet already in use; DynamoDB table for
    observations (replaces community.json — same code shape). Show the
    AWS console in the video for 10 seconds. Without this, zero prize
