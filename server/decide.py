@@ -55,28 +55,34 @@ def rank(options: list, wx: dict = None) -> dict:
     best_t = min(o["duration_s"] for o in scored)
     best_r = min(_risk(o["vehicle"], wx) for o in scored)
 
+    worst_d = max(o["exposure"]["dose_ug"] for o in scored)
+    bad_wx = bool(wx) and ((wx.get("precip_mm") or 0) > 0 or
+                           (wx.get("visibility_m") or 99999) < 2000)
+
     for o, nd, nt, nr in zip(scored, doses, times, risks):
         o["decision_score"] = round(100 - (W_DOSE * nd + W_RISK * nr + W_TIME * nt) * 100, 1)
         reasons = []
         e = o["exposure"]
-        if o["exposure"]["dose_ug"] <= best_d * 1.15:
-            reasons.append("breathes least")
+        is_worst = e["dose_ug"] >= worst_d and len(scored) > 1
+        # one plain sentence per row — a rider who never heard of AQI
+        # should get it instantly; no units, no jargon
+        if is_worst:
+            reasons.append("the smokiest way to go")
+        elif e["dose_ug"] <= best_d * 1.15:
+            reasons.append("you'd breathe the least smoke on this one")
+        if o["duration_s"] <= best_t * 1.1 and not is_worst:
+            reasons.append("the quickest way there")
         if _risk(o["vehicle"], wx) <= best_r + 0.05:
-            reasons.append("safest mode class")
-        if wx and ((wx.get("precip_mm") or 0) > 0 or (wx.get("visibility_m") or 99999) < 2000):
-            if o["vehicle"] in _OPEN:
-                reasons.append("riskier in current rain/low-visibility")
-        if wx.get("is_day") == 0 and o["vehicle"] in _OPEN:
-            reasons.append("open mode after dark")
-        if o["duration_s"] <= best_t * 1.1:
-            reasons.append("fastest")
+            reasons.append("the safest way to travel")
+        if bad_wx and o["vehicle"] in _OPEN:
+            reasons.append("open ride in bad weather — riskier")
+        elif wx.get("is_day") == 0 and o["vehicle"] in _OPEN:
+            reasons.append("open ride after dark — riskier")
         vs = e.get("ug_saved_vs_worst")
-        if vs and vs > 5:
-            reasons.append(f"avoids {vs:.0f} µg vs worst option")
+        if vs and vs > 5 and not is_worst:
+            reasons.append("much less smoke than the smokiest")
         if not reasons:
-            t_over = round((o["duration_s"] - best_t) / 60)
-            d_over = e.get("dose_vs_best_pct", 0)
-            reasons.append(f"+{d_over:.0f}% dose, +{t_over} min vs best")
+            reasons.append("more smoke and slower than the best")
         o["decision_reasons"] = reasons
 
     scored.sort(key=lambda o: -o["decision_score"])

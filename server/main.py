@@ -679,3 +679,93 @@ async def reverse(lat: float, lon: float):
     except httpx.HTTPError:
         pass
     return {"name": "Dropped pin", "subtitle": ""}
+
+
+_ORDINAL = {1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th"}
+
+
+def _instruction(step: dict) -> str:
+    """OSRM maneuver → a plain-English sentence, GMaps style."""
+    m = step.get("maneuver") or {}
+    t, mod = m.get("type", ""), m.get("modifier", "") or ""
+    named = step.get("name") or step.get("ref") or ""
+    road = named or "the road"
+    onto = f" onto {road}" if named else ""
+    if mod == "uturn":
+        return f"Make a U-turn{onto}"
+    if t == "depart":
+        return f"Head {mod} on {road}" if mod and named else f"Head out{onto or ''}"
+    if t == "arrive":
+        return "You'll arrive"
+    if t in ("roundabout", "rotary", "roundabout turn"):
+        ex = _ORDINAL.get(m.get("exit") or 1, f"{m.get('exit')}th")
+        return f"At the roundabout, take the {ex} exit{onto}"
+    if t in ("on ramp", "off ramp"):
+        return f"Take the {'ramp' if t == 'on ramp' else 'exit'}{onto}"
+    if t == "merge":
+        return f"Merge{onto}" if named else "Merge"
+    if t == "continue":
+        return f"Continue on {road}" if named else "Continue straight"
+    if t == "fork":
+        side = mod.replace("slight ", "") if mod else ""
+        return f"Keep {side}{onto}" if side else f"Continue{onto}"
+    if mod:
+        if mod == "straight":
+            return f"Continue{onto}" if named else "Continue straight"
+        verb = "Bear" if mod.startswith("slight") else "Turn"
+        return f"{verb} {mod.replace('slight ', '')}{onto}"
+    return f"Continue{onto}" if named else "Continue"
+
+
+@app.get("/directions")
+async def directions(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
+                     profile: str = "driving", vehicle: Optional[str] = None):
+    """Turn-by-turn: OSRM maneuver steps rendered as plain-English
+    instructions — the Google-Maps directions list, for any mode.
+    vehicle scales the OSRM duration the same way /route does."""
+    prof = profile if profile in ("driving", "cycling", "walking") else "driving"
+    try:
+        r = await http().get(
+            f"https://router.project-osrm.org/route/v1/{prof}/"
+            f"{from_lon},{from_lat};{to_lon},{to_lat}",
+            params={"overview": "full", "geometries": "geojson",
+                    "steps": "true", "alternatives": "false"})
+        r.raise_for_status()
+        routes = r.json().get("routes", [])
+    except httpx.HTTPError:
+        return {"steps": [], "error": "router unavailable"}
+    if not routes:
+        return {"steps": [], "error": "no route"}
+    rt = routes[0]
+    dur_s = _scaled_duration_s(vehicle or "", prof, rt)
+
+    steps = []
+    for leg in rt.get("legs", []):
+        for st in leg.get("steps", []):
+            ins = _instruction(st)
+            if not ins:
+                continue
+            steps.append({
+                "instruction": ins,
+                "street": st.get("name") or "",
+                "type": (st.get("maneuver") or {}).get("type", ""),
+                "modifier": (st.get("maneuver") or {}).get("modifier") or "",
+                "distance_m": round(st.get("distance", 0)),
+                "duration_s": round(st.get("duration", 0)),
+            })
+    # keep at most 12 instructions, in route order — depart/arrive always
+    # survive (they carry ~0 distance), longest middle legs fill the rest
+    steps = [s for s in steps if s["type"] != "notification"]
+    if len(steps) > 12:
+        terminal = [s for s in steps if s["type"] in ("depart", "arrive")]
+        middle = [s for s in steps if s["type"] not in ("depart", "arrive")]
+        keep = {id(s) for s in sorted(middle, key=lambda s: -s["distance_m"])[:12 - len(terminal)]}
+        keep.update(id(s) for s in terminal)
+        steps = [s for s in steps if id(s) in keep]
+    return {
+        "distance_km": round(rt["distance"] / 1000, 1),
+        "duration_min": round(dur_s / 60),
+        "duration_s": dur_s,
+        "geometry": rt["geometry"],
+        "steps": steps,
+    }

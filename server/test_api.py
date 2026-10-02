@@ -83,6 +83,22 @@ async def main():
         check("decide reasons present", all(o.get("decision_reasons") for o in scored))
         check("decide ordered desc", [o["decision_score"] for o in scored] ==
               sorted([o["decision_score"] for o in scored], reverse=True))
+        check("decide reasons are plain-English", all(
+            not any(w in " ".join(o.get("decision_reasons", []))
+                    for w in ("µg", "dose", "PM2.5", "%", "min vs"))
+            for o in scored))
+
+        j = (await c.get("/directions", params={
+            "from_lat": KB[0], "from_lon": KB[1],
+            "to_lat": IG[0], "to_lon": IG[1]})).json()
+        steps = j.get("steps", [])
+        check("directions returns steps", len(steps) >= 2, len(steps))
+        check("directions steps shaped", all(
+            s.get("instruction") and "distance_m" in s and "type" in s
+            for s in steps))
+        check("directions has arrival", any(
+            "arrive" in s["instruction"].lower() for s in steps))
+        check("directions geometry", j.get("geometry", {}).get("type") == "LineString")
 
         # --- time + field ---------------------------------------------
         j = (await c.get("/depart", params={

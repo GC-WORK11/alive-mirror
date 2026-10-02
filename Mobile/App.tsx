@@ -28,6 +28,7 @@ import {
   GeoJSONSource,
   Layer,
   Map,
+  Marker,
   UserLocation,
   type CameraRef,
 } from "@maplibre/maplibre-react-native";
@@ -122,6 +123,142 @@ const hourLabel = (iso: string | null, ahead: number) => {
   return `+${ahead}h`;
 };
 
+type Step = { instruction: string; distance_m: number; type?: string };
+
+/* Vehicle icons drawn with views — stroke style, no emoji, no assets. */
+
+function _wheels(color: string, gap: number, y: number) {
+  return (
+    <>
+      <View style={{ position: "absolute", bottom: y, left: gap, width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+      <View style={{ position: "absolute", bottom: y, right: gap, width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
+    </>
+  );
+}
+
+function ModeIcon({ vehicle, color, size = 22 }: { vehicle: string; color: string; size?: number }) {
+  const k = (vehicle || "").toLowerCase();
+  const bw = 1.4;
+  let body: React.ReactNode;
+  if (k.includes("walk")) {
+    body = (
+      <View style={{ width: 16, height: 20, alignItems: "center" }}>
+        <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: color }} />
+        <View style={{ width: bw, height: 7, backgroundColor: color, marginTop: 1 }} />
+        <View style={{ flexDirection: "row", gap: 2 }}>
+          <View style={{ width: bw, height: 6, backgroundColor: color, transform: [{ rotate: "18deg" }] }} />
+          <View style={{ width: bw, height: 6, backgroundColor: color, transform: [{ rotate: "-18deg" }] }} />
+        </View>
+      </View>
+    );
+  } else if (k.includes("cycle") || k.includes("bicycle")) {
+    body = (
+      <View style={{ width: 22, height: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <View style={{ width: 9, height: 9, borderRadius: 5, borderWidth: bw, borderColor: color }} />
+        <View style={{ position: "absolute", left: 7, top: 3, width: 8, height: 8, borderLeftWidth: bw, borderTopWidth: bw, borderColor: color, transform: [{ rotate: "-30deg" }] }} />
+        <View style={{ width: 9, height: 9, borderRadius: 5, borderWidth: bw, borderColor: color }} />
+      </View>
+    );
+  } else if (k.includes("bike") || k.includes("scooter") || k.includes("two_wheeler")) {
+    body = (
+      <View style={{ width: 22, height: 14, justifyContent: "flex-end" }}>
+        <View style={{ position: "absolute", top: 0, left: 8, width: 6, height: 5, borderWidth: bw, borderColor: color, borderRadius: 2 }} />
+        <View style={{ position: "absolute", top: 4, left: 10, width: 8, height: 1.6, backgroundColor: color, transform: [{ rotate: "-25deg" }] }} />
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <View style={{ width: 7, height: 7, borderRadius: 4, borderWidth: bw, borderColor: color }} />
+          <View style={{ width: 7, height: 7, borderRadius: 4, borderWidth: bw, borderColor: color }} />
+        </View>
+      </View>
+    );
+  } else if (k.includes("bus")) {
+    body = (
+      <View style={{ width: 15, height: 18, alignItems: "center" }}>
+        <View style={{ width: 15, height: 15, borderWidth: bw, borderColor: color, borderRadius: 3 }}>
+          <View style={{ height: 5, borderBottomWidth: bw, borderColor: color }} />
+          <View style={{ flexDirection: "row", justifyContent: "center", gap: 5, marginTop: 4 }}>
+            <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: color }} />
+            <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: color }} />
+          </View>
+        </View>
+        {_wheels(color, 2, -2.5)}
+      </View>
+    );
+  } else if (k.includes("metro")) {
+    body = (
+      <View style={{ width: 16, height: 18, alignItems: "center" }}>
+        <View style={{ width: 14, height: 13, borderWidth: bw, borderColor: color, borderRadius: 4 }}>
+          <View style={{ height: 4, borderBottomWidth: bw, borderColor: color }} />
+        </View>
+        <View style={{ flexDirection: "row", gap: 4, marginTop: 2 }}>
+          <View style={{ width: 6, height: bw, backgroundColor: color, transform: [{ rotate: "25deg" }] }} />
+          <View style={{ width: 6, height: bw, backgroundColor: color, transform: [{ rotate: "-25deg" }] }} />
+        </View>
+      </View>
+    );
+  } else if (k.includes("auto") || k.includes("rickshaw")) {
+    body = (
+      <View style={{ width: 18, height: 15, alignItems: "center" }}>
+        <View style={{ width: 13, height: 6, borderWidth: bw, borderColor: color, borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
+        <View style={{ width: 17, height: 6, borderWidth: bw, borderColor: color, borderRadius: 2, marginTop: -1 }} />
+        {_wheels(color, 3, -3)}
+      </View>
+    );
+  } else {
+    // car (default) — rounded body + cabin + wheels
+    body = (
+      <View style={{ width: 21, height: 14, alignItems: "center", justifyContent: "flex-end" }}>
+        <View style={{ width: 11, height: 5, borderWidth: bw, borderColor: color, borderTopLeftRadius: 4, borderTopRightRadius: 4, marginBottom: -1 }} />
+        <View style={{ width: 21, height: 8, borderWidth: bw, borderColor: color, borderRadius: 3 }} />
+        {_wheels(color, 3, -3.5)}
+      </View>
+    );
+  }
+  return (
+    <View style={{ width: size + 8, height: size, alignItems: "center", justifyContent: "center" }}>
+      {body}
+    </View>
+  );
+}
+
+/** Smoke meter — 5 ascending bars, filled by how much you'd breathe. */
+function SmokeMeter({ level, color }: { level: number; color: string }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 1.5, height: 14 }}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <View key={i} style={{
+          width: 3.2, height: 3 + i * 2.6, borderRadius: 1,
+          backgroundColor: i < level ? color : "rgba(87,83,78,0.18)",
+        }} />
+      ))}
+    </View>
+  );
+}
+
+/** Google-Maps-style teardrop pin. */
+function Pin({ letter, color }: { letter: string; color: string }) {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View style={{
+        width: 26, height: 26, borderRadius: 13, backgroundColor: color,
+        borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center",
+        shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+      }}>
+        <Text style={{ fontFamily: F.bold, fontSize: 12, color: "#fff" }}>{letter}</Text>
+      </View>
+      <View style={{
+        width: 0, height: 0, marginTop: -1,
+        borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 8,
+        borderLeftColor: "transparent", borderRightColor: "transparent",
+        borderTopColor: color,
+      }} />
+    </View>
+  );
+}
+
+const VEHICLE_PROFILE: Record<string, string> = {
+  cycle: "cycling", walk: "walking",
+};
+
 export default function App() {
   const camRef = useRef<CameraRef>(null);
   const [from, setFrom] = useState<Place | null>(null);
@@ -135,7 +272,6 @@ export default function App() {
   const [options, setOptions] = useState<CompareOption[]>([]);
   const [selected, setSelected] = useState(0);
   const [depart, setDepart] = useState<Depart>(null);
-  const [showWhy, setShowWhy] = useState(false);
   const [fieldRead, setFieldRead] = useState<FieldRead | null>(null);
   const [grid, setGrid] = useState<GeoJSON.FeatureCollection | null>(null);
   const [horizonH, setHorizonH] = useState(0);
@@ -161,6 +297,8 @@ export default function App() {
   const [notified, setNotified] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   const [cardH, setCardH] = useState(0);
+  const [steps, setSteps] = useState<Step[] | null>(null);
+  const [nav, setNav] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
 
@@ -316,6 +454,54 @@ export default function App() {
     return () => { cancelled = true; };
   }, [from, to]);
 
+  // turn-by-turn steps for the selected option — the public OSRM demo
+  // only computes the driving graph, so walk/cycle get no step list
+  useEffect(() => {
+    setSteps(null);
+    const o = options[selected];
+    if (!o || !from || !to) return;
+    const profile = VEHICLE_PROFILE[o.vehicle] ?? "driving";
+    if (profile !== "driving") return;
+    fetch(
+      `${API}/directions?from_lat=${from.lat}&from_lon=${from.lon}` +
+        `&to_lat=${to.lat}&to_lon=${to.lon}&profile=${profile}&vehicle=${o.vehicle}`
+    )
+      .then((r) => r.json())
+      .then((j) => { if (Array.isArray(j.steps)) setSteps(j.steps); })
+      .catch(() => {});
+  }, [selected, options, from, to]);
+
+  const clearRoute = useCallback(() => {
+    setFrom(null); setTo(null); setFromText(""); setToText("");
+    setOptions([]); setDepart(null); setSteps(null); setNav(false); setFollow(false);
+  }, []);
+
+  const startNav = useCallback(() => {
+    const o = options[selected];
+    if (!o || !from || !to) return;
+    setNav(true);
+    setFollow(true);
+    Keyboard.dismiss();
+    camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
+    camRef.current?.setStop({ pitch: 55, duration: 800 });
+  }, [options, selected, from, to]);
+
+  const exitNav = useCallback(() => {
+    setNav(false);
+    setFollow(false);
+    camRef.current?.setStop({ pitch: 0, duration: 700 });
+    const g = options[selected]?.geometry;
+    if (g?.type === "LineString") {
+      const coords = (g as GeoJSON.LineString).coordinates;
+      const lons = coords.map((c) => c[0]);
+      const lats = coords.map((c) => c[1]);
+      camRef.current?.fitBounds(
+        [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)],
+        { padding: { top: 240, bottom: 300, left: 60, right: 60 }, duration: 700 }
+      );
+    }
+  }, [options, selected]);
+
   // ledger: a picked option is a trip — deduped inside the store
   useEffect(() => {
     const o = options[selected];
@@ -373,13 +559,6 @@ export default function App() {
       .filter(({ o, i }) => i !== selected && o.geometry?.type === "LineString")
       .map(({ o }) => ({ type: "Feature" as const, properties: {}, geometry: o.geometry })),
   }), [options, selected]);
-
-  const markers = useMemo<GeoJSON.FeatureCollection>(() => {
-    const feats: GeoJSON.Feature[] = [];
-    if (from) feats.push({ type: "Feature", properties: { kind: "from" }, geometry: { type: "Point", coordinates: [from.lon, from.lat] } });
-    if (to) feats.push({ type: "Feature", properties: { kind: "to" }, geometry: { type: "Point", coordinates: [to.lon, to.lat] } });
-    return { type: "FeatureCollection", features: feats };
-  }, [from, to]);
 
   const openLedger = useCallback(async () => {
     setShowLedger(true);
@@ -463,16 +642,20 @@ export default function App() {
             paint={{ "line-color": ["get", "color"], "line-width": 4.5 }}
             layout={{ "line-cap": "round", "line-join": "round" }} />
         </GeoJSONSource>
-        <GeoJSONSource id="markers" data={markers}>
-          <Layer id="endpoint" type="circle" paint={{
-            "circle-radius": 7,
-            "circle-color": ["match", ["get", "kind"], "from", T.accent, T.doseMid],
-            "circle-stroke-width": 2.5, "circle-stroke-color": "#ffffff",
-          }} />
-        </GeoJSONSource>
+        {from && (
+          <Marker lngLat={[from.lon, from.lat]} anchor="bottom">
+            <Pin letter="A" color={T.accent} />
+          </Marker>
+        )}
+        {to && (
+          <Marker lngLat={[to.lon, to.lat]} anchor="bottom">
+            <Pin letter="B" color={T.doseMid} />
+          </Marker>
+        )}
       </Map>
 
-      {/* search card */}
+      {/* search card — hidden during turn-by-turn nav */}
+      {!nav && (
       <View style={s.cardWrap}>
         <BlurView intensity={45} tint="light" style={s.card}>
           <View style={s.row}>
@@ -519,9 +702,10 @@ export default function App() {
           </BlurView>
         )}
       </View>
+      )}
 
       {/* horizon scrubber — now / +6h / +12h / +24h; hidden while a field is focused */}
-      {!active && (
+      {!active && !nav && (
       <View style={s.horizonWrap}>
         {HORIZONS.map((h) => (
           <Pressable key={h} onPress={() => scrubField(h)}
@@ -535,7 +719,7 @@ export default function App() {
       )}
 
       {/* top-right: journey drawer, ledger, ambient */}
-      {!active && (
+      {!active && !nav && (
       <View style={s.topRight}>
         <Pressable onPress={() => setDrawerOpen(true)} style={({ pressed }) => [s.aodBtn, pressed && s.chipPressed]} hitSlop={10}>
           <Text style={s.aodGlyph}>☰</Text>
@@ -560,7 +744,7 @@ export default function App() {
       {/* action column: recenter + air report — rendered AFTER the dose
           card and anchored just above its measured height so the card
           can never swallow the buttons */}
-      {!active && !drawerOpen && (
+      {!active && !drawerOpen && !nav && (
         <View style={[s.fabCol, { bottom: Math.max(cardH + 44, 300) }]}>
           {hasLoc && (
             <Pressable style={({ pressed }) => [s.fab, follow && s.fabOn, pressed && s.chipPressed]} onPress={() => setFollow(!follow)}>
@@ -627,78 +811,129 @@ export default function App() {
         </View>
       )}
 
-      {/* dose ranking */}
-      {from && to && (
+      {/* ways-to-go bottom sheet — Google-Maps grade */}
+      {from && to && !nav && (
         <View style={s.bottomWrap}
           onLayout={(e) => setCardH(e.nativeEvent.layout.height)}>
-          <BlurView intensity={45} tint="light" style={s.summary}>
+          <BlurView intensity={55} tint="light" style={s.summary}>
             {loadingRoute ? (
-              <ActivityIndicator size="small" color={T.accent} />
+              <ActivityIndicator size="small" color={T.accent} style={{ marginVertical: 14 }} />
             ) : options.length > 0 ? (
               <View>
-                <ScrollView style={{ maxHeight: 246 }} showsVerticalScrollIndicator={false}>
-                  {options.map((o, i) => (
-                    <Pressable key={`${o.vehicle}-${i}`} onPress={() => setSelected(i)}
-                      style={({ pressed }) => [s.optRow, i === selected && s.optRowSel, pressed && s.chipPressed]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.optLabel}>
-                          {o.label}
-                          {i === 0 ? <Text style={s.bestTag}>  recommended</Text> : null}
-                        </Text>
-                        {o.decision_reasons?.length ? (
-                          <Text style={s.optReason}>{o.decision_reasons.join(" · ")}</Text>
-                        ) : null}
-                        <Text style={s.optMeta}>
-                          {o.duration_min} min · {o.distance_km} km
-                          {o.exposure?.confidence ? ` · ${o.exposure.confidence}` : ""}
-                          {o.hotspots?.[0]?.share_pct && o.hotspots[0].share_pct > 30
-                            ? ` · ${o.hotspots[0].share_pct}% in one stretch` : ""}
-                        </Text>
-                        {o.stations ? (
-                          <Text style={s.optMeta}>{o.stations.board} → {o.stations.alight}</Text>
-                        ) : null}
+                <View style={s.sheetHead}>
+                  <Text style={s.sheetTitle}>ways to go</Text>
+                  <Pressable onPress={clearRoute} hitSlop={10}
+                    style={({ pressed }) => [s.sheetX, pressed && { opacity: 0.5 }]}>
+                    <Text style={s.sheetXTxt}>✕</Text>
+                  </Pressable>
+                </View>
+                <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                  {options.map((o, i) => {
+                    const conc = o.exposure?.avg_conc_ugm3 ?? 0;
+                    const c = doseColor(conc);
+                    const meter = conc <= 0 ? 0 : Math.max(1, Math.min(5, Math.round(conc / 60) + 1));
+                    const sel = i === selected;
+                    return (
+                      <View key={`${o.vehicle}-${i}`}>
+                        <Pressable onPress={() => setSelected(i)}
+                          style={({ pressed }) => [s.optRow, sel && s.optRowSel, pressed && s.chipPressed]}>
+                          <ModeIcon vehicle={o.vehicle} color={sel ? T.accent : T.ink2} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={s.optLabel}>
+                              {o.label}
+                              {i === 0 ? <Text style={s.bestTag}>  cleanest ride</Text> : null}
+                            </Text>
+                            {o.decision_reasons?.length ? (
+                              <Text style={s.optReason} numberOfLines={1}>{o.decision_reasons[0]}</Text>
+                            ) : null}
+                            {o.stations ? (
+                              <Text style={s.optMeta} numberOfLines={1}>{o.stations.board} → {o.stations.alight}</Text>
+                            ) : null}
+                          </View>
+                          <View style={{ alignItems: "flex-end", marginRight: 10 }}>
+                            <Text style={s.optEta}>{o.duration_min} min</Text>
+                            <Text style={s.optMeta}>{o.distance_km} km · {arrivalLabel(o.duration_min)}</Text>
+                          </View>
+                          <View style={{ alignItems: "flex-end", width: 44 }}>
+                            <SmokeMeter level={meter} color={c} />
+                            <Text style={[s.optDose, { color: c }]}>
+                              {o.exposure?.dose_ug != null ? `${o.exposure.dose_ug}` : "—"}
+                            </Text>
+                            <Text style={s.optMeta}>µg</Text>
+                          </View>
+                        </Pressable>
+                        {sel && steps && steps.length > 0 && (
+                          <View style={s.stepsBox}>
+                            {steps.map((st, si) => (
+                              <View key={si} style={s.stepRow}>
+                                <View style={s.stepDot} />
+                                <Text style={s.stepTxt} numberOfLines={2}>
+                                  {st.instruction}
+                                  {st.distance_m >= 40 && st.type !== "arrive"
+                                    ? <Text style={s.stepDist}>  {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} km` : `${Math.round(st.distance_m / 10) * 10} m`}</Text>
+                                    : null}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
-                      <Text style={[s.optDose, { color: doseColor(o.exposure?.avg_conc_ugm3) }]}>
-                        {o.exposure?.dose_ug != null ? `${o.exposure.dose_ug} µg` : "—"}
-                      </Text>
-                    </Pressable>
-                  ))}
+                    );
+                  })}
                 </ScrollView>
-                {options[selected] && (
-                  <Text style={s.arriveTxt}>
-                    arrives ~{arrivalLabel(options[selected].duration_min)} by {options[selected].label}
-                  </Text>
-                )}
                 {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 10 && (
                   <View style={s.departRow}>
                     <Text style={s.departHint}>
-                      leave {hourLabel(depart.best.start, depart.best.hours_ahead)} — same trip, {depart.ug_saved_vs_now}% less PM2.5
+                      leave {hourLabel(depart.best.start, depart.best.hours_ahead)} — same trip, {depart.ug_saved_vs_now}% less smoke
                     </Text>
                     <Pressable onPress={remind} hitSlop={6}>
                       <Text style={s.remindTxt}>{notified ? "set ✓" : "remind me"}</Text>
                     </Pressable>
                   </View>
                 )}
-                <Pressable onPress={() => setShowWhy((v) => !v)}>
-                  <Text style={s.summarySub}>
-                    inhaled PM2.5 · measured field {showWhy ? "· hide" : "· why?"}
-                  </Text>
+                <Pressable onPress={startNav}
+                  style={({ pressed }) => [s.startBtn, pressed && { opacity: 0.85 }]}>
+                  <Text style={s.startTxt}>start</Text>
                 </Pressable>
-                {showWhy && options[selected]?.exposure && (
-                  <Text style={s.whyTxt}>
-                    {options[selected].label}: breathing-zone ≈ ambient ×{" "}
-                    {options[selected].exposure.factors?.microenv ?? "?"} · breathing{" "}
-                    {options[selected].exposure.factors?.ventilation_lpm ?? "?"} L/min
-                    {options[selected].exposure.peak_conc != null ? ` · peak ${options[selected].exposure.peak_conc} µg/m³` : ""}
-                    {options[selected].exposure.coverage != null ? ` · ${Math.round(options[selected].exposure.coverage * 100)}% of trip covered` : ""}
-                  </Text>
-                )}
+                <Text style={s.sheetFoot}>
+                  smoke bars show how much you'd actually breathe — measured live across Delhi
+                </Text>
               </View>
             ) : (
-              <Text style={s.summarySub}>no route found</Text>
+              <Text style={s.summarySub}>no way found — try another spot</Text>
             )}
           </BlurView>
         </View>
+      )}
+
+      {/* nav mode — maneuver banner + slim ETA bar */}
+      {nav && options[selected] && (
+        <>
+          <View style={s.navBanner} pointerEvents="none">
+            <BlurView intensity={55} tint="light" style={s.navBannerIn}>
+              <Text style={s.navStep} numberOfLines={2}>
+                {steps?.find((st) => st.type !== "depart")?.instruction ?? "follow the route"}
+              </Text>
+              <Text style={s.navSub}>
+                {from?.name ?? ""} → {to?.name ?? ""}
+              </Text>
+            </BlurView>
+          </View>
+          <View style={s.navBar}>
+            <BlurView intensity={55} tint="light" style={s.navBarIn}>
+              <View>
+                <Text style={s.navEta}>{options[selected].duration_min} min</Text>
+                <Text style={s.navSub}>
+                  {options[selected].distance_km} km · arrive {arrivalLabel(options[selected].duration_min)}
+                </Text>
+              </View>
+              <Pressable onPress={exitNav}
+                style={({ pressed }) => [s.navExit, pressed && { opacity: 0.7 }]}>
+                <Text style={s.navExitTxt}>exit</Text>
+              </Pressable>
+            </BlurView>
+          </View>
+        </>
       )}
 
       {showLedger && (
@@ -844,6 +1079,35 @@ const s = StyleSheet.create({
   remindTxt: { fontFamily: F.med, fontSize: 12, color: T.ink2, paddingLeft: 10 },
   summarySub: { fontFamily: F.reg, fontSize: 11.5, color: T.ink3, marginTop: 9, textAlign: "center" },
   arriveTxt: { fontFamily: F.reg, fontSize: 11, color: T.ink3, marginTop: 8, textAlign: "center" },
+  sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingTop: 4, paddingBottom: 6 },
+  sheetTitle: { fontFamily: F.semi, fontSize: 13, color: T.ink2, letterSpacing: 0.4 },
+  sheetX: { width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(87,83,78,0.10)", alignItems: "center", justifyContent: "center" },
+  sheetXTxt: { fontFamily: F.semi, fontSize: 11, color: T.ink2 },
+  optEta: { fontFamily: F.bold, fontSize: 15, color: T.ink, fontVariant: ["tabular-nums"] },
+  stepsBox: {
+    marginHorizontal: 10, marginBottom: 6, paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 12, backgroundColor: "rgba(87,83,78,0.06)",
+    borderLeftWidth: 2, borderLeftColor: T.accent,
+  },
+  stepRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 3 },
+  stepDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: T.accent, marginTop: 6, marginRight: 8 },
+  stepTxt: { flex: 1, fontFamily: F.reg, fontSize: 12.5, color: T.ink },
+  stepDist: { fontFamily: F.reg, fontSize: 11.5, color: T.ink3 },
+  startBtn: {
+    marginTop: 8, marginHorizontal: 10, paddingVertical: 13, borderRadius: 16,
+    backgroundColor: T.accent, alignItems: "center",
+  },
+  startTxt: { fontFamily: F.semi, fontSize: 15, color: "#fff", letterSpacing: 0.6 },
+  sheetFoot: { fontFamily: F.reg, fontSize: 10.5, color: T.ink3, marginTop: 8, marginBottom: 4, textAlign: "center", paddingHorizontal: 16 },
+  navBanner: { position: "absolute", top: 60, left: 16, right: 16 },
+  navBannerIn: { borderRadius: 16, overflow: "hidden", padding: 14 },
+  navStep: { fontFamily: F.semi, fontSize: 16, color: T.ink },
+  navSub: { fontFamily: F.reg, fontSize: 11.5, color: T.ink2, marginTop: 3 },
+  navBar: { position: "absolute", bottom: 30, left: 16, right: 16 },
+  navBarIn: { borderRadius: 16, overflow: "hidden", padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  navEta: { fontFamily: F.bold, fontSize: 18, color: T.ink, fontVariant: ["tabular-nums"] },
+  navExit: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12, backgroundColor: "rgba(178,58,48,0.12)" },
+  navExitTxt: { fontFamily: F.semi, fontSize: 13, color: T.doseHigh ?? "#b23a30" },
   introScrim: {
     position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
     backgroundColor: "rgba(247,246,243,0.94)", alignItems: "center", justifyContent: "center",
