@@ -13,7 +13,19 @@ MODE_RISK = {
     "auto": 1.35, "bike": 2.3, "cycle": 2.0, "walk": 2.4,
 }
 
+# exposed modes get riskier in rain or poor visibility (wet road, low
+# sight distance) — the weather half of 'safety first'
+_OPEN = {"bike", "cycle", "walk", "auto"}
+
 W_DOSE, W_RISK, W_TIME = 0.50, 0.30, 0.20
+
+
+def _risk(vehicle: str, wx: dict) -> float:
+    r = MODE_RISK.get(vehicle, 1.5)
+    if vehicle in _OPEN and wx:
+        if (wx.get("precip_mm") or 0) > 0 or (wx.get("visibility_m") or 99999) < 2000:
+            r *= 1.25
+    return r
 
 
 def _norm(xs):
@@ -23,9 +35,10 @@ def _norm(xs):
     return [(x - lo) / (hi - lo) for x in xs]
 
 
-def rank(options: list) -> dict:
+def rank(options: list, wx: dict = None) -> dict:
     """Score every option on dose + mode-risk + time; return ranked list
-    with a plain-English reason per option."""
+    with a plain-English reason per option. wx = ambient conditions."""
+    wx = wx or {}
     scored = [o for o in options
               if (o.get("exposure") or {}).get("dose_ug") is not None
               and o.get("duration_s")]
@@ -34,11 +47,11 @@ def rank(options: list) -> dict:
 
     doses = _norm([o["exposure"]["dose_ug"] for o in scored])
     times = _norm([o["duration_s"] for o in scored])
-    risks = _norm([MODE_RISK.get(o["vehicle"], 1.5) for o in scored])
+    risks = _norm([_risk(o["vehicle"], wx) for o in scored])
 
     best_d = min(o["exposure"]["dose_ug"] for o in scored)
     best_t = min(o["duration_s"] for o in scored)
-    best_r = min(MODE_RISK.get(o["vehicle"], 1.5) for o in scored)
+    best_r = min(_risk(o["vehicle"], wx) for o in scored)
 
     for o, nd, nt, nr in zip(scored, doses, times, risks):
         o["decision_score"] = round(100 - (W_DOSE * nd + W_RISK * nr + W_TIME * nt) * 100, 1)
@@ -46,8 +59,11 @@ def rank(options: list) -> dict:
         e = o["exposure"]
         if o["exposure"]["dose_ug"] <= best_d * 1.15:
             reasons.append("breathes least")
-        if MODE_RISK.get(o["vehicle"], 1.5) <= best_r + 0.05:
+        if _risk(o["vehicle"], wx) <= best_r + 0.05:
             reasons.append("safest mode class")
+        if wx and ((wx.get("precip_mm") or 0) > 0 or (wx.get("visibility_m") or 99999) < 2000):
+            if o["vehicle"] in _OPEN:
+                reasons.append("riskier in current rain/low-visibility")
         if o["duration_s"] <= best_t * 1.1:
             reasons.append("fastest")
         vs = e.get("ug_saved_vs_worst")

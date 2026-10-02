@@ -508,7 +508,7 @@ async def decide_route(from_lat: float, from_lon: float, to_lat: float, to_lon: 
     base = await compare_modes(from_lat, from_lon, to_lat, to_lon)
     if not base.get("options"):
         return base
-    ranked = decide.rank(base["options"])
+    ranked = decide.rank(base["options"], FIELD.weather())
     return {
         "options": ranked["options"],
         "pick": ranked["decision"].get("label") if ranked["decision"] else None,
