@@ -46,6 +46,22 @@ def http() -> httpx.AsyncClient:
     return _http
 
 
+_calib_cache: dict = {}
+
+
+def _calibration() -> Optional[dict]:
+    """LOO accuracy numbers produced by calibrate.py — honest field error,
+    served next to the field itself so any reader can check our claims."""
+    if not _calib_cache:
+        try:
+            import json, os
+            p = os.path.join(os.path.dirname(__file__), "data", "field_calibration.json")
+            _calib_cache.update(json.load(open(p)))
+        except (OSError, ValueError):
+            return None
+    return _calib_cache or None
+
+
 @app.get("/health")
 async def health():
     return {"ok": True, "ts": time.time(), "history": history.summary()}
@@ -413,6 +429,7 @@ async def aqi(lat: float, lon: float):
         "wind": FIELD.wind(),
         "grap": grap_indicative(v * mod),
         "field": FIELD.status(),
+        "calibration": _calibration(),
         "typical": {
             "month": ist.month, "hour_ist": ist.hour,
             "median": typical, "p25": band.get("p25"), "p75": band.get("p75"),
