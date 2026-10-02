@@ -24,7 +24,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-font",
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        { "enableBackgroundRemoteNotifications": false }
+      ]
     ]
   }
 }

@@ -86,6 +86,8 @@ export interface CompareOption {
   duration_model: "osrm" | "estimated"; // honest flag: non-car times are distance/speed
   geometry: RouteGeometry;
   stations?: { board: string; alight: string; access_km: number; egress_km: number }; // metro only
+  segments?: RouteSegment[];  // ~90 s spans, own dose+color each (road modes)
+  hotspots?: RouteHotspot[];  // top-3 dose stretches
   legs?: unknown[]; // metro walk-metro-walk decomposition
   exposure: Exposure;
 }
@@ -118,6 +120,41 @@ export interface DepartResponse {
   error?: string;
 }
 
+// per-segment dose breakdown — route split into ~90 s spans, each scored
+// on the live field; `color` is the client paint for the polyline span
+export interface RouteSegment {
+  start_frac: number;
+  end_frac: number;
+  minutes: number;
+  coords: [number, number][];
+  avg_conc_ugm3: number | null;
+  dose_ug: number | null;
+  color: string;
+}
+
+export interface RouteHotspot {
+  label: string;
+  dose_ug: number | null;
+  share_pct: number;          // share of the whole trip's dose
+  midpoint_coord: [number, number];
+  span_frac: [number, number];
+}
+
+export interface TodayResponse {
+  lat: number;
+  lon: number;
+  month: number;
+  station: string;
+  hours_ist: (number | null)[]; // 24 medians, index = IST hour
+  hour_now_ist: number;
+}
+
+export interface GridResponse extends GeoJSON.FeatureCollection {
+  features: (GeoJSON.Feature<GeoJSON.Polygon> & {
+    properties: { pm25: number; conf: "hi" | "med" | "lo" };
+  })[];
+}
+
 export const ENDPOINTS = {
   health: "/health",
   search: "/search",
@@ -126,6 +163,8 @@ export const ENDPOINTS = {
   depart: "/depart",
   reverse: "/reverse",
   aqi: "/aqi",
+  today: "/today",
+  grid: "/grid",
 } as const;
 
 export type TravelMode = "driving" | "cycling" | "walking";
