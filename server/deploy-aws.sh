@@ -75,7 +75,7 @@ SUBNET=$(aws ec2 describe-subnets --query 'Subnets[0].SubnetId' --output text)
 aws ecs create-service --cluster alive108 --service-name alive108 \
   --task-definition alive108 --desired-count 1 --launch-type FARGATE \
   --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=ENABLED}" 2>/dev/null || \
-aws ecs update-service --cluster alive108 --service-name alive108 \
+aws ecs update-service --cluster alive108 --service alive108 \
   --task-definition alive108 >/dev/null
 
 sleep 75

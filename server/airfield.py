@@ -19,7 +19,7 @@ import httpx
 OPEN_METEO = "https://air-quality-api.open-meteo.com/v1/air-quality"
 METEO = "https://api.open-meteo.com/v1/forecast"
 OPENAQ = "https://api.openaq.org/v3"
-POLLUTANTS = "pm2_5,pm10,nitrogen_dioxide,ozone,us_aqi"
+POLLUTANTS = "pm2_5,pm10,nitrogen_dioxide,ozone,us_aqi,dust,aerosol_optical_depth"
 CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
 
 # Directional-IDW strength: a sample dead-upwind of the query counts up to
