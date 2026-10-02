@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ALive-108 — the city breathes</title>
+<style>
+  :root{
+    --ink:#F5F5F4; --ink2:#A8A29E; --ink3:#57534E;
+    --bg:#0C0A09; --panel:#1C1917; --hair:#292524;
+    --quiet:#78716C; --warn:#FB7185; --over:#E11D48; --severe:#9F1239; --extreme:#4C0519;
+    --go:#1D4ED8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{background:var(--bg)}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",system-ui,sans-serif;font-variant-numeric:tabular-nums;min-height:100vh}
+  .wrap{max-width:1200px;margin:0 auto;padding:48px 32px 80px}
+  .eyebrow{font-size:11px;letter-spacing:.28em;color:var(--ink3);text-transform:uppercase}
+  h1{font-size:clamp(38px,6vw,72px);font-weight:200;letter-spacing:-0.02em;line-height:1.02;margin:14px 0 6px}
+  h1 em{font-style:normal;color:var(--over)}
+  .sub{color:var(--ink2);font-size:15px;max-width:520px;line-height:1.5}
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:28px;margin-top:40px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .field-card{background:var(--panel);border:1px solid var(--hair);border-radius:14px;overflow:hidden;position:relative}
+  canvas{display:block;width:100%;height:560px}
+  .field-cap{position:absolute;left:16px;bottom:14px;font-size:11px;color:var(--ink3);letter-spacing:.04em}
+  .field-cap b{color:var(--ink2);font-weight:500}
+  .stats{display:flex;flex-direction:column;gap:14px}
+  .stat{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:18px 20px}
+  .stat .k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
+  .stat .v{font-size:34px;font-weight:200;letter-spacing:-0.02em;margin-top:6px}
+  .stat .v small{font-size:15px;color:var(--ink2);font-weight:300}
+  .cigs{display:flex;gap:3px;align-items:flex-end;margin-top:10px;min-height:26px}
+  .cig{width:14px;height:5px;border-radius:2.5px;background:var(--ink3);opacity:.9}
+  .cig.on{background:var(--over)}
+  .cig.part{position:relative;overflow:hidden}
+  .cig.part i{position:absolute;left:0;top:0;bottom:0;background:var(--over)}
+  .band{font-size:12px;color:var(--ink2);margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{text-align:left;padding:9px 10px;border-bottom:1px solid var(--hair);color:var(--ink2)}
+  th{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+  td.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+  .card2{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:8px 12px 12px;margin-top:28px}
+  .card2 h2{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);font-weight:500;padding:10px 8px}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:8px}
+  .foot{margin-top:36px;color:var(--ink3);font-size:11px;line-height:1.7;max-width:640px}
+  .foot b{color:var(--ink2);font-weight:500}
+  a{color:var(--go)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">delhi · live · <span id="clock">—</span></div>
+  <h1>the city <em>breathes</em></h1>
+  <div class="sub">Particles drift on the real wind. Colour is the kriged
+    PM<sub>2.5</sub> field over 105 government instruments — deep red is
+    what lungs actually inhale tonight.</div>
+
+  <div class="grid">
+    <div class="field-card">
+      <canvas id="field"></canvas>
+      <div class="field-cap"><b>pm2.5 µg/m³</b> · kriged field + advected particles ·
+        <span id="src">—</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="k">a breath in delhi right now</div>
+        <div class="v"><span id="pm">—</span><small> µg/m³</small></div>
+        <div class="band" id="pmband"></div>
+      </div>
+      <div class="stat">
+        <div class="k">the city smoked today</div>
+        <div class="v"><span id="cignum">—</span><small> cigarettes</small></div>
+        <div class="cigs" id="cigs"></div>
+        <div class="band">collective inhaled dose of today's commutes · 316µg = 1 cigarette</div>
+      </div>
+      <div class="stat">
+        <div class="k">citizens turned sensors</div>
+        <div class="v"><span id="obs">—</span><small> commutes donated</small></div>
+        <div class="band"><span id="km">—</span> km measured · <span id="saved">—</span> µg avoided by dose-aware choices</div>
+      </div>
+      <div class="stat">
+        <div class="k">wind — where the plume goes</div>
+        <div class="v"><span id="wind">—</span><small> km/h</small></div>
+        <div class="band" id="winddir">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card2">
+    <h2>where the city actually travels — corridor measurements</h2>
+    <table id="corridors"><tr><th>corridor</th><th>traversals</th><th>avg inhaled</th><th>top mode</th></tr></table>
+  </div>
+
+  <div class="foot">
+    <b>Alive-108</b> — commuters become the sensor network the city doesn't
+    have. Field: kriged over CPCB/DPCC/HSPCB instruments + CAMS, Kalman-smoothed,
+    corrected by traversal-implied concentration. Honest bands, never fake
+    precision. <a href="/admin">ops</a> · <a href="/docs">api</a>
+  </div>
+</div>
+
+<script>
+const RAMPS=[[0,'120,113,108'],[0.15,'120,113,108'],[0.35,'251,113,133'],[0.55,'225,29,72'],[0.78,'159,18,57'],[1,'76,5,25']];
+function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;while(i<RAMPS.length-2&&t>RAMPS[i+1][0])i++;
+  const [t0,c0]=RAMPS[i],[t1,c1]=RAMPS[i+1];const f=t1>t0?(t-t0)/(t1-t0):0;
+  const p0=c0.split(',').map(Number),p1=c1.split(',').map(Number);
+  const c=p0.map((v,j)=>Math.round(v+(p1[j]-v)*f));return `rgba(${c},${a})`}
+
+const cv=document.getElementById('field'),cx=cv.getContext('2d');
+let cells=[],wind={speed_kmh:10,from_deg:300},particles=[],dpr=1,W=0,H=560;
+const BBOX=[76.84,28.40,77.46,28.90]; // lon0,lat0,lon1,lat1
+function xy(lon,lat){return [(lon-BBOX[0])/(BBOX[2]-BBOX[0])*W,(1-(lat-BBOX[1])/(BBOX[3]-BBOX[1]))*H]}
+function pmAt(x,y){ // nearest cell centre (cells are rect centroids)
+  let best=null,bd=1e9;
+  for(const c of cells){const d=(c.x-x)*(c.x-x)+(c.y-y)*(c.y-y);if(d<bd){bd=d;best=c}}
+  return best?best.pm:null}
+function boot(){
+  dpr=window.devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;cx.scale(dpr,dpr);
+  particles=Array.from({length:900},()=>({x:Math.random()*W,y:Math.random()*H,vx:0,vy:0}));
+}
+async function load(){
+  const [g,a,ad]=await Promise.all([
+    fetch('/grid?cells=30').then(r=>r.json()),
+    fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.json()),
+    fetch('/admin/api').then(r=>r.json())]);
+  cells=(g.features||[]).map(f=>{const p=cellC(f.geometry);if(!p)return null;
+    const [x,y]=xy(p[0],p[1]);return{x,y,pm:f.properties.pm25||0}}).filter(Boolean);
+  wind=a.wind||wind;
+  document.getElementById('pm').textContent=a.pm25??'—';
+  document.getElementById('pmband').textContent=a.pm25_lo!=null?`krige band ${a.pm25_lo}–${a.pm25_hi} µg/m³`:'';
+  document.getElementById('src').textContent=(a.field?.source||'')+' · '+(a.field?.samples||'?')+' samples · '+(a.field?.kriging||'');
+  document.getElementById('wind').textContent=Math.round(wind.speed_kmh);
+  document.getElementById('winddir').textContent='from '+(a.wind?.from_deg??'—')+'° '+(a.wind?compass(a.wind.from_deg):'');
+  const t=ad.community||{};
+  document.getElementById('obs').textContent=t.obs_total??'—';
+  document.getElementById('km').textContent=t.km_24h??'—';
+  document.getElementById('saved').textContent=Math.round(t.avoided_ug_all??0).toLocaleString();
+  const cigs=(t.dose_ug_24h||0)/316;
+  document.getElementById('cignum').textContent=cigs.toFixed(1);
+  const strip=document.getElementById('cigs');strip.innerHTML='';
+  const full=Math.min(40,Math.floor(cigs)),part=cigs-Math.floor(cigs);
+  for(let i=0;i<full;i++){const d=document.createElement('div');d.className='cig on';strip.appendChild(d)}
+  if(part>0.02&&full<40){const d=document.createElement('div');d.className='cig part';
+    const i=document.createElement('i');i.style.width=(part*100)+'%';d.appendChild(i);strip.appendChild(d)}
+  for(let i=full+(part>0.02?1:0);i<40;i++){const d=document.createElement('div');d.className='cig';strip.appendChild(d)}
+  const rows=(ad.corridors||[]).slice(0,8).map(c=>
+    `<tr><td>${c.lat.toFixed(3)}, ${c.lon.toFixed(3)}</td><td class="num">${c.samples}</td>
+     <td class="num">${c.avg_dose_ug} µg</td><td>${(c.top_mode||'').replace(/_/g,' ')}</td></tr>`).join('');
+  document.getElementById('corridors').innerHTML=
+    '<tr><th>corridor</th><th>traversals</th><th>avg inhaled</th><th>top mode</th></tr>'+rows;
+}
+function cellC(g){if(!g)return null;const t=g.type,c=g.coordinates;
+  if(t==='Point')return c;const r=t==='Polygon'?c[0]:(c[0]&&c[0][0]);if(!r)return null;
+  let x=0,y=0,n=0;for(let i=0;i<r.length-1;i++){x+=r[i][0];y+=r[i][1];n++}return n?[x/n,y/n]:null}
+function compass(d){const D=['N','NE','E','SE','S','SW','W','NW'];return D[Math.round(d/45)%8]}
+function tick(){
+  cx.fillStyle='rgba(12,10,9,0.28)';cx.fillRect(0,0,W,H);
+  // faint field base
+  for(const c of cells){cx.fillStyle=ramp(Math.min(1,c.pm/300),0.10);
+    cx.fillRect(c.x-9,c.y-9,18,18)}
+  const rad=wind.from_deg*Math.PI/180,sp=Math.min(3,wind.speed_kmh/12);
+  const wx=Math.sin(rad)*sp,wy=-Math.cos(rad)*sp; // FROM→TO
+  for(const p of particles){
+    p.vx+= (wx-p.vx)*0.02;p.vy+=(wy-p.vy)*0.02;
+    p.x+=p.vx+(Math.random()-0.5)*0.6;p.y+=p.vy+(Math.random()-0.5)*0.6;
+    if(p.x<-4)p.x=W+4;if(p.x>W+4)p.x=-4;if(p.y<-4)p.y=H+4;if(p.y>H+4)p.y=-4;
+    const pm=pmAt(p.x,p.y);if(pm==null)continue;
+    const t=Math.min(1,pm/300);
+    cx.fillStyle=ramp(t,0.75);
+    const s=1+t*1.6;cx.fillRect(p.x,p.y,s,s)}
+  requestAnimationFrame(tick)}
+function clock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST'}
+boot();load();clock();tick();setInterval(load,60000);setInterval(clock,30000);
+window.addEventListener('resize',()=>{boot()});
+</script>
+</body>
+</html>

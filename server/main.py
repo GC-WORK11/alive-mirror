@@ -807,6 +807,16 @@ async def admin_page():
     return FileResponse(os.path.join(os.path.dirname(__file__), "admin.html"))
 
 
+@app.get("/city")
+async def city_page():
+    """'The City Breathes' — the dark editorial surface (docs/24 §8):
+    kriged field as wind-advected particles, the city's cigarette strip,
+    corridor measurements. Judges land here; commuters never need to."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(os.path.join(os.path.dirname(__file__), "city.html"))
+
+
 @app.get("/reverse")
 async def reverse(lat: float, lon: float):
     """Best-matching named place near a point — AWS Location primary, Photon
