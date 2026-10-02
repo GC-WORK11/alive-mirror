@@ -19,8 +19,16 @@ ECS Fargate service "alive108"  (1 vCPU / 2 GB, ap-south-1)
    |      (image is built INSIDE AWS — no local docker needed)
    +--> data/delhi_climatology.json.gz   (9M-measurement decade product,
    |      built from OpenAQ's public S3 archive, baked into image)
+   +--> S3 "alive108-build-<acct>/community/state.json"
+   |      (donated traversals + hazard reports persist across redeploys —
+   |      Fargate's filesystem is ephemeral, the community layer is not)
+   +--> Secrets Manager "alive108/openaq" (OpenAQ key, never in repo)
    +--> Open-Meteo / OSRM / Photon / OpenAQ-v3 (external, free)
 ```
+
+IAM: `ecsTaskExecutionRole` (image pull / logs) vs `alive108-task` (the
+app's own identity — scoped to `s3:GetObject/PutObject` on the
+`community/*` prefix only).
 
 ## Why ECS Fargate, not App Runner
 
