@@ -22,6 +22,7 @@ import {
   Outfit_700Bold,
 } from "@expo-google-fonts/outfit";
 import * as Location from "expo-location";
+import { File, Paths } from "expo-file-system";
 import {
   Camera,
   GeoJSONSource,
@@ -155,6 +156,7 @@ export default function App() {
   const [curve, setCurve] = useState<number[] | null>(null);
   const [curveHour, setCurveHour] = useState<number | null>(null);
   const [notified, setNotified] = useState(false);
+  const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
 
@@ -175,7 +177,13 @@ export default function App() {
     const iv = setInterval(poll, 60000);
     loadTrips().then((t) => { setTrips(t); setLedger(ledgerStats(t)); }).catch(() => {});
     Location.requestForegroundPermissionsAsync().then((r) => setHasLoc(r.granted)).catch(() => {});
+    setIntroSeen(new File(Paths.document, "intro_seen.txt").exists);
     return () => clearInterval(iv);
+  }, []);
+
+  const dismissIntro = useCallback(() => {
+    setIntroSeen(true);
+    try { new File(Paths.document, "intro_seen.txt").write("1"); } catch {}
   }, []);
 
   const useMyLocation = useCallback(async () => {
@@ -682,6 +690,23 @@ export default function App() {
           community={community} onClose={() => setDrawerOpen(false)} />
       )}
 
+      {introSeen === false && (
+        <Pressable style={s.introScrim} onPress={dismissIntro}>
+          <View style={s.introCard}>
+            <Text style={s.introTitle}>ALive-108</Text>
+            <Text style={s.introBody}>
+              every trip in Delhi has an air price. we show it —
+              pick any two places, see exactly what you'd breathe
+              in a car, auto, metro or on foot.{"\n\n"}
+              your journeys also build a shared air map made by
+              people like you — covering streets no station
+              can see. that's how Delhi starts breathing easier.
+            </Text>
+            <Text style={s.introCta}>tap anywhere to start</Text>
+          </View>
+        </Pressable>
+      )}
+
       {ambient && (
         <AmbientMode
           pm25={fieldRead?.pm25 ?? null}
@@ -797,5 +822,13 @@ const s = StyleSheet.create({
   remindTxt: { fontFamily: F.med, fontSize: 12, color: T.ink2, paddingLeft: 10 },
   summarySub: { fontFamily: F.reg, fontSize: 11.5, color: T.ink3, marginTop: 9, textAlign: "center" },
   arriveTxt: { fontFamily: F.reg, fontSize: 11, color: T.ink3, marginTop: 8, textAlign: "center" },
+  introScrim: {
+    position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
+    backgroundColor: "rgba(247,246,243,0.94)", alignItems: "center", justifyContent: "center",
+  },
+  introCard: { width: 290, alignItems: "center" },
+  introTitle: { fontFamily: F.semi, fontSize: 26, color: T.accent, letterSpacing: -0.5 },
+  introBody: { fontFamily: F.reg, fontSize: 14, color: T.ink2, textAlign: "center", marginTop: 14, lineHeight: 21 },
+  introCta: { fontFamily: F.med, fontSize: 12, color: T.ink3, marginTop: 20 },
   whyTxt: { fontFamily: F.reg, fontSize: 11.5, color: T.ink2, marginTop: 5, textAlign: "center", lineHeight: 16 },
 });
