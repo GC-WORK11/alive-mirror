@@ -25,6 +25,7 @@ CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
 # Directional-IDW strength: a sample dead-upwind of the query counts up to
 # ~1.45x, dead-downwind ~0.55x, scaled by wind speed (calm air => isotropic).
 UPWIND_GAIN = 0.45
+IDW_P = 2.0
 
 # NCR bbox (lon/lat) shared with main.py
 BBOX = (76.80, 28.20, 77.90, 28.95)
@@ -122,11 +123,73 @@ class AirField:
                 self._grab_wind(client),
             )
             if results:
-                self._samples = results + stations
+                self._samples = self._debias(results + stations)
                 self._station_count = len(stations)
                 if stations:
                     self._source = "openaq-stations+open-meteo/cams"
                 self._fetched_at = time.time()
+
+    def _debias(self, samples: list) -> list:
+        """Spatially-varying de-bias of the model grid against instruments.
+
+        CAMS systematically under-reads Delhi (tonight: DTU instrument 451
+        vs model ~53). Left raw, model points drag interpolated estimates
+        down between stations. For each real instrument we measure the
+        model's local multiplicative bias b_i = inst / model_IDW(inst_loc),
+        then scale every model sample by the IDW-smoothed b at its own
+        location — a standard bias-correction pass. Model points keep
+        their shape; instruments stay untouched. Skipped when the network
+        is too thin to trust (<8 instruments or <10 model points)."""
+        inst = [s for s in samples if set(s[3].keys()) == {"pm2_5"}]
+        model = [s for s in samples if set(s[3].keys()) != {"pm2_5"}]
+        if len(inst) < 8 or len(model) < 10:
+            return samples
+
+        def idw(lat, lon, pts, key):
+            num = den = 0.0
+            for slat, slon, _n, vals in pts:
+                v = vals.get(key)
+                if v is None:
+                    continue
+                d = math.hypot(slat - lat, slon - lon)
+                if d < 1e-6:
+                    return float(v)
+                w = 1.0 / (d * d)
+                num += w * float(v)
+                den += w
+            return num / den if den else None
+
+        # model-only estimate at each instrument -> local bias ratio
+        ratios = []
+        for ilat, ilon, _n, vals in inst:
+            m = idw(ilat, ilon, model, "pm2_5")
+            if m and m > 5:
+                b = float(vals["pm2_5"]) / m
+                if 0.2 < b < 10:
+                    ratios.append((ilat, ilon, b))
+        if len(ratios) < 8:
+            return samples
+
+        out = []
+        for slat, slon, name, vals in samples:
+            if set(vals.keys()) == {"pm2_5"}:
+                out.append((slat, slon, name, vals))
+                continue
+            num = den = 0.0
+            for ilat, ilon, b in ratios:
+                d = math.hypot(ilat - slat, ilon - slon)
+                if d < 1e-6:
+                    num, den = b, 1.0
+                    break
+                w = 1.0 / (d * d)
+                num += w * b
+                den += w
+            b = min(6.0, max(0.5, num / den)) if den else 1.0
+            adj = dict(vals)
+            for k in adj:
+                adj[k] = float(adj[k]) * b if isinstance(adj[k], (int, float)) else adj[k]
+            out.append((slat, slon, name, adj))
+        return out
 
     async def _grab_openaq(self, client: httpx.AsyncClient) -> list:
         """Real government CAAQMS readings via OpenAQ v3 (X-API-Key).
@@ -264,7 +327,7 @@ class AirField:
             d = math.hypot(slat - lat, slon - lon)
             if d < 1e-6:
                 return float(v)
-            w = (3.0 if name else 1.0) / (d * d)
+            w = (3.0 if name else 1.0) / (d ** IDW_P)
             if wf > 0:
                 # bearing from the query to the sample; a sample sitting on
                 # the bearing the wind comes FROM is upwind of the query

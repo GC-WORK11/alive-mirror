@@ -1,0 +1,9 @@
+{
+  "method": "leave-one-out over live OpenAQ instrument readings",
+  "n_stations": 93,
+  "mae_ug": 53.4,
+  "rmse_ug": 80.3,
+  "median_abs_pct": 60.7,
+  "mean_bias_ug": -0.0,
+  "note": "error between stations \u2014 at a station the field reads the instrument itself"
+}
