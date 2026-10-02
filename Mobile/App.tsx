@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Keyboard,
+  LogBox,
   Platform,
   Pressable,
   ScrollView,
@@ -99,6 +100,12 @@ type FieldRead = {
   lat: number;
   lon: number;
 };
+
+// the liberty basemap ships a few vector tiles MLRN can't parse — a
+// native "Invalid geometry in line layer" console warning that only
+// surfaces as a dev toast (release builds never show it). Nothing in
+// our layers is involved; silence exactly that message.
+LogBox.ignoreLogs(["Invalid geometry in line layer"]);
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const windFrom = (deg: number) => COMPASS[Math.round(deg / 45) % 8];
@@ -646,6 +653,24 @@ export default function App() {
             if (j.pm25 != null)
               setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: c[1], lon: c[0] });
           } catch {}
+        }}
+        onLongPress={async (f) => {
+          const c = f.nativeEvent.lngLat;
+          if (!c) return;
+          let name = `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
+          try {
+            const r = await fetch(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`);
+            const j = await r.json();
+            if (j.name) name = j.name;
+          } catch {}
+          if (!from || !to) {
+            // drop a pin to start a trip — the empty field takes it
+            if (!from) { setFrom({ name, subtitle: "", lat: c[1], lon: c[0] }); setFromText(name); }
+            else { setTo({ name, subtitle: "", lat: c[1], lon: c[0] }); setToText(name); }
+          } else {
+            setTo({ name, subtitle: "", lat: c[1], lon: c[0] });
+            setToText(name);
+          }
         }}
       >
         <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[76.75, 28.15, 77.95, 28.98]}
