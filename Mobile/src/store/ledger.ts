@@ -17,6 +17,10 @@ export type Trip = {
   avoided_ug: number;
   from: string;
   to: string;
+  fromLat?: number;
+  fromLon?: number;
+  toLat?: number;
+  toLon?: number;
 };
 
 export async function loadTrips(): Promise<Trip[]> {
@@ -35,7 +39,19 @@ export async function logTrip(t: Trip): Promise<Trip[]> {
     (x) => x.from === t.from && x.to === t.to && x.vehicle === t.vehicle &&
       t.ts - x.ts < DEDUPE_MS,
   );
-  if (dup) return trips;
+  if (dup) {
+    // backfill coords on older entries that predate them
+    let changed = false;
+    if (dup.fromLat == null && t.fromLat != null) { dup.fromLat = t.fromLat; dup.fromLon = t.fromLon; changed = true; }
+    if (dup.toLat == null && t.toLat != null) { dup.toLat = t.toLat; dup.toLon = t.toLon; changed = true; }
+    if (changed) {
+      try {
+        if (!FILE.exists) FILE.create();
+        FILE.write(JSON.stringify(trips.slice(-500)));
+      } catch {}
+    }
+    return trips;
+  }
   trips.push(t);
   try {
     if (!FILE.exists) FILE.create();

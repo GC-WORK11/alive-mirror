@@ -520,6 +520,7 @@ export default function App() {
       dose_ug: o.exposure.dose_ug,
       avoided_ug: avoided,
       from: from.name, to: to.name,
+      fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon,
     }).then((t) => { setTrips(t); setLedger(ledgerStats(t)); }).catch(() => {});
     // donate the traversal — commuters become the sensor network
     const g = o.geometry;
@@ -561,6 +562,26 @@ export default function App() {
         })),
     };
   }, [options, selected]);
+
+  // recent places — last distinct trip endpoints, newest first (like
+  // Google Maps' recents under an empty search box)
+  const recents = useMemo<Place[]>(() => {
+    const seen = new Set<string>();
+    const out: Place[] = [];
+    for (let i = trips.length - 1; i >= 0 && out.length < 6; i--) {
+      const t = trips[i];
+      for (const cand of [
+        { name: t.to, lat: t.toLat, lon: t.toLon },
+        { name: t.from, lat: t.fromLat, lon: t.fromLon },
+      ]) {
+        if (cand.lat == null || cand.lon == null || seen.has(cand.name)) continue;
+        seen.add(cand.name);
+        out.push({ name: cand.name, subtitle: "recent", lat: cand.lat, lon: cand.lon });
+        if (out.length >= 6) break;
+      }
+    }
+    return out;
+  }, [trips]);
 
   // faint alternates — every other option's path under the selected one
   const altSegs = useMemo<GeoJSON.FeatureCollection>(() => ({
@@ -712,6 +733,20 @@ export default function App() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.rname} numberOfLines={1}>{p.name}</Text>
                   {!!p.subtitle && <Text style={s.rsub} numberOfLines={1}>{p.subtitle}</Text>}
+                </View>
+              </Pressable>
+            ))}
+          </BlurView>
+        )}
+        {listFor && results.length === 0 && recents.length > 0 &&
+          !(listFor === "from" ? fromText : toText) && (
+          <BlurView intensity={50} tint="light" style={[s.card, { marginTop: 8 }]}>
+            {recents.map((p, i) => (
+              <Pressable key={`r${p.lat},${p.lon},${i}`} onPress={() => pick(p)}
+                style={({ pressed }) => [s.result, pressed && { opacity: 0.55 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rname} numberOfLines={1}>{p.name}</Text>
+                  <Text style={s.rsub}>recent</Text>
                 </View>
               </Pressable>
             ))}
