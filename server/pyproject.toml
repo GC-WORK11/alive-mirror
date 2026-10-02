@@ -1,0 +1,11 @@
+[project]
+name = "alive108-api"
+version = "0.1.0"
+description = "ALive-108 dose engine API"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "boto3>=1.35",
+]
