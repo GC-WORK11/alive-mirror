@@ -6,174 +6,601 @@
 <title>ALive-108 — the city breathes</title>
 <style>
   :root{
-    --ink:#F5F5F4; --ink2:#A8A29E; --ink3:#57534E;
-    --bg:#0C0A09; --panel:#1C1917; --hair:#292524;
+    --ink:#F5F5F4; --ink2:#A8A29E; --ink3:#57534E; --ink4:#44403C;
+    --bg:#0C0A09; --panel:#141110; --panel2:#1C1917; --hair:#292524;
     --quiet:#78716C; --warn:#FB7185; --over:#E11D48; --severe:#9F1239; --extreme:#4C0519;
-    --go:#1D4ED8;
+    --go:#93C5FD;
+    --serif:ui-serif,"New York",Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,"Roboto Mono",monospace;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html{background:var(--bg)}
-  body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",system-ui,sans-serif;font-variant-numeric:tabular-nums;min-height:100vh}
-  .wrap{max-width:1200px;margin:0 auto;padding:48px 32px 80px}
-  .eyebrow{font-size:11px;letter-spacing:.28em;color:var(--ink3);text-transform:uppercase}
-  h1{font-size:clamp(38px,6vw,72px);font-weight:200;letter-spacing:-0.02em;line-height:1.02;margin:14px 0 6px}
-  h1 em{font-style:normal;color:var(--over)}
-  .sub{color:var(--ink2);font-size:15px;max-width:520px;line-height:1.5}
-  .grid{display:grid;grid-template-columns:1fr 340px;gap:28px;margin-top:40px}
-  @media(max-width:900px){.grid{grid-template-columns:1fr}}
-  .field-card{background:var(--panel);border:1px solid var(--hair);border-radius:14px;overflow:hidden;position:relative}
-  canvas{display:block;width:100%;height:560px}
-  .field-cap{position:absolute;left:16px;bottom:14px;font-size:11px;color:var(--ink3);letter-spacing:.04em}
-  .field-cap b{color:var(--ink2);font-weight:500}
-  .stats{display:flex;flex-direction:column;gap:14px}
-  .stat{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:18px 20px}
-  .stat .k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
-  .stat .v{font-size:34px;font-weight:200;letter-spacing:-0.02em;margin-top:6px}
-  .stat .v small{font-size:15px;color:var(--ink2);font-weight:300}
-  .cigs{display:flex;gap:3px;align-items:flex-end;margin-top:10px;min-height:26px}
-  .cig{width:14px;height:5px;border-radius:2.5px;background:var(--ink3);opacity:.9}
+  html{background:var(--bg);scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-variant-numeric:tabular-nums;min-height:100vh;
+       -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:var(--over);color:var(--ink)}
+
+  /* ---------- masthead ---------- */
+  .mast{display:flex;align-items:center;justify-content:space-between;
+        padding:18px clamp(18px,4vw,44px);border-bottom:1px solid var(--hair);
+        position:sticky;top:0;background:rgba(12,10,9,.82);
+        -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:20}
+  .mark{font-family:var(--mono);font-size:12px;letter-spacing:.34em;color:var(--ink)}
+  .mark b{color:var(--over);font-weight:400}
+  .mast-r{display:flex;align-items:center;gap:14px;font-family:var(--mono);
+          font-size:10px;letter-spacing:.22em;color:var(--ink3);text-transform:uppercase}
+  .live-dot{width:6px;height:6px;border-radius:3px;background:var(--warn);
+            box-shadow:0 0 0 0 rgba(251,113,133,.55);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(251,113,133,.5)}
+    70%{box-shadow:0 0 0 7px rgba(251,113,133,0)}100%{box-shadow:0 0 0 0 rgba(251,113,133,0)}}
+  @media(max-width:560px){.mast-r .hidemob{display:none}}
+
+  /* ---------- hero ---------- */
+  .wrap{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,44px)}
+  .hero{padding:clamp(48px,9vh,110px) 0 34px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.3em;
+           color:var(--ink3);text-transform:uppercase;display:flex;gap:14px;
+           align-items:center}
+  .eyebrow::before{content:"";width:34px;height:1px;background:var(--over)}
+  h1{font-family:var(--serif);font-weight:400;letter-spacing:-0.035em;
+     font-size:clamp(58px,11.5vw,148px);line-height:.94;margin:26px 0 0;
+     color:var(--ink)}
+  h1 .l2{display:block;padding-left:.9em}
+  h1 em{font-style:italic;color:var(--over)}
+  .dek{display:flex;justify-content:flex-end;margin-top:30px}
+  .dek p{width:100%;max-width:430px;color:var(--ink2);font-size:15px;
+         line-height:1.65;font-weight:300}
+  .dek p b{color:var(--ink);font-weight:500}
+  @media(max-width:700px){.dek{justify-content:flex-start}}
+
+  /* ---------- field ---------- */
+  .field-card{position:relative;margin-top:44px;border:1px solid var(--hair);
+              border-radius:18px;overflow:hidden;background:var(--panel)}
+  .scrim{position:absolute;inset:0;pointer-events:none;
+         background:linear-gradient(180deg,rgba(12,10,9,.55),transparent 14%,transparent 84%,rgba(12,10,9,.62))}
+  canvas#field{display:block;width:100%;height:clamp(400px,62vh,660px)}
+  canvas#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .f-tag{position:absolute;top:16px;left:18px;font-family:var(--mono);
+         font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+         color:var(--ink3);pointer-events:none}
+  .f-tag b{color:var(--ink2);font-weight:400}
+  .f-wind{position:absolute;top:16px;right:18px;font-family:var(--mono);
+          font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+          color:var(--ink3);pointer-events:none;text-align:right}
+  @media(max-width:640px){.f-wind{display:none}.f-tag{max-width:58%}}
+  .legend{position:absolute;left:18px;bottom:16px;right:18px;display:flex;
+          align-items:flex-end;justify-content:space-between;gap:16px;
+          pointer-events:none;flex-wrap:wrap}
+  .rampbox{display:flex;flex-direction:column;gap:6px}
+  .ramp{width:min(300px,56vw);height:7px;border-radius:4px;
+        background:linear-gradient(90deg,#78716C,#FB7185 38%,#E11D48 58%,#9F1239 80%,#4C0519)}
+  .ramp-t{display:flex;justify-content:space-between;width:min(300px,56vw);
+          font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink3)}
+  .f-src{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+         color:var(--ink3);text-transform:uppercase;text-align:right;line-height:1.9}
+  .f-src b{color:var(--ink2);font-weight:400}
+
+  /* ---------- ticker ---------- */
+  .ticker{border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);
+          margin-top:34px;overflow:hidden;white-space:nowrap;
+          -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
+          mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+  .ticker-in{display:inline-block;padding:13px 0;font-family:var(--mono);
+             font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+             color:var(--ink2);animation:scroll 46s linear infinite}
+  .ticker-in i{font-style:normal;color:var(--over);margin:0 18px}
+  .ticker-in b{color:var(--ink);font-weight:400}
+  @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media(prefers-reduced-motion:reduce){.ticker-in{animation:none}.live-dot{animation:none}}
+
+  /* ---------- sections ---------- */
+  section{padding:clamp(56px,9vh,104px) 0 8px}
+  .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:38px;
+         border-bottom:1px solid var(--hair);padding-bottom:16px}
+  .sec-n{font-family:var(--mono);font-size:11px;color:var(--over);letter-spacing:.2em}
+  .sec-t{font-family:var(--serif);font-size:clamp(26px,3.6vw,40px);
+         font-weight:400;letter-spacing:-0.02em}
+  .sec-t em{font-style:italic;color:var(--ink2)}
+  .sec-sub{font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+           color:var(--ink3);text-transform:uppercase;margin-left:auto;text-align:right}
+  @media(max-width:700px){.sec-sub{display:none}}
+
+  /* breath */
+  .breath{display:grid;grid-template-columns:1.35fr 1fr;gap:44px;align-items:end}
+  @media(max-width:820px){.breath{grid-template-columns:1fr}}
+  .big-n{font-family:var(--serif);font-size:clamp(72px,10vw,132px);
+         letter-spacing:-0.04em;line-height:1;font-weight:400}
+  .big-n small{font-family:var(--sans);font-size:clamp(15px,1.6vw,19px);
+               color:var(--ink2);font-weight:300;letter-spacing:0}
+  .band-wrap{margin-top:30px}
+  .band-scale{position:relative;height:34px;border-radius:6px;overflow:hidden;
+              background:linear-gradient(90deg,rgba(120,113,108,.10),rgba(251,113,133,.10) 38%,rgba(225,29,72,.10) 58%,rgba(159,18,57,.10) 80%,rgba(76,5,25,.22))}
+  .band-sig{position:absolute;top:0;bottom:0;background:rgba(245,245,244,.13);
+            border-left:1px solid rgba(245,245,244,.5);
+            border-right:1px solid rgba(245,245,244,.5)}
+  .band-pt{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);
+           box-shadow:0 0 10px rgba(245,245,244,.7)}
+  .band-lab{position:absolute;top:-5px;font-family:var(--mono);font-size:9px;
+            color:var(--ink2);transform:translateX(-50%)}
+  .band-ticks{display:flex;justify-content:space-between;margin-top:8px;
+              font-family:var(--mono);font-size:9px;color:var(--ink4);letter-spacing:.06em}
+  .band-cap{margin-top:14px;font-size:12px;color:var(--ink3);line-height:1.6}
+  .band-cap b{color:var(--ink2);font-weight:500}
+  .breath-note{font-size:14.5px;line-height:1.75;color:var(--ink2);font-weight:300;
+               max-width:400px}
+  .breath-note p+p{margin-top:14px}
+  .breath-note b{color:var(--ink);font-weight:500}
+  .breath-note .vs{font-family:var(--mono);font-size:12px;color:var(--warn)}
+
+  /* ledger */
+  .ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:960px){.ledger{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.ledger{grid-template-columns:1fr}}
+  .stat{background:var(--panel);border:1px solid var(--hair);border-radius:16px;
+        padding:22px 20px 20px;display:flex;flex-direction:column;min-height:158px}
+  .stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;
+           text-transform:uppercase;color:var(--ink3);line-height:1.7}
+  .stat .v{font-family:var(--serif);font-size:clamp(34px,3.4vw,46px);font-weight:400;
+           letter-spacing:-0.03em;margin-top:auto;padding-top:16px;line-height:1}
+  .stat .v small{font-family:var(--sans);font-size:13px;color:var(--ink2);font-weight:300}
+  .stat .d{font-size:11.5px;color:var(--ink3);margin-top:9px;line-height:1.55}
+  .stat .d b{color:var(--ink2);font-weight:500}
+  .cigs{display:flex;gap:3px;align-items:flex-end;margin-top:12px;min-height:22px;
+        flex-wrap:wrap}
+  .cig{width:13px;height:4px;border-radius:2px;background:var(--ink4);opacity:.85}
   .cig.on{background:var(--over)}
   .cig.part{position:relative;overflow:hidden}
   .cig.part i{position:absolute;left:0;top:0;bottom:0;background:var(--over)}
-  .band{font-size:12px;color:var(--ink2);margin-top:4px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  td,th{text-align:left;padding:9px 10px;border-bottom:1px solid var(--hair);color:var(--ink2)}
-  th{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+
+  /* provenance */
+  .prov{display:grid;grid-template-columns:360px 1fr;gap:44px;align-items:center}
+  @media(max-width:820px){.prov{grid-template-columns:1fr}}
+  .minimap{width:100%;aspect-ratio:1/1.06;background:var(--panel);
+           border:1px solid var(--hair);border-radius:16px}
+  .prov-txt{font-size:14.5px;line-height:1.8;color:var(--ink2);font-weight:300;
+            max-width:560px}
+  .prov-txt p+p{margin-top:14px}
+  .prov-txt b{color:var(--ink);font-weight:500}
+  .prov-txt .mono{font-family:var(--mono);font-size:12px;color:var(--ink3)}
+
+  /* corridors */
+  table{width:100%;border-collapse:collapse}
+  th{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;
+     color:var(--ink3);font-weight:400;text-align:left;padding:0 12px 12px}
+  td{padding:13px 12px;border-top:1px solid var(--hair);font-size:13.5px;
+     color:var(--ink2);font-weight:300;vertical-align:middle}
+  td.rank{font-family:var(--mono);font-size:10px;color:var(--ink4);width:34px}
+  td.cell{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+  td.cell small{color:var(--ink3)}
   td.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
-  .card2{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:8px 12px 12px;margin-top:28px}
-  .card2 h2{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);font-weight:500;padding:10px 8px}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:8px}
-  .foot{margin-top:36px;color:var(--ink3);font-size:11px;line-height:1.7;max-width:640px}
-  .foot b{color:var(--ink2);font-weight:500}
-  a{color:var(--go)}
+  td .modep{display:inline-block;font-family:var(--mono);font-size:9.5px;
+            letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;
+            border-radius:99px;border:1px solid var(--hair);color:var(--ink2)}
+  .dose-chip{display:inline-block;min-width:64px;text-align:right;padding:3px 10px;
+             border-radius:99px;font-size:12px;font-variant-numeric:tabular-nums;
+             background:rgba(225,29,72,.10)}
+  .scrollx{overflow-x:auto}
+  .card2{background:var(--panel);border:1px solid var(--hair);border-radius:18px;
+         padding:20px 14px 8px}
+  @media(max-width:640px){td{padding:11px 8px;font-size:12.5px}th{padding:0 8px 10px}}
+
+  /* reveal */
+  .rv{opacity:0;transform:translateY(22px);transition:opacity .9s ease,transform .9s cubic-bezier(.22,1,.36,1)}
+  .rv.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+
+  /* foot */
+  footer{margin-top:clamp(70px,12vh,130px);border-top:1px solid var(--hair);
+         padding:34px 0 60px;display:grid;grid-template-columns:1fr auto;gap:26px}
+  .foot-l{max-width:620px;color:var(--ink3);font-size:11.5px;line-height:1.85}
+  .foot-l b{color:var(--ink2);font-weight:500}
+  .foot-r{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+          text-transform:uppercase;color:var(--ink3);text-align:right;line-height:2.2}
+  a{color:var(--go);text-decoration:none;border-bottom:1px solid rgba(147,197,253,.3)}
+  a:hover{border-bottom-color:var(--go)}
+  @media(max-width:700px){footer{grid-template-columns:1fr}.foot-r{text-align:left}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="eyebrow">delhi · live · <span id="clock">—</span></div>
-  <h1>the city <em>breathes</em></h1>
-  <div class="sub">Particles drift on the real wind. Colour is the kriged
-    PM<sub>2.5</sub> field over 105 government instruments — deep red is
-    what lungs actually inhale tonight.</div>
 
-  <div class="grid">
-    <div class="field-card">
-      <canvas id="field"></canvas>
-      <div class="field-cap"><b>pm2.5 µg/m³</b> · kriged field + advected particles ·
-        <span id="src">—</span></div>
+<header class="mast">
+  <div class="mark">ALIVE<b>·</b>108</div>
+  <div class="mast-r">
+    <span class="hidemob">national capital region</span>
+    <span id="clock">—</span>
+    <span class="live-dot"></span><span>live</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">a live air survey · delhi ncr</div>
+    <h1>the city<span class="l2"><em>breathes.</em></span></h1>
+    <div class="dek"><p>Live air over Delhi, <b>measured by its own commuters.</b>
+      Every particle below rides tonight's real wind across a field kriged
+      from government instruments — deep red is what lungs actually inhale.</p></div>
+  </div>
+
+  <div class="field-card">
+    <canvas id="field"></canvas>
+    <canvas id="fx"></canvas>
+    <div class="scrim"></div>
+    <div class="f-tag"><b>pm2.5</b> · µg/m³ · kriged field + wind-advected particles</div>
+    <div class="f-wind" id="windtag">wind —</div>
+    <div class="legend">
+      <div class="rampbox">
+        <div class="ramp"></div>
+        <div class="ramp-t"><span>0</span><span>quiet</span><span>unhealthy</span><span>severe</span><span>400+</span></div>
+      </div>
+      <div class="f-src" id="src">connecting…</div>
     </div>
-    <div class="stats">
+  </div>
+
+  <div class="ticker"><div class="ticker-in" id="ticker"></div></div>
+
+  <section class="rv">
+    <div class="sec-h">
+      <span class="sec-n">01</span>
+      <span class="sec-t">a breath, <em>tonight</em></span>
+      <span class="sec-sub">point estimate + honest krige band</span>
+    </div>
+    <div class="breath">
+      <div>
+        <div class="big-n"><span id="pm">—</span><small> µg/m³ inhaled</small></div>
+        <div class="band-wrap">
+          <div class="band-scale" id="bandscale">
+            <div class="band-sig" id="bandsig"></div>
+            <div class="band-pt" id="bandpt"></div>
+          </div>
+          <div class="band-ticks"><span>0</span><span>100</span><span>200</span><span>300</span><span>400</span><span>500 µg/m³</span></div>
+          <div class="band-cap" id="bandcap">kriging the field…</div>
+        </div>
+      </div>
+      <div class="breath-note" id="note">
+        <p>Connaught Place, right now. The shaded span is the krige
+        σ-band — the width of our honesty, propagated from instrument
+        noise and station gaps, never collapsed into fake precision.</p>
+        <p id="typical"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="rv">
+    <div class="sec-h">
+      <span class="sec-n">02</span>
+      <span class="sec-t">the ledger, <em>today</em></span>
+      <span class="sec-sub">donated commutes · ist midnight → now</span>
+    </div>
+    <div class="ledger">
       <div class="stat">
-        <div class="k">a breath in delhi right now</div>
-        <div class="v"><span id="pm">—</span><small> µg/m³</small></div>
-        <div class="band" id="pmband"></div>
+        <div class="k">breaths measured today</div>
+        <div class="v"><span id="breaths">—</span></div>
+        <div class="d">litres of delhi air drawn through donated commutes ÷ 0.5&nbsp;L a breath · <b>counting live</b></div>
       </div>
       <div class="stat">
         <div class="k">the city smoked today</div>
         <div class="v"><span id="cignum">—</span><small> cigarettes</small></div>
         <div class="cigs" id="cigs"></div>
-        <div class="band">collective inhaled dose of today's commutes · 316µg = 1 cigarette</div>
+        <div class="d">collective inhaled dose · <b>316 µg = 1 cigarette</b></div>
       </div>
       <div class="stat">
         <div class="k">citizens turned sensors</div>
-        <div class="v"><span id="obs">—</span><small> commutes donated</small></div>
-        <div class="band"><span id="km">—</span> km measured · <span id="saved">—</span> µg avoided by dose-aware choices</div>
+        <div class="v"><span id="obs">—</span><small> commutes</small></div>
+        <div class="d"><b><span id="km">—</span> km</b> measured across <b><span id="contrib">—</span></b> anonymous contributors</div>
       </div>
       <div class="stat">
-        <div class="k">wind — where the plume goes</div>
-        <div class="v"><span id="wind">—</span><small> km/h</small></div>
-        <div class="band" id="winddir">—</div>
+        <div class="k">dose dodged</div>
+        <div class="v"><span id="saved">—</span><small> µg</small></div>
+        <div class="d">avoided by choosing the cleaner route · <b><span id="savedcig">—</span> cigarettes not smoked</b></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="card2">
-    <h2>where the city actually travels — corridor measurements</h2>
-    <table id="corridors"><tr><th>corridor</th><th>traversals</th><th>avg inhaled</th><th>top mode</th></tr></table>
-  </div>
+  <section class="rv">
+    <div class="sec-h">
+      <span class="sec-n">03</span>
+      <span class="sec-t">provenance — <em>where the field is anchored</em></span>
+      <span class="sec-sub">cpcb / dpcc / hspcb + cams</span>
+    </div>
+    <div class="prov">
+      <canvas class="minimap" id="minimap"></canvas>
+      <div class="prov-txt">
+        <p>Delhi's official monitors were built to regulate, not to tell a
+        commuter what they inhaled. <b><span id="nstations">28</span> named
+        instruments</b> anchor tonight's field — dots on the map — blended at
+        triple weight with the CAMS grid and every citizen traversal.</p>
+        <p>Where instruments thin out, the krige band widens and the surface
+        goes quiet. That dimming is deliberate: <b>the map admits where it
+        doesn't know.</b></p>
+        <p class="mono" id="fieldmeta">field —</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="foot">
-    <b>Alive-108</b> — commuters become the sensor network the city doesn't
-    have. Field: kriged over CPCB/DPCC/HSPCB instruments + CAMS, Kalman-smoothed,
-    corrected by traversal-implied concentration. Honest bands, never fake
-    precision. <a href="/admin">ops</a> · <a href="/docs">api</a>
-  </div>
+  <section class="rv">
+    <div class="sec-h">
+      <span class="sec-n">04</span>
+      <span class="sec-t">the corridors <em>the city actually travels</em></span>
+      <span class="sec-sub">~500m cells · donated traversals</span>
+    </div>
+    <div class="card2 scrollx">
+      <table id="corridors">
+        <tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>top mode</th></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div class="foot-l">
+      <b>Alive-108</b> — commuters become the sensor network the city doesn't
+      have. Field kriged over CPCB / DPCC / HSPCB instruments + CAMS,
+      Kalman-smoothed, Bayesian-updated by traversal-implied concentration.
+      Uncertainty is rendered, not hidden. NCT outline simplified.
+      Refreshes every 60s.
+    </div>
+    <div class="foot-r">
+      <a href="/admin">ops ↗</a><br>
+      <a href="/docs">api ↗</a><br>
+      <span id="stamp">—</span>
+    </div>
+  </footer>
 </div>
 
 <script>
-const RAMPS=[[0,'120,113,108'],[0.15,'120,113,108'],[0.35,'251,113,133'],[0.55,'225,29,72'],[0.78,'159,18,57'],[1,'76,5,25']];
-function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;while(i<RAMPS.length-2&&t>RAMPS[i+1][0])i++;
+/* ---------- dose ramp: #78716C quiet → #FB7185 → #E11D48 → #9F1239 → #4C0519 extreme */
+const RAMPS=[[0,'120,113,108'],[0.30,'251,113,133'],[0.52,'225,29,72'],[0.76,'159,18,57'],[1,'76,5,25']];
+function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;
+  while(i<RAMPS.length-2&&t>RAMPS[i+1][0])i++;
   const [t0,c0]=RAMPS[i],[t1,c1]=RAMPS[i+1];const f=t1>t0?(t-t0)/(t1-t0):0;
   const p0=c0.split(',').map(Number),p1=c1.split(',').map(Number);
   const c=p0.map((v,j)=>Math.round(v+(p1[j]-v)*f));return `rgba(${c},${a})`}
+const doseT=pm=>Math.min(1,(pm||0)/400);          // ramp domain 0–400 µg/m³
+const IN=n=>n==null?'—':Math.round(n).toLocaleString('en-IN');
 
+/* ---------- geography ---------- */
+const BBOX=[76.80,28.20,77.90,28.95];             // server grid.py bbox
+/* simplified NCT outline (cartographic, not data) */
+const NCT=[[76.838,28.703],[76.879,28.787],[76.955,28.838],[77.036,28.869],
+  [77.111,28.876],[77.169,28.844],[77.229,28.792],[77.267,28.748],
+  [77.289,28.686],[77.310,28.628],[77.326,28.573],[77.315,28.520],
+  [77.293,28.480],[77.280,28.450],[77.229,28.424],[77.169,28.404],
+  [77.085,28.398],[77.015,28.420],[76.968,28.447],[76.951,28.514],
+  [76.932,28.558],[76.896,28.617],[76.856,28.647]];
+const STATIONS=[[77.3162,28.6468],[77.1754,28.6927],[77.0326,28.7936],
+  [77.2010,28.7265],[77.1112,28.7501],[77.0640,28.5710],[77.2426,28.6315],
+  [77.1708,28.7328],[77.2277,28.5918],[77.2015,28.6364],[77.0929,28.8522],
+  [77.2515,28.5686],[77.2813,28.5308],[77.3067,28.6237],[77.1316,28.6692],
+  [77.1691,28.6396],[77.1868,28.5640],[77.1188,28.7325],[77.1474,28.6516],
+  [77.2263,28.5511],[77.2494,28.7330],[77.3153,28.6723],[77.1658,28.6999],
+  [77.1317,28.4706],[77.3220,28.5440],[77.0620,28.4100],[77.3741,28.6427],
+  [77.3150,28.3700]];
+const pointInPoly=(lon,lat)=>{let ins=false;
+  for(let i=0,j=NCT.length-1;i<NCT.length;j=i++){
+    const xi=NCT[i][0],yi=NCT[i][1],xj=NCT[j][0],yj=NCT[j][1];
+    if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi))ins=!ins}
+  return ins};
+
+/* ---------- state ---------- */
 const cv=document.getElementById('field'),cx=cv.getContext('2d');
-let cells=[],wind={speed_kmh:10,from_deg:300},particles=[],dpr=1,W=0,H=560;
-const BBOX=[76.84,28.40,77.46,28.90]; // lon0,lat0,lon1,lat1
-function xy(lon,lat){return [(lon-BBOX[0])/(BBOX[2]-BBOX[0])*W,(1-(lat-BBOX[1])/(BBOX[3]-BBOX[1]))*H]}
-function pmAt(x,y){ // nearest cell centre (cells are rect centroids)
-  let best=null,bd=1e9;
-  for(const c of cells){const d=(c.x-x)*(c.x-x)+(c.y-y)*(c.y-y);if(d<bd){bd=d;best=c}}
-  return best?best.pm:null}
+const fx=document.getElementById('fx'),px=fx.getContext('2d');
+const mm=document.getElementById('minimap'),mx=mm.getContext('2d');
+let cells=[],look=null,LW=0,LH=0;                 // pm lookup grid
+let wind={speed_kmh:10,from_deg:300},particles=[],dpr=1,W=0,H=560;
+let breaths=0,breathRate=0,lastBreathT=0;
+const CONF_A={hi:.50,med:.32,lo:.16};
+
+function xy(lon,lat){return [(lon-BBOX[0])/(BBOX[2]-BBOX[0])*W,
+                             (1-(lat-BBOX[1])/(BBOX[3]-BBOX[1]))*H]}
+function buildLook(){                              // px → pm in O(1)
+  const gw=Math.max(40,Math.round(W/16)),gh=Math.max(30,Math.round(H/16));
+  look=new Float32Array(gw*gh);LW=gw;LH=gh;
+  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){
+    const x=(i+.5)*W/gw,y=(j+.5)*H/gh;let bd=1e9,pm=0;
+    for(const c of cells){const d=(c.x-x)*(c.x-x)+(c.y-y)*(c.y-y);
+      if(d<bd){bd=d;pm=c.pm}}
+    look[j*gw+i]=pm}}
+const pmAt=(x,y)=>look?look[Math.min(LH-1,Math.max(0,(y/H*LH)|0))*LW+
+                        Math.min(LW-1,Math.max(0,(x/W*LW)|0))]:null;
+
 function boot(){
   dpr=window.devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;
-  cv.width=W*dpr;cv.height=H*dpr;cx.scale(dpr,dpr);
-  particles=Array.from({length:900},()=>({x:Math.random()*W,y:Math.random()*H,vx:0,vy:0}));
+  cv.width=W*dpr;cv.height=H*dpr;cx.setTransform(dpr,0,0,dpr,0,0);
+  fx.width=W*dpr;fx.height=H*dpr;px.setTransform(dpr,0,0,dpr,0,0);
+  const n=Math.max(320,Math.min(900,Math.round(W*H/900)));
+  particles=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,
+    vx:0,vy:0,ph:Math.random()*6.28}));
+  paintBase();
+  if(cells.length)buildLook();
 }
+
+/* ---------- data ---------- */
 async function load(){
-  const [g,a,ad]=await Promise.all([
-    fetch('/grid?cells=30').then(r=>r.json()),
-    fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.json()),
-    fetch('/admin/api').then(r=>r.json())]);
-  cells=(g.features||[]).map(f=>{const p=cellC(f.geometry);if(!p)return null;
-    const [x,y]=xy(p[0],p[1]);return{x,y,pm:f.properties.pm25||0}}).filter(Boolean);
-  wind=a.wind||wind;
-  document.getElementById('pm').textContent=a.pm25??'—';
-  document.getElementById('pmband').textContent=a.pm25_lo!=null?`krige band ${a.pm25_lo}–${a.pm25_hi} µg/m³`:'';
-  document.getElementById('src').textContent=(a.field?.source||'')+' · '+(a.field?.samples||'?')+' samples · '+(a.field?.kriging||'');
-  document.getElementById('wind').textContent=Math.round(wind.speed_kmh);
-  document.getElementById('winddir').textContent='from '+(a.wind?.from_deg??'—')+'° '+(a.wind?compass(a.wind.from_deg):'');
-  const t=ad.community||{};
-  document.getElementById('obs').textContent=t.obs_total??'—';
-  document.getElementById('km').textContent=t.km_24h??'—';
-  document.getElementById('saved').textContent=Math.round(t.avoided_ug_all??0).toLocaleString();
-  const cigs=(t.dose_ug_24h||0)/316;
-  document.getElementById('cignum').textContent=cigs.toFixed(1);
+  try{
+    const [g,a,ad]=await Promise.all([
+      fetch('/grid?cells=34').then(r=>r.json()),
+      fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.json()),
+      fetch('/admin/api').then(r=>r.json())]);
+    cells=(g.features||[]).map(f=>{const p=cellC(f.geometry);if(!p)return null;
+      const [x,y]=xy(p[0],p[1]);
+      return{x,y,pm:f.properties.pm25||0,conf:f.properties.conf||'lo',
+             in:pointInPoly(p[0],p[1])}})
+      .filter(Boolean);
+    cells.forEach(c=>{c.sx=W/34*1.04;c.sy=H/34*1.04});
+    buildLook();paintBase();
+    wind=a.wind||wind;
+
+    /* breath counter — dose_ug ÷ ambient pm = m³ breathed, ÷0.5L = breaths */
+    const t=ad.community||{};
+    const pm=a.pm25||0;
+    breaths=pm>0?(t.dose_ug_24h||0)/pm*2000:0;
+    const istSecs=(Date.now()/1000+19800)%86400;
+    breathRate=istSecs>0?breaths/istSecs:0;lastBreathT=performance.now();
+    paintBreaths(breaths);
+
+    setTxt('pm',a.pm25??'—');
+    setTxt('src',`${a.field?.source||'—'} · ${a.field?.samples??'?'} samples · ${a.field?.station_readings??'?'} stations · krige ${a.field?.kriging||'—'}`);
+    setTxt('windtag',`wind ${Math.round(wind.speed_kmh)} km/h · from ${Math.round(wind.from_deg)}° ${compass(wind.from_deg)}`);
+    paintBand(a);
+    setTxt('obs',IN(t.obs_24h??t.obs_total));
+    setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.contributors));
+    setTxt('saved',IN(t.avoided_ug_all));
+    setTxt('savedcig',((t.avoided_ug_all||0)/316).toFixed(1));
+    paintCigs((t.dose_ug_24h||0)/316);
+    setTxt('nstations',a.field?.station_readings??'28');
+    setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
+    const ty=a.typical;
+    document.getElementById('typical').innerHTML=ty?
+      `<span class="vs">${ty.vs_now_pct>0?'+':''}${ty.vs_now_pct}%</span> vs the decade-typical <b>${Math.round(ty.median)} µg/m³</b> for this month, this hour (9M measured station-hours).`:'';
+    paintTicker(a,t,ad);
+    paintMini();
+    const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
+      `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>
+       <td class="cell">${c.lat.toFixed(3)}°N<small> · </small>${c.lon.toFixed(3)}°E</td>
+       <td class="num">${IN(c.samples)}</td>
+       <td class="num"><span class="dose-chip" style="color:${ramp(Math.min(.5,c.avg_dose_ug/316),1)};border:1px solid ${ramp(Math.min(1,c.avg_dose_ug/316),.4)}">${IN(c.avg_dose_ug)} µg</span></td>
+       <td><span class="modep">${(c.top_mode||'—').replace(/_/g,' ')}</span></td></tr>`).join('');
+    document.getElementById('corridors').innerHTML=
+      '<tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>top mode</th></tr>'+
+      (rows||'<tr><td colspan="5" style="color:var(--ink3)">no donated traversals yet — the app fills this as delhi moves</td></tr>');
+    setTxt('stamp','updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' ist');
+  }catch(e){setTxt('stamp','reconnecting…')}
+}
+
+function paintBand(a){
+  const lo=a.pm25_lo,hi=a.pm25_hi,v=a.pm25;
+  const sc=document.getElementById('bandscale');if(!sc)return;
+  const cap=x=>Math.max(0,Math.min(100,x/500*100));
+  if(v==null){document.getElementById('bandcap').textContent='field unavailable — retrying';return}
+  const sig=document.getElementById('bandsig'),pt=document.getElementById('bandpt');
+  if(lo!=null&&hi!=null){
+    sig.style.left=cap(lo)+'%';sig.style.width=(cap(hi)-cap(lo))+'%';sig.style.display='block';
+    document.getElementById('bandcap').innerHTML=
+      `krige σ-band <b>${lo}–${hi} µg/m³</b> — interpolation variance + 12% instrument floor, widened where stations thin out`;
+  }else{sig.style.display='none';
+    document.getElementById('bandcap').innerHTML='idw fallback — <b>no σ band</b>; sparse samples, estimate only'}
+  pt.style.left=cap(v)+'%';
+  pt.style.background=ramp(doseT(v),1);
+  pt.style.boxShadow=`0 0 12px ${ramp(doseT(v),.9)}`;
+}
+function paintCigs(cigs){
+  setTxt('cignum',cigs.toFixed(1));
   const strip=document.getElementById('cigs');strip.innerHTML='';
   const full=Math.min(40,Math.floor(cigs)),part=cigs-Math.floor(cigs);
-  for(let i=0;i<full;i++){const d=document.createElement('div');d.className='cig on';strip.appendChild(d)}
-  if(part>0.02&&full<40){const d=document.createElement('div');d.className='cig part';
-    const i=document.createElement('i');i.style.width=(part*100)+'%';d.appendChild(i);strip.appendChild(d)}
-  for(let i=full+(part>0.02?1:0);i<40;i++){const d=document.createElement('div');d.className='cig';strip.appendChild(d)}
-  const rows=(ad.corridors||[]).slice(0,8).map(c=>
-    `<tr><td>${c.lat.toFixed(3)}, ${c.lon.toFixed(3)}</td><td class="num">${c.samples}</td>
-     <td class="num">${c.avg_dose_ug} µg</td><td>${(c.top_mode||'').replace(/_/g,' ')}</td></tr>`).join('');
-  document.getElementById('corridors').innerHTML=
-    '<tr><th>corridor</th><th>traversals</th><th>avg inhaled</th><th>top mode</th></tr>'+rows;
+  for(let i=0;i<40;i++){const d=document.createElement('div');
+    if(i<full){d.className='cig on';d.style.background=ramp(0.52+i/40*0.48,1)}
+    else if(i===full&&part>0.02){d.className='cig part';
+      const f=document.createElement('i');f.style.width=(part*100)+'%';d.appendChild(f)}
+    else d.className='cig';
+    strip.appendChild(d)}
 }
+function paintTicker(a,t,ad){
+  const items=[
+    [`pm2.5`,`${a.pm25??'—'} µg/m³`],
+    [`krige band`,`${a.pm25_lo??'—'}–${a.pm25_hi??'—'}`],
+    [`wind`,`${Math.round(wind.speed_kmh)} km/h from ${compass(wind.from_deg)}`],
+    [`instruments`,`${a.field?.station_readings??'—'} live`],
+    [`grap indicative`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
+    [`commutes today`,`${IN(t.obs_24h)}`],
+    [`km measured`,`${IN(t.km_24h)}`],
+    [`µg avoided`,`${IN(t.avoided_ug_all)}`],
+    [`hazard reports`,`${ad.community?.active_reports??t.active_reports??0}`],
+    [`uptime`,`${Math.floor((ad.uptime_s||0)/60)} min`]];
+  const s=items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>◆</i>');
+  document.getElementById('ticker').innerHTML=s+'<i>◆</i>'+s+'<i>◆</i>';
+}
+function paintBreaths(v){const el=document.getElementById('breaths');
+  el.textContent=Math.floor(v).toLocaleString('en-IN')}
+function paintMini(){
+  const r=mm.getBoundingClientRect();if(!r.width)return;
+  const d=window.devicePixelRatio||1;
+  mm.width=r.width*d;mm.height=r.height*d;mx.setTransform(d,0,0,d,0,0);
+  const mW=r.width,mH=r.height,pad=18;
+  const x0=76.80,x1=77.90,y0=28.20,y1=28.95;
+  const px=lon=>pad+(lon-x0)/(x1-x0)*(mW-2*pad);
+  const py=lat=>pad+(1-(lat-y0)/(y1-y0))*(mH-2*pad);
+  mx.strokeStyle='rgba(168,162,158,.28)';mx.lineWidth=1;
+  mx.beginPath();NCT.forEach(([lo,la],i)=>i?mx.lineTo(px(lo),py(la)):mx.moveTo(px(lo),py(la)));
+  mx.closePath();mx.stroke();
+  mx.fillStyle='rgba(168,162,158,.05)';mx.fill();
+  for(const [lo,la] of STATIONS){
+    const inside=pointInPoly(lo,la);
+    mx.beginPath();mx.arc(px(lo),py(la),inside?2.6:1.8,0,6.29);
+    mx.fillStyle=inside?'rgba(251,113,133,.85)':'rgba(120,113,108,.5)';mx.fill();
+    if(inside){mx.beginPath();mx.arc(px(lo),py(la),5.5,0,6.29);
+      mx.strokeStyle='rgba(251,113,133,.18)';mx.stroke()}}
+}
+function setTxt(id,v){const e=document.getElementById(id);if(e)e.textContent=v}
 function cellC(g){if(!g)return null;const t=g.type,c=g.coordinates;
   if(t==='Point')return c;const r=t==='Polygon'?c[0]:(c[0]&&c[0][0]);if(!r)return null;
-  let x=0,y=0,n=0;for(let i=0;i<r.length-1;i++){x+=r[i][0];y+=r[i][1];n++}return n?[x/n,y/n]:null}
-function compass(d){const D=['N','NE','E','SE','S','SW','W','NW'];return D[Math.round(d/45)%8]}
+  let x=0,y=0,n=0;for(let i=0;i<r.length-1;i++){x+=r[i][0];y+=r[i][1];n++}
+  return n?[x/n,y/n]:null}
+function compass(d){const D=['N','NE','E','SE','S','SW','W','NW'];
+  return D[Math.round(d/45)%8]}
+
+/* ---------- render loop ---------- */
+function drawGeo(){                                // outline + station anchors
+  cx.beginPath();NCT.forEach(([lo,la],i)=>{const [x,y]=xy(lo,la);
+    i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.closePath();
+  cx.strokeStyle='rgba(168,162,158,.22)';cx.lineWidth=1;cx.stroke();
+  for(const [lo,la] of STATIONS){const [x,y]=xy(lo,la);
+    if(x<-8||x>W+8||y<-8||y>H+8)continue;
+    const inside=pointInPoly(lo,la);
+    cx.beginPath();cx.arc(x,y,inside?2:1.4,0,6.29);
+    cx.fillStyle=inside?'rgba(245,245,244,.55)':'rgba(168,162,158,.28)';cx.fill()}}
+function paintBase(){                              // baked layer — no accumulation
+  cx.fillStyle='#0C0A09';cx.fillRect(0,0,W,H);
+  for(const c of cells){cx.fillStyle=ramp(doseT(c.pm),
+    (CONF_A[c.conf]||0.16)*(c.in?1:0.45));
+    cx.fillRect(c.x-c.sx/2,c.y-c.sy/2,c.sx,c.sy)}
+  drawGeo();drawWindArrow()}
+function drawWindArrow(){
+  const x=W-34,y=H-86,r=wind.from_deg*Math.PI/180;
+  cx.save();cx.translate(x,y);
+  cx.strokeStyle='rgba(168,162,158,.4)';cx.lineWidth=1;
+  cx.beginPath();cx.arc(0,0,13,0,6.29);cx.stroke();
+  cx.rotate(r+Math.PI);                          // air travels TO bearing from+180
+  cx.beginPath();cx.moveTo(0,-9);cx.lineTo(0,7);
+  cx.moveTo(-3.5,3.5);cx.lineTo(0,8);cx.lineTo(3.5,3.5);cx.stroke();
+  cx.restore()}
+const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function tick(){
-  cx.fillStyle='rgba(12,10,9,0.28)';cx.fillRect(0,0,W,H);
-  // faint field base
-  for(const c of cells){cx.fillStyle=ramp(Math.min(1,c.pm/300),0.10);
-    cx.fillRect(c.x-9,c.y-9,18,18)}
-  const rad=wind.from_deg*Math.PI/180,sp=Math.min(3,wind.speed_kmh/12);
-  const wx=Math.sin(rad)*sp,wy=-Math.cos(rad)*sp; // FROM→TO
+  const dt=Math.min(0.1,(performance.now()-lastBreathT)/1000);lastBreathT=performance.now();
+  breaths+=breathRate*dt;paintBreaths(breaths);
+  /* alpha-fade on the transparent fx layer: destination-in keeps 88%
+     of last frame's alpha → luminous decaying trails over the baked field */
+  px.globalCompositeOperation='destination-in';
+  px.fillStyle='rgba(0,0,0,0.88)';px.fillRect(0,0,W,H);
+  px.globalCompositeOperation='source-over';
+  const rad=wind.from_deg*Math.PI/180,sp=0.7+Math.min(2.6,wind.speed_kmh/11);
+  const wx=-Math.sin(rad)*sp,wy=Math.cos(rad)*sp;   /* FROM bearing → TO = +180° */
+  px.lineCap='round';
   for(const p of particles){
-    p.vx+= (wx-p.vx)*0.02;p.vy+=(wy-p.vy)*0.02;
-    p.x+=p.vx+(Math.random()-0.5)*0.6;p.y+=p.vy+(Math.random()-0.5)*0.6;
-    if(p.x<-4)p.x=W+4;if(p.x>W+4)p.x=-4;if(p.y<-4)p.y=H+4;if(p.y>H+4)p.y=-4;
+    p.vx+=(wx-p.vx)*0.028+Math.sin(p.ph+=0.004)*0.012;
+    p.vy+=(wy-p.vy)*0.028+Math.cos(p.ph*0.7)*0.012;
+    const ox=p.x,oy=p.y;
+    p.x+=p.vx+(Math.random()-0.5)*0.5;p.y+=p.vy+(Math.random()-0.5)*0.5;
+    if(p.x<-8)p.x=W+8;if(p.x>W+8)p.x=-8;if(p.y<-8)p.y=H+8;if(p.y>H+8)p.y=-8;
     const pm=pmAt(p.x,p.y);if(pm==null)continue;
-    const t=Math.min(1,pm/300);
-    cx.fillStyle=ramp(t,0.75);
-    const s=1+t*1.6;cx.fillRect(p.x,p.y,s,s)}
+    const t=doseT(pm),spd=Math.hypot(p.vx,p.vy);
+    px.strokeStyle=ramp(t,0.42+0.30*t);           /* dose-graded colour+heat */
+    px.lineWidth=0.9+t*1.5+Math.min(0.8,spd*0.2);
+    px.beginPath();px.moveTo(ox,oy);px.lineTo(p.x,p.y);px.stroke()}
   requestAnimationFrame(tick)}
-function clock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST'}
-boot();load();clock();tick();setInterval(load,60000);setInterval(clock,30000);
-window.addEventListener('resize',()=>{boot()});
+function stillFrame(){paintBase()}
+
+function clock(){setTxt('clock',new Date().toLocaleTimeString('en-IN',
+  {timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST')}
+const io=new IntersectionObserver(es=>es.forEach(e=>
+  e.isIntersecting&&e.target.classList.add('in')),{threshold:0.12});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+boot();load();clock();
+still?stillFrame():tick();
+let stillT;window.addEventListener('resize',()=>{
+  clearTimeout(stillT);stillT=setTimeout(()=>{boot();paintMini();still&&stillFrame()},180)});
+window.addEventListener('load',paintMini);
+setInterval(load,60000);setInterval(clock,30000);
 </script>
 </body>
 </html>
