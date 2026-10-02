@@ -37,6 +37,7 @@ import { Icon, reportGlyph, vehicleGlyph } from "./src/icons";
 import { AlertBanner, CigStrip, EndpointPin, Fab, ModeRow, SearchPill, Sheet } from "./src/ui";
 import { AmbientMode } from "./src/components/AmbientMode";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "./src/notify";
+import { localSearch } from "./src/gazetteer";
 import { FieldLayer } from "./src/components/FieldLayer";
 import { LedgerSheet } from "./src/components/LedgerSheet";
 import { JourneyDrawer } from "./src/components/JourneyDrawer";
@@ -61,6 +62,7 @@ const inNcr = (lat: number, lon: number) =>
   lon > NCR.minLon && lon < NCR.maxLon && lat > NCR.minLat && lat < NCR.maxLat;
 
 type Place = { name: string; subtitle: string; lat: number; lon: number; outside_ncr?: boolean };
+const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 type Exposure = {
   dose_ug: number | null;
   avg_conc_ugm3: number | null;
@@ -233,21 +235,26 @@ export default function App() {
     try { new File(Paths.document, "intro_seen.txt").write("1"); } catch {}
   }, []);
 
-  /* ---- search: debounced, aborted, keeps prior results visible ---- */
+  /* ---- search: instant local gazetteer under a debounced remote merge ---- */
   const doSearch = useCallback((text: string) => {
     if (debounce.current) clearTimeout(debounce.current);
     if (text.trim().length < 2) { setResults(null); setSearching(false); return; }
+    const bias = from ?? { lat: DELHI[1], lon: DELHI[0] };
+    const local = localSearch(text, bias, 8);
+    setResults(local);                       // local answers before the network does
     setSearching(true);
     const seq = ++searchSeq.current;
     debounce.current = setTimeout(async () => {
       try {
-        const bias = from ?? { lat: DELHI[1], lon: DELHI[0] };
         const j = await fetchJson(
           `${API}/search?q=${encodeURIComponent(text)}&limit=8&lat=${bias.lat}&lon=${bias.lon}`, 8000);
         if (seq !== searchSeq.current) return;
-        setResults(j.results ?? []);
+        const remote: Place[] = j.results ?? [];
+        const seen = new Set(remote.map((r) => `${normName(r.name)}|${r.lat.toFixed(3)}`));
+        const merged = [...remote, ...local.filter((l) => !seen.has(`${normName(l.name)}|${l.lat.toFixed(3)}`))];
+        setResults(merged.slice(0, 10));
       } catch {
-        // keep previous results — never blank the list mid-type
+        // local layer already on screen — a dead network still leaves answers
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
