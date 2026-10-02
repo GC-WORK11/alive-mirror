@@ -1,0 +1,13 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - aws ecr describe-repositories --repository-names alive108-api --region $AWS_REGION || aws ecr create-repository --repository-name alive108-api --region $AWS_REGION
+  build:
+    commands:
+      - docker build -t $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/alive108-api:latest .
+  post_build:
+    commands:
+      - docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/alive108-api:latest
+      - echo "image pushed"
