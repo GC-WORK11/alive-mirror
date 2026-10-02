@@ -197,6 +197,18 @@ def live_reports() -> list[dict]:
     } for r in _reports]
 
 
+def journeys_per_hour(hours: int = 24) -> list[int]:
+    """Observations bucketed per hour, oldest→newest — the ops sparkline."""
+    _load()
+    now = time.time()
+    out = [0] * hours
+    for o in _obs:
+        i = hours - 1 - int((now - o["ts"]) // 3600)
+        if 0 <= i < hours:
+            out[i] += 1
+    return out
+
+
 def _cell(lon: float, lat: float) -> tuple[float, float]:
     """~500m snap — groups traversals into corridors."""
     return (round(lon / 0.005) * 0.005, round(lat / 0.005) * 0.005)

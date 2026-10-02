@@ -55,6 +55,9 @@
   </div>
 </div>
 
+<h2>journeys / hour (last 24h)</h2>
+<canvas id="spark" style="width:100%;height:64px;background:var(--card);border:1px solid var(--line);border-radius:14px;"></canvas>
+
 <h2>recent journeys</h2>
 <table><thead><tr><th>when</th><th>mode</th><th>duration</th><th>dose</th><th>avoided</th><th>contributor</th></tr></thead>
 <tbody id="journeys"></tbody></table>
@@ -105,6 +108,15 @@ async function tick() {
       `<tr><td>${x.kind}</td><td class="muted">${x.lat.toFixed(4)}, ${x.lon.toFixed(4)}</td>` +
       `<td>${ago(x.age_min)}</td><td class="muted">${x.contributor}</td></tr>`).join("")
       || `<tr><td colspan="4" class="muted">no live reports</td></tr>`;
+    const cv = document.getElementById("spark"), ctx = cv.getContext("2d");
+    const W = cv.width = cv.offsetWidth * 2, H = cv.height = cv.offsetHeight * 2;
+    const buckets = (d.journeys_per_hour || Array(24).fill(0));
+    const max = Math.max(1, ...buckets), bw = W / buckets.length;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "rgba(15,118,110,.14)";
+    buckets.forEach((v, i) => ctx.fillRect(i * bw + 1, H, bw - 2, -H * 0.9 * (v / max) - H * 0.02));
+    ctx.fillStyle = "#0f766e";
+    buckets.forEach((v, i) => { if (v > 0) ctx.fillRect(i * bw + 1, H - H * 0.9 * (v / max) - H * 0.02, bw - 2, 4); });
   } catch (e) {
     document.getElementById("stamp").textContent = "server unreachable — " + e;
   }

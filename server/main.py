@@ -611,6 +611,7 @@ async def admin_api():
         "contributors": contributors,
         "recent_journeys": community.recent_obs(20),
         "reports": community.live_reports(),
+        "journeys_per_hour": community.journeys_per_hour(),
     }
 
 
