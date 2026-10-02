@@ -40,6 +40,7 @@ import { FieldLayer } from "./src/components/FieldLayer";
 import { LedgerSheet } from "./src/components/LedgerSheet";
 import { JourneyDrawer } from "./src/components/JourneyDrawer";
 import { ReportsLayer } from "./src/components/ReportsLayer";
+import { CorridorLayer } from "./src/components/CorridorLayer";
 import { loadTrips, logTrip, stats as ledgerStats, weekStats } from "./src/store/ledger";
 import { observeTrip, postReport, type CommunityTotals, type ReportKind } from "./src/community";
 
@@ -717,6 +718,7 @@ export default function App() {
           trackUserLocation={follow ? "default" : undefined}
           onTrackUserLocationChange={(e) => { if (!e.nativeEvent.trackUserLocation) setFollow(false); }} />
         {hasLoc && <UserLocation animated accuracy />}
+        <CorridorLayer corridors={community?.top_corridors ?? null} />
         <FieldLayer grid={grid} />
         <ReportsLayer reports={reports} />
         <Layer

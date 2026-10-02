@@ -50,6 +50,10 @@ export async function postReport(api: string, kind: ReportKind, lat: number, lon
   });
 }
 
+export type CorridorCell = {
+  lon: number; lat: number; samples: number; avg_dose_ug: number; top_mode: string;
+};
+
 export type CommunityTotals = {
   obs_total: number;
   obs_24h: number;
@@ -60,4 +64,5 @@ export type CommunityTotals = {
   avoided_ug_all: number;
   active_reports: number;
   modes_24h: Record<string, number>;
+  top_corridors?: CorridorCell[];
 };
