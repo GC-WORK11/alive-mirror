@@ -90,6 +90,8 @@ async def main():
         check("aqi typical band", j.get("typical") is None or
               j["typical"].get("median") is not None)
         check("aqi wind or honest none", "wind" in j)
+        check("aqi us_aqi field", "us_aqi" in j)
+        check("aqi conditions block", isinstance(j.get("conditions"), dict))
 
         j = (await c.get("/today", params={"lat": KB[0], "lon": KB[1]})).json()
         hrs = j.get("hours_ist") or []

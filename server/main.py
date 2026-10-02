@@ -403,6 +403,8 @@ async def aqi(lat: float, lon: float):
         "pm25_ambient": round(v, 1),
         "pm10": FIELD.value(lat, lon, "pm10"),
         "no2": FIELD.value(lat, lon, "nitrogen_dioxide"),
+        "us_aqi": FIELD.value(lat, lon, "us_aqi"),
+        "conditions": FIELD.weather(),
         "nearest_sample_km": round(FIELD.nearest_sample_km(lat, lon), 1),
         "smoke_modifier": mod,
         "fire": FIRES.status(),

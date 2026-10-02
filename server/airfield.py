@@ -19,7 +19,7 @@ import httpx
 OPEN_METEO = "https://air-quality-api.open-meteo.com/v1/air-quality"
 METEO = "https://api.open-meteo.com/v1/forecast"
 OPENAQ = "https://api.openaq.org/v3"
-POLLUTANTS = "pm2_5,pm10,nitrogen_dioxide,ozone"
+POLLUTANTS = "pm2_5,pm10,nitrogen_dioxide,ozone,us_aqi"
 CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
 
 # Directional-IDW strength: a sample dead-upwind of the query counts up to
@@ -87,6 +87,7 @@ class AirField:
         self._samples: list = []  # (lat, lon, name|None, {pollutant: ug/m3})
         self._fetched_at: float = 0.0
         self._wind: tuple = (0.0, 0.0)  # (speed km/h, FROM-direction deg)
+        self._wx: dict = {}  # ambient weather for the safety layer
         self._source = "open-meteo/cams"
         self._station_count = 0  # live OpenAQ sensor readings blended in
         self._lock = asyncio.Lock()
@@ -212,13 +213,19 @@ class AirField:
         try:
             r = await client.get(METEO, params={
                 "latitude": 28.61, "longitude": 77.21,
-                "current": "wind_speed_10m,wind_direction_10m",
+                "current": "wind_speed_10m,wind_direction_10m,precipitation,visibility,temperature_2m",
                 "forecast_days": 1,
             })
             cur = r.json().get("current", {})
             if cur.get("wind_speed_10m") is not None:
                 self._wind = (float(cur["wind_speed_10m"]),
                               float(cur.get("wind_direction_10m") or 0.0))
+            if cur:
+                self._wx = {
+                    "precip_mm": cur.get("precipitation"),
+                    "visibility_m": cur.get("visibility"),
+                    "temp_c": cur.get("temperature_2m"),
+                }
         except httpx.HTTPError:
             pass
 
@@ -227,6 +234,11 @@ class AirField:
         speed, from_deg = self._wind
         return {"speed_kmh": speed, "from_deg": from_deg,
                 "factor": min(1.0, speed / 30.0)}
+
+    def weather(self) -> dict:
+        """Ambient conditions a rider feels: rain + fog/dust visibility —
+        the safety half of 'safety first'."""
+        return self._wx or {"precip_mm": None, "visibility_m": None, "temp_c": None}
 
     def _concentration(self, lat: float, lon: float, key: str) -> Optional[float]:
         """Advection-weighted IDW (p=2) over grid samples.
