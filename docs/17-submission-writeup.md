@@ -29,15 +29,30 @@ sensor grid covering streets no station can see, plus live hazard flags
 (dust/smoke/burning/clean). An ops dashboard (/admin) shows the city
 breathing in real time.
 
-## Where AWS fits
+## Where AWS fits (deployed, not claimed)
 
-- **ECS Fargate** (serverless containers) hosts the FastAPI decision engine —
-  `server/Dockerfile` + `server/deploy-aws.sh` deploy in one command.
-- **S3** stores the 9M-measurement climatology (OpenAQ's archive is
-  itself S3 — same bucket class, our derived product).
-- **DynamoDB** (or S3 JSONL) holds donated traversals + hazard reports —
-  the community ledger scales without a database admin.
-- Video shows the AWS console + a deployed public URL, per the rules.
+- **ECS Fargate** (serverless containers) runs the FastAPI decision
+  engine in `ap-south-1` — `server/Dockerfile` + `server/deploy-aws.sh`.
+- **Network Load Balancer + Elastic IP** give a stable public URL that
+  survives redeploys: `http://65.2.28.40` (live now).
+- **Secrets Manager** holds the OpenAQ key, injected into the task —
+  no credentials in the repo.
+- **ECR** hosts the container image; **CodeBuild** builds it in-cloud
+  (the video can literally watch the build run).
+- **S3** stores the 9M-measurement climatology the decade-typical
+  numbers come from (OpenAQ's archive is itself S3).
+
+## Validation — the part most projects skip
+
+We measured the field against itself: leave-one-out over 94 live
+government instruments gives **MAE 46 µg/m³, mean bias +0.3** — and the
+residual is co-located instruments disagreeing (one site reads 72 and
+268 simultaneously). CAMS alone under-reads Delhi 2–8× at hotspots;
+the server de-biases every model sample against nearby instruments
+before interpolating. Numbers served live at `/aqi` → `calibration`.
+
+41-assertion suite (`server/test_api.py`) hits every endpoint against
+live upstreams — no mocks.
 
 ## Impact
 
