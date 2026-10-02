@@ -35,13 +35,13 @@ import {
 } from "@maplibre/maplibre-react-native";
 import { F, T, doseColor } from "./src/theme";
 import { AmbientMode } from "./src/components/AmbientMode";
+import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "./src/notify";
 import { FieldLayer } from "./src/components/FieldLayer";
 import { LedgerSheet } from "./src/components/LedgerSheet";
 import { JourneyDrawer } from "./src/components/JourneyDrawer";
 import { ReportsLayer } from "./src/components/ReportsLayer";
 import { loadTrips, logTrip, stats as ledgerStats, weekStats } from "./src/store/ledger";
 import { observeTrip, postReport, type CommunityTotals, type ReportKind } from "./src/community";
-import { requestPerms, scheduleDeparture } from "./src/notify";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -649,6 +649,25 @@ export default function App() {
     } catch {}
   }, [from, to]);
 
+  // drawer "daily cleanest-window alert" — arms tomorrow-morning's
+  // notification from today's typical curve (a 3h sliding minimum)
+  const armDailyBrief = useCallback(async (): Promise<boolean> => {
+    if (!(await requestPerms())) return false;
+    const p = to ?? from ?? { lat: DELHI[1], lon: DELHI[0] };
+    const j = await fetch(`${API}/today?lat=${p.lat}&lon=${p.lon}`).then((r) => r.json()).catch(() => null);
+    const h: number[] | undefined = j?.hours_ist;
+    if (!Array.isArray(h) || h.length < 24) return false;
+    let best = 0;
+    for (let i = 0; i <= 21; i++) {
+      if (h[i] + h[i + 1] + h[i + 2] < h[best] + h[best + 1] + h[best + 2]) best = i;
+    }
+    const meanAll = h.reduce((a, b) => a + b, 0) / 24;
+    const meanWin = (h[best] + h[best + 1] + h[best + 2]) / 3;
+    const drop = Math.max(5, Math.round((1 - meanWin / meanAll) * 100));
+    const id = await scheduleDailyBrief({ startHour: best, endHour: (best + 3) % 24, dropPct: drop });
+    return id != null;
+  }, [from, to]);
+
   const remind = useCallback(async () => {
     if (!depart?.best?.start || notified) return;
     if (!(await requestPerms())) return;
@@ -1047,6 +1066,8 @@ export default function App() {
       {drawerOpen && (
         <JourneyDrawer week={weekStats(trips)} stats={ledger}
           community={community} shiftCig={shiftCig} escape={escape}
+          onAmbient={() => { setDrawerOpen(false); openAmbient(); }}
+          onReminders={armDailyBrief}
           onClose={() => setDrawerOpen(false)} />
       )}
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Dimensions, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { T, F, doseColor } from "../theme";
 import type { CommunityTotals } from "../community";
 import type { weekStats, stats as ledgerStats } from "../store/ledger";
@@ -12,6 +12,8 @@ type Props = {
   community: CommunityTotals | null;
   shiftCig: number | null;
   escape?: EscapeSpot | null;
+  onAmbient: () => void;
+  onReminders: () => Promise<boolean>;
   onClose: () => void;
 };
 
@@ -226,7 +228,22 @@ function Row({
 }
 
 /** Navigation drawer — slides in from the left, google-maps style. */
-export function JourneyDrawer({ week, stats, community, shiftCig, escape, onClose }: Props) {
+export function JourneyDrawer({ week, stats, community, shiftCig, escape, onAmbient, onReminders, onClose }: Props) {
+  const [remOn, setRemOn] = useState(false);
+
+  const shareWeek = () => {
+    const n = Math.round(week.weekCigEq * 10) / 10;
+    const lines = [
+      n > 0
+        ? `this week i breathed ~${n} cigarette${n === 1 ? "" : "s"} of delhi's air.`
+        : "this week my delhi air stayed nearly smoke-free.",
+      stats.allAvoidedUg > 0
+        ? `i skipped about ${fmtCig(cigsOf(stats.allAvoidedUg))} more by picking cleaner ways to go.`
+        : "",
+      "every trip i take helps map the city's pollution, street by street — ALive-108",
+    ];
+    Share.share({ message: lines.filter(Boolean).join("\n") }).catch(() => {});
+  };
   const [slide] = useState(() => new Animated.Value(-Dimensions.get("window").width));
   useEffect(() => {
     Animated.spring(slide, { toValue: 0, useNativeDriver: true, damping: 24, stiffness: 220 }).start();
@@ -418,14 +435,21 @@ export function JourneyDrawer({ week, stats, community, shiftCig, escape, onClos
             <View style={s.div} />
             <Row
               icon={BellIcon}
-              label="reminders"
-              trailing={<Text style={s.soon}>soon</Text>}
+              label="daily cleanest-window alert"
+              onPress={async () => setRemOn(await onReminders())}
+              trailing={<Text style={remOn ? s.trailVal : s.soon}>{remOn ? "on" : "off"}</Text>}
             />
             <View style={s.div} />
             <Row
               icon={MoonIcon}
               label="ambient mode"
-              trailing={<Text style={s.soon}>soon</Text>}
+              onPress={onAmbient}
+            />
+            <View style={s.div} />
+            <Row
+              icon={RouteIcon}
+              label="share your week"
+              onPress={shareWeek}
             />
           </View>
 

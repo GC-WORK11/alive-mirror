@@ -25,6 +25,32 @@ export async function ensureChannel() {
   }
 }
 
+const fmtHr = (h: number) => `${((h - 1) % 12) + 1}${h < 12 ? "am" : "pm"}`;
+
+/** Daily morning briefing — "delhi's cleanest window today" — armed from
+    the app's /today curve each time it opens; fires once next morning. */
+export async function scheduleDailyBrief(opts: {
+  startHour: number; endHour: number; dropPct: number;
+}): Promise<string | null> {
+  await ensureChannel();
+  const fire = new Date();
+  fire.setHours(6, 45, 0, 0);
+  if (fire.getTime() <= Date.now()) fire.setDate(fire.getDate() + 1);
+  const secs = Math.floor((fire.getTime() - Date.now()) / 1000);
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title: "delhi's cleanest window today",
+      body: `${fmtHr(opts.startHour)}–${fmtHr(opts.endHour)} — air runs ${opts.dropPct}% lighter. plan the smoky trips around it.`,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: secs,
+      repeats: false,
+      channelId: "departures",
+    },
+  });
+}
+
 export async function scheduleDeparture(opts: {
   fireAt: Date;
   savedPct: number;
