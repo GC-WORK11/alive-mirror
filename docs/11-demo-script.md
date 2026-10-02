@@ -57,7 +57,16 @@ Voiceover: "Delhi's boundary layer traps pollution overnight; we model
 it hourly five days out. Your phone tells you when the same trip costs
 less — then keeps it on the glass where you glance."
 
-**2:35–3:00 — honesty close**
+**2:20–2:40 — AWS beat (mandatory)**
+Screen-record the AWS console, ~10 s: ECS cluster `alive108` (service
+RUNNING) → Elastic IP `65.2.28.40` → NLB listener → phone browser on
+`http://65.2.28.40/health` returning JSON (125-station climatology) →
+Secrets Manager `alive108/openaq` (where the key lives). Voiceover:
+"CodeBuild builds the image inside AWS, ECR stores it, Fargate runs it
+serverless, a Network Load Balancer fronts it — the same engine the app
+on this phone is talking to."
+
+**2:40–3:00 — honesty close**
 Tap a thin-field point → confidence drops, "nearest sample X km" shows.
 "AQI apps show a number from an hour ago at a station kilometres away
 and call it real-time. We show where every number comes from — and when
