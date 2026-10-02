@@ -18,6 +18,7 @@ device be counted once for 'contributors' without tracking who it is.
 """
 import json
 import math
+import os
 import time
 from pathlib import Path
 from typing import Optional
@@ -26,32 +27,76 @@ _FILE = Path(__file__).parent / "data" / "community.json"
 _REPORT_TTL_S = 6 * 3600
 _REPORT_KINDS = {"dust", "smoke", "burning", "clean"}
 
+# S3 persistence — Fargate has an ephemeral FS, so the community layer
+# would reset on every deploy. When COMMUNITY_BUCKET is set the snapshot
+# is pushed at most every _S3_MIN_GAP_S and pulled back on boot.
+_BUCKET = os.environ.get("COMMUNITY_BUCKET", "")
+_S3_KEY = "community/state.json"
+_S3_MIN_GAP_S = 60
+_s3_client = None
+_last_s3_put = 0.0
+
 _obs: list[dict] = []
 _reports: list[dict] = []
 _loaded = False
 
 
+def _s3():
+    global _s3_client
+    if _s3_client is None and _BUCKET:
+        try:
+            import boto3
+            _s3_client = boto3.client("s3", region_name=os.environ.get("AWS_REGION", "ap-south-1"))
+        except Exception:
+            _s3_client = False
+    return _s3_client or None
+
+
+def _apply(d: dict) -> None:
+    global _obs, _reports
+    _obs = d.get("obs", [])[-20000:]
+    _reports = d.get("reports", [])[-2000:]
+
+
 def _load() -> None:
-    global _obs, _reports, _loaded
+    global _loaded
     if _loaded:
         return
     _loaded = True
+    s3 = _s3()
+    if s3:
+        try:
+            body = s3.get_object(Bucket=_BUCKET, Key=_S3_KEY)["Body"].read()
+            _apply(json.loads(body))
+            _prune_reports()
+            return
+        except Exception:
+            pass
     if _FILE.exists():
         try:
-            d = json.loads(_FILE.read_text())
-            _obs = d.get("obs", [])[-20000:]
-            _reports = d.get("reports", [])[-2000:]
+            _apply(json.loads(_FILE.read_text()))
         except Exception:
             pass
     _prune_reports()
 
 
 def _save() -> None:
+    global _last_s3_put
+    payload = {"obs": _obs[-20000:], "reports": _reports[-2000:]}
     try:
         _FILE.parent.mkdir(parents=True, exist_ok=True)
-        _FILE.write_text(json.dumps({"obs": _obs[-20000:], "reports": _reports[-2000:]}))
+        _FILE.write_text(json.dumps(payload))
     except Exception:
         pass
+    now = time.time()
+    s3 = _s3()
+    if s3 and now - _last_s3_put > _S3_MIN_GAP_S:
+        _last_s3_put = now
+        try:
+            s3.put_object(Bucket=_BUCKET, Key=_S3_KEY,
+                          Body=json.dumps(payload), ContentType="application/json")
+        except Exception:
+            pass
 
 
 def _prune_reports() -> None:

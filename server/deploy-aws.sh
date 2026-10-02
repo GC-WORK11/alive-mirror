@@ -54,13 +54,22 @@ aws iam attach-role-policy --role-name ecsTaskExecutionRole \
 aws iam attach-role-policy --role-name ecsTaskExecutionRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly 2>/dev/null || true
 aws ecs create-cluster --cluster-name alive108 >/dev/null 2>&1 || true
+
+# task role — the app's own identity (S3 community-state persistence)
+BUCKET="alive108-build-$ACCOUNT"
+aws iam create-role --role-name alive108-task \
+  --assume-role-policy-document "$ETRUST" 2>/dev/null || true
+aws iam put-role-policy --role-name alive108-task \
+  --policy-name community-s3 --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\"],\"Resource\":\"arn:aws:s3:::$BUCKET/community/*\"}]}" >/dev/null
+
 aws ecs register-task-definition \
   --family alive108 \
   --network-mode awsvpc \
   --requires-compatibilities FARGATE \
   --cpu 1024 --memory 2048 \
   --execution-role-arn arn:aws:iam::$ACCOUNT:role/ecsTaskExecutionRole \
-  --container-definitions "[{\"name\":\"alive108\",\"image\":\"$IMG\",\"essential\":true,\"portMappings\":[{\"containerPort\":8080,\"protocol\":\"tcp\"}]}]" >/dev/null
+  --task-role-arn arn:aws:iam::$ACCOUNT:role/alive108-task \
+  --container-definitions "[{\"name\":\"alive108\",\"image\":\"$IMG\",\"essential\":true,\"portMappings\":[{\"containerPort\":8080,\"protocol\":\"tcp\"}],\"environment\":[{\"name\":\"COMMUNITY_BUCKET\",\"value\":\"$BUCKET\"}]}]" >/dev/null
 
 # 5. service with public IP
 SG=$(aws ec2 describe-security-groups --filters Name=group-name,Values=alive108 \
