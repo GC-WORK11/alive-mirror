@@ -12,7 +12,7 @@ import httpx
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from airfield import FIELD
+from airfield import FIELD, grap_indicative
 from fires import FIRES
 from forecast import FORECAST
 import transit
@@ -336,6 +336,8 @@ async def aqi(lat: float, lon: float):
         "nearest_sample_km": round(FIELD.nearest_sample_km(lat, lon), 1),
         "smoke_modifier": mod,
         "fire": FIRES.status(),
+        "wind": FIELD.wind(),
+        "grap": grap_indicative(v * mod),
         "field": FIELD.status(),
         "typical": {
             "month": ist.month, "hour_ist": ist.hour,
@@ -360,10 +362,32 @@ async def today(lat: float, lon: float):
     }
 
 
+class _ForecastSurface:
+    """Forecast-backed drop-in for grid.as_geojson — pm25() answers per
+    (lat, lon) hours-ahead; confidence still tracks live-sample distance
+    (it measures geographic monitoring density, which a model horizon
+    doesn't change)."""
+
+    def __init__(self, hours_ahead: int):
+        self._h = hours_ahead
+
+    def value(self, lat: float, lon: float, param: str = "pm2_5") -> Optional[float]:
+        return FORECAST.pm25(lat, lon, self._h)
+
+    def nearest_sample_km(self, lat: float, lon: float) -> float:
+        return FIELD.nearest_sample_km(lat, lon)
+
+
 @app.get("/grid")
-async def field_grid(cells: int = Query(default=22, le=40)):
+async def field_grid(cells: int = Query(default=22, le=40),
+                     h: Optional[int] = Query(default=None, ge=0, le=120)):
     """The live PM2.5 surface as GeoJSON cells — the map's colour layer.
-    Confidence per cell degrades with distance to the nearest sample."""
+    ?h=N (0..120) scrubs the surface into the forecast horizon so the app
+    can animate where the plume goes. Confidence per cell degrades with
+    distance to the nearest sample."""
+    if h is not None:
+        await FORECAST.refresh(http())
+        return grid.as_geojson(_ForecastSurface(h), cells)
     await FIELD.refresh(http())
     return grid.as_geojson(FIELD, cells)
 

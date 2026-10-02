@@ -16,8 +16,13 @@ from typing import Optional
 import httpx
 
 OPEN_METEO = "https://air-quality-api.open-meteo.com/v1/air-quality"
+METEO = "https://api.open-meteo.com/v1/forecast"
 POLLUTANTS = "pm2_5,pm10,nitrogen_dioxide,ozone"
 CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
+
+# Directional-IDW strength: a sample dead-upwind of the query counts up to
+# ~1.45x, dead-downwind ~0.55x, scaled by wind speed (calm air => isotropic).
+UPWIND_GAIN = 0.45
 
 # NCR bbox (lon/lat) shared with main.py
 BBOX = (76.80, 28.20, 77.90, 28.95)
@@ -79,6 +84,7 @@ class AirField:
     def __init__(self) -> None:
         self._samples: list = []  # (lat, lon, name|None, {pollutant: ug/m3})
         self._fetched_at: float = 0.0
+        self._wind: tuple = (0.0, 0.0)  # (speed km/h, FROM-direction deg)
         self._source = "open-meteo/cams"
         self._lock = asyncio.Lock()
 
@@ -106,15 +112,51 @@ class AirField:
                     except httpx.HTTPError:
                         pass
 
-            await asyncio.gather(*(grab(lat, lon, name) for lat, lon, name in pts))
+            await asyncio.gather(
+                *(grab(lat, lon, name) for lat, lon, name in pts),
+                self._grab_wind(client),
+            )
             if results:
                 self._samples = results
                 self._fetched_at = time.time()
 
+    async def _grab_wind(self, client: httpx.AsyncClient) -> None:
+        """Boundary-layer wind over NCR centre — drives the directional
+        weighting below (air at a point arrives *from* upwind)."""
+        try:
+            r = await client.get(METEO, params={
+                "latitude": 28.61, "longitude": 77.21,
+                "current": "wind_speed_10m,wind_direction_10m",
+                "forecast_days": 1,
+            })
+            cur = r.json().get("current", {})
+            if cur.get("wind_speed_10m") is not None:
+                self._wind = (float(cur["wind_speed_10m"]),
+                              float(cur.get("wind_direction_10m") or 0.0))
+        except httpx.HTTPError:
+            pass
+
+    def wind(self) -> dict:
+        """Current boundary wind: speed km/h + the direction air comes FROM."""
+        speed, from_deg = self._wind
+        return {"speed_kmh": speed, "from_deg": from_deg,
+                "factor": min(1.0, speed / 30.0)}
+
     def _concentration(self, lat: float, lon: float, key: str) -> Optional[float]:
-        """IDW (p=2) over grid samples, weighting named stations 3x."""
+        """Advection-weighted IDW (p=2) over grid samples.
+
+        Pure distance-IDW treats the field as static smoke. It isn't:
+        air arriving at a point just came through the upwind side, so a
+        sample upwind of the query is a better predictor of what a person
+        breathes there than an equally distant downwind sample. We rotate
+        each sample's bearing against the 10m wind vector and scale the
+        IDW weight by the alignment (max +/- UPWIND_GAIN, zeroed in calm
+        air). Named stations still count 3x."""
         if not self._samples:
             return None
+        speed_kmh, from_deg = self._wind
+        wf = min(1.0, speed_kmh / 30.0)  # calm => isotropic
+        wind_from_rad = math.radians(from_deg)
         num = 0.0
         den = 0.0
         for slat, slon, name, vals in self._samples:
@@ -125,6 +167,14 @@ class AirField:
             if d < 1e-6:
                 return float(v)
             w = (3.0 if name else 1.0) / (d * d)
+            if wf > 0:
+                # bearing from the query to the sample; a sample sitting on
+                # the bearing the wind comes FROM is upwind of the query
+                bearing = math.atan2(
+                    (slon - lon) * math.cos(math.radians(lat)),
+                    slat - lat)
+                align = math.cos(bearing - wind_from_rad)
+                w *= 1.0 + UPWIND_GAIN * align * wf
             num += w * float(v)
             den += w
         return num / den if den else None
@@ -143,7 +193,21 @@ class AirField:
             "source": self._source,
             "samples": len(self._samples),
             "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
+            "wind": self.wind(),
         }
+
+
+def grap_indicative(pm25: Optional[float]) -> dict:
+    """Indicative GRAP stage from NCR PM2.5 (Delhi's emergency rules,
+    CAQM). GRAP triggers are declared on AQI; these map the PM2.5 bands
+    that correspond: I=poor air (~AQI 201-300), II=very poor (301-400),
+    III=severe (401-450), IV=severe+ (>450). Labeled 'indicative' — the
+    legal stage is CAQM's call, not ours."""
+    if pm25 is None:
+        return {"indicative_stage": None, "basis_pm25": None}
+    stage = 4 if pm25 > 350 else 3 if pm25 > 250 else 2 if pm25 > 120 else 1 if pm25 > 90 else 0
+    return {"indicative_stage": stage, "basis_pm25": round(pm25, 1),
+            "note": "indicative only — legal GRAP stage is declared by CAQM"}
 
 
 FIELD = AirField()

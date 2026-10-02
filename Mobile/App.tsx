@@ -44,7 +44,7 @@ const API =
     default: "http://localhost:8000",
   });
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 const DELHI: [number, number] = [77.209, 28.6139];
 
 type Place = { name: string; subtitle: string; lat: number; lon: number };
@@ -84,9 +84,15 @@ type FieldRead = {
   pm10?: number | null;
   nearest_sample_km?: number;
   typical?: { median: number; vs_now_pct: number | null } | null;
+  wind?: { speed_kmh: number; from_deg: number; factor: number } | null;
+  grap?: { indicative_stage: number | null; basis_pm25: number | null } | null;
   lat: number;
   lon: number;
 };
+
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const windFrom = (deg: number) => COMPASS[Math.round(deg / 45) % 8];
+const HORIZONS = [0, 6, 12, 24];
 
 const hourLabel = (iso: string | null, ahead: number) => {
   if (iso) {
@@ -117,6 +123,7 @@ export default function App() {
   const [showWhy, setShowWhy] = useState(false);
   const [fieldRead, setFieldRead] = useState<FieldRead | null>(null);
   const [grid, setGrid] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [horizonH, setHorizonH] = useState(0);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [ledger, setLedger] = useState<ReturnType<typeof ledgerStats>>({
@@ -143,6 +150,12 @@ export default function App() {
     fetch(`${API}/health`).then((r) => setApiOk(r.ok)).catch(() => setApiOk(false));
     fetch(`${API}/grid`).then((r) => r.json()).then(setGrid).catch(() => {});
     loadTrips().then((t) => setLedger(ledgerStats(t))).catch(() => {});
+  }, []);
+
+  const scrubField = useCallback((h: number) => {
+    setHorizonH(h);
+    const url = h > 0 ? `${API}/grid?h=${h}` : `${API}/grid`;
+    fetch(url).then((r) => r.json()).then(setGrid).catch(() => {});
   }, []);
 
   const doSearch = useCallback((text: string) => {
@@ -279,7 +292,7 @@ export default function App() {
       const r = await fetch(`${API}/aqi?lat=${p.lat}&lon=${p.lon}`);
       const j = await r.json();
       if (j.pm25 != null)
-        setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, lat: p.lat, lon: p.lon });
+        setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, lat: p.lat, lon: p.lon });
     } catch {}
   }, [from, to]);
 
@@ -295,7 +308,7 @@ export default function App() {
 
   return (
     <View style={s.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Map
         mapStyle={STYLE_URL}
         style={StyleSheet.absoluteFill}
@@ -306,7 +319,7 @@ export default function App() {
             const r = await fetch(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`);
             const j = await r.json();
             if (j.pm25 != null)
-              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, lat: c[1], lon: c[0] });
+              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, lat: c[1], lon: c[0] });
           } catch {}
         }}
       >
@@ -319,14 +332,14 @@ export default function App() {
           source-layer="building"
           minzoom={14}
           paint={{
-            "fill-extrusion-color": "#d9d4cb",
+            "fill-extrusion-color": "#2a3138",
             "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-            "fill-extrusion-opacity": 0.5,
+            "fill-extrusion-opacity": 0.65,
           }}
         />
         <GeoJSONSource id="route" data={routeSegs}>
           <Layer id="route-casing" type="line"
-            paint={{ "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.75 }}
+            paint={{ "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.28 }}
             layout={{ "line-cap": "round", "line-join": "round" }} />
           <Layer id="route-line" type="line"
             paint={{ "line-color": ["get", "color"], "line-width": 4.5 }}
@@ -343,7 +356,7 @@ export default function App() {
 
       {/* search card */}
       <View style={s.cardWrap}>
-        <BlurView intensity={45} tint="light" style={s.card}>
+        <BlurView intensity={40} tint="dark" style={s.card}>
           <View style={s.row}>
             <Text style={s.rowGlyph}>A</Text>
             <TextInput style={s.input} placeholder="From — anywhere in Delhi NCR"
@@ -368,7 +381,7 @@ export default function App() {
         </BlurView>
 
         {active && results.length > 0 && (
-          <BlurView intensity={55} tint="light" style={[s.card, { marginTop: 8 }]}>
+          <BlurView intensity={50} tint="dark" style={[s.card, { marginTop: 8 }]}>
             {results.map((p, i) => (
               <Pressable key={`${p.lat},${p.lon},${i}`} onPress={() => pick(p)}
                 style={({ pressed }) => [s.result, pressed && { opacity: 0.55 }]}>
@@ -380,6 +393,18 @@ export default function App() {
             ))}
           </BlurView>
         )}
+      </View>
+
+      {/* horizon scrubber — now / +6h / +12h / +24h */}
+      <View style={s.horizonWrap}>
+        {HORIZONS.map((h) => (
+          <Pressable key={h} onPress={() => scrubField(h)}
+            style={[s.hChip, horizonH === h && s.hChipOn]}>
+            <Text style={[s.hTxt, horizonH === h && s.hTxtOn]}>
+              {h === 0 ? "now" : `+${h}h`}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       {/* top-right: ledger + ambient */}
@@ -419,6 +444,16 @@ export default function App() {
                   : ""}
               </Text>
             )}
+            {fieldRead.wind && fieldRead.wind.speed_kmh > 0 && (
+              <Text style={s.fieldMeta}>
+                air arrives from {windFrom(fieldRead.wind.from_deg)} · {Math.round(fieldRead.wind.speed_kmh)} km/h
+              </Text>
+            )}
+            {fieldRead.grap?.indicative_stage != null && fieldRead.grap.indicative_stage > 0 && (
+              <Text style={s.grapTxt}>
+                GRAP-{fieldRead.grap.indicative_stage} air (indicative)
+              </Text>
+            )}
           </Pressable>
         </View>
       )}
@@ -426,7 +461,7 @@ export default function App() {
       {/* dose ranking */}
       {from && to && (
         <View style={s.bottomWrap}>
-          <BlurView intensity={45} tint="light" style={s.summary}>
+          <BlurView intensity={40} tint="dark" style={s.summary}>
             {loadingRoute ? (
               <ActivityIndicator size="small" color={T.accent} />
             ) : options.length > 0 ? (
@@ -518,7 +553,7 @@ const s = StyleSheet.create({
   input: { flex: 1, fontFamily: F.med, fontSize: 16, color: T.ink, padding: 0 },
   swap: { marginLeft: 8, padding: 4 },
   swapTxt: { fontSize: 17, color: T.ink3, fontFamily: F.reg },
-  div: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(15,23,42,0.10)", marginHorizontal: 16 },
+  div: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginHorizontal: 16 },
   result: { paddingHorizontal: 16, paddingVertical: 11 },
   rname: { fontFamily: F.semi, fontSize: 15, color: T.ink },
   rsub: { fontFamily: F.reg, fontSize: 12, color: T.ink2, marginTop: 1 },
@@ -526,6 +561,17 @@ const s = StyleSheet.create({
     position: "absolute", top: Platform.select({ ios: 108, android: 88 }), right: 16,
     flexDirection: "row", alignItems: "center", gap: 10,
   },
+  horizonWrap: {
+    position: "absolute", top: Platform.select({ ios: 108, android: 88 }), left: 16,
+    flexDirection: "row", gap: 6,
+  },
+  hChip: {
+    backgroundColor: T.glass, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
+    borderWidth: 1, borderColor: T.glassBorder,
+  },
+  hChipOn: { backgroundColor: "rgba(45,212,191,0.16)", borderColor: "rgba(45,212,191,0.45)" },
+  hTxt: { fontFamily: F.med, fontSize: 11.5, color: T.ink2 },
+  hTxtOn: { color: T.accent },
   todayPill: {
     backgroundColor: T.glass, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: T.glassBorder,
@@ -550,6 +596,7 @@ const s = StyleSheet.create({
   },
   fieldDose: { fontFamily: F.semi, fontSize: 20, fontVariant: ["tabular-nums"] },
   fieldMeta: { fontFamily: F.reg, fontSize: 11, color: T.ink2, marginTop: 2 },
+  grapTxt: { fontFamily: F.semi, fontSize: 11, color: T.doseMid, marginTop: 4, letterSpacing: 0.4 },
   bottomWrap: { position: "absolute", bottom: 30, left: 16, right: 16 },
   summary: {
     borderRadius: 22, overflow: "hidden", backgroundColor: T.glass,
@@ -557,14 +604,14 @@ const s = StyleSheet.create({
     shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 },
   },
   optRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 14 },
-  optRowSel: { backgroundColor: "rgba(14,124,107,0.09)" },
+  optRowSel: { backgroundColor: "rgba(45,212,191,0.10)" },
   optLabel: { fontFamily: F.semi, fontSize: 14, color: T.ink },
   bestTag: { fontFamily: F.med, fontSize: 11, color: T.accent },
   optMeta: { fontFamily: F.reg, fontSize: 11, color: T.ink2, marginTop: 1 },
   optDose: { fontFamily: F.bold, fontSize: 16, fontVariant: ["tabular-nums"] },
   departRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginTop: 8, paddingTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(15,23,42,0.10)",
+    marginTop: 8, paddingTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.10)",
   },
   departHint: { fontFamily: F.semi, fontSize: 12.5, color: T.accent, flex: 1 },
   remindTxt: { fontFamily: F.med, fontSize: 12, color: T.ink2, paddingLeft: 10 },

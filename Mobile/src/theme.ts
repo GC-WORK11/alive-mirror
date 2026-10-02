@@ -1,14 +1,16 @@
+// Night-operations theme — deep ink canvas, lit glass, dose ramp that
+// glows instead of tinting. Coherent with AmbientMode (#06070a).
 export const T = {
-  ink: "#101828",
-  ink2: "#475467",
-  ink3: "#98A2B3",
-  paper: "#F6F4EF",
-  glass: "rgba(255,255,255,0.72)",
-  glassBorder: "rgba(255,255,255,0.55)",
-  accent: "#0E7C6B",
-  doseLow: "#64748b",
-  doseMid: "#c2415c",
-  doseHigh: "#7f1d1d",
+  ink: "#e7e5e4",
+  ink2: "#a8a29e",
+  ink3: "#78716c",
+  paper: "#0b0e11",
+  glass: "rgba(17,22,28,0.68)",
+  glassBorder: "rgba(255,255,255,0.10)",
+  accent: "#2dd4bf",
+  doseLow: "#94a3b8",
+  doseMid: "#fb7185",
+  doseHigh: "#e11d48",
   ambient: "#06070a",
 };
 

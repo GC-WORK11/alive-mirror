@@ -25,7 +25,7 @@ function Sparkline({ curve, hourNow }: { curve: number[]; hourNow: number | null
       {curve.map((v, h) => (
         <View key={h} style={[s.bar, {
           height: Math.max(3, (v / max) * 56),
-          backgroundColor: h === hourNow ? T.accent : "#d6d3d1",
+          backgroundColor: h === hourNow ? T.accent : "rgba(255,255,255,0.22)",
         }]} />
       ))}
     </View>
@@ -98,7 +98,7 @@ export function LedgerSheet({ stats, curve, hourNow, onClose }: Props) {
 const s = StyleSheet.create({
   sheet: {
     position: "absolute", left: 10, right: 10, bottom: 10,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: T.glass,
     borderRadius: 20, padding: 16,
     borderWidth: 1, borderColor: T.glassBorder,
     shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },
@@ -109,7 +109,7 @@ const s = StyleSheet.create({
   big: { fontFamily: F.semi, fontSize: 44, color: T.ink, lineHeight: 48 },
   unit: { fontFamily: F.reg, fontSize: 18, color: T.ink3 },
   sub: { fontFamily: F.reg, fontSize: 12, color: T.ink2, marginTop: 4 },
-  budgetWrap: { height: 6, borderRadius: 3, backgroundColor: "#eceae4", marginTop: 12, overflow: "hidden" },
+  budgetWrap: { height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.12)", marginTop: 12, overflow: "hidden" },
   budgetFill: { height: 6, borderRadius: 3 },
   spark: { flexDirection: "row", alignItems: "flex-end", height: 56, marginTop: 14, gap: 2 },
   bar: { flex: 1, borderRadius: 1 },
