@@ -42,6 +42,7 @@ import { FieldLayer } from "./src/components/FieldLayer";
 import { LedgerSheet } from "./src/components/LedgerSheet";
 import { JourneyDrawer } from "./src/components/JourneyDrawer";
 import { ReportsLayer } from "./src/components/ReportsLayer";
+import { FiresLayer, BlackspotsLayer } from "./src/components/HazardLayers";
 import { CorridorLayer } from "./src/components/CorridorLayer";
 import { loadTrips, logTrip, stats as ledgerStats, weekStats } from "./src/store/ledger";
 import { observeTrip, postReport, type CommunityTotals, type ReportKind } from "./src/community";
@@ -166,6 +167,8 @@ export default function App() {
   const [shiftCig, setShiftCig] = useState<number | null>(null);
   const [escape, setEscape] = useState<{ name?: string; pm25: number; pct_less_than_here?: number } | null>(null);
   const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [fires, setFires] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [blackspots, setBlackspots] = useState<GeoJSON.FeatureCollection | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [reportMode, setReportMode] = useState(false);
   const [follow, setFollow] = useState(false);
@@ -212,6 +215,8 @@ export default function App() {
     const poll = () => fetchJson(`${API}/reports`).then(setReports).catch(() => {});
     poll();
     const iv = setInterval(poll, 60000);
+    fetchJson(`${API}/fires`).then(setFires).catch(() => {});
+    fetchJson(`${API}/blackspots`).then(setBlackspots).catch(() => {});
     loadTrips().then((t) => { setTrips(t); setLedger(ledgerStats(t)); }).catch(() => {});
     (async () => {
       const r = await Location.requestForegroundPermissionsAsync().catch(() => null);
@@ -625,6 +630,8 @@ export default function App() {
         <CorridorLayer corridors={community?.top_corridors ?? null} />
         <FieldLayer grid={grid} />
         <ReportsLayer reports={reports} />
+        <FiresLayer fires={fires} />
+        <BlackspotsLayer spots={blackspots} />
         <Layer
           id="buildings3d"
           type="fill-extrusion"
