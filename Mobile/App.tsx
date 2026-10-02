@@ -93,6 +93,8 @@ type Depart = {
 } | null;
 type FieldRead = {
   pm25: number;
+  pm25_lo?: number | null;
+  pm25_hi?: number | null;
   pm10?: number | null;
   nearest_sample_km?: number;
   typical?: { median: number; vs_now_pct: number | null } | null;
@@ -197,8 +199,10 @@ export default function App() {
 
   /* ---- boot: warm the API, load field/community/ledger, resolve location ---- */
   useEffect(() => {
-    fetch(`${API}/health`, { keepalive: true })
+    const ping = () => fetch(`${API}/health`, { keepalive: true })
       .then((r) => setApiOk(r.ok)).catch(() => setApiOk(false));
+    ping();
+    const healthIv = setInterval(ping, 15000);
     fetchJson(`${API}/grid`, 15000).then(setGrid).catch(() => {});
     fetchJson(`${API}/community`).then(setCommunity).catch(() => {});
     fetchJson(`${API}/shift?lat=28.6139&lon=77.2090&hours=8&vehicle=driving_two_wheeler`)
@@ -221,7 +225,7 @@ export default function App() {
         .then((j) => setEscape(j?.best?.[0] ?? null)).catch(() => {});
     })();
     setIntroSeen(new File(Paths.document, "intro_seen.txt").exists);
-    return () => clearInterval(iv);
+    return () => { clearInterval(iv); clearInterval(healthIv); };
   }, []);
 
   const dismissIntro = useCallback(() => {
@@ -532,7 +536,7 @@ export default function App() {
       const p = to ?? from ?? { lat: DELHI[1], lon: DELHI[0] };
       const j = await fetchJson(`${API}/aqi?lat=${p.lat}&lon=${p.lon}`);
       if (j.pm25 != null)
-        setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: p.lat, lon: p.lon });
+        setFieldRead({ pm25: j.pm25, pm25_lo: j.pm25_lo, pm25_hi: j.pm25_hi, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: p.lat, lon: p.lon });
     } catch {}
   }, [from, to]);
 
@@ -580,7 +584,7 @@ export default function App() {
           try {
             const j = await fetchJson(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`, 6000);
             if (j.pm25 != null)
-              setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: c[1], lon: c[0] });
+              setFieldRead({ pm25: j.pm25, pm25_lo: j.pm25_lo, pm25_hi: j.pm25_hi, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: c[1], lon: c[0] });
           } catch {}
         }}
         onLongPress={async (f) => {
@@ -750,6 +754,11 @@ export default function App() {
                 {fieldRead.typical.vs_now_pct > 0
                   ? `${Math.round(fieldRead.typical.vs_now_pct)}% smokier than usual`
                   : `${Math.round(-fieldRead.typical.vs_now_pct)}% cleaner than usual`}
+              </Text>
+            )}
+            {fieldRead.pm25_lo != null && fieldRead.pm25_hi != null && (
+              <Text style={s.fieldMeta}>
+                honestly {Math.round(fieldRead.pm25_lo)}–{Math.round(fieldRead.pm25_hi)}
               </Text>
             )}
             {fieldRead.field?.age_s != null && (

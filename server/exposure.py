@@ -107,8 +107,11 @@ def segment_samples(geometry: dict, duration_s: float, step_m: float = 250.0):
 def dose(geometry: dict, duration_s: float, mode: str,
          field_value: Callable[[float, float], Optional[float]],
          nearest_sample_km: Optional[Callable[[float, float], float]] = None,
-         road_class: Optional[str] = None) -> dict:
-    """Inhaled PM2.5 mass (µg) for one route+mode option."""
+         road_class: Optional[str] = None,
+         field_sigma: Optional[Callable[[float, float], Optional[float]]] = None) -> dict:
+    """Inhaled PM2.5 mass (µg) for one route+mode option. When the field
+    carries krige uncertainty, segment σ propagates through the same
+    dose integral (independent-variance sum) → dose_lo/dose_hi."""
     microenv = MICROENV.get(mode, 1.0)
     ve = VENTILATION_LPM.get(mode, 8.0) / 1000.0  # m³/min
     uplift = ROAD_UPLIFT.get(road_class or "", 1.0)
@@ -121,6 +124,7 @@ def dose(geometry: dict, duration_s: float, mode: str,
                             "road_uplift": uplift}}
 
     total_dose = 0.0
+    total_var = 0.0
     conc_by_dist = 0.0
     peak = 0.0
     got = 0
@@ -135,6 +139,13 @@ def dose(geometry: dict, duration_s: float, mode: str,
         total_dose += c_eff * ve * (s["seconds"] / 60.0)
         conc_by_dist += c_eff * s["dist_m"]
         peak = max(peak, c_eff)
+        if field_sigma is not None:
+            try:
+                sd = field_sigma(s["lat"], s["lon"]) or 0.0
+                sd_eff = sd * microenv * uplift * ve * (s["seconds"] / 60.0)
+                total_var += sd_eff * sd_eff
+            except Exception:
+                pass
 
     coverage = got / len(samples)
     if got == 0:
@@ -160,8 +171,11 @@ def dose(geometry: dict, duration_s: float, mode: str,
     else:
         conf = "low"
 
+    sd_dose = math.sqrt(total_var) if field_sigma is not None else 0.0
     return {
         "dose_ug": round(total_dose, 1),
+        "dose_ug_lo": round(max(0.0, total_dose - sd_dose), 1) if sd_dose else None,
+        "dose_ug_hi": round(total_dose + sd_dose, 1) if sd_dose else None,
         "avg_conc_ugm3": round(conc_by_dist / (dist_km * 1000 or 1), 1),
         "peak_conc": round(peak, 1),
         "confidence": conf,
@@ -172,13 +186,14 @@ def dose(geometry: dict, duration_s: float, mode: str,
     }
 
 
-def compare(options: list, field_value, nearest_sample_km=None) -> list:
+def compare(options: list, field_value, nearest_sample_km=None,
+            field_sigma=None) -> list:
     """Rank [{mode, geometry, duration_s, distance_km, ...}] by dose;
     annotate savings vs worst option. The 'auto=218, car=96, metro=41' math."""
     for o in options:
         o["exposure"] = dose(o["geometry"], o["duration_s"], o["mode"],
                              field_value, nearest_sample_km,
-                             o.get("road_class"))
+                             o.get("road_class"), field_sigma)
     scored = [o for o in options if o["exposure"]["dose_ug"] is not None]
     if not scored:
         return options

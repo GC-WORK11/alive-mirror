@@ -347,6 +347,11 @@ class AirField:
         kr = KF.estimate(lat, lon)
         if kr is not None and key == "pm2_5":
             mu, sd = kr
+            # krige σ covers interpolation error only; every sample is a
+            # model point or an instrument with its own noise — carry a
+            # 12% instrument/model-error floor so bands stay honest where
+            # the field is flat, not fake-tight
+            sd = math.sqrt(sd * sd + (0.12 * mu) ** 2)
             ce = corridor_estimate(lat, lon)
             if ce is not None:
                 c, csd, _n = ce

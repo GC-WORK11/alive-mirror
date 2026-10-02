@@ -289,7 +289,7 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
             "geometry": rt["geometry"],
         })
 
-    exposure.compare(options, FIELD.value, FIELD.nearest_sample_km)
+    exposure.compare(options, FIELD.value, FIELD.nearest_sample_km, FIELD.sigma)
     _annotate_segments(options)
     return {"routes": options, "field": FIELD.status()}
 
@@ -377,7 +377,7 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
             "geometry": rt["geometry"],
         })
 
-    exposure.compare(options, FIELD.value, FIELD.nearest_sample_km)
+    exposure.compare(options, FIELD.value, FIELD.nearest_sample_km, FIELD.sigma)
 
     # metro arrives already scored per-leg — appending after compare()
     # keeps its walk legs from being billed at the underground 0.45 rate

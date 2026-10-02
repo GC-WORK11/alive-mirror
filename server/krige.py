@@ -68,7 +68,7 @@ class KrigeField:
             return self
         z = np.asarray(vals)
         sill_est = float(np.var(z))
-        if sill_est < 25.0:      # field is ~flat — kriging adds nothing
+        if sill_est < 2.0:       # dead-flat field — σ meaningless
             return self
         self._sill = sill_est
         self._nugget = sill_est * _NUGGET_FRAC
