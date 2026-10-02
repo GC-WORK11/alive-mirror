@@ -476,12 +476,19 @@ export default function App() {
     setOptions([]); setDepart(null); setSteps(null); setNav(false); setFollow(false);
   }, []);
 
-  const startNav = useCallback(() => {
+  const startNav = useCallback(async () => {
     const o = options[selected];
     if (!o || !from || !to) return;
     setNav(true);
-    setFollow(true);
     Keyboard.dismiss();
+    // follow the blue dot only when the device is actually in Delhi —
+    // outside NCR (sim, demo elsewhere) the route stays the subject
+    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+    const inNcr =
+      pos &&
+      pos.coords.longitude > 76.75 && pos.coords.longitude < 77.95 &&
+      pos.coords.latitude > 28.15 && pos.coords.latitude < 28.98;
+    setFollow(!!inNcr);
     camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
     camRef.current?.setStop({ pitch: 55, duration: 800 });
   }, [options, selected, from, to]);
@@ -533,7 +540,11 @@ export default function App() {
     const segs = options[selected]?.segments;
     if (!segs?.length) {
       const g = options[selected]?.geometry;
-      const ok = g && (g.type === "LineString" || g.type === "MultiLineString");
+      const ok =
+        g &&
+        ((g.type === "LineString" && (g as GeoJSON.LineString).coordinates.length >= 2) ||
+          (g.type === "MultiLineString" &&
+            (g as GeoJSON.MultiLineString).coordinates.every((l) => l.length >= 2)));
       return {
         type: "FeatureCollection",
         features: ok ? [{ type: "Feature", properties: { color: T.accent }, geometry: g! }] : [],
@@ -556,7 +567,12 @@ export default function App() {
     type: "FeatureCollection",
     features: options
       .map((o, i) => ({ o, i }))
-      .filter(({ o, i }) => i !== selected && o.geometry?.type === "LineString")
+      .filter(
+        ({ o, i }) =>
+          i !== selected &&
+          o.geometry?.type === "LineString" &&
+          (o.geometry as GeoJSON.LineString).coordinates.length >= 2
+      )
       .map(({ o }) => ({ type: "Feature" as const, properties: {}, geometry: o.geometry })),
   }), [options, selected]);
 
