@@ -639,6 +639,11 @@ export default function App() {
           onClose={() => setShowLedger(false)} />
       )}
 
+      {drawerOpen && (
+        <JourneyDrawer week={weekStats(trips)} today={ledger.today}
+          community={community} onClose={() => setDrawerOpen(false)} />
+      )}
+
       {ambient && (
         <AmbientMode
           pm25={fieldRead?.pm25 ?? null}
