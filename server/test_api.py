@@ -67,6 +67,13 @@ async def main():
               max(o["exposure"]["dose_ug"] for o in opts) >
               5 * min(o["exposure"]["dose_ug"] for o in opts))
 
+        j = (await c.get("/shift", params={
+             "lat": KB[0], "lon": KB[1], "hours": 8,
+             "vehicle": "driving_two_wheeler"})).json()
+        check("shift dose sane", 50 < (j.get("dose_ug") or 0) < 5000, j.get("dose_ug"))
+        check("shift cig equiv", (j.get("cig_equiv") or 0) > 0.1, j.get("cig_equiv"))
+        check("shift vs desk", (j.get("vs_desk_pct") or 0) > 50, j.get("vs_desk_pct"))
+
         j = (await c.get("/decide", params={
             "from_lat": KB[0], "from_lon": KB[1],
             "to_lat": IG[0], "to_lon": IG[1]})).json()

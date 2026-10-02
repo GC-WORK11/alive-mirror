@@ -517,6 +517,66 @@ async def decide_route(from_lat: float, from_lon: float, to_lat: float, to_lon: 
     }
 
 
+@app.get("/shift")
+async def shift(lat: float, lon: float, hours: float = 8.0,
+                start_hour: Optional[int] = None,
+                vehicle: str = "driving_two_wheeler"):
+    """Occupational dose: what a driver/rider actually inhales across a
+    work shift. For every shift hour, concentration = live field (hour 0)
+    or decade-typical median scaled by today's live-vs-typical delta.
+    vs_desk = same hours at an indoor/desk exposure basis (~35% ambient,
+    rest ventilation) — the avoidable gap a gig driver pays daily."""
+    hours = max(0.5, min(12.0, hours))
+    await FIELD.refresh(http())
+    ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+    start = ist.hour if start_hour is None else max(0, min(23, start_hour))
+
+    live = FIELD.value(lat, lon, "pm2_5")
+    band0 = history.typical_band(lat, lon, ist.month, ist.hour)
+    typ0 = band0.get("median")
+    # how today's field sits vs the decade norm — applied to future hours
+    adj = (live / typ0) if (live and typ0) else 1.0
+
+    micro = exposure.MICROENV.get(vehicle, 1.0)
+    ve_m3h = exposure.VENTILATION_LPM.get(vehicle, 9.0) / 1000.0 * 60.0
+    # desk baseline: indoor office ~35% of ambient, resting ventilation
+    desk_ve = 7.5 / 1000.0 * 60.0
+
+    per_hour = []
+    dose = desk = 0.0
+    for i in range(int(hours * 2)):  # half-hour steps for smooth dose
+        h = (start + i * 0.5) % 24
+        hh = int(h)
+        if i == 0 and live is not None:
+            c = live
+        else:
+            t = history.typical(lat, lon, ist.month, hh)
+            c = (t * adj) if t else live
+        if c is None:
+            continue
+        dose += c * micro * ve_m3h * 0.5
+        desk += c * 0.35 * desk_ve * 0.5
+        if i % 2 == 0:
+            per_hour.append({"hour_ist": hh, "conc_ugm3": round(c, 1)})
+
+    cig = dose / 316.0  # Berkeley Earth equivalence, same as app ledger
+    return {
+        "vehicle": vehicle,
+        "shift_hours": hours,
+        "start_hour_ist": start,
+        "dose_ug": round(dose, 1),
+        "cig_equiv": round(cig, 1),
+        "desk_dose_ug": round(desk, 1),
+        "vs_desk_pct": round((dose / desk - 1) * 100) if desk else None,
+        "per_hour": per_hour,
+        "live_adjust": round(adj, 2),
+        "note": ("dose model: ambient field × breathing-zone microenv × "
+                 "minute ventilation; future hours = decade climatology × "
+                 "today's live delta"),
+        "field": FIELD.status(),
+    }
+
+
 @app.get("/admin/api")
 async def admin_api():
     """Live ops snapshot for the admin dashboard — anon ids only."""

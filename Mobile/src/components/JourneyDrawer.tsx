@@ -8,6 +8,7 @@ type Props = {
   week: ReturnType<typeof weekStats>;
   stats: ReturnType<typeof ledgerStats>;
   community: CommunityTotals | null;
+  shiftCig: number | null;
   onClose: () => void;
 };
 
@@ -21,7 +22,7 @@ const timeAgo = (ts: number) => {
 };
 
 /** Journey drawer — your week, your trips, and what they gave Delhi. */
-export function JourneyDrawer({ week, stats, community, onClose }: Props) {
+export function JourneyDrawer({ week, stats, community, shiftCig, onClose }: Props) {
   const [slide] = useState(() => new Animated.Value(-340));
   useEffect(() => {
     Animated.spring(slide, { toValue: 0, useNativeDriver: true, damping: 24, stiffness: 220 }).start();
@@ -94,6 +95,17 @@ export function JourneyDrawer({ week, stats, community, onClose }: Props) {
           ))}
         </ScrollView>
 
+        {shiftCig != null && (
+          <View style={s.city}>
+            <Text style={s.section}>{"delhi's working lungs"}</Text>
+            <Text style={s.cityText}>
+              {"an 8-hr shift on a two-wheeler in this air ≈ "}{shiftCig}{" cigarettes —\n"}
+              {"the daily price delhi's delivery and cab drivers pay\n"}
+              {"to keep the city moving."}
+            </Text>
+          </View>
+        )}
+
         {community && (
           <View style={s.city}>
             <Text style={s.section}>what you gave delhi</Text>
@@ -154,5 +166,6 @@ const s = StyleSheet.create({
   tripMeta: { fontFamily: F.reg, fontSize: 10, color: T.ink3, marginTop: 2 },
   tripDose: { fontFamily: F.semi, fontSize: 12.5, fontVariant: ["tabular-nums"] },
   city: { marginTop: 2 },
+  cityText: { fontFamily: "Outfit_400Regular", fontSize: 13.5, lineHeight: 19, color: T.ink2 },
   close: { fontFamily: F.med, fontSize: 13, color: T.ink2, textAlign: "center", marginTop: 16, marginBottom: 30 },
 });
