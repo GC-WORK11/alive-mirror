@@ -467,6 +467,9 @@ export default function App() {
     setSteps(null);
     const o = options[selected];
     if (!o || !from || !to) return;
+    // metro rides don't follow roads — its row already carries
+    // board → alight stations; road maneuvers would mislead
+    if (o.vehicle === "metro") { setSteps(null); return; }
     const profile = VEHICLE_PROFILE[o.vehicle] ?? "driving";
     if (profile !== "driving") return;
     fetch(
