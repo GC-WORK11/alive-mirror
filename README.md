@@ -25,6 +25,17 @@ So the highest-leverage "route" in Delhi is often **not a different road — it'
 **Public API on AWS:** `http://65.2.28.40` (ECS Fargate + NLB + Elastic IP,
 `ap-south-1`). Open `http://65.2.28.40/health` in a browser — live now.
 
+Judge-clickable (no install needed):
+- `http://65.2.28.40/admin` — the city breathing in real time (ops board)
+- `http://65.2.28.40/aqi?lat=28.63&lon=77.24` — live field + its own
+  measured error at Connaught Place
+- `http://65.2.28.40/compare?from_lat=28.6519&from_lon=77.1907&to_lat=28.6129&to_lon=77.2295`
+  — Karol Bagh→India Gate, every mode by inhaled µg
+- `http://65.2.28.40/decide?from_lat=28.6519&from_lon=77.1907&to_lat=28.6129&to_lon=77.2295`
+  — the same trip through the safety-first engine
+- `http://65.2.28.40/shift?lat=28.6139&lon=77.2090&hours=8&vehicle=driving_two_wheeler`
+  — an 8-hr Rapido shift, in cigarette-equivalents
+
 `server/` — the dose engine (FastAPI, real data only):
 
 - `GET /compare` — one trip, every mode ranked by inhaled PM2.5.
