@@ -157,6 +157,7 @@ export default function App() {
   const [curveHour, setCurveHour] = useState<number | null>(null);
   const [notified, setNotified] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
+  const [cardH, setCardH] = useState(0);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
 
@@ -465,6 +466,7 @@ export default function App() {
               placeholderTextColor={T.ink3} autoCorrect={false} autoCapitalize="none"
               value={fromText}
               onFocus={() => setActive("from")}
+              onBlur={() => { setActive(null); setResults([]); }}
               onChangeText={(t) => { setFromText(t); setFrom(null); setOptions([]); setDepart(null); setActive("from"); doSearch(t); }}
               returnKeyType="search" clearButtonMode="while-editing" />
             {hasLoc && (
@@ -481,6 +483,7 @@ export default function App() {
               placeholderTextColor={T.ink3} autoCorrect={false} autoCapitalize="none"
               value={toText}
               onFocus={() => setActive("to")}
+              onBlur={() => { setActive(null); setResults([]); }}
               onChangeText={(t) => { setToText(t); setTo(null); setOptions([]); setDepart(null); setActive("to"); doSearch(t); }}
               returnKeyType="search" clearButtonMode="while-editing" />
             {searching && <ActivityIndicator size="small" color={T.ink3} />}
@@ -539,9 +542,11 @@ export default function App() {
         </View>
       )}
 
-      {/* action column: recenter + air report */}
+      {/* action column: recenter + air report — rendered AFTER the dose
+          card and anchored just above its measured height so the card
+          can never swallow the buttons */}
       {!active && !drawerOpen && (
-        <View style={s.fabCol}>
+        <View style={[s.fabCol, { bottom: Math.max(cardH + 44, 300) }]}>
           {hasLoc && (
             <Pressable style={({ pressed }) => [s.fab, follow && s.fabOn, pressed && s.chipPressed]} onPress={() => setFollow(!follow)}>
               <Text style={[s.fabGlyph, follow && s.fabGlyphOn]}>⌖</Text>
@@ -554,7 +559,7 @@ export default function App() {
       )}
 
       {reportMode && (
-        <View style={s.reportCard}>
+        <View style={[s.reportCard, { bottom: Math.max(cardH + 44, 300) }]}>
           <Text style={s.reportTitle}>report the air where you are</Text>
           <View style={s.reportRow}>
             {(["dust", "smoke", "burning", "clean"] as ReportKind[]).map((k) => (
@@ -609,7 +614,8 @@ export default function App() {
 
       {/* dose ranking */}
       {from && to && (
-        <View style={s.bottomWrap}>
+        <View style={s.bottomWrap}
+          onLayout={(e) => setCardH(e.nativeEvent.layout.height)}>
           <BlurView intensity={45} tint="light" style={s.summary}>
             {loadingRoute ? (
               <ActivityIndicator size="small" color={T.accent} />
