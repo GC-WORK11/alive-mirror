@@ -276,7 +276,7 @@ class AirField:
         try:
             r = await client.get(METEO, params={
                 "latitude": 28.61, "longitude": 77.21,
-                "current": "wind_speed_10m,wind_direction_10m,precipitation,visibility,temperature_2m",
+                "current": "wind_speed_10m,wind_direction_10m,precipitation,visibility,temperature_2m,is_day",
                 "forecast_days": 1,
             })
             cur = r.json().get("current", {})
@@ -288,6 +288,7 @@ class AirField:
                     "precip_mm": cur.get("precipitation"),
                     "visibility_m": cur.get("visibility"),
                     "temp_c": cur.get("temperature_2m"),
+                    "is_day": cur.get("is_day"),
                 }
         except httpx.HTTPError:
             pass
@@ -301,7 +302,8 @@ class AirField:
     def weather(self) -> dict:
         """Ambient conditions a rider feels: rain + fog/dust visibility —
         the safety half of 'safety first'."""
-        return self._wx or {"precip_mm": None, "visibility_m": None, "temp_c": None}
+        return self._wx or {"precip_mm": None, "visibility_m": None,
+                            "temp_c": None, "is_day": None}
 
     def _concentration(self, lat: float, lon: float, key: str) -> Optional[float]:
         """Advection-weighted IDW (p=2) over grid samples.

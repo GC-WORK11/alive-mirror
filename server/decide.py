@@ -25,6 +25,8 @@ def _risk(vehicle: str, wx: dict) -> float:
     if vehicle in _OPEN and wx:
         if (wx.get("precip_mm") or 0) > 0 or (wx.get("visibility_m") or 99999) < 2000:
             r *= 1.25
+        if wx.get("is_day") == 0:
+            r *= 1.2
     return r
 
 
@@ -64,6 +66,8 @@ def rank(options: list, wx: dict = None) -> dict:
         if wx and ((wx.get("precip_mm") or 0) > 0 or (wx.get("visibility_m") or 99999) < 2000):
             if o["vehicle"] in _OPEN:
                 reasons.append("riskier in current rain/low-visibility")
+        if wx.get("is_day") == 0 and o["vehicle"] in _OPEN:
+            reasons.append("open mode after dark")
         if o["duration_s"] <= best_t * 1.1:
             reasons.append("fastest")
         vs = e.get("ug_saved_vs_worst")
