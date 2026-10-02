@@ -67,27 +67,124 @@ async def health():
     return {"ok": True, "ts": time.time(), "history": history.summary()}
 
 
-@app.get("/search")
-async def search(q: str = Query(min_length=1, max_length=200),
-                 lat: Optional[float] = None, lon: Optional[float] = None,
-                 limit: int = Query(default=8, le=15)):
-    """Search-as-you-type over real OSM data, biased to Delhi NCR."""
-    bias_lat = lat if lat is not None else DELHI_CENTER["lat"]
-    bias_lon = lon if lon is not None else DELHI_CENTER["lon"]
-    params = {
-        "q": q, "limit": limit,
-        "lat": bias_lat, "lon": bias_lon,
-        "bbox": NCR_BBOX,
-        "lang": "en",
-    }
+_LOCATION = None
+PLACE_INDEX = "alive108-places"
+
+
+def _loc():
+    """AWS Location Service client — same region as the task (ap-south-1),
+    so geocoding round-trips are LAN-fast instead of a hop to Europe."""
+    global _LOCATION
+    if _LOCATION is None:
+        import boto3
+        _LOCATION = boto3.client("location", region_name="ap-south-1")
+    return _LOCATION
+
+
+def _hav_km(lat1, lon1, lat2, lon2):
+    from math import radians, sin, cos, asin, sqrt
+    dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    return 2 * 6371 * asin(sqrt(a))
+
+
+def in_ncr(lat: float, lon: float) -> bool:
+    lo, la, hi, la2 = (float(x) for x in NCR_BBOX.split(","))
+    return la <= lat <= la2 and lo <= lon <= hi
+
+
+async def _aws_suggest(q: str, lat: float, lon: float, limit: int):
+    """Amazon Location Suggest (HERE data) → normalized result rows.
+    Suggestions may carry an embedded Place; ones that don't need GetPlace,
+    fanned out in parallel. Returns [] on any failure."""
     try:
-        r = await http().get(PHOTON, params=params)
+        resp = await asyncio.to_thread(
+            _loc().search_place_index_for_suggestions,
+            IndexName=PLACE_INDEX, Text=q, MaxResults=limit,
+            Language="en", FilterCountries=["IND"],
+            BiasPosition=[lon, lat],
+        )
+    except Exception:
+        return []
+    suggs = resp.get("Results", [])
+
+    async def resolve(s):
+        place = s.get("Place")
+        if place is None and s.get("PlaceId"):
+            try:
+                resp = await asyncio.to_thread(
+                    _loc().get_place, IndexName=PLACE_INDEX,
+                    PlaceId=s["PlaceId"], Language="en")
+                place = (resp or {}).get("Place")
+            except Exception:
+                place = None
+        if not place:
+            return None
+        pt = (place.get("Geometry") or {}).get("Point")
+        if not pt:
+            return None
+        label = place.get("Label") or s.get("Text") or ""
+        parts = [x.strip() for x in label.split(",") if x.strip()]
+        name = parts[0] if parts else label
+        return {
+            "name": name,
+            "subtitle": ", ".join(parts[1:]),
+            "lat": pt[1], "lon": pt[0],
+            "kind": place.get("SubUnitType") or "place",
+            "outside_ncr": not in_ncr(pt[1], pt[0]),
+        }
+
+    rows = await asyncio.gather(*(resolve(s) for s in suggs))
+    return [r for r in rows if r]
+
+
+async def _aws_reverse(lat: float, lon: float):
+    """Amazon Location reverse-geocode → best named place near a point.
+    Prefers street/neighbourhood-level places over businesses, so a drop
+    pin says 'Rajpath, Connaught Place' not 'Shoots Photography'."""
+    try:
+        resp = await asyncio.to_thread(
+            _loc().search_place_index_for_position,
+            IndexName=PLACE_INDEX, Position=[lon, lat],
+            MaxResults=10, Language="en")
+    except Exception:
+        return []
+    cands = []
+    for r in resp.get("Results", []):
+        place = r.get("Place") or {}
+        pt = (place.get("Geometry") or {}).get("Point")
+        if not pt:
+            continue
+        dist = _hav_km(lat, lon, pt[1], pt[0])
+        street = place.get("Street")
+        hood = place.get("Neighborhood") or place.get("Municipality")
+        if street or hood:
+            rank = 0 if street else 1
+            name = ", ".join(x for x in [street, hood] if x)
+        else:
+            rank = 2
+            name = (place.get("Label") or "").split(",")[0].strip()
+        if not name:
+            continue
+        sub = ", ".join(x for x in [
+            place.get("Neighborhood"), place.get("Municipality"),
+            place.get("Region"), place.get("Country")] if x)
+        cands.append((rank, dist, name, sub))
+    cands.sort(key=lambda t: (t[0], t[1]))
+    return cands
+
+
+async def _photon_search(q: str, lat: float, lon: float, limit: int, extra: dict):
+    try:
+        r = await http().get(PHOTON, params={
+            "q": q, "limit": limit, "lat": lat, "lon": lon,
+            "lang": "en", **extra,
+        })
         r.raise_for_status()
         feats = r.json().get("features", [])
     except httpx.HTTPError:
-        return {"results": [], "error": "geocoder unavailable"}
-
-    results = []
+        return []
+    out = []
     for f in feats:
         p = f.get("properties", {})
         c = f.get("geometry", {}).get("coordinates", [None, None])
@@ -95,14 +192,55 @@ async def search(q: str = Query(min_length=1, max_length=200),
             continue
         name = p.get("name") or p.get("street") or ""
         parts = [p.get(k) for k in ("street", "district", "city", "state") if p.get(k)]
-        subtitle = ", ".join(dict.fromkeys(parts))  # dedupe, keep order
-        results.append({
+        out.append({
             "name": name,
-            "subtitle": subtitle,
+            "subtitle": ", ".join(dict.fromkeys(parts)),
             "lat": c[1], "lon": c[0],
             "kind": p.get("osm_value") or p.get("type") or "place",
+            "outside_ncr": not in_ncr(c[1], c[0]),
         })
-    return {"results": results}
+    return out
+
+
+@app.get("/search")
+async def search(q: str = Query(min_length=1, max_length=200),
+                 lat: Optional[float] = None, lon: Optional[float] = None,
+                 limit: int = Query(default=8, le=15)):
+    """Search-as-you-type: AWS Location Suggest (in-region, HERE India data)
+    races Photon for redundancy; NCR results always rank ahead of wider
+    India matches so Delhi-first still finds the rest of the country."""
+    bias_lat = lat if lat is not None else DELHI_CENTER["lat"]
+    bias_lon = lon if lon is not None else DELHI_CENTER["lon"]
+
+    aws_t = asyncio.create_task(_aws_suggest(q, bias_lat, bias_lon, limit))
+    ph_ncr_t = asyncio.create_task(
+        _photon_search(q, bias_lat, bias_lon, limit, {"bbox": NCR_BBOX}))
+    ph_in_t = asyncio.create_task(
+        _photon_search(q, bias_lat, bias_lon, limit, {"countrycode": "IN"}))
+
+    aws_res = await aws_t
+    # AWS in-region is fast; Photon (Europe) is the slow path — give it a
+    # short grace window only when AWS coverage is thin.
+    grace = 0.35 if len(aws_res) >= 2 else 8.0
+    done, pending = await asyncio.wait({ph_ncr_t, ph_in_t}, timeout=grace)
+    ph_ncr = ph_ncr_t.result() if ph_ncr_t in done else []
+    ph_in = ph_in_t.result() if ph_in_t in done else []
+    for t in pending:
+        t.cancel()
+
+    merged, seen = [], set()
+    for x in aws_res + ph_ncr + ph_in:
+        key = (round(x["lat"], 4), round(x["lon"], 4), x["name"][:24].lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        x["outside_ncr"] = not in_ncr(x["lat"], x["lon"])
+        merged.append(x)
+
+    merged.sort(key=lambda x: x["outside_ncr"])
+    if merged:
+        return {"results": merged[:limit]}
+    return {"results": [], "error": "no matches"}
 
 
 # exposure microenv keys the scorer understands (exposure.py MICROENV)
@@ -668,17 +806,43 @@ async def admin_page():
 
 @app.get("/reverse")
 async def reverse(lat: float, lon: float):
+    """Best-matching named place near a point — AWS Location primary, Photon
+    fallback; honest ('near X') when the closest named thing is far away."""
+    aws = await _aws_reverse(lat, lon)
+    if aws:
+        rank, dist, name, sub = aws[0]
+        if dist > 0.25:
+            name = f"near {name}"
+        return {"name": name, "subtitle": sub}
+
     try:
-        r = await http().get("https://photon.komoot.io/reverse", params={"lat": lat, "lon": lon, "limit": 1})
+        r = await http().get("https://photon.komoot.io/reverse", params={
+            "lat": lat, "lon": lon, "limit": 10, "lang": "en"})
         r.raise_for_status()
         feats = r.json().get("features", [])
-        if feats:
-            p = feats[0]["properties"]
-            return {"name": p.get("name") or p.get("street") or "Dropped pin",
-                    "subtitle": ", ".join(x for x in [p.get("district"), p.get("city")] if x)}
     except httpx.HTTPError:
-        pass
-    return {"name": "Dropped pin", "subtitle": ""}
+        feats = []
+    if not feats:
+        return {"name": "Dropped pin", "subtitle": ""}
+
+    PREF = {"locality": 0, "neighbourhood": 0, "suburb": 0, "district": 0,
+            "street": 1, "house_number": 2}
+    cands = []
+    for f in feats:
+        p = f.get("properties", {})
+        c = (f.get("geometry") or {}).get("coordinates") or [None, None]
+        if c[0] is None:
+            continue
+        dist = _hav_km(lat, lon, c[1], c[0])
+        rank = PREF.get(p.get("osm_value"), 3)
+        cands.append((rank, dist, p))
+    cands.sort(key=lambda t: (t[0], t[1]))
+    rank, dist, p = cands[0]
+    name = p.get("name") or p.get("street") or "Dropped pin"
+    if dist > 0.25:
+        name = f"near {name}"
+    return {"name": name, "subtitle": ", ".join(
+        x for x in [p.get("district"), p.get("city"), p.get("state")] if x)}
 
 
 _ORDINAL = {1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th"}
