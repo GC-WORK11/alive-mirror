@@ -954,6 +954,8 @@ export default function App() {
                         </Pressable>
                         {sel && steps && steps.length > 0 && (
                           <View style={s.stepsBox}>
+                            <ScrollView style={{ maxHeight: 108 }} nestedScrollEnabled
+                              showsVerticalScrollIndicator={false}>
                             {steps.map((st, si) => (
                               <View key={si} style={s.stepRow}>
                                 <View style={s.stepDot} />
@@ -965,6 +967,7 @@ export default function App() {
                                 </Text>
                               </View>
                             ))}
+                            </ScrollView>
                           </View>
                         )}
                       </View>
