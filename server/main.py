@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from airfield import FIELD, grap_indicative
 from fires import FIRES
+from blackspots import geojson as blackspots_geojson
 from forecast import FORECAST
 import transit
 import exposure
@@ -655,6 +656,27 @@ async def hazard_report(body: dict):
 @app.get("/reports")
 async def reports():
     return community.reports_geojson()
+
+
+@app.get("/blackspots")
+async def blackspots():
+    """Official Delhi crash-prone zones (black spots) as GeoJSON points —
+    Delhi Traffic Police Crash Report 2021's full 87-zone list plus IIT
+    TRiPC 'Data to Action' high-risk sites and the annual DTP top-10 lists.
+    Static data; severity + subtype flags (night/pedestrian/two-wheeler)
+    ride along per point."""
+    return blackspots_geojson()
+
+
+@app.get("/fires")
+async def fires():
+    """Recent satellite fire detections over NCR + ~150km ring, GeoJSON
+    points with satellite + confidence. No FIRMS key needed: reads the
+    public FIRMS daily CSV snapshots (Suomi-NPP / NOAA-20 / NOAA-21 VIIRS
+    + Terra/Aqua MODIS, rolling 24h), cached 6h. With FIRMS_MAP_KEY set it
+    uses the keyed area API for the NW fire belt instead."""
+    await FIRES.refresh(http())
+    return FIRES.fires_geojson()
 
 
 @app.get("/community")
