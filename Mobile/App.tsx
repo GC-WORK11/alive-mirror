@@ -129,6 +129,7 @@ export default function App() {
   const [fromText, setFromText] = useState("");
   const [toText, setToText] = useState("");
   const [active, setActive] = useState<Which | null>(null);
+  const [listFor, setListFor] = useState<Which | null>(null);
   const [results, setResults] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
   const [options, setOptions] = useState<CompareOption[]>([]);
@@ -205,6 +206,7 @@ export default function App() {
       setFrom({ name, subtitle: "", lat: latitude, lon: longitude });
       setFromText(name);
       setActive(null);
+      setListFor(null);
       setResults([]);
       Keyboard.dismiss();
       camRef.current?.flyTo({ center: [longitude, latitude], zoom: 14, duration: 900 });
@@ -229,9 +231,10 @@ export default function App() {
     fetch(url).then((r) => r.json()).then(setGrid).catch(() => {});
   }, []);
 
-  const doSearch = useCallback((text: string) => {
+  const doSearch = useCallback((text: string, which: Which) => {
     if (debounce.current) clearTimeout(debounce.current);
-    if (text.trim().length < 2) { setResults([]); setSearching(false); return; }
+    if (text.trim().length < 2) { setResults([]); setListFor(null); setSearching(false); return; }
+    setListFor(which);
     setSearching(true);
     const seq = ++searchSeq.current;
     debounce.current = setTimeout(async () => {
@@ -250,14 +253,15 @@ export default function App() {
 
   const pick = useCallback(
     (p: Place) => {
-      if (active === "from") { setFrom(p); setFromText(p.name); }
-      else if (active === "to") { setTo(p); setToText(p.name); }
+      if (listFor === "from") { setFrom(p); setFromText(p.name); }
+      else if (listFor === "to") { setTo(p); setToText(p.name); }
       setActive(null);
+      setListFor(null);
       setResults([]);
       Keyboard.dismiss();
       camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 14, duration: 900 });
     },
-    [active]
+    [listFor]
   );
 
   const swap = useCallback(() => {
@@ -469,8 +473,8 @@ export default function App() {
               placeholderTextColor={T.ink3} autoCorrect={false} autoCapitalize="none"
               value={fromText}
               onFocus={() => setActive("from")}
-              onBlur={() => { setActive(null); setResults([]); }}
-              onChangeText={(t) => { setFromText(t); setFrom(null); setOptions([]); setDepart(null); setActive("from"); doSearch(t); }}
+              onBlur={() => setActive(null)}
+              onChangeText={(t) => { setFromText(t); setFrom(null); setOptions([]); setDepart(null); setActive("from"); doSearch(t, "from"); }}
               returnKeyType="search" clearButtonMode="while-editing" />
             {hasLoc && (
               <Pressable onPress={useMyLocation} style={s.swap} hitSlop={8}>
@@ -486,14 +490,14 @@ export default function App() {
               placeholderTextColor={T.ink3} autoCorrect={false} autoCapitalize="none"
               value={toText}
               onFocus={() => setActive("to")}
-              onBlur={() => { setActive(null); setResults([]); }}
-              onChangeText={(t) => { setToText(t); setTo(null); setOptions([]); setDepart(null); setActive("to"); doSearch(t); }}
+              onBlur={() => setActive(null)}
+              onChangeText={(t) => { setToText(t); setTo(null); setOptions([]); setDepart(null); setActive("to"); doSearch(t, "to"); }}
               returnKeyType="search" clearButtonMode="while-editing" />
             {searching && <ActivityIndicator size="small" color={T.ink3} />}
           </View>
         </BlurView>
 
-        {active && results.length > 0 && (
+        {listFor && results.length > 0 && (
           <BlurView intensity={50} tint="light" style={[s.card, { marginTop: 8 }]}>
             {results.map((p, i) => (
               <Pressable key={`${p.lat},${p.lon},${i}`} onPress={() => pick(p)}
