@@ -548,6 +548,7 @@ async def aqi(lat: float, lon: float):
     v = FIELD.value(lat, lon, "pm2_5")
     if v is None:
         return {"pm25": None, "error": "field unavailable"}
+    sd = FIELD.sigma(lat, lon)  # krige std-dev → honest band, None on IDW
 
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     band = history.typical_band(lat, lon, ist.month, ist.hour)
@@ -555,6 +556,8 @@ async def aqi(lat: float, lon: float):
     return {
         "pm25": round(v * mod, 1),
         "pm25_ambient": round(v, 1),
+        "pm25_lo": round(max(0.0, v - sd) * mod, 1) if sd else None,
+        "pm25_hi": round((v + sd) * mod, 1) if sd else None,
         "pm10": FIELD.value(lat, lon, "pm10"),
         "no2": FIELD.value(lat, lon, "nitrogen_dioxide"),
         "us_aqi": FIELD.value(lat, lon, "us_aqi"),

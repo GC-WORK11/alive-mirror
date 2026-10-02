@@ -2,3 +2,4 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 httpx>=0.27
 boto3>=1.35  # build-time only: history_builder.py (OpenAQ archive via HTTPS/boto3-unsigned)
+numpy>=1.26

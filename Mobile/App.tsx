@@ -12,7 +12,6 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { BlurView } from "expo-blur";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "@expo-google-fonts/outfit";
 import {
@@ -33,7 +32,9 @@ import {
   UserLocation,
   type CameraRef,
 } from "@maplibre/maplibre-react-native";
-import { F, T, doseColor } from "./src/theme";
+import { F, NUM, T, cigOf, doseColor } from "./src/theme";
+import { Icon, reportGlyph, vehicleGlyph } from "./src/icons";
+import { AlertBanner, CigStrip, EndpointPin, Fab, ModeRow, SearchPill, Sheet } from "./src/ui";
 import { AmbientMode } from "./src/components/AmbientMode";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "./src/notify";
 import { FieldLayer } from "./src/components/FieldLayer";
@@ -53,11 +54,13 @@ const API =
     default: "http://localhost:8000",
   });
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 const DELHI: [number, number] = [77.209, 28.6139];
+const NCR = { minLon: 76.75, maxLon: 77.95, minLat: 28.15, maxLat: 28.98 };
+const inNcr = (lat: number, lon: number) =>
+  lon > NCR.minLon && lon < NCR.maxLon && lat > NCR.minLat && lat < NCR.maxLat;
 
-type Place = { name: string; subtitle: string; lat: number; lon: number };
-type Which = "from" | "to";
+type Place = { name: string; subtitle: string; lat: number; lon: number; outside_ncr?: boolean };
 type Exposure = {
   dose_ug: number | null;
   avg_conc_ugm3: number | null;
@@ -84,12 +87,10 @@ type CompareOption = {
   hotspots?: { share_pct: number; midpoint_coord: number[] }[];
   exposure?: Exposure;
 };
-
 type Depart = {
   best: { hours_ahead: number; start: string | null; dose_ug: number };
   ug_saved_vs_now: number | null;
 } | null;
-
 type FieldRead = {
   pm25: number;
   pm10?: number | null;
@@ -102,10 +103,8 @@ type FieldRead = {
   lon: number;
 };
 
-// the liberty basemap ships a few vector tiles MLRN can't parse — a
-// native "Invalid geometry in line layer" console warning that only
-// surfaces as a dev toast (release builds never show it). Nothing in
-// our layers is involved; silence exactly that message.
+// liberty ships a few vector tiles MLRN can't parse — a native dev-only
+// console warning; nothing in our layers is involved
 LogBox.ignoreLogs(["Invalid geometry in line layer"]);
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -132,150 +131,25 @@ const hourLabel = (iso: string | null, ahead: number) => {
 };
 
 type Step = { instruction: string; distance_m: number; type?: string };
+type Phase = "idle" | "search" | "compare" | "nav";
+type Which = "to" | "from";
 
-/* Vehicle icons drawn with views — stroke style, no emoji, no assets. */
-
-function _wheels(color: string, gap: number, y: number) {
-  return (
-    <>
-      <View style={{ position: "absolute", bottom: y, left: gap, width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
-      <View style={{ position: "absolute", bottom: y, right: gap, width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
-    </>
-  );
-}
-
-function ModeIcon({ vehicle, color, size = 22 }: { vehicle: string; color: string; size?: number }) {
-  const k = (vehicle || "").toLowerCase();
-  const bw = 1.4;
-  let body: React.ReactNode;
-  if (k.includes("walk")) {
-    body = (
-      <View style={{ width: 16, height: 20, alignItems: "center" }}>
-        <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: color }} />
-        <View style={{ width: bw, height: 7, backgroundColor: color, marginTop: 1 }} />
-        <View style={{ flexDirection: "row", gap: 2 }}>
-          <View style={{ width: bw, height: 6, backgroundColor: color, transform: [{ rotate: "18deg" }] }} />
-          <View style={{ width: bw, height: 6, backgroundColor: color, transform: [{ rotate: "-18deg" }] }} />
-        </View>
-      </View>
-    );
-  } else if (k.includes("cycle") || k.includes("bicycle")) {
-    body = (
-      <View style={{ width: 22, height: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <View style={{ width: 9, height: 9, borderRadius: 5, borderWidth: bw, borderColor: color }} />
-        <View style={{ position: "absolute", left: 7, top: 3, width: 8, height: 8, borderLeftWidth: bw, borderTopWidth: bw, borderColor: color, transform: [{ rotate: "-30deg" }] }} />
-        <View style={{ width: 9, height: 9, borderRadius: 5, borderWidth: bw, borderColor: color }} />
-      </View>
-    );
-  } else if (k.includes("bike") || k.includes("scooter") || k.includes("two_wheeler")) {
-    body = (
-      <View style={{ width: 22, height: 14, justifyContent: "flex-end" }}>
-        <View style={{ position: "absolute", top: 0, left: 8, width: 6, height: 5, borderWidth: bw, borderColor: color, borderRadius: 2 }} />
-        <View style={{ position: "absolute", top: 4, left: 10, width: 8, height: 1.6, backgroundColor: color, transform: [{ rotate: "-25deg" }] }} />
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <View style={{ width: 7, height: 7, borderRadius: 4, borderWidth: bw, borderColor: color }} />
-          <View style={{ width: 7, height: 7, borderRadius: 4, borderWidth: bw, borderColor: color }} />
-        </View>
-      </View>
-    );
-  } else if (k.includes("bus")) {
-    body = (
-      <View style={{ width: 15, height: 18, alignItems: "center" }}>
-        <View style={{ width: 15, height: 15, borderWidth: bw, borderColor: color, borderRadius: 3 }}>
-          <View style={{ height: 5, borderBottomWidth: bw, borderColor: color }} />
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: 5, marginTop: 4 }}>
-            <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: color }} />
-            <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: color }} />
-          </View>
-        </View>
-        {_wheels(color, 2, -2.5)}
-      </View>
-    );
-  } else if (k.includes("metro")) {
-    body = (
-      <View style={{ width: 16, height: 18, alignItems: "center" }}>
-        <View style={{ width: 14, height: 13, borderWidth: bw, borderColor: color, borderRadius: 4 }}>
-          <View style={{ height: 4, borderBottomWidth: bw, borderColor: color }} />
-        </View>
-        <View style={{ flexDirection: "row", gap: 4, marginTop: 2 }}>
-          <View style={{ width: 6, height: bw, backgroundColor: color, transform: [{ rotate: "25deg" }] }} />
-          <View style={{ width: 6, height: bw, backgroundColor: color, transform: [{ rotate: "-25deg" }] }} />
-        </View>
-      </View>
-    );
-  } else if (k.includes("auto") || k.includes("rickshaw")) {
-    body = (
-      <View style={{ width: 18, height: 15, alignItems: "center" }}>
-        <View style={{ width: 13, height: 6, borderWidth: bw, borderColor: color, borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
-        <View style={{ width: 17, height: 6, borderWidth: bw, borderColor: color, borderRadius: 2, marginTop: -1 }} />
-        {_wheels(color, 3, -3)}
-      </View>
-    );
-  } else {
-    // car (default) — rounded body + cabin + wheels
-    body = (
-      <View style={{ width: 21, height: 14, alignItems: "center", justifyContent: "flex-end" }}>
-        <View style={{ width: 11, height: 5, borderWidth: bw, borderColor: color, borderTopLeftRadius: 4, borderTopRightRadius: 4, marginBottom: -1 }} />
-        <View style={{ width: 21, height: 8, borderWidth: bw, borderColor: color, borderRadius: 3 }} />
-        {_wheels(color, 3, -3.5)}
-      </View>
-    );
-  }
-  return (
-    <View style={{ width: size + 8, height: size, alignItems: "center", justifyContent: "center" }}>
-      {body}
-    </View>
-  );
-}
-
-/** Smoke meter — 5 ascending bars, filled by how much you'd breathe. */
-function SmokeMeter({ level, color }: { level: number; color: string }) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 1.5, height: 14 }}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <View key={i} style={{
-          width: 3.2, height: 3 + i * 2.6, borderRadius: 1,
-          backgroundColor: i < level ? color : "rgba(87,83,78,0.18)",
-        }} />
-      ))}
-    </View>
-  );
-}
-
-/** Google-Maps-style teardrop pin. */
-function Pin({ letter, color }: { letter: string; color: string }) {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <View style={{
-        width: 26, height: 26, borderRadius: 13, backgroundColor: color,
-        borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center",
-        shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-      }}>
-        <Text style={{ fontFamily: F.bold, fontSize: 12, color: "#fff" }}>{letter}</Text>
-      </View>
-      <View style={{
-        width: 0, height: 0, marginTop: -1,
-        borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 8,
-        borderLeftColor: "transparent", borderRightColor: "transparent",
-        borderTopColor: color,
-      }} />
-    </View>
-  );
-}
-
-const VEHICLE_PROFILE: Record<string, string> = {
-  cycle: "cycling", walk: "walking",
+const fetchJson = (url: string, timeoutMs = 9000) => {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { signal: ctrl.signal })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`http ${r.status}`))))
+    .finally(() => clearTimeout(t));
 };
 
 export default function App() {
   const camRef = useRef<CameraRef>(null);
+  const [phase, setPhase] = useState<Phase>("idle");
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
-  const [fromText, setFromText] = useState("");
-  const [toText, setToText] = useState("");
-  const [active, setActive] = useState<Which | null>(null);
-  const [listFor, setListFor] = useState<Which | null>(null);
-  const [results, setResults] = useState<Place[]>([]);
+  const [query, setQuery] = useState("");
+  const [editWhich, setEditWhich] = useState<Which>("to");
+  const [results, setResults] = useState<Place[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [options, setOptions] = useState<CompareOption[]>([]);
   const [selected, setSelected] = useState(0);
@@ -288,7 +162,7 @@ export default function App() {
   const [shiftCig, setShiftCig] = useState<number | null>(null);
   const [escape, setEscape] = useState<{ name?: string; pm25: number; pct_less_than_here?: number } | null>(null);
   const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [reportMode, setReportMode] = useState(false);
   const [follow, setFollow] = useState(false);
   const [hasLoc, setHasLoc] = useState(false);
@@ -304,11 +178,14 @@ export default function App() {
   const [curveHour, setCurveHour] = useState<number | null>(null);
   const [notified, setNotified] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
-  const [cardH, setCardH] = useState(0);
   const [steps, setSteps] = useState<Step[] | null>(null);
-  const [nav, setNav] = useState(false);
+  const [stepsOpen, setStepsOpen] = useState(false);
+  const [navDose, setNavDose] = useState(0);       // live inhaled µg this trip
+  const [navConc, setNavConc] = useState<number | null>(null);
+  const [receipt, setReceipt] = useState<{ doseUg: number; savedUg: number } | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
+  const navDoseRef = useRef(0);
 
   const [fontsLoaded] = useFonts({
     Outfit_300Light, Outfit_400Regular, Outfit_500Medium,
@@ -318,24 +195,31 @@ export default function App() {
     if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded]);
 
+  /* ---- boot: warm the API, load field/community/ledger, resolve location ---- */
   useEffect(() => {
-    fetch(`${API}/health`).then((r) => setApiOk(r.ok)).catch(() => setApiOk(false));
-    fetch(`${API}/grid`).then((r) => r.json()).then(setGrid).catch(() => {});
-    fetch(`${API}/community`).then((r) => r.json()).then(setCommunity).catch(() => {});
-    fetch(`${API}/shift?lat=28.6139&lon=77.2090&hours=8&vehicle=driving_two_wheeler`)
-      .then((r) => r.json()).then((j) => setShiftCig(j.cig_equiv ?? null)).catch(() => {});
-    (async () => {
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
-      const lat = pos?.coords.latitude ?? DELHI[1];
-      const lon = pos?.coords.longitude ?? DELHI[0];
-      const r = await fetch(`${API}/escape?lat=${lat}&lon=${lon}&limit=3`).then((x) => x.json()).catch(() => null);
-      setEscape(r?.best?.[0] ?? null);
-    })();
-    const poll = () => fetch(`${API}/reports`).then((r) => r.json()).then(setReports).catch(() => {});
+    fetch(`${API}/health`, { keepalive: true })
+      .then((r) => setApiOk(r.ok)).catch(() => setApiOk(false));
+    fetchJson(`${API}/grid`, 15000).then(setGrid).catch(() => {});
+    fetchJson(`${API}/community`).then(setCommunity).catch(() => {});
+    fetchJson(`${API}/shift?lat=28.6139&lon=77.2090&hours=8&vehicle=driving_two_wheeler`)
+      .then((j) => setShiftCig(j.cig_equiv ?? null)).catch(() => {});
+    const poll = () => fetchJson(`${API}/reports`).then(setReports).catch(() => {});
     poll();
     const iv = setInterval(poll, 60000);
     loadTrips().then((t) => { setTrips(t); setLedger(ledgerStats(t)); }).catch(() => {});
-    Location.requestForegroundPermissionsAsync().then((r) => setHasLoc(r.granted)).catch(() => {});
+    (async () => {
+      const r = await Location.requestForegroundPermissionsAsync().catch(() => null);
+      setHasLoc(!!r?.granted);
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+      const lat = pos?.coords.latitude ?? DELHI[1];
+      const lon = pos?.coords.longitude ?? DELHI[0];
+      if (pos) {
+        setFrom({ name: "current location", subtitle: "", lat, lon });
+        camRef.current?.flyTo({ center: [lon, lat], zoom: 12.5, duration: 900 });
+      }
+      fetchJson(`${API}/escape?lat=${lat}&lon=${lon}&limit=3`)
+        .then((j) => setEscape(j?.best?.[0] ?? null)).catch(() => {});
+    })();
     setIntroSeen(new File(Paths.document, "intro_seen.txt").exists);
     return () => clearInterval(iv);
   }, []);
@@ -345,27 +229,69 @@ export default function App() {
     try { new File(Paths.document, "intro_seen.txt").write("1"); } catch {}
   }, []);
 
-  const useMyLocation = useCallback(async () => {
-    try {
-      const r = await Location.requestForegroundPermissionsAsync();
-      if (!r.granted) return;
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const { latitude, longitude } = pos.coords;
-      let name = "my location";
+  /* ---- search: debounced, aborted, keeps prior results visible ---- */
+  const doSearch = useCallback((text: string) => {
+    if (debounce.current) clearTimeout(debounce.current);
+    if (text.trim().length < 2) { setResults(null); setSearching(false); return; }
+    setSearching(true);
+    const seq = ++searchSeq.current;
+    debounce.current = setTimeout(async () => {
       try {
-        const rr = await fetch(`${API}/reverse?lat=${latitude}&lon=${longitude}`);
-        const j = await rr.json();
-        if (j.name) name = j.name;
-      } catch {}
-      setFrom({ name, subtitle: "", lat: latitude, lon: longitude });
-      setFromText(name);
-      setActive(null);
-      setListFor(null);
-      setResults([]);
-      Keyboard.dismiss();
-      camRef.current?.flyTo({ center: [longitude, latitude], zoom: 14, duration: 900 });
-    } catch {}
+        const bias = from ?? { lat: DELHI[1], lon: DELHI[0] };
+        const j = await fetchJson(
+          `${API}/search?q=${encodeURIComponent(text)}&limit=8&lat=${bias.lat}&lon=${bias.lon}`, 8000);
+        if (seq !== searchSeq.current) return;
+        setResults(j.results ?? []);
+      } catch {
+        // keep previous results — never blank the list mid-type
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    }, 160);
+  }, [from]);
+
+  const openSearch = useCallback((which: Which) => {
+    setEditWhich(which);
+    setQuery(which === "to" ? "" : "");
+    setResults(null);
+    setPhase("search");
   }, []);
+
+  const closeSearch = useCallback(() => {
+    setPhase(to && from ? "compare" : to ? "compare" : "idle");
+    setResults(null);
+    Keyboard.dismiss();
+  }, [from, to]);
+
+  const pick = useCallback(
+    async (p: Place) => {
+      Keyboard.dismiss();
+      setResults(null);
+      if (editWhich === "from") {
+        setFrom(p);
+        setPhase(to ? "compare" : "search");
+        setEditWhich("to");
+        if (!to) return;
+      } else {
+        setTo(p);
+        // destination-first: origin defaults to current location
+        let o = from;
+        if (!o) {
+          try {
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            o = { name: "current location", subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude };
+            setFrom(o);
+          } catch {
+            o = { name: "central delhi", subtitle: "", lat: DELHI[1], lon: DELHI[0] };
+            setFrom(o);
+          }
+        }
+        setPhase("compare");
+        camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 13.5, duration: 800 });
+      }
+    },
+    [editWhich, from, to]
+  );
 
   const sendReport = useCallback(async (kind: ReportKind) => {
     setReportMode(false);
@@ -382,60 +308,23 @@ export default function App() {
   const scrubField = useCallback((h: number) => {
     setHorizonH(h);
     const url = h > 0 ? `${API}/grid?h=${h}` : `${API}/grid`;
-    fetch(url).then((r) => r.json()).then(setGrid).catch(() => {});
+    fetchJson(url).then(setGrid).catch(() => {});
   }, []);
 
-  const doSearch = useCallback((text: string, which: Which) => {
-    if (debounce.current) clearTimeout(debounce.current);
-    if (text.trim().length < 2) { setResults([]); setListFor(null); setSearching(false); return; }
-    setListFor(which);
-    setSearching(true);
-    const seq = ++searchSeq.current;
-    debounce.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`${API}/search?q=${encodeURIComponent(text)}&limit=8`);
-        const j = await r.json();
-        if (seq !== searchSeq.current) return;
-        setResults(j.results ?? []);
-      } catch {
-        if (seq === searchSeq.current) setResults([]);
-      } finally {
-        if (seq === searchSeq.current) setSearching(false);
-      }
-    }, 180);
-  }, []);
-
-  const pick = useCallback(
-    (p: Place) => {
-      if (listFor === "from") { setFrom(p); setFromText(p.name); }
-      else if (listFor === "to") { setTo(p); setToText(p.name); }
-      setActive(null);
-      setListFor(null);
-      setResults([]);
-      Keyboard.dismiss();
-      camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 14, duration: 900 });
-    },
-    [listFor]
-  );
-
-  const swap = useCallback(() => {
-    const f = from; const ft = fromText;
-    setFrom(to); setFromText(toText); setTo(f ?? null); setToText(ft);
-  }, [from, to, fromText, toText]);
-
+  /* ---- routes: destination+origin set → decide + depart ---- */
   useEffect(() => {
-    if (!from || !to) return;
+    if (phase !== "compare" || !from || !to) return;
     let cancelled = false;
     setNotified(false);
+    setSteps(null); setStepsOpen(false);
     const load = async () => {
       setLoadingRoute(true);
       try {
         const qs = `from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}`;
-        const [cr, dr] = await Promise.all([
-          fetch(`${API}/decide?${qs}`),
-          fetch(`${API}/depart?${qs}&vehicle=auto&hours=24`),
+        const [cj, dj] = await Promise.all([
+          fetchJson(`${API}/decide?${qs}`, 12000),
+          fetchJson(`${API}/depart?${qs}&vehicle=auto&hours=24`).catch(() => null),
         ]);
-        const [cj, dj] = await Promise.all([cr.json(), dr.json()]);
         if (cancelled) return;
         const opts: CompareOption[] = cj.options ?? [];
         setOptions(opts);
@@ -448,9 +337,8 @@ export default function App() {
           const lats = coords.map((c) => c[1]);
           camRef.current?.fitBounds(
             [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)],
-            { padding: { top: 240, bottom: 300, left: 60, right: 60 }, duration: 700 }
+            { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 }
           );
-          camRef.current?.setStop({ pitch: 32, duration: 900 });
         }
       } catch {
         if (!cancelled) { setOptions([]); setDepart(null); }
@@ -460,72 +348,75 @@ export default function App() {
     };
     load();
     return () => { cancelled = true; };
-  }, [from, to]);
+  }, [phase, from, to]);
 
-  // turn-by-turn steps for the selected option — the public OSRM demo
-  // only computes the driving graph, so walk/cycle get no step list
+  /* ---- turn-by-turn steps for the selected (road) option ---- */
   useEffect(() => {
     setSteps(null);
     const o = options[selected];
     if (!o || !from || !to) return;
-    // metro rides don't follow roads — its row already carries
-    // board → alight stations; road maneuvers would mislead
-    if (o.vehicle === "metro") { setSteps(null); return; }
-    const profile = VEHICLE_PROFILE[o.vehicle] ?? "driving";
+    if (o.vehicle === "metro") return;
+    const profile = o.vehicle === "walk" ? "walking" : o.vehicle === "cycle" ? "cycling" : "driving";
     if (profile !== "driving") return;
-    fetch(
+    fetchJson(
       `${API}/directions?from_lat=${from.lat}&from_lon=${from.lon}` +
-        `&to_lat=${to.lat}&to_lon=${to.lon}&profile=${profile}&vehicle=${o.vehicle}`
-    )
-      .then((r) => r.json())
+        `&to_lat=${to.lat}&to_lon=${to.lon}&profile=${profile}&vehicle=${o.vehicle}`, 10000)
       .then((j) => { if (Array.isArray(j.steps)) setSteps(j.steps); })
       .catch(() => {});
   }, [selected, options, from, to]);
 
   const clearRoute = useCallback(() => {
-    setFrom(null); setTo(null); setFromText(""); setToText("");
-    setOptions([]); setDepart(null); setSteps(null); setNav(false); setFollow(false);
+    setTo(null); setOptions([]); setDepart(null); setSteps(null); setStepsOpen(false);
+    setPhase("idle"); setFollow(false); setReceipt(null);
   }, []);
 
+  /* ---- navigation: live dose meter = conc × ventilation × microenv × dt ---- */
   const startNav = useCallback(async () => {
     const o = options[selected];
     if (!o || !from || !to) return;
-    setNav(true);
+    setPhase("nav");
+    setNavDose(0); navDoseRef.current = 0;
+    setReceipt(null);
     Keyboard.dismiss();
-    // follow the blue dot only when the device is actually in Delhi —
-    // outside NCR (sim, demo elsewhere) the route stays the subject
     const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
-    const inNcr =
-      pos &&
-      pos.coords.longitude > 76.75 && pos.coords.longitude < 77.95 &&
-      pos.coords.latitude > 28.15 && pos.coords.latitude < 28.98;
-    setFollow(!!inNcr);
+    setFollow(!!(pos && inNcr(pos.coords.latitude, pos.coords.longitude)));
     camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
     camRef.current?.setStop({ pitch: 55, duration: 800 });
   }, [options, selected, from, to]);
 
-  // live "you're breathing this now" while navigating — samples the
-  // field at the device position every ~25s and shows it in the banner
-  const [navConc, setNavConc] = useState<number | null>(null);
   useEffect(() => {
-    if (!nav) { setNavConc(null); return; }
+    if (phase !== "nav") { setNavConc(null); return; }
+    const o = options[selected];
+    const ventLpm = typeof o?.exposure?.factors?.ventilation_lpm === "number"
+      ? o.exposure.factors.ventilation_lpm : 12;
+    const micro = typeof o?.exposure?.factors?.microenv === "number"
+      ? o.exposure.factors.microenv : 1;
     const tick = async () => {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
-      if (!pos) return;
-      const { latitude, longitude } = pos.coords;
-      if (!(longitude > 76.75 && longitude < 77.95 && latitude > 28.15 && latitude < 28.98)) return;
-      const j = await fetch(`${API}/aqi?lat=${latitude}&lon=${longitude}`).then((r) => r.json()).catch(() => null);
-      if (j?.pm25 != null) setNavConc(Math.round(j.pm25));
+      if (!pos || !inNcr(pos.coords.latitude, pos.coords.longitude)) return;
+      const j = await fetchJson(`${API}/aqi?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, 6000).catch(() => null);
+      if (j?.pm25 != null) {
+        setNavConc(Math.round(j.pm25));
+        // dose += conc(µg/m³) × microenv × vent(L/min)/1000 × dt(min)
+        const dtMin = 25 / 60;
+        navDoseRef.current += j.pm25 * micro * (ventLpm / 1000) * dtMin;
+        setNavDose(Math.round(navDoseRef.current * 10) / 10);
+      }
     };
     tick();
     const iv = setInterval(tick, 25000);
     return () => clearInterval(iv);
-  }, [nav]);
+  }, [phase, options, selected]);
 
   const exitNav = useCallback(() => {
-    setNav(false);
+    setPhase("compare");
     setFollow(false);
     camRef.current?.setStop({ pitch: 0, duration: 700 });
+    const o = options[selected];
+    if (o && navDoseRef.current > 0.5) {
+      const worst = Math.max(...options.map((x) => x.exposure?.dose_ug ?? 0));
+      setReceipt({ doseUg: navDoseRef.current, savedUg: Math.max(0, worst - (o.exposure?.dose_ug ?? 0)) });
+    }
     const g = options[selected]?.geometry;
     if (g?.type === "LineString") {
       const coords = (g as GeoJSON.LineString).coordinates;
@@ -533,15 +424,15 @@ export default function App() {
       const lats = coords.map((c) => c[1]);
       camRef.current?.fitBounds(
         [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)],
-        { padding: { top: 240, bottom: 300, left: 60, right: 60 }, duration: 700 }
+        { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 }
       );
     }
   }, [options, selected]);
 
-  // ledger: a picked option is a trip — deduped inside the store
+  /* ---- ledger: a picked option is a trip + traversal donation ---- */
   useEffect(() => {
     const o = options[selected];
-    if (!o?.exposure?.dose_ug || !from || !to) return;
+    if (!o?.exposure?.dose_ug || !from || !to || phase !== "compare") return;
     const worst = Math.max(...options.map((x) => x.exposure?.dose_ug ?? 0));
     const avoided = Math.max(0, Math.round((worst - o.exposure.dose_ug) * 10) / 10);
     logTrip({
@@ -551,7 +442,6 @@ export default function App() {
       from: from.name, to: to.name,
       fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon,
     }).then((t) => { setTrips(t); setLedger(ledgerStats(t)); }).catch(() => {});
-    // donate the traversal — commuters become the sensor network
     const g = o.geometry;
     const coords = g?.type === "LineString" ? (g as GeoJSON.LineString).coordinates : [];
     if (coords.length > 1) {
@@ -562,9 +452,9 @@ export default function App() {
         duration_s: o.duration_s ?? (o.duration_min || 0) * 60,
         dose_ug: o.exposure.dose_ug,
         avoided_ug: avoided,
-      }).then(() => fetch(`${API}/community`).then((r) => r.json()).then(setCommunity)).catch(() => {});
+      }).then(() => fetchJson(`${API}/community`).then(setCommunity)).catch(() => {});
     }
-  }, [selected, options, from, to]);
+  }, [selected, options, from, to, phase]);
 
   const routeSegs = useMemo<GeoJSON.FeatureCollection>(() => {
     const segs = options[selected]?.segments;
@@ -574,10 +464,11 @@ export default function App() {
         g &&
         ((g.type === "LineString" && (g as GeoJSON.LineString).coordinates.length >= 2) ||
           (g.type === "MultiLineString" &&
-            (g as GeoJSON.MultiLineString).coordinates.every((l) => l.length >= 2)));
+            (g.type === "MultiLineString" &&
+              (g as GeoJSON.MultiLineString).coordinates.every((l) => l.length >= 2))));
       return {
         type: "FeatureCollection",
-        features: ok ? [{ type: "Feature", properties: { color: T.accent }, geometry: g! }] : [],
+        features: ok ? [{ type: "Feature", properties: { color: T.go }, geometry: g! }] : [],
       };
     }
     return {
@@ -592,8 +483,6 @@ export default function App() {
     };
   }, [options, selected]);
 
-  // recent places — last distinct trip endpoints, newest first (like
-  // Google Maps' recents under an empty search box)
   const recents = useMemo<Place[]>(() => {
     const seen = new Set<string>();
     const out: Place[] = [];
@@ -605,14 +494,13 @@ export default function App() {
       ]) {
         if (cand.lat == null || cand.lon == null || seen.has(cand.name)) continue;
         seen.add(cand.name);
-        out.push({ name: cand.name, subtitle: "recent", lat: cand.lat, lon: cand.lon });
+        out.push({ name: cand.name, subtitle: "", lat: cand.lat, lon: cand.lon });
         if (out.length >= 6) break;
       }
     }
     return out;
   }, [trips]);
 
-  // faint alternates — every other option's path under the selected one
   const altSegs = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: "FeatureCollection",
     features: options
@@ -631,8 +519,7 @@ export default function App() {
     try {
       const p = to ?? from;
       if (p) {
-        const r = await fetch(`${API}/today?lat=${p.lat}&lon=${p.lon}`);
-        const j = await r.json();
+        const j = await fetchJson(`${API}/today?lat=${p.lat}&lon=${p.lon}`);
         setCurve(j.hours_ist ?? null);
         setCurveHour(j.hour_now_ist ?? null);
       }
@@ -643,19 +530,16 @@ export default function App() {
     setAmbient(true);
     try {
       const p = to ?? from ?? { lat: DELHI[1], lon: DELHI[0] };
-      const r = await fetch(`${API}/aqi?lat=${p.lat}&lon=${p.lon}`);
-      const j = await r.json();
+      const j = await fetchJson(`${API}/aqi?lat=${p.lat}&lon=${p.lon}`);
       if (j.pm25 != null)
         setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: p.lat, lon: p.lon });
     } catch {}
   }, [from, to]);
 
-  // drawer "daily cleanest-window alert" — arms tomorrow-morning's
-  // notification from today's typical curve (a 3h sliding minimum)
   const armDailyBrief = useCallback(async (): Promise<boolean> => {
     if (!(await requestPerms())) return false;
     const p = to ?? from ?? { lat: DELHI[1], lon: DELHI[0] };
-    const j = await fetch(`${API}/today?lat=${p.lat}&lon=${p.lon}`).then((r) => r.json()).catch(() => null);
+    const j = await fetchJson(`${API}/today?lat=${p.lat}&lon=${p.lon}`).catch(() => null);
     const h: number[] | undefined = j?.hours_ist;
     if (!Array.isArray(h) || h.length < 24) return false;
     let best = 0;
@@ -679,6 +563,11 @@ export default function App() {
 
   if (!fontsLoaded) return null;
 
+  const week = weekStats(trips);
+  const sel = options[selected];
+  const worstDose = options.length ? Math.max(...options.map((o) => o.exposure?.dose_ug ?? 0)) : 0;
+  const bestDose = options.length ? Math.min(...options.map((o) => o.exposure?.dose_ug ?? Infinity)) : 0;
+
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
@@ -687,10 +576,9 @@ export default function App() {
         style={StyleSheet.absoluteFill}
         onPress={async (f) => {
           const c = f.nativeEvent.lngLat;
-          if (!c) return;
+          if (!c || phase === "search" || phase === "nav") return;
           try {
-            const r = await fetch(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`);
-            const j = await r.json();
+            const j = await fetchJson(`${API}/aqi?lat=${c[1]}&lon=${c[0]}`, 6000);
             if (j.pm25 != null)
               setFieldRead({ pm25: j.pm25, pm10: j.pm10, nearest_sample_km: j.nearest_sample_km, typical: j.typical, wind: j.wind, grap: j.grap, field: j.field, lat: c[1], lon: c[0] });
           } catch {}
@@ -700,18 +588,17 @@ export default function App() {
           if (!c) return;
           let name = `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
           try {
-            const r = await fetch(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`);
-            const j = await r.json();
+            const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000);
             if (j.name) name = j.name;
           } catch {}
-          if (!from || !to) {
-            // drop a pin to start a trip — the empty field takes it
-            if (!from) { setFrom({ name, subtitle: "", lat: c[1], lon: c[0] }); setFromText(name); }
-            else { setTo({ name, subtitle: "", lat: c[1], lon: c[0] }); setToText(name); }
-          } else {
-            setTo({ name, subtitle: "", lat: c[1], lon: c[0] });
-            setToText(name);
+          setTo({ name, subtitle: "", lat: c[1], lon: c[0] });
+          if (!from) {
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+            setFrom(pos
+              ? { name: "current location", subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude }
+              : { name: "central delhi", subtitle: "", lat: DELHI[1], lon: DELHI[0] });
           }
+          setPhase("compare");
         }}
       >
         <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[76.75, 28.15, 77.95, 28.98]}
@@ -728,187 +615,141 @@ export default function App() {
           source-layer="building"
           minzoom={14}
           paint={{
-            "fill-extrusion-color": "#e3dfd8",
+            "fill-extrusion-color": "#E3E1DE",
             "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-            "fill-extrusion-opacity": 0.55,
+            "fill-extrusion-opacity": 0.5,
           }}
         />
         <GeoJSONSource id="alts" data={altSegs}>
           <Layer id="alts-line" type="line"
-            paint={{ "line-color": "rgba(87,83,78,0.35)", "line-width": 2.5, "line-dasharray": [2, 2] }}
+            paint={{ "line-color": "rgba(87,83,78,0.3)", "line-width": 2.5, "line-dasharray": [2, 2] }}
             layout={{ "line-cap": "round", "line-join": "round" }} />
         </GeoJSONSource>
         <GeoJSONSource id="route" data={routeSegs}>
           <Layer id="route-casing" type="line"
-            paint={{ "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.8 }}
+            paint={{ "line-color": "#FCFCFB", "line-width": 8, "line-opacity": 0.85 }}
             layout={{ "line-cap": "round", "line-join": "round" }} />
           <Layer id="route-line" type="line"
             paint={{ "line-color": ["get", "color"], "line-width": 4.5 }}
             layout={{ "line-cap": "round", "line-join": "round" }} />
         </GeoJSONSource>
-        {from && (
-          <Marker lngLat={[from.lon, from.lat]} anchor="bottom">
-            <Pin letter="A" color={T.accent} />
+        {from && phase === "compare" && (
+          <Marker lngLat={[from.lon, from.lat]} anchor="center">
+            <EndpointPin kind="origin" />
           </Marker>
         )}
         {to && (
           <Marker lngLat={[to.lon, to.lat]} anchor="bottom">
-            <Pin letter="B" color={T.doseMid} />
+            <EndpointPin kind="dest" />
           </Marker>
         )}
       </Map>
 
-      {/* search card — hidden during turn-by-turn nav */}
-      {!nav && (
-      <View style={s.cardWrap}>
-        <BlurView intensity={45} tint="light" style={s.card}>
-          <View style={s.row}>
-            <Text style={s.rowGlyph}>A</Text>
-            <TextInput style={s.input} placeholder="From — anywhere in Delhi NCR"
-              placeholderTextColor={T.ink3} autoCorrect={false} autoCapitalize="none"
-              value={fromText}
-              onFocus={() => setActive("from")}
-              onBlur={() => setActive(null)}
-              onChangeText={(t) => { setFromText(t); setFrom(null); setOptions([]); setDepart(null); setActive("from"); doSearch(t, "from"); }}
-              returnKeyType="search" clearButtonMode="while-editing" />
-            {hasLoc && (
-              <Pressable onPress={useMyLocation} style={s.swap} hitSlop={8}>
-                <Text style={s.swapTxt}>⌖</Text>
-              </Pressable>
-            )}
-            <Pressable onPress={swap} style={s.swap} hitSlop={8}><Text style={s.swapTxt}>⇅</Text></Pressable>
-          </View>
-          <View style={s.div} />
-          <View style={s.row}>
-            <Text style={s.rowGlyph}>B</Text>
-            <TextInput style={s.input} placeholder="To — anywhere in Delhi NCR"
-              placeholderTextColor={T.ink3} autoCorrect={false} autoCapitalize="none"
-              value={toText}
-              onFocus={() => setActive("to")}
-              onBlur={() => setActive(null)}
-              onChangeText={(t) => { setToText(t); setTo(null); setOptions([]); setDepart(null); setActive("to"); doSearch(t, "to"); }}
-              returnKeyType="search" clearButtonMode="while-editing" />
-            {searching && <ActivityIndicator size="small" color={T.ink3} />}
-          </View>
-        </BlurView>
-
-        {listFor && results.length > 0 && (
-          <BlurView intensity={50} tint="light" style={[s.card, { marginTop: 8 }]}>
-            {results.map((p, i) => (
-              <Pressable key={`${p.lat},${p.lon},${i}`} onPress={() => pick(p)}
-                style={({ pressed }) => [s.result, pressed && { opacity: 0.55 }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.rname} numberOfLines={1}>{p.name}</Text>
-                  {!!p.subtitle && <Text style={s.rsub} numberOfLines={1}>{p.subtitle}</Text>}
+      {/* ============ SEARCH PILL — always visible except in nav ============ */}
+      {phase !== "nav" && (
+        <View style={s.pillWrap}>
+          <SearchPill
+            placeholder={phase === "compare" && to ? to.name : "Where to in Delhi?"}
+            value={phase === "search" ? query : ""}
+            onFocus={() => { if (phase !== "search") openSearch("to"); }}
+            onChange={(t) => { setQuery(t); doSearch(t); }}
+            onAvatar={() => setProfileOpen(true)}
+            hint={searching ? "searching" : undefined}
+            left={phase === "compare"
+              ? <Pressable onPress={clearRoute} hitSlop={8}><Icon name="close" color={T.ink3} size={16} /></Pressable>
+              : undefined}
+          />
+          {/* origin row — quiet, inside the search sheet only */}
+          {phase === "search" && (
+            <Pressable style={s.originRow} onPress={() => setEditWhich(editWhich === "from" ? "to" : "from")}>
+              <View style={s.originDot} />
+              <Text style={s.originTxt} numberOfLines={1}>
+                from: <Text style={{ color: T.ink }}>{from?.name ?? "current location"}</Text>
+              </Text>
+              <Text style={s.originEdit}>{editWhich === "from" ? "editing" : "change"}</Text>
+            </Pressable>
+          )}
+          {phase === "search" && editWhich === "from" && (
+            <Text style={s.searchHint}>type to change where you start from</Text>
+          )}
+          {phase === "search" && (
+            <View style={s.resultsSheet}>
+              {(results ?? (query.trim().length < 2 ? recents : [])).map((p, i) => (
+                <Pressable key={`${p.lat},${p.lon},${i}`} onPress={() => pick(p)}
+                  style={({ pressed }) => [s.result, pressed && { opacity: 0.55 }]}>
+                  <Icon name="pin" color={T.ink3} size={16} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={s.rname} numberOfLines={1}>{p.name}</Text>
+                    {!!p.subtitle && <Text style={s.rsub} numberOfLines={1}>{p.subtitle}</Text>}
+                  </View>
+                  {p.outside_ncr && <Text style={s.outsideTag}>outside ncr</Text>}
+                </Pressable>
+              ))}
+              {results && results.length === 0 && !searching && (
+                <Text style={s.noResults}>nothing found — try a bigger name</Text>
+              )}
+              {searching && !results?.length && (
+                <View style={{ paddingVertical: 14, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color={T.go} />
                 </View>
-              </Pressable>
-            ))}
-          </BlurView>
-        )}
-        {listFor && results.length === 0 && recents.length > 0 &&
-          !(listFor === "from" ? fromText : toText) && (
-          <BlurView intensity={50} tint="light" style={[s.card, { marginTop: 8 }]}>
-            {recents.map((p, i) => (
-              <Pressable key={`r${p.lat},${p.lon},${i}`} onPress={() => pick(p)}
-                style={({ pressed }) => [s.result, pressed && { opacity: 0.55 }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.rname} numberOfLines={1}>{p.name}</Text>
-                  <Text style={s.rsub}>recent</Text>
-                </View>
-              </Pressable>
-            ))}
-          </BlurView>
-        )}
-      </View>
+              )}
+            </View>
+          )}
+        </View>
       )}
 
-      {/* horizon scrubber — now / +6h / +12h / +24h; hidden while a field is focused */}
-      {!active && !nav && (
-      <View style={s.horizonWrap}>
-        {HORIZONS.map((h) => (
-          <Pressable key={h} onPress={() => scrubField(h)}
-            style={({ pressed }) => [s.hChip, horizonH === h && s.hChipOn, pressed && s.chipPressed]}>
-            <Text style={[s.hTxt, horizonH === h && s.hTxtOn]}>
-              {h === 0 ? "now" : `+${h}h`}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      {/* ============ FAB COLUMN — locate + report (screen budget: 2) ============ */}
+      {(phase === "idle" || phase === "compare") && (
+        <View style={s.fabCol}>
+          {hasLoc && <Fab glyph="locate" active={follow} onPress={() => setFollow(!follow)} />}
+          <Fab glyph="flag" onPress={() => setReportMode(!reportMode)} />
+        </View>
       )}
 
-      {/* top-right: journey drawer, ledger, ambient */}
-      {!active && !nav && (
-      <View style={s.topRight}>
-        <Pressable onPress={() => setDrawerOpen(true)} style={({ pressed }) => [s.aodBtn, pressed && s.chipPressed]} hitSlop={10}>
-          <Text style={s.aodGlyph}>☰</Text>
-        </Pressable>
-        <Pressable onPress={openLedger} style={({ pressed }) => [s.todayPill, pressed && s.chipPressed]}>
-          <Text style={s.todayTxt}>
-            today {ledger.todayUg > 0 ? `${ledger.todayUg} µg` : "0 µg"}
-          </Text>
-        </Pressable>
-        <Pressable onPress={openAmbient} style={({ pressed }) => [s.aodBtn, pressed && s.chipPressed]} hitSlop={10}>
-          <View style={s.aodCrescent}><View style={s.aodHalf} /></View>
-        </Pressable>
-      </View>
+      {/* report picker — four pictographs, wordless */}
+      {reportMode && phase !== "nav" && (
+        <View style={s.reportRow}>
+          {(["dust", "smoke", "burning", "clean"] as ReportKind[]).map((k) => (
+            <Pressable key={k} onPress={() => sendReport(k)}
+              style={({ pressed }) => [s.reportOpt, pressed && { opacity: 0.55 }]}>
+              <Icon name={reportGlyph(k)} color={T.ink} size={26} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* horizon chips — only while comparing routes */}
+      {phase === "compare" && (
+        <View style={s.horizonWrap}>
+          {HORIZONS.map((h) => (
+            <Pressable key={h} onPress={() => scrubField(h)}
+              style={({ pressed }) => [s.hChip, horizonH === h && s.hChipOn, pressed && { opacity: 0.6 }]}>
+              <Text style={[s.hTxt, NUM, horizonH === h && s.hTxtOn]}>
+                {h === 0 ? "now" : `+${h}h`}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       )}
 
       {apiOk === false && (
         <View style={s.offlineWrap} pointerEvents="none">
-          <Text style={s.offlineTxt}>server offline</Text>
+          <Text style={s.offlineTxt}>server offline — retrying</Text>
         </View>
       )}
 
-      {/* action column: recenter + air report — rendered AFTER the dose
-          card and anchored just above its measured height so the card
-          can never swallow the buttons */}
-      {!active && !drawerOpen && !nav && (
-        <View style={[s.fabCol, { bottom: Math.max(cardH + 44, 300) }]}>
-          {hasLoc && (
-            <Pressable style={({ pressed }) => [s.fab, follow && s.fabOn, pressed && s.chipPressed]} onPress={() => setFollow(!follow)}>
-              <Text style={[s.fabGlyph, follow && s.fabGlyphOn]}>⌖</Text>
-            </Pressable>
-          )}
-          <Pressable style={({ pressed }) => [s.fab, pressed && s.chipPressed]} onPress={() => setReportMode(!reportMode)}>
-            <Text style={s.fabGlyph}>◍</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {reportMode && (
-        <View style={[s.reportCard, { bottom: Math.max(cardH + 44, 300) }]}>
-          <Text style={s.reportTitle}>report the air where you are</Text>
-          <View style={s.reportRow}>
-            {(["dust", "smoke", "burning", "clean"] as ReportKind[]).map((k) => (
-              <Pressable key={k} style={({ pressed }) => [s.reportOpt, pressed && s.chipPressed]} onPress={() => sendReport(k)}>
-                <Text style={s.reportOptTxt}>{k === "clean" ? "clean air" : k}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <Pressable onPress={() => setReportMode(false)}>
-            <Text style={s.reportCancel}>cancel</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* tapped-point field readout */}
-      {fieldRead && !showLedger && (
-        <View style={[s.fieldWrap, options.length > 0 && { bottom: 480 }]} pointerEvents="box-none">
+      {/* tapped-point field readout — one chip, wordless-ish */}
+      {fieldRead && !showLedger && phase !== "nav" && (
+        <View style={[s.fieldWrap, phase === "compare" && { bottom: 370 }]} pointerEvents="box-none">
           <Pressable onPress={() => setFieldRead(null)} style={s.fieldChip}>
-            <Text style={[s.fieldDose, { color: doseColor(fieldRead.pm25) }]}>
+            <Text style={[s.fieldDose, NUM, { color: doseColor(fieldRead.pm25) }]}>
               {Math.round(fieldRead.pm25)} µg/m³
             </Text>
-            <Text style={s.fieldMeta}>PM2.5 in the air here right now</Text>
             {fieldRead.typical?.vs_now_pct != null && Math.abs(fieldRead.typical.vs_now_pct) > 8 && (
               <Text style={s.fieldMeta}>
                 {fieldRead.typical.vs_now_pct > 0
-                  ? `${Math.round(fieldRead.typical.vs_now_pct)}% smokier than usual for this hour`
-                  : `${Math.round(-fieldRead.typical.vs_now_pct)}% cleaner than usual for this hour`}
-              </Text>
-            )}
-            {fieldRead.wind && fieldRead.wind.speed_kmh > 0 && (
-              <Text style={s.fieldMeta}>
-                air arrives from {windFrom(fieldRead.wind.from_deg)} · {Math.round(fieldRead.wind.speed_kmh)} km/h
+                  ? `${Math.round(fieldRead.typical.vs_now_pct)}% smokier than usual`
+                  : `${Math.round(-fieldRead.typical.vs_now_pct)}% cleaner than usual`}
               </Text>
             )}
             {fieldRead.field?.age_s != null && (
@@ -917,177 +758,156 @@ export default function App() {
               </Text>
             )}
             {fieldRead.grap?.indicative_stage != null && fieldRead.grap.indicative_stage > 0 && (
-              <Text style={s.grapTxt}>
-                delhi emergency tier {fieldRead.grap.indicative_stage} air (indicative)
-              </Text>
+              <Text style={s.grapTxt}>delhi emergency tier {fieldRead.grap.indicative_stage}</Text>
             )}
           </Pressable>
         </View>
       )}
 
-      {/* ways-to-go bottom sheet — Google-Maps grade */}
-      {from && to && !nav && (
-        <View style={s.bottomWrap}
-          onLayout={(e) => setCardH(e.nativeEvent.layout.height)}>
-          <BlurView intensity={55} tint="light" style={s.summary}>
-            {loadingRoute ? (
-              <ActivityIndicator size="small" color={T.accent} style={{ marginVertical: 14 }} />
-            ) : options.length > 0 ? (
-              <View>
-                <View style={s.sheetHead}>
-                  <Text style={s.sheetTitle}>ways to go</Text>
-                  <Pressable onPress={clearRoute} hitSlop={10}
-                    style={({ pressed }) => [s.sheetX, pressed && { opacity: 0.5 }]}>
-                    <Text style={s.sheetXTxt}>✕</Text>
-                  </Pressable>
-                </View>
-                <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-                  {options.map((o, i) => {
-                    const conc = o.exposure?.avg_conc_ugm3 ?? 0;
-                    const c = doseColor(conc);
-                    const meter = conc <= 0 ? 0 : Math.max(1, Math.min(5, Math.round(conc / 60) + 1));
-                    const sel = i === selected;
-                    return (
-                      <View key={`${o.vehicle}-${i}`}>
-                        <Pressable onPress={() => setSelected(i)}
-                          style={({ pressed }) => [s.optRow, sel && s.optRowSel, pressed && s.chipPressed]}>
-                          <ModeIcon vehicle={o.vehicle} color={sel ? T.accent : T.ink2} />
-                          <View style={{ flex: 1, marginLeft: 10 }}>
-                            <Text style={s.optLabel}>
-                              {o.label}
-                              {i === 0 ? <Text style={s.bestTag}>  cleanest ride</Text> : null}
-                            </Text>
-                            {o.decision_reasons?.length ? (
-                              <Text style={s.optReason} numberOfLines={1}>{o.decision_reasons[0]}</Text>
-                            ) : null}
-                            {o.stations ? (
-                              <Text style={s.optMeta} numberOfLines={1}>{o.stations.board} → {o.stations.alight}</Text>
-                            ) : null}
-                          </View>
-                          <View style={{ alignItems: "flex-end", marginRight: 10 }}>
-                            <Text style={s.optEta}>{o.duration_min} min</Text>
-                            <Text style={s.optMeta}>{o.distance_km} km · {arrivalLabel(o.duration_min)}</Text>
-                          </View>
-                          <View style={{ alignItems: "flex-end", width: 44 }}>
-                            <SmokeMeter level={meter} color={c} />
-                            <Text style={[s.optDose, { color: c }]}>
-                              {o.exposure?.dose_ug != null ? `${o.exposure.dose_ug}` : "—"}
-                            </Text>
-                            <Text style={s.optMeta}>µg</Text>
-                          </View>
-                        </Pressable>
-                        {sel && steps && steps.length > 0 && (
-                          <View style={s.stepsBox}>
-                            <ScrollView style={{ maxHeight: 108 }} nestedScrollEnabled
-                              showsVerticalScrollIndicator={false}>
-                            {steps.map((st, si) => (
-                              <View key={si} style={s.stepRow}>
-                                <View style={s.stepDot} />
-                                <Text style={s.stepTxt} numberOfLines={2}>
-                                  {st.instruction}
-                                  {st.distance_m >= 40 && st.type !== "arrive"
-                                    ? <Text style={s.stepDist}>  {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} km` : `${Math.round(st.distance_m / 10) * 10} m`}</Text>
-                                    : null}
-                                </Text>
-                              </View>
-                            ))}
-                            </ScrollView>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-                {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 10 && (
-                  <View style={s.departRow}>
-                    <Text style={s.departHint}>
-                      leave {hourLabel(depart.best.start, depart.best.hours_ahead)} — same trip, {depart.ug_saved_vs_now}% less smoke
-                    </Text>
-                    <Pressable onPress={remind} hitSlop={6}>
-                      <Text style={s.remindTxt}>{notified ? "set ✓" : "remind me"}</Text>
-                    </Pressable>
-                  </View>
-                )}
-                <Pressable onPress={startNav}
-                  style={({ pressed }) => [s.startBtn, pressed && { opacity: 0.85 }]}>
-                  <Text style={s.startTxt}>start</Text>
-                </Pressable>
-                <Text style={s.sheetFoot}>
-                  smoke bars show how much you'd actually breathe — measured live across Delhi
-                </Text>
-              </View>
-            ) : (
-              <Text style={s.summarySub}>no way found — try another spot</Text>
-            )}
-          </BlurView>
-        </View>
+      {/* today's dose chip — only when there's a dose to show */}
+      {phase === "idle" && ledger.todayUg > 0 && (
+        <Pressable style={s.doseChip} onPress={openLedger}>
+          <Icon name="cigarette" color={T.ink} size={15} />
+          <Text style={[s.doseChipTxt, NUM]}>{cigOf(ledger.todayUg) ?? 0} today</Text>
+        </Pressable>
       )}
 
-      {/* nav mode — maneuver banner + slim ETA bar */}
-      {nav && options[selected] && (
-        <>
-          <View style={s.navBanner} pointerEvents="none">
-            <BlurView intensity={55} tint="light" style={s.navBannerIn}>
-              <Text style={s.navStep} numberOfLines={2}>
-                {steps?.find((st) => st.type !== "depart")?.instruction ?? "follow the route"}
-              </Text>
-              <Text style={s.navSub}>
-                {from?.name ?? ""} → {to?.name ?? ""}
-                {navConc != null
-                  ? `  ·  breathing ` : ""}
-                {navConc != null && (
-                  <Text style={{ color: doseColor(navConc), fontFamily: F.semi }}>
-                    {navConc} µg/m³
+      {/* ============ COMPARE SHEET — modes ranked by what you'd breathe ============ */}
+      {phase === "compare" && !showLedger && (
+        <Sheet detent="half" onClose={clearRoute} style={s.compareSheet}>
+          {loadingRoute ? (
+            <View style={{ paddingVertical: 26, alignItems: "center" }}>
+              <ActivityIndicator size="small" color={T.go} />
+              <Text style={s.loadingTxt}>checking every way there…</Text>
+            </View>
+          ) : options.length > 0 ? (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 8 && (
+                <Pressable onPress={remind} style={s.departRow}>
+                  <Icon name={notified ? "bell" : "clock"} color={T.go} size={16} filled={notified} />
+                  <Text style={s.departTxt}>
+                    {notified ? "we'll ping you" : `leave ${hourLabel(depart.best.start, depart.best.hours_ahead)} → breathe ~${Math.round(depart.ug_saved_vs_now)}% less`}
                   </Text>
-                )}
+                </Pressable>
+              )}
+              {options.map((o, i) => (
+                <ModeRow
+                  key={`${o.vehicle}-${i}`}
+                  vehicle={o.vehicle}
+                  label={o.label}
+                  etaMin={Math.round(o.duration_min)}
+                  meta={`${o.distance_km} km · arrive ${arrivalLabel(o.duration_min)}${o.stations ? ` · ${o.stations.board}→${o.stations.alight}` : ""}`}
+                  doseUg={o.exposure?.dose_ug ?? null}
+                  best={i === 0 && (o.exposure?.dose_ug ?? 0) < worstDose}
+                  selected={i === selected}
+                  reason={o.decision_reasons?.[0]}
+                  onPress={() => setSelected(i)}
+                />
+              ))}
+              {/* steps / start row */}
+              {sel && (
+                <View style={s.startRow}>
+                  <Pressable onPress={() => setStepsOpen(!stepsOpen)} style={s.stepsBtn}>
+                    <Text style={s.stepsBtnTxt}>{stepsOpen ? "hide turns" : "turn-by-turn"}</Text>
+                  </Pressable>
+                  <Pressable onPress={startNav} style={s.goBtn}>
+                    <Text style={s.goBtnTxt}>start</Text>
+                  </Pressable>
+                </View>
+              )}
+              {stepsOpen && steps && (
+                <View style={s.stepsList}>
+                  {sel?.vehicle === "metro" && sel.stations ? (
+                    <Text style={s.stepTxt}>board at {sel.stations.board} → get off at {sel.stations.alight}</Text>
+                  ) : steps.map((st, i) => (
+                    <View key={i} style={s.stepRow}>
+                      <View style={s.stepDot} />
+                      <Text style={s.stepTxt}>{st.instruction}</Text>
+                      <Text style={[s.stepDist, NUM]}>
+                        {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} km` : `${Math.round(st.distance_m)} m`}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {stepsOpen && sel?.vehicle !== "metro" && !steps && (
+                <Text style={s.stepTxt}>driving directions appear for road modes</Text>
+              )}
+            </ScrollView>
+          ) : (
+            <Text style={s.noResults}>no routes found between those two</Text>
+          )}
+        </Sheet>
+      )}
+
+      {/* ============ NAV MODE — banner + live dose meter ============ */}
+      {phase === "nav" && sel && (
+        <>
+          <View style={s.navBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.navInstr} numberOfLines={2}>
+                {sel.vehicle === "metro" && sel.stations
+                  ? `board ${sel.stations.board} → ${sel.stations.alight}`
+                  : steps?.[0]?.instruction ?? "follow the blue line"}
               </Text>
-            </BlurView>
+              <Text style={[s.navMeta, NUM]}>
+                {Math.round(sel.duration_min)} min · {sel.distance_km} km · arrive {arrivalLabel(sel.duration_min)}
+              </Text>
+            </View>
+            <Pressable onPress={exitNav} hitSlop={10} style={s.navX}>
+              <Icon name="close" color={T.ambientPaper} size={18} />
+            </Pressable>
           </View>
-          <View style={s.navBar}>
-            <BlurView intensity={55} tint="light" style={s.navBarIn}>
-              <View>
-                <Text style={s.navEta}>{options[selected].duration_min} min</Text>
-                <Text style={s.navSub}>
-                  {options[selected].distance_km} km · arrive {arrivalLabel(options[selected].duration_min)}
-                </Text>
-              </View>
-              <Pressable onPress={exitNav}
-                style={({ pressed }) => [s.navExit, pressed && { opacity: 0.7 }]}>
-                <Text style={s.navExitTxt}>exit</Text>
-              </Pressable>
-            </BlurView>
+          <View style={s.liveDose}>
+            <Icon name="cigarette" color={T.ambientPaper} size={16} />
+            <Text style={[s.liveDoseTxt, NUM]}>
+              {navConc != null ? `breathing ${navConc}` : `${navDose} µg so far`}
+            </Text>
+            {navDose > 0 && navConc != null && (
+              <Text style={[s.liveDoseSub, NUM]}>{navDose} µg inhaled</Text>
+            )}
           </View>
         </>
       )}
 
-      {showLedger && (
-        <LedgerSheet stats={ledger} curve={curve} hourNow={curveHour}
-          onClose={() => setShowLedger(false)} />
-      )}
-
-      {drawerOpen && (
-        <JourneyDrawer week={weekStats(trips)} stats={ledger}
-          community={community} shiftCig={shiftCig} escape={escape}
-          onAmbient={() => { setDrawerOpen(false); openAmbient(); }}
-          onReminders={armDailyBrief}
-          onClose={() => setDrawerOpen(false)} />
-      )}
-
-      {introSeen === false && (
-        <Pressable style={s.introScrim} onPress={dismissIntro}>
-          <View style={s.introCard}>
-            <Text style={s.introTitle}>ALive-108</Text>
-            <Text style={s.introBody}>
-              every trip in Delhi has an air price. we show it —
-              pick any two places, see exactly what you'd breathe
-              in a car, auto, metro or on foot.{"\n\n"}
-              your journeys also build a shared air map made by
-              people like you — covering streets no station
-              can see. that's how Delhi starts breathing easier.
-            </Text>
-            <Text style={s.introCta}>tap anywhere to start</Text>
+      {/* trip receipt — the dose ledger entry for what you just breathed */}
+      {receipt && phase === "compare" && (
+        <View style={s.receipt}>
+          <Text style={s.receiptTitle}>trip done</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 }}>
+            <CigStrip ug={receipt.doseUg} size={18} color={T.ink} />
+            <Text style={[s.receiptNum, NUM]}>{Math.round(receipt.doseUg)} µg</Text>
           </View>
-        </Pressable>
+          {receipt.savedUg > 2 && (
+            <Text style={s.receiptSub}>the smokiest way would have cost you {Math.round(receipt.savedUg)} µg more</Text>
+          )}
+          <Pressable onPress={() => setReceipt(null)} hitSlop={8} style={{ marginTop: 8 }}>
+            <Text style={{ fontFamily: F.med, fontSize: 13, color: T.go }}>ok</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* ============ PROFILE SHEET (avatar → journeys/ledger/community) ============ */}
+      {profileOpen && (
+        <JourneyDrawer
+          week={week}
+          stats={ledger}
+          community={community}
+          shiftCig={shiftCig}
+          escape={escape}
+          onAmbient={() => { setProfileOpen(false); openAmbient(); }}
+          onReminders={armDailyBrief}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
+
+      {showLedger && (
+        <LedgerSheet
+          stats={ledger}
+          curve={curve}
+          hourNow={curveHour}
+          onClose={() => setShowLedger(false)}
+        />
       )}
 
       {ambient && (
@@ -1099,148 +919,182 @@ export default function App() {
           onExit={() => setAmbient(false)}
         />
       )}
+
+      {introSeen === false && (
+        <View style={s.intro}>
+          <Text style={s.introTitle}>every trip in delhi has an air price.</Text>
+          <Text style={s.introBody}>
+            pick where you're going — we rank every way there by what you'd actually breathe,
+            not just how fast it is. your journeys anonymously build a shared air map of the city.
+          </Text>
+          <Pressable onPress={dismissIntro} style={s.introBtn}>
+            <Text style={s.introBtnTxt}>got it</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {fieldRead?.grap?.indicative_stage != null && fieldRead.grap.indicative_stage >= 3 && phase === "idle" && (
+        <View style={s.alertWrap}>
+          <AlertBanner
+            text={`delhi emergency air tier ${fieldRead.grap.indicative_stage} — prefer the metro today`}
+            onClose={() => setFieldRead(null)}
+          />
+        </View>
+      )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.paper },
-  cardWrap: { position: "absolute", top: Platform.select({ ios: 58, android: 38 }), left: 16, right: 16 },
-  card: {
-    borderRadius: 22, overflow: "hidden", backgroundColor: T.glass,
-    borderWidth: 1, borderColor: T.glassBorder,
+
+  pillWrap: { position: "absolute", top: 54, left: 16, right: 16 },
+  originRow: {
+    flexDirection: "row", alignItems: "center", marginTop: 6,
+    backgroundColor: T.surface, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
   },
-  row: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 13 },
-  rowGlyph: { fontFamily: F.semi, fontSize: 13, color: T.accent, width: 18 },
-  input: { flex: 1, fontFamily: F.med, fontSize: 16, color: T.ink, padding: 0 },
-  swap: { marginLeft: 8, padding: 4 },
-  swapTxt: { fontSize: 17, color: T.ink3, fontFamily: F.reg },
-  div: { height: StyleSheet.hairlineWidth, backgroundColor: T.glassBorder, marginHorizontal: 16 },
-  result: { paddingHorizontal: 16, paddingVertical: 11 },
-  rname: { fontFamily: F.semi, fontSize: 15, color: T.ink },
-  rsub: { fontFamily: F.reg, fontSize: 12, color: T.ink2, marginTop: 1 },
-  topRight: {
-    position: "absolute", top: Platform.select({ ios: 162, android: 142 }), right: 16,
-    flexDirection: "row", alignItems: "center", gap: 10,
+  originDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 2, borderColor: T.go, marginRight: 8 },
+  originTxt: { flex: 1, fontFamily: F.reg, fontSize: 13, color: T.ink2 },
+  originEdit: { fontFamily: F.med, fontSize: 12, color: T.go },
+  searchHint: { fontFamily: F.reg, fontSize: 12, color: T.ink3, marginTop: 6, marginLeft: 6 },
+  resultsSheet: {
+    marginTop: 6, backgroundColor: T.surface, borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 3, overflow: "hidden",
   },
+  result: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.hairline,
+  },
+  rname: { fontFamily: F.med, fontSize: 15, color: T.ink },
+  rsub: { fontFamily: F.reg, fontSize: 12, color: T.ink3, marginTop: 1 },
+  outsideTag: { fontFamily: F.med, fontSize: 10, color: T.ink3, marginLeft: 8 },
+  noResults: { fontFamily: F.reg, fontSize: 13, color: T.ink3, padding: 16, textAlign: "center" },
+
+  fabCol: { position: "absolute", right: 14, bottom: 190, gap: 10 },
+  reportRow: {
+    position: "absolute", right: 14, bottom: 246,
+    backgroundColor: T.surface, borderRadius: 14, padding: 8, gap: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
+  reportOpt: {
+    width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center",
+    backgroundColor: T.paper,
+  },
+
   horizonWrap: {
-    position: "absolute", top: Platform.select({ ios: 162, android: 142 }), left: 16,
-    flexDirection: "row", gap: 6,
+    position: "absolute", top: 118, left: 16, flexDirection: "row", gap: 6,
   },
   hChip: {
-    backgroundColor: T.glass, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
-    borderWidth: 1, borderColor: T.glassBorder,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: T.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
   },
-  hChipOn: { backgroundColor: T.accentSoft, borderColor: T.accent },
-  hTxt: { fontFamily: F.med, fontSize: 11.5, color: T.ink2 },
-  hTxtOn: { color: T.accent },
-  chipPressed: { backgroundColor: "rgba(15,118,110,0.18)", transform: [{ scale: 0.96 }] },
-  todayPill: {
-    backgroundColor: T.glass, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
-    borderWidth: 1, borderColor: T.glassBorder,
+  hChipOn: { backgroundColor: T.go, borderColor: T.go },
+  hTxt: { fontFamily: F.med, fontSize: 12, color: T.ink2 },
+  hTxtOn: { color: T.ambientPaper },
+
+  offlineWrap: {
+    position: "absolute", top: 108, alignSelf: "center",
+    backgroundColor: T.ink, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
   },
-  todayTxt: { fontFamily: F.semi, fontSize: 12, color: T.ink },
-  aodBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: T.glass,
-    borderWidth: 1, borderColor: T.glassBorder, alignItems: "center", justifyContent: "center",
-  },
-  aodCrescent: {
-    width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: T.ink,
-    overflow: "hidden",
-  },
-  aodHalf: { position: "absolute", right: 0, top: 0, bottom: 0, width: 7, backgroundColor: T.ink },
-  offlineWrap: { position: "absolute", top: Platform.select({ ios: 162, android: 142 }), alignSelf: "center" },
-  offlineTxt: { fontFamily: F.med, fontSize: 12, color: T.doseMid },
-  fabCol: { position: "absolute", right: 16, bottom: 300, gap: 10 },
-  fab: {
-    width: 42, height: 42, borderRadius: 21, backgroundColor: T.glass,
-    borderWidth: 1, borderColor: T.glassBorder, alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
-  },
-  fabOn: { backgroundColor: T.accentSoft, borderColor: T.accent },
-  fabGlyph: { fontSize: 17, color: T.ink2, fontFamily: F.med },
-  fabGlyphOn: { color: T.accent },
-  aodGlyph: { fontSize: 15, color: T.ink, fontFamily: F.med },
-  reportCard: {
-    position: "absolute", bottom: 300, alignSelf: "center", width: 280,
-    backgroundColor: T.glass, borderRadius: 18, padding: 14,
-    borderWidth: 1, borderColor: T.glassBorder,
-    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
-  },
-  reportTitle: { fontFamily: F.semi, fontSize: 13, color: T.ink, textAlign: "center" },
-  reportRow: { flexDirection: "row", gap: 8, marginTop: 12 },
-  reportOpt: {
-    flex: 1, backgroundColor: T.accentSoft, borderRadius: 12, paddingVertical: 10,
-    alignItems: "center", borderWidth: 1, borderColor: "rgba(15,118,110,0.25)",
-  },
-  reportOptTxt: { fontFamily: F.semi, fontSize: 12, color: T.accent },
-  reportCancel: { fontFamily: F.med, fontSize: 12, color: T.ink3, textAlign: "center", marginTop: 10 },
-  fieldWrap: { position: "absolute", bottom: 300, alignSelf: "center" },
+  offlineTxt: { fontFamily: F.med, fontSize: 12, color: T.ambientPaper },
+
+  fieldWrap: { position: "absolute", bottom: 40, left: 16 },
   fieldChip: {
-    alignItems: "center", backgroundColor: T.glass, paddingHorizontal: 18, paddingVertical: 10,
-    borderRadius: 18, borderWidth: 1, borderColor: T.glassBorder,
-    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: T.surface, borderRadius: 12, padding: 12,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
+    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 4, maxWidth: 240,
   },
-  fieldDose: { fontFamily: F.semi, fontSize: 20, fontVariant: ["tabular-nums"] },
-  fieldMeta: { fontFamily: F.reg, fontSize: 11, color: T.ink2, marginTop: 2 },
-  grapTxt: { fontFamily: F.semi, fontSize: 11, color: T.doseMid, marginTop: 4, letterSpacing: 0.4 },
-  bottomWrap: { position: "absolute", bottom: 30, left: 16, right: 16 },
-  summary: {
-    borderRadius: 22, overflow: "hidden", backgroundColor: T.glass,
-    borderWidth: 1, borderColor: T.glassBorder, paddingVertical: 14, paddingHorizontal: 14,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 },
+  fieldDose: { fontFamily: F.bold, fontSize: 20 },
+  fieldMeta: { fontFamily: F.reg, fontSize: 11, color: T.ink2, marginTop: 3 },
+  grapTxt: { fontFamily: F.med, fontSize: 11, color: T.doseSevere, marginTop: 4 },
+
+  doseChip: {
+    position: "absolute", bottom: 40, left: 16,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: T.surface, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
+    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
-  optRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 14 },
-  optRowSel: { backgroundColor: T.accentSoft },
-  optLabel: { fontFamily: F.semi, fontSize: 14, color: T.ink },
-  bestTag: { fontFamily: F.med, fontSize: 11, color: T.accent },
-  optMeta: { fontFamily: F.reg, fontSize: 11, color: T.ink2, marginTop: 1 },
-  optReason: { fontFamily: F.med, fontSize: 10.5, color: T.accent, marginTop: 1 },
-  optDose: { fontFamily: F.bold, fontSize: 16, fontVariant: ["tabular-nums"] },
+  doseChipTxt: { fontFamily: F.med, fontSize: 13, color: T.ink },
+
+  compareSheet: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  loadingTxt: { fontFamily: F.reg, fontSize: 13, color: T.ink3, marginTop: 8 },
   departRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginHorizontal: 16, marginTop: 6, marginBottom: 2,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: T.goSoft,
+  },
+  departTxt: { fontFamily: F.med, fontSize: 13, color: T.go },
+  startRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginTop: 8, paddingTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.glassBorder,
+    paddingHorizontal: 16, paddingVertical: 10,
   },
-  departHint: { fontFamily: F.semi, fontSize: 12.5, color: T.accent, flex: 1 },
-  remindTxt: { fontFamily: F.med, fontSize: 12, color: T.ink2, paddingLeft: 10 },
-  summarySub: { fontFamily: F.reg, fontSize: 11.5, color: T.ink3, marginTop: 9, textAlign: "center" },
-  arriveTxt: { fontFamily: F.reg, fontSize: 11, color: T.ink3, marginTop: 8, textAlign: "center" },
-  sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingTop: 4, paddingBottom: 6 },
-  sheetTitle: { fontFamily: F.semi, fontSize: 13, color: T.ink2, letterSpacing: 0.4 },
-  sheetX: { width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(87,83,78,0.10)", alignItems: "center", justifyContent: "center" },
-  sheetXTxt: { fontFamily: F.semi, fontSize: 11, color: T.ink2 },
-  optEta: { fontFamily: F.bold, fontSize: 15, color: T.ink, fontVariant: ["tabular-nums"] },
-  stepsBox: {
-    marginHorizontal: 10, marginBottom: 6, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 12, backgroundColor: "rgba(87,83,78,0.06)",
-    borderLeftWidth: 2, borderLeftColor: T.accent,
+  stepsBtn: { paddingVertical: 8, paddingHorizontal: 14 },
+  stepsBtnTxt: { fontFamily: F.med, fontSize: 14, color: T.ink2 },
+  goBtn: {
+    backgroundColor: T.go, borderRadius: 22, paddingHorizontal: 34, paddingVertical: 11,
   },
-  stepRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 3 },
-  stepDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: T.accent, marginTop: 6, marginRight: 8 },
-  stepTxt: { flex: 1, fontFamily: F.reg, fontSize: 12.5, color: T.ink },
-  stepDist: { fontFamily: F.reg, fontSize: 11.5, color: T.ink3 },
-  startBtn: {
-    marginTop: 8, marginHorizontal: 10, paddingVertical: 13, borderRadius: 16,
-    backgroundColor: T.accent, alignItems: "center",
+  goBtnTxt: { fontFamily: F.semi, fontSize: 16, color: T.ambientPaper },
+  stepsList: { paddingHorizontal: 16, paddingBottom: 10 },
+  stepRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 5, gap: 10 },
+  stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: T.go, marginTop: 5 },
+  stepTxt: { flex: 1, fontFamily: F.reg, fontSize: 14, color: T.ink, paddingHorizontal: 0, paddingBottom: 4 },
+  stepDist: { fontFamily: F.reg, fontSize: 12, color: T.ink3 },
+
+  navBanner: {
+    position: "absolute", top: 50, left: 12, right: 12,
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: T.ink, borderRadius: 16, padding: 14,
+    shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
-  startTxt: { fontFamily: F.semi, fontSize: 15, color: "#fff", letterSpacing: 0.6 },
-  sheetFoot: { fontFamily: F.reg, fontSize: 10.5, color: T.ink3, marginTop: 8, marginBottom: 4, textAlign: "center", paddingHorizontal: 16 },
-  navBanner: { position: "absolute", top: 60, left: 16, right: 16 },
-  navBannerIn: { borderRadius: 16, overflow: "hidden", padding: 14 },
-  navStep: { fontFamily: F.semi, fontSize: 16, color: T.ink },
-  navSub: { fontFamily: F.reg, fontSize: 11.5, color: T.ink2, marginTop: 3 },
-  navBar: { position: "absolute", bottom: 30, left: 16, right: 16 },
-  navBarIn: { borderRadius: 16, overflow: "hidden", padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  navEta: { fontFamily: F.bold, fontSize: 18, color: T.ink, fontVariant: ["tabular-nums"] },
-  navExit: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12, backgroundColor: "rgba(178,58,48,0.12)" },
-  navExitTxt: { fontFamily: F.semi, fontSize: 13, color: T.doseHigh ?? "#b23a30" },
-  introScrim: {
+  navInstr: { fontFamily: F.semi, fontSize: 17, color: T.ambientPaper },
+  navMeta: { fontFamily: F.reg, fontSize: 12, color: T.ink3, marginTop: 3 },
+  navX: { marginLeft: 10, padding: 6 },
+  liveDose: {
+    position: "absolute", bottom: 44, left: 16,
+    flexDirection: "row", alignItems: "center", gap: 7,
+    backgroundColor: T.ink, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10,
+    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  liveDoseTxt: { fontFamily: F.med, fontSize: 14, color: T.ambientPaper },
+  liveDoseSub: { fontFamily: F.reg, fontSize: 11, color: T.ink3 },
+
+  receipt: {
+    position: "absolute", top: 110, alignSelf: "center",
+    backgroundColor: T.surface, borderRadius: 16, padding: 16,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
+    elevation: 8, minWidth: 220,
+  },
+  receiptTitle: { fontFamily: F.semi, fontSize: 15, color: T.ink },
+  receiptNum: { fontFamily: F.bold, fontSize: 22, color: T.ink },
+  receiptSub: { fontFamily: F.reg, fontSize: 12, color: T.ink2, marginTop: 4, maxWidth: 240 },
+
+  intro: {
     position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
-    backgroundColor: "rgba(247,246,243,0.94)", alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(28,25,23,0.55)", alignItems: "center", justifyContent: "center", padding: 32,
   },
-  introCard: { width: 290, alignItems: "center" },
-  introTitle: { fontFamily: F.semi, fontSize: 26, color: T.accent, letterSpacing: -0.5 },
-  introBody: { fontFamily: F.reg, fontSize: 14, color: T.ink2, textAlign: "center", marginTop: 14, lineHeight: 21 },
-  introCta: { fontFamily: F.med, fontSize: 12, color: T.ink3, marginTop: 20 },
-  whyTxt: { fontFamily: F.reg, fontSize: 11.5, color: T.ink2, marginTop: 5, textAlign: "center", lineHeight: 16 },
+  introTitle: { fontFamily: F.bold, fontSize: 26, color: T.ambientPaper, textAlign: "center" },
+  introBody: {
+    fontFamily: F.reg, fontSize: 15, color: "#d6d3d1", textAlign: "center",
+    marginTop: 14, lineHeight: 22,
+  },
+  introBtn: {
+    marginTop: 26, backgroundColor: T.ambientPaper, borderRadius: 24,
+    paddingHorizontal: 30, paddingVertical: 12,
+  },
+  introBtnTxt: { fontFamily: F.semi, fontSize: 16, color: T.ink },
+
+  alertWrap: { position: "absolute", bottom: 40, left: 16, right: 16 },
 });

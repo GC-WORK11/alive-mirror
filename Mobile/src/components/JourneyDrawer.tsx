@@ -227,7 +227,7 @@ function Row({
   );
 }
 
-/** Navigation drawer — slides in from the left, google-maps style. */
+/** Profile sheet — slides up from the bottom over the map. */
 export function JourneyDrawer({ week, stats, community, shiftCig, escape, onAmbient, onReminders, onClose }: Props) {
   const [remOn, setRemOn] = useState(false);
 
@@ -244,9 +244,9 @@ export function JourneyDrawer({ week, stats, community, shiftCig, escape, onAmbi
     ];
     Share.share({ message: lines.filter(Boolean).join("\n") }).catch(() => {});
   };
-  const [slide] = useState(() => new Animated.Value(-Dimensions.get("window").width));
+  const [slide] = useState(() => new Animated.Value(Dimensions.get("window").height));
   useEffect(() => {
-    Animated.spring(slide, { toValue: 0, useNativeDriver: true, damping: 24, stiffness: 220 }).start();
+    Animated.spring(slide, { toValue: 0, useNativeDriver: true, damping: 26, stiffness: 240 }).start();
   }, [slide]);
 
   const [open, setOpen] = useState<SectionKey | null>("trips");
@@ -261,7 +261,7 @@ export function JourneyDrawer({ week, stats, community, shiftCig, escape, onAmbi
   return (
     <>
       <Pressable style={s.scrim} onPress={onClose} />
-      <Animated.View style={[s.drawer, { transform: [{ translateX: slide }] }]}>
+      <Animated.View style={[s.drawer, { transform: [{ translateY: slide }] }]}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
           {/* header: wordmark + this-week hero card */}
@@ -468,8 +468,9 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(28,25,23,0.28)",
   },
   drawer: {
-    position: "absolute", top: 0, bottom: 0, left: 0,
-    width: Math.min(Dimensions.get("window").width * 0.78, 340),
+    position: "absolute", left: 0, right: 0, bottom: 0,
+    maxHeight: Dimensions.get("window").height * 0.78,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
     backgroundColor: "rgba(255,255,255,0.98)",
     borderRightWidth: 1, borderColor: T.glassBorder,
     shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 24, shadowOffset: { width: 4, height: 0 },

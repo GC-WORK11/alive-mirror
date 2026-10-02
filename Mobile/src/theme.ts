@@ -1,18 +1,34 @@
-// Light professional theme — clean light canvas, near-opaque cards,
-// deep teal brand, rose semantic dose ramp (not traffic-light colors).
+// ALive-108 design tokens — monochrome canvas + one accent + one
+// dose ramp. Nothing else has color. (docs/24-design-language-spec.md)
 export const T = {
-  ink: "#1c1917",
-  ink2: "#57534e",
-  ink3: "#a8a29e",
-  paper: "#f7f6f3",
-  glass: "rgba(255,255,255,0.93)",
-  glassBorder: "rgba(28,25,23,0.08)",
-  accent: "#0f766e",
-  accentSoft: "rgba(15,118,110,0.10)",
-  doseLow: "#64748b",
-  doseMid: "#e11d48",
-  doseHigh: "#9f1239",
-  ambient: "#06070a",
+  ink: "#1C1917",
+  ink2: "#57534E",
+  ink3: "#A8A29E",
+  paper: "#F7F7F6",
+  surface: "#FCFCFB",
+  hairline: "#E7E5E4",
+  ambientInk: "#06070A",
+  ambientPaper: "#F5F5F4",
+
+  go: "#1D4ED8",          // the only accent — interactive elements only
+  goSoft: "rgba(29,78,216,0.08)",
+
+  // dose ramp — single hue, monotonic lightness; quiet = neutral
+  doseQuiet: "#78716C",
+  doseWarn: "#FB7185",
+  doseOver: "#E11D48",
+  doseSevere: "#9F1239",
+  doseExtreme: "#4C0519",
+
+  // legacy aliases kept for old components until they're rebuilt
+  glass: "#FCFCFB",
+  glassBorder: "#E7E5E4",
+  accent: "#1D4ED8",
+  accentSoft: "rgba(29,78,216,0.08)",
+  doseLow: "#78716C",
+  doseMid: "#E11D48",
+  doseHigh: "#9F1239",
+  ambient: "#06070A",
 };
 
 export const F = {
@@ -23,5 +39,17 @@ export const F = {
   bold: "Outfit_700Bold",
 };
 
+export const NUM = { fontVariant: ["tabular-nums" as const] };
+
+/** dose color — keyed to concentration vs the day's quiet band */
 export const doseColor = (avg: number | null | undefined) =>
-  avg == null || avg < 60 ? T.doseLow : avg < 130 ? T.doseMid : T.doseHigh;
+  avg == null || avg < 60 ? T.doseQuiet
+    : avg < 130 ? T.doseWarn
+    : avg < 250 ? T.doseOver
+    : avg < 400 ? T.doseSevere
+    : T.doseExtreme;
+
+/** cigarette-equivalents: 1 🚬 = 316µg inhaled PM2.5 */
+export const CIG_UG = 316;
+export const cigOf = (ug: number | null | undefined) =>
+  ug == null ? null : Math.round((ug / CIG_UG) * 100) / 100;

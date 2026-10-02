@@ -91,7 +91,26 @@ class AirField:
         self._wx: dict = {}  # ambient weather for the safety layer
         self._source = "open-meteo/cams"
         self._station_count = 0  # live OpenAQ sensor readings blended in
+        self._kalman: dict = {}  # station_id → [x, P] scalar Kalman state
         self._lock = asyncio.Lock()
+        self._sigma: Optional[float] = None  # krige std-dev at last query
+
+    def _smooth(self, key: str, lat: float, lon: float, v: float) -> float:
+        """Scalar Kalman filter per station — instruments spike on a gust
+        or a truck idling past; the field should track the sustained
+        level, not the jitter. R inflated for low-cost sensors."""
+        sid = f"{key}:{round(lat, 4)},{round(lon, 4)}"
+        Q, R = 12.0, 60.0  # process noise / measurement noise µg²
+        st = self._kalman.get(sid)
+        if st is None:
+            self._kalman[sid] = [v, R]
+            return v
+        x, P = st
+        P += Q
+        K = P / (P + R)
+        x = x + K * (v - x)
+        st[0], st[1] = x, (1 - K) * P
+        return x
 
     async def refresh(self, client: httpx.AsyncClient, force: bool = False) -> None:
         if not force and time.time() - self._fetched_at < CACHE_TTL and self._samples:
@@ -124,6 +143,7 @@ class AirField:
             )
             if results:
                 self._samples = self._debias(results + stations)
+                KF.fit(self._samples)
                 self._station_count = len(stations)
                 if stations:
                     self._source = "openaq-stations+open-meteo/cams"
@@ -262,8 +282,12 @@ class AirField:
                             if not best or ts > best["ts"]:
                                 best = {"ts": ts, "meta": meta, "v": float(v)}
                     if best:
-                        out.append((best["meta"]["lat"], best["meta"]["lon"],
-                                    best["meta"]["name"], {"pm2_5": best["v"]}))
+                        meta = best["meta"]
+                        # Kalman-smooth the raw read — tracks the sustained
+                        # level, damps instrument jitter/spikes
+                        v = self._smooth("pm2_5", meta["lat"], meta["lon"], best["v"])
+                        out.append((meta["lat"], meta["lon"], meta["name"],
+                                    {"pm2_5": round(v, 1)}))
                 except httpx.HTTPError:
                     pass
 
@@ -317,6 +341,22 @@ class AirField:
         air). Named stations still count 3x."""
         if not self._samples:
             return None
+        # kriged estimate + uncertainty when the variogram fit holds;
+        # citizen traversals then update it Bayesianly — a corridor of
+        # commutes sharpens the field where stations never reach
+        kr = KF.estimate(lat, lon)
+        if kr is not None and key == "pm2_5":
+            mu, sd = kr
+            ce = corridor_estimate(lat, lon)
+            if ce is not None:
+                c, csd, _n = ce
+                # precision-weighted posterior (Gaussian update)
+                var = 1.0 / (1.0 / (sd * sd) + 1.0 / (csd * csd))
+                mu = (mu / (sd * sd) + c / (csd * csd)) * var
+                sd = math.sqrt(var)
+            self._sigma = sd
+            return mu
+        self._sigma = None
         speed_kmh, from_deg = self._wind
         wf = min(1.0, speed_kmh / 30.0)  # calm => isotropic
         wind_from_rad = math.radians(from_deg)
@@ -345,6 +385,12 @@ class AirField:
     def value(self, lat: float, lon: float, pollutant: str = "pm2_5") -> Optional[float]:
         return self._concentration(lat, lon, pollutant)
 
+    def sigma(self, lat: float, lon: float) -> Optional[float]:
+        """Uncertainty (µg/m³ std-dev) of the last kriged read. None when
+        the IDW fallback ran — no fake precision."""
+        self._concentration(lat, lon, "pm2_5")
+        return self._sigma
+
     def nearest_sample_km(self, lat: float, lon: float) -> float:
         if not self._samples:
             return float("inf")
@@ -358,6 +404,7 @@ class AirField:
             "station_readings": self._station_count,
             "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
             "wind": self.wind(),
+            "kriging": "on" if KF.on else "idw",
         }
 
 
@@ -373,5 +420,8 @@ def grap_indicative(pm25: Optional[float]) -> dict:
     return {"indicative_stage": stage, "basis_pm25": round(pm25, 1),
             "note": "indicative only — legal GRAP stage is declared by CAQM"}
 
+
+from krige import KF  # noqa: E402
+from community import corridor_estimate  # noqa: E402
 
 FIELD = AirField()

@@ -53,7 +53,7 @@ function cellCentroid(g: GeoJSON.Geometry): [number, number] | null {
 }
 
 /** Live PM2.5 surface — one continuous translucent bloom over the
- * liberty basemap, like a radar layer. Centroid points weighted by
+ * monochrome basemap, like a radar layer. Centroid points weighted by
  * pm25×confidence feed a heatmap; the raw cells stay underneath as a
  * whisper-faint fill so the field's true footprint stays honest. */
 export function FieldLayer({ grid }: Props) {
@@ -82,10 +82,10 @@ export function FieldLayer({ grid }: Props) {
           paint={{
             "fill-color": [
               "interpolate", ["linear"], ["get", "pm25"],
-              0, "rgba(100,116,139,0.04)",
-              60, "rgba(100,116,139,0.05)",
+              0, "rgba(120,113,108,0.04)",
+              60, "rgba(120,113,108,0.05)",
               130, "rgba(225,29,72,0.07)",
-              300, "rgba(159,18,57,0.10)",
+              300, "rgba(76,5,25,0.10)",
             ],
             "fill-opacity": 0.9,
           }}
@@ -107,18 +107,18 @@ export function FieldLayer({ grid }: Props) {
               "interpolate", ["linear"], ["zoom"],
               9, 26, 12, 48, 15, 88,
             ],
-            "heatmap-opacity": 0.55,
+            "heatmap-opacity": 0.5,
             "heatmap-opacity-transition": { duration: 600 },
-            // slate → teal → amber → deep red, translucent so the
-            // basemap's streets and labels read through
+            // transparent → rose → crimson → deep (spec dose ramp),
+            // translucent so the basemap's streets and labels read through
             "heatmap-color": [
               "interpolate", ["linear"], ["heatmap-density"],
-              0, "rgba(100,116,139,0)",
-              0.15, "rgba(100,116,139,0.30)",
-              0.35, "rgba(15,118,110,0.50)",
-              0.55, "rgba(217,119,6,0.58)",
-              0.75, "rgba(225,29,72,0.62)",
-              1, "rgba(159,18,57,0.74)",
+              0, "rgba(120,113,108,0)",
+              0.15, "rgba(120,113,108,0.26)",
+              0.35, "rgba(251,113,133,0.44)",
+              0.55, "rgba(225,29,72,0.56)",
+              0.75, "rgba(159,18,57,0.66)",
+              1, "rgba(76,5,25,0.74)",
             ],
           }}
         />

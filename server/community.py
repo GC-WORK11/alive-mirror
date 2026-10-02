@@ -214,6 +214,83 @@ def _cell(lon: float, lat: float) -> tuple[float, float]:
     return (round(lon / 0.005) * 0.005, round(lat / 0.005) * 0.005)
 
 
+# mode microenv + ventilation lookups for backing ambient concentration
+# out of an inhaled dose — the environmental evidence a traversal carries
+from exposure import MICROENV, VENTILATION_LPM  # noqa: E402
+
+_OBS_FRESH_S = 72 * 3600  # traversals older than 3 days stop informing
+
+
+def corridor_field_samples() -> list:
+    """Traversal-implied ambient PM2.5 per corridor cell — the citizen
+    sensor network's real output.
+
+    Every observation carries dose(µg) = ∫ C·microenv·ve dt along its
+    path. Inverting it gives the ambient concentration the traveler
+    effectively breathed through, mode-corrected:
+        C_implied = dose_ug / (ve_lpm/1000 · duration_min · microenv)
+    Median per ~500m cell needs ≥3 fresh traversals — one journey is an
+    anecdote, a corridor of commutes is a measurement. Returned in the
+    (lat, lon, name, vals) sample shape AirField consumes; unnamed so
+    they weigh like model points (1×), never like stations (3×)."""
+    _load()
+    now = time.time()
+    cells: dict = {}
+    for o in _obs:
+        if now - o["ts"] > _OBS_FRESH_S or not o.get("dose_ug") or not o.get("duration_s"):
+            continue
+        ve = VENTILATION_LPM.get(o["vehicle"], 8.0) / 1000.0
+        me = MICROENV.get(o["vehicle"], 1.0)
+        dur_min = o["duration_s"] / 60.0
+        if dur_min < 0.5:
+            continue
+        c = o["dose_ug"] / (ve * dur_min * me)
+        if not (10 <= c <= 900):
+            continue
+        for lon, lat in o["points"]:
+            cell = _cell(lon, lat)
+            cells.setdefault(cell, []).append(c)
+    out = []
+    for (lon, lat), vals in cells.items():
+        if len(vals) < 3:
+            continue
+        vals.sort()
+        med = vals[len(vals) // 2]
+        out.append((lat, lon, None, {"pm2_5": round(med, 1)}))
+    return out
+
+
+def corridor_estimate(lat: float, lon: float):
+    """Traversal-implied ambient pm25 at a point: (µg, std-dev, n_obs).
+
+    IDW (p=2) over corridor cells within ~3km; the spread across cells
+    plus the shallow-sample noise sets the std-dev. None when the
+    citizen layer has no coverage there — no invented confidence."""
+    cells = corridor_field_samples()
+    if not cells:
+        return None
+    num = den = var_sum = n = 0.0
+    for slat, slon, _n, vals in cells:
+        c = (vals or {}).get("pm2_5")
+        if c is None:
+            continue
+        d = math.hypot(slat - lat, slon - lon)
+        if d > 0.03:  # ~3km coherence — citizen data is local
+            continue
+        w = 1.0 / max(d * d, 1e-8)
+        num += w * c
+        den += w
+        var_sum += w * c * c
+        n += 1
+    if not den or n == 0:
+        return None
+    mu = num / den
+    var = max(0.0, var_sum / den - mu * mu)
+    # instrument noise of a traversal-implied read ~40µg + spatial spread
+    sd = math.sqrt(var + 1600.0 / max(n, 1))
+    return mu, sd, n
+
+
 def corridors(limit: int = 10) -> list[dict]:
     """Where Delhi actually travels, ranked — donated traversal density
     per ~500m cell with average inhaled dose. This is street-level
