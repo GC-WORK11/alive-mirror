@@ -517,6 +517,50 @@ async def community_totals():
     return community.totals()
 
 
+@app.get("/escape")
+async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
+    """'Where is the air best near me right now' — scan the live field over
+    NCR, drop cells within 3km of the user (that's still 'here'), rank the
+    rest by PM2.5, reverse-name the best. Each answer carries its own
+    data-confidence so thin regions don't fake certainty."""
+    await FIELD.refresh(http())
+    home_v = FIELD.value(lat, lon, "pm2_5")
+    x0, y0, x1, y1 = grid.BBOX
+    cand = []
+    NX, NY = 16, 12
+    for ix in range(NX):
+        for iy in range(NY):
+            cx = x0 + (ix + 0.5) * (x1 - x0) / NX
+            cy = y0 + (iy + 0.5) * (y1 - y0) / NY
+            d_km = 111.3 * math.hypot(cx - lon, (cy - lat) * math.cos(math.radians(lat)))
+            if d_km < 3:
+                continue
+            v = FIELD.value(cy, cx, "pm2_5")
+            if v is None:
+                continue
+            cand.append({"lat": round(cy, 4), "lon": round(cx, 4), "pm25": round(v, 1),
+                         "dist_km": round(d_km, 1),
+                         "confidence": FIELD.nearest_sample_km(cy, cx)})
+    cand.sort(key=lambda c: c["pm25"])
+    best = cand[:limit]
+    for c in best:
+        try:
+            r = await http().get("https://photon.komoot.io/reverse",
+                                 params={"lat": c["lat"], "lon": c["lon"], "limit": 1})
+            feats = r.json().get("features", [])
+            if feats:
+                p = feats[0]["properties"]
+                c["name"] = p.get("name") or p.get("district") or p.get("street")
+        except httpx.HTTPError:
+            pass
+        conf = c.pop("confidence", None)
+        c["data_km"] = round(conf, 1) if conf is not None else None
+    if home_v is not None:
+        for c in best:
+            c["pct_less_than_here"] = round(100 * (1 - c["pm25"] / home_v))
+    return {"here_pm25": round(home_v, 1) if home_v else None, "best": best}
+
+
 @app.get("/decide")
 async def decide_route(from_lat: float, from_lon: float, to_lat: float, to_lon: float):
     """The recommendation endpoint: same options as /compare, each scored

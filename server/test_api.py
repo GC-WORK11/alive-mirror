@@ -146,6 +146,15 @@ async def main():
         r = await c.get("/admin")
         check("admin page html", r.status_code == 200 and "ALive-108" in r.text)
 
+        j = (await c.get("/escape", params={"lat": KB[0], "lon": KB[1], "limit": 5})).json()
+        best = j.get("best", [])
+        check("escape returns spots", 3 <= len(best) <= 5, len(best))
+        check("escape all cleaner", all(
+            b["pm25"] < (j.get("here_pm25") or 9999) for b in best),
+            [b.get("pm25") for b in best])
+        check("escape named", any(b.get("name") for b in best))
+        check("escape dist sane", all(b.get("dist_km", 0) >= 3 for b in best))
+
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)
 

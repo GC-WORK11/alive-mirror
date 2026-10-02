@@ -4,11 +4,14 @@ import { T, F, doseColor } from "../theme";
 import type { CommunityTotals } from "../community";
 import type { weekStats, stats as ledgerStats } from "../store/ledger";
 
+type EscapeSpot = { name?: string; pm25: number; pct_less_than_here?: number };
+
 type Props = {
   week: ReturnType<typeof weekStats>;
   stats: ReturnType<typeof ledgerStats>;
   community: CommunityTotals | null;
   shiftCig: number | null;
+  escape?: EscapeSpot | null;
   onClose: () => void;
 };
 
@@ -22,7 +25,7 @@ const timeAgo = (ts: number) => {
 };
 
 /** Journey drawer — your week, your trips, and what they gave Delhi. */
-export function JourneyDrawer({ week, stats, community, shiftCig, onClose }: Props) {
+export function JourneyDrawer({ week, stats, community, shiftCig, escape, onClose }: Props) {
   const [slide] = useState(() => new Animated.Value(-340));
   useEffect(() => {
     Animated.spring(slide, { toValue: 0, useNativeDriver: true, damping: 24, stiffness: 220 }).start();
@@ -102,6 +105,18 @@ export function JourneyDrawer({ week, stats, community, shiftCig, onClose }: Pro
               {"an 8-hr shift on a two-wheeler in this air ≈ "}{shiftCig}{" cigarettes —\n"}
               {"the daily price delhi's delivery and cab drivers pay\n"}
               {"to keep the city moving."}
+            </Text>
+          </View>
+        )}
+
+        {escape && (
+          <View style={s.city}>
+            <Text style={s.section}>{"breathe easiest right now"}</Text>
+            <Text style={s.cityText}>
+              {escape.name ?? "nearby"}{" — "}{Math.round(escape.pm25)}{" µg/m³"}
+              {escape.pct_less_than_here != null && escape.pct_less_than_here > 0
+                ? `\n${escape.pct_less_than_here}% less than here`
+                : ""}
             </Text>
           </View>
         )}

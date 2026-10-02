@@ -142,6 +142,7 @@ export default function App() {
   const [trips, setTrips] = useState<Awaited<ReturnType<typeof loadTrips>>>([]);
   const [community, setCommunity] = useState<CommunityTotals | null>(null);
   const [shiftCig, setShiftCig] = useState<number | null>(null);
+  const [escape, setEscape] = useState<{ name?: string; pm25: number; pct_less_than_here?: number } | null>(null);
   const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [reportMode, setReportMode] = useState(false);
@@ -177,6 +178,13 @@ export default function App() {
     fetch(`${API}/community`).then((r) => r.json()).then(setCommunity).catch(() => {});
     fetch(`${API}/shift?lat=28.6139&lon=77.2090&hours=8&vehicle=driving_two_wheeler`)
       .then((r) => r.json()).then((j) => setShiftCig(j.cig_equiv ?? null)).catch(() => {});
+    (async () => {
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+      const lat = pos?.coords.latitude ?? DELHI[1];
+      const lon = pos?.coords.longitude ?? DELHI[0];
+      const r = await fetch(`${API}/escape?lat=${lat}&lon=${lon}&limit=3`).then((x) => x.json()).catch(() => null);
+      setEscape(r?.best?.[0] ?? null);
+    })();
     const poll = () => fetch(`${API}/reports`).then((r) => r.json()).then(setReports).catch(() => {});
     poll();
     const iv = setInterval(poll, 60000);
@@ -700,7 +708,7 @@ export default function App() {
 
       {drawerOpen && (
         <JourneyDrawer week={weekStats(trips)} stats={ledger}
-          community={community} shiftCig={shiftCig}
+          community={community} shiftCig={shiftCig} escape={escape}
           onClose={() => setDrawerOpen(false)} />
       )}
 
