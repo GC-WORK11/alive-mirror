@@ -47,9 +47,11 @@ async def main():
         check("reverse names a place", bool(j.get("name")), j)
 
         # --- routing + dose -------------------------------------------
+        # /route chains several upstream OSRM calls — give the public
+        # demo router headroom before calling it a failure
         j = (await c.get("/route", params={
             "from_lat": KB[0], "from_lon": KB[1],
-            "to_lat": IG[0], "to_lon": IG[1], "vehicle": "car"})).json()
+            "to_lat": IG[0], "to_lon": IG[1], "vehicle": "car"}, timeout=90)).json()
         opts = j.get("routes") or j.get("options") or []
         check("route returns options", len(opts) >= 1)
         o = opts[0]

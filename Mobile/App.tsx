@@ -500,6 +500,24 @@ export default function App() {
     camRef.current?.setStop({ pitch: 55, duration: 800 });
   }, [options, selected, from, to]);
 
+  // live "you're breathing this now" while navigating — samples the
+  // field at the device position every ~25s and shows it in the banner
+  const [navConc, setNavConc] = useState<number | null>(null);
+  useEffect(() => {
+    if (!nav) { setNavConc(null); return; }
+    const tick = async () => {
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+      if (!pos) return;
+      const { latitude, longitude } = pos.coords;
+      if (!(longitude > 76.75 && longitude < 77.95 && latitude > 28.15 && latitude < 28.98)) return;
+      const j = await fetch(`${API}/aqi?lat=${latitude}&lon=${longitude}`).then((r) => r.json()).catch(() => null);
+      if (j?.pm25 != null) setNavConc(Math.round(j.pm25));
+    };
+    tick();
+    const iv = setInterval(tick, 25000);
+    return () => clearInterval(iv);
+  }, [nav]);
+
   const exitNav = useCallback(() => {
     setNav(false);
     setFollow(false);
@@ -988,6 +1006,13 @@ export default function App() {
               </Text>
               <Text style={s.navSub}>
                 {from?.name ?? ""} → {to?.name ?? ""}
+                {navConc != null
+                  ? `  ·  breathing ` : ""}
+                {navConc != null && (
+                  <Text style={{ color: doseColor(navConc), fontFamily: F.semi }}>
+                    {navConc} µg/m³
+                  </Text>
+                )}
               </Text>
             </BlurView>
           </View>
