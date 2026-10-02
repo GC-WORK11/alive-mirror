@@ -406,11 +406,17 @@ export default function App() {
         navDoseRef.current += j.pm25 * micro * (ventLpm / 1000) * dtMin;
         setNavDose(Math.round(navDoseRef.current * 10) / 10);
       }
+      // arrival: within ~80 m of the destination, end nav → receipt
+      if (to) {
+        const dLat = (pos.coords.latitude - to.lat) * 110.6;
+        const dLon = (pos.coords.longitude - to.lon) * 99.4;
+        if (Math.sqrt(dLat * dLat + dLon * dLon) * 1000 < 80) exitNav();
+      }
     };
     tick();
     const iv = setInterval(tick, 25000);
     return () => clearInterval(iv);
-  }, [phase, options, selected]);
+  }, [phase, options, selected, to]);
 
   const exitNav = useCallback(() => {
     setPhase("compare");
