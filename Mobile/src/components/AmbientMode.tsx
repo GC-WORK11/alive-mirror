@@ -60,7 +60,7 @@ const s = StyleSheet.create({
   },
   clock: { fontFamily: F.light, fontSize: 84, color: "#e7e5e4", letterSpacing: 2 },
   pm: { fontFamily: F.semi, fontSize: 96, color: "#d6d3d1", marginTop: 24 },
-  pmLabel: { fontFamily: F.reg, fontSize: 13, color: "#57534e", letterSpacing: 3, textTransform: "uppercase" },
+  pmLabel: { fontFamily: F.reg, fontSize: 13, color: "#57534e", letterSpacing: 3 },
   best: { fontFamily: F.med, fontSize: 15, color: T.accent, marginTop: 28 },
   loc: { fontFamily: F.reg, fontSize: 12, color: "#57534e", marginTop: 8, letterSpacing: 1 },
   dot: {
