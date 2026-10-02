@@ -78,3 +78,42 @@ check, `None` when an endpoint is >2.5 km from the network.
 ```
 cd server && .venv312/bin/python -m unittest tests.test_transit -v
 ```
+
+## GTFS upgrade (Oct 2026) — `server/transit_real.py`
+
+The synthetic graph above is now the **fallback**. When the GTFS cache is
+loaded, `transit.metro_option` returns a real journey instead:
+
+- **Feeds (no keys, public):**
+  - Metro — the DMRC GTFS embedded in the `dmrc-rs` crate tarball
+    (static.crates.io; resolves the newest version via the crates.io API):
+    262 stations, 37 route directions, ~128k stop_times, real track
+    `shapes.txt` polylines, calendar through Dec 2025.
+  - Bus — DTC + DIMTS cluster-bus GTFS via the Mobility Database mirror
+    (transitland `delhi-bus.zip`): ~6.3k stops, ~2.9k routes.
+- **Cache:** `server/data/gtfs/<feed>/` (gitignored). Re-fetched after 7
+  days in a background thread; stale cache keeps serving. Parsed indexes
+  are pickled beside the txts so restarts are fast.
+- **Journey math:** nearest GTFS stop to each endpoint → Dijkstra over
+  the directed stop graph where every consecutive-stop edge costs the
+  **median of its scheduled stop_times deltas** across all trips. Line
+  changes cost 6 min (`TRANSFER_PENALTY_S`); street-level transfers the
+  feed models as separate stops get <350 m walk links (e.g. Noida
+  Sec-52 ⇄ Sector 51, Sikanderpur Yellow ⇄ Rapid). Edges with no
+  timetable sample fall back to haversine × 33 km/h — the task's stated
+  fallback.
+- **What's real in the response now:** `stations.board`/`alight` are GTFS
+  stop names; `stations.lines`, `stations.via` (transfer stations),
+  `stations.transfers`, `stations.stops_ridden`; the metro leg's
+  `geometry` is the real track polyline sliced from shapes.txt;
+  `duration_model: "gtfs"`. Bus options gain an additive `transit` key:
+  nearest DTC/cluster stops to both ends plus direct route names
+  (e.g. `347A` for ITO → Noida Electronic City).
+- **Contract:** additive only — `/decide`, `/compare`, and the app need
+  no changes; the union type in `Bridge/contract.ts` gained `"gtfs"`.
+  Verified: Connaught Place → Noida Sector 18 returns Rajiv Chowk →
+  Noida Sector 18 (Blue, 12 stops, ~31 min ride + access), and the
+  2.5 km access gate still returns `None` for far endpoints.
+- **Still synthetic:** the walk access legs (straight-line, same honesty
+  envelope as before) and the synthetic fallback when the feeds can't
+  load — the API never depends on transit_real.

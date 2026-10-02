@@ -53,7 +53,7 @@ class TestMetroOption(unittest.TestCase):
         self.assertIsNotNone(opt)
         self.assertEqual(opt["vehicle"], "metro")
         self.assertEqual(opt["mode"], "metro")
-        self.assertEqual(opt["duration_model"], "estimated")
+        self.assertIn(opt["duration_model"], ("estimated", "gtfs"))
 
         legs = opt["legs"]
         self.assertEqual([l["type"] for l in legs], ["walk", "metro", "walk"])
@@ -99,6 +99,45 @@ class TestMetroOption(unittest.TestCase):
         self.assertIsNone(opt["exposure"]["dose_ug"])
         for l in opt["legs"]:
             self.assertIsNone(l["dose_ug"])
+
+
+class TestRealGTFS(unittest.TestCase):
+    """Exercises transit_real only when its cache is present — the module
+    must degrade silently everywhere else."""
+
+    def setUp(self):
+        self.tr = getattr(transit, "transit_real", None)
+        if self.tr is None:
+            self.skipTest("transit_real unavailable")
+        import time
+        for _ in range(300):  # bg thread parses the feed once
+            if self.tr._STATE.get("metro") is not None:
+                break
+            time.sleep(0.1)
+        if self.tr._STATE.get("metro") is None:
+            self.skipTest("GTFS cache not loaded")
+
+    def test_real_metro_journey(self):
+        j = self.tr.metro_journey(*CONNAUGHT_PLACE, *NOIDA_SEC_18)
+        self.assertIsNotNone(j)
+        self.assertEqual(j["board"], "Rajiv Chowk")
+        self.assertEqual(j["alight"], "Noida Sector 18")
+        self.assertIn("Blue", j["lines"])
+        self.assertGreater(j["ride_s"], 300)
+        self.assertGreater(len(j["geometry"]["coordinates"]), 2)
+
+    def test_option_uses_real_names(self):
+        opt = transit.metro_option(*CONNAUGHT_PLACE, *NOIDA_SEC_18, FIELD150)
+        self.assertEqual(opt["duration_model"], "gtfs")
+        self.assertEqual(opt["stations"]["board"], "Rajiv Chowk")
+
+    def test_bus_hint_shape(self):
+        if self.tr._STATE.get("bus") is None:
+            self.skipTest("bus feed not loaded")
+        h = self.tr.bus_hint(*CONNAUGHT_PLACE, *NOIDA_SEC_18)
+        if h is not None:
+            self.assertIn("board_stop", h)
+            self.assertIn("direct_routes", h)
 
 
 if __name__ == "__main__":
