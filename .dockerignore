@@ -1,0 +1,44 @@
+# Root-context excludes. NOTE: no build path uses the repo root today —
+# deploy.sh + buildspec build `server/` only (server/.dockerignore applies
+# there). This file guards ad-hoc `docker build .` invocations so worktrees,
+# venvs and app bundles can never leak into an image.
+
+# parallel-lane worktrees (can be GBs, contain other branches' state)
+.wt/
+
+# VCS / editor
+.git
+.gitignore
+.DS_Store
+
+# python envs / caches anywhere in the tree
+**/__pycache__/
+*.pyc
+**/.venv/
+**/.venv*/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# node / expo / native mobile builds (multi-GB, platform-specific)
+**/node_modules/
+.expo/
+Mobile/android/build/
+Mobile/android/.gradle/
+Mobile/ios/Pods/
+Mobile/ios/build/
+Mobile/ios/DerivedData/
+
+# secrets
+.env
+.env.*
+
+# regenerable data artifacts (mirrors server/.dockerignore)
+server/data/field/
+server/data/gtfs/
+server/data/community.json
+server/data/corpus/dl/
+server/data/corpus/delhi-corpus.jsonl.gz
+server/data/corpus/delhi-gazetteer-150k.json
+server/core/build/
+tools/corpus-venv/
