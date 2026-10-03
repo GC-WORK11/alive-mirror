@@ -256,13 +256,16 @@ export function ReceiptSheet({
                   ? `  ·  ${r1(co2.lo)}–${r1(co2.hi)} kg`
                   : ""}
               </Text>
-              {data.pm25G != null && data.pm25G.hi > 0 && (
-                <Text style={[s.detailTxt, NUM]} {...DYNAMIC_TYPE}>
-                  {t("receipt_pmBand", lang, {
-                    lo: r2(data.pm25G.lo), hi: r2(data.pm25G.hi),
-                  })}
-                </Text>
-              )}
+              {data.pm25G != null && data.pm25G.hi > 0 && (() => {
+                const lo = r2(data.pm25G.lo), hi = r2(data.pm25G.hi);
+                /* a band that collapses at display precision: never print
+                   "0–0"; a true-zero print would overstate, so a sub-
+                   resolution band says <0.01 instead */
+                const txt = lo === hi
+                  ? (hi === 0 ? t("receipt_pmBandTiny", lang) : t("receipt_pmBandOne", lang, { x: hi }))
+                  : t("receipt_pmBand", lang, { lo, hi });
+                return <Text style={[s.detailTxt, NUM]} {...DYNAMIC_TYPE}>{txt}</Text>;
+              })()}
               {data.alt && data.alt.co2KgMid != null && (
                 <Text style={[s.detailTxt, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
                   {t("receipt_altPutOut", lang, {
