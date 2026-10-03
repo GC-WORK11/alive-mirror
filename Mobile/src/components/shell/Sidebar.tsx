@@ -522,7 +522,7 @@ const s = StyleSheet.create({
     minHeight: 50, paddingHorizontal: 14, paddingVertical: 10,
   },
   rowPressed: { backgroundColor: V2T.surface2 },
-  rowDangerPress: { backgroundColor: "#2E1E23" },
+  rowDangerPress: { backgroundColor: "#FBEAEA" },
   rowIcon: { width: 24, alignItems: "center" },
   rowMid: { flex: 1 },
   rowLabel: { fontSize: V2Type.secondary, color: V2T.text },

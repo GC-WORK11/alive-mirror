@@ -86,10 +86,10 @@ export function FieldLayer({ grid }: Props) {
           paint={{
             "fill-color": [
               "interpolate", ["linear"], ["get", "pm25"],
-              0, "rgba(154,164,178,0.04)",
-              60, "rgba(154,164,178,0.05)",
-              130, "rgba(240,138,60,0.07)",
-              300, "rgba(229,72,77,0.10)",
+              0, "rgba(138,147,163,0.05)",
+              60, "rgba(138,147,163,0.07)",
+              130, "rgba(176,118,59,0.10)",
+              300, "rgba(138,45,62,0.14)",
             ],
             "fill-opacity": 0.9,
           }}
@@ -117,12 +117,12 @@ export function FieldLayer({ grid }: Props) {
             // basemap's streets and labels read through
             "heatmap-color": [
               "interpolate", ["linear"], ["heatmap-density"],
-              0, "rgba(154,164,178,0)",
-              0.15, "rgba(154,164,178,0.22)",
-              0.35, "rgba(242,193,78,0.40)",
-              0.55, "rgba(240,138,60,0.52)",
-              0.75, "rgba(229,72,77,0.62)",
-              1, "rgba(229,72,77,0.72)",
+              0, "rgba(138,147,163,0)",
+              0.15, "rgba(138,147,163,0.20)",
+              0.35, "rgba(176,118,59,0.34)",
+              0.55, "rgba(179,83,85,0.46)",
+              0.75, "rgba(138,45,62,0.56)",
+              1, "rgba(122,32,52,0.66)",
             ],
           }}
         />

@@ -15,14 +15,13 @@ const WIN_H = () => Dimensions.get("window").height;
 
 /** Solid "accent wash" — accent composited 14% over surface2. No rgba surface
  *  fills: every card/row in the kit is opaque so the map never ghosts through. */
-const SEL_TINT = "#243146";
+const SEL_TINT = V2T.accentTint;
 
-/** AlertBanner severities — solid fills + muted borders, pre-composited over
- *  `surface` (info/warn/danger accents at 12% fill, 45% border). */
+/** AlertBanner severities — solid light fills + muted borders. */
 const ALERT_SEV = {
-  info:   { glyph: "info" as Glyph, color: V2T.accent,  bg: "#1C2638", border: "#28477C" },
-  warn:   { glyph: "warn" as Glyph, color: V2T.breath1, bg: "#302C23", border: "#735E2C" },
-  danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "#2E1E23", border: "#6D282C" },
+  info:   { glyph: "info" as Glyph, color: V2T.accent,  bg: "#E8EDFB", border: "#A9BEF2" },
+  warn:   { glyph: "warn" as Glyph, color: V2T.breath1, bg: "#FBF0DA", border: "#D9B468" },
+  danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "#FBEAEA", border: "#DFA0A2" },
 } as const;
 
 /** Bottom sheet — grabber + optional X. Dark surface, hairline top edge. */

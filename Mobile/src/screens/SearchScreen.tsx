@@ -451,7 +451,7 @@ export function SearchScreen({
       statusBarTranslucent
     >
       <View style={ss.backdrop}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         {visible ? (
           <SearchSheet
             onSelect={onSelect}

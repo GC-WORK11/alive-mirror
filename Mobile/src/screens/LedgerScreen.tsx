@@ -558,7 +558,7 @@ export function LedgerScreen({
       statusBarTranslucent
     >
       <View style={ss.backdrop}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         {visible ? <LedgerSheet onClose={onClose} lang={lang} /> : null}
       </View>
     </Modal>

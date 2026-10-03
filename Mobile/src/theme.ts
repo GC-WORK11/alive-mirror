@@ -1,5 +1,5 @@
-// ALive-108 design tokens — v2 dark design system (docs/plan/03-design-system.md).
-// r4 refresh: graphite/ink ramp + solid-surface doctrine (docs/plan/theme-r4.md).
+// ALive-108 design tokens — v2 LIGHT design system (docs/plan/03-design-system.md).
+// r5 refresh: light chrome + light basemap (paper/ink), muted editorial ramp.
 // V2T / V2Type / V2Radius are the contract other lanes build on — keep names+keys.
 import type { Lang } from "./i18n/strings";
 
@@ -13,54 +13,53 @@ import type { Lang } from "./i18n/strings";
 // rgba() is reserved for scrims and data overlays — never a surface fill.
 // Pre-composited accentWash/accentTint replace translucent accent washes.
 export const V2T = {
-  // canvas + elevation ladder — all solid
-  bg: "#090B0F",
-  surface: "#12151B",
-  surface2: "#1B2029", // raised: inputs, pressed rows, pills
-  surface3: "#242B37", // top solid step: floating controls, pressed-on-raised
+  // canvas + elevation ladder — all solid. LIGHT chrome: the app is paper-
+  // light with ink text; only the map stays dark (map* tokens below).
+  bg: "#F2F4F8",        // cool off-white canvas
+  surface: "#FFFFFF",   // cards/sheets — pure white
+  surface2: "#ECEEF3",  // raised: inputs, pressed rows, pills
+  surface3: "#E0E3EA",  // top solid step: floating controls
 
-  // semantic surfaces (same solid step as `surface` — sheets/cards are never
-  // translucent; the map must not bleed through a sheet)
-  sheet: "#12151B",
-  card: "#12151B",
+  // semantic surfaces — sheets/cards are never translucent
+  sheet: "#FFFFFF",
+  card: "#FFFFFF",
 
   // borders
-  line: "#2A303C",     // dividers, default 1-px edges
-  hairline: "#333C4A", // crisp card/sheet edge — 1.6:1 on surface
+  line: "#E2E5EB",     // dividers, default 1-px edges
+  hairline: "#D4D8E1", // crisp card/sheet edge — visible on white
 
-  // scrims stay rgba — tuned blue-black (was flat rgba(0,0,0,…))
-  scrim: "rgba(5,7,11,0.45)",     // sheet backdrops
-  scrimDeep: "rgba(5,7,11,0.60)", // drawer / full takeover
+  // scrims stay dark + rgba — they overlay the dark map
+  scrim: "rgba(10,14,22,0.42)",     // sheet backdrops
+  scrimDeep: "rgba(10,14,22,0.58)", // drawer / full takeover
 
-  text: "#F2F4F7",   // 16.6:1 surface · 14.8:1 surface2
-  text2: "#A6ADB9",  //  8.1:1 surface ·  7.2:1 surface2
-  text3: "#8A94A0",  //  5.9:1 surface ·  5.3:1 surface2 · 4.6:1 surface3
-  accent: "#4F90FF", // the one interactive colour; `bg` text on it: 6.3:1
+  text: "#14181F",   // 15.9:1 surface · 14.1:1 surface2
+  text2: "#4A5161",  //  7.3:1 surface ·  6.5:1 surface2
+  text3: "#65707F",  //  5.0:1 surface ·  4.5:1 surface2 · 4.6:1 surface3
+  accent: "#2456D6", // deep interactive blue; white text on it: 7.0:1,
+                     // accent-as-text on surface: 6.6:1
 
   // SOLID accent washes — pre-composited accent @8% / @12% over `sheet`.
-  // Drop-in for "rgba(76,141,255,0.08|0.12)" selected states; accent text on
-  // accentTint still reads 5.0:1.
-  accentWash: "#171F2D",
-  accentTint: "#192436",
+  accentWash: "#E8EDFB",
+  accentTint: "#DDE6FA",
 
-  // smoke you breathe — warm ramp, light → heavy
-  breath1: "#F2C14E", //  9.7:1 surface2
-  breath2: "#F08A3C", //  6.5:1 surface2
-  breath3: "#F26366", //  5.3:1 surface2 · 4.6:1 surface3 (was #EE5A5F: 4.2:1 on s3)
+  // smoke you breathe — muted editorial ramp (bronze → brick → wine).
+  // No traffic-light amber, no emoji red — print-quality hues.
+  breath1: "#A1662F", //  bronze   ~5.0:1 surface
+  breath2: "#A34446", //  brick    ~5.4:1 surface
+  breath3: "#8A2D3E", //  wine     ~8.0:1 surface
   // smoke your ride puts out — cool greys
-  out1: "#9AA4B2",
-  out2: "#6E7A8A",
-  out3: "#3E4754",
-  pinDest: "#E5484D",
-  // map overrides — same ink family as the UI ramp. Park tint is cool slate:
-  // the "no green" rule applies to the basemap too (old #121A15 read
-  // green-black on OLED at night).
-  mapMotorway: "#383F4B",
-  mapPrimary: "#2B313C",
-  mapMinor: "#222730",
-  mapBuilding: "#181D25",
-  mapWater: "#0C1520",
-  mapPark: "#10151D",
+  out1: "#5C6675",
+  out2: "#8791A0",
+  out3: "#B4BBC7",
+  pinDest: "#B33A42", // deep brick pin — reads on paper + light map
+  // map tokens mirror the LIGHT basemap (v2-light.json) — kept for any
+  // chrome that echoes map colours.
+  mapMotorway: "#C9C7BA",
+  mapPrimary: "#D8D6CD",
+  mapMinor: "#E0DED5",
+  mapBuilding: "#E5E2D9",
+  mapWater: "#C7D9EA",
+  mapPark: "#DFE8DF",
 } as const;
 
 export const V2Type = {
@@ -132,7 +131,7 @@ export const T = {
   doseWarn: V2T.breath1,
   doseOver: V2T.breath2,
   doseSevere: V2T.breath3,
-  doseExtreme: "#A93A3F",
+  doseExtreme: "#7C2D3E",
 
   glass: V2T.sheet,
   glassBorder: V2T.hairline,

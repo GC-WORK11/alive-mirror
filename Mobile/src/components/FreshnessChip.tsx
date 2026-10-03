@@ -85,8 +85,8 @@ export function freshnessTone(
 /** Status-hue dot per tone. Green lives only here — a freshness signal,
  *  not a dose colour (see header note). */
 const DOT: Record<FreshnessTone, string> = {
-  fresh: "#4CC38A",   // soft green — legible on V2T.surface2, dark-safe
-  ok: V2T.breath1,    // #F2C14E amber — same hue as the mild smoke ramp
+  fresh: "#1E874B",   // live green — 4.7:1 on white surfaces
+  ok: V2T.breath1,    // amber — same hue as the mild smoke ramp
   stale: V2T.text3,   // muted — stale data is quiet, not alarming
   unknown: V2T.text3,
 };

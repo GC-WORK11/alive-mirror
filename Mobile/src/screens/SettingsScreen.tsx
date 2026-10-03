@@ -460,7 +460,7 @@ export function SettingsScreen({
       statusBarTranslucent
     >
       <View style={ss.backdrop}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         {visible ? (
           <SettingsSheet
             onClose={onClose}
