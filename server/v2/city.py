@@ -98,6 +98,36 @@ def _field_stats(vals: list) -> dict:
     }
 
 
+_SPECIES = ("pm10", "nitrogen_dioxide", "ozone", "carbon_monoxide",
+            "sulphur_dioxide", "ammonia", "us_aqi", "dust",
+            "aerosol_optical_depth")
+
+
+def _species(F) -> dict:
+    """Field-mean of every other real species over the same 15-pt lattice.
+    Snapshot-serving fields carry pm25 only — a species that returns None
+    everywhere is honestly omitted, never interpolated into fiction."""
+    out = {}
+    for sp in _SPECIES:
+        vals = []
+        for la in _LATS:
+            for lo in _LONS:
+                try:
+                    v = F.value(la, lo, sp)
+                except Exception:
+                    v = None
+                if v is not None:
+                    vals.append(float(v))
+        if vals:
+            out[sp] = {
+                "mean": round(statistics.fmean(vals), 1),
+                "median": round(statistics.median(vals), 1),
+                "max": round(max(vals), 1),
+                "n": len(vals),
+            }
+    return out
+
+
 def _breath_band(vals: list, sigs: list) -> dict:
     """The hero figure: what a day of breathing Delhi's air adds up to.
 
@@ -301,6 +331,7 @@ async def city():
         "generated_at": datetime.fromtimestamp(
             now, tz=timezone.utc).isoformat(timespec="seconds"),
         "pm25_stats": _field_stats(vals),
+        "species": _species(F),
         "breath": _breath_band(vals, sigs),
         "field": fstat,
         "field_age_s": fstat.get("age_s"),

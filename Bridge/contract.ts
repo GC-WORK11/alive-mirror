@@ -533,6 +533,11 @@ export interface V2CityResponse {
   ts: number;
   generated_at?: string;
   pm25_stats: Record<string, unknown>;
+  /** Field-mean stats per extra species over the same NCR lattice —
+      a species is omitted (not nulled) when the serving field has
+      no data for it. Keys are open-meteo names. */
+  species?: Record<string, { mean: number; median: number; max: number;
+                             n: number }>;
   breath?: {
     pm25_ugm3: V2Band;
     day_inhaled_ug: V2Band;

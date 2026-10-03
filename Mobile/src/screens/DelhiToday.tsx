@@ -293,6 +293,43 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
               ) : null}
             </View>
 
+            {/* the other instruments in the air — real field species,
+                city mean; a species the field doesn't serve is simply
+                absent, never zero-filled */}
+            {(() => {
+              const sp = data.species;
+              if (!sp) return null;
+              const items: string[] = [];
+              const push = (key: string, label: string) => {
+                const v = sp[key];
+                if (v) items.push(`${label} ${v.mean}`);
+              };
+              push("pm10", "PM10");
+              push("nitrogen_dioxide", "NO₂");
+              push("ozone", "O₃");
+              push("carbon_monoxide", "CO");
+              push("sulphur_dioxide", "SO₂");
+              push("ammonia", "NH₃");
+              const aqi = sp.us_aqi;
+              if (aqi) items.push(`US AQI ${Math.round(aqi.mean)}`);
+              if (!items.length) return null;
+              return (
+                <>
+                  <Text style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                    {t("citySpeciesTitle", lang)}
+                  </Text>
+                  <Text style={[ss.speciesLine, NUM,
+                               { fontFamily: fam(lang, "reg") }]}>
+                    {items.join(" · ")}
+                  </Text>
+                  <Text style={[ss.speciesNote,
+                               { fontFamily: fam(lang, "reg") }]}>
+                    {t("citySpeciesNote", lang)}
+                  </Text>
+                </>
+              );
+            })()}
+
             {/* measured streets — k>=3 aggregates, heaviest first */}
             <Text style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
               {t("cityStreetsTitle", lang)}
@@ -559,6 +596,19 @@ const ss = StyleSheet.create({
     marginHorizontal: 18,
     marginTop: 4,
     lineHeight: 22,
+  },
+  speciesLine: {
+    color: V2T.text2,
+    fontSize: V2Type.secondary,
+    marginHorizontal: 18,
+    marginTop: 4,
+    lineHeight: 22,
+  },
+  speciesNote: {
+    color: V2T.text3,
+    fontSize: V2Type.label,
+    marginHorizontal: 18,
+    marginTop: 2,
   },
 
   whyBtn: {

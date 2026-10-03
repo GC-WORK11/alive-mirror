@@ -39,6 +39,13 @@ export type CityPayload = {
   ts: number;
   generated_at?: string;
   pm25_stats?: { n: number; mean?: number; median?: number; max?: number };
+  /** Every other real species the field serves — lattice mean/median/max
+      over the same NCR points; a species is omitted when the serving
+      field has no data for it (never guessed). */
+  species?: Record<
+    string,
+    { mean: number; median: number; max: number; n: number }
+  >;
   /** The hero figure — null when the field has no data (never faked). */
   breath: {
     pm25_ugm3: CityBand;
