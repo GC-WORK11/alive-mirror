@@ -232,7 +232,7 @@ function OnboardingSheet({
                   icon="cigarette"
                   iconColor={V2T.breath1}
                   title={t("nav_breathe", lang)}
-                  subs={[t("nav_cigs", lang, { n: 0.1 })]}
+                  subs={[t("onboard_breatheSub", lang)]}
                 />
                 {/* when you arrive — the receipt's two real lines */}
                 <JourneyRow
@@ -240,8 +240,8 @@ function OnboardingSheet({
                   icon="flag"
                   title={t("youreHere", lang)}
                   subs={[
-                    t("receipt_breathed", lang, { n: 0.1 }),
-                    t("receipt_putOutKg", lang, { n: 1.4 }),
+                    t("onboard_receiptSub1", lang),
+                    t("onboard_receiptSub2", lang),
                   ]}
                   last
                 />
