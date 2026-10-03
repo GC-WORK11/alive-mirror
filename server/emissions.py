@@ -46,6 +46,11 @@ Anchors used (all from repo docs):
     separate per-vkm band, NEVER folded into the headline numbers.
 """
 
+try:  # C++ span-accumulation kernel — parity-verified vs integrate() below
+    import alive_core as _ac
+except Exception:
+    _ac = None
+
 # --- calibration ----------------------------------------------------------
 REF_SPEED_MPS = 30.0 / 3.6      # ≈8.33 m/s — MIDC urban-average; ef(v)=1 here
 V_OPT_MPS = 50.0 / 3.6          # curve minimum ≈50 km/h (COPERT structure)
@@ -501,60 +506,76 @@ def integrate(vehicle, spans, cold_km_done=0.0):
     d = max(0.0, float(cold_km_done or 0.0))   # km since cold start
     tot_km = 0.0
 
-    for s in spans or []:
-        dist_m = float(s.get("dist_m") or 0.0)
-        v = float(s.get("speed_mps") or 0.0)
-        moving = bool(s.get("moving", True))
+    r = None
+    if _ac is not None:
+        try:  # C++ kernel — identical math, test_integrate_emissions_vs_*
+            r = _ac.integrate_emissions(spans or [], band, idle, cold, nx,
+                                        d, occ)
+        except Exception:
+            r = None
+    if r is not None:  # C++ path applies occupancy itself
+        acc = {"co2": list(r["co2_g"]), "pm25": list(r["pm25_g"]),
+               "nox": list(r["nox_g"])}
+        acc_nx = list(r["non_exhaust_pm10_g"])
+        moving_mid = dict(r["moving_mid_g"])
+        idle_mid = dict(r["idle_mid_g"])
+        cold_mid = dict(r["cold_extra_mid_g"])
+        tot_km = r["distance_km"]
+    else:
+        for s in spans or []:
+            dist_m = float(s.get("dist_m") or 0.0)
+            v = float(s.get("speed_mps") or 0.0)
+            moving = bool(s.get("moving", True))
 
-        if moving and dist_m > 0.0:
-            km = dist_m / 1000.0
-            tot_km += km
-            # cold-zone overlap [d, d+km] ∩ [0, COLD_KM]
-            cold_len = min(d + km, COLD_KM) - d if d < COLD_KM else 0.0
-            warm_len = km - max(0.0, cold_len)
-            for p in acc:
-                f = speed_factor(p, v)
-                sw = 1.0 + 0.2 * abs(f - 1.0)      # speed-curve uncertainty
-                lo, mid, hi = band[p]
-                km_lo, km_mid, km_hi = lo * f / sw, mid * f, hi * f * sw
-                if cold_len > 0.0:
-                    c = cold[p]
-                    ml = _cold_avg_mult(1.0 + (c - 1.0) * 0.7, d, cold_len)
-                    mm = _cold_avg_mult(c, d, cold_len)
-                    mh = _cold_avg_mult(1.0 + (c - 1.0) * 1.3, d, cold_len)
-                    acc[p][0] += km_lo * (cold_len * ml + warm_len)
-                    acc[p][1] += km_mid * (cold_len * mm + warm_len)
-                    acc[p][2] += km_hi * (cold_len * mh + warm_len)
-                    cold_mid[p] += km_mid * cold_len * (mm - 1.0)
-                else:
-                    acc[p][0] += km_lo * km
-                    acc[p][1] += km_mid * km
-                    acc[p][2] += km_hi * km
-                moving_mid[p] += km_mid * km
-            for i in range(3):
-                acc_nx[i] += nx[i] * km
-            d += km
-        else:
-            # idle bucket — accrue per second, never per km
-            dur = s.get("dur_s")
-            if dur is None:
-                dur = dist_m / v if v > 0.3 else 0.0
-            dur = max(0.0, float(dur))
+            if moving and dist_m > 0.0:
+                km = dist_m / 1000.0
+                tot_km += km
+                # cold-zone overlap [d, d+km] ∩ [0, COLD_KM]
+                cold_len = min(d + km, COLD_KM) - d if d < COLD_KM else 0.0
+                warm_len = km - max(0.0, cold_len)
+                for p in acc:
+                    f = speed_factor(p, v)
+                    sw = 1.0 + 0.2 * abs(f - 1.0)      # speed-curve uncertainty
+                    lo, mid, hi = band[p]
+                    km_lo, km_mid, km_hi = lo * f / sw, mid * f, hi * f * sw
+                    if cold_len > 0.0:
+                        c = cold[p]
+                        ml = _cold_avg_mult(1.0 + (c - 1.0) * 0.7, d, cold_len)
+                        mm = _cold_avg_mult(c, d, cold_len)
+                        mh = _cold_avg_mult(1.0 + (c - 1.0) * 1.3, d, cold_len)
+                        acc[p][0] += km_lo * (cold_len * ml + warm_len)
+                        acc[p][1] += km_mid * (cold_len * mm + warm_len)
+                        acc[p][2] += km_hi * (cold_len * mh + warm_len)
+                        cold_mid[p] += km_mid * cold_len * (mm - 1.0)
+                    else:
+                        acc[p][0] += km_lo * km
+                        acc[p][1] += km_mid * km
+                        acc[p][2] += km_hi * km
+                    moving_mid[p] += km_mid * km
+                for i in range(3):
+                    acc_nx[i] += nx[i] * km
+                d += km
+            else:
+                # idle bucket — accrue per second, never per km
+                dur = s.get("dur_s")
+                if dur is None:
+                    dur = dist_m / v if v > 0.3 else 0.0
+                dur = max(0.0, float(dur))
+                for p in acc:
+                    for i in range(3):
+                        acc[p][i] += idle[p][i] * dur
+                    idle_mid[p] += idle[p][1] * dur
+
+        # shared modes: everything above is vehicle-level → per passenger
+        if occ > 1.0:
             for p in acc:
                 for i in range(3):
-                    acc[p][i] += idle[p][i] * dur
-                idle_mid[p] += idle[p][1] * dur
-
-    # shared modes: everything above is vehicle-level → per passenger
-    if occ > 1.0:
-        for p in acc:
+                    acc[p][i] /= occ
+                idle_mid[p] /= occ
+                moving_mid[p] /= occ
+                cold_mid[p] /= occ
             for i in range(3):
-                acc[p][i] /= occ
-            idle_mid[p] /= occ
-            moving_mid[p] /= occ
-            cold_mid[p] /= occ
-        for i in range(3):
-            acc_nx[i] /= occ
+                acc_nx[i] /= occ
 
     def _kg(t):
         return _band(t[0] / 1000.0, t[1] / 1000.0, t[2] / 1000.0, nd=4)
