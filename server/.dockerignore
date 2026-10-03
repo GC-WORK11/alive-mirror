@@ -1,0 +1,41 @@
+# Build-context excludes for `docker build server/` (deploy.sh + buildspec).
+# Rationale per entry is documented in docs/plan/docker-notes.md.
+
+# VCS / editor
+.git
+.gitignore
+.DS_Store
+
+# python caches + local envs — the uv venv must never reach the image
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.venv*/
+
+# secrets — repo carries none by design; keep it that way
+.env
+.env.*
+
+# host-native C++ build output — the image compiles its own (builder stage);
+# a host .so copied in would be wrong-arch / wrong-toolchain half the time
+core/build/
+
+# test code — pytest runs outside the image (`cd server && uv run pytest`)
+tests/
+test_api.py
+core/bench/
+
+# regenerable runtime data — bundling stale outputs makes /health lie:
+# field_age_s would report image-build age instead of "no snapshot yet" (null)
+data/field/
+data/gtfs/
+data/community.json
+
+# container/deploy metadata — not needed inside the image
+Dockerfile
+.dockerignore
+buildspec.yml
+deploy-aws.sh
