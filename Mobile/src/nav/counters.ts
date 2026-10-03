@@ -82,11 +82,13 @@ export class LiveCounters {
     this.doseUg.mid += add(conc.mid, conc.lo ?? conc.hi);
     this.doseUg.hi += add(conc.hi, cMid);
 
-    if (!curve) return;
+    // odometer is independent of the emissions curve — a strip failure
+    // must not zero the receipt's distance (testnav F1)
     const ddKm = Math.max(0, ddM) / 1000;
     const v = Math.max(0, speedMps || 0);
     this.travelledM += Math.max(0, ddM);
     const km = this.travelledM / 1000;
+    if (!curve) return;
 
     if (curve.co2_g_pkm) {
       // shared mode: per passenger-km, no idle/cold (doc 06 §2)

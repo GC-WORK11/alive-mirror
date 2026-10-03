@@ -568,7 +568,7 @@ export function LedgerScreen({
 export default LedgerScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)" },
+  backdrop: { flex: 1, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
     marginTop: Platform.select({

@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { AppState } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { API } from "../components/shell/net";
@@ -24,6 +25,12 @@ import { fieldAtAlongM, stripCumM, type Band, type RouteStrip } from "./strip";
 import { CueTracker, speakCue, stopCues, type NavStep } from "./speech";
 import type { Lang } from "../i18n/strings";
 
+const WATCH_OPTS: Location.LocationOptions = {
+  accuracy: Location.Accuracy.BestForNavigation,
+  timeInterval: 1000,
+  distanceInterval: 5,
+  mayShowUserSettingsDialog: true,
+};
 const REROUTE_COOLDOWN_MS = 15000;
 const MAX_TRAJ = 4900; // under server's 5000-point guard (trip.py)
 
@@ -94,6 +101,7 @@ export function useNavEngine(opts: NavEngineOpts) {
   // --- mutable session state (refs: survive renders, drive the loops)
   const subRef = useRef<Location.LocationSubscription | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appSubRef = useRef<ReturnType<typeof AppState.addEventListener> | null>(null);
   const countersRef = useRef(new LiveCounters());
   const offRef = useRef(new OffRouteTracker());
   const arrRef = useRef(new ArrivalTracker());
@@ -150,6 +158,8 @@ export function useNavEngine(opts: NavEngineOpts) {
   const cleanup = useCallback(() => {
     subRef.current?.remove();
     subRef.current = null;
+    appSubRef.current?.remove();
+    appSubRef.current = null;
     if (tickRef.current) clearInterval(tickRef.current);
     tickRef.current = null;
     stopCues();
@@ -360,25 +370,47 @@ export function useNavEngine(opts: NavEngineOpts) {
     try {
       const perm = await Location.getForegroundPermissionsAsync();
       if (!perm.granted) await Location.requestForegroundPermissionsAsync();
-      subRef.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 1000,
-          distanceInterval: 5,
-          mayShowUserSettingsDialog: true,
-        },
-        onFix,
-      );
+      subRef.current = await Location.watchPositionAsync(WATCH_OPTS, onFix);
     } catch {
       // no permission / provider off — keep ticking; honest zero fixes
     }
     tickRef.current = setInterval(tick, 1000);
+    // perf-r4: backgrounding mid-nav must not keep GNSS + the 1 Hz loop
+    // burning battery — pause both, re-arm on return (counter math uses
+    // real dt, so the pause is honest)
+    appSubRef.current?.remove();
+    appSubRef.current = AppState.addEventListener("change", (st) => {
+      if (!runningRef.current) return;
+      if (st === "active") {
+        if (!tickRef.current) tickRef.current = setInterval(tick, 1000);
+        if (!subRef.current)
+          Location.watchPositionAsync(WATCH_OPTS, onFix)
+            .then((s) => { subRef.current = s; })
+            .catch(() => {});
+      } else {
+        subRef.current?.remove();
+        subRef.current = null;
+        if (tickRef.current) {
+          clearInterval(tickRef.current);
+          tickRef.current = null;
+        }
+      }
+    });
   }, [loadRoute, onFix, refreshStrip, tick]);
 
   const stop = useCallback(() => {
     cleanup();
     setRunning(false);
   }, [cleanup]);
+
+  /** Recenter the camera on the last fix (NavChrome's onRecenter seam). */
+  const recenter = useCallback(() => {
+    const f = lastFixRef.current;
+    if (!f) return;
+    camRef?.current?.easeTo({
+      center: [f.lon, f.lat], zoom: 16.8, pitch: 55, duration: 600,
+    });
+  }, [camRef]);
 
   useEffect(() => cleanup, [cleanup]);
   useEffect(() => {
@@ -387,7 +419,7 @@ export function useNavEngine(opts: NavEngineOpts) {
   }, []);
 
   return {
-    running, start, stop, arrive,
+    running, start, stop, arrive, recenter,
     dose, co2, pm25,
     progress, distRemainingM, etaS,
     offRoute, arrived, snapped, nextStep,

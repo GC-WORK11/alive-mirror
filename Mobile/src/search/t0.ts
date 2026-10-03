@@ -129,6 +129,9 @@ function build(): void {
       ids.length = PREFIX_CAP;
     }
 
+  // free the 2.7MB source array — the require()d JSON otherwise stays
+  // pinned in Metro's module registry for the app lifetime (perf-r4)
+  raw.length = 0;
   ENTRIES = entries;
   PREFIX = prefix;
 }

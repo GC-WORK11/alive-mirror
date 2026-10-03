@@ -33,9 +33,11 @@ import { t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
+  fetchCityMoves, type CityMovesPayload,
   type CityCorridor,
   type CityPayload,
 } from "../api/city";
+import { CityMoves } from "../components/CityMoves";
 
 const fmtCig = (v: number): string => (v < 1 ? v.toFixed(2) : v.toFixed(1));
 const fmtKm = (km: number): string =>
@@ -137,11 +139,13 @@ function WhyLine({ text, lang }: { text: string; lang: Lang }) {
 
 function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
   const [data, setData] = useState<CityPayload | null>(null);
+  const [moves, setMoves] = useState<CityMovesPayload | null>(null);
   const [failed, setFailed] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [nonce, setNonce] = useState(0);
 
-  /* fetch on mount / retry — aborted on close and between retries */
+  /* fetch on mount / retry — aborted on close and between retries;
+     moves is best-effort: a failure just leaves the card absent */
   useEffect(() => {
     const ctrl = new AbortController();
     fetchCity(ctrl.signal)
@@ -150,6 +154,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
         if (err instanceof Error && err.name === "AbortError") return;
         setFailed(true);
       });
+    fetchCityMoves(ctrl.signal).then(setMoves).catch(() => {});
     return () => ctrl.abort();
   }, [nonce]);
 
@@ -171,7 +176,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
           onPress={onClose}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="back"
+          accessibilityLabel={t("a11yBack", lang)}
           style={ss.barBtn}
         >
           <BackGlyph color={V2T.text2} />
@@ -337,6 +342,10 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
               </>
             ) : null}
 
+            {/* how Delhi actually moves — real donated aggregates (k≥3),
+                honest insufficient-data state inside the card */}
+            <CityMoves data={moves} lang={lang} />
+
             {/* why this is an estimate — the machinery lives here */}
             <Pressable
               onPress={() => setWhyOpen((o) => !o)}
@@ -428,7 +437,7 @@ export function DelhiToday({
 export default DelhiToday;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)" },
+  backdrop: { flex: 1, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
     marginTop: Platform.select({

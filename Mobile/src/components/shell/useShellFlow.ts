@@ -9,21 +9,25 @@ import { useCallback, useEffect, useMemo, useState, type RefObject } from "react
 import { Keyboard } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
-import { V2T } from "../../theme";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notify";
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
 import type { CommunityTotals } from "../../community";
 import {
   getVehicle, saveVehicle, planVehicle, type VehicleProfile,
 } from "../../store/vehicle";
-import { planOptions } from "../../api/plan";
+import { planOptions, type FieldStatus } from "../../api/plan";
+import { fetchStrip } from "../../api/strip";
+import { departCurveResult, type DepartCurve } from "../../api/depart";
+import { collectionsFor } from "../../map/routeTint";
+import type { RouteStrip } from "../../nav/strip";
+import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
 import type { Depart, Place, Step, V2Option } from "./types";
 
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
 
-export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean) {
+export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean, lang: "en" | "hi" = "en") {
   const [phase, setPhase] = useState<Phase>("idle");
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
@@ -37,7 +41,9 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planNonce, setPlanNonce] = useState(0);
-  const [planField, setPlanField] = useState<{ age_s?: number | null; source?: string } | null>(null);
+  const [planField, setPlanField] = useState<FieldStatus | null>(null);
+  const [strips, setStrips] = useState<Record<string, RouteStrip>>({});
+  const [departCurve, setDepartCurve] = useState<DepartCurve | null>(null);
   const [vehicle, setVehicle] = useState<VehicleProfile | null>(null);
   const [vehicleLoaded, setVehicleLoaded] = useState(false);
   const [notified, setNotified] = useState(false);
@@ -79,12 +85,12 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     if (!from) {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       setFrom(pos
-        ? { name: "current location", subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude }
-        : { name: "central delhi", subtitle: "", lat: DELHI[1], lon: DELHI[0] });
+        ? { name: t("placeCurrentLocation", lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude }
+        : { name: t("placeCentralDelhi", lang), subtitle: "", lat: DELHI[1], lon: DELHI[0] });
     }
     setPhase("compare");
     camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 13.5, duration: 800 });
-  }, [editWhich, from, to, camRef]);
+  }, [editWhich, from, to, camRef, lang]);
 
   /* ---- routes: destination+origin set → /v2/plan + legacy /depart ---- */
   useEffect(() => {
@@ -109,6 +115,16 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         const opts = pj.options;
         setOptions(opts); setSelected(0);
         setPlanField(pj.field);
+        setStrips({});
+        // per-route PM2.5 strips → the gradient tint resolves from flat
+        // dose-mean into real along-route colour as each lands (cached
+        // 15 min, failures leave the flat tint — never faked)
+        for (const o of opts) {
+          if (!o.route_id) continue;
+          fetchStrip(o.route_id).then((s) => {
+            if (!cancelled) setStrips((m) => (m[o.route_id!] ? m : { ...m, [o.route_id!]: s }));
+          }).catch(() => {});
+        }
         const g = opts[0]?.geometry;
         if (g?.type === "LineString") {
           const c = (g as GeoJSON.LineString).coordinates;
@@ -131,17 +147,25 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const retryPlan = useCallback(() => setPlanNonce((n) => n + 1), []);
 
   /* ---- leave-time window follows the SELECTED mode (was hardcoded
-     vehicle=auto — claims audit: the window must model the chosen ride) ---- */
+     vehicle=auto — claims audit: the window must model the chosen ride).
+     Full 24h curve via departCurveResult (fetchCached → last-good +
+     stale label free); `depart` stays the legacy best-slot shape. ---- */
   useEffect(() => {
     const mode = options[selected]?.mode;
     if (phase !== "compare" || !from || !to || !mode) return;
     let cancelled = false;
-    const qs = `from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}`;
-    fetchJson(`${API}/depart?${qs}&vehicle=${mode}&hours=24`)
-      .then((dj) => {
-        if (!cancelled) setDepart(dj?.best ? { best: dj.best, ug_saved_vs_now: dj.ug_saved_vs_now } : null);
+    departCurveResult(
+      { from: { lat: from.lat, lon: from.lon }, to: { lat: to.lat, lon: to.lon }, vehicle: mode })
+      .then((r) => {
+        if (cancelled) return;
+        const c = r.ok ? r.data : null;
+        setDepartCurve(c?.slots?.length ? c : null);
+        setDepart(c?.best
+          ? { best: { hours_ahead: c.best.hour, start: c.best.start, dose_ug: c.best.dose_mid },
+              ug_saved_vs_now: c.ug_saved_vs_now }
+          : null);
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) { setDepartCurve(null); setDepart(null); } });
     return () => { cancelled = true; };
   }, [phase, from, to, options, selected]);
 
@@ -168,7 +192,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   }, [selected, options, from, to]);
 
   const clearRoute = useCallback(() => {
-    setTo(null); setOptions([]); setDepart(null); setSteps(null); setStepsOpen(false);
+    setTo(null); setOptions([]); setDepart(null); setDepartCurve(null);
+    setSteps(null); setStepsOpen(false); setStrips({});
     setPlanError(null); setPlanField(null);
     setPhase("idle"); setFollow(false);
   }, []);
@@ -210,27 +235,11 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     } catch { /* ledger write is best-effort */ }
   }, [from, to]);
 
-  const routeSegs = useMemo<GeoJSON.FeatureCollection>(() => {
-    const segs = options[selected]?.segments;
-    if (!segs?.length) {
-      const g = options[selected]?.geometry;
-      const ok = g && (g.type === "LineString" ? (g as GeoJSON.LineString).coordinates.length >= 2
-        : g.type === "MultiLineString" && (g as GeoJSON.MultiLineString).coordinates.every((l) => l.length >= 2));
-      return { type: "FeatureCollection", features: ok ? [{ type: "Feature", properties: { color: V2T.accent }, geometry: g! }] : [] };
-    }
-    return { type: "FeatureCollection", features: segs
-      .filter((sg) => Array.isArray(sg.coords) && sg.coords.length >= 2)
-      .map((sg) => ({ type: "Feature" as const, properties: { color: sg.color },
-        geometry: { type: "LineString" as const, coordinates: sg.coords } })) };
-  }, [options, selected]);
-
-  const altSegs = useMemo<GeoJSON.FeatureCollection>(() => ({
-    type: "FeatureCollection",
-    features: options.map((o, i) => ({ o, i }))
-      .filter(({ o, i }) => i !== selected && o.geometry?.type === "LineString" &&
-        (o.geometry as GeoJSON.LineString).coordinates.length >= 2)
-      .map(({ o }) => ({ type: "Feature" as const, properties: {}, geometry: o.geometry! })),
-  }), [options, selected]);
+  /* route polylines tinted per ~250 m by field PM2.5 (r4-routegrad):
+     segments → strip → dose-avg → neutral, never invented. */
+  const tint = useMemo(() => collectionsFor(options, selected, strips), [options, selected, strips]);
+  const routeSegs = tint.selected;
+  const altSegs = tint.alts;
 
   const armDailyBrief = useCallback(async (): Promise<boolean> => {
     if (!(await requestPerms())) return false;
@@ -268,7 +277,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     phase, setPhase, from, setFrom, to, setTo,
     editWhich, setEditWhich, options, selected, setSelected,
     depart, notified, trips, setTrips, recordTrip, community, setCommunity, follow, setFollow,
-    loadingRoute, planError, retryPlan, planField,
+    loadingRoute, planError, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, armDailyBrief,

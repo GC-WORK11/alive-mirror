@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { LogBox, Pressable, StyleSheet, Text, View } from "react-native";
+import { LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
@@ -15,6 +15,8 @@ import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
 import { EndpointPin } from "./src/ui";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { ReportsLayer } from "./src/components/ReportsLayer";
+import { FreshnessChip } from "./src/components/FreshnessChip";
+import { fieldSources } from "./src/api/plan";
 import { FiresLayer, BlackspotsLayer } from "./src/components/HazardLayers";
 import { CorridorLayer } from "./src/components/CorridorLayer";
 import { SearchBar } from "./src/components/shell/SearchBar";
@@ -53,7 +55,7 @@ LogBox.ignoreLogs(["Invalid geometry in line layer"]);
 export default function App() {
   const camRef = useRef<CameraRef>(null);
   const [settings, setSettings] = useState<ShellSettings>(DEFAULT_SETTINGS);
-  const flow = useShellFlow(camRef, settings.share);
+  const flow = useShellFlow(camRef, settings.share, settings.lang);
   const { phase } = flow;
   const lang = settings.lang;
 
@@ -96,7 +98,7 @@ export default function App() {
       setHasLoc(!!r?.granted);
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       if (pos) {
-        setFrom({ name: "current location", subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
         camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 12.5, duration: 900 });
       }
     })();
@@ -150,7 +152,9 @@ export default function App() {
         <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[76.75, 28.15, 77.95, 28.98]}
           trackUserLocation={flow.follow ? "default" : undefined}
           onTrackUserLocationChange={(e) => { if (!e.nativeEvent.trackUserLocation) flow.setFollow(false); }} />
-        {hasLoc && <UserLocation animated accuracy />}
+        {/* mounted only while locating — a permanent subscription idles
+            the GPS chip + animation loop for nothing (perf-r4) */}
+        {hasLoc && (phase === "nav" || flow.follow) && <UserLocation animated accuracy />}
         {layers.corridors && <CorridorLayer corridors={flow.community?.top_corridors ?? null} />}
         <ReportsLayer reports={reports} />
         {layers.fires && <FiresLayer fires={fires} />}
@@ -159,9 +163,11 @@ export default function App() {
           paint={{ "fill-extrusion-color": V2T.mapBuilding,
             "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
             "fill-extrusion-opacity": 0.6 }} />
+        {/* alternates keep their per-250m PM2.5 tint too — dimmer, thinner,
+            same breath ramp (routeTint collections feed both sources) */}
         <GeoJSONSource id="alts" data={flow.altSegs}>
           <Layer id="alts-line" type="line"
-            paint={{ "line-color": V2T.text3, "line-width": 2.5, "line-opacity": 0.4, "line-dasharray": [2, 2] }}
+            paint={{ "line-color": ["get", "color"], "line-width": 3, "line-opacity": 0.5 }}
             layout={{ "line-cap": "round", "line-join": "round" }} />
         </GeoJSONSource>
         <GeoJSONSource id="route" data={flow.routeSegs}>
@@ -238,9 +244,17 @@ export default function App() {
           </Text>
         </Pressable>
       )}
+      {phase === "compare" && flow.planField && (
+        <View style={s.freshWrap} pointerEvents="box-none">
+          <FreshnessChip
+            ageS={flow.planField.age_s} stale={flow.planField.stale}
+            sources={fieldSources(flow.planField)} lang={lang} compact />
+        </View>
+      )}
       {phase === "compare" && (
         <CompareSheet options={flow.options} selected={flow.selected} onSelect={flow.setSelected}
-          depart={flow.depart} notified={flow.notified} onRemind={flow.remind} loading={flow.loadingRoute}
+          depart={flow.depart} departCurve={flow.departCurve} notified={flow.notified}
+          onRemind={flow.remind} loading={flow.loadingRoute}
           steps={flow.steps} stepsOpen={flow.stepsOpen} onToggleSteps={() => flow.setStepsOpen(!flow.stepsOpen)}
           onStart={flow.startNav} onClose={flow.clearRoute} lang={lang}
           vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}
@@ -260,13 +274,22 @@ export default function App() {
         onDelhiToday={() => { setSidebarOpen(false); setDelhiOpen(true); }}
         onTripReceipt={() => { setSidebarOpen(false); setLedgerOpen(true); }}
         onFullSettings={() => { setSidebarOpen(false); setSettingsOpen(true); }}
-        onNavigate={(p) => flow.pick({ ...p, subtitle: "" }, "to")} />
+        onNavigate={(p) => flow.pick({ ...p, subtitle: "" }, "to")}
+        onLang={(l) => patchSettings({ lang: l })}
+        onShare={() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {})}
+        onShareTrip={(tr) => Share.share({
+          message: t("shareTripBody", lang, {
+            from: tr.from, to: tr.to,
+            dose: tr.dose_ug != null ? `~${Math.round(tr.dose_ug)}µg` : "—",
+          }),
+        }).catch(() => {})} />
       <LayersSheet visible={layersOpen} values={layers} onToggle={toggleLayer}
         onClose={() => setLayersOpen(false)} lang={lang} />
       <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} />
       <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} />
       <SettingsScreen visible={settingsOpen} onClose={() => setSettingsOpen(false)}
         lang={lang} current={settings} onArmBrief={flow.armDailyBrief}
+        onDeleteData={deleteAll}
         onChange={(k: string, v?: unknown) => {
           if (k === "editVehicle") { setSettingsOpen(false); setVehicleOpen(true); return; }
           patchSettings({ [k]: v } as Partial<ShellSettings>);
@@ -346,6 +369,8 @@ function NavSession({
       doseUg: nav.stripOk === false ? null : summary.doseUg,
       co2Kg: summary.co2Kg,
       pm25G: summary.pm25G,
+      distanceKm: summary.distanceKm,
+      mode: option.mode,
       worstDoseUg: worstDose > 0 ? worstDose : null,
       worstLabel: worstOpt?.label ?? null,
       alt: altEmit
@@ -354,11 +379,20 @@ function NavSession({
       fieldAgeMin: nav.fieldAgeMin,
       donated: summary.donated,
     };
-    return <ReceiptSheet data={data} lang={lang} onDone={onExit} />;
+    return (
+      <ReceiptSheet data={data} lang={lang} onDone={onExit}
+        onShare={() => Share.share({
+          message: t("shareTripBody", lang, {
+            from: to?.name ?? "?", to: to?.name ?? "?",
+            dose: summary.doseUg.mid != null ? `~${Math.round(summary.doseUg.mid)}µg` : "—",
+          }),
+        }).catch(() => {})} />
+    );
   }
   return (
     <NavChrome option={option} steps={steps} doseUg={0}
-      nav={nav} onExit={() => nav.arrive()} lang={lang} />
+      nav={nav} onRecenter={nav.recenter}
+      onExit={() => nav.arrive()} lang={lang} />
   );
 }
 
@@ -373,6 +407,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: V2T.line,
   },
   offlineTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text2 },
+  freshWrap: { position: "absolute", top: 108, left: 16 },
   receipt: {
     position: "absolute", top: 116, alignSelf: "center",
     backgroundColor: V2T.surface, borderRadius: V2Radius.sheet, padding: 16,

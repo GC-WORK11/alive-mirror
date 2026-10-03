@@ -477,7 +477,7 @@ export function Sidebar({
 }
 
 const s = StyleSheet.create({
-  scrim: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.55)" },
+  scrim: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: V2T.scrimDeep },
   drawer: {
     position: "absolute", left: 0, top: 0, bottom: 0, width: DRAWER_W,
     backgroundColor: V2T.bg, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: V2T.line,
@@ -522,7 +522,7 @@ const s = StyleSheet.create({
     minHeight: 50, paddingHorizontal: 14, paddingVertical: 10,
   },
   rowPressed: { backgroundColor: V2T.surface2 },
-  rowDangerPress: { backgroundColor: "rgba(238,90,95,0.10)" },
+  rowDangerPress: { backgroundColor: "#2E1E23" },
   rowIcon: { width: 24, alignItems: "center" },
   rowMid: { flex: 1 },
   rowLabel: { fontSize: V2Type.secondary, color: V2T.text },
@@ -548,7 +548,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8,
     borderRadius: V2Radius.pill, borderWidth: 1, borderColor: V2T.line,
   },
-  chipOn: { borderColor: V2T.accent, backgroundColor: "rgba(76,141,255,0.10)" },
+  chipOn: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
   chipTxt: { fontSize: V2Type.label, color: V2T.text },
 
   todayRow: { flexDirection: "row", alignItems: "stretch" },

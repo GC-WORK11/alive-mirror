@@ -230,10 +230,9 @@ describe("accumulator behaviour", () => {
     assert.ok(c.doseUg.mid > 0);
     assert.equal(c.co2G.lo, 0);
     assert.equal(c.pm25G.lo, 0);
-    // FINDING F1: travelledM also stays 0 with no curve — a strip-failure
-    // trip would report distanceKm 0 on the arrival receipt even though
-    // the user moved (engine.ts:193 feeds the receipt from travelledM).
-    assert.equal(c.travelledM, 0);
+    // F1 FIXED: travelledM accrues with or without a curve — a strip
+    // failure no longer reports distanceKm 0 on the receipt.
+    assert.equal(c.travelledM, 1000);
   });
 
   it("reset() zeroes everything", () => {

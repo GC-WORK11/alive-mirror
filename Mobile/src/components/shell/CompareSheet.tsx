@@ -29,6 +29,8 @@ import { NUM, V2Radius, V2T, V2Type, doseColor, fam } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
 import { Sheet } from "../../ui";
 import { t, type Lang, type StringKey } from "../../i18n/strings";
+import { DepartGraph } from "../DepartGraph";
+import type { DepartCurve } from "../../api/depart";
 import {
   getVehicle, saveVehicle, vehicleLabel, type VehicleProfile,
 } from "../../store/vehicle";
@@ -40,14 +42,14 @@ const arrivalLabel = (durationMin: number) => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-const hourLabel = (iso: string | null, ahead: number) => {
+const hourLabel = (iso: string | null, ahead: number, lang: Lang) => {
   if (iso) {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
     if (!isNaN(d.getTime())) {
       const ist = new Date(d.getTime() + 5.5 * 3600 * 1000);
       const hh = String(ist.getUTCHours()).padStart(2, "0");
       const today = new Date(Date.now() + 5.5 * 3600 * 1000);
-      return `${ist.getUTCDate() !== today.getUTCDate() ? "tomorrow " : ""}${hh}:30`;
+      return `${ist.getUTCDate() !== today.getUTCDate() ? t("departTomorrow", lang) + " " : ""}${hh}:30`;
     }
   }
   return `+${ahead}h`;
@@ -235,12 +237,14 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
 }
 
 export function CompareSheet({
-  options, selected, onSelect, depart, notified, onRemind,
+  options, selected, onSelect, depart, departCurve, notified, onRemind,
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
+  /** full 24h dose curve — mounts the leave-later graph when present */
+  departCurve?: DepartCurve | null;
   loading: boolean; steps: Step[] | null; stepsOpen: boolean;
   onToggleSteps: () => void; onStart: () => void; onClose: () => void; lang: Lang;
   /** v2 plan failure — honest retry state, never a silent /decide fallback */
@@ -329,12 +333,18 @@ export function CompareSheet({
                     {notified
                       ? t("wellPing", lang)
                       : t("leaveAtBreatheLess", lang, {
-                          time: hourLabel(depart.best.start, depart.best.hours_ahead),
+                          time: hourLabel(depart.best.start, depart.best.hours_ahead, lang),
                           n: Math.round(depart.ug_saved_vs_now),
                         })}
                   </Text>
                 </Pressable>
               )}
+              {departCurve?.slots?.length ? (
+                <View style={{ marginTop: 10, marginBottom: 4 }}>
+                  <DepartGraph data={departCurve.slots}
+                    bestHour={departCurve.best?.hour ?? 0} lang={lang} />
+                </View>
+              ) : null}
               {anyBars && (
                 <View style={s.legend}>
                   <View style={s.legendItem}>
@@ -452,8 +462,8 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 8,
     marginHorizontal: 14, marginTop: 6, marginBottom: 2, minHeight: 44,
     paddingHorizontal: 12, paddingVertical: 9, borderRadius: V2Radius.row,
-    backgroundColor: "rgba(76,141,255,0.12)",
-    borderWidth: 1, borderColor: "rgba(76,141,255,0.22)",
+    backgroundColor: V2T.accentTint,
+    borderWidth: 1, borderColor: V2T.accent,
   },
   departTxt: { fontSize: V2Type.label, color: V2T.accent, flex: 1 },
   legend: {
@@ -469,7 +479,7 @@ const s = StyleSheet.create({
     backgroundColor: V2T.surface2, borderWidth: 1, borderColor: V2T.line,
     overflow: "hidden",
   },
-  cardSel: { borderColor: V2T.accent, backgroundColor: "rgba(76,141,255,0.10)" },
+  cardSel: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
   cardRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 12, paddingHorizontal: 14, minHeight: 64,
@@ -481,7 +491,7 @@ const s = StyleSheet.create({
     borderRadius: V2Radius.pill, paddingHorizontal: 7, paddingVertical: 2,
     marginLeft: 8,
   },
-  chipAccent: { backgroundColor: "rgba(76,141,255,0.16)" },
+  chipAccent: { backgroundColor: V2T.accentTint },
   chipPlain: { backgroundColor: V2T.bg, borderWidth: 1, borderColor: V2T.line },
   chipTxt: { fontSize: V2Type.label },
   chipTxtAccent: { color: V2T.accent },
@@ -542,7 +552,7 @@ const s = StyleSheet.create({
     minHeight: 44, justifyContent: "center", borderRadius: V2Radius.pill,
     paddingHorizontal: 16, borderWidth: 1, borderColor: V2T.line,
   },
-  ghostBtnOn: { borderColor: V2T.accent, backgroundColor: "rgba(76,141,255,0.10)" },
+  ghostBtnOn: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
   ghostTxt: { fontSize: V2Type.secondary, color: V2T.text2 },
   ghostTxtOn: { color: V2T.accent },
   goBtn: {

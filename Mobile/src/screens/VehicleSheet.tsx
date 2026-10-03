@@ -332,7 +332,7 @@ export function VehicleSheet({
 export default VehicleSheet;
 
 const s = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  backdrop: { flex: 1, backgroundColor: V2T.scrim },
   sheet: { position: "absolute", bottom: 0, left: 0, right: 0 },
   headRow: { flexDirection: "row", alignItems: "center", paddingRight: 20 },
   q: { flex: 1, fontSize: V2Type.body, color: V2T.text, paddingLeft: 20, paddingRight: 8, paddingTop: 4, paddingBottom: 10 },
@@ -358,7 +358,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10, minHeight: 56,
   },
   cardHalf: { flex: 1 },
-  cardOn: { borderColor: V2T.accent, backgroundColor: "rgba(76,141,255,0.12)" },
+  cardOn: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
   cardBody: { flex: 1, gap: 1 },
   cardTxt: { fontSize: V2Type.secondary, color: V2T.text },
   cardCap: { fontSize: V2Type.label, color: V2T.text3 },
