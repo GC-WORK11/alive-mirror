@@ -17,7 +17,7 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from airfield import FIELD, grap_indicative
@@ -882,7 +882,28 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     }
 
 
-@app.get("/admin/api")
+def _admin_guard(request: Request):
+    """Gate for /admin/api* — the ops dashboard's data surface.
+
+    `ALIVE_ADMIN_TOKEN` set  → require `Authorization: Bearer <token>`.
+    Unset                  → loopback clients only (dev default); a real
+    deployment sits behind a LB, so remote callers get 403 until the
+    operator sets the token. The /admin HTML page itself is public —
+    it carries no data; every fetch it makes goes through this guard.
+    """
+    token = os.environ.get("ALIVE_ADMIN_TOKEN")
+    if token:
+        auth = request.headers.get("authorization", "")
+        if auth != f"Bearer {token}":
+            raise HTTPException(401, "admin token required")
+        return
+    host = request.client.host if request.client else ""
+    if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        raise HTTPException(
+            403, "admin api is loopback-only until ALIVE_ADMIN_TOKEN is set")
+
+
+@app.get("/admin/api", dependencies=[Depends(_admin_guard)])
 async def admin_api():
     """Live ops snapshot for the admin dashboard — anon ids only."""
     thirty_min = 30
@@ -1087,7 +1108,8 @@ except ImportError:
 except Exception:
     _admin_agg = None
 if _admin_agg is not None:
-    app.include_router(_admin_agg.router)
+    app.include_router(_admin_agg.router,
+                       dependencies=[Depends(_admin_guard)])
 
 try:  # /metrics + request logging
     import observability as _obs

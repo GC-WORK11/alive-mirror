@@ -114,7 +114,8 @@ export function Sidebar({
           </Text>
         </Pressable>
         {place ? (
-          <Pressable hitSlop={8} onPress={() => onSettings({ [slot]: null })}>
+          <Pressable hitSlop={8} onPress={() => onSettings({ [slot]: null })}
+            accessibilityRole="button" accessibilityLabel={t("a11yClearSaved", lang)}>
             <Icon name="close" color={V2T.text3} size={14} />
           </Pressable>
         ) : currentDest ? (
@@ -131,14 +132,16 @@ export function Sidebar({
       <Animated.View style={[s.scrim, {
         opacity: slide.interpolate({ inputRange: [-DRAWER_W, 0], outputRange: [0, 1] }),
       }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}
+          accessibilityRole="button" accessibilityLabel={t("settingsClose", lang)} />
       </Animated.View>
       <Animated.View style={[s.drawer, { transform: [{ translateX: slide }] }]}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
           {/* app mark + close */}
           <View style={s.brandRow}>
             <Text style={s.brand}>ALIVE-108</Text>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button"
+              accessibilityLabel={t("settingsClose", lang)}>
               <Icon name="close" color={V2T.text3} size={18} />
             </Pressable>
           </View>

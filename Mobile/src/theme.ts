@@ -12,12 +12,12 @@ export const V2T = {
   line: "#2A2F36",
   text: "#F2F4F7",
   text2: "#A3AAB5",
-  text3: "#6B7280",
+  text3: "#8A94A0", // a11y: 5.2:1 on surface2 — doc-03's ≥4.5 claim now true
   accent: "#4C8DFF",
   // smoke you breathe — warm ramp, light → heavy
   breath1: "#F2C14E",
   breath2: "#F08A3C",
-  breath3: "#E5484D",
+  breath3: "#EE5A5F", // a11y: 4.7:1 on surface2 — text use passes ≥4.5
   // smoke your ride puts out — cool greys
   out1: "#9AA4B2",
   out2: "#6E7A8A",

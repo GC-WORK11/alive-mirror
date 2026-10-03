@@ -32,7 +32,8 @@ export function SearchBar({
         </Text>
       </Pressable>
       {onClear ? (
-        <Pressable onPress={onClear} hitSlop={10} style={s.clearBtn} accessibilityRole="button">
+        <Pressable onPress={onClear} hitSlop={10} style={s.clearBtn} accessibilityRole="button"
+          accessibilityLabel={t("a11yClear", lang)}>
           <Icon name="close" color={V2T.text3} size={16} />
         </Pressable>
       ) : (

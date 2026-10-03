@@ -5,6 +5,8 @@
  *  (no field sigma → lo/hi null; no route → option absent). */
 import { API, postJson } from "../components/shell/net";
 import type { Band, PlanResult, V2Option } from "../components/shell/types";
+import { cacheKeys } from "./cache";
+import { fetchCached } from "../offline/net";
 
 /** `vehicle` is a class string the server understands: car | car_open |
  *  bike | auto | bus | metro | cycle | walk (+ aliases two_wheeler,
@@ -84,10 +86,25 @@ function toOption(raw: unknown): V2Option | null {
   };
 }
 
-/** One POST to `${API}/v2/plan`. Throws on transport/HTTP failure —
- *  callers show the retry state; there is no silent /decide fallback. */
+/** One POST to `${API}/v2/plan`, wrapped in last-good cache: offline →
+ *  the previous options for this ~100 m-rounded O/D pair come back and
+ *  the net-status pill labels them stale. Throws only when the network
+ *  fails AND nothing is cached — callers show the retry state. */
 export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<PlanResult> {
-  const j = (await postJson(`${API}/v2/plan`, req, timeoutMs)) as Record<string, unknown>;
+  const r = await fetchCached<PlanResult>(`${API}/v2/plan`, {
+    ttlMs: 15 * 60 * 1000,                       // field cadence is ~15 min
+    key: cacheKeys.plan(req.from.lat, req.from.lon, req.to.lat, req.to.lon),
+    timeoutMs,
+    fetcher: async () => {
+      const j = (await postJson(`${API}/v2/plan`, req, timeoutMs)) as Record<string, unknown>;
+      return mapPlan(j);
+    },
+  });
+  if (!r.ok) throw new Error("plan failed");
+  return r.data;
+}
+
+function mapPlan(j: Record<string, unknown>): PlanResult {
   const raw = Array.isArray(j.options) ? j.options : [];
   const field = j.field && typeof j.field === "object"
     ? (j.field as Record<string, unknown>)

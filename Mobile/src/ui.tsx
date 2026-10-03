@@ -14,10 +14,11 @@ const WIN_H = () => Dimensions.get("window").height;
 
 /** Bottom sheet — grabber + optional X. Dark surface, hairline top edge. */
 export function Sheet({
-  detent = "peek", onClose, children, style,
+  detent = "peek", onClose, children, style, lang = "en",
 }: {
   detent?: "peek" | "half" | "full";
   onClose?: () => void;
+  lang?: Lang;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -36,7 +37,8 @@ export function Sheet({
       <View style={us.grabberRow}>
         <View style={us.grabber} />
         {onClose && (
-          <Pressable onPress={onClose} hitSlop={10} style={us.sheetX} accessibilityRole="button">
+          <Pressable onPress={onClose} hitSlop={10} style={us.sheetX} accessibilityRole="button"
+            accessibilityLabel={t("settingsClose", lang)}>
             <Icon name="close" color={V2T.text3} size={16} />
           </Pressable>
         )}
@@ -172,12 +174,15 @@ export function MapButton({
 }
 
 /** Small one-line banner strip — hazard-grade events only. */
-export function AlertBanner({ text, onClose }: { text: string; onClose?: () => void }) {
+export function AlertBanner({ text, onClose, lang = "en" }: {
+  text: string; onClose?: () => void; lang?: Lang;
+}) {
   return (
     <View style={us.alert}>
       <Text style={us.alertTxt} numberOfLines={1}>{text}</Text>
       {onClose && (
-        <Pressable onPress={onClose} hitSlop={8}>
+        <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button"
+          accessibilityLabel={t("settingsClose", lang)}>
           <Icon name="close" color={V2T.text} size={14} />
         </Pressable>
       )}

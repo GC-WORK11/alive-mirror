@@ -170,7 +170,16 @@ const doseT=u=>Math.min(1,(u||0)/316);   /* 316µg = 1 cigarette */
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const emptyMsg=(t)=>`<div class="empty-state"><b>insufficient data</b>${t}</div>`;
 
-async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error(u+' '+r.status);return r.json()}
+/* admin api is token-gated when ALIVE_ADMIN_TOKEN is set (loopback-only
+   otherwise). Page prompts once, keeps the bearer in sessionStorage. */
+async function getJSON(u){
+  const tok=sessionStorage.getItem('alive_admin_tok');
+  const r=await fetch(u,tok?{headers:{authorization:'Bearer '+tok}}:{});
+  if(r.status===401||r.status===403){
+    const t=prompt('admin token (ALIVE_ADMIN_TOKEN):');
+    if(t){sessionStorage.setItem('alive_admin_tok',t);return getJSON(u)}
+  }
+  if(!r.ok)throw new Error(u+' '+r.status);return r.json()}
 
 async function tick(){
   let status,sources,corridors,donations,validation;

@@ -14,6 +14,7 @@ import { API } from "../components/shell/net";
 import { contributorId } from "../community";
 import { fetchStrip } from "../api/strip";
 import { postJson, postReroute } from "../api/reroute";
+import { enqueueTripDonation } from "../offline/queue";
 import { LiveCounters } from "./counters";
 import {
   ArrivalTracker, flattenCoords, havM, OffRouteTracker,
@@ -156,23 +157,26 @@ export function useNavEngine(opts: NavEngineOpts) {
   }, []);
 
   const donate = useCallback(async (s: NavSummary) => {
+    const donation = {
+      device_token: await contributorId(), // stable anonymous id (src/store)
+      trajectory: trajRef.current.map((p) => ({ lat: p.lat, lon: p.lon })),
+      summary: {
+        mode: s.mode,
+        distance_km: Math.round(s.distanceKm * 100) / 100,
+        duration_s: Math.round(s.durationS),
+        dose_ug: Math.round(s.doseUg.mid * 10) / 10,
+        co2_kg_mid: Math.round(s.co2Kg.mid * 1000) / 1000,
+        pm25_g_mid: Math.round(s.pm25G.mid * 1000) / 1000,
+      },
+    };
     try {
-      const token = await contributorId(); // stable anonymous id (src/store)
-      await postJson(`${api}/v2/trip`, {
-        device_token: token,
-        trajectory: trajRef.current.map((p) => ({ lat: p.lat, lon: p.lon })),
-        summary: {
-          mode: s.mode,
-          distance_km: Math.round(s.distanceKm * 100) / 100,
-          duration_s: Math.round(s.durationS),
-          dose_ug: Math.round(s.doseUg.mid * 10) / 10,
-          co2_kg_mid: Math.round(s.co2Kg.mid * 1000) / 1000,
-          pm25_g_mid: Math.round(s.pm25G.mid * 1000) / 1000,
-        },
-      }, 9000);
+      await postJson(`${api}/v2/trip`, donation, 9000);
       return true;
     } catch {
-      return false;
+      /* offline → outbox, not loss: flushes itself when the network
+         comes back (pill counts it until then) */
+      try { await enqueueTripDonation(api, donation); return true; }
+      catch { return false; }
     }
   }, [api]);
 

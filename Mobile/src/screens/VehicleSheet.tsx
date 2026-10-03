@@ -105,7 +105,7 @@ function Wizard({ lang, current, onDone, onClose }: {
     : null;
 
   return (
-    <Sheet detent="half" onClose={onClose} style={s.sheet}>
+    <Sheet detent="half" onClose={onClose} style={s.sheet} lang={lang}>
       {step === "done" ? (
         <View style={s.doneWrap}>
           <Text style={[s.doneTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleDone", lang)}</Text>

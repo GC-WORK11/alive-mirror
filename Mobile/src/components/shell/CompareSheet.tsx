@@ -143,7 +143,7 @@ export function CompareSheet({
 
   return (
     <View style={s.wrap}>
-      <Sheet detent="half" onClose={onClose}>
+      <Sheet detent="half" onClose={onClose} lang={lang}>
         {loading ? (
           <View style={{ paddingVertical: 26, alignItems: "center" }}>
             <ActivityIndicator size="small" color={V2T.accent} />

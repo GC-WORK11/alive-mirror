@@ -162,11 +162,13 @@ TD_ARN="$(run aws ecs register-task-definition \
     "environment":[
       {"name":"AWS_REGION","value":"'"$REGION"'"},
       {"name":"COMMUNITY_BUCKET","value":"'"$BUILD_BUCKET"'"},
-      {"name":"AIR_BUCKET","value":"alive108-air"},
+      {"name":"ALIVE_AIR_BUCKET","value":"alive108-air"},
       {"name":"AGG_TABLE","value":"alive108-agg"},
       {"name":"BUILD_SHA","value":"'"$TAG"'"}],
     "secrets":[{"name":"OPENAQ_API_KEY",
-      "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/openaq"}],
+      "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/openaq"},
+      {"name":"ALIVE_ADMIN_TOKEN",
+      "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/admin-token"}],
     "logConfiguration":{"logDriver":"awslogs","options":{
       "awslogs-group":"/ecs/alive108","awslogs-region":"'"$REGION"'",
       "awslogs-stream-prefix":"api","awslogs-create-group":"true"}}}]' \

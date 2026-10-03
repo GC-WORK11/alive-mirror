@@ -208,6 +208,8 @@ const en = {
   arriveAt: "arrive {t}",
   breathedSoFar: "breathed ≈ {n} so far",
   offline: "server offline — retrying",
+  offlineStale: "offline — showing last known air",
+  offlinePending: "{n} saved to send",
   // first run — onboarding slides (docs/plan/onboarding.md)
   onb_next: "Next",
   onb_skip: "Skip",
@@ -262,6 +264,8 @@ const en = {
   a11yMenu: "menu",
   a11yLocate: "locate me",
   a11yLayers: "map layers",
+  a11yClear: "clear",
+  a11yClearSaved: "clear saved place",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -460,6 +464,8 @@ const hi: Record<StringKey, string> = {
   arriveAt: "{t} तक पहुँचें",
   breathedSoFar: "अब तक ≈ {n} साँस में लिया",
   offline: "सर्वर ऑफ़लाइन — फिर कोशिश हो रही है",
+  offlineStale: "ऑफ़लाइन — पिछली ज्ञात हवा दिख रही है",
+  offlinePending: "{n} भेजने के लिए सहेजी गई",
   onb_next: "आगे",
   onb_skip: "छोड़ें",
   onb_whatTitle: "दिल्ली की हर यात्रा की एक हवा-कीमत है।",
@@ -510,6 +516,8 @@ const hi: Record<StringKey, string> = {
   a11yMenu: "मेन्यू",
   a11yLocate: "मुझे ढूँढें",
   a11yLayers: "नक्शे के लेयर",
+  a11yClear: "साफ़ करें",
+  a11yClearSaved: "सहेजी जगह हटाएँ",
 };
 
 export type Lang = "en" | "hi";

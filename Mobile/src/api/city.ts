@@ -6,6 +6,8 @@
 // (EXPO_PUBLIC_API_URL, else the emulator loopback aliases). Re-resolving
 // here would let this screen drift from the shell's backend.
 import { API_BASE } from "../search/client";
+import { cacheKeys } from "./cache";
+import { fetchCached } from "../offline/net";
 
 export type CityBand = { lo: number; mid: number; hi: number };
 
@@ -78,9 +80,20 @@ export type CityPayload = {
   };
 };
 
-/** One shot at `${API_BASE}/v2/city`. Caller owns the AbortSignal. */
+/** One shot at `${API_BASE}/v2/city`, last-good cached: offline → the
+ * previous payload returns and the net-status pill labels it stale.
+ * Caller owns the AbortSignal for cancel-not-cache semantics — aborts
+ * fall through to the cache like any other failure. */
 export async function fetchCity(signal?: AbortSignal): Promise<CityPayload> {
-  const res = await fetch(`${API_BASE}/v2/city`, { signal });
-  if (!res.ok) throw new Error(`v2/city http ${res.status}`);
-  return (await res.json()) as CityPayload;
+  const r = await fetchCached<CityPayload>(`${API_BASE}/v2/city`, {
+    ttlMs: 15 * 60 * 1000,
+    key: cacheKeys.city(),
+    fetcher: async (sig) => {
+      const res = await fetch(`${API_BASE}/v2/city`, { signal: signal ?? sig });
+      if (!res.ok) throw new Error(`v2/city http ${res.status}`);
+      return (await res.json()) as CityPayload;
+    },
+  });
+  if (!r.ok) throw new Error("v2/city unreachable");
+  return r.data;
 }

@@ -29,6 +29,7 @@ import { CompareSheet } from "./src/components/shell/CompareSheet";
 import { NavChrome } from "./src/components/shell/NavChrome";
 import { ReceiptSheet, type ReceiptData } from "./src/components/shell/ReceiptSheet";
 import { useNavEngine, type NavSummary, type NavStep } from "./src/nav";
+import { useNetStatus } from "./src/offline";
 import { LocateButton } from "./src/components/shell/LocateButton";
 import { LayersButton } from "./src/components/shell/LayersButton";
 import { LayersSheet, type LayerKey } from "./src/components/shell/LayersSheet";
@@ -70,6 +71,7 @@ export default function App() {
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
+  const net = useNetStatus();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
@@ -223,10 +225,18 @@ export default function App() {
       {/* SEAM(breath-chip): optional "breathing heavier/lighter" chip while moving
           (doc 02 §S1) — needs a real trailing-30min baseline; not yet wired. */}
 
-      {apiOk === false && (
-        <View style={s.offlineWrap} pointerEvents="none">
-          <Text style={s.offlineTxt}>{t("offline", lang)}</Text>
-        </View>
+      {/* offline/stale pill — real request outcomes drive it (offline/
+          status.ts): live data → no pill; last-good or nothing → labelled,
+          pending trip donations counted, tap re-probes. apiOk kept as the
+          belt-and-suspenders health check from before. */}
+      {(net.state !== "online" || apiOk === false) && (
+        <Pressable style={s.offlineWrap} onPress={() => void net.refresh()}
+          accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
+          <Text style={s.offlineTxt}>
+            {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
+            {net.pending > 0 ? ` · ${t("offlinePending", lang, { n: net.pending })}` : ""}
+          </Text>
+        </Pressable>
       )}
       {phase === "compare" && (
         <CompareSheet options={flow.options} selected={flow.selected} onSelect={flow.setSelected}

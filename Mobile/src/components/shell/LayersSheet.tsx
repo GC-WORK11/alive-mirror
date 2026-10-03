@@ -27,7 +27,7 @@ export function LayersSheet({
   if (!visible) return null;
   return (
     <View style={s.wrap}>
-      <Sheet detent="half" onClose={onClose}>
+      <Sheet detent="half" onClose={onClose} lang={lang}>
         <Text style={[s.title, { fontFamily: fam(lang, "semi") }]}>{t("layers", lang)}</Text>
         {ROWS.map((r) => (
           <View key={r.key} style={s.row}>
