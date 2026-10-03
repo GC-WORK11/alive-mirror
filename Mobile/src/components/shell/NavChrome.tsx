@@ -287,11 +287,13 @@ export function NavChrome({
   const doseBand: BandViz | null = nav != null && nav.dose.hi > 0
     ? {
       ...nav.dose,
-      text: `${Math.round(Math.max(0, nav.dose.lo))}–${Math.round(Math.max(0, nav.dose.hi))} µg`,
+      // a band that rounds to the same integer prints as one number —
+      // "0–0 µg" reads like a formatting bug to anyone glancing at it
+      text: (() => { const lo = Math.round(Math.max(0, nav.dose.lo)); const hi = Math.round(Math.max(0, nav.dose.hi)); return lo === hi ? `${lo} µg` : `${lo}–${hi} µg`; })(),
     }
     : null;
   const co2Band: BandViz | null = showOut
-    ? { ...nav.co2, text: `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)} kg` }
+    ? { ...nav.co2, text: nav.co2.lo.toFixed(1) === nav.co2.hi.toFixed(1) ? `${nav.co2.lo.toFixed(1)} kg` : `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)} kg` }
     : null;
 
   return (
