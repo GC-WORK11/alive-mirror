@@ -177,11 +177,13 @@ function SearchSheet({
 
   /* mount: warm the index, load saved places; autoFocus raises the keyboard —
      an imperative focus() here races the Modal's presentation on iOS and
-     segfaults the responder chain (reproduced live on the sim). */
+     segfaults the responder chain (reproduced live on the sim). The deferred
+     focus below is the safe path: onShow lands after the window exists. */
   useEffect(() => {
     warm();
     getPlaces().then(setStore).catch(() => {});
-    return () => search.dispose();
+    const id = setTimeout(() => inputRef.current?.focus(), 380);
+    return () => { clearTimeout(id); search.dispose(); };
   }, [search]);
 
   const loc = userLocation ?? undefined;
@@ -275,7 +277,9 @@ function SearchSheet({
           onSubmitEditing={submit}
           placeholder={t("searchPlaceholder", lang)}
           placeholderTextColor={V2T.text2} // text3-on-surface2 = 4.33:1 < AA
-          autoFocus
+          /* no autoFocus — becomeFirstResponder during the Modal's own
+             presentation segfaults this stack; the deferred focus() in the
+             mount effect lands after the window exists */
           autoCorrect={false}
           autoCapitalize="none"
           autoComplete="off"
