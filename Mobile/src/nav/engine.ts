@@ -89,6 +89,8 @@ export function useNavEngine(opts: NavEngineOpts) {
   const [running, setRunning] = useState(false);
   const [arrived, setArrived] = useState(false);
   const [offRoute, setOffRoute] = useState(false);
+  /* true once /v2/reroute answers code:'outside_service_area' — the
+     rider left the dose field; NavChrome shows it honestly */ const [outsideField, setOutsideField] = useState(false);
   const [snapped, setSnapped] = useState<LonLat | null>(null);
   const [dose, setDose] = useState<Band>({ lo: 0, mid: 0, hi: 0 });
   const [co2, setCo2] = useState<Band>({ lo: 0, mid: 0, hi: 0 });
@@ -233,14 +235,16 @@ export function useNavEngine(opts: NavEngineOpts) {
           { route_id: r.route_id, at: fix, to: { lat: dest[1], lon: dest[0] }, mode: r.mode ?? "" },
           api)
       : null;
-    if (res?.geometry) {
-      const next: NavRoute = { ...r, route_id: res.route_id, geometry: res.geometry,
-        eta_s: res.eta_s ?? r.eta_s, mode: res.mode ?? r.mode };
+    if (res?.code === "outside_service_area") setOutsideField(true);
+    if (res?.result?.geometry) {
+      const rr = res.result;
+      const next: NavRoute = { ...r, route_id: rr.route_id, geometry: rr.geometry,
+        eta_s: rr.eta_s ?? r.eta_s, mode: rr.mode ?? r.mode };
       routeRef.current = next;
-      loadRoute(next, flattenCoords(res.geometry));
+      loadRoute(next, flattenCoords(rr.geometry));
       alongRef.current = 0;
       offRef.current.reset();
-      await refreshStrip(res.route_id);
+      await refreshStrip(rr.route_id);
     }
     reroutingRef.current = false;
     setOffRoute(false);
@@ -427,7 +431,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     dose, co2, pm25,
     progress, distRemainingM, etaS,
     offRoute, arrived, snapped, nextStep,
-    stripOk, fieldAgeMin, summary,
+    stripOk, fieldAgeMin, summary, outsideField,
   };
 }
 

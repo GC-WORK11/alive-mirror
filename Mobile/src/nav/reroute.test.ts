@@ -78,11 +78,11 @@ describe("postReroute — response normalization", () => {
       { route_id: "r1", at: { lat: 1, lon: 1 }, to: { lat: 2, lon: 2 }, mode: "car" },
       "https://api.test",
     );
-    assert.equal(r?.route_id, "r2");
-    assert.deepEqual(r?.geometry, GEO);
-    assert.equal(r?.eta_s, 300);
-    assert.equal(r?.mode, "bike");
-    assert.equal(r?.distance_km, 4.2);
+    assert.equal(r?.result?.route_id, "r2");
+    assert.deepEqual(r?.result?.geometry, GEO);
+    assert.equal(r?.result?.eta_s, 300);
+    assert.equal(r?.result?.mode, "bike");
+    assert.equal(r?.result?.distance_km, 4.2);
   });
 
   it("unwraps option/route wrappers + route_geojson + duration_s", async () => {
@@ -92,26 +92,36 @@ describe("postReroute — response normalization", () => {
       { route_id: "r1", at: { lat: 1, lon: 1 }, to: { lat: 2, lon: 2 }, mode: "auto" },
       "https://api.test",
     );
-    assert.equal(r?.route_id, "r3");
-    assert.deepEqual(r?.geometry, GEO);
-    assert.equal(r?.eta_s, 180, "duration_s maps onto eta_s");
+    assert.equal(r?.result?.route_id, "r3");
+    assert.deepEqual(r?.result?.geometry, GEO);
+    assert.equal(r?.result?.eta_s, 180, "duration_s maps onto eta_s");
   });
 
   it("returns null on http error, network error, or unusable payload", async () => {
     const req = { route_id: "r1", at: { lat: 1, lon: 1 }, to: { lat: 2, lon: 2 }, mode: "car" };
     responder = () => json({ error: "nope" }, 500);
-    assert.equal(await postReroute(req, "https://api.test"), null);
+    assert.equal((await postReroute(req, "https://api.test")).result, null);
 
     globalThis.fetch = (async () => {
       throw new Error("offline");
     }) as typeof fetch;
-    assert.equal(await postReroute(req, "https://api.test"), null);
+    assert.equal((await postReroute(req, "https://api.test")).result, null);
 
     responder = () => json({ route_id: "r2" }); // no geometry
-    assert.equal(await postReroute(req, "https://api.test"), null);
+    assert.equal((await postReroute(req, "https://api.test")).result, null);
 
     responder = () => json({ route_id: 42, geometry: GEO }); // bad id
-    assert.equal(await postReroute(req, "https://api.test"), null);
+    assert.equal((await postReroute(req, "https://api.test")).result, null);
+  });
+
+  it("carries the typed error code through on the no-route path", async () => {
+    const req = { route_id: "r1", at: { lat: 1, lon: 1 }, to: { lat: 2, lon: 2 }, mode: "car" };
+    responder = () => json({ route_id: null, options: [], option: null,
+      error: "outside service area", code: "outside_service_area" });
+    const a = await postReroute(req, "https://api.test");
+    assert.equal(a.result, null);
+    assert.equal(a.code, "outside_service_area");
+    assert.equal(a.error, "outside service area");
   });
 });
 
@@ -191,7 +201,7 @@ describe("off-route → reroute trigger path (engine wiring, pure half)", () => 
       { route_id: "r1", at: { lat: 1, lon: 1 }, to: { lat: 2, lon: 2 }, mode: "car" },
       "https://api.test",
     );
-    assert.equal(r, null);
+    assert.equal(r.result, null);
     // tracker still reports true → engine cooldown decides when to retry
     assert.equal(tracker.update(60), true);
   });

@@ -30,6 +30,7 @@ export type NavView = {
   distRemainingM: number;
   offRoute: boolean;
   stripOk?: boolean;       // false → /v2/strip failed, counters frozen
+  outsideField?: boolean;  // true once reroute answers 'outside_service_area'
   running?: boolean;
   progress?: number;       // 0..1 along-route → cluster hairline
   nextStep?: {
@@ -336,7 +337,18 @@ export function NavChrome({
           </Text>
         </View>
       )}
-      {nav?.stripOk === false && !nav.offRoute && (
+      {/* left the dose field entirely — reroute answered the typed
+          outside code; one persistent honest pill (reuses the search
+          string: dose can't be estimated out there) */}
+      {nav?.outsideField && !nav.offRoute && (
+        <View style={[s.pill, { top: insets.top + 92 }]}>
+          <Icon name="pin" color={V2T.text3} size={13} />
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med"), marginLeft: 6 }]}>
+            {t("outsideDelhi", lang)}
+          </Text>
+        </View>
+      )}
+      {nav?.stripOk === false && !nav.offRoute && !nav.outsideField && (
         <View style={[s.pill, { top: insets.top + 92 }]}>
           <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
             {t("strip_unavailable", lang)}
