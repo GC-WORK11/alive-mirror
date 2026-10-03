@@ -6,18 +6,19 @@
  */
 import React from "react";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import { V2T } from "./theme";
 
 export type Glyph =
   // modes
   | "walk" | "cycle" | "bike" | "auto" | "erick" | "car" | "cab" | "bus" | "metro"
   // chrome
   | "menu" | "locate" | "layers" | "search" | "pin" | "chevron" | "share" | "star"
-  | "home" | "work" | "trash" | "info" | "close" | "clock" | "bell" | "flag"
+  | "home" | "work" | "trash" | "info" | "warn" | "close" | "clock" | "bell" | "flag"
   // units + hazards
   | "cigarette" | "dust" | "smoke" | "flame" | "leaf" | "wind";
 
 export function Icon({
-  name, color = "#F2F4F7", size = 24, filled = false,
+  name, color = V2T.text, size = 24, filled = false,
 }: {
   name: Glyph; color?: string; size?: number; filled?: boolean;
 }) {
@@ -96,7 +97,7 @@ export function Icon({
         <Path fill={color} d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5H15V3H9v2H6.5c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
       ) : (
         <>
-          <Rect x={10.5} y={5.5} width={3} height={1.8} rx={0.5} {...st} strokeWidth={1.4} />
+          <Rect x={10.5} y={5.5} width={3} height={1.8} rx={0.5} {...st} strokeWidth={1.5} />
           <Path d="M7 12 9.5 8h5L17 12" {...st} />
           <Rect x={3.5} y={12} width={17} height={5.5} rx={2} {...st} />
           <Circle cx={8} cy={19} r={1.7} {...st} />
@@ -124,7 +125,7 @@ export function Icon({
           <Rect x={6} y={3.5} width={12} height={14} rx={3.5} {...st} />
           <Line x1={6} y1={8} x2={18} y2={8} {...st} />
           <Line x1={12} y1={8} x2={12} y2={17.5} {...st} />
-          <Path d="M9 20.5 7.5 22M15 20.5 16.5 22" {...st} />
+          <Path d="M9.5 17.5 7.5 22M14.5 17.5 16.5 22" {...st} />
         </>
       );
       break;
@@ -228,6 +229,17 @@ export function Icon({
           <Circle cx={12} cy={12} r={9} {...st} />
           <Path d="M12 11v6" {...st} />
           <Circle cx={12} cy={7.6} r={1.1} fill={color} />
+        </>
+      );
+      break;
+    case "warn": // warning — rounded-corner triangle + exclamation
+      body = filled ? (
+        <Path fill={color} d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+      ) : (
+        <>
+          <Path d="M12 4 20.5 19.5H3.5L12 4z" {...st} />
+          <Path d="M12 9.8v4.4" {...st} />
+          <Circle cx={12} cy={16.8} r={1.1} fill={color} />
         </>
       );
       break;
