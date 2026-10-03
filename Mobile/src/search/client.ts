@@ -35,13 +35,30 @@ type RawRow = {
   outside_ncr?: boolean;
 };
 
+/** Gazetteer rows occasionally surface raw OSM tag strings
+ * ("amenity:place_of_worship") as the address/subtitle — strip the
+ * namespace prefix and tidy underscores so the row reads like an
+ * address, not a tag. Real addresses keep their commas untouched. */
+const OSM_TAG_PREFIX = /^(amenity|tourism|shop|leisure|office|historic|building|man_made|natural|place|highway|aeroway|railway|public_transport):/;
+
+function cleanSubtitle(s: string): string {
+  const t = s.trim();
+  if (OSM_TAG_PREFIX.test(t))
+    return t.replace(OSM_TAG_PREFIX, "").replace(/_/g, " ").trim();
+  // bare kind token ("historic_site") — read like words, not a tag
+  if (/^[a-z][a-z_]+$/.test(t) && t.includes("_")) return t.replace(/_/g, " ");
+  return t;
+}
+
 function toPlace(r: RawRow, tier: "t1" | "t2"): PlaceResult | null {
   if (typeof r.lat !== "number" || typeof r.lon !== "number") return null;
   const name = (r.name ?? r.label?.split(",")[0] ?? "").trim();
   if (!name) return null;
   return {
     name,
-    subtitle: (r.subtitle ?? r.address ?? (r.label ? r.label.split(",").slice(1).join(",").trim() : "")).trim(),
+    subtitle: cleanSubtitle(
+      r.subtitle ?? r.address ?? (r.label ? r.label.split(",").slice(1).join(",").trim() : ""),
+    ),
     lat: r.lat,
     lon: r.lon,
     kind: r.kind ?? r.category ?? "place",

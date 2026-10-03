@@ -24,6 +24,29 @@ const en = {
   lightestOnBoth: "lightest on both",
   lightestForYou: "lightest for you",
   lightestForDelhi: "lightest for Delhi",
+  /** server reason_line templates (server/v2/plan.py rank_options) —
+      matched verbatim so the card reads in the user's language; the
+      optional " +N min vs fastest." suffix is handled separately */
+  reason_noEmis: "Least smoke for you — no emissions estimate for this set.",
+  reason_easyPick: "Least smoke for you and lowest emissions — the easy pick.",
+  reason_heavierDelhi: "Least smoke for you, but heavier for Delhi.",
+  reason_lowestEmis: "Lowest emissions of the options — but you'd breathe more.",
+  reason_fairTrade: "Within ~10% of the lightest dose and the lightest exhaust of those — a fair trade.",
+  reason_slowerSuffix: " {m} min slower than the fastest.",
+  /** server non_exhaust.note strings (DetailBlock only) — verbatim match */
+  ne_road: "non-exhaust (resuspended dust + brakes/tyres), reported separately — ~86% of Delhi traffic PM10 is non-exhaust (Sahu et al. 2020, docs/26); never folded into tailpipe numbers",
+  ne_rail: "rail — no road resuspension",
+  ne_zero: "zero — non-motorized mode",
+  /** option-card mode labels (server o.label) — keyed by o.mode; a route
+      suffix like " 548CL" is preserved verbatim */
+  mode_carAC: "Car (AC)",
+  mode_carOpen: "Car (windows down)",
+  mode_bike: "Bike / scooter",
+  mode_bus: "Bus",
+  mode_auto: "Auto-rickshaw",
+  mode_metroWalk: "Metro + walk",
+  mode_cycle: "Bicycle",
+  mode_walk: "On foot",
   findingNewWay: "Finding a new way…",
   youreHere: "You're here.",
   /** manual "End" before reaching the destination — the trip is real,
@@ -326,6 +349,23 @@ const hi: Record<StringKey, string> = {
   lightestOnBoth: "दोनों में सबसे हल्का",
   lightestForYou: "आपके लिए सबसे हल्का",
   lightestForDelhi: "दिल्ली के लिए सबसे हल्का",
+  reason_noEmis: "आपके लिए सबसे कम धुआँ — इस सेट के लिए उत्सर्जन अनुमान नहीं।",
+  reason_easyPick: "आपके लिए सबसे कम धुआँ और सबसे कम उत्सर्जन — आसान चुनाव।",
+  reason_heavierDelhi: "आपके लिए सबसे कम धुआँ, लेकिन दिल्ली के लिए भारी।",
+  reason_lowestEmis: "विकल्पों में सबसे कम उत्सर्जन — लेकिन आप ज़्यादा धुआँ साँसेंगे।",
+  reason_fairTrade: "सबसे हल्के डोज़ के ~10% के भीतर और उनमें सबसे हल्का उत्सर्जन — उचित समझौता।",
+  reason_slowerSuffix: " सबसे तेज़ से {m} मिनट धीमा।",
+  ne_road: "नॉन-एग्ज़ॉस्ट (फिर से उड़ी धूल + ब्रेक/टायर), अलग से रिपोर्ट — दिल्ली के ट्रैफ़िक PM10 का ~86% नॉन-एग्ज़ॉस्ट है (Sahu et al. 2020, docs/26); टेलपाइप संख्या में कभी नहीं जोड़ा जाता",
+  ne_rail: "रेल — सड़क की धूल दोबारा नहीं उड़ती",
+  ne_zero: "शून्य — गैर-मोटराइज़्ड मोड",
+  mode_carAC: "कार (AC)",
+  mode_carOpen: "कार (खिड़कियाँ खुली)",
+  mode_bike: "बाइक / स्कूटर",
+  mode_bus: "बस",
+  mode_auto: "ऑटो-रिक्शा",
+  mode_metroWalk: "मेट्रो + पैदल",
+  mode_cycle: "साइकिल",
+  mode_walk: "पैदल",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
   youreHere: "आप पहुँच गए।",
   tripEnded: "यात्रा ख़त्म हुई।",
@@ -596,4 +636,26 @@ export function t(key: StringKey, lang: Lang = "en", vars?: Record<string, strin
   let s: string = tables[lang][key] ?? en[key];
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
   return s;
+}
+
+/** Localize a server's option label by mode (labels are English on the
+ * wire). Exact matches translate; a route suffix like " 548CL" is kept
+ * verbatim after the localized base; unknown modes pass through. */
+const MODE_BASE: Record<string, { en: string; key: StringKey }> = {
+  car: { en: "Car (AC)", key: "mode_carAC" },
+  car_open: { en: "Car (windows down)", key: "mode_carOpen" },
+  bike: { en: "Bike / scooter", key: "mode_bike" },
+  bus: { en: "Bus", key: "mode_bus" },
+  auto: { en: "Auto-rickshaw", key: "mode_auto" },
+  "metro+walk": { en: "Metro + walk", key: "mode_metroWalk" },
+  cycle: { en: "Bicycle", key: "mode_cycle" },
+  walk: { en: "On foot", key: "mode_walk" },
+};
+
+export function modeLabel(mode: string, label: string, lang: Lang): string {
+  const b = MODE_BASE[mode];
+  if (!b) return label;
+  if (label === b.en) return t(b.key, lang);
+  if (label.startsWith(b.en)) return t(b.key, lang) + label.slice(b.en.length);
+  return label;
 }

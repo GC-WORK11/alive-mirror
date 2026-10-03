@@ -29,7 +29,7 @@ import { NUM, V2Radius, V2T, V2Type, doseColor, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph } from "../../icons";
 import { Sheet } from "../../ui";
-import { t, type Lang, type StringKey } from "../../i18n/strings";
+import { modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
@@ -62,6 +62,39 @@ const TAG_KEY: Record<string, StringKey> = {
   "lightest on both": "lightestOnBoth",
   "lightest for you": "lightestForYou",
   "lightest for delhi": "lightestForDelhi",
+};
+
+/** server reason_line (server/v2/plan.py rank_options) is a fixed set of
+ * English templates — translate verbatim so the card stays in the user's
+ * language. The trailing " +N min vs fastest." gets re-composed locally.
+ * Unknown text passes through untouched — additive future lines still show. */
+const REASON_KEY: Record<string, StringKey> = {
+  "Least smoke for you — no emissions estimate for this set.": "reason_noEmis",
+  "Least smoke for you and lowest emissions — the easy pick.": "reason_easyPick",
+  "Least smoke for you, but heavier for Delhi.": "reason_heavierDelhi",
+  "Lowest emissions of the options — but you'd breathe more.": "reason_lowestEmis",
+  "Within ~10% of the lightest dose and the lightest exhaust of those — a fair trade.":
+    "reason_fairTrade",
+};
+const SLOWER_RE = / \+(\d+) min vs fastest\.$/;
+
+/** server non_exhaust.note strings — same verbatim-match treatment. */
+const NE_KEY: Record<string, StringKey> = {
+  "non-exhaust (resuspended dust + brakes/tyres), reported separately — ~86% of Delhi traffic PM10 is non-exhaust (Sahu et al. 2020, docs/26); never folded into tailpipe numbers": "ne_road",
+  "rail — no road resuspension": "ne_rail",
+  "zero — non-motorized mode": "ne_zero",
+};
+const neNoteTxt = (n: string, lang: Lang): string => {
+  const key = NE_KEY[n];
+  return key ? t(key, lang) : n;
+};
+
+const reasonTxt = (n: string, lang: Lang): string => {
+  const m = n.match(SLOWER_RE);
+  const base = m ? n.slice(0, -m[0].length) : n;
+  const key = REASON_KEY[base];
+  const out = key ? t(key, lang) : base;
+  return m ? out + t("reason_slowerSuffix", lang, { m: m[1] }) : out;
 };
 
 const bandTxt = (b: Band | null | undefined, unit: string) =>
@@ -160,7 +193,7 @@ function DetailBlock({ o, fieldAgeS, lang }: { o: V2Option; fieldAgeS?: number |
       {e.bs_class && e.bs_class !== "none"
         ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.bs_class}{e.bs_options?.length ? ` (${e.bs_options.join("–")})` : ""}</Text>
         : null}
-      {e.non_exhaust?.note ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.non_exhaust.note}</Text> : null}
+      {e.non_exhaust?.note ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{neNoteTxt(e.non_exhaust.note, lang)}</Text> : null}
       {ageMin != null ? (
         <View style={s.dRow}>
           <Icon name="clock" color={V2T.text3} size={13} />
@@ -201,14 +234,16 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
         <View style={s.cardMid}>
           <View style={s.cardTop}>
             <Text {...DYNAMIC_TYPE} style={[s.optLabel, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
-              {showYours ? `${o.label} · ${t("compare_yours", lang)}` : o.label}
+              {showYours
+                ? `${modeLabel(o.mode, o.label, lang)} · ${t("compare_yours", lang)}`
+                : modeLabel(o.mode, o.label, lang)}
             </Text>
             {tag ? <Chip text={tag} accent lang={lang} />
               : o.recommended ? <Chip text={t("compare_pick", lang)} lang={lang} /> : null}
           </View>
           <Text {...DYNAMIC_TYPE} style={[s.optMeta, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{meta}</Text>
           {o.reason_line ? (
-            <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>{o.reason_line}</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>{reasonTxt(o.reason_line, lang)}</Text>
           ) : null}
           {d?.coverage != null && d.coverage < 0.999 ? (
             <Text {...DYNAMIC_TYPE} style={[s.optCoverage, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>

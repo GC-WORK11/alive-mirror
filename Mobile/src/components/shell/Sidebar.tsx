@@ -18,7 +18,7 @@ import {
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { t, type Lang } from "../../i18n/strings";
+import { modeLabel, t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -231,7 +231,7 @@ export function Sidebar({
         <Text {...DYNAMIC_TYPE} style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
           {tr.from} → {tr.to}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={s.tripMeta}>{tr.label} · {timeAgo(tr.ts)}</Text>
+        <Text {...DYNAMIC_TYPE} style={s.tripMeta}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts)}</Text>
       </View>
       <Icon name="cigarette" color={V2T.text3} size={13} />
       <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM]}>{cigOf(tr.dose_ug) ?? 0}</Text>

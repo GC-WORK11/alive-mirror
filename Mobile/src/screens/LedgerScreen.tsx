@@ -35,7 +35,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
-import { t, type Lang } from "../i18n/strings";
+import { modeLabel, t, type Lang } from "../i18n/strings";
 import { Icon, vehicleGlyph } from "../icons";
 import {
   clearTrips,
@@ -189,7 +189,7 @@ const TripCard = React.memo(function TripCard({
       <Pressable
         onPress={() => onToggle(key)}
         accessibilityRole="button"
-        accessibilityLabel={`${tr.from} → ${tr.to}, ${tr.label}, ${dayLabel(
+        accessibilityLabel={`${tr.from} → ${tr.to}, ${modeLabel(tr.vehicle, tr.label, lang)}, ${dayLabel(
           tr.ts,
           lang,
         )} ${timeLabel(tr.ts, lang)}`}
@@ -213,7 +213,7 @@ const TripCard = React.memo(function TripCard({
             style={[ss.tripMeta, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1}
           >
-            {tr.label} · {timeLabel(tr.ts, lang)}
+            {modeLabel(tr.vehicle, tr.label, lang)} · {timeLabel(tr.ts, lang)}
           </Text>
           {tr.avoided_ug > 0 && (
             <Text {...DYNAMIC_TYPE}

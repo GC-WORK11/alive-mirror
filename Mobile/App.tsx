@@ -46,7 +46,7 @@ import {
 } from "./src/components/shell/settings";
 import { loadTrips } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
-import { t } from "./src/i18n/strings";
+import { modeLabel, t } from "./src/i18n/strings";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -208,6 +208,10 @@ function AppInner() {
         compassPosition={phase === "nav"
           ? { top: insets.top + 108, right: 12 }
           : { top: insets.top + 76, right: 12 }}
+        /* ornaments ride above the FABs — the stock bottom-edge spots
+           clip against the home-indicator bezel + the FAB shadows */
+        logoPosition={{ bottom: insets.bottom + 72, left: 10 }}
+        attributionPosition={{ bottom: insets.bottom + 72, right: 10 }}
         onPress={async (f) => {
           if (!mapPickArmed) return;
           setMapPickArmed(false);
@@ -445,16 +449,16 @@ function NavSession({
   if (summary) {
     const data: ReceiptData = {
       durationMin: summary.durationS / 60,
-      modeLabel: option.label,
+      modeLabel: modeLabel(option.mode, option.label, lang),
       doseUg: nav.stripOk === false ? null : summary.doseUg,
       co2Kg: summary.co2Kg,
       pm25G: summary.pm25G,
       distanceKm: summary.distanceKm,
       mode: option.mode,
       worstDoseUg: worstDose > 0 ? worstDose : null,
-      worstLabel: worstOpt?.label ?? null,
+      worstLabel: worstOpt ? modeLabel(worstOpt.mode, worstOpt.label, lang) : null,
       alt: altEmit
-        ? { label: altEmit.label, co2KgMid: altEmit.emissions?.co2_kg?.mid ?? null }
+        ? { label: modeLabel(altEmit.mode, altEmit.label, lang), co2KgMid: altEmit.emissions?.co2_kg?.mid ?? null }
         : null,
       fieldAgeMin: nav.fieldAgeMin,
       donated: summary.donated,
