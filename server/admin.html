@@ -452,6 +452,7 @@ async function tick(){
     :(t.trips?'<div class="split-l" style="padding-top:2px">no donated trip has reported a CO₂ split yet — receipts from the current app build carry it</div>':'');
 
   /* --- live field map --- */
+  FM_WIND=f.wind||null;
   await paintFieldMap(FM_PARAM);
 
   /* --- the pipeline — each stage shown with its own live numbers --- */
@@ -493,7 +494,7 @@ async function tick(){
 const FM_SPECIES=[['pm2_5','pm2.5'],['pm10','pm10'],
   ['nitrogen_dioxide','no₂'],['ozone','o₃'],
   ['carbon_monoxide','co'],['sulphur_dioxide','so₂'],['us_aqi','us aqi']];
-let FM_PARAM='pm2_5',FM_FIRES=null;
+let FM_PARAM='pm2_5',FM_FIRES=null,FM_WIND=null;
 function renderFmSel(){
   $('fmsel').innerHTML=FM_SPECIES.map(([p,l])=>
     `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('');
@@ -539,6 +540,24 @@ async function paintFieldMap(param){
     ctx.strokeStyle='rgba(20,24,31,.55)';ctx.lineWidth=1;
     ctx.beginPath();ctx.arc(cx,cy,4,0,6.283);ctx.stroke();
     ctx.beginPath();ctx.moveTo(cx-7,cy);ctx.lineTo(cx+7,cy);ctx.moveTo(cx,cy-7);ctx.lineTo(cx,cy+7);ctx.stroke();
+    /* wind transport — the real met vector, drawn in the direction the
+       smoke actually drifts (met 'from' + 180°), N up */
+    if(FM_WIND&&FM_WIND.from_deg!=null&&FM_WIND.speed_kmh>0.5){
+      const bx=W-34,by=34,L=17,
+            th=(Number(FM_WIND.from_deg)+180)*Math.PI/180,
+            dx=Math.sin(th),dy=-Math.cos(th),
+            x2=bx+dx*L,y2=by+dy*L;
+      ctx.strokeStyle='rgba(20,24,31,.62)';ctx.fillStyle='rgba(20,24,31,.62)';
+      ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(bx-dx*L*.4,by-dy*L*.4);ctx.lineTo(x2,y2);ctx.stroke();
+      const ah=5.2,at=Math.atan2(dy,dx);
+      ctx.beginPath();ctx.moveTo(x2,y2);
+      ctx.lineTo(x2-ah*Math.cos(at-.5),y2-ah*Math.sin(at-.5));
+      ctx.lineTo(x2-ah*Math.cos(at+.5),y2-ah*Math.sin(at+.5));
+      ctx.closePath();ctx.fill();
+      ctx.font='8px ui-monospace,monospace';ctx.textAlign='center';
+      ctx.fillText('N',bx,10);ctx.fillText(`${Math.round(FM_WIND.from_deg)}°`,bx,by+22);
+    }
     /* real fire detections over the same map — fetched once per page */
     if(FM_FIRES===null){
       try{const fr=await getJSON('/fires');FM_FIRES=(fr&&fr.features)||[]}
@@ -557,10 +576,12 @@ async function paintFieldMap(param){
     }
     const label=(FM_SPECIES.find(s=>s[0]===param)||[param,param])[1];
     const unit=param==='us_aqi'?'':' µg/m³';
+    const windTxt=(FM_WIND&&FM_WIND.speed_kmh!=null)
+      ?` · wind ${Math.round(FM_WIND.speed_kmh)} km/h from ${Math.round(FM_WIND.from_deg??0)}° — the arrow is where smoke drifts`:'';
     $('fieldmap-sub').innerHTML=vals.length
       ?`${fmt(vals.length)} real cells · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
        `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · faded cells sit farther from a measured sample — never a guess`+
-       (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fire detections plotted${FM_FIRES.length>plotted?` (${fmt(FM_FIRES.length-plotted)} more outside this view)`:''}`:'')
+       (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fire detections plotted${FM_FIRES.length>plotted?` (${fmt(FM_FIRES.length-plotted)} more outside this view)`:''}`:'')+windTxt
       :`${label} — the field serves no ${label} cells right now`;
   }catch(e){
     $('fieldmap-sub').textContent='grid unreachable — '+esc(e.message||e);

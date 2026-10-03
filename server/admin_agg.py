@@ -286,6 +286,7 @@ async def status():
             "stale": f.get("stale"),              # True past stale_after_s
             "stale_after_s": f.get("stale_after_s"),
             "kriging": f.get("kriging"),
+            "engine": f.get("engine"),  # alive_core | python serving label
             "sigma_coverage": f.get("sigma_coverage"),
             "coverage": f.get("coverage"),
             "wind": f.get("wind") or {},
