@@ -203,6 +203,9 @@ function AppInner() {
       clearAllData();
       flow.setTrips([]); flow.setVehicleProfile(null);
       setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
+      /* closing the sheet IS the acknowledgment — the user lands back on
+         a clean map; the consent gate re-arms itself on next launch */
+      setSettingsOpen(false); setSidebarOpen(false);
     })();
   }, [flow]);
   const toggleLayer = useCallback((k: LayerKey, v: boolean) => {

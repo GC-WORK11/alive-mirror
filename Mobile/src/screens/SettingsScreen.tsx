@@ -299,9 +299,10 @@ function SettingsSheet({
             >
               {t("settingsUnits", lang)}
             </Text>
-            {/* metric only — PROPOSED settingsUnitsHint if the strings lane
-                wants to say that out loud */}
-            <Text {...DYNAMIC_TYPE} style={ss.value}>{t("unitsKm", lang)}</Text>
+            <View>
+              <Text {...DYNAMIC_TYPE} style={ss.value}>{t("unitsKm", lang)}</Text>
+              <Text {...DYNAMIC_TYPE} style={ss.hint}>{t("settingsUnitsHint", lang)}</Text>
+            </View>
           </View>
         </View>
 
