@@ -176,6 +176,7 @@ export interface HealthResponse {
   field_age_s?: number | null;
   field_refresh_in_s?: number | null;  // FieldStatus.refresh_in_s surfaced
   field_stale?: boolean | null;        // FieldStatus.stale surfaced
+  engine?: string;                     // "alive_core" | "python" — serving engine
   sources?: Record<string, unknown>;
   history?: unknown;
 }
@@ -650,6 +651,11 @@ export const V2_ENDPOINTS = {
   city: "/v2/city",
   city_moves: "/v2/city/moves",
   ledger: "/v2/ledger",
+  // /v2/today and /v2/depart are wire aliases for the v1 handlers —
+  // same shapes as /today and /depart above, surfaced under the v2
+  // prefix for symmetry with the rest of the v2 surface.
+  today: "/v2/today",
+  depart: "/v2/depart",
 } as const;
 
 export type TravelMode = "driving" | "cycling" | "walking";
