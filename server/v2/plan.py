@@ -826,7 +826,11 @@ def rank_options(options: list) -> list:
 # bounded individually, but a pathological stack (local + public OSRM
 # per mode, transit scan) could still sum past what a single-worker
 # task can afford between ALB health checks — cap the whole build.
-PLAN_BUDGET_S = 25.0
+# The total must stay under the app's ~30 s client cap with margin for
+# queue + response overhead, else the typed timeout lands after the
+# client already gave up and the "can't plan" notice is unreachable
+# (audit: far pins on the public OSRM demo hit exactly that).
+PLAN_BUDGET_S = 20.0
 FIELD_REFRESH_BUDGET_S = 10.0
 
 
@@ -925,7 +929,10 @@ async def plan(body: dict):
                 "field": _field_status(),
                 "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
 
-    await _field_refresh_bounded()
+    # fire-and-forget: the refresh is best-effort background work and
+    # already bounded + deduped internally; awaiting it here would let a
+    # slow upstream add its budget on top of the options budget
+    asyncio.ensure_future(_field_refresh_bounded())
     options, opt_err = await _options_bounded(
         flat, flon, tlat, tlon, vehicle, profile, depart_at)
     rank_options(options)
@@ -997,7 +1004,7 @@ async def reroute(body: dict):
                 "field": _field_status(),
                 "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
 
-    await _field_refresh_bounded()
+    asyncio.ensure_future(_field_refresh_bounded())   # fire-and-forget
     options, opt_err = await _options_bounded(
         flat, flon, tlat, tlon, vehicle, profile, body.get("depart_at"))
     rank_options(options)
