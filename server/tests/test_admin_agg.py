@@ -90,7 +90,8 @@ def test_status_shape():
 
 def test_sources_shape():
     d = client.get("/admin/api/sources").json()
-    assert set(d["sources"]) == {"model", "stations", "fires", "location"}
+    assert set(d["sources"]) == {"model", "met", "stations",
+                               "fires", "location"}
     for s in d["sources"].values():
         assert s.get("up") in (True, False, None)  # tri-state, never guessed
         assert "detail" in s
