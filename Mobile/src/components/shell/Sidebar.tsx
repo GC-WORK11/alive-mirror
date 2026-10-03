@@ -50,7 +50,7 @@ type Section = "vehicle" | "places" | "settings" | "how" | null;
 export function Sidebar({
   open, onClose, trips, lang, settings, onSettings, onDeleteData,
   onArmBrief, onNavigate, currentDest, onDelhiToday, onTripReceipt,
-  onFullSettings, onLang, onShare, onShareTrip,
+  onFullSettings, onLang, onShare, onShareTrip, onPickPlace,
 }: {
   open: boolean;
   onClose: () => void;
@@ -71,6 +71,8 @@ export function Sidebar({
                                      // the row stays hidden until wired
   onShareTrip?: (tr: Trip) => void;  // SEAM(share-trip): share one trip's
                                      // numbers — trailing affordance per row
+  onPickPlace?: (slot: "home" | "work") => void; // SEAM(set-place): search-pick
+                                     // a place for an unset home/work slot
 }) {
   const [slide] = useState(() => new Animated.Value(-DRAWER_W));
   /* stable interpolation node — inline re-creation trips RN 0.86's
@@ -181,10 +183,13 @@ export function Sidebar({
     return (
       <View key={slot} style={s.subRow}>
         <Icon name={slot} color={V2T.text2} size={18} />
-        <Pressable style={{ flex: 1 }} disabled={!place}
-          onPress={() => { if (place) { onNavigate(place); onClose(); } }}
-          accessibilityRole="button" accessibilityState={{ disabled: !place }}
-          accessibilityLabel={place ? `${t(labelKey, lang)} — ${place.name}` : t(labelKey, lang)}>
+        <Pressable style={{ flex: 1 }} disabled={!place && !onPickPlace}
+          onPress={() => {
+            if (place) { onNavigate(place); onClose(); }
+            else if (onPickPlace) onPickPlace(slot);
+          }}
+          accessibilityRole="button" accessibilityState={{ disabled: !place && !onPickPlace }}
+          accessibilityLabel={place ? `${t(labelKey, lang)} — ${place.name}` : `${t(labelKey, lang)} — ${t("setPlace", lang)}`}>
           <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t(labelKey, lang)}</Text>
           <Text {...DYNAMIC_TYPE} style={s.subValue} numberOfLines={1}>
             {place ? place.name : t("notSet", lang)}
@@ -195,6 +200,12 @@ export function Sidebar({
             accessibilityRole="button" accessibilityLabel={t("a11yClearSaved", lang)}
             style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
             <Icon name="close" color={V2T.text3} size={14} />
+          </Pressable>
+        ) : onPickPlace ? (
+          <Pressable hitSlop={8} onPress={() => onPickPlace(slot)}
+            accessibilityRole="button" accessibilityLabel={`${t(labelKey, lang)} — ${t("setPlace", lang)}`}
+            style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
+            <Text {...DYNAMIC_TYPE} style={s.miniAction}>{t("setPlace", lang)}</Text>
           </Pressable>
         ) : currentDest ? (
           <Pressable hitSlop={8} onPress={() => onSettings({ [slot]: currentDest })}

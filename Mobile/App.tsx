@@ -100,6 +100,7 @@ function AppInner() {
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const [delhiOpen, setDelhiOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [placePickSlot, setPlacePickSlot] = useState<"home" | "work" | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
@@ -244,6 +245,13 @@ function AppInner() {
           if (!c) return;
           let name = `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
           try { const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000); if (j.name) name = j.name; } catch {}
+          if (placePickSlot) {
+            // the unset home/work slot asked for this pick ("choose on map")
+            patchSettings({ [placePickSlot]: { name, lat: c[1], lon: c[0] } });
+            setPlacePickSlot(null);
+            setSidebarOpen(true);
+            return;
+          }
           flow.pick({ name, subtitle: "", lat: c[1], lon: c[0] }, "to");
         }}
         onLongPress={async (f) => {
@@ -298,9 +306,22 @@ function AppInner() {
         visible={phase === "search"}
         lang={lang}
         userLocation={flow.from ? { lat: flow.from.lat, lon: flow.from.lon } : null}
-        onClose={() => flow.setPhase(flow.to ? "compare" : "idle")}
+        onClose={() => {
+          if (placePickSlot) { setPlacePickSlot(null); setSidebarOpen(true); }
+          flow.setPhase(flow.to ? "compare" : "idle");
+        }}
         onSelect={async (sel: SearchSelection) => {
           if (sel.type === "place") {
+            if (placePickSlot) {
+              // sidebar's unset home/work slot asked for a search pick —
+              // land the place in settings and return to the drawer
+              patchSettings({ [placePickSlot]: {
+                name: sel.place.name, lat: sel.place.lat, lon: sel.place.lon } });
+              setPlacePickSlot(null);
+              flow.setPhase("idle");
+              setSidebarOpen(true);
+              return;
+            }
             setMapPickArmed(false);
             flow.pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
               lat: sel.place.lat, lon: sel.place.lon }, "to");
@@ -308,12 +329,19 @@ function AppInner() {
           }
           if (sel.type === "choose_on_map") {
             flow.setPhase("idle");
-            setMapPickArmed(true);       // next map tap picks the destination
+            setMapPickArmed(true);       // next map tap picks — for the slot
+                                         // when placePickSlot is armed
             return;
           }
           const pos = await Location.getCurrentPositionAsync(
             { accuracy: Location.Accuracy.Balanced }).catch(() => null);
-          if (pos) flow.pick({ name: t("yourLocation", lang), subtitle: "",
+          if (pos && placePickSlot) {
+            patchSettings({ [placePickSlot]: { name: t("yourLocation", lang),
+              lat: pos.coords.latitude, lon: pos.coords.longitude } });
+            setPlacePickSlot(null);
+            flow.setPhase("idle");
+            setSidebarOpen(true);
+          } else if (pos) flow.pick({ name: t("yourLocation", lang), subtitle: "",
             lat: pos.coords.latitude, lon: pos.coords.longitude }, "from");
           else flow.setPhase(flow.to ? "compare" : "idle");
         }} />
@@ -372,6 +400,11 @@ function AppInner() {
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} trips={flow.trips} lang={lang}
         settings={settings} onSettings={patchSettings} onDeleteData={deleteAll}
+        onPickPlace={(slot) => {
+          setPlacePickSlot(slot);
+          setSidebarOpen(false);
+          flow.setPhase("search");
+        }}
         onArmBrief={flow.armDailyBrief} currentDest={flow.to}
         onDelhiToday={() => { setSidebarOpen(false); setDelhiOpen(true); }}
         onTripReceipt={() => { setSidebarOpen(false); setLedgerOpen(true); }}
