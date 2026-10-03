@@ -30,6 +30,7 @@ from typing import Callable, Optional
 # arterial ≈ rickshaw-like exposure, lightly discounted).
 
 MICROENV = {
+    # canonical mode keys (doc 06 §1 sources every row):
     "metro":              0.45,   # enclosed, underground sections even lower
     "driving_car_ac":     0.55,   # windows up, recirculated cabin [2]
     "driving_car_open":   0.80,   # windows down ≈ roadside [2]
@@ -38,13 +39,57 @@ MICROENV = {
     "auto_rickshaw":      1.15,   # open-sided, sits in exhaust plume [2]
     "cycling":            1.10,   # open-air, in traffic stream
     "walking":            1.00,   # roadside ambient baseline
+    # app-facing aliases — the same published values under the plain
+    # vehicle strings other lanes pass through (community.py stores raw
+    # vehicle names; doc 06 §1 lists plain names: car, 2W, auto, cycle,
+    # walk). cab/taxi have no doc row → conservative default = open car
+    # (Delhi cabs wait at stands windows-down; never understate dose).
+    "car":                0.55,   # alias: driving_car_ac (car default = AC)
+    "car_ac":             0.55,
+    "car_windows_up":     0.55,
+    "car_open":           0.80,   # alias: driving_car_open
+    "car_windows_down":   0.80,
+    "cab":                0.80,   # DEFAULT (no doc row) — open-car value
+    "taxi":               0.80,   # DEFAULT (no doc row) — open-car value
+    "bike":               1.10,   # alias: driving_two_wheeler
+    "two_wheeler":        1.10,
+    "scooter":            1.10,
+    "motorcycle":         1.10,
+    "auto":               1.15,   # alias: auto_rickshaw
+    "rickshaw":           1.15,
+    "cycle":              1.10,   # alias: cycling
+    "bicycle":            1.10,
+    "walk":               1.00,   # alias: walking
+    "on_foot":            1.00,
 }
 
-# --- Minute ventilation (L/min) -------------------------------------------
-# Midpoints of published ranges: seated passenger ~7-8 L/min at rest-light
-# activity; walking ~13-15; cycling ~20-25 (2.1× car per [3]).
+# --- Minute ventilation (L/min), activity-adjusted --------------------------
+# Doc 06 §1 differentiates VE by ACTIVITY, not vehicle badge — three tiers:
+#   seated/transit  ~7.5-9   (rest-light; bus/auto/2W slightly above the
+#                            car baseline for vibration + thermal stress)
+#   walking         14.0     (~1.9× seated)
+#   cycling         22.0     [3] Zuurbier 2009 measured cyclists at ≈2.1×
+#                            car/bus passengers — his in-vehicle VE ran
+#                            ~10-11 L/min in traffic, so 2.1× lands at ~22;
+#                            vs our rest-level 7.5 it is ~2.9×. Kept at the
+#                            top of the published 20-25 range = conservative.
+
+MODE_ACTIVITY = {
+    "metro": "seated", "driving_car_ac": "seated",
+    "driving_car_open": "seated", "bus": "seated",
+    "driving_two_wheeler": "seated", "auto_rickshaw": "seated",
+    "cycling": "cycling", "walking": "walking",
+    "car": "seated", "car_ac": "seated", "car_windows_up": "seated",
+    "car_open": "seated", "car_windows_down": "seated",
+    "cab": "seated", "taxi": "seated",
+    "bike": "seated", "two_wheeler": "seated", "scooter": "seated",
+    "motorcycle": "seated", "auto": "seated", "rickshaw": "seated",
+    "cycle": "cycling", "bicycle": "cycling",
+    "walk": "walking", "on_foot": "walking",
+}
 
 VENTILATION_LPM = {
+    # canonical keys
     "metro":               7.5,
     "driving_car_ac":      7.5,
     "driving_car_open":    7.5,
@@ -53,19 +98,87 @@ VENTILATION_LPM = {
     "auto_rickshaw":       8.5,
     "cycling":            22.0,
     "walking":            14.0,
+    # aliases (mirrors MICROENV)
+    "car":                 7.5,
+    "car_ac":              7.5,
+    "car_windows_up":      7.5,
+    "car_open":            7.5,
+    "car_windows_down":    7.5,
+    "cab":                 7.5,
+    "taxi":                7.5,
+    "bike":                9.0,
+    "two_wheeler":         9.0,
+    "scooter":             9.0,
+    "motorcycle":          9.0,
+    "auto":                8.5,
+    "rickshaw":            8.5,
+    "cycle":              22.0,
+    "bicycle":            22.0,
+    "walk":               14.0,
+    "on_foot":            14.0,
 }
 
 # --- Near-road uplift ------------------------------------------------------
 # Our field is ambient. Segments physically ON a major corridor carry a
-# traffic-proximity increment: +50% at the curb decaying over ~150m per [4].
-# Without per-segment road attribution we only mark the factor 1.0 and flag it.
+# traffic-proximity increment: doc 06 §1 / [4] put the traffic-linked PM
+# increment at ~+75% decaying within 30 m of the curb (taper to ~500 m).
+# That 75% applies to the *traffic component*, not the whole ambient
+# concentration — applied to total C at curb distance the published range
+# is ~+20-50%, which is what the factors below use. Without per-segment
+# road attribution we only mark the factor 1.0 and flag it.
 
 ROAD_UPLIFT = {
     "motorway": 1.35, "trunk": 1.30, "primary": 1.20,
     "secondary": 1.10, "tertiary": 1.05, "residential": 1.0,
+    "arterial": 1.20,   # alias: doc 06 wording for primary corridors
 }
 
 APP_MODES = {"driving", "cycling", "walking"}
+
+# --- Consumer units ----------------------------------------------------------
+# Berkeley Earth equivalence (claims ledger, doc 10): 1 cigarette ≈ 316 µg
+# inhaled PM2.5. Same constant as the app ledger; main.py /shift uses /316.
+CIG_UG = 316.0
+
+# Above this average speed a 'route' is not a plausible Delhi surface/metro
+# trip — the duration is wrong and the dose integral is understated.
+# Flagged, never silently clamped. Generous bound: even the Airport Express
+# metro averages <60 km/h.
+PLAUSIBLE_MAX_KMH = 150.0
+
+
+def mode_factors(mode: str) -> dict:
+    """Resolve any canonical-or-alias mode string to its dose factors.
+    Unknown modes degrade to open-air walking factors (microenv 1.0,
+    seated-light VE 8.0) with known_mode=False — honest, never a crash."""
+    me = MICROENV.get(mode)
+    ve = VENTILATION_LPM.get(mode)
+    return {
+        "microenv": me if me is not None else 1.0,
+        "ventilation_lpm": ve if ve is not None else 8.0,
+        "activity": MODE_ACTIVITY.get(mode, "seated"),
+        "known_mode": mode in MICROENV,
+    }
+
+
+def dose_to_cigs(dose_ug):
+    """µg inhaled → cigarette equivalents (1 = 316 µg, doc 10).
+    None in → None out; a band is a band."""
+    if dose_ug is None or not math.isfinite(dose_ug):
+        return None
+    return dose_ug / CIG_UG
+
+
+def cigs_band(dose_ug, dose_ug_lo=None, dose_ug_hi=None) -> dict:
+    """Cigarette equivalent for a dose band → {lo, mid, hi, unit}.
+    Missing bounds stay None; the UI shows '≈' not a point value."""
+    return {
+        "lo": dose_to_cigs(dose_ug_lo),
+        "mid": dose_to_cigs(dose_ug),
+        "hi": dose_to_cigs(dose_ug_hi),
+        "unit": "cigarettes",
+        "basis": "Berkeley Earth; CIG_UG=316",
+    }
 
 
 def _haversine_m(a, b):
@@ -76,26 +189,45 @@ def _haversine_m(a, b):
     return 2 * R * math.asin(math.sqrt(h))
 
 
+def _leg_m(a, b) -> float:
+    """Haversine that degrades to 0 on malformed/non-finite coords —
+    a bad vertex shortens the route honestly instead of crashing."""
+    try:
+        d = _haversine_m(a, b)
+        return d if (math.isfinite(d) and d >= 0.0) else 0.0
+    except Exception:
+        return 0.0
+
+
 def segment_samples(geometry: dict, duration_s: float, step_m: float = 250.0):
     """Sample a LineString every ~step_m; apportion duration by length
     (uniform-speed assumption — documented limitation vs. congestion).
-    Returns list of dicts(lat, lon, seconds, dist_m)."""
-    coords = geometry.get("coordinates", [])
+    Returns list of dicts(lat, lon, seconds, dist_m); [] on degenerate
+    input (empty geometry, non-finite/negative duration, zero length)."""
+    coords = (geometry or {}).get("coordinates") or []
     if len(coords) < 2:
         return []
-    total = sum(_haversine_m(coords[i - 1], coords[i]) for i in range(1, len(coords)))
-    if total <= 0:
+    if duration_s is None or not math.isfinite(duration_s) or duration_s < 0:
+        return []
+    total = sum(_leg_m(coords[i - 1], coords[i]) for i in range(1, len(coords)))
+    if not math.isfinite(total) or total <= 0:
         return []
     out = []
     carry = 0.0
     for i in range(1, len(coords)):
         a, b = coords[i - 1], coords[i]
-        seg = _haversine_m(a, b)
+        seg = _leg_m(a, b)
         carry += seg
         if carry >= step_m or i == len(coords) - 1:
             frac = seg / total
-            out.append({"lat": b[1], "lon": b[0],
-                        "seconds": duration_s * frac, "dist_m": seg})
+            if isinstance(b, (list, tuple)) and len(b) >= 2 and \
+                    math.isfinite(b[0]) and math.isfinite(b[1]):
+                out.append({"lat": b[1], "lon": b[0],
+                            "seconds": duration_s * frac, "dist_m": seg})
+            # else: malformed vertex — no sample emitted (keeps the
+            # lat/lon-always-float contract callers like v2/strip rely
+            # on); its distance still counted in `total`, so neighbours
+            # aren't over-credited.
             carry = 0.0
     # renormalize so Σseconds == duration_s exactly
     s = sum(x["seconds"] for x in out) or 1.0
@@ -111,29 +243,57 @@ def dose(geometry: dict, duration_s: float, mode: str,
          field_sigma: Optional[Callable[[float, float], Optional[float]]] = None) -> dict:
     """Inhaled PM2.5 mass (µg) for one route+mode option. When the field
     carries krige uncertainty, segment σ propagates through the same
-    dose integral (independent-variance sum) → dose_lo/dose_hi."""
-    microenv = MICROENV.get(mode, 1.0)
-    ve = VENTILATION_LPM.get(mode, 8.0) / 1000.0  # m³/min
+    dose integral → dose_lo/dose_hi. Band math per doc 06 §1: sum of lo,
+    sum of hi (linear, conservative — not the independence-assuming RSS).
+    Bad inputs degrade honestly: NaN/negative concentrations count as
+    uncovered field, implausible speeds flag instead of clamping."""
+    fac = mode_factors(mode)
+    microenv = fac["microenv"]
+    ve_lpm = fac["ventilation_lpm"]
+    ve = ve_lpm / 1000.0  # m³/min
     uplift = ROAD_UPLIFT.get(road_class or "", 1.0)
+    factors = {"microenv": microenv, "ventilation_lpm": ve_lpm,
+               "road_uplift": uplift, "activity": fac["activity"],
+               "mode_known": fac["known_mode"]}
+    warnings = []
+    if not fac["known_mode"]:
+        warnings.append("unknown_mode_defaulted")
+
+    def _empty(covs=0.0):
+        return {"dose_ug": None, "dose_ug_lo": None, "dose_ug_hi": None,
+                "avg_conc_ugm3": None, "peak_conc": None,
+                "confidence": "none", "coverage": covs, "sparse": True,
+                "warnings": warnings, "factors": factors}
+
+    if duration_s is None or not math.isfinite(duration_s) or duration_s < 0:
+        warnings.append("bad_duration")
+        return _empty()
 
     samples = segment_samples(geometry, duration_s)
     if not samples:
-        return {"dose_ug": None, "avg_conc_ugm3": None, "peak_conc": None,
-                "confidence": "none", "coverage": 0.0, "sparse": True,
-                "factors": {"microenv": microenv, "ventilation_lpm": ve * 1000,
-                            "road_uplift": uplift}}
+        warnings.append("degenerate_route")
+        return _empty()
 
     total_dose = 0.0
-    total_var = 0.0
+    total_sd = 0.0       # linear sum of segment σ×factors (doc 06 §1)
     conc_by_dist = 0.0
     peak = 0.0
     got = 0
+    neg_clamped = 0
     dist_km = 0.0
     for s in samples:
-        c = field_value(s["lat"], s["lon"])
         dist_km += s["dist_m"] / 1000.0
-        if c is None:
+        if s["lat"] is None:
             continue
+        try:
+            c = field_value(s["lat"], s["lon"])
+        except Exception:
+            c = None          # field blew up → treat as uncovered, not crash
+        if c is None or not math.isfinite(c):
+            continue          # NaN/inf = honest 'no field', not a dose of NaN
+        if c < 0:
+            c = 0.0           # krige can dip below 0; PM2.5 can't
+            neg_clamped += 1
         c_eff = c * microenv * uplift
         got += 1
         total_dose += c_eff * ve * (s["seconds"] / 60.0)
@@ -142,24 +302,27 @@ def dose(geometry: dict, duration_s: float, mode: str,
         if field_sigma is not None:
             try:
                 sd = field_sigma(s["lat"], s["lon"]) or 0.0
-                sd_eff = sd * microenv * uplift * ve * (s["seconds"] / 60.0)
-                total_var += sd_eff * sd_eff
+                if math.isfinite(sd) and sd > 0:
+                    total_sd += sd * microenv * uplift * ve * (s["seconds"] / 60.0)
             except Exception:
                 pass
 
     coverage = got / len(samples)
     if got == 0:
-        return {"dose_ug": None, "avg_conc_ugm3": None, "peak_conc": None,
-                "confidence": "none", "coverage": 0.0, "sparse": True,
-                "factors": {"microenv": microenv, "ventilation_lpm": ve * 1000,
-                            "road_uplift": uplift}}
+        warnings.append("field_no_coverage")
+        return _empty()
+    if neg_clamped:
+        warnings.append("negative_field_clamped")
 
-    # confidence: field density + coverage
+    # confidence: field density + coverage + speed sanity
     near_km = 999.0
     if nearest_sample_km:
         try:
             mid = samples[len(samples) // 2]
-            near_km = nearest_sample_km(mid["lat"], mid["lon"])
+            if mid["lat"] is not None:
+                nk = nearest_sample_km(mid["lat"], mid["lon"])
+                if nk is not None and math.isfinite(nk):
+                    near_km = nk
         except Exception:
             near_km = 999.0
     if coverage < 0.5:
@@ -171,29 +334,40 @@ def dose(geometry: dict, duration_s: float, mode: str,
     else:
         conf = "low"
 
-    sd_dose = math.sqrt(total_var) if field_sigma is not None else 0.0
+    implied_kmh = dist_km / (duration_s / 3600.0) if duration_s > 0 else 0.0
+    if implied_kmh > PLAUSIBLE_MAX_KMH:
+        warnings.append("speed_implausible")
+        conf = "low"        # the duration fed the integral is not believable
+
     return {
         "dose_ug": round(total_dose, 1),
-        "dose_ug_lo": round(max(0.0, total_dose - sd_dose), 1) if sd_dose else None,
-        "dose_ug_hi": round(total_dose + sd_dose, 1) if sd_dose else None,
+        "dose_ug_lo": round(max(0.0, total_dose - total_sd), 1) if total_sd else None,
+        "dose_ug_hi": round(total_dose + total_sd, 1) if total_sd else None,
         "avg_conc_ugm3": round(conc_by_dist / (dist_km * 1000 or 1), 1),
         "peak_conc": round(peak, 1),
+        "implied_speed_kmh": round(implied_kmh, 1),
         "confidence": conf,
         "coverage": round(coverage, 2),
         "sparse": coverage < 0.5,
-        "factors": {"microenv": microenv, "ventilation_lpm": ve * 1000,
-                    "road_uplift": uplift},
+        "warnings": warnings,
+        "factors": factors,
     }
 
 
 def compare(options: list, field_value, nearest_sample_km=None,
             field_sigma=None) -> list:
     """Rank [{mode, geometry, duration_s, distance_km, ...}] by dose;
-    annotate savings vs worst option. The 'auto=218, car=96, metro=41' math."""
+    annotate savings vs worst option. The 'auto=218, car=96, metro=41' math.
+    A broken option degrades to an unscored tail entry, never a crash."""
     for o in options:
-        o["exposure"] = dose(o["geometry"], o["duration_s"], o["mode"],
-                             field_value, nearest_sample_km,
-                             o.get("road_class"), field_sigma)
+        try:
+            o["exposure"] = dose(o.get("geometry"), o.get("duration_s"),
+                                 o.get("mode"), field_value, nearest_sample_km,
+                                 o.get("road_class"), field_sigma)
+        except Exception:
+            o["exposure"] = {"dose_ug": None, "confidence": "none",
+                             "coverage": 0.0, "sparse": True,
+                             "warnings": ["dose_error"], "factors": {}}
     scored = [o for o in options if o["exposure"]["dose_ug"] is not None]
     if not scored:
         return options
