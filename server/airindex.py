@@ -34,11 +34,20 @@ schema is identical and field.grid.system says which produced it.
 
 Cell values are never invented: a cell is dropped only when there is no
 model value AND no station to interpolate from.
+
+Hardening contract (r3): each source is fetched with per-source
+retry/backoff (RETRY_ATTEMPTS); a source that stays down degrades to an
+"unavailable" bundle and only its contribution is lost — the field still
+builds. Every field carries a `build` block (duration_ms, sources_used,
+sources_degraded), per-source `attempts` in provenance, and QC reject
+counts (qc.dropped_counts / dropped_total) so ingest health is
+self-describing.
 """
 import gzip
 import json
 import math
 import os
+import random
 import sys
 import time
 from datetime import datetime, timezone
@@ -78,6 +87,17 @@ FLATLINE_EPS = 0.5          # µg/m³ spread below which a series is "flat"
 SPIKE_Z = 5.0               # QC: residual > 5 sigma vs neighbours is a spike
 SPIKE_SIGMA_FLOOR = 8.0     # µg/m³ — MAD can be ~0 on a uniform field
 OPENAQ_V3 = "https://api.openaq.org/v3"
+
+# Per-source retry policy (doc 05 §2 ingest). A source that exhausts its
+# attempts degrades to status "unavailable: ..." — the field still builds
+# on whatever arrived; a failed source never kills a build.
+#   model/met : cheap single HTTPS calls        -> 3 tries
+#   fires     : each try pulls 4 multi-MB CSVs   -> 2 tries
+#   stations  : each try paginates per-location  -> 2 tries
+RETRY_ATTEMPTS = {"model": 3, "met": 3, "fires": 2, "stations": 2}
+RETRY_BASE_S = 0.5          # backoff(k) = base * 2**(k-1), capped + jitter
+RETRY_CAP_S = 8.0
+RETRY_JITTER_S = 0.25
 
 
 # ---------------------------------------------------------------- grid
@@ -189,6 +209,8 @@ def qc_stations(stations: list, model_est=None, now: Optional[float] = None):
 
     stations: [{lat, lon, name, pm25, ts(epoch), series?(recent values)}]
     Drops, in order:
+      malformed — lat/lon/pm25 missing or non-numeric (bad upstream row;
+                  it must not crash the build)
       stale    — reading older than 3 h
       flatline — >=FLATLINE_MIN identical recent readings (series needed;
                  single-shot sources can't flatline-check and are kept)
@@ -200,18 +222,34 @@ def qc_stations(stations: list, model_est=None, now: Optional[float] = None):
                  dragging its neighbours' expectations with it.
     """
     now = _epoch(now)
-    dropped = {"stale": [], "flatline": [], "spike": []}
+    dropped = {"malformed": [], "stale": [], "flatline": [], "spike": []}
     kept = []
     for s in stations:
-        ts = s.get("ts")
-        if ts is None or now - float(ts) > STALE_S:
+        try:
+            float(s["lat"]), float(s["lon"]), float(s["pm25"])
+        except (KeyError, TypeError, ValueError):
+            dropped["malformed"].append(
+                s.get("name") if isinstance(s, dict) else repr(s)[:40])
+            continue
+        try:
+            stale = s.get("ts") is None or now - float(s["ts"]) > STALE_S
+        except (TypeError, ValueError):
+            stale = True  # unreadable timestamp -> treat as stale
+        if stale:
             dropped["stale"].append(s.get("name"))
             continue
-        ser = [x for x in (s.get("series") or []) if x is not None]
+        try:
+            ser = [float(x) for x in (s.get("series") or [])
+                   if x is not None]
+        except (TypeError, ValueError):
+            ser = []  # unreadable series: no flatline evidence -> keep
         if len(ser) >= FLATLINE_MIN and max(ser) - min(ser) < FLATLINE_EPS:
             dropped["flatline"].append(s.get("name"))
             continue
-        kept.append(dict(s))
+        s2 = dict(s)
+        s2["lat"], s2["lon"] = float(s["lat"]), float(s["lon"])
+        s2["pm25"] = float(s["pm25"])
+        kept.append(s2)
 
     residuals = []
     for i, s in enumerate(kept):
@@ -246,85 +284,160 @@ def qc_stations(stations: list, model_est=None, now: Optional[float] = None):
 
 # ---------------------------------------------------------------- inputs
 
-def _fetch_model(client) -> dict:
-    """CAMS pm2_5 at the NCR sample grid — one multi-point request."""
+class UpstreamError(Exception):
+    """A source fetch failed in a retryable way; the class name lands in
+    the bundle's status string ('unavailable: UpstreamError')."""
+
+
+# Empty bundle skeletons: what a source contributes while it is down. A
+# failed fetch NEVER raises out of fetch_inputs — it degrades to this
+# shape with status "unavailable: ..." so the field still builds.
+_EMPTY = {
+    "model": {"source": "open-meteo/cams", "samples": []},
+    "met": {"source": "open-meteo", "wind_ms": None, "wind_deg": None,
+            "blh_m": None, "vc_m2s": None},
+    "fires": {"source": "nasa-firms-public-csv", "modifier": 1.0,
+              "n_fires": 0, "belt_fires": 0},
+    "stations": {"source": "openaq-v3", "stations": []},
+}
+
+
+def _retry(call, attempts, sleep) -> tuple:
+    """Run call() up to `attempts` times, exponential backoff + jitter.
+
+    -> (result_or_None, tries, last_exc_or_None). Only raised exceptions
+    retry; a returned "unavailable: ..." bundle is a definitive answer
+    (e.g. no API key configured) and is NOT retried."""
+    tries = max(1, int(attempts))
+    err = None
+    for k in range(1, tries + 1):
+        try:
+            return call(), k, None
+        except Exception as e:  # noqa: BLE001 - upstream flake -> retry
+            err = e
+            if k < tries:
+                sleep(min(RETRY_CAP_S, RETRY_BASE_S * (2 ** (k - 1)))
+                      + random.uniform(0.0, RETRY_JITTER_S))
+    return None, tries, err
+
+
+def _run_source(name, call, *, attempts=None, sleep=None) -> dict:
+    """Retry `call` per RETRY_ATTEMPTS[name]; on exhaustion return the
+    empty bundle marked 'unavailable: <ExcType>'. The returned bundle
+    always carries 'attempts' so provenance shows source flakiness."""
+    t = time.time()
+    out, tries, err = _retry(call, attempts or RETRY_ATTEMPTS[name],
+                             sleep or time.sleep)
+    if out is None:
+        out = dict(_EMPTY[name])
+        out["status"] = f"unavailable: {type(err).__name__}"
+        out["fetched_at"] = t
+    out["attempts"] = tries
+    return out
+
+
+def _safe_source(name, call) -> dict:
+    """Last-resort guard inside fetch_inputs: even if a fetcher itself is
+    broken — or a test double raises straight through — the bundle comes
+    back well-formed and marked unavailable. One source's bug can never
+    abort the other three or the field build."""
     t = time.time()
     try:
-        pts = airfield._grid_points()
-        r = client.get(airfield.OPEN_METEO, params={
-            "latitude": ",".join(f"{p[0]}" for p in pts),
-            "longitude": ",".join(f"{p[1]}" for p in pts),
-            "current": "pm2_5",
-        }, timeout=30)
-        r.raise_for_status()
-        payload = r.json()
-        if isinstance(payload, dict):
-            payload = [payload]
-        samples = []
-        for (lat, lon, name), blk in zip(pts, payload):
-            v = (blk.get("current") or {}).get("pm2_5")
-            if v is not None:
-                samples.append({"lat": lat, "lon": lon, "name": name,
-                                "pm25": float(v)})
-        return {"status": "ok", "source": "open-meteo/cams",
-                "fetched_at": time.time(), "samples": samples}
-    except Exception as e:  # noqa: BLE001 - upstream failure, not a crash
-        return {"status": f"unavailable: {type(e).__name__}",
-                "source": "open-meteo/cams", "fetched_at": t, "samples": []}
+        out = call()
+        if not isinstance(out, dict):
+            raise TypeError(f"fetcher returned {type(out).__name__}")
+        merged = dict(_EMPTY[name])
+        merged.update(out)
+        merged.setdefault("status", "ok")
+        merged.setdefault("fetched_at", t)
+        merged.setdefault("attempts", 1)
+        return merged
+    except Exception as e:  # noqa: BLE001 - degrade this source only
+        out = dict(_EMPTY[name])
+        out.update({"status": f"unavailable: {type(e).__name__}",
+                    "fetched_at": t, "attempts": 1})
+        return out
 
 
-def _fetch_met(client) -> dict:
-    """10 m wind + boundary-layer height at NCR centre -> ventilation VC."""
-    t = time.time()
-    try:
-        r = client.get(airfield.METEO, params={
-            "latitude": 28.61, "longitude": 77.21,
-            "current": "wind_speed_10m,wind_direction_10m",
-            "hourly": "boundary_layer_height",
-            "forecast_days": 1, "wind_speed_unit": "ms", "timezone": "UTC",
-        }, timeout=30)
-        r.raise_for_status()
-        j = r.json()
-        cur = j.get("current") or {}
-        wind_ms = cur.get("wind_speed_10m")
-        wind_deg = cur.get("wind_direction_10m")
-        blh = None
-        hourly = j.get("hourly") or {}
-        times, blhs = hourly.get("time") or [], hourly.get(
-            "boundary_layer_height") or []
-        if times and blhs:
-            # nearest hourly slot to now
-            now = time.time()
-            best_i, best_d = None, 9e18
-            for i, ts in enumerate(times):
-                try:
-                    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                    d = abs(dt.timestamp() - now)
-                    if d < best_d and blhs[i] is not None:
-                        best_i, best_d = i, d
-                except ValueError:
-                    continue
-            if best_i is not None:
-                blh = float(blhs[best_i])
-        vc = blh * wind_ms if (blh is not None and wind_ms is not None) else None
-        return {"status": "ok", "source": "open-meteo",
-                "fetched_at": time.time(),
-                "wind_ms": wind_ms, "wind_deg": wind_deg,
-                "blh_m": blh, "vc_m2s": vc}
-    except Exception as e:  # noqa: BLE001
-        return {"status": f"unavailable: {type(e).__name__}",
-                "source": "open-meteo", "fetched_at": t,
-                "wind_ms": None, "wind_deg": None, "blh_m": None,
-                "vc_m2s": None}
+def _fetch_model_once(client) -> dict:
+    """CAMS pm2_5 at the NCR sample grid — one multi-point request.
+    Raises on failure; _fetch_model owns retry + degradation."""
+    pts = airfield._grid_points()
+    r = client.get(airfield.OPEN_METEO, params={
+        "latitude": ",".join(f"{p[0]}" for p in pts),
+        "longitude": ",".join(f"{p[1]}" for p in pts),
+        "current": "pm2_5",
+    }, timeout=30)
+    r.raise_for_status()
+    payload = r.json()
+    if isinstance(payload, dict):
+        payload = [payload]
+    samples = []
+    for (lat, lon, name), blk in zip(pts, payload):
+        v = (blk.get("current") or {}).get("pm2_5")
+        if v is not None:
+            samples.append({"lat": lat, "lon": lon, "name": name,
+                            "pm25": float(v)})
+    return {"status": "ok", "source": "open-meteo/cams",
+            "fetched_at": time.time(), "samples": samples}
 
 
-def _fetch_fires(client, wind_deg) -> dict:
+def _fetch_model(client, *, attempts=None, sleep=None) -> dict:
+    return _run_source("model", lambda: _fetch_model_once(client),
+                       attempts=attempts, sleep=sleep)
+
+
+def _fetch_met_once(client) -> dict:
+    """10 m wind + boundary-layer height at NCR centre -> ventilation VC.
+    Raises on failure; _fetch_met owns retry + degradation."""
+    r = client.get(airfield.METEO, params={
+        "latitude": 28.61, "longitude": 77.21,
+        "current": "wind_speed_10m,wind_direction_10m",
+        "hourly": "boundary_layer_height",
+        "forecast_days": 1, "wind_speed_unit": "ms", "timezone": "UTC",
+    }, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    cur = j.get("current") or {}
+    wind_ms = cur.get("wind_speed_10m")
+    wind_deg = cur.get("wind_direction_10m")
+    blh = None
+    hourly = j.get("hourly") or {}
+    times, blhs = hourly.get("time") or [], hourly.get(
+        "boundary_layer_height") or []
+    if times and blhs:
+        # nearest hourly slot to now
+        now = time.time()
+        best_i, best_d = None, 9e18
+        for i, ts in enumerate(times):
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                d = abs(dt.timestamp() - now)
+                if d < best_d and blhs[i] is not None:
+                    best_i, best_d = i, d
+            except ValueError:
+                continue
+        if best_i is not None:
+            blh = float(blhs[best_i])
+    vc = blh * wind_ms if (blh is not None and wind_ms is not None) else None
+    return {"status": "ok", "source": "open-meteo",
+            "fetched_at": time.time(),
+            "wind_ms": wind_ms, "wind_deg": wind_deg,
+            "blh_m": blh, "vc_m2s": vc}
+
+
+def _fetch_met(client, *, attempts=None, sleep=None) -> dict:
+    return _run_source("met", lambda: _fetch_met_once(client),
+                       attempts=attempts, sleep=sleep)
+
+
+def _fetch_fires_once(client, wind_deg) -> dict:
     """NASA FIRMS public CSVs -> belt fire count + smoke modifier.
 
     Reuses fires._parse_rows (same bbox + confidence normalisation) and
     FireField.smoke_modifier on a detached instance — no async needed and
-    the modifier math stays single-sourced."""
-    t = time.time()
+    the modifier math stays single-sourced. One missing satellite CSV is
+    fine; ALL of them failing raises UpstreamError (retried upstream)."""
     rows, ok = [], 0
     for path, instrument in fires_mod.PUBLIC_CSVS:
         try:
@@ -335,9 +448,7 @@ def _fetch_fires(client, wind_deg) -> dict:
         except httpx.HTTPError:
             continue  # one missing snapshot must not kill the layer
     if not ok:
-        return {"status": "unavailable: upstream-error",
-                "source": "nasa-firms-public-csv", "fetched_at": t,
-                "modifier": 1.0, "n_fires": 0, "belt_fires": 0}
+        raise UpstreamError("all FIRMS CSVs failed")
     ff = fires_mod.FireField()
     ff._fires = rows
     ff._status = "live"
@@ -348,83 +459,96 @@ def _fetch_fires(client, wind_deg) -> dict:
             "belt_fires": len([f for f in rows if f.get("belt")])}
 
 
-def _fetch_stations(client) -> dict:
+def _fetch_fires(client, wind_deg, *, attempts=None, sleep=None) -> dict:
+    return _run_source("fires",
+                       lambda: _fetch_fires_once(client, wind_deg),
+                       attempts=attempts, sleep=sleep)
+
+
+def _fetch_stations_once(client) -> dict:
     """CPCB/DPCC instruments via OpenAQ v3 — sync variant of
     airfield.AirField._grab_openaq that also keeps each reading's UTC
     timestamp so QC can enforce the 3 h staleness rule. Without
     OPENAQ_API_KEY the source is marked 'unavailable: no key' — explicit,
-    never silent (00-README open item #1)."""
+    never silent (00-README open item #1); that is a returned bundle,
+    not an exception, so it is NOT retried."""
     t = time.time()
     key = os.environ.get("OPENAQ_API_KEY")
     if not key:
         return {"status": "unavailable: no key", "source": "openaq-v3",
                 "fetched_at": t, "stations": []}
-    try:
-        headers = {"X-API-Key": key}
-        r = client.get(f"{OPENAQ_V3}/locations", headers=headers, params={
-            "bbox": f"{BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]}",
-            "parameters_id": 2, "limit": 200,
-        }, timeout=30)
-        r.raise_for_status()
-        sensors = {}
-        for loc in r.json().get("results", []):
-            coords = loc.get("coordinates") or {}
-            for s in loc.get("sensors", []):
-                if (s.get("parameter") or {}).get("id") == 2:
-                    sensors[s["id"]] = {
-                        "lat": coords.get("latitude"),
-                        "lon": coords.get("longitude"),
-                        "name": loc.get("name") or f"station {loc.get('id')}",
-                        "loc_id": loc["id"],
-                    }
-        stations = []
-        for loc_id in sorted({v["loc_id"] for v in sensors.values()}):
-            try:
-                r = client.get(f"{OPENAQ_V3}/locations/{loc_id}/latest",
-                               headers=headers,
-                               params={"limit": 100}, timeout=30)
-                r.raise_for_status()
-                best = {}
-                for m in r.json().get("results", []):
-                    meta = sensors.get(m.get("sensorsId"))
-                    v = m.get("value")
-                    if meta and v is not None and 0 <= v <= 1500:
-                        ts = (m.get("datetime") or {}).get("utc") or ""
-                        if not best or ts > best["ts"]:
-                            best = {"ts": ts, "meta": meta, "v": float(v)}
-                if best:
-                    try:
-                        ts = datetime.fromisoformat(
-                            best["ts"].replace("Z", "+00:00")).timestamp()
-                    except ValueError:
-                        ts = None
-                    meta = best["meta"]
-                    stations.append({"lat": meta["lat"], "lon": meta["lon"],
-                                     "name": meta["name"], "pm25": best["v"],
-                                     "ts": ts})
-            except httpx.HTTPError:
-                continue
-        return {"status": "ok", "source": "openaq-v3",
-                "fetched_at": time.time(), "stations": stations}
-    except Exception as e:  # noqa: BLE001
-        return {"status": f"unavailable: {type(e).__name__}",
-                "source": "openaq-v3", "fetched_at": t, "stations": []}
+    headers = {"X-API-Key": key}
+    r = client.get(f"{OPENAQ_V3}/locations", headers=headers, params={
+        "bbox": f"{BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]}",
+        "parameters_id": 2, "limit": 200,
+    }, timeout=30)
+    r.raise_for_status()
+    sensors = {}
+    for loc in r.json().get("results", []):
+        coords = loc.get("coordinates") or {}
+        for s in loc.get("sensors", []):
+            if (s.get("parameter") or {}).get("id") == 2:
+                sensors[s["id"]] = {
+                    "lat": coords.get("latitude"),
+                    "lon": coords.get("longitude"),
+                    "name": loc.get("name") or f"station {loc.get('id')}",
+                    "loc_id": loc["id"],
+                }
+    stations = []
+    for loc_id in sorted({v["loc_id"] for v in sensors.values()}):
+        try:
+            r = client.get(f"{OPENAQ_V3}/locations/{loc_id}/latest",
+                           headers=headers,
+                           params={"limit": 100}, timeout=30)
+            r.raise_for_status()
+            best = {}
+            for m in r.json().get("results", []):
+                meta = sensors.get(m.get("sensorsId"))
+                v = m.get("value")
+                if meta and v is not None and 0 <= v <= 1500:
+                    ts = (m.get("datetime") or {}).get("utc") or ""
+                    if not best or ts > best["ts"]:
+                        best = {"ts": ts, "meta": meta, "v": float(v)}
+            if best:
+                try:
+                    ts = datetime.fromisoformat(
+                        best["ts"].replace("Z", "+00:00")).timestamp()
+                except ValueError:
+                    ts = None
+                meta = best["meta"]
+                stations.append({"lat": meta["lat"], "lon": meta["lon"],
+                                 "name": meta["name"], "pm25": best["v"],
+                                 "ts": ts})
+        except httpx.HTTPError:
+            continue
+    return {"status": "ok", "source": "openaq-v3",
+            "fetched_at": time.time(), "stations": stations}
+
+
+def _fetch_stations(client, *, attempts=None, sleep=None) -> dict:
+    return _run_source("stations",
+                       lambda: _fetch_stations_once(client),
+                       attempts=attempts, sleep=sleep)
 
 
 def fetch_inputs(now=None, client=None) -> dict:
-    """Pull all four upstreams. Every bundle carries status + fetched_at;
-    a failed source degrades to status 'unavailable: ...' — the field
-    still builds on what arrived (offline-ish by contract)."""
+    """Pull all four upstreams. Every bundle carries status + fetched_at
+    + attempts; each source is retried per RETRY_ATTEMPTS and a failed
+    source degrades to status 'unavailable: ...' — the field still
+    builds on what arrived (offline-ish by contract). _safe_source is
+    the belt-and-suspenders: even a raising fetcher cannot abort the
+    other three sources."""
     now = _epoch(now)
     own = client is None
     c = client or httpx.Client(
         timeout=httpx.Timeout(30.0, connect=8.0),
         headers={"User-Agent": "alive108-airindex/0.1"})
     try:
-        met = _fetch_met(c)
-        model = _fetch_model(c)
-        fires = _fetch_fires(c, met.get("wind_deg"))
-        stations = _fetch_stations(c)
+        met = _safe_source("met", lambda: _fetch_met(c))
+        model = _safe_source("model", lambda: _fetch_model(c))
+        fires = _safe_source(
+            "fires", lambda: _fetch_fires(c, met.get("wind_deg")))
+        stations = _safe_source("stations", lambda: _fetch_stations(c))
     finally:
         if own:
             c.close()
@@ -438,14 +562,22 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
                 client=None) -> dict:
     """-> the field dict (see module docstring). `inputs` may be injected
     wholesale (tests, replay) — then nothing touches the network."""
+    t0 = time.time()
     now = _epoch(now)
+    injected = inputs is not None
     if inputs is None:
         inputs = fetch_inputs(now, client=client)
+    if not isinstance(inputs, dict):
+        inputs = {}
 
-    model_in = inputs.get("model") or {}
-    met_in = inputs.get("met") or {}
-    fires_in = inputs.get("fires") or {}
-    st_in = inputs.get("stations") or {}
+    def _bundle(key):
+        b = inputs.get(key)
+        return b if isinstance(b, dict) else {}
+
+    model_in = _bundle("model")
+    met_in = _bundle("met")
+    fires_in = _bundle("fires")
+    st_in = _bundle("stations")
 
     # --- model prior, fire-adjusted -------------------------------------
     modifier = fires_in.get("modifier")
@@ -455,32 +587,45 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
     except (TypeError, ValueError):
         modifier = 1.0
     model_pts = []  # (lat, lon, adjusted pm25)
-    for s in model_in.get("samples") or []:
-        v = s.get("pm25")
-        if v is None:
-            continue
-        model_pts.append((float(s["lat"]), float(s["lon"]),
-                          float(v) * modifier))
+    _samples = model_in.get("samples")
+    if not isinstance(_samples, list):
+        _samples = []
+    for s in _samples:
+        try:
+            v = s.get("pm25")
+            if v is None:
+                continue
+            model_pts.append((float(s["lat"]), float(s["lon"]),
+                              float(v) * modifier))
+        except (AttributeError, KeyError, TypeError, ValueError):
+            continue  # one bad model row must not sink the prior
 
     def model_est(lat, lon):
         return _idw(model_pts, lat, lon) if model_pts else None
 
     # --- station QC + Kalman smoothing ----------------------------------
-    raw_st = st_in.get("stations") or []
+    raw_st = st_in.get("stations")
+    if not isinstance(raw_st, list):
+        raw_st = []
     survivors, dropped = qc_stations(raw_st, model_est, now)
     smoother = airfield.AirField()  # reuse production scalar Kalman (Q=12, R=60)
     for s in survivors:
-        s["pm25"] = round(float(smoother._smooth(
-            "pm2_5", s["lat"], s["lon"], float(s["pm25"]))), 2)
+        try:
+            s["pm25"] = round(float(smoother._smooth(
+                "pm2_5", s["lat"], s["lon"], float(s["pm25"]))), 2)
+        except (TypeError, ValueError):
+            s["pm25"] = None  # smoothed value unusable -> IDW skips it
 
     # --- residuals = smoothed obs - adjusted model ----------------------
     resids = []  # (lat, lon, name, resid)
     for s in survivors:
+        if s.get("pm25") is None:
+            continue
         base = model_est(s["lat"], s["lon"])
         if base is None:
             continue
         s["residual"] = round(float(s["pm25"]) - base, 2)
-        resids.append((s["lat"], s["lon"], s["name"], s["residual"]))
+        resids.append((s["lat"], s["lon"], s.get("name"), s["residual"]))
     rk = KrigeField().fit(
         [(la, lo, nm, {"pm2_5": r}) for la, lo, nm, r in resids])
 
@@ -542,8 +687,8 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
         kr = rk.estimate(lat, lon) if rk.on else None
         if base is None:
             # no model coverage: pure station IDW
-            pm = _idw([(s["lat"], s["lon"], s["pm25"]) for s in survivors],
-                      lat, lon)
+            pm = _idw([(s["lat"], s["lon"], s["pm25"]) for s in survivors
+                       if s.get("pm25") is not None], lat, lon)
             sd = max(0.15 * pm, 5.0) if pm is not None else None
         elif kr is not None:
             mu_r, sd_r = kr
@@ -595,7 +740,8 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
              "source": bundle.get("source"),
              "status": bundle.get("status", "ok"),
              "fetched_at": _iso(float(fa)) if fa else None,
-             "age_s": int(now - float(fa)) if fa else None}
+             "age_s": int(now - float(fa)) if fa else None,
+             "attempts": bundle.get("attempts")}
         if extra:
             e.update(extra)
         return e
@@ -618,6 +764,21 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
                            "vc_m2s": met_in.get("vc_m2s")}),
     }
 
+    # --- build metadata: sources-used, QC reject counts, duration ------
+    # (doc 05 §2 + doc 07 admin "ingest health" — every built field must
+    # be able to say what went into it and how long it took)
+    sources_used = sorted(k for k, p in provenance.items()
+                          if p.get("status") == "ok")
+    sources_degraded = sorted(k for k, p in provenance.items()
+                              if p.get("status") != "ok")
+    dropped_counts = {k: len(v) for k, v in dropped.items()}
+    build_meta = {
+        "duration_ms": round((time.time() - t0) * 1000, 1),
+        "inputs": "injected" if injected else "live",
+        "sources_used": sources_used,
+        "sources_degraded": sources_degraded,
+    }
+
     grid_note = None
     if system != "h3":
         grid_note = ("h3 not installed — emitting ~0.74 km² lat/lon fallback "
@@ -627,6 +788,7 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
         "schema": "alive-airindex/1",
         "built_at": _iso(now),
         "built_epoch": round(now, 3),
+        "build": build_meta,
         "grid": {"system": system, "res": H3_RES, "bbox": list(BBOX),
                  "n_cells": n_cells, "note": grid_note},
         "provenance": provenance,
@@ -637,6 +799,8 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
         "qc": {"stations_raw": len(raw_st),
                "stations_used": len(survivors),
                "dropped": dropped,
+               "dropped_counts": dropped_counts,
+               "dropped_total": sum(dropped_counts.values()),
                "kriging": "on" if rk.on else "residual-idw"},
         "stations": [{"name": s.get("name"), "lat": s["lat"],
                       "lon": s["lon"], "pm25": s["pm25"],
