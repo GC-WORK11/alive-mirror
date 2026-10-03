@@ -231,7 +231,8 @@ async def strip(route_id: str = Query(min_length=1)):
             "error": "unknown route_id",
             "detail": "route_ids come from /v2/plan and expire after 1 h"})
 
-    await deps.field_refresh()
+    from .plan import _field_refresh_bounded
+    await _field_refresh_bounded()
     F = deps.field()
     try:
         import exposure

@@ -275,7 +275,8 @@ async def _corridors(loc) -> list:
 
 @router.get("/city")
 async def city():
-    await deps.field_refresh()
+    from .plan import _field_refresh_bounded
+    await _field_refresh_bounded()
     F = deps.field()
     try:
         fstat = F.status()
