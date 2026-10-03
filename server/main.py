@@ -24,7 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # local dev keys live in server/.env (gitignored) — real env vars always win
 load_dotenv()
 
-from airfield import FIELD, grap_indicative
+from airfield import FIELD, grap_indicative, in_service_area, OUT_OF_AREA, \
+    MAX_ROUTE_KM
 from fires import FIRES
 from blackspots import geojson as blackspots_geojson
 from forecast import FORECAST
@@ -352,6 +353,9 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     prof = profile if profile in ("driving", "cycling", "walking") else "driving"
     exposure_mode = VEHICLE_TO_EXPOSURE.get((vehicle or "").lower()) or \
         ("driving_car_ac" if prof == "driving" else prof)
+    if not (in_service_area(from_lat, from_lon)
+            and in_service_area(to_lat, to_lon)):
+        return {"routes": [], "error": OUT_OF_AREA}
     url = f"https://router.project-osrm.org/route/v1/{prof}/{from_lon},{from_lat};{to_lon},{to_lat}"
     try:
         r = await http().get(url, params={
@@ -367,6 +371,8 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
 
     options = []
     for rt in data.get("routes", [])[:3]:
+        if float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+            continue  # ocean-spanning "route" — not a servable option
         dur_s = _scaled_duration_s(vehicle or "", prof, rt)
         options.append({
             "mode": exposure_mode,
@@ -395,6 +401,11 @@ def _annotate_segments(options: list) -> None:
 
 
 async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float):
+    # OD outside the field's service area → no fetch at all: public OSRM
+    # happily returns a 10,000 km / 95k-vertex SF→Delhi "route", and the
+    # dose loop over it is what wedged the ECS task on E2E.
+    if not (in_service_area(flat, flon) and in_service_area(tlat, tlon)):
+        return None
     url = f"https://router.project-osrm.org/route/v1/{profile}/{flon},{flat};{tlon},{tlat}"
     r = await http().get(url, params={
         "overview": "full", "geometries": "geojson",
@@ -402,12 +413,18 @@ async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float
     })
     r.raise_for_status()
     routes = r.json().get("routes", [])
-    return routes[0] if routes else None
+    rt = routes[0] if routes else None
+    if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+        return None
+    return rt
 
 
 async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
     """Route through explicit via-points — used to synthesize alternative
     geometries the public OSRM demo won't return (it ignores alternatives)."""
+    if pts and not (in_service_area(pts[0][1], pts[0][0])
+                    and in_service_area(pts[-1][1], pts[-1][0])):
+        return None
     coords = ";".join(f"{lon},{lat}" for lon, lat in pts)
     url = f"https://router.project-osrm.org/route/v1/{profile}/{coords}"
     r = await http().get(url, params={
@@ -415,7 +432,10 @@ async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
     })
     r.raise_for_status()
     routes = r.json().get("routes", [])
-    return routes[0] if routes else None
+    rt = routes[0] if routes else None
+    if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+        return None
+    return rt
 
 
 # every consumer mode, scored on the geometry that mode actually travels
@@ -437,6 +457,9 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
     The screen the product exists for: one from→to, every option ranked
     by what you actually breathe, with the same honesty envelope.
     """
+    if not (in_service_area(from_lat, from_lon)
+            and in_service_area(to_lat, to_lon)):
+        return {"options": [], "error": OUT_OF_AREA}
     drive, cycle, walk = await asyncio.gather(
         _osrm("driving", from_lon, from_lat, to_lon, to_lat),
         _osrm("cycling", from_lon, from_lat, to_lon, to_lat),
@@ -590,11 +613,18 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if not exposure_mode or not profile:
         return {"error": "unknown vehicle", "options": []}
 
+    if not (in_service_area(from_lat, from_lon)
+            and in_service_area(to_lat, to_lon)):
+        return {"options": [], "error": OUT_OF_AREA}
+
     rt = await _osrm(profile, from_lon, from_lat, to_lon, to_lat)
     if rt is None or isinstance(rt, BaseException):
         return {"options": [], "error": "router unavailable"}
 
-    await FORECAST.refresh(http())
+    try:  # forecast refresh is best-effort — bound its upstream waits
+        await asyncio.wait_for(FORECAST.refresh(http()), timeout=12.0)
+    except Exception:
+        pass
     dur_s = _scaled_duration_s(vehicle, profile, rt)
 
     slots = []

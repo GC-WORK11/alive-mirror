@@ -54,6 +54,24 @@ IDW_P = 2.0
 # NCR bbox (lon/lat) shared with main.py
 BBOX = (76.80, 28.20, 77.90, 28.95)
 
+# Service area = the field itself + margin. Dose is only honest inside
+# the kriged grid: past it every lookup clamps to an edge cell, so a
+# 10,000 km "route" would still return confident-looking numbers while
+# burning the single worker on a ~40k-sample dose loop (the ECS wedge).
+# Requests whose OD leaves this box fail fast with a structured error
+# — before any upstream fetch, geometry decode, or sample walk.
+SERVICE_MARGIN_DEG = 2.0   # ~220 km past the grid: Jaipur/Chandigarh/Agra
+MAX_OD_KM = 700.0          # great-circle cap on the requested pair
+MAX_ROUTE_KM = 900.0       # cap on whatever a router returns for it
+
+
+def in_service_area(lat: float, lon: float) -> bool:
+    return (BBOX[0] - SERVICE_MARGIN_DEG <= lon <= BBOX[2] + SERVICE_MARGIN_DEG
+            and BBOX[1] - SERVICE_MARGIN_DEG <= lat <= BBOX[3] + SERVICE_MARGIN_DEG)
+
+
+OUT_OF_AREA = "outside service area — dose field covers Delhi/NCR only"
+
 # Major CPCB/DPCC continuous stations — coordinates for provenance + to
 # anchor the field at the places Delhi actually monitors. Values today
 # come from the model grid; a CPCB key will swap in real measurements.

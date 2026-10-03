@@ -146,7 +146,17 @@ async def osrm_route(profile: str, flon: float, flat: float,
     scripts/geo/run_stack.sh, ~2 ms local vs ~600 ms + rate limits on
     the public demo), public demo as the flagged fallback. steps=true
     always so /v2 options carry a real turn list. `source` says which
-    backend answered — never silently."""
+    backend answered — never silently.
+
+    Bounds that keep a request from wedging the single worker: an OD
+    outside the field's service area returns None WITHOUT fetching
+    (public OSRM happily "routes" San Francisco→Delhi as 10,000 km /
+    95k vertices — the dose loop over it is what killed the task), and
+    any route longer than airfield.MAX_ROUTE_KM is discarded as
+    unroutable for this product."""
+    from airfield import in_service_area, MAX_ROUTE_KM
+    if not (in_service_area(flat, flon) and in_service_area(tlat, tlon)):
+        return None
     bases = []
     try:
         import routing_local as _rl
@@ -166,6 +176,8 @@ async def osrm_route(profile: str, flon: float, flat: float,
             if not routes:
                 continue
             rt = routes[0]
+            if float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+                continue  # path through oceans/ferries — not servable
             rt["steps"] = osrm_steps(rt)
             rt["source"] = source
             return rt

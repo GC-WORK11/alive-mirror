@@ -812,6 +812,48 @@ def rank_options(options: list) -> list:
 
 
 # --- endpoints ------------------------------------------------------------------
+# Hard per-request budget: every upstream call in the option path is
+# bounded individually, but a pathological stack (local + public OSRM
+# per mode, transit scan) could still sum past what a single-worker
+# task can afford between ALB health checks — cap the whole build.
+PLAN_BUDGET_S = 25.0
+FIELD_REFRESH_BUDGET_S = 10.0
+
+
+def _service_area(flat, flon, tlat, tlon) -> bool:
+    """Both endpoints must sit inside the field's coverage + margin —
+    dose past it would clamp to edge cells (a 10,000 km SF→Delhi OSRM
+    "route" is what wedged the task on E2E)."""
+    try:
+        from airfield import in_service_area
+        return in_service_area(flat, flon) and in_service_area(tlat, tlon)
+    except Exception:
+        return True   # airfield importable everywhere prod runs
+
+
+async def _field_refresh_bounded() -> None:
+    """Field refresh is best-effort — never let an upstream stall hold
+    a plan request hostage."""
+    try:
+        await asyncio.wait_for(deps.field_refresh(),
+                               timeout=FIELD_REFRESH_BUDGET_S)
+    except Exception:
+        pass
+
+
+async def _options_bounded(flat, flon, tlat, tlon, vehicle, profile,
+                           depart_at):
+    """_build_options under the hard budget. Returns (options, error)
+    — error is a fast structured string, never an open request."""
+    try:
+        return await asyncio.wait_for(
+            _build_options(flat, flon, tlat, tlon, vehicle, profile,
+                           depart_at),
+            timeout=PLAN_BUDGET_S), None
+    except asyncio.TimeoutError:
+        return [], "planner timed out"
+
+
 def _pt(v, name: str):
     if isinstance(v, dict):
         return float(v["lat"]), float(v["lon"])
@@ -856,11 +898,19 @@ async def plan(body: dict):
     vehicle_req = str(body.get("vehicle") or body.get("mode")
                       or vehicle)[:40]
 
-    await deps.field_refresh()
-    options = await _build_options(flat, flon, tlat, tlon, vehicle,
-                                   profile, depart_at)
+    if not _service_area(flat, flon, tlat, tlon):
+        from airfield import OUT_OF_AREA
+        return {"from": {"lat": flat, "lon": flon},
+                "to": {"lat": tlat, "lon": tlon},
+                "options": [], "error": OUT_OF_AREA,
+                "field": _field_status(),
+                "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
+
+    await _field_refresh_bounded()
+    options, opt_err = await _options_bounded(
+        flat, flon, tlat, tlon, vehicle, profile, depart_at)
     rank_options(options)
-    return {
+    resp = {
         "from": {"lat": flat, "lon": flon},
         "to": {"lat": tlat, "lon": tlon},
         "vehicle": vehicle,
@@ -872,6 +922,11 @@ async def plan(body: dict):
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
+    if opt_err:
+        resp["error"] = opt_err
+    elif not options:
+        resp["error"] = "no route"   # OD in-area but unroutable
+    return resp
 
 
 @router.post("/reroute")
@@ -915,14 +970,21 @@ async def reroute(body: dict):
             if rec["emissions_vehicle"].get(k):
                 profile[k] = rec["emissions_vehicle"][k]
 
-    await deps.field_refresh()
-    options = await _build_options(flat, flon, tlat, tlon, vehicle,
-                                   profile, body.get("depart_at"))
+    if not _service_area(flat, flon, tlat, tlon):
+        from airfield import OUT_OF_AREA
+        return {"route_id": None, "options": [], "option": None,
+                "rerouted_from": rid, "error": OUT_OF_AREA,
+                "field": _field_status(),
+                "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
+
+    await _field_refresh_bounded()
+    options, opt_err = await _options_bounded(
+        flat, flon, tlat, tlon, vehicle, profile, body.get("depart_at"))
     rank_options(options)
     if not options:
         return {"route_id": None, "options": [], "option": None,
                 "rerouted_from": rid,
-                "error": "routing unavailable from this position",
+                "error": opt_err or "routing unavailable from this position",
                 "field": _field_status(),
                 "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
 
