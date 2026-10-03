@@ -104,6 +104,7 @@ function toOption(raw: unknown): V2Option | null {
       confidence: str(dose.confidence),
       basis: str(dose.basis),
       note: str(dose.note),
+      coverage: num(dose.coverage),
     },
     emissions: {
       co2_kg: band(em.co2_kg),

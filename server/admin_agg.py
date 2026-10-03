@@ -231,6 +231,13 @@ async def status():
     """Service + air-field status, age and provenance (health.py paths)."""
     h = _health.collect_health()
     f = _field_status()
+    species = {}
+    try:
+        from airfield import FIELD
+        from v2.city import _species
+        species = _species(FIELD)
+    except Exception:
+        species = {}
     return {
         "ts": time.time(),
         "ok": h.get("ok", True),
@@ -253,6 +260,9 @@ async def status():
             "wind": f.get("wind") or {},
             "snapshot_age_s": h.get("field_age_s"),
         },
+        # the other real species the field serves — city-mean lattice
+        # stats; absent entirely when the serving field is pm25-only
+        "species": species,
         "trips_backend": h.get("trips_backend"),
         "ledger": {
             "backend": getattr(LEDGER, "backend", "memory"),

@@ -330,6 +330,11 @@ export interface DoseBand {
   confidence?: "high" | "medium" | "low" | "none" | null;
   basis?: string | null;
   note?: string;
+  /** fraction of sampled route inside the field — <1 on edge-crossing
+      trips (the uncovered span is excluded, never clamped). For leg-based
+      doses (transit) it is the weakest leg's coverage. */
+  coverage?: number | null;
+  sparse?: boolean | null;
 }
 
 export interface EmissionBandValue {

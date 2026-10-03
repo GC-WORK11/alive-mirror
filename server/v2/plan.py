@@ -288,6 +288,7 @@ def _dose_via_core(coords: list, microenv: str):
                 out.get("mid"), (int, float)):
             return {"lo": out.get("lo"), "mid": out.get("mid"),
                     "hi": out.get("hi"),
+                    "coverage": out.get("coverage"),
                     "basis": "alive_core_ref.integrate_dose"}
     return None
 
@@ -314,6 +315,10 @@ def _dose_band(geometry: dict, duration_s: float, microenv: str) -> dict:
         "hi": e.get("dose_ug_hi"),
         "avg_conc_ugm3": e.get("avg_conc_ugm3"),
         "confidence": e.get("confidence"),
+        # fraction of sampled route points inside the field — a route
+        # that leaves the field honestly reports <1, never clamps
+        "coverage": e.get("coverage"),
+        "sparse": e.get("sparse"),
         "basis": "est." if e.get("dose_ug") is not None else None,
     }
 
@@ -336,6 +341,7 @@ def _leg_dose(legs: list) -> dict:
                 "note": "field unavailable"}
     lo = mid = hi = 0.0
     have_mid = have_band = False
+    cov_min = None
     conf = "high"
     for leg in legs or []:
         geom = leg.get("geometry")
@@ -359,17 +365,21 @@ def _leg_dose(legs: list) -> dict:
             lo += e["dose_ug_lo"]
             hi += e.get("dose_ug_hi") or e["dose_ug"]
             have_band = True
+        if e.get("coverage") is not None:
+            cov_min = e["coverage"] if cov_min is None else min(cov_min, e["coverage"])
         c = e.get("confidence") or "low"
         if _CONF_RANK.get(c, 0) < _CONF_RANK.get(conf, 3):
             conf = c
     if not have_mid:
         return {"lo": None, "mid": None, "hi": None,
-                "confidence": "low", "basis": "est."}
+                "confidence": "low", "coverage": 0.0, "basis": "est."}
     return {
         "lo": round(lo, 1) if have_band else None,
         "mid": round(mid, 1),
         "hi": round(hi, 1) if have_band else None,
         "confidence": conf,
+        # weakest leg's coverage — the shared floor a rider can trust
+        "coverage": cov_min if cov_min is not None else None,
         "basis": "est.",
     }
 

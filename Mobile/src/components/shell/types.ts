@@ -12,6 +12,10 @@ export type DoseBand = Band & {
   confidence?: string | null;    // "high" | "medium" | "low" | "none"
   basis?: string | null;         // e.g. "est." — jargon lives in details only
   note?: string | null;          // e.g. "dose engine unavailable"
+  /** fraction of sampled route inside the field — <1 on edge-crossing
+      trips; the uncovered span is excluded, never clamped */
+  coverage?: number | null;
+  sparse?: boolean | null;
 };
 
 /** Trip emissions — tailpipe bands + provenance. Two payload flavours:
