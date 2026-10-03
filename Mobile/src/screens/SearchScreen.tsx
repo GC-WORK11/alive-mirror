@@ -206,13 +206,24 @@ function SearchSheet({
     [loc, search],
   );
 
+  /* Keyboard.dismiss() is async — closing the Modal in the same tick tears
+     the scene down while the keyboard proxy is mid-handoff, and that race
+     segfaults this RN/iOS-sim stack (same class as the autoFocus fix). Defer
+     the actual close ~160ms so the proxy finishes while the scene is stable.
+     Imperceptible to a user; identical UX on hardware. */
+  const dismissThen = useCallback((fn: () => void) => {
+    Keyboard.dismiss();
+    setTimeout(fn, 160);
+  }, []);
+
   const pick = useCallback(
     (p: PlaceResult) => {
-      Keyboard.dismiss();
-      addRecent(p).then(() => getPlaces().then(setStore)).catch(() => {});
-      onSelect({ type: "place", place: p });
+      dismissThen(() => {
+        addRecent(p).then(() => getPlaces().then(setStore)).catch(() => {});
+        onSelect({ type: "place", place: p });
+      });
     },
-    [onSelect],
+    [onSelect, dismissThen],
   );
 
   const distLabel = useCallback(
@@ -261,7 +272,7 @@ function SearchSheet({
       {/* search bar — pill 999 (doc 03) */}
       <View style={ss.bar}>
         <Pressable
-          onPress={() => { Keyboard.dismiss(); onClose(); }}
+          onPress={() => dismissThen(onClose)}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={t("vehicleQ_back", lang)}
@@ -387,10 +398,7 @@ function SearchSheet({
             one tap away even mid-scroll (doc 02 §S2). */}
         <View style={[ss.actionBar, { paddingBottom: insets.bottom + 6 }]}>
           <Pressable
-            onPress={() => {
-              Keyboard.dismiss();
-              onSelect({ type: "current_location" });
-            }}
+            onPress={() => dismissThen(() => onSelect({ type: "current_location" }))}
             accessibilityRole="button"
             accessibilityLabel={t("yourLocation", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
@@ -402,10 +410,7 @@ function SearchSheet({
           </Pressable>
           <View style={ss.actionSplit} />
           <Pressable
-            onPress={() => {
-              Keyboard.dismiss();
-              onSelect({ type: "choose_on_map" });
-            }}
+            onPress={() => dismissThen(() => onSelect({ type: "choose_on_map" }))}
             accessibilityRole="button"
             accessibilityLabel={t("chooseOnMap", lang)}
             accessibilityHint={t("mapPickHint", lang)}
