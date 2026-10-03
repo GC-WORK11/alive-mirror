@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- ALive-108 user puck — accuracy halo + heading beam + accent dot,
+       hand-drawn (SOURCES.md). Beam rotates around (24,24) by GNSS course.
+       Runtime copy: UserPuck in Mobile/src/map/markers.tsx. -->
+  <circle cx="24" cy="24" r="21" fill="#4C8DFF" opacity="0.16"/>
+  <path d="M24 24 L15 8.4 A18 18 0 0 1 33 8.4 Z" fill="#4C8DFF" opacity="0.35"/>
+  <circle cx="24" cy="24" r="8.5" fill="#4C8DFF" stroke="#F2F4F7" stroke-width="3"/>
+</svg>
