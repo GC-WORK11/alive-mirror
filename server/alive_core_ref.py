@@ -71,6 +71,20 @@ W_POPULARITY = 0.5
 W_DISTANCE = 0.15
 W_PRECISION = 0.5   # gazetteer W_PREC — display-token precision
 
+# popularity is a 0..1 weight in the scorer, but unbounded scales arrive
+# in the data — geonames rows carry raw population (Delhi ~16.7M) and a
+# few aux rows ship small >1 values. Any >1 source is an unbounded
+# magnitude scale: re-map it through a log curve against a Delhi-scale
+# ceiling so ordering (megacity > town > village) survives while the
+# term stays a tiebreaker instead of a million-point sledgehammer.
+_POP_LOG_CEIL = math.log1p(20_000_000.0)
+
+
+def _norm_popularity(p: float) -> float:
+    if p <= 1.0:
+        return p
+    return min(1.0, math.log1p(p) / _POP_LOG_CEIL)
+
 # ---------------------------------------------------------------------------
 # C++ module lookup — direct import, then the local cmake build dir.
 # ---------------------------------------------------------------------------
@@ -274,7 +288,7 @@ def entries_from_gazetteer(path: Optional[str] = None,
                 "category": e.get("c", ""),
                 "lat": float(e["lat"]),
                 "lon": float(e["lon"]),
-                "popularity": float(e.get("k", 0.0)),
+                "popularity": _norm_popularity(float(e.get("k", 0.0))),
             })
         break  # first readable gazetteer file wins
 
@@ -307,7 +321,8 @@ def entries_from_gazetteer(path: Optional[str] = None,
                     "category": e.get("category") or "place",
                     "lat": float(e["lat"]),
                     "lon": float(e["lon"]),
-                    "popularity": float(e.get("popularity") or 0.0),
+                    "popularity": _norm_popularity(
+                        float(e.get("popularity") or 0.0)),
                 })
         break  # first readable corpus file wins
 

@@ -208,6 +208,57 @@ def test_response_shape_and_took_ms_truthful():
                                 "fuzzy", "other")
 
 
+# --- landmark ranking regression (geonames-popularity poisoning fix) ----------
+# GeoNames rows carry raw population as `popularity`; before load-time
+# normalization that term ran into the millions ('Hauz Khas' district at
+# ~500k vs a real landmark at ~6) and buried every landmark query under
+# district/locality rows. Each of these must be top-1, not merely top-3.
+@pytest.mark.parametrize("q,name_sub", [
+    ("india gate", "india gate"),
+    ("dilli haat", "dilli haat"),
+    ("khan market", "khan market"),
+    ("qutub minar", "minar"),
+    ("lodhi garden", "lodh"),
+    ("nehru place", "nehru place"),
+    ("lotus temple", "lotus"),
+    ("akshardham", "akshard"),
+])
+def test_landmark_beats_geonames_popularity(q, name_sub):
+    r = client.get("/v2/search",
+                   params={"q": q, "lat": CP[0], "lon": CP[1]})
+    assert r.status_code == 200
+    top = r.json()["results"][:1]
+    assert top, f"no results for {q!r}"
+    assert name_sub in (top[0].get("name") or "").lower(), (
+        f"{q!r} top-1 {top[0].get('name')!r} lacks {name_sub!r}")
+
+
+@pytest.mark.parametrize("q,name_sub", [
+    ("hkv", "hauz khas"),
+    ("deerpark", "deer"),
+])
+def test_slang_aliases_hit(q, name_sub):
+    r = client.get("/v2/search",
+                   params={"q": q, "lat": CP[0], "lon": CP[1]})
+    assert r.status_code == 200
+    top3 = [res.get("name") or "" for res in r.json()["results"][:3]]
+    assert any(name_sub in n.lower() for n in top3), (
+        f"{q!r} top-3 {top3} lacks {name_sub!r}")
+
+
+def test_popularity_normalization_bounds():
+    """_norm_popularity: <=1 passes through; >1 log-maps into (0,1] with
+    ordering preserved (Delhi-NCT ~16.7M ~ ceiling)."""
+    from alive_core_ref import _norm_popularity
+    assert _norm_popularity(0.0) == 0.0
+    assert _norm_popularity(0.9) == 0.9
+    assert _norm_popularity(1.0) == 1.0
+    big = _norm_popularity(16_700_000)
+    assert 0.95 <= big <= 1.0
+    assert _norm_popularity(500) < _norm_popularity(50_000) < big
+    assert _norm_popularity(4.0) < 0.2
+
+
 # --- edge cases -------------------------------------------------------------------
 def test_edge_single_char():
     r = client.get("/v2/search",

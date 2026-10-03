@@ -604,9 +604,14 @@ def merge_geonames(entries: dict, stats: dict) -> dict:
                 pop = int(c[14])
             except ValueError:
                 pop = 0
+            # popularity is a 0..1 scorer weight — write the log-scaled
+            # value (Delhi-scale ceiling) so raw population can't become
+            # a million-point term downstream (alive_core_ref._norm_popularity
+            # re-guards at index load for older corpora)
+            pop_w = min(1.0, math.log1p(pop) / math.log1p(20_000_000.0))
             cat = GEONAMES_CAT.get(c[7], f"geonames:{c[7] or c[6]}")
             e = make_entry(f"gn:{c[0]}", name, alts, cat, lat, lon,
-                           source="geonames", popularity=pop)
+                           source="geonames", popularity=pop_w)
             if e is None:
                 continue
             e["geonames"] = c[0]
