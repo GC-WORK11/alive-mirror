@@ -12,7 +12,7 @@
  *   carry the grouping) until strings.ts lands them. */
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Animated, Dimensions, Pressable, ScrollView,
+  Alert, Animated, BackHandler, Dimensions, Pressable, ScrollView,
   StyleSheet, Switch, Text, View,
 } from "react-native";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
@@ -91,6 +91,18 @@ export function Sidebar({
       toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: false,
     }).start();
   }, [open, slide]);
+
+  /* Android hardware BACK closes the drawer — this overlay has no Modal
+     onRequestClose, so without it BACK fell through and exited the app
+     (Android forensic find) */
+  useEffect(() => {
+    if (!open) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [open, onClose]);
 
   const st = useMemo(() => ledgerStats(trips), [trips]);
   const week = useMemo(() => weekStats(trips), [trips]);

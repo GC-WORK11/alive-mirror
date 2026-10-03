@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
-import { LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { BackHandler, LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
@@ -168,6 +168,27 @@ function AppInner() {
      nav) must close it or it bleeds through stacked behind the next surface
      (reproduced: its toggles rendered under the compare sheet) */
   useEffect(() => { if (phase !== "idle") setLayersOpen(false); }, [phase]);
+
+  /* Android hardware BACK closes the topmost open surface — every overlay
+     here is a plain View (no Modal onRequestClose), so without a dispatcher
+     BACK fell through and exited the app (Android forensic find on the
+     drawer). Checked topmost-first, matching JSX mount order; SearchScreen
+     and Sidebar keep their own local handlers — registered later, they win
+     the race for the same press. flow.needsVehicle (the forced first-pick)
+     is intentionally NOT dismissable this way. */
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (vehicleOpen) { setVehicleOpen(false); return true; }
+      if (settingsOpen) { setSettingsOpen(false); return true; }
+      if (ledgerOpen) { setLedgerOpen(false); return true; }
+      if (delhiOpen) { setDelhiOpen(false); return true; }
+      if (layersOpen) { setLayersOpen(false); return true; }
+      if (sidebarOpen) { setSidebarOpen(false); return true; }
+      if (mapPickArmed) { setMapPickArmed(false); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
@@ -371,7 +392,15 @@ function AppInner() {
       {phase === "idle" && (
         <>
           <View style={[s.locateWrap, { bottom: insets.bottom + 16 }]}>
-            <LocateButton active={flow.follow} onPress={() => flow.setFollow(!flow.follow)} lang={lang} />
+            <LocateButton active={flow.follow} onPress={() => {
+              if (flow.follow) { flow.setFollow(false); return; }
+              /* warm the fused provider before engaging follow — MapLibre's
+                 native layer posts a raw error toast when track starts with
+                 no fix yet (Android forensic find); a one-shot fix primes it */
+              Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+                .then((pos) => { if (pos) { setHasLoc(true); flow.setFollow(true); } })
+                .catch(() => {});
+            }} lang={lang} />
           </View>
           <View style={[s.layersWrap, { bottom: insets.bottom + 16 }]}>
             <LayersButton anyOn={Object.values(layers).some(Boolean)} onPress={() => setLayersOpen(true)} lang={lang} />

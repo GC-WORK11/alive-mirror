@@ -33,7 +33,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Animated,
-  Modal,
+  BackHandler,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -169,8 +170,21 @@ function OnboardingSheet({
   // Skip → sharing on (doc 07 §3 default; see header note + onboarding.md).
   const skip = () => finish("on");
 
+  /* the dots read as a pager — make the swipe real: horizontal-dominant
+     pans flip pages, vertical scroll passes through untouched
+     (Android forensic find) */
+  const swipe = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_e, g) =>
+      Math.abs(g.dx) > 28 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+    onPanResponderRelease: (_e, g) => {
+      if (g.dx < -48 && step < PAGE_COUNT - 1) setStep(step + 1);
+      else if (g.dx > 48 && step > 0) setStep(step - 1);
+    },
+  }), [step]);
+
   return (
-    <View style={[ss.root, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]} accessibilityViewIsModal>
+    <View {...swipe.panHandlers}
+      style={[ss.root, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]} accessibilityViewIsModal>
       <StatusBar style="dark" />
 
       {/* brand mark + persistent skip — same spots on every page */}
@@ -390,25 +404,30 @@ export function OnboardingScreen({
   lang?: Lang;
   onDone: (r: { sharing: SharingChoice }) => void;
 }) {
+  /* hardware back stays inert — leaving needs an explicit answer or Skip
+     (the old Modal's onRequestClose swallowed it; the overlay needs a
+     BackHandler to keep that contract) */
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
+  }, [visible]);
+
+  /* overlay, not Modal — RN 0.86's Modal native present/dismiss segfaulted
+     this stack on the search sheet (SIGSEGV in runningboardd); onboarding
+     is the worst place to inherit that crash class */
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      // hardware back stays inert — leaving needs an explicit answer or Skip
-      onRequestClose={() => {}}
-      statusBarTranslucent
-    >
-      <View style={ss.backdrop}>
-        {visible ? <OnboardingSheet lang={lang} onDone={onDone} /> : null}
-      </View>
-    </Modal>
+    <View style={ss.backdrop}>
+      <OnboardingSheet lang={lang} onDone={onDone} />
+    </View>
   );
 }
 
 export default OnboardingScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.bg },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.bg },
   root: {
     flex: 1,
 

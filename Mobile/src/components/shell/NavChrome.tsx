@@ -221,7 +221,10 @@ function CounterCell({
     <View style={[s.cell, dim && s.cellDim]}>
       <View style={s.cellHead}>
         <Icon name={icon} color={tint} size={14} />
-        <Text {...DYNAMIC_TYPE} style={[s.cellLbl, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+        {/* long captions ("smoke your ride puts out") must shrink to fit,
+            not ellipsize — 'PUTS…' read broken on 1080px (forensic find) */}
+        <Text {...DYNAMIC_TYPE} style={[s.cellLbl, { fontFamily: fam(lang, "med") }]}
+          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
           {label}
         </Text>
       </View>

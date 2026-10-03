@@ -152,7 +152,10 @@ function OptionCard({ glyph, label, caption, active, onPress, lang, style }: {
           {label}
         </Text>
         {caption ? (
-          <Text {...DYNAMIC_TYPE} style={[s.cardCap, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+          /* 2-col cards truncate 'petrol · diesel · CNG · EV' mid-list —
+             wrap to a second line, shrink as the last resort (forensic) */
+          <Text {...DYNAMIC_TYPE} style={[s.cardCap, { fontFamily: fam(lang, "reg") }]}
+            numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
             {caption}
           </Text>
         ) : null}

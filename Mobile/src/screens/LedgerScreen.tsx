@@ -221,7 +221,7 @@ const TripCard = React.memo(function TripCard({
           {tr.avoided_ug > 0 && (
             <Text {...DYNAMIC_TYPE}
               style={[ss.tripSaved, { fontFamily: fam(lang, "reg") }]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })}
             </Text>
