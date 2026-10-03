@@ -3,13 +3,34 @@
 Live field stats + provenance + trip aggregates. Everything here is a
 city total or average — the privacy contract is structural, not a
 promise: TripAggregates holds nothing else to leak.
+
+Additive payload — the original keys (ts, pm25_stats, field,
+field_age_s, wind, sources, trips) keep their shape. The 'Delhi today'
+blocks on top:
+
+  generated_at   ISO-8601 UTC timestamp of this build
+  breath         field-weighted PM2.5 turned into a day-of-breathing
+                 band {lo, mid, hi} — µg/m³, inhaled µg, cigarettes;
+                 None when the field is empty (never fake precision)
+  freshness      field age + an explicit live/stale/unknown label
+  provenance     what the number is really made of — model source,
+                 live-station count (zero says so plainly), and the
+                 k>=3 / 72 h corridor rule
+  corridors      publishable street cells from TripAggregates only —
+                 sorted heaviest-first, [] until k>=3 distinct devices
+                 cross a cell inside 72 h
+  enough_data    False while corridors is empty — never fabricated
 """
+import math
 import statistics
 import time
+from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
 from . import deps
+from .gazetteer import GAZ, _haversine_m
+from .places import _name_reverse
 from .store import TRIPS
 
 router = APIRouter()
@@ -18,17 +39,46 @@ router = APIRouter()
 _LATS = (28.30, 28.45, 28.60, 28.75, 28.88)
 _LONS = (76.88, 77.10, 77.32, 77.54, 77.76)
 
+CIG_UG = 316.0            # Berkeley Earth: 1 cigarette ≈ 316 µg inhaled PM2.5
+DAY_M3 = CIG_UG / 22.0    # its 22 µg/m³-day rule → ~14.4 m³ breathed a day
+K_MIN = 3                 # corridor display threshold (docs/plan/07 §3)
+CORRIDOR_TOP = 5          # heaviest rows kept…
+CORRIDOR_TAIL = 5         # …and lightest rows kept
+NAME_RADIUS_M = 1200.0    # gazetteer nearest-name reach for a cell
+NAME_NEAR_M = 200.0       # beyond this a name is "near X", not "X"
 
-def _field_stats(F) -> dict:
-    vals = []
+try:  # field cadence — airfield keeps samples for 15 min between refreshes
+    from airfield import CACHE_TTL as _FIELD_TTL
+except Exception:  # pragma: no cover - airfield always ships together
+    _FIELD_TTL = 900.0
+STALE_S = 2 * _FIELD_TTL  # one missed refresh still reads live; beyond = stale
+
+
+# ---------------------------------------------------------------- lattice
+
+def _lattice(F) -> tuple:
+    """(values, sigmas) at each NCR lattice point — one pass shared by
+    pm25_stats and the breath band. Sigma is the field's kriged std-dev
+    when krige is on; points that error are skipped, never guessed."""
+    vals, sigs = [], []
     for la in _LATS:
         for lo in _LONS:
             try:
                 v = F.value(la, lo)
             except Exception:
                 v = None
+            try:
+                s = F.sigma(la, lo) if hasattr(F, "sigma") else None
+            except Exception:
+                s = None
             if v is not None:
-                vals.append(v)
+                vals.append(float(v))
+            if s is not None:
+                sigs.append(float(s))
+    return vals, sigs
+
+
+def _field_stats(vals: list) -> dict:
     if not vals:
         return {"n": 0}
     return {
@@ -41,6 +91,181 @@ def _field_stats(F) -> dict:
         "note": "% of sampled NCR points above each 24h guideline",
     }
 
+
+def _breath_band(vals: list, sigs: list) -> dict:
+    """The hero figure: what a day of breathing Delhi's air adds up to.
+
+    mid   = field-weighted mean PM2.5 over the lattice
+    band  = 1.96σ combining field σ (krige; the 15% model-only floor
+            airindex uses when krige is off) with the spatial spread —
+            'Delhi' is one number AND a city of different neighbourhoods
+    units = µg/m³, inhaled µg/day (~14.4 m³ breathed — the Berkeley
+            Earth 22 µg/m³-day ≈ 1 cigarette rule behind CIG_UG), and
+            cigarette-equivalents (= pm25/22 exactly).
+    """
+    if not vals:
+        return None
+    mid = statistics.fmean(vals)
+    spread = statistics.pstdev(vals) if len(vals) > 1 else 0.0
+    inst = statistics.fmean(sigs) if sigs else 0.15 * mid
+    sd = math.hypot(inst, spread)
+    lo = max(0.0, mid - 1.96 * sd)
+    hi = mid + 1.96 * sd
+
+    def scaled(x: float, nd: int) -> dict:
+        return {"lo": round(lo * x, nd),
+                "mid": round(mid * x, nd),
+                "hi": round(hi * x, nd)}
+
+    return {
+        "pm25_ugm3": scaled(1.0, 1),
+        "day_inhaled_ug": scaled(DAY_M3, 0),
+        "cigarettes": scaled(DAY_M3 / CIG_UG, 2),
+        "n_points": len(vals),
+        "basis": ("field-weighted mean over the NCR sample lattice; a day "
+                  "of breathing ≈14.4 m³ (Berkeley Earth: 22 µg/m³-day ≈ 1 "
+                  "cigarette); band = 1.96σ of field σ + spatial spread"),
+    }
+
+
+# ---------------------------------------------------------------- honesty
+
+def _freshness(age_s) -> dict:
+    """Explicit freshness — the chip on the screen reads this verbatim:
+    live inside two refresh cadences, stale beyond, unknown when the
+    field never reported an age."""
+    age = None if age_s is None else max(0, int(age_s))
+    label = ("unknown" if age is None else
+             "live" if age <= STALE_S else "stale")
+    return {"field_age_s": age,
+            "age_min": None if age is None else age // 60,
+            "label": label}
+
+
+def _provenance(fstat: dict, agg: dict) -> dict:
+    """What the hero number is made of. stations count 0 says so in the
+    note — the payload must never imply live stations that aren't."""
+    stations = int(fstat.get("station_readings") or 0)
+    return {
+        "model": {
+            "name": "CAMS / Open-Meteo",
+            "source": fstat.get("source") or "open-meteo/cams",
+            "samples": int(fstat.get("samples") or 0),
+            "up": bool(fstat.get("samples")),
+        },
+        "stations": {
+            "count": stations,
+            "live": stations > 0,
+            "note": (f"{stations} live stations blended into the field"
+                     if stations else
+                     "no live station data — model + satellite field only"),
+        },
+        "trips": {
+            "publishable_corridors": agg.get("corridors_publishable", 0),
+            "cells_tracked": agg.get("cells_tracked", 0),
+            "window_h": 72,
+            "k_min": K_MIN,
+        },
+    }
+
+
+# ---------------------------------------------------------------- corridors
+
+def _cell_center(cell: str):
+    """cell key → (lat, lon) for both schemes /v2/trip emits: h3 res-8
+    ids and the 'll:<lat>,<lon>' 4-decimal fallback."""
+    if cell.startswith("ll:"):
+        try:
+            la, lo = cell[3:].split(",")
+            return float(la), float(lo)
+        except ValueError:
+            return None
+    try:
+        import h3
+        fn = getattr(h3, "cell_to_latlng", None) or getattr(h3, "h3_to_geo")
+        la, lo = fn(cell)
+        return float(la), float(lo)
+    except Exception:
+        return None
+
+
+def _gaz_nearest(lat: float, lon: float, radius_m: float = NAME_RADIUS_M):
+    """Closest gazetteer entry within radius_m — the offline corridor
+    namer. -> (name, distance_m) or None."""
+    try:
+        rows = GAZ._load()
+    except Exception:
+        return None
+    dlat = radius_m / 111_000.0
+    dlon = radius_m / (111_000.0 * max(0.2, math.cos(math.radians(lat))))
+    best = None
+    for r in rows:
+        rlat, rlon = r.get("lat"), r.get("lon")
+        if rlat is None or rlon is None:
+            continue
+        if abs(rlat - lat) > dlat or abs(rlon - lon) > dlon:
+            continue
+        d = _haversine_m(lat, lon, rlat, rlon)
+        if d <= radius_m and (best is None or d < best[1]):
+            best = (r["name"], d)
+    return best
+
+
+async def _name_corridor(loc, lat: float, lon: float):
+    """Street/locality name for a cell centre: Amazon reverse-geocode
+    when the key exists, else the nearest gazetteer entry ('near X'
+    when it's far). None when nothing honest is found — a name is
+    never invented."""
+    if loc is not None and getattr(loc, "enabled", False):
+        try:
+            items = await loc.reverse_geocode(lat, lon, limit=10)
+        except Exception:
+            items = None
+        if items:
+            hit = _name_reverse(items, lat, lon)
+            if hit and hit.get("name"):
+                return hit["name"]
+    near = _gaz_nearest(lat, lon)
+    if near is None:
+        return None
+    name, dist = near
+    return name if dist <= NAME_NEAR_M else f"near {name}"
+
+
+async def _corridors(loc) -> list:
+    """Heaviest + lightest publishable street cells. TripAggregates
+    already enforces the k>=3-distinct-devices / 72 h rule — this only
+    sorts, labels against the median corridor dose, and names. Empty
+    store → [] — the caller turns that into enough_data: false."""
+    pub = TRIPS.corridors(limit=20)
+    if not pub:
+        return []
+    med = statistics.median(c["avg_dose_ug"] for c in pub)
+    by_dose = sorted(pub, key=lambda x: -x["avg_dose_ug"])
+    picked = []
+    for c in by_dose[:CORRIDOR_TOP] + by_dose[-CORRIDOR_TAIL:]:
+        if c["cell"] not in {x["cell"] for x in picked}:
+            picked.append(c)
+    rows = []
+    for c in sorted(picked, key=lambda x: -x["avg_dose_ug"]):
+        ctr = _cell_center(c["cell"])
+        if ctr is None:
+            continue
+        rows.append({
+            "cell": c["cell"],
+            "name": await _name_corridor(loc, ctr[0], ctr[1]),
+            # 4-dp out — the same precision ceiling as the pipeline in
+            "lat": round(ctr[0], 4),
+            "lon": round(ctr[1], 4),
+            "trips": c["trips"],
+            "devices": c["devices"],
+            "avg_dose_ug": c["avg_dose_ug"],
+            "relative": "heavier" if c["avg_dose_ug"] >= med else "lighter",
+        })
+    return rows
+
+
+# ---------------------------------------------------------------- endpoint
 
 @router.get("/city")
 async def city():
@@ -59,11 +284,23 @@ async def city():
     except Exception:
         pass
 
+    vals, sigs = _lattice(F)
+    agg = TRIPS.city_aggregates()
+    corridors = await _corridors(loc)
+    now = time.time()
+
     return {
-        "ts": time.time(),
-        "pm25_stats": _field_stats(F),
+        "ts": now,
+        "generated_at": datetime.fromtimestamp(
+            now, tz=timezone.utc).isoformat(timespec="seconds"),
+        "pm25_stats": _field_stats(vals),
+        "breath": _breath_band(vals, sigs),
         "field": fstat,
         "field_age_s": fstat.get("age_s"),
+        "freshness": _freshness(fstat.get("age_s")),
+        "provenance": _provenance(fstat, agg),
+        "corridors": corridors,
+        "enough_data": bool(corridors),
         "wind": F.wind() if hasattr(F, "wind") else {},
         "sources": {
             "model": {"up": bool(fstat.get("samples")),
@@ -75,5 +312,5 @@ async def city():
             "location": {"up": bool(loc is not None and
                                     getattr(loc, "enabled", False))},
         },
-        "trips": TRIPS.city_aggregates(),
+        "trips": agg,
     }
