@@ -10,7 +10,7 @@
 // success/failure here (and every probe()) is how the pill and the
 // outbox learn the network came back. Never claim online on guesswork.
 import { API } from "../components/shell/net";
-import { cachePeek, cacheSet } from "../api/cache";
+import { cacheGeneration, cachePeek, cacheSet } from "../api/cache";
 
 export const NET_TIMEOUT_MS = 6000;
 
@@ -77,13 +77,17 @@ export function fetchCached<T>(url: string, opts: FetchCachedOpts<T>): Promise<N
   if (pending) return pending as Promise<NetResult<T>>;
 
   const run = (async (): Promise<NetResult<T>> => {
+    /* generation captured at request start — delete-my-data bumps it, so
+       a late resolve after the wipe must not resurrect the file (S2:
+       route-GPS coords surviving an honest delete). */
+    const gen = cacheGeneration();
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? NET_TIMEOUT_MS);
     try {
       const data = opts.fetcher
         ? await opts.fetcher(ctrl.signal)
         : await defaultFetcher<T>(url, ctrl.signal);
-      await cacheSet(key, data, opts.ttlMs);
+      await cacheSet(key, data, opts.ttlMs, gen);
       emit({ type: "up" });
       return { ok: true, data, stale: false, ageS: 0 };
     } catch {

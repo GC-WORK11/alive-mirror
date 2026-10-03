@@ -185,10 +185,15 @@ function AppInner() {
       if (layersOpen) { setLayersOpen(false); return true; }
       if (sidebarOpen) { setSidebarOpen(false); return true; }
       if (mapPickArmed) { setMapPickArmed(false); return true; }
+      /* phases: BACK on compare = its X (clearRoute); BACK inside nav
+         must never kill the app mid-trip — the explicit end-early
+         button is the honest exit. Search handles its own press. */
+      if (phase === "compare") { flow.clearRoute(); return true; }
+      if (phase === "nav") return true;
       return false;
     });
     return () => sub.remove();
-  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed]);
+  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, phase, flow]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });

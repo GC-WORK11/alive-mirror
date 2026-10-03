@@ -86,9 +86,21 @@ export async function cachePeek<T>(key: string): Promise<CacheHit<T> | null> {
   return read<T>(key);
 }
 
-/** Write a value under `key`, declaring `ttlMs` as its freshness window. */
-export async function cacheSet<T>(key: string, value: T, ttlMs: number): Promise<void> {
+/* Wipe generation: bump on every cacheClear so a fetch that STARTED
+   before delete-my-data can never re-write route-GPS files after the
+   wipe (Android forensic S2 — plan/strip payloads embed ~100 m O/D
+   coords; a late-resolving request resurrected them post-delete). */
+let wipeGen = 0;
+export function cacheGeneration(): number {
+  return wipeGen;
+}
+
+/** Write a value under `key`, declaring `ttlMs` as its freshness window.
+ * `since` = the generation captured when the request started; a wipe in
+ * between means this payload belongs to the deleted era — don't write. */
+export async function cacheSet<T>(key: string, value: T, ttlMs: number, since?: number): Promise<void> {
   try {
+    if (since != null && since !== wipeGen) return;
     ensureDir();
     const f = fileFor(key);
     if (!f.exists) f.create({ intermediates: true });
@@ -116,6 +128,7 @@ export async function cacheAgeS(key: string): Promise<number | null> {
 
 /** Drop every cached entry. */
 export async function cacheClear(): Promise<number> {
+  wipeGen++;
   let n = 0;
   try {
     ensureDir();
