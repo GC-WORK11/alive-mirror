@@ -9,7 +9,7 @@
     --ink:#F5F5F4; --ink2:#A8A29E; --ink3:#57534E; --ink4:#44403C;
     --bg:#0C0A09; --panel:#141110; --panel2:#1C1917; --hair:#292524;
     --quiet:#78716C; --warn:#FB7185; --over:#E11D48; --severe:#9F1239;
-    --teal:#2DD4BF; --go:#93C5FD;
+    --teal:#2DD4BF; --go:#93C5FD; --amber:#FBBF24;
     --serif:ui-serif,"New York",Georgia,"Times New Roman",serif;
     --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
     --mono:ui-monospace,"SF Mono",Menlo,"Roboto Mono",monospace;
@@ -28,8 +28,10 @@
   .mark{font-family:var(--mono);font-size:12px;letter-spacing:.34em}
   .mark b{color:var(--over);font-weight:400}
   .mark i{font-style:normal;color:var(--ink3);letter-spacing:.18em}
-  .mast-r{display:flex;align-items:center;gap:12px;font-family:var(--mono);
+  .mast-r{display:flex;align-items:center;gap:14px;font-family:var(--mono);
           font-size:9.5px;letter-spacing:.2em;color:var(--ink3);text-transform:uppercase}
+  .priv-badge{padding:3px 10px;border:1px solid rgba(45,212,191,.3);border-radius:99px;
+              color:var(--teal);letter-spacing:.14em}
   .live-dot{width:6px;height:6px;border-radius:3px;background:var(--warn);
             box-shadow:0 0 0 0 rgba(251,113,133,.55);animation:pulse 2.4s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(251,113,133,.5)}
@@ -48,6 +50,7 @@
   .card .num{font-family:var(--serif);font-size:clamp(26px,2.6vw,36px);font-weight:400;
        letter-spacing:-0.03em;line-height:1.05;font-variant-numeric:tabular-nums}
   .card .num small{font-family:var(--sans);font-size:11px;color:var(--ink2);font-weight:300}
+  .card .num.na{color:var(--ink4);font-size:clamp(18px,1.8vw,24px);padding:6px 0}
   .lbl{font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:.2em;
        margin-top:8px;text-transform:uppercase;line-height:1.6}
   .accent{color:var(--teal)} .rose{color:var(--warn)}
@@ -68,28 +71,34 @@
   tr:last-child td{border-bottom:none}
   td.num,th.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
   td .mono{font-family:var(--mono);font-size:11px}
+  .mono{font-family:var(--mono)}
   .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-family:var(--mono);
         font-size:9.5px;letter-spacing:.08em;background:rgba(45,212,191,.08);
         color:var(--teal);border:1px solid rgba(45,212,191,.22)}
+  .pill.down{background:rgba(251,113,133,.08);color:var(--warn);
+             border-color:rgba(251,113,133,.25)}
   .pill.idle{background:rgba(120,113,108,.08);color:var(--ink3);border-color:var(--hair)}
   .modep{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
          text-transform:uppercase;padding:3px 9px;border-radius:99px;
-         border:1px solid var(--hair);color:var(--ink2)}
-  .dose-chip{display:inline-block;min-width:58px;text-align:right;padding:2px 9px;
-             border-radius:99px;font-size:11.5px;font-variant-numeric:tabular-nums}
-  .muted{color:var(--ink3)} .dim{color:var(--ink4)}
-  .kind{display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:8px}
+         border:1px solid var(--hair);color:var(--ink2);margin:1px 2px}
+  .dose-cell{position:relative}
+  .dose-bar{position:absolute;left:0;top:0;bottom:0;border-radius:4px;opacity:.14}
+  .empty-state{padding:26px 18px;text-align:center;color:var(--ink4);
+               font-size:12px;font-weight:300;line-height:1.7}
+  .empty-state b{color:var(--ink3);font-weight:400;font-family:var(--mono);
+                 font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+                 display:block;margin-bottom:6px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;padding:14px 16px;
+      font-size:12.5px;color:var(--ink2);font-weight:300}
+  .kv dt{font-family:var(--mono);font-size:9px;color:var(--ink3);
+         letter-spacing:.16em;text-transform:uppercase;padding-top:2px}
+  .kv dd{color:var(--ink)}
+  .kv dd.sub{color:var(--ink2)}
 
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
   @media(max-width:900px){.cols{grid-template-columns:1fr}}
   @media(max-width:480px){td{padding:9px 8px;font-size:11.5px}
     th{padding:10px 8px 8px}}
-
-  .spark-wrap{padding:14px 14px 8px}
-  canvas#spark{display:block;width:100%;height:74px}
-  .spark-ax{display:flex;justify-content:space-between;padding:6px 4px 6px;
-            font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;
-            color:var(--ink4);text-transform:uppercase}
 
   footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--hair);
          color:var(--ink4);font-family:var(--mono);font-size:9.5px;
@@ -103,8 +112,9 @@
 <header class="mast">
   <div class="mark">ALIVE<b>·</b>108 <i>/ ops</i></div>
   <div class="mast-r">
+    <span class="priv-badge">aggregates only · k≥3</span>
     <span id="clock">—</span>
-    <span class="live-dot"></span><span>10s</span>
+    <span class="live-dot"></span><span>15s</span>
   </div>
 </header>
 
@@ -113,50 +123,42 @@
 
   <div class="grid" id="stats"></div>
 
-  <h2>journeys / hour <em>last 24h · rolling</em></h2>
-  <div class="panel spark-wrap">
-    <canvas id="spark"></canvas>
-    <div class="spark-ax"><span>-24h</span><span>-12h</span><span>-6h</span><span>now</span></div>
-  </div>
-
   <div class="cols">
     <div>
-      <h2>contributors <em>anonymous device ids</em></h2>
-      <div class="panel scrollx"><table>
-        <thead><tr><th>id</th><th>last seen</th><th class="num">trips</th><th class="num">km</th><th class="num">avoided</th></tr></thead>
-        <tbody id="contrib"></tbody></table></div>
+      <h2>field health <em>live + snapshot provenance</em></h2>
+      <div class="panel"><dl class="kv" id="field"></dl></div>
     </div>
     <div>
-      <h2>top corridors <em>~500m cells</em></h2>
-      <div class="panel scrollx"><table>
-        <thead><tr><th>cell</th><th class="num">samples</th><th class="num">avg dose</th><th>top mode</th></tr></thead>
-        <tbody id="corridors"></tbody></table></div>
+      <h2>validation <em>latest reports on disk</em></h2>
+      <div class="panel"><dl class="kv" id="validation"></dl></div>
     </div>
   </div>
 
-  <h2>journey feed <em>latest donated traversals</em></h2>
+  <h2>ingest sources <em>tri-state · up=null means configured, not probed</em></h2>
   <div class="panel scrollx"><table>
-    <thead><tr><th>when</th><th>mode</th><th class="num">duration</th><th class="num">inhaled</th><th class="num">avoided</th><th>contributor</th></tr></thead>
-    <tbody id="journeys"></tbody></table></div>
+    <thead><tr><th>source</th><th>status</th><th>detail</th><th class="num">age</th></tr></thead>
+    <tbody id="sources"></tbody></table></div>
 
-  <h2>live hazard reports <em>6h ttl</em></h2>
+  <h2>corridors <em>cells with ≥3 distinct devices · 72h window</em></h2>
   <div class="panel scrollx"><table>
-    <thead><tr><th>kind</th><th>location</th><th>age</th><th>reporter</th></tr></thead>
-    <tbody id="reports"></tbody></table></div>
+    <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th></tr></thead>
+    <tbody id="corridors"></tbody></table></div>
+
+  <h2>donations <em>city totals · all recorded days</em></h2>
+  <div class="panel" id="donations"></div>
 
   <footer>
-    <span>ALive-108 ops · auto-refresh 10s · anonymous ids only</span>
-    <span><a href="/city">the city breathes ↗</a></span>
+    <span>ALive-108 ops · auto-refresh 15s · aggregate surface — no per-person data exists to show</span>
+    <span><a href="/city">the city breathes ↗</a> · <a href="/v2/city">/v2/city ↗</a></span>
   </footer>
 </div>
 
 <script>
 const NF=new Intl.NumberFormat('en-IN');
+const $=id=>document.getElementById(id);
 const fmt=n=>n==null?'—':NF.format(Math.round(n));
-const fmtK=n=>n==null?'—':n>=100000?NF.format(Math.round(n/1000))+'k'
-       :n>=1000?(n/1000).toFixed(1).replace(/\.0$/,'')+'k':NF.format(Math.round(n));
-const ago=m=>m==null?'—':m<1?'now':m<60?`${Math.round(m)}m`:`${Math.round(m/60)}h ago`;
-const durm=s=>s==null?'—':s<90?'<2 min':`${Math.round(s/60)} min`;
+const fmt1=n=>n==null?'—':NF.format(Math.round(n*10)/10);
+const ago=s=>s==null?'—':s<60?`${Math.round(s)}s`:s<3600?`${Math.round(s/60)}m`:`${Math.round(s/3600)}h`;
 /* dose ramp shared with /city */
 const RAMPS=[[0,'120,113,108'],[0.30,'251,113,133'],[0.52,'225,29,72'],[0.76,'159,18,57'],[1,'76,5,25']];
 function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;
@@ -164,99 +166,139 @@ function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;
   const [t0,c0]=RAMPS[i],[t1,c1]=RAMPS[i+1];const f=t1>t0?(t-t0)/(t1-t0):0;
   const p0=c0.split(',').map(Number),p1=c1.split(',').map(Number);
   return `rgba(${p0.map((v,j)=>Math.round(v+(p1[j]-v)*f))},${a})`}
-const doseT=u=>Math.min(1,(u||0)/316);           /* 316µg = 1 cigarette */
-const KIND={dust:'#A8A29E',smoke:'#FB7185',burning:'#E11D48',clean:'#2DD4BF'};
-const modeShort=v=>({driving:'car',driving_two_wheeler:'2-wheeler',driving_motorcycle:'2-wheeler',motorcycle:'2-wheeler',cycling:'cycle',walking:'walk',foot:'walk',transit:'metro+bus',bus:'bus',metro:'metro'}[v]||(v||'—').replace(/_/g,' '));
+const doseT=u=>Math.min(1,(u||0)/316);   /* 316µg = 1 cigarette */
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const emptyMsg=(t)=>`<div class="empty-state"><b>insufficient data</b>${t}</div>`;
+
+async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error(u+' '+r.status);return r.json()}
 
 async function tick(){
+  let status,sources,corridors,donations,validation;
   try{
-    const d=await(await fetch('/admin/api')).json();
-    const c=d.community||{},f=d.field||{};
-    const cigToday=(c.dose_ug_24h||0)/316;
-    document.getElementById('stamp').innerHTML=
-      `uptime <b>${Math.floor((d.uptime_s||0)/60)} min</b> · `+
-      `field <b>${f.samples??'—'} samples · ${f.station_readings??'—'} stations · ${f.source??'—'} · krige ${f.kriging??'—'}</b> · `+
-      `age <b>${Math.round((f.age_s||0)/60)} min</b>`+
-      (f.wind?` · wind <b>${Math.round(f.wind.speed_kmh)} km/h from ${Math.round(f.wind.from_deg)}°</b>`:'')+
-      ` · fires <b>${d.fire?.status||d.fire?.active_fires||'n/a'}</b>`;
-    const stats=[
-      [fmt(d.live_users),'live users · 30m','accent'],
-      [fmt(c.contributors),'contributors',''],
-      [fmt(c.obs_total),'journeys stored',''],
-      [fmt(c.km_24h),'km logged · 24h',''],
-      [fmtK(c.avoided_ug_all),'µg avoided · all time','accent'],
-      [cigToday.toFixed(1),'cigarettes · 24h dose','rose'],
-      [fmt(c.active_reports),'hazard reports',''],
-      [fmt(f.samples),'field samples','']];
-    document.getElementById('stats').innerHTML=stats.map(([v,l,cl])=>
-      `<div class="card"><div class="num ${cl}">${v??'—'}</div><div class="lbl">${l}</div></div>`).join('');
-
-    document.getElementById('contrib').innerHTML=(d.contributors||[]).map(x=>
-      `<tr><td class="mono">${x.contributor||'anon'}</td>
-       <td><span class="pill ${x.last_seen_min_ago>30?'idle':''}">${ago(x.last_seen_min_ago)}</span></td>
-       <td class="num">${fmt(x.trips)}</td><td class="num">${fmt(x.km)}</td>
-       <td class="num accent">${fmt(x.avoided_ug)} µg</td></tr>`).join('')
-      ||`<tr><td colspan="5" class="muted">no contributors yet</td></tr>`;
-
-    document.getElementById('corridors').innerHTML=(d.corridors||[]).map(x=>
-      `<tr><td class="mono muted">${x.lat.toFixed(3)}, ${x.lon.toFixed(3)}</td>
-       <td class="num">${fmt(x.samples)}</td>
-       <td class="num"><span class="dose-chip" style="color:${ramp(Math.min(.5,doseT(x.avg_dose_ug)),1)};border:1px solid ${ramp(doseT(x.avg_dose_ug),.4)};background:${ramp(doseT(x.avg_dose_ug),.08)}">${fmt(x.avg_dose_ug)} µg</span></td>
-       <td><span class="modep">${modeShort(x.top_mode)}</span></td></tr>`).join('')
-      ||`<tr><td colspan="4" class="muted">no corridors yet</td></tr>`;
-
-    document.getElementById('journeys').innerHTML=(d.recent_journeys||[]).map(x=>{
-      const t=doseT(x.dose_ug);
-      return `<tr><td class="muted">${ago(x.age_min)}</td>
-       <td><span class="modep">${modeShort(x.vehicle)}</span></td>
-       <td class="num">${durm(x.duration_s)}</td>
-       <td class="num"><span class="dose-chip" style="color:${ramp(Math.min(.5,t),1)};border:1px solid ${ramp(t,.4)};background:${ramp(t,.08)}">${x.dose_ug??'—'} µg</span></td>
-       <td class="num accent">${x.avoided_ug!=null?fmt(x.avoided_ug)+' µg':'—'}</td>
-       <td class="mono muted">${x.contributor||'anon'}</td></tr>`}).join('')
-      ||`<tr><td colspan="6" class="muted">no journeys yet — feed fills as delhi moves</td></tr>`;
-
-    document.getElementById('reports').innerHTML=(d.reports||[]).map(x=>
-      `<tr><td><span class="kind" style="background:${KIND[x.kind]||'#78716C'}"></span>${x.kind}</td>
-       <td class="mono muted">${x.lat.toFixed(4)}, ${x.lon.toFixed(4)}</td>
-       <td>${ago(x.age_min)}</td><td class="mono muted">${x.contributor||'anon'}</td></tr>`).join('')
-      ||`<tr><td colspan="4" class="muted">no live reports</td></tr>`;
-
-    spark(d.journeys_per_hour||Array(24).fill(0));
+    [status,sources,corridors,donations,validation]=await Promise.all(
+      ['/admin/api/status','/admin/api/sources','/admin/api/corridors',
+       '/admin/api/donations','/admin/api/validation'].map(getJSON));
   }catch(e){
-    document.getElementById('stamp').textContent='server unreachable — '+e;
+    $('stamp').textContent='admin api unreachable — '+e;
+    return;
   }
+  const f=status.field||{};
+  $('stamp').innerHTML=
+    `uptime <b>${ago(status.uptime_s)}</b> · build <b>${esc(status.build_sha||'?')}</b> · `+
+    `v<b>${esc(status.version||'?')}</b> · field <b>${f.samples??'—'} samples · `+
+    `${f.station_readings??'—'} stations · ${esc(f.source||'—')}</b> · `+
+    `age <b>${ago(f.age_s)}</b>`;
+
+  /* --- headline cards --- */
+  const t=donations.totals||{};
+  const daily=validation.daily||{};
+  const cards=[
+    [f.age_s!=null?ago(f.age_s):null,'field age','',f.age_s!=null],
+    [f.samples!=null?`${fmt(f.samples)} <small>pts</small>`:null,`field samples · ${fmt(f.station_readings)} stations`,'',f.samples!=null],
+    [t.trips?fmt(t.trips):null,'donated trips · all time','',!!t.trips],
+    [donations.corridors_publishable||null,'publishable corridors · k≥3','accent',donations.corridors_publishable>0],
+    [t.switched?fmt(t.switched):null,'trips switched lighter','accent',t.switched>0],
+    [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
+     `daily median pm2.5${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
+    [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,`cumulative dose · ${t.cig_equiv??'—'} cig-equiv`,'rose',t.dose_ug>0],
+    [(validation.weekly&&validation.weekly.loso&&validation.weekly.loso.mae_ugm3)!=null?
+       `${validation.weekly.loso.mae_ugm3} <small>µg/m³</small>`:null,
+     `loso mae${validation.weekly?' · '+validation.weekly.week:''}`,'',
+       validation.weekly&&validation.weekly.loso&&validation.weekly.loso.mae_ugm3!=null]];
+  $('stats').innerHTML=cards.map(([v,l,cl,ok])=>
+    `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div></div>`).join('');
+
+  /* --- field health --- */
+  const p=status.provenance||{};
+  const wind=f.wind||{};
+  $('field').innerHTML=[
+    ['source',esc(f.source||'—'),true],
+    ['samples',fmt(f.samples),true],
+    ['station readings',fmt(f.station_readings),true],
+    ['field age',ago(f.age_s),true],
+    ['snapshot on disk',ago(f.snapshot_age_s),true],
+    ['kriging',esc(f.kriging||'—'),true],
+    ['wind',wind.speed_kmh!=null?`${Math.round(wind.speed_kmh)} km/h from ${Math.round(wind.from_deg??0)}°`:'—',true],
+    ['provenance',esc(p.field||'—'),false],
+  ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
+    ||emptyMsg('field module unavailable on this box');
+
+  /* --- validation --- */
+  const wk=validation.weekly,loso=wk&&wk.loso||{},arch=wk&&wk.archive_replay||{};
+  const vrows=[];
+  if(wk){
+    vrows.push(['week',esc(wk.week||'—'),true],
+      ['generated',esc((wk.generated||'').replace('T',' ').replace('+00:00','Z')),true],
+      ['loso',loso.status==='ok'
+        ?`mae ${loso.mae_ugm3} · rmse ${loso.rmse_ugm3} · bias ${loso.bias_ugm3>0?'+':''}${loso.bias_ugm3} µg/m³ (n=${loso.n})`
+        :esc(loso.status||'—'),true],
+      ['archive replay',arch.status==='ok'
+        ?`mae ${arch.mae_ugm3} · rmse ${arch.rmse_ugm3} · bias +${arch.bias_ugm3} µg/m³ (${fmt(arch.pairs)} pairs)`
+        :esc(arch.status||'—'),true]);
+  }
+  if(daily){
+    vrows.push(['daily rollup',`${esc(daily.date)} · ${fmt(daily.n_cells)} cells · ${fmt(daily.n_snapshots)} snapshots`,true],
+      ['above who 24h',daily.pct_cells_gt15_who!=null?`${daily.pct_cells_gt15_who}% of cells`:'—',true],
+      ['above cpcb 24h',daily.pct_cells_gt60_cpcb!=null?`${daily.pct_cells_gt60_cpcb}% of cells`:'—',true]);
+  }
+  vrows.push(['full report',validation.report_md?'data/field_validation.md on disk':'not generated yet',false]);
+  $('validation').innerHTML=vrows.map(([k,v,main])=>
+    `<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
+    ||emptyMsg('no validation outputs on disk yet — weekly rollup has not run');
+
+  /* --- ingest sources --- */
+  const srcRows=Object.entries(sources.sources||{});
+  $('sources').innerHTML=srcRows.map(([name,s])=>{
+    const pill=s.up===true?['up','']:s.up===false?['down','down']:['unprobed','idle'];
+    const age=s.age_s??s.field_age_s;
+    return `<tr><td class="mono">${esc(name)}</td>
+      <td><span class="pill ${pill[1]}">${pill[0]}</span></td>
+      <td class="muted">${esc(s.detail||'')}
+        ${s.samples!=null?` · ${fmt(s.samples)} samples`:''}
+        ${s.readings!=null?` · ${fmt(s.readings)} readings`:''}
+        ${s.fires!=null?` · ${fmt(s.fires)} fires`:''}
+        ${s.enabled===true?' · enabled':s.enabled===false?' · disabled':''}</td>
+      <td class="num mono">${ago(age)}</td></tr>`;
+  }).join('')||`<tr><td colspan="4">${emptyMsg('source probe unavailable')}</td></tr>`;
+
+  /* --- corridors (aggregate rows only; the k≥3 set comes from the store) --- */
+  const rows=corridors.rows||[];
+  const maxDose=Math.max(1,...rows.map(r=>r.avg_dose_ug||0));
+  $('corridors').innerHTML=rows.length?rows.map(r=>{
+    const t=doseT(r.avg_dose_ug),rel=(r.avg_dose_ug||0)/maxDose;
+    const short=String(r.cell||'—');
+    return `<tr><td class="mono muted" title="${esc(short)}">${esc(short.length>15?short.slice(0,13)+'…':short)}</td>
+      <td>${esc(r.near||'—')}</td>
+      <td class="num">${fmt(r.trips)}</td>
+      <td class="num">${fmt(r.devices)}</td>
+      <td class="num dose-cell"><span class="dose-bar" style="width:${Math.round(rel*100)}%;background:${ramp(t,.9)}"></span>
+        <span class="mono" style="color:${ramp(Math.min(.9,t+.25),1)}">${fmt1(r.avg_dose_ug)} µg</span></td></tr>`;
+  }).join(''):`<tr><td colspan="5">${emptyMsg(
+    'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
+
+  /* --- donations --- */
+  const days=donations.days||{};
+  const dayKeys=Object.keys(days).sort();
+  const modes=Object.entries(t.modes||{}).sort((a,b)=>b[1]-a[1]);
+  $('donations').innerHTML=t.trips?`
+    <dl class="kv">
+      <dt>trips</dt><dd>${fmt(t.trips)} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}</dd>
+      <dt>distance</dt><dd>${fmt1(t.km)} km</dd>
+      <dt>dose</dt><dd>${fmt(t.dose_ug)} µg · ≈${t.cig_equiv} cig-equiv</dd>
+      <dt>emissions (mid)</dt><dd>${fmt1(t.co2_kg_mid)} kg CO₂ · ${t.pm25_g_mid} g PM2.5</dd>
+      <dt>switched lighter</dt><dd>${fmt(t.switched)} trips</dd>
+      <dt>modes</dt><dd>${modes.map(([m,n])=>`<span class="modep">${esc(m)} · ${n}</span>`).join('')||'—'}</dd>
+      <dt>cells tracked</dt><dd>${fmt(donations.cells_tracked)} · ${fmt(donations.corridors_publishable)} publishable</dd>
+      <dt>window</dt><dd class="sub">${Math.round((donations.window_s||0)/3600)}h corridor freshness · ${esc(donations.devices_note||'')}</dd>
+      <dt>days</dt><dd class="sub">${dayKeys.slice(-7).map(d=>{
+        const v=days[d];return `${esc(d)}: ${fmt(v.trips)} trips / ${fmt1(v.km)} km`}).join('<br>')}</dd>
+    </dl>`:emptyMsg(
+      'no donations yet — totals appear when the first anonymized trip summary lands. nothing is zero-filled.');
 }
 
-function spark(buckets){
-  window._lastB=buckets;
-  const cv=document.getElementById('spark'),ctx=cv.getContext('2d');
-  const d=window.devicePixelRatio||1,W=cv.clientWidth*d,H=cv.clientHeight*d;
-  if(cv.width!==W){cv.width=W;cv.height=H}
-  ctx.clearRect(0,0,W,H);ctx.setTransform(1,0,0,1,0,0);
-  const n=buckets.length,max=Math.max(2,...buckets);
-  const px=i=>i/(n-1)*W, py=v=>H-6-(v/max)*(H-16);
-  /* area fill */
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'rgba(251,113,133,.30)');g.addColorStop(1,'rgba(251,113,133,0)');
-  ctx.beginPath();ctx.moveTo(0,H);
-  buckets.forEach((v,i)=>ctx.lineTo(px(i),py(v)));
-  ctx.lineTo(W,H);ctx.closePath();ctx.fillStyle=g;ctx.fill();
-  /* line */
-  ctx.beginPath();
-  buckets.forEach((v,i)=>i?ctx.lineTo(px(i),py(v)):ctx.moveTo(px(i),py(v)));
-  ctx.strokeStyle='rgba(251,113,133,.9)';ctx.lineWidth=1.6*d;ctx.lineJoin='round';ctx.stroke();
-  /* last point */
-  const lv=buckets[n-1];
-  ctx.beginPath();ctx.arc(px(n-1),py(lv),3*d,0,6.29);
-  ctx.fillStyle='#F5F5F4';ctx.fill();
-  ctx.beginPath();ctx.arc(px(n-1),py(lv),5.5*d,0,6.29);
-  ctx.strokeStyle='rgba(251,113,133,.5)';ctx.lineWidth=d;ctx.stroke();
-}
-
-function clock(){document.getElementById('clock').textContent=
+function clock(){$('clock').textContent=
   new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST'}
-tick();clock();setInterval(tick,10000);setInterval(clock,30000);
-window.addEventListener('resize',()=>spark(window._lastB||[]));
+tick();clock();setInterval(tick,15000);setInterval(clock,30000);
 </script>
 </body>
 </html>
