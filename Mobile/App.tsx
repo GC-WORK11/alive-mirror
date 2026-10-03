@@ -21,6 +21,10 @@ import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
 import { VehicleSheet } from "./src/screens/VehicleSheet";
 import { DelhiToday } from "./src/screens/DelhiToday";
+import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { LedgerScreen } from "./src/screens/LedgerScreen";
+import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { loadConsent, saveConsent } from "./src/store/consent";
 import { CompareSheet } from "./src/components/shell/CompareSheet";
 import { NavChrome } from "./src/components/shell/NavChrome";
 import { ReceiptSheet, type ReceiptData } from "./src/components/shell/ReceiptSheet";
@@ -61,6 +65,8 @@ export default function App() {
   const [mapPickArmed, setMapPickArmed] = useState(false);
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const [delhiOpen, setDelhiOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
@@ -92,12 +98,18 @@ export default function App() {
         camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 12.5, duration: 900 });
       }
     })();
-    setIntroSeen(new File(Paths.document, "intro_seen.txt").exists);
+    // first-run gate is the consent record now (supersedes intro_seen.txt)
+    loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
     return () => { clearInterval(iv); clearInterval(healthIv); };
   }, [setFrom, setTrips]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
+    // the consent record mirrors the share toggle — it is the canonical
+    // donation answer (nav engine + trip submit read it)
+    if ("share" in p) {
+      saveConsent({ sharing: p.share ? "on" : "off", ts: Date.now() }).catch(() => {});
+    }
   }, []);
   const deleteAll = useCallback(() => {
     clearAllData();
@@ -110,11 +122,6 @@ export default function App() {
     if (k === "spots" && !spots) fetchJson(`${API}/blackspots`).then(setSpots).catch(() => {});
     if (k === "corridors" && !flow.community) fetchJson(`${API}/community`).then(flow.setCommunity).catch(() => {});
   }, [fires, spots, flow]);
-  const dismissIntro = useCallback(() => {
-    setIntroSeen(true);
-    try { new File(Paths.document, "intro_seen.txt").write("1"); } catch {}
-  }, []);
-
   if (!fontsLoaded) return null;
   const sel = flow.options[flow.selected];
 
@@ -241,24 +248,29 @@ export default function App() {
         settings={settings} onSettings={patchSettings} onDeleteData={deleteAll}
         onArmBrief={flow.armDailyBrief} currentDest={flow.to}
         onDelhiToday={() => { setSidebarOpen(false); setDelhiOpen(true); }}
+        onTripReceipt={() => { setSidebarOpen(false); setLedgerOpen(true); }}
+        onFullSettings={() => { setSidebarOpen(false); setSettingsOpen(true); }}
         onNavigate={(p) => flow.pick({ ...p, subtitle: "" }, "to")} />
       <LayersSheet visible={layersOpen} values={layers} onToggle={toggleLayer}
         onClose={() => setLayersOpen(false)} lang={lang} />
       <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} />
+      <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} />
+      <SettingsScreen visible={settingsOpen} onClose={() => setSettingsOpen(false)}
+        lang={lang} current={settings} onArmBrief={flow.armDailyBrief}
+        onChange={(k: string, v?: unknown) => {
+          if (k === "editVehicle") { setSettingsOpen(false); setVehicleOpen(true); return; }
+          patchSettings({ [k]: v } as Partial<ShellSettings>);
+        }} />
       <VehicleSheet visible={vehicleOpen || flow.needsVehicle} lang={lang}
         current={flow.vehicle}
         onDone={(p) => { flow.setVehicleProfile(p); setVehicleOpen(false); }}
         onClose={() => setVehicleOpen(false)} />
 
-      {introSeen === false && (
-        <View style={s.intro}>
-          <Text style={[s.introTitle, { fontFamily: fam(lang, "semi") }]}>{t("introTitle", lang)}</Text>
-          <Text style={[s.introBody, { fontFamily: fam(lang, "reg") }]}>{t("introBody", lang)}</Text>
-          <Pressable onPress={dismissIntro} style={s.introBtn}>
-            <Text style={[s.introBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("introGotIt", lang)}</Text>
-          </Pressable>
-        </View>
-      )}
+      <OnboardingScreen visible={introSeen === false} lang={lang}
+        onDone={({ sharing }) => {
+          patchSettings({ share: sharing === "on" });
+          setIntroSeen(true);
+        }} />
     </View>
   );
 }

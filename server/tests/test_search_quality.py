@@ -188,12 +188,15 @@ def test_response_shape_and_took_ms_truthful():
                    params={"q": "connaught", "lat": CP[0], "lon": CP[1]})
     assert r.status_code == 200
     body = r.json()
-    for key in ("results", "t1", "t2", "took_ms", "tiers", "t1_engine"):
+    for key in ("results", "t1", "t2", "t2_status", "took_ms",
+                "tiers", "t1_engine"):
         assert key in body, f"missing response key {key!r}"
     assert body["tiers"] == ["t1"]
     assert body["t1_engine"] in ("alive_core", "alive_core_ref",
                                  "gazetteer")
-    assert isinstance(body["t2"], str) and "disabled" in body["t2"]
+    # t2 rows stay a list; the Amazon-tier status lives in t2_status
+    assert isinstance(body["t2"], list)
+    assert "disabled" in body["t2_status"]
     took = body["took_ms"]
     assert isinstance(took["t1"], (int, float)) and took["t1"] >= 0
     assert took["t2"] is None

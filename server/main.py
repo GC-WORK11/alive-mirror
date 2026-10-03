@@ -1063,3 +1063,40 @@ except Exception:
     _v2_router = None
 if _v2_router is not None:
     app.include_router(_v2_router)
+
+# --- additive mounts (each degrades honestly when its piece is absent) ---
+try:  # local Delhi PMTiles vector tiles — 503s until the archive exists
+    import tiles as _tiles
+except ImportError:
+    try:
+        from server import tiles as _tiles
+    except Exception:
+        _tiles = None
+except Exception:
+    _tiles = None
+if _tiles is not None:
+    app.include_router(_tiles.router)
+
+try:  # aggregate-only admin API (k>=3 enforced inside)
+    import admin_agg as _admin_agg
+except ImportError:
+    try:
+        from server import admin_agg as _admin_agg
+    except Exception:
+        _admin_agg = None
+except Exception:
+    _admin_agg = None
+if _admin_agg is not None:
+    app.include_router(_admin_agg.router)
+
+try:  # /metrics + request logging
+    import observability as _obs
+    _obs.install(app)
+except Exception:
+    pass
+
+try:  # rate limit + body cap + security headers (all env-tunable)
+    import middleware as _mw
+    _mw.attach(app)
+except Exception:
+    pass

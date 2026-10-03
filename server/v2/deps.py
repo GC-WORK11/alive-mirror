@@ -142,24 +142,33 @@ def osrm_steps(rt: dict) -> list:
 
 async def osrm_route(profile: str, flon: float, flat: float,
                      tlon: float, tlat: float) -> Optional[dict]:
-    """First route from the public OSRM demo — identical URL/params to
-    main.py's _osrm plus steps=true, so /v2 options carry a real turn
-    list and the client never needs legacy /directions. The returned
-    dict gains a normalized `steps` list (possibly empty — callers
-    degrade honestly)."""
-    url = (f"https://router.project-osrm.org/route/v1/{profile}/"
-           f"{flon},{flat};{tlon},{tlat}")
+    """OSRM route — self-hosted Delhi daemon first (geo lane:
+    scripts/geo/run_stack.sh, ~2 ms local vs ~600 ms + rate limits on
+    the public demo), public demo as the flagged fallback. steps=true
+    always so /v2 options carry a real turn list. `source` says which
+    backend answered — never silently."""
+    bases = []
     try:
-        r = await http().get(url, params={
-            "overview": "full", "geometries": "geojson",
-            "alternatives": "false", "steps": "true",
-        })
-        r.raise_for_status()
-        routes = r.json().get("routes", [])
-        if not routes:
-            return None
-        rt = routes[0]
-        rt["steps"] = osrm_steps(rt)
-        return rt
+        import routing_local as _rl
+        bases.append((_rl._default._url_for(profile), "osrm-local"))
     except Exception:
-        return None
+        pass
+    bases.append(("https://router.project-osrm.org", "osrm-public-demo"))
+    for base, source in dict.fromkeys(bases):
+        url = f"{base}/route/v1/{profile}/{flon},{flat};{tlon},{tlat}"
+        try:
+            r = await http().get(url, params={
+                "overview": "full", "geometries": "geojson",
+                "alternatives": "false", "steps": "true",
+            }, **({"timeout": 3.0} if "local" in source else {}))
+            r.raise_for_status()
+            routes = r.json().get("routes", [])
+            if not routes:
+                continue
+            rt = routes[0]
+            rt["steps"] = osrm_steps(rt)
+            rt["source"] = source
+            return rt
+        except Exception:
+            continue
+    return None

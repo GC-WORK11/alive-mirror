@@ -41,6 +41,7 @@ type Section = "vehicle" | "places" | "settings" | "how" | null;
 export function Sidebar({
   open, onClose, trips, lang, settings, onSettings, onDeleteData,
   onArmBrief, onNavigate, currentDest, onDelhiToday, onTripReceipt,
+  onFullSettings,
 }: {
   open: boolean;
   onClose: () => void;
@@ -54,6 +55,7 @@ export function Sidebar({
   currentDest: SavedPlace | null;
   onDelhiToday?: () => void;        // SEAM(delhi-today): doc 07 consumer city view
   onTripReceipt?: (tr: Trip) => void; // SEAM(receipt): S7 receipt screen
+  onFullSettings?: () => void;       // opens the dedicated SettingsScreen
 }) {
   const [slide] = useState(() => new Animated.Value(-DRAWER_W));
   const [section, setSection] = useState<Section>(null);
@@ -231,9 +233,11 @@ export function Sidebar({
           })}
           {section === "places" && <View style={s.subBox}>{placeRow("home")}{placeRow("work")}</View>}
 
-          {/* 7 — Settings */}
+          {/* 7 — Settings — full screen when mounted (explainers + quiet
+              hours); the inline toggles stay as the fallback path */}
           {row("layers", t("sidebarSettings", lang), {
-            onPress: () => toggle("settings"), open: section === "settings",
+            onPress: () => onFullSettings ? onFullSettings() : toggle("settings"),
+            open: section === "settings",
           })}
           {section === "settings" && (
             <View style={s.subBox}>

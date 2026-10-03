@@ -13,6 +13,7 @@ export interface Place {
   distance_m?: number;
   match?: "exact-prefix" | "token-prefix" | "fuzzy" | "other";
   match_rank?: number;
+  score?: number;               // gazetteer ranking score (T1 rows)
   source?: string;              // gazetteer | amazon | photon | ...
   sources?: string[];           // tiers that found it, e.g. ["t1","t2"]
   outside_ncr?: boolean;

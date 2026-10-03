@@ -403,10 +403,17 @@ def attach(app, rate_per_s: Optional[float] = None,
                 if hsts is None else hsts)
 
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=cap)
-    app.add_middleware(RateLimitMiddleware, rate_per_s=rate, burst=bst,
-                       path_overrides=(path_overrides
-                                       if path_overrides is not None
-                                       else _DEFAULT_PATH_LIMITS))
+    # ALIVE_RATE_LIMIT=0 disables throttling entirely — for tests and
+    # local dev only. Explicit kwargs always mount (a caller that tuned
+    # the numbers means it); the path overrides don't read the global
+    # rate knobs, so a kill-switch beats env-scaling.
+    explicit = (rate_per_s is not None or burst is not None
+                or path_overrides is not None)
+    if explicit or os.environ.get("ALIVE_RATE_LIMIT", "1") != "0":
+        app.add_middleware(RateLimitMiddleware, rate_per_s=rate, burst=bst,
+                           path_overrides=(path_overrides
+                                           if path_overrides is not None
+                                           else _DEFAULT_PATH_LIMITS))
     app.add_middleware(SecurityHeadersMiddleware, hsts=use_hsts)
 
 
