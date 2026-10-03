@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# In-flight runs on the same ref are superseded — cancel them for PRs only;
+# pushes (e.g. main) are left to finish so history stays complete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Server: Python API deps + C++ alive_core build + full pytest suite.
+  # The parity job is folded in here as a dedicated step — the suite's
+  # test_core_parity.py pytest.importorskip's alive_core, so the
+  # "Verify alive_core" step below turns a missing build into a hard
+  # failure instead of silent skips. No separate parity job is run to
+  # avoid paying the cmake build twice.
+  server:
+    name: server (py3.12 + alive_core)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            server/requirements.txt
+            server/pyproject.toml
+
+      # requirements.txt carries fastapi/httpx/boto3/numpy/h3 used by the
+      # tests (h3 via server/v2/trip.py; boto3 via main/airindex/
+      # ingest_worker; numpy via rollup/krige). pytest is CI-only.
+      - name: Install Python deps
+        working-directory: server
+        run: uv pip install --system -r requirements.txt pytest
+
+      # pybind11 comes from FetchContent in server/core/CMakeLists.txt
+      # (pinned v2.13.6, GIT_SHALLOW) — chosen over pip because the build
+      # box is PEP-668-blocked; on GH runners it just needs git+network,
+      # and the _deps tree is cached below keyed on the CMakeLists hash.
+      - name: Cache cmake FetchContent deps
+        uses: actions/cache@v4
+        with:
+          path: server/core/build/_deps
+          key: cmake-deps-${{ runner.os }}-${{ hashFiles('server/core/CMakeLists.txt') }}
+          restore-keys: cmake-deps-${{ runner.os }}-
+
+      - name: Build C++ core (alive_core)
+        working-directory: server/core
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+
+      - name: Verify alive_core importable
+        working-directory: server
+        run: PYTHONPATH=core/build python -c "import alive_core"
+
+      - name: Parity tests (C++ vs Python oracle)
+        working-directory: server
+        run: PYTHONPATH=core/build python -m pytest tests/test_core_parity.py -q
+
+      - name: Full server suite
+        working-directory: server
+        run: PYTHONPATH=core/build python -m pytest tests -q
+
+  mobile:
+    name: mobile (node 22 typecheck + lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: Mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Mobile/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx expo lint
