@@ -81,9 +81,15 @@ export default function App() {
 
 function AppInner() {
   const camRef = useRef<CameraRef>(null);
+  /* last real endpoint coords — the always-mounted markers park here when
+     hidden (see the Marker block below) */
+  const fromPin = useRef<[number, number]>(DELHI);
+  const toPin = useRef<[number, number]>(DELHI);
   const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<ShellSettings>(DEFAULT_SETTINGS);
   const flow = useShellFlow(camRef, settings.share, settings.lang);
+  if (flow.from) fromPin.current = [flow.from.lon, flow.from.lat];
+  if (flow.to) toPin.current = [flow.to.lon, flow.to.lat];
   const { phase } = flow;
   // route-tint shape sources mount at lower priority — keeps the compare
   // sheet's entrance animation from sharing a frame with the chunk build
@@ -287,12 +293,17 @@ function AppInner() {
           selected={flow.selected}
           strips={flow.strips}
         />
-        {flow.from && phase === "compare" && (
-          <Marker lngLat={[flow.from.lon, flow.from.lat]} anchor="center"><EndpointPin kind="origin" /></Marker>
-        )}
-        {flow.to && (
-          <Marker lngLat={[flow.to.lon, flow.to.lat]} anchor="bottom"><EndpointPin kind="dest" /></Marker>
-        )}
+        {/* endpoint annotations stay mounted at their last coordinates —
+            unmounting a MarkerView mid-draw is the same upstream
+            remove-during-render class as the route sources. Hidden is an
+            empty child; the pin never teleports because the ref holds the
+            last real coordinate. */}
+        <Marker lngLat={fromPin.current} anchor="center">
+          {flow.from && phase === "compare" ? <EndpointPin kind="origin" /> : <View />}
+        </Marker>
+        <Marker lngLat={toPin.current} anchor="bottom">
+          {flow.to ? <EndpointPin kind="dest" /> : <View />}
+        </Marker>
       </Map>
 
       {/* rest state chrome: search bar + locate + layers (doc 02 §S1) */}
