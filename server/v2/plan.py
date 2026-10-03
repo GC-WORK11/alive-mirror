@@ -832,6 +832,10 @@ def rank_options(options: list) -> list:
 # (audit: far pins on the public OSRM demo hit exactly that).
 PLAN_BUDGET_S = 20.0
 FIELD_REFRESH_BUDGET_S = 10.0
+# Transit leg's own ceiling inside the plan budget — a fresh task's
+# first plan can race the boot-time feed compile; without this the
+# scan eats the whole 20 s and even motorized options are lost.
+TRANSIT_BUDGET_S = 12.0
 
 
 def _service_area(flat, flon, tlat, tlon) -> bool:
@@ -896,10 +900,13 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
     try:
         # sync GTFS scan runs off-loop: a big OD pair's graph walk would
         # otherwise stall the single worker's event loop (and /health
-        # with it — that was the ALB wedge)
-        options += await asyncio.to_thread(
+        # with it — that was the ALB wedge). Its own sub-budget keeps a
+        # slow scan (first plan on a fresh task, feed still compiling)
+        # from eating the whole plan budget — motorized+slow options
+        # still land honestly without a transit leg.
+        options += await asyncio.wait_for(asyncio.to_thread(
             _transit_options, flat, flon, tlat, tlon, vehicle, profile,
-            depart_at)
+            depart_at), timeout=TRANSIT_BUDGET_S)
     except Exception:
         pass
     return options
