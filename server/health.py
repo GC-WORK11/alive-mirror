@@ -18,7 +18,7 @@
                "free_pct": 41.2, "low": false},
       "sources": {             # up=None means "not probed", never a guess
         "model":    {"up": null, "detail": "...", "status": "ok",
-                     "fetched_at": "...iso...", "age_s": 830},
+                     "fetched_at": "...iso...", "age_s": 830, "n": 48},
         "met":      {...},
         "stations": {"up": null, "detail": "...", "status":
                      "unavailable: no key", "fetched_at": null, "age_s": null},
@@ -267,6 +267,9 @@ def _source(name, prov=None, now=None):
     p = prov or {}
     fetched = p.get("fetched_at")
     out["status"] = p.get("status")  # last build's own verdict, e.g. "ok"
+    # observations the source contributed to that build (airindex
+    # prov_entry 'n' — 0 on a degraded bundle, never invented)
+    out["n"] = p.get("n")
     out["fetched_at"] = fetched
     ep = _iso_to_epoch(fetched)
     out["age_s"] = round(now - ep, 1) if (ep is not None and now) else None

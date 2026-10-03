@@ -151,16 +151,16 @@ def test_per_source_ages_from_provenance(tmp_path):
     prov = {
         "model": {"status": "ok",
                   "fetched_at": "2026-10-03T02:44:00+00:00",
-                  "source": "open-meteo/cams", "n_points": 48},
+                  "source": "open-meteo/cams", "n": 48, "n_points": 48},
         "stations": {"status": "unavailable: no key",
                      "fetched_at": "2026-10-03T02:44:30+00:00",
-                     "source": "openaq-v3", "n_used": 0},
+                     "source": "openaq-v3", "n": 0, "n_used": 0},
         "fires": {"status": "ok",
                   "fetched_at": "2026-10-03T02:44:45+00:00",
-                  "source": "nasa-firms-public-csv", "n_fires": 72},
+                  "source": "nasa-firms-public-csv", "n": 72, "n_fires": 72},
         "met": {"status": "ok",
                 "fetched_at": "2026-10-03T02:44:10+00:00",
-                "source": "open-meteo", "vc_m2s": 3120.15},
+                "source": "open-meteo", "n": 1, "vc_m2s": 3120.15},
     }
     _seed(tmp_path, "2026/10/03/0245.json.gz",
           payload=_field_payload(built, prov))
@@ -172,9 +172,15 @@ def test_per_source_ages_from_provenance(tmp_path):
     assert s["stations"]["age_s"] == pytest.approx(930.0)
     assert s["stations"]["status"] == "unavailable: no key"  # honest, not "up"
     assert s["fires"]["age_s"] == pytest.approx(915.0)
+    # observations contributed per source (airindex prov_entry 'n')
+    assert s["model"]["n"] == 48
+    assert s["stations"]["n"] == 0          # degraded -> honest zero
+    assert s["fires"]["n"] == 72
+    assert s["met"]["n"] == 1
     # location has no snapshot provenance — config-presence only
     assert s["location"]["age_s"] is None
     assert s["location"]["status"] is None
+    assert s["location"]["n"] is None
 
 
 def test_source_env_override_still_wins(tmp_path, monkeypatch):
