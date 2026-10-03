@@ -91,8 +91,10 @@ CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
 5. Arrive / End → receipt: dose µg + CO₂ kg + cigarette-equivalent +
    donate toggle
 6. Delhi Today (sidebar): breath hero, the other 8 species, the 12 h
-   forecast strip (CAMS horizon anchored to the live field), "running
-   ±X% vs the decade norm for this hour" (9M station-hours)
+   forecast strip (CAMS horizon anchored to the live field — hourly
+   smoke translates with the real met wind, a semi-Lagrangian
+   back-trajectory), "running ±X% vs the decade norm for this hour"
+   (9M station-hours)
 
 ## Demo flow (admin)
 
@@ -126,6 +128,9 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   the **CO₂ phase split** bar (moving / idling / cold-start %) summed
   only over trips whose receipts carried the real breakdown; old
   builds count in the headline total, never in the split
+- corridors carry a per-street emission index: `co2_g_per_100m`
+  (trip CO₂ spread evenly over the cells the route crosses,
+  k≥3-gated, null — never 0 — when no receipts reported emissions)
 - **live feed**: the newest donations ticking in (ago · mode · dose ·
   km · co₂) — donate a trip on stage and watch it land in the next
   30 s refresh. Aggregate-level events only: the feed can say a trip
@@ -155,9 +160,10 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   hardware. Fixes shipped: deferred search focus (643d696), close on
   keyboardDidHide (6286c11→80cd965), always-mounted route sources /
   endpoint markers / location puck (759994f→15f5adf), deferred nav
-  teardown (c18ac92) — the deterministic search crash and the
-  receipt-Done crash are dead; residual is rare, stochastic, at map
-  churn points only
+  teardown (c18ac92), and replacing the React-Native Modal with an
+  overlay sheet outright (8db9635) — the deterministic search crash
+  and the receipt-Done crash are dead; residual is rare, stochastic,
+  at map churn points only
 - If it ever drops to SpringBoard: relaunch — every state (consent,
   vehicle, recents, trip ledger) persists; you're back on the map in
   ~5 seconds
