@@ -1,0 +1,14 @@
+{
+  "Name": "alive108-ingest-15min",
+  "GroupName": "alive108",
+  "Description": "15-min air-index build (docs/plan/05 section 2) -> rollup_lambda field_tick / job=ingest. Same schedule provision.sh creates; substitute ${INGEST_TARGET_ARN} and ${SCHEDULER_ROLE_ARN} with the real worker task + role ARNs, then set State ENABLED.",
+  "ScheduleExpression": "rate(15 minutes)",
+  "ScheduleExpressionTimezone": "UTC",
+  "State": "DISABLED",
+  "FlexibleTimeWindow": { "Mode": "OFF" },
+  "Target": {
+    "Arn": "${INGEST_TARGET_ARN}",
+    "RoleArn": "${SCHEDULER_ROLE_ARN}",
+    "Input": "{\"job\":\"ingest\"}"
+  }
+}

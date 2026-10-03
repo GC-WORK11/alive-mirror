@@ -1,0 +1,14 @@
+{
+  "Name": "alive108-validate-weekly",
+  "GroupName": "alive108",
+  "Description": "Weekly validation Sunday 20:00 UTC = Monday 01:30 IST -> rollup_lambda weekly_validation / job=validate (LOSO + OpenAQ archive replay -> validation/<week>.json). Same schedule provision.sh creates; substitute ${VALIDATE_TARGET_ARN} and ${SCHEDULER_ROLE_ARN} with the real worker task + role ARNs, then set State ENABLED.",
+  "ScheduleExpression": "cron(0 20 ? * SUN *)",
+  "ScheduleExpressionTimezone": "UTC",
+  "State": "DISABLED",
+  "FlexibleTimeWindow": { "Mode": "OFF" },
+  "Target": {
+    "Arn": "${VALIDATE_TARGET_ARN}",
+    "RoleArn": "${SCHEDULER_ROLE_ARN}",
+    "Input": "{\"job\":\"validate\"}"
+  }
+}
