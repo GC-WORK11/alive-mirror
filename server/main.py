@@ -643,15 +643,46 @@ VEHICLE_TIME_FACTOR = {"car": 1.0, "car_open": 1.0, "bike": 0.9,
                        "auto": 1.25, "bus": 1.6}
 
 
-async def _field_refresh_bounded(timeout: float = 10.0) -> None:
-    """FIELD.refresh is best-effort — a stale-field window plus a slow
-    upstream (OpenAQ retries sleep up to ~40 s) serializes every request
-    behind refresh's lock; cap the wait so a route request never holds
-    the event loop hostage. The refresh itself keeps running."""
+_field_task: Optional[asyncio.Task] = None
+_fires_task: Optional[asyncio.Task] = None
+_forecast_task: Optional[asyncio.Task] = None
+
+
+async def _bounded_refresh(coro_fn, task_name: str, timeout: float) -> None:
+    """Await a shared refresh task, bounded, never cancel it.
+
+    FIELD/FIRES/FORECAST refresh is best-effort — a stale-field window
+    plus a slow upstream (OpenAQ retries sleep up to ~40 s) serializes
+    every request behind refresh's lock; cap the wait so no request
+    holds the event loop hostage. Two properties beyond a bare
+    wait_for: concurrent requests share ONE task (no stacked fetches),
+    and the task is shielded — a timed-out call leaves the fetch
+    running so it lands the data for the next request instead of
+    dying mid-flight and re-stalling the next call."""
+    global _field_task, _fires_task, _forecast_task
+    task = globals()[task_name]
+    if task is None or task.done():
+        task = asyncio.ensure_future(coro_fn())
+        globals()[task_name] = task
+        # swallow stray failures on the detached tail so an upstream
+        # error never surfaces as an unhandled task exception
+        task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
     try:
-        await asyncio.wait_for(FIELD.refresh(http()), timeout=timeout)
+        await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
     except Exception:
         pass
+
+
+async def _field_refresh_bounded(timeout: float = 10.0) -> None:
+    await _bounded_refresh(lambda: FIELD.refresh(http()), "_field_task", timeout)
+
+
+async def _fires_refresh_bounded(timeout: float = 6.0) -> None:
+    await _bounded_refresh(lambda: FIRES.refresh(http()), "_fires_task", timeout)
+
+
+async def _forecast_refresh_bounded(timeout: float = 12.0) -> None:
+    await _bounded_refresh(lambda: FORECAST.refresh(http()), "_forecast_task", timeout)
 
 
 def _scaled_duration_s(vehicle: str, profile: str, rt: dict) -> float:
@@ -683,10 +714,7 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if rt is None or isinstance(rt, BaseException):
         return {"options": [], "error": "router unavailable"}
 
-    try:  # forecast refresh is best-effort — bound its upstream waits
-        await asyncio.wait_for(FORECAST.refresh(http()), timeout=12.0)
-    except Exception:
-        pass
+    await _forecast_refresh_bounded()
     dur_s = _scaled_duration_s(vehicle, profile, rt)
 
     slots = []
@@ -727,7 +755,7 @@ async def aqi(lat: float, lon: float):
     """Interpolated PM2.5 field value at a point, with provenance and the
     decade-climatology context: what this point usually reads, this month,
     this hour, per 9M measured station-hours."""
-    await asyncio.gather(FIELD.refresh(http()), FIRES.refresh(http()))
+    await asyncio.gather(_field_refresh_bounded(), _fires_refresh_bounded())
     mod = FIRES.smoke_modifier()
     v = FIELD.value(lat, lon, "pm2_5")
     if v is None:
@@ -845,14 +873,14 @@ async def field_grid(cells: int = Query(default=22, le=40),
                                "served": species,
                                "empty": "unknown pollutant param"}}
     if h is not None:
-        await FORECAST.refresh(http())
+        await _forecast_refresh_bounded()
         # the horizon anchors to the live field too — all three epochs
         return _grid_cached(
             ("f", cells, param, h),
             (FORECAST._fetched_at, FIELD._fetched_at,
              community._OBS_VERSION),
             lambda: grid.as_geojson(_ForecastSurface(h), cells, param))
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
     # the served surface is field×corridor-posterior — a donated trip
     # shifts cells between refreshes, so the obs version rides the epoch
     return _grid_cached(
@@ -907,7 +935,7 @@ async def fires():
     public FIRMS daily CSV snapshots (Suomi-NPP / NOAA-20 / NOAA-21 VIIRS
     + Terra/Aqua MODIS, rolling 24h), cached 6h. With FIRMS_MAP_KEY set it
     uses the keyed area API for the NW fire belt instead."""
-    await FIRES.refresh(http())
+    await _fires_refresh_bounded()
     return FIRES.fires_geojson()
 
 
@@ -922,7 +950,7 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
     NCR, drop cells within 3km of the user (that's still 'here'), rank the
     rest by PM2.5, reverse-name the best. Each answer carries its own
     data-confidence so thin regions don't fake certainty."""
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
     home_v = FIELD.value(lat, lon, "pm2_5")
     x0, y0, x1, y1 = grid.BBOX
     cand = []
@@ -992,7 +1020,7 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     vs_desk = same hours at an indoor/desk exposure basis (~35% ambient,
     rest ventilation) — the avoidable gap a gig driver pays daily."""
     hours = max(0.5, min(12.0, hours))
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     start = ist.hour if start_hour is None else max(0, min(23, start_hour))
 

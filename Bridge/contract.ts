@@ -391,6 +391,10 @@ export interface V2PlanOption {
   depart_at?: string | null;    // ISO timestamp
   arrive_at?: string | null;
   transit_source?: string | null;
+  /* metro only: station-model honesty flags — the option is built from
+     a station-to-station model, not a live GTFS timetable */
+  approximate?: boolean;
+  approximation?: string;
 }
 
 export interface V2PlanResponse {
