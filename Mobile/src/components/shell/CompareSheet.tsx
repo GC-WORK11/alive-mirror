@@ -515,7 +515,10 @@ const s = StyleSheet.create({
 
   /* ---- list ---- */
   scroll: { flexShrink: 1, flexGrow: 0 },
-  scrollContent: { paddingBottom: 10 },
+  /* last row's (i) hitSlop extends 16 px below its bounds — without this
+     clearance that strip lands inside the footer's hit zone and taps meant
+     for "how we got this" fire Start instead (Android forensic find) */
+  scrollContent: { paddingBottom: 22 },
   vehChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginHorizontal: 14, marginTop: 4, marginBottom: 2, minHeight: 34,
