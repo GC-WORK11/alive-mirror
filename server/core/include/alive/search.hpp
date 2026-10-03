@@ -43,11 +43,14 @@ struct Weights {
   double w2 = 1.0;   // token_coverage
   double w3 = 0.5;   // popularity
   double w4 = 0.15;  // log1p(distance_km)
+  double w5 = 0.5;   // display precision (gazetteer W_PREC)
 };
 
 struct Hit {
   double score = 0.0;
   uint32_t eidx = 0;  // index into entries_
+  double cov = 0.0;   // matched query-token groups / groups
+  bool fuzzy = false; // a matched group had no prefix-covered token
 };
 
 class SearchIndex {
@@ -70,6 +73,11 @@ class SearchIndex {
   std::vector<uint32_t> post_flat_;     // concatenated postings (entry idx)
   std::vector<uint32_t> post_off_;      // offsets, size vocab_.size()+1
   std::unordered_map<uint32_t, std::vector<uint32_t>> tri_;  // trigram->vids
+  // per-entry match tokens (display + alias + alias-expanded atoms) —
+  // the same set that built the postings; needed for the fuzzy flag
+  std::vector<std::vector<std::string>> entry_toks_;
+  // per-entry display tokens (normalize(display)) — precision term
+  std::vector<std::vector<std::string>> display_toks_;
 
   // query scratch — generation-stamped so repeated queries never re-zero
   mutable std::vector<double> atom_best_;    // [e*A + atom], row = per-entry

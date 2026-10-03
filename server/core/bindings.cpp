@@ -28,7 +28,8 @@ using namespace alive;
 namespace {
 
 SearchIndex make_index(const py::list& entries, const py::dict& aliases,
-                       double w1, double w2, double w3, double w4) {
+                       double w1, double w2, double w3, double w4,
+                       double w5) {
   std::vector<Entry> es;
   es.reserve(entries.size());
   for (const auto& item : entries) {
@@ -59,7 +60,7 @@ SearchIndex make_index(const py::list& entries, const py::dict& aliases,
     am.emplace(key, std::move(alts));
   }
 
-  Weights w{w1, w2, w3, w4};
+  Weights w{w1, w2, w3, w4, w5};
   return SearchIndex(std::move(es), std::move(am), w);
 }
 
@@ -79,6 +80,8 @@ py::list index_query(const SearchIndex& idx, const std::string& q,
     r["lat"] = e.lat;
     r["lon"] = e.lon;
     r["score"] = h.score;
+    r["cov"] = h.cov;
+    r["fuzzy"] = h.fuzzy;
     out.append(std::move(r));
   }
   return out;
@@ -320,7 +323,7 @@ PYBIND11_MODULE(alive_core, m) {
   py::class_<SearchIndex>(m, "SearchIndex")
       .def(py::init(&make_index), py::arg("entries"), py::arg("aliases"),
            py::arg("w1") = 1.0, py::arg("w2") = 1.0, py::arg("w3") = 0.5,
-           py::arg("w4") = 0.15)
+           py::arg("w4") = 0.15, py::arg("w5") = 0.5)
       .def("query", &index_query, py::arg("q"), py::arg("lat") = py::none(),
            py::arg("lon") = py::none(), py::arg("limit") = 8)
       .def("__len__", &SearchIndex::size)

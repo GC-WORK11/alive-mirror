@@ -52,6 +52,7 @@ W_PREFIX = 1.0
 W_COVERAGE = 1.0
 W_POPULARITY = 0.5
 W_DISTANCE = 0.15
+W_PRECISION = 0.5   # gazetteer W_PREC — display-token precision
 
 # ---------------------------------------------------------------------------
 # C++ module lookup — direct import, then the local cmake build dir.
@@ -258,16 +259,24 @@ class PySearchIndex:
     def __init__(self, entries: list[dict],
                  aliases: Optional[dict] = None,
                  w1: float = W_PREFIX, w2: float = W_COVERAGE,
-                 w3: float = W_POPULARITY, w4: float = W_DISTANCE):
+                 w3: float = W_POPULARITY, w4: float = W_DISTANCE,
+                 w5: float = W_PRECISION):
         self.entries = entries
         self.aliases = aliases or {}
-        self.w1, self.w2, self.w3, self.w4 = w1, w2, w3, w4
+        self.w1, self.w2, self.w3, self.w4, self.w5 = w1, w2, w3, w4, w5
 
         postmap: dict[str, list[int]] = {}
+        # per-entry match tokens (display + alias + alias-expanded atoms)
+        # — the same set that builds the postings; needed for fuzzy flag
+        self._entry_toks: list[list[str]] = []
+        # per-entry display tokens (normalize(display)) — precision term
+        self._display_toks: list[list[str]] = []
         for e, en in enumerate(entries):
             base: list[str] = []
             seen: set[str] = set()
-            for t in normalize(en["display"]):
+            disp = normalize(en["display"])
+            self._display_toks.append(disp)
+            for t in disp:
                 if t not in seen:
                     seen.add(t)
                     base.append(t)
@@ -282,6 +291,7 @@ class PySearchIndex:
                     seen.update(alt)
             for t in seen:
                 postmap.setdefault(t, []).append(e)
+            self._entry_toks.append(list(seen))
 
         self.vocab = sorted(postmap)
         self.postings = {t: postmap[t] for t in self.vocab}
@@ -357,12 +367,19 @@ class PySearchIndex:
                         row[ai] = qv
 
         # phase 2 — group evaluation + scoring
+        # Coverage gates (v2/gazetteer.search's tuned rules): at least
+        # half the query tokens must cover, and the LEAD query token must
+        # cover — kills 'X + locality-tail' noise ('haldiram chandni'
+        # must be a haldiram hit, not any chandni hit).
+        need = max(1, math.ceil(G * 0.5))
         has_bias = lat is not None and lon is not None
         results: list[tuple[float, int, int]] = []  # (score, id, eidx)
         for e, row in atom_best.items():
             sum_q = 0.0
             matched = 0
-            for g in groups:
+            lead_gq = -1.0
+            fuzzy = False
+            for gi, g in enumerate(groups):
                 gq = 0.0
                 for alt in g:
                     if not alt:
@@ -370,21 +387,39 @@ class PySearchIndex:
                     aq = min(row.get(a, 0.0) for a in alt)
                     if aq > gq:
                         gq = aq
+                if gi == 0:
+                    lead_gq = gq
                 sum_q += gq
                 if gq > 0:
                     matched += 1
+                    # a covered group with no entry token starting with a
+                    # query atom was reached only by DL distance → fuzzy
+                    if not any(t.startswith(atoms[a])
+                               for alt in g for a in alt
+                               for t in self._entry_toks[e]):
+                        fuzzy = True
+            if matched < need or lead_gq <= 0.0:
+                continue
             en = self.entries[e]
             pq = sum_q / G
             cov = matched / G
+            # display precision — share of display tokens explained by a
+            # query atom (prefix either direction); gazetteer W_PREC
+            disp = self._display_toks[e]
+            prec = (sum(1 for t in disp
+                        if any(t.startswith(a) or a.startswith(t)
+                               for a in atoms)) / len(disp)
+                    if disp else 0.0)
             dist = (haversine_km(lat, lon, en["lat"], en["lon"])
                     if has_bias else 0.0)
             score = (self.w1 * pq + self.w2 * cov + self.w3 * en["popularity"]
+                     + self.w5 * prec
                      - self.w4 * math.log1p(dist))
-            results.append((score, en["id"], e))
+            results.append((score, en["id"], e, cov, fuzzy))
 
         results.sort(key=lambda r: (-r[0], r[1], r[2]))
         out = []
-        for score, _eid, e in results[:limit]:
+        for score, _eid, e, cov, fuzzy in results[:limit]:
             en = self.entries[e]
             out.append({
                 "id": en["id"],
@@ -393,6 +428,8 @@ class PySearchIndex:
                 "lat": en["lat"],
                 "lon": en["lon"],
                 "score": score,
+                "cov": cov,
+                "fuzzy": fuzzy,
             })
         return out
 
@@ -405,9 +442,11 @@ def get_search_index(entries: list[dict],
         aliases = load_aliases()
     if prefer_cpp and HAVE_CPP:
         return _cpp.SearchIndex(
-            entries, aliases, W_PREFIX, W_COVERAGE, W_POPULARITY, W_DISTANCE)
+            entries, aliases, W_PREFIX, W_COVERAGE, W_POPULARITY, W_DISTANCE,
+            W_PRECISION)
     return PySearchIndex(
-        entries, aliases, W_PREFIX, W_COVERAGE, W_POPULARITY, W_DISTANCE)
+        entries, aliases, W_PREFIX, W_COVERAGE, W_POPULARITY, W_DISTANCE,
+        W_PRECISION)
 
 
 # ===========================================================================

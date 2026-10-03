@@ -172,11 +172,14 @@ SearchIndex::SearchIndex(std::vector<Entry> entries, AliasMap aliases,
     : entries_(std::move(entries)), aliases_(std::move(aliases)), w_(w) {
   std::unordered_map<std::string, std::vector<uint32_t>> postmap;
   std::unordered_set<std::string> toks;
+  entry_toks_.resize(entries_.size());
+  display_toks_.resize(entries_.size());
   for (uint32_t e = 0; e < entries_.size(); ++e) {
     const Entry& en = entries_[e];
     toks.clear();
     std::vector<std::string> base;
-    for (auto& t : normalize(en.display))
+    display_toks_[e] = normalize(en.display);
+    for (auto& t : display_toks_[e])
       if (toks.insert(t).second) base.push_back(t);
     for (const auto& al : en.aliases)
       for (auto& t : normalize(al))
@@ -188,6 +191,7 @@ SearchIndex::SearchIndex(std::vector<Entry> entries, AliasMap aliases,
           for (const auto& a : alt) toks.insert(a);
     }
     for (const auto& t : toks) postmap[t].push_back(e);
+    entry_toks_[e].assign(toks.begin(), toks.end());
   }
 
   vocab_.reserve(postmap.size());
@@ -307,13 +311,21 @@ std::vector<Hit> SearchIndex::query(const std::string& q,
   }
 
   // phase 2 — group evaluation + scoring
+  // Coverage gates (v2/gazetteer.search's tuned rules): at least half the
+  // query tokens must cover, and the LEAD query token must cover — the
+  // lead rule kills 'X + locality-tail' noise ('haldiram chandni' must be
+  // a haldiram hit, not any chandni hit).
+  const int need = std::max(1, (int)std::ceil((double)G * 0.5));
   std::vector<Hit> res;
   res.reserve(touched_entries.size() < limit ? touched_entries.size() : limit);
   const bool has_bias = lat.has_value() && lon.has_value();
   for (uint32_t e : touched_entries) {
     const double* row = &atom_best_[(size_t)e * A];
     double sum_q = 0.0;
+    double lead_gq = -1.0;
     int matched = 0;
+    size_t gi = 0;
+    bool fuzzy = false;
     for (const auto& g : groups) {
       double gq = 0.0;
       for (const auto& alt : g) {
@@ -323,17 +335,57 @@ std::vector<Hit> SearchIndex::query(const std::string& q,
           aq = std::min(aq, (double)row[alt[k]]);
         if (aq > gq) gq = aq;
       }
+      if (gi == 0) lead_gq = gq;
       sum_q += gq;
-      if (gq > 0) ++matched;
+      if (gq > 0) {
+        ++matched;
+        // a covered group with no entry token starting with a query atom
+        // was reached only by DL distance — the match is fuzzy
+        bool prefix_hit = false;
+        for (const auto& alt : g) {
+          for (uint32_t aid : alt) {
+            const std::string& a = atoms[aid];
+            for (const auto& t : entry_toks_[e]) {
+              if (t.size() >= a.size() && t.compare(0, a.size(), a) == 0) {
+                prefix_hit = true;
+                break;
+              }
+            }
+            if (prefix_hit) break;
+          }
+          if (prefix_hit) break;
+        }
+        if (!prefix_hit) fuzzy = true;
+      }
+      ++gi;
     }
+    if (matched < need || lead_gq <= 0.0) continue;
     const Entry& en = entries_[e];
     double pq = sum_q / (double)G;
     double cov = (double)matched / (double)G;
+    // display precision — share of display tokens explained by a query
+    // atom (prefix either direction); breaks same-coverage ties toward
+    // names the query fully explains (gazetteer W_PREC)
+    double prec = 0.0;
+    const auto& dtoks = display_toks_[e];
+    if (!dtoks.empty()) {
+      int covd = 0;
+      for (const auto& t : dtoks) {
+        for (const auto& a : atoms) {
+          if ((t.size() >= a.size() && t.compare(0, a.size(), a) == 0) ||
+              (a.size() >= t.size() && a.compare(0, t.size(), t) == 0)) {
+            ++covd;
+            break;
+          }
+        }
+      }
+      prec = (double)covd / (double)dtoks.size();
+    }
     double dist = 0.0;
     if (has_bias) dist = haversine_km(*lat, *lon, en.lat, en.lon);
-    double score = w_.w1 * pq + w_.w2 * cov + w_.w3 * en.popularity -
-                   w_.w4 * std::log1p(dist);
-    res.push_back(Hit{score, e});
+    double score = w_.w1 * pq + w_.w2 * cov + w_.w3 * en.popularity +
+                   w_.w5 * prec - w_.w4 * std::log1p(dist);
+    res.push_back(Hit{score, e, cov, fuzzy});
   }
 
   auto better = [&](const Hit& a, const Hit& b) {
