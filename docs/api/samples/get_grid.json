@@ -1,0 +1,58 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/grid?cells=6",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                76.8,
+                28.2
+              ],
+              [
+                76.98333333333333,
+                28.2
+              ],
+              "… (+3 more)"
+            ]
+          ]
+        },
+        "properties": {
+          "pm25": 73.9,
+          "conf": "hi"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                76.8,
+                28.325
+              ],
+              [
+                76.98333333333333,
+                28.325
+              ],
+              "… (+3 more)"
+            ]
+          ]
+        },
+        "properties": {
+          "pm25": 75.1,
+          "conf": "hi"
+        }
+      },
+      "… (+34 more)"
+    ]
+  }
+}

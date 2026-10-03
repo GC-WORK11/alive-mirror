@@ -1,0 +1,238 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/route?from_lat=28.6139&from_lon=77.209&to_lat=28.7041&to_lon=77.1025&profile=driving&vehicle=car",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "routes": [
+      {
+        "mode": "driving_car_ac",
+        "distance_km": 18.3,
+        "duration_min": 25,
+        "duration_s": 1487.8,
+        "duration_model": "osrm",
+        "geometry": {
+          "coordinates": [
+            [
+              77.208773,
+              28.613927
+            ],
+            [
+              77.208665,
+              28.613932
+            ],
+            "… (+399 more)"
+          ],
+          "type": "LineString"
+        },
+        "exposure": {
+          "dose_ug": 8.1,
+          "dose_ug_lo": null,
+          "dose_ug_hi": null,
+          "avg_conc_ugm3": 43.7,
+          "peak_conc": 44.7,
+          "confidence": "high",
+          "coverage": 1.0,
+          "sparse": false,
+          "factors": {
+            "microenv": 0.55,
+            "ventilation_lpm": 7.5,
+            "road_uplift": 1.0
+          },
+          "dose_vs_best_pct": 0.0,
+          "ug_saved_vs_worst": 2.5
+        },
+        "segments": [
+          {
+            "start_frac": 0.0,
+            "end_frac": 0.0613,
+            "minutes": 1.52,
+            "coords": [
+              [
+                77.208773,
+                28.613927
+              ],
+              [
+                77.208665,
+                28.613932
+              ],
+              "… (+15 more)"
+            ],
+            "avg_conc_ugm3": 44.5,
+            "dose_ug": 0.5,
+            "color": "#64748b"
+          },
+          {
+            "start_frac": 0.0613,
+            "end_frac": 0.1265,
+            "minutes": 1.62,
+            "coords": [
+              [
+                77.201034,
+                28.617496
+              ],
+              [
+                77.200743,
+                28.617511
+              ],
+              "… (+25 more)"
+            ],
+            "avg_conc_ugm3": 44.1,
+            "dose_ug": 0.5,
+            "color": "#64748b"
+          },
+          "… (+14 more)"
+        ],
+        "hotspots": [
+          {
+            "label": "hot zone",
+            "dose_ug": 0.6,
+            "share_pct": 7.5,
+            "midpoint_coord": [
+              77.19231,
+              28.628273
+            ],
+            "span_frac": [
+              0.1265,
+              0.2009
+            ]
+          },
+          {
+            "label": "hot zone",
+            "dose_ug": 0.6,
+            "share_pct": 7.5,
+            "midpoint_coord": [
+              77.132599,
+              28.680718
+            ],
+            "span_frac": [
+              0.6389,
+              0.7116
+            ]
+          },
+          "… (+1 more)"
+        ]
+      },
+      {
+        "mode": "driving_car_ac",
+        "distance_km": 24.0,
+        "duration_min": 32,
+        "duration_s": 1914.5,
+        "duration_model": "osrm",
+        "geometry": {
+          "coordinates": [
+            [
+              77.208773,
+              28.613927
+            ],
+            [
+              77.208665,
+              28.613932
+            ],
+            "… (+467 more)"
+          ],
+          "type": "LineString"
+        },
+        "exposure": {
+          "dose_ug": 10.6,
+          "dose_ug_lo": null,
+          "dose_ug_hi": null,
+          "avg_conc_ugm3": 44.4,
+          "peak_conc": 45.1,
+          "confidence": "medium",
+          "coverage": 1.0,
+          "sparse": false,
+          "factors": {
+            "microenv": 0.55,
+            "ventilation_lpm": 7.5,
+            "road_uplift": 1.0
+          },
+          "dose_vs_best_pct": 30.9,
+          "ug_saved_vs_worst": 0.0
+        },
+        "segments": [
+          {
+            "start_frac": 0.0,
+            "end_frac": 0.0501,
+            "minutes": 1.6,
+            "coords": [
+              [
+                77.208773,
+                28.613927
+              ],
+              [
+                77.208665,
+                28.613932
+              ],
+              "… (+18 more)"
+            ],
+            "avg_conc_ugm3": 44.7,
+            "dose_ug": 0.5,
+            "color": "#64748b"
+          },
+          {
+            "start_frac": 0.0501,
+            "end_frac": 0.0974,
+            "minutes": 1.51,
+            "coords": [
+              [
+                77.199858,
+                28.611164
+              ],
+              [
+                77.199276,
+                28.611185
+              ],
+              "… (+32 more)"
+            ],
+            "avg_conc_ugm3": 44.7,
+            "dose_ug": 0.5,
+            "color": "#64748b"
+          },
+          "… (+19 more)"
+        ],
+        "hotspots": [
+          {
+            "label": "hot zone",
+            "dose_ug": 0.6,
+            "share_pct": 5.7,
+            "midpoint_coord": [
+              77.186309,
+              28.605057
+            ],
+            "span_frac": [
+              0.0974,
+              0.149
+            ]
+          },
+          {
+            "label": "hot zone",
+            "dose_ug": 0.6,
+            "share_pct": 5.7,
+            "midpoint_coord": [
+              77.152192,
+              28.595284
+            ],
+            "span_frac": [
+              0.2456,
+              0.2969
+            ]
+          },
+          "… (+1 more)"
+        ]
+      }
+    ],
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 471,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    }
+  }
+}

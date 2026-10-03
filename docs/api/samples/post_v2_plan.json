@@ -1,0 +1,239 @@
+{
+  "method": "POST",
+  "url": "http://localhost:8188/v2/plan",
+  "status": 200,
+  "request_body": {
+    "from": {
+      "lat": 28.6139,
+      "lon": 77.209
+    },
+    "to": {
+      "lat": 28.7041,
+      "lon": 77.1025
+    },
+    "vehicle": "auto"
+  },
+  "response": {
+    "from": {
+      "lat": 28.6139,
+      "lon": 77.209
+    },
+    "to": {
+      "lat": 28.7041,
+      "lon": 77.1025
+    },
+    "vehicle": "auto",
+    "depart_at": null,
+    "options": [
+      {
+        "mode": "car",
+        "label": "Car (AC)",
+        "route_geojson": {
+          "coordinates": [
+            [
+              77.208773,
+              28.613927
+            ],
+            [
+              77.208665,
+              28.613932
+            ],
+            "… (+399 more)"
+          ],
+          "type": "LineString"
+        },
+        "distance_km": 18.31,
+        "eta_s": 1488,
+        "freeflow_s": 1488,
+        "eta_model": "osrm-freeflow",
+        "dose": {
+          "lo": null,
+          "mid": 8.1,
+          "hi": null,
+          "avg_conc_ugm3": 43.7,
+          "confidence": "high",
+          "basis": "est."
+        },
+        "emissions": {
+          "co2_kg": {
+            "lo": 1.4499,
+            "mid": 2.2343,
+            "hi": 4.0793
+          },
+          "pm25_g": {
+            "lo": 0.0534,
+            "mid": 0.1809,
+            "hi": 2.6158
+          },
+          "nox_g": {
+            "lo": 1.5098,
+            "mid": 5.893,
+            "hi": 18.5159
+          },
+          "label": "estimated for vehicles like yours (petrol car, Delhi fleet mix — BS-III–BS-VI)",
+          "basis": "per_vkm",
+          "occupancy": 1.0,
+          "bs_class": "bs4",
+          "bs_options": [
+            "bs3",
+            "bs4",
+            "… (+1 more)"
+          ],
+          "confidence": "low",
+          "fuel": "petrol",
+          "class": "car",
+          "non_exhaust": {
+            "pm10_g": {
+              "lo": 0.9157,
+              "mid": 2.7472,
+              "hi": 7.326
+            },
+            "per_vkm_g": {
+              "lo": 0.05,
+              "mid": 0.15,
+              "hi": 0.4
+            },
+            "note": "non-exhaust (resuspended dust + brakes/tyres), reported separately — ~86% of Delhi traffic PM10 is non-exhaust (Sahu et al. 2020, docs/26); never folded into tailpipe numbers"
+          },
+          "breakdown": {
+            "moving_mid": {
+              "co2": 2163.39222,
+              "pm25": 0.15544,
+              "nox": 5.53065
+            },
+            "idle_mid": {
+              "co2": 0.0,
+              "pm25": 0.0,
+              "nox": 0.0
+            },
+            "cold_extra_mid": {
+              "co2": 70.87319,
+              "pm25": 0.02546,
+              "nox": 0.36237
+            },
+            "units_g_except_co2_g": true
+          },
+          "distance_km": 18.315,
+          "mode": "car"
+        },
+        "tag": "lightest for you",
+        "recommended": true,
+        "reason_line": "Within ~10% of the lightest dose and the lightest exhaust of those — a fair trade.",
+        "your_vehicle": false,
+        "route_id": "efab3fcd4065"
+      },
+      {
+        "mode": "car_open",
+        "label": "Car (windows down)",
+        "route_geojson": {
+          "coordinates": [
+            [
+              77.208773,
+              28.613927
+            ],
+            [
+              77.208665,
+              28.613932
+            ],
+            "… (+399 more)"
+          ],
+          "type": "LineString"
+        },
+        "distance_km": 18.31,
+        "eta_s": 1488,
+        "freeflow_s": 1488,
+        "eta_model": "osrm-freeflow",
+        "dose": {
+          "lo": null,
+          "mid": 11.8,
+          "hi": null,
+          "avg_conc_ugm3": 63.5,
+          "confidence": "high",
+          "basis": "est."
+        },
+        "emissions": {
+          "co2_kg": {
+            "lo": 1.4499,
+            "mid": 2.2343,
+            "hi": 4.0793
+          },
+          "pm25_g": {
+            "lo": 0.0534,
+            "mid": 0.1809,
+            "hi": 2.6158
+          },
+          "nox_g": {
+            "lo": 1.5098,
+            "mid": 5.893,
+            "hi": 18.5159
+          },
+          "label": "estimated for vehicles like yours (petrol car, Delhi fleet mix — BS-III–BS-VI)",
+          "basis": "per_vkm",
+          "occupancy": 1.0,
+          "bs_class": "bs4",
+          "bs_options": [
+            "bs3",
+            "bs4",
+            "… (+1 more)"
+          ],
+          "confidence": "low",
+          "fuel": "petrol",
+          "class": "car",
+          "non_exhaust": {
+            "pm10_g": {
+              "lo": 0.9157,
+              "mid": 2.7472,
+              "hi": 7.326
+            },
+            "per_vkm_g": {
+              "lo": 0.05,
+              "mid": 0.15,
+              "hi": 0.4
+            },
+            "note": "non-exhaust (resuspended dust + brakes/tyres), reported separately — ~86% of Delhi traffic PM10 is non-exhaust (Sahu et al. 2020, docs/26); never folded into tailpipe numbers"
+          },
+          "breakdown": {
+            "moving_mid": {
+              "co2": 2163.39222,
+              "pm25": 0.15544,
+              "nox": 5.53065
+            },
+            "idle_mid": {
+              "co2": 0.0,
+              "pm25": 0.0,
+              "nox": 0.0
+            },
+            "cold_extra_mid": {
+              "co2": 70.87319,
+              "pm25": 0.02546,
+              "nox": 0.36237
+            },
+            "units_g_except_co2_g": true
+          },
+          "distance_km": 18.315,
+          "mode": "car_open"
+        },
+        "tag": null,
+        "recommended": false,
+        "reason_line": "",
+        "your_vehicle": false,
+        "route_id": "df304f0cb4b9"
+      },
+      "… (+6 more)"
+    ],
+    "ranking": "doc 06 §4: dose_lo within 10% ties, lowest emission wins",
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 476,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    },
+    "took_ms": 785.6
+  }
+}

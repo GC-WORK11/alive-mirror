@@ -1,0 +1,24 @@
+{
+  "method": "POST",
+  "url": "http://localhost:8188/observe",
+  "status": 200,
+  "request_body": {
+    "vehicle": "auto",
+    "coords": [
+      [
+        77.209,
+        28.6139
+      ],
+      [
+        77.22,
+        28.63
+      ]
+    ],
+    "duration_s": 300,
+    "dose_ug": 12.5
+  },
+  "response": {
+    "stored": true,
+    "total_obs": 4
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/v2/strip?route_id=efab3fcd4065",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "route_id": "efab3fcd4065",
+    "mode": "car",
+    "step_m": 250.0,
+    "samples": [
+      {
+        "lat": 28.61409,
+        "lon": 77.20532,
+        "dist_m": 115,
+        "pm25": 81.2,
+        "lo": null,
+        "hi": null
+      },
+      {
+        "lat": 28.61475,
+        "lon": 77.20184,
+        "dist_m": 168,
+        "pm25": 81.0,
+        "lo": null,
+        "hi": null
+      },
+      "… (+58 more)"
+    ],
+    "emissions_curve": {
+      "mode": "car",
+      "co2_g_km": {
+        "lo": 130.0,
+        "hi": 210.0
+      },
+      "pm25_g_km": {
+        "lo": 0.01,
+        "hi": 0.045
+      },
+      "idle_g_s": 0.45,
+      "occupancy": 1.3,
+      "cold_start_km": 4.0,
+      "basis": "est. — vehicles like yours; band = class spread x speed-curve uncertainty"
+    },
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 476,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    }
+  }
+}

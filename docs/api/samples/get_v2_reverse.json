@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/v2/reverse?lat=28.6139&lon=77.209",
+  "status": 503,
+  "request_body": null,
+  "response": {
+    "error": "amazon_location_disabled",
+    "detail": "ALIVE_LOCATION_KEY is not configured on the server",
+    "hint": "search results without an 'amz:' id resolve locally"
+  }
+}

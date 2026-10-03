@@ -1,0 +1,52 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/depart?from_lat=28.6139&from_lon=77.209&to_lat=28.7041&to_lon=77.1025&vehicle=auto&hours=8",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "vehicle": "auto",
+    "mode": "auto_rickshaw",
+    "duration_min": 31,
+    "distance_km": 18.3,
+    "now": {
+      "hours_ahead": 0,
+      "start": "2026-10-03T03:00",
+      "dose_ug": 60.2,
+      "avg_conc_ugm3": 228.3
+    },
+    "best": {
+      "hours_ahead": 6,
+      "start": "2026-10-03T09:00",
+      "dose_ug": 11.0,
+      "avg_conc_ugm3": 41.9
+    },
+    "worst": {
+      "hours_ahead": 0,
+      "start": "2026-10-03T03:00",
+      "dose_ug": 60.2,
+      "avg_conc_ugm3": 228.3
+    },
+    "ug_saved_vs_now": 82,
+    "slots": [
+      {
+        "hours_ahead": 0,
+        "start": "2026-10-03T03:00",
+        "dose_ug": 60.2,
+        "avg_conc_ugm3": 228.3
+      },
+      {
+        "hours_ahead": 1,
+        "start": "2026-10-03T04:00",
+        "dose_ug": 55.3,
+        "avg_conc_ugm3": 210.0
+      },
+      "… (+6 more)"
+    ],
+    "forecast": {
+      "aq_points": 48,
+      "met_points": 48,
+      "hours": 120,
+      "age_s": 429
+    }
+  }
+}

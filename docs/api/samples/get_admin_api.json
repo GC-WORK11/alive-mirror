@@ -1,0 +1,134 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/admin/api",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "ts": 1790999114.3400984,
+    "uptime_s": 535,
+    "live_users": 1,
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 476,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    },
+    "fire": {
+      "status": "live",
+      "source": "firms-public-csv",
+      "fires": 72,
+      "belt_fires": 21,
+      "wind_deg": 253,
+      "modifier": 1.11,
+      "age_s": 460
+    },
+    "community": {
+      "obs_total": 4,
+      "obs_24h": 4,
+      "contributors": 0,
+      "km_24h": 8.4,
+      "dose_ug_24h": 50.0,
+      "avoided_ug_24h": 0,
+      "avoided_ug_all": 0,
+      "active_reports": 4,
+      "modes_24h": {
+        "auto": 4
+      },
+      "latest_obs_age_min": 0,
+      "top_corridors": [
+        {
+          "lon": 77.21000000000001,
+          "lat": 28.615000000000002,
+          "samples": 4,
+          "avg_dose_ug": 12.5,
+          "top_mode": "auto"
+        },
+        {
+          "lon": 77.22,
+          "lat": 28.63,
+          "samples": 4,
+          "avg_dose_ug": 12.5,
+          "top_mode": "auto"
+        }
+      ]
+    },
+    "corridors": [
+      {
+        "lon": 77.21000000000001,
+        "lat": 28.615000000000002,
+        "samples": 4,
+        "avg_dose_ug": 12.5,
+        "top_mode": "auto"
+      },
+      {
+        "lon": 77.22,
+        "lat": 28.63,
+        "samples": 4,
+        "avg_dose_ug": 12.5,
+        "top_mode": "auto"
+      }
+    ],
+    "contributors": [
+      {
+        "contributor": "anon",
+        "trips": 4,
+        "km": 8.4,
+        "dose_ug": 50.0,
+        "avoided_ug": 0.0,
+        "last_seen_min_ago": 0,
+        "modes": [
+          "auto"
+        ]
+      }
+    ],
+    "recent_journeys": [
+      {
+        "ts": 1790999113.456297,
+        "age_min": 0.0,
+        "vehicle": "auto",
+        "duration_s": 300.0,
+        "dose_ug": 12.5,
+        "avoided_ug": null,
+        "contributor": ""
+      },
+      {
+        "ts": 1790999086.190368,
+        "age_min": 0.5,
+        "vehicle": "auto",
+        "duration_s": 300.0,
+        "dose_ug": 12.5,
+        "avoided_ug": null,
+        "contributor": ""
+      },
+      "… (+2 more)"
+    ],
+    "reports": [
+      {
+        "kind": "dust",
+        "lat": 28.62,
+        "lon": 77.21,
+        "age_min": 7,
+        "contributor": null
+      },
+      {
+        "kind": "dust",
+        "lat": 28.62,
+        "lon": 77.21,
+        "age_min": 1,
+        "contributor": null
+      },
+      "… (+2 more)"
+    ],
+    "journeys_per_hour": [
+      0,
+      0,
+      "… (+22 more)"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "url": "http://localhost:8188/report",
+  "status": 200,
+  "request_body": {
+    "kind": "dust",
+    "lat": 28.62,
+    "lon": 77.21
+  },
+  "response": {
+    "stored": true,
+    "active_reports": 4
+  }
+}

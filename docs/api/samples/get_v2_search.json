@@ -1,0 +1,90 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/v2/search?q=connaught&limit=3",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "q": "connaught",
+    "bias": {
+      "lat": 28.6139,
+      "lon": 77.209
+    },
+    "results": [
+      {
+        "id": "gaz:18179",
+        "name": "Connaught Place N Block Market",
+        "subtitle": "shopping_mall",
+        "lat": 28.630081,
+        "lon": 77.219757,
+        "kind": "shopping_mall",
+        "match": "exact-prefix",
+        "match_rank": 0,
+        "distance_m": 2083,
+        "source": "gazetteer",
+        "sources": [
+          "t1"
+        ]
+      },
+      {
+        "id": "gaz:25149",
+        "name": "Connaught Place",
+        "subtitle": "macrohood",
+        "lat": 28.631771,
+        "lon": 77.219376,
+        "kind": "macrohood",
+        "match": "exact-prefix",
+        "match_rank": 0,
+        "distance_m": 2230,
+        "source": "gazetteer",
+        "sources": [
+          "t1"
+        ]
+      },
+      "… (+1 more)"
+    ],
+    "count": 3,
+    "t1": [
+      {
+        "id": "gaz:18179",
+        "name": "Connaught Place N Block Market",
+        "subtitle": "shopping_mall",
+        "lat": 28.630081,
+        "lon": 77.219757,
+        "kind": "shopping_mall",
+        "match": "exact-prefix",
+        "match_rank": 0,
+        "distance_m": 2083,
+        "source": "gazetteer",
+        "sources": [
+          "t1"
+        ]
+      },
+      {
+        "id": "gaz:25149",
+        "name": "Connaught Place",
+        "subtitle": "macrohood",
+        "lat": 28.631771,
+        "lon": 77.219376,
+        "kind": "macrohood",
+        "match": "exact-prefix",
+        "match_rank": 0,
+        "distance_m": 2230,
+        "source": "gazetteer",
+        "sources": [
+          "t1"
+        ]
+      },
+      "… (+1 more)"
+    ],
+    "t2": "disabled:no ALIVE_LOCATION_KEY",
+    "tiers": [
+      "t1"
+    ],
+    "t1_engine": "gazetteer",
+    "took_ms": {
+      "t1": 55.2,
+      "t2": null,
+      "total": 55.2
+    }
+  }
+}

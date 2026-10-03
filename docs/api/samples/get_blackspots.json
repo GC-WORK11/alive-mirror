@@ -1,0 +1,89 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/blackspots",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            77.1634,
+            28.7377
+          ]
+        },
+        "properties": {
+          "name": "Bhalswa Chowk",
+          "road": "Outer Ring Road",
+          "severity": "high",
+          "crashes_2021": {
+            "simple": 3,
+            "fatal": 8,
+            "total": 11
+          },
+          "killed_2021": 8,
+          "deaths_2019_21": null,
+          "subtypes": [
+            "night",
+            "pedestrian",
+            "… (+3 more)"
+          ],
+          "top10_years": [
+            2021,
+            2022,
+            "… (+2 more)"
+          ],
+          "coord_source": "osm",
+          "coord_note": "Bhalswa Flyover node, Outer Ring Rd"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            77.1555,
+            28.7349
+          ]
+        },
+        "properties": {
+          "name": "Mukarba Chowk",
+          "road": "Outer Ring Road",
+          "severity": "high",
+          "crashes_2021": {
+            "simple": 11,
+            "fatal": 7,
+            "total": 18
+          },
+          "killed_2021": 7,
+          "deaths_2019_21": 19,
+          "subtypes": [
+            "night",
+            "pedestrian",
+            "… (+3 more)"
+          ],
+          "top10_years": [
+            2021,
+            2022,
+            "… (+1 more)"
+          ],
+          "coord_source": "osm",
+          "coord_note": "Mukarba Chowk junction node"
+        }
+      },
+      "… (+102 more)"
+    ],
+    "metadata": {
+      "count": 104,
+      "zone_radius_m": 250.0,
+      "sources": [
+        "Delhi Traffic Police, Delhi Crash Report 2021 — Tables 6.25-6.28, 6.33-6.38 (87 crash-prone zones)",
+        "IIT-Delhi TRiPC / Delhi Transport Dept / Vital Strategies, Delhi Road Safety Report 'Data to Action' (2019-21) district reports",
+        "… (+1 more)"
+      ]
+    }
+  }
+}

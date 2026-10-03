@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/city",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "_non_json": true,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 31972
+  }
+}
