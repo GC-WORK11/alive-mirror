@@ -267,6 +267,12 @@ class DeviceLedger:
         with LOCK:
             return len(self._ledgers)
 
+    def delete(self, token_hash: str) -> int:
+        """Drop one device's rows — /v2/ledger DELETE. Returns count."""
+        with LOCK:
+            rows = self._ledgers.pop(token_hash, None)
+        return len(rows) if rows else 0
+
     def reset(self) -> None:
         with LOCK:
             self._ledgers.clear()

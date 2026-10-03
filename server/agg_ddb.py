@@ -443,6 +443,26 @@ class DDBDeviceLedger:
             self.last_error = f"{type(e).__name__}: {e}"
             return 0
 
+    def delete(self, token_hash: str) -> int:
+        """Drop one device's ledger rows + its meta counter — /v2/ledger
+        DELETE. Trip items are the whole Query page set; the meta row
+        lives under LEDGER_META_PK keyed by the same hash."""
+        n = 0
+        try:
+            for it in self._items(token_hash, 10 ** 6):
+                self.client.delete_item(
+                    TableName=self.table_name,
+                    Key={"pk": it["pk"], "sk": it["sk"]})
+                n += 1
+            self.client.delete_item(
+                TableName=self.table_name,
+                Key={"pk": {"S": LEDGER_META_PK},
+                     "sk": {"S": f"device#{token_hash}"}})
+            self.last_error = None
+        except Exception as e:  # noqa: BLE001 - surface, never silent-loss
+            self.last_error = f"{type(e).__name__}: {e}"
+        return n
+
     def reset(self) -> None:
         """Drop every ledger item (dev/test parity; no endpoint wires it)."""
         for prefix in ("ledger#", LEDGER_META_PK):

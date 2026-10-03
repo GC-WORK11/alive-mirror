@@ -30,6 +30,7 @@ import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { loadConsent, saveConsent } from "./src/store/consent";
+import { contributorId } from "./src/community";
 import { CompareSheet } from "./src/components/shell/CompareSheet";
 import { NavChrome } from "./src/components/shell/NavChrome";
 import { ReceiptSheet, type ReceiptData } from "./src/components/shell/ReceiptSheet";
@@ -184,9 +185,25 @@ function AppInner() {
   }, [flow.vehicle, settings.vehicle, patchSettings]);
 
   const deleteAll = useCallback(() => {
-    clearAllData();
-    flow.setTrips([]); flow.setVehicleProfile(null);
-    setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
+    // server half first — the raw device token dies with contributor.txt,
+    // so the DELETE must carry the CURRENT id before the wipe removes it.
+    // contributorId() resolves from its file fast; a hung read must not
+    // hold the wipe hostage, hence the 800 ms cap.
+    void (async () => {
+      const tok = await Promise.race([
+        contributorId(),
+        new Promise<string | null>((r) => setTimeout(() => r(null), 800)),
+      ]);
+      if (tok) {
+        void fetch(
+          `${API}/v2/ledger?token=${encodeURIComponent(tok)}`,
+          { method: "DELETE" },
+        ).catch(() => {});
+      }
+      clearAllData();
+      flow.setTrips([]); flow.setVehicleProfile(null);
+      setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
+    })();
   }, [flow]);
   const toggleLayer = useCallback((k: LayerKey, v: boolean) => {
     setLayers((l) => ({ ...l, [k]: v }));
