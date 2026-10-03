@@ -5,6 +5,8 @@
 import { File, Paths } from "expo-file-system";
 import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
+import { clearConsent } from "../../store/consent";
+import { clearVehicle } from "../../store/vehicle";
 
 export type SavedPlace = { name: string; lat: number; lon: number };
 
@@ -69,13 +71,15 @@ export function saveSettings(s: ShellSettings): void {
     .catch(() => {});
 }
 
-/** "Delete my data" — ledger, contributor id, settings. Real removal.
- *  The in-memory mirrors drop too (perf r4) or reads would resurrect
- *  wiped data until the next launch. */
+/** "Delete my data" — ledger, contributor id, settings, consent,
+ *  vehicle. Real removal. The in-memory mirrors drop too (perf r4) or
+ *  reads would resurrect wiped data until the next launch. */
 export function clearAllData(): void {
   mem = null;
   inflight = null;
   resetLedgerCache();
+  clearConsent();   // re-arms the onboarding gate on next launch
+  clearVehicle();   // vehicle.json — the S8 profile
   for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt"]) {
     try {
       const f = new File(Paths.document, name);

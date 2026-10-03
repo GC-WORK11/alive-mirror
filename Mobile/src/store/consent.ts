@@ -37,17 +37,12 @@ function sanitize(raw: unknown): ConsentState {
 
 async function persist(s: ConsentState): Promise<void> {
   mem = s;
-  writeTail = writeTail
-    .then(() => {
-      try {
-        if (!FILE.exists) FILE.create();
-        FILE.write(JSON.stringify(mem));
-      } catch {
-        // best-effort — the in-memory copy still holds
-      }
-    })
-    .catch(() => {});
-  await writeTail;
+  try {
+    if (!FILE.exists) FILE.create();
+    FILE.write(JSON.stringify(mem));
+  } catch {
+    // best-effort — the in-memory copy still holds
+  }
 }
 
 /** Load the consent record (seen · sharing · ts). Stays eager — it gates
@@ -70,11 +65,19 @@ export async function loadConsent(): Promise<ConsentState> {
 }
 
 /** Merge a patch and persist — the only writer. Settings' share toggle
- *  calls `saveConsent({ sharing: "on"|"off", ts: Date.now() })`. */
-export async function saveConsent(patch: Partial<ConsentState>): Promise<ConsentState> {
-  const next = { ...(await loadConsent()), ...patch };
-  await persist(next);
-  return next;
+ *  calls `saveConsent({ sharing: "on"|"off", ts: Date.now() })`. The
+ *  whole read-modify-write runs inside the writeTail chain: two
+ *  concurrent saves that each merged from the same base state would
+ *  last-writer-wins away each other's keys (the onboarding race —
+ *  `sharing` landed but `seen: true` was clobbered). */
+export function saveConsent(patch: Partial<ConsentState>): Promise<ConsentState> {
+  const p = writeTail.then(async () => {
+    const next = { ...(await loadConsent()), ...patch };
+    await persist(next);
+    return next;
+  });
+  writeTail = p.catch(() => {});
+  return p;
 }
 
 /** True while the first-run flow must be shown: never completed, or
