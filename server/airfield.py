@@ -30,7 +30,9 @@ import httpx
 OPEN_METEO = "https://air-quality-api.open-meteo.com/v1/air-quality"
 METEO = "https://api.open-meteo.com/v1/forecast"
 OPENAQ = "https://api.openaq.org/v3"
-POLLUTANTS = "pm2_5,pm10,nitrogen_dioxide,ozone,us_aqi,dust,aerosol_optical_depth"
+POLLUTANTS = ("pm2_5,pm10,nitrogen_dioxide,ozone,carbon_monoxide,"
+              "sulphur_dioxide,ammonia,us_aqi,european_aqi,dust,"
+              "aerosol_optical_depth")
 CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
 
 # --- snapshot serving (warm start from the built air index) ---------------
@@ -163,10 +165,12 @@ class AirField:
         return x
 
     async def refresh(self, client: httpx.AsyncClient, force: bool = False) -> None:
-        # Warm start: if no snapshot was loaded at import (dir appeared
-        # later, or that attempt failed), retry at most once per TTL —
-        # best-effort, never blocks the request path on a bad disk.
-        if self._snap is None and time.time() >= self._next_snap_scan:
+        # Warm start / upgrade scan: retry at most once per TTL — covers a
+        # dir that appeared late, a failed first load, AND a fresher file
+        # written by the ingest worker while we serve. load_snapshot is a
+        # no-op when the winner is what we already hold, so rescanning a
+        # loaded field costs one dir walk, never a re-decode.
+        if time.time() >= self._next_snap_scan:
             self._next_snap_scan = time.time() + CACHE_TTL
             try:
                 self.load_snapshot()
@@ -519,6 +523,9 @@ class AirField:
         if best is None:
             return out
         path, field, centers = best
+        if path == self._snap_path and best_key[0] == self._snap_epoch:
+            out["already_current"] = True
+            return out
         self._snap = field
         self._snap_path = path
         self._snap_epoch = best_key[0]

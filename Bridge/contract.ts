@@ -84,6 +84,11 @@ export interface AqiResponse {
   pm25_lo?: number | null;
   pm25_hi?: number | null;
   us_aqi?: number | null;
+  european_aqi?: number | null;
+  o3?: number | null;
+  co?: number | null;
+  so2?: number | null;
+  nh3?: number | null;
   dust?: number | null;
   aod?: number | null;
   conditions?: Record<string, unknown>;

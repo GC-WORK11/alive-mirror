@@ -8,6 +8,7 @@ seeded in tmp_path at known timestamps; no network, no AWS.
 import gzip
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -216,5 +217,9 @@ def test_real_mirror_tree_matches_writer_convention():
     ingest_worker convention — guards the regex against repo drift."""
     path, rel, ts = health._newest_snapshot(health.SNAPSHOT_DIR)
     assert path is not None, "no convention-named snapshot in the mirror"
-    assert rel == "2026/10/03/0202.json.gz"
-    assert ts == _epoch(2026, 10, 3, 2, 2)
+    # A live ingest may have written a newer snapshot into the tree — the
+    # test guards the naming convention, not a pinned filename.
+    m = re.fullmatch(r"(\d{4})/(\d{2})/(\d{2})/(\d{4})\.json\.gz", rel)
+    assert m is not None, f"snapshot rel path broke convention: {rel!r}"
+    y, mo, d, hhmm = (int(x) for x in m.groups())
+    assert ts == _epoch(y, mo, d, hhmm // 100, hhmm % 100)

@@ -17,8 +17,12 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+
+# local dev keys live in server/.env (gitignored) — real env vars always win
+load_dotenv()
 
 from airfield import FIELD, grap_indicative
 from fires import FIRES
@@ -32,7 +36,16 @@ import grid
 import community
 import decide
 
-app = FastAPI(title="Delhi-Air-108 API")
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    _start_ingest_loop()
+    yield
+
+
+app = FastAPI(title="Delhi-Air-108 API", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 PHOTON = "https://photon.komoot.io/api/"
@@ -637,7 +650,12 @@ async def aqi(lat: float, lon: float):
         "pm25_hi": round((v + sd) * mod, 1) if sd else None,
         "pm10": FIELD.value(lat, lon, "pm10"),
         "no2": FIELD.value(lat, lon, "nitrogen_dioxide"),
+        "o3": FIELD.value(lat, lon, "ozone"),
+        "co": FIELD.value(lat, lon, "carbon_monoxide"),
+        "so2": FIELD.value(lat, lon, "sulphur_dioxide"),
+        "nh3": FIELD.value(lat, lon, "ammonia"),
         "us_aqi": FIELD.value(lat, lon, "us_aqi"),
+        "european_aqi": FIELD.value(lat, lon, "european_aqi"),
         "dust": FIELD.value(lat, lon, "dust"),
         "aod": FIELD.value(lat, lon, "aerosol_optical_depth"),
         "conditions": FIELD.weather(),
@@ -1122,3 +1140,30 @@ try:  # rate limit + body cap + security headers (all env-tunable)
     _mw.attach(app)
 except Exception:
     pass
+
+
+# --- in-app air-index ingest (keeps the field real-time with zero traffic) ---
+# FIELD.refresh() is request-driven — idle >45 min => stale serving. The ECS
+# deploy runs ingest_worker as its own 15-min task (doc 05 §1); on a single
+# box that task doesn't exist, so we run the same run_index_once() loop in a
+# daemon thread. ALIVE_INGEST_IN_APP=0 disables (e.g. a box that already runs
+# the worker container against the same snapshot dir).
+def _start_ingest_loop() -> None:
+    if os.environ.get("ALIVE_INGEST_IN_APP", "1").strip() in ("0", "false", "no"):
+        return
+    import threading
+
+    import ingest_worker as _ingest
+
+    def _on_result(_res: dict) -> None:
+        try:  # a fresh snapshot may now be the freshest field — pick it up
+            FIELD.load_snapshot()
+        except Exception:
+            pass
+
+    t = threading.Thread(
+        target=_ingest.run_forever,
+        kwargs={"interval_s": _ingest.INDEX_PERIOD_S,
+                "on_result": _on_result},
+        name="alive-ingest", daemon=True)
+    t.start()
