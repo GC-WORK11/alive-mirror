@@ -18,7 +18,7 @@ import { postJson, postReroute } from "../api/reroute";
 import { enqueueTripDonation } from "../offline/queue";
 import { LiveCounters } from "./counters";
 import {
-  ArrivalTracker, flattenCoords, havM, OffRouteTracker,
+  ARRIVE_M, ArrivalTracker, flattenCoords, havM, OffRouteTracker,
   polylineLengthM, snapToPolyline, type LonLat,
 } from "./offroute";
 import { fieldAtAlongM, stripCumM, type Band, type RouteStrip } from "./strip";
@@ -264,6 +264,18 @@ export function useNavEngine(opts: NavEngineOpts) {
       alongRef.current += adv;
       pendMRef.current += adv;
       setSnapped([snap.lon, snap.lat]);
+
+      // arrival by route odometer: a parked rider stops emitting fixes
+      // (distanceInterval filters stationary updates on both platforms),
+      // so the 2-fix proximity check below can strand the end state.
+      // alongM only grows, so one snapped fix within ARRIVE_M of the
+      // route end is an honest arrival. Guard: longer routes only, else
+      // a sub-90 m trip would arrive on its first fix.
+      if (routeLenRef.current > ARRIVE_M * 1.5 &&
+          routeLenRef.current - alongRef.current <= ARRIVE_M) {
+        arrive();
+        return;
+      }
       // speed: GNSS first, else derive from fix deltas
       let v = typeof loc.coords.speed === "number" && loc.coords.speed >= 0
         ? loc.coords.speed : NaN;
