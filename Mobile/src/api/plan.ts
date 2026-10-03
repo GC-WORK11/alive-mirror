@@ -17,6 +17,9 @@ export type PlanRequest = {
   from: { lat: number; lon: number };
   to: { lat: number; lon: number };
   vehicle?: string;
+  /** full S8 profile — server `_parse_vehicle` reads fuel/year_bucket
+      out of it; omitting it quietly falls back to the fleet prior */
+  vehicle_profile?: { class: string; fuel?: string; year_bucket?: string } | null;
   depart_at?: string;
 };
 
@@ -143,7 +146,10 @@ function toOption(raw: unknown): V2Option | null {
 export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<PlanResultFresh> {
   const r = await fetchCached<PlanResultFresh>(`${API}/v2/plan`, {
     ttlMs: 15 * 60 * 1000,                       // field cadence is ~15 min
-    key: cacheKeys.plan(req.from.lat, req.from.lon, req.to.lat, req.to.lon),
+    key: cacheKeys.plan(req.from.lat, req.from.lon, req.to.lat, req.to.lon,
+      req.vehicle_profile
+        ? `${req.vehicle ?? ""}:${req.vehicle_profile.fuel ?? ""}:${req.vehicle_profile.year_bucket ?? ""}`
+        : req.vehicle ?? ""),
     timeoutMs,
     fetcher: async () => {
       const j = (await postJson(`${API}/v2/plan`, req, timeoutMs)) as Record<string, unknown>;

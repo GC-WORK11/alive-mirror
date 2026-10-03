@@ -203,6 +203,11 @@ function AppInner() {
     <View style={s.root}>
       <StatusBar style="dark" />
       <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
+        /* the compass clears the chrome: search bar at rest, the taller
+           maneuver banner in nav (was clipped behind it at top-right) */
+        compassPosition={phase === "nav"
+          ? { top: insets.top + 108, right: 12 }
+          : { top: insets.top + 76, right: 12 }}
         onPress={async (f) => {
           if (!mapPickArmed) return;
           setMapPickArmed(false);

@@ -13,7 +13,7 @@ import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notif
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
 import type { CommunityTotals } from "../../community";
 import {
-  getVehicle, saveVehicle, clearVehicle, planVehicle, type VehicleProfile,
+  getVehicle, saveVehicle, clearVehicle, planVehicle, planVehicleProfile, type VehicleProfile,
 } from "../../store/vehicle";
 import { planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
@@ -116,7 +116,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           from: { lat: from.lat, lon: from.lon },
           to: { lat: to.lat, lon: to.lon },
           vehicle: planVehicle(vehicle),
-        }, 15000);
+          vehicle_profile: planVehicleProfile(vehicle),
+        }, 30000);   // far-route plans krige per query — measured >25 s on CP→Pataudi
         if (cancelled) return;
         if (pj.error && pj.options.length === 0) {
           setOptions([]); setDepart(null);

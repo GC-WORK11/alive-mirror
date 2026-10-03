@@ -136,9 +136,13 @@ export const cacheKeys = {
   /** last-good GET /v2/city ("Delhi today") */
   city: (): string => "v2:city",
   /** last-good POST /v2/plan options, keyed by a ~100 m-rounded O/D pair
-   * so "same trip as before" finds its cached options */
-  plan: (fromLat: number, fromLon: number, toLat: number, toLon: number): string =>
-    `v2:plan:${fromLat.toFixed(3)},${fromLon.toFixed(3)}>${toLat.toFixed(3)},${toLon.toFixed(3)}`,
+   *  + the vehicle signature — a changed S8 answer must not serve the
+   *  stale fleet-prior emissions bands it asked with an older profile.
+   *  ~100 m rounding keeps O/D neighbours sharing one entry, so "same
+   *  trip as before" finds its cached options */
+  plan: (fromLat: number, fromLon: number, toLat: number, toLon: number,
+    vkey = ""): string =>
+    `v2:plan:${fromLat.toFixed(3)},${fromLon.toFixed(3)}>${toLat.toFixed(3)},${toLon.toFixed(3)}|${vkey}`,
   /** last-good GET /v2/strip by route_id */
   strip: (routeId: string): string => `v2:strip:${routeId}`,
 };
