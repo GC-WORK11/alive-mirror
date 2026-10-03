@@ -117,8 +117,12 @@ function AppInner() {
   /* ---- boot: warm the API, load trips/settings, resolve location ---- */
   const { setFrom, setTrips } = flow;
   useEffect(() => {
+    /* one flaky ping while a 25 s plan krige is in flight flashed a false
+       "can't reach the server" strip — require two consecutive misses */
+    let misses = 0;
     const ping = () => fetch(`${API}/health`, { keepalive: true })
-      .then((r) => setApiOk(r.ok)).catch(() => setApiOk(false));
+      .then((r) => { misses = r.ok ? 0 : misses + 1; if (!misses) setApiOk(true); else if (misses >= 2) setApiOk(false); })
+      .catch(() => { misses += 1; if (misses >= 2) setApiOk(false); });
     ping();
     const healthIv = setInterval(ping, 15000);
     const poll = () => fetchJson(`${API}/reports`).then(setReports).catch(() => {});
