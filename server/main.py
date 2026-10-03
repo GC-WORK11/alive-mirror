@@ -797,6 +797,27 @@ class _ForecastSurface:
         return FIELD.nearest_sample_km(lat, lon)
 
 
+# /grid answers are deterministic functions of (cells, param, h) plus
+# the epoch of the field/forecast data underneath — the surface only
+# changes when a refresh lands, so repeated paints for the same source
+# epoch replay the identical collection instead of paying O(cells)
+# interpolation each time. Keyed on the real fetch timestamps: a fresh
+# refresh produces a fresh collection; the cache can never serve data
+# older than the data itself.
+_GRID_CACHE: dict = {}
+
+
+def _grid_cached(key: tuple, epoch: float, build) -> dict:
+    hit = _GRID_CACHE.get(key)
+    if hit and hit[0] == epoch:
+        return hit[1]
+    out = build()
+    if len(_GRID_CACHE) >= 24:
+        _GRID_CACHE.clear()
+    _GRID_CACHE[key] = (epoch, out)
+    return out
+
+
 @app.get("/grid")
 async def field_grid(cells: int = Query(default=22, le=40),
                      h: Optional[int] = Query(default=None, ge=0, le=120),
@@ -813,9 +834,19 @@ async def field_grid(cells: int = Query(default=22, le=40),
         param = "pm2_5"
     if h is not None:
         await FORECAST.refresh(http())
-        return grid.as_geojson(_ForecastSurface(h), cells, param)
+        # the horizon anchors to the live field too — all three epochs
+        return _grid_cached(
+            ("f", cells, param, h),
+            (FORECAST._fetched_at, FIELD._fetched_at,
+             community._OBS_VERSION),
+            lambda: grid.as_geojson(_ForecastSurface(h), cells, param))
     await FIELD.refresh(http())
-    return grid.as_geojson(FIELD, cells, param)
+    # the served surface is field×corridor-posterior — a donated trip
+    # shifts cells between refreshes, so the obs version rides the epoch
+    return _grid_cached(
+        ("l", cells, param),
+        (FIELD._fetched_at, community._OBS_VERSION),
+        lambda: grid.as_geojson(FIELD, cells, param))
 
 
 @app.post("/observe")
