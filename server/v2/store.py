@@ -15,6 +15,7 @@ Two things live here, and nothing else ever may:
 import threading
 import time
 import uuid
+from typing import Optional
 
 LOCK = threading.Lock()
 
@@ -42,6 +43,19 @@ class RouteStore:
                 self._routes.pop(rid, None)
                 return None
             return rec
+
+    def age_s(self, rid: str) -> Optional[float]:
+        """Seconds since a live route_id was issued; None if unknown or
+        expired. Lets /v2/strip report the route's age honestly instead
+        of implying freshness."""
+        with LOCK:
+            hit = self._routes.get(rid)
+            if not hit:
+                return None
+            ts, _ = hit
+            if time.time() - ts > self._ttl:
+                return None
+            return round(time.time() - ts, 1)
 
     def _prune(self) -> None:
         if len(self._routes) < self._cap:
