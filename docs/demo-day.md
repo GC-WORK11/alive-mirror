@@ -50,6 +50,13 @@ the field reports `coverage < 1` instead of clamping silently. The 10
 other species ride the same lattice; nothing is zero-filled when a feed
 doesn't serve it.
 
+**"How fast is the live surface?"**
+`/grid` answers are pure functions of the data's own epochs (field
+fetch time, forecast fetch time, community obs version) — repeated
+paints replay in ~12 ms and can never serve stale data because the
+cache key IS the data version; gzip takes the 235 KB layer to ~11 KB
+on the wire (~0.5 s end-to-end from India).
+
 **"Street-wise how deep does the data go?"**
 The search index is built from the real OSM northern-zone extract —
 ~94k rows: metro gates, market lanes, mall stores, police stations,
@@ -119,6 +126,11 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   the **CO₂ phase split** bar (moving / idling / cold-start %) summed
   only over trips whose receipts carried the real breakdown; old
   builds count in the headline total, never in the split
+- **live feed**: the newest donations ticking in (ago · mode · dose ·
+  km · co₂) — donate a trip on stage and watch it land in the next
+  30 s refresh. Aggregate-level events only: the feed can say a trip
+  happened, never where or whose. Retried posts dedupe — a phantom
+  trip can never enter the totals
 
 ## Honest limitations (say them first — it lands harder)
 
