@@ -4,6 +4,7 @@
 // fails we still work in memory for the session.
 import { File, Paths } from "expo-file-system";
 import { t, type Lang, type StringKey } from "../i18n/strings";
+import { afterFirstFrame } from "../startup/idle";
 
 const FILE = new File(Paths.document, "vehicle.json");
 
@@ -23,8 +24,12 @@ const FUELS: Fuel[] = ["petrol", "diesel", "cng", "ev"];
 const YEARS: YearBand[] = ["pre_2010", "y2010_2016", "y2017_2020", "y2021_plus", "not_sure"];
 
 // In-memory cache — the fast path, and the whole store when the
-// document directory is unavailable.
+// document directory is unavailable. `inflight` dedupes concurrent first
+// reads (perf r4): the profile isn't frame-1 data, so the disk read +
+// JSON.parse waits for afterFirstFrame instead of blocking the mount.
 let mem: VehicleProfile | null | undefined;
+let inflight: Promise<VehicleProfile | null> | null = null;
+let writeTail: Promise<unknown> = Promise.resolve();
 
 function sanitize(raw: unknown): VehicleProfile | null {
   if (!raw || typeof raw !== "object") return null;
@@ -40,24 +45,37 @@ function sanitize(raw: unknown): VehicleProfile | null {
 /** Load the saved profile (null = never answered). */
 export async function getVehicle(): Promise<VehicleProfile | null> {
   if (mem !== undefined) return mem;
-  try {
-    if (FILE.exists) {
-      mem = sanitize(JSON.parse(await FILE.text()));
+  if (!inflight) {
+    inflight = (async () => {
+      await afterFirstFrame();
+      if (mem !== undefined) return mem; // a writer won while we waited
+      try {
+        if (FILE.exists) {
+          mem = sanitize(JSON.parse(await FILE.text()));
+          return mem;
+        }
+      } catch {}
+      mem = null;
       return mem;
-    }
-  } catch {}
-  mem = null;
-  return mem;
+    })();
+  }
+  return inflight;
 }
 
 export async function saveVehicle(p: VehicleProfile): Promise<VehicleProfile> {
   mem = p;
-  try {
-    if (!FILE.exists) FILE.create();
-    FILE.write(JSON.stringify(p));
-  } catch {
-    // in-memory copy still holds — persistence is best-effort
-  }
+  writeTail = writeTail
+    .then(() => {
+      if (mem == null) return; // cleared meanwhile — don't resurrect the file
+      try {
+        if (!FILE.exists) FILE.create();
+        FILE.write(JSON.stringify(mem));
+      } catch {
+        // in-memory copy still holds — persistence is best-effort
+      }
+    })
+    .catch(() => {});
+  await writeTail;
   return p;
 }
 

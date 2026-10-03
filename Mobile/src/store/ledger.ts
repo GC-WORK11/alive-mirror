@@ -1,4 +1,5 @@
 import { File, Paths } from "expo-file-system";
+import { afterFirstFrame } from "../startup/idle";
 
 // cigarette equivalence: Berkeley Earth rule of thumb — 22 µg/m³ ambient
 // PM2.5 over a day ≈ one cigarette; at ~14.4 m³/day inhaled volume that is
@@ -8,6 +9,7 @@ const CIG_UG = 316;
 const BUDGET_UG = 216;
 const FILE = new File(Paths.document, "ledger.json");
 const DEDUPE_MS = 10 * 60 * 1000;
+const MAX_TRIPS = 500; // persisted bound — every write truncates to this
 
 export type Trip = {
   ts: number;
@@ -32,18 +34,59 @@ export type Trip = {
   donated?: boolean;
 };
 
-export async function loadTrips(): Promise<Trip[]> {
+/* ---- in-memory mirror + deferred first read + serialized writes ----
+   perf (r4): ledger.json is read+parsed once per launch, on the first real
+   call — and that call is scheduled after the first frame so JSON.parse
+   can't block the mount/font window. Every later call is a slice() off
+   `mem`. Writes funnel through one tail promise: read-modify-write cycles
+   can't interleave, and a burst lands last-state-wins in a single write. */
+let mem: Trip[] | null = null;
+let inflight: Promise<Trip[]> | null = null;
+let writeTail: Promise<unknown> = Promise.resolve();
+
+async function readDisk(): Promise<Trip[]> {
+  await afterFirstFrame(); // trip history isn't frame-1 data — let the mount win
+  if (mem) return mem;     // a writer (clearTrips/deleteTrip) won while we waited
   try {
-    if (!FILE.exists) return [];
-    const t = JSON.parse(await FILE.text());
-    return Array.isArray(t) ? t : [];
-  } catch {
-    return [];
-  }
+    if (FILE.exists) {
+      const t = JSON.parse(await FILE.text());
+      mem = Array.isArray(t) ? (t as Trip[]).slice(-MAX_TRIPS) : [];
+      return mem;
+    }
+  } catch {}
+  mem = [];
+  return mem;
+}
+
+/** The authoritative array — internal callers mutate `mem`, external
+ *  callers only ever get a copy via loadTrips(). */
+function ensureMem(): Promise<Trip[]> {
+  if (mem) return Promise.resolve(mem);
+  if (!inflight) inflight = readDisk();
+  return inflight;
+}
+
+/** Persist current `mem` — serialized through writeTail. Skipped when the
+ *  mirror is null (post-clearAllData) so a queued flush can't recreate a
+ *  file the user just wiped. */
+function scheduleWrite(): void {
+  writeTail = writeTail
+    .then(() => {
+      if (mem === null) return;
+      try {
+        if (!FILE.exists) FILE.create();
+        FILE.write(JSON.stringify(mem.slice(-MAX_TRIPS)));
+      } catch {}
+    })
+    .catch(() => {});
+}
+
+export async function loadTrips(): Promise<Trip[]> {
+  return (await ensureMem()).slice(); // a copy — callers must not mutate mem
 }
 
 export async function logTrip(t: Trip): Promise<Trip[]> {
-  const trips = await loadTrips();
+  const trips = await ensureMem();
   const dup = trips.find(
     (x) => x.from === t.from && x.to === t.to && x.vehicle === t.vehicle &&
       t.ts - x.ts < DEDUPE_MS,
@@ -53,20 +96,12 @@ export async function logTrip(t: Trip): Promise<Trip[]> {
     let changed = false;
     if (dup.fromLat == null && t.fromLat != null) { dup.fromLat = t.fromLat; dup.fromLon = t.fromLon; changed = true; }
     if (dup.toLat == null && t.toLat != null) { dup.toLat = t.toLat; dup.toLon = t.toLon; changed = true; }
-    if (changed) {
-      try {
-        if (!FILE.exists) FILE.create();
-        FILE.write(JSON.stringify(trips.slice(-500)));
-      } catch {}
-    }
-    return trips;
+    if (changed) scheduleWrite();
+    return trips.slice();
   }
   trips.push(t);
-  try {
-    if (!FILE.exists) FILE.create();
-    await FILE.write(JSON.stringify(trips.slice(-500)));
-  } catch {}
-  return trips;
+  scheduleWrite();
+  return trips.slice();
 }
 
 const dayKey = (ts: number) => new Date(ts).toDateString();
@@ -135,24 +170,27 @@ export function weekStats(trips: Trip[], now = new Date()) {
 export async function deleteTrip(
   match: Pick<Trip, "ts" | "from" | "to" | "vehicle">,
 ): Promise<Trip[]> {
-  const trips = await loadTrips();
+  const trips = await ensureMem();
   const next = trips.filter(
     (x) =>
       !(x.ts === match.ts && x.from === match.from &&
         x.to === match.to && x.vehicle === match.vehicle),
   );
-  try {
-    if (!FILE.exists) FILE.create();
-    await FILE.write(JSON.stringify(next.slice(-500)));
-  } catch {}
-  return next;
+  mem = next;
+  scheduleWrite();
+  return next.slice();
 }
 
 /** "Delete all trips" — the ledger file is rewritten empty. */
 export async function clearTrips(): Promise<Trip[]> {
-  try {
-    if (!FILE.exists) FILE.create();
-    await FILE.write(JSON.stringify([]));
-  } catch {}
+  mem = [];
+  scheduleWrite();
   return [];
+}
+
+/** Cache reset for settings.clearAllData() — it removes the file directly,
+ *  so the mirror must drop too or wiped trips would resurrect on read. */
+export function resetLedgerCache(): void {
+  mem = null;
+  inflight = null;
 }

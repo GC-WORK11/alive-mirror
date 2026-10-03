@@ -18,8 +18,12 @@ export type ConsentState = {
 const EMPTY: ConsentState = { seen: false, sharing: null, ts: null };
 
 // In-memory cache — fast path after first load, whole store when the
-// document directory is unavailable.
+// document directory is unavailable. `inflight` dedupes concurrent first
+// reads (perf r4); writes are serialized through `writeTail` so the file
+// always lands last-state-wins.
 let mem: ConsentState | null = null;
+let inflight: Promise<ConsentState> | null = null;
+let writeTail: Promise<unknown> = Promise.resolve();
 
 function sanitize(raw: unknown): ConsentState {
   if (!raw || typeof raw !== "object") return EMPTY;
@@ -33,25 +37,36 @@ function sanitize(raw: unknown): ConsentState {
 
 async function persist(s: ConsentState): Promise<void> {
   mem = s;
-  try {
-    if (!FILE.exists) FILE.create();
-    FILE.write(JSON.stringify(s));
-  } catch {
-    // best-effort — the in-memory copy still holds
-  }
+  writeTail = writeTail
+    .then(() => {
+      try {
+        if (!FILE.exists) FILE.create();
+        FILE.write(JSON.stringify(mem));
+      } catch {
+        // best-effort — the in-memory copy still holds
+      }
+    })
+    .catch(() => {});
+  await writeTail;
 }
 
-/** Load the consent record (seen · sharing · ts). */
+/** Load the consent record (seen · sharing · ts). Stays eager — it gates
+ *  the onboarding sheet — but concurrent first callers share one read. */
 export async function loadConsent(): Promise<ConsentState> {
   if (mem) return mem;
-  try {
-    if (FILE.exists) {
-      mem = sanitize(JSON.parse(await FILE.text()));
+  if (!inflight) {
+    inflight = (async () => {
+      try {
+        if (FILE.exists) {
+          mem = sanitize(JSON.parse(await FILE.text()));
+          return mem;
+        }
+      } catch {}
+      mem ??= EMPTY;
       return mem;
-    }
-  } catch {}
-  mem = EMPTY;
-  return mem;
+    })();
+  }
+  return inflight;
 }
 
 /** Merge a patch and persist — the only writer. Settings' share toggle

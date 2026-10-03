@@ -4,6 +4,7 @@
  * along with the ledger and contributor id. */
 import { File, Paths } from "expo-file-system";
 import type { Lang } from "../../i18n/strings";
+import { resetLedgerCache } from "../../store/ledger";
 
 export type SavedPlace = { name: string; lat: number; lon: number };
 
@@ -25,25 +26,56 @@ export const DEFAULT_SETTINGS: ShellSettings = {
 
 const FILE = new File(Paths.document, "settings.json");
 
+/* perf (r4): in-memory mirror + deduped first read + serialized writes.
+   loadSettings used to hit disk on every call (boot AND notify prefs());
+   the read stays eager because `lang` paints frame-1 text — only repeat
+   callers get the free path. */
+let mem: ShellSettings | null = null;
+let inflight: Promise<ShellSettings> | null = null;
+let writeTail: Promise<unknown> = Promise.resolve();
+
 export async function loadSettings(): Promise<ShellSettings> {
-  try {
-    if (FILE.exists) {
-      const j = JSON.parse(await FILE.text());
-      return { ...DEFAULT_SETTINGS, ...(j ?? {}) };
-    }
-  } catch {}
-  return { ...DEFAULT_SETTINGS };
+  if (mem) return { ...mem };
+  let p = inflight;
+  if (!p) {
+    p = (async (): Promise<ShellSettings> => {
+      try {
+        if (FILE.exists) {
+          const j = JSON.parse(await FILE.text());
+          const s: ShellSettings = { ...DEFAULT_SETTINGS, ...(j ?? {}) };
+          mem = s;
+          return s;
+        }
+      } catch {}
+      const s: ShellSettings = mem ?? { ...DEFAULT_SETTINGS };
+      mem = s;
+      return s;
+    })();
+    inflight = p;
+  }
+  return p.then((s) => ({ ...s }));
 }
 
 export function saveSettings(s: ShellSettings): void {
-  try {
-    if (!FILE.exists) FILE.create();
-    FILE.write(JSON.stringify(s));
-  } catch {}
+  mem = { ...s };
+  writeTail = writeTail
+    .then(() => {
+      if (mem === null) return; // wiped by clearAllData — don't resurrect
+      try {
+        if (!FILE.exists) FILE.create();
+        FILE.write(JSON.stringify(mem)); // last-state-wins per flush
+      } catch {}
+    })
+    .catch(() => {});
 }
 
-/** "Delete my data" — ledger, contributor id, settings. Real removal. */
+/** "Delete my data" — ledger, contributor id, settings. Real removal.
+ *  The in-memory mirrors drop too (perf r4) or reads would resurrect
+ *  wiped data until the next launch. */
 export function clearAllData(): void {
+  mem = null;
+  inflight = null;
+  resetLedgerCache();
   for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt"]) {
     try {
       const f = new File(Paths.document, name);
