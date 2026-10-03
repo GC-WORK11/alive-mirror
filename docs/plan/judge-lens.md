@@ -19,6 +19,13 @@ Status noted per item; the fixes shipped on base/v2.
 | 12 | **Layers sheet bled behind compare** — toggles rendered stacked under the compare sheet when left open | **Fixed** — layers auto-closes when phase leaves idle (same commit) |
 | 13 | **"0–0 µg" / "0.0–0.0 kg"** degenerate bands on the nav card | **Fixed** — band collapses to a single number when lo/hi round equal (a6c4fe8) |
 | 14 | Last option row's "how we got this" (i) tapped through to **Start** — its 16 px hitSlop reached into the footer's hit zone | **Fixed** — options list bottom-pad raised to 22 so the hitSlop clears the footer (c1746ba; Android forensic find) |
+| 15 | **Hardware BACK exits the app from any sheet** — every overlay is a plain View, nothing swallowed the press (child S2 on the drawer) | **Fixed** — one central BackHandler dispatcher in App.tsx closes the topmost open surface; Sidebar + SearchScreen keep their own local handlers (a3d44c8) |
+| 16 | Nav counter caption "smoke your ride puts out" ellipsized to "PUTS…" at 1080 px | **Fixed** — label now shrinks to fit (adjustsFontSizeToFit, min 0.72) instead of truncating |
+| 17 | Vehicle-sheet class captions ellipsized mid-list ("petrol · diesel …") | **Fixed** — captions wrap to 2 lines + shrink as last resort |
+| 18 | Ledger row "≈ N cigarettes less than…" ellipsized | **Fixed** — subtitle wraps to 2 lines |
+| 19 | Locate-me first tap surfaced a raw native error toast before the fused provider had a fix | **Fixed** — one-shot expo fix primes the provider before follow engages |
+| 20 | Onboarding dots implied a swipeable pager but horizontal swipe was inert | **Fixed** — real horizontal PanResponder swipe (direction-locked, vertical scroll untouched); also converted off RN Modal like the search sheet |
+| 21 | No edge-swipe to open the drawer | **By design** — OS gesture-nav claims the left edge; documented, not a bug |
 
 ## Verified on-device this leg
 
@@ -30,6 +37,8 @@ Status noted per item; the fixes shipped on base/v2.
 - Search sheet open ×3, quick-pick → compare, Start → nav (banner + dose
   cards + ETA), banner-X → receipt, Done → idle — all post-Modal-removal,
   zero errors. Ledger + trip-detail expand clean.
+- Onboarding as overlay: renders post-consent-wipe, horizontal swipe flips
+  pages both directions, Skip → map, zero errors (a3d44c8).
 
 ## Watchlist (Android forensic pass will confirm)
 
