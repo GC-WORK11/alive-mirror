@@ -890,8 +890,12 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
     options += ([o for o in (slow or []) if isinstance(o, dict)]
                 if isinstance(slow, list) else [])
     try:
-        options += _transit_options(flat, flon, tlat, tlon, vehicle,
-                                    profile, depart_at)
+        # sync GTFS scan runs off-loop: a big OD pair's graph walk would
+        # otherwise stall the single worker's event loop (and /health
+        # with it — that was the ALB wedge)
+        options += await asyncio.to_thread(
+            _transit_options, flat, flon, tlat, tlon, vehicle, profile,
+            depart_at)
     except Exception:
         pass
     return options

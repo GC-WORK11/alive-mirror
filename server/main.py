@@ -161,6 +161,7 @@ async def health():
         "field_age_s": fstat.get("age_s"),
         "field_refresh_in_s": fstat.get("refresh_in_s"),
         "field_stale": fstat.get("stale"),
+        "engine": fstat.get("engine"),
         "sources": {
             "model": {"up": bool(fstat.get("samples")),
                       "samples": fstat.get("samples", 0),
@@ -660,6 +661,7 @@ def _scaled_duration_s(vehicle: str, profile: str, rt: dict) -> float:
 
 
 @app.get("/depart")
+@app.get("/v2/depart")
 async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
                  vehicle: str = "auto", hours: int = Query(default=24, le=120)):
     """Leave-later optimizer: the same trip's inhaled dose per departure hour.
@@ -768,6 +770,7 @@ async def aqi(lat: float, lon: float):
 
 
 @app.get("/today")
+@app.get("/v2/today")
 async def today(lat: float, lon: float):
     """24 hourly decade-typical PM2.5 medians at a point (IST hours) —
     the ledger screen's background curve."""
@@ -835,7 +838,12 @@ async def field_grid(cells: int = Query(default=22, le=40),
     from airfield import POLLUTANTS
     species = [p.strip() for p in POLLUTANTS.split(",")]
     if param not in species:
-        param = "pm2_5"
+        # honest empty collection per the docstring — a silent pm2_5
+        # fallback would answer "pm10" misspelled with pm2.5 data
+        return {"type": "FeatureCollection", "features": [],
+                "properties": {"param": param,
+                               "served": species,
+                               "empty": "unknown pollutant param"}}
     if h is not None:
         await FORECAST.refresh(http())
         # the horizon anchors to the live field too — all three epochs
