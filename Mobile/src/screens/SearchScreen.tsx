@@ -24,6 +24,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { NUM, V2Radius, V2T, V2Type, fam } from "../theme";
+import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 import { Icon } from "../icons";
 import {
@@ -97,18 +98,18 @@ function matchSpans(name: string, query: string): [number, number][] {
 function Title({ text, query, lang }: { text: string; query: string; lang: Lang }) {
   const spans = useMemo(() => matchSpans(text, query), [text, query]);
   const base = [ss.rowTitle, { fontFamily: fam(lang, "med") }];
-  if (!spans.length) return <Text style={base} numberOfLines={1}>{text}</Text>;
+  if (!spans.length) return <Text {...DYNAMIC_TYPE} style={base} numberOfLines={1}>{text}</Text>;
   // matched chars stay full-bright + semibold; the rest dims one step — the
   // eye lands on the match without a rupee of colour spent.
   const parts: React.ReactNode[] = [];
   let i = 0;
   spans.forEach(([s, e], k) => {
-    if (s > i) parts.push(<Text key={`d${k}`} style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i, s)}</Text>);
-    parts.push(<Text key={`h${k}`} style={{ fontFamily: fam(lang, "semi") }}>{text.slice(s, e)}</Text>);
+    if (s > i) parts.push(<Text {...DYNAMIC_TYPE} key={`d${k}`} style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i, s)}</Text>);
+    parts.push(<Text {...DYNAMIC_TYPE} key={`h${k}`} style={{ fontFamily: fam(lang, "semi") }}>{text.slice(s, e)}</Text>);
     i = e;
   });
-  if (i < text.length) parts.push(<Text key="tail" style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i)}</Text>);
-  return <Text style={base} numberOfLines={1}>{parts}</Text>;
+  if (i < text.length) parts.push(<Text {...DYNAMIC_TYPE} key="tail" style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i)}</Text>);
+  return <Text {...DYNAMIC_TYPE} style={base} numberOfLines={1}>{parts}</Text>;
 }
 
 function PlaceRow({
@@ -139,19 +140,19 @@ function PlaceRow({
       <View style={ss.rowText}>
         <Title text={title} query={query} lang={lang} />
         {outsideNote ? (
-          <Text style={[ss.rowOutside, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{outsideNote}</Text>
+          <Text {...DYNAMIC_TYPE} style={[ss.rowOutside, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{outsideNote}</Text>
         ) : subtitle ? (
-          <Text style={[ss.rowSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{subtitle}</Text>
+          <Text {...DYNAMIC_TYPE} style={[ss.rowSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{subtitle}</Text>
         ) : null}
       </View>
-      {distLabel ? <Text style={[ss.rowDist, NUM, { fontFamily: fam(lang, "reg") }]}>{distLabel}</Text> : null}
+      {distLabel ? <Text {...DYNAMIC_TYPE} style={[ss.rowDist, NUM, { fontFamily: fam(lang, "reg") }]}>{distLabel}</Text> : null}
     </Pressable>
   );
 }
 
 function SectionLabel({ children, lang }: { children: string; lang: Lang }) {
   return (
-    <Text accessibilityRole="header" style={[ss.sectionLabel, { fontFamily: fam(lang, "semi") }]}>
+    <Text {...DYNAMIC_TYPE} accessibilityRole="header" style={[ss.sectionLabel, { fontFamily: fam(lang, "semi") }]}>
       {children}
     </Text>
   );
@@ -277,14 +278,14 @@ function SearchSheet({
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
-        <TextInput
+        <TextInput {...DYNAMIC_TYPE}
           ref={inputRef}
           style={[ss.input, { fontFamily: fam(lang, "reg") }]}
           value={q}
           onChangeText={onChange}
           onSubmitEditing={submit}
           placeholder={t("searchPlaceholder", lang)}
-          placeholderTextColor={V2T.text3}
+          placeholderTextColor={V2T.text2} // text3-on-surface2 = 4.33:1 < AA
           autoFocus
           autoCorrect={false}
           autoCapitalize="none"
@@ -359,7 +360,7 @@ function SearchSheet({
               {!hasSaved && !hasRecents && (
                 <View style={ss.stateBlock} accessibilityLiveRegion="polite">
                   <Icon name="search" color={V2T.text3} size={22} />
-                  <Text style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
                     {tl("emptySearchHint", lang)}
                   </Text>
                 </View>
@@ -372,7 +373,7 @@ function SearchSheet({
               {(pending || serverRows.length > 0) && t0rows.length > 0 && <View style={ss.hairline} />}
               {pending ? (
                 <View style={ss.statusRow} accessibilityLiveRegion="polite">
-                  <Text style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>{t("searching", lang)}</Text>
+                  <Text {...DYNAMIC_TYPE} style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>{t("searching", lang)}</Text>
                 </View>
               ) : (
                 serverRows.map((p, i) => renderPlace(p, `srv-${p.tier}-${i}`))
@@ -380,7 +381,7 @@ function SearchSheet({
               {empty && (
                 <View style={ss.stateBlock} accessibilityLiveRegion="polite">
                   <Icon name="search" color={V2T.text3} size={22} />
-                  <Text style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
                     {tl("noPlaceFound", lang)}
                   </Text>
                 </View>
@@ -402,7 +403,7 @@ function SearchSheet({
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
           >
             <Icon name="locate" color={V2T.accent} size={18} />
-            <Text style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
               {t("yourLocation", lang)}
             </Text>
           </Pressable>
@@ -418,7 +419,7 @@ function SearchSheet({
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
           >
             <Icon name="pin" color={V2T.accent} size={18} />
-            <Text style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
               {t("chooseOnMap", lang)}
             </Text>
           </Pressable>

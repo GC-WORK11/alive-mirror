@@ -7,12 +7,12 @@ import {
   NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium, NotoSansDevanagari_600SemiBold,
 } from "@expo-google-fonts/noto-sans-devanagari";
 import * as Location from "expo-location";
-import { File, Paths } from "expo-file-system";
 import {
   Camera, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
+import { F, V2Radius, V2T, V2Type } from "./src/theme";
+import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { v2StyleUrl } from "./src/map/style";
@@ -145,7 +145,7 @@ function AppInner() {
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); };
-  }, [setFrom, setTrips]);
+  }, [setFrom, setTrips, settings.lang]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
@@ -177,7 +177,9 @@ function AppInner() {
    *  coarse class (drawer chip -> profile sync lives in patchSettings). */
   useEffect(() => {
     if (!settings.vehicle && flow.vehicle) {
-      patchSettings({ vehicle: CLS2DRAWER[flow.vehicle.cls] });
+      /* react-hooks/set-state-in-effect: defer the sync out of the
+         effect body — it writes settings, not an external system */
+      queueMicrotask(() => patchSettings({ vehicle: CLS2DRAWER[flow.vehicle!.cls] }));
     }
   }, [flow.vehicle, settings.vehicle, patchSettings]);
 
@@ -301,7 +303,7 @@ function AppInner() {
       {(net.state !== "online" || apiOk === false) && (
         <Pressable style={[s.offlineWrap, { top: insets.top + 66 }]} onPress={() => void net.refresh()}
           accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
-          <Text style={s.offlineTxt}>
+          <Text {...DYNAMIC_TYPE} style={s.offlineTxt}>
             {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
             {net.pending > 0 ? ` · ${t("offlinePending", lang, { n: net.pending })}` : ""}
           </Text>
@@ -422,7 +424,7 @@ function NavSession({
   });
   // start once per nav session; callbacks are stable inside the engine
   const navRef = useRef(nav);
-  navRef.current = nav;
+  useEffect(() => { navRef.current = nav; });   // refs update in effects, never during render
   useEffect(() => {
     navRef.current.start();
     return () => { navRef.current.stop(); };

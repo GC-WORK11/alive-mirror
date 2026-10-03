@@ -25,6 +25,7 @@
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { F, NUM, V2T, V2Type, fam } from "../theme";
+import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 
 export type DepartDatum = {
@@ -141,10 +142,10 @@ export function DepartGraph({
           const left = Math.max(0, Math.min(axisW - TICK_W, cx - TICK_W / 2));
           return (
             <View key={d.hour} style={[s.tick, { left }]}>
-              <Text style={[s.tickOffset, { fontFamily: fam(lang, "reg") }, d.hour === bestHour && { color: V2T.accent }]} numberOfLines={1}>
+              <Text {...DYNAMIC_TYPE} style={[s.tickOffset, { fontFamily: fam(lang, "reg") }, d.hour === bestHour && { color: V2T.accent }]} numberOfLines={1}>
                 {d.hour === nowHour ? NOW_LABEL[lang] : `+${d.hour}h`}
               </Text>
-              <Text style={[s.tickClock, NUM]} numberOfLines={1}>
+              <Text {...DYNAMIC_TYPE} style={[s.tickClock, NUM]} numberOfLines={1}>
                 {clockOf(d.start) ?? " "}
               </Text>
             </View>
@@ -154,11 +155,11 @@ export function DepartGraph({
 
       {/* ── honest caption: "est." + the focused slot's clock + dose ── */}
       <View style={s.caption}>
-        <Text style={[s.capTxt, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[s.capTxt, { fontFamily: fam(lang, "reg") }]}>
           {t("receipt_estShort", lang)}
         </Text>
         {detail && (
-          <Text style={[s.capTxt, s.capVal, NUM]}>
+          <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM]}>
             {`${detail.hour === nowHour ? NOW_LABEL[lang] : `+${detail.hour}h`}` +
               `${clockOf(detail.start) ? ` · ${clockOf(detail.start)}` : ""} ≈ ${Math.round(detail.dose_mid)} µg`}
           </Text>

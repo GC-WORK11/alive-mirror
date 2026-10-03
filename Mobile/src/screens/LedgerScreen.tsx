@@ -34,6 +34,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam } from "../theme";
+import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 import { Icon, vehicleGlyph } from "../icons";
 import {
@@ -109,14 +110,14 @@ function TripDetail({
   return (
     <View style={ss.detail}>
       <View style={ss.dRow}>
-        <Text style={[ss.dLabel, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.dLabel, { fontFamily: fam(lang, "reg") }]}>
           {t("tripsBreathed", lang)}
         </Text>
         <View style={ss.dRight}>
-          <Text style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
             {t("tripsCigs", lang, { n: fmtCig(tr.dose_ug) })}
           </Text>
-          <Text style={[ss.dSub, NUM, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dSub, NUM, { fontFamily: fam(lang, "reg") }]}>
             {lo != null && hi != null
               ? t("tripsDoseBand", lang, { lo: fmtUg(lo), hi: fmtUg(hi) })
               : t("tripsDoseDetail", lang, { n: fmtUg(tr.dose_ug) })}
@@ -126,17 +127,17 @@ function TripDetail({
 
       {tr.emit_kg != null && (
         <View style={ss.dRow}>
-          <Text style={[ss.dLabel, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dLabel, { fontFamily: fam(lang, "reg") }]}>
             {t("tripsPutOut", lang)}
           </Text>
-          <Text style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
             {t("tripsOutDetail", lang, { n: fmtKg(tr.emit_kg) })}
           </Text>
         </View>
       )}
 
       {tr.avoided_ug > 0 && (
-        <Text style={[ss.dSaved, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.dSaved, { fontFamily: fam(lang, "reg") }]}>
           {t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })}
         </Text>
       )}
@@ -144,7 +145,7 @@ function TripDetail({
       {tr.donated === true && (
         <View style={ss.badgeRow}>
           <View style={ss.badge}>
-            <Text style={[ss.badgeTxt, { fontFamily: fam(lang, "med") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.badgeTxt, { fontFamily: fam(lang, "med") }]}>
               {t("ledgerDonated", lang)}
             </Text>
           </View>
@@ -159,7 +160,7 @@ function TripDetail({
         style={({ pressed }) => [ss.dDelete, pressed && { opacity: 0.6 }]}
       >
         <Icon name="trash" color={V2T.breath3} size={16} />
-        <Text style={[ss.dDeleteTxt, { fontFamily: fam(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.dDeleteTxt, { fontFamily: fam(lang, "med") }]}>
           {t("ledgerDeleteTrip", lang)}
         </Text>
       </Pressable>
@@ -202,20 +203,20 @@ const TripCard = React.memo(function TripCard({
           <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={22} />
         </View>
         <View style={ss.tripMid}>
-          <Text
+          <Text {...DYNAMIC_TYPE}
             style={[ss.tripRoute, { fontFamily: fam(lang, "med") }]}
             numberOfLines={1}
           >
             {tr.from} → {tr.to}
           </Text>
-          <Text
+          <Text {...DYNAMIC_TYPE}
             style={[ss.tripMeta, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1}
           >
             {tr.label} · {timeLabel(tr.ts, lang)}
           </Text>
           {tr.avoided_ug > 0 && (
-            <Text
+            <Text {...DYNAMIC_TYPE}
               style={[ss.tripSaved, { fontFamily: fam(lang, "reg") }]}
               numberOfLines={1}
             >
@@ -226,7 +227,7 @@ const TripCard = React.memo(function TripCard({
         <View style={ss.tripNums}>
           <View style={ss.cigRow}>
             <Icon name="cigarette" color={cigTone(tr.dose_ug)} size={13} />
-            <Text
+            <Text {...DYNAMIC_TYPE}
               style={[
                 ss.cigNum,
                 NUM,
@@ -237,7 +238,7 @@ const TripCard = React.memo(function TripCard({
             </Text>
           </View>
           {tr.emit_kg != null && (
-            <Text style={[ss.outNum, NUM, { fontFamily: fam(lang, "reg") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.outNum, NUM, { fontFamily: fam(lang, "reg") }]}>
               ≈{fmtKg(tr.emit_kg)} kg
             </Text>
           )}
@@ -259,13 +260,13 @@ function EmptyState({ lang }: { lang: Lang }) {
       <View style={ss.emptyBadge}>
         <Icon name="clock" color={V2T.text3} size={26} />
       </View>
-      <Text style={[ss.emptyTitle, { fontFamily: fam(lang, "semi") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.emptyTitle, { fontFamily: fam(lang, "semi") }]}>
         {t("tripsEmpty", lang)}
       </Text>
-      <Text style={[ss.emptyHint, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.emptyHint, { fontFamily: fam(lang, "reg") }]}>
         {t("ledgerEmptyHint", lang)}
       </Text>
-      <Text style={[ss.emptyPrivacy, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.emptyPrivacy, { fontFamily: fam(lang, "reg") }]}>
         {t("ledgerPrivacy", lang)}
       </Text>
     </View>
@@ -383,7 +384,7 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
   const renderRow = useCallback<ListRenderItem<Row>>(
     ({ item }) =>
       item.kind === "day" ? (
-        <Text
+        <Text {...DYNAMIC_TYPE}
           style={[ss.dayHead, { fontFamily: fam(lang, "semi") }]}
           accessibilityRole="header"
         >
@@ -416,7 +417,7 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
-        <Text style={[ss.barTitle, { fontFamily: fam(lang, "semi") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.barTitle, { fontFamily: fam(lang, "semi") }]}>
           {t("sidebarTrips", lang)}
         </Text>
         <View style={ss.barBtn} />
@@ -440,12 +441,12 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
             <View style={ss.summaryCard}>
               <View style={ss.sumRow}>
                 <View style={ss.sumCol}>
-                  <Text
+                  <Text {...DYNAMIC_TYPE}
                     style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
                   >
                     {sorted.length}
                   </Text>
-                  <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
                     {t(
                       sorted.length === 1 ? "tripsCountOne" : "tripsCount",
                       lang,
@@ -456,25 +457,25 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
                 <View style={ss.sumCol}>
                   <View style={ss.sumHead}>
                     <Icon name="cigarette" color={V2T.text3} size={15} />
-                    <Text
+                    <Text {...DYNAMIC_TYPE}
                       style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
                     >
                       {fmtCig(allUg)}
                     </Text>
                   </View>
-                  <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
                     {t("breathed", lang)}
                   </Text>
                 </View>
                 {allEmitKg > 0 && (
                   <View style={ss.sumCol}>
-                    <Text
+                    <Text {...DYNAMIC_TYPE}
                       style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
                     >
                       ≈{fmtKg(allEmitKg)}
-                      <Text style={ss.sumUnit}> kg</Text>
+                      <Text {...DYNAMIC_TYPE} style={ss.sumUnit}> kg</Text>
                     </Text>
-                    <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
+                    <Text {...DYNAMIC_TYPE} style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
                       {t("putOut", lang)}
                     </Text>
                   </View>
@@ -484,12 +485,12 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
                   tripsOutDetail; PROPOSED ledgerEstNote for a standing footnote */}
               {weekTrips > 0 && (
                 <View style={ss.weekRow}>
-                  <Text
+                  <Text {...DYNAMIC_TYPE}
                     style={[ss.weekLabel, { fontFamily: fam(lang, "semi") }]}
                   >
                     {t("ledgerLast7", lang)}
                   </Text>
-                  <Text
+                  <Text {...DYNAMIC_TYPE}
                     style={[ss.weekLine, NUM, { fontFamily: fam(lang, "reg") }]}
                     numberOfLines={2}
                   >
@@ -510,7 +511,7 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
         ListFooterComponent={
           sorted.length > 0 ? (
             <View style={ss.footer}>
-              <Text style={[ss.privacy, { fontFamily: fam(lang, "reg") }]}>
+              <Text {...DYNAMIC_TYPE} style={[ss.privacy, { fontFamily: fam(lang, "reg") }]}>
                 {t("ledgerPrivacy", lang)}
               </Text>
               <Pressable
@@ -523,7 +524,7 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
                 ]}
               >
                 <Icon name="trash" color={V2T.breath3} size={15} />
-                <Text
+                <Text {...DYNAMIC_TYPE}
                   style={[ss.deleteAllTxt, { fontFamily: fam(lang, "med") }]}
                 >
                   {t("ledgerDeleteAll", lang)}

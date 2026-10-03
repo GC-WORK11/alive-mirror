@@ -13,6 +13,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
+import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -219,11 +220,11 @@ function CounterCell({
     <View style={[s.cell, dim && s.cellDim]}>
       <View style={s.cellHead}>
         <Icon name={icon} color={tint} size={14} />
-        <Text style={[s.cellLbl, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+        <Text {...DYNAMIC_TYPE} style={[s.cellLbl, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
           {label}
         </Text>
       </View>
-      <Text style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+      <Text {...DYNAMIC_TYPE} style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
         {value}
       </Text>
       {band && span > 0 && (
@@ -237,7 +238,7 @@ function CounterCell({
         </View>
       )}
       {band && (
-        <Text style={[s.cellBand, NUM]} numberOfLines={1}>
+        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM]} numberOfLines={1}>
           {band.text}
         </Text>
       )}
@@ -302,11 +303,11 @@ export function NavChrome({
         </View>
         <View style={s.bannerTxt}>
           {next && (
-            <Text style={[s.dist, NUM, { fontFamily: fam(lang, "semi") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[s.dist, NUM, { fontFamily: fam(lang, "semi") }]} numberOfLines={1}>
               {distToStr(next.distM, lang)}
             </Text>
           )}
-          <Text
+          <Text {...DYNAMIC_TYPE}
             style={[next ? s.instrNext : s.instr, { fontFamily: fam(lang, next ? "med" : "semi") }]}
             numberOfLines={2}>
             {banner}
@@ -330,14 +331,14 @@ export function NavChrome({
       {nav?.offRoute && (
         <View style={[s.pill, { top: insets.top + 92 }]}>
           <View style={s.pillDot} />
-          <Text style={[s.pillTxt, { fontFamily: fam(lang, "med"), color: V2T.text }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med"), color: V2T.text }]}>
             {t("findingNewWay", lang)}
           </Text>
         </View>
       )}
       {nav?.stripOk === false && !nav.offRoute && (
         <View style={[s.pill, { top: insets.top + 92 }]}>
-          <Text style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
             {t("strip_unavailable", lang)}
           </Text>
         </View>
@@ -375,7 +376,7 @@ export function NavChrome({
           )}
         </View>
         <View style={s.metaRow}>
-          <Text
+          <Text {...DYNAMIC_TYPE}
             style={[s.metaTxt, NUM, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {meta}

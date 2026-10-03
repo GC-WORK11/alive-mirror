@@ -211,7 +211,7 @@ export function ReceiptSheet({
         <>
           <Text style={[s.heroNum, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
             {t("nav_cigs", lang, { n: cigs > 0 && cigs < 0.01 ? 0.01 : cigs })}
-            <Text style={s.est}>  {t("receipt_estShort", lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose && dose.hi - dose.lo >= 1 && (
             <Text style={[s.bandTxt, NUM]} {...DYNAMIC_TYPE}>
@@ -447,7 +447,8 @@ const s = StyleSheet.create({
   share: {
     minHeight: 44, flexDirection: "row", alignItems: "center", gap: 7,
     borderRadius: V2Radius.pill, borderWidth: 1, borderColor: V2T.line,
-    backgroundColor: V2T.surface2, paddingHorizontal: 18, paddingVertical: 11,
+    /* surface (not surface2): accent label needs ≥4.5:1 — on the grey
+       pill it was 3.88; on white it's 4.51 */ backgroundColor: V2T.surface, paddingHorizontal: 18, paddingVertical: 11,
   },
   shareTxt: { fontSize: V2Type.secondary, color: V2T.accent },
   tertiaryRow: {
