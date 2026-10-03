@@ -9,6 +9,7 @@ import { clearConsent } from "../../store/consent";
 import { clearVehicle } from "../../store/vehicle";
 import { clearPlaces } from "../../search/recents";
 import { clearOutbox } from "../../offline/queue";
+import { cacheClear } from "../../api/cache";
 
 export type SavedPlace = { name: string; lat: number; lon: number };
 
@@ -74,8 +75,8 @@ export function saveSettings(s: ShellSettings): void {
 }
 
 /** "Delete my data" — ledger, contributor id, settings, consent,
- *  vehicle. Real removal. The in-memory mirrors drop too (perf r4) or
- *  reads would resurrect wiped data until the next launch. */
+ *  vehicle, route caches. Real removal. The in-memory mirrors drop too
+ *  (perf r4) or reads would resurrect wiped data until the next launch. */
 export function clearAllData(): void {
   mem = null;
   inflight = null;
@@ -84,6 +85,7 @@ export function clearAllData(): void {
   clearVehicle();   // vehicle.json — the S8 profile
   clearPlaces();    // places.json — recents + home/work, the location history
   clearOutbox();    // outbox.json — queued donations carry token + trajectory
+  void cacheClear(); // alive-cache/ — last-good plan/strip payloads carry route GPS coords
   for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt"]) {
     try {
       const f = new File(Paths.document, name);
