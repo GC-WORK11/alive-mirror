@@ -43,6 +43,15 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     _start_ingest_loop()
+    # Fires fetch lazily on the first /fires or /aqi hit — until then
+    # /health honestly reports 0 and the ops board reads "no fires".
+    # Warm the cache once at boot so the first dashboard view is real.
+    async def _warm_fires():
+        try:
+            await FIRES.refresh(http())
+        except Exception:
+            pass
+    asyncio.create_task(_warm_fires())
     yield
 
 
