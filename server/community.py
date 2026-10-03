@@ -312,6 +312,14 @@ from exposure import MICROENV, VENTILATION_LPM  # noqa: E402
 
 _OBS_FRESH_S = 72 * 3600  # traversals older than 3 days stop informing
 
+# corridor_field_samples() rescans every observation on each call — and
+# /grid asks once PER CELL (~800 calls a paint). Cache it for up to 60s,
+# invalidated the moment a new traversal lands, so the citizen layer
+# stays fresh while a dashboard paint costs one scan, not 800.
+_OBS_VERSION = 0
+_CELLS_CACHE: tuple = (0.0, -1, [])  # (built_at, obs_version, samples)
+_CELLS_CACHE_TTL = 60.0
+
 
 def corridor_field_samples() -> list:
     """Traversal-implied ambient PM2.5 per corridor cell — the citizen
@@ -326,6 +334,9 @@ def corridor_field_samples() -> list:
     (lat, lon, name, vals) sample shape AirField consumes; unnamed so
     they weigh like model points (1×), never like stations (3×)."""
     _load()
+    built, ver, cached = _CELLS_CACHE
+    if cached and ver == _OBS_VERSION and time.time() - built < _CELLS_CACHE_TTL:
+        return cached
     now = time.time()
     cells: dict = {}
     for o in _obs:

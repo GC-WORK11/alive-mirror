@@ -26,6 +26,12 @@ from .store import LEDGER, TRIPS
 
 router = APIRouter()
 
+# community.observe folds the SAME privacy-trimmed points into ~500 m
+# corridor cells — the citizen sensor layer that sharpens the kriged
+# field. Only `kept` ever crosses the boundary: already trimmed of its
+# endpoints, thinned, and rounded, so observe() stores nothing the
+# privacy pipeline didn't already allow.
+
 TRIM_M = 300.0          # drop this much from BOTH ends, always
 THIN_M = 100.0          # keep at most one point per this distance
 ROUND_DP = 4            # ~11 m — the documented precision ceiling
@@ -175,6 +181,24 @@ async def post_trip(body: dict):
         raise HTTPException(422, "missing or implausible distance_km")
     TRIPS.record_trip(cells, summary, token_hash)
     LEDGER.record(token_hash, summary)
+    # feed the citizen layer — every donated trip is a sensor pass. The
+    # coordinates that reach observe() are the trimmed/thinned/rounded
+    # `kept` points (raw trajectory already gone); observe() folds them
+    # straight into cells and never persists points. Without this hop a
+    # trip counted in aggregates but never informed the field.
+    if kept:
+        try:
+            import community
+            community.observe(
+                vehicle=str(summary.get("mode") or "unknown"),
+                coords=[[lo, la] for la, lo in kept],
+                duration_s=float(summary.get("duration_s") or 0.0),
+                dose_ug=summary.get("dose_ug"),
+                avoided_ug=None,
+                contributor=token or None,
+            )
+        except Exception:  # noqa: BLE001 — aggregates already stored; a
+            pass               # citizen-layer hiccup must not fail a donation
     return {
         "stored": True,
         "ledger_recorded": bool(token_hash),
