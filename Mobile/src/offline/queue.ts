@@ -1,0 +1,205 @@
+// Durable outbox for POST /v2/trip donations (docs/plan/offline.md §3).
+//
+// A trip donation that can't reach the server is NOT lost — it goes to
+// <document>/outbox.json and flushes when the network comes back.
+// There is no NetInfo in this build, so "reconnect" is inferred:
+//   - wireAutoFlush() listens for any successful request (net.ts "up")
+//   - flush() is also a plain callable — invoke it from anywhere that
+//     learns we're back (a successful search, a manual retry button)
+// Bounded: past MAX_QUEUE the oldest items drop and `dropped` counts
+// them honestly — the pill can say "2 trips couldn't be saved".
+import { File, Paths } from "expo-file-system";
+import { onNetEvent } from "./net";
+
+const OUTBOX = new File(Paths.document, "outbox.json");
+export const MAX_QUEUE = 50;
+const POST_TIMEOUT_MS = 8000;
+
+/** POST /v2/trip body (server/v2/trip.py) — the server trims, thins,
+ * rounds and cell-keys the trajectory; we just must not lose it. */
+export type TripDonation = {
+  /** opaque device id — contributorId() from src/community.ts */
+  device_token?: string;
+  summary?: {
+    mode?: string;
+    distance_km?: number;
+    duration_s?: number;
+    dose_ug?: number;
+    co2_kg_mid?: number;
+    pm25_g_mid?: number;
+    switched?: boolean;
+  };
+  /** [{lat,lon}…] or [[lon,lat]…] GeoJSON order — both accepted */
+  trajectory?: ({ lat: number; lon: number } | [number, number])[];
+};
+
+type OutboxItem = { id: string; queuedAt: number; url: string; body: unknown };
+type OutboxData = { items: OutboxItem[]; dropped: number };
+
+const EMPTY: OutboxData = { items: [], dropped: 0 };
+
+async function load(): Promise<OutboxData> {
+  try {
+    if (!OUTBOX.exists) return { ...EMPTY };
+    const j = JSON.parse(await OUTBOX.text()) as Partial<OutboxData>;
+    return {
+      items: Array.isArray(j.items) ? j.items : [],
+      dropped: typeof j.dropped === "number" ? j.dropped : 0,
+    };
+  } catch {
+    return { ...EMPTY };
+  }
+}
+
+async function save(d: OutboxData): Promise<void> {
+  try {
+    if (!OUTBOX.exists) OUTBOX.create();
+    OUTBOX.write(JSON.stringify(d));
+  } catch {}
+}
+
+/* ---- change notifications (pill: "N trips will send when back") --------- */
+
+const watch = new Set<(pending: number) => void>();
+
+/** Fires with the queue depth after every mutation. Returns unsubscribe. */
+export function onQueueChange(cb: (pending: number) => void): () => void {
+  watch.add(cb);
+  return () => {
+    watch.delete(cb);
+  };
+}
+
+function notify(d: OutboxData): void {
+  for (const cb of [...watch]) {
+    try {
+      cb(d.items.length);
+    } catch {}
+  }
+}
+
+/* ---- enqueue ------------------------------------------------------------ */
+
+let idSeq = 0;
+
+/** Append a POST to the outbox. Over-cap items drop oldest-first and are
+ * counted in `droppedNow` (and persisted in `dropped` forever after). */
+export async function enqueue(
+  url: string,
+  body: unknown,
+): Promise<{ size: number; droppedNow: number }> {
+  const d = await load();
+  d.items.push({ id: `${Date.now()}-${idSeq++}`, queuedAt: Date.now(), url, body });
+  let droppedNow = 0;
+  while (d.items.length > MAX_QUEUE) {
+    d.items.shift();
+    droppedNow++;
+    d.dropped++;
+  }
+  await save(d);
+  notify(d);
+  return { size: d.items.length, droppedNow };
+}
+
+/** Convenience for the donation path. */
+export function enqueueTripDonation(
+  api: string,
+  donation: TripDonation,
+): Promise<{ size: number; droppedNow: number }> {
+  return enqueue(`${api}/v2/trip`, donation);
+}
+
+/* ---- flush -------------------------------------------------------------- */
+
+export type FlushReport = {
+  sent: number;
+  /** rejected by the server (4xx) — dropped permanently, never retried */
+  rejected: number;
+  remaining: number;
+  /** false when we stopped because the network is still down */
+  networkUp: boolean;
+};
+
+let flushing = false;
+
+async function postOne(item: OutboxItem): Promise<"sent" | "reject" | "retry"> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), POST_TIMEOUT_MS);
+  try {
+    const res = await fetch(item.url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(item.body),
+      signal: ctrl.signal,
+    });
+    if (res.ok) return "sent";
+    return res.status >= 400 && res.status < 500 ? "reject" : "retry";
+  } catch {
+    return "retry";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Send queued items oldest-first. Stops at the first network/5xx
+ * failure so ordering holds; 4xx items drop (they will never succeed).
+ * Safe to call anytime — no-ops on an empty queue or a running flush. */
+export async function flush(): Promise<FlushReport> {
+  if (flushing) return { sent: 0, rejected: 0, remaining: await queueSize(), networkUp: false };
+  flushing = true;
+  let sent = 0;
+  let rejected = 0;
+  let networkUp = true;
+  try {
+    for (;;) {
+      const d = await load();
+      if (d.items.length === 0) {
+        notify(d);
+        return { sent, rejected, remaining: 0, networkUp };
+      }
+      const r = await postOne(d.items[0]);
+      if (r === "retry") {
+        networkUp = false;
+        notify(d);
+        return { sent, rejected, remaining: d.items.length, networkUp };
+      }
+      d.items.shift();
+      if (r === "reject") rejected++;
+      else sent++;
+      await save(d);
+      notify(d);
+    }
+  } finally {
+    flushing = false;
+  }
+}
+
+/* ---- reconnect seam ----------------------------------------------------- */
+
+let wired = false;
+
+/** Flush automatically whenever any request succeeds again (net.ts "up"
+ * events — our NetInfo-free reconnect signal). Idempotent; returns an
+ * unwire function. Call once near app start. */
+export function wireAutoFlush(): () => void {
+  if (wired) return () => {};
+  wired = true;
+  const off = onNetEvent((e) => {
+    if (e.type === "up") void flush();
+  });
+  return () => {
+    off();
+    wired = false;
+  };
+}
+
+/* ---- introspection ------------------------------------------------------ */
+
+export async function queueSize(): Promise<number> {
+  return (await load()).items.length;
+}
+
+/** Total items ever dropped for exceeding the cap — persisted, honest. */
+export async function droppedTotal(): Promise<number> {
+  return (await load()).dropped;
+}
