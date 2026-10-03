@@ -122,6 +122,11 @@ def _merge(t1: list, t2: list, qn: str, blat: float, blon: float) -> list:
         else:
             merged.append(r)
     merged.sort(key=lambda r: (r.get("match_rank", 3),
+                               # scored T1 rows order by score inside a
+                               # match class; unscored rows (T2, rank 3
+                               # partials) stay distance-ordered
+                               -(r.get("score") or 0.0)
+                               if r.get("match_rank", 3) < 3 else 0.0,
                                r.get("distance_m") or 9e9,
                                0 if "t1" in r.get("sources", []) else 1))
     return merged
