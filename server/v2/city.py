@@ -20,11 +20,16 @@ blocks on top:
                  sorted heaviest-first, [] until k>=3 distinct devices
                  cross a cell inside 72 h
   enough_data    False while corridors is empty — never fabricated
+
+GET /v2/city/moves — the "how Delhi moves" aggregate view — lives at the
+bottom of this module. Same contract: TripAggregates only, every emitted
+row k>=3, window/min_k/n_trips always stated, and an empty store answers
+insufficient_data rather than a zero posing as measurement.
 """
 import math
 import statistics
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter
 
@@ -42,6 +47,7 @@ _LONS = (76.88, 77.10, 77.32, 77.54, 77.76)
 CIG_UG = 316.0            # Berkeley Earth: 1 cigarette ≈ 316 µg inhaled PM2.5
 DAY_M3 = CIG_UG / 22.0    # its 22 µg/m³-day rule → ~14.4 m³ breathed a day
 K_MIN = 3                 # corridor display threshold (docs/plan/07 §3)
+MOVES_DAYS = 7            # /city/moves: trailing UTC day buckets covered
 CORRIDOR_TOP = 5          # heaviest rows kept…
 CORRIDOR_TAIL = 5         # …and lightest rows kept
 NAME_RADIUS_M = 1200.0    # gazetteer nearest-name reach for a cell
@@ -313,4 +319,129 @@ async def city():
                                     getattr(loc, "enabled", False))},
         },
         "trips": agg,
+    }
+
+
+# ---------------------------------------------------------------- moves
+#
+# GET /v2/city/moves — "how Delhi moves": the aggregated mobility view.
+# Everything below is a second read of the same TripAggregates store —
+# day counters (per-mode trip counts, km, dose_ug, co2_kg_mid,
+# pm25_g_mid, switched) and the publishable corridor cells. Nothing is
+# computed from anything else, because nothing else exists server-side.
+#
+# k>=3 on every row:
+#   * corridors — the store's publishable set itself (>=3 distinct
+#     hashed devices per cell inside 72 h, enforced under the lock)
+#   * mode share — a mode earns its own row only at >=K_MIN trips in
+#     the window; smaller modes pool into one "other" row, and that row
+#     is itself emitted only when the pool reaches K_MIN. Whatever is
+#     left is reported as a suppressed trip COUNT, never a labelled row
+#   * per-trip bands — percentiles across per-DAY means, and a day only
+#     counts when it has >=K_MIN trips AND actually recorded the value
+#     (a missing dose/co2 sum is not a measured zero)
+#
+# n_trips < min_k across the window → insufficient_data: true. The raw
+# counts still ship (they are real), but no distribution is drawn from
+# them — never zeros dressed up as data.
+
+
+def _pct_band(vals, nd: int = 1):
+    """{p25, p50, p75, n} — the honest middle half of a small sample.
+
+    None when there is nothing to summarize (a null band, not a zero
+    one). One value collapses to a point and reports n=1 so the UI can
+    say 'the only qualifying day' instead of implying a spread.
+    """
+    vals = sorted(float(v) for v in vals)
+    if not vals:
+        return None
+    if len(vals) == 1:
+        v = round(vals[0], nd)
+        return {"p25": v, "p50": v, "p75": v, "n": 1}
+    q = statistics.quantiles(vals, n=4, method="inclusive")
+    return {"p25": round(q[0], nd), "p50": round(q[1], nd),
+            "p75": round(q[2], nd), "n": len(vals)}
+
+
+@router.get("/city/moves")
+async def city_moves():
+    now = time.time()
+    today = datetime.fromtimestamp(now, tz=timezone.utc).date()
+    first = today - timedelta(days=MOVES_DAYS - 1)
+    agg = TRIPS.city_aggregates()
+    days = {k: v for k, v in (agg.get("days") or {}).items()
+            if first.isoformat() <= k <= today.isoformat()}
+
+    n_trips = sum(int(d.get("trips") or 0) for d in days.values())
+    n_days = sum(1 for d in days.values() if int(d.get("trips") or 0) > 0)
+
+    # ---- mode share — every row >=K_MIN trips, or pooled/suppressed ----
+    modes = {}
+    for d in days.values():
+        for m, n in (d.get("modes") or {}).items():
+            modes[m] = modes.get(m, 0) + int(n)
+    big = sorted(((m, n) for m, n in modes.items() if n >= K_MIN),
+                 key=lambda x: -x[1])
+    small_n = sum(n for _, n in modes.items() if n < K_MIN)
+    mode_share = [{"mode": m, "trips": n,
+                   "share": round(n / n_trips, 3)}
+                  for m, n in big] if n_trips else []
+    suppressed = 0
+    if small_n >= K_MIN:
+        # the pool itself clears k — one anonymous 'other' row, labelled
+        # by nothing but size (the pool is what protects the members)
+        mode_share.append({"mode": "other", "trips": small_n,
+                           "share": round(small_n / n_trips, 3)})
+    elif small_n:
+        suppressed = small_n  # below k even pooled — a count, not a row
+
+    # ---- per-trip bands — per-day means over qualifying days only ----
+    qual = [d for d in days.values() if int(d.get("trips") or 0) >= K_MIN]
+
+    def _means(key):
+        """day[key] ÷ day trips for qualifying days that recorded key —
+        a 0 sum means 'not recorded', not 'measured zero'."""
+        return [float(d[key]) / int(d["trips"])
+                for d in qual if float(d.get(key) or 0.0) > 0]
+
+    per_trip = {
+        "n_days": len(qual),
+        "dose_ug": _pct_band(_means("dose_ug"), 1),
+        "co2_kg": _pct_band(_means("co2_kg_mid"), 2),
+        "pm25_g": _pct_band(_means("pm25_g_mid"), 3),
+        "basis": ("percentiles of per-day means (day total ÷ day "
+                  "trips); only days with >=3 trips and a recorded "
+                  "value contribute"),
+    }
+
+    # ---- corridors — the store's own publishable set, count + dose ----
+    pub = TRIPS.corridors(now=now, limit=500)
+    corridors = {
+        "window_h": 72,
+        "active": len(pub),
+        "tracked": int(agg.get("cells_tracked") or 0),
+        # distribution of per-cell mean dose across publishable cells —
+        # each input row is already a >=3-device aggregate by the store's
+        # own rule, so the band never rests on a single traveller
+        "avg_dose_ug": _pct_band([c["avg_dose_ug"] for c in pub], 1),
+    }
+
+    return {
+        "ts": now,
+        "generated_at": datetime.fromtimestamp(
+            now, tz=timezone.utc).isoformat(timespec="seconds"),
+        "window": {"days": MOVES_DAYS,
+                   "from": first.isoformat(), "to": today.isoformat()},
+        "min_k": K_MIN,
+        "n_trips": n_trips,
+        "n_days": n_days,
+        "insufficient_data": n_trips < K_MIN,
+        "mode_share": mode_share,
+        "mode_share_suppressed_trips": suppressed,
+        "corridors": corridors,
+        "per_trip": per_trip,
+        "basis": ("aggregates only — modes count donated trips, "
+                  "corridors are street cells with >=3 distinct devices "
+                  "in 72 h; no per-device data exists server-side"),
     }
