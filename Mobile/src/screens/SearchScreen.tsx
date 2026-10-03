@@ -175,11 +175,12 @@ function SearchSheet({
   const inputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
 
-  /* mount: warm the index, load saved places, raise the keyboard */
+  /* mount: warm the index, load saved places; autoFocus raises the keyboard —
+     an imperative focus() here races the Modal's presentation on iOS and
+     segfaults the responder chain (reproduced live on the sim). */
   useEffect(() => {
     warm();
     getPlaces().then(setStore).catch(() => {});
-    inputRef.current?.focus();
     return () => search.dispose();
   }, [search]);
 

@@ -152,7 +152,8 @@ function OnboardingSheet({
     Animated.timing(anim, {
       toValue: 1,
       duration: 200,
-      useNativeDriver: true,
+      // JS driver — same RN 0.86 native-detach guard as ui.tsx Sheet
+      useNativeDriver: false,
     }).start();
   }, [step, reduceMotion, anim]);
   const rise = anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });

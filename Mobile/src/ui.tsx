@@ -39,7 +39,11 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const [anim] = useState(() => new Animated.Value(0));
   useEffect(() => {
-    Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: true }).start();
+    /* useNativeDriver must stay false here: RN 0.86's createAnimatedPropsHook
+       throws `undefined is not a function` inside its queueMicrotask detach /
+       mixed native-graph path (reproduced live on the search sheet). A 60 px
+       one-shot enter doesn't need the native driver anyway. */
+    Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: false }).start();
   }, [anim]);
   return (
     <Animated.View

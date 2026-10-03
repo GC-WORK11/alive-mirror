@@ -78,9 +78,11 @@ export function Sidebar({
   const toggle = (k: Section) => setSection((s) => (s === k ? null : k));
 
   // drawer stays mounted off-canvas; the wrapper swallows touches when closed
+  // NB: JS driver — RN 0.86's native-animated detach path segfaults the
+  // sheet flow (see ui.tsx Sheet for the same guard)
   useEffect(() => {
     Animated.spring(slide, {
-      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: true,
+      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: false,
     }).start();
   }, [open, slide]);
 
