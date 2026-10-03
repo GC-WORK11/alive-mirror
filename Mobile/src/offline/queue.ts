@@ -28,6 +28,12 @@ export type TripDonation = {
     co2_kg_mid?: number;
     pm25_g_mid?: number;
     switched?: boolean;
+    /* optional CO2 provenance (grams) — where the ride's tailpipe
+       CO2 came from; only present when the option carried a real
+       emissions.breakdown */
+    co2_moving_g?: number;
+    co2_idle_g?: number;
+    co2_cold_g?: number;
   };
   /** [{lat,lon}…] or [[lon,lat]…] GeoJSON order — both accepted */
   trajectory?: ({ lat: number; lon: number } | [number, number])[];

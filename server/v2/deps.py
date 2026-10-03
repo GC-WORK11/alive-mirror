@@ -20,6 +20,19 @@ NCR_BBOX = (76.80, 28.20, 77.90, 28.95)  # lon/lat, same as airfield.BBOX
 _http: Optional[httpx.AsyncClient] = None
 
 
+# last observed routing-engine call — ops reads this instead of firing
+# synthetic probes at the public demo server; written by every real call
+OSRM_LAST: dict = {"at": None, "ok": None, "ms": None,
+                   "err": None, "backend": None}
+
+
+def _osrm_note(ok: bool, ms: float, err: Optional[str] = None,
+               backend: Optional[str] = None) -> None:
+    import time as _t
+    OSRM_LAST.update({"at": _t.time(), "ok": ok, "ms": round(ms),
+                      "err": err, "backend": backend})
+
+
 def http() -> httpx.AsyncClient:
     global _http
     if _http is None or _http.is_closed:
@@ -164,6 +177,9 @@ async def osrm_route(profile: str, flon: float, flat: float,
     except Exception:
         pass
     bases.append(("https://router.project-osrm.org", "osrm-public-demo"))
+    import time as _t
+    t0 = _t.monotonic()
+    last_err = None
     for base, source in dict.fromkeys(bases):
         url = f"{base}/route/v1/{profile}/{flon},{flat};{tlon},{tlat}"
         try:
@@ -174,13 +190,18 @@ async def osrm_route(profile: str, flon: float, flat: float,
             r.raise_for_status()
             routes = r.json().get("routes", [])
             if not routes:
+                last_err = "no routes"
                 continue
             rt = routes[0]
             if float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+                last_err = "over cap"
                 continue  # path through oceans/ferries — not servable
             rt["steps"] = osrm_steps(rt)
             rt["source"] = source
+            _osrm_note(True, (_t.monotonic() - t0) * 1000, backend=source)
             return rt
-        except Exception:
+        except Exception as e:
+            last_err = type(e).__name__
             continue
+    _osrm_note(False, (_t.monotonic() - t0) * 1000, err=last_err)
     return None

@@ -66,42 +66,44 @@ export function RouteTintSource({
     [options, selected, strips, stepM],
   );
 
-  if (!options.length) return null;
+  /* Sources + layers stay mounted for the app's whole life: unmounting a
+     GeoJSONSource issues removeSource/removeLayer on the native style, and
+     when that lands mid-draw on the iOS-sim render thread it segfaults
+     (upstream MapLibre class — hit here at receipt-Done/options-clear).
+     Swapping data for an empty FeatureCollection never removes anything,
+     draws nothing, and costs one no-op native call. */
+  const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
   return (
     <>
-      {showAlts && tint.alts.features.length > 0 && (
-        <GeoJSONSource id="routeTintAlts" data={tint.alts}>
-          <Layer
-            id="routeTint-alts-line"
-            type="line"
-            paint={{
-              "line-color": ["coalesce", ["get","color"], MAP_QUIET],
-              "line-width": 3,
-              "line-opacity": 0.5,
-            }}
-            layout={{ "line-cap": "round", "line-join": "round" }}
-          />
-        </GeoJSONSource>
-      )}
-      {tint.selected.features.length > 0 && (
-        <GeoJSONSource id="routeTintSel" data={tint.selected}>
-          <Layer
-            id="routeTint-sel-casing"
-            type="line"
-            paint={{ "line-color": V2T.bg, "line-width": 9 }}
-            layout={{ "line-cap": "round", "line-join": "round" }}
-          />
-          <Layer
-            id="routeTint-sel-line"
-            type="line"
-            paint={{
-              "line-color": ["coalesce", ["get","color"], MAP_QUIET],
-              "line-width": 6,
-            }}
-            layout={{ "line-cap": "round", "line-join": "round" }}
-          />
-        </GeoJSONSource>
-      )}
+      <GeoJSONSource id="routeTintAlts" data={showAlts && options.length ? tint.alts : EMPTY}>
+        <Layer
+          id="routeTint-alts-line"
+          type="line"
+          paint={{
+            "line-color": ["coalesce", ["get","color"], MAP_QUIET],
+            "line-width": 3,
+            "line-opacity": 0.5,
+          }}
+          layout={{ "line-cap": "round", "line-join": "round" }}
+        />
+      </GeoJSONSource>
+      <GeoJSONSource id="routeTintSel" data={options.length ? tint.selected : EMPTY}>
+        <Layer
+          id="routeTint-sel-casing"
+          type="line"
+          paint={{ "line-color": V2T.bg, "line-width": 9 }}
+          layout={{ "line-cap": "round", "line-join": "round" }}
+        />
+        <Layer
+          id="routeTint-sel-line"
+          type="line"
+          paint={{
+            "line-color": ["coalesce", ["get","color"], MAP_QUIET],
+            "line-width": 6,
+          }}
+          layout={{ "line-cap": "round", "line-join": "round" }}
+        />
+      </GeoJSONSource>
     </>
   );
 }

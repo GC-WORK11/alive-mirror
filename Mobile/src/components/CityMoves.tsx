@@ -37,6 +37,7 @@ import type {
   CityMovesModeRow,
   CityMovesPayload,
 } from "../api/city";
+import { DYNAMIC_TYPE } from "../a11y";
 
 const fmtUg = (v: number): string =>
   v < 10 ? v.toFixed(1) : `${Math.round(v)}`;
@@ -80,16 +81,16 @@ function ModeRow({ row, lang }: { row: CityMovesModeRow; lang: Lang }) {
   return (
     <View style={ss.mRow}>
       <Icon name={meta.icon} color={meta.color} size={18} />
-      <Text
+      <Text {...DYNAMIC_TYPE}
         style={[ss.mName, { fontFamily: fam(lang, "reg") }]}
         numberOfLines={1}
       >
         {modeLabel(row.mode, lang)}
       </Text>
-      <Text style={[ss.mPct, NUM, { fontFamily: fam(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.mPct, NUM, { fontFamily: fam(lang, "med") }]}>
         {fmtPct(row.share)}
       </Text>
-      <Text style={[ss.mTrips, NUM, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.mTrips, NUM, { fontFamily: fam(lang, "reg") }]}>
         {t("cityTrips", lang, { n: row.trips })}
       </Text>
     </View>
@@ -114,14 +115,14 @@ function BandRow({
   if (!band) return null;
   return (
     <View style={ss.bRow}>
-      <Text style={[ss.bLabel, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.bLabel, { fontFamily: fam(lang, "reg") }]}>
         {label}
       </Text>
       <View style={ss.bVals}>
-        <Text style={[ss.bMid, NUM, { fontFamily: fam(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.bMid, NUM, { fontFamily: fam(lang, "med") }]}>
           ≈{fmt(band.p50)} {unit}
         </Text>
-        <Text style={[ss.bBand, NUM, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.bBand, NUM, { fontFamily: fam(lang, "reg") }]}>
           {fmt(band.p25)}–{fmt(band.p75)}
         </Text>
       </View>
@@ -140,7 +141,7 @@ export function CityMoves({
   if (data === null) {
     return (
       <View style={ss.card}>
-        <Text style={[ss.note, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.note, { fontFamily: fam(lang, "reg") }]}>
           {t("cityLoading", lang)}
         </Text>
       </View>
@@ -157,12 +158,12 @@ export function CityMoves({
     <View style={ss.card}>
       {/* title — proposed key: movesTitle "how Delhi moves".
           delhiTitle ("Delhi today") carries the section meanwhile. */}
-      <Text style={[ss.title, { fontFamily: fam(lang, "semi") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.title, { fontFamily: fam(lang, "semi") }]}>
         {t("delhiTitle", lang)}
       </Text>
       {/* context: window + real trip count. ledgerLast7 is exact while
           window.days === 7; another value → proposed movesWindowDays. */}
-      <Text style={[ss.sub, NUM, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.sub, NUM, { fontFamily: fam(lang, "reg") }]}>
         {windowDays === 7 ? t("ledgerLast7", lang) : `${windowDays}d`}
         {"  ·  "}
         {t("cityTrips", lang, { n: data.n_trips })}
@@ -172,7 +173,7 @@ export function CityMoves({
         /* honest empty state — counts above stay real; the "not enough
            shared trips yet" line borrows cityEmptyStreets until
            movesNotEnough lands in strings.ts */
-        <Text style={[ss.note, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.note, { fontFamily: fam(lang, "reg") }]}>
           {t("cityEmptyStreets", lang)}
         </Text>
       ) : (
@@ -209,7 +210,7 @@ export function CityMoves({
           ))}
           {suppressed > 0 ? (
             /* a count, not a row — proposed: movesSuppressed */
-            <Text
+            <Text {...DYNAMIC_TYPE}
               style={[ss.note, NUM, { fontFamily: fam(lang, "reg") }]}
             >
               +{t("cityTrips", lang, { n: suppressed })}
@@ -219,13 +220,13 @@ export function CityMoves({
           {/* measured streets — count + the streets' own dose band */}
           {corridors ? (
             <View style={ss.bRow}>
-              <Text
+              <Text {...DYNAMIC_TYPE}
                 style={[ss.bLabel, { fontFamily: fam(lang, "reg") }]}
               >
                 {t("layerCorridors", lang)}
               </Text>
               <View style={ss.bVals}>
-                <Text
+                <Text {...DYNAMIC_TYPE}
                   style={[
                     ss.bMid,
                     NUM,
@@ -235,7 +236,7 @@ export function CityMoves({
                   {corridors.active ?? 0}
                 </Text>
                 {corridors.avg_dose_ug ? (
-                  <Text
+                  <Text {...DYNAMIC_TYPE}
                     style={[
                       ss.bBand,
                       NUM,
@@ -272,7 +273,7 @@ export function CityMoves({
               {perTrip.pm25_g ? (
                 /* "incl. {lo}–{hi} g of fine particles" — reads as the
                    whole line, so no separate label */
-                <Text
+                <Text {...DYNAMIC_TYPE}
                   style={[
                     ss.note,
                     NUM,
@@ -289,7 +290,7 @@ export function CityMoves({
           ) : null}
 
           {/* the rule is part of the data — k>=3 / 72 h, stated */}
-          <Text style={[ss.foot, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.foot, { fontFamily: fam(lang, "reg") }]}>
             {t("cityBasisPrivacy", lang, {
               k: minK,
               h: corridors?.window_h ?? 72,

@@ -10,15 +10,14 @@
 import React, { useEffect, useState } from "react";
 import {
   Modal,
-  Platform,
   Pressable,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import {
   cigOf,
@@ -38,6 +37,7 @@ import {
   type CityPayload,
 } from "../api/city";
 import { CityMoves } from "../components/CityMoves";
+import { DYNAMIC_TYPE } from "../a11y";
 
 const fmtCig = (v: number): string => (v < 1 ? v.toFixed(2) : v.toFixed(1));
 const fmtKm = (km: number): string =>
@@ -87,7 +87,7 @@ function Chip({
   return (
     <View style={ss.chip}>
       <Icon name={icon} color={V2T.text3} size={14} />
-      <Text style={[ss.chipText, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.chipText, { fontFamily: fam(lang, "reg") }]}>
         {label}
       </Text>
     </View>
@@ -102,19 +102,19 @@ function CorridorRow({ c, lang }: { c: CityCorridor; lang: Lang }) {
         <Icon name="pin" color={V2T.text2} size={18} />
       </View>
       <View style={ss.cText}>
-        <Text
+        <Text {...DYNAMIC_TYPE}
           style={[ss.cName, { fontFamily: fam(lang, "med") }]}
           numberOfLines={1}
         >
           {c.name ?? t("cityUnnamed", lang)}
         </Text>
-        <Text style={[ss.cSub, NUM, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cSub, NUM, { fontFamily: fam(lang, "reg") }]}>
           {t("cityTrips", lang, { n: c.trips })}
         </Text>
       </View>
       {/* heavier carries breath-ramp colour; lighter stays grey —
           lightness is the absence of colour (doc 03) */}
-      <Text
+      <Text {...DYNAMIC_TYPE}
         style={[
           ss.cRel,
           {
@@ -131,7 +131,7 @@ function CorridorRow({ c, lang }: { c: CityCorridor; lang: Lang }) {
 
 function WhyLine({ text, lang }: { text: string; lang: Lang }) {
   return (
-    <Text style={[ss.whyLine, { fontFamily: fam(lang, "reg") }]}>{text}</Text>
+    <Text {...DYNAMIC_TYPE} style={[ss.whyLine, { fontFamily: fam(lang, "reg") }]}>{text}</Text>
   );
 }
 
@@ -143,6 +143,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
   const [failed, setFailed] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [nonce, setNonce] = useState(0);
+  const insets = useSafeAreaInsets();
 
   /* fetch on mount / retry — aborted on close and between retries;
      moves is best-effort: a failure just leaves the card absent */
@@ -169,7 +170,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
   const tr = data?.provenance?.trips;
 
   return (
-    <View style={ss.root}>
+    <View style={[ss.root, { marginTop: insets.top + 8 }]}>
       {/* top bar — back + title */}
       <View style={ss.bar}>
         <Pressable
@@ -181,15 +182,15 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
-        <Text style={[ss.title, { fontFamily: fam(lang, "semi") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.title, { fontFamily: fam(lang, "semi") }]}>
           {t("delhiTitle", lang)}
         </Text>
       </View>
 
-      <ScrollView style={ss.flex} contentContainerStyle={ss.content}>
+      <ScrollView style={ss.flex} contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 24 }]}>
         {failed ? (
           <View style={ss.center}>
-            <Text style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>
               {t("offline", lang)}
             </Text>
             <Pressable
@@ -205,7 +206,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
               accessibilityRole="button"
               accessibilityLabel={t("cityRetry", lang)}
             >
-              <Text
+              <Text {...DYNAMIC_TYPE}
                 style={[ss.retryText, { fontFamily: fam(lang, "med") }]}
               >
                 {t("cityRetry", lang)}
@@ -213,7 +214,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
             </Pressable>
           </View>
         ) : data === null ? (
-          <Text style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>
             {t("cityLoading", lang)}
           </Text>
         ) : (
@@ -221,13 +222,13 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
             {/* hero — one number: a day of Delhi air in cigarettes */}
             {data.breath && cig && pm ? (
               <View style={ss.hero}>
-                <Text
+                <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
                 >
                   {t("cityHeroLead", lang)}
                 </Text>
                 <View style={ss.heroRow}>
-                  <Text
+                  <Text {...DYNAMIC_TYPE}
                     style={[
                       ss.heroNum,
                       NUM,
@@ -245,12 +246,12 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                     size={30}
                   />
                 </View>
-                <Text
+                <Text {...DYNAMIC_TYPE}
                   style={[ss.heroUnit, { fontFamily: fam(lang, "reg") }]}
                 >
                   {t("cityHeroUnit", lang)}
                 </Text>
-                <Text
+                <Text {...DYNAMIC_TYPE}
                   style={[ss.heroRange, NUM, { fontFamily: fam(lang, "reg") }]}
                 >
                   {t("cityHeroRange", lang, {
@@ -260,7 +261,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                 </Text>
               </View>
             ) : (
-              <Text
+              <Text {...DYNAMIC_TYPE}
                 style={[
                   ss.heroLead,
                   { fontFamily: fam(lang, "med"), marginTop: 16 },
@@ -293,12 +294,96 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
               ) : null}
             </View>
 
+            {/* the other instruments in the air — real field species,
+                city mean; a species the field doesn't serve is simply
+                absent, never zero-filled */}
+            {(() => {
+              const sp = data.species;
+              if (!sp) return null;
+              const items: string[] = [];
+              const push = (key: string, label: string) => {
+                const v = sp[key];
+                if (v) items.push(`${label} ${v.mean}`);
+              };
+              push("pm10", "PM10");
+              push("nitrogen_dioxide", "NO₂");
+              push("ozone", "O₃");
+              push("carbon_monoxide", "CO");
+              push("sulphur_dioxide", "SO₂");
+              push("ammonia", "NH₃");
+              const aqi = sp.us_aqi;
+              if (aqi) items.push(`US AQI ${Math.round(aqi.mean)}`);
+              if (!items.length) return null;
+              return (
+                <>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                    {t("citySpeciesTitle", lang)}
+                  </Text>
+                  <Text {...DYNAMIC_TYPE} style={[ss.speciesLine, NUM,
+                               { fontFamily: fam(lang, "reg") }]}>
+                    {items.join(" · ")}
+                  </Text>
+                  <Text {...DYNAMIC_TYPE} style={[ss.speciesNote,
+                               { fontFamily: fam(lang, "reg") }]}>
+                    {t("citySpeciesNote", lang)}
+                  </Text>
+                </>
+              );
+            })()}
+
+            {/* vs the decade norm — real archive baseline, omitted when
+                the backend has no typical (never a fabricated one) */}
+            {data.typical?.vs_now_pct != null ? (
+              <Text {...DYNAMIC_TYPE} style={[ss.speciesNote,
+                           { fontFamily: fam(lang, "reg") }]}>
+                {t("cityTypicalLine", lang)
+                  .replace("{pct}", `${data.typical.vs_now_pct > 0 ? "+" : ""}${data.typical.vs_now_pct}`)
+                  .replace("{med}", `${Math.round(data.typical.median)}`)}
+              </Text>
+            ) : null}
+
+            {/* the next 12 hours — live-anchored CAMS forecast, real
+                hourly values; omitted when the horizon is cold */}
+            {(() => {
+              const hrs = data.next_hours;
+              if (!hrs || hrs.length < 2) return null;
+              const max = Math.max(...hrs.map((x) => x.pm25), 1);
+              return (
+                <>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                    {t("cityForecastTitle", lang)}
+                  </Text>
+                  <View style={ss.fcRow}>
+                    {hrs.map((x) => (
+                      <View key={x.h} style={ss.fcCol}>
+                        <Text {...DYNAMIC_TYPE} style={[ss.fcVal,
+                                     { fontFamily: fam(lang, "reg") }]}>
+                          {x.h % 3 === 0 ? `${Math.round(x.pm25)}` : ""}
+                        </Text>
+                        <View style={[ss.fcBar,
+                              { height: 4 + Math.round(28 * x.pm25 / max) }]} />
+                        <Text {...DYNAMIC_TYPE} style={[ss.fcHr,
+                                     { fontFamily: fam(lang, "reg") }]}>
+                          {x.h === 0 ? t("cityForecastNow", lang)
+                                    : x.h % 3 === 0 ? `+${x.h}h` : ""}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text {...DYNAMIC_TYPE} style={[ss.speciesNote,
+                               { fontFamily: fam(lang, "reg") }]}>
+                    {t("cityForecastNote", lang)}
+                  </Text>
+                </>
+              );
+            })()}
+
             {/* measured streets — k>=3 aggregates, heaviest first */}
-            <Text style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
               {t("cityStreetsTitle", lang)}
             </Text>
             {corridors.length === 0 ? (
-              <Text style={[ss.empty, { fontFamily: fam(lang, "reg") }]}>
+              <Text {...DYNAMIC_TYPE} style={[ss.empty, { fontFamily: fam(lang, "reg") }]}>
                 {t("cityEmptyStreets", lang)}
               </Text>
             ) : (
@@ -311,10 +396,10 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                 hidden when there's nothing (doc 07: no zero-fill) */}
             {day && day.trips > 0 ? (
               <>
-                <Text style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
                   {t("cityTravellersTitle", lang)}
                 </Text>
-                <Text
+                <Text {...DYNAMIC_TYPE}
                   style={[
                     ss.dayLine,
                     NUM,
@@ -329,7 +414,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                   })}
                 </Text>
                 {day.switched > 0 ? (
-                  <Text
+                  <Text {...DYNAMIC_TYPE}
                     style={[
                       ss.dayLine,
                       NUM,
@@ -357,7 +442,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
               accessibilityLabel={t("cityWhyTitle", lang)}
             >
               <Icon name="info" color={V2T.text2} size={16} />
-              <Text
+              <Text {...DYNAMIC_TYPE}
                 style={[ss.whyLabel, { fontFamily: fam(lang, "med") }]}
               >
                 {t("cityWhyTitle", lang)}
@@ -440,11 +525,7 @@ const ss = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
-    marginTop: Platform.select({
-      ios: 48,
-      android: (RNStatusBar.currentHeight ?? 24) + 8,
-      default: 16,
-    }),
+
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
@@ -463,7 +544,7 @@ const ss = StyleSheet.create({
   barBtn: { padding: 6, marginRight: 8 },
   title: { color: V2T.text, fontSize: V2Type.title },
   flex: { flex: 1 },
-  content: { paddingBottom: 40 },
+  content: {},
   center: { alignItems: "center", marginTop: 60 },
   waiting: {
     color: V2T.text3,
@@ -559,6 +640,39 @@ const ss = StyleSheet.create({
     marginHorizontal: 18,
     marginTop: 4,
     lineHeight: 22,
+  },
+  speciesLine: {
+    color: V2T.text2,
+    fontSize: V2Type.secondary,
+    marginHorizontal: 18,
+    marginTop: 4,
+    lineHeight: 22,
+  },
+  speciesNote: {
+    color: V2T.text3,
+    fontSize: V2Type.label,
+    marginHorizontal: 18,
+    marginTop: 2,
+  },
+  fcRow: {
+    flexDirection: "row",
+    marginHorizontal: 18,
+    marginTop: 8,
+    alignItems: "flex-end",
+  },
+  fcCol: { flex: 1, alignItems: "center" },
+  fcVal: { color: V2T.text2, fontSize: V2Type.label, height: 15 },
+  fcBar: {
+    width: 10,
+    borderRadius: 3,
+    backgroundColor: V2T.accent,
+    marginTop: 2,
+  },
+  fcHr: {
+    color: V2T.text3,
+    fontSize: V2Type.label,
+    height: 15,
+    marginTop: 3,
   },
 
   whyBtn: {

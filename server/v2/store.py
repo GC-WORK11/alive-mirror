@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import deque
 from typing import Optional
 
 LOCK = threading.Lock()
@@ -85,6 +86,10 @@ class TripAggregates:
         self._days: dict = {}    # "YYYY-MM-DD" -> day counters
         self._cells: dict = {}   # cell key -> {count, dose_sum, tokens:set}
         self._cell_window_s = 72 * 3600  # corridor rule: 72 h freshness
+        # bounded ring of the latest donations — ts/mode/dose/km/co2 only,
+        # never a cell or a token: the admin live-feed needs the shape of
+        # activity, not its geometry
+        self._recent: deque = deque(maxlen=50)
 
     def record_trip(self, cells: list, summary: dict,
                     token_hash: str, ts: float = None) -> None:
@@ -94,26 +99,53 @@ class TripAggregates:
             d = self._days.setdefault(day, {
                 "trips": 0, "km": 0.0, "dose_ug": 0.0,
                 "co2_kg_mid": 0.0, "pm25_g_mid": 0.0,
-                "switched": 0, "modes": {}})
+                "switched": 0, "modes": {},
+                "co2_moving_g": 0.0, "co2_idle_g": 0.0,
+                "co2_cold_g": 0.0, "co2_split_trips": 0})
             d["trips"] += 1
             d["km"] += float(summary.get("distance_km") or 0.0)
             d["dose_ug"] += float(summary.get("dose_ug") or 0.0)
             d["co2_kg_mid"] += float(summary.get("co2_kg_mid") or 0.0)
             d["pm25_g_mid"] += float(summary.get("pm25_g_mid") or 0.0)
+            for k in ("co2_moving_g", "co2_idle_g", "co2_cold_g"):
+                d[k] += float(summary.get(k) or 0.0)
+            if any(k in summary
+                   for k in ("co2_moving_g", "co2_idle_g", "co2_cold_g")):
+                d["co2_split_trips"] += 1
             if summary.get("switched"):
                 d["switched"] += 1
             mode = str(summary.get("mode") or "unknown")[:24]
             d["modes"][mode] = d["modes"].get(mode, 0) + 1
             dose = float(summary.get("dose_ug") or 0.0)
-            for c in dict.fromkeys(cells):  # count a cell once per trip
+            distinct = list(dict.fromkeys(cells))  # a cell counts once/trip
+            km_cell = (float(summary.get("distance_km") or 0.0)
+                       / len(distinct)) if distinct else 0.0
+            for c in distinct:
                 v = self._cells.setdefault(
                     c, {"count": 0, "dose_sum": 0.0, "tokens": set(),
-                        "last_ts": 0.0})
+                        "last_ts": 0.0,
+                        "co2_kg_sum": 0.0, "km_sum": 0.0,
+                        "co2_trips": 0})
                 v["count"] += 1
                 v["dose_sum"] += dose
                 v["last_ts"] = max(v["last_ts"], ts)
+                # emission attribution: the trip's km is spread evenly
+                # over its distinct cells (the only honest split — cell-
+                # level path lengths aren't retained); trips that
+                # reported co2_kg_mid add to the intensity index
+                v["km_sum"] += km_cell
+                if summary.get("co2_kg_mid"):
+                    v["co2_kg_sum"] += float(summary["co2_kg_mid"])
+                    v["co2_trips"] += 1
                 if token_hash:
                     v["tokens"].add(token_hash)
+            self._recent.append({
+                "ts": ts, "mode": mode,
+                "dose_ug": dose,
+                "km": float(summary.get("distance_km") or 0.0),
+                "co2_kg_mid": float(summary.get("co2_kg_mid") or 0.0),
+                "switched": bool(summary.get("switched")),
+            })
 
     def _publishable_cells(self, now: float, limit: int) -> list:
         """k>=3-window filter — call with LOCK held (aggregates only)."""
@@ -121,6 +153,14 @@ class TripAggregates:
             "cell": c, "trips": v["count"],
             "devices": len(v["tokens"]),
             "avg_dose_ug": round(v["dose_sum"] / v["count"], 1),
+            # g emitted per 100 m of corridor by the trips that crossed
+            # it — mode-mix implied intensity; None (not 0) when no trip
+            # carried a co2 figure or no km was attributed
+            "co2_g_per_100m": (round(v["co2_kg_sum"] * 100.0
+                                     / v["km_sum"], 1)
+                               if v["co2_trips"] and v["km_sum"] > 0
+                               else None),
+            "co2_trips": v["co2_trips"] or None,
         } for c, v in self._cells.items()
             if len(v["tokens"]) >= 3
             and now - v["last_ts"] <= self._cell_window_s]
@@ -146,6 +186,11 @@ class TripAggregates:
             "cells_tracked": cells_tracked,
             "corridors_publishable": n_pub,
         }
+
+    def recent(self, limit: int = 20) -> list:
+        """Newest-first aggregate trip events for the admin live feed."""
+        with LOCK:
+            return list(self._recent)[-limit:][::-1]
 
     def snapshot_cells(self) -> dict:
         """Test/debug view of the cell layer (aggregates, no raw data)."""
@@ -234,11 +279,20 @@ class DeviceLedger:
 
         return {"trips": len(rows), "km": _s("distance_km"),
                 "dose_ug": _s("dose_ug"), "co2_kg_mid": _s("co2_kg_mid"),
-                "pm25_g_mid": _s("pm25_g_mid")}
+                "pm25_g_mid": _s("pm25_g_mid"),
+                "co2_moving_g": _s("co2_moving_g"),
+                "co2_idle_g": _s("co2_idle_g"),
+                "co2_cold_g": _s("co2_cold_g")}
 
     def devices(self) -> int:
         with LOCK:
             return len(self._ledgers)
+
+    def delete(self, token_hash: str) -> int:
+        """Drop one device's rows — /v2/ledger DELETE. Returns count."""
+        with LOCK:
+            rows = self._ledgers.pop(token_hash, None)
+        return len(rows) if rows else 0
 
     def reset(self) -> None:
         with LOCK:

@@ -1,11 +1,12 @@
 /** ALive-108 component primitives — v2 light design system (docs/plan/03).
  * Sheets: surface + 1px line top edge, spring (damping 22, stiffness 220),
  * 3 detents (peek 15% · half 50% · full 92%). */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Animated, Dimensions, Pressable, StyleSheet, Text, View,
+  Animated, Dimensions, PanResponder, Pressable, StyleSheet, Text, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CIG_UG, F, NUM, V2Radius, V2T, V2Type } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
@@ -35,18 +36,53 @@ export function Sheet({
   style?: StyleProp<ViewStyle>;
 }) {
   const h = detent === "peek" ? WIN_H() * 0.15 : detent === "half" ? WIN_H() * 0.5 : WIN_H() * 0.92;
+  const insets = useSafeAreaInsets();
   const [anim] = useState(() => new Animated.Value(0));
+  /* interpolation must be a stable node across renders — creating it inline
+     makes RN 0.86's animated-props hook detach the swapped node and throw
+     `undefined is not a function` on sheet close (reproduced live). */
+  const [ty] = useState(() => anim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }));
+  /* grabber drag-to-dismiss — Google-Maps-grade sheet affordance: the
+     handle is the gesture surface; a downward pan follows the finger and
+     either flings closed (>90 px or fast) or springs back. JS driver —
+     same RN 0.86 native-detach guard as the enter spring. */
+  const [drag] = useState(() => new Animated.Value(0));
+  const [slide] = useState(() => Animated.add(ty, drag));
+  const pan = useMemo(() => {
+    if (!onClose) return null;
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_e, g) => drag.setValue(Math.max(0, g.dy)),
+      onPanResponderRelease: (_e, g) => {
+        if (g.dy > 90 || g.vy > 0.6) {
+          Animated.timing(drag, {
+            toValue: WIN_H(), duration: 170, useNativeDriver: false,
+          }).start(onClose);
+        } else {
+          Animated.spring(drag, { toValue: 0, damping: 22, stiffness: 220, useNativeDriver: false }).start();
+        }
+      },
+      onPanResponderTerminate: () =>
+        Animated.spring(drag, { toValue: 0, damping: 22, stiffness: 220, useNativeDriver: false }).start(),
+    });
+  }, [drag, onClose]);
   useEffect(() => {
-    Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: true }).start();
+    /* useNativeDriver must stay false here: RN 0.86's createAnimatedPropsHook
+       throws `undefined is not a function` inside its queueMicrotask detach /
+       mixed native-graph path (reproduced live on the search sheet). A 60 px
+       one-shot enter doesn't need the native driver anyway. */
+    Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: false }).start();
   }, [anim]);
   return (
     <Animated.View
       style={[us.sheet, {
         maxHeight: Math.max(96, h),
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
+        // gesture-nav pill / home indicator must never sit on sheet content
+        paddingBottom: insets.bottom,
+        transform: [{ translateY: slide }],
       }, style]}
     >
-      <View style={us.grabberRow}>
+      <View style={us.grabberRow} {...(pan?.panHandlers ?? {})}>
         <View style={us.grabber} />
         {onClose && (
           <Pressable onPress={onClose} hitSlop={14} style={us.sheetX} accessibilityRole="button"

@@ -127,15 +127,22 @@ def test_trim_boundary_straddle():
 
 def test_first_and_last_points_never_persisted():
     """The raw endpoints (home/office — the identifying bits) must not
-    survive into the store even at 4-dp precision."""
+    survive into the store even at 4-dp precision.
+
+    The route runs due east at constant lat, so every legitimate
+    mid-route cell key repeats "28.6315" — component-wise substrings
+    can't prove the endpoint leaked. What must be absent: the exact
+    (lat,lon) pair of each raw end, and each end's longitude, which is
+    unique along this monotone trace."""
     home = [77.2167, 28.6315]          # exact raw start, 4 dp
     traj = [home] + _line(30, start=(28.6315, 77.2167), dlon=0.0011)
     r = _post(traj)
     assert r.status_code == 200
     dump = _store_dump()
-    assert "28.6315" not in dump and "77.2167" not in dump
+    assert "28.6315,77.2167" not in dump and "77.2167" not in dump
     last = traj[-1]
-    assert f"{last[1]:.4f}" not in dump and f"{last[0]:.4f}" not in dump
+    assert f"{last[1]:.4f},{last[0]:.4f}" not in dump
+    assert f"{last[0]:.4f}" not in dump
 
 
 # --- thinning / shape attacks ---------------------------------------------------
@@ -166,8 +173,10 @@ def test_10k_point_trace_thins_and_caps():
     for a, b in zip(kept, kept[1:]):
         d = v2trip._hav_m(a[0], a[1], b[0], b[1])
         assert d >= 80, f"thinning broke: kept pair {d:.0f} m apart"
-    # …and nothing raw persisted
-    assert "77.20" not in _store_dump()
+    # …and nothing raw persisted — the raw start's exact pair is the
+    # only unambiguous probe: "77.20" alone is a substring of every
+    # legitimate mid-route ll: cell on this east-running trace.
+    assert "28.6300,77.2000" not in _store_dump()
 
 
 def test_gps_teleport_noise_cells_are_h3_only():
@@ -280,16 +289,21 @@ def test_k3_suppression_threshold():
     assert all(p["devices"] >= 3 for p in pubs)
     # published rows expose aggregates only — never a token, never a coord
     for p in pubs:
-        assert set(p) == {"cell", "trips", "devices", "avg_dose_ug"}
+        assert set(p) == {"cell", "trips", "devices", "avg_dose_ug",
+                          "co2_g_per_100m", "co2_trips"}
         assert H3_CELL.match(p["cell"])
 
 
 def test_repeat_trip_same_token_counts_once_per_cell_per_trip():
-    """Same device re-posting must not inflate 'devices' (k is distinct
-    devices) but still counts as a second traversal."""
+    """A device genuinely re-riding a route reports fresh summary numbers
+    and counts a second traversal without inflating 'devices'; a
+    byte-identical repost is a client retry and dedupes to one."""
     traj = _line(40, dlon=0.0009)
     _post(traj, token="repeat-dev")
-    _post(traj, token="repeat-dev")
+    _post(traj, token="repeat-dev")  # identical payload — a retry, not a ride
+    _post(traj, token="repeat-dev",
+          summary={"mode": "car", "distance_km": 5.4,
+                   "duration_s": 700, "dose_ug": 44.0})
     snap = store.TRIPS.snapshot_cells()
     assert all(c["devices"] == 1 for c in snap.values())
     assert all(c["count"] == 2 for c in snap.values())
@@ -362,11 +376,43 @@ def test_non_dict_body_rejected_honestly():
 
 
 def test_empty_body_is_harmless():
-    """{} records an empty trip: 0 cells, nothing personal, honest 200."""
+    """{} has nothing that can be a trip — honest 422, nothing minted
+    into the totals (the old 'empty 200' counted phantom trips)."""
     r = client.post("/v2/trip", json={})
-    assert r.status_code == 200
-    assert r.json()["cells_traversed"] == 0
+    assert r.status_code == 422
     assert store.TRIPS.snapshot_cells() == {}
+
+
+def test_implausible_summary_sanitized():
+    """admin-lane findings: absurd numbers and markup modes must never
+    enter the aggregates — implausible fields are dropped, and a
+    payload with nothing valid left is 422'd, not stored."""
+    r = client.post("/v2/trip", json={
+        "device_token": "absurd",
+        "summary": {"mode": "car", "distance_km": 1e12},
+        "trajectory": _line(40, dlon=0.0009)})
+    assert r.status_code == 422
+
+    r = client.post("/v2/trip", json={
+        "device_token": "xss-mode",
+        "summary": {"mode": "<script>alert(1)</script>",
+                    "distance_km": 4.0},
+        "trajectory": _line(40, dlon=0.0009)})
+    assert r.status_code == 200
+    assert r.json()["stored"]
+    dump = _store_dump()
+    assert "<script>" not in dump and "script" not in dump
+
+
+def test_negative_numbers_do_not_drain_totals():
+    """A negative distance/dose is finite — it used to pass _num and
+    subtract from every day counter it touched."""
+    r = client.post("/v2/trip", json={
+        "device_token": "negative",
+        "summary": {"mode": "car", "distance_km": -50.0,
+                    "dose_ug": -999.0},
+        "trajectory": _line(40, dlon=0.0009)})
+    assert r.status_code == 422
 
 
 def test_response_echoes_no_raw_data():

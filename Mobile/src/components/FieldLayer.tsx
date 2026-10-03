@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { GeoJSONSource, Layer, Marker } from "@maplibre/maplibre-react-native";
 import { F, V2T } from "../theme";
+import { DYNAMIC_TYPE } from "../a11y";
 
 // NOTE: the city field renders only inside "Delhi today" (doc 03 §map
 // styling) — it is not part of the rest map. Kept here ready for the
@@ -140,7 +141,7 @@ function Pin({ letter, color }: { letter: string; color: string }) {
     <View style={pin.wrap}>
       <View style={[pin.tail, { backgroundColor: color }]} />
       <View style={[pin.head, { backgroundColor: color }]}>
-        <Text style={pin.letter}>{letter}</Text>
+        <Text {...DYNAMIC_TYPE} style={pin.letter}>{letter}</Text>
       </View>
     </View>
   );

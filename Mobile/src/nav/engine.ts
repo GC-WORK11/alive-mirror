@@ -14,11 +14,12 @@ import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { API } from "../components/shell/net";
 import { contributorId } from "../community";
 import { fetchStrip } from "../api/strip";
+import type { EmissionsBreakdown } from "../components/shell/types";
 import { postJson, postReroute } from "../api/reroute";
 import { enqueueTripDonation } from "../offline/queue";
 import { LiveCounters } from "./counters";
 import {
-  ArrivalTracker, flattenCoords, havM, OffRouteTracker,
+  ARRIVE_M, ArrivalTracker, flattenCoords, havM, OffRouteTracker,
   polylineLengthM, snapToPolyline, type LonLat,
 } from "./offroute";
 import { fieldAtAlongM, stripCumM, type Band, type RouteStrip } from "./strip";
@@ -51,6 +52,10 @@ export type NavRoute = {
   /** context for the receipt comparison lines */
   alternatives?: { label: string; doseUgMid?: number | null; co2KgMid?: number | null }[];
   worstDoseUg?: number | null;
+  /** the chosen option's CO2 moving/idle/cold split — donated with the
+      trip summary so the collective can break out where ride CO2
+      comes from; null on modes that never carry a breakdown */
+  emissionsBreakdown?: EmissionsBreakdown;
 };
 
 export type NavSummary = {
@@ -62,6 +67,9 @@ export type NavSummary = {
   co2Kg: Band;
   pm25G: Band;
   donated: boolean;
+  /** false when the rider ended the trip manually ("End") before the
+      proximity detector fired — the receipt must not claim arrival */
+  endedEarly: boolean;
 };
 
 export type NavEngineOpts = {
@@ -79,6 +87,22 @@ export type NavEngineOpts = {
 
 export type NextStep = { instruction: string; distM: number };
 
+/** emissions.breakdown → the /v2/trip summary's optional CO2 split
+ *  (grams, 0.1 g rounding). Each mid is kept independently — a partial
+ *  breakdown still reports what it honestly has. */
+function co2Split(bd: EmissionsBreakdown | undefined): {
+  co2_moving_g?: number; co2_idle_g?: number; co2_cold_g?: number;
+} {
+  const out: { co2_moving_g?: number; co2_idle_g?: number; co2_cold_g?: number } = {};
+  const put = (k: keyof typeof out, v: number | null | undefined) => {
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = Math.round(v * 10) / 10;
+  };
+  put("co2_moving_g", bd?.moving_mid?.co2);
+  put("co2_idle_g", bd?.idle_mid?.co2);
+  put("co2_cold_g", bd?.cold_extra_mid?.co2);
+  return out;
+}
+
 export function useNavEngine(opts: NavEngineOpts) {
   const { route, camRef, onArrive, lang = "en", shareEnabled = false, speech = false } = opts;
   const api = opts.apiBase ?? API;
@@ -86,6 +110,8 @@ export function useNavEngine(opts: NavEngineOpts) {
   const [running, setRunning] = useState(false);
   const [arrived, setArrived] = useState(false);
   const [offRoute, setOffRoute] = useState(false);
+  /* true once /v2/reroute answers code:'outside_service_area' — the
+     rider left the dose field; NavChrome shows it honestly */ const [outsideField, setOutsideField] = useState(false);
   const [snapped, setSnapped] = useState<LonLat | null>(null);
   const [dose, setDose] = useState<Band>({ lo: 0, mid: 0, hi: 0 });
   const [co2, setCo2] = useState<Band>({ lo: 0, mid: 0, hi: 0 });
@@ -117,6 +143,8 @@ export function useNavEngine(opts: NavEngineOpts) {
   const nextStepRef = useRef<NextStep | null>(null);
   const tickDtRef = useRef(0);
   const lastFixRef = useRef<{ lat: number; lon: number; ts: number } | null>(null);
+  const lastCamTsRef = useRef(0);    // camera-commit throttle clock
+  const lastCamCenterRef = useRef<LonLat | null>(null);
   const trajRef = useRef<{ lat: number; lon: number; ts: number }[]>([]);
   const rerouteAtRef = useRef(0);    // cooldown clock
   const reroutingRef = useRef(false);
@@ -177,6 +205,10 @@ export function useNavEngine(opts: NavEngineOpts) {
         dose_ug: Math.round(s.doseUg.mid * 10) / 10,
         co2_kg_mid: Math.round(s.co2Kg.mid * 1000) / 1000,
         pm25_g_mid: Math.round(s.pm25G.mid * 1000) / 1000,
+        /* CO2 split the backend asked for — optional, bounds-checked
+           server-side; absent keys are the honest answer on modes
+           without a breakdown (metro/walk/cycle), not zeros */
+        ...co2Split(routeRef.current.emissionsBreakdown),
       },
     };
     try {
@@ -190,7 +222,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     }
   }, [api]);
 
-  const arrive = useCallback(() => {
+  const arrive = useCallback((completed = true) => {
     if (arrivedRef.current) return;
     arrivedRef.current = true;
     cleanup();
@@ -206,6 +238,7 @@ export function useNavEngine(opts: NavEngineOpts) {
       co2Kg: { lo: c.co2G.lo / 1000, mid: c.co2G.mid / 1000, hi: c.co2G.hi / 1000 },
       pm25G: { ...c.pm25G },
       donated: false,
+      endedEarly: !completed,
     };
     (async () => {
       if (shareEnabled && trajRef.current.length > 1) {
@@ -229,14 +262,16 @@ export function useNavEngine(opts: NavEngineOpts) {
           { route_id: r.route_id, at: fix, to: { lat: dest[1], lon: dest[0] }, mode: r.mode ?? "" },
           api)
       : null;
-    if (res?.geometry) {
-      const next: NavRoute = { ...r, route_id: res.route_id, geometry: res.geometry,
-        eta_s: res.eta_s ?? r.eta_s, mode: res.mode ?? r.mode };
+    if (res?.code === "outside_service_area") setOutsideField(true);
+    if (res?.result?.geometry) {
+      const rr = res.result;
+      const next: NavRoute = { ...r, route_id: rr.route_id, geometry: rr.geometry,
+        eta_s: rr.eta_s ?? r.eta_s, mode: rr.mode ?? r.mode };
       routeRef.current = next;
-      loadRoute(next, flattenCoords(res.geometry));
+      loadRoute(next, flattenCoords(rr.geometry));
       alongRef.current = 0;
       offRef.current.reset();
-      await refreshStrip(res.route_id);
+      await refreshStrip(rr.route_id);
     }
     reroutingRef.current = false;
     setOffRoute(false);
@@ -255,7 +290,22 @@ export function useNavEngine(opts: NavEngineOpts) {
       const adv = Math.max(0, snap.alongM - alongRef.current);
       alongRef.current += adv;
       pendMRef.current += adv;
-      setSnapped([snap.lon, snap.lat]);
+      // puck marker updates ride the camera gate below — one native commit
+      // per fix batch instead of two interleaved churns (SIGSEGV class)
+
+      // arrival by route odometer: a parked rider stops emitting fixes
+      // (distanceInterval filters stationary updates on both platforms),
+      // so the 2-fix proximity check below can strand the end state.
+      // alongM only grows, so one snapped fix within ARRIVE_M of the
+      // route end is an honest arrival. Guard: longer routes only, else
+      // a sub-90 m trip would arrive on its first fix.
+      // NB: deferred — arrive() tears down the location subscription,
+      // which must not happen inside its own callback (native SIGSEGV).
+      if (routeLenRef.current > ARRIVE_M * 1.5 &&
+          routeLenRef.current - alongRef.current <= ARRIVE_M) {
+        setTimeout(arrive, 0);
+        return;
+      }
       // speed: GNSS first, else derive from fix deltas
       let v = typeof loc.coords.speed === "number" && loc.coords.speed >= 0
         ? loc.coords.speed : NaN;
@@ -269,14 +319,27 @@ export function useNavEngine(opts: NavEngineOpts) {
 
       const heading = typeof loc.coords.heading === "number" && loc.coords.heading >= 0
         ? loc.coords.heading : snap.headingDeg;
-      camRef?.current?.easeTo({
-        center: [snap.lon, snap.lat],
-        bearing: heading,
-        zoom: speedRef.current > 10 ? 16 : 16.8,
-        pitch: 55,
-        duration: 900,
-        easing: "linear",
-      });
+      /* camera commits are the crash vector on the virtualized-GPU iOS sim
+         (ci15 telemetry: teleport puck-jump → re-frame SIGSEGV). Throttle
+         to ~1.5 Hz and, on teleport-class jumps (sim location commands),
+         stretch a single interpolated move instead of snapping. */
+      const jumpM = lastCamCenterRef.current
+        ? havM(lastCamCenterRef.current[1], lastCamCenterRef.current[0], snap.lat, snap.lon)
+        : 0;
+      if (now - lastCamTsRef.current >= 650) {
+        lastCamTsRef.current = now;
+        lastCamCenterRef.current = [snap.lon, snap.lat];
+        setSnapped([snap.lon, snap.lat]);
+        const teleport = jumpM > 300;
+        camRef?.current?.easeTo({
+          center: [snap.lon, snap.lat],
+          bearing: heading,
+          zoom: speedRef.current > 10 ? 16 : 16.8,
+          pitch: 55,
+          duration: teleport ? 1600 : 900,
+          easing: "linear",
+        });
+      }
 
       // speech cues + next-step banner
       for (const cue of cuesRef.current.poll(alongRef.current, lang)) {
@@ -313,7 +376,11 @@ export function useNavEngine(opts: NavEngineOpts) {
     lastFixRef.current = { lat, lon, ts: now };
 
     const dest = destRef.current;
-    if (dest && arrRef.current.update(havM(lat, lon, dest[1], dest[0]))) arrive();
+    // deferred for the same reason as the odometer trigger above —
+    // arrive() removes the watch subscription mid-callback → segfault
+    if (dest && arrRef.current.update(havM(lat, lon, dest[1], dest[0]))) {
+      setTimeout(arrive, 0);
+    }
   }, [arrive, camRef, lang, reroute]);
 
   const tick = useCallback(() => {
@@ -423,7 +490,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     dose, co2, pm25,
     progress, distRemainingM, etaS,
     offRoute, arrived, snapped, nextStep,
-    stripOk, fieldAgeMin, summary,
+    stripOk, fieldAgeMin, summary, outsideField,
   };
 }
 

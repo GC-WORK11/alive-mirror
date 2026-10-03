@@ -239,6 +239,8 @@ def _fetchers():
             "/v2/reroute", json={}).json(),
         "V2TripResponse": lambda: client.post("/v2/trip", json={
             "device_token": "contract-tok",
+            "summary": {"mode": "car", "distance_km": 3.0,
+                    "duration_s": 480, "dose_ug": 40.0},
             "trajectory": LINE["coordinates"]}).json(),
         "V2LedgerResponse": lambda: client.get("/v2/ledger", params={
             "token": "contract-tok"}).json(),

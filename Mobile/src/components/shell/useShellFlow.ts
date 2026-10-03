@@ -5,7 +5,7 @@
  * /v2 migration: options come from POST /v2/plan (dose + emissions bands,
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
  * /directions remain — /v2/plan carries no turn steps yet. */
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { Keyboard } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
@@ -13,7 +13,7 @@ import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notif
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
 import type { CommunityTotals } from "../../community";
 import {
-  getVehicle, saveVehicle, clearVehicle, planVehicle, type VehicleProfile,
+  getVehicle, saveVehicle, clearVehicle, planVehicle, planVehicleProfile, type VehicleProfile,
 } from "../../store/vehicle";
 import { planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
@@ -26,9 +26,10 @@ import type { Depart, Place, Step, V2Option } from "./types";
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
 /** network = we never got an answer (offline/timeout/http); server =
- *  /v2/plan answered with an `error` reason — different blame, the
- *  sheet labels each honestly instead of blaming the connection. */
-export type PlanError = { kind: "network" | "server"; detail?: string };
+ *  /v2/plan answered with an `error` reason; outside = the typed
+ *  both-ends-outside-NCR answer — different blame, the sheet labels
+ *  each honestly instead of blaming the connection. */
+export type PlanError = { kind: "network" | "server" | "outside"; detail?: string };
 
 export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean, lang: "en" | "hi" = "en") {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -70,6 +71,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   /** Persist a new S8 answer; changing it re-plans (vehicle is a dep of
    *  the compare effect below). null = wiped (delete-my-data) — clear
    *  the store instead of resurrecting a file. */
+  const planHoldMs = useRef(0);
   const setVehicleProfile = useCallback((p: VehicleProfile | null) => {
     if (p == null) {
       clearVehicle().catch(() => {});
@@ -77,6 +79,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
       return;
     }
     saveVehicle(p).catch(() => {});
+    // the picker sheet is animating out right now — hold the next plan
+    // fetch well past its close animation so options+tint mount on a
+    // settled screen (sim render-thread spike otherwise)
+    planHoldMs.current = 1400;
     setVehicle(p);
   }, []);
 
@@ -98,7 +104,9 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         : { name: t("placeCentralDelhi", lang), subtitle: "", lat: DELHI[1], lon: DELHI[0] });
     }
     setPhase("compare");
-    camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 13.5, duration: 800 });
+    // search sheet is still animating out — start the camera move after
+    // it settles, not inside the same frame
+    setTimeout(() => camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 13.5, duration: 800 }), 400);
   }, [editWhich, from, to, camRef, lang]);
 
   /* ---- routes: destination+origin set → /v2/plan + legacy /depart ---- */
@@ -111,15 +119,26 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
       setLoadingRoute(true);
       setPlanError(null);
       try {
+        if (planHoldMs.current > 0) {
+          const hold = planHoldMs.current;
+          planHoldMs.current = 0;
+          await new Promise((r) => setTimeout(r, hold));
+          if (cancelled) return;
+        }
         const pj = await planOptions({
           from: { lat: from.lat, lon: from.lon },
           to: { lat: to.lat, lon: to.lon },
           vehicle: planVehicle(vehicle),
-        }, 15000);
+          vehicle_profile: planVehicleProfile(vehicle),
+        }, 30000);   // far-route plans krige per query — measured >25 s on CP→Pataudi
         if (cancelled) return;
         if (pj.error && pj.options.length === 0) {
           setOptions([]); setDepart(null);
-          setPlanError({ kind: "server", detail: pj.error });
+          // typed outside-coverage answer → its own notice (retry can't
+          // fix a geography problem; the sheet offers 'change the trip')
+          const outside = pj.code === "outside_service_area"
+            || /outside service area/i.test(pj.error);
+          setPlanError({ kind: outside ? "outside" : "server", detail: pj.error });
           return;
         }
         const opts = pj.options;
@@ -138,10 +157,14 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         const g = opts[0]?.geometry;
         if (g?.type === "LineString") {
           const c = (g as GeoJSON.LineString).coordinates;
-          camRef.current?.fitBounds(
-            [Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1])),
-             Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))],
-            { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 });
+          const bounds: [number, number, number, number] = [
+            Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1])),
+            Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))];
+          // let the compare sheet finish mounting before the camera moves —
+          // simultaneous camera anim + layer mount is a render-thread spike
+          setTimeout(() => {
+            if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 });
+          }, 350);
         }
       } catch {
         if (!cancelled) {
@@ -218,13 +241,24 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     Keyboard.dismiss();
     const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
     setFollow(!!(pos && inNcr(pos.coords.latitude, pos.coords.longitude)));
-    camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
-    camRef.current?.setStop({ pitch: 55, duration: 800 });
+    /* the sheet-unmount and the camera commits must not land in the same
+       frame — back-to-back render commits are the residual-SIGSEGV trigger
+       class on the virtualized-GPU iOS sim (ci15 telemetry). Defer the
+       camera work a beat so the close commit lands alone. */
+    setTimeout(() => {
+      camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
+      camRef.current?.setStop({ pitch: 55, duration: 800 });
+    }, 80);
   }, [options, selected, from, to, camRef]);
 
   const exitNav = useCallback(() => {
-    setPhase("compare"); setFollow(false);
-    camRef.current?.setStop({ pitch: 0, duration: 700 });
+    setPhase("compare");
+    /* the flip frame already carries receipt-unmount + chrome remount —
+       every map-side commit rides staggered later, ~one per frame-budget,
+       so nothing piles inside the teardown window (ci15: the last
+       residual-SIGSEGV hot spot, 3× at Done). */
+    setTimeout(() => setFollow(false), 300);
+    setTimeout(() => camRef.current?.setStop({ pitch: 0, duration: 700 }), 400);
   }, [camRef]);
 
   /* ---- ledger: only a COMPLETED trip is logged (claims audit — logging

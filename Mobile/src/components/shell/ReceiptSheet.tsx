@@ -27,20 +27,14 @@
  * figure gets a comparison or an "est." tag. Honest empty states —
  * a missing band says so instead of showing 0.
  *
- * ── PROPOSED strings.ts keys (strings.ts owned by the i18n lane — do
- *    not edit here; LOCAL below carries interim en+hi strings with the
- *    same interpolation contract, swap to t() once the keys land) ──
- *    receipt_distance:   "distance"          / "दूरी"
- *    receipt_duration:   "time"              / "समय"
- *    receipt_doseUgBand: "est. {lo}–{hi} µg" / "अनुमान {lo}–{hi} µg"
- *    receipt_save:       "save"              / "सहेजें"
  */
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
-import { t, type Lang } from "../../i18n/strings";
+import { approx, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop } from "../../a11y";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 
 export type ReceiptAlt = { label: string; co2KgMid: number | null };
@@ -69,30 +63,9 @@ export type ReceiptData = {
   fieldAgeMin?: number | null;
   /** whether the trip was actually donated to /v2/trip */
   donated?: boolean;
-};
-
-type LocalKey =
-  | "receipt_distance" | "receipt_duration"
-  | "receipt_doseUgBand" | "receipt_save";
-/** Interim strings for the proposed keys above — same t() contract. */
-const LOCAL: Record<Lang, Record<LocalKey, string>> = {
-  en: {
-    receipt_distance: "distance",
-    receipt_duration: "time",
-    receipt_doseUgBand: "est. {lo}–{hi} µg",
-    receipt_save: "save",
-  },
-  hi: {
-    receipt_distance: "दूरी",
-    receipt_duration: "समय",
-    receipt_doseUgBand: "अनुमान {lo}–{hi} µg",
-    receipt_save: "सहेजें",
-  },
-};
-const lt = (key: LocalKey, lang: Lang, vars?: Record<string, string | number>) => {
-  let s = LOCAL[lang][key] ?? LOCAL.en[key];
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
-  return s;
+  /** true when the rider ended the trip manually before reaching the
+      destination — the header must not claim "You're here" */
+  endedEarly?: boolean;
 };
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -147,6 +120,7 @@ export function ReceiptSheet({
   /** tertiary action — explicit save to the trip ledger */
   onSave?: (() => void) | null;
 }) {
+  const insets = useSafeAreaInsets();
   if (!data) return null;
   const dose = data.doseUg;
   const cigs = dose ? cigOf(dose.mid) : null;
@@ -162,7 +136,7 @@ export function ReceiptSheet({
   const co2 = data.co2Kg;
   const co2Zero = co2 != null && co2.hi <= 0;
   const breathedTxt = cigs != null
-    ? t("receipt_breathed", lang, { n: cigs > 0 && cigs < 0.01 ? 0.01 : cigs })
+    ? t("receipt_breathed", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
     : null;
   const ratioTxt = ratio != null && ratio > 1.05
     ? (data.worstLabel
@@ -172,11 +146,11 @@ export function ReceiptSheet({
   const scaleA11y = [breathedTxt, ratioTxt].filter(Boolean).join(". ");
 
   return (
-    <View style={s.sheet}>
+    <View style={[s.sheet, { bottom: insets.bottom + 14 }]}>
       {/* ── header: arrival + mode chip ── */}
       <View style={s.head}>
         <Text style={[s.title, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-          {t("youreHere", lang)}
+          {t(data?.endedEarly ? "tripEnded" : "youreHere", lang)}
         </Text>
         {data.modeLabel ? (
           <View style={s.modeChip}>
@@ -205,12 +179,12 @@ export function ReceiptSheet({
       ) : (
         <>
           <Text style={[s.heroNum, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-            {t("nav_cigs", lang, { n: cigs > 0 && cigs < 0.01 ? 0.01 : cigs })}
-            <Text style={s.est}>  {t("receipt_estShort", lang)}</Text>
+            {t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })}
+            <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose && dose.hi - dose.lo >= 1 && (
             <Text style={[s.bandTxt, NUM]} {...DYNAMIC_TYPE}>
-              {lt("receipt_doseUgBand", lang, {
+              {t("receipt_doseUgBand", lang, {
                 lo: Math.round(dose.lo), hi: Math.round(dose.hi),
               })}
             </Text>
@@ -225,7 +199,7 @@ export function ReceiptSheet({
           ) : null}
           {savedCigs != null && savedCigs >= 0.02 && (
             <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
-              {t("receiptSaved", lang, { n: savedCigs })}
+              {t("receiptSaved", lang, { n: approx(savedCigs) })}
             </Text>
           )}
         </>
@@ -236,7 +210,7 @@ export function ReceiptSheet({
         <View style={s.cell}>
           <Text style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
-            {co2 == null ? "—" : t("nav_kg", lang, { n: r1(Math.max(0, co2.mid)) })}
+            {co2 == null ? "—" : t("nav_kg", lang, { n: approx(r1(Math.max(0, co2.mid))) })}
           </Text>
           <Text style={[s.cellCap, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
@@ -251,7 +225,7 @@ export function ReceiptSheet({
             </Text>
             <Text style={[s.cellCap, { fontFamily: fam(lang, "reg") }]}
               numberOfLines={1} {...DYNAMIC_TYPE}>
-              {lt("receipt_distance", lang)}
+              {t("receipt_distance", lang)}
             </Text>
           </View>
         )}
@@ -262,7 +236,7 @@ export function ReceiptSheet({
           </Text>
           <Text style={[s.cellCap, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
-            {lt("receipt_duration", lang)}
+            {t("receipt_duration", lang)}
           </Text>
         </View>
       </View>
@@ -282,17 +256,20 @@ export function ReceiptSheet({
                   ? `  ·  ${r1(co2.lo)}–${r1(co2.hi)} kg`
                   : ""}
               </Text>
-              {data.pm25G != null && data.pm25G.hi > 0 && (
-                <Text style={[s.detailTxt, NUM]} {...DYNAMIC_TYPE}>
-                  {t("receipt_pmBand", lang, {
-                    lo: r2(data.pm25G.lo), hi: r2(data.pm25G.hi),
-                  })}
-                </Text>
-              )}
+              {data.pm25G != null && data.pm25G.hi > 0 && (() => {
+                const lo = r2(data.pm25G.lo), hi = r2(data.pm25G.hi);
+                /* a band that collapses at display precision: never print
+                   "0–0"; a true-zero print would overstate, so a sub-
+                   resolution band says <0.01 instead */
+                const txt = lo === hi
+                  ? (hi === 0 ? t("receipt_pmBandTiny", lang) : t("receipt_pmBandOne", lang, { x: hi }))
+                  : t("receipt_pmBand", lang, { lo, hi });
+                return <Text style={[s.detailTxt, NUM]} {...DYNAMIC_TYPE}>{txt}</Text>;
+              })()}
               {data.alt && data.alt.co2KgMid != null && (
                 <Text style={[s.detailTxt, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
                   {t("receipt_altPutOut", lang, {
-                    m: data.alt.label, n: r1(Math.max(0, data.alt.co2KgMid)),
+                    m: data.alt.label, n: approx(r1(Math.max(0, data.alt.co2KgMid))),
                   })}
                 </Text>
               )}
@@ -347,9 +324,9 @@ export function ReceiptSheet({
           {onSave ? (
             <Pressable onPress={onSave} hitSlop={slop(10)}
               style={({ pressed }) => [s.tertiary, pressed && s.pressed]}
-              {...a11y(lt("receipt_save", lang), undefined, "button", { lang })}>
+              {...a11y(t("receipt_save", lang), undefined, "button", { lang })}>
               <Text style={[s.tertiaryTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
-                {lt("receipt_save", lang)}
+                {t("receipt_save", lang)}
               </Text>
             </Pressable>
           ) : null}
@@ -361,7 +338,7 @@ export function ReceiptSheet({
 
 const s = StyleSheet.create({
   sheet: {
-    position: "absolute", left: 12, right: 12, bottom: 28,
+    position: "absolute", left: 12, right: 12,
     backgroundColor: V2T.surface, borderRadius: V2Radius.sheet,
     borderWidth: 1, borderColor: V2T.line, padding: 18, paddingBottom: 14,
     shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 18,
@@ -442,7 +419,8 @@ const s = StyleSheet.create({
   share: {
     minHeight: 44, flexDirection: "row", alignItems: "center", gap: 7,
     borderRadius: V2Radius.pill, borderWidth: 1, borderColor: V2T.line,
-    backgroundColor: V2T.surface2, paddingHorizontal: 18, paddingVertical: 11,
+    /* surface (not surface2): accent label needs ≥4.5:1 — on the grey
+       pill it was 3.88; on white it's 4.51 */ backgroundColor: V2T.surface, paddingHorizontal: 18, paddingVertical: 11,
   },
   shareTxt: { fontSize: V2Type.secondary, color: V2T.accent },
   tertiaryRow: {

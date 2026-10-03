@@ -90,9 +90,20 @@
              font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
              color:var(--ink2);animation:scroll 46s linear infinite}
   .ticker-in i{font-style:normal;color:var(--over);margin:0 18px}
-  .ticker-in b{color:var(--ink);font-weight:400}
+  .ticker-in b{color:var(--ink);font-weight:400;text-transform:none}
   @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
   @media(prefers-reduced-motion:reduce){.ticker-in{animation:none}.live-dot{animation:none}}
+
+  /* ---------- forecast strip ---------- */
+  #forecast{margin-top:14px}
+  .fc-row{display:flex;gap:6px;align-items:flex-end;height:44px}
+  .fc-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:3px}
+  .fc-bar{border-radius:3px 3px 0 0;min-height:3px}
+  .fc-lbls{display:flex;gap:6px;margin-top:5px;font-family:var(--mono);
+           font-size:8.5px;letter-spacing:.1em;color:var(--ink3,#65707F)}
+  .fc-lbls span{flex:1}
+  .fc-cap{margin-top:7px;font-family:var(--mono);font-size:9.5px;
+          letter-spacing:.14em;text-transform:uppercase;color:var(--ink3,#65707F)}
 
   /* ---------- sections ---------- */
   section{padding:clamp(56px,9vh,104px) 0 8px}
@@ -264,6 +275,7 @@
         σ-band — the width of our honesty, propagated from instrument
         noise and station gaps, never collapsed into fake precision.</p>
         <p id="typical"></p>
+        <div id="forecast"></div>
       </div>
     </div>
   </section>
@@ -289,12 +301,17 @@
       <div class="stat">
         <div class="k">commutes shared today</div>
         <div class="v"><span id="obs">—</span><small> commutes</small></div>
-        <div class="d"><b><span id="km">—</span> km</b> travelled by <b><span id="contrib">—</span></b> anonymous contributors</div>
+        <div class="d"><b><span id="km">—</span> km</b> travelled — <b><span id="contrib">—</span></b> commutes donated in 72 h</div>
       </div>
       <div class="stat">
-        <div class="k">smoke shifted <small style="opacity:.55">est.</small></div>
-        <div class="v"><span id="saved">—</span><small> µg</small></div>
-        <div class="d">estimated vs each trip's smokiest option — modelled, not measured · <b>≈<span id="savedcig">—</span> cigarettes</b></div>
+        <div class="k">the city emitted today</div>
+        <div class="v"><span id="co2">—</span><small> kg co₂</small></div>
+        <div class="d" id="co2d">tailpipe co₂ + pm2.5 from donated commutes — the emission half of every receipt</div>
+      </div>
+      <div class="stat">
+        <div class="k">corridors measured</div>
+        <div class="v"><span id="corr">—</span><small> publishable</small></div>
+        <div class="d">a corridor cell publishes only with ≥3 distinct devices in 72 h · <b><span id="cellstr">—</span> cells tracked</b></div>
       </div>
     </div>
   </section>
@@ -420,10 +437,10 @@ function boot(){
 /* ---------- data ---------- */
 async function load(){
   try{
-    const [g,a,ad]=await Promise.all([
+    const [g,a,cy]=await Promise.all([
       fetch('/grid?cells=34').then(r=>r.json()),
       fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.json()),
-      fetch('/admin/api').then(r=>r.json())]);
+      fetch('/v2/city').then(r=>r.json())]);
     cells=(g.features||[]).map(f=>{const p=cellC(f.geometry);if(!p)return null;
       const [x,y]=xy(p[0],p[1]);
       return{x,y,pm:f.properties.pm25||0,conf:f.properties.conf||'lo',
@@ -433,8 +450,23 @@ async function load(){
     buildLook();paintBase();
     wind=a.wind||wind;
 
-    /* breath counter — dose_ug ÷ ambient pm = m³ breathed, ÷0.5L = breaths */
-    const t=ad.community||{};
+    /* breath counter — dose_ug ÷ ambient pm = m³ breathed, ÷0.5L = breaths.
+     * Community aggregates come from the PUBLIC /v2/city payload
+     * (trips.days keyed by UTC date) — /admin/api is token-gated and
+     * this page must never show a 401 as zeros. */
+    const days=(cy.trips&&cy.trips.days)||{};
+    const dayKeys=Object.keys(days).sort();
+    const latest=dayKeys.length?days[dayKeys[dayKeys.length-1]]:{};
+    const t={
+      dose_ug_24h: latest.dose_ug||0,
+      obs_24h: latest.trips||0,
+      obs_total: dayKeys.reduce((s,k)=>s+(days[k].trips||0),0),
+      km_24h: latest.km||0,
+      cells_tracked: cy.trips?.cells_tracked||0,
+      corridors_publishable: cy.trips?.publishable_corridors??cy.trips?.corridors_publishable??0,
+    };
+    const ad={corridors:cy.corridors||[],field_age_s:cy.field_age_s,
+              refresh_in_s:cy.field?.refresh_in_s,freshness:cy.freshness};
     const pm=a.pm25||0;
     breaths=pm>0?(t.dose_ug_24h||0)/pm*2000:0;
     paintBreaths(breaths);
@@ -444,25 +476,40 @@ async function load(){
     setTxt('windtag',`wind ${Math.round(wind.speed_kmh)} km/h · from ${Math.round(wind.from_deg)}° ${compass(wind.from_deg)}`);
     paintBand(a);
     setTxt('obs',IN(t.obs_24h??t.obs_total));
-    setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.contributors));
-    setTxt('saved',IN(t.avoided_ug_all));
-    setTxt('savedcig',((t.avoided_ug_all||0)/316).toFixed(1));
+    setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_total));
+    setTxt('corr',IN(t.corridors_publishable));
+    setTxt('cellstr',IN(t.cells_tracked));
+    /* emission parity — the same donated day carries co2_kg_mid,
+       pm25_g_mid and the mode tally; zero days read as no data */
+    const co2v=latest.co2_kg_mid,pmv=latest.pm25_g_mid;
+    if(co2v!=null&&(latest.trips||0)>0){
+      setTxt('co2',(+co2v).toFixed(co2v<1?2:1));
+      const md=latest.modes?Object.entries(latest.modes).sort((a,b)=>b[1]-a[1])
+        .map(([m,n])=>`${m} ${n}`).join(' · '):'';
+      document.getElementById('co2d').innerHTML=
+        `tailpipe pm2.5 <b>${pmv!=null?(+pmv).toFixed(pmv<1?3:1)+' g':'—'}</b> · mid estimate`+
+        `${md?` · by mode: ${md}`:''}`;
+    }else{
+      setTxt('co2','—');
+      setTxt('co2d','no donated commutes today — the app fills this as delhi moves');
+    }
     paintCigs((t.dose_ug_24h||0)/316);
-    setTxt('nstations',a.field?.station_readings??'28');
+    setTxt('nstations',a.field?.station_readings??'—');
     setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
     const ty=a.typical;
     document.getElementById('typical').innerHTML=ty?
       `<span class="vs">${ty.vs_now_pct>0?'+':''}${ty.vs_now_pct}%</span> vs the decade-typical <b>${Math.round(ty.median)} µg/m³</b> for this month, this hour (9M measured station-hours).`:'';
+    paintForecast(a.next_hours);
     paintTicker(a,t,ad);
     paintMini();
     const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
       `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>
-       <td class="cell">${c.lat.toFixed(3)}°N<small> · </small>${c.lon.toFixed(3)}°E</td>
-       <td class="num">${IN(c.samples)}</td>
+       <td class="cell">${c.name||`${c.lat.toFixed(3)}°N · ${c.lon.toFixed(3)}°E`}</td>
+       <td class="num">${IN(c.trips)}</td>
        <td class="num"><span class="dose-chip" style="color:${ramp(Math.min(.5,c.avg_dose_ug/316),1)};border:1px solid ${ramp(Math.min(1,c.avg_dose_ug/316),.4)}">${IN(c.avg_dose_ug)} µg</span></td>
-       <td><span class="modep">${(c.top_mode||'—').replace(/_/g,' ')}</span></td></tr>`).join('');
+       <td><span class="modep">${c.relative||'—'}</span></td></tr>`).join('');
     document.getElementById('corridors').innerHTML=
-      '<tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>top mode</th></tr>'+
+      '<tr><th></th><th>corridor</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>vs median</th></tr>'+
       (rows||'<tr><td colspan="5" style="color:var(--ink3)">no donated traversals yet — the app fills this as delhi moves</td></tr>');
     setTxt('stamp','updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' ist');
   }catch(e){setTxt('stamp','reconnecting…')}
@@ -498,17 +545,36 @@ function paintCigs(cigs){
 function paintTicker(a,t,ad){
   const items=[
     [`pm2.5`,`${a.pm25??'—'} µg/m³`],
+    [`pm10`,`${a.pm10??'—'} µg/m³`],
+    [`no₂`,`${a.no2??'—'} µg/m³`],
+    [`o₃`,`${a.o3??'—'} µg/m³`],
+    [`co`,`${a.co??'—'} µg/m³`],
+    [`so₂`,`${a.so2??'—'} µg/m³`],
+    [`us aqi`,`${a.us_aqi??'—'}`],
     [`krige band`,`${a.pm25_lo??'—'}–${a.pm25_hi??'—'}`],
     [`wind`,`${Math.round(wind.speed_kmh)} km/h from ${compass(wind.from_deg)}`],
     [`instruments`,`${a.field?.station_readings??'—'} live`],
     [`grap indicative`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
     [`commutes today`,`${IN(t.obs_24h)}`],
-    [`km measured`,`${IN(t.km_24h)}`],
-    [`µg shifted (est.)`,`${IN(t.avoided_ug_all)}`],
-    [`hazard reports`,`${ad.community?.active_reports??t.active_reports??0}`],
-    [`uptime`,`${Math.floor((ad.uptime_s||0)/60)} min`]];
+    [`km donated`,`${IN(t.km_24h)}`],
+    [`cells tracked`,`${IN(t.cells_tracked)}`],
+    [`corridors ≥3 devices`,`${IN(t.corridors_publishable)}`],
+    [`field age`,`${ad.field_age_s!=null?Math.floor(ad.field_age_s/60)+' min':'—'}`],
+    [`next refresh`,`${ad.refresh_in_s!=null?Math.floor(ad.refresh_in_s/60)+' min':'—'}`]];
   const s=items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>◆</i>');
   document.getElementById('ticker').innerHTML=s+'<i>◆</i>'+s+'<i>◆</i>';
+}
+function paintForecast(slots){
+  const el=document.getElementById('forecast');
+  if(!slots||slots.length<2){el.innerHTML='';return}
+  const mx=Math.max(...slots.map(s=>s.pm25||0),1);
+  el.innerHTML='<div class="fc-row">'+slots.map(s=>{
+    const t=Math.min(1,(s.pm25||0)/300);
+    const h=Math.max(3,Math.round(34*(s.pm25||0)/mx));
+    return `<div class="fc-col" title="+${s.h}h · ${s.pm25} µg/m³"><div class="fc-bar" style="height:${h}px;background:${ramp(t,.85)}"></div></div>`
+  }).join('')+'</div>'
+    +'<div class="fc-lbls">'+slots.map(s=>`<span>${s.h===0?'now':(s.h%3===0?'+'+s.h+'h':'')}</span>`).join('')+'</div>'
+    +'<div class="fc-cap">the next 12 hours — cams outlook anchored to the live field · µg/m³</div>';
 }
 function paintBreaths(v){const el=document.getElementById('breaths');
   el.textContent=Math.floor(v).toLocaleString('en-IN')}

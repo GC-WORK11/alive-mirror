@@ -30,19 +30,19 @@
 //   onb_pageOf     "page {n} of {m}"   — a11y label for the dots (they're
 //                  hidden from the reader until this key exists)
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Animated,
-  Modal,
-  Platform,
+  BackHandler,
+  PanResponder,
   Pressable,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fam, NUM, V2Radius, V2T, V2Type } from "../theme";
 import { t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
@@ -138,6 +138,7 @@ function OnboardingSheet({
   onDone: (r: { sharing: SharingChoice }) => void;
 }) {
   const [step, setStep] = useState(0);
+  const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
 
   // soft rise-in per page, skipped under the OS reduce-motion switch —
@@ -152,10 +153,13 @@ function OnboardingSheet({
     Animated.timing(anim, {
       toValue: 1,
       duration: 200,
-      useNativeDriver: true,
+      // JS driver — same RN 0.86 native-detach guard as ui.tsx Sheet
+      useNativeDriver: false,
     }).start();
   }, [step, reduceMotion, anim]);
-  const rise = anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
+  // stable node — inline interpolation re-created per render trips RN 0.86's
+  // animated-props detach path (same guard as ui.tsx Sheet)
+  const rise = useMemo(() => anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }), [anim]);
 
   /** Every exit path lands here — persists the answer, then reports it. */
   const finish = (sharing: SharingChoice) => {
@@ -166,8 +170,21 @@ function OnboardingSheet({
   // Skip → sharing on (doc 07 §3 default; see header note + onboarding.md).
   const skip = () => finish("on");
 
+  /* the dots read as a pager — make the swipe real: horizontal-dominant
+     pans flip pages, vertical scroll passes through untouched
+     (Android forensic find) */
+  const swipe = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_e, g) =>
+      Math.abs(g.dx) > 28 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+    onPanResponderRelease: (_e, g) => {
+      if (g.dx < -48 && step < PAGE_COUNT - 1) setStep(step + 1);
+      else if (g.dx > 48 && step > 0) setStep(step - 1);
+    },
+  }), [step]);
+
   return (
-    <View style={ss.root} accessibilityViewIsModal>
+    <View {...swipe.panHandlers}
+      style={[ss.root, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]} accessibilityViewIsModal>
       <StatusBar style="dark" />
 
       {/* brand mark + persistent skip — same spots on every page */}
@@ -387,33 +404,33 @@ export function OnboardingScreen({
   lang?: Lang;
   onDone: (r: { sharing: SharingChoice }) => void;
 }) {
+  /* hardware back stays inert — leaving needs an explicit answer or Skip
+     (the old Modal's onRequestClose swallowed it; the overlay needs a
+     BackHandler to keep that contract) */
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
+  }, [visible]);
+
+  /* overlay, not Modal — RN 0.86's Modal native present/dismiss segfaulted
+     this stack on the search sheet (SIGSEGV in runningboardd); onboarding
+     is the worst place to inherit that crash class */
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      // hardware back stays inert — leaving needs an explicit answer or Skip
-      onRequestClose={() => {}}
-      statusBarTranslucent
-    >
-      <View style={ss.backdrop}>
-        {visible ? <OnboardingSheet lang={lang} onDone={onDone} /> : null}
-      </View>
-    </Modal>
+    <View style={ss.backdrop}>
+      <OnboardingSheet lang={lang} onDone={onDone} />
+    </View>
   );
 }
 
 export default OnboardingScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.bg },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.bg },
   root: {
     flex: 1,
-    paddingTop: Platform.select({
-      ios: 56,
-      android: (RNStatusBar.currentHeight ?? 24) + 12,
-      default: 20,
-    }),
-    paddingBottom: 20,
+
   },
 
   // top bar — wordmark left, persistent skip right

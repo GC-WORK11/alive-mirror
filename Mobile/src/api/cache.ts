@@ -86,9 +86,21 @@ export async function cachePeek<T>(key: string): Promise<CacheHit<T> | null> {
   return read<T>(key);
 }
 
-/** Write a value under `key`, declaring `ttlMs` as its freshness window. */
-export async function cacheSet<T>(key: string, value: T, ttlMs: number): Promise<void> {
+/* Wipe generation: bump on every cacheClear so a fetch that STARTED
+   before delete-my-data can never re-write route-GPS files after the
+   wipe (Android forensic S2 — plan/strip payloads embed ~100 m O/D
+   coords; a late-resolving request resurrected them post-delete). */
+let wipeGen = 0;
+export function cacheGeneration(): number {
+  return wipeGen;
+}
+
+/** Write a value under `key`, declaring `ttlMs` as its freshness window.
+ * `since` = the generation captured when the request started; a wipe in
+ * between means this payload belongs to the deleted era — don't write. */
+export async function cacheSet<T>(key: string, value: T, ttlMs: number, since?: number): Promise<void> {
   try {
+    if (since != null && since !== wipeGen) return;
     ensureDir();
     const f = fileFor(key);
     if (!f.exists) f.create({ intermediates: true });
@@ -116,6 +128,7 @@ export async function cacheAgeS(key: string): Promise<number | null> {
 
 /** Drop every cached entry. */
 export async function cacheClear(): Promise<number> {
+  wipeGen++;
   let n = 0;
   try {
     ensureDir();
@@ -136,9 +149,13 @@ export const cacheKeys = {
   /** last-good GET /v2/city ("Delhi today") */
   city: (): string => "v2:city",
   /** last-good POST /v2/plan options, keyed by a ~100 m-rounded O/D pair
-   * so "same trip as before" finds its cached options */
-  plan: (fromLat: number, fromLon: number, toLat: number, toLon: number): string =>
-    `v2:plan:${fromLat.toFixed(3)},${fromLon.toFixed(3)}>${toLat.toFixed(3)},${toLon.toFixed(3)}`,
+   *  + the vehicle signature — a changed S8 answer must not serve the
+   *  stale fleet-prior emissions bands it asked with an older profile.
+   *  ~100 m rounding keeps O/D neighbours sharing one entry, so "same
+   *  trip as before" finds its cached options */
+  plan: (fromLat: number, fromLon: number, toLat: number, toLon: number,
+    vkey = ""): string =>
+    `v2:plan:${fromLat.toFixed(3)},${fromLon.toFixed(3)}>${toLat.toFixed(3)},${toLon.toFixed(3)}|${vkey}`,
   /** last-good GET /v2/strip by route_id */
   strip: (routeId: string): string => `v2:strip:${routeId}`,
 };

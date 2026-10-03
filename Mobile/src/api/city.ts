@@ -39,6 +39,25 @@ export type CityPayload = {
   ts: number;
   generated_at?: string;
   pm25_stats?: { n: number; mean?: number; median?: number; max?: number };
+  /** Every other real species the field serves — lattice mean/median/max
+      over the same NCR points; a species is omitted when the serving
+      field has no data for it (never guessed). */
+  species?: Record<
+    string,
+    { mean: number; median: number; max: number; n: number }
+  >;
+  /** Decade-climatology vs now at the city centroid — omitted when the
+      archive or the live mean is missing (no fabricated baseline). */
+  typical?: {
+    month: number;
+    hour_ist: number;
+    median: number;
+    p25?: number | null;
+    p75?: number | null;
+    vs_now_pct?: number | null;
+  } | null;
+  /** Live-anchored CAMS forecast at the centroid — next 12 hours. */
+  next_hours?: { h: number; start: string | null; pm25: number }[] | null;
   /** The hero figure — null when the field has no data (never faked). */
   breath: {
     pm25_ugm3: CityBand;

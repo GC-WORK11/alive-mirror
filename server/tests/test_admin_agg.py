@@ -27,6 +27,7 @@ ENDPOINTS = [
     "/admin/api/corridors",
     "/admin/api/donations",
     "/admin/api/validation",
+    "/admin/api/model",
 ]
 
 # Field names that must never appear anywhere in an admin response —
@@ -91,7 +92,7 @@ def test_status_shape():
 def test_sources_shape():
     d = client.get("/admin/api/sources").json()
     assert set(d["sources"]) == {"model", "met", "stations",
-                               "fires", "location"}
+                               "fires", "location", "routing"}
     for s in d["sources"].values():
         assert s.get("up") in (True, False, None)  # tri-state, never guessed
         assert "detail" in s
@@ -128,7 +129,8 @@ def test_corridors_k_suppression_passthrough():
     # passthrough: endpoint shows exactly what the store publishes
     assert cells == [r["cell"] for r in TRIPS.corridors(limit=25)]
     row = d["rows"][0]
-    assert set(row) == {"cell", "near", "trips", "devices", "avg_dose_ug"}
+    assert set(row) == {"cell", "near", "trips", "devices", "avg_dose_ug",
+                        "co2_g_per_100m", "co2_trips"}
 
 
 def test_corridors_assert_tripwire(monkeypatch):
@@ -171,6 +173,38 @@ def test_donations_totals_sum_days():
     today = time.strftime("%Y-%m-%d", time.gmtime())
     assert today in d["days"] and d["n_days"] == 1
     assert d["empty"] is False
+
+
+def test_donations_co2_split_only_counts_reporters():
+    _donate(["cellB"], ["t1"], {"mode": "car", "distance_km": 9.0,
+                               "co2_kg_mid": 1.9,
+                               "co2_moving_g": 100.0, "co2_idle_g": 40.0,
+                               "co2_cold_g": 60.0})
+    # old-build donation: counts in headline totals, never in the split
+    _donate(["cellC"], ["t2"], {"mode": "bike", "distance_km": 4.0,
+                               "co2_kg_mid": 0.9})
+    t = client.get("/admin/api/donations").json()["totals"]
+    sp = t["co2_split"]
+    assert sp["trips"] == 1 and sp["moving_g"] == 100.0
+    assert sp["pct"] == {"moving": 50.0, "idle": 20.0, "cold": 30.0}
+    assert t["co2_kg_mid"] == 2.8  # both trips in the headline total
+
+
+def test_model_card_serves_real_constants():
+    d = client.get("/admin/api/model").json()
+    assert d["available"] is True
+    # the panel's numbers are the model's own tables — spot-check two
+    # canonical rows so a drifted constant can never ship silently
+    assert d["microenv"]["auto_rickshaw"] == 1.15
+    assert d["ventilation_lpm"]["cycling"] == 22.0
+    assert d["cig_equiv_ug"] == 316.0
+    assert "walk" not in d["microenv"]  # canonical keys only
+
+
+def test_donations_co2_split_absent_is_null():
+    _donate(["cellB"], ["t1"])
+    t = client.get("/admin/api/donations").json()["totals"]
+    assert t["co2_split"] is None
 
 
 # --- privacy scan -------------------------------------------------------------

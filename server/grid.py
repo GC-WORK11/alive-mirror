@@ -46,8 +46,12 @@ def as_geojson(field, cells: int = 22, param: str = "pm2_5") -> dict:
                         [x0 + ix * dx, y0 + iy * dy],
                     ]],
                 },
+                # property named for the species it holds — 'pm25' stays
+                # 'pm25' for the default layer so existing readers don't
+                # break; another species never borrows its name
                 "properties": {
-                    "pm25": round(v, 1),
+                    ("pm25" if param == "pm2_5" else param): round(v, 1),
+                    "param": param,
                     "conf": _conf(field.nearest_sample_km(cy, cx)),
                 },
             })

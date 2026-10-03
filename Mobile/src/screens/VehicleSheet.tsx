@@ -17,10 +17,11 @@
 // Re-opened from the options-sheet chip via CompareSheet's onVehiclePress.
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Modal, Pressable, ScrollView, StyleSheet, Text, View,
+  Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../theme";
+import { DYNAMIC_TYPE } from "../a11y";
 import { Icon, type Glyph } from "../icons";
 import { t, type Lang, type StringKey } from "../i18n/strings";
 import { Sheet } from "../ui";
@@ -146,12 +147,15 @@ function OptionCard({ glyph, label, caption, active, onPress, lang, style }: {
         <Icon name={glyph} color={active ? V2T.accent : V2T.text2} size={24} filled={active} />
       ) : null}
       <View style={s.cardBody}>
-        <Text style={[s.cardTxt, { fontFamily: fam(lang, "med") }, active && { color: V2T.accent }]}
+        <Text {...DYNAMIC_TYPE} style={[s.cardTxt, { fontFamily: fam(lang, "med") }, active && { color: V2T.accent }]}
           numberOfLines={1}>
           {label}
         </Text>
         {caption ? (
-          <Text style={[s.cardCap, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+          /* 2-col cards truncate 'petrol · diesel · CNG · EV' mid-list —
+             wrap to a second line, shrink as the last resort (forensic) */
+          <Text {...DYNAMIC_TYPE} style={[s.cardCap, { fontFamily: fam(lang, "reg") }]}
+            numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
             {caption}
           </Text>
         ) : null}
@@ -225,15 +229,15 @@ function Wizard({ lang, current, onDone, onClose }: {
     <Sheet detent="half" onClose={onClose} style={s.sheet} lang={lang}>
       {step === "done" ? (
         <View style={s.doneWrap}>
-          <Text style={[s.doneTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleDone", lang)}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.doneTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleDone", lang)}</Text>
           {saved ? (
-            <Text style={[s.doneSub, { fontFamily: fam(lang, "reg") }]}>{vehicleLabel(saved, lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.doneSub, { fontFamily: fam(lang, "reg") }]}>{vehicleLabel(saved, lang)}</Text>
           ) : null}
         </View>
       ) : (
         <>
           <View style={s.headRow}>
-            <Text style={[s.q, { fontFamily: fam(lang, "semi") }]}>
+            <Text {...DYNAMIC_TYPE} style={[s.q, { fontFamily: fam(lang, "semi") }]}>
               {t(step === "cls" ? "vehicleQ1" : step === "fuel" ? "vehicleQ2" : "vehicleQ3", lang)}
             </Text>
             {totalQ > 1 && (
@@ -247,14 +251,14 @@ function Wizard({ lang, current, onDone, onClose }: {
           {/* honest caption: the pick refines the emissions estimate —
               plain language, on-device only */}
           {step === "cls" && (
-            <Text style={[s.why, { fontFamily: fam(lang, "reg") }]}>{tl("veh_why")}</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.why, { fontFamily: fam(lang, "reg") }]}>{tl("veh_why")}</Text>
           )}
           <ScrollView style={s.scroll} contentContainerStyle={s.scrollIn}
             showsVerticalScrollIndicator={false}>
             {step === "cls" && (GROUPED ? (
               CLASS_GROUPS.map((g) => (
                 <View key={g.title}>
-                  <Text style={[s.grp, { fontFamily: fam(lang, "med") }]}>{tl(g.title)}</Text>
+                  <Text {...DYNAMIC_TYPE} style={[s.grp, { fontFamily: fam(lang, "med") }]}>{tl(g.title)}</Text>
                   {pairs(g.items).map((row, ri) => (
                     <View key={ri} style={s.gridRow}>
                       {row.map(classCard)}
@@ -292,13 +296,13 @@ function Wizard({ lang, current, onDone, onClose }: {
             {back ? (
               <Pressable onPress={back} hitSlop={8} accessibilityRole="button"
                 accessibilityLabel={t("vehicleQ_back", lang)} style={s.footBtn}>
-                <Text style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_back", lang)}</Text>
+                <Text {...DYNAMIC_TYPE} style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_back", lang)}</Text>
               </Pressable>
             ) : <View />}
             {/* never forced — dismissing keeps the Delhi fleet prior */}
             <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button"
               accessibilityLabel={t("vehicleQ_skip", lang)} style={s.footBtn}>
-              <Text style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_skip", lang)}</Text>
+              <Text {...DYNAMIC_TYPE} style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_skip", lang)}</Text>
             </Pressable>
           </View>
         </>
@@ -333,7 +337,11 @@ export default VehicleSheet;
 
 const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: V2T.scrim },
-  sheet: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  /* half-detent (~50% viewport) crops the grouped class grid's last row
+     on first paint — cap at 72% so cycle/walk is fully visible without
+     a full-screen takeover. */
+  sheet: { position: "absolute", bottom: 0, left: 0, right: 0,
+           maxHeight: Math.round(Dimensions.get("window").height * 0.72) },
   headRow: { flexDirection: "row", alignItems: "center", paddingRight: 20 },
   q: { flex: 1, fontSize: V2Type.body, color: V2T.text, paddingLeft: 20, paddingRight: 8, paddingTop: 4, paddingBottom: 10 },
   dots: { flexDirection: "row", gap: 5, paddingBottom: 8 },
@@ -358,7 +366,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10, minHeight: 56,
   },
   cardHalf: { flex: 1 },
-  cardOn: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
+  /* accentTint bg + accent label was ~3.5:1 — selected card goes to
+     surface so the accent label (4.51:1 on white) stays readable; the
+     accent border + radio carry the selected signal */ cardOn: { borderColor: V2T.accent, backgroundColor: V2T.surface },
   cardBody: { flex: 1, gap: 1 },
   cardTxt: { fontSize: V2Type.secondary, color: V2T.text },
   cardCap: { fontSize: V2Type.label, color: V2T.text3 },

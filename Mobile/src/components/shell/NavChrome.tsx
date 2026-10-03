@@ -13,8 +13,10 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
+import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { t, type Lang } from "../../i18n/strings";
+import { approx, t, type Lang } from "../../i18n/strings";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 import type { CompareOption, Step } from "./types";
 
@@ -28,6 +30,7 @@ export type NavView = {
   distRemainingM: number;
   offRoute: boolean;
   stripOk?: boolean;       // false → /v2/strip failed, counters frozen
+  outsideField?: boolean;  // true once reroute answers 'outside_service_area'
   running?: boolean;
   progress?: number;       // 0..1 along-route → cluster hairline
   nextStep?: {
@@ -218,11 +221,14 @@ function CounterCell({
     <View style={[s.cell, dim && s.cellDim]}>
       <View style={s.cellHead}>
         <Icon name={icon} color={tint} size={14} />
-        <Text style={[s.cellLbl, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+        {/* long captions ("smoke your ride puts out") must shrink to fit,
+            not ellipsize — 'PUTS…' read broken on 1080px (forensic find) */}
+        <Text {...DYNAMIC_TYPE} style={[s.cellLbl, { fontFamily: fam(lang, "med") }]}
+          numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
           {label}
         </Text>
       </View>
-      <Text style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+      <Text {...DYNAMIC_TYPE} style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
         {value}
       </Text>
       {band && span > 0 && (
@@ -236,7 +242,7 @@ function CounterCell({
         </View>
       )}
       {band && (
-        <Text style={[s.cellBand, NUM]} numberOfLines={1}>
+        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM]} numberOfLines={1}>
           {band.text}
         </Text>
       )}
@@ -253,6 +259,7 @@ export function NavChrome({
   onExit: () => void; lang: Lang;
   nav?: NavView | null; onRecenter?: (() => void) | null;
 }) {
+  const insets = useSafeAreaInsets();
   const min = Math.max(0, Math.round((nav?.etaS ?? option.duration_min * 60) / 60));
   const leftM = nav?.distRemainingM ?? (option.distance_km ?? 0) * 1000;
   const next = nav?.nextStep ?? null;
@@ -283,28 +290,30 @@ export function NavChrome({
   const doseBand: BandViz | null = nav != null && nav.dose.hi > 0
     ? {
       ...nav.dose,
-      text: `${Math.round(Math.max(0, nav.dose.lo))}–${Math.round(Math.max(0, nav.dose.hi))} µg`,
+      // a band that rounds to the same integer prints as one number —
+      // "0–0 µg" reads like a formatting bug to anyone glancing at it
+      text: (() => { const lo = Math.round(Math.max(0, nav.dose.lo)); const hi = Math.round(Math.max(0, nav.dose.hi)); return lo === hi ? `${lo} µg` : `${lo}–${hi} µg`; })(),
     }
     : null;
   const co2Band: BandViz | null = showOut
-    ? { ...nav.co2, text: `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)} kg` }
+    ? { ...nav.co2, text: nav.co2.lo.toFixed(1) === nav.co2.hi.toFixed(1) ? `${nav.co2.lo.toFixed(1)} kg` : `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)} kg` }
     : null;
 
   return (
     <>
       {/* next-turn card — glance: arrow, distance, then the sentence */}
-      <View style={s.banner}>
+      <View style={[s.banner, { top: insets.top + 12 }]}>
         <View style={s.tile} accessible={false}
           accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <ManeuverIcon m={maneuver} mode={mode} />
         </View>
         <View style={s.bannerTxt}>
           {next && (
-            <Text style={[s.dist, NUM, { fontFamily: fam(lang, "semi") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[s.dist, NUM, { fontFamily: fam(lang, "semi") }]} numberOfLines={1}>
               {distToStr(next.distM, lang)}
             </Text>
           )}
-          <Text
+          <Text {...DYNAMIC_TYPE}
             style={[next ? s.instrNext : s.instr, { fontFamily: fam(lang, next ? "med" : "semi") }]}
             numberOfLines={2}>
             {banner}
@@ -326,23 +335,34 @@ export function NavChrome({
 
       {/* reroute in flight — warm dot says "working", not alarm */}
       {nav?.offRoute && (
-        <View style={s.pill}>
+        <View style={[s.pill, { top: insets.top + 92 }]}>
           <View style={s.pillDot} />
-          <Text style={[s.pillTxt, { fontFamily: fam(lang, "med"), color: V2T.text }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med"), color: V2T.text }]}>
             {t("findingNewWay", lang)}
           </Text>
         </View>
       )}
-      {nav?.stripOk === false && !nav.offRoute && (
-        <View style={s.pill}>
-          <Text style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
+      {/* left the dose field entirely — reroute answered the typed
+          outside code; one persistent honest pill (reuses the search
+          string: dose can't be estimated out there) */}
+      {nav?.outsideField && !nav.offRoute && (
+        <View style={[s.pill, { top: insets.top + 92 }]}>
+          <Icon name="pin" color={V2T.text3} size={13} />
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med"), marginLeft: 6 }]}>
+            {t("outsideDelhi", lang)}
+          </Text>
+        </View>
+      )}
+      {nav?.stripOk === false && !nav.offRoute && !nav.outsideField && (
+        <View style={[s.pill, { top: insets.top + 92 }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
             {t("strip_unavailable", lang)}
           </Text>
         </View>
       )}
 
       {/* instrument cluster — the two signature counters + trip meta */}
-      <View style={s.cluster}>
+      <View style={[s.cluster, { bottom: insets.bottom + 12 }]}>
         {progress != null && progress > 0 && (
           <View style={s.progTrack} accessible={false} importantForAccessibility="no">
             <View style={[s.progFill, { width: `${progress * 100}%` }]} />
@@ -357,7 +377,7 @@ export function NavChrome({
             dim={frozen}
             band={doseBand}
             value={cigs == null ? t("nav_noSignal", lang)
-              : t("nav_cigs", lang, { n: cigs > 0 && cigs < 0.01 ? 0.01 : cigs })} />
+              : t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })} />
           {showOut && outKg != null && (
             <>
               <View style={s.cellDiv} />
@@ -368,12 +388,12 @@ export function NavChrome({
                 label={t("nav_putOut", lang)}
                 dim={frozen}
                 band={co2Band}
-                value={t("nav_kg", lang, { n: outKg })} />
+                value={t("nav_kg", lang, { n: approx(outKg) })} />
             </>
           )}
         </View>
         <View style={s.metaRow}>
-          <Text
+          <Text {...DYNAMIC_TYPE}
             style={[s.metaTxt, NUM, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {meta}
@@ -386,7 +406,7 @@ export function NavChrome({
 
 const s = StyleSheet.create({
   banner: {
-    position: "absolute", top: 50, left: 12, right: 12,
+    position: "absolute", left: 12, right: 12,
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
     paddingVertical: 10, paddingHorizontal: 12,
@@ -410,7 +430,7 @@ const s = StyleSheet.create({
   actDown: { opacity: 0.55 },
 
   pill: {
-    position: "absolute", top: 142, alignSelf: "center",
+    position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.surface2, borderRadius: V2Radius.pill,
     paddingHorizontal: 14, paddingVertical: 8,
@@ -423,7 +443,7 @@ const s = StyleSheet.create({
   pillTxt: { fontSize: V2Type.label, color: V2T.text2 },
 
   cluster: {
-    position: "absolute", left: 14, right: 14, bottom: 24,
+    position: "absolute", left: 14, right: 14,
     backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
     borderWidth: 1, borderColor: V2T.line, overflow: "hidden",
     shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },

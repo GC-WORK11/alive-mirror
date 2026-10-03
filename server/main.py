@@ -20,6 +20,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 # local dev keys live in server/.env (gitignored) — real env vars always win
 load_dotenv()
@@ -43,11 +44,42 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     _start_ingest_loop()
+    # Fires fetch lazily on the first /fires or /aqi hit — until then
+    # /health honestly reports 0 and the ops board reads "no fires".
+    # Warm the cache once at boot so the first dashboard view is real.
+    async def _warm_fires():
+        try:
+            await FIRES.refresh(http())
+        except Exception:
+            pass
+    asyncio.create_task(_warm_fires())
+    # Same honesty gap for the forecast horizon: until the first
+    # /depart or /v2/city refreshes it, /status reports a cold pipeline.
+    async def _warm_forecast():
+        try:
+            await asyncio.wait_for(FORECAST.refresh(http()), timeout=15.0)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_forecast())
+    # Same gap for the transit graph: default_feeds() compiles the GTFS
+    # feeds once per process — until then the first /v2/plan pays the
+    # whole parse inside its own budget (a fresh task's first plan was
+    # observed timing out at 21 s). Compile off-loop at boot.
+    async def _warm_transit():
+        try:
+            from transit_v2 import default_feeds
+            await asyncio.to_thread(default_feeds)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_transit())
     yield
 
 
 app = FastAPI(title="Delhi-Air-108 API", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# the field layer is the fattest payload on the service — 784-cell
+# GeoJSON compresses ~10x and every client sends Accept-Encoding
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 PHOTON = "https://photon.komoot.io/api/"
 OSRM = "https://router.project-osrm.org/route/v1/driving/"
@@ -140,6 +172,7 @@ async def health():
         "field_age_s": fstat.get("age_s"),
         "field_refresh_in_s": fstat.get("refresh_in_s"),
         "field_stale": fstat.get("stale"),
+        "engine": fstat.get("engine"),
         "sources": {
             "model": {"up": bool(fstat.get("samples")),
                       "samples": fstat.get("samples", 0),
@@ -400,6 +433,21 @@ def _annotate_segments(options: list) -> None:
         o["hotspots"] = segments.hotspots(segs)
 
 
+def _osrm_note(ok: bool, ms: float, err: Optional[str] = None) -> None:
+    """Write into v2.deps' shared observation — one record for every
+    real routing call across the API surface."""
+    try:
+        from v2 import deps as _d
+    except Exception:
+        try:
+            from server.v2 import deps as _d
+        except Exception:
+            return
+    _d.OSRM_LAST.update({"at": time.time(), "ok": ok,
+                         "ms": round(ms), "err": err,
+                         "backend": "osrm-public-demo"})
+
+
 async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float):
     # OD outside the field's service area → no fetch at all: public OSRM
     # happily returns a 10,000 km / 95k-vertex SF→Delhi "route", and the
@@ -407,14 +455,21 @@ async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float
     if not (in_service_area(flat, flon) and in_service_area(tlat, tlon)):
         return None
     url = f"https://router.project-osrm.org/route/v1/{profile}/{flon},{flat};{tlon},{tlat}"
-    r = await http().get(url, params={
-        "overview": "full", "geometries": "geojson",
-        "alternatives": "false", "steps": "false",
-    })
-    r.raise_for_status()
+    t0 = time.monotonic()
+    try:
+        r = await http().get(url, params={
+            "overview": "full", "geometries": "geojson",
+            "alternatives": "false", "steps": "false",
+        })
+        r.raise_for_status()
+    except Exception as e:
+        _osrm_note(False, (time.monotonic() - t0) * 1000, type(e).__name__)
+        raise
+    _osrm_note(True, (time.monotonic() - t0) * 1000)
     routes = r.json().get("routes", [])
     rt = routes[0] if routes else None
     if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+        _osrm_note(True, (time.monotonic() - t0) * 1000, "over cap")
         return None
     return rt
 
@@ -427,10 +482,16 @@ async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
         return None
     coords = ";".join(f"{lon},{lat}" for lon, lat in pts)
     url = f"https://router.project-osrm.org/route/v1/{profile}/{coords}"
-    r = await http().get(url, params={
-        "overview": "full", "geometries": "geojson", "steps": "false",
-    })
-    r.raise_for_status()
+    t0 = time.monotonic()
+    try:
+        r = await http().get(url, params={
+            "overview": "full", "geometries": "geojson", "steps": "false",
+        })
+        r.raise_for_status()
+    except Exception as e:
+        _osrm_note(False, (time.monotonic() - t0) * 1000, type(e).__name__)
+        raise
+    _osrm_note(True, (time.monotonic() - t0) * 1000)
     routes = r.json().get("routes", [])
     rt = routes[0] if routes else None
     if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
@@ -593,15 +654,46 @@ VEHICLE_TIME_FACTOR = {"car": 1.0, "car_open": 1.0, "bike": 0.9,
                        "auto": 1.25, "bus": 1.6}
 
 
-async def _field_refresh_bounded(timeout: float = 10.0) -> None:
-    """FIELD.refresh is best-effort — a stale-field window plus a slow
-    upstream (OpenAQ retries sleep up to ~40 s) serializes every request
-    behind refresh's lock; cap the wait so a route request never holds
-    the event loop hostage. The refresh itself keeps running."""
+_field_task: Optional[asyncio.Task] = None
+_fires_task: Optional[asyncio.Task] = None
+_forecast_task: Optional[asyncio.Task] = None
+
+
+async def _bounded_refresh(coro_fn, task_name: str, timeout: float) -> None:
+    """Await a shared refresh task, bounded, never cancel it.
+
+    FIELD/FIRES/FORECAST refresh is best-effort — a stale-field window
+    plus a slow upstream (OpenAQ retries sleep up to ~40 s) serializes
+    every request behind refresh's lock; cap the wait so no request
+    holds the event loop hostage. Two properties beyond a bare
+    wait_for: concurrent requests share ONE task (no stacked fetches),
+    and the task is shielded — a timed-out call leaves the fetch
+    running so it lands the data for the next request instead of
+    dying mid-flight and re-stalling the next call."""
+    global _field_task, _fires_task, _forecast_task
+    task = globals()[task_name]
+    if task is None or task.done():
+        task = asyncio.ensure_future(coro_fn())
+        globals()[task_name] = task
+        # swallow stray failures on the detached tail so an upstream
+        # error never surfaces as an unhandled task exception
+        task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
     try:
-        await asyncio.wait_for(FIELD.refresh(http()), timeout=timeout)
+        await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
     except Exception:
         pass
+
+
+async def _field_refresh_bounded(timeout: float = 10.0) -> None:
+    await _bounded_refresh(lambda: FIELD.refresh(http()), "_field_task", timeout)
+
+
+async def _fires_refresh_bounded(timeout: float = 6.0) -> None:
+    await _bounded_refresh(lambda: FIRES.refresh(http()), "_fires_task", timeout)
+
+
+async def _forecast_refresh_bounded(timeout: float = 12.0) -> None:
+    await _bounded_refresh(lambda: FORECAST.refresh(http()), "_forecast_task", timeout)
 
 
 def _scaled_duration_s(vehicle: str, profile: str, rt: dict) -> float:
@@ -611,6 +703,7 @@ def _scaled_duration_s(vehicle: str, profile: str, rt: dict) -> float:
 
 
 @app.get("/depart")
+@app.get("/v2/depart")
 async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
                  vehicle: str = "auto", hours: int = Query(default=24, le=120)):
     """Leave-later optimizer: the same trip's inhaled dose per departure hour.
@@ -632,10 +725,7 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if rt is None or isinstance(rt, BaseException):
         return {"options": [], "error": "router unavailable"}
 
-    try:  # forecast refresh is best-effort — bound its upstream waits
-        await asyncio.wait_for(FORECAST.refresh(http()), timeout=12.0)
-    except Exception:
-        pass
+    await _forecast_refresh_bounded()
     dur_s = _scaled_duration_s(vehicle, profile, rt)
 
     slots = []
@@ -676,7 +766,7 @@ async def aqi(lat: float, lon: float):
     """Interpolated PM2.5 field value at a point, with provenance and the
     decade-climatology context: what this point usually reads, this month,
     this hour, per 9M measured station-hours."""
-    await asyncio.gather(FIELD.refresh(http()), FIRES.refresh(http()))
+    await asyncio.gather(_field_refresh_bounded(), _fires_refresh_bounded())
     mod = FIRES.smoke_modifier()
     v = FIELD.value(lat, lon, "pm2_5")
     if v is None:
@@ -719,6 +809,7 @@ async def aqi(lat: float, lon: float):
 
 
 @app.get("/today")
+@app.get("/v2/today")
 async def today(lat: float, lon: float):
     """24 hourly decade-typical PM2.5 medians at a point (IST hours) —
     the ledger screen's background curve."""
@@ -742,24 +833,71 @@ class _ForecastSurface:
         self._h = hours_ahead
 
     def value(self, lat: float, lon: float, param: str = "pm2_5") -> Optional[float]:
+        # the forecast horizon is PM2.5-only — another species gets an
+        # honest empty layer, not pm2.5 wearing the wrong label
+        if param != "pm2_5":
+            return None
         return FORECAST.pm25(lat, lon, self._h)
 
     def nearest_sample_km(self, lat: float, lon: float) -> float:
         return FIELD.nearest_sample_km(lat, lon)
 
 
+# /grid answers are deterministic functions of (cells, param, h) plus
+# the epoch of the field/forecast data underneath — the surface only
+# changes when a refresh lands, so repeated paints for the same source
+# epoch replay the identical collection instead of paying O(cells)
+# interpolation each time. Keyed on the real fetch timestamps: a fresh
+# refresh produces a fresh collection; the cache can never serve data
+# older than the data itself.
+_GRID_CACHE: dict = {}
+
+
+def _grid_cached(key: tuple, epoch: float, build) -> dict:
+    hit = _GRID_CACHE.get(key)
+    if hit and hit[0] == epoch:
+        return hit[1]
+    out = build()
+    if len(_GRID_CACHE) >= 24:
+        _GRID_CACHE.clear()
+    _GRID_CACHE[key] = (epoch, out)
+    return out
+
+
 @app.get("/grid")
 async def field_grid(cells: int = Query(default=22, le=40),
-                     h: Optional[int] = Query(default=None, ge=0, le=120)):
-    """The live PM2.5 surface as GeoJSON cells — the map's colour layer.
-    ?h=N (0..120) scrubs the surface into the forecast horizon so the app
-    can animate where the plume goes. Confidence per cell degrades with
-    distance to the nearest sample."""
+                     h: Optional[int] = Query(default=None, ge=0, le=120),
+                     param: str = Query(default="pm2_5")):
+    """The live surface as GeoJSON cells — the map's colour layer.
+    ?h=N (0..120) scrubs PM2.5 into the forecast horizon so the app can
+    animate where the plume goes; ?param= serves another species layer
+    (whitelisted to the pollutants the field actually ingests — a name
+    it doesn't serve returns an honest empty collection). Confidence
+    per cell degrades with distance to the nearest sample."""
+    from airfield import POLLUTANTS
+    species = [p.strip() for p in POLLUTANTS.split(",")]
+    if param not in species:
+        # honest empty collection per the docstring — a silent pm2_5
+        # fallback would answer "pm10" misspelled with pm2.5 data
+        return {"type": "FeatureCollection", "features": [],
+                "properties": {"param": param,
+                               "served": species,
+                               "empty": "unknown pollutant param"}}
     if h is not None:
-        await FORECAST.refresh(http())
-        return grid.as_geojson(_ForecastSurface(h), cells)
-    await FIELD.refresh(http())
-    return grid.as_geojson(FIELD, cells)
+        await _forecast_refresh_bounded()
+        # the horizon anchors to the live field too — all three epochs
+        return _grid_cached(
+            ("f", cells, param, h),
+            (FORECAST._fetched_at, FIELD._fetched_at,
+             community._OBS_VERSION),
+            lambda: grid.as_geojson(_ForecastSurface(h), cells, param))
+    await _field_refresh_bounded()
+    # the served surface is field×corridor-posterior — a donated trip
+    # shifts cells between refreshes, so the obs version rides the epoch
+    return _grid_cached(
+        ("l", cells, param),
+        (FIELD._fetched_at, community._OBS_VERSION),
+        lambda: grid.as_geojson(FIELD, cells, param))
 
 
 @app.post("/observe")
@@ -772,6 +910,7 @@ async def observe_trip(body: dict):
         dose_ug=body.get("dose_ug"),
         avoided_ug=body.get("avoided_ug"),
         contributor=body.get("contributor"),
+        co2_kg=body.get("co2_kg"),
     )
 
 
@@ -808,7 +947,7 @@ async def fires():
     public FIRMS daily CSV snapshots (Suomi-NPP / NOAA-20 / NOAA-21 VIIRS
     + Terra/Aqua MODIS, rolling 24h), cached 6h. With FIRMS_MAP_KEY set it
     uses the keyed area API for the NW fire belt instead."""
-    await FIRES.refresh(http())
+    await _fires_refresh_bounded()
     return FIRES.fires_geojson()
 
 
@@ -823,7 +962,7 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
     NCR, drop cells within 3km of the user (that's still 'here'), rank the
     rest by PM2.5, reverse-name the best. Each answer carries its own
     data-confidence so thin regions don't fake certainty."""
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
     home_v = FIELD.value(lat, lon, "pm2_5")
     x0, y0, x1, y1 = grid.BBOX
     cand = []
@@ -893,7 +1032,7 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     vs_desk = same hours at an indoor/desk exposure basis (~35% ambient,
     rest ventilation) — the avoidable gap a gig driver pays daily."""
     hours = max(0.5, min(12.0, hours))
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     start = ist.hour if start_hour is None else max(0, min(23, start_hour))
 

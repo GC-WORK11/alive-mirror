@@ -35,13 +35,30 @@ type RawRow = {
   outside_ncr?: boolean;
 };
 
+/** Gazetteer rows occasionally surface raw OSM tag strings
+ * ("amenity:place_of_worship") as the address/subtitle — strip the
+ * namespace prefix and tidy underscores so the row reads like an
+ * address, not a tag. Real addresses keep their commas untouched. */
+const OSM_TAG_PREFIX = /^(amenity|tourism|shop|leisure|office|historic|building|man_made|natural|place|highway|aeroway|railway|public_transport):/;
+
+function cleanSubtitle(s: string): string {
+  const t = s.trim();
+  if (OSM_TAG_PREFIX.test(t))
+    return t.replace(OSM_TAG_PREFIX, "").replace(/_/g, " ").trim();
+  // bare kind token ("historic_site") — read like words, not a tag
+  if (/^[a-z][a-z_]+$/.test(t) && t.includes("_")) return t.replace(/_/g, " ");
+  return t;
+}
+
 function toPlace(r: RawRow, tier: "t1" | "t2"): PlaceResult | null {
   if (typeof r.lat !== "number" || typeof r.lon !== "number") return null;
   const name = (r.name ?? r.label?.split(",")[0] ?? "").trim();
   if (!name) return null;
   return {
     name,
-    subtitle: (r.subtitle ?? r.address ?? (r.label ? r.label.split(",").slice(1).join(",").trim() : "")).trim(),
+    subtitle: cleanSubtitle(
+      r.subtitle ?? r.address ?? (r.label ? r.label.split(",").slice(1).join(",").trim() : ""),
+    ),
     lat: r.lat,
     lon: r.lon,
     kind: r.kind ?? r.category ?? "place",
@@ -50,7 +67,11 @@ function toPlace(r: RawRow, tier: "t1" | "t2"): PlaceResult | null {
   };
 }
 
-/** One shot at `${API_BASE}/v2/search`. Caller owns the AbortSignal. */
+/** One shot at `${API_BASE}/v2/search`. Caller owns the AbortSignal; we add
+ * a hard ceiling so a hung socket can't pin the suggestions panel — a search
+ * still running at SEARCH_TIMEOUT_MS is dead for typing UX anyway. */
+export const SEARCH_TIMEOUT_MS = 5000;
+
 export async function fetchTiers(
   q: string,
   loc: LatLon | null | undefined,
@@ -61,7 +82,19 @@ export async function fetchTiers(
   const url =
     `${API_BASE}/v2/search?q=${encodeURIComponent(q)}` +
     `&lat=${bias.lat}&lon=${bias.lon}&limit=${limit}`;
-  const res = await fetch(url, { signal });
+  // link the caller's signal into our own controller so either aborts the fetch
+  const inner = new AbortController();
+  const onAbort = () => inner.abort();
+  if (signal.aborted) inner.abort();
+  else signal.addEventListener("abort", onAbort);
+  const timer = setTimeout(() => inner.abort(), SEARCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: inner.signal });
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
   if (!res.ok) throw new Error(`v2/search http ${res.status}`);
   const j = (await res.json()) as {
     t1?: RawRow[];
@@ -133,7 +166,11 @@ export class ServerSearch {
         })
         .catch((err: unknown) => {
           if (seq !== this.seq) return;
-          if (err instanceof Error && err.name === "AbortError") return;
+          // caller-initiated aborts are already dropped by the seq bump;
+          // a TIMEOUT abort (fetchTiers' inner ceiling) must still deliver
+          // empty tiers or the panel waits forever
+          if (err instanceof Error && err.name === "AbortError"
+              && ctrl.signal.aborted) return;
           // dead network still leaves T0 on screen — deliver empty tiers so
           // the UI can stop waiting
           onResults(EMPTY_TIERS, text);

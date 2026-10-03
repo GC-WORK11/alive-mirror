@@ -17,18 +17,84 @@ threshold on corridors.
 """
 import hashlib
 import math
+import re
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from .store import LEDGER, TRIPS
 
 router = APIRouter()
 
+# community.observe folds the SAME privacy-trimmed points into ~500 m
+# corridor cells — the citizen sensor layer that sharpens the kriged
+# field. Only `kept` ever crosses the boundary: already trimmed of its
+# endpoints, thinned, and rounded, so observe() stores nothing the
+# privacy pipeline didn't already allow.
+
 TRIM_M = 300.0          # drop this much from BOTH ends, always
 THIN_M = 100.0          # keep at most one point per this distance
 ROUND_DP = 4            # ~11 m — the documented precision ceiling
 MAX_POINTS = 5000       # payload abuse guard
+
+# Idempotency: a retried donation (network flake, offline queue replay)
+# carries an identical trajectory — re-recording it would mint a trip
+# that never happened in the totals. Signature = token hash + endpoint
+# cells + distance + duration; a hit inside the window replays stored
+# without double-counting. Per-worker memory is enough — the window is
+# short and the privacy contract already caps corridor inflation at one
+# device.
+_DEDUPE: dict = {}
+_DEDUPE_TTL_S = 24 * 3600
+_DEDUPE_MAX = 4096
+
+
+def _dupe_key(token_hash: str, cells: list, summary: dict) -> str:
+    sig = "|".join([
+        token_hash,
+        str(cells[0]) if cells else "",
+        str(cells[-1]) if cells else "",
+        str(summary.get("distance_km") or ""),
+        str(summary.get("duration_s") or ""),
+    ])
+    return hashlib.sha256(sig.encode()).hexdigest()[:24]
+
+
+def _seen_dupe(key: str) -> bool:
+    now = time.time()
+    # expire cheaply on access; a full sweep only at the cap
+    if len(_DEDUPE) >= _DEDUPE_MAX:
+        for k, t in list(_DEDUPE.items()):
+            if now - t > _DEDUPE_TTL_S:
+                _DEDUPE.pop(k, None)
+        if len(_DEDUPE) >= _DEDUPE_MAX:
+            _DEDUPE.clear()
+    if key in _DEDUPE and now - _DEDUPE[key] <= _DEDUPE_TTL_S:
+        return True
+    _DEDUPE[key] = now
+    return False
+
+# --- sanity bounds: the client is assumed hostile/buggy --------------------
+# These don't need to be tight — they only have to kill payloads that can
+# never be a real Delhi trip (e.g. distance_km=1e12 injected into the
+# donations totals). Generous caps so an honest odd trip still counts.
+_BOUNDS = {
+    "distance_km": (0.0, 300.0),     # Delhi is ~50 km across; 300 is generous
+    "duration_s": (0.0, 21600.0),    # 6 h of riding
+    "dose_ug": (0.0, 50_000.0),      # worst-day × worst-ventilation orders below
+    "co2_kg_mid": (0.0, 200.0),      # 300 km × heaviest fleet factor
+    "pm25_g_mid": (0.0, 50.0),
+    # optional phase split from the receipt's emissions.breakdown —
+    # grams, mid estimates only; absent on old app builds / zero-emission
+    # modes, and never fabricated server-side
+    "co2_moving_g": (0.0, 300_000.0),
+    "co2_idle_g": (0.0, 300_000.0),
+    "co2_cold_g": (0.0, 300_000.0),
+}
+CO2_SPLIT_KEYS = ("co2_moving_g", "co2_idle_g", "co2_cold_g")
+# A mode is a vehicle-class token — word characters and spaces only.
+# Anything carrying markup or punctuation can never reach mode_share.
+_MODE_RE = re.compile(r"^[a-z][a-z0-9_\- ]{0,23}$")
 
 try:
     import h3 as _h3
@@ -103,7 +169,7 @@ def privacy_pipeline(traj) -> tuple:
 
 
 _SUMMARY_NUM = ("distance_km", "duration_s", "dose_ug",
-                "co2_kg_mid", "pm25_g_mid")
+                "co2_kg_mid", "pm25_g_mid") + CO2_SPLIT_KEYS
 _SUMMARY_FIELDS = _SUMMARY_NUM + ("mode", "switched")
 
 
@@ -136,16 +202,47 @@ async def post_trip(body: dict):
     summary = {}
     for k in _SUMMARY_NUM:
         v = _num(summary_in.get(k))
-        if v is not None:
+        lo, hi = _BOUNDS[k]
+        if v is not None and lo <= v <= hi:
             summary[k] = v
     if summary_in.get("mode") is not None:
-        summary["mode"] = str(summary_in["mode"])[:24]
+        m = str(summary_in["mode"]).strip().lower()
+        if _MODE_RE.match(m):
+            summary["mode"] = m
     if summary_in.get("switched"):
         summary["switched"] = bool(summary_in["switched"])
-    TRIPS.record_trip(cells, summary, token_hash)
-    LEDGER.record(token_hash, summary)
+    if not summary.get("distance_km"):
+        # the one number every real trip carries — without it the payload
+        # either failed every sanity check or was never a trip at all;
+        # storing it would only mint a zero-km count that bumps the totals
+        raise HTTPException(422, "missing or implausible distance_km")
+    dupe = _seen_dupe(_dupe_key(token_hash, cells, summary))
+    if not dupe:
+        TRIPS.record_trip(cells, summary, token_hash)
+        LEDGER.record(token_hash, summary)
+    # feed the citizen layer — every donated trip is a sensor pass. The
+    # coordinates that reach observe() are the trimmed/thinned/rounded
+    # `kept` points (raw trajectory already gone); observe() folds them
+    # straight into cells and never persists points. Without this hop a
+    # trip counted in aggregates but never informed the field. A replay
+    # must not mint phantom observations either — the dedupe guard holds.
+    if kept and not dupe:
+        try:
+            import community
+            community.observe(
+                vehicle=str(summary.get("mode") or "unknown"),
+                coords=[[lo, la] for la, lo in kept],
+                duration_s=float(summary.get("duration_s") or 0.0),
+                dose_ug=summary.get("dose_ug"),
+                avoided_ug=None,
+                contributor=token or None,
+                co2_kg=summary.get("co2_kg_mid"),
+            )
+        except Exception:  # noqa: BLE001 — aggregates already stored; a
+            pass               # citizen-layer hiccup must not fail a donation
     return {
         "stored": True,
+        "deduplicated": bool(dupe),
         "ledger_recorded": bool(token_hash),
         "cells_traversed": len(set(cells)),
         "points_used": len(kept),

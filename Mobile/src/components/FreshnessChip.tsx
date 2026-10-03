@@ -58,6 +58,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { fam, NUM, V2Radius, V2T, V2Type } from "../theme";
+import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 
 /** <10 min served age reads as fresh. */
@@ -149,16 +150,15 @@ export function FreshnessChip({
       accessibilityLabel={a11y}
     >
       <View style={[cs.dot, { backgroundColor: DOT[tone] }]} />
-      <Text
+      <Text {...DYNAMIC_TYPE}
         numberOfLines={2}
         style={[
           cs.txt,
           NUM,
           {
             fontFamily: fam(lang, "reg"),
-            color: tone === "stale" || tone === "unknown"
-              ? V2T.text3
-              : V2T.text2,
+            /* text3-on-surface2 is 4.33:1 (<4.5 AA) — stale/unknown
+               read muted via the dim dot; text stays at text2 */ color: V2T.text2,
           },
         ]}
       >

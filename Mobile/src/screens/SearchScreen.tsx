@@ -9,21 +9,23 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { NUM, V2Radius, V2T, V2Type, fam } from "../theme";
+import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 import { Icon } from "../icons";
 import {
@@ -44,18 +46,6 @@ export type { PlaceResult } from "../search/t0";
 
 const T0_LIMIT = 6;
 const ROW_H = 54; // ≥44 pt touch target; fixed so results never shift under a finger
-
-/* Strings not yet in src/i18n/strings.ts (string-table lane owns that file).
- * Staged here so the screen ships honest copy today; swap tl() → t() once the
- * keys land. Needed keys: resultsHeader, noPlaceFound, emptySearchHint,
- * mapPickHint. */
-const LOCAL: Record<string, Record<Lang, string>> = {
-  resultsHeader: { en: "Results", hi: "नतीजे" },
-  noPlaceFound: { en: "no place found — try a landmark", hi: "कोई जगह नहीं मिली — कोई लैंडमार्क लिखकर देखें" },
-  emptySearchHint: { en: "type a place or landmark — or choose on the map", hi: "जगह या लैंडमार्क लिखें — या नक्शे पर चुनें" },
-  mapPickHint: { en: "tap the map to drop a pin there", hi: "नक्शे पर टैप करके पिन लगाएँ" },
-};
-const tl = (key: keyof typeof LOCAL, lang: Lang): string => LOCAL[key][lang];
 
 const fmtDist = (km: number): string =>
   km < 1
@@ -97,18 +87,18 @@ function matchSpans(name: string, query: string): [number, number][] {
 function Title({ text, query, lang }: { text: string; query: string; lang: Lang }) {
   const spans = useMemo(() => matchSpans(text, query), [text, query]);
   const base = [ss.rowTitle, { fontFamily: fam(lang, "med") }];
-  if (!spans.length) return <Text style={base} numberOfLines={1}>{text}</Text>;
+  if (!spans.length) return <Text {...DYNAMIC_TYPE} style={base} numberOfLines={1}>{text}</Text>;
   // matched chars stay full-bright + semibold; the rest dims one step — the
   // eye lands on the match without a rupee of colour spent.
   const parts: React.ReactNode[] = [];
   let i = 0;
   spans.forEach(([s, e], k) => {
-    if (s > i) parts.push(<Text key={`d${k}`} style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i, s)}</Text>);
-    parts.push(<Text key={`h${k}`} style={{ fontFamily: fam(lang, "semi") }}>{text.slice(s, e)}</Text>);
+    if (s > i) parts.push(<Text {...DYNAMIC_TYPE} key={`d${k}`} style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i, s)}</Text>);
+    parts.push(<Text {...DYNAMIC_TYPE} key={`h${k}`} style={{ fontFamily: fam(lang, "semi") }}>{text.slice(s, e)}</Text>);
     i = e;
   });
-  if (i < text.length) parts.push(<Text key="tail" style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i)}</Text>);
-  return <Text style={base} numberOfLines={1}>{parts}</Text>;
+  if (i < text.length) parts.push(<Text {...DYNAMIC_TYPE} key="tail" style={[ss.rowTitleDim, { fontFamily: fam(lang, "reg") }]}>{text.slice(i)}</Text>);
+  return <Text {...DYNAMIC_TYPE} style={base} numberOfLines={1}>{parts}</Text>;
 }
 
 function PlaceRow({
@@ -139,19 +129,19 @@ function PlaceRow({
       <View style={ss.rowText}>
         <Title text={title} query={query} lang={lang} />
         {outsideNote ? (
-          <Text style={[ss.rowOutside, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{outsideNote}</Text>
+          <Text {...DYNAMIC_TYPE} style={[ss.rowOutside, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{outsideNote}</Text>
         ) : subtitle ? (
-          <Text style={[ss.rowSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{subtitle}</Text>
+          <Text {...DYNAMIC_TYPE} style={[ss.rowSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{subtitle}</Text>
         ) : null}
       </View>
-      {distLabel ? <Text style={[ss.rowDist, NUM, { fontFamily: fam(lang, "reg") }]}>{distLabel}</Text> : null}
+      {distLabel ? <Text {...DYNAMIC_TYPE} style={[ss.rowDist, NUM, { fontFamily: fam(lang, "reg") }]}>{distLabel}</Text> : null}
     </Pressable>
   );
 }
 
 function SectionLabel({ children, lang }: { children: string; lang: Lang }) {
   return (
-    <Text accessibilityRole="header" style={[ss.sectionLabel, { fontFamily: fam(lang, "semi") }]}>
+    <Text {...DYNAMIC_TYPE} accessibilityRole="header" style={[ss.sectionLabel, { fontFamily: fam(lang, "semi") }]}>
       {children}
     </Text>
   );
@@ -184,13 +174,20 @@ function SearchSheet({
   const [store, setStore] = useState<PlaceStore>({ recents: [], home: null, work: null });
   const [search] = useState(() => new ServerSearch(80));
   const inputRef = useRef<TextInput>(null);
+  const closingRef = useRef(false);
+  const insets = useSafeAreaInsets();
+  /* mount in two frames: the shell commits first, the field+list subtree
+     lands next frame — one giant mount commit against the map's draw
+     thread is the residual-SIGSEGV trigger (ci15: search-open ~2/5).
+     Keyboard waits for the enter spring to finish for the same reason. */
+  const [bodyReady, setBodyReady] = useState(false);
 
-  /* mount: warm the index, load saved places, raise the keyboard */
   useEffect(() => {
     warm();
     getPlaces().then(setStore).catch(() => {});
-    inputRef.current?.focus();
-    return () => search.dispose();
+    const raf = requestAnimationFrame(() => setBodyReady(true));
+    const foc = setTimeout(() => { if (!closingRef.current) inputRef.current?.focus(); }, 350);
+    return () => { cancelAnimationFrame(raf); clearTimeout(foc); search.dispose(); };
   }, [search]);
 
   const loc = userLocation ?? undefined;
@@ -213,13 +210,30 @@ function SearchSheet({
     [loc, search],
   );
 
+  /* Keyboard.dismiss() is async — closing the sheet in the same tick tears
+     the scene down while the keyboard proxy is mid-handoff, and that race
+     segfaults this RN/iOS-sim stack (same class as the autoFocus fix). Run
+     the close on keyboardDidHide instead of a fixed delay — event-driven,
+     with a 500ms cap if the keyboard never rose (no event ever arrives).
+     Imperceptible to a user; identical UX on hardware. */
+  const dismissThen = useCallback((fn: () => void) => {
+    closingRef.current = true; // no late focus() while the sheet tears down
+    if (!Keyboard.isVisible()) { fn(); return; }
+    let done = false;
+    const fire = () => { if (!done) { done = true; sub.remove(); fn(); } };
+    const sub = Keyboard.addListener("keyboardDidHide", fire);
+    Keyboard.dismiss();
+    setTimeout(fire, 500);
+  }, []);
+
   const pick = useCallback(
     (p: PlaceResult) => {
-      Keyboard.dismiss();
-      addRecent(p).then(() => getPlaces().then(setStore)).catch(() => {});
-      onSelect({ type: "place", place: p });
+      dismissThen(() => {
+        addRecent(p).then(() => getPlaces().then(setStore)).catch(() => {});
+        onSelect({ type: "place", place: p });
+      });
     },
-    [onSelect],
+    [onSelect, dismissThen],
   );
 
   const distLabel = useCallback(
@@ -264,11 +278,11 @@ function SearchSheet({
   const hasRecents = store.recents.length > 0;
 
   return (
-    <View style={ss.root}>
+    <View style={[ss.root, { marginTop: insets.top + 8 }]}>
       {/* search bar — pill 999 (doc 03) */}
       <View style={ss.bar}>
         <Pressable
-          onPress={() => { Keyboard.dismiss(); onClose(); }}
+          onPress={() => dismissThen(onClose)}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={t("vehicleQ_back", lang)}
@@ -276,15 +290,17 @@ function SearchSheet({
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
-        <TextInput
+        <TextInput {...DYNAMIC_TYPE}
           ref={inputRef}
           style={[ss.input, { fontFamily: fam(lang, "reg") }]}
           value={q}
           onChangeText={onChange}
           onSubmitEditing={submit}
           placeholder={t("searchPlaceholder", lang)}
-          placeholderTextColor={V2T.text3}
-          autoFocus
+          placeholderTextColor={V2T.text2} // text3-on-surface2 = 4.33:1 < AA
+          /* no autoFocus — becomeFirstResponder during mount races the
+             responder chain on this stack; the +350ms focus lands after
+             the enter spring settles */
           autoCorrect={false}
           autoCapitalize="none"
           autoComplete="off"
@@ -307,9 +323,10 @@ function SearchSheet({
         )}
       </View>
 
+      {bodyReady && (
       <KeyboardAvoidingView
         style={ss.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* bounded list — ≤6 T0 + ≤12 merged + 7 saved/recents, so a plain
             ScrollView at a fixed row height stays jank-free (doc §S2) */}
@@ -358,20 +375,20 @@ function SearchSheet({
               {!hasSaved && !hasRecents && (
                 <View style={ss.stateBlock} accessibilityLiveRegion="polite">
                   <Icon name="search" color={V2T.text3} size={22} />
-                  <Text style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
-                    {tl("emptySearchHint", lang)}
+                  <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
+                    {t("emptySearchHint", lang)}
                   </Text>
                 </View>
               )}
             </>
           ) : (
             <>
-              {merged.length > 0 && <SectionLabel lang={lang}>{tl("resultsHeader", lang)}</SectionLabel>}
+              {merged.length > 0 && <SectionLabel lang={lang}>{t("resultsHeader", lang)}</SectionLabel>}
               {t0rows.map((p, i) => renderPlace(p, `t0-${i}`))}
               {(pending || serverRows.length > 0) && t0rows.length > 0 && <View style={ss.hairline} />}
               {pending ? (
                 <View style={ss.statusRow} accessibilityLiveRegion="polite">
-                  <Text style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>{t("searching", lang)}</Text>
+                  <Text {...DYNAMIC_TYPE} style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>{t("searching", lang)}</Text>
                 </View>
               ) : (
                 serverRows.map((p, i) => renderPlace(p, `srv-${p.tier}-${i}`))
@@ -379,8 +396,8 @@ function SearchSheet({
               {empty && (
                 <View style={ss.stateBlock} accessibilityLiveRegion="polite">
                   <Icon name="search" color={V2T.text3} size={22} />
-                  <Text style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
-                    {tl("noPlaceFound", lang)}
+                  <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
+                    {t("noPlaceFound", lang)}
                   </Text>
                 </View>
               )}
@@ -390,39 +407,34 @@ function SearchSheet({
 
         {/* action bar — pinned above the keyboard; "Choose on map" is always
             one tap away even mid-scroll (doc 02 §S2). */}
-        <View style={ss.actionBar}>
+        <View style={[ss.actionBar, { paddingBottom: insets.bottom + 6 }]}>
           <Pressable
-            onPress={() => {
-              Keyboard.dismiss();
-              onSelect({ type: "current_location" });
-            }}
+            onPress={() => dismissThen(() => onSelect({ type: "current_location" }))}
             accessibilityRole="button"
             accessibilityLabel={t("yourLocation", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
           >
             <Icon name="locate" color={V2T.accent} size={18} />
-            <Text style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
               {t("yourLocation", lang)}
             </Text>
           </Pressable>
           <View style={ss.actionSplit} />
           <Pressable
-            onPress={() => {
-              Keyboard.dismiss();
-              onSelect({ type: "choose_on_map" });
-            }}
+            onPress={() => dismissThen(() => onSelect({ type: "choose_on_map" }))}
             accessibilityRole="button"
             accessibilityLabel={t("chooseOnMap", lang)}
-            accessibilityHint={tl("mapPickHint", lang)}
+            accessibilityHint={t("mapPickHint", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
           >
             <Icon name="pin" color={V2T.accent} size={18} />
-            <Text style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
               {t("chooseOnMap", lang)}
             </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      )}
     </View>
   );
 }
@@ -442,40 +454,54 @@ export function SearchScreen({
   userLocation?: LatLon | null;
   lang?: Lang;
 }) {
+  /* Android hardware back must close the sheet — Modal used to provide this;
+     the overlay needs BackHandler explicitly. */
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { onClose(); return true; });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  /* the Modal used to slide the sheet up — keep that enter on the overlay:
+     stable animated nodes + JS driver (the proven-safe pattern from Sheet;
+     native-driven springs are what segfault this RN/iOS stack) */
+  const [enter] = useState(() => new Animated.Value(0));
+  const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
+  useEffect(() => {
+    if (visible) {
+      enter.setValue(0);
+      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+    }
+  }, [visible, enter]);
+
+  /* plain absolute overlay — every other sheet in the app renders this way.
+     RN Modal's native present/dismiss segfaults this stack (reproduced three
+     times live: open, quick-pick dismiss, cold present) — no Modal, no crash
+     class. Identical UX: scrim backdrop + sheet over the map. */
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={ss.backdrop}>
-        <StatusBar style="dark" />
-        {visible ? (
-          <SearchSheet
-            onSelect={onSelect}
-            onClose={onClose}
-            userLocation={userLocation}
-            lang={lang}
-          />
-        ) : null}
-      </View>
-    </Modal>
+    <View style={ss.backdrop}>
+      <StatusBar style="dark" />
+      <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
+        <SearchSheet
+          onSelect={onSelect}
+          onClose={onClose}
+          userLocation={userLocation}
+          lang={lang}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
 export default SearchScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.scrim },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
-    marginTop: Platform.select({
-      ios: 48,
-      android: (RNStatusBar.currentHeight ?? 24) + 8,
-      default: 16,
-    }),
+    // marginTop comes from useSafeAreaInsets inline
+
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
@@ -570,7 +596,7 @@ const ss = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: V2T.line,
     backgroundColor: V2T.surface,
-    paddingBottom: Platform.select({ ios: 18, default: 6 }),
+    // paddingBottom from useSafeAreaInsets inline
   },
   actionBtn: {
     flex: 1,

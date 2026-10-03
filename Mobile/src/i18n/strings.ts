@@ -15,15 +15,44 @@ const en = {
   saveAsWork: "Save as Work",
   share: "Share",
   shareAppBody: "checking the smoke on my Delhi trips before I go — ALive-108",
-  shareTripBody: "my trip {from} → {to}: I breathed est. {dose} of smoke — estimated on ALive-108",
+  /** share text carries BOTH numbers — breathed (exposure) + put out
+      (emission) — the Air-track mission in one breath */
+  shareTripBody: "my trip {from} → {to}: I breathed est. {dose} of smoke and my ride put out {co2} — estimated on ALive-108",
   outsideDelhi: "outside Delhi — no smoke estimate here",
   start: "Start",
   end: "End",
   lightestOnBoth: "lightest on both",
   lightestForYou: "lightest for you",
   lightestForDelhi: "lightest for Delhi",
+  /** server reason_line templates (server/v2/plan.py rank_options) —
+      matched verbatim so the card reads in the user's language; the
+      optional " +N min vs fastest." suffix is handled separately */
+  reason_noEmis: "Least smoke for you — no emissions estimate for this set.",
+  reason_easyPick: "Least smoke for you and lowest emissions — the easy pick.",
+  reason_heavierDelhi: "Least smoke for you, but heavier for Delhi.",
+  reason_lowestEmis: "Lowest emissions of the options — but you'd breathe more.",
+  reason_fairTrade: "Within ~10% of the lightest dose and the lightest exhaust of those — a fair trade.",
+  reason_slowerSuffix: " {m} min slower than the fastest.",
+  /** server non_exhaust.note strings (DetailBlock only) — verbatim match */
+  ne_road: "non-exhaust (resuspended dust + brakes/tyres), reported separately — ~86% of Delhi traffic PM10 is non-exhaust (Sahu et al. 2020, docs/26); never folded into tailpipe numbers",
+  ne_rail: "rail — no road resuspension",
+  ne_zero: "zero — non-motorized mode",
+  /** option-card mode labels (server o.label) — keyed by o.mode; a route
+      suffix like " 548CL" is preserved verbatim */
+  mode_carAC: "Car (AC)",
+  mode_carOpen: "Car (windows down)",
+  mode_bike: "Bike / scooter",
+  mode_bus: "Bus",
+  mode_auto: "Auto-rickshaw",
+  mode_metroWalk: "Metro + walk",
+  mode_cycle: "Bicycle",
+  mode_walk: "On foot",
+  mode_approx: " (approx.)",
   findingNewWay: "Finding a new way…",
   youreHere: "You're here.",
+  /** manual "End" before reaching the destination — the trip is real,
+      but it never arrived */
+  tripEnded: "Trip ended.",
   youBreathed: "You breathed",
   ridePutOut: "Your ride put out",
   lessThanByAuto: "less than by auto",
@@ -32,7 +61,7 @@ const en = {
   howWe_in: "smoke you breathe — ≈ {mid} µg this trip (est. {lo}–{hi})",
   howWe_out: "smoke your ride puts out — {v}",
   howWe_conf: "how sure the smoke number is: {c}",
-  howWe_cigs: "≈ {n} cigarettes",
+  howWe_cigs: "{n} cigarettes",
   howWe_none: "no estimate for this option",
   howWe_fieldAge: "air reading: {n} min old",
   // vehicle question (S8)
@@ -118,6 +147,13 @@ const en = {
   cityHeroRange: "likely between {lo} and {hi}",
   cityNoField: "no live air reading right now",
   cityStale: "older data — reconnecting",
+  citySpeciesTitle: "the other things in the air",
+  citySpeciesNote: "city mean, µg/m³ — measured every 15 minutes",
+  cityTypicalLine:
+    "running {pct}% vs the decade norm of {med} µg/m³ for this hour",
+  cityForecastTitle: "the next 12 hours",
+  cityForecastNote: "CAMS forecast anchored to the live field, µg/m³",
+  cityForecastNow: "now",
   cityStreetsTitle: "streets travellers crossed",
   cityEmptyStreets: "nothing to show yet — a street appears after 3+ travellers cross it in 3 days",
   cityHeavier: "heavier",
@@ -156,14 +192,14 @@ const en = {
   ledgerLast7: "last 7 days",
   ledgerPrivacy: "trips stay on your phone",
   tripsBreathed: "smoke you breathed",
-  tripsCigs: "≈ {n} cigarettes",
+  tripsCigs: "{n} cigarettes",
   tripsCount: "{n} trips",
   tripsCountOne: "{n} trip",
   tripsDoseBand: "est. {lo}–{hi} µg",
   tripsDoseDetail: "est. {n} µg of smoke you breathed",
   tripsOutDetail: "est. {n} kg put out",
   tripsPutOut: "smoke your ride put out",
-  tripsSavedVs: "≈ {n} cigarettes less than the smokiest way",
+  tripsSavedVs: "{n} cigarettes less than the smokiest way",
   notSet: "not set",
   // notifications (src/notify.ts) — consumer voice: "smoke", never PM2.5
   notify_departure_title: "leave now — lighter air",
@@ -173,9 +209,11 @@ const en = {
   notify_chan_departure: "leave-time reminders",
   notify_chan_brief: "morning air brief",
   setCurrentDest: "save current destination",
+  setPlace: "set",
   onLabel: "on",
   offLabel: "off",
   unitsKm: "km",
+  settingsUnitsHint: "metric only",
   morningAlert: "morning air alert",
   shareDataHint: "anonymous — it builds Delhi's air map; one tap to stop",
   deleteConfirmTitle: "delete my data?",
@@ -209,7 +247,7 @@ const en = {
   followRoute: "follow the route line",
   boardMetro: "board {a} → {b}",
   arriveAt: "arrive {t}",
-  breathedSoFar: "breathed ≈ {n} so far",
+  breathedSoFar: "breathed {n} so far",
   offline: "can't reach the server — trying again",
   offlineStale: "offline — showing last known air",
   offlinePending: "{n} saved to send",
@@ -226,7 +264,7 @@ const en = {
   onb_privacyTrimmed: "Shared trips are cut at both ends and become a few rough dots on a map grid — a street shows only when at least 3 people have crossed it.",
   onb_privacyLocation: "Your location stays on this phone — it only steers the map and turn-by-turn guidance.",
   tripDone: "trip done",
-  receiptSaved: "the smokiest way would have added ≈ {n}",
+  receiptSaved: "the smokiest way would have added {n} cigarettes",
   minUnit: "min",
   compare_pick: "our pick",
   compare_yours: "your usual",
@@ -235,11 +273,16 @@ const en = {
   plan_failed: "couldn't load the ways there — check the connection",
   plan_failed_server: "the server couldn't route this trip",
   plan_retry: "try again",
+  plan_outside_title: "this trip sits outside Delhi NCR",
+  plan_outside_body: "alive-108 only measures the air inside Delhi NCR — this trip leaves the field, so its dose can't be priced honestly.",
+  plan_outside_cta: "change the trip",
+  plan_coverage_note: "smoke counted for the NCR span only",
+  howWe_coverage: "the route leaves the field — only the covered {pct}% is counted, never clamped",
   // live nav + receipt (src/nav, S6/S7)
   nav_breathe: "smoke you breathe",
   nav_putOut: "smoke your ride puts out",
-  nav_cigs: "≈ {n} cigarettes",
-  nav_kg: "≈ {n} kg",
+  nav_cigs: "{n} cigarettes",
+  nav_kg: "{n} kg",
   nav_left: "{min} min · {km} km left",
   nav_recenter: "re-centre",
   nav_in: "in {d} metres — {i}",
@@ -247,19 +290,29 @@ const en = {
   nav_noSignal: "locating you…",
   strip_unavailable: "live air update lost — counters paused",
   arrived_hereIn: "You're here. {n} min.",
-  receipt_breathed: "you breathed ≈ {n} cigarettes",
+  receipt_breathed: "you breathed {n} cigarettes",
   receipt_lessVs: "{n}× less than by {m}",
   receipt_moreVs: "{n}× more than by {m}",
-  receipt_putOutKg: "your ride put out ≈ {n} kg",
-  receipt_altPutOut: "{m} would have put out ≈ {n} kg",
+  receipt_putOutKg: "your ride put out {n} kg",
+  receipt_altPutOut: "{m} would have put out {n} kg",
   receipt_estLike: "est. — for vehicles like yours",
   receipt_pmBand: "incl. {lo}–{hi} g of fine dust (PM2.5)",
+  receipt_pmBandOne: "incl. {x} g of fine dust (PM2.5)",
+  receipt_pmBandTiny: "incl. <0.01 g of fine dust (PM2.5)",
   receipt_donated: "added anonymously to Delhi's air map",
   receipt_private: "kept on this phone only",
   receipt_noDose: "no smoke estimate for this trip",
   receipt_lessVsWorst: "{n}× less than the smokiest option",
   receipt_putOutNone: "your ride put out nothing — no exhaust",
   receipt_estShort: "est.",
+  receipt_distance: "distance",
+  receipt_duration: "time",
+  receipt_doseUgBand: "est. {lo}–{hi} µg",
+  receipt_save: "save",
+  resultsHeader: "Results",
+  noPlaceFound: "no place found — try a landmark",
+  emptySearchHint: "type a place or landmark — or choose on the map",
+  mapPickHint: "tap the map to drop a pin there",
   // first run
   onboard_breatheSub: "counts the smoke as you ride",
   onboard_receiptSub1: "what you actually breathed",
@@ -267,8 +320,9 @@ const en = {
   introTitle: "every trip in delhi has an air price.",
   introBody: "pick where you're going — we compare every way there by what you'd actually breathe, not just how fast it is. your journeys anonymously build a shared air map of the city.",
   introGotIt: "got it",
-  // place-name fallbacks (useShellFlow / App.tsx — not yet wired)
+  // place-name fallbacks (useShellFlow: from/to when no place is picked)
   placeCurrentLocation: "your location",
+  placeDroppedPin: "dropped pin",
   placeCentralDelhi: "central Delhi",
   // accessibility
   a11yMenu: "menu",
@@ -294,15 +348,34 @@ const hi: Record<StringKey, string> = {
   saveAsWork: "काम की जगह बनाएँ",
   share: "शेयर करें",
   shareAppBody: "जाने से पहले अपनी दिल्ली यात्राओं का धुआँ देख रहा हूँ — ALive-108",
-  shareTripBody: "मेरी यात्रा {from} → {to}: अनुमानित {dose} धुआँ साँस में गया — ALive-108 का अंदाज़ा",
+  shareTripBody: "मेरी यात्रा {from} → {to}: अनुमानित {dose} धुआँ साँस में गया और गाड़ी ने {co2} छोड़ा — ALive-108 का अंदाज़ा",
   outsideDelhi: "दिल्ली से बाहर — धुएँ का अंदाज़ा नहीं मिलेगा",
   start: "शुरू करें",
   end: "खत्म करें",
   lightestOnBoth: "दोनों में सबसे हल्का",
   lightestForYou: "आपके लिए सबसे हल्का",
   lightestForDelhi: "दिल्ली के लिए सबसे हल्का",
+  reason_noEmis: "आपके लिए सबसे कम धुआँ — इस सेट के लिए उत्सर्जन अनुमान नहीं।",
+  reason_easyPick: "आपके लिए सबसे कम धुआँ और सबसे कम उत्सर्जन — आसान चुनाव।",
+  reason_heavierDelhi: "आपके लिए सबसे कम धुआँ, लेकिन दिल्ली के लिए भारी।",
+  reason_lowestEmis: "विकल्पों में सबसे कम उत्सर्जन — लेकिन आप ज़्यादा धुआँ साँसेंगे।",
+  reason_fairTrade: "सबसे हल्के डोज़ के ~10% के भीतर और उनमें सबसे हल्का उत्सर्जन — उचित समझौता।",
+  reason_slowerSuffix: " सबसे तेज़ से {m} मिनट धीमा।",
+  ne_road: "नॉन-एग्ज़ॉस्ट (फिर से उड़ी धूल + ब्रेक/टायर), अलग से रिपोर्ट — दिल्ली के ट्रैफ़िक PM10 का ~86% नॉन-एग्ज़ॉस्ट है (Sahu et al. 2020, docs/26); टेलपाइप संख्या में कभी नहीं जोड़ा जाता",
+  ne_rail: "रेल — सड़क की धूल दोबारा नहीं उड़ती",
+  ne_zero: "शून्य — गैर-मोटराइज़्ड मोड",
+  mode_carAC: "कार (AC)",
+  mode_carOpen: "कार (खिड़कियाँ खुली)",
+  mode_bike: "बाइक / स्कूटर",
+  mode_bus: "बस",
+  mode_auto: "ऑटो-रिक्शा",
+  mode_metroWalk: "मेट्रो + पैदल",
+  mode_cycle: "साइकिल",
+  mode_walk: "पैदल",
+  mode_approx: " (अनुमानित)",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
   youreHere: "आप पहुँच गए।",
+  tripEnded: "यात्रा ख़त्म हुई।",
   youBreathed: "आपने साँस में लिया",
   ridePutOut: "आपकी गाड़ी ने छोड़ा",
   lessThanByAuto: "ऑटो से कम",
@@ -311,7 +384,7 @@ const hi: Record<StringKey, string> = {
   howWe_in: "साँस का धुआँ — इस यात्रा में ≈ {mid} µg (अंदाज़ {lo}–{hi})",
   howWe_out: "गाड़ी से निकला धुआँ — {v}",
   howWe_conf: "धुएँ के नंबर का भरोसा: {c}",
-  howWe_cigs: "≈ {n} सिगरेट",
+  howWe_cigs: "{n} सिगरेट",
   howWe_none: "इस विकल्प के लिए कोई अनुमान नहीं",
   howWe_fieldAge: "हवा की रीडिंग: {n} मिनट पुरानी",
   vehicleQ1: "आप रोज़ कैसे आते-जाते हैं?",
@@ -369,6 +442,13 @@ const hi: Record<StringKey, string> = {
   cityHeroRange: "शायद {lo} से {hi} के बीच",
   cityNoField: "अभी हवा की लाइव रीडिंग नहीं",
   cityStale: "पुराना डेटा — फिर जुड़ रहा है",
+  citySpeciesTitle: "हवा में और क्या-क्या है",
+  citySpeciesNote: "शहर का औसत, µg/m³ — हर 15 मिनट ताज़ा",
+  cityTypicalLine:
+    "इस समय के दशक-औसत {med} µg/m³ की तुलना में {pct}%",
+  cityForecastTitle: "अगले 12 घंटे",
+  cityForecastNote: "CAMS पूर्वानुमान, लाइव फ़ील्ड से जुड़ा, µg/m³",
+  cityForecastNow: "अभी",
   cityStreetsTitle: "जिन सड़कों से यात्री गुज़रे",
   cityEmptyStreets: "अभी दिखाने को कुछ नहीं — 3+ यात्रियों के 3 दिन में गुज़रने पर सड़क दिखती है",
   cityHeavier: "ज़्यादा धुआँ",
@@ -433,18 +513,20 @@ const hi: Record<StringKey, string> = {
   ledgerLast7: "पिछले 7 दिन",
   ledgerPrivacy: "यात्राएँ आपके फ़ोन पर ही रहती हैं",
   tripsBreathed: "आपने साँस में लिया धुआँ",
-  tripsCigs: "≈ {n} सिगरेट",
+  tripsCigs: "{n} सिगरेट",
   tripsCount: "{n} यात्राएँ",
   tripsCountOne: "{n} यात्रा",
   tripsDoseBand: "अंदाज़न {lo}–{hi} µg",
   tripsDoseDetail: "अंदाज़न {n} µg धुआँ आपने साँस में लिया",
   tripsOutDetail: "अंदाज़न {n} kg छोड़ा",
   tripsPutOut: "आपकी गाड़ी ने छोड़ा धुआँ",
-  tripsSavedVs: "सबसे धुआँदार रास्ते से ≈ {n} सिगरेट कम",
+  tripsSavedVs: "सबसे धुआँदार रास्ते से {n} सिगरेट कम",
   setCurrentDest: "अभी की मंज़िल सेव करें",
+  setPlace: "सेट करें",
   onLabel: "चालू",
   offLabel: "बंद",
   unitsKm: "किमी",
+  settingsUnitsHint: "सिर्फ़ मीट्रिक",
   morningAlert: "सुबह का हवा-अलर्ट",
   shareDataHint: "गुमनाम — इससे दिल्ली का हवा-नक्शा बनता है; एक टैप से बंद",
   deleteConfirmTitle: "मेरा डेटा मिटाएँ?",
@@ -476,7 +558,7 @@ const hi: Record<StringKey, string> = {
   followRoute: "नक्शे की लकीर के साथ चलें",
   boardMetro: "{a} पर चढ़ें → {b} पर उतरें",
   arriveAt: "{t} तक पहुँचें",
-  breathedSoFar: "अब तक ≈ {n} साँस में लिया",
+  breathedSoFar: "अब तक {n} साँस में लिया",
   offline: "सर्वर से संपर्क नहीं — फिर कोशिश हो रही है",
   offlineStale: "ऑफ़लाइन — पिछली ज्ञात हवा दिख रही है",
   offlinePending: "{n} भेजने के लिए सहेजी गई",
@@ -492,7 +574,7 @@ const hi: Record<StringKey, string> = {
   onb_privacyTrimmed: "साझा यात्राओं के दोनों सिरे कट जाते हैं और बची चीज़ नक्शे पर कुछ धुंधले बिंदु बनती है — कोई सड़क तभी दिखती है जब कम से कम 3 लोग उससे गुज़रे हों।",
   onb_privacyLocation: "आपकी लोकेशन इसी फ़ोन पर रहती है — वो सिर्फ़ नक्शा और मोड़-दर-मोड़ का रास्ता चलाती है।",
   tripDone: "यात्रा पूरी",
-  receiptSaved: "सबसे धुआँदार रास्ता ≈ {n} ज़्यादा देता",
+  receiptSaved: "सबसे धुआँदार रास्ता {n} सिगरेट ज़्यादा देता",
   minUnit: "मिनट",
   compare_pick: "हमारी पसंद",
   compare_yours: "आपकी सामान्य",
@@ -501,10 +583,15 @@ const hi: Record<StringKey, string> = {
   plan_failed: "रास्ते नहीं खुल पाए — कनेक्शन जाँचें",
   plan_failed_server: "सर्वर रास्ता नहीं बना पाया",
   plan_retry: "फिर कोशिश करें",
+  plan_outside_title: "यह यात्रा दिल्ली NCR से बाहर है",
+  plan_outside_body: "alive-108 सिर्फ़ दिल्ली NCR की हवा नापता है — यह यात्रा फ़ील्ड से बाहर जाती है, इसलिए धुएँ का ईमानदार हिसाब नहीं बन सकता.",
+  plan_outside_cta: "यात्रा बदलें",
+  plan_coverage_note: "धुएँ का हिसाब सिर्फ़ NCR वाले हिस्से का है",
+  howWe_coverage: "रास्ता फ़ील्ड से बाहर जाता है — सिर्फ़ ढके हुए {pct}% की गिनती हुई, अनुमान नहीं लगाया गया",
   nav_breathe: "आपके साँस का धुआँ",
   nav_putOut: "आपकी गाड़ी का धुआँ",
-  nav_cigs: "≈ {n} सिगरेट",
-  nav_kg: "≈ {n} किग्रा",
+  nav_cigs: "{n} सिगरेट",
+  nav_kg: "{n} किग्रा",
   nav_left: "{min} मिनट · {km} किमी बाकी",
   nav_recenter: "नक्शा केंद्र में लाएँ",
   nav_in: "{d} मीटर में — {i}",
@@ -512,19 +599,29 @@ const hi: Record<StringKey, string> = {
   nav_noSignal: "आपकी लोकेशन ढूँढ रहे हैं…",
   strip_unavailable: "लाइव हवा-अपडेट नहीं मिला — काउंटर रुके हैं",
   arrived_hereIn: "आप पहुँच गए। {n} मिनट।",
-  receipt_breathed: "आपने ≈ {n} सिगरेट के बराबर धुआँ साँस में लिया",
+  receipt_breathed: "आपने {n} सिगरेट के बराबर धुआँ साँस में लिया",
   receipt_lessVs: "{m} से {n}× कम",
   receipt_moreVs: "{m} से {n}× ज़्यादा",
-  receipt_putOutKg: "आपकी गाड़ी ने ≈ {n} किग्रा छोड़ा",
-  receipt_altPutOut: "{m} ने ≈ {n} किग्रा छोड़ा होता",
+  receipt_putOutKg: "आपकी गाड़ी ने {n} किग्रा छोड़ा",
+  receipt_altPutOut: "{m} ने {n} किग्रा छोड़ा होता",
   receipt_estLike: "अनुमान — आप जैसी गाड़ियों के लिए",
   receipt_pmBand: "जिसमें {lo}–{hi} ग्रा बारीक धूल (PM2.5)",
+  receipt_pmBandOne: "जिसमें {x} ग्रा बारीक धूल (PM2.5)",
+  receipt_pmBandTiny: "जिसमें <0.01 ग्रा बारीक धूल (PM2.5)",
   receipt_donated: "दिल्ली के हवा-नक्शे में गुमनाम रूप से जुड़ा",
   receipt_private: "सिर्फ़ इस फ़ोन पर रखा गया",
   receipt_noDose: "इस यात्रा के लिए धुएँ का अंदाज़ा नहीं",
   receipt_lessVsWorst: "सबसे धुआँदार विकल्प से {n}× कम",
   receipt_putOutNone: "आपकी गाड़ी ने कुछ नहीं छोड़ा — कोई एग्ज़ॉस्ट नहीं",
   receipt_estShort: "अनुमान",
+  receipt_distance: "दूरी",
+  receipt_duration: "समय",
+  receipt_doseUgBand: "अनुमान {lo}–{hi} µg",
+  receipt_save: "सहेजें",
+  resultsHeader: "नतीजे",
+  noPlaceFound: "कोई जगह नहीं मिली — कोई लैंडमार्क लिखकर देखें",
+  emptySearchHint: "जगह या लैंडमार्क लिखें — या नक्शे पर चुनें",
+  mapPickHint: "नक्शे पर टैप करके पिन लगाएँ",
   onboard_breatheSub: "सफ़र के दौरान धुएँ का अंदाज़ा",
   onboard_receiptSub1: "आपने कितना धुआँ लिया",
   onboard_receiptSub2: "और आपकी गाड़ी ने कितना छोड़ा",
@@ -532,6 +629,7 @@ const hi: Record<StringKey, string> = {
   introBody: "मंज़िल चुनें — हम हर रास्ते की तुलना उस धुएँ से करते हैं जो आप साँस में लेंगे, सिर्फ़ रफ़्तार से नहीं। आपकी यात्राएँ गुमनाम रहकर शहर का साझा हवा-नक्शा बनाती हैं।",
   introGotIt: "ठीक है",
   placeCurrentLocation: "आपकी लोकेशन",
+  placeDroppedPin: "गिराई गई पिन",
   placeCentralDelhi: "सेंट्रल दिल्ली",
   a11yMenu: "मेन्यू",
   a11yLocate: "मुझे ढूँढें",
@@ -550,4 +648,59 @@ export function t(key: StringKey, lang: Lang = "en", vars?: Record<string, strin
   let s: string = tables[lang][key] ?? en[key];
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
   return s;
+}
+
+/** Localize a server's option label by mode (labels are English on the
+ * wire). Exact matches translate; a route suffix like " 548CL" is kept
+ * verbatim after the localized base; unknown modes pass through. */
+const MODE_BASE: Record<string, { en: string; key: StringKey }> = {
+  car: { en: "Car (AC)", key: "mode_carAC" },
+  car_open: { en: "Car (windows down)", key: "mode_carOpen" },
+  bike: { en: "Bike / scooter", key: "mode_bike" },
+  bus: { en: "Bus", key: "mode_bus" },
+  auto: { en: "Auto-rickshaw", key: "mode_auto" },
+  "metro+walk": { en: "Metro + walk", key: "mode_metroWalk" },
+  cycle: { en: "Bicycle", key: "mode_cycle" },
+  walk: { en: "On foot", key: "mode_walk" },
+};
+
+/** English bases, longest first — a server mode like "metro" can carry the
+ *  "metro+walk" label, so an unknown mode falls back to prefix-matching
+ *  every known base instead of leaking the English label. */
+const BASES = Object.values(MODE_BASE).sort((a, b) => b.en.length - a.en.length);
+
+export function modeLabel(mode: string, label: string, lang: Lang): string {
+  const byMode = MODE_BASE[mode];
+  const b = byMode && label.startsWith(byMode.en)
+    ? byMode
+    : BASES.find((x) => label === x.en || label.startsWith(x.en + " ") || label.startsWith(x.en + "("));
+  if (!b) return label;
+  const rest = label.slice(b.en.length);
+  /* " (approx.)" is wire English too — localize the whole suffix */
+  const suffix = rest.startsWith(" (approx") ? t("mode_approx", lang) : rest;
+  return t(b.key, lang) + suffix;
+}
+
+/** Place names are stored verbatim at save-time, so a ledger row keeps the
+ *  language it was named in ("your location" inside a Hindi UI). Sentinel
+ *  names — the phone's own placeholders, not real place names — are
+ *  re-rendered in the current language; real gazetteer names pass through. */
+/** "≈ 0 cigarettes" reads wrong — the approximation mark belongs on
+ *  estimates, not exact zeros. Templates carry "{n} <unit>" and call
+ *  sites pass approx(value): 0 → "0", 0.28 → "≈ 0.28". */
+export const approx = (n: number | string): string =>
+  Number(n) === 0 ? "0" : `≈ ${n}`;
+
+const PLACE_SENTINEL: Record<string, keyof typeof en> = {
+  "your location": "placeCurrentLocation",
+  "आपकी लोकेशन": "placeCurrentLocation",
+  "Dropped pin": "placeDroppedPin",
+  "गिराई गई पिन": "placeDroppedPin",
+  "central Delhi": "placeCentralDelhi",
+  "सेंट्रल दिल्ली": "placeCentralDelhi",
+};
+
+export function placeNameLabel(name: string, lang: Lang): string {
+  const key = PLACE_SENTINEL[name];
+  return key ? t(key, lang) : name;
 }

@@ -176,6 +176,7 @@ export interface HealthResponse {
   field_age_s?: number | null;
   field_refresh_in_s?: number | null;  // FieldStatus.refresh_in_s surfaced
   field_stale?: boolean | null;        // FieldStatus.stale surfaced
+  engine?: string;                     // "alive_core" | "python" — serving engine
   sources?: Record<string, unknown>;
   history?: unknown;
 }
@@ -330,6 +331,11 @@ export interface DoseBand {
   confidence?: "high" | "medium" | "low" | "none" | null;
   basis?: string | null;
   note?: string;
+  /** fraction of sampled route inside the field — <1 on edge-crossing
+      trips (the uncovered span is excluded, never clamped). For leg-based
+      doses (transit) it is the weakest leg's coverage. */
+  coverage?: number | null;
+  sparse?: boolean | null;
 }
 
 export interface EmissionBandValue {
@@ -385,6 +391,10 @@ export interface V2PlanOption {
   depart_at?: string | null;    // ISO timestamp
   arrive_at?: string | null;
   transit_source?: string | null;
+  /* metro only: station-model honesty flags — the option is built from
+     a station-to-station model, not a live GTFS timetable */
+  approximate?: boolean;
+  approximation?: string;
 }
 
 export interface V2PlanResponse {
@@ -399,6 +409,9 @@ export interface V2PlanResponse {
   field: FieldStatus;
   took_ms: number;
   error?: string;               // malformed from/to path
+  /** stable machine code on the error path — 'outside_service_area';
+      clients key on this, never on error text. */
+  code?: string;
 }
 
 export interface V2StripSample {
@@ -484,6 +497,7 @@ export interface V2TripResponse {
   };
   ts: number;
   ledger_recorded?: boolean;    // false when no device_token was supplied
+  deduplicated?: boolean;       // true when an identical donation replayed
 }
 
 export interface V2LedgerTrip {
@@ -526,6 +540,9 @@ export interface V2CityCorridor {
   trips: number;
   devices: number;
   avg_dose_ug: number;
+  /* g CO2 per 100 m of corridor — null when no crossing trip carried
+     a co2 figure (never a fake zero) */
+  co2_g_per_100m?: number | null;
   relative: "heavier" | "lighter";
 }
 
@@ -533,6 +550,22 @@ export interface V2CityResponse {
   ts: number;
   generated_at?: string;
   pm25_stats: Record<string, unknown>;
+  /** Field-mean stats per extra species over the same NCR lattice —
+      a species is omitted (not nulled) when the serving field has
+      no data for it. Keys are open-meteo names. */
+  species?: Record<string, { mean: number; median: number; max: number;
+                             n: number }>;
+  /** Decade-climatology at the city centroid (openaq-data-archive,
+      ~9M measured station-hours): median/p25/p75 for this month+hour
+      and the live-vs-typical delta. Omitted when the archive or the
+      live mean is unavailable — never a guess. */
+  typical?: { month: number; hour_ist: number; median: number;
+              p25?: number | null; p75?: number | null;
+              vs_now_pct?: number | null } | null;
+  /** Next 12 hourly PM2.5 forecast at the city centroid — live-anchored
+      CAMS horizon (same model /depart uses). Null when the forecast
+      field is cold. */
+  next_hours?: { h: number; start: string | null; pm25: number }[] | null;
   breath?: {
     pm25_ugm3: V2Band;
     day_inhaled_ug: V2Band;
@@ -589,6 +622,9 @@ export interface V2MovesCorridors {
   active: number;               // publishable cells right now
   tracked: number;              // every cell ever seen
   avg_dose_ug: V2MovesBand | null; // per-cell mean-dose distribution
+  /* g CO2 per 100 m of corridor — band over cells whose trips carried
+     co2; null when none did (never a fake zero) */
+  co2_g_per_100m: V2MovesBand | null;
 }
 
 export interface V2MovesPerTrip {
@@ -625,6 +661,11 @@ export const V2_ENDPOINTS = {
   city: "/v2/city",
   city_moves: "/v2/city/moves",
   ledger: "/v2/ledger",
+  // /v2/today and /v2/depart are wire aliases for the v1 handlers —
+  // same shapes as /today and /depart above, surfaced under the v2
+  // prefix for symmetry with the rest of the v2 surface.
+  today: "/v2/today",
+  depart: "/v2/depart",
 } as const;
 
 export type TravelMode = "driving" | "cycling" | "walking";

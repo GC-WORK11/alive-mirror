@@ -98,6 +98,24 @@ def test_ledger_token_hashed_never_raw():
     assert "tok-d" not in store.LEDGER._ledgers
 
 
+def test_trip_retry_deduplicates_counts_once():
+    """An offline-queue replay must not mint a second trip in totals."""
+    traj = [[77.21, 28.62], [77.22, 28.63]]
+    r1 = client.post("/v2/trip", json={
+        "device_token": "tok-dupe", "trajectory": traj,
+        "summary": {"distance_km": 7.5, "duration_s": 600,
+                    "dose_ug": 20.0, "mode": "auto"}})
+    assert r1.status_code == 200 and not r1.json()["deduplicated"]
+    r2 = client.post("/v2/trip", json={
+        "device_token": "tok-dupe", "trajectory": traj,
+        "summary": {"distance_km": 7.5, "duration_s": 600,
+                    "dose_ug": 20.0, "mode": "auto"}})
+    assert r2.status_code == 200 and r2.json()["deduplicated"] is True
+
+    own = client.get("/v2/ledger", params={"token": "tok-dupe"}).json()
+    assert own["totals"]["trips"] == 1
+
+
 # --- roads[] in /v2/strip -----------------------------------------------------
 def _route_with_steps():
     rid = store.ROUTES.put({

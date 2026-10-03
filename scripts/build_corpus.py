@@ -604,9 +604,14 @@ def merge_geonames(entries: dict, stats: dict) -> dict:
                 pop = int(c[14])
             except ValueError:
                 pop = 0
+            # popularity is a 0..1 scorer weight — write the log-scaled
+            # value (Delhi-scale ceiling) so raw population can't become
+            # a million-point term downstream (alive_core_ref._norm_popularity
+            # re-guards at index load for older corpora)
+            pop_w = min(1.0, math.log1p(pop) / math.log1p(20_000_000.0))
             cat = GEONAMES_CAT.get(c[7], f"geonames:{c[7] or c[6]}")
             e = make_entry(f"gn:{c[0]}", name, alts, cat, lat, lon,
-                           source="geonames", popularity=pop)
+                           source="geonames", popularity=pop_w)
             if e is None:
                 continue
             e["geonames"] = c[0]
@@ -923,7 +928,13 @@ def emit_mobile(entries, target: int, gaz_path: str = GAZETTEER_PATH,
             skipped += 1
             continue
         top, _, sub = e["category"].partition(":")
-        c = sub if sub else top
+        # a sub-category only earns `c` when it is a clean snake token —
+        # raw tag values ("Ayurvedic Hospital", "part:yes", "3-4_floors")
+        # fall back to the top-level bucket so the app never renders
+        # unfiltered OSM values as subtitles
+        clean_sub = bool(re.fullmatch(r"[a-z][a-z0-9_]*", sub)) \
+            and sub not in {"yes", "no", "fixme", "unknown"}
+        c = sub if clean_sub else top
         w = MOBILE_W.get(c, MOBILE_W.get(top, 5))
         new_rows.append({
             "n": e["display"],

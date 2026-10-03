@@ -17,6 +17,9 @@ export type PlanRequest = {
   from: { lat: number; lon: number };
   to: { lat: number; lon: number };
   vehicle?: string;
+  /** full S8 profile — server `_parse_vehicle` reads fuel/year_bucket
+      out of it; omitting it quietly falls back to the fleet prior */
+  vehicle_profile?: { class: string; fuel?: string; year_bucket?: string } | null;
   depart_at?: string;
 };
 
@@ -104,6 +107,7 @@ function toOption(raw: unknown): V2Option | null {
       confidence: str(dose.confidence),
       basis: str(dose.basis),
       note: str(dose.note),
+      coverage: num(dose.coverage),
     },
     emissions: {
       co2_kg: band(em.co2_kg),
@@ -115,6 +119,20 @@ function toOption(raw: unknown): V2Option | null {
       bs_class: str(em.bs_class),
       bs_options: Array.isArray(em.bs_options) ? em.bs_options.filter((x): x is string => typeof x === "string") : null,
       confidence: str(em.confidence),
+      breakdown: em.breakdown && typeof em.breakdown === "object"
+        ? (() => {
+            const bd = em.breakdown as Record<string, unknown>;
+            const mid = (k: string) =>
+              bd[k] && typeof bd[k] === "object"
+                ? { co2: num((bd[k] as Record<string, unknown>).co2) }
+                : null;
+            return {
+              moving_mid: mid("moving_mid"),
+              idle_mid: mid("idle_mid"),
+              cold_extra_mid: mid("cold_extra_mid"),
+            };
+          })()
+        : null,
       non_exhaust: em.non_exhaust && typeof em.non_exhaust === "object"
         ? {
             pm10_g: band((em.non_exhaust as Record<string, unknown>).pm10_g),
@@ -142,7 +160,10 @@ function toOption(raw: unknown): V2Option | null {
 export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<PlanResultFresh> {
   const r = await fetchCached<PlanResultFresh>(`${API}/v2/plan`, {
     ttlMs: 15 * 60 * 1000,                       // field cadence is ~15 min
-    key: cacheKeys.plan(req.from.lat, req.from.lon, req.to.lat, req.to.lon),
+    key: cacheKeys.plan(req.from.lat, req.from.lon, req.to.lat, req.to.lon,
+      req.vehicle_profile
+        ? `${req.vehicle ?? ""}:${req.vehicle_profile.fuel ?? ""}:${req.vehicle_profile.year_bucket ?? ""}`
+        : req.vehicle ?? ""),
     timeoutMs,
     fetcher: async () => {
       const j = (await postJson(`${API}/v2/plan`, req, timeoutMs)) as Record<string, unknown>;
@@ -184,5 +205,6 @@ function mapPlan(j: Record<string, unknown>): PlanResultFresh {
     field: field ? mapFieldStatus(field) : null,
     vehicle: str(j.vehicle) ?? undefined,
     error: str(j.error) ?? undefined,
+    code: str(j.code) ?? undefined,
   };
 }

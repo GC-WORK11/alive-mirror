@@ -26,10 +26,12 @@ bottom of this module. Same contract: TripAggregates only, every emitted
 row k>=3, window/min_k/n_trips always stated, and an empty store answers
 insufficient_data rather than a zero posing as measurement.
 """
+import asyncio
 import math
 import statistics
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter
 
@@ -96,6 +98,36 @@ def _field_stats(vals: list) -> dict:
         "above_cpcb_60": round(sum(v > 60 for v in vals) / len(vals) * 100),
         "note": "% of sampled NCR points above each 24h guideline",
     }
+
+
+_SPECIES = ("pm10", "nitrogen_dioxide", "ozone", "carbon_monoxide",
+            "sulphur_dioxide", "ammonia", "us_aqi", "dust",
+            "aerosol_optical_depth")
+
+
+def _species(F) -> dict:
+    """Field-mean of every other real species over the same 15-pt lattice.
+    Snapshot-serving fields carry pm25 only — a species that returns None
+    everywhere is honestly omitted, never interpolated into fiction."""
+    out = {}
+    for sp in _SPECIES:
+        vals = []
+        for la in _LATS:
+            for lo in _LONS:
+                try:
+                    v = F.value(la, lo, sp)
+                except Exception:
+                    v = None
+                if v is not None:
+                    vals.append(float(v))
+        if vals:
+            out[sp] = {
+                "mean": round(statistics.fmean(vals), 1),
+                "median": round(statistics.median(vals), 1),
+                "max": round(max(vals), 1),
+                "n": len(vals),
+            }
+    return out
 
 
 def _breath_band(vals: list, sigs: list) -> dict:
@@ -266,12 +298,67 @@ async def _corridors(loc) -> list:
             "trips": c["trips"],
             "devices": c["devices"],
             "avg_dose_ug": c["avg_dose_ug"],
+            "co2_g_per_100m": c.get("co2_g_per_100m"),
             "relative": "heavier" if c["avg_dose_ug"] >= med else "lighter",
         })
     return rows
 
 
 # ---------------------------------------------------------------- endpoint
+
+def _typical(now_pm25: Optional[float]) -> Optional[dict]:
+    """Decade-climatology context at the city centroid: what Connaught
+    Place usually reads this month, this hour (9M measured station-hours
+    from the openaq-data-archive), versus the live field mean. None when
+    the archive or the live mean is unavailable — never a guess."""
+    if now_pm25 is None:
+        return None
+    try:
+        import history
+        ist = timezone(timedelta(hours=5, minutes=30))
+        n = datetime.now(ist)
+        band = history.typical_band(28.6315, 77.2167, n.month, n.hour)
+        med = band.get("median")
+        if med is None:
+            return None
+        return {"month": n.month, "hour_ist": n.hour,
+                "median": round(med, 1), "p25": band.get("p25"),
+                "p75": band.get("p75"),
+                "vs_now_pct": round((now_pm25 - med) / med * 100, 1)
+                if med else None}
+    except Exception:
+        return None
+
+
+async def _next_hours() -> Optional[list]:
+    """Next 12 hourly PM2.5 forecast at the city centroid — the same
+    live-anchored CAMS horizon /depart uses (forecast grid x stagnation
+    factor + decaying live-field correction). Best-effort bounded
+    refresh; None when the forecast field is cold or dead — never a
+    guess."""
+    try:
+        from forecast import FORECAST
+        await asyncio.wait_for(FORECAST.refresh(deps.http()), timeout=12.0)
+    except Exception:
+        pass
+    try:
+        from forecast import FORECAST
+        out = []
+        for h in range(12):
+            v = FORECAST.pm25(28.6315, 77.2167, h)
+            if v is None:
+                continue
+            idx = FORECAST.hour_index(h)
+            out.append({
+                "h": h,
+                "start": (FORECAST.time_at(idx)
+                          if idx is not None else None),
+                "pm25": round(v, 1),
+            })
+        return out or None
+    except Exception:
+        return None
+
 
 @router.get("/city")
 async def city():
@@ -292,6 +379,7 @@ async def city():
         pass
 
     vals, sigs = _lattice(F)
+    stats = _field_stats(vals)
     agg = TRIPS.city_aggregates()
     corridors = await _corridors(loc)
     now = time.time()
@@ -300,7 +388,10 @@ async def city():
         "ts": now,
         "generated_at": datetime.fromtimestamp(
             now, tz=timezone.utc).isoformat(timespec="seconds"),
-        "pm25_stats": _field_stats(vals),
+        "pm25_stats": stats,
+        "typical": _typical(stats.get("mean")),
+        "next_hours": await _next_hours(),
+        "species": _species(F),
         "breath": _breath_band(vals, sigs),
         "field": fstat,
         "field_age_s": fstat.get("age_s"),
@@ -426,6 +517,11 @@ async def city_moves():
         # each input row is already a >=3-device aggregate by the store's
         # own rule, so the band never rests on a single traveller
         "avg_dose_ug": _pct_band([c["avg_dose_ug"] for c in pub], 1),
+        # emission intensity where trips reported co2 — g per 100 m of
+        # corridor; band over cells that have the index, null when none
+        "co2_g_per_100m": _pct_band(
+            [c["co2_g_per_100m"] for c in pub
+             if c.get("co2_g_per_100m") is not None], 1),
     }
 
     return {

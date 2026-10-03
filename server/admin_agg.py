@@ -149,6 +149,30 @@ def _nearest_place_name(lat: float, lon: float, max_km: float = 2.0):
     return best
 
 
+def _routing_status():
+    """Last observed OSRM call — real route traffic, not a probe."""
+    try:
+        from v2 import deps as _d
+    except Exception:
+        try:
+            from server.v2 import deps as _d
+        except Exception:
+            _d = None
+    last = getattr(_d, "OSRM_LAST", None) or {}
+    at = last.get("at")
+    return {
+        "detail": ("self-hosted Delhi daemon first, public OSRM demo "
+                   "fallback — driving/cycling/walking profiles"),
+        "up": last.get("ok"),
+        "ms": last.get("ms"),
+        "backend": last.get("backend"),
+        "age_s": (round(time.time() - at, 1) if at else None),
+        "err": last.get("err"),
+        "note": ("observed from real route calls — null until the first "
+                 "request, never a synthetic ping"),
+    }
+
+
 def _corridor_label(cell: str):
     c = _cell_center(cell)
     if not c:
@@ -222,6 +246,7 @@ async def index():
             "/admin/api/corridors",
             "/admin/api/donations",
             "/admin/api/validation",
+            "/admin/api/model",
         ],
     }
 
@@ -231,6 +256,19 @@ async def status():
     """Service + air-field status, age and provenance (health.py paths)."""
     h = _health.collect_health()
     f = _field_status()
+    species = {}
+    try:
+        from airfield import FIELD
+        from v2.city import _species
+        species = _species(FIELD)
+    except Exception:
+        species = {}
+    forecast = {}
+    try:
+        from forecast import FORECAST
+        forecast = FORECAST.status() or {}
+    except Exception:
+        forecast = {}
     return {
         "ts": time.time(),
         "ok": h.get("ok", True),
@@ -248,11 +286,18 @@ async def status():
             "stale": f.get("stale"),              # True past stale_after_s
             "stale_after_s": f.get("stale_after_s"),
             "kriging": f.get("kriging"),
+            "engine": f.get("engine"),  # alive_core | python serving label
             "sigma_coverage": f.get("sigma_coverage"),
             "coverage": f.get("coverage"),
             "wind": f.get("wind") or {},
             "snapshot_age_s": h.get("field_age_s"),
         },
+        # the other real species the field serves — city-mean lattice
+        # stats; absent entirely when the serving field is pm25-only
+        "species": species,
+        # the forecast horizon's own health — grid points, hour span,
+        # fetch age, and whether reads are anchored to the live field
+        "forecast": forecast,
         "trips_backend": h.get("trips_backend"),
         "ledger": {
             "backend": getattr(LEDGER, "backend", "memory"),
@@ -307,7 +352,12 @@ async def sources():
             "wind_ms": (prov.get("met") or {}).get("wind_ms"),
             "wind_deg": (prov.get("met") or {}).get("wind_deg"),
             "blh_m": (prov.get("met") or {}).get("blh_m"),
-            "vc_m2s": (prov.get("met") or {}).get("vc_m2s")}),
+            "vc_m2s": (prov.get("met") or {}).get("vc_m2s"),
+            # live serving wind from FIELD.status() — covers tasks whose
+            # newest disk snapshot predates met provenance (met serves
+            # wind on /aqi but the build record has nothing to show)
+            "wind_kmh": (f.get("wind") or {}).get("speed_kmh"),
+            "wind_from_deg": (f.get("wind") or {}).get("from_deg")}),
         "stations": merged("stations", {
             "readings": f.get("station_readings"),
             "n_raw": (prov.get("stations") or {}).get("n_raw"),
@@ -320,6 +370,9 @@ async def sources():
             "age_s": fires.get("age_s"),
             "modifier": (prov.get("fires") or {}).get("modifier")}),
         "location": merged("location", {"enabled": loc_up}),
+        # the routing engine — observed from real /v2/plan calls, never
+        # probed synthetically; nulls mean 'no route requested yet'
+        "routing": _routing_status(),
     }
     for s in out.values():
         a = s.get("age_s")
@@ -354,6 +407,8 @@ async def corridors(limit: int = 25):
         "trips": r.get("trips"),
         "devices": r.get("devices"),
         "avg_dose_ug": r.get("avg_dose_ug"),
+        "co2_g_per_100m": r.get("co2_g_per_100m"),
+        "co2_trips": r.get("co2_trips"),
     } for r in raw]
     agg = TRIPS.city_aggregates() or {}
     return {
@@ -370,6 +425,50 @@ async def corridors(limit: int = 25):
     }
 
 
+@router.get("/model")
+async def model_card():
+    """The dose/emission model's own constants — served from the code
+    so the panel can never drift from what the engine computes.
+    Descriptive only: every number here is a published model constant
+    or a citation, never a live-data estimate."""
+    try:
+        import exposure as _ex
+    except Exception:
+        try:
+            from server import exposure as _ex
+        except Exception:
+            _ex = None
+    canon = ["metro", "driving_car_ac", "driving_car_open", "bus",
+             "driving_two_wheeler", "auto_rickshaw", "cycling", "walking"]
+    if _ex is None:
+        return {"ts": time.time(), "available": False,
+                "note": "exposure model not importable on this task"}
+    return {
+        "ts": time.time(),
+        "available": True,
+        "sample_every_m": 250.0,
+        "dose_formula": ("µg = Σ over the route's ~250 m segments: "
+                          "field-C(lat,lon) × microenv(mode) × "
+                          "ventilation(L/min) × minutes"),
+        "microenv": {m: _ex.MICROENV[m] for m in canon
+                     if m in _ex.MICROENV},
+        "ventilation_lpm": {m: _ex.VENTILATION_LPM[m] for m in canon
+                            if m in _ex.VENTILATION_LPM},
+        "road_uplift": {k: v for k, v in _ex.ROAD_UPLIFT.items()
+                        if k != "arterial"},
+        "cig_equiv_ug": _ex.CIG_UG,
+        "plausible_max_kmh": _ex.PLAUSIBLE_MAX_KMH,
+        "citations": {
+            "microenv": "measured Delhi microenvironment ratios, doc 06 §1",
+            "ventilation": ("Zuurbier 2009 — cyclists ≈2.1× in-vehicle VE; "
+                            "activity-adjusted tiers"),
+            "uplift": ("near-road PM increment decays within ~500 m of "
+                       "the curb, doc 06 §1"),
+            "cig": "1 cigarette ≈ 316 µg inhaled PM2.5 (Berkeley Earth)",
+        },
+    }
+
+
 @router.get("/donations")
 async def donations():
     """Donation totals — trips/km/dose/switched over all recorded days.
@@ -381,11 +480,15 @@ async def donations():
     agg = TRIPS.city_aggregates() or {}
     days = agg.get("days") or {}
     tot = {"trips": 0, "km": 0.0, "dose_ug": 0.0, "co2_kg_mid": 0.0,
-           "pm25_g_mid": 0.0, "switched": 0, "modes": {}}
+           "pm25_g_mid": 0.0, "switched": 0, "modes": {},
+           "co2_moving_g": 0.0, "co2_idle_g": 0.0, "co2_cold_g": 0.0,
+           "co2_split_trips": 0}
     for d in days.values():
         tot["trips"] += int(d.get("trips") or 0)
-        for k in ("km", "dose_ug", "co2_kg_mid", "pm25_g_mid"):
+        for k in ("km", "dose_ug", "co2_kg_mid", "pm25_g_mid",
+                  "co2_moving_g", "co2_idle_g", "co2_cold_g"):
             tot[k] += float(d.get(k) or 0.0)
+        tot["co2_split_trips"] += int(d.get("co2_split_trips") or 0)
         tot["switched"] += int(d.get("switched") or 0)
         for m, n in (d.get("modes") or {}).items():
             tot["modes"][m] = tot["modes"].get(m, 0) + int(n)
@@ -407,6 +510,22 @@ async def donations():
         "dose_ug_per_km": (round(tot["dose_ug"] / tot["km"], 1)
                            if tot["km"] else None),
     }
+    # where the donated rides' CO2 comes from — summed ONLY over trips
+    # whose receipts carried a real phase split (older builds donate
+    # totals but no split; they count in co2_kg_mid, not here)
+    _ssum = tot["co2_moving_g"] + tot["co2_idle_g"] + tot["co2_cold_g"]
+    totals["co2_split"] = (None if not tot["co2_split_trips"] else {
+        "trips": tot["co2_split_trips"],
+        "moving_g": round(tot["co2_moving_g"], 1),
+        "idle_g": round(tot["co2_idle_g"], 1),
+        "cold_g": round(tot["co2_cold_g"], 1),
+        "pct": ({"moving": round(100.0 * tot["co2_moving_g"] / _ssum, 1),
+                 "idle": round(100.0 * tot["co2_idle_g"] / _ssum, 1),
+                 "cold": round(100.0 * tot["co2_cold_g"] / _ssum, 1)}
+                if _ssum > 0 else None),
+        "note": "of trips whose receipts carried the phase split — "
+                "moving vs idling vs cold-start",
+    })
     # mode share across all donated trips (day counters — not per-cell,
     # so this is every recorded trip, not only the k>=3 corridor set)
     mode_share = sorted(
@@ -414,11 +533,18 @@ async def donations():
           "pct": round(100.0 * n / tot["trips"], 1) if tot["trips"] else None}
          for m, n in tot["modes"].items()),
         key=lambda r: -(r["trips"] or 0))
+    # the live feed — newest aggregate-level events first (ts/mode/dose/
+    # km/co2; cells and tokens are never part of the feed, by design)
+    try:
+        recent = TRIPS.recent(20)
+    except Exception:  # noqa: BLE001 - a store without the ring degrades
+        recent = []
     return {
         "ts": time.time(),
         "window_s": CORRIDOR_WINDOW_S,
         "totals": totals,
         "mode_share": mode_share,
+        "recent": recent,
         "days": days,
         "n_days": len(days),
         "cells_tracked": agg.get("cells_tracked", 0),

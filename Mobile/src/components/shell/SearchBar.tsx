@@ -5,6 +5,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../../theme";
+import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
 
@@ -26,7 +27,7 @@ export function SearchBar({
       </Pressable>
       <Pressable onPress={onPress} style={s.field}
         accessibilityRole="button" accessibilityLabel={label ?? t("searchPlaceholder", lang)}>
-        <Text numberOfLines={1}
+        <Text {...DYNAMIC_TYPE} numberOfLines={1}
           style={[s.input, { fontFamily: fam(lang, "med") }, !label && { color: V2T.text3 }]}>
           {label ?? t("searchPlaceholder", lang)}
         </Text>

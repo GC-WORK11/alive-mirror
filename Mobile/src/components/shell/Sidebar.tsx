@@ -12,14 +12,16 @@
  *   carry the grouping) until strings.ts lands them. */
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Animated, Dimensions, Pressable, ScrollView,
+  Alert, Animated, BackHandler, Dimensions, Pressable, ScrollView,
   StyleSheet, Switch, Text, View,
 } from "react-native";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
+import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { t, type Lang } from "../../i18n/strings";
+import { approx, modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DRAWER_W = Math.min(340, Dimensions.get("window").width * 0.84);
 const dayKey = (ts: number) => new Date(ts).toDateString();
@@ -48,7 +50,7 @@ type Section = "vehicle" | "places" | "settings" | "how" | null;
 export function Sidebar({
   open, onClose, trips, lang, settings, onSettings, onDeleteData,
   onArmBrief, onNavigate, currentDest, onDelhiToday, onTripReceipt,
-  onFullSettings, onLang, onShare, onShareTrip,
+  onFullSettings, onLang, onShare, onShareTrip, onPickPlace,
 }: {
   open: boolean;
   onClose: () => void;
@@ -69,17 +71,38 @@ export function Sidebar({
                                      // the row stays hidden until wired
   onShareTrip?: (tr: Trip) => void;  // SEAM(share-trip): share one trip's
                                      // numbers — trailing affordance per row
+  onPickPlace?: (slot: "home" | "work") => void; // SEAM(set-place): search-pick
+                                     // a place for an unset home/work slot
 }) {
   const [slide] = useState(() => new Animated.Value(-DRAWER_W));
+  /* stable interpolation node — inline re-creation trips RN 0.86's
+     animated-props detach path (see ui.tsx Sheet) */
+  const [scrimOp] = useState(() =>
+    slide.interpolate({ inputRange: [-DRAWER_W, 0], outputRange: [0, 1] }));
   const [section, setSection] = useState<Section>(null);
+  const insets = useSafeAreaInsets();
   const toggle = (k: Section) => setSection((s) => (s === k ? null : k));
 
   // drawer stays mounted off-canvas; the wrapper swallows touches when closed
+  // NB: JS driver — RN 0.86's native-animated detach path segfaults the
+  // sheet flow (see ui.tsx Sheet for the same guard)
   useEffect(() => {
     Animated.spring(slide, {
-      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: true,
+      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: false,
     }).start();
   }, [open, slide]);
+
+  /* Android hardware BACK closes the drawer — this overlay has no Modal
+     onRequestClose, so without it BACK fell through and exited the app
+     (Android forensic find) */
+  useEffect(() => {
+    if (!open) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [open, onClose]);
 
   const st = useMemo(() => ledgerStats(trips), [trips]);
   const week = useMemo(() => weekStats(trips), [trips]);
@@ -119,12 +142,12 @@ export function Sidebar({
           ) : null)}
         </View>
         <View style={s.rowMid}>
-          <Text style={[s.rowLabel, { fontFamily: fam(lang, "med") },
+          <Text {...DYNAMIC_TYPE} style={[s.rowLabel, { fontFamily: fam(lang, "med") },
             p.danger && { color: V2T.breath3 }]}>
             {p.label}
           </Text>
-          {p.sub ? <Text style={s.rowSub} numberOfLines={1}>{p.sub}</Text> : null}
-          {p.hint ? <Text style={s.rowHint}>{p.hint}</Text> : null}
+          {p.sub ? <Text {...DYNAMIC_TYPE} style={s.rowSub} numberOfLines={1}>{p.sub}</Text> : null}
+          {p.hint ? <Text {...DYNAMIC_TYPE} style={s.rowHint}>{p.hint}</Text> : null}
         </View>
         {p.trailing}
         {p.onPress && !p.hideChevron && (
@@ -172,12 +195,15 @@ export function Sidebar({
     return (
       <View key={slot} style={s.subRow}>
         <Icon name={slot} color={V2T.text2} size={18} />
-        <Pressable style={{ flex: 1 }} disabled={!place}
-          onPress={() => { if (place) { onNavigate(place); onClose(); } }}
-          accessibilityRole="button"
-          accessibilityLabel={place ? `${t(labelKey, lang)} — ${place.name}` : t(labelKey, lang)}>
-          <Text style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t(labelKey, lang)}</Text>
-          <Text style={s.subValue} numberOfLines={1}>
+        <Pressable style={{ flex: 1 }} disabled={!place && !onPickPlace}
+          onPress={() => {
+            if (place) { onNavigate(place); onClose(); }
+            else if (onPickPlace) onPickPlace(slot);
+          }}
+          accessibilityRole="button" accessibilityState={{ disabled: !place && !onPickPlace }}
+          accessibilityLabel={place ? `${t(labelKey, lang)} — ${place.name}` : `${t(labelKey, lang)} — ${t("setPlace", lang)}`}>
+          <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t(labelKey, lang)}</Text>
+          <Text {...DYNAMIC_TYPE} style={s.subValue} numberOfLines={1}>
             {place ? place.name : t("notSet", lang)}
           </Text>
         </Pressable>
@@ -187,11 +213,17 @@ export function Sidebar({
             style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
             <Icon name="close" color={V2T.text3} size={14} />
           </Pressable>
+        ) : onPickPlace ? (
+          <Pressable hitSlop={8} onPress={() => onPickPlace(slot)}
+            accessibilityRole="button" accessibilityLabel={`${t(labelKey, lang)} — ${t("setPlace", lang)}`}
+            style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
+            <Text {...DYNAMIC_TYPE} style={s.miniAction}>{t("setPlace", lang)}</Text>
+          </Pressable>
         ) : currentDest ? (
           <Pressable hitSlop={8} onPress={() => onSettings({ [slot]: currentDest })}
             accessibilityRole="button" accessibilityLabel={t("setCurrentDest", lang)}
             style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
-            <Text style={s.miniAction}>{t("setCurrentDest", lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={s.miniAction}>{t("setCurrentDest", lang)}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -202,8 +234,8 @@ export function Sidebar({
     onValue: (v: boolean) => void, hintKey?: Parameters<typeof t>[0]) => (
     <View style={s.subRow}>
       <View style={{ flex: 1 }}>
-        <Text style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t(labelKey, lang)}</Text>
-        {hintKey ? <Text style={s.rowHint}>{t(hintKey, lang)}</Text> : null}
+        <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t(labelKey, lang)}</Text>
+        {hintKey ? <Text {...DYNAMIC_TYPE} style={s.rowHint}>{t(hintKey, lang)}</Text> : null}
       </View>
       {/* light-theme switch: white knob on the line/accent track —
           thumbColor=V2T.text left an ink blob on the light track */}
@@ -216,23 +248,24 @@ export function Sidebar({
     <Pressable key={`${tr.ts}-${i}`} disabled={!onTripReceipt}
       onPress={() => onTripReceipt?.(tr)}
       accessibilityRole={onTripReceipt ? "button" : undefined}
-      accessibilityLabel={`${tr.from} — ${tr.to}`}
+      accessibilityState={{ disabled: !onTripReceipt }}
+      accessibilityLabel={`${placeNameLabel(tr.from, lang)} — ${placeNameLabel(tr.to, lang)}`}
       style={({ pressed }) => [s.trip, pressed && !!onTripReceipt && s.rowPressed]}>
       <View style={s.rowIcon}>
         <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={20} />
       </View>
       <View style={s.tripMid}>
-        <Text style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
-          {tr.from} → {tr.to}
+        <Text {...DYNAMIC_TYPE} style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+          {placeNameLabel(tr.from, lang)} → {placeNameLabel(tr.to, lang)}
         </Text>
-        <Text style={s.tripMeta}>{tr.label} · {timeAgo(tr.ts)}</Text>
+        <Text {...DYNAMIC_TYPE} style={s.tripMeta}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts)}</Text>
       </View>
       <Icon name="cigarette" color={V2T.text3} size={13} />
-      <Text style={[s.tripNum, NUM]}>{cigOf(tr.dose_ug) ?? 0}</Text>
+      <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM]}>{cigOf(tr.dose_ug) ?? 0}</Text>
       {onShareTrip && (
         <Pressable hitSlop={8} onPress={() => onShareTrip(tr)}
           accessibilityRole="button"
-          accessibilityLabel={`${t("share", lang)} — ${tr.from} ${tr.to}`}
+          accessibilityLabel={`${t("share", lang)} — ${placeNameLabel(tr.from, lang)} ${placeNameLabel(tr.to, lang)}`}
           style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
           <Icon name="share" color={V2T.text3} size={15} />
         </Pressable>
@@ -243,7 +276,7 @@ export function Sidebar({
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={open ? "auto" : "none"}>
       <Animated.View style={[s.scrim, {
-        opacity: slide.interpolate({ inputRange: [-DRAWER_W, 0], outputRange: [0, 1] }),
+        opacity: scrimOp,
       }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose}
           accessibilityRole="button" accessibilityLabel={t("settingsClose", lang)} />
@@ -251,12 +284,12 @@ export function Sidebar({
       <Animated.View style={[s.drawer, { transform: [{ translateX: slide }] }]}>
         {/* fixed header — app mark + wordmark + close (stays put while
             the list scrolls) */}
-        <View style={s.header}>
+        <View style={[s.header, { paddingTop: insets.top + 14 }]}>
           <View style={s.brandRow}>
             <View style={s.mark}>
               <Icon name="wind" color={V2T.accent} size={15} />
             </View>
-            <Text style={s.wordmark}>ALIVE<Text style={{ color: V2T.accent }}>-108</Text></Text>
+            <Text {...DYNAMIC_TYPE} style={s.wordmark}>ALIVE<Text {...DYNAMIC_TYPE} style={{ color: V2T.accent }}>-108</Text></Text>
           </View>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button"
             accessibilityLabel={t("settingsClose", lang)}
@@ -265,23 +298,23 @@ export function Sidebar({
           </Pressable>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 20 }]}>
           {/* 1 — Today: breathed; put-out joins when the ledger has kg
               (doc 02 §sidebar-1 — both numbers, never fake) */}
           {st.todayUg > 0 && (
             <>
-              <Text style={[s.sectionLabel, s.sectionLabelFirst,
+              <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, s.sectionLabelFirst,
                 { fontFamily: fam(lang, "semi") }]}>{t("sidebarToday", lang)}</Text>
               <View style={s.card}>
                 <View style={s.todayRow}>
                   <View style={s.statCol}>
                     <View style={s.statHead}>
                       <Icon name="cigarette" color={V2T.text3} size={15} />
-                      <Text style={s.statCap}>{t("breathed", lang)}</Text>
+                      <Text {...DYNAMIC_TYPE} style={s.statCap}>{t("breathed", lang)}</Text>
                     </View>
-                    <Text style={[s.statNum, NUM]}>{todayCig}</Text>
+                    <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{todayCig}</Text>
                     {yesterdayUg > 0 && (
-                      <Text style={s.statCmp}>
+                      <Text {...DYNAMIC_TYPE} style={s.statCmp}>
                         {t(st.todayUg <= yesterdayUg ? "lessThanYesterday" : "moreThanYesterday", lang, {
                           p: Math.abs(Math.round((1 - st.todayUg / yesterdayUg) * 100)),
                         })}
@@ -294,9 +327,9 @@ export function Sidebar({
                       <View style={s.statCol}>
                         <View style={s.statHead}>
                           <Icon name="smoke" color={V2T.text3} size={15} />
-                          <Text style={s.statCap}>{t("putOut", lang)}</Text>
+                          <Text {...DYNAMIC_TYPE} style={s.statCap}>{t("putOut", lang)}</Text>
                         </View>
-                        <Text style={[s.statNum, NUM]}>{t("nav_kg", lang, { n: todayKg })}</Text>
+                        <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{t("nav_kg", lang, { n: approx(todayKg) })}</Text>
                       </View>
                     </>
                   )}
@@ -308,7 +341,7 @@ export function Sidebar({
           {/* 2 — This week: 7 thin bars */}
           {week.totalTrips > 0 && (
             <>
-              <Text style={[s.sectionLabel, { fontFamily: fam(lang, "semi") }]}>{t("sidebarThisWeek", lang)}</Text>
+              <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, { fontFamily: fam(lang, "semi") }]}>{t("sidebarThisWeek", lang)}</Text>
               <View style={s.card}>
                 <View style={s.weekRow}>
                   {week.days.map((d, i) => (
@@ -320,7 +353,7 @@ export function Sidebar({
                           opacity: d.ug === 0 ? 0.3 : 1,
                         }]} />
                       </View>
-                      <Text style={s.dayLabel}>{d.label.slice(0, 1)}</Text>
+                      <Text {...DYNAMIC_TYPE} style={s.dayLabel}>{d.label.slice(0, 1)}</Text>
                     </View>
                   ))}
                 </View>
@@ -332,7 +365,7 @@ export function Sidebar({
               SEAM(share-trip) */}
           {recent.length > 0 && (
             <>
-              <Text style={[s.sectionLabel, { fontFamily: fam(lang, "semi") }]}>{t("sidebarTrips", lang)}</Text>
+              <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, { fontFamily: fam(lang, "semi") }]}>{t("sidebarTrips", lang)}</Text>
               {card(recent.map((tr, i) => tripRow(tr, i)), 0)}
             </>
           )}
@@ -370,7 +403,7 @@ export function Sidebar({
                           s.chip, sel && s.chipOn, pressed && { opacity: 0.7 },
                         ]}>
                         <Icon name={vehicleGlyph(v.key)} color={sel ? V2T.accent : V2T.text2} size={18} />
-                        <Text style={[s.chipTxt, { fontFamily: fam(lang, "reg") },
+                        <Text {...DYNAMIC_TYPE} style={[s.chipTxt, { fontFamily: fam(lang, "reg") },
                           sel && { color: V2T.accent }]}>
                           {t(v.labelKey, lang)}
                         </Text>
@@ -387,9 +420,9 @@ export function Sidebar({
             // language — first-class segmented toggle (doc 02 §sidebar-7)
             <View key="lang" style={s.row}>
               <View style={s.langBadge}>
-                <Text style={s.langBadgeTxt}>अA</Text>
+                <Text {...DYNAMIC_TYPE} style={s.langBadgeTxt}>अA</Text>
               </View>
-              <Text style={[s.rowLabel, s.rowMid, { fontFamily: fam(lang, "med") }]}>
+              <Text {...DYNAMIC_TYPE} style={[s.rowLabel, s.rowMid, { fontFamily: fam(lang, "med") }]}>
                 {t("settingsLanguage", lang)}
               </Text>
               <View style={s.segWrap}>
@@ -397,7 +430,7 @@ export function Sidebar({
                   <Pressable key={l} onPress={() => setLang(l)}
                     accessibilityRole="button" accessibilityState={{ selected: lang === l }}
                     style={[s.seg, lang === l && s.segOn]}>
-                    <Text style={[s.segTxt, lang === l && { color: V2T.text }]}>
+                    <Text {...DYNAMIC_TYPE} style={[s.segTxt, lang === l && { color: V2T.text }]}>
                       {l === "en" ? "English" : "हिंदी"}
                     </Text>
                   </Pressable>
@@ -431,8 +464,8 @@ export function Sidebar({
                 <>
                   {switchRow("settingsVoice", settings.voice, (v) => onSettings({ voice: v }))}
                   <View style={s.subRow}>
-                    <Text style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t("settingsUnits", lang)}</Text>
-                    <Text style={s.subValue}>{t("unitsKm", lang)}</Text>
+                    <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t("settingsUnits", lang)}</Text>
+                    <Text {...DYNAMIC_TYPE} style={s.subValue}>{t("unitsKm", lang)}</Text>
                   </View>
                   {switchRow("morningAlert", settings.brief, async (v) => {
                     if (v) onSettings({ brief: await onArmBrief() });
@@ -447,7 +480,7 @@ export function Sidebar({
                 onPress: () => toggle("how"), open: section === "how",
               })}
               {section === "how" && panel(
-                <Text style={[s.howBody, { fontFamily: fam(lang, "reg") }]}>{t("howAliveBody", lang)}</Text>,
+                <Text {...DYNAMIC_TYPE} style={[s.howBody, { fontFamily: fam(lang, "reg") }]}>{t("howAliveBody", lang)}</Text>,
                 // SEAM(sources): claims-ledger sources link lands with doc 10 web surface
               )}
             </View>,
@@ -489,7 +522,7 @@ const s = StyleSheet.create({
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingTop: 54, paddingHorizontal: 16, paddingBottom: 14,
+    paddingHorizontal: 16, paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
   },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -504,7 +537,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  scroll: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16, paddingTop: 6 },
 
   sectionLabel: {
     fontSize: V2Type.label, color: V2T.text3, letterSpacing: 0.8,

@@ -4,7 +4,11 @@ Extends airfield.py's live concentration field into the future. Fetches
 the Open-Meteo hourly air-quality forecast (CAMS, 5 days = 120 hourly
 slots) and hourly meteorology (boundary-layer height + 10 m wind) over
 the same NCR grid, then applies a ventilation-based stagnation
-correction. Query anywhere inside the NCR bbox via the same IDW scheme
+correction. Each hourly lookup runs a bounded semi-Lagrangian
+back-trajectory on the hour's 10 m wind — the model surface is sampled
+where the arriving air parcel came from, so a moving plume reads as
+moved smoke (capped at ADV_MAX_M, degrades to undisplaced when met is
+missing). Query anywhere inside the NCR bbox via the same IDW scheme
 as AirField (p=2, named stations weighted 3x).
 
 Live-field anchor (r5): the forecast horizon is a model fetch — FIELD
@@ -53,6 +57,17 @@ ANCHOR_MAX_AGE_S = 3 * 3600
 # source is airfield.FIELD — pass None to disable, or a callable
 # (lat, lon) -> pm25|None to inject (tests).
 _FIELD_ANCHOR = object()
+
+# Advection cap: the back-trajectory may reach at most this far upwind
+# — ~the extent of the fetched NCR grid. 45 km at 15 m/s ≈ 50 min of
+# transport; uncapped, +120 h horizons would look up air that "came
+# from" hundreds of km outside the modeled region — displaced sampling
+# would then just clip to grid edges and silently re-report edge
+# values. The cap keeps the lookup inside the data we actually have;
+# anything beyond it honestly samples the boundary instead of a point
+# the model never covered.
+ADV_MAX_M = 45_000.0
+_DEG_M = 111_320.0  # metres per degree latitude (IUGG mean)
 
 
 def _live_field_pm25(lat: float, lon: float) -> Optional[float]:
@@ -199,6 +214,40 @@ class ForecastField:
             den += w
         return num / den if den else None
 
+    # ---------- advection ----------
+
+    def _advected_origin(self, lat: float, lon: float,
+                         idx: int) -> tuple:
+        """Where the air arriving at (lat,lon) at forecast hour `idx`
+        left from — a one-step semi-Lagrangian back-trajectory.
+
+        The met feed gives 10 m wind (m/s) and direction FROM which it
+        blows (Open-Meteo convention). Air travels h*3600*ws metres
+        along the TO-bearing, so the parcel's origin is that distance
+        back along the same bearing. Sampled at the origin instead of
+        the query point, the model surface translates with the wind —
+        a plume advecting across the grid shows up as moved smoke, not
+        a static smear.
+
+        Degrades to (lat,lon) — i.e. the pre-existing undisplaced IDW —
+        when met is missing, the slot is the current hour, or wind is
+        ~calm. Displacement is capped at ADV_MAX_M so far-horizon slots
+        never sample outside the fetched grid."""
+        if not self._met:
+            return lat, lon
+        idx0 = self.hour_index(0)
+        if idx0 is None or idx <= idx0:
+            return lat, lon
+        ws = self._idw(self._met, lat, lon, "wind_speed_10m", idx)
+        wd = self._idw(self._met, lat, lon, "wind_direction_10m", idx)
+        if ws is None or wd is None or ws < 0.3:  # ~calm: transport ≈ 0
+            return lat, lon
+        dist = min(ws * (idx - idx0) * 3600.0, ADV_MAX_M)
+        to_rad = math.radians(wd + 180.0)  # FROM-bearing -> TO-bearing
+        return (lat - dist * math.cos(to_rad) / _DEG_M,
+                lon - dist * math.sin(to_rad)
+                / (_DEG_M * math.cos(math.radians(lat))))
+
     # ---------- time indexing ----------
 
     def _t0(self) -> Optional[datetime]:
@@ -297,7 +346,12 @@ class ForecastField:
         idx = self.hour_index(when)
         if idx is None:
             return None
-        base = self._idw(self._aq, lat, lon, "pm2_5", idx)
+        alat, alon = self._advected_origin(lat, lon, idx)
+        base = self._idw(self._aq, alat, alon, "pm2_5", idx)
+        if base is None and (alat, alon) != (lat, lon):
+            # displaced point left the grid — fall back to the
+            # undisplaced sample rather than returning nothing
+            base = self._idw(self._aq, lat, lon, "pm2_5", idx)
         if base is None:
             return None
         factor = self.stagnation_factor(lat, lon, idx)
@@ -316,7 +370,11 @@ class ForecastField:
         idx = self.hour_index(when)
         if idx is None:
             return None
-        return self._idw(self._aq, lat, lon, key, idx)
+        alat, alon = self._advected_origin(lat, lon, idx)
+        v = self._idw(self._aq, alat, alon, key, idx)
+        if v is None and (alat, alon) != (lat, lon):
+            v = self._idw(self._aq, lat, lon, key, idx)
+        return v
 
     def best_departure_window(self, lat: float, lon: float,
                               from_h: float, to_h: float) -> Optional[dict]:

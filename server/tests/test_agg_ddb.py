@@ -78,6 +78,13 @@ class FakeDDB:
                     ExpressionAttributeValues)
         return {}
 
+    def put_item(self, TableName, Item, **kw):
+        self.calls.append(("put_item", TableName, Item))
+        if "put_item" in self.fail_on:
+            raise RuntimeError("injected put failure")
+        self.items[(Item["pk"]["S"], Item["sk"]["S"])] = dict(Item)
+        return {}
+
     def scan(self, TableName, **kw):
         self.calls.append(("scan", TableName, kw.get("ExclusiveStartKey")))
         if "scan" in self.fail_on:
@@ -191,6 +198,25 @@ def test_modes_and_switched(fake, ddb):
     assert agg["switched"] == 1
     assert agg["modes"] == {"car": 2, "walk": 1}
     assert float(fake.items[(f"day#{day}", "mode#car")]["trips"]["N"]) == 2
+
+
+def test_co2_split_accumulates(fake, ddb):
+    ts = time.time()
+    day = time.strftime("%Y-%m-%d", time.gmtime(ts))
+    ddb.record_trip(
+        ["c1"],
+        {"mode": "car", "distance_km": 9.0, "dose_ug": 5.0,
+         "co2_kg_mid": 1.9, "co2_moving_g": 1724.0,
+         "co2_idle_g": 140.2, "co2_cold_g": 69.7},
+        "hash1", ts=ts)
+    # a trip with no split (old build / metro / walk) — totals yes, split no
+    _trip(ddb, ["c1"], token="hash2", ts=ts)
+    agg = ddb.city_aggregates()["days"][day]
+    assert agg["co2_split_trips"] == 1
+    assert agg["co2_moving_g"] == 1724.0
+    assert agg["co2_idle_g"] == 140.2
+    assert agg["co2_cold_g"] == 69.7
+    assert agg["trips"] == 2
 
 
 def test_reset(ddb, fake):

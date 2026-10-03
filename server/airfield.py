@@ -151,7 +151,6 @@ class AirField:
         self._stations_src = None  # "openaq" | "waqi" — which feed filled them
         self._kalman: dict = {}  # station_id → [x, P] scalar Kalman state
         self._lock = asyncio.Lock()
-        self._sigma: Optional[float] = None  # krige std-dev at last query
         # --- served snapshot (built air index; see load_snapshot) ----------
         self._snap: Optional[dict] = None      # decoded snapshot field dict
         self._snap_epoch: float = 0.0          # effective embedded build epoch
@@ -706,22 +705,8 @@ class AirField:
         # commutes sharpens the field where stations never reach
         kr = KF.estimate(lat, lon)
         if kr is not None and key == "pm2_5":
-            mu, sd = kr
-            # krige σ covers interpolation error only; every sample is a
-            # model point or an instrument with its own noise — carry a
-            # 12% instrument/model-error floor so bands stay honest where
-            # the field is flat, not fake-tight
-            sd = math.sqrt(sd * sd + (0.12 * mu) ** 2)
-            ce = corridor_estimate(lat, lon)
-            if ce is not None:
-                c, csd, _n = ce
-                # precision-weighted posterior (Gaussian update)
-                var = 1.0 / (1.0 / (sd * sd) + 1.0 / (csd * csd))
-                mu = (mu / (sd * sd) + c / (csd * csd)) * var
-                sd = math.sqrt(var)
-            self._sigma = sd
+            mu, _sd = self._krige_posterior(lat, lon, *kr)
             return mu
-        self._sigma = None
         speed_kmh, from_deg = self._wind
         wf = min(1.0, speed_kmh / 30.0)  # calm => isotropic
         wind_from_rad = math.radians(from_deg)
@@ -757,9 +742,32 @@ class AirField:
             return float(cell["pm25"]) if cell is not None else None
         return self._concentration(lat, lon, pollutant)
 
+    def _krige_posterior(self, lat: float, lon: float,
+                         mu: float, sd: float) -> tuple:
+        """krige (µ, σ) -> read-band (µ, σ).
+
+        krige σ covers interpolation error only; every sample is a
+        model point or an instrument with its own noise — carry a
+        12% instrument/model-error floor so bands stay honest where
+        the field is flat, not fake-tight. Where >=k fresh citizen
+        traversals cover the cell, they fold in as a precision-
+        weighted Gaussian posterior — a corridor of commutes sharpens
+        the field where stations never reach.
+        """
+        sd = math.sqrt(sd * sd + (0.12 * mu) ** 2)
+        ce = corridor_estimate(lat, lon)
+        if ce is not None:
+            c, csd, _n = ce
+            var = 1.0 / (1.0 / (sd * sd) + 1.0 / (csd * csd))
+            mu = (mu / (sd * sd) + c / (csd * csd)) * var
+            sd = math.sqrt(var)
+        return mu, sd
+
     def sigma(self, lat: float, lon: float) -> Optional[float]:
-        """Uncertainty (µg/m³ std-dev) of the last kriged read. None when
-        the IDW fallback ran — no fake precision."""
+        """Uncertainty (µg/m³ std-dev) at (lat, lon) — kriging band,
+        computed per point on the live path. None when the krige fit
+        is off (IDW fallback ran) or outside coverage — no fake
+        precision, and never a stale band from another point's read."""
         if self._serving_snapshot():
             cell = self._cell_at(lat, lon)
             if cell is None:
@@ -774,8 +782,11 @@ class AirField:
             except (TypeError, ValueError):
                 return None
             return sf if math.isfinite(sf) else None
-        self._concentration(lat, lon, "pm2_5")
-        return self._sigma
+        kr = KF.estimate(lat, lon)
+        if kr is None:
+            return None
+        _mu, sd = self._krige_posterior(lat, lon, *kr)
+        return sd
 
     def nearest_sample_km(self, lat: float, lon: float) -> float:
         if self._serving_snapshot():

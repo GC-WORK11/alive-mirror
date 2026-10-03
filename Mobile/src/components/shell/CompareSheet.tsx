@@ -26,9 +26,10 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Radius, V2T, V2Type, doseColor, fam } from "../../theme";
+import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph } from "../../icons";
 import { Sheet } from "../../ui";
-import { t, type Lang, type StringKey } from "../../i18n/strings";
+import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
@@ -61,6 +62,39 @@ const TAG_KEY: Record<string, StringKey> = {
   "lightest on both": "lightestOnBoth",
   "lightest for you": "lightestForYou",
   "lightest for delhi": "lightestForDelhi",
+};
+
+/** server reason_line (server/v2/plan.py rank_options) is a fixed set of
+ * English templates — translate verbatim so the card stays in the user's
+ * language. The trailing " +N min vs fastest." gets re-composed locally.
+ * Unknown text passes through untouched — additive future lines still show. */
+const REASON_KEY: Record<string, StringKey> = {
+  "Least smoke for you — no emissions estimate for this set.": "reason_noEmis",
+  "Least smoke for you and lowest emissions — the easy pick.": "reason_easyPick",
+  "Least smoke for you, but heavier for Delhi.": "reason_heavierDelhi",
+  "Lowest emissions of the options — but you'd breathe more.": "reason_lowestEmis",
+  "Within ~10% of the lightest dose and the lightest exhaust of those — a fair trade.":
+    "reason_fairTrade",
+};
+const SLOWER_RE = / \+(\d+) min vs fastest\.$/;
+
+/** server non_exhaust.note strings — same verbatim-match treatment. */
+const NE_KEY: Record<string, StringKey> = {
+  "non-exhaust (resuspended dust + brakes/tyres), reported separately — ~86% of Delhi traffic PM10 is non-exhaust (Sahu et al. 2020, docs/26); never folded into tailpipe numbers": "ne_road",
+  "rail — no road resuspension": "ne_rail",
+  "zero — non-motorized mode": "ne_zero",
+};
+const neNoteTxt = (n: string, lang: Lang): string => {
+  const key = NE_KEY[n];
+  return key ? t(key, lang) : n;
+};
+
+const reasonTxt = (n: string, lang: Lang): string => {
+  const m = n.match(SLOWER_RE);
+  const base = m ? n.slice(0, -m[0].length) : n;
+  const key = REASON_KEY[base];
+  const out = key ? t(key, lang) : base;
+  return m ? out + t("reason_slowerSuffix", lang, { m: m[1] }) : out;
 };
 
 const bandTxt = (b: Band | null | undefined, unit: string) =>
@@ -112,7 +146,7 @@ function PairBars({ o, worstIn, worstOut, lang }: {
 function Chip({ text, accent, lang }: { text: string; accent?: boolean; lang: Lang }) {
   return (
     <View style={[s.chip, accent ? s.chipAccent : s.chipPlain]}>
-      <Text
+      <Text {...DYNAMIC_TYPE}
         style={[s.chipTxt, accent ? s.chipTxtAccent : s.chipTxtPlain, { fontFamily: fam(lang, "med") }]}
         numberOfLines={1}>
         {text}
@@ -131,37 +165,42 @@ function DetailBlock({ o, fieldAgeS, lang }: { o: V2Option; fieldAgeS?: number |
   const emit = [bandTxt(e.co2_kg, "kg CO2"), bandTxt(e.pm25_g, "g PM2.5")].filter(Boolean).join("  ·  ");
   return (
     <View style={s.detail}>
-      <Text style={[s.dTitle, { fontFamily: fam(lang, "med") }]}>{t("howWeGotThis", lang)}</Text>
+      <Text {...DYNAMIC_TYPE} style={[s.dTitle, { fontFamily: fam(lang, "med") }]}>{t("howWeGotThis", lang)}</Text>
       <View style={s.dRow}>
         <Icon name="cigarette" color={V2T.breath2} size={13} />
         {d.mid != null ? (
-          <Text style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>
             {t("howWe_in", lang, { mid: Math.round(d.mid), lo: Math.round(d.lo ?? d.mid), hi: Math.round(d.hi ?? d.mid) })}
-            {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: cig })}` : ""}
+            {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: approx(cig) })}` : ""}
           </Text>
         ) : (
-          <Text style={[s.dLine, { fontFamily: fam(lang, "reg") }]}>{d.note ?? t("howWe_none", lang)}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, { fontFamily: fam(lang, "reg") }]}>{d.note ?? t("howWe_none", lang)}</Text>
         )}
       </View>
-      {d.confidence ? <Text style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{t("howWe_conf", lang, { c: d.confidence })}</Text> : null}
+      {d.confidence ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{t("howWe_conf", lang, { c: d.confidence })}</Text> : null}
       {emit ? (
         <View style={s.dRow}>
           <Icon name="smoke" color={V2T.out1} size={13} />
-          <Text style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>{t("howWe_out", lang, { v: emit })}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>{t("howWe_out", lang, { v: emit })}</Text>
         </View>
       ) : null}
-      {(e.label ?? e.basis) ? <Text style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.label ?? e.basis}</Text> : null}
+      {d.coverage != null && d.coverage < 0.999 ? (
+        <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>
+          {t("howWe_coverage", lang, { pct: Math.round(d.coverage * 100) })}
+        </Text>
+      ) : null}
+      {(e.label ?? e.basis) ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.label ?? e.basis}</Text> : null}
       {e.bs_class && e.bs_class !== "none"
-        ? <Text style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.bs_class}{e.bs_options?.length ? ` (${e.bs_options.join("–")})` : ""}</Text>
+        ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.bs_class}{e.bs_options?.length ? ` (${e.bs_options.join("–")})` : ""}</Text>
         : null}
-      {e.non_exhaust?.note ? <Text style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.non_exhaust.note}</Text> : null}
+      {e.non_exhaust?.note ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{neNoteTxt(e.non_exhaust.note, lang)}</Text> : null}
       {ageMin != null ? (
         <View style={s.dRow}>
           <Icon name="clock" color={V2T.text3} size={13} />
-          <Text style={[s.dRowSub, { fontFamily: fam(lang, "reg") }]}>{t("howWe_fieldAge", lang, { n: ageMin })}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.dRowSub, { fontFamily: fam(lang, "reg") }]}>{t("howWe_fieldAge", lang, { n: ageMin })}</Text>
         </View>
       ) : null}
-      <Text style={[s.dFine, { fontFamily: fam(lang, "reg") }]}>{t("cityBasisBand", lang)}</Text>
+      <Text {...DYNAMIC_TYPE} style={[s.dFine, { fontFamily: fam(lang, "reg") }]}>{t("cityBasisBand", lang)}</Text>
     </View>
   );
 }
@@ -194,30 +233,37 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
         <Icon name={vehicleGlyph(o.mode)} color={selected ? V2T.accent : V2T.text2} size={28} filled={selected} />
         <View style={s.cardMid}>
           <View style={s.cardTop}>
-            <Text style={[s.optLabel, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
-              {showYours ? `${o.label} · ${t("compare_yours", lang)}` : o.label}
+            <Text {...DYNAMIC_TYPE} style={[s.optLabel, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+              {showYours
+                ? `${modeLabel(o.mode, o.label, lang)} · ${t("compare_yours", lang)}`
+                : modeLabel(o.mode, o.label, lang)}
             </Text>
             {tag ? <Chip text={tag} accent lang={lang} />
               : o.recommended ? <Chip text={t("compare_pick", lang)} lang={lang} /> : null}
           </View>
-          <Text style={[s.optMeta, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{meta}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.optMeta, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{meta}</Text>
           {o.reason_line ? (
-            <Text style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>{o.reason_line}</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>{reasonTxt(o.reason_line, lang)}</Text>
+          ) : null}
+          {d?.coverage != null && d.coverage < 0.999 ? (
+            <Text {...DYNAMIC_TYPE} style={[s.optCoverage, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+              {t("plan_coverage_note", lang)}
+            </Text>
           ) : null}
         </View>
         <View style={s.cardRight}>
-          <Text style={[s.optEta, NUM, { fontFamily: fam(lang, "semi") }]}>
-            {Math.round(o.duration_min)}<Text style={s.optEtaUnit}> {t("minUnit", lang)}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.optEta, NUM, { fontFamily: fam(lang, "semi") }]}>
+            {Math.round(o.duration_min)}<Text {...DYNAMIC_TYPE} style={s.optEtaUnit}> {t("minUnit", lang)}</Text>
           </Text>
           {d?.mid != null ? (
-            <Text style={[s.optDose, NUM, { fontFamily: fam(lang, "semi"), color: doseCol }]}>
-              ≈{Math.round(d.mid)}<Text style={s.optDoseUnit}> µg</Text>
-              {band ? <Text style={[s.optBand, { fontFamily: fam(lang, "reg") }]}>  {band}</Text> : null}
+            <Text {...DYNAMIC_TYPE} style={[s.optDose, NUM, { fontFamily: fam(lang, "semi"), color: doseCol }]}>
+              ≈{Math.round(d.mid)}<Text {...DYNAMIC_TYPE} style={s.optDoseUnit}> µg</Text>
+              {band ? <Text {...DYNAMIC_TYPE} style={[s.optBand, { fontFamily: fam(lang, "reg") }]}>  {band}</Text> : null}
             </Text>
           ) : (
             /* TODO(strings): `compare_doseNA` — short "no estimate" marker
                for the dose column; bare dash until the key lands. */
-            <Text style={[s.optDose, s.optDoseNA, { fontFamily: fam(lang, "med") }]}>—</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.optDose, s.optDoseNA, { fontFamily: fam(lang, "med") }]}>—</Text>
           )}
           <View style={s.barsRow}>
             <PairBars o={o} worstIn={worstIn} worstOut={worstOut} lang={lang} />
@@ -283,7 +329,7 @@ export function CompareSheet({
       style={({ pressed }) => [s.vehChip, pressed && { opacity: 0.6 }]}
       accessibilityRole="button" accessibilityLabel={t("sidebarMyVehicle", lang)}>
       <Icon name={vehicleGlyph(veh?.cls ?? "car")} color={V2T.text2} size={15} />
-      <Text style={[s.vehChipTxt, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+      <Text {...DYNAMIC_TYPE} style={[s.vehChipTxt, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
         {veh ? vehicleLabel(veh, lang) : t("vehicle_likeYours", lang)}
       </Text>
       <Icon name="chevron" color={V2T.text3} size={11} />
@@ -296,30 +342,50 @@ export function CompareSheet({
         {loading ? (
           <View style={s.stateWrap}>
             <ActivityIndicator size="small" color={V2T.accent} />
-            <Text style={[s.stateSub, { fontFamily: fam(lang, "reg"), marginTop: 10 }]}>
+            <Text {...DYNAMIC_TYPE} style={[s.stateSub, { fontFamily: fam(lang, "reg"), marginTop: 10 }]}>
               {t("checkingRoutes", lang)}
             </Text>
           </View>
         ) : planError ? (
+          planError.kind === "outside" ? (
+            /* typed outside-coverage answer — a scope notice, not a fault:
+               retry can't fix geography, the CTA is 'change the trip' */
+            <View style={s.stateWrap}>
+              <View style={s.stateIcon}>
+                <Icon name="pin" color={V2T.accent} size={20} />
+              </View>
+              <Text {...DYNAMIC_TYPE} style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>
+                {t("plan_outside_title", lang)}
+              </Text>
+              <Text {...DYNAMIC_TYPE} style={[s.stateSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={4}>
+                {t("plan_outside_body", lang)}
+              </Text>
+              <Pressable onPress={onClose} style={s.retryBtn} accessibilityRole="button"
+                accessibilityLabel={t("plan_outside_cta", lang)}>
+                <Text {...DYNAMIC_TYPE} style={[s.retryTxt, { fontFamily: fam(lang, "med") }]}>{t("plan_outside_cta", lang)}</Text>
+              </Pressable>
+            </View>
+          ) : (
           <View style={s.stateWrap}>
             <View style={s.stateIcon}>
               <Icon name="info" color={V2T.accent} size={20} />
             </View>
-            <Text style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>
+            <Text {...DYNAMIC_TYPE} style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>
               {t(planError.kind === "network" ? "plan_failed" : "plan_failed_server", lang)}
             </Text>
             {planError.detail ? (
-              <Text style={[s.stateSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={3}>
+              <Text {...DYNAMIC_TYPE} style={[s.stateSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={3}>
                 {planError.detail}
               </Text>
             ) : null}
             {onRetry && (
               <Pressable onPress={onRetry} style={s.retryBtn} accessibilityRole="button"
                 accessibilityLabel={t("plan_retry", lang)}>
-                <Text style={[s.retryTxt, { fontFamily: fam(lang, "med") }]}>{t("plan_retry", lang)}</Text>
+                <Text {...DYNAMIC_TYPE} style={[s.retryTxt, { fontFamily: fam(lang, "med") }]}>{t("plan_retry", lang)}</Text>
               </Pressable>
             )}
           </View>
+          )
         ) : options.length > 0 ? (
           <>
             <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}
@@ -329,7 +395,7 @@ export function CompareSheet({
                 <Pressable onPress={onRemind} style={({ pressed }) => [s.departRow, pressed && { opacity: 0.7 }]}
                   accessibilityRole="button">
                   <Icon name={notified ? "bell" : "clock"} color={V2T.accent} size={16} filled={notified} />
-                  <Text style={[s.departTxt, { fontFamily: fam(lang, "med") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[s.departTxt, { fontFamily: fam(lang, "med") }]}>
                     {notified
                       ? t("wellPing", lang)
                       : t("leaveAtBreatheLess", lang, {
@@ -349,11 +415,11 @@ export function CompareSheet({
                 <View style={s.legend}>
                   <View style={s.legendItem}>
                     <Icon name="cigarette" color={V2T.text3} size={11} />
-                    <Text style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeIn", lang)}</Text>
+                    <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeIn", lang)}</Text>
                   </View>
                   <View style={s.legendItem}>
                     <Icon name="smoke" color={V2T.text3} size={11} />
-                    <Text style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeOut", lang)}</Text>
+                    <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeOut", lang)}</Text>
                   </View>
                 </View>
               )}
@@ -374,7 +440,7 @@ export function CompareSheet({
               {stepsOpen && steps && (
                 <View style={s.stepsList}>
                   {sel?.mode === "metro" && sel.stations ? (
-                    <Text style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
+                    <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
                       {t("boardMetro", lang, { a: sel.stations.board, b: sel.stations.alight })}
                     </Text>
                   ) : steps.map((st, i) => (
@@ -383,8 +449,8 @@ export function CompareSheet({
                         <View style={s.stepDot} />
                         {i < steps.length - 1 && <View style={s.stepLine} />}
                       </View>
-                      <Text style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>{st.instruction}</Text>
-                      <Text style={[s.stepDist, NUM, { fontFamily: fam(lang, "reg") }]}>
+                      <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>{st.instruction}</Text>
+                      <Text {...DYNAMIC_TYPE} style={[s.stepDist, NUM, { fontFamily: fam(lang, "reg") }]}>
                         {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} km` : `${Math.round(st.distance_m)} m`}
                       </Text>
                     </View>
@@ -392,7 +458,7 @@ export function CompareSheet({
                 </View>
               )}
               {stepsOpen && sel?.mode !== "metro" && !steps && (
-                <Text style={[s.stepTxt, s.stepsEmpty, { fontFamily: fam(lang, "reg") }]}>
+                <Text {...DYNAMIC_TYPE} style={[s.stepTxt, s.stepsEmpty, { fontFamily: fam(lang, "reg") }]}>
                   {t("roadModesOnly", lang)}
                 </Text>
               )}
@@ -402,14 +468,14 @@ export function CompareSheet({
                 <Pressable onPress={onToggleSteps}
                   style={({ pressed }) => [s.ghostBtn, stepsOpen && s.ghostBtnOn, pressed && { opacity: 0.65 }]}
                   accessibilityRole="button">
-                  <Text style={[s.ghostTxt, stepsOpen && s.ghostTxtOn, { fontFamily: fam(lang, "med") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[s.ghostTxt, stepsOpen && s.ghostTxtOn, { fontFamily: fam(lang, "med") }]}>
                     {stepsOpen ? t("hideTurns", lang) : t("turnByTurn", lang)}
                   </Text>
                 </Pressable>
                 <Pressable onPress={onStart}
                   style={({ pressed }) => [s.goBtn, pressed && { opacity: 0.8 }]}
                   accessibilityRole="button">
-                  <Text style={[s.goBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("start", lang)}</Text>
+                  <Text {...DYNAMIC_TYPE} style={[s.goBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("start", lang)}</Text>
                 </Pressable>
               </View>
             )}
@@ -419,7 +485,7 @@ export function CompareSheet({
             <View style={s.stateIcon}>
               <Icon name="search" color={V2T.text3} size={20} />
             </View>
-            <Text style={[s.stateSub, { fontFamily: fam(lang, "reg") }]}>{t("noRoutes", lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.stateSub, { fontFamily: fam(lang, "reg") }]}>{t("noRoutes", lang)}</Text>
           </View>
         )}
       </Sheet>
@@ -435,7 +501,9 @@ export function CompareSheet({
             saveVehicle(p).catch(() => {});
             setVehSelf(p);
             setVehOpen(false);
-            onVehicleChange?.(p);
+            /* same close-frame guard — re-plan lands a beat after the
+               sheet's own unmount commit (virtualized-GPU SIGSEGV class) */
+            setTimeout(() => onVehicleChange?.(p), 80);
           }}
           onClose={() => setVehOpen(false)}
         />
@@ -449,7 +517,10 @@ const s = StyleSheet.create({
 
   /* ---- list ---- */
   scroll: { flexShrink: 1, flexGrow: 0 },
-  scrollContent: { paddingBottom: 10 },
+  /* last row's (i) hitSlop extends 16 px below its bounds — without this
+     clearance that strip lands inside the footer's hit zone and taps meant
+     for "how we got this" fire Start instead (Android forensic find) */
+  scrollContent: { paddingBottom: 22 },
   vehChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginHorizontal: 14, marginTop: 4, marginBottom: 2, minHeight: 34,
@@ -498,6 +569,7 @@ const s = StyleSheet.create({
   chipTxtPlain: { color: V2T.text2 },
   optMeta: { fontSize: V2Type.label, color: V2T.text3, marginTop: 2 },
   optReason: { fontSize: V2Type.label, color: V2T.text3, marginTop: 3 },
+  optCoverage: { fontSize: V2Type.label, color: V2T.breath2, marginTop: 3 },
   cardRight: { alignItems: "flex-end" },
   optEta: { fontSize: V2Type.body, color: V2T.text },
   optEtaUnit: { fontSize: V2Type.label, color: V2T.text2 },

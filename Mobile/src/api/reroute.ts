@@ -25,6 +25,15 @@ export type RerouteResult = {
   steps?: { instruction: string; distance_m: number; type?: string }[] | null;
 };
 
+/** The full answer: a route when one came back, plus the server's
+ *  machine code on the error path ('outside_service_area' when the
+ *  fix/destination can't be served — nav surfaces it honestly). */
+export type RerouteAnswer = {
+  result: RerouteResult | null;
+  code?: string;
+  error?: string;
+};
+
 /** Small POST helper shared by the v2 write endpoints. */
 export async function postJson<T = unknown>(
   url: string,
@@ -65,17 +74,22 @@ function normRoute(j: Record<string, unknown> | null | undefined): RerouteResult
   };
 }
 
-/** Returns null when the endpoint is absent/errored — caller keeps the
- *  old route and backs off. */
-export async function postReroute(req: RerouteRequest, api: string = API): Promise<RerouteResult | null> {
+/** `result` is null when the endpoint is absent/errored/geometryless —
+ *  caller keeps the old route and backs off; `code` still carries the
+ *  typed reason (e.g. 'outside_service_area') when the server sent one. */
+export async function postReroute(req: RerouteRequest, api: string = API): Promise<RerouteAnswer> {
   try {
     const j = await postJson<Record<string, unknown>>(
       `${api}/v2/reroute`,
       { route_id: req.route_id, at: req.at, from: req.at, to: req.to, mode: req.mode },
       9000,
     );
-    return normRoute(j);
+    return {
+      result: normRoute(j),
+      code: typeof j?.code === "string" ? j.code : undefined,
+      error: typeof j?.error === "string" ? j.error : undefined,
+    };
   } catch {
-    return null;
+    return { result: null };
   }
 }

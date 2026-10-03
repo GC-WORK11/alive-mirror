@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
+import { BackHandler, LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
@@ -7,11 +7,12 @@ import {
   NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium, NotoSansDevanagari_600SemiBold,
 } from "@expo-google-fonts/noto-sans-devanagari";
 import * as Location from "expo-location";
-import { File, Paths } from "expo-file-system";
 import {
-  Camera, Layer, Map, Marker, UserLocation, type CameraRef,
+  Camera, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
-import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import { F, V2Radius, V2T, V2Type } from "./src/theme";
+import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { v2StyleUrl } from "./src/map/style";
@@ -29,6 +30,7 @@ import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { loadConsent, saveConsent } from "./src/store/consent";
+import { contributorId } from "./src/community";
 import { CompareSheet } from "./src/components/shell/CompareSheet";
 import { NavChrome } from "./src/components/shell/NavChrome";
 import { ReceiptSheet, type ReceiptData } from "./src/components/shell/ReceiptSheet";
@@ -45,7 +47,7 @@ import {
 } from "./src/components/shell/settings";
 import { loadTrips } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
-import { t } from "./src/i18n/strings";
+import { modeLabel, placeNameLabel, t } from "./src/i18n/strings";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -70,11 +72,39 @@ const DRAWER2CLS: Record<string, VehicleClass> = {
 };
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppInner />
+    </SafeAreaProvider>
+  );
+}
+
+function AppInner() {
   const camRef = useRef<CameraRef>(null);
+  /* last real endpoint coords — the always-mounted markers park here when
+     hidden (see the Marker block below) */
+  const fromPin = useRef<[number, number]>(DELHI);
+  const toPin = useRef<[number, number]>(DELHI);
+  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<ShellSettings>(DEFAULT_SETTINGS);
   const flow = useShellFlow(camRef, settings.share, settings.lang);
+  if (flow.from) fromPin.current = [flow.from.lon, flow.from.lat];
+  if (flow.to) toPin.current = [flow.to.lon, flow.to.lat];
   const { phase } = flow;
+  // route-tint shape sources mount at lower priority — keeps the compare
+  // sheet's entrance animation from sharing a frame with the chunk build
+  const deferredOptions = useDeferredValue(flow.options);
   const lang = settings.lang;
+
+  /* Endpoint-pin child swaps are map-side commits — they must land clear
+     of every phase flip. pinReady lags "compare" by 450 ms BOTH ways so
+     a pin never appears/disappears inside a sheet mount/unmount frame
+     (receipt-Done teardown = residual-SIGSEGV hot spot, 3× on ci15). */
+  const [pinReady, setPinReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setPinReady(phase === "compare"), 450);
+    return () => clearTimeout(t);
+  }, [phase]);
 
   const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
   const [fires, setFires] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -86,6 +116,7 @@ export default function App() {
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const [delhiOpen, setDelhiOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [placePickSlot, setPlacePickSlot] = useState<"home" | "work" | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
@@ -102,8 +133,12 @@ export default function App() {
   /* ---- boot: warm the API, load trips/settings, resolve location ---- */
   const { setFrom, setTrips } = flow;
   useEffect(() => {
+    /* one flaky ping while a 25 s plan krige is in flight flashed a false
+       "can't reach the server" strip — require two consecutive misses */
+    let misses = 0;
     const ping = () => fetch(`${API}/health`, { keepalive: true })
-      .then((r) => setApiOk(r.ok)).catch(() => setApiOk(false));
+      .then((r) => { misses = r.ok ? 0 : misses + 1; if (!misses) setApiOk(true); else if (misses >= 2) setApiOk(false); })
+      .catch(() => { misses += 1; if (misses >= 2) setApiOk(false); });
     ping();
     const healthIv = setInterval(ping, 15000);
     const poll = () => fetchJson(`${API}/reports`).then(setReports).catch(() => {});
@@ -122,7 +157,9 @@ export default function App() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       if (pos) {
         setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
-        camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 12.5, duration: 900 });
+        // wait for the initial style/tile load to settle before animating —
+        // flyTo during first-load is a render-thread spike on the iOS sim
+        setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: 900 }), 600);
       }
     })();
     const aqiPoll = () =>
@@ -135,7 +172,38 @@ export default function App() {
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); };
-  }, [setFrom, setTrips]);
+  }, [setFrom, setTrips, settings.lang]);
+
+  /* the layers sheet is idle-phase chrome — leaving idle (search, compare,
+     nav) must close it or it bleeds through stacked behind the next surface
+     (reproduced: its toggles rendered under the compare sheet) */
+  useEffect(() => { if (phase !== "idle") setLayersOpen(false); }, [phase]);
+
+  /* Android hardware BACK closes the topmost open surface — every overlay
+     here is a plain View (no Modal onRequestClose), so without a dispatcher
+     BACK fell through and exited the app (Android forensic find on the
+     drawer). Checked topmost-first, matching JSX mount order; SearchScreen
+     and Sidebar keep their own local handlers — registered later, they win
+     the race for the same press. flow.needsVehicle (the forced first-pick)
+     is intentionally NOT dismissable this way. */
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (vehicleOpen) { setVehicleOpen(false); return true; }
+      if (settingsOpen) { setSettingsOpen(false); return true; }
+      if (ledgerOpen) { setLedgerOpen(false); return true; }
+      if (delhiOpen) { setDelhiOpen(false); return true; }
+      if (layersOpen) { setLayersOpen(false); return true; }
+      if (sidebarOpen) { setSidebarOpen(false); return true; }
+      if (mapPickArmed) { setMapPickArmed(false); return true; }
+      /* phases: BACK on compare = its X (clearRoute); BACK inside nav
+         must never kill the app mid-trip — the explicit end-early
+         button is the honest exit. Search handles its own press. */
+      if (phase === "compare") { flow.clearRoute(); return true; }
+      if (phase === "nav") return true;
+      return false;
+    });
+    return () => sub.remove();
+  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, phase, flow]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
@@ -167,14 +235,35 @@ export default function App() {
    *  coarse class (drawer chip -> profile sync lives in patchSettings). */
   useEffect(() => {
     if (!settings.vehicle && flow.vehicle) {
-      patchSettings({ vehicle: CLS2DRAWER[flow.vehicle.cls] });
+      /* react-hooks/set-state-in-effect: defer the sync out of the
+         effect body — it writes settings, not an external system */
+      queueMicrotask(() => patchSettings({ vehicle: CLS2DRAWER[flow.vehicle!.cls] }));
     }
   }, [flow.vehicle, settings.vehicle, patchSettings]);
 
   const deleteAll = useCallback(() => {
-    clearAllData();
-    flow.setTrips([]); flow.setVehicleProfile(null);
-    setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
+    // server half first — the raw device token dies with contributor.txt,
+    // so the DELETE must carry the CURRENT id before the wipe removes it.
+    // contributorId() resolves from its file fast; a hung read must not
+    // hold the wipe hostage, hence the 800 ms cap.
+    void (async () => {
+      const tok = await Promise.race([
+        contributorId(),
+        new Promise<string | null>((r) => setTimeout(() => r(null), 800)),
+      ]);
+      if (tok) {
+        void fetch(
+          `${API}/v2/ledger?token=${encodeURIComponent(tok)}`,
+          { method: "DELETE" },
+        ).catch(() => {});
+      }
+      clearAllData();
+      flow.setTrips([]); flow.setVehicleProfile(null);
+      setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
+      /* closing the sheet IS the acknowledgment — the user lands back on
+         a clean map; the consent gate re-arms itself on next launch */
+      setSettingsOpen(false); setSidebarOpen(false);
+    })();
   }, [flow]);
   const toggleLayer = useCallback((k: LayerKey, v: boolean) => {
     setLayers((l) => ({ ...l, [k]: v }));
@@ -191,6 +280,15 @@ export default function App() {
     <View style={s.root}>
       <StatusBar style="dark" />
       <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
+        /* the compass clears the chrome: search bar at rest, the taller
+           maneuver banner in nav (was clipped behind it at top-right) */
+        compassPosition={phase === "nav"
+          ? { top: insets.top + 108, right: 12 }
+          : { top: insets.top + 76, right: 12 }}
+        /* ornaments ride above the FABs — the stock bottom-edge spots
+           clip against the home-indicator bezel + the FAB shadows */
+        logoPosition={{ bottom: insets.bottom + 72, left: 10 }}
+        attributionPosition={{ bottom: insets.bottom + 72, right: 10 }}
         onPress={async (f) => {
           if (!mapPickArmed) return;
           setMapPickArmed(false);
@@ -198,6 +296,13 @@ export default function App() {
           if (!c) return;
           let name = `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
           try { const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000); if (j.name) name = j.name; } catch {}
+          if (placePickSlot) {
+            // the unset home/work slot asked for this pick ("choose on map")
+            patchSettings({ [placePickSlot]: { name, lat: c[1], lon: c[0] } });
+            setPlacePickSlot(null);
+            setSidebarOpen(true);
+            return;
+          }
           flow.pick({ name, subtitle: "", lat: c[1], lon: c[0] }, "to");
         }}
         onLongPress={async (f) => {
@@ -207,40 +312,47 @@ export default function App() {
           try { const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000); if (j.name) name = j.name; } catch {}
           flow.pick({ name, subtitle: "", lat: c[1], lon: c[0] }, "to");
         }}>
-        <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[76.75, 28.15, 77.95, 28.98]}
+        {/* maxBounds = the dose field's service margin (NCR ±2°), not the
+            tight NCR box — a destination in Agra/Jaipur must stay on
+            screen or the outside-area notice can't be understood */}
+        <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[74.75, 26.15, 79.95, 30.98]}
           trackUserLocation={flow.follow ? "default" : undefined}
           onTrackUserLocationChange={(e) => { if (!e.nativeEvent.trackUserLocation) flow.setFollow(false); }} />
-        {/* mounted only while locating — a permanent subscription idles
-            the GPS chip + animation loop for nothing (perf-r4) */}
-        {hasLoc && (phase === "nav" || flow.follow) && <UserLocation animated accuracy />}
+        {/* mounted once we have a fix and left mounted — unmounting the
+            location puck pulls its native layer mid-draw (same upstream
+            sim crash class as route sources/markers). The small idle-GPS
+            cost beats a remove-during-render race; always-on dot matches
+            normal map UX anyway. */}
+        {hasLoc && <UserLocation animated accuracy />}
         {layers.corridors && <CorridorLayer corridors={flow.community?.top_corridors ?? null} />}
         <ReportsLayer reports={reports} />
         {layers.fires && <FiresLayer fires={fires} />}
         {layers.spots && <BlackspotsLayer spots={spots} />}
-        <Layer id="buildings3d" type="fill-extrusion" source="openmaptiles" source-layer="building" minzoom={15}
-          paint={{ "fill-extrusion-color": V2T.mapBuilding,
-            "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-            "fill-extrusion-opacity": 0.6 }} />
         {/* route-wise AQI gradient on the real /v2/plan polylines — per
             ~250 m chunk from the fetched strips, flat dose-mean until they
             land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
             (<RouteTintSource/> — src/components/RouteTint.tsx contract) */}
         <RouteTintSource
-          options={flow.options}
+          options={deferredOptions}
           selected={flow.selected}
           strips={flow.strips}
         />
-        {flow.from && phase === "compare" && (
-          <Marker lngLat={[flow.from.lon, flow.from.lat]} anchor="center"><EndpointPin kind="origin" /></Marker>
-        )}
-        {flow.to && (
-          <Marker lngLat={[flow.to.lon, flow.to.lat]} anchor="bottom"><EndpointPin kind="dest" /></Marker>
-        )}
+        {/* endpoint annotations stay mounted at their last coordinates —
+            unmounting a MarkerView mid-draw is the same upstream
+            remove-during-render class as the route sources. Hidden is an
+            empty child; the pin never teleports because the ref holds the
+            last real coordinate. */}
+        <Marker lngLat={fromPin.current} anchor="center">
+          {flow.from && pinReady ? <EndpointPin kind="origin" /> : <View />}
+        </Marker>
+        <Marker lngLat={toPin.current} anchor="bottom">
+          {flow.to && pinReady ? <EndpointPin kind="dest" /> : <View />}
+        </Marker>
       </Map>
 
       {/* rest state chrome: search bar + locate + layers (doc 02 §S1) */}
       {phase !== "nav" && (
-        <View style={s.pillWrap}>
+        <View style={[s.pillWrap, { top: insets.top + 10 }]}>
           <SearchBar
             label={phase === "compare" && flow.to ? flow.to.name : undefined}
             lang={lang}
@@ -253,9 +365,22 @@ export default function App() {
         visible={phase === "search"}
         lang={lang}
         userLocation={flow.from ? { lat: flow.from.lat, lon: flow.from.lon } : null}
-        onClose={() => flow.setPhase(flow.to ? "compare" : "idle")}
+        onClose={() => {
+          if (placePickSlot) { setPlacePickSlot(null); setSidebarOpen(true); }
+          flow.setPhase(flow.to ? "compare" : "idle");
+        }}
         onSelect={async (sel: SearchSelection) => {
           if (sel.type === "place") {
+            if (placePickSlot) {
+              // sidebar's unset home/work slot asked for a search pick —
+              // land the place in settings and return to the drawer
+              patchSettings({ [placePickSlot]: {
+                name: sel.place.name, lat: sel.place.lat, lon: sel.place.lon } });
+              setPlacePickSlot(null);
+              flow.setPhase("idle");
+              setSidebarOpen(true);
+              return;
+            }
             setMapPickArmed(false);
             flow.pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
               lat: sel.place.lat, lon: sel.place.lon }, "to");
@@ -263,21 +388,36 @@ export default function App() {
           }
           if (sel.type === "choose_on_map") {
             flow.setPhase("idle");
-            setMapPickArmed(true);       // next map tap picks the destination
+            setMapPickArmed(true);       // next map tap picks — for the slot
+                                         // when placePickSlot is armed
             return;
           }
           const pos = await Location.getCurrentPositionAsync(
             { accuracy: Location.Accuracy.Balanced }).catch(() => null);
-          if (pos) flow.pick({ name: t("yourLocation", lang), subtitle: "",
+          if (pos && placePickSlot) {
+            patchSettings({ [placePickSlot]: { name: t("yourLocation", lang),
+              lat: pos.coords.latitude, lon: pos.coords.longitude } });
+            setPlacePickSlot(null);
+            flow.setPhase("idle");
+            setSidebarOpen(true);
+          } else if (pos) flow.pick({ name: t("yourLocation", lang), subtitle: "",
             lat: pos.coords.latitude, lon: pos.coords.longitude }, "from");
           else flow.setPhase(flow.to ? "compare" : "idle");
         }} />
       {phase === "idle" && (
         <>
-          <View style={s.locateWrap}>
-            <LocateButton active={flow.follow} onPress={() => flow.setFollow(!flow.follow)} lang={lang} />
+          <View style={[s.locateWrap, { bottom: insets.bottom + 16 }]}>
+            <LocateButton active={flow.follow} onPress={() => {
+              if (flow.follow) { flow.setFollow(false); return; }
+              /* warm the fused provider before engaging follow — MapLibre's
+                 native layer posts a raw error toast when track starts with
+                 no fix yet (Android forensic find); a one-shot fix primes it */
+              Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+                .then((pos) => { if (pos) { setHasLoc(true); flow.setFollow(true); } })
+                .catch(() => {});
+            }} lang={lang} />
           </View>
-          <View style={s.layersWrap}>
+          <View style={[s.layersWrap, { bottom: insets.bottom + 16 }]}>
             <LayersButton anyOn={Object.values(layers).some(Boolean)} onPress={() => setLayersOpen(true)} lang={lang} />
           </View>
         </>
@@ -290,9 +430,9 @@ export default function App() {
           pending trip donations counted, tap re-probes. apiOk kept as the
           belt-and-suspenders health check from before. */}
       {(net.state !== "online" || apiOk === false) && (
-        <Pressable style={s.offlineWrap} onPress={() => void net.refresh()}
+        <Pressable style={[s.offlineWrap, { top: insets.top + 66 }]} onPress={() => void net.refresh()}
           accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
-          <Text style={s.offlineTxt}>
+          <Text {...DYNAMIC_TYPE} style={s.offlineTxt}>
             {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
             {net.pending > 0 ? ` · ${t("offlinePending", lang, { n: net.pending })}` : ""}
           </Text>
@@ -302,7 +442,7 @@ export default function App() {
           field block during compare, else the polled /aqi field block.
           Stale shows as stale; no field → nothing claims freshness. */}
       {phase !== "nav" && mapField && (
-        <View style={s.freshWrap} pointerEvents="box-none">
+        <View style={[s.freshWrap, { top: insets.top + 62 }]} pointerEvents="box-none">
           <FreshnessChip
             ageS={mapField.age_s} stale={mapField.stale}
             sources={fieldSources(mapField)} lang={lang} compact />
@@ -320,13 +460,18 @@ export default function App() {
           fieldAgeS={flow.planField?.age_s} />
       )}
       {phase === "nav" && sel && (
-        <NavSession option={sel} options={flow.options} to={flow.to} steps={flow.steps}
+        <NavSession option={sel} options={flow.options} from={flow.from} to={flow.to} steps={flow.steps}
           camRef={camRef} lang={lang} share={settings.share} onExit={flow.exitNav}
           onTripDone={flow.recordTrip} />
       )}
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} trips={flow.trips} lang={lang}
         settings={settings} onSettings={patchSettings} onDeleteData={deleteAll}
+        onPickPlace={(slot) => {
+          setPlacePickSlot(slot);
+          setSidebarOpen(false);
+          flow.setPhase("search");
+        }}
         onArmBrief={flow.armDailyBrief} currentDest={flow.to}
         onDelhiToday={() => { setSidebarOpen(false); setDelhiOpen(true); }}
         onTripReceipt={() => { setSidebarOpen(false); setLedgerOpen(true); }}
@@ -336,7 +481,7 @@ export default function App() {
         onShare={() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {})}
         onShareTrip={(tr) => Share.share({
           message: t("shareTripBody", lang, {
-            from: tr.from, to: tr.to,
+            from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
             dose: tr.dose_ug != null ? `~${Math.round(tr.dose_ug)}µg` : "—",
           }),
         }).catch(() => {})} />
@@ -353,7 +498,13 @@ export default function App() {
         }} />
       <VehicleSheet visible={vehicleOpen || flow.needsVehicle} lang={lang}
         current={flow.vehicle}
-        onDone={(p) => { applyVehicle(p); setVehicleOpen(false); }}
+        onDone={(p) => {
+          setVehicleOpen(false);
+          /* re-plan commit must not share the sheet-close frame — the
+             close anim + options/RouteTint landing together is the
+             residual-SIGSEGV trigger on the virtualized-GPU sim */
+          setTimeout(() => applyVehicle(p), 80);
+        }}
         onClose={() => setVehicleOpen(false)} />
 
       <OnboardingScreen visible={introSeen === false} lang={lang}
@@ -370,17 +521,32 @@ export default function App() {
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
 function NavSession({
-  option, options, to, steps, camRef, lang, share, onExit, onTripDone,
+  option, options, from, to, steps, camRef, lang, share, onExit, onTripDone,
 }: {
-  option: V2Option; options: V2Option[]; to: Place | null; steps: Step[] | null;
+  option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
   camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
   share: boolean; onExit: () => void;
   onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
 }) {
   const [summary, setSummary] = useState<NavSummary | null>(null);
-  const worstDose = Math.max(...options.map((o) => o.dose?.mid ?? 0), 0);
+  /* the arrival swap is two commits, not one: NavChrome unmounts on its
+     own frame, then the receipt mounts next frame — a remove+add swap
+     against the map's draw is the residual-SIGSEGV class (ci15). */
+  const [receiptReady, setReceiptReady] = useState(false);
+  useEffect(() => {
+    if (!summary) return;
+    const raf = requestAnimationFrame(() => setReceiptReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, [summary]);
+  /* "× less than by X" compares against the smokiest *other* option —
+     when the taken mode was itself the worst-dose plan the line would
+     read as a nonsense self-comparison ("56× less than by On foot" on a
+     walk trip). Options array is the same objects the sheet picked from,
+     so identity holds. */
+  const worstDose = Math.max(
+    ...options.filter((o) => o !== option).map((o) => o.dose?.mid ?? 0), 0);
   const worstOpt = worstDose > 0
-    ? options.find((o) => (o.dose?.mid ?? 0) === worstDose) : undefined;
+    ? options.find((o) => o !== option && (o.dose?.mid ?? 0) === worstDose) : undefined;
   const altEmit = options
     .filter((o) => o !== option && (o.emissions?.co2_kg?.mid ?? 0) > 0)
     .sort((a, b) => (a.emissions.co2_kg?.mid ?? 0) - (b.emissions.co2_kg?.mid ?? 0))[0];
@@ -399,6 +565,7 @@ function NavSession({
         co2KgMid: o.emissions?.co2_kg?.mid ?? null,
       })),
       worstDoseUg: worstDose > 0 ? worstDose : null,
+      emissionsBreakdown: option.emissions?.breakdown ?? null,
     },
     camRef,
     lang,
@@ -413,35 +580,46 @@ function NavSession({
   });
   // start once per nav session; callbacks are stable inside the engine
   const navRef = useRef(nav);
-  navRef.current = nav;
+  useEffect(() => { navRef.current = nav; });   // refs update in effects, never during render
   useEffect(() => {
     navRef.current.start();
-    return () => { navRef.current.stop(); };
+    /* teardown must not run inside the unmount commit — tearing the GNSS
+       watcher down while the receipt->compare flip is on the draw thread
+       is the same crash class as stopping inside the location callback. */
+    return () => { const n = navRef.current; setTimeout(() => n.stop(), 250); };
   }, []);
 
+  if (summary && !receiptReady) return null;   // chrome's own remove commit
   if (summary) {
     const data: ReceiptData = {
       durationMin: summary.durationS / 60,
-      modeLabel: option.label,
+      modeLabel: modeLabel(option.mode, option.label, lang),
       doseUg: nav.stripOk === false ? null : summary.doseUg,
       co2Kg: summary.co2Kg,
       pm25G: summary.pm25G,
       distanceKm: summary.distanceKm,
       mode: option.mode,
       worstDoseUg: worstDose > 0 ? worstDose : null,
-      worstLabel: worstOpt?.label ?? null,
+      worstLabel: worstOpt ? modeLabel(worstOpt.mode, worstOpt.label, lang) : null,
       alt: altEmit
-        ? { label: altEmit.label, co2KgMid: altEmit.emissions?.co2_kg?.mid ?? null }
+        ? { label: modeLabel(altEmit.mode, altEmit.label, lang), co2KgMid: altEmit.emissions?.co2_kg?.mid ?? null }
         : null,
       fieldAgeMin: nav.fieldAgeMin,
       donated: summary.donated,
+      endedEarly: summary.endedEarly,
     };
     return (
-      <ReceiptSheet data={data} lang={lang} onDone={onExit}
+      /* Done tears down the whole nav session in one commit; deferring it
+         past the sheet's close keeps the heavy unmount off the same frame
+         as the press (iOS-sim render-thread race — same class as the
+         deferred search focus/close fixes). */
+      <ReceiptSheet data={data} lang={lang} onDone={() => setTimeout(onExit, 280)}
         onShare={() => Share.share({
           message: t("shareTripBody", lang, {
-            from: to?.name ?? "?", to: to?.name ?? "?",
+            from: from ? placeNameLabel(from.name, lang) : "?",
+            to: to ? placeNameLabel(to.name, lang) : "?",
             dose: summary.doseUg.mid != null ? `~${Math.round(summary.doseUg.mid)}µg` : "—",
+            co2: summary.co2Kg.mid != null ? `~${summary.co2Kg.mid.toFixed(1)}kg CO₂` : "—",
           }),
         }).catch(() => {})} />
     );
@@ -449,20 +627,22 @@ function NavSession({
   return (
     <NavChrome option={option} steps={steps} doseUg={0}
       nav={nav} onRecenter={nav.recenter}
-      onExit={() => nav.arrive()} lang={lang} />
+      onExit={() => nav.arrive(false)} lang={lang} />
   );
 }
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: V2T.bg },
-  pillWrap: { position: "absolute", top: 54, left: 16, right: 16 },
-  locateWrap: { position: "absolute", right: 14, bottom: 40 },
-  layersWrap: { position: "absolute", left: 14, bottom: 40 },
+  // top/bottom come from useSafeAreaInsets inline — status bar, notch and
+  // the gesture pill differ per device (no fixed 54/40 on real hardware)
+  pillWrap: { position: "absolute", left: 16, right: 16 },
+  locateWrap: { position: "absolute", right: 14 },
+  layersWrap: { position: "absolute", left: 14 },
   offlineWrap: {
-    position: "absolute", top: 112, alignSelf: "center",
+    position: "absolute", alignSelf: "center",
     backgroundColor: V2T.surface2, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1, borderColor: V2T.line,
   },
   offlineTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text2 },
-  freshWrap: { position: "absolute", top: 108, left: 16 },
+  freshWrap: { position: "absolute", left: 16 },
 });

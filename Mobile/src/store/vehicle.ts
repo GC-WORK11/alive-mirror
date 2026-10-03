@@ -93,6 +93,27 @@ export function planVehicle(p: VehicleProfile | null): string {
   return p?.cls ?? "car";   // server default is also "car"
 }
 
+/** Profile → the `vehicle_profile` dict /v2/plan parses (server/v2/plan.py
+ *  `_parse_vehicle`): {class, fuel?, year_bucket?}. Server buckets are
+ *  before_2010 | 2010_2016 | 2017_2019 | 2020_plus | not_sure — our
+ *  2017–2020 chip straddles two of them; it maps to 2017_2019 (three of
+ *  its four years land there) rather than widening the answer. */
+const SERVER_YEAR: Record<Exclude<YearBand, "not_sure">, string> = {
+  pre_2010: "before_2010",
+  y2010_2016: "2010_2016",
+  y2017_2020: "2017_2019",
+  y2021_plus: "2020_plus",
+};
+export function planVehicleProfile(
+  p: VehicleProfile | null,
+): { class: string; fuel?: string; year_bucket?: string } | null {
+  if (!p) return null;
+  const out: { class: string; fuel?: string; year_bucket?: string } = { class: p.cls };
+  if (p.fuel) out.fuel = p.fuel;              // "ev" → server alias 'electric'
+  if (p.year && p.year !== "not_sure") out.year_bucket = SERVER_YEAR[p.year];
+  return out;
+}
+
 /** Does this class get the fuel question? Doc 02 §S8: car/scooter/bike
  *  only — autos are overwhelmingly CNG, shared + non-motor modes skip. */
 export const needsFuel = (cls: VehicleClass) => cls === "car" || cls === "bike";
