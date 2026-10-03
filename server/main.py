@@ -409,14 +409,19 @@ def _annotate_segments(options: list) -> None:
         o["hotspots"] = segments.hotspots(segs)
 
 
-# last observed routing-engine call — ops reads this instead of firing
-# synthetic probes at the public demo server
-OSRM_LAST: dict = {"at": None, "ok": None, "ms": None, "err": None}
-
-
 def _osrm_note(ok: bool, ms: float, err: Optional[str] = None) -> None:
-    OSRM_LAST.update({"at": time.time(), "ok": ok,
-                      "ms": round(ms), "err": err})
+    """Write into v2.deps' shared observation — one record for every
+    real routing call across the API surface."""
+    try:
+        from v2 import deps as _d
+    except Exception:
+        try:
+            from server.v2 import deps as _d
+        except Exception:
+            return
+    _d.OSRM_LAST.update({"at": time.time(), "ok": ok,
+                         "ms": round(ms), "err": err,
+                         "backend": "osrm-public-demo"})
 
 
 async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float):
@@ -440,6 +445,7 @@ async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float
     routes = r.json().get("routes", [])
     rt = routes[0] if routes else None
     if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+        _osrm_note(True, (time.monotonic() - t0) * 1000, "over cap")
         return None
     return rt
 

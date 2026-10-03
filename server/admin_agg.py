@@ -152,16 +152,20 @@ def _nearest_place_name(lat: float, lon: float, max_km: float = 2.0):
 def _routing_status():
     """Last observed OSRM call — real route traffic, not a probe."""
     try:
-        import main as _m
-        last = getattr(_m, "OSRM_LAST", None) or {}
+        from v2 import deps as _d
     except Exception:
-        last = {}
+        try:
+            from server.v2 import deps as _d
+        except Exception:
+            _d = None
+    last = getattr(_d, "OSRM_LAST", None) or {}
     at = last.get("at")
     return {
-        "detail": ("OSRM public demo on the real OSM graph — "
-                   "driving/cycling/walking profiles"),
+        "detail": ("self-hosted Delhi daemon first, public OSRM demo "
+                   "fallback — driving/cycling/walking profiles"),
         "up": last.get("ok"),
         "ms": last.get("ms"),
+        "backend": last.get("backend"),
         "age_s": (round(time.time() - at, 1) if at else None),
         "err": last.get("err"),
         "note": ("observed from real route calls — null until the first "
