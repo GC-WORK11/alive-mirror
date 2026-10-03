@@ -289,6 +289,8 @@ async function tick(){
      `daily median pm2.5${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
      `cumulative dose · ${t.cig_equiv??'—'} cig-equiv`,'brick',t.dose_ug>0],
+    [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
+     `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
     [loso.mae_ugm3!=null?`${loso.mae_ugm3} <small>µg/m³</small>`:null,
      `model error vs held-out stations (mae)${validation.weekly?' · '+validation.weekly.week:''}`,'',loso.mae_ugm3!=null]];
   $('stats').innerHTML=cards.map(([v,l,cl,ok])=>

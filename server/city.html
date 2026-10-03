@@ -94,6 +94,17 @@
   @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
   @media(prefers-reduced-motion:reduce){.ticker-in{animation:none}.live-dot{animation:none}}
 
+  /* ---------- forecast strip ---------- */
+  #forecast{margin-top:14px}
+  .fc-row{display:flex;gap:6px;align-items:flex-end;height:44px}
+  .fc-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:3px}
+  .fc-bar{border-radius:3px 3px 0 0;min-height:3px}
+  .fc-lbls{display:flex;gap:6px;margin-top:5px;font-family:var(--mono);
+           font-size:8.5px;letter-spacing:.1em;color:var(--ink3,#65707F)}
+  .fc-lbls span{flex:1}
+  .fc-cap{margin-top:7px;font-family:var(--mono);font-size:9.5px;
+          letter-spacing:.14em;text-transform:uppercase;color:var(--ink3,#65707F)}
+
   /* ---------- sections ---------- */
   section{padding:clamp(56px,9vh,104px) 0 8px}
   .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:38px;
@@ -264,6 +275,7 @@
         σ-band — the width of our honesty, propagated from instrument
         noise and station gaps, never collapsed into fake precision.</p>
         <p id="typical"></p>
+        <div id="forecast"></div>
       </div>
     </div>
   </section>
@@ -468,6 +480,7 @@ async function load(){
     const ty=a.typical;
     document.getElementById('typical').innerHTML=ty?
       `<span class="vs">${ty.vs_now_pct>0?'+':''}${ty.vs_now_pct}%</span> vs the decade-typical <b>${Math.round(ty.median)} µg/m³</b> for this month, this hour (9M measured station-hours).`:'';
+    paintForecast(a.next_hours);
     paintTicker(a,t,ad);
     paintMini();
     const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
@@ -531,6 +544,18 @@ function paintTicker(a,t,ad){
     [`next refresh`,`${ad.refresh_in_s!=null?Math.floor(ad.refresh_in_s/60)+' min':'—'}`]];
   const s=items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>◆</i>');
   document.getElementById('ticker').innerHTML=s+'<i>◆</i>'+s+'<i>◆</i>';
+}
+function paintForecast(slots){
+  const el=document.getElementById('forecast');
+  if(!slots||slots.length<2){el.innerHTML='';return}
+  const mx=Math.max(...slots.map(s=>s.pm25||0),1);
+  el.innerHTML='<div class="fc-row">'+slots.map(s=>{
+    const t=Math.min(1,(s.pm25||0)/300);
+    const h=Math.max(3,Math.round(34*(s.pm25||0)/mx));
+    return `<div class="fc-col" title="+${s.h}h · ${s.pm25} µg/m³"><div class="fc-bar" style="height:${h}px;background:${ramp(t,.85)}"></div></div>`
+  }).join('')+'</div>'
+    +'<div class="fc-lbls">'+slots.map(s=>`<span>${s.h===0?'now':(s.h%3===0?'+'+s.h+'h':'')}</span>`).join('')+'</div>'
+    +'<div class="fc-cap">the next 12 hours — cams outlook anchored to the live field · µg/m³</div>';
 }
 function paintBreaths(v){const el=document.getElementById('breaths');
   el.textContent=Math.floor(v).toLocaleString('en-IN')}
