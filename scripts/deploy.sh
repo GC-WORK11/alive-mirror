@@ -12,9 +12,19 @@
 #
 # Usage:
 #   AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... ./scripts/deploy.sh
+#   ./scripts/deploy.sh rollback <sha>   # redeploy image :<sha> CI pushed — no build
+# Image tags: every build (local or CodeBuild) pushes :<8-char sha> AND
+#   :latest — the sha tag is immutable, deploys pin it, rollback redeploys it.
 # Env overrides: AWS_REGION (ap-south-1), ECS_CLUSTER, ECS_SERVICE, ECR_REPO,
 #   TG_NAME, IMAGE_TAG, BUILD_MODE=auto|local|codebuild, SKIP_BUILD=1.
 set -euo pipefail
+
+# rollback subcommand — deploy an existing ECR tag with the full
+# task-def + NLB pipeline (identical path to a normal deploy minus build).
+if [ "${1:-}" = "rollback" ]; then
+  [ -n "${2:-}" ] || { echo "usage: $0 rollback <sha>   # e.g. $0 rollback 6fada20c" >&2; exit 2; }
+  export SKIP_BUILD=1 IMAGE_TAG="$2"
+fi
 
 REGION="${AWS_REGION:-ap-south-1}"
 export AWS_DEFAULT_REGION="$REGION" AWS_REGION="$REGION"
@@ -25,7 +35,8 @@ TG_NAME="${TG_NAME:-alive108-tg}"
 NLB_NAME="${NLB_NAME:-alive108}"
 PORT="${CONTAINER_PORT:-8080}"
 BUILD_MODE="${BUILD_MODE:-auto}"
-TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}"
+# 8-char sha matches buildspec.yml's `cut -c1-8` — same tag in every mode.
+TAG="${IMAGE_TAG:-$(git rev-parse --short=8 HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 log()  { echo "[deploy] $*"; }
@@ -99,11 +110,15 @@ build_codebuild() {
       --query 'builds[0].buildStatus' --output text)" \
       && [ "$st" != "IN_PROGRESS" ]; do sleep 15; done
   [ "$st" = "SUCCEEDED" ] || fail "codebuild $bid status=$st — see CloudWatch logs"
-  DEPLOY_IMG="$IMG:latest"   # buildspec.yml pushes :latest
+  DEPLOY_IMG="$IMG:$TAG"     # buildspec.yml pushes :$SHA (= BUILD_SHA, 8-char) + :latest
 }
 
 if [ "${SKIP_BUILD:-0}" = "1" ]; then
-  DEPLOY_IMG="$IMG:latest"
+  DEPLOY_IMG="$IMG:${IMAGE_TAG:-latest}"
+  log "SKIP_BUILD — deploying existing ECR tag ${IMAGE_TAG:-latest}"
+  run aws ecr describe-images --repository-name "$REPO" \
+    --image-ids "imageTag=${IMAGE_TAG:-latest}" >/dev/null \
+    || fail "no image $DEPLOY_IMG in ECR — check tag: aws ecr list-images --repository-name $REPO"
 elif [ "$BUILD_MODE" = "local" ] || { [ "$BUILD_MODE" = "auto" ] && docker info >/dev/null 2>&1; }; then
   build_local
 elif [ "$BUILD_MODE" = "codebuild" ] || [ "$BUILD_MODE" = "auto" ]; then

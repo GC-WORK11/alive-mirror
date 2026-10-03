@@ -4,6 +4,75 @@ Region: `ap-south-1` everywhere. Live service: ECS service `alive108` (cluster
 `alive108`, Fargate) behind NLB `alive108` at **65.2.28.40** (`http://65.2.28.40`,
 listener :80 → target group `alive108-tg` :8080, health check `GET /health`).
 
+## 0. Phase-0 bring-up — run top-to-bottom
+
+Owner gates (plan 00 open items): **[B1] IAM scope**, **[B2] OpenAQ/CPCB key**,
+**[B3] spend cap**. Each gates the step it is called out on — do not skip past.
+
+**Step 0 — credentials.** *Gate [B1]: the IAM principal needs `sts`, `iam`
+(create/put-role-policy), `ecr`, `ecs`, `elbv2`, `ec2`, `s3`, `dynamodb`,
+`scheduler`, `cloudwatch`, `sns`, `secretsmanager`, `geo:*`, and `budgets` +
+billing on us-east-1.*
+```bash
+aws sts get-caller-identity
+# → {"Account": "123456789012", "Arn": "arn:aws:iam::…"} — anything else: stop.
+```
+
+**Step 1 — dry-run provision (no AWS calls).**
+```bash
+DRY_RUN=1 ./infra/provision.sh      # or ./infra/provision.sh --dry-run
+# → "# check: …" + "+ aws …" lines for every resource;
+#   ends "(dry-run — nothing was executed)"
+```
+
+**Step 2 — provision.** *Gate [B3]: owner sets the monthly cap + alert email
+now — `alive108-monthly` is the only hard stop for Amazon Location spend too.*
+```bash
+export ALIVE_MONTHLY_BUDGET_USD=50 OPS_EMAIL=ops@example.com
+# optional — without these the 3 schedules are created DISABLED stubs:
+# export SCHEDULER_ROLE_ARN=… INGEST_TARGET_ARN=… ROLLUP_TARGET_ARN=… \
+#        VALIDATE_TARGET_ARN=…
+./infra/provision.sh
+# → "=== provision done ==="  (S3, DDB, schedules, dashboard, 2 alarms,
+#   budget, 2 secret scaffolds, Location key)
+```
+
+**Step 3 — real data keys.** *Gate [B2]: scaffolds hold `{"api_key":"REPLACE_ME"}`;
+until real values land, ingest runs degraded (CAMS model + stale OpenAQ
+archive) and `/health` must say so.*
+```bash
+aws secretsmanager put-secret-value --region ap-south-1 \
+  --secret-id alive108/openaq --secret-string '{"api_key":"<REAL_OPENAQ_V3_KEY>"}'
+aws secretsmanager put-secret-value --region ap-south-1 \
+  --secret-id alive108/cpcb  --secret-string '{"api_key":"<REAL_DATA_GOV_IN_KEY>"}'
+# → {"VersionId": "…"} each. Keys never enter git — this script included.
+```
+
+**Step 4 — deploy.**
+```bash
+./scripts/deploy.sh
+# → "[deploy] STABLE -> http://<eip>" — builds (local docker else CodeBuild),
+#   pushes :<8-char sha> + :latest, redeploys ECS, re-registers NLB target.
+```
+
+**Step 5 — verify** (plan 09 Phase-0 accept):
+```bash
+curl -s http://<eip>/health | jq '{build_sha, field_age_s, sources}'
+# → build_sha = pushed sha tag; field_age_s null until first ingest (ok on day 0)
+aws budgets describe-budget --region us-east-1 --account-id <acct> \
+  --budget-name alive108-monthly --query 'Budget.BudgetLimit'
+# → {"Amount": "50", "Unit": "USD"} (your cap)
+aws cloudwatch describe-alarms --alarm-names alive108-field-age alive108-5xx-rate \
+  --query 'MetricAlarms[].StateValue'
+# → ["INSUFFICIENT_DATA"|"OK", …] — field-age goes OK once metrics flow
+aws location describe-key --key-name alive108-app \
+  --query 'Key.Restrictions.AllowActions'
+# → maps/places/routes actions only. Console: CloudWatch → Dashboards → ALive-108.
+```
+
+**Rollback:** `./scripts/deploy.sh rollback <sha>` — redeploys the image tag CI
+already pushed, same pipeline minus the build (§2).
+
 ## 1. Deploy
 
 ```bash
@@ -15,8 +84,9 @@ Pipeline (`scripts/deploy.sh`; `server/deploy-aws.sh` is a thin wrapper):
 1. **Build.** `BUILD_MODE=auto` (default): local `docker build` if a daemon is
    reachable, else AWS CodeBuild. CodeBuild mode archives `git archive
    --format=zip HEAD:server` so `buildspec.yml` sits at the **zip root** —
-   zipping the repo root breaks the build (known gotcha). CodeBuild pushes
-   `:latest`; local mode pushes `:$GIT_SHA` + `:latest`.
+   zipping the repo root breaks the build (known gotcha). Every build —
+   local or CodeBuild — pushes `:<8-char sha>` **and** `:latest`; the ECS
+   task def pins the sha tag (`:latest` is a moving convenience tag only).
 2. **Task def.** New `alive108` revision: image + env (`AIR_BUCKET`,
    `AGG_TABLE`, `BUILD_SHA`, …) + secret `OPENAQ_API_KEY` ←
    `secretsmanager:alive108/openaq`.
@@ -29,10 +99,23 @@ Pipeline (`scripts/deploy.sh`; `server/deploy-aws.sh` is a thin wrapper):
    every stale target, registers the live IP, and blocks until
    `describe-target-health` = `healthy`.
 
-Dry-run / partial: `SKIP_BUILD=1` redeploys `:latest` without a build.
-Overrides: `ECS_CLUSTER`, `ECS_SERVICE`, `ECR_REPO`, `TG_NAME`, `IMAGE_TAG`.
+Dry-run / partial: `SKIP_BUILD=1` redeploys `:${IMAGE_TAG:-latest}` without a
+build (fails if the tag is not in ECR). Overrides: `ECS_CLUSTER`,
+`ECS_SERVICE`, `ECR_REPO`, `TG_NAME`, `IMAGE_TAG`.
 
 ## 2. Rollback
+
+Fastest — redeploy the last good image tag CI pushed (builds are immutable
+`:<sha>` tags; list them with `aws ecr list-images --repository-name alive108-api`):
+
+```bash
+./scripts/deploy.sh rollback <sha>   # e.g. ./scripts/deploy.sh rollback 6fada20c
+```
+
+It verifies the tag exists in ECR, registers a task def on `:<sha>`, forces a
+deployment and re-runs the NLB fix — identical path to a deploy minus the build.
+
+Manual alternative — point the service at the previous task-def revision:
 
 ```bash
 # find the previous task-def revision
@@ -70,9 +153,12 @@ aws elbv2 describe-target-health --target-group-arn $TG   # wait for "healthy"
 
 - **Secrets Manager `alive108/openaq`** — OpenAQ v3 key. Injected into the
   container as env `OPENAQ_API_KEY` (execution role has
-  `secretsmanager:GetSecretValue` on `alive108/*`). Rotate: update the secret
-  value, `SKIP_BUILD=1 ./scripts/deploy.sh`. Never commit keys — the repo has
-  none by design.
+  `secretsmanager:GetSecretValue` on `alive108/*`). **`alive108/cpcb`** —
+  data.gov.in/CPCB hourly feed key, read by the worker only. Both are
+  scaffolded by `provision.sh` with `{"api_key":"REPLACE_ME"}` placeholders —
+  real values go in via `put-secret-value` (§0 step 3). Rotate: update the
+  secret value, `SKIP_BUILD=1 ./scripts/deploy.sh`. Never commit keys — the
+  repo has none by design.
 - Amazon Location key `alive108-app` (provision.sh): scoped to
   `geo-maps:GetTile/GetStaticMap`, `geo-places:Autocomplete/Suggest`,
   `geo-routes:CalculateRoutes`, expires `${LOCATION_KEY_DAYS:-90}`d.
@@ -98,8 +184,10 @@ curl -s http://65.2.28.40/health | jq
 
 ## 6. Cost watch
 
-- **Budget `alive108-monthly`** — alerts at 80% of `${MONTHLY_BUDGET_USD:-50}`
-  via SNS `alive108-ops` (set `OPS_EMAIL` before provisioning for email).
+- **Budget `alive108-monthly`** — alerts at 80% of
+  `${ALIVE_MONTHLY_BUDGET_USD:-50}` via SNS `alive108-ops`; `OPS_EMAIL` also
+  adds a direct EMAIL subscriber to the budget at create time
+  (legacy env `MONTHLY_BUDGET_USD` still read).
 - Big-ticket items: NLB hourly (~$16/mo + NLCU), Fargate 1×(1 vCPU/2 GB)
   (~$30/mo if 24/7), CloudWatch metrics/alarms, NAT (avoid — tasks use public
   IPs), S3→Glacier lifecycle (`./infra/provision.sh --glacier`).
@@ -112,8 +200,8 @@ curl -s http://65.2.28.40/health | jq
 ## 7. Provisioning (one time / drift repair)
 
 ```bash
-./infra/provision.sh --dry-run     # prints every command, executes nothing
-./infra/provision.sh               # S3, DDB, schedules, dashboard, alarms, budget, Location key
+DRY_RUN=1 ./infra/provision.sh     # or --dry-run: prints every command, executes nothing
+./infra/provision.sh               # S3, DDB, schedules, dashboard, alarms, budget, secrets, Location key
 ./infra/provision.sh --glacier     # + field/ -> GLACIER after 90d lifecycle
 ```
 

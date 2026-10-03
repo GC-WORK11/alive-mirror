@@ -1,13 +1,31 @@
 version: 0.2
+# ALive-108 CodeBuild spec — MUST sit at the source zip root (deploy.sh
+# archives `git archive HEAD:server`, so this file is the root).
+#
+# Tags pushed on every build (parity with scripts/deploy.sh local mode):
+#   :<sha>    8-char short sha — immutable, what ECS task defs pin and what
+#             `deploy.sh rollback <sha>` redeploys
+#   :latest   moving tag — convenience only
+# Sha source: $CODEBUILD_RESOLVED_SOURCE_VERSION when CodeBuild resolves a
+# commit, else BUILD_SHA injected by scripts/deploy.sh (S3-source builds).
 phases:
   pre_build:
     commands:
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
       - aws ecr describe-repositories --repository-names alive108-api --region $AWS_REGION || aws ecr create-repository --repository-name alive108-api --region $AWS_REGION
+      - REPO=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/alive108-api
+      - SRC_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-${BUILD_SHA:-manual-build}}"
+      - SHA="$(echo "$SRC_SHA" | cut -c1-8)"
+      - export REPO SHA
+      - echo "build tags: $REPO:$SHA + $REPO:latest"
   build:
     commands:
-      - docker build -t $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/alive108-api:latest .
+      - docker build -t $REPO:$SHA -t $REPO:latest .
   post_build:
     commands:
-      - docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/alive108-api:latest
-      - echo "image pushed"
+      # recompute defensively in case env did not carry across phases
+      - SHA="${SHA:-$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-${BUILD_SHA:-manual-build}}" | cut -c1-8)}"
+      - REPO="${REPO:-$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/alive108-api}"
+      - docker push $REPO:$SHA
+      - docker push $REPO:latest
+      - echo "pushed $REPO:$SHA and $REPO:latest"
