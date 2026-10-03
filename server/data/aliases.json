@@ -1,72 +1,527 @@
 {
-  "comment": "T1 search index alias table — token -> alternative phrases. Merged over the built-in defaults in alive_core_ref.load_aliases(); edit freely, keys and phrases are normalized on load.",
+  "comment": "T1 normalization/alias table — token -> alternative phrase(s). Merged over alive_core_ref built-ins; first phrase is the canonical form used by scripts/build_corpus.py normalization, the rest are query-expansion alternatives.",
   "aliases": {
-    "sec": ["sector"],
-    "sector": ["sec"],
-    "ph": ["phase"],
-    "phase": ["ph"],
-    "st": ["saint", "street"],
-    "rd": ["road"],
-    "ave": ["avenue"],
-    "ngr": ["nagar"],
-    "mkt": ["market"],
-    "stn": ["station"],
-    "rly": ["railway"],
-    "nr": ["near"],
-    "opp": ["opposite"],
-    "chok": ["chowk"],
-    "vhr": ["vihar"],
-    "clny": ["colony"],
-    "cp": ["connaught place"],
-    "gk": ["greater kailash"],
-    "ncr": ["national capital region"],
-    "isbt": ["inter state bus terminus"],
-    "dtu": ["delhi technological university"],
-    "dce": ["delhi college of engineering", "delhi technological university"],
-    "iit": ["indian institute of technology"],
-    "aiims": ["all india institute of medical sciences"],
-    "igi": ["indira gandhi international", "indira gandhi international airport"],
-    "t3": ["terminal 3"],
-    "t1": ["terminal 1"],
-    "t2": ["terminal 2"],
-    "ndls": ["new delhi railway station"],
-    "jn": ["junction"],
-    "extn": ["extension"],
-    "ext": ["extension"],
-    "encl": ["enclave"],
-    "hosp": ["hospital"],
-    "univ": ["university"],
-    "coll": ["college"],
-    "sch": ["school"],
-    "intl": ["international"],
-    "natl": ["national"],
-    "inst": ["institute"],
-    "tech": ["technology"],
-    "sci": ["sciences"],
-    "med": ["medical"],
-    "assoc": ["association"],
-    "apt": ["apartment"],
-    "apts": ["apartments"],
-    "bldg": ["building"],
-    "cmplx": ["complex"],
-    "gdn": ["garden"],
-    "grdn": ["garden"],
-    "htl": ["hotel"],
-    "nagar": ["ngr"],
-    "bagh": ["bag"],
-    "ganj": ["ganj"],
-    "sarai": ["saray"],
-    "mandi": ["market"],
-    "chowk": ["chok", "chauk"],
-    "chauk": ["chowk"],
-    "qila": ["fort"],
-    "masjid": ["mosque"],
-    "mandir": ["temple"],
-    "gurudwara": ["gurdwara"],
-    "gurdwara": ["gurudwara"],
-    "mahal": ["palace"],
-    "marg": ["road", "marg"],
-    "path": ["road"],
-    "sar": ["sarai"]
+    "aiims": [
+      "all india institute of medical sciences"
+    ],
+    "andrewsganj": [
+      "andrews ganj"
+    ],
+    "anvt": [
+      "anand vihar terminal"
+    ],
+    "apt": [
+      "apartment"
+    ],
+    "apts": [
+      "apartments"
+    ],
+    "assoc": [
+      "association"
+    ],
+    "av": [
+      "avenue"
+    ],
+    "ave": [
+      "avenue"
+    ],
+    "baag": [
+      "bagh"
+    ],
+    "baagh": [
+      "bagh"
+    ],
+    "bag": [
+      "bagh"
+    ],
+    "bagh": [
+      "bag"
+    ],
+    "baug": [
+      "bagh"
+    ],
+    "bazaar": [
+      "bazar"
+    ],
+    "bazar": [
+      "bazar"
+    ],
+    "blck": [
+      "block"
+    ],
+    "bldg": [
+      "building"
+    ],
+    "blk": [
+      "block"
+    ],
+    "center": [
+      "centre"
+    ],
+    "chandnee": [
+      "chandni"
+    ],
+    "chandni": [
+      "chandni"
+    ],
+    "chandnichowk": [
+      "chandni chowk"
+    ],
+    "chattarpur": [
+      "chhatarpur"
+    ],
+    "chauk": [
+      "chowk"
+    ],
+    "chawk": [
+      "chowk"
+    ],
+    "chok": [
+      "chowk"
+    ],
+    "chowk": [
+      "chowk",
+      "chok",
+      "chauk"
+    ],
+    "clny": [
+      "colony"
+    ],
+    "cmplx": [
+      "complex"
+    ],
+    "col": [
+      "colony"
+    ],
+    "coll": [
+      "college"
+    ],
+    "conaught": [
+      "connaught"
+    ],
+    "connaught": [
+      "connaught"
+    ],
+    "connaughtplace": [
+      "connaught place"
+    ],
+    "connuaght": [
+      "connaught"
+    ],
+    "cp": [
+      "connaught place"
+    ],
+    "cpwd": [
+      "central public works department"
+    ],
+    "ctr": [
+      "centre"
+    ],
+    "dce": [
+      "delhi technological university",
+      "delhi college of engineering"
+    ],
+    "defense": [
+      "defence"
+    ],
+    "dhola": [
+      "dhaula"
+    ],
+    "dli": [
+      "old delhi railway station"
+    ],
+    "dmrc": [
+      "delhi metro"
+    ],
+    "dtc": [
+      "delhi transport corporation"
+    ],
+    "dtu": [
+      "delhi technological university"
+    ],
+    "du": [
+      "delhi university"
+    ],
+    "duarka": [
+      "dwarka"
+    ],
+    "encl": [
+      "enclave"
+    ],
+    "enclve": [
+      "enclave"
+    ],
+    "ext": [
+      "extension"
+    ],
+    "extn": [
+      "extension"
+    ],
+    "faridbad": [
+      "faridabad"
+    ],
+    "flr": [
+      "floor"
+    ],
+    "ganj": [
+      "ganj"
+    ],
+    "gaziabad": [
+      "ghaziabad"
+    ],
+    "gdn": [
+      "garden"
+    ],
+    "ghazibad": [
+      "ghaziabad"
+    ],
+    "gk": [
+      "greater kailash"
+    ],
+    "govt": [
+      "government"
+    ],
+    "gr": [
+      "greater"
+    ],
+    "grdn": [
+      "garden"
+    ],
+    "gurdwara": [
+      "gurudwara"
+    ],
+    "gurgaon": [
+      "gurugram"
+    ],
+    "gurgawan": [
+      "gurugram"
+    ],
+    "gurgoan": [
+      "gurugram"
+    ],
+    "gurudwara": [
+      "gurdwara"
+    ],
+    "hauzkhas": [
+      "hauz khas"
+    ],
+    "hosp": [
+      "hospital"
+    ],
+    "htl": [
+      "hotel"
+    ],
+    "igi": [
+      "indira gandhi international",
+      "indira gandhi international airport"
+    ],
+    "igia": [
+      "indira gandhi international airport"
+    ],
+    "iimc": [
+      "indian institute of mass communication"
+    ],
+    "iit": [
+      "indian institute of technology"
+    ],
+    "inst": [
+      "institute"
+    ],
+    "intl": [
+      "international"
+    ],
+    "isbt": [
+      "inter state bus terminus"
+    ],
+    "jamia": [
+      "jamia millia islamia"
+    ],
+    "jankpuri": [
+      "janakpuri"
+    ],
+    "jn": [
+      "junction"
+    ],
+    "jnu": [
+      "jawaharlal nehru university"
+    ],
+    "jungpura": [
+      "jangpura"
+    ],
+    "kalkaji": [
+      "kalkaji"
+    ],
+    "karolbagh": [
+      "karol bagh"
+    ],
+    "kashmere": [
+      "kashmiri"
+    ],
+    "khanmarket": [
+      "khan market"
+    ],
+    "lajpatnagar": [
+      "lajpat nagar"
+    ],
+    "laksmi": [
+      "laxmi"
+    ],
+    "mahal": [
+      "palace"
+    ],
+    "malvia": [
+      "malviya"
+    ],
+    "mandi": [
+      "market"
+    ],
+    "mandir": [
+      "temple"
+    ],
+    "marg": [
+      "road",
+      "marg"
+    ],
+    "masjid": [
+      "mosque"
+    ],
+    "med": [
+      "medical"
+    ],
+    "mehroli": [
+      "mehrauli"
+    ],
+    "mkt": [
+      "market"
+    ],
+    "moolchand": [
+      "moolchand"
+    ],
+    "mrkt": [
+      "market"
+    ],
+    "munerka": [
+      "munirka"
+    ],
+    "munirka": [
+      "munirka"
+    ],
+    "nagar": [
+      "ngr"
+    ],
+    "nager": [
+      "nagar"
+    ],
+    "nagger": [
+      "nagar"
+    ],
+    "naheru": [
+      "nehru"
+    ],
+    "natl": [
+      "national"
+    ],
+    "ncr": [
+      "national capital region"
+    ],
+    "ndls": [
+      "new delhi railway station"
+    ],
+    "nehruplace": [
+      "nehru place"
+    ],
+    "ngr": [
+      "nagar"
+    ],
+    "nizammudin": [
+      "nizamuddin"
+    ],
+    "nizamudin": [
+      "nizamuddin"
+    ],
+    "noida": [
+      "noida"
+    ],
+    "nr": [
+      "near"
+    ],
+    "nsit": [
+      "netaji subhas institute of technology"
+    ],
+    "nsut": [
+      "netaji subhas university of technology"
+    ],
+    "nzm": [
+      "hazrat nizamuddin"
+    ],
+    "okla": [
+      "okhla"
+    ],
+    "opp": [
+      "opposite"
+    ],
+    "pahadganj": [
+      "paharganj"
+    ],
+    "pahargunj": [
+      "paharganj"
+    ],
+    "panjabi": [
+      "punjabi"
+    ],
+    "path": [
+      "road"
+    ],
+    "ph": [
+      "phase"
+    ],
+    "phase": [
+      "ph"
+    ],
+    "phs": [
+      "phase"
+    ],
+    "pkt": [
+      "pocket"
+    ],
+    "plc": [
+      "place"
+    ],
+    "plce": [
+      "place"
+    ],
+    "poc": [
+      "pocket"
+    ],
+    "pvr": [
+      "pvr cinemas"
+    ],
+    "qila": [
+      "fort"
+    ],
+    "rajori": [
+      "rajouri"
+    ],
+    "rd": [
+      "road"
+    ],
+    "rk": [
+      "r k"
+    ],
+    "rly": [
+      "railway"
+    ],
+    "rohni": [
+      "rohini"
+    ],
+    "safdarjang": [
+      "safdarjung"
+    ],
+    "safdurjung": [
+      "safdarjung"
+    ],
+    "sar": [
+      "sarai"
+    ],
+    "sarai": [
+      "saray"
+    ],
+    "sarojini": [
+      "sarojini"
+    ],
+    "sarojininagar": [
+      "sarojini nagar"
+    ],
+    "sarojni": [
+      "sarojini"
+    ],
+    "sch": [
+      "school"
+    ],
+    "sci": [
+      "sciences"
+    ],
+    "sctr": [
+      "sector"
+    ],
+    "sec": [
+      "sector"
+    ],
+    "sect": [
+      "sector"
+    ],
+    "sector": [
+      "sec"
+    ],
+    "shadra": [
+      "shahdara"
+    ],
+    "shahdra": [
+      "shahdara"
+    ],
+    "shasthri": [
+      "shastri"
+    ],
+    "soc": [
+      "society"
+    ],
+    "sonepat": [
+      "sonipat"
+    ],
+    "st": [
+      "street",
+      "saint"
+    ],
+    "sta": [
+      "station"
+    ],
+    "stn": [
+      "station"
+    ],
+    "subash": [
+      "subhash"
+    ],
+    "subhas": [
+      "subhash"
+    ],
+    "sundar": [
+      "sunder"
+    ],
+    "t1": [
+      "terminal 1"
+    ],
+    "t2": [
+      "terminal 2"
+    ],
+    "t3": [
+      "terminal 3"
+    ],
+    "tech": [
+      "technology"
+    ],
+    "tilaknagar": [
+      "tilak nagar"
+    ],
+    "univ": [
+      "university"
+    ],
+    "vasantkunj": [
+      "vasant kunj"
+    ],
+    "vasantvihar": [
+      "vasant vihar"
+    ],
+    "vehar": [
+      "vihar"
+    ],
+    "vhr": [
+      "vihar"
+    ],
+    "vihar": [
+      "vihar"
+    ],
+    "xng": [
+      "crossing"
+    ]
   }
 }
