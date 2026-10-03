@@ -143,6 +143,8 @@ export function useNavEngine(opts: NavEngineOpts) {
   const nextStepRef = useRef<NextStep | null>(null);
   const tickDtRef = useRef(0);
   const lastFixRef = useRef<{ lat: number; lon: number; ts: number } | null>(null);
+  const lastCamTsRef = useRef(0);    // camera-commit throttle clock
+  const lastCamCenterRef = useRef<LonLat | null>(null);
   const trajRef = useRef<{ lat: number; lon: number; ts: number }[]>([]);
   const rerouteAtRef = useRef(0);    // cooldown clock
   const reroutingRef = useRef(false);
@@ -288,7 +290,8 @@ export function useNavEngine(opts: NavEngineOpts) {
       const adv = Math.max(0, snap.alongM - alongRef.current);
       alongRef.current += adv;
       pendMRef.current += adv;
-      setSnapped([snap.lon, snap.lat]);
+      // puck marker updates ride the camera gate below — one native commit
+      // per fix batch instead of two interleaved churns (SIGSEGV class)
 
       // arrival by route odometer: a parked rider stops emitting fixes
       // (distanceInterval filters stationary updates on both platforms),
@@ -316,14 +319,27 @@ export function useNavEngine(opts: NavEngineOpts) {
 
       const heading = typeof loc.coords.heading === "number" && loc.coords.heading >= 0
         ? loc.coords.heading : snap.headingDeg;
-      camRef?.current?.easeTo({
-        center: [snap.lon, snap.lat],
-        bearing: heading,
-        zoom: speedRef.current > 10 ? 16 : 16.8,
-        pitch: 55,
-        duration: 900,
-        easing: "linear",
-      });
+      /* camera commits are the crash vector on the virtualized-GPU iOS sim
+         (ci15 telemetry: teleport puck-jump → re-frame SIGSEGV). Throttle
+         to ~1.5 Hz and, on teleport-class jumps (sim location commands),
+         stretch a single interpolated move instead of snapping. */
+      const jumpM = lastCamCenterRef.current
+        ? havM(lastCamCenterRef.current[1], lastCamCenterRef.current[0], snap.lat, snap.lon)
+        : 0;
+      if (now - lastCamTsRef.current >= 650) {
+        lastCamTsRef.current = now;
+        lastCamCenterRef.current = [snap.lon, snap.lat];
+        setSnapped([snap.lon, snap.lat]);
+        const teleport = jumpM > 300;
+        camRef?.current?.easeTo({
+          center: [snap.lon, snap.lat],
+          bearing: heading,
+          zoom: speedRef.current > 10 ? 16 : 16.8,
+          pitch: 55,
+          duration: teleport ? 1600 : 900,
+          easing: "linear",
+        });
+      }
 
       // speech cues + next-step banner
       for (const cue of cuesRef.current.poll(alongRef.current, lang)) {

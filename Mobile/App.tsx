@@ -483,7 +483,13 @@ function AppInner() {
         }} />
       <VehicleSheet visible={vehicleOpen || flow.needsVehicle} lang={lang}
         current={flow.vehicle}
-        onDone={(p) => { applyVehicle(p); setVehicleOpen(false); }}
+        onDone={(p) => {
+          setVehicleOpen(false);
+          /* re-plan commit must not share the sheet-close frame — the
+             close anim + options/RouteTint landing together is the
+             residual-SIGSEGV trigger on the virtualized-GPU sim */
+          setTimeout(() => applyVehicle(p), 80);
+        }}
         onClose={() => setVehicleOpen(false)} />
 
       <OnboardingScreen visible={introSeen === false} lang={lang}

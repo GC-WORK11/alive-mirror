@@ -501,7 +501,9 @@ export function CompareSheet({
             saveVehicle(p).catch(() => {});
             setVehSelf(p);
             setVehOpen(false);
-            onVehicleChange?.(p);
+            /* same close-frame guard — re-plan lands a beat after the
+               sheet's own unmount commit (virtualized-GPU SIGSEGV class) */
+            setTimeout(() => onVehicleChange?.(p), 80);
           }}
           onClose={() => setVehOpen(false)}
         />

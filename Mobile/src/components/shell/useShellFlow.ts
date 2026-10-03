@@ -241,13 +241,21 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     Keyboard.dismiss();
     const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
     setFollow(!!(pos && inNcr(pos.coords.latitude, pos.coords.longitude)));
-    camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
-    camRef.current?.setStop({ pitch: 55, duration: 800 });
+    /* the sheet-unmount and the camera commits must not land in the same
+       frame — back-to-back render commits are the residual-SIGSEGV trigger
+       class on the virtualized-GPU iOS sim (ci15 telemetry). Defer the
+       camera work a beat so the close commit lands alone. */
+    setTimeout(() => {
+      camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
+      camRef.current?.setStop({ pitch: 55, duration: 800 });
+    }, 80);
   }, [options, selected, from, to, camRef]);
 
   const exitNav = useCallback(() => {
     setPhase("compare"); setFollow(false);
-    camRef.current?.setStop({ pitch: 0, duration: 700 });
+    /* same commit-frame guard as startNav — pitch drop rides the sheet
+       remount, not the flip commit */
+    setTimeout(() => camRef.current?.setStop({ pitch: 0, duration: 700 }), 80);
   }, [camRef]);
 
   /* ---- ledger: only a COMPLETED trip is logged (claims audit — logging
