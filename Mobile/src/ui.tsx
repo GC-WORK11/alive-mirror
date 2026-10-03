@@ -6,11 +6,24 @@ import {
   Animated, Dimensions, Pressable, StyleSheet, Text, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
-import { F, NUM, V2Radius, V2T, V2Type } from "./theme";
-import { Icon, vehicleGlyph } from "./icons";
+import { CIG_UG, F, NUM, V2Radius, V2T, V2Type } from "./theme";
+import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
+import { DYNAMIC_TYPE } from "./a11y";
 
 const WIN_H = () => Dimensions.get("window").height;
+
+/** Solid "accent wash" — accent composited 14% over surface2. No rgba surface
+ *  fills: every card/row in the kit is opaque so the map never ghosts through. */
+const SEL_TINT = "#243146";
+
+/** AlertBanner severities — solid fills + muted borders, pre-composited over
+ *  `surface` (info/warn/danger accents at 12% fill, 45% border). */
+const ALERT_SEV = {
+  info:   { glyph: "info" as Glyph, color: V2T.accent,  bg: "#1C2638", border: "#28477C" },
+  warn:   { glyph: "warn" as Glyph, color: V2T.breath1, bg: "#302C23", border: "#735E2C" },
+  danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "#2E1E23", border: "#6D282C" },
+} as const;
 
 /** Bottom sheet — grabber + optional X. Dark surface, hairline top edge. */
 export function Sheet({
@@ -37,7 +50,7 @@ export function Sheet({
       <View style={us.grabberRow}>
         <View style={us.grabber} />
         {onClose && (
-          <Pressable onPress={onClose} hitSlop={10} style={us.sheetX} accessibilityRole="button"
+          <Pressable onPress={onClose} hitSlop={14} style={us.sheetX} accessibilityRole="button"
             accessibilityLabel={t("settingsClose", lang)}>
             <Icon name="close" color={V2T.text3} size={16} />
           </Pressable>
@@ -83,20 +96,21 @@ export function ModeRow({
 }) {
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={420}
-      style={({ pressed }) => [us.modeRow, pressed && { opacity: 0.55 }, selected && us.modeRowSel]}>
+      style={({ pressed }) => [us.modeRow, pressed && { opacity: 0.55 }, selected && us.modeRowSel]}
+      accessibilityRole="button" accessibilityState={{ selected }}>
       <Icon name={vehicleGlyph(vehicle)} color={selected ? V2T.accent : V2T.text2} size={30} filled={selected} />
       <View style={{ flex: 1, marginLeft: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "baseline" }}>
-          <Text style={us.modeLabel} numberOfLines={1}>{label}</Text>
-          {tag ? <Text style={us.bestTag}>{tag}</Text> : null}
-          {!tag && recommended ? <Text style={us.bestTag}>{t("compare_pick", lang)}</Text> : null}
+          <Text style={us.modeLabel} numberOfLines={1} {...DYNAMIC_TYPE}>{label}</Text>
+          {tag ? <Text style={us.bestTag} {...DYNAMIC_TYPE}>{tag}</Text> : null}
+          {!tag && recommended ? <Text style={us.bestTag} {...DYNAMIC_TYPE}>{t("compare_pick", lang)}</Text> : null}
         </View>
-        {meta ? <Text style={us.modeMeta} numberOfLines={1}>{meta}</Text> : null}
-        {reasonLine ? <Text style={us.modeReason} numberOfLines={2}>{reasonLine}</Text> : null}
+        {meta ? <Text style={us.modeMeta} numberOfLines={1} {...DYNAMIC_TYPE}>{meta}</Text> : null}
+        {reasonLine ? <Text style={us.modeReason} numberOfLines={2} {...DYNAMIC_TYPE}>{reasonLine}</Text> : null}
       </View>
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={[us.modeEta, NUM]}>
-          {etaMin}<Text style={us.modeEtaUnit}> {t("minUnit", lang)}</Text>
+        <Text style={[us.modeEta, NUM]} {...DYNAMIC_TYPE}>
+          {etaMin}<Text style={us.modeEtaUnit} {...DYNAMIC_TYPE}> {t("minUnit", lang)}</Text>
         </Text>
         {inFrac != null && (
           <SmokeBar frac={inFrac} tone="breath" label={t("compare_smokeIn", lang)} />
@@ -125,7 +139,7 @@ export function CigStrip({ ug, size = 16, color = V2T.text, max = 7 }: {
   ug: number | null | undefined; size?: number; color?: string; max?: number;
 }) {
   if (ug == null || ug <= 0) return null;
-  const cigs = ug / 316;
+  const cigs = ug / CIG_UG;
   const full = Math.floor(cigs);
   const partial = cigs - full;
   const n = Math.min(max, Math.max(1, Math.ceil(cigs)));
@@ -141,7 +155,7 @@ export function CigStrip({ ug, size = 16, color = V2T.text, max = 7 }: {
           )}
         </View>
       ))}
-      {cigs > max && <Text style={[us.cigMore, NUM, { color }]}>+{Math.round(cigs - max)}</Text>}
+      {cigs > max && <Text style={[us.cigMore, NUM, { color }]} {...DYNAMIC_TYPE}>+{Math.round(cigs - max)}</Text>}
     </View>
   );
 }
@@ -173,17 +187,23 @@ export function MapButton({
   );
 }
 
-/** Small one-line banner strip — hazard-grade events only. */
-export function AlertBanner({ text, onClose, lang = "en" }: {
+/** Small banner strip — hazard-grade events. severity: info (accent) /
+ *  warn (breath1) / danger (pinDest) — solid tinted fill, muted tone border,
+ *  leading severity glyph. `lang` keeps the close button labelled. */
+export function AlertBanner({ text, onClose, lang = "en", severity = "info" }: {
   text: string; onClose?: () => void; lang?: Lang;
+  severity?: "info" | "warn" | "danger";
 }) {
+  const sev = ALERT_SEV[severity];
   return (
-    <View style={us.alert}>
-      <Text style={us.alertTxt} numberOfLines={1}>{text}</Text>
+    <View style={[us.alert, { backgroundColor: sev.bg, borderColor: sev.border }]}
+      accessibilityRole="alert">
+      <Icon name={sev.glyph} color={sev.color} size={15} />
+      <Text style={us.alertTxt} numberOfLines={2} {...DYNAMIC_TYPE}>{text}</Text>
       {onClose && (
-        <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button"
+        <Pressable onPress={onClose} hitSlop={15} accessibilityRole="button"
           accessibilityLabel={t("settingsClose", lang)}>
-          <Icon name="close" color={V2T.text} size={14} />
+          <Icon name="close" color={V2T.text2} size={14} />
         </Pressable>
       )}
     </View>
@@ -193,20 +213,25 @@ export function AlertBanner({ text, onClose, lang = "en" }: {
 const us = StyleSheet.create({
   sheet: {
     backgroundColor: V2T.surface, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
+    borderCurve: "continuous",
     borderTopWidth: 1, borderTopColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: -4 },
-    elevation: 10, overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: -6 },
+    elevation: 12, overflow: "hidden",
   },
-  grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 4 },
-  grabber: { width: 36, height: 4.5, borderRadius: 2.5, backgroundColor: V2T.line },
+  grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 6 },
+  grabber: { width: 40, height: 5, borderRadius: 2.5, backgroundColor: V2T.out3 },
   sheetX: { position: "absolute", right: 14, top: 4, padding: 4 },
 
+  /* cards in the sheet's 16px rhythm: opaque surface2, hairline border,
+     row radius — no separators, no translucent washes */
   modeRow: {
     flexDirection: "row", alignItems: "center",
-    paddingVertical: 12, paddingHorizontal: 16, minHeight: 56,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
+    marginHorizontal: 16, marginVertical: 4,
+    paddingVertical: 11, paddingHorizontal: 14, minHeight: 56,
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.row, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.line,
   },
-  modeRowSel: { backgroundColor: "rgba(76,141,255,0.08)" },
+  modeRowSel: { backgroundColor: SEL_TINT, borderColor: V2T.accent },
   modeLabel: { fontFamily: F.med, fontSize: V2Type.body, color: V2T.text, flexShrink: 1 },
   bestTag: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.accent, marginLeft: 8 },
   modeMeta: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 1 },
@@ -238,7 +263,8 @@ const us = StyleSheet.create({
 
   alert: {
     flexDirection: "row", alignItems: "center", backgroundColor: V2T.surface2,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: V2Radius.row, gap: 10,
+    paddingHorizontal: 12, paddingVertical: 9, borderRadius: V2Radius.row,
+    borderCurve: "continuous", gap: 8,
     borderWidth: 1, borderColor: V2T.line,
   },
   alertTxt: { flex: 1, fontFamily: F.med, fontSize: V2Type.label, color: V2T.text },
