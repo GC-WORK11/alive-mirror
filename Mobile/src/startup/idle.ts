@@ -20,7 +20,7 @@ export function afterFirstFrame(capMs = 1200): Promise<void> {
       // queued interactions have had their beat; the cap above is the hard
       // bound either way. (InteractionManager is deprecated in new arch.)
       requestAnimationFrame(() =>
-        requestAnimationFrame(() => setTimeout(finish, 0)),
+        requestAnimationFrame(() => setTimeout(() => { clearTimeout(t); finish(); }, 0)),
       );
     });
   }
