@@ -522,6 +522,17 @@ def integrate(vehicle, spans, cold_km_done=0.0):
         cold_mid = dict(r["cold_extra_mid_g"])
         tot_km = r["distance_km"]
     else:
+        # per-call kernel: C++ U-curve (parity-asserted vs this file's
+        # speed_factor by test_emission_speed_factor_parity); a miss falls
+        # through to Python so an unknown pollutant still raises KeyError.
+        def _sf(p, v):
+            if _ac is not None:
+                try:
+                    return _ac.emission_speed_factor(p, v)
+                except Exception:
+                    pass
+            return speed_factor(p, v)
+
         for s in spans or []:
             dist_m = float(s.get("dist_m") or 0.0)
             v = float(s.get("speed_mps") or 0.0)
@@ -534,7 +545,7 @@ def integrate(vehicle, spans, cold_km_done=0.0):
                 cold_len = min(d + km, COLD_KM) - d if d < COLD_KM else 0.0
                 warm_len = km - max(0.0, cold_len)
                 for p in acc:
-                    f = speed_factor(p, v)
+                    f = _sf(p, v)
                     sw = 1.0 + 0.2 * abs(f - 1.0)      # speed-curve uncertainty
                     lo, mid, hi = band[p]
                     km_lo, km_mid, km_hi = lo * f / sw, mid * f, hi * f * sw
