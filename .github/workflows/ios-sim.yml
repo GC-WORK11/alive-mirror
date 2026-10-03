@@ -1,0 +1,88 @@
+name: ios-sim
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Mobile/**'
+      - 'server/**'
+      - '.github/workflows/ios-sim.yml'
+
+jobs:
+  build-run-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install JS deps
+        working-directory: Mobile
+        run: npm ci
+
+      - name: Install pods
+        working-directory: Mobile/ios
+        run: LANG=en_US.UTF-8 pod install --repo-update
+
+      - name: Create and boot an iPhone 15 simulator
+        run: |
+          UDID=$(xcrun simctl create "iPhone 15" "iPhone 15")
+          xcrun simctl boot "$UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Build app for the simulator (Release = JS bundle embedded, no Metro needed)
+        working-directory: Mobile
+        run: >
+          xcodebuild
+          -workspace ios/app.xcworkspace
+          -scheme app
+          -configuration Release
+          -destination 'platform=iOS Simulator,name=iPhone 15'
+          -derivedDataPath build
+          build
+
+      - name: Start the backend the app talks to (best effort — app hits localhost:8000)
+        working-directory: server
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q -r requirements.txt
+          nohup .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:8000/health >/dev/null && break; sleep 2; done
+          curl -s localhost:8000/health || cat /tmp/uvicorn.log
+
+      - name: Install and launch on the booted sim
+        working-directory: Mobile
+        run: |
+          APP=build/Build/Products/Release-iphonesimulator/app.app
+          xcrun simctl install booted "$APP"
+          xcrun simctl launch booted com.anonymous.app
+          sleep 20
+
+      - name: Capture screenshots
+        run: |
+          mkdir -p artifacts
+          xcrun simctl io booted screenshot artifacts/ios-launch.png
+          sleep 15
+          xcrun simctl io booted screenshot artifacts/ios-settled.png
+          xcrun simctl io booted recordVideo artifacts/ios-session.mp4 --timeout=10 || true
+
+      - name: Collect sim app logs
+        run: |
+          xcrun simctl spawn booted log show --last 5m --style compact \
+            --predicate 'process == "app"' > artifacts/ios-log.txt || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-sim-proof
+          path: artifacts/
