@@ -490,7 +490,11 @@ function NavSession({
       endedEarly: summary.endedEarly,
     };
     return (
-      <ReceiptSheet data={data} lang={lang} onDone={onExit}
+      /* Done tears down the whole nav session in one commit; deferring it
+         past the sheet's close keeps the heavy unmount off the same frame
+         as the press (iOS-sim render-thread race — same class as the
+         deferred search focus/close fixes). */
+      <ReceiptSheet data={data} lang={lang} onDone={() => setTimeout(onExit, 280)}
         onShare={() => Share.share({
           message: t("shareTripBody", lang, {
             from: from ? placeNameLabel(from.name, lang) : "?",
