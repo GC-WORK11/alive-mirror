@@ -45,6 +45,14 @@ def _engine_rows(out: object, default_source: str) -> list:
         row.setdefault("id", None)
         row.setdefault("name", r.get("title") or r.get("n")
                        or r.get("display") or "")
+        # index hits carry the place kind as `category` — surface it as
+        # subtitle/kind so rows have the same shape the gazetteer emits,
+        # then drop the engine's raw keys (display/category duplicate
+        # name/subtitle and aren't in the Place contract)
+        row.setdefault("subtitle", r.get("subtitle") or r.get("category"))
+        row.setdefault("kind", r.get("kind") or r.get("category"))
+        row.pop("display", None)
+        row.pop("category", None)
         row["lat"], row["lon"] = float(lat), float(lon)
         row["source"] = r.get("source") or default_source
         row["sources"] = list(dict.fromkeys(
@@ -54,20 +62,25 @@ def _engine_rows(out: object, default_source: str) -> list:
 
 
 def _pick_t1():
-    # core_engine.SearchIndex is parked, not wired: its bag-of-tokens
-    # scoring scores 16/20 on test_search_quality's tuned acceptance —
-    # the gazetteer ranker (lead-token coverage + name-precision) wins.
-    # It stays available in core_engine until its ranking reaches parity.
+    # T1 = the core_engine SearchIndex (26k+ gazetteer+corpus entries,
+    # alias-expanded): alive_core.SearchIndex in C++ when the extension
+    # loads, the bit-identical PySearchIndex otherwise — its scorer now
+    # carries the gazetteer ranker's coverage gates (MIN_COV + lead-token
+    # rule) and reaches 19/20 on test_search_quality's acceptance, the
+    # corpus ceiling ('rajiv chowk gate 5' has no Gate-5 entry). The
+    # bundled gazetteer stays as the last-resort fallback if the index
+    # can't build.
     try:
-        import alive_core as mod  # bare extension — no index wiring there
-        if hasattr(mod, "search"):
-            return "alive_core", mod.search
-    except Exception:
-        pass
-    try:
-        import alive_core_ref as mod  # pure-python reference build
-        if hasattr(mod, "search"):
-            return "alive_core_ref", mod.search
+        import core_engine
+        idx = core_engine.search_index()
+        engine = "alive_core"
+        try:
+            import alive_core
+            if not isinstance(idx, alive_core.SearchIndex):
+                engine = "alive_core_ref"
+        except Exception:
+            engine = "alive_core_ref"
+        return engine, core_engine.search
     except Exception:
         pass
     return "gazetteer", GAZ.search
@@ -91,11 +104,22 @@ def _t1(q: str, lat: float, lon: float, limit: int) -> list:
 
 def _tag_match(rows: list, qn: str) -> None:
     """Attach match_rank/match to rows that don't already carry them
-    (T2 rows get classified against the same rule for a fair merge)."""
+    (T2 rows get classified against the same rule for a fair merge).
+
+    Index rows carry `cov`/`fuzzy` from the scorer, so they get the
+    gazetteer's coverage-aware class: full coverage + name-prefix is
+    exact, full coverage alone is token-prefix (or fuzzy when a group
+    matched only by DL distance), partial coverage stays 'other'."""
     for r in rows:
         if r.get("match_rank") is not None:
             continue
-        cls = classify(qn, normalize(r.get("name") or ""))
+        if r.get("cov") is not None:
+            norm = normalize(r.get("name") or "")
+            cls = ((0 if norm.startswith(qn)
+                    else (2 if r.get("fuzzy") else 1))
+                   if r["cov"] >= 1.0 else 3)
+        else:
+            cls = classify(qn, normalize(r.get("name") or ""))
         r["match_rank"] = cls
         r["match"] = _MATCH_NAMES[cls]
 

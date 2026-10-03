@@ -24,6 +24,8 @@ export interface Place {
   match?: "exact-prefix" | "token-prefix" | "fuzzy" | "other";
   match_rank?: number;
   score?: number;               // gazetteer ranking score (T1 rows)
+  cov?: number;                 // SearchIndex token-coverage ratio (T1)
+  fuzzy?: boolean;              // SearchIndex DL-only match flag (T1)
   source?: string;              // gazetteer | amazon | photon | ...
   sources?: string[];           // tiers that found it, e.g. ["t1","t2"]
   outside_ncr?: boolean;
