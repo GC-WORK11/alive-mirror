@@ -1,5 +1,6 @@
 /**
- * ALive-108 v2 dark map style — OpenMapTiles schema (docs/plan/map-style.md).
+ * ALive-108 v2 dark map style — OpenMapTiles schema (docs/plan/map-style.md;
+ * r4 palette pass documented in docs/plan/map-style-r4.md).
  *
  * Basemap chain (env → local → hosted → raster):
  *   1. `EXPO_PUBLIC_TILES_URL` — vector tiles the sibling lane is building for
@@ -40,9 +41,9 @@ export const V2_PMTILES_NAME = "delhi.pmtiles";
 /** Layer-spec fragments the integrator composes into any MapLibre styleJSON
  *  on the OpenMapTiles schema (they reference `source: "openmaptiles"`).
  *
- *  `buildingLayers`: flat building fill (z≥13) + fill-extrusion (z≥15,
- *  #1C2026, height from `render_height`/`height`, base `render_min_height`,
- *  opacity 0.6 — doc 03 §map styling).
+ *  `buildingLayers`: flat building fill (z≥14) + fill-extrusion (z≥15,
+ *  #1E242E/#1F2630, height from `render_height`/`height`, base
+ *  `render_min_height`, extrusion opacity 0.55 — docs/plan/map-style-r4.md).
  */
 export const buildingLayers: LayerSpecification[] = v2Style.layers.filter((l) =>
   l.id === "v2-building-flat" || l.id === "v2-building-extrusion");
