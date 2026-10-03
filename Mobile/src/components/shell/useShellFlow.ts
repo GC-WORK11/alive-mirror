@@ -26,9 +26,10 @@ import type { Depart, Place, Step, V2Option } from "./types";
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
 /** network = we never got an answer (offline/timeout/http); server =
- *  /v2/plan answered with an `error` reason — different blame, the
- *  sheet labels each honestly instead of blaming the connection. */
-export type PlanError = { kind: "network" | "server"; detail?: string };
+ *  /v2/plan answered with an `error` reason; outside = the typed
+ *  both-ends-outside-NCR answer — different blame, the sheet labels
+ *  each honestly instead of blaming the connection. */
+export type PlanError = { kind: "network" | "server" | "outside"; detail?: string };
 
 export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean, lang: "en" | "hi" = "en") {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -119,7 +120,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         if (cancelled) return;
         if (pj.error && pj.options.length === 0) {
           setOptions([]); setDepart(null);
-          setPlanError({ kind: "server", detail: pj.error });
+          // typed outside-coverage answer → its own notice (retry can't
+          // fix a geography problem; the sheet offers 'change the trip')
+          const outside = /outside service area/i.test(pj.error);
+          setPlanError({ kind: outside ? "outside" : "server", detail: pj.error });
           return;
         }
         const opts = pj.options;

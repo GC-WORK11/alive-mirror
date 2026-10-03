@@ -150,6 +150,11 @@ function DetailBlock({ o, fieldAgeS, lang }: { o: V2Option; fieldAgeS?: number |
           <Text style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>{t("howWe_out", lang, { v: emit })}</Text>
         </View>
       ) : null}
+      {d.coverage != null && d.coverage < 0.999 ? (
+        <Text style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>
+          {t("howWe_coverage", lang, { pct: Math.round(d.coverage * 100) })}
+        </Text>
+      ) : null}
       {(e.label ?? e.basis) ? <Text style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.label ?? e.basis}</Text> : null}
       {e.bs_class && e.bs_class !== "none"
         ? <Text style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.bs_class}{e.bs_options?.length ? ` (${e.bs_options.join("–")})` : ""}</Text>
@@ -203,6 +208,11 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
           <Text style={[s.optMeta, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{meta}</Text>
           {o.reason_line ? (
             <Text style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>{o.reason_line}</Text>
+          ) : null}
+          {d?.coverage != null && d.coverage < 0.999 ? (
+            <Text style={[s.optCoverage, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+              {t("plan_coverage_note", lang)}
+            </Text>
           ) : null}
         </View>
         <View style={s.cardRight}>
@@ -301,6 +311,25 @@ export function CompareSheet({
             </Text>
           </View>
         ) : planError ? (
+          planError.kind === "outside" ? (
+            /* typed outside-coverage answer — a scope notice, not a fault:
+               retry can't fix geography, the CTA is 'change the trip' */
+            <View style={s.stateWrap}>
+              <View style={s.stateIcon}>
+                <Icon name="pin" color={V2T.accent} size={20} />
+              </View>
+              <Text style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>
+                {t("plan_outside_title", lang)}
+              </Text>
+              <Text style={[s.stateSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={4}>
+                {t("plan_outside_body", lang)}
+              </Text>
+              <Pressable onPress={onClose} style={s.retryBtn} accessibilityRole="button"
+                accessibilityLabel={t("plan_outside_cta", lang)}>
+                <Text style={[s.retryTxt, { fontFamily: fam(lang, "med") }]}>{t("plan_outside_cta", lang)}</Text>
+              </Pressable>
+            </View>
+          ) : (
           <View style={s.stateWrap}>
             <View style={s.stateIcon}>
               <Icon name="info" color={V2T.accent} size={20} />
@@ -320,6 +349,7 @@ export function CompareSheet({
               </Pressable>
             )}
           </View>
+          )
         ) : options.length > 0 ? (
           <>
             <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}
@@ -498,6 +528,7 @@ const s = StyleSheet.create({
   chipTxtPlain: { color: V2T.text2 },
   optMeta: { fontSize: V2Type.label, color: V2T.text3, marginTop: 2 },
   optReason: { fontSize: V2Type.label, color: V2T.text3, marginTop: 3 },
+  optCoverage: { fontSize: V2Type.label, color: V2T.breath2, marginTop: 3 },
   cardRight: { alignItems: "flex-end" },
   optEta: { fontSize: V2Type.body, color: V2T.text },
   optEtaUnit: { fontSize: V2Type.label, color: V2T.text2 },
