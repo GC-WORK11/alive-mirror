@@ -441,8 +441,26 @@ async function tick(){
     ctx.strokeStyle='rgba(20,24,31,.55)';ctx.lineWidth=1;
     ctx.beginPath();ctx.arc(cx,cy,4,0,6.283);ctx.stroke();
     ctx.beginPath();ctx.moveTo(cx-7,cy);ctx.lineTo(cx+7,cy);ctx.moveTo(cx,cy-7);ctx.lineTo(cx,cy+7);ctx.stroke();
+    /* real fire detections over the same map — where the smoke may be
+       coming from (NASA FIRMS VIIRS/MODIS, verbatim coordinates) */
+    let firesPlotted=0,firesTotal=0;
+    try{
+      const fr=await getJSON('/fires');
+      const ff=(fr&&fr.features)||[];firesTotal=ff.length;
+      for(const f of ff){
+        const [flo,fla]=(f.geometry&&f.geometry.coordinates)||[];
+        if(flo==null||fla==null)continue;
+        const fx=(flo-X0)/(X1-X0)*W,fy=(1-(fla-Y0)/(Y1-Y0))*H;
+        if(fx<-6||fx>W+6||fy<-6||fy>H+6)continue;
+        ctx.fillStyle='rgba(190,87,30,.75)';
+        ctx.beginPath();ctx.arc(fx,fy,2.4,0,6.283);ctx.fill();
+        ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=.8;ctx.stroke();
+        firesPlotted++;
+      }
+    }catch(_){/* fires layer stays empty — caption still honest */}
     $('fieldmap-sub').innerHTML=feats.length
-      ?`${fmt(feats.length)} real cells · PM2.5 ${fmt1(vmin)}–${fmt1(vmax)} µg/m³ · faded cells sit farther from a measured sample — never a guess`
+      ?`${fmt(feats.length)} real cells · PM2.5 ${fmt1(vmin)}–${fmt1(vmax)} µg/m³ · faded cells sit farther from a measured sample — never a guess`+
+       (firesPlotted?` · <b style="color:rgba(190,87,30,1)">${fmt(firesPlotted)}</b> fire detections plotted${firesTotal>firesPlotted?` (${fmt(firesTotal-firesPlotted)} more outside this view)`:''}`:'')
       :'field empty — the map paints only measured cells, and there are none right now';
   }catch(e){
     $('fieldmap-sub').textContent='grid unreachable — '+esc(e.message||e);
