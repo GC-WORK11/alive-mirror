@@ -4,10 +4,37 @@
 #include "alive/emission.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstring>
 
 namespace alive {
 namespace {
+
+// Generated per-mode EF table (tools/gen_ef_table.py -> ef_table.inc):
+// kEmModeTable — resolved band at kEmRefSpeedMps per canonical class,
+// kEmAliasTable — mode alias -> canonical name.
+#include "ef_table.inc"
+
+// emissions._resolve's (vehicle.get("class") or "").lower().strip().
+std::string normalize_mode(const std::string& mode) {
+  size_t a = 0, b = mode.size();
+  while (a < b && std::isspace((unsigned char)mode[a])) ++a;
+  while (b > a && std::isspace((unsigned char)mode[b - 1])) --b;
+  std::string m = mode.substr(a, b - a);
+  for (char& ch : m) ch = (char)std::tolower((unsigned char)ch);
+  return m;
+}
+
+const EmModeRow* mode_row(const std::string& m) {
+  for (const EmModeRow& r : kEmModeTable)
+    if (m == r.name) return &r;
+  for (const EmAliasRow& a : kEmAliasTable)
+    if (m == a.alias)
+      for (const EmModeRow& r : kEmModeTable)
+        if (std::strcmp(a.canonical, r.name) == 0) return &r;
+  return nullptr;
+}
 
 // (L, H) per pollutant, indexed by Pol — ref _EM_SPEED_PARAMS.
 constexpr double kSpeedL[kPolCount] = {1.2, 1.8, 0.9};
@@ -123,6 +150,30 @@ EmissionResult integrate_emissions(
   r.nx_pm10 = Band3{acc_nx[0], acc_nx[1], acc_nx[2]};
   r.distance_km = tot_km;
   return r;
+}
+
+// ---------------------------------------------------------------------------
+// emission_g_km — (mode, speed_kmh) -> g/km band (see emission.hpp).
+// ---------------------------------------------------------------------------
+bool emission_g_km(const std::string& mode, double speed_kmh,
+                   EmCurveResult& out) {
+  const EmModeRow* row = mode_row(normalize_mode(mode));
+  if (row == nullptr) return false;
+  out.mode = row->name;
+  out.per_pkm = row->per_pkm;
+  out.occupancy = row->occupancy;
+  const double v_mps = speed_kmh / 3.6;
+  for (int p = 0; p < kPolCount; ++p) {
+    const Band3& b = row->band[p];
+    if (row->per_pkm) {
+      out.pol[p] = b;  // metro: per-passenger-km, speed-independent
+      continue;
+    }
+    const double f = emission_speed_factor(p, v_mps);
+    const double sw = 1.0 + 0.2 * std::abs(f - 1.0);
+    out.pol[p] = Band3{b.lo * f / sw, b.mid * f, b.hi * f * sw};
+  }
+  return true;
 }
 
 }  // namespace alive

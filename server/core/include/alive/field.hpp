@@ -107,4 +107,24 @@ DoseResult integrate_dose(
     const FieldView& field, double me, double ve, double duration_s,
     double step_m = 250.0);
 
+// exposure.dose's accumulation loop in flat series form (the strip/tick
+// contract, docs/plan/04 §5): dose_ug = sum over entries
+//   c_eff * ve * (dt_s/60),  c_eff = c * microenv,  ve = ve_lpm/1000.
+// Non-finite entries are skipped (exposure's 'uncovered field' branch;
+// NaN is the C++-side missing marker), c < 0 clamps to 0 (krige can dip
+// below 0; PM2.5 can't), dt < 0 or non-finite skips the sample. Road
+// uplift folds into `microenv` (x*1.0 is bitwise x). Zip semantics on a
+// length mismatch: iteration stops at the shorter series. Accumulation
+// is a plain `+=` in input order — bit-identical to the Python loop.
+double dose_series(const std::vector<double>& pm25,
+                   const std::vector<double>& dt_s,
+                   double ventilation_lpm, double microenv);
+
+// Uniform-cadence convenience: one dt for every sample.
+inline double dose_series(const std::vector<double>& pm25, double dt_s,
+                          double ventilation_lpm, double microenv) {
+  return dose_series(pm25, std::vector<double>(pm25.size(), dt_s),
+                     ventilation_lpm, microenv);
+}
+
 }  // namespace alive

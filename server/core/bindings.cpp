@@ -12,6 +12,7 @@
 #include <pybind11/stl.h>
 
 #include <array>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -178,6 +179,50 @@ py::dict dose_py(const py::object& coords, const FieldView& field, double me,
   return out;
 }
 
+// r5/core-cpp — tick-level series kernels (docs/plan/04 §5 contract).
+double to_double_nan_none(const py::handle& h) {
+  return h.is_none() ? std::numeric_limits<double>::quiet_NaN()
+                     : h.cast<double>();
+}
+
+double dose_series_py(const py::object& pm25_obj, const py::object& dt_obj,
+                      double ve_lpm, double me) {
+  std::vector<double> pm;
+  const py::sequence pm25 = pm25_obj.cast<py::sequence>();
+  pm.reserve(pm25.size());
+  for (const py::handle h : pm25) pm.push_back(to_double_nan_none(h));
+
+  std::vector<double> dts;
+  if (dt_obj.is_none()) {
+    // oracle broadcasts dt=None to every sample -> all skipped -> 0.0
+    dts.assign(pm.size(), std::numeric_limits<double>::quiet_NaN());
+  } else if (PySequence_Check(dt_obj.ptr()) &&
+             !py::isinstance<py::str>(dt_obj) &&
+             !py::isinstance<py::bytes>(dt_obj)) {
+    const py::sequence ds = dt_obj.cast<py::sequence>();
+    dts.reserve(ds.size());
+    for (const py::handle h : ds) dts.push_back(to_double_nan_none(h));
+  } else {
+    dts.assign(pm.size(), dt_obj.cast<double>());
+  }
+  return dose_series(pm, dts, ve_lpm, me);
+}
+
+py::dict emission_g_km_py(const std::string& mode, double speed_kmh) {
+  EmCurveResult r;
+  if (!emission_g_km(mode, speed_kmh, r))
+    throw py::value_error("unknown vehicle class: '" + mode + "'");
+  auto band_t = [](const Band3& b) { return py::make_tuple(b.lo, b.mid, b.hi); };
+  py::dict out;
+  out["mode"] = r.mode;
+  out["units"] = r.per_pkm ? "g/pkm" : "g/km";
+  out["co2"] = band_t(r.pol[kCO2]);
+  out["pm25"] = band_t(r.pol[kPM25]);
+  out["nox"] = band_t(r.pol[kNOx]);
+  if (r.occupancy > 0.0) out["occupancy"] = r.occupancy;
+  return out;
+}
+
 int pol_index(const std::string& pol) {
   if (pol == "co2") return kCO2;
   if (pol == "pm25") return kPM25;
@@ -308,6 +353,17 @@ PYBIND11_MODULE(alive_core, m) {
   m.def("integrate_dose", &dose_py, py::arg("coords"), py::arg("field"),
         py::arg("me"), py::arg("ve"), py::arg("duration_s"),
         py::arg("step_m") = 250.0);
+  // -- r5/core-cpp: series kernels -------------------------------------
+  //   alive_core.dose_series(pm25, dt_s, ventilation_lpm, microenv) -> µg
+  //     pm25: [float|None] µg/m³ ticks; dt_s: seconds scalar or per-sample.
+  //     exposure.dose accumulation semantics (skip/clamp/order).
+  //   alive_core.emission_g_km(mode, speed_kmh) ->
+  //     {co2,pm25,nox:(lo,mid,hi), "units", "mode", "occupancy"?}
+  //     emissions.emission_factors band x speed_factor curve + widening.
+  m.def("dose_series", &dose_series_py, py::arg("pm25"), py::arg("dt_s"),
+        py::arg("ventilation_lpm"), py::arg("microenv"));
+  m.def("emission_g_km", &emission_g_km_py, py::arg("mode"),
+        py::arg("speed_kmh"));
   m.def(
       "emission_speed_factor",
       [](const std::string& pol, double v) {

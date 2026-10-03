@@ -3,6 +3,7 @@
 
 #include "alive/field.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
@@ -185,6 +186,28 @@ DoseResult integrate_dose(
   r.mid = mid;
   r.hi = hi;
   return r;
+}
+
+// ---------------------------------------------------------------------------
+// dose_series — exposure.dose's accumulation loop over a flat series
+// (non-finite c skipped, c<0 clamped, zip-order += — see field.hpp).
+// ---------------------------------------------------------------------------
+double dose_series(const std::vector<double>& pm25,
+                   const std::vector<double>& dt_s,
+                   double ventilation_lpm, double microenv) {
+  const double ve = ventilation_lpm / 1000.0;  // m3/min, exposure's order
+  double total = 0.0;
+  const size_t n = std::min(pm25.size(), dt_s.size());
+  for (size_t i = 0; i < n; ++i) {
+    double c = pm25[i];
+    const double dt = dt_s[i];
+    if (!std::isfinite(c)) continue;
+    if (!std::isfinite(dt) || dt < 0.0) continue;
+    if (c < 0.0) c = 0.0;
+    const double c_eff = c * microenv;
+    total += c_eff * ve * (dt / 60.0);
+  }
+  return total;
 }
 
 }  // namespace alive

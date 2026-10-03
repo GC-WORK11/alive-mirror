@@ -37,6 +37,20 @@ if(NOT _gen_rc EQUAL 0)
 endif()
 message(STATUS "${_gen_out}")
 
+# Per-mode emission-factor table resolved through server/emissions.py's
+# own chain (tools/gen_ef_table.py) — the C++ lookup can't drift from the
+# production factors; parity tests assert the result to 1e-9.
+execute_process(
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_ef_table.py
+          ${GENERATED_DIR}/ef_table.inc
+  RESULT_VARIABLE _ef_rc
+  OUTPUT_VARIABLE _ef_out
+  ERROR_VARIABLE _ef_err)
+if(NOT _ef_rc EQUAL 0)
+  message(FATAL_ERROR "ef-table generation failed: ${_ef_err}")
+endif()
+message(STATUS "${_ef_out}")
+
 if(ALIVE_CORE_WITH_EIGEN)
   # Eigen (header-only) via FetchContent — same PEP-668 constraint as pybind11
   FetchContent_Declare(
