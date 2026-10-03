@@ -249,10 +249,21 @@ def _microenv_ve(microenv: str) -> tuple:
 
 
 def _dose_via_core(coords: list, microenv: str):
-    """alive_core_ref.integrate_dose when that function exists.
-    Signature (other lane's): integrate_dose(coords, field, me, ve) →
-    {lo,mid,hi} µg. We can't know its coord convention yet, so we try
-    [lon,lat] then (lat,lon), field callable then field object, and
+    """alive_core.integrate_dose seam — deliberately dormant.
+
+    The real kernel signature is
+        integrate_dose(coords, FieldView, me, ve, duration_s, step_m)
+    and it cannot serve _dose_band today:
+      • deps.field() is the AirField (.value/.sigma/.nearest_sample_km),
+        not a FieldView (.band) — the only FieldView is airfield's
+        _snap_fv, alive only while a snapshot is serving.
+      • It returns {lo,mid,hi,coverage,n_hit,...} where lo/hi are the
+        sums of per-cell band bounds (≈2σ); _dose_band's contract also
+        needs avg_conc_ugm3 (client route-tint) and confidence (tests),
+        and exposure.dose's mid±1σ-linear band semantics differ.
+    Kept because it fails safe to exposure.dose and is the wire-in
+    point if a FieldView-backed aggregate-only dose path ever lands:
+    try [lon,lat] then (lat,lon), field callable then field object, and
     accept the first numeric band; anything else → None → exposure
     path."""
     if _integrate_dose is None or not coords:

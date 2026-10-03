@@ -63,7 +63,14 @@ def _emission_curve(mode: str, vehicle: dict = None) -> dict:
     """Flat factor set the ticker integrates — decomposed from
     server/emissions.py (ef band at REF_SPEED, idle g/s, cold-start km
     + multiplier, occupancy). Bands, per doc 06 — a single fake-
-    precise number would be a lie we refuse to tell."""
+    precise number would be a lie we refuse to tell.
+
+    alive_core.emission_g_km(mode, speed_kmh) exists but stays unwired
+    here: it takes only a mode string (fleet-prior class defaults baked
+    into the generated EF table) while this contract resolves the
+    DECLARED vehicle {class,fuel,year} and returns cold/idle/occupancy
+    factors the client ticker needs — different inputs, different
+    payload."""
     veh = dict(vehicle or {})
     veh.setdefault("class", _EMIT_CLASS.get(mode, mode) or "car")
 

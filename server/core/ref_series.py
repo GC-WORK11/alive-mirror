@@ -31,6 +31,14 @@ Signatures mirror the C++ bindings one-for-one:
   dose_series(pm25, dt_s, ventilation_lpm, microenv) -> float µg
   emission_g_km(mode, speed_kmh) -> dict {co2,pm25,nox:(lo,mid,hi),
                                           units, mode, occupancy?}
+
+Server-side wiring status: both kernels are built and parity-verified
+but deliberately unwired — the server has no tick-level consumer (live
+dose/emission accumulation is client-side in Mobile/src/nav/
+counters.ts) and /v2/strip's emission contract needs the declared
+vehicle profile that emission_g_km's mode-only signature can't express
+(see v2/strip.py::_emission_curve). They stay available for any future
+server-side tick accumulator.
 """
 
 from __future__ import annotations
