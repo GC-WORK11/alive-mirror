@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@expo-google-fonts/outfit": "^0.4.3",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/noto-sans-devanagari": "^0.4.1",
     "@maplibre/maplibre-react-native": "^11.4.1",
     "eslint-config-expo": "~57.0.2",
     "expo": "~57.0.26",

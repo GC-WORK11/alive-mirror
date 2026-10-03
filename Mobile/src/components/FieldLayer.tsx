@@ -1,7 +1,11 @@
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { GeoJSONSource, Layer, Marker } from "@maplibre/maplibre-react-native";
-import { F, T } from "../theme";
+import { F, V2T } from "../theme";
+
+// NOTE: the city field renders only inside "Delhi today" (doc 03 §map
+// styling) — it is not part of the rest map. Kept here ready for the
+// city-view lane; the rest shell no longer mounts it.
 
 type Props = { grid: GeoJSON.FeatureCollection | null };
 type Coord = { lon: number; lat: number };
@@ -82,10 +86,10 @@ export function FieldLayer({ grid }: Props) {
           paint={{
             "fill-color": [
               "interpolate", ["linear"], ["get", "pm25"],
-              0, "rgba(120,113,108,0.04)",
-              60, "rgba(120,113,108,0.05)",
-              130, "rgba(225,29,72,0.07)",
-              300, "rgba(76,5,25,0.10)",
+              0, "rgba(154,164,178,0.04)",
+              60, "rgba(154,164,178,0.05)",
+              130, "rgba(240,138,60,0.07)",
+              300, "rgba(229,72,77,0.10)",
             ],
             "fill-opacity": 0.9,
           }}
@@ -109,16 +113,16 @@ export function FieldLayer({ grid }: Props) {
             ],
             "heatmap-opacity": 0.5,
             "heatmap-opacity-transition": { duration: 600 },
-            // transparent → rose → crimson → deep (spec dose ramp),
-            // translucent so the basemap's streets and labels read through
+            // transparent → warm breath ramp (doc 03), translucent so the
+            // basemap's streets and labels read through
             "heatmap-color": [
               "interpolate", ["linear"], ["heatmap-density"],
-              0, "rgba(120,113,108,0)",
-              0.15, "rgba(120,113,108,0.26)",
-              0.35, "rgba(251,113,133,0.44)",
-              0.55, "rgba(225,29,72,0.56)",
-              0.75, "rgba(159,18,57,0.66)",
-              1, "rgba(76,5,25,0.74)",
+              0, "rgba(154,164,178,0)",
+              0.15, "rgba(154,164,178,0.22)",
+              0.35, "rgba(242,193,78,0.40)",
+              0.55, "rgba(240,138,60,0.52)",
+              0.75, "rgba(229,72,77,0.62)",
+              1, "rgba(229,72,77,0.72)",
             ],
           }}
         />
@@ -174,7 +178,7 @@ const pin = StyleSheet.create({
   },
 });
 
-/** A/B endpoint markers — real teardrop pins like Google Maps (teal A,
+/** A/B endpoint markers — real teardrop pins like Google Maps (accent A,
  * dark-slate B), drawn with plain Views so no image assets are needed.
  * `anchor="bottom"` drops the tail tip on the coordinate. */
 export function EndpointPins({ a, b }: { a: Coord | null; b: Coord | null }) {
@@ -183,7 +187,7 @@ export function EndpointPins({ a, b }: { a: Coord | null; b: Coord | null }) {
     <>
       {a && (
         <Marker lngLat={[a.lon, a.lat]} anchor="bottom">
-          <Pin letter="A" color={T.accent} />
+          <Pin letter="A" color={V2T.accent} />
         </Marker>
       )}
       {b && (
