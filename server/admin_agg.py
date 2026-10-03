@@ -68,6 +68,18 @@ def _field_status() -> dict:
         return {}
 
 
+def _snapshot_prov() -> dict:
+    """Per-source provenance block of the newest on-disk field snapshot
+    (status/fetched_at/age_s + build rows like n_used, wind_ms, vc_m2s).
+    Empty dict when nothing readable exists — callers report nulls, not
+    guesses. Disk-only, same rule as health.collect_health."""
+    try:
+        probe = _health._field_probe(time.time())
+        return ((probe.get("payload") or {}).get("provenance") or {})
+    except Exception:
+        return {}
+
+
 def _fires_status() -> dict:
     try:
         from fires import FIRES
@@ -227,13 +239,22 @@ async def status():
         "uptime_s": h.get("uptime_s"),
         "field": {
             "source": f.get("source"),
+            # serving honesty (airfield.status): which field answers
+            # queries right now, and whether it is past the alarm rule
+            "serving": f.get("serving"),            # snapshot | live | none
             "samples": f.get("samples"),
             "station_readings": f.get("station_readings"),
             "age_s": f.get("age_s"),
+            "stale": f.get("stale"),              # True past stale_after_s
+            "stale_after_s": f.get("stale_after_s"),
             "kriging": f.get("kriging"),
+            "sigma_coverage": f.get("sigma_coverage"),
+            "coverage": f.get("coverage"),
             "wind": f.get("wind") or {},
             "snapshot_age_s": h.get("field_age_s"),
         },
+        "trips_backend": h.get("trips_backend"),
+        "disk": h.get("disk") or {},
         "provenance": {
             "field": ("Open-Meteo/CAMS grid + CPCB/OpenAQ station blend, "
                       "kriged; snapshots under data/field/snapshots"),
@@ -246,36 +267,63 @@ async def status():
 
 @router.get("/sources")
 async def sources():
-    """Per-ingest-source health. `up` is tri-state from health.py —
-    True/False only when explicitly probed/overridden, else null
-    ('configured, not probed') — never a fabricated green."""
+    """Per-ingest-source health for all four field inputs + location.
+
+    `up` is tri-state from health.py — True/False only when explicitly
+    probed/overridden, else null ('configured, not probed'). `age_s` is
+    the live figure: the in-memory fetch when the module has one, else
+    the newest snapshot's provenance — never a fabricated green, and a
+    live null never erases the last build's observed age. `stale` flags
+    age past the field alarm rule (doc 05 §6) — null when no age exists
+    (a never-fetched source is 'no data', not 'late data')."""
     h = _health.collect_health()
     f = _field_status()
     fires = _fires_status()
     loc_up = _location_enabled()
     src = h.get("sources") or {}
+    prov = _snapshot_prov()
+    stale_after = f.get("stale_after_s") or 45 * 60
 
     def merged(name, extra):
         s = dict(src.get(name) or {})
-        s.update(extra)
+        for k, v in extra.items():
+            # a live null must not erase the last build's observed value
+            if v is None and k in s:
+                continue
+            s[k] = v
         return s
+
+    out = {
+        "model": merged("model", {
+            "n_points": (prov.get("model") or {}).get("n_points"),
+            "samples": f.get("samples"),
+            "field_age_s": f.get("age_s")}),
+        "met": merged("met", {
+            "wind_ms": (prov.get("met") or {}).get("wind_ms"),
+            "wind_deg": (prov.get("met") or {}).get("wind_deg"),
+            "blh_m": (prov.get("met") or {}).get("blh_m"),
+            "vc_m2s": (prov.get("met") or {}).get("vc_m2s")}),
+        "stations": merged("stations", {
+            "readings": f.get("station_readings"),
+            "n_raw": (prov.get("stations") or {}).get("n_raw"),
+            "n_used": (prov.get("stations") or {}).get("n_used"),
+            "field_age_s": f.get("age_s")}),
+        "fires": merged("fires", {
+            "fires": fires.get("fires"),
+            "belt_fires": fires.get("belt_fires"),
+            "status": fires.get("status"),
+            "age_s": fires.get("age_s"),
+            "modifier": (prov.get("fires") or {}).get("modifier")}),
+        "location": merged("location", {"enabled": loc_up}),
+    }
+    for s in out.values():
+        a = s.get("age_s")
+        s["stale"] = (a > stale_after) if isinstance(a, (int, float)) else None
 
     return {
         "ts": time.time(),
-        "sources": {
-            "model": merged("model", {
-                "samples": f.get("samples"),
-                "field_age_s": f.get("age_s")}),
-            "stations": merged("stations", {
-                "readings": f.get("station_readings"),
-                "field_age_s": f.get("age_s")}),
-            "fires": merged("fires", {
-                "fires": fires.get("fires"),
-                "belt_fires": fires.get("belt_fires"),
-                "status": fires.get("status"),
-                "age_s": fires.get("age_s")}),
-            "location": merged("location", {"enabled": loc_up}),
-        },
+        "stale_after_s": stale_after,
+        "sources": out,
         "note": ("up=null means 'configured, not probed' — probes are "
                  "explicit env overrides; we report, we do not guess"),
     }
@@ -302,6 +350,7 @@ async def corridors(limit: int = 25):
         "devices": r.get("devices"),
         "avg_dose_ug": r.get("avg_dose_ug"),
     } for r in raw]
+    agg = TRIPS.city_aggregates() or {}
     return {
         "ts": time.time(),
         "k_min": K_MIN,
@@ -309,6 +358,9 @@ async def corridors(limit: int = 25):
         "rule": ("a cell is publishable only with >=3 distinct devices "
                  "in 72h — enforced by the store, re-asserted here"),
         "rows": rows,
+        "shown": len(rows),
+        "publishable_cells": agg.get("corridors_publishable", 0),
+        "cells_tracked": agg.get("cells_tracked", 0),
         "empty": not rows,
     }
 
@@ -341,11 +393,27 @@ async def donations():
         "pm25_g_mid": round(tot["pm25_g_mid"], 3),
         "switched": tot["switched"],
         "modes": tot["modes"],
+        # derived per-trip means — null (not 0) while trips==0, so the
+        # dashboard can show 'no data' instead of a fake-zero average
+        "avg_dose_per_trip_ug": (round(tot["dose_ug"] / tot["trips"], 1)
+                                 if tot["trips"] else None),
+        "avg_km_per_trip": (round(tot["km"] / tot["trips"], 2)
+                            if tot["trips"] else None),
+        "dose_ug_per_km": (round(tot["dose_ug"] / tot["km"], 1)
+                           if tot["km"] else None),
     }
+    # mode share across all donated trips (day counters — not per-cell,
+    # so this is every recorded trip, not only the k>=3 corridor set)
+    mode_share = sorted(
+        ({"mode": m, "trips": n,
+          "pct": round(100.0 * n / tot["trips"], 1) if tot["trips"] else None}
+         for m, n in tot["modes"].items()),
+        key=lambda r: -(r["trips"] or 0))
     return {
         "ts": time.time(),
         "window_s": CORRIDOR_WINDOW_S,
         "totals": totals,
+        "mode_share": mode_share,
         "days": days,
         "n_days": len(days),
         "cells_tracked": agg.get("cells_tracked", 0),
