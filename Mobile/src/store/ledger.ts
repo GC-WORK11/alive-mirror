@@ -21,6 +21,15 @@ export type Trip = {
   fromLon?: number;
   toLat?: number;
   toLon?: number;
+  // SEAM(emissions): kg the ride put out — rows predate the field, so it
+  // stays optional and is only rendered when present (doc 02 §4).
+  emit_kg?: number;
+  // SEAM(bands): dose band when the logged estimate carries σ — doc 10
+  // allows lo/mid/hi at details level; never fabricated from the point dose.
+  dose_lo_ug?: number;
+  dose_hi_ug?: number;
+  // SEAM(donation): set when this traversal was donated to the shared field.
+  donated?: boolean;
 };
 
 export async function loadTrips(): Promise<Trip[]> {
@@ -119,4 +128,31 @@ export function weekStats(trips: Trip[], now = new Date()) {
     weekCigEq: Math.round((weekUg / CIG_UG) * 100) / 100,
     totalTrips: trips.length,
   };
+}
+
+/** Remove one trip. Matched on ts + route + mode — ts alone can repeat
+ *  across devices/restores. Returns the persisted list. */
+export async function deleteTrip(
+  match: Pick<Trip, "ts" | "from" | "to" | "vehicle">,
+): Promise<Trip[]> {
+  const trips = await loadTrips();
+  const next = trips.filter(
+    (x) =>
+      !(x.ts === match.ts && x.from === match.from &&
+        x.to === match.to && x.vehicle === match.vehicle),
+  );
+  try {
+    if (!FILE.exists) FILE.create();
+    await FILE.write(JSON.stringify(next.slice(-500)));
+  } catch {}
+  return next;
+}
+
+/** "Delete all trips" — the ledger file is rewritten empty. */
+export async function clearTrips(): Promise<Trip[]> {
+  try {
+    if (!FILE.exists) FILE.create();
+    await FILE.write(JSON.stringify([]));
+  } catch {}
+  return [];
 }
