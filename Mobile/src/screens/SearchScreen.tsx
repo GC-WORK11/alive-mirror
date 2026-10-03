@@ -9,6 +9,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   BackHandler,
   Keyboard,
   KeyboardAvoidingView,
@@ -456,6 +457,18 @@ export function SearchScreen({
     return () => sub.remove();
   }, [visible, onClose]);
 
+  /* the Modal used to slide the sheet up — keep that enter on the overlay:
+     stable animated nodes + JS driver (the proven-safe pattern from Sheet;
+     native-driven springs are what segfault this RN/iOS stack) */
+  const [enter] = useState(() => new Animated.Value(0));
+  const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
+  useEffect(() => {
+    if (visible) {
+      enter.setValue(0);
+      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+    }
+  }, [visible, enter]);
+
   /* plain absolute overlay — every other sheet in the app renders this way.
      RN Modal's native present/dismiss segfaults this stack (reproduced three
      times live: open, quick-pick dismiss, cold present) — no Modal, no crash
@@ -464,12 +477,14 @@ export function SearchScreen({
   return (
     <View style={ss.backdrop}>
       <StatusBar style="dark" />
-      <SearchSheet
-        onSelect={onSelect}
-        onClose={onClose}
-        userLocation={userLocation}
-        lang={lang}
-      />
+      <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
+        <SearchSheet
+          onSelect={onSelect}
+          onClose={onClose}
+          userLocation={userLocation}
+          lang={lang}
+        />
+      </Animated.View>
     </View>
   );
 }
