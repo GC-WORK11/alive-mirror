@@ -240,6 +240,171 @@ class DDBTripAggregates:
                     Key={"pk": it["pk"], "sk": it["sk"]})
 
 
+LEDGER_SK_PREFIX = "trip#"
+LEDGER_META_PK = "ledger_meta"
+LEDGER_TTL_S = 90 * 86400          # per-device rows expire after 90 d
+
+
+class DDBDeviceLedger:
+    """Per-device trip history on DynamoDB — the durable twin of
+    v2.store.DeviceLedger (same public methods; `backend` distinguishes
+    it for /health and /admin).
+
+    Layout in the shared aggregate table: one item per trip row
+      pk = "ledger#<token_hash>"   sk = "trip#<ts>.<seq>"
+    plus a device-index item per token
+      pk = "ledger_meta"           sk = "device#<token_hash>"
+    Reads: trips/totals Query on the device pk (no scan); devices() scans
+    only the ledger_meta items. Items carry a ttl attribute so DDB
+    expires them; rows store the same sanitized summary fields as
+    /v2/trip — never cells, never coordinates.
+    """
+
+    backend = "dynamodb"
+    per_device_cap = 300
+
+    def __init__(self, client=None, table_name: str = None):
+        self.table_name = (table_name
+                           or os.environ.get("AGG_TABLE")
+                           or os.environ.get("ALIVE_DDB_TABLE")
+                           or DEFAULT_TABLE)
+        self._client = client
+        self.last_error = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            import boto3
+            self._client = boto3.client("dynamodb", region_name=_region())
+        return self._client
+
+    # ------------------------------------------------------------ writes
+
+    def record(self, token_hash: str, summary: dict,
+               ts: float = None) -> None:
+        if not token_hash:
+            return
+        ts = ts or time.time()
+        item = {"pk": {"S": f"ledger#{token_hash}"},
+                "sk": {"S": f"trip#{ts:.3f}"},
+                "ts": _n(round(ts, 3)),
+                "ttl": _n(int(ts) + LEDGER_TTL_S)}
+        for k, v in (summary or {}).items():
+            if isinstance(v, bool):
+                item[k] = {"BOOL": v}
+            elif isinstance(v, (int, float)):
+                item[k] = _n(float(v))
+            elif isinstance(v, str):
+                item[k] = {"S": v[:64]}
+        try:
+            self.client.put_item(TableName=self.table_name, Item=item)
+            self.client.update_item(
+                TableName=self.table_name,
+                Key={"pk": {"S": LEDGER_META_PK},
+                     "sk": {"S": f"device#{token_hash}"}},
+                UpdateExpression="SET last_ts = :ts ADD trips :one",
+                ExpressionAttributeValues={
+                    ":ts": _n(round(ts, 3)), ":one": _n(1)})
+            self.last_error = None
+        except Exception as e:  # noqa: BLE001 - surface, never silent-loss
+            self.last_error = f"{type(e).__name__}: {e}"
+            raise
+
+    # ------------------------------------------------------------- reads
+
+    def _items(self, token_hash: str, limit: int) -> list:
+        out, kw = [], {
+            "TableName": self.table_name,
+            "KeyConditionExpression": "pk = :pk",
+            "ExpressionAttributeValues": {
+                ":pk": {"S": f"ledger#{token_hash}"}},
+            "ScanIndexForward": False,       # newest first
+        }
+        while len(out) < limit:
+            kw["Limit"] = min(200, limit - len(out))
+            r = self.client.query(**kw)
+            out.extend(r.get("Items", []))
+            lek = r.get("LastEvaluatedKey")
+            if not lek:
+                break
+            kw["ExclusiveStartKey"] = lek
+        return out
+
+    def _row(self, it: dict) -> dict:
+        row = {"ts": _num(it.get("ts"))}
+        for k, attr in it.items():
+            if k in ("pk", "sk", "ts", "ttl"):
+                continue
+            if "N" in attr:
+                row[k] = _num(attr)
+            elif "S" in attr:
+                row[k] = attr["S"]
+            elif "BOOL" in attr:
+                row[k] = attr["BOOL"]
+        return row
+
+    def trips(self, token_hash: str, limit: int = 200) -> list:
+        try:
+            return [self._row(it)
+                    for it in self._items(token_hash, limit)]
+        except Exception as e:  # noqa: BLE001
+            self.last_error = f"{type(e).__name__}: {e}"
+            return []
+
+    def totals(self, token_hash: str) -> dict:
+        rows = self.trips(token_hash, limit=self.per_device_cap)
+
+        def _s(k: str) -> float:
+            return round(sum(float(r.get(k) or 0.0) for r in rows), 2)
+
+        return {"trips": len(rows), "km": _s("distance_km"),
+                "dose_ug": _s("dose_ug"), "co2_kg_mid": _s("co2_kg_mid"),
+                "pm25_g_mid": _s("pm25_g_mid")}
+
+    def devices(self) -> int:
+        try:
+            n, kw = 0, {"TableName": self.table_name,
+                        "ProjectionExpression": "pk"}
+            while True:
+                r = self.client.scan(**kw)
+                n += sum(1 for it in r.get("Items", [])
+                         if (it.get("pk") or {}).get("S") == LEDGER_META_PK)
+                lek = r.get("LastEvaluatedKey")
+                if not lek:
+                    return n
+                kw["ExclusiveStartKey"] = lek
+        except Exception as e:  # noqa: BLE001
+            self.last_error = f"{type(e).__name__}: {e}"
+            return 0
+
+    def reset(self) -> None:
+        """Drop every ledger item (dev/test parity; no endpoint wires it)."""
+        for prefix in ("ledger#", LEDGER_META_PK):
+            for it in DDBTripAggregates._scan(
+                    self, prefix):  # same table, same scan helper
+                self.client.delete_item(
+                    TableName=self.table_name,
+                    Key={"pk": it["pk"], "sk": it["sk"]})
+
+
+def get_ledger_store(client=None, table_name: str = None):
+    """`v2.store.LEDGER`-equivalent factory: DynamoDB when boto3 AND
+    credentials resolve, else the in-memory DeviceLedger."""
+    if client is not None:
+        return DDBDeviceLedger(client=client, table_name=table_name)
+    b3, why = _aws_ready()
+    if b3 is None:
+        from v2.store import DeviceLedger
+        return DeviceLedger()
+    try:
+        return DDBDeviceLedger(
+            client=b3.client("dynamodb", region_name=_region()),
+            table_name=table_name)
+    except Exception:  # noqa: BLE001
+        from v2.store import DeviceLedger
+        return DeviceLedger()
+
+
 # ------------------------------------------------------------- factory
 
 def get_trip_store(client=None, table_name: str = None):

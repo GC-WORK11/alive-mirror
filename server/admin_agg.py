@@ -45,9 +45,9 @@ if _SERVER_DIR not in sys.path:
 import health as _health  # noqa: E402
 
 try:  # noqa: E402
-    from v2.store import TRIPS
+    from v2.store import LEDGER, TRIPS
 except ImportError:  # imported as server.admin_agg from the repo root
-    from server.v2.store import TRIPS  # type: ignore
+    from server.v2.store import LEDGER, TRIPS  # type: ignore
 
 router = APIRouter(prefix="/admin/api", tags=["admin-aggregates"])
 
@@ -254,9 +254,14 @@ async def status():
             "snapshot_age_s": h.get("field_age_s"),
         },
         "trips_backend": h.get("trips_backend"),
+        "ledger": {
+            "backend": getattr(LEDGER, "backend", "memory"),
+            "devices_tracked": LEDGER.devices(),
+            "error": getattr(LEDGER, "last_error", None),
+        },
         "disk": h.get("disk") or {},
         "provenance": {
-            "field": ("Open-Meteo/CAMS grid + CPCB/OpenAQ station blend, "
+            "field": ("Open-Meteo/CAMS grid + CPCB/OpenAQ/WAQI station blend, "
                       "kriged; snapshots under data/field/snapshots"),
             "corridors": "donated traversals, H3 cells, k>=3 devices/72h",
             "validation": "weekly LOSO + OpenAQ archive replay on disk",

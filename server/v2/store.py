@@ -245,4 +245,25 @@ class DeviceLedger:
             self._ledgers.clear()
 
 
-LEDGER = DeviceLedger()
+def _select_ledger():
+    """Same backend selection as _select_trips: DynamoDB when the env
+    table + boto3 + credentials resolve, else in-memory. /health and
+    /admin read LEDGER.backend to show which is live."""
+    table = (os.environ.get("AGG_TABLE")
+             or os.environ.get("ALIVE_DDB_TABLE") or "").strip()
+    if not table:
+        return DeviceLedger()
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import agg_ddb
+        b3, why = agg_ddb._aws_ready()
+        if b3 is None:
+            return DeviceLedger()
+        return agg_ddb.DDBDeviceLedger(
+            client=b3.client("dynamodb", region_name=agg_ddb._region()),
+            table_name=table)
+    except Exception:  # noqa: BLE001 — never let backend selection 500 the app
+        return DeviceLedger()
+
+
+LEDGER = _select_ledger()
