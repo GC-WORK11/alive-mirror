@@ -32,7 +32,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
-import { t, type Lang } from "../../i18n/strings";
+import { approx, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop } from "../../a11y";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
@@ -136,7 +136,7 @@ export function ReceiptSheet({
   const co2 = data.co2Kg;
   const co2Zero = co2 != null && co2.hi <= 0;
   const breathedTxt = cigs != null
-    ? t("receipt_breathed", lang, { n: cigs > 0 && cigs < 0.01 ? 0.01 : cigs })
+    ? t("receipt_breathed", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
     : null;
   const ratioTxt = ratio != null && ratio > 1.05
     ? (data.worstLabel
@@ -179,7 +179,7 @@ export function ReceiptSheet({
       ) : (
         <>
           <Text style={[s.heroNum, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-            {t("nav_cigs", lang, { n: cigs > 0 && cigs < 0.01 ? 0.01 : cigs })}
+            {t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })}
             <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose && dose.hi - dose.lo >= 1 && (
@@ -199,7 +199,7 @@ export function ReceiptSheet({
           ) : null}
           {savedCigs != null && savedCigs >= 0.02 && (
             <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
-              {t("receiptSaved", lang, { n: savedCigs })}
+              {t("receiptSaved", lang, { n: approx(savedCigs) })}
             </Text>
           )}
         </>
@@ -210,7 +210,7 @@ export function ReceiptSheet({
         <View style={s.cell}>
           <Text style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
-            {co2 == null ? "—" : t("nav_kg", lang, { n: r1(Math.max(0, co2.mid)) })}
+            {co2 == null ? "—" : t("nav_kg", lang, { n: approx(r1(Math.max(0, co2.mid))) })}
           </Text>
           <Text style={[s.cellCap, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
@@ -266,7 +266,7 @@ export function ReceiptSheet({
               {data.alt && data.alt.co2KgMid != null && (
                 <Text style={[s.detailTxt, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
                   {t("receipt_altPutOut", lang, {
-                    m: data.alt.label, n: r1(Math.max(0, data.alt.co2KgMid)),
+                    m: data.alt.label, n: approx(r1(Math.max(0, data.alt.co2KgMid))),
                   })}
                 </Text>
               )}

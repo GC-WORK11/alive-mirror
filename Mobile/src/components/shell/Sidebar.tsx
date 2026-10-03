@@ -18,7 +18,7 @@ import {
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
+import { approx, modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -306,7 +306,7 @@ export function Sidebar({
                           <Icon name="smoke" color={V2T.text3} size={15} />
                           <Text {...DYNAMIC_TYPE} style={s.statCap}>{t("putOut", lang)}</Text>
                         </View>
-                        <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{t("nav_kg", lang, { n: todayKg })}</Text>
+                        <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{t("nav_kg", lang, { n: approx(todayKg) })}</Text>
                       </View>
                     </>
                   )}

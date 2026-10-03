@@ -61,7 +61,7 @@ const en = {
   howWe_in: "smoke you breathe — ≈ {mid} µg this trip (est. {lo}–{hi})",
   howWe_out: "smoke your ride puts out — {v}",
   howWe_conf: "how sure the smoke number is: {c}",
-  howWe_cigs: "≈ {n} cigarettes",
+  howWe_cigs: "{n} cigarettes",
   howWe_none: "no estimate for this option",
   howWe_fieldAge: "air reading: {n} min old",
   // vehicle question (S8)
@@ -246,7 +246,7 @@ const en = {
   followRoute: "follow the route line",
   boardMetro: "board {a} → {b}",
   arriveAt: "arrive {t}",
-  breathedSoFar: "breathed ≈ {n} so far",
+  breathedSoFar: "breathed {n} so far",
   offline: "can't reach the server — trying again",
   offlineStale: "offline — showing last known air",
   offlinePending: "{n} saved to send",
@@ -263,7 +263,7 @@ const en = {
   onb_privacyTrimmed: "Shared trips are cut at both ends and become a few rough dots on a map grid — a street shows only when at least 3 people have crossed it.",
   onb_privacyLocation: "Your location stays on this phone — it only steers the map and turn-by-turn guidance.",
   tripDone: "trip done",
-  receiptSaved: "the smokiest way would have added ≈ {n}",
+  receiptSaved: "the smokiest way would have added {n} cigarettes",
   minUnit: "min",
   compare_pick: "our pick",
   compare_yours: "your usual",
@@ -280,8 +280,8 @@ const en = {
   // live nav + receipt (src/nav, S6/S7)
   nav_breathe: "smoke you breathe",
   nav_putOut: "smoke your ride puts out",
-  nav_cigs: "≈ {n} cigarettes",
-  nav_kg: "≈ {n} kg",
+  nav_cigs: "{n} cigarettes",
+  nav_kg: "{n} kg",
   nav_left: "{min} min · {km} km left",
   nav_recenter: "re-centre",
   nav_in: "in {d} metres — {i}",
@@ -289,11 +289,11 @@ const en = {
   nav_noSignal: "locating you…",
   strip_unavailable: "live air update lost — counters paused",
   arrived_hereIn: "You're here. {n} min.",
-  receipt_breathed: "you breathed ≈ {n} cigarettes",
+  receipt_breathed: "you breathed {n} cigarettes",
   receipt_lessVs: "{n}× less than by {m}",
   receipt_moreVs: "{n}× more than by {m}",
-  receipt_putOutKg: "your ride put out ≈ {n} kg",
-  receipt_altPutOut: "{m} would have put out ≈ {n} kg",
+  receipt_putOutKg: "your ride put out {n} kg",
+  receipt_altPutOut: "{m} would have put out {n} kg",
   receipt_estLike: "est. — for vehicles like yours",
   receipt_pmBand: "incl. {lo}–{hi} g of fine dust (PM2.5)",
   receipt_donated: "added anonymously to Delhi's air map",
@@ -381,7 +381,7 @@ const hi: Record<StringKey, string> = {
   howWe_in: "साँस का धुआँ — इस यात्रा में ≈ {mid} µg (अंदाज़ {lo}–{hi})",
   howWe_out: "गाड़ी से निकला धुआँ — {v}",
   howWe_conf: "धुएँ के नंबर का भरोसा: {c}",
-  howWe_cigs: "≈ {n} सिगरेट",
+  howWe_cigs: "{n} सिगरेट",
   howWe_none: "इस विकल्प के लिए कोई अनुमान नहीं",
   howWe_fieldAge: "हवा की रीडिंग: {n} मिनट पुरानी",
   vehicleQ1: "आप रोज़ कैसे आते-जाते हैं?",
@@ -554,7 +554,7 @@ const hi: Record<StringKey, string> = {
   followRoute: "नक्शे की लकीर के साथ चलें",
   boardMetro: "{a} पर चढ़ें → {b} पर उतरें",
   arriveAt: "{t} तक पहुँचें",
-  breathedSoFar: "अब तक ≈ {n} साँस में लिया",
+  breathedSoFar: "अब तक {n} साँस में लिया",
   offline: "सर्वर से संपर्क नहीं — फिर कोशिश हो रही है",
   offlineStale: "ऑफ़लाइन — पिछली ज्ञात हवा दिख रही है",
   offlinePending: "{n} भेजने के लिए सहेजी गई",
@@ -570,7 +570,7 @@ const hi: Record<StringKey, string> = {
   onb_privacyTrimmed: "साझा यात्राओं के दोनों सिरे कट जाते हैं और बची चीज़ नक्शे पर कुछ धुंधले बिंदु बनती है — कोई सड़क तभी दिखती है जब कम से कम 3 लोग उससे गुज़रे हों।",
   onb_privacyLocation: "आपकी लोकेशन इसी फ़ोन पर रहती है — वो सिर्फ़ नक्शा और मोड़-दर-मोड़ का रास्ता चलाती है।",
   tripDone: "यात्रा पूरी",
-  receiptSaved: "सबसे धुआँदार रास्ता ≈ {n} ज़्यादा देता",
+  receiptSaved: "सबसे धुआँदार रास्ता {n} सिगरेट ज़्यादा देता",
   minUnit: "मिनट",
   compare_pick: "हमारी पसंद",
   compare_yours: "आपकी सामान्य",
@@ -586,8 +586,8 @@ const hi: Record<StringKey, string> = {
   howWe_coverage: "रास्ता फ़ील्ड से बाहर जाता है — सिर्फ़ ढके हुए {pct}% की गिनती हुई, अनुमान नहीं लगाया गया",
   nav_breathe: "आपके साँस का धुआँ",
   nav_putOut: "आपकी गाड़ी का धुआँ",
-  nav_cigs: "≈ {n} सिगरेट",
-  nav_kg: "≈ {n} किग्रा",
+  nav_cigs: "{n} सिगरेट",
+  nav_kg: "{n} किग्रा",
   nav_left: "{min} मिनट · {km} किमी बाकी",
   nav_recenter: "नक्शा केंद्र में लाएँ",
   nav_in: "{d} मीटर में — {i}",
@@ -595,11 +595,11 @@ const hi: Record<StringKey, string> = {
   nav_noSignal: "आपकी लोकेशन ढूँढ रहे हैं…",
   strip_unavailable: "लाइव हवा-अपडेट नहीं मिला — काउंटर रुके हैं",
   arrived_hereIn: "आप पहुँच गए। {n} मिनट।",
-  receipt_breathed: "आपने ≈ {n} सिगरेट के बराबर धुआँ साँस में लिया",
+  receipt_breathed: "आपने {n} सिगरेट के बराबर धुआँ साँस में लिया",
   receipt_lessVs: "{m} से {n}× कम",
   receipt_moreVs: "{m} से {n}× ज़्यादा",
-  receipt_putOutKg: "आपकी गाड़ी ने ≈ {n} किग्रा छोड़ा",
-  receipt_altPutOut: "{m} ने ≈ {n} किग्रा छोड़ा होता",
+  receipt_putOutKg: "आपकी गाड़ी ने {n} किग्रा छोड़ा",
+  receipt_altPutOut: "{m} ने {n} किग्रा छोड़ा होता",
   receipt_estLike: "अनुमान — आप जैसी गाड़ियों के लिए",
   receipt_pmBand: "जिसमें {lo}–{hi} ग्रा बारीक धूल (PM2.5)",
   receipt_donated: "दिल्ली के हवा-नक्शे में गुमनाम रूप से जुड़ा",
@@ -679,6 +679,12 @@ export function modeLabel(mode: string, label: string, lang: Lang): string {
  *  language it was named in ("your location" inside a Hindi UI). Sentinel
  *  names — the phone's own placeholders, not real place names — are
  *  re-rendered in the current language; real gazetteer names pass through. */
+/** "≈ 0 cigarettes" reads wrong — the approximation mark belongs on
+ *  estimates, not exact zeros. Templates carry "{n} <unit>" and call
+ *  sites pass approx(value): 0 → "0", 0.28 → "≈ 0.28". */
+export const approx = (n: number | string): string =>
+  Number(n) === 0 ? "0" : `≈ ${n}`;
+
 const PLACE_SENTINEL: Record<string, keyof typeof en> = {
   "your location": "placeCurrentLocation",
   "आपकी लोकेशन": "placeCurrentLocation",

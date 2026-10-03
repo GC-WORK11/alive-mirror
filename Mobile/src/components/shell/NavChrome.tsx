@@ -15,7 +15,7 @@ import Svg, { Path } from "react-native-svg";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { t, type Lang } from "../../i18n/strings";
+import { approx, t, type Lang } from "../../i18n/strings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 import type { CompareOption, Step } from "./types";
@@ -372,7 +372,7 @@ export function NavChrome({
             dim={frozen}
             band={doseBand}
             value={cigs == null ? t("nav_noSignal", lang)
-              : t("nav_cigs", lang, { n: cigs > 0 && cigs < 0.01 ? 0.01 : cigs })} />
+              : t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })} />
           {showOut && outKg != null && (
             <>
               <View style={s.cellDiv} />
@@ -383,7 +383,7 @@ export function NavChrome({
                 label={t("nav_putOut", lang)}
                 dim={frozen}
                 band={co2Band}
-                value={t("nav_kg", lang, { n: outKg })} />
+                value={t("nav_kg", lang, { n: approx(outKg) })} />
             </>
           )}
         </View>

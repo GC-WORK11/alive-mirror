@@ -29,7 +29,7 @@ import { NUM, V2Radius, V2T, V2Type, doseColor, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph } from "../../icons";
 import { Sheet } from "../../ui";
-import { modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
+import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
@@ -171,7 +171,7 @@ function DetailBlock({ o, fieldAgeS, lang }: { o: V2Option; fieldAgeS?: number |
         {d.mid != null ? (
           <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>
             {t("howWe_in", lang, { mid: Math.round(d.mid), lo: Math.round(d.lo ?? d.mid), hi: Math.round(d.hi ?? d.mid) })}
-            {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: cig })}` : ""}
+            {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: approx(cig) })}` : ""}
           </Text>
         ) : (
           <Text {...DYNAMIC_TYPE} style={[s.dLine, { fontFamily: fam(lang, "reg") }]}>{d.note ?? t("howWe_none", lang)}</Text>
