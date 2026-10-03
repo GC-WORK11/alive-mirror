@@ -23,6 +23,7 @@ export type NavView = {
   etaS: number;
   distRemainingM: number;
   offRoute: boolean;
+  stripOk?: boolean;       // false → /v2/strip failed, counters frozen
   running?: boolean;
   nextStep?: { instruction: string; distM: number } | null;
   snapped?: [number, number] | null;
@@ -84,6 +85,13 @@ export function NavChrome({
         <View style={s.pill}>
           <Text style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
             {t("findingNewWay", lang)}
+          </Text>
+        </View>
+      )}
+      {nav?.stripOk === false && !nav.offRoute && (
+        <View style={s.pill}>
+          <Text style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
+            {t("strip_unavailable", lang)}
           </Text>
         </View>
       )}
