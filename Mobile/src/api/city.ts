@@ -97,3 +97,81 @@ export async function fetchCity(signal?: AbortSignal): Promise<CityPayload> {
   if (!r.ok) throw new Error("v2/city unreachable");
   return r.data;
 }
+
+/* ---- GET /v2/city/moves — "how Delhi moves" (server/v2/city.py) ----------
+ * Aggregate mobility only: mode share, active corridor count, per-trip
+ * dose/emission percentile bands. Every emitted row clears k>=3 — a mode
+ * with fewer trips never gets a row of its own (it pools into "other",
+ * itself k-gated, or ships only as a suppressed count). */
+
+/** The honest middle half of a small sample. n is the row count behind
+ *  the band — the UI can say how thin the data is instead of guessing. */
+export type CityMovesBand = { p25: number; p50: number; p75: number; n: number };
+
+export type CityMovesModeRow = {
+  /** server mode id ("car", "metro", …) or the pooled "other" bucket */
+  mode: string;
+  trips: number;
+  /** trips / n_trips across the window */
+  share: number;
+};
+
+export type CityMovesPayload = {
+  ts: number;
+  generated_at?: string;
+  /** trailing UTC day buckets the day counters span (server: 7) */
+  window?: { days: number; from: string; to: string };
+  min_k: number;
+  n_trips: number;
+  n_days: number;
+  /** true while n_trips < min_k — show the empty state, never the
+   *  distributions; the counts themselves are still real. */
+  insufficient_data: boolean;
+  /** only rows with >= min_k trips; may be empty even when trips exist */
+  mode_share: CityMovesModeRow[];
+  /** trips below the k threshold even when pooled — a count, not a row */
+  mode_share_suppressed_trips: number;
+  corridors?: {
+    /** the corridor rule's own window (server: 72) */
+    window_h: number;
+    /** publishable cells right now — each >=3 distinct devices */
+    active: number;
+    /** every cell ever seen — context, not gated */
+    tracked: number;
+    /** distribution of per-cell mean dose across publishable cells */
+    avg_dose_ug: CityMovesBand | null;
+  };
+  per_trip?: {
+    /** days that qualified (>=min_k trips) — the band's real sample */
+    n_days: number;
+    dose_ug: CityMovesBand | null;
+    co2_kg: CityMovesBand | null;
+    pm25_g: CityMovesBand | null;
+    basis?: string;
+  };
+  basis?: string;
+};
+
+/** Last-good cache key — mirrors cacheKeys' naming ("v2:…"); kept local
+ *  so this lane touches only this file (cache.ts is shared). */
+const MOVES_CACHE_KEY = "v2:city:moves";
+
+/** One shot at `${API_BASE}/v2/city/moves`, last-good cached like
+ *  fetchCity — offline serves the previous aggregate labelled stale. */
+export async function fetchCityMoves(
+  signal?: AbortSignal,
+): Promise<CityMovesPayload> {
+  const r = await fetchCached<CityMovesPayload>(`${API_BASE}/v2/city/moves`, {
+    ttlMs: 15 * 60 * 1000,
+    key: MOVES_CACHE_KEY,
+    fetcher: async (sig) => {
+      const res = await fetch(`${API_BASE}/v2/city/moves`, {
+        signal: signal ?? sig,
+      });
+      if (!res.ok) throw new Error(`v2/city/moves http ${res.status}`);
+      return (await res.json()) as CityMovesPayload;
+    },
+  });
+  if (!r.ok) throw new Error("v2/city/moves unreachable");
+  return r.data;
+}
