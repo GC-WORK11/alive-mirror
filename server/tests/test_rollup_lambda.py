@@ -112,7 +112,7 @@ def test_daily_rollup_rolls_seed_day(offline):
     assert out["city"]["median_pm25"] is not None
     assert os.path.exists(out["written_to"])
     saved = json.load(open(out["written_to"]))
-    assert saved["schema"] == "alive-rollup/1"
+    assert saved["schema"] == "alive-rollup/2"
 
 
 def test_rollup_date_env_override(offline, monkeypatch):
@@ -147,7 +147,7 @@ def test_weekly_validation_loso(offline, monkeypatch):
     assert out["archive_replay"]["mae_ugm3"] == 2.0
     assert os.path.exists(out["written_to"])
     saved = json.load(open(out["written_to"]))
-    assert saved["schema"] == "alive-validation/1"
+    assert saved["schema"] == "alive-validation/2"
 
 
 # ---------------------------------------------------------------- dispatch

@@ -8,9 +8,11 @@
 namespace alive {
 namespace {
 
-// krige.py covariance kernel: C(d) = nugget + sill * exp(-d / range_km)
-inline double covar(double d, double nugget, double sill, double range) {
-  return nugget + sill * std::exp(-d / range);
+// Structural covariance C(d) = psill * exp(-d / range_km). The nugget is
+// observation noise — it enters K only on the diagonal and never the
+// query rhs (krige.py's correct nugget-effect model).
+inline double covar(double d, double psill, double range) {
+  return psill * std::exp(-d / range);
 }
 
 }  // namespace
@@ -52,6 +54,7 @@ bool KrigeField::fit_impl(std::vector<double> lat, std::vector<double> lon,
   sill_ = (zv.array() - mean).square().sum() / static_cast<double>(n);
   if (!(sill_ >= params.sill_floor)) return false;
   nugget_ = params.nugget_frac * sill_;
+  psill_ = sill_ - nugget_;
 
   pts_.resize(n, 2);
   drift_.resize(n, p_);
@@ -68,7 +71,7 @@ bool KrigeField::fit_impl(std::vector<double> lat, std::vector<double> lon,
                            : std::vector<double>(p_, 1.0);
 
   // Augmented system A [w; lam] = [k; f0]:
-  //   A = [ K  F ]   K(i,j) = nugget + sill*exp(-d_ij/range)
+  //   A = [ K  F ]   K(i,j) = psill*exp(-d_ij/range) + nugget*delta_ij
   //       [ F^T 0 ]
   const size_t m = n + p_;
   Eigen::MatrixXd A(m, m);
@@ -76,8 +79,9 @@ bool KrigeField::fit_impl(std::vector<double> lat, std::vector<double> lon,
     for (size_t j = 0; j < n; ++j) {
       const double dx = pts_(i, 0) - pts_(j, 0);
       const double dy = pts_(i, 1) - pts_(j, 1);
-      A(i, j) = covar(std::sqrt(dx * dx + dy * dy), nugget_, sill_,
-                      params.range_km);
+      A(i, j) = covar(std::sqrt(dx * dx + dy * dy), psill_,
+                      params.range_km)
+              + (i == j ? nugget_ : 0.0);
     }
     for (size_t a = 0; a < p_; ++a) {
       A(i, n + a) = drift_(i, a);
@@ -110,7 +114,7 @@ std::optional<std::vector<double>> KrigeField::weights(
   for (size_t i = 0; i < n; ++i) {
     const double dx = pts_(i, 0) - x;
     const double dy = pts_(i, 1) - y;
-    rhs(i) = covar(std::sqrt(dx * dx + dy * dy), nugget_, sill_,
+    rhs(i) = covar(std::sqrt(dx * dx + dy * dy), psill_,
                    params_.range_km);
   }
   for (size_t a = 0; a < p_; ++a) rhs(n + a) = f0[a];
@@ -133,7 +137,7 @@ std::optional<std::pair<double, double>> KrigeField::estimate(
   for (size_t i = 0; i < n; ++i) {
     const double dx = pts_(i, 0) - x;
     const double dy = pts_(i, 1) - y;
-    rhs(i) = covar(std::sqrt(dx * dx + dy * dy), nugget_, sill_,
+    rhs(i) = covar(std::sqrt(dx * dx + dy * dy), psill_,
                    params_.range_km);
   }
   for (size_t a = 0; a < p_; ++a) rhs(n + a) = f0v[a];
@@ -148,11 +152,14 @@ std::optional<std::pair<double, double>> KrigeField::estimate(
   const double mu = wv.dot(z_);
   const double wk = wv.dot(k);
   const double lam_f = w.tail(p_).dot(f0);
-  const double var = params_.legacy_variance
-                         ? sill_ - wk + lam_f            // krige.py formula
-                         : (sill_ + nugget_) - wk - lam_f;  // true error var
+  // sigma^2 = C_Z(0) - w.k - lam.f0 with C_Z(0) = psill (smooth-field
+  // variance). Under the nugget-on-diagonal kernel that IS the true error
+  // variance w^TKw - 2w.k + C(0) — legacy/corrected coincide; the flag
+  // remains for API stability. mu is NOT clamped — airindex relies on
+  // signed residuals (krige.py contract).
+  const double var = psill_ - wk - lam_f;
   const double sigma = std::sqrt(std::max(1.0, var));
-  return std::pair<double, double>{std::max(0.0, mu), sigma};
+  return std::pair<double, double>{mu, sigma};
 }
 
 }  // namespace alive

@@ -273,6 +273,20 @@ def _source(name, prov=None, now=None):
     return out
 
 
+def _trips_backend() -> str:
+    """Which aggregate store /v2/trip writes to — memory | dynamodb | a
+    failure note. Kept lazy+guarded: /health must never die on a missing
+    optional module."""
+    try:
+        from v2.store import TRIPS
+    except Exception:
+        try:
+            from server.v2.store import TRIPS  # type: ignore
+        except Exception:
+            return "unknown"
+    return getattr(TRIPS, "backend", type(TRIPS).__name__)
+
+
 def collect_health(now=None, snapshot_root=None):
     """Full health payload — safe to call from any route, any worker.
 
@@ -294,6 +308,7 @@ def collect_health(now=None, snapshot_root=None):
         "disk": _disk(snapshot_root),
         "sources": {name: _source(name, prov.get(name), now) for name in
                     ("model", "met", "stations", "fires", "location")},
+        "trips_backend": _trips_backend(),
     }
 
 

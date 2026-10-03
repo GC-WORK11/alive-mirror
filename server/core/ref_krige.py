@@ -59,9 +59,11 @@ def _to_km(lat: float, lon: float, p: KrigeParams) -> tuple[float, float]:
     return lat * p.ky, lon * p.kx
 
 
-def _covar(d: float, nugget: float, sill: float, rng: float) -> float:
-    """krige.py covariance kernel: C(d) = nugget + sill*exp(-d/range)."""
-    return nugget + sill * math.exp(-d / rng)
+def _covar(d: float, psill: float, rng: float) -> float:
+    """Structural covariance C(d) = psill*exp(-d/range). The nugget is
+    observation noise — it enters K only on the diagonal and never the
+    query rhs (krige.py's correct nugget-effect model)."""
+    return psill * math.exp(-d / rng)
 
 
 def _lu_solve(a: list[list[float]], b: list[float]) -> Optional[list[float]]:
@@ -99,6 +101,7 @@ class PyKrigeField:
         self._p = 0
         self._sill = 0.0
         self._nugget = 0.0
+        self._psill = 0.0
         self._params = KrigeParams()
         self._universal = False
         self._f0_default: list[float] = []   # ones(p) when ordinary
@@ -137,6 +140,7 @@ class PyKrigeField:
             return False
         self._sill = sill
         self._nugget = p.nugget_frac * sill
+        self._psill = sill - self._nugget
         self._p = pw
         self._pts = [_to_km(lat[i], lon[i], p) for i in range(n)]
         self._z = [float(v) for v in z]
@@ -153,7 +157,8 @@ class PyKrigeField:
             for j in range(n):
                 xj, yj = self._pts[j]
                 A[i][j] = _covar(math.hypot(xi - xj, yi - yj),
-                                 self._nugget, sill, p.range_km)
+                                 self._psill, p.range_km) \
+                    + (self._nugget if i == j else 0.0)
             for a in range(pw):
                 A[i][n + a] = self._drift[i][a]
                 A[n + a][i] = self._drift[i][a]
@@ -187,8 +192,8 @@ class PyKrigeField:
         n = len(self._z)
         rhs = [0.0] * (n + self._p)
         for i, (xi, yi) in enumerate(self._pts):
-            rhs[i] = _covar(math.hypot(xi - x, yi - y), self._nugget,
-                            self._sill, self._params.range_km)
+            rhs[i] = _covar(math.hypot(xi - x, yi - y),
+                            self._psill, self._params.range_km)
         for a in range(self._p):
             rhs[n + a] = f0[a]
         if _np is not None:
@@ -223,11 +228,14 @@ class PyKrigeField:
         mu = sum(wi * zi for wi, zi in zip(wv, self._z))
         wk = sum(wi * ki for wi, ki in zip(wv, k))
         lam_f = sum(li * fi for li, fi in zip(lam, f0))
-        if self._params.legacy_variance:
-            var = self._sill - wk + lam_f               # krige.py formula
-        else:
-            var = (self._sill + self._nugget) - wk - lam_f  # exact error var
-        return max(0.0, mu), math.sqrt(max(1.0, var))
+        # sigma^2 = C_Z(0) - w.k - lam.f0 with C_Z(0) = psill (smooth-field
+        # variance; the nugget is observation noise, not field variance).
+        # Under this kernel that IS the true error variance w^TKw-2w.k+C(0)
+        # — legacy/corrected coincide; the flag remains for API parity with
+        # the C++ surface. mu is NOT clamped — airindex relies on signed
+        # residuals (krige.py contract).
+        var = self._psill - wk - lam_f
+        return mu, math.sqrt(max(1.0, var))
 
     # ------------------------------------------------------- introspection
     def fitted(self) -> bool:

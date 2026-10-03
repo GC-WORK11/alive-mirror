@@ -239,15 +239,19 @@ def test_corrected_sigma_matches_error_variance(idx):
     P = np.array([[la * KY, lo * KX] for la, lo in zip(lats, lons)])
     sill = ck.sill()
     nug = ck.nugget()
+    psill = sill - nug
     D = np.sqrt(((P[:, None, :] - P[None, :, :]) ** 2).sum(-1))
-    K = nug + sill * np.exp(-D / RG)
-    c0 = sill + nug
+    # nugget-effect model: noise on the diagonal only; the rhs carries the
+    # smooth-field covariance (no nugget) — krige.py's contract.
+    K = psill * np.exp(-D / RG)
+    K[np.diag_indices_from(K)] += nug
+    c0 = psill
     rng = random.Random(9)
     for q in _queries(rng, 25):
         w = np.asarray(ck.weights(*q))
         x = np.array([q[0] * KY, q[1] * KX])
         d = np.sqrt(((P - x) ** 2).sum(-1))
-        k = nug + sill * np.exp(-d / RG)
+        k = psill * np.exp(-d / RG)
         true_var = w[:n] @ K @ w[:n] - 2.0 * w[:n] @ k + c0
         est = ck.estimate(*q)
         assert est is not None

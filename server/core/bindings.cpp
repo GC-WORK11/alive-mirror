@@ -261,8 +261,16 @@ py::dict emissions_py(const py::list& spans, const py::dict& ef_band,
 
 }  // namespace
 
+#ifdef ALIVE_CORE_WITH_EIGEN
+namespace alive { void register_krige(pybind11::module_& m); }
+#endif
+
 PYBIND11_MODULE(alive_core, m) {
   m.doc() = "ALive-108 C++ engine — T1 fuzzy place search index";
+
+#ifdef ALIVE_CORE_WITH_EIGEN
+  alive::register_krige(m);
+#endif
 
   py::class_<SearchIndex>(m, "SearchIndex")
       .def(py::init(&make_index), py::arg("entries"), py::arg("aliases"),

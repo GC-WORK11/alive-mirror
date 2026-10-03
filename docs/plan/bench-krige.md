@@ -1,5 +1,32 @@
 # bench-krige — kriging kernel validation + wall-clock
 
+> **Superseded tables below.** The tables in this file were measured
+> before the covariance-kernel fix at integration: the lane's original
+> kernel used `C(d) = nugget + sill·exp(-d/R)` (nugget at every distance)
+> — production `krige.py`'s correct nugget-effect model is
+> `psill·exp(-d/R)` with the nugget on the diagonal only. Under the
+> corrected kernel, `legacy` and `corrected` variance modes coincide
+> exactly (`psill − w·k − λ·f0` IS the true error variance). Fresh
+> numbers from the corrected kernel (x86_64, Eigen 3.4.0, this repo's
+> `core/build`):
+>
+> | pooled 643 folds | MAE | RMSE | bias | cov95 | meanσ | fold ms | p95 ms |
+> |---|---|---|---|---|---|---|---|
+> | py-krige | 24.42 | 70.08 | 0.64 | 0.753 | 23.9 | 1.070 | 2.323 |
+> | idw | 26.28 | 71.75 | 3.58 | 0.000 | — | 0.049 | 0.067 |
+> | cpp-legacy | 24.42 | 70.08 | 0.64 | 0.753 | 23.9 | 0.747 | 1.329 |
+> | cpp-corrected | 24.42 | 70.08 | 0.64 | 0.753 | 23.9 | 0.615 | 0.810 |
+> | cpp-universal | 24.69 | 70.26 | 0.74 | 0.751 | 24.2 | 0.732 | 1.456 |
+>
+> Grid refresh (1 fit + 14,628 estimates): py-krige 389.9 ms
+> (26.65 µs/cell) → cpp 116.4 ms (**7.96 µs/cell, ~3.3×**); IDW is still
+> fastest per cell (0.049 ms/fold) but has no sigma and higher MAE.
+> Coverage-95 sits at 0.75 — the field still under-reports uncertainty;
+> that is honest output, not a pass/fail gate.
+>
+> Parity result after the fix: `cpp-legacy` is bit-exact vs `krige.py`
+> (1e-9 rel) on all folds — the drop-in contract holds.
+
 Phase-5 (doc 08) heavy validation for the `alive_core` kriging kernels.
 Everything below is measured — `server/core/bench/bench_krige.py`, run on
 this machine (Apple Silicon, clang++ `-O3`, Eigen 5.0.1, pybind11 3.1.0,

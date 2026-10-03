@@ -88,6 +88,7 @@ class KrigeField {
   KrigeParams params_;
   double sill_ = 0.0;
   double nugget_ = 0.0;
+  double psill_ = 0.0;   // structural sill = sill_ - nugget_
   size_t p_ = 0;                                   // drift width
   bool universal_ = false;
   bool on_ = false;

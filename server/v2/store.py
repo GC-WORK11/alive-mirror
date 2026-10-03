@@ -12,6 +12,8 @@ Two things live here, and nothing else ever may:
    linkable to a person. The class is the interface a DynamoDB table
    (alive108-agg) implements next: same two methods.
 """
+import os
+import sys
 import threading
 import time
 import uuid
@@ -72,9 +74,12 @@ class RouteStore:
 
 
 class TripAggregates:
-    """Aggregate-only trip store. `record_trip` takes already-privacized
-    data — H3 cell keys, a hashed token, a sanitized summary — so a bug
-    upstream cannot put raw coordinates or identity at rest here."""
+    """Aggregate-only trip store, in-memory backend — dev/CI default.
+    `record_trip` takes already-privacized data — H3 cell keys, a hashed
+    token, a sanitized summary — so a bug upstream cannot put raw
+    coordinates or identity at rest here. `backend` distinguishes it
+    from the DynamoDB implementation for /health."""
+    backend = "memory"
 
     def __init__(self):
         self._days: dict = {}    # "YYYY-MM-DD" -> day counters
@@ -156,4 +161,26 @@ class TripAggregates:
 
 
 ROUTES = RouteStore()
-TRIPS = TripAggregates()
+
+
+def _select_trips():
+    """AGG_TABLE (or ALIVE_DDB_TABLE) set + boto3 + resolvable credentials
+    → the DynamoDB aggregate store (agg_ddb.DDBTripAggregates). Anything
+    missing → in-memory: dev/CI stays free, /health reads TRIPS.backend
+    to show which is live."""
+    table = (os.environ.get("AGG_TABLE")
+             or os.environ.get("ALIVE_DDB_TABLE") or "").strip()
+    if not table:
+        return TripAggregates()
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import agg_ddb
+        b3, why = agg_ddb._aws_ready()
+        if b3 is None:
+            return TripAggregates()
+        return agg_ddb.DDBTripAggregates(table_name=table)
+    except Exception:  # noqa: BLE001 — never let backend selection 500 the app
+        return TripAggregates()
+
+
+TRIPS = _select_trips()

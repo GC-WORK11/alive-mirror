@@ -76,6 +76,7 @@ class DDBTripAggregates:
 
     def __init__(self, client=None, table_name: str = None):
         self.table_name = (table_name
+                           or os.environ.get("AGG_TABLE")
                            or os.environ.get("ALIVE_DDB_TABLE")
                            or DEFAULT_TABLE)
         self._client = client   # None -> resolved lazily via boto3

@@ -37,15 +37,34 @@ if(NOT _gen_rc EQUAL 0)
 endif()
 message(STATUS "${_gen_out}")
 
+if(ALIVE_CORE_WITH_EIGEN)
+  # Eigen (header-only) via FetchContent — same PEP-668 constraint as pybind11
+  FetchContent_Declare(
+    eigen
+    GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+    GIT_TAG 3.4.0
+    GIT_SHALLOW TRUE)
+  FetchContent_GetProperties(eigen)
+  if(NOT eigen_POPULATED)
+    FetchContent_Populate(eigen)
+  endif()
+endif()
+
 pybind11_add_module(alive_core
   bindings.cpp
   src/search.cpp
   src/field.cpp
-  src/emission.cpp)
+  src/emission.cpp
+  $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:src/krige.cpp>
+  $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:src/bindings_krige.cpp>)
 
 target_include_directories(alive_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${GENERATED_DIR})
+  ${GENERATED_DIR}
+  $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:${eigen_SOURCE_DIR}>)
+
+target_compile_definitions(alive_core PRIVATE
+  $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:ALIVE_CORE_WITH_EIGEN>)
 
 # Release already carries -O3; make it explicit for non-default build types.
 target_compile_options(alive_core PRIVATE
