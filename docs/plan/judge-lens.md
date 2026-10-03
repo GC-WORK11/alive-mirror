@@ -18,6 +18,7 @@ Status noted per item; the fixes shipped on base/v2.
 | 11 | **SIGSEGV on search sheet** — the app's only RN `Modal` segfaulted on present/dismiss (3 live repros: cold present, quick-pick dismiss, first open; `SIGSEGV(11)` in runningboardd) | **Fixed** — search now renders as a plain absolute overlay + `ui.Sheet`-style surface like every other sheet; `BackHandler` covers Android back; focus moves to a rAF post-mount (1e5d9b1 → rebased 8db9635) |
 | 12 | **Layers sheet bled behind compare** — toggles rendered stacked under the compare sheet when left open | **Fixed** — layers auto-closes when phase leaves idle (same commit) |
 | 13 | **"0–0 µg" / "0.0–0.0 kg"** degenerate bands on the nav card | **Fixed** — band collapses to a single number when lo/hi round equal (a6c4fe8) |
+| 14 | Last option row's "how we got this" (i) tapped through to **Start** — its 16 px hitSlop reached into the footer's hit zone | **Fixed** — options list bottom-pad raised to 22 so the hitSlop clears the footer (c1746ba; Android forensic find) |
 
 ## Verified on-device this leg
 
