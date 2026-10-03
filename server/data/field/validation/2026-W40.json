@@ -1,0 +1,18 @@
+{
+ "archive_replay": {
+  "bias_ugm3": 51.3,
+  "mae_ugm3": 53.1,
+  "mean_obs": 23.73,
+  "pairs": 7240,
+  "rmse_ugm3": 57.06,
+  "status": "ok"
+ },
+ "generated": "2026-10-03T02:02:44+00:00",
+ "loso": {
+  "n": 0,
+  "status": "insufficient stations"
+ },
+ "schema": "alive-validation/1",
+ "snapshot": "2026-10-03T02:02:20+00:00",
+ "week": "2026-W40"
+}
