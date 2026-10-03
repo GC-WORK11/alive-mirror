@@ -12,7 +12,7 @@
  * Prints "routeTint self-test OK" and exits 0 on pass; throws (exit 1)
  * on the first failed assertion.
  */
-import {
+import { MAP_QUIET, MAP_WARN, MAP_HEAVY, MAP_SEVERE,
   collectionsFor,
   cumOf,
   featureFor,
@@ -20,7 +20,7 @@ import {
   resampleLine,
   TINT_STEP_M,
 } from "./routeTint";
-import { V2T } from "../theme";
+
 import type { StripSample } from "../nav/strip";
 import type { Seg, V2Option } from "../components/shell/types";
 
@@ -101,10 +101,10 @@ ok(
 // chunk mids at 125/375/625/875/~(1000+total)/2 — interpolated pm25:
 //  125→40(clamp)  375→60  625→120  875→230  ~1050→~190
 ok(fcStrip.features[0].properties?.pm25 === 40, "chunk0 clamps to first sample (40)");
-ok(fcStrip.features[0].properties?.color === V2T.text3, "chunk0 (<60) is quiet grey");
-ok(fcStrip.features[1].properties?.color === V2T.breath1, "chunk1 (60) is amber");
-ok(fcStrip.features[2].properties?.color === V2T.breath1, "chunk2 (120) is amber");
-ok(fcStrip.features[3].properties?.color === V2T.breath2, "chunk3 (230) is orange");
+ok(fcStrip.features[0].properties?.color === MAP_QUIET, "chunk0 (<60) is quiet grey");
+ok(fcStrip.features[1].properties?.color === MAP_WARN, "chunk1 (60) is amber");
+ok(fcStrip.features[2].properties?.color === MAP_WARN, "chunk2 (120) is amber");
+ok(fcStrip.features[3].properties?.color === MAP_HEAVY, "chunk3 (230) is orange");
 ok(
   (fcStrip.features[3].properties?.pm25 ?? 0) > (fcStrip.features[0].properties?.pm25 ?? 1e9),
   "pm25 rises into the hot zone",
@@ -132,8 +132,8 @@ ok(fcSegs.features.length === 2, "segments path: one feature per Seg");
 ok(fcSegs.features[0].properties?.src === "segments", "segments path: src=segments");
 // NOTE: Seg.color is server-side legacy scale — we re-tint on doseColor's
 // scale so map colours agree with the compare sheet (assert overrides).
-ok(fcSegs.features[0].properties?.color === V2T.text3, "seg avg 45 → quiet grey");
-ok(fcSegs.features[1].properties?.color === V2T.breath3, "seg avg 280 → red");
+ok(fcSegs.features[0].properties?.color === MAP_QUIET, "seg avg 45 → quiet grey");
+ok(fcSegs.features[1].properties?.color === MAP_SEVERE, "seg avg 280 → red");
 ok(
   (fcSegs.features[0].geometry as GeoJSON.LineString).coordinates.length === 2,
   "seg coords carried verbatim",
@@ -146,13 +146,13 @@ const fcAvg = featureFor(
 ok(fcAvg.features.length === chunks.length, "avg path: still chunked");
 ok(
   fcAvg.features.every(
-    (f) => f.properties?.pm25 === 200 && f.properties?.color === V2T.breath2 && f.properties?.src === "avg",
+    (f) => f.properties?.pm25 === 200 && f.properties?.color === MAP_HEAVY && f.properties?.src === "avg",
   ),
   "avg path: flat 200 → orange everywhere, src=avg",
 );
 const fcNone = featureFor(mkOption({ geometry: geom }));
 ok(
-  fcNone.features.every((f) => f.properties?.pm25 === null && f.properties?.color === V2T.text3),
+  fcNone.features.every((f) => f.properties?.pm25 === null && f.properties?.color === MAP_QUIET),
   "no data at all → null pm25 → quiet grey (never invented)",
 );
 ok(featureFor(mkOption({})).features.length === 0, "null geometry → empty collection");
@@ -181,7 +181,7 @@ ok(byIdx.alts.features.every((f) => f.properties?.opt === 0), "alts = unselected
 ok(byIdx.selected.features.every((f) => f.properties?.opt === 1), "selected = chosen option");
 ok(byIdx.perOption.length === 2, "perOption aligned with options");
 ok(
-  byIdx.selected.features.every((f) => f.properties?.color === V2T.breath3),
+  byIdx.selected.features.every((f) => f.properties?.color === MAP_SEVERE),
   "selected option tinted by its own avg (300 → red)",
 );
 const byId = collectionsFor([optA, optB], "rid-b");

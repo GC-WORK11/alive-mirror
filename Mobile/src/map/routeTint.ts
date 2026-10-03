@@ -43,15 +43,15 @@
  * already paint ["get","color"]. Or mount <RouteTintSource/> and delete
  * the "alts"+"route" GeoJSONSources entirely (preferred — see that file).
  *
- * COLOUR SCALE — deliberately IDENTICAL to theme.doseColor so a red street
- * on the map means exactly what red dose text means in the compare sheet:
- *   null or pm25 < 60  → V2T.text3   #8A94A0  quiet = absence of colour
- *   60 ≤ pm25 < 130    → V2T.breath1 #F2C14E  amber   (doc 03 breath ramp)
- *   130 ≤ pm25 < 250   → V2T.breath2 #F08A3C  orange
- *   pm25 ≥ 250         → V2T.breath3 #EE5A5F  red
+ * COLOUR SCALE — same THRESHOLDS as theme.doseColor, muted editorial hues
+ * tuned for the light basemap (bronze → brick → wine, never neon):
+ *   null or pm25 < 60  → MAP_QUIET   #8A93A3  quiet = absence of colour
+ *   60 ≤ pm25 < 130    → MAP_WARN    #B0763B  bronze
+ *   130 ≤ pm25 < 250   → MAP_HEAVY   #B05355  brick
+ *   pm25 ≥ 250         → MAP_SEVERE  #8A2D3E  wine
  * ──────────────────────────────────────────────────────────────────────────
  */
-import { doseColor, V2T } from "../theme";
+
 import {
   fieldAtAlongM,
   stripCumM,
@@ -68,9 +68,19 @@ export const TINT_STEP_M = 250;
 /** doseColor() thresholds (µg/m³) — the single scale every surface shares. */
 export const PM25_BANDS = { quiet: 60, warn: 130, severe: 250 } as const;
 
-/** µg/m³ → hex colour, literally theme.doseColor (alias so map code reads
- *  in map vocabulary; same function, same stops — never a second scale). */
-export const pmColor = doseColor;
+/** On-map ramp — muted editorial twin of the chrome dose ramp (light
+ *  basemap: same bands, hues deepened to read on paper, not neon). */
+export const MAP_QUIET = "#8A93A3";
+export const MAP_WARN = "#B0763B";   // muted bronze
+export const MAP_HEAVY = "#B05355";  // dusty brick
+export const MAP_SEVERE = "#8A2D3E"; // deep wine
+
+/** µg/m³ → hex colour for the light map — same bands as theme.doseColor. */
+export const pmColor = (pm25: number | null | undefined) =>
+  pm25 == null || pm25 < PM25_BANDS.quiet ? MAP_QUIET
+    : pm25 < PM25_BANDS.warn ? MAP_WARN
+    : pm25 < PM25_BANDS.severe ? MAP_HEAVY
+    : MAP_SEVERE;
 
 /** Data-driven alternative to the baked `color` property — a MapLibre step
  *  expression implementing the same stops for layers that prefer
@@ -79,10 +89,10 @@ export const pmColor = doseColor;
 export const PM25_LINE_COLOR: unknown[] = [
   "step",
   ["coalesce", ["get", "pm25"], -1],
-  V2T.text3,
-  PM25_BANDS.quiet, V2T.breath1,
-  PM25_BANDS.warn, V2T.breath2,
-  PM25_BANDS.severe, V2T.breath3,
+  MAP_QUIET,
+  PM25_BANDS.quiet, MAP_WARN,
+  PM25_BANDS.warn, MAP_HEAVY,
+  PM25_BANDS.severe, MAP_SEVERE,
 ];
 
 /** Anything a caller can hand us as "the strip": a full RouteStrip, a bare

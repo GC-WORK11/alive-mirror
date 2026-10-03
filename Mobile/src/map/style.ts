@@ -1,5 +1,5 @@
 /**
- * ALive-108 v2 dark map style — OpenMapTiles schema (docs/plan/map-style.md;
+ * ALive-108 v2 light map style — OpenMapTiles schema (docs/plan/map-style.md;
  * r4 palette pass documented in docs/plan/map-style-r4.md).
  *
  * Basemap chain (env → local → hosted → raster):
@@ -10,7 +10,7 @@
  *      {z}/{x}/{y}.pbf tile template.
  *   2. Local `delhi.pmtiles` in the document dir (downloaded/OBB copy) or in the
  *      app bundle — wired into the same style via the pmtiles:// protocol.
- *   3. The bundled `v2-dark.json` itself, whose source defaults to the hosted
+ *   3. The bundled `v2-light.json` itself, whose source defaults to the hosted
  *      OpenFreeMap planet tiles — identical data to the style the app already
  *      renders today, so this is a drop-in upgrade, not a regression.
  *   4. `v2RasterStyle` — last-resort raster style for the integrator to swap in
@@ -23,11 +23,11 @@
  */
 import { File, Paths } from "expo-file-system";
 import type { LayerSpecification, StyleSpecification } from "@maplibre/maplibre-react-native";
-import v2DarkJson from "./v2-dark.json";
+import v2LightJson from "./v2-light.json";
 
-/** The self-contained v2 dark style. Valid MapLibre style spec v8 object —
+/** The self-contained v2 light style. Valid MapLibre style spec v8 object —
  *  pass straight to `<Map mapStyle={…}>` (MLRN accepts objects or URLs). */
-export const v2Style = v2DarkJson as unknown as StyleSpecification;
+export const v2Style = v2LightJson as unknown as StyleSpecification;
 
 export type V2MapStyleInput = string | StyleSpecification;
 
@@ -42,7 +42,7 @@ export const V2_PMTILES_NAME = "delhi.pmtiles";
  *  on the OpenMapTiles schema (they reference `source: "openmaptiles"`).
  *
  *  `buildingLayers`: flat building fill (z≥14) + fill-extrusion (z≥15,
- *  #1E242E/#1F2630, height from `render_height`/`height`, base
+ *  #E5E2D9/#DDDAD1, height from `render_height`/`height`, base
  *  `render_min_height`, extrusion opacity 0.55 — docs/plan/map-style-r4.md).
  */
 export const buildingLayers: LayerSpecification[] = v2Style.layers.filter((l) =>
@@ -73,7 +73,7 @@ export const v2RasterStyle: StyleSpecification = {
     },
   },
   layers: [
-    { id: "raster-bg", type: "background", paint: { "background-color": "#0B0D10" } },
+    { id: "raster-bg", type: "background", paint: { "background-color": "#F5F4F0" } },
     {
       id: "raster-osm",
       type: "raster",

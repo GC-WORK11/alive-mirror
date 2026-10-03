@@ -168,7 +168,7 @@ function OnboardingSheet({
 
   return (
     <View style={ss.root} accessibilityViewIsModal>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       {/* brand mark + persistent skip — same spots on every page */}
       <View style={ss.topRow}>

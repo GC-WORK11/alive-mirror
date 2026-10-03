@@ -14,6 +14,7 @@ import {
 import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
 import { EndpointPin } from "./src/ui";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
+import { v2StyleUrl } from "./src/map/style";
 import { ReportsLayer } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
 import { fieldSources } from "./src/api/plan";
@@ -46,7 +47,9 @@ import { t } from "./src/i18n/strings";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/dark"; // OpenMapTiles dark-matter fork
+// Bundled light style — resolves local delhi.pmtiles / EXPO_PUBLIC_TILES_URL,
+// else hosted OpenFreeMap vector tiles through the same light style object.
+const STYLE_URL = v2StyleUrl();
 
 // liberty ships a few vector tiles MLRN can't parse — a native dev-only
 // console warning; nothing in our layers is involved
@@ -131,7 +134,7 @@ export default function App() {
 
   return (
     <View style={s.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
         onPress={async (f) => {
           if (!mapPickArmed) return;

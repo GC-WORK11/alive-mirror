@@ -427,7 +427,7 @@ export function DelhiToday({
       statusBarTranslucent
     >
       <View style={ss.backdrop}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         {visible ? <DelhiSheet onClose={onClose} lang={lang} /> : null}
       </View>
     </Modal>

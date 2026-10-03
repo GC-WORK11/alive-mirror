@@ -32,6 +32,7 @@ import { V2T } from "../theme";
 import type { V2Option } from "./shell/types";
 import {
   collectionsFor,
+  MAP_QUIET,
   TINT_STEP_M,
   type StripLookup,
 } from "../map/routeTint";
@@ -74,7 +75,7 @@ export function RouteTintSource({
             id="routeTint-alts-line"
             type="line"
             paint={{
-              "line-color": ["coalesce", ["get", "color"], V2T.text3],
+              "line-color": ["coalesce", ["get","color"], MAP_QUIET],
               "line-width": 3,
               "line-opacity": 0.5,
             }}
@@ -94,7 +95,7 @@ export function RouteTintSource({
             id="routeTint-sel-line"
             type="line"
             paint={{
-              "line-color": ["coalesce", ["get", "color"], V2T.text3],
+              "line-color": ["coalesce", ["get","color"], MAP_QUIET],
               "line-width": 6,
             }}
             layout={{ "line-cap": "round", "line-join": "round" }}
