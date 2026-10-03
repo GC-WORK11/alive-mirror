@@ -257,3 +257,34 @@ def test_label_shape():
     r = emissions.integrate(CAR_BS4, [span(5.0)], cold_km_done=WARM)
     assert r["label"].startswith("estimated for vehicles like yours")
     assert "petrol car" in r["label"] and "BS-IV" in r["label"]
+
+
+# --- trip_emissions: the /v2/plan preview bridge (doc 06 §3) ---------------
+
+def test_trip_emissions_metro_band():
+    r = emissions.trip_emissions("metro", distance_km=10.0, duration_s=1500)
+    # 10 pkm x 11-25 g CO2e/pkm incl. electricity = 0.11-0.25 kg
+    assert 0.11 <= r["co2_kg"]["lo"] <= r["co2_kg"]["mid"] <= r["co2_kg"]["hi"] <= 0.25 + 1e-9
+    assert r["pm25_g"]["mid"] == 0
+
+
+def test_trip_emissions_idle_surcharge():
+    km, free, jam = 8.0, 900.0, 1500.0
+    moving = emissions.trip_emissions("car", distance_km=km, duration_s=free,
+                                      freeflow_s=free)
+    stuck = emissions.trip_emissions("car", distance_km=km, duration_s=jam,
+                                     freeflow_s=free)
+    assert stuck["co2_kg"]["mid"] > moving["co2_kg"]["mid"]
+    assert stuck["breakdown"]["idle_mid"]["co2"] > 0
+
+
+def test_trip_emissions_walk_and_car_open():
+    r = emissions.trip_emissions("walk", distance_km=2.0, duration_s=1400)
+    assert r["co2_kg"]["mid"] == 0 and r["label"] == "none"
+    r = emissions.trip_emissions("car_open", distance_km=5.0, duration_s=900)
+    assert r["co2_kg"]["mid"] > 0 and r["class"] == "car"
+
+
+def test_trip_emissions_unknown_mode_raises():
+    with pytest.raises(ValueError):
+        emissions.trip_emissions("helicopter", distance_km=1.0, duration_s=60)

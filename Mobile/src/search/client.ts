@@ -67,14 +67,16 @@ export async function fetchTiers(
     t1?: RawRow[];
     t2?: RawRow[];
     results?: RawRow[];   // legacy /search shape — treated as t1
-    took_ms?: number;
+    took_ms?: number | { total?: number };
   };
   const t1raw = Array.isArray(j.t1) ? j.t1 : Array.isArray(j.results) ? j.results : [];
   const t2raw = Array.isArray(j.t2) ? j.t2 : [];
+  const tookMs = typeof j.took_ms === "number" ? j.took_ms
+    : typeof j.took_ms?.total === "number" ? j.took_ms.total : null;
   return {
     t1: t1raw.map((r) => toPlace(r, "t1")).filter((r): r is PlaceResult => r !== null),
     t2: t2raw.map((r) => toPlace(r, "t2")).filter((r): r is PlaceResult => r !== null),
-    tookMs: typeof j.took_ms === "number" ? j.took_ms : null,
+    tookMs,
   };
 }
 

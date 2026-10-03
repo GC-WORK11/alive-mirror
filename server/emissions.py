@@ -590,3 +590,43 @@ def integrate(vehicle, spans, cold_km_done=0.0):
         },
         "distance_km": round(tot_km, 3),
     }
+
+
+# plan-mode names that are not emissions classes (open windows affect dose,
+# not the tailpipe). Anything else maps to a class of the same name.
+_PREVIEW_CLASS = {"car_open": "car"}
+
+
+def trip_emissions(mode, distance_km, duration_s, freeflow_s=None,
+                   vehicle=None):
+    """Preview-path estimate for /v2/plan (doc 06 §3).
+
+    One moving span at free-flow speed plus an idle span for the
+    (traffic − free-flow) delay — the same math the live loop refines with
+    realized GNSS speed. `mode` is a plan-mode string ("car_open" → class
+    "car"); `vehicle` may carry the declared {class, fuel, year_bucket}
+    (S8 answer) — absent, we estimate for vehicles like the mode's Delhi
+    fleet prior (year "not_sure", class-default fuel).
+    """
+    vclass = _PREVIEW_CLASS.get(mode, mode)
+    if vehicle:
+        v = dict(vehicle)
+        v.setdefault("class", vclass)
+    else:
+        v = {"class": vclass, "year_bucket": "not_sure"}
+
+    dist_m = max(0.0, float(distance_km or 0.0)) * 1000.0
+    dur = max(0.0, float(duration_s or 0.0))
+    if freeflow_s is None:
+        move_s, idle_s = dur, 0.0
+    else:
+        move_s = max(0.0, float(freeflow_s))
+        idle_s = max(0.0, dur - move_s)
+    spans = [{"dist_m": dist_m, "speed_mps": dist_m / move_s if move_s else 0.0,
+              "moving": True}]
+    if idle_s > 0.0:
+        spans.append({"dist_m": 0.0, "dur_s": idle_s, "moving": False})
+
+    out = integrate(v, spans)
+    out["mode"] = mode
+    return out

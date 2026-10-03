@@ -17,7 +17,7 @@ import { ReportsLayer } from "./src/components/ReportsLayer";
 import { FiresLayer, BlackspotsLayer } from "./src/components/HazardLayers";
 import { CorridorLayer } from "./src/components/CorridorLayer";
 import { SearchBar } from "./src/components/shell/SearchBar";
-import { SearchSheet } from "./src/components/shell/SearchSheet";
+import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
 import { CompareSheet } from "./src/components/shell/CompareSheet";
 import { NavChrome } from "./src/components/shell/NavChrome";
 import { LocateButton } from "./src/components/shell/LocateButton";
@@ -53,6 +53,7 @@ export default function App() {
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ fires: false, spots: false, corridors: false });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [mapPickArmed, setMapPickArmed] = useState(false);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
@@ -114,6 +115,15 @@ export default function App() {
     <View style={s.root}>
       <StatusBar style="light" />
       <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
+        onPress={async (f) => {
+          if (!mapPickArmed) return;
+          setMapPickArmed(false);
+          const c = f.nativeEvent.lngLat;
+          if (!c) return;
+          let name = `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
+          try { const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000); if (j.name) name = j.name; } catch {}
+          flow.pick({ name, subtitle: "", lat: c[1], lon: c[0] }, "to");
+        }}
         onLongPress={async (f) => {
           const c = f.nativeEvent.lngLat;
           if (!c) return;
@@ -156,21 +166,36 @@ export default function App() {
       {phase !== "nav" && (
         <View style={s.pillWrap}>
           <SearchBar
-            value={phase === "search" ? flow.query : ""}
-            placeholder={phase === "compare" && flow.to ? flow.to.name : undefined}
-            searching={flow.searching} lang={lang}
+            label={phase === "compare" && flow.to ? flow.to.name : undefined}
+            lang={lang}
             onMenu={() => setSidebarOpen(true)}
-            onFocus={() => { if (phase !== "search") { flow.setEditWhich("to"); flow.setQuery(""); flow.setPhase("search"); } }}
-            onChange={(q) => { flow.setQuery(q); flow.doSearch(q); }}
+            onPress={() => { flow.setEditWhich("to"); flow.setPhase("search"); }}
             onClear={phase === "compare" ? flow.clearRoute : undefined} />
-          {phase === "search" && (
-            <SearchSheet query={flow.query} results={flow.results} searching={flow.searching}
-              recents={flow.recents} editWhich={flow.editWhich} from={flow.from} lang={lang}
-              onToggleWhich={() => flow.setEditWhich(flow.editWhich === "from" ? "to" : "from")}
-              onPick={flow.pick} />
-          )}
         </View>
       )}
+      <SearchScreen
+        visible={phase === "search"}
+        lang={lang}
+        userLocation={flow.from ? { lat: flow.from.lat, lon: flow.from.lon } : null}
+        onClose={() => flow.setPhase(flow.to ? "compare" : "idle")}
+        onSelect={async (sel: SearchSelection) => {
+          if (sel.type === "place") {
+            setMapPickArmed(false);
+            flow.pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
+              lat: sel.place.lat, lon: sel.place.lon }, "to");
+            return;
+          }
+          if (sel.type === "choose_on_map") {
+            flow.setPhase("idle");
+            setMapPickArmed(true);       // next map tap picks the destination
+            return;
+          }
+          const pos = await Location.getCurrentPositionAsync(
+            { accuracy: Location.Accuracy.Balanced }).catch(() => null);
+          if (pos) flow.pick({ name: t("yourLocation", lang), subtitle: "",
+            lat: pos.coords.latitude, lon: pos.coords.longitude }, "from");
+          else flow.setPhase(flow.to ? "compare" : "idle");
+        }} />
       {phase === "idle" && (
         <>
           <View style={s.locateWrap}>

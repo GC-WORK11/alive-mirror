@@ -172,6 +172,8 @@ async def search(q: str = Query(min_length=1, max_length=200),
         "bias": {"lat": blat, "lon": blon},
         "results": merged[:limit],
         "count": len(merged[:limit]),
+        "t1": t1_rows,
+        "t2": t2_rows,
         "tiers": tiers,
         "t1_engine": T1_ENGINE,
         "t2": ("ok" if t2_task is not None else

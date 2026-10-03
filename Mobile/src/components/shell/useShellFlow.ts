@@ -6,11 +6,10 @@ import { Keyboard } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { V2T } from "../../theme";
-import { localSearch } from "../../gazetteer";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notify";
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
 import { observeTrip, type CommunityTotals } from "../../community";
-import { API, DELHI, fetchJson, inNcr, normName } from "./net";
+import { API, DELHI, fetchJson, inNcr } from "./net";
 import type { CompareOption, Depart, Place, Step } from "./types";
 
 export type Phase = "idle" | "search" | "compare" | "nav";
@@ -20,10 +19,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [phase, setPhase] = useState<Phase>("idle");
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
-  const [query, setQuery] = useState("");
   const [editWhich, setEditWhich] = useState<Which>("to");
-  const [results, setResults] = useState<Place[] | null>(null);
-  const [searching, setSearching] = useState(false);
   const [options, setOptions] = useState<CompareOption[]>([]);
   const [selected, setSelected] = useState(0);
   const [depart, setDepart] = useState<Depart>(null);
@@ -36,35 +32,12 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [stepsOpen, setStepsOpen] = useState(false);
   const [navDose, setNavDose] = useState(0);
   const [receipt, setReceipt] = useState<{ doseUg: number; savedUg: number } | null>(null);
-  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchSeq = useRef(0);
   const navDoseRef = useRef(0);
 
-  /* ---- search: instant local gazetteer under a debounced remote merge ---- */
-  const doSearch = useCallback((text: string) => {
-    if (debounce.current) clearTimeout(debounce.current);
-    if (text.trim().length < 2) { setResults(null); setSearching(false); return; }
-    const bias = from ?? { lat: DELHI[1], lon: DELHI[0] };
-    const local = localSearch(text, bias, 8);
-    setResults(local);
-    setSearching(true);
-    const seq = ++searchSeq.current;
-    debounce.current = setTimeout(async () => {
-      try {
-        const j = await fetchJson(
-          `${API}/search?q=${encodeURIComponent(text)}&limit=8&lat=${bias.lat}&lon=${bias.lon}`, 8000);
-        if (seq !== searchSeq.current) return;
-        const remote: Place[] = j.results ?? [];
-        const seen = new Set(remote.map((r) => `${normName(r.name)}|${r.lat.toFixed(3)}`));
-        setResults([...remote, ...local.filter((l) => !seen.has(`${normName(l.name)}|${l.lat.toFixed(3)}`))].slice(0, 10));
-      } catch { /* local answers are already on screen */ }
-      finally { if (seq === searchSeq.current) setSearching(false); }
-    }, 160);
-  }, [from]);
-
+  /* search itself lives in src/screens/SearchScreen (S2: T0 on-device +
+     cancellable server tiers); this hook owns the phases around it. */
   const pick = useCallback(async (p: Place, which?: Which) => {
     Keyboard.dismiss();
-    setResults(null);
     if ((which ?? editWhich) === "from") {
       setFrom(p);
       setPhase(to ? "compare" : "search");
@@ -224,20 +197,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
       .map(({ o }) => ({ type: "Feature" as const, properties: {}, geometry: o.geometry })),
   }), [options, selected]);
 
-  const recents = useMemo<Place[]>(() => {
-    const seen = new Set<string>(); const out: Place[] = [];
-    for (let i = trips.length - 1; i >= 0 && out.length < 6; i--) {
-      for (const c of [{ name: trips[i].to, lat: trips[i].toLat, lon: trips[i].toLon },
-                       { name: trips[i].from, lat: trips[i].fromLat, lon: trips[i].fromLon }]) {
-        if (c.lat == null || c.lon == null || seen.has(c.name)) continue;
-        seen.add(c.name);
-        out.push({ name: c.name, subtitle: "", lat: c.lat, lon: c.lon });
-        if (out.length >= 6) break;
-      }
-    }
-    return out;
-  }, [trips]);
-
   const armDailyBrief = useCallback(async (): Promise<boolean> => {
     if (!(await requestPerms())) return false;
     const p = to ?? from ?? { lat: DELHI[1], lon: DELHI[0] };
@@ -259,11 +218,11 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const reloadTrips = useCallback(() => { loadTrips().then(setTrips).catch(() => {}); }, []);
 
   return {
-    phase, setPhase, from, setFrom, to, setTo, query, setQuery,
-    editWhich, setEditWhich, results, searching, options, selected, setSelected,
+    phase, setPhase, from, setFrom, to, setTo,
+    editWhich, setEditWhich, options, selected, setSelected,
     depart, notified, trips, setTrips, community, setCommunity, follow, setFollow,
     loadingRoute, steps, stepsOpen, setStepsOpen, navDose, receipt, setReceipt,
-    doSearch, pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
-    routeSegs, altSegs, recents, reloadTrips,
+    pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
+    routeSegs, altSegs, reloadTrips,
   };
 }

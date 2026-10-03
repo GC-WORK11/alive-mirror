@@ -28,6 +28,7 @@ Mobile/ios/DerivedData/
 .venv312/
 __pycache__/
 *.pyc
+uv.lock
 
 # env / secrets
 .env
