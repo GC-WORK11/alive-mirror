@@ -394,3 +394,35 @@ def test_integrate_dose_falls_back_on_error(monkeypatch):
                   "to": {"lat": KB[0], "lon": KB[1]}, "vehicle": "car"})
     car = [o for o in body["options"] if o["mode"] == "car"][0]
     assert car["dose"]["mid"] is not None    # exposure.dose took over
+
+
+# --- service-area gate (the ECS wedge regression guard) -------------------------
+def test_plan_rejects_out_of_area_before_any_fetch(monkeypatch):
+    """SF→Delhi: the request that wedged the ECS task on E2E — public
+    OSRM returns a 9,983 km / 94k-vertex 'route' and the dose loop over
+    it starved the event loop past every health check. Must fail fast
+    with a structured error without a single upstream call."""
+    calls = []
+    async def spy(*a, **k):
+        calls.append(a)
+        return None
+    monkeypatch.setattr(deps, "osrm_route", spy)
+    monkeypatch.setattr(deps, "field_refresh", spy)
+    body = _post({"from": {"lat": 37.79, "lon": -122.41},
+                  "to": {"lat": CP[0], "lon": CP[1]}, "vehicle": "auto"})
+    assert body["options"] == []
+    assert "outside service area" in body["error"]
+    assert not calls, "out-of-area OD must never reach an upstream call"
+
+
+def test_plan_edge_of_area_still_serves(monkeypatch):
+    """Jaipur-side OD inside the 2° margin: gate must not over-reject."""
+    calls = []
+    async def spy(*a, **k):
+        calls.append(a)
+        return None
+    monkeypatch.setattr(deps, "osrm_route", spy)
+    body = _post({"from": {"lat": 26.90, "lon": 75.80},   # Jaipur
+                  "to": {"lat": CP[0], "lon": CP[1]}, "vehicle": "auto"})
+    assert "outside service area" not in (body.get("error") or "")
+    assert calls, "in-area OD should reach the router"
