@@ -342,6 +342,42 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
               </Text>
             ) : null}
 
+            {/* the next 12 hours — live-anchored CAMS forecast, real
+                hourly values; omitted when the horizon is cold */}
+            {(() => {
+              const hrs = data.next_hours;
+              if (!hrs || hrs.length < 2) return null;
+              const max = Math.max(...hrs.map((x) => x.pm25), 1);
+              return (
+                <>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                    {t("cityForecastTitle", lang)}
+                  </Text>
+                  <View style={ss.fcRow}>
+                    {hrs.map((x) => (
+                      <View key={x.h} style={ss.fcCol}>
+                        <Text {...DYNAMIC_TYPE} style={[ss.fcVal,
+                                     { fontFamily: fam(lang, "reg") }]}>
+                          {x.h % 3 === 0 ? `${Math.round(x.pm25)}` : ""}
+                        </Text>
+                        <View style={[ss.fcBar,
+                              { height: 4 + Math.round(28 * x.pm25 / max) }]} />
+                        <Text {...DYNAMIC_TYPE} style={[ss.fcHr,
+                                     { fontFamily: fam(lang, "reg") }]}>
+                          {x.h === 0 ? t("cityForecastNow", lang)
+                                    : x.h % 3 === 0 ? `+${x.h}h` : ""}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text {...DYNAMIC_TYPE} style={[ss.speciesNote,
+                               { fontFamily: fam(lang, "reg") }]}>
+                    {t("cityForecastNote", lang)}
+                  </Text>
+                </>
+              );
+            })()}
+
             {/* measured streets — k>=3 aggregates, heaviest first */}
             <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
               {t("cityStreetsTitle", lang)}
@@ -617,6 +653,26 @@ const ss = StyleSheet.create({
     fontSize: V2Type.label,
     marginHorizontal: 18,
     marginTop: 2,
+  },
+  fcRow: {
+    flexDirection: "row",
+    marginHorizontal: 18,
+    marginTop: 8,
+    alignItems: "flex-end",
+  },
+  fcCol: { flex: 1, alignItems: "center" },
+  fcVal: { color: V2T.text2, fontSize: V2Type.label, height: 15 },
+  fcBar: {
+    width: 10,
+    borderRadius: 3,
+    backgroundColor: V2T.accent,
+    marginTop: 2,
+  },
+  fcHr: {
+    color: V2T.text3,
+    fontSize: V2Type.label,
+    height: 15,
+    marginTop: 3,
   },
 
   whyBtn: {

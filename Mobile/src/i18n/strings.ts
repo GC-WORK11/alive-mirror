@@ -127,6 +127,9 @@ const en = {
   citySpeciesNote: "city mean, µg/m³ — measured every 15 minutes",
   cityTypicalLine:
     "running {pct}% vs the decade norm of {med} µg/m³ for this hour",
+  cityForecastTitle: "the next 12 hours",
+  cityForecastNote: "CAMS forecast anchored to the live field, µg/m³",
+  cityForecastNow: "now",
   cityStreetsTitle: "streets travellers crossed",
   cityEmptyStreets: "nothing to show yet — a street appears after 3+ travellers cross it in 3 days",
   cityHeavier: "heavier",
@@ -396,6 +399,9 @@ const hi: Record<StringKey, string> = {
   citySpeciesNote: "शहर का औसत, µg/m³ — हर 15 मिनट ताज़ा",
   cityTypicalLine:
     "इस समय के दशक-औसत {med} µg/m³ की तुलना में {pct}%",
+  cityForecastTitle: "अगले 12 घंटे",
+  cityForecastNote: "CAMS पूर्वानुमान, लाइव फ़ील्ड से जुड़ा, µg/m³",
+  cityForecastNow: "अभी",
   cityStreetsTitle: "जिन सड़कों से यात्री गुज़रे",
   cityEmptyStreets: "अभी दिखाने को कुछ नहीं — 3+ यात्रियों के 3 दिन में गुज़रने पर सड़क दिखती है",
   cityHeavier: "ज़्यादा धुआँ",
