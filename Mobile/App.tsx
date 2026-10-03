@@ -277,9 +277,12 @@ function AppInner() {
         <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[74.75, 26.15, 79.95, 30.98]}
           trackUserLocation={flow.follow ? "default" : undefined}
           onTrackUserLocationChange={(e) => { if (!e.nativeEvent.trackUserLocation) flow.setFollow(false); }} />
-        {/* mounted only while locating — a permanent subscription idles
-            the GPS chip + animation loop for nothing (perf-r4) */}
-        {hasLoc && (phase === "nav" || flow.follow) && <UserLocation animated accuracy />}
+        {/* mounted once we have a fix and left mounted — unmounting the
+            location puck pulls its native layer mid-draw (same upstream
+            sim crash class as route sources/markers). The small idle-GPS
+            cost beats a remove-during-render race; always-on dot matches
+            normal map UX anyway. */}
+        {hasLoc && <UserLocation animated accuracy />}
         {layers.corridors && <CorridorLayer corridors={flow.community?.top_corridors ?? null} />}
         <ReportsLayer reports={reports} />
         {layers.fires && <FiresLayer fires={fires} />}
