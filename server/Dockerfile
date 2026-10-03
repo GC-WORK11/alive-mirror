@@ -29,6 +29,11 @@ COPY core/CMakeLists.txt core/bindings.cpp ./
 COPY core/include ./include
 COPY core/src ./src
 COPY core/tools ./tools
+# tools/gen_ef_table.py imports ref_series (core/) which lazy-imports
+# server/emissions.py — the generated EF table is bit-identical to the
+# Python chain, so both must exist inside the build stage.
+COPY core/*.py ./
+COPY emissions.py /build/emissions.py
 
 # FetchContent clones pybind11 v2.13.6 (pinned tag in CMakeLists.txt) — git +
 # network needed at build time only. Release/-O3/-fno-fast-math are set by
