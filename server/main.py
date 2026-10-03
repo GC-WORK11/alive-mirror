@@ -779,6 +779,10 @@ class _ForecastSurface:
         self._h = hours_ahead
 
     def value(self, lat: float, lon: float, param: str = "pm2_5") -> Optional[float]:
+        # the forecast horizon is PM2.5-only — another species gets an
+        # honest empty layer, not pm2.5 wearing the wrong label
+        if param != "pm2_5":
+            return None
         return FORECAST.pm25(lat, lon, self._h)
 
     def nearest_sample_km(self, lat: float, lon: float) -> float:
@@ -787,16 +791,23 @@ class _ForecastSurface:
 
 @app.get("/grid")
 async def field_grid(cells: int = Query(default=22, le=40),
-                     h: Optional[int] = Query(default=None, ge=0, le=120)):
-    """The live PM2.5 surface as GeoJSON cells — the map's colour layer.
-    ?h=N (0..120) scrubs the surface into the forecast horizon so the app
-    can animate where the plume goes. Confidence per cell degrades with
-    distance to the nearest sample."""
+                     h: Optional[int] = Query(default=None, ge=0, le=120),
+                     param: str = Query(default="pm2_5")):
+    """The live surface as GeoJSON cells — the map's colour layer.
+    ?h=N (0..120) scrubs PM2.5 into the forecast horizon so the app can
+    animate where the plume goes; ?param= serves another species layer
+    (whitelisted to the pollutants the field actually ingests — a name
+    it doesn't serve returns an honest empty collection). Confidence
+    per cell degrades with distance to the nearest sample."""
+    from airfield import POLLUTANTS
+    species = [p.strip() for p in POLLUTANTS.split(",")]
+    if param not in species:
+        param = "pm2_5"
     if h is not None:
         await FORECAST.refresh(http())
-        return grid.as_geojson(_ForecastSurface(h), cells)
+        return grid.as_geojson(_ForecastSurface(h), cells, param)
     await FIELD.refresh(http())
-    return grid.as_geojson(FIELD, cells)
+    return grid.as_geojson(FIELD, cells, param)
 
 
 @app.post("/observe")
