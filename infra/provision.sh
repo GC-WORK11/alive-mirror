@@ -10,7 +10,12 @@
 #     alive108-validate-weekly    cron(0 20 ? * SUN *)     (Sun 20:00 UTC = Mon 01:30 IST)
 #   CloudWatch dashboard ALive-108   (infra/dashboard.json)
 #   Alarms: field-age>45min, 5xx>1% (+ SNS topic alive108-ops)
-#   Budget alive108-monthly          80% of ${MONTHLY_BUDGET_USD:-50}
+#   Budget alive108-monthly          80% of ${ALIVE_MONTHLY_BUDGET_USD:-50}
+#                                    (legacy env MONTHLY_BUDGET_USD also read;
+#                                    OPS_EMAIL adds a direct EMAIL subscriber)
+#   Secrets Manager scaffolds        alive108/openaq, alive108/cpcb — created
+#                                    with placeholder {"api_key":"REPLACE_ME"};
+#                                    fill real values out-of-band (runbook §4)
 #   Amazon Location API key alive108-app  scoped actions + ${LOCATION_KEY_DAYS:-90}d expiry
 #
 # Scheduler targets are STUBS unless you export real ARNs:
@@ -20,13 +25,15 @@
 #
 # Usage:
 #   ./infra/provision.sh [--dry-run] [--glacier] [--region REGION]
-# Env: AWS_REGION, MONTHLY_BUDGET_USD, GLACIER_DAYS, LOCATION_KEY_DAYS,
+#   DRY_RUN=1 ./infra/provision.sh   # same as --dry-run: prints, never calls AWS
+# Env: AWS_REGION, ALIVE_MONTHLY_BUDGET_USD (or MONTHLY_BUDGET_USD),
+#      GLACIER_DAYS, LOCATION_KEY_DAYS,
 #      LOCATION_KEY_RESOURCES (comma-sep ARNs), OPS_EMAIL,
 #      INGEST_TARGET_ARN, ROLLUP_TARGET_ARN, VALIDATE_TARGET_ARN, SCHEDULER_ROLE_ARN.
 set -euo pipefail
 
 REGION="${AWS_REGION:-ap-south-1}"
-DRY_RUN=0
+DRY_RUN="${DRY_RUN:-0}"
 GLACIER=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -50,7 +57,7 @@ LOC_KEY="alive108-app"
 TAGS="Project=ALive-108"
 GLACIER_DAYS="${GLACIER_DAYS:-90}"
 LOCATION_KEY_DAYS="${LOCATION_KEY_DAYS:-90}"
-MONTHLY_BUDGET_USD="${MONTHLY_BUDGET_USD:-50}"
+MONTHLY_BUDGET_USD="${ALIVE_MONTHLY_BUDGET_USD:-${MONTHLY_BUDGET_USD:-50}}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ACCOUNT: real one from STS, or a readable placeholder under --dry-run.
@@ -205,6 +212,11 @@ run aws cloudwatch put-metric-alarm \
 
 note "budget: $BUDGET_NAME — alert at 80% of \$${MONTHLY_BUDGET_USD}/mo"
 # Budgets is a global service — its only endpoint is us-east-1.
+# Subscribers: SNS topic always; OPS_EMAIL adds a direct EMAIL subscriber.
+BUDGET_SUBS='{"SubscriptionType":"SNS","Address":"'"$TOPIC_ARN"'"}'
+if [ -n "${OPS_EMAIL:-}" ]; then
+  BUDGET_SUBS="$BUDGET_SUBS"',{"SubscriptionType":"EMAIL","Address":"'"$OPS_EMAIL"'"}'
+fi
 if check aws budgets describe-budget --region us-east-1 \
      --account-id "$ACCOUNT" --budget-name "$BUDGET_NAME"; then
   note "exists — skip create"
@@ -216,14 +228,47 @@ else
     }' \
     --notifications-with-subscribers '[
       {"Notification":{"NotificationType":"ACTUAL","ComparisonOperator":"GREATER_THAN","Threshold":80,"ThresholdType":"PERCENTAGE"},
-       "Subscribers":[{"SubscriptionType":"SNS","Address":"'"$TOPIC_ARN"'"}]}
+       "Subscribers":['"$BUDGET_SUBS"']}
     ]' \
     --resource-tags '[{"Key":"Project","Value":"ALive-108"}]' || \
   note "budget create failed (budgets API needs us-east-1 endpoint + billing access)"
 fi
 
+# -------------------------------------------- Secrets Manager scaffolds
+# Placeholder values ONLY — {"api_key":"REPLACE_ME"}. Never put real keys in
+# this script or the repo; fill them out-of-band (runbook §4). Creating the
+# entries here means the ECS task def can reference them and nothing crashes
+# before the owner's keys land — the app must treat REPLACE_ME as missing.
+note "Secrets Manager scaffolds alive108/openaq + alive108/cpcb (REPLACE_ME placeholders)"
+secret_scaffold() { # $1 secret name  $2 what-it-is-for
+  local name="$1" purpose="$2"
+  if check aws secretsmanager describe-secret --secret-id "$name"; then
+    note "exists — skip create (rotate: aws secretsmanager put-secret-value)"
+  else
+    run aws secretsmanager create-secret --name "$name" \
+      --description "ALive-108: $purpose — REPLACE_ME placeholder, set real value out-of-band" \
+      --secret-string '{"api_key":"REPLACE_ME"}' \
+      --tags Key=Project,Value=ALive-108
+  fi
+}
+secret_scaffold "alive108/openaq" "OpenAQ v3 API key (env OPENAQ_API_KEY in the task def)"
+secret_scaffold "alive108/cpcb"  "data.gov.in / CPCB hourly station feed key"
+
 # ------------------------------------------------------ Amazon Location key
+# SPEND-LIMIT GUIDANCE (owner blocker — plan 00 open item 3):
+# Amazon Location has NO per-key spend cap. The only guardrails are:
+#   1. AllowActions scoped below (maps/places/routes only, no geofences etc.)
+#   2. AllowResources — export LOCATION_KEY_RESOURCES="arn:aws:geo:.../map/…,…/place-index/…,…/route-calculator/…"
+#      before launch; "*" is demo-only.
+#   3. The alive108-monthly AWS Budget above — the real money stop.
+#   4. A usage alarm: CW billing metric EstimatedCharges filtered to the
+#      Location service (us-east-1 only) — wire it if the owner sets a
+#      dedicated Location cap.
+# Free tier: 500k tiles / 10k suggest / 20k geocode / 10k routes per month,
+# 3 months only. A public launch blows past it — demo key only until the
+# owner approves the spend cap.
 note "Amazon Location API key $LOC_KEY (restricted actions, ${LOCATION_KEY_DAYS}d expiry)"
+note "spend guardrails: action-scoped key + LOCATION_KEY_RESOURCES + $BUDGET_NAME budget"
 LOC_RESOURCES="${LOCATION_KEY_RESOURCES:-*}"
 if [ "$LOC_RESOURCES" = "*" ]; then
   note "LOCATION_KEY_RESOURCES unset -> AllowResources=[\"*\"]; tighten for launch"
