@@ -135,6 +135,10 @@
     text-transform:uppercase;padding:4px 10px;border-radius:99px;cursor:pointer;
     border:1px solid var(--hair);background:transparent;color:var(--ink3)}
   .fmsel button.on{border-color:var(--ink);color:var(--ink);background:var(--surface2,#f2f4f7)}
+  .fmscrub{display:flex;align-items:center;gap:10px;margin-bottom:10px;
+    font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em}
+  .fmscrub input{flex:1;accent-color:var(--ink);height:3px}
+  .fmscrub span{min-width:44px;text-transform:uppercase}
   .pipe{display:grid;grid-template-columns:repeat(6,1fr)}
   .pipe .st{padding:15px 14px 13px;border-left:1px solid var(--hair)}
   .pipe .st:first-child{border-left:none}
@@ -198,6 +202,10 @@
   <h2>the live field <em>the surface every route breathes through — painted from the same cells the app tints</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="fmsel"></div>
+    <div class="fmscrub" id="fmscrub">
+      <input type="range" id="fmh" min="0" max="11" step="1" value="0">
+      <span id="fmh-lbl">now</span>
+    </div>
     <canvas id="fieldmap"></canvas>
     <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
   </div>
@@ -494,18 +502,34 @@ async function tick(){
 const FM_SPECIES=[['pm2_5','pm2.5'],['pm10','pm10'],
   ['nitrogen_dioxide','no₂'],['ozone','o₃'],
   ['carbon_monoxide','co'],['sulphur_dioxide','so₂'],['us_aqi','us aqi']];
-let FM_PARAM='pm2_5',FM_FIRES=null,FM_WIND=null;
+let FM_PARAM='pm2_5',FM_FIRES=null,FM_WIND=null,FM_H=0,FM_BOUND=false;
 function renderFmSel(){
   $('fmsel').innerHTML=FM_SPECIES.map(([p,l])=>
     `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('');
 }
 async function fmPick(p){FM_PARAM=p;renderFmSel();await paintFieldMap(p);}
+/* forecast scrub — /grid?h=N re-serves the cams horizon anchored to the
+   live field; pm2.5 only (other species have no forecast surface) */
+function syncScrub(){
+  const on=FM_PARAM==='pm2_5';
+  $('fmscrub').style.display=on?'':'none';
+  if(!on&&FM_H){FM_H=0;$('fmh').value=0;$('fmh-lbl').textContent='now'}
+}
+function bindScrub(){
+  if(FM_BOUND)return;FM_BOUND=true;
+  $('fmh').addEventListener('input',async e=>{
+    FM_H=+e.target.value;
+    $('fmh-lbl').textContent=FM_H===0?'now':`+${FM_H}h`;
+    await paintFieldMap(FM_PARAM);
+  });
+}
 
 async function paintFieldMap(param){
   const cv=$('fieldmap');if(!cv)return;
-  if(!$('fmsel').children.length)renderFmSel();
+  if(!$('fmsel').children.length){renderFmSel();bindScrub()}
+  syncScrub();
   try{
-    const g=await getJSON(`/grid?cells=28&param=${param}`);
+    const g=await getJSON(`/grid?cells=28&param=${param}${FM_H?`&h=${FM_H}`:''}`);
     const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
     const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,ASP=0.879;   /* cos(28.6°) */
     const w=cv.parentElement.clientWidth-28;
@@ -578,9 +602,11 @@ async function paintFieldMap(param){
     const unit=param==='us_aqi'?'':' µg/m³';
     const windTxt=(FM_WIND&&FM_WIND.speed_kmh!=null)
       ?` · wind ${Math.round(FM_WIND.speed_kmh)} km/h from ${Math.round(FM_WIND.from_deg??0)}° — the arrow is where smoke drifts`:'';
+    const hTag=FM_H?`<b style="color:var(--ink)">forecast +${FM_H}h</b> · `:'';
+    const hNote=FM_H?'cams horizon anchored to the live field':'faded cells sit farther from a measured sample';
     $('fieldmap-sub').innerHTML=vals.length
-      ?`${fmt(vals.length)} real cells · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
-       `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · faded cells sit farther from a measured sample — never a guess`+
+      ?`${hTag}${fmt(vals.length)} real cells · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
+       `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · ${hNote} — never a guess`+
        (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fire detections plotted${FM_FIRES.length>plotted?` (${fmt(FM_FIRES.length-plotted)} more outside this view)`:''}`:'')+windTxt
       :`${label} — the field serves no ${label} cells right now`;
   }catch(e){
