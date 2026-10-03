@@ -35,22 +35,34 @@ def field_view(src, coverage_km: float):
 
 
 _SEARCH_IDX = None
+_SEARCH_PIDS: list = []
 
 
 def search_index():
-    """T1 place index over the bundled gazetteer — alive_core.SearchIndex
-    when the extension loads, PySearchIndex (identical semantics)
-    otherwise. Built once: 26k+ entries, alias-expanded."""
-    global _SEARCH_IDX
+    """T1 place index over the gazetteer+corpus universe — the same
+    sources v2/gazetteer resolves (first readable file of each wins, so
+    an image shipping only data/corpus still builds). alive_core.
+    SearchIndex when the extension loads, PySearchIndex (identical
+    semantics) otherwise. Built once: ~45k entries, alias-expanded."""
+    global _SEARCH_IDX, _SEARCH_PIDS
     if _SEARCH_IDX is None:
+        entries = alive_core_ref.entries_from_gazetteer()
+        _SEARCH_PIDS = [e["pid"] for e in entries]
         _SEARCH_IDX = alive_core_ref.get_search_index(
-            alive_core_ref.entries_from_gazetteer(), prefer_cpp=True)
+            entries, prefer_cpp=True)
     return _SEARCH_IDX
 
 
 def search(q, lat=None, lon=None, limit=8):
-    """/v2/search T1 — index.query on whichever impl loaded."""
-    return search_index().query(q, lat, lon, limit)
+    """/v2/search T1 — index.query on whichever impl loaded. Index ids
+    are positions (uint32 for the C++ binding); remap to the resolvable
+    `pid` (gaz:<idx>/cor:<osm-id>) the gazetteer engine emits."""
+    hits = search_index().query(q, lat, lon, limit)
+    for h in hits:
+        i = h.get("id")
+        if isinstance(i, int) and 0 <= i < len(_SEARCH_PIDS):
+            h["id"] = _SEARCH_PIDS[i]
+    return hits
 
 
 class KrigeField:

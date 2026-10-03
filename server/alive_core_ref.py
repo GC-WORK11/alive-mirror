@@ -47,6 +47,21 @@ ALIASES_PATH = os.path.join(_HERE, "data", "aliases.json")
 GAZETTEER_PATH = os.path.abspath(
     os.path.join(_HERE, "..", "Mobile", "assets", "delhi-gazetteer.json"))
 
+# Same source list v2/gazetteer resolves (kept in sync deliberately):
+# env override, the app's bundled gazetteer, the server-local copy.
+# The image ships only the corpus under server/data — a hard-coded
+# single path is why the deployed index couldn't build at all.
+GAZETTEER_PATHS = [
+    os.environ.get("ALIVE_GAZETTEER", ""),
+    GAZETTEER_PATH,
+    os.path.join(_HERE, "data", "delhi-gazetteer.json"),
+]
+CORPUS_PATHS = [
+    os.environ.get("ALIVE_CORPUS", ""),
+    os.path.join(_HERE, "data", "corpus", "delhi-corpus.jsonl"),
+    os.path.join(_HERE, "data", "corpus", "delhi-corpus-sample.jsonl"),
+]
+
 # score weights — mirror the C++ defaults (alive::Weights)
 W_PREFIX = 1.0
 W_COVERAGE = 1.0
@@ -226,24 +241,88 @@ def load_aliases(path: Optional[str] = None) -> dict[str, list[list[str]]]:
     return table
 
 
-def entries_from_gazetteer(path: Optional[str] = None) -> list[dict]:
-    """Map Mobile/assets/delhi-gazetteer.json rows to index entries."""
-    if path is None:
-        path = GAZETTEER_PATH
-    with open(path, encoding="utf-8") as f:
-        raw = json.load(f)
-    return [
-        {
-            "id": i,
-            "display": e["n"],
-            "aliases": [],
-            "category": e.get("c", ""),
-            "lat": float(e["lat"]),
-            "lon": float(e["lon"]),
-            "popularity": float(e.get("k", 0.0)),
-        }
-        for i, e in enumerate(raw)
-    ]
+def entries_from_gazetteer(path: Optional[str] = None,
+                           corpus_paths: Optional[list] = None) -> list[dict]:
+    """The T1 entry universe — the same sources the gazetteer engine
+    serves: first readable gazetteer JSON + first readable corpus
+    JSONL, deduped the same way (normalized name inside a ~110 m cell
+    keeps the most popular row).
+
+    `path` pins a single gazetteer file (tests); corpus loads
+    independently of it. Missing files are skipped, not fatal — a
+    container that only ships data/corpus still gets an index."""
+    gaz_paths = [path] if path else GAZETTEER_PATHS
+    cor_paths = corpus_paths if corpus_paths is not None else CORPUS_PATHS
+
+    entries: list[dict] = []
+    for p in gaz_paths:
+        if not p or not os.path.exists(p):
+            continue
+        try:
+            with open(p, encoding="utf-8") as f:
+                raw = json.load(f)
+        except (OSError, ValueError):
+            continue
+        for i, e in enumerate(raw):
+            entries.append({
+                "id": i,  # place-holder; reassigned to position below
+                "pid": f"gaz:{i}",
+                "display": e["n"],
+                "aliases": [],
+                "category": e.get("c", ""),
+                "lat": float(e["lat"]),
+                "lon": float(e["lon"]),
+                "popularity": float(e.get("k", 0.0)),
+            })
+        break  # first readable gazetteer file wins
+
+    for p in cor_paths:
+        if not p or not os.path.exists(p):
+            continue
+        try:
+            fh = open(p, encoding="utf-8")
+        except OSError:
+            continue
+        with fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    continue
+                if e.get("lat") is None or e.get("lon") is None \
+                        or not e.get("display"):
+                    continue
+                entries.append({
+                    "id": 0,
+                    "pid": f"cor:{e.get('id')}",
+                    "display": e["display"],
+                    "aliases": list(e.get("aliases") or []),
+                    "category": e.get("category") or "place",
+                    "lat": float(e["lat"]),
+                    "lon": float(e["lon"]),
+                    "popularity": float(e.get("popularity") or 0.0),
+                })
+        break  # first readable corpus file wins
+
+    # gazetteer dedupe: same normalized name inside a ~110 m cell keeps
+    # the most popular row (corpus ships near-duplicate place rows)
+    best: dict = {}
+    for en in entries:
+        key = (tuple(normalize(en["display"])),
+               round(en["lat"], 3), round(en["lon"], 3))
+        prev = best.get(key)
+        if prev is None or en["popularity"] > prev["popularity"]:
+            best[key] = en
+    entries = list(best.values())
+    # `id` = the entry's position (C++ Entry.id is uint32 — corpus string
+    # ids can't cross the binding); `pid` keeps the resolvable wire id
+    # (gaz:<idx>/cor:<osm-id>, the same schemes /v2/place speaks).
+    for pos, en in enumerate(entries):
+        en["id"] = pos
+    return entries
 
 
 # ---------------------------------------------------------------------------
