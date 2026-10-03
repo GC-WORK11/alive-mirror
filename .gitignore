@@ -40,3 +40,6 @@ server/data/community.json
 
 # GTFS transit feed cache (downloaded on demand, refreshed weekly)
 server/data/gtfs/
+
+# local agent worktrees
+.wt/

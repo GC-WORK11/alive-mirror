@@ -1,0 +1,138 @@
+// String table — Hindi + English from day one (docs/plan/02 §principle 6).
+// Every consumer-facing string lives here, never hard-coded in components.
+// Keys are stable identifiers; add new keys to BOTH `en` and `hi`.
+
+const en = {
+  searchPlaceholder: "Where to?",
+  chooseOnMap: "Choose on map",
+  yourLocation: "Your location",
+  directions: "Directions",
+  saveAsHome: "Save as Home",
+  saveAsWork: "Save as Work",
+  share: "Share",
+  outsideDelhi: "outside Delhi — breath estimates not available",
+  start: "Start",
+  end: "End",
+  lightestOnBoth: "lightest on both",
+  lightestForYou: "lightest for you",
+  lightestForDelhi: "lightest for Delhi",
+  findingNewWay: "Finding a new way…",
+  youreHere: "You're here.",
+  youBreathed: "You breathed",
+  ridePutOut: "Your ride put out",
+  lessThanByAuto: "less than by auto",
+  done: "Done",
+  howWeGotThis: "How we got this",
+  // vehicle question (S8)
+  vehicleQ1: "What do you usually ride?",
+  vehicleQ2: "Fuel?",
+  vehicleQ3: "Roughly when was it bought?",
+  vehicleScooterBike: "scooter / bike",
+  vehicleCar: "car",
+  vehicleAuto: "auto",
+  vehicleCab: "cab",
+  vehicleBusMetro: "bus / metro",
+  vehicleCycleWalk: "cycle / walk",
+  fuelPetrol: "petrol",
+  fuelDiesel: "diesel",
+  fuelCNG: "CNG",
+  fuelElectric: "electric",
+  yearBefore2010: "before 2010",
+  year2010to2016: "2010–2016",
+  year2017to2019: "2017–2019",
+  year2020plus: "2020 or later",
+  yearNotSure: "not sure",
+  vehicleDone: "Got it — we'll estimate using vehicles like yours.",
+  // sidebar
+  sidebarToday: "Today",
+  sidebarThisWeek: "This week",
+  sidebarTrips: "Trips",
+  sidebarMyVehicle: "My vehicle",
+  sidebarDelhiToday: "Delhi today",
+  sidebarSavedPlaces: "Saved places",
+  sidebarSettings: "Settings",
+  sidebarHowAliveWorks: "How ALive works",
+  settingsVoice: "Voice",
+  settingsLanguage: "Language",
+  settingsUnits: "Units",
+  settingsShareData: "Share anonymous trip data",
+  settingsDeleteData: "Delete my data",
+  // live counters / breath chips
+  breathingHeavier: "breathing heavier smoke here",
+  breathingLighter: "lighter here",
+  // data age
+  updatedMinAgo: "updated {n} min ago",
+  dataFromModelOnly: "from model + satellite data — live stations reconnecting",
+} as const;
+
+export type StringKey = keyof typeof en;
+
+const hi: Record<StringKey, string> = {
+  searchPlaceholder: "कहाँ जाना है?",
+  chooseOnMap: "नक्शे पर चुनें",
+  yourLocation: "आपकी लोकेशन",
+  directions: "रास्ता",
+  saveAsHome: "घर के रूप में सेव करें",
+  saveAsWork: "काम की जगह सेव करें",
+  share: "शेयर करें",
+  outsideDelhi: "दिल्ली से बाहर — साँस का अनुमान नहीं",
+  start: "शुरू करें",
+  end: "खत्म करें",
+  lightestOnBoth: "दोनों में सबसे हल्का",
+  lightestForYou: "आपके लिए सबसे हल्का",
+  lightestForDelhi: "दिल्ली के लिए सबसे हल्का",
+  findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
+  youreHere: "आप पहुँच गए।",
+  youBreathed: "आपने साँस में लिया",
+  ridePutOut: "आपकी गाड़ी ने छोड़ा",
+  lessThanByAuto: "ऑटो से कम",
+  done: "हो गया",
+  howWeGotThis: "यह संख्या कैसे बनी",
+  vehicleQ1: "आप आमतौर पर क्या चलाते हैं?",
+  vehicleQ2: "ईंधन?",
+  vehicleQ3: "कब खरीदी थी, लगभग?",
+  vehicleScooterBike: "स्कूटर / बाइक",
+  vehicleCar: "कार",
+  vehicleAuto: "ऑटो",
+  vehicleCab: "कैब",
+  vehicleBusMetro: "बस / मेट्रो",
+  vehicleCycleWalk: "साइकिल / पैदल",
+  fuelPetrol: "पेट्रोल",
+  fuelDiesel: "डीज़ल",
+  fuelCNG: "सीएनजी",
+  fuelElectric: "इलेक्ट्रिक",
+  yearBefore2010: "2010 से पहले",
+  year2010to2016: "2010–2016",
+  year2017to2019: "2017–2019",
+  year2020plus: "2020 या बाद",
+  yearNotSure: "पता नहीं",
+  vehicleDone: "ठीक है — आप जैसी गाड़ियों के हिसाब से अनुमान लगाएँगे।",
+  sidebarToday: "आज",
+  sidebarThisWeek: "इस हफ़्ते",
+  sidebarTrips: "यात्राएँ",
+  sidebarMyVehicle: "मेरी गाड़ी",
+  sidebarDelhiToday: "आज की दिल्ली",
+  sidebarSavedPlaces: "सेव जगहें",
+  sidebarSettings: "सेटिंग्स",
+  sidebarHowAliveWorks: "ALive कैसे काम करता है",
+  settingsVoice: "आवाज़",
+  settingsLanguage: "भाषा",
+  settingsUnits: "इकाइयाँ",
+  settingsShareData: "गुमनाम यात्रा डेटा साझा करें",
+  settingsDeleteData: "मेरा डेटा मिटाएँ",
+  breathingHeavier: "यहाँ हवा में ज़्यादा धुआँ",
+  breathingLighter: "यहाँ हल्की हवा",
+  updatedMinAgo: "{n} मिनट पहले अपडेट",
+  dataFromModelOnly: "मॉडल + उपग्रह डेटा से — लाइव स्टेशन फिर जुड़ रहे हैं",
+};
+
+export type Lang = "en" | "hi";
+
+const tables: Record<Lang, Record<StringKey, string>> = { en, hi };
+
+/** Translate; interpolates {n}-style placeholders from `vars`. */
+export function t(key: StringKey, lang: Lang = "en", vars?: Record<string, string | number>): string {
+  let s: string = tables[lang][key] ?? en[key];
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+  return s;
+}

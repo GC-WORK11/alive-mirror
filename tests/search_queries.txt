@@ -1,0 +1,23 @@
+# The fixed 20-query Delhi list (docs/plan/09 Phase 1 acceptance).
+# Format: query <TAB> expected place (top-3 must contain it)
+# Coverage: malls, blocks, metro gates, restaurants, Hinglish typos, abbreviations.
+select citywalk	Select Citywalk Mall, Saket
+lajpat nagar 4	Lajpat Nagar IV
+haldiram chandni	Haldiram's, Chandni Chowk
+dlf cyber hub	DLF CyberHub, Gurugram
+chandni chok	Chandni Chowk
+cp	Connaught Place
+gk 2	Greater Kailash II
+sarojni nagar	Sarojini Nagar Market
+aiims metro	AIIMS Metro Station
+kashmere gate	Kashmere Gate / ISBT
+india gate	India Gate
+noida sec 18	Noida Sector 18
+hauz khas	Hauz Khas Village
+karol bag	Karol Bagh
+dtu	Delhi Technological University (DTU), Bawana Road
+rajiv chowk gate 5	Rajiv Chowk Metro Gate 5
+saket pvr	PVR / Select Citywalk area, Saket
+connaught plce	Connaught Place
+nehru place	Nehru Place
+vaishali metro	Vaishali Metro Station

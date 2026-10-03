@@ -53,3 +53,42 @@ export const doseColor = (avg: number | null | undefined) =>
 export const CIG_UG = 316;
 export const cigOf = (ug: number | null | undefined) =>
   ug == null ? null : Math.round((ug / CIG_UG) * 100) / 100;
+
+// ── v2 dark design system (docs/plan/03-design-system.md) ────────────────
+// New code imports from V2T. T stays until the old components are rebuilt.
+export const V2T = {
+  bg: "#0B0D10",
+  surface: "#15181D",
+  surface2: "#1E2228",
+  line: "#2A2F36",
+  text: "#F2F4F7",
+  text2: "#A3AAB5",
+  text3: "#6B7280",
+  accent: "#4C8DFF",
+  // smoke you breathe — warm ramp, light → heavy
+  breath1: "#F2C14E",
+  breath2: "#F08A3C",
+  breath3: "#E5484D",
+  // smoke your ride puts out — cool greys
+  out1: "#9AA4B2",
+  out2: "#6E7A8A",
+  out3: "#3E4754",
+  pinDest: "#E5484D",
+  // map overrides
+  mapMotorway: "#3A4049",
+  mapPrimary: "#2E333A",
+  mapMinor: "#24282E",
+  mapBuilding: "#1C2026",
+  mapWater: "#0E1A24",
+  mapPark: "#121A15",
+} as const;
+
+export const V2Type = {
+  hero: 34,
+  title: 22,
+  body: 17,
+  secondary: 15,
+  label: 13,
+} as const;
+
+export const V2Radius = { row: 12, sheet: 20, pill: 999 } as const;
