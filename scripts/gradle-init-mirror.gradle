@@ -1,0 +1,49 @@
+// Init script: work around repo.maven.apache.org returning HTTP 429 on shared
+// egress IPs. Two mechanisms:
+//  1. beforeSettings — prepend Google's Maven Central mirror + the Gradle
+//     plugin portal to every settings' pluginManagement and
+//     dependencyResolutionManagement (fires for the main settings AND for
+//     each included build's settings file, e.g. the react-native and
+//     expo-gradle-plugin builds inside node_modules).
+//  2. beforeProject — rewrite any Maven repo whose URL points at the dead
+//     host to the mirror, preserving order and keeping local file repos
+//     (hermes-engine etc.) intact. Runs per project across the composite.
+// Pass with: ./gradlew -I ../scripts/gradle-init-mirror.gradle <tasks>
+
+def mirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
+
+def rewriteUrls = { repos, owner ->
+    repos.withType(org.gradle.api.artifacts.repositories.MavenArtifactRepository).configureEach { repo ->
+        def u = repo.url?.toString() ?: ''
+        if (u.contains('repo.maven.apache.org') || u.contains('repo1.maven.org')) {
+            repo.url = owner.uri('https://maven-central.storage-download.googleapis.com/maven2/')
+        }
+    }
+}
+
+def rewrite = { project ->
+    rewriteUrls(project.repositories, project)
+    // buildscript{} blocks declare their own repo container (RN library
+    // modules like maplibre use it for kotlin-gradle-plugin).
+    rewriteUrls(project.buildscript.repositories, project)
+}
+
+gradle.beforeSettings { settings ->
+    settings.pluginManagement.repositories {
+        maven { url = uri(mirror) }
+        gradlePluginPortal()
+    }
+    settings.dependencyResolutionManagement.repositories {
+        maven { url = uri(mirror) }
+    }
+}
+
+gradle.beforeProject { project ->
+    rewrite(project)
+}
+
+gradle.projectsLoaded { g ->
+    g.rootProject.allprojects { p ->
+        rewrite(p)
+    }
+}
