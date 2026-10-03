@@ -130,6 +130,7 @@ class AirField:
         self._wx: dict = {}  # ambient weather for the safety layer
         self._source = "open-meteo/cams"
         self._station_count = 0  # live OpenAQ sensor readings blended in
+        self._stations_src = None  # "openaq" | "waqi" — which feed filled them
         self._kalman: dict = {}  # station_id → [x, P] scalar Kalman state
         self._lock = asyncio.Lock()
         self._sigma: Optional[float] = None  # krige std-dev at last query
@@ -209,7 +210,9 @@ class AirField:
                 KF.fit(self._samples)
                 self._station_count = len(stations)
                 if stations:
-                    self._source = "openaq-stations+open-meteo/cams"
+                    self._source = (
+                        f"{self._stations_src or 'openaq'}-stations"
+                        "+open-meteo/cams")
                 self._fetched_at = time.time()
                 self._lru.clear()  # live layer may take over serving now
 
@@ -276,52 +279,54 @@ class AirField:
         return out
 
     async def _grab_openaq(self, client: httpx.AsyncClient) -> list:
-        """Real government CAAQMS readings via OpenAQ v3 (X-API-Key).
+        """Real government CAAQMS readings via OpenAQ v3 (X-API-Key),
+        WAQI (WAQI_API_KEY) as the fallback source of the same CPCB/DPCC
+        instruments when OpenAQ yields nothing.
 
         The model grid interpolates between ~40 synthetic points; these are
         actual instruments measuring actual Delhi air right now. Each one
         enters the IDW with the station 3x weight and its real name, so
         near a working station the field follows the instrument, not the
         model. Returns [] without a key or on any API failure — the model
-        field stands alone as before.
+        field stands alone as before. self._stations_src records which
+        feed actually contributed ('openaq'|'waqi'|None) so the field
+        source label stays honest.
         """
-        key = os.environ.get("OPENAQ_API_KEY")
-        if not key:
-            return []
-        headers = {"X-API-Key": key}
-        locations = []
-        for attempt in range(3):
-            try:
-                r = await client.get(f"{OPENAQ}/locations", headers=headers, params={
-                    "bbox": f"{BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]}",
-                    "parameters_id": 2, "limit": 200,
-                })
-                if r.status_code == 429:
-                    await asyncio.sleep(8 * (attempt + 1))
-                    continue
-                r.raise_for_status()
-                locations = r.json().get("results", [])
-                break
-            except httpx.HTTPError:
-                return []
-
-        pm25_sensors: dict[int, dict] = {}  # sensorsId -> {"lat","lon","name"}
-        for loc in locations:
-            coords = loc.get("coordinates") or {}
-            for s in loc.get("sensors", []):
-                if (s.get("parameter") or {}).get("id") == 2:
-                    pm25_sensors[s["id"]] = {
-                        "lat": coords.get("latitude"),
-                        "lon": coords.get("longitude"),
-                        "name": loc.get("name") or f"station {loc.get('id')}",
-                        "loc_id": loc["id"],
-                    }
-        if not pm25_sensors:
-            return []
-
-        loc_ids = sorted({v["loc_id"] for v in pm25_sensors.values()})
-        sem = asyncio.Semaphore(12)
         out: list = []
+        key = os.environ.get("OPENAQ_API_KEY")
+        if key:
+            headers = {"X-API-Key": key}
+            locations = []
+            for attempt in range(3):
+                try:
+                    r = await client.get(f"{OPENAQ}/locations", headers=headers, params={
+                        "bbox": f"{BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]}",
+                        "parameters_id": 2, "limit": 200,
+                    })
+                    if r.status_code == 429:
+                        await asyncio.sleep(8 * (attempt + 1))
+                        continue
+                    r.raise_for_status()
+                    locations = r.json().get("results", [])
+                    break
+                except httpx.HTTPError:
+                    break      # fall through to the WAQI fallback below
+
+            pm25_sensors: dict[int, dict] = {}  # sensorsId -> {"lat","lon","name"}
+            for loc in locations:
+                coords = loc.get("coordinates") or {}
+                for s in loc.get("sensors", []):
+                    if (s.get("parameter") or {}).get("id") == 2:
+                        pm25_sensors[s["id"]] = {
+                            "lat": coords.get("latitude"),
+                            "lon": coords.get("longitude"),
+                            "name": loc.get("name") or f"station {loc.get('id')}",
+                            "loc_id": loc["id"],
+                        }
+            if pm25_sensors:
+
+                loc_ids = sorted({v["loc_id"] for v in pm25_sensors.values()})
+                sem = asyncio.Semaphore(12)
 
         async def latest(loc_id: int):
             async with sem:
@@ -355,7 +360,26 @@ class AirField:
                 except httpx.HTTPError:
                     pass
 
-        await asyncio.gather(*(latest(l) for l in loc_ids))
+            await asyncio.gather(*(latest(l) for l in loc_ids))
+        if out:
+            self._stations_src = "openaq"
+        else:
+            # OpenAQ keyed-out/down — WAQI republishes the same CPCB/DPCC
+            # instruments; same honesty rules (key absent or any failure
+            # leaves out empty and the model field stands alone).
+            try:
+                import ingest_waqi
+                rows = await ingest_waqi.grab_async(client)
+            except Exception:  # noqa: BLE001 — adapter contract is [] anyway
+                rows = []
+            for slat, slon, sname, vals in rows:
+                v = vals.get("pm2_5")
+                if v is None:
+                    continue
+                v = self._smooth("pm2_5", slat, slon, v)
+                out.append((slat, slon, sname, {"pm2_5": round(v, 1)}))
+            if out:
+                self._stations_src = "waqi"
         return out
 
     async def _grab_wind(self, client: httpx.AsyncClient) -> None:

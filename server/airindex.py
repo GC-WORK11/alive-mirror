@@ -621,9 +621,28 @@ def _fetch_stations_once(client) -> dict:
 
 
 def _fetch_stations(client, *, attempts=None, sleep=None) -> dict:
-    return _run_source("stations",
-                       lambda: _fetch_stations_once(client),
-                       attempts=attempts, sleep=sleep)
+    """OpenAQ first, WAQI fallback — both republish the same CPCB/DPCC
+    instruments. The fallback fires only when the primary bundle is not
+    'ok' AND WAQI_API_KEY exists; whichever produced the rows stamps the
+    bundle `source`, and the loser's status rides along as
+    openaq_status/waqi_status so the degradation is visible, not hidden."""
+    def _try():
+        b = _fetch_stations_once(client)
+        if b.get("status") == "ok" or not os.environ.get("WAQI_API_KEY"):
+            return b
+        try:
+            import ingest_waqi
+            wb = ingest_waqi.fetch(client=client)
+        except Exception as e:  # noqa: BLE001 — surface, never crash a source
+            wb = {"status": f"unavailable: {_describe_error(e)}",
+                  "source": "waqi", "fetched_at": time.time(),
+                  "stations": []}
+        if wb.get("status") == "ok":
+            wb["openaq_status"] = b.get("status")
+            return wb
+        b["waqi_status"] = wb.get("status")
+        return b
+    return _run_source("stations", _try, attempts=attempts, sleep=sleep)
 
 
 def fetch_inputs(now=None, client=None) -> dict:

@@ -1,0 +1,219 @@
+"""Unit tests for ingest_waqi + its wiring as the stations fallback —
+fully synthetic, no network.
+
+Covers: bounds->feed normalization into airindex's stations schema, the
+in-body 'error' status path (Invalid key / Over quota), per-station feed
+failures counted not hidden, all-failed -> unavailable verbatim, the
+no-key owner blocker, and the airindex OpenAQ->WAQI chain.
+
+Run from server/:  python3 -m pytest tests/test_ingest_waqi.py
+"""
+import os
+import sys
+import time
+
+import httpx
+import pytest
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_HERE))          # server/ on sys.path
+
+import airindex  # noqa: E402
+import ingest_waqi as iw  # noqa: E402
+
+NOW = 1_780_000_000.0
+KEY = "waqi-test-key"
+
+
+class FakeResp:
+    def __init__(self, status=200, payload=None):
+        self.status_code = status
+        self._payload = payload if payload is not None else {}
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            req = httpx.Request("GET", "https://api.waqi.info/x")
+            raise httpx.HTTPStatusError(
+                f"HTTP {self.status_code}", request=req,
+                response=httpx.Response(self.status_code, request=req))
+
+
+class FakeTransport:
+    def __init__(self, routes):
+        self.routes = dict(routes)
+        self.calls = []
+
+    def get(self, url, headers=None, params=None, timeout=None):
+        self.calls.append({"url": url, "params": dict(params or {})})
+        entry = self.routes[url]
+        if callable(entry):
+            return entry(dict(params or {}))
+        if isinstance(entry, list):
+            if len(entry) > 1:
+                return entry.pop(0)
+            return entry[0]
+        return entry
+
+
+BOUNDS = f"{iw.WAQI}/map/bounds/"
+
+
+def _bounds_payload(uids):
+    return {"status": "ok", "data": [
+        {"lat": 28.63 + u, "lon": 77.21 + u, "uid": u,
+         "aqi": str(150 + u),
+         "station": {"name": f"Station-{u}", "time": "x",
+                     "geo": [28.63 + u, 77.21 + u]}}
+        for u in uids]}
+
+
+def _feed_payload(name, pm25, ts_v=NOW - 60, extra=None):
+    iaqi = {"pm25": {"v": pm25}, "pm10": {"v": pm25 * 1.4}}
+    if extra:
+        iaqi.update(extra)
+    return {"status": "ok", "data": {
+        "aqi": 160, "time": {"s": "2026-10-03 07:00:00",
+                             "tz": "+05:30", "v": ts_v},
+        "city": {"name": "Delhi"}, "iaqi": iaqi,
+        "station": {"name": name}}}
+
+
+def _client(n_feeds=3, feed_map=None):
+    routes = {BOUNDS: FakeResp(200, _bounds_payload(range(n_feeds)))}
+    for u in range(n_feeds):
+        url = f"{iw.WAQI}/feed/@{u}/"
+        if feed_map and u in feed_map:
+            routes[url] = feed_map[u]
+        else:
+            routes[url] = FakeResp(
+                200, _feed_payload(f"Station-{u}", 80.0 + u))
+    return FakeTransport(routes)
+
+
+def test_fetch_normalizes_to_stations_schema():
+    c = _client(3)
+    out = iw.fetch(api_key=KEY, client=c, sleep=lambda s: None)
+    assert out["status"] == "ok" and out["source"] == "waqi"
+    assert len(out["stations"]) == 3
+    row = out["stations"][0]
+    assert set(row) >= {"lat", "lon", "name", "pm25", "ts", "station_id"}
+    assert row["pm25"] > 0 and isinstance(row["ts"], float)
+    # qc_stations must accept the shape it was designed for — it returns
+    # (survivors, dropped_report); every fresh row survives.
+    survivors, dropped = airindex.qc_stations(out["stations"], now=NOW)
+    assert len(survivors) == 3
+    assert all(not v for v in dropped.values())
+    # token rode the query params, nowhere else
+    assert all(c2["params"].get("token") == KEY for c2 in c.calls)
+
+
+def test_no_key_is_owner_blocker():
+    out = iw.fetch(api_key=None, client=_client(1))
+    assert out["status"] == "no key — owner blocker"
+    assert out["stations"] == []
+
+
+def test_inbody_error_status_surfaces_verbatim():
+    c = FakeTransport({BOUNDS: FakeResp(
+        200, {"status": "error", "data": "Invalid key"})})
+    out = iw.fetch(api_key=KEY, client=c, sleep=lambda s: None)
+    assert out["status"].startswith("unavailable:")
+    assert "Invalid key" in out["status"]
+
+
+def test_partial_feed_failure_counted_not_hidden():
+    c = _client(3, feed_map={
+        1: FakeResp(500, {})})
+    out = iw.fetch(api_key=KEY, client=c, sleep=lambda s: None)
+    assert out["status"] == "ok"
+    assert out["skipped"]["http_error"] == 1
+    assert out["feeds_failed"] == 1 and out["feed_errors"]
+    assert len(out["stations"]) == 2
+
+
+def test_all_feeds_failed_is_unavailable_not_zero_stations():
+    c = _client(2, feed_map={
+        0: FakeResp(500, {}), 1: FakeResp(500, {})})
+    out = iw.fetch(api_key=KEY, client=c, sleep=lambda s: None)
+    assert out["status"].startswith("unavailable:")
+    assert "all 2 station feeds failed" in out["status"]
+    assert out["stations"] == []
+
+
+def test_station_without_pm25_counted_and_skipped():
+    no_pm = FakeResp(200, {"status": "ok", "data": {
+        "aqi": 40, "time": {"v": NOW - 60},
+        "iaqi": {"o3": {"v": 88}}, "station": {"name": "O3-only"}}})
+    c = _client(2, feed_map={1: no_pm})
+    out = iw.fetch(api_key=KEY, client=c, sleep=lambda s: None)
+    assert out["status"] == "ok"
+    assert out["skipped"]["no_pm25"] == 1
+    assert len(out["stations"]) == 1
+
+
+def test_429_retry_then_succeed():
+    sleeps = []
+    c = FakeTransport({
+        BOUNDS: [FakeResp(429, {}), FakeResp(200, _bounds_payload([0]))],
+        f"{iw.WAQI}/feed/@0/": FakeResp(200, _feed_payload("S0", 42.0)),
+    })
+    out = iw.fetch(api_key=KEY, client=c, sleep=sleeps.append)
+    assert out["status"] == "ok"
+    assert out["retries_429"] == 1 and sleeps
+
+
+# --- airindex chain: openaq unavailable -> waqi fallback ------------------
+def test_airindex_falls_back_to_waqi(monkeypatch):
+    monkeypatch.setenv("WAQI_API_KEY", KEY)
+    monkeypatch.delenv("OPENAQ_API_KEY", raising=False)
+    c = _client(2)
+    bundle = airindex._fetch_stations(c, attempts=1, sleep=lambda s: None)
+    assert bundle["status"] == "ok" and bundle["source"] == "waqi"
+    assert bundle["openaq_status"] == "unavailable: no key"
+    assert len(bundle["stations"]) == 2
+
+
+def test_airindex_no_waqi_key_keeps_openaq_bundle(monkeypatch):
+    monkeypatch.delenv("WAQI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAQ_API_KEY", raising=False)
+    bundle = airindex._fetch_stations(
+        _client(1), attempts=1, sleep=lambda s: None)
+    assert bundle["source"] == "openaq-v3"
+    assert bundle["status"] == "unavailable: no key"
+
+
+# --- grab_async (airfield path) -------------------------------------------
+class AsyncFake:
+    def __init__(self, routes):
+        self.routes = dict(routes)
+
+    async def get(self, url, headers=None, params=None, **kw):
+        entry = self.routes[url]
+        if isinstance(entry, list):
+            if len(entry) > 1:
+                return entry.pop(0)
+            return entry[0]
+        return entry
+
+
+def test_grab_async_rows_shape(monkeypatch):
+    monkeypatch.setenv("WAQI_API_KEY", KEY)
+    c = AsyncFake({
+        BOUNDS: FakeResp(200, _bounds_payload([0, 1])),
+        f"{iw.WAQI}/feed/@0/": FakeResp(200, _feed_payload("S0", 61.5)),
+        f"{iw.WAQI}/feed/@1/": FakeResp(200, _feed_payload("S1", 72.0)),
+    })
+    import asyncio
+    rows = asyncio.run(iw.grab_async(c))
+    assert len(rows) == 2
+    lat, lon, name, vals = rows[0]
+    assert vals["pm2_5"] > 0 and isinstance(name, str) and lat and lon
+
+
+def test_grab_async_no_key_returns_empty(monkeypatch):
+    monkeypatch.delenv("WAQI_API_KEY", raising=False)
+    import asyncio
+    assert asyncio.run(iw.grab_async(AsyncFake({}))) == []
