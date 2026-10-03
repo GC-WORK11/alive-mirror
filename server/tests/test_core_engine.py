@@ -24,7 +24,9 @@ def _samples(n=30, base=28.6, lon0=77.0, spread=0.35):
 
 def test_engine_label_matches_loaded_extension():
     assert core_engine.ENGINE in ("alive_core", "python")
-    assert (core_engine.ENGINE == "alive_core") == core_engine._CPP_KRIGE
+    # label claims the extension serves somewhere (FieldView isn't
+    # eigen-gated); _CPP_KRIGE tracks the krige adapter specifically
+    assert (core_engine.ENGINE == "alive_core") == (core_engine._ac is not None)
 
 
 def test_fit_and_estimate_contract():

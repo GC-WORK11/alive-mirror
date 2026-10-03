@@ -142,6 +142,7 @@ class AirField:
         self._snap_bbox: Optional[tuple] = None  # (lon_min, lat_min, lon_max, lat_max)
         self._snap_sigma_cells: int = 0        # cells carrying an honest sigma
         self._snap_idx: Optional[dict] = None  # warmed spatial hash (bucket->cells)
+        self._snap_fv = None                   # FieldView over _snap (C++ when loadable)
         self._snap_idx_extent: tuple = (0, 0, 0, 0)  # bucket bounds for ring search
         self._load_warnings: int = 0           # corrupt/skipped snapshot files
         self._load_warn_names: list = []       # basenames of recent skips
@@ -567,6 +568,21 @@ class AirField:
             1 for _la, _lo, c in centers if c.get("sigma") is not None)
         self._lru.clear()
         self._snap_idx = self._build_idx(centers) if warm else None
+        try:
+            # rows built here, not field_rows(): a missing sigma must stay
+            # missing. FieldCell holds a double, so None rides through as
+            # NaN on both impls; sigma() maps non-finite -> None (never a
+            # fake-tight 0.0 band — test_sigma_coverage_is_said_not_implied)
+            self._snap_fv = field_view(
+                [(la, lo, float(c["pm25"]),
+                  float(c.get("lo", c["pm25"])),
+                  float(c.get("hi", c["pm25"])),
+                  float(c["sigma"]) if c.get("sigma") is not None
+                  else float("nan"))
+                 for la, lo, c in centers],
+                _SNAP_COVER_KM)
+        except Exception:
+            self._snap_fv = None   # unsupported ids (e.g. h3 absent) -> bucket idx
         out.update({"loaded": True, "path": path,
                     "built_at": field.get("built_at"),
                     "built_epoch": self._snap_epoch,
@@ -636,8 +652,13 @@ class AirField:
         key = (lat, lon)
         if key in self._lru:
             return self._lru[key]
-        cell, km = self._snap_nearest(lat, lon)
-        cell = cell if km <= _SNAP_COVER_KM else None
+        if self._snap_fv is not None:
+            # FieldView nearest_cell carries pm25/lo/hi/sigma/dist_km —
+            # every key _cell_at's readers consume
+            cell = self._snap_fv.nearest_cell(lat, lon)
+        else:
+            cell, km = self._snap_nearest(lat, lon)
+            cell = cell if km <= _SNAP_COVER_KM else None
         if len(self._lru) >= _LRU_MAX:
             self._lru.clear()
         self._lru[key] = cell
@@ -726,7 +747,15 @@ class AirField:
             if cell is None:
                 return None   # out-of-coverage: no band, no fake precision
             s = cell.get("sigma")
-            return float(s) if s is not None else None
+            # FieldView carries missing sigma as NaN -> None; a real 0.0
+            # stays 0.0 (it means the krige solve said exact, not absent)
+            if s is None:
+                return None
+            try:
+                sf = float(s)
+            except (TypeError, ValueError):
+                return None
+            return sf if math.isfinite(sf) else None
         self._concentration(lat, lon, "pm2_5")
         return self._sigma
 
@@ -826,7 +855,7 @@ def grap_indicative(pm25: Optional[float]) -> dict:
             "note": "indicative only — legal GRAP stage is declared by CAQM"}
 
 
-from core_engine import KF, ENGINE  # noqa: E402
+from core_engine import KF, ENGINE, field_view  # noqa: E402
 from community import corridor_estimate  # noqa: E402
 
 FIELD = AirField()

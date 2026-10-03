@@ -12,6 +12,7 @@ import math
 from typing import Optional
 
 import krige
+import alive_core_ref
 
 try:  # compiled extension — needs the eigen build for KrigeField
     import alive_core as _ac
@@ -21,7 +22,16 @@ except Exception:  # no .so on this interpreter — Python serves
     _ac = None
     _CPP_KRIGE = False
 
-ENGINE = "alive_core" if _CPP_KRIGE else "python"
+# alive_core when the extension serves ANY hot path (FieldView/search/
+# integrators aren't eigen-gated); krige separately reports per-adapter.
+ENGINE = "alive_core" if _ac is not None else "python"
+
+
+def field_view(src, coverage_km: float):
+    """Snapshot field view — alive_core.FieldView when the extension
+    loads, PyFieldView (identical semantics) otherwise. Wraps
+    alive_core_ref.get_field_view; raises only what it raises."""
+    return alive_core_ref.get_field_view(src, coverage_km, prefer_cpp=True)
 
 
 class KrigeField:
