@@ -156,20 +156,21 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   28.6139,77.2090`): the app reads a one-shot fix at launch; setting it
   mid-run leaves origin/distances on the stale fix until restart
 - Upstream MapLibre/RN-iOS-simulator render-thread SIGSEGV — measured
-  on this box (virtualized GPU) post-8db9635: ~6 drops in ~35 driven
-  interactions, i.e. roughly 1 in 6 map-churn commits, identical on
-  ci15 (iOS 27.0) and demo265 (iOS 26.5). Cold launches are always
-  clean (6/6); crashes cluster at sheet transitions and camera moves
-  (incl. location updates during nav — even stepped ones). Fixes
-  shipped: deferred search focus (643d696), close on keyboardDidHide
-  (6286c11→80cd965), always-mounted route sources / endpoint markers /
-  location puck (759994f→15f5adf), deferred nav teardown (c18ac92),
-  and replacing the React-Native Modal with an overlay sheet outright
-  (8db9635) — the deterministic search crash and the receipt-Done
-  crash are dead; the residual is stochastic and upstream, so a fully
-  interactive live drive on THIS box will usually drop at least once
+  on this box (virtualized GPU): ~1 in 6 map-churn commits drops,
+  identical on ci15 (iOS 27.0) and demo265 (iOS 26.5). Cold launches
+  are always clean (8/8). Fixes shipped: deferred search focus
+  (643d696), close on keyboardDidHide (6286c11→80cd965), always-mounted
+  route sources / endpoint markers / location puck
+  (759994f→15f5adf), deferred nav teardown (c18ac92), the
+  React-Native Modal replaced by an overlay sheet outright (8db9635),
+  and nav camera+puck commit batching with deferred sheet-close work
+  (14c4b95). Post-14c4b95 the nav path is verified survivable (4
+  stepped location updates + arrival→receipt clean — previously every
+  location drive crashed); the residual concentrates at sheet
+  mount/unmount commits (search-sheet open, receipt teardown)
 - If it drops to SpringBoard: relaunch — every state (consent, vehicle,
-  recents, trip ledger) persists; back on the map in ~9 seconds
+  recents, trip ledger, donated aggregates) persists; back on the map
+  in ~9 seconds
 - For a prepped show: finish onboarding + vehicle pick once before
   stage. To skip the vehicle sheets entirely, seed
   `Documents/vehicle.json` in the sim container with
