@@ -13,3 +13,9 @@ for _p in (_SERVER, os.path.join(_SERVER, "core", "build")):
 os.environ.setdefault("ALIVE_RATE_LIMIT", "0")
 # tests never spawn the 15-min ingest thread (real network builds)
 os.environ.setdefault("ALIVE_INGEST_IN_APP", "0")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "live: hits real upstreams (Open-Meteo/FIRMS); "
+        "skipped unless LIVE=1 — see tests/test_e2e_live.py")
