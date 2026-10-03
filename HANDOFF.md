@@ -9,20 +9,25 @@ small fixes — `base/v2` HEAD is `0d9b302` (all merged plus hardening).
 ## Live deployment (AWS, ap-south-1)
 
 - NLB `alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com` → ALB TG → ECS
-  Fargate service `alive108` (1 task, 1 vCPU/2 GB). Task-def `:15`, image
-  `alive108-api:0d9b3023` — C++ `alive_core` serves kriging, field views, dose
+  Fargate service `alive108` (1 task, 1 vCPU/2 GB). Task-def `:23`, image
+  `alive108-api:4a75e554` — C++ `alive_core` serves kriging, field views, dose
   sampling, emission integration, and `/v2/search` T1 (`t1_engine:"alive_core"`).
 - Deploy: `BUILD_MODE=codebuild bash scripts/deploy.sh` — zips `server/` to S3,
   CodeBuild builds+tags `:<sha>`+`:latest`, registers task-def, force-new-deploy,
   verifies TG health. ~4 min. AWS creds are org secrets (auto-injected —
-  do NOT override `AWS_*` env vars or the deploy can't auth).
-- Admin token: Secrets Manager `alive108/admin-token` (Bearer on `/admin/api*`).
-- Zero required third-party keys: CAMS/open-meteo + NASA FIRMS + OSRM demo are
-  all keyless. `OPENAQ_API_KEY` secret exists but the stored key is dead (401) —
-  stations honestly read 0; WAQI adapter (`ingest_waqi.py`) activates if a free
-  aqicn.org token is ever provided (`WAQI_API_TOKEN`).
-- Aggregates are per-task memory (DynamoDB only when `AGG_TABLE`+creds) —
-  redeploys reset community stats; donate a trip before demoing admin.
+  do NOT override `AWS_*` env vars or the deploy can't auth). Commits only —
+  `git archive HEAD:server` means uncommitted work never ships.
+- Admin token: Secrets Manager `alive108/admin-token`
+  (`Authorization: Bearer` on `/admin/api*`).
+- Zero required third-party keys: CAMS/open-meteo (10 species, 15-min refresh)
+  + NASA FIRMS + OSRM demo are all keyless. `OPENAQ_API_KEY` secret exists but
+  the stored key is dead (401) — stations honestly read 0; WAQI adapter
+  (`ingest_waqi.py`) activates if a free aqicn.org token is ever provided.
+- Aggregates + device ledger are DURABLE — DynamoDB `alive108-agg`
+  (`AGG_TABLE` set on the task; 30-day cell TTL). Donations survive deploys.
+- `/v2/plan` error payloads carry stable `code:"outside_service_area"`;
+  dose `coverage` (0-1) flows to the wire; `/v2/city` adds `species{}` +
+  `typical` (decade-norm from the openaq archive); fires warm at boot.
 
 ## What ALive-108 is
 
