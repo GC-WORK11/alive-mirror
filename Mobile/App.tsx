@@ -217,7 +217,10 @@ function AppInner() {
           try { const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000); if (j.name) name = j.name; } catch {}
           flow.pick({ name, subtitle: "", lat: c[1], lon: c[0] }, "to");
         }}>
-        <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[76.75, 28.15, 77.95, 28.98]}
+        {/* maxBounds = the dose field's service margin (NCR ±2°), not the
+            tight NCR box — a destination in Agra/Jaipur must stay on
+            screen or the outside-area notice can't be understood */}
+        <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[74.75, 26.15, 79.95, 30.98]}
           trackUserLocation={flow.follow ? "default" : undefined}
           onTrackUserLocationChange={(e) => { if (!e.nativeEvent.trackUserLocation) flow.setFollow(false); }} />
         {/* mounted only while locating — a permanent subscription idles

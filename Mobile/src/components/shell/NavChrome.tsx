@@ -295,7 +295,7 @@ export function NavChrome({
   return (
     <>
       {/* next-turn card — glance: arrow, distance, then the sentence */}
-      <View style={s.banner}>
+      <View style={[s.banner, { top: insets.top + 12 }]}>
         <View style={s.tile} accessible={false}
           accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <ManeuverIcon m={maneuver} mode={mode} />
@@ -328,7 +328,7 @@ export function NavChrome({
 
       {/* reroute in flight — warm dot says "working", not alarm */}
       {nav?.offRoute && (
-        <View style={s.pill}>
+        <View style={[s.pill, { top: insets.top + 92 }]}>
           <View style={s.pillDot} />
           <Text style={[s.pillTxt, { fontFamily: fam(lang, "med"), color: V2T.text }]}>
             {t("findingNewWay", lang)}
@@ -336,7 +336,7 @@ export function NavChrome({
         </View>
       )}
       {nav?.stripOk === false && !nav.offRoute && (
-        <View style={s.pill}>
+        <View style={[s.pill, { top: insets.top + 92 }]}>
           <Text style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
             {t("strip_unavailable", lang)}
           </Text>
@@ -388,7 +388,7 @@ export function NavChrome({
 
 const s = StyleSheet.create({
   banner: {
-    position: "absolute", top: 50, left: 12, right: 12,
+    position: "absolute", left: 12, right: 12,
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
     paddingVertical: 10, paddingHorizontal: 12,
@@ -412,7 +412,7 @@ const s = StyleSheet.create({
   actDown: { opacity: 0.55 },
 
   pill: {
-    position: "absolute", top: 142, alignSelf: "center",
+    position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.surface2, borderRadius: V2Radius.pill,
     paddingHorizontal: 14, paddingVertical: 8,
