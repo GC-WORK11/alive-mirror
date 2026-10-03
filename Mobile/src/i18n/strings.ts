@@ -47,6 +47,7 @@ const en = {
   mode_metroWalk: "Metro + walk",
   mode_cycle: "Bicycle",
   mode_walk: "On foot",
+  mode_approx: " (approx.)",
   findingNewWay: "Finding a new way…",
   youreHere: "You're here.",
   /** manual "End" before reaching the destination — the trip is real,
@@ -366,6 +367,7 @@ const hi: Record<StringKey, string> = {
   mode_metroWalk: "मेट्रो + पैदल",
   mode_cycle: "साइकिल",
   mode_walk: "पैदल",
+  mode_approx: " (अनुमानित)",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
   youreHere: "आप पहुँच गए।",
   tripEnded: "यात्रा ख़त्म हुई।",
@@ -652,10 +654,19 @@ const MODE_BASE: Record<string, { en: string; key: StringKey }> = {
   walk: { en: "On foot", key: "mode_walk" },
 };
 
+/** English bases, longest first — a server mode like "metro" can carry the
+ *  "metro+walk" label, so an unknown mode falls back to prefix-matching
+ *  every known base instead of leaking the English label. */
+const BASES = Object.values(MODE_BASE).sort((a, b) => b.en.length - a.en.length);
+
 export function modeLabel(mode: string, label: string, lang: Lang): string {
-  const b = MODE_BASE[mode];
+  const byMode = MODE_BASE[mode];
+  const b = byMode && label.startsWith(byMode.en)
+    ? byMode
+    : BASES.find((x) => label === x.en || label.startsWith(x.en + " ") || label.startsWith(x.en + "("));
   if (!b) return label;
-  if (label === b.en) return t(b.key, lang);
-  if (label.startsWith(b.en)) return t(b.key, lang) + label.slice(b.en.length);
-  return label;
+  const rest = label.slice(b.en.length);
+  /* " (approx.)" is wire English too — localize the whole suffix */
+  const suffix = rest.startsWith(" (approx") ? t("mode_approx", lang) : rest;
+  return t(b.key, lang) + suffix;
 }
