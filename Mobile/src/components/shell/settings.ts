@@ -1,7 +1,7 @@
 /** Shell settings — one JSON file in the app's document dir.
- * lang · voice guidance · anonymous data sharing · morning brief ·
- * saved vehicle · saved places. Delete-my-data wipes it along with
- * the ledger and contributor id. */
+ * lang · voice guidance · anonymous data sharing · departure reminders ·
+ * morning brief · saved vehicle · saved places. Delete-my-data wipes it
+ * along with the ledger and contributor id. */
 import { File, Paths } from "expo-file-system";
 import type { Lang } from "../../i18n/strings";
 
@@ -12,13 +12,14 @@ export type ShellSettings = {
   voice: boolean;          // turn-guidance voice (SEAM: TTS engine lands with nav lane)
   share: boolean;          // anonymous traversal donation — on by default (doc 02 §7)
   brief: boolean;          // daily cleanest-window notification
+  remind: boolean;         // master switch for "leave later, breathe less" pings (doc 02 §S4)
   vehicle: string | null;  // S8 choice, e.g. "bike" | "car" | "auto"
   home: SavedPlace | null;
   work: SavedPlace | null;
 };
 
 export const DEFAULT_SETTINGS: ShellSettings = {
-  lang: "en", voice: true, share: true, brief: false,
+  lang: "en", voice: true, share: true, brief: false, remind: true,
   vehicle: null, home: null, work: null,
 };
 
