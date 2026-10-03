@@ -97,7 +97,17 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
 - **the live field map** (the judge moment): the real /grid cells
   painted on canvas — dose ramp, cells far from a measured sample fade
   honestly, NASA fire detections overlaid as amber dots, the city
-  centroid crosshair. Caption counts cells and the PM2.5 range
+  centroid crosshair, the real met wind as a drift arrow. **Species
+  pills** (pm2.5 · pm10 · no₂ · o₃ · co · so₂ · us aqi) re-paint the
+  map from `/grid?param=` — click no₂ and watch a physically different
+  pattern: same lattice, different species, never re-labeled pm2.5
+- **the pipeline panel** (the "how does it work" answer): six stages
+  with today's real numbers — measure (N model points, field age) →
+  interpolate (kriging engine, alive_core when it serves) → sample
+  (~250 m stride) → breathe (the real microenv + ventilation tables:
+  car ac ×0.55, auto ×1.15, VE 7.5–22 L/min) → emit (BS bucket ×
+  speed × idle × cold-start) → aggregate (k≥3, cells, trips). Served
+  by `/admin/api/model` so the constants can never drift from the code
 - field panel: serving mode, kriging, σ band, the species line
   (PM10 · NO₂ · O₃ · CO · SO₂ · US AQI — all real), forecast horizon
   health (hours ahead · grid points · fetch age · anchored-to-live flag)
@@ -105,8 +115,10 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   data / **routing** (self-hosted daemon first, public OSRM fallback —
   observed from real route calls, never probed) — the honesty is the
   point
-- donations: totals incl. "emissions (mid): kg CO₂ · g PM2.5" —
-  the emission half of the pitch
+- donations: totals incl. "emissions (mid): kg CO₂ · g PM2.5" — plus
+  the **CO₂ phase split** bar (moving / idling / cold-start %) summed
+  only over trips whose receipts carried the real breakdown; old
+  builds count in the headline total, never in the split
 
 ## Honest limitations (say them first — it lands harder)
 
