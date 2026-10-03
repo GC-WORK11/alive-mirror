@@ -367,7 +367,7 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     except httpx.HTTPError:
         return {"routes": [], "error": "router unavailable"}
 
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
 
     options = []
     for rt in data.get("routes", [])[:3]:
@@ -470,7 +470,7 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
     if isinstance(geoms["driving"], BaseException):
         return {"options": [], "error": "router unavailable"}
 
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
     options = []
     for profile, vehicle, label in COMPARE_MODES:
         rt = geoms[profile]
@@ -591,6 +591,17 @@ VEHICLE_PROFILE = {"car": "driving", "car_open": "driving", "bike": "driving",
 MODE_SPEED_KMH = {"cycling": 15.0, "walking": 5.0}
 VEHICLE_TIME_FACTOR = {"car": 1.0, "car_open": 1.0, "bike": 0.9,
                        "auto": 1.25, "bus": 1.6}
+
+
+async def _field_refresh_bounded(timeout: float = 10.0) -> None:
+    """FIELD.refresh is best-effort — a stale-field window plus a slow
+    upstream (OpenAQ retries sleep up to ~40 s) serializes every request
+    behind refresh's lock; cap the wait so a route request never holds
+    the event loop hostage. The refresh itself keeps running."""
+    try:
+        await asyncio.wait_for(FIELD.refresh(http()), timeout=timeout)
+    except Exception:
+        pass
 
 
 def _scaled_duration_s(vehicle: str, profile: str, rt: dict) -> float:
