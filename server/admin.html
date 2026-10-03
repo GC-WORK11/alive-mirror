@@ -308,6 +308,9 @@ async function tick(){
     ['pollutants',(status.species&&Object.keys(status.species).length)
       ?`PM10 ${status.species.pm10?.mean??'—'} · NO₂ ${status.species.nitrogen_dioxide?.mean??'—'} · O₃ ${status.species.ozone?.mean??'—'} · CO ${status.species.carbon_monoxide?.mean??'—'} · SO₂ ${status.species.sulphur_dioxide?.mean??'—'} µg/m³${status.species.us_aqi?` · US AQI ${Math.round(status.species.us_aqi.mean)}`:''}`
       :'pm25 only — field serves no other species right now',true],
+    ['forecast horizon',(status.forecast&&status.forecast.hours)
+      ?`${status.forecast.hours}h ahead · ${status.forecast.aq_points??'—'} grid pts · fetched ${ago(status.forecast.age_s)} ago${status.forecast.live_anchor&&status.forecast.live_anchor.enabled?' · anchored to the live field':''}`
+      :'cold — warms on first /depart or /v2/city call',true],
     ['disk free',disk.free_pct!=null?`${disk.free_pct}%${disk.low?' · <span class="badge crit">low</span>':''}`:'—',true],
     ['provenance',esc(p.field||'—'),false],
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')

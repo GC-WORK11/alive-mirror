@@ -238,6 +238,12 @@ async def status():
         species = _species(FIELD)
     except Exception:
         species = {}
+    forecast = {}
+    try:
+        from forecast import FORECAST
+        forecast = FORECAST.status() or {}
+    except Exception:
+        forecast = {}
     return {
         "ts": time.time(),
         "ok": h.get("ok", True),
@@ -263,6 +269,9 @@ async def status():
         # the other real species the field serves — city-mean lattice
         # stats; absent entirely when the serving field is pm25-only
         "species": species,
+        # the forecast horizon's own health — grid points, hour span,
+        # fetch age, and whether reads are anchored to the live field
+        "forecast": forecast,
         "trips_backend": h.get("trips_backend"),
         "ledger": {
             "backend": getattr(LEDGER, "backend", "memory"),
