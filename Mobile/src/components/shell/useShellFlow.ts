@@ -122,7 +122,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           setOptions([]); setDepart(null);
           // typed outside-coverage answer → its own notice (retry can't
           // fix a geography problem; the sheet offers 'change the trip')
-          const outside = /outside service area/i.test(pj.error);
+          const outside = pj.code === "outside_service_area"
+            || /outside service area/i.test(pj.error);
           setPlanError({ kind: outside ? "outside" : "server", detail: pj.error });
           return;
         }

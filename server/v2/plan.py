@@ -917,6 +917,7 @@ async def plan(body: dict):
         return {"from": {"lat": flat, "lon": flon},
                 "to": {"lat": tlat, "lon": tlon},
                 "options": [], "error": OUT_OF_AREA,
+                "code": "outside_service_area",
                 "field": _field_status(),
                 "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
 
@@ -988,6 +989,7 @@ async def reroute(body: dict):
         from airfield import OUT_OF_AREA
         return {"route_id": None, "options": [], "option": None,
                 "rerouted_from": rid, "error": OUT_OF_AREA,
+                "code": "outside_service_area",
                 "field": _field_status(),
                 "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
 

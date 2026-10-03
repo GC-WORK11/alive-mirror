@@ -80,4 +80,7 @@ export type PlanResult = {
   field: { source?: string; age_s?: number | null; samples?: number } | null;
   vehicle?: string;
   error?: string;
+  /** stable machine code for the error path — 'outside_service_area' when
+      the OD can't be served; clients key on this, not on error text. */
+  code?: string;
 };

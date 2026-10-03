@@ -404,6 +404,9 @@ export interface V2PlanResponse {
   field: FieldStatus;
   took_ms: number;
   error?: string;               // malformed from/to path
+  /** stable machine code on the error path — 'outside_service_area';
+      clients key on this, never on error text. */
+  code?: string;
 }
 
 export interface V2StripSample {

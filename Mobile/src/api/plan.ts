@@ -185,5 +185,6 @@ function mapPlan(j: Record<string, unknown>): PlanResultFresh {
     field: field ? mapFieldStatus(field) : null,
     vehicle: str(j.vehicle) ?? undefined,
     error: str(j.error) ?? undefined,
+    code: str(j.code) ?? undefined,
   };
 }
