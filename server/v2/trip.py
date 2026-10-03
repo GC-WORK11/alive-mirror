@@ -17,9 +17,10 @@ threshold on corridors.
 """
 import hashlib
 import math
+import re
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from .store import LEDGER, TRIPS
 
@@ -29,6 +30,21 @@ TRIM_M = 300.0          # drop this much from BOTH ends, always
 THIN_M = 100.0          # keep at most one point per this distance
 ROUND_DP = 4            # ~11 m — the documented precision ceiling
 MAX_POINTS = 5000       # payload abuse guard
+
+# --- sanity bounds: the client is assumed hostile/buggy --------------------
+# These don't need to be tight — they only have to kill payloads that can
+# never be a real Delhi trip (e.g. distance_km=1e12 injected into the
+# donations totals). Generous caps so an honest odd trip still counts.
+_BOUNDS = {
+    "distance_km": (0.0, 300.0),     # Delhi is ~50 km across; 300 is generous
+    "duration_s": (0.0, 21600.0),    # 6 h of riding
+    "dose_ug": (0.0, 50_000.0),      # worst-day × worst-ventilation orders below
+    "co2_kg_mid": (0.0, 200.0),      # 300 km × heaviest fleet factor
+    "pm25_g_mid": (0.0, 50.0),
+}
+# A mode is a vehicle-class token — word characters and spaces only.
+# Anything carrying markup or punctuation can never reach mode_share.
+_MODE_RE = re.compile(r"^[a-z][a-z0-9_\- ]{0,23}$")
 
 try:
     import h3 as _h3
@@ -136,12 +152,20 @@ async def post_trip(body: dict):
     summary = {}
     for k in _SUMMARY_NUM:
         v = _num(summary_in.get(k))
-        if v is not None:
+        lo, hi = _BOUNDS[k]
+        if v is not None and lo <= v <= hi:
             summary[k] = v
     if summary_in.get("mode") is not None:
-        summary["mode"] = str(summary_in["mode"])[:24]
+        m = str(summary_in["mode"]).strip().lower()
+        if _MODE_RE.match(m):
+            summary["mode"] = m
     if summary_in.get("switched"):
         summary["switched"] = bool(summary_in["switched"])
+    if not summary.get("distance_km"):
+        # the one number every real trip carries — without it the payload
+        # either failed every sanity check or was never a trip at all;
+        # storing it would only mint a zero-km count that bumps the totals
+        raise HTTPException(422, "missing or implausible distance_km")
     TRIPS.record_trip(cells, summary, token_hash)
     LEDGER.record(token_hash, summary)
     return {

@@ -856,7 +856,11 @@ async def _options_bounded(flat, flon, tlat, tlon, vehicle, profile,
 
 def _pt(v, name: str):
     if isinstance(v, dict):
-        return float(v["lat"]), float(v["lon"])
+        try:
+            return float(v["lat"]), float(v["lon"])
+        except KeyError as e:
+            # name the side + the field — 'to: missing lon', not "'lon'"
+            raise ValueError(f"{name}: missing {e}") from e
     if isinstance(v, (list, tuple)) and len(v) >= 2:
         # [lon, lat] GeoJSON order
         return float(v[1]), float(v[0])

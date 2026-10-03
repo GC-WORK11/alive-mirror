@@ -328,11 +328,16 @@ async function tick(){
     ||emptyMsg('no validation outputs on disk yet — weekly rollup has not run');
 
   /* --- ingest sources: model / met / stations / fires / location ---
-     tri-state probe (up=null = configured, not probed), last-build
-     status, live age, honest stale badge past the field alarm rule */
+     the pill follows OBSERVED service first: explicit probe up/down when
+     set, else 'live' when real fields are flowing (samples/fires/wind)
+     and 'no live data' when the source answered with nothing — a null
+     probe never masquerades as dead while data is present */
   const srcRows=Object.entries(sources.sources||{});
   $('sources').innerHTML=srcRows.map(([name,s])=>{
-    const pill=s.up===true?['up','']:s.up===false?['down','down']:['unprobed','idle'];
+    const observed=(s.samples>0)||(s.n_points>0)||(s.fires!=null)
+      ||(s.readings>0)||(s.wind_ms!=null)||(s.enabled===true);
+    const pill=s.up===true?['up','']:s.up===false?['down','down']
+      :observed?['live','']:['no live data','idle'];
     const build=s.status&&s.status!=='ok'
       ?`<span class="buildstat bad">${esc(s.status)}</span>`
       :`<span class="buildstat">${esc(s.status||'—')}</span>`;

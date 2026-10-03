@@ -362,11 +362,43 @@ def test_non_dict_body_rejected_honestly():
 
 
 def test_empty_body_is_harmless():
-    """{} records an empty trip: 0 cells, nothing personal, honest 200."""
+    """{} has nothing that can be a trip — honest 422, nothing minted
+    into the totals (the old 'empty 200' counted phantom trips)."""
     r = client.post("/v2/trip", json={})
-    assert r.status_code == 200
-    assert r.json()["cells_traversed"] == 0
+    assert r.status_code == 422
     assert store.TRIPS.snapshot_cells() == {}
+
+
+def test_implausible_summary_sanitized():
+    """admin-lane findings: absurd numbers and markup modes must never
+    enter the aggregates — implausible fields are dropped, and a
+    payload with nothing valid left is 422'd, not stored."""
+    r = client.post("/v2/trip", json={
+        "device_token": "absurd",
+        "summary": {"mode": "car", "distance_km": 1e12},
+        "trajectory": _line(40, dlon=0.0009)})
+    assert r.status_code == 422
+
+    r = client.post("/v2/trip", json={
+        "device_token": "xss-mode",
+        "summary": {"mode": "<script>alert(1)</script>",
+                    "distance_km": 4.0},
+        "trajectory": _line(40, dlon=0.0009)})
+    assert r.status_code == 200
+    assert r.json()["stored"]
+    dump = _store_dump()
+    assert "<script>" not in dump and "script" not in dump
+
+
+def test_negative_numbers_do_not_drain_totals():
+    """A negative distance/dose is finite — it used to pass _num and
+    subtract from every day counter it touched."""
+    r = client.post("/v2/trip", json={
+        "device_token": "negative",
+        "summary": {"mode": "car", "distance_km": -50.0,
+                    "dose_ug": -999.0},
+        "trajectory": _line(40, dlon=0.0009)})
+    assert r.status_code == 422
 
 
 def test_response_echoes_no_raw_data():
