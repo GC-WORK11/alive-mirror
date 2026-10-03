@@ -7,10 +7,20 @@ export interface Place {
   lat: number;
   lon: number;
   kind?: string;
+  // emitted on wire, previously undeclared (both /search and /v2/search):
+  id?: string | null;
+  place_id?: string;
+  distance_m?: number;
+  match?: "exact-prefix" | "token-prefix" | "fuzzy" | "other";
+  match_rank?: number;
+  source?: string;              // gazetteer | amazon | photon | ...
+  sources?: string[];           // tiers that found it, e.g. ["t1","t2"]
+  outside_ncr?: boolean;
 }
 
 export interface SearchResponse {
   results: Place[];
+  error?: string;               // present on the "no matches" path
 }
 
 export interface RouteGeometry {
@@ -48,11 +58,16 @@ export interface FieldStatus {
   source: string;
   samples: number;
   age_s: number | null;
+  // emitted on wire, previously undeclared:
+  station_readings?: number;
+  wind?: Record<string, unknown>;
+  kriging?: string;            // "on" | "idw"
 }
 
 export interface RouteResponse {
   routes: RouteResult[];
-  field: FieldStatus;
+  field?: FieldStatus;          // absent on the "router unavailable" path
+  error?: string;
 }
 
 export interface AqiResponse {
@@ -61,19 +76,43 @@ export interface AqiResponse {
   no2?: number | null;
   nearest_sample_km?: number;
   smoke_modifier?: number;         // fire-season multiplier (1.0 = none)
-  field: FieldStatus;
+  field?: FieldStatus;             // absent on the "field unavailable" path
   error?: string;
+  // emitted on wire, previously undeclared:
+  pm25_ambient?: number;
+  pm25_lo?: number | null;
+  pm25_hi?: number | null;
+  us_aqi?: number | null;
+  dust?: number | null;
+  aod?: number | null;
+  conditions?: Record<string, unknown>;
+  fire?: Record<string, unknown>;
+  wind?: Record<string, unknown>;
+  grap?: Record<string, unknown>;
+  calibration?: Record<string, unknown> | null;
+  typical?: { month: number; hour_ist: number; median: number | null;
+              p25?: number | null; p75?: number | null;
+              vs_now_pct?: number | null } | null;
 }
 
 export interface ReverseResponse {
   name: string;
-  lat: number;
-  lon: number;
+  lat?: number;                  // server emits {name, subtitle} only —
+  lon?: number;                  // lat/lon were declared but never sent
+  subtitle?: string;
+  distance_m?: number;           // /v2/reverse only
+  source?: string;               // /v2/reverse only
 }
 
 export interface HealthResponse {
   ok: boolean;
   ts: number;
+  // emitted on wire, previously undeclared:
+  version?: string;
+  build_sha?: string;
+  field_age_s?: number | null;
+  sources?: Record<string, unknown>;
+  history?: unknown;
 }
 
 export interface CompareOption {
@@ -98,8 +137,9 @@ export interface CompareOption {
 
 export interface CompareResponse {
   options: CompareOption[]; // ranked, best first
-  best: string | null;      // vehicle key of the lowest-dose option
-  field: FieldStatus;
+  best?: string | null;     // vehicle key of the lowest-dose option;
+                            // absent on the error path
+  field?: FieldStatus;      // absent on the error path
   error?: string;
 }
 
@@ -123,16 +163,20 @@ export interface DepartSlot {
 }
 
 export interface DepartResponse {
-  vehicle: string;
-  mode: VehicleClass;
-  duration_min: number;
-  distance_km: number;
-  now: DepartSlot;
-  best: DepartSlot;
-  worst: DepartSlot;
-  ug_saved_vs_now: number | null; // % less PM2.5 by leaving at best hour
-  slots: DepartSlot[];
-  forecast: { aq_points: number; met_points: number; hours: number; age_s: number | null };
+  // NOTE: every field below is absent on the error path, which returns
+  // {options: [], error} — all marked optional to match the wire.
+  vehicle?: string;
+  mode?: VehicleClass;
+  duration_min?: number;
+  distance_km?: number;
+  now?: DepartSlot;
+  best?: DepartSlot;
+  worst?: DepartSlot;
+  ug_saved_vs_now?: number | null; // % less PM2.5 by leaving at best hour
+  slots?: DepartSlot[];
+  forecast?: { aq_points: number; met_points: number; hours: number;
+               age_s: number | null };
+  options?: CompareOption[];       // error path emits this (empty)
   error?: string;
 }
 
@@ -157,12 +201,15 @@ export interface RouteHotspot {
 }
 
 export interface TodayResponse {
-  lat: number;
-  lon: number;
+  // lat/lon/station were declared but are NOT emitted by the server —
+  // marked optional to match the wire (drift found by contract sync).
+  lat?: number;
+  lon?: number;
   month: number;
-  station: string;
+  station?: string;
   hours_ist: (number | null)[]; // 24 medians, index = IST hour
   hour_now_ist: number;
+  source?: string;              // emitted, previously undeclared
 }
 
 export interface GridResponse extends GeoJSON.FeatureCollection {
@@ -181,6 +228,161 @@ export const ENDPOINTS = {
   aqi: "/aqi",
   today: "/today",
   grid: "/grid",
+} as const;
+
+// ---------------------------------------------------------------------------
+// /v2 surface (server/v2/*) — additive; v1 shapes above are unchanged.
+// Wire-verified against live responses by server/tests/test_contract_sync.py.
+// ---------------------------------------------------------------------------
+
+export interface V2SearchResponse {
+  q: string;
+  bias: { lat: number; lon: number };
+  results: Place[];
+  count: number;
+  t1: Place[];                  // tier-1 rows (engine named by t1_engine)
+  /** BUG-T1: server emits a status STRING here ("ok"/"disabled:..."),
+   *  not rows — the t2 row list is shadowed by a duplicate dict key in
+   *  server/v2/search.py and never reaches the wire. Type reflects the
+   *  actual wire shape today; should become `Place[]` once fixed. */
+  t2: Place[] | string;
+  tiers: string[];              // ["t1"] or ["t1","t2"]
+  t1_engine: string;            // alive_core | alive_core_ref | gazetteer
+  took_ms: { t1: number; t2: number | null; total: number };
+}
+
+export interface DoseBand {
+  lo: number | null;
+  mid: number | null;
+  hi: number | null;
+  avg_conc_ugm3?: number | null;
+  confidence?: "high" | "medium" | "low" | "none" | null;
+  basis?: string | null;
+  note?: string;
+}
+
+export interface EmissionBandValue {
+  lo: number;
+  mid: number;
+  hi: number;
+}
+
+export interface EmissionBand {
+  co2_kg: EmissionBandValue | null;
+  pm25_g: EmissionBandValue | null;
+  basis: string;
+  occupancy?: number | null;
+}
+
+export type V2PlanTag =
+  | "lightest on both"
+  | "lightest for you"
+  | "lightest for Delhi"
+  | null;
+
+export interface V2PlanOption {
+  mode: string;                 // car|car_open|bike|auto|bus|cycle|walk|metro
+  label: string;
+  route_geojson: RouteGeometry;
+  distance_km: number | null;
+  eta_s: number | null;
+  freeflow_s: number | null;
+  eta_model: string;            // amazon-location | osrm-freeflow | estimated | gtfs
+  dose: DoseBand;
+  emissions: EmissionBand;
+  tag: V2PlanTag;
+  recommended: boolean;
+  reason_line: string;
+  your_vehicle: boolean;
+  route_id: string;             // opaque, /v2/strip key, ~1 h TTL
+  stations?: CompareOption["stations"]; // metro only
+}
+
+export interface V2PlanResponse {
+  from: { lat: number; lon: number };
+  to: { lat: number; lon: number };
+  vehicle: string;
+  depart_at: string | null;
+  options: V2PlanOption[];      // recommended first when scored
+  ranking: string;
+  field: FieldStatus;
+  took_ms: number;
+  error?: string;               // malformed from/to path
+}
+
+export interface V2StripSample {
+  lat: number;                  // 5-dp rounded
+  lon: number;
+  dist_m: number;
+  pm25: number | null;
+  lo: number | null;
+  hi: number | null;
+}
+
+export interface V2StripResponse {
+  route_id: string;
+  mode: string;
+  step_m: number;               // 250
+  samples: V2StripSample[];
+  emissions_curve: Record<string, unknown>;
+  field: FieldStatus;
+}
+
+export interface V2TripRequest {
+  device_token?: string;        // opaque; hashed server-side, never stored
+  summary?: { mode?: string; distance_km?: number; duration_s?: number;
+              dose_ug?: number; co2_kg_mid?: number; pm25_g_mid?: number;
+              switched?: boolean };
+  trajectory?: ([number, number] | { lat: number; lon: number })[];
+  coords?: ([number, number] | { lat: number; lon: number })[];
+}
+
+export interface V2TripResponse {
+  stored: boolean;
+  cells_traversed: number;
+  points_used: number;
+  privacy: {
+    endpoint_trim_m: number;    // 300
+    thin_m: number;             // 100
+    rounded_decimals: number;   // 4
+    cell_scheme: string;        // "h3:8"
+    trimmed_start_m: number;
+    trimmed_end_m: number;
+    raw_trajectory: string;
+  };
+  ts: number;
+}
+
+export interface V2Place {
+  id: string;
+  name: string;
+  subtitle: string;
+  lat: number;
+  lon: number;
+  kind: string;
+  source: string;
+}
+
+export interface V2CityResponse {
+  ts: number;
+  pm25_stats: Record<string, unknown>;
+  field: FieldStatus;
+  field_age_s: number | null;
+  wind: Record<string, unknown>;
+  sources: Record<string, { up: boolean; [k: string]: unknown }>;
+  trips: { days: Record<string, unknown>;
+           cells_tracked: number;
+           corridors_publishable: number };
+}
+
+export const V2_ENDPOINTS = {
+  search: "/v2/search",
+  place: "/v2/place",
+  reverse: "/v2/reverse",
+  plan: "/v2/plan",
+  strip: "/v2/strip",
+  trip: "/v2/trip",
+  city: "/v2/city",
 } as const;
 
 export type TravelMode = "driving" | "cycling" | "walking";
