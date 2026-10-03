@@ -50,7 +50,11 @@ function toPlace(r: RawRow, tier: "t1" | "t2"): PlaceResult | null {
   };
 }
 
-/** One shot at `${API_BASE}/v2/search`. Caller owns the AbortSignal. */
+/** One shot at `${API_BASE}/v2/search`. Caller owns the AbortSignal; we add
+ * a hard ceiling so a hung socket can't pin the suggestions panel — a search
+ * still running at SEARCH_TIMEOUT_MS is dead for typing UX anyway. */
+export const SEARCH_TIMEOUT_MS = 5000;
+
 export async function fetchTiers(
   q: string,
   loc: LatLon | null | undefined,
@@ -61,7 +65,19 @@ export async function fetchTiers(
   const url =
     `${API_BASE}/v2/search?q=${encodeURIComponent(q)}` +
     `&lat=${bias.lat}&lon=${bias.lon}&limit=${limit}`;
-  const res = await fetch(url, { signal });
+  // link the caller's signal into our own controller so either aborts the fetch
+  const inner = new AbortController();
+  const onAbort = () => inner.abort();
+  if (signal.aborted) inner.abort();
+  else signal.addEventListener("abort", onAbort);
+  const timer = setTimeout(() => inner.abort(), SEARCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: inner.signal });
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
   if (!res.ok) throw new Error(`v2/search http ${res.status}`);
   const j = (await res.json()) as {
     t1?: RawRow[];
@@ -133,7 +149,11 @@ export class ServerSearch {
         })
         .catch((err: unknown) => {
           if (seq !== this.seq) return;
-          if (err instanceof Error && err.name === "AbortError") return;
+          // caller-initiated aborts are already dropped by the seq bump;
+          // a TIMEOUT abort (fetchTiers' inner ceiling) must still deliver
+          // empty tiers or the panel waits forever
+          if (err instanceof Error && err.name === "AbortError"
+              && ctrl.signal.aborted) return;
           // dead network still leaves T0 on screen — deliver empty tiers so
           // the UI can stop waiting
           onResults(EMPTY_TIERS, text);
