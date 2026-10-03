@@ -19,6 +19,49 @@ export type PlanRequest = {
   depart_at?: string;
 };
 
+/** Field-status block the server ALREADY serves under `field` on
+ *  /v2/plan and /v2/reroute — it is `airfield.FIELD.status()` verbatim
+ *  (server/v2/plan.py `_field_status`). Every key optional: when the
+ *  status probe itself throws, the payload degrades to just
+ *  `{"source": "unavailable"}`. Field-age + provenance feed
+ *  components/FreshnessChip; `serving`/`sigma_coverage` keep dose
+ *  honesty visible. (status() also emits wind/coverage/snapshot/
+ *  load_warn_files — not mapped yet; extend here if a lane needs it.) */
+export type FieldStatus = {
+  source?: string;              // "open-meteo/cams" | "openaq-stations+open-meteo/cams" | "unavailable"
+  samples?: number;             // model lattice samples in the blend
+  station_readings?: number;    // live station readings blended in — 0 = stations dark
+  age_s?: number | null;        // seconds since the served field was fetched/built
+  stale?: boolean | null;       // server's verdict: age_s > stale_after_s; null when age unknown
+  stale_after_s?: number;       // server's stale threshold in seconds (2700 = 45 min)
+  serving?: "snapshot" | "live" | "none";  // built snapshot index vs live blend vs nothing
+  kriging?: string;             // "on" | "idw" — whether σ is kriged
+  sigma_coverage?: string;      // "full" | "none" | "partial:N/M" | "per-query"
+  load_warnings?: number;       // corrupt snapshot files skipped at load
+};
+
+/** PlanResult with `field` typed to what the server really sends —
+ *  types.ts keeps the narrow three-key shape that earlier lanes lean
+ *  on; this widens additively (all extra keys optional) and stays
+ *  assignable to PlanResult, so existing callers compile unchanged. */
+export type PlanResultFresh = Omit<PlanResult, "field"> & {
+  field: FieldStatus | null;
+};
+
+/** Provenance tokens for FreshnessChip's `sources` prop: splits the
+ *  server's "+"-joined `field.source` ("openaq-stations+open-meteo/cams")
+ *  and prepends the serving mode so a snapshot serve is visible. Empty
+ *  field → [] → the chip makes no provenance claim. */
+export function fieldSources(f: FieldStatus | null | undefined): string[] {
+  if (!f) return [];
+  const toks = (f.source ?? "")
+    .split("+")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (f.serving && !toks.includes(f.serving)) toks.unshift(f.serving);
+  return toks;
+}
+
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
@@ -90,8 +133,8 @@ function toOption(raw: unknown): V2Option | null {
  *  the previous options for this ~100 m-rounded O/D pair come back and
  *  the net-status pill labels them stale. Throws only when the network
  *  fails AND nothing is cached — callers show the retry state. */
-export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<PlanResult> {
-  const r = await fetchCached<PlanResult>(`${API}/v2/plan`, {
+export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<PlanResultFresh> {
+  const r = await fetchCached<PlanResultFresh>(`${API}/v2/plan`, {
     ttlMs: 15 * 60 * 1000,                       // field cadence is ~15 min
     key: cacheKeys.plan(req.from.lat, req.from.lon, req.to.lat, req.to.lon),
     timeoutMs,
@@ -104,16 +147,34 @@ export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<
   return r.data;
 }
 
-function mapPlan(j: Record<string, unknown>): PlanResult {
+/** Server `field` block → FieldStatus. Guards every key — the payload
+ *  degrades to {"source":"unavailable"} when status() itself throws. */
+function mapFieldStatus(f: Record<string, unknown>): FieldStatus {
+  const serv = str(f.serving);
+  return {
+    source: str(f.source) ?? undefined,
+    samples: num(f.samples) ?? undefined,
+    station_readings: num(f.station_readings) ?? undefined,
+    age_s: num(f.age_s),
+    stale: typeof f.stale === "boolean" ? f.stale : null,
+    stale_after_s: num(f.stale_after_s) ?? undefined,
+    serving: serv === "snapshot" || serv === "live" || serv === "none"
+      ? serv
+      : undefined,
+    kriging: str(f.kriging) ?? undefined,
+    sigma_coverage: str(f.sigma_coverage) ?? undefined,
+    load_warnings: num(f.load_warnings) ?? undefined,
+  };
+}
+
+function mapPlan(j: Record<string, unknown>): PlanResultFresh {
   const raw = Array.isArray(j.options) ? j.options : [];
   const field = j.field && typeof j.field === "object"
     ? (j.field as Record<string, unknown>)
     : null;
   return {
     options: raw.map(toOption).filter((o): o is V2Option => o !== null),
-    field: field
-      ? { source: str(field.source) ?? undefined, age_s: num(field.age_s), samples: num(field.samples) ?? undefined }
-      : null,
+    field: field ? mapFieldStatus(field) : null,
     vehicle: str(j.vehicle) ?? undefined,
     error: str(j.error) ?? undefined,
   };
