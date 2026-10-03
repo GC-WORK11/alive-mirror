@@ -1,6 +1,7 @@
 /**
- * ALive-108 v2 light map style — OpenMapTiles schema (docs/plan/map-style.md;
- * r4 palette pass documented in docs/plan/map-style-r4.md).
+ * ALive-108 v2 light map style — OpenMapTiles schema, Google Maps palette
+ * (pixel-sampled light palette: grey land, cyan water, green parks, yellow
+ * arterials, white streets; docs/plan/map-style.md).
  *
  * Basemap chain (env → local → hosted → raster):
  *   1. `EXPO_PUBLIC_TILES_URL` — vector tiles the sibling lane is building for
@@ -58,8 +59,9 @@ export const roadGlowLayers: LayerSpecification[] = v2Style.layers.filter((l) =>
   l.id === "v2-road-motorway-casing" ||
   l.id === "v2-road-motorway");
 
-/** Emergency raster fallback — desaturated + dimmed OSM tiles. Swap in via
- *  `<Map mapStyle={v2RasterStyle}>` when the vector chain is unreachable. */
+/** Emergency raster fallback — lightly desaturated OSM tiles on the Google
+ *  land tone. Swap in via `<Map mapStyle={v2RasterStyle}>` when the vector
+ *  chain is unreachable. */
 export const v2RasterStyle: StyleSpecification = {
   version: 8,
   name: "ALive-108 raster fallback",
@@ -73,16 +75,15 @@ export const v2RasterStyle: StyleSpecification = {
     },
   },
   layers: [
-    { id: "raster-bg", type: "background", paint: { "background-color": "#F5F4F0" } },
+    { id: "raster-bg", type: "background", paint: { "background-color": "#F2F1EE" } },
     {
       id: "raster-osm",
       type: "raster",
       source: "osm",
       paint: {
-        // approximate the dark look: kill saturation, dim brightness
-        "raster-saturation": -0.85,
-        "raster-brightness-max": 0.55,
-        "raster-contrast": -0.1,
+        // pull OSM's saturated cartography toward Google's quieter light look
+        "raster-saturation": -0.25,
+        "raster-contrast": -0.05,
       },
     },
   ],

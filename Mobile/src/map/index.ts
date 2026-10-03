@@ -1,5 +1,5 @@
 /**
- * ALive-108 map module — v2 dark style, resolver, layer fragments, markers.
+ * ALive-108 map module — v2 light Google-style map, resolver, layer fragments, markers.
  * Handoff: docs/plan/map-style.md. Integration is one line:
  *   <Map mapStyle={v2StyleUrl()} …>
  */

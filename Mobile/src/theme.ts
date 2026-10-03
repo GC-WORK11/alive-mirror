@@ -13,8 +13,8 @@ import type { Lang } from "./i18n/strings";
 // rgba() is reserved for scrims and data overlays — never a surface fill.
 // Pre-composited accentWash/accentTint replace translucent accent washes.
 export const V2T = {
-  // canvas + elevation ladder — all solid. LIGHT chrome: the app is paper-
-  // light with ink text; only the map stays dark (map* tokens below).
+  // canvas + elevation ladder — all solid. LIGHT chrome throughout: the app
+  // is paper-light with ink text over a light Google-style basemap.
   bg: "#F2F4F8",        // cool off-white canvas
   surface: "#FFFFFF",   // cards/sheets — pure white
   surface2: "#ECEEF3",  // raised: inputs, pressed rows, pills
@@ -35,12 +35,12 @@ export const V2T = {
   text: "#14181F",   // 15.9:1 surface · 14.1:1 surface2
   text2: "#4A5161",  //  7.3:1 surface ·  6.5:1 surface2
   text3: "#65707F",  //  5.0:1 surface ·  4.5:1 surface2 · 4.6:1 surface3
-  accent: "#2456D6", // deep interactive blue; white text on it: 7.0:1,
-                     // accent-as-text on surface: 6.6:1
+  accent: "#1A73E8", // Google blue; white text on it: 5.9:1,
+                     // accent-as-text on surface: 5.4:1
 
-  // SOLID accent washes — pre-composited accent @8% / @12% over `sheet`.
-  accentWash: "#E8EDFB",
-  accentTint: "#DDE6FA",
+  // SOLID accent washes — Google's own selected-state tints over `sheet`.
+  accentWash: "#E8F0FE",
+  accentTint: "#D3E3FD",
 
   // smoke you breathe — muted editorial ramp (bronze → brick → wine).
   // No traffic-light amber, no emoji red — print-quality hues.
@@ -52,14 +52,14 @@ export const V2T = {
   out2: "#8791A0",
   out3: "#B4BBC7",
   pinDest: "#B33A42", // deep brick pin — reads on paper + light map
-  // map tokens mirror the LIGHT basemap (v2-light.json) — kept for any
-  // chrome that echoes map colours.
-  mapMotorway: "#C9C7BA",
-  mapPrimary: "#D8D6CD",
-  mapMinor: "#E0DED5",
-  mapBuilding: "#E5E2D9",
-  mapWater: "#C7D9EA",
-  mapPark: "#DFE8DF",
+  // map tokens mirror the Google-palette basemap (v2-light.json) — kept for
+  // any chrome that echoes map colours.
+  mapMotorway: "#F0B85A",
+  mapPrimary: "#F9D27A",
+  mapMinor: "#E4E6EA",
+  mapBuilding: "#DDE1E7",
+  mapWater: "#90DAEE",
+  mapPark: "#CFECCD",
 } as const;
 
 export const V2Type = {
