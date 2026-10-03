@@ -1,104 +1,162 @@
-# Delhi-Air-108
+# ALive-108
 
-**Exposure-aware trip engine for Delhi.** You type FROM → TO. It returns real routes — road *and* metro — ranked by estimated inhaled pollution dose, with honest uncertainty and the time cost of breathing cleaner.
+**A Delhi navigation app that prices every trip in two numbers most maps don't show: the smoke you will breathe, and the smoke your ride puts into the air** — before you leave, live while you travel, and as a receipt when you arrive. Anonymous trip aggregates feed a live picture of what Delhi breathes and emits on its roads.
 
-Built for [AWS × WeMakeDevs Environmental Hacks](https://www.wemakedevs.org/aws/env), Track 01 (Air). Delhi-only by design.
+Built for the AWS × WeMakeDevs Environmental Hacks hackathon, Air track. Delhi-only by design.
 
-## Why this exists
+Live API (ECS Fargate + NLB, `ap-south-1`): `http://65.2.28.40` — `GET /health` is public; current builds report field age and per-source status.
 
-Every AQI app in India tells you the air is bad. None of them tell you what to **do** about it on a Tuesday at 8:40 AM when you have to get from Rohini to Nehru Place. This product answers one question:
+## What it is
 
-> *Which way of moving through Delhi exposes me to the least pollution — and what does it cost me in time?*
+You type FROM → TO. The server returns real options — road modes via a router, metro via DMRC GTFS — each with an ETA, an estimated inhaled-PM2.5 **dose band**, and an estimated **emission band** for the vehicle class you declared. During the trip the app ticks both counters at 1 Hz off a route strip the server hands it; on arrival you get a receipt. Both numbers are always bands with a stated basis, never point truth — see "What it does not claim" below, which is load-bearing.
 
-## The core insight (measured, not modeled)
+## How it works
 
-Published Delhi microenvironment studies show the mode you choose matters more than the road you take:
+```
+┌─ Android / iOS app (Expo, MapLibre) ─────────────────────────────┐
+│ T0 search — bundled Delhi gazetteer (26,545 places), on-device   │
+│ dark map — OpenFreeMap tiles today; Amazon style when key lands  │
+│ live trip — dose + emission counters tick locally at 1 Hz off    │
+│             the route strip; no per-second network               │
+└──────────────┬───────────────────────────────────────────────────┘
+               │ HTTPS
+┌──────────────▼────────────── AWS ap-south-1 ─────────────────────┐
+│ NLB → FastAPI on ECS Fargate                                     │
+│                                                                  │
+│  /v2/search  T1: alive_core C++ index over the OSM-NCR corpus    │
+│              T2: Amazon Location Suggest   [needs API key]        │
+│  /v2/plan    options: ETA + dose band + emission band + reason   │
+│  /v2/strip   field sampled along a route → the live counters     │
+│  /v2/trip    anonymous trip summary in (no user table)           │
+│  /v2/city    city aggregates out · /admin ops board              │
+│                                                                  │
+│  alive_core: C++20 pybind11 module — search index, field         │
+│  sampling, dose + emission integrators. A pure-Python            │
+│  reference (alive_core_ref.py) is the fallback: if the C++       │
+│  import fails the API still serves, just slower.                 │
+└──┬──────────────────────────────────┬────────────────────────────┘
+   │ ~every 15 min (EventBridge)       │ aggregates only
+   ▼                                  ▼
+┌───────────────────────────┐  ┌────────────────────────────┐
+│ air index (airindex.py)   │  │ DynamoDB alive108-agg      │
+│ CAMS grid + NASA FIRMS    │  │ trips / km / µg / g per    │
+│ fires + stations* + wind/ │  │ mode-day; corridor cells   │
+│ BLH → QC → Kalman →       │  │ TTL 30 d. No user rows.    │
+│ kriging ±σ → snapshot→S3  │  └────────────────────────────┘
+└───────────────────────────┘
+  *stations need OPENAQ_API_KEY — without it the field still
+   builds (model + lagged public archive) and says so in its
+   provenance block. See "What it does not claim".
+```
 
-- Inhaled PM2.5 per km: **walking ≈ 28×, auto-rickshaw ≈ 5× the metro** ([sources](docs/03-models.md))
-- AC car / metro / AC bus are the lowest-exposure modes; bicycle is the highest
-- Morning rush hour is the worst dose window of the day
+## Measured numbers
 
-So the highest-leverage "route" in Delhi is often **not a different road — it's a different mode**. Existing clean-air routers (incl. the 2026 LEAP study on Delhi) only re-route cars. We route *decisions*.
+Everything below traces to a file in this repo. Where a row says "bench", the protocol and both builds are in `docs/plan/bench-results.md`.
 
-## What's built (live, verified)
+| What | Number | Source |
+|---|---|---|
+| Search index (T1), C++ vs Python | p50 0.189 ms vs 16.623 ms → **~88× p50** (~100× p95), build 45 ms vs 142 ms | `docs/plan/bench-results.md` |
+| Field lookups + dose integration | ~6.8× lookups (174,618 vs 25,849/s); **~13× dose p50** (46.0 µs vs 607.3 µs) | `docs/plan/bench-results.md` |
+| Emission integrator | ~3.3× p50 (11.2 µs vs 37.3 µs) | `docs/plan/bench-results.md` |
+| Search corpus | 26,545 bundled gazetteer; 53,298 OSM-NCR corpus entries; 77,963 merged gazetteer | `server/data/corpus/STATS.md` |
+| Search acceptance | 20/20 fixed Delhi queries in top-3 with alias table (17/20 without) | `server/data/corpus/STATS.md`, `tests/search_queries.txt` |
+| Field leave-one-out vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 stations | `server/data/field_calibration.json` |
+| Field vs station archive (3,550 pairs, 85 stations) | MAE 47.1 µg/m³, bias +45.1 — **over-reads in clean post-monsoon air** | `server/data/field_validation.md` |
+| Served field size | 14,628 grid cells in the benched snapshot | `docs/plan/bench-results.md` |
+| Mode exposure ratios | walking ≈28×, rickshaw ≈5× the metro per km inhaled PM2.5 — measured on Delhi roads (published studies) | `docs/plan/10-claims-ledger.md`, `server/exposure.py` header |
+| Cigarette equivalence on receipts | 316 µg PM2.5 ≈ 1 cigarette (Berkeley Earth), always shown as "≈" | `docs/plan/10-claims-ledger.md` |
 
-**Public API on AWS:** `http://65.2.28.40` (ECS Fargate + NLB + Elastic IP,
-`ap-south-1`). Open `http://65.2.28.40/health` in a browser — live now.
+C++ result parity is asserted bit-exact against the Python reference in `server/tests/`.
 
-Judge-clickable (no install needed):
-- `http://65.2.28.40/admin` — the city breathing in real time (ops board)
-- `http://65.2.28.40/aqi?lat=28.63&lon=77.24` — live field + its own
-  measured error at Connaught Place
-- `http://65.2.28.40/compare?from_lat=28.6519&from_lon=77.1907&to_lat=28.6129&to_lon=77.2295`
-  — Karol Bagh→India Gate, every mode by inhaled µg
-- `http://65.2.28.40/decide?from_lat=28.6519&from_lon=77.1907&to_lat=28.6129&to_lon=77.2295`
-  — the same trip through the safety-first engine
-- `http://65.2.28.40/shift?lat=28.6139&lon=77.2090&hours=8&vehicle=driving_two_wheeler`
-  — an 8-hr Rapido shift, in cigarette-equivalents
+## What it does not claim
 
-`server/` — the dose engine (FastAPI, real data only):
+This section is a feature, not a disclaimer.
 
-- `GET /compare` — one trip, every mode ranked by inhaled PM2.5.
-- `GET /decide` — safety-first ranking: dose + MoRTH-anchored mode risk +
-  time, with a plain-English reason per option ("breathes least").
-- `GET /depart` — the same trip across the next 120 h of forecast field +
-  boundary-layer stagnation physics.
-- `GET /shift` — occupational dose for Delhi's gig drivers: an 8-hr
-  two-wheeler shift ≈ 1.1–1.5 cigarette-equivalents on heavy days.
-- `GET /aqi` — interpolated PM2.5 at any NCR point + dust, AOD, US-AQI,
-  rain/visibility, wind, GRAP-indicative stage, and the **leave-one-out
-  calibration** of the field itself (MAE 46 µg/m³, bias +0.3, n=94
-  real instruments — honest error, served next to the data).
-- `GET /grid` (+`?h=0–120`) — the PM2.5 field as a forecast surface;
-  `GET /today` — the 24h decade-median curve at a point.
-- `GET /directions` — turn-by-turn maneuvers for a trip (OSRM steps →
-  plain instructions with distances; depart/arrive terminals kept).
-- `GET /search` `/reverse` `/route` — real OSM/Photon geocoding + OSRM
-  routes with per-route dose and synthesized quieter-road alternates.
-- `GET /reports` `/community` `/observe` `/report` — the contribution
-  layer: anonymized traversals + hazard reports, corridor analytics.
-- `GET /admin` `/admin/api` — live ops board (users, journeys, km,
-  µg avoided, corridors, recent feed).
+- **Phones measure nothing.** The app traverses a model field; it never says "your phone measured the air." User traversals adjust *dose estimates*, never the underlying field.
+- **Emissions are class-level estimates.** "Vehicles like yours (2016 petrol car, BS-IV): ~1.1–1.6 kg CO₂" — a band from published factors, never "your car emitted 42.0 g." Per-vehicle truth is unknowable; PUC doesn't measure PM.
+- **Stations are offline until the key lands.** OpenAQ v3 needs `OPENAQ_API_KEY`; without it the field is model + public S3 archive (1–2 days lagged) and the provenance block says so. No CPCB public JSON endpoint is reachable from the deployment network (documented in `server/data/field_validation.md`).
+- **Amazon Location is optional.** With `ALIVE_LOCATION_KEY` you get T2 suggestions, traffic-aware routes, and the Amazon dark style. Without it the app still works: T0+T1 search, public OSRM demo routing, OpenFreeMap tiles.
+- **The field is honest about its own error.** It over-reads in clean air (+150.6% bias on the validated window); the LOO calibration and σ bands are served next to the data, not hidden.
+- **No outcome claims.** We can count "N trips switched to a lower-smoke option" — a countable behaviour — but not "Delhi got cleaner because of ALive."
 
-The field blends **CPCB/DPCC/HSPCB instruments** (OpenAQ v3, ~105 in NCR,
-each Kalman-smoothed) with the CAMS model grid — model samples are
-spatially de-biased against instruments, then **ordinary kriging**
-interpolates with a real spatial-variance estimate (exp variogram,
-15 km range). `/aqi` reports `field.station_readings` — exactly how many
-instruments flowed into the current refresh — plus krige-derived
-uncertainty bands (`pm25_lo/hi`, propagated through every dose integral).
-CAMS under-reads Delhi 2–8× at hotspots; LOO proved it, then we fixed it.
+## Quickstart
 
-`Mobile/` — iOS + Android (Expo/RN, MapLibre): FROM→TO search with real
-suggestions, dose-ranked mode card with per-segment dose-colored route,
-Lung Ledger (daily µg → cigarette-equivalents, budget %, avoided total,
-24h typical sparkline), journeys drawer (week bars, streak, city rollup),
-Ambient Mode (always-on glance), horizon scrubber (now→+24h field),
-live-location puck + recenter, hazard reporting, quieter-road lever,
-instant offline search (bundled 26.5k-POI NCR gazetteer, <10 ms answers),
-live inhaled-dose meter in navigation + dose receipt on arrival.
+Server (Python ≥3.11; also `uv venv && uv pip install …`):
 
-`Bridge/` — the shared wire contract so app and server can never drift.
+```bash
+cd server
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
+.venv/bin/python -m uvicorn main:app --port 8080
+```
 
-**Tests:** `server/.venv312/bin/python test_api.py` — 51 assertions
-against the live AWS deployment (no mocks), plus `field_calibration.json`:
-a leave-one-out run over 94 live instruments (MAE 46.1 µg/m³, bias +0.3).
+Tests — offline unit suite, then the live end-to-end suite (no mocks):
+
+```bash
+cd server
+.venv/bin/python -m pytest tests/                      # offline
+.venv/bin/python test_api.py --base http://localhost:8080   # hits real upstreams
+```
+
+Mobile (Expo SDK 57, npm — `package-lock.json` is the lockfile):
+
+```bash
+cd Mobile
+npm install
+npx expo start        # dev server; npx expo lint · npx tsc --noEmit to check
+```
+
+Search corpus (self-hosted geo data — downloads Geofabrik OSM, builds the corpus, emits the mobile gazetteer, scores the 20-query list into `STATS.md`):
+
+```bash
+./tools/setup-corpus.sh
+```
+
+AWS infra (one-time / drift repair — S3, DynamoDB, EventBridge schedules, CloudWatch, budget, Location key):
+
+```bash
+./infra/provision.sh --dry-run     # prints every command, executes nothing
+./infra/provision.sh
+```
+
+Deploy (image → ECR → ECS redeploy → NLB target re-registration):
+
+```bash
+AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=… ./scripts/deploy.sh
+```
+
+## Status
+
+Phases per `docs/plan/09-build-sequence.md` — honest checkboxes.
+
+| Phase | State | Notes |
+|---|---|---|
+| 0 · Foundations + AWS | ◐ partial | `infra/provision.sh` + `scripts/deploy.sh` exist; schedules stubbed until owner exports target ARNs |
+| 1 · Instant search | ✔ built | 3-tier search, C++ T1 index, corpus pipeline, 20/20 acceptance, benchmarks above |
+| 2 · Dark map + shell | ◐ partial | OpenFreeMap dark map, hamburger sidebar, design tokens, hi/en strings shipped; Amazon Standard Dark style awaits the Location key |
+| 3 · Plan: breath + smoke-out | ✔ built | `/v2/plan` returns ETA + dose band + emission band + ranking reason; emission integrator in C++ |
+| 4 · Live trip | ◐ partial | `/v2/strip` + `/v2/trip` and nav chrome exist; on-device voice/reroute marked as seams in code |
+| 5 · Air index + city + admin | ◐ partial | index builder, ingest worker, rollup, validation all exist; stations need the OpenAQ key; snapshots land locally until S3 ARNs are set |
+| 6 · Polish + proof + submission | ◐ in progress | benchmarks above (kriging kernels pending); README (this file); video + writeup pending |
+
+**Only the owner can unblock:** the OpenAQ (or data.gov.in) station key, the Amazon Location spend cap/key, AWS credentials for provisioning/deploy, real-phone Delhi test drives, and an Apple developer account (iOS stays simulator-only).
+
+**Hackathon note.** Event rules require repo history inside the Oct 8–11 window. `scripts/public-repo.sh` squashes this private repo to one baseline commit on the day and pushes to the public repo; later commits land inside the window. We don't hide history — see `docs/plan/00-README.md` open items.
 
 ## Docs
 
+The plan folder is the source of truth; `docs/plan/10-claims-ledger.md` governs every number this repo shows.
+
 | Doc | Contents |
 |---|---|
-| [00 · Executive thesis](docs/00-executive-thesis.md) | Problem, Delhi opportunity, differentiation, product definition |
-| [01 · Data sources](docs/01-data-sources.md) | Every verified API/dataset: URL, limits, license, fallback |
-| [02 · Competitive landscape](docs/02-competitive-landscape.md) | What exists, what's solved, what's genuinely open |
-| [03 · Models](docs/03-models.md) | Pollution field, exposure/dose, emissions, route optimization — with feasibility verdicts |
-| [04 · Architecture](docs/04-architecture.md) | System design, DB schema, pipelines, API, frontend, performance, privacy |
-| [05 · Validation & impact](docs/05-validation-impact.md) | Back-testing plan, metrics, honest impact model, failure modes |
-| [06 · MVP & roadmap](docs/06-mvp-roadmap.md) | Exact MVP, rejected features, demo flow, phased build plan |
-| [07 · Experiments](docs/07-experiments.md) | Advanced methods scored: hypothesis → cost → verdict |
-| [08 · Verdict](docs/08-verdict.md) | The brutally-honest product call this build follows |
-| [10 · Provenance](docs/10-shipped.md) | Where every number on screen traces to — measured vs modelled |
+| `docs/plan/00-README.md` | Master plan, pillars, owner open items |
+| `docs/plan/01` – `08` | Mission, UX, design, map/search/nav, backend, science, dashboard/privacy, C++ engine |
+| `docs/plan/09-build-sequence.md` | Phases and acceptance criteria |
+| `docs/plan/10-claims-ledger.md` | What we may say, what we never say |
+| `docs/plan/bench-results.md` | All benchmark numbers, protocol + both builds |
+| `docs/plan/runbook.md` | Deploy, rollback, secrets, health, cost |
+| `server/data/field_validation.md` | Field vs 3,550 archived station-hours |
+| `server/data/corpus/STATS.md` | Corpus build stats + search acceptance |
 
-## Zero-fake-data rule
+## Layout
 
-Every number the product shows must trace to a measured observation, a published factor, or a labeled model estimate with uncertainty. If we can't defend it, we don't show it.
+`server/` — FastAPI dose engine + `server/core/` C++ (`alive_core`) + `server/v2/` API · `Mobile/` — Expo app · `Bridge/` — shared wire contract · `scripts/` `infra/` `tools/` — deploy, provisioning, corpus · `tests/search_queries.txt` — the fixed 20-query acceptance list · `docs/plan/` — the plan.
