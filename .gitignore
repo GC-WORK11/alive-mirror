@@ -50,3 +50,6 @@ server/data/corpus/dl/
 server/data/corpus/delhi-corpus.jsonl.gz
 server/data/corpus/delhi-gazetteer-150k.json
 tools/corpus-venv/
+
+# local geo stack artifacts (scripts/geo/ pipeline — rebuildable, huge)
+data/geo/
