@@ -1,0 +1,14 @@
+{
+  "Name": "alive108-rollup-daily-0030IST",
+  "GroupName": "alive108",
+  "Description": "Daily rollup at 00:30 IST = 19:00 UTC -> rollup_lambda daily_rollup / job=rollup over the last fully-closed UTC snapshot day. Same schedule provision.sh creates; substitute ${ROLLUP_TARGET_ARN} and ${SCHEDULER_ROLE_ARN} with the real worker task + role ARNs, then set State ENABLED.",
+  "ScheduleExpression": "cron(30 19 * * ? *)",
+  "ScheduleExpressionTimezone": "UTC",
+  "State": "DISABLED",
+  "FlexibleTimeWindow": { "Mode": "OFF" },
+  "Target": {
+    "Arn": "${ROLLUP_TARGET_ARN}",
+    "RoleArn": "${SCHEDULER_ROLE_ARN}",
+    "Input": "{\"job\":\"rollup\"}"
+  }
+}
