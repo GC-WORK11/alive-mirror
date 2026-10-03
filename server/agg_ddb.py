@@ -34,6 +34,7 @@ Local dev / tests: pass `client=` (a fake or stubbed DynamoDB client);
 import os
 import sys
 import time
+import uuid
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -45,6 +46,7 @@ DEFAULT_TABLE = "alive108-agg"
 DEFAULT_REGION = "ap-south-1"   # doc 05 §1: every service lives here
 DAY_SUM_SK = "sum"
 CELL_SK = "cell"
+RECENT_PK = "recent"
 K_MIN = 3                       # doc 07 §3: publish a cell only with >=3 tokens
 CELL_TTL_S = 30 * 86400         # doc 05 §4: corridor cells expire after 30 d
 CELL_WINDOW_S = 72 * 3600       # doc 07: k-window is the last 72 h
@@ -131,6 +133,55 @@ class DDBTripAggregates:
         except Exception as e:  # noqa: BLE001 - surface, never silent-loss
             self.last_error = f"{type(e).__name__}: {e}"
             raise
+        self._append_recent(ts, summary)
+
+    def _append_recent(self, ts: float, summary: dict) -> None:
+        """One aggregate-level event row for the admin live feed.
+        pk='recent' items carry ts/mode/dose/km/co2 only — never a cell,
+        never a token — and expire on the same 72 h freshness contract
+        the corridors use. A feed-write failure is recorded but must not
+        sink the donation: the counters above already took the truth."""
+        try:
+            self.client.put_item(
+                TableName=self.table_name,
+                Item={
+                    "pk": {"S": RECENT_PK},
+                    "sk": {"S": f"trip#{ts:.3f}#{uuid.uuid4().hex[:6]}"},
+                    "ts": _n(round(ts, 3)),
+                    "mode": {"S": str(summary.get("mode") or "unknown")[:24]},
+                    "dose_ug": _n(float(summary.get("dose_ug") or 0.0)),
+                    "km": _n(float(summary.get("distance_km") or 0.0)),
+                    "co2_kg_mid": _n(float(summary.get("co2_kg_mid") or 0.0)),
+                    "switched": _n(1 if summary.get("switched") else 0),
+                    "ttl": _n(int(ts) + CELL_WINDOW_S),
+                })
+        except Exception as e:  # noqa: BLE001 - feed is cosmetic, log-only
+            self.last_error = f"recent: {type(e).__name__}: {e}"
+
+    def recent(self, limit: int = 20) -> list:
+        """Newest-first aggregate trip events for the admin live feed."""
+        try:
+            out = []
+            for it in self._scan(RECENT_PK):
+                sk = (it.get("sk") or {}).get("S", "")
+                if not sk.startswith("trip#"):
+                    continue
+                out.append({
+                    "ts": _num(it.get("ts")),
+                    "mode": (it.get("mode") or {}).get("S", "unknown"),
+                    "dose_ug": _num(it.get("dose_ug")),
+                    "km": _num(it.get("km")),
+                    "co2_kg_mid": _num(it.get("co2_kg_mid")),
+                    "switched": bool(_num(it.get("switched"))),
+                    "_sk": sk,
+                })
+            out.sort(key=lambda e: -e["ts"])
+            for e in out:
+                del e["_sk"]
+            return out[:limit]
+        except Exception as e:  # noqa: BLE001 - dashboard degrades, not dies
+            self.last_error = f"{type(e).__name__}: {e}"
+            return []
 
     def _add_cell(self, cell: str, dose: float, token_hash: str,
                   ts: float, ttl: int) -> None:
@@ -245,7 +296,7 @@ class DDBTripAggregates:
     def reset(self) -> None:
         """Drop every aggregate item (dev/test parity with the memory
         store's reset; not wired to any endpoint)."""
-        for prefix in ("day#", "cell#"):
+        for prefix in ("day#", "cell#", RECENT_PK):
             for it in self._scan(prefix):
                 self.client.delete_item(
                     TableName=self.table_name,

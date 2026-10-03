@@ -531,11 +531,18 @@ async def donations():
           "pct": round(100.0 * n / tot["trips"], 1) if tot["trips"] else None}
          for m, n in tot["modes"].items()),
         key=lambda r: -(r["trips"] or 0))
+    # the live feed — newest aggregate-level events first (ts/mode/dose/
+    # km/co2; cells and tokens are never part of the feed, by design)
+    try:
+        recent = TRIPS.recent(20)
+    except Exception:  # noqa: BLE001 - a store without the ring degrades
+        recent = []
     return {
         "ts": time.time(),
         "window_s": CORRIDOR_WINDOW_S,
         "totals": totals,
         "mode_share": mode_share,
+        "recent": recent,
         "days": days,
         "n_days": len(days),
         "cells_tracked": agg.get("cells_tracked", 0),

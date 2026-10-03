@@ -78,6 +78,13 @@ class FakeDDB:
                     ExpressionAttributeValues)
         return {}
 
+    def put_item(self, TableName, Item, **kw):
+        self.calls.append(("put_item", TableName, Item))
+        if "put_item" in self.fail_on:
+            raise RuntimeError("injected put failure")
+        self.items[(Item["pk"]["S"], Item["sk"]["S"])] = dict(Item)
+        return {}
+
     def scan(self, TableName, **kw):
         self.calls.append(("scan", TableName, kw.get("ExclusiveStartKey")))
         if "scan" in self.fail_on:

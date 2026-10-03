@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import deque
 from typing import Optional
 
 LOCK = threading.Lock()
@@ -85,6 +86,10 @@ class TripAggregates:
         self._days: dict = {}    # "YYYY-MM-DD" -> day counters
         self._cells: dict = {}   # cell key -> {count, dose_sum, tokens:set}
         self._cell_window_s = 72 * 3600  # corridor rule: 72 h freshness
+        # bounded ring of the latest donations — ts/mode/dose/km/co2 only,
+        # never a cell or a token: the admin live-feed needs the shape of
+        # activity, not its geometry
+        self._recent: deque = deque(maxlen=50)
 
     def record_trip(self, cells: list, summary: dict,
                     token_hash: str, ts: float = None) -> None:
@@ -121,6 +126,13 @@ class TripAggregates:
                 v["last_ts"] = max(v["last_ts"], ts)
                 if token_hash:
                     v["tokens"].add(token_hash)
+            self._recent.append({
+                "ts": ts, "mode": mode,
+                "dose_ug": dose,
+                "km": float(summary.get("distance_km") or 0.0),
+                "co2_kg_mid": float(summary.get("co2_kg_mid") or 0.0),
+                "switched": bool(summary.get("switched")),
+            })
 
     def _publishable_cells(self, now: float, limit: int) -> list:
         """k>=3-window filter — call with LOCK held (aggregates only)."""
@@ -153,6 +165,11 @@ class TripAggregates:
             "cells_tracked": cells_tracked,
             "corridors_publishable": n_pub,
         }
+
+    def recent(self, limit: int = 20) -> list:
+        """Newest-first aggregate trip events for the admin live feed."""
+        with LOCK:
+            return list(self._recent)[-limit:][::-1]
 
     def snapshot_cells(self) -> dict:
         """Test/debug view of the cell layer (aggregates, no raw data)."""
