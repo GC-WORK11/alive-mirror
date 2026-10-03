@@ -304,6 +304,11 @@
         <div class="d"><b><span id="km">—</span> km</b> travelled — <b><span id="contrib">—</span></b> commutes donated in 72 h</div>
       </div>
       <div class="stat">
+        <div class="k">the city emitted today</div>
+        <div class="v"><span id="co2">—</span><small> kg co₂</small></div>
+        <div class="d" id="co2d">tailpipe co₂ + pm2.5 from donated commutes — the emission half of every receipt</div>
+      </div>
+      <div class="stat">
         <div class="k">corridors measured</div>
         <div class="v"><span id="corr">—</span><small> publishable</small></div>
         <div class="d">a corridor cell publishes only with ≥3 distinct devices in 72 h · <b><span id="cellstr">—</span> cells tracked</b></div>
@@ -474,6 +479,20 @@ async function load(){
     setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_total));
     setTxt('corr',IN(t.corridors_publishable));
     setTxt('cellstr',IN(t.cells_tracked));
+    /* emission parity — the same donated day carries co2_kg_mid,
+       pm25_g_mid and the mode tally; zero days read as no data */
+    const co2v=latest.co2_kg_mid,pmv=latest.pm25_g_mid;
+    if(co2v!=null&&(latest.trips||0)>0){
+      setTxt('co2',(+co2v).toFixed(co2v<1?2:1));
+      const md=latest.modes?Object.entries(latest.modes).sort((a,b)=>b[1]-a[1])
+        .map(([m,n])=>`${m} ${n}`).join(' · '):'';
+      document.getElementById('co2d').innerHTML=
+        `tailpipe pm2.5 <b>${pmv!=null?(+pmv).toFixed(pmv<1?3:1)+' g':'—'}</b> · mid estimate`+
+        `${md?` · by mode: ${md}`:''}`;
+    }else{
+      setTxt('co2','—');
+      setTxt('co2d','no donated commutes today — the app fills this as delhi moves');
+    }
     paintCigs((t.dose_ug_24h||0)/316);
     setTxt('nstations',a.field?.station_readings??'—');
     setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
