@@ -1,4 +1,4 @@
-/** ALive-108 component primitives — v2 dark design system (docs/plan/03).
+/** ALive-108 component primitives — v2 light design system (docs/plan/03).
  * Sheets: surface + 1px line top edge, spring (damping 22, stiffness 220),
  * 3 detents (peek 15% · half 50% · full 92%). */
 import React, { useEffect, useState } from "react";
@@ -19,12 +19,12 @@ const SEL_TINT = V2T.accentTint;
 
 /** AlertBanner severities — solid light fills + muted borders. */
 const ALERT_SEV = {
-  info:   { glyph: "info" as Glyph, color: V2T.accent,  bg: "#E8EDFB", border: "#A9BEF2" },
+  info:   { glyph: "info" as Glyph, color: V2T.accent,  bg: V2T.accentWash, border: "#A9BEF2" },
   warn:   { glyph: "warn" as Glyph, color: V2T.breath1, bg: "#FBF0DA", border: "#D9B468" },
   danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "#FBEAEA", border: "#DFA0A2" },
 } as const;
 
-/** Bottom sheet — grabber + optional X. Dark surface, hairline top edge. */
+/** Bottom sheet — grabber + optional X. Solid white surface, hairline top edge. */
 export function Sheet({
   detent = "peek", onClose, children, style, lang = "en",
 }: {
@@ -181,7 +181,9 @@ export function MapButton({
   return (
     <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [us.mapBtn, active && us.mapBtnOn, pressed && { opacity: 0.6 }]}>
-      <Icon name={glyph} color={active ? V2T.text : V2T.text2} size={22} filled={filled ?? active} />
+      {/* active = accent puck → the glyph must go light (V2T.bg ≈7:1 on
+          accent); ink-on-accent was the dark-theme leftover */}
+      <Icon name={glyph} color={active ? V2T.bg : V2T.text2} size={22} filled={filled ?? active} />
     </Pressable>
   );
 }
@@ -214,7 +216,7 @@ const us = StyleSheet.create({
     backgroundColor: V2T.surface, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
     borderCurve: "continuous",
     borderTopWidth: 1, borderTopColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: -6 },
+    shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 16, shadowOffset: { width: 0, height: -4 },
     elevation: 12, overflow: "hidden",
   },
   grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 6 },
@@ -247,7 +249,7 @@ const us = StyleSheet.create({
   originPin: {
     width: 20, height: 20, borderRadius: 10, backgroundColor: V2T.bg,
     borderWidth: 2.5, borderColor: V2T.text, alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
   },
   originDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: V2T.accent },
 
@@ -255,7 +257,7 @@ const us = StyleSheet.create({
     width: 46, height: 46, borderRadius: 23, backgroundColor: V2T.surface,
     alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     elevation: 6,
   },
   mapBtnOn: { backgroundColor: V2T.accent, borderColor: V2T.accent },

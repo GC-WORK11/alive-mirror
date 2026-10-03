@@ -131,7 +131,9 @@ export function FieldLayer({ grid }: Props) {
   );
 }
 
-const SLATE = "#1e293b";
+// destination pin stays ink-dark — the B pin needs real weight on the
+// light basemap; the token replaces the dark-era slate literal
+const PIN_B = V2T.text;
 
 function Pin({ letter, color }: { letter: string; color: string }) {
   return (
@@ -156,7 +158,7 @@ const pin = StyleSheet.create({
     borderColor: "#ffffff",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.28,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 3,
   },
@@ -179,7 +181,7 @@ const pin = StyleSheet.create({
 });
 
 /** A/B endpoint markers — real teardrop pins like Google Maps (accent A,
- * dark-slate B), drawn with plain Views so no image assets are needed.
+ * ink B), drawn with plain Views so no image assets are needed.
  * `anchor="bottom"` drops the tail tip on the coordinate. */
 export function EndpointPins({ a, b }: { a: Coord | null; b: Coord | null }) {
   if (!a && !b) return null;
@@ -192,7 +194,7 @@ export function EndpointPins({ a, b }: { a: Coord | null; b: Coord | null }) {
       )}
       {b && (
         <Marker lngLat={[b.lon, b.lat]} anchor="bottom">
-          <Pin letter="B" color={SLATE} />
+          <Pin letter="B" color={PIN_B} />
         </Marker>
       )}
     </>

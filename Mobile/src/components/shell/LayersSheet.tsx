@@ -37,7 +37,7 @@ export function LayersSheet({
               value={values[r.key]}
               onValueChange={(v) => onToggle(r.key, v)}
               trackColor={{ false: V2T.line, true: V2T.accent }}
-              thumbColor={V2T.text}
+              thumbColor={V2T.surface}
             />
           </View>
         ))}

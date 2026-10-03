@@ -391,7 +391,7 @@ const s = StyleSheet.create({
     backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
     paddingVertical: 10, paddingHorizontal: 12,
     borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.32, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },
     elevation: 8,
   },
   tile: {
@@ -426,7 +426,7 @@ const s = StyleSheet.create({
     position: "absolute", left: 14, right: 14, bottom: 24,
     backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
     borderWidth: 1, borderColor: V2T.line, overflow: "hidden",
-    shadowColor: "#000", shadowOpacity: 0.32, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },
     elevation: 8,
   },
   progTrack: { height: 3, backgroundColor: V2T.surface2 },

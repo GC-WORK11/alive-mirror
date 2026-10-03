@@ -5,7 +5,7 @@
 // Controlled component — reads `current` (the persisted ShellSettings), and
 // reports every edit through onChange; the parent applies the patch through
 // shell/settings.saveSettings. Same Modal-sheet contract as SearchScreen:
-// mounted only while visible, dark V2 tokens, every string through t().
+// mounted only while visible, light V2 tokens, every string through t().
 // Data sharing is explained in plain words and turns OFF in one labelled tap —
 // no dark patterns (doc 07 §3).
 //
@@ -158,7 +158,7 @@ function SettingsSheet({
           onValueChange={onValue}
           disabled={disabled}
           trackColor={{ false: V2T.line, true: V2T.accent }}
-          thumbColor={V2T.text}
+          thumbColor={V2T.surface}
         />
       </Pressable>
     );

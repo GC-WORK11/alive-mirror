@@ -33,7 +33,7 @@ const st = StyleSheet.create({
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: V2T.surface, alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
     elevation: 3,
   },
   wrapSevere: { borderColor: V2T.breath3 },

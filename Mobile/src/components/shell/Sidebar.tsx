@@ -1,4 +1,4 @@
-/** Sidebar — full-height dark drawer from the ☰ in the search bar
+/** Sidebar — full-height light drawer from the ☰ in the search bar
  * (doc 02 §sidebar, items 1–8). Rules enforced here:
  *  - no stats dashboard beyond Today + This week
  *  - nothing appears without data — no fake numbers, ever
@@ -205,8 +205,10 @@ export function Sidebar({
         <Text style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t(labelKey, lang)}</Text>
         {hintKey ? <Text style={s.rowHint}>{t(hintKey, lang)}</Text> : null}
       </View>
+      {/* light-theme switch: white knob on the line/accent track —
+          thumbColor=V2T.text left an ink blob on the light track */}
       <Switch value={value} onValueChange={onValue} accessibilityLabel={t(labelKey, lang)}
-        trackColor={{ false: V2T.line, true: V2T.accent }} thumbColor={V2T.text} />
+        trackColor={{ false: V2T.line, true: V2T.accent }} thumbColor={V2T.surface} />
     </View>
   );
 
@@ -413,7 +415,7 @@ export function Sidebar({
                   <Switch value={settings.share}
                     onValueChange={(v) => onSettings({ share: v })}
                     accessibilityLabel={t("settingsShareData", lang)}
-                    trackColor={{ false: V2T.line, true: V2T.accent }} thumbColor={V2T.text} />
+                    trackColor={{ false: V2T.line, true: V2T.accent }} thumbColor={V2T.surface} />
                 ),
               })}
             </View>,
@@ -481,7 +483,7 @@ const s = StyleSheet.create({
   drawer: {
     position: "absolute", left: 0, top: 0, bottom: 0, width: DRAWER_W,
     backgroundColor: V2T.bg, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 24, shadowOffset: { width: 4, height: 0 },
+    shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 4, height: 0 },
     elevation: 12,
   },
 

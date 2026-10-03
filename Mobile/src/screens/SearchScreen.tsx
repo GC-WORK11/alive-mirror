@@ -289,7 +289,7 @@ function SearchSheet({
           autoCapitalize="none"
           autoComplete="off"
           spellCheck={false}
-          keyboardAppearance="dark"
+          keyboardAppearance="light"
           returnKeyType="search"
           clearButtonMode="never"
           accessibilityLabel={t("searchPlaceholder", lang)}

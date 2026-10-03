@@ -49,7 +49,7 @@ const s = StyleSheet.create({
     backgroundColor: V2T.surface, borderRadius: V2Radius.pill, height: 52,
     paddingHorizontal: 8, paddingRight: 16,
     borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
     elevation: 6,
   },
   menuBtn: {

@@ -509,7 +509,7 @@ const ss = StyleSheet.create({
   },
   factTxt: { flex: 1, fontSize: V2Type.secondary, color: V2T.text2, lineHeight: 22 },
 
-  // p3 — equal-size choice buttons. Share fills accent with dark text
+  // p3 — equal-size choice buttons. Share fills accent with light text
   // (V2T.bg on accent ≈ 5.2:1 — text2-on-accent failed at ~1.9:1); keep is
   // a solid surface button, not a ghosted link. Equal weight, no nudge.
   choiceCol: { gap: 12, marginTop: 28 },
