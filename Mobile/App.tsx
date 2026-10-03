@@ -47,7 +47,7 @@ import {
 } from "./src/components/shell/settings";
 import { loadTrips } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
-import { modeLabel, t } from "./src/i18n/strings";
+import { modeLabel, placeNameLabel, t } from "./src/i18n/strings";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -373,7 +373,7 @@ function AppInner() {
         onShare={() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {})}
         onShareTrip={(tr) => Share.share({
           message: t("shareTripBody", lang, {
-            from: tr.from, to: tr.to,
+            from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
             dose: tr.dose_ug != null ? `~${Math.round(tr.dose_ug)}µg` : "—",
           }),
         }).catch(() => {})} />
@@ -485,7 +485,8 @@ function NavSession({
       <ReceiptSheet data={data} lang={lang} onDone={onExit}
         onShare={() => Share.share({
           message: t("shareTripBody", lang, {
-            from: from?.name ?? "?", to: to?.name ?? "?",
+            from: from ? placeNameLabel(from.name, lang) : "?",
+            to: to ? placeNameLabel(to.name, lang) : "?",
             dose: summary.doseUg.mid != null ? `~${Math.round(summary.doseUg.mid)}µg` : "—",
             co2: summary.co2Kg.mid != null ? `~${summary.co2Kg.mid.toFixed(1)}kg CO₂` : "—",
           }),

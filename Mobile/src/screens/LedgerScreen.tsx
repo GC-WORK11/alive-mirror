@@ -35,7 +35,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
-import { modeLabel, t, type Lang } from "../i18n/strings";
+import { modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
 import { Icon, vehicleGlyph } from "../icons";
 import {
   clearTrips,
@@ -47,10 +47,13 @@ import {
 
 /* ---------- formatting ---------- */
 
-// cigarettes: honest "<0.01" instead of a fake 0 (doc 10 cig equivalence).
+// cigarettes: "≈ 0.12" estimates, honest "<0.01" instead of a fake 0
+// (doc 10 cig equivalence). The ≈ lives here so templates don't have to
+// guess whether the number is a point estimate or an upper bound —
+// "≈ <0.01" was the collision this avoids.
 const fmtCig = (ug: number) => {
   const c = ug / CIG_UG;
-  return c >= 0.01 ? c.toFixed(2) : "<0.01";
+  return c >= 0.01 ? `≈ ${c.toFixed(2)}` : "<0.01";
 };
 const fmtUg = (ug: number) =>
   ug >= 10 ? `${Math.round(ug)}` : `${Math.round(ug * 10) / 10}`;
@@ -189,7 +192,7 @@ const TripCard = React.memo(function TripCard({
       <Pressable
         onPress={() => onToggle(key)}
         accessibilityRole="button"
-        accessibilityLabel={`${tr.from} → ${tr.to}, ${modeLabel(tr.vehicle, tr.label, lang)}, ${dayLabel(
+        accessibilityLabel={`${placeNameLabel(tr.from, lang)} → ${placeNameLabel(tr.to, lang)}, ${modeLabel(tr.vehicle, tr.label, lang)}, ${dayLabel(
           tr.ts,
           lang,
         )} ${timeLabel(tr.ts, lang)}`}
@@ -207,7 +210,7 @@ const TripCard = React.memo(function TripCard({
             style={[ss.tripRoute, { fontFamily: fam(lang, "med") }]}
             numberOfLines={1}
           >
-            {tr.from} → {tr.to}
+            {placeNameLabel(tr.from, lang)} → {placeNameLabel(tr.to, lang)}
           </Text>
           <Text {...DYNAMIC_TYPE}
             style={[ss.tripMeta, { fontFamily: fam(lang, "reg") }]}

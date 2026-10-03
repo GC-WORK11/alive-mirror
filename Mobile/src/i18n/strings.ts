@@ -192,14 +192,14 @@ const en = {
   ledgerLast7: "last 7 days",
   ledgerPrivacy: "trips stay on your phone",
   tripsBreathed: "smoke you breathed",
-  tripsCigs: "≈ {n} cigarettes",
+  tripsCigs: "{n} cigarettes",
   tripsCount: "{n} trips",
   tripsCountOne: "{n} trip",
   tripsDoseBand: "est. {lo}–{hi} µg",
   tripsDoseDetail: "est. {n} µg of smoke you breathed",
   tripsOutDetail: "est. {n} kg put out",
   tripsPutOut: "smoke your ride put out",
-  tripsSavedVs: "≈ {n} cigarettes less than the smokiest way",
+  tripsSavedVs: "{n} cigarettes less than the smokiest way",
   notSet: "not set",
   // notifications (src/notify.ts) — consumer voice: "smoke", never PM2.5
   notify_departure_title: "leave now — lighter air",
@@ -318,6 +318,7 @@ const en = {
   introGotIt: "got it",
   // place-name fallbacks (useShellFlow: from/to when no place is picked)
   placeCurrentLocation: "your location",
+  placeDroppedPin: "dropped pin",
   placeCentralDelhi: "central Delhi",
   // accessibility
   a11yMenu: "menu",
@@ -508,14 +509,14 @@ const hi: Record<StringKey, string> = {
   ledgerLast7: "पिछले 7 दिन",
   ledgerPrivacy: "यात्राएँ आपके फ़ोन पर ही रहती हैं",
   tripsBreathed: "आपने साँस में लिया धुआँ",
-  tripsCigs: "≈ {n} सिगरेट",
+  tripsCigs: "{n} सिगरेट",
   tripsCount: "{n} यात्राएँ",
   tripsCountOne: "{n} यात्रा",
   tripsDoseBand: "अंदाज़न {lo}–{hi} µg",
   tripsDoseDetail: "अंदाज़न {n} µg धुआँ आपने साँस में लिया",
   tripsOutDetail: "अंदाज़न {n} kg छोड़ा",
   tripsPutOut: "आपकी गाड़ी ने छोड़ा धुआँ",
-  tripsSavedVs: "सबसे धुआँदार रास्ते से ≈ {n} सिगरेट कम",
+  tripsSavedVs: "सबसे धुआँदार रास्ते से {n} सिगरेट कम",
   setCurrentDest: "अभी की मंज़िल सेव करें",
   onLabel: "चालू",
   offLabel: "बंद",
@@ -620,6 +621,7 @@ const hi: Record<StringKey, string> = {
   introBody: "मंज़िल चुनें — हम हर रास्ते की तुलना उस धुएँ से करते हैं जो आप साँस में लेंगे, सिर्फ़ रफ़्तार से नहीं। आपकी यात्राएँ गुमनाम रहकर शहर का साझा हवा-नक्शा बनाती हैं।",
   introGotIt: "ठीक है",
   placeCurrentLocation: "आपकी लोकेशन",
+  placeDroppedPin: "गिराई गई पिन",
   placeCentralDelhi: "सेंट्रल दिल्ली",
   a11yMenu: "मेन्यू",
   a11yLocate: "मुझे ढूँढें",
@@ -669,4 +671,22 @@ export function modeLabel(mode: string, label: string, lang: Lang): string {
   /* " (approx.)" is wire English too — localize the whole suffix */
   const suffix = rest.startsWith(" (approx") ? t("mode_approx", lang) : rest;
   return t(b.key, lang) + suffix;
+}
+
+/** Place names are stored verbatim at save-time, so a ledger row keeps the
+ *  language it was named in ("your location" inside a Hindi UI). Sentinel
+ *  names — the phone's own placeholders, not real place names — are
+ *  re-rendered in the current language; real gazetteer names pass through. */
+const PLACE_SENTINEL: Record<string, keyof typeof en> = {
+  "your location": "placeCurrentLocation",
+  "आपकी लोकेशन": "placeCurrentLocation",
+  "Dropped pin": "placeDroppedPin",
+  "गिराई गई पिन": "placeDroppedPin",
+  "central Delhi": "placeCentralDelhi",
+  "सेंट्रल दिल्ली": "placeCentralDelhi",
+};
+
+export function placeNameLabel(name: string, lang: Lang): string {
+  const key = PLACE_SENTINEL[name];
+  return key ? t(key, lang) : name;
 }

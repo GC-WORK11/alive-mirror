@@ -18,7 +18,7 @@ import {
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { modeLabel, t, type Lang } from "../../i18n/strings";
+import { modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -226,14 +226,14 @@ export function Sidebar({
       onPress={() => onTripReceipt?.(tr)}
       accessibilityRole={onTripReceipt ? "button" : undefined}
       accessibilityState={{ disabled: !onTripReceipt }}
-      accessibilityLabel={`${tr.from} — ${tr.to}`}
+      accessibilityLabel={`${placeNameLabel(tr.from, lang)} — ${placeNameLabel(tr.to, lang)}`}
       style={({ pressed }) => [s.trip, pressed && !!onTripReceipt && s.rowPressed]}>
       <View style={s.rowIcon}>
         <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={20} />
       </View>
       <View style={s.tripMid}>
         <Text {...DYNAMIC_TYPE} style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
-          {tr.from} → {tr.to}
+          {placeNameLabel(tr.from, lang)} → {placeNameLabel(tr.to, lang)}
         </Text>
         <Text {...DYNAMIC_TYPE} style={s.tripMeta}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts)}</Text>
       </View>
@@ -242,7 +242,7 @@ export function Sidebar({
       {onShareTrip && (
         <Pressable hitSlop={8} onPress={() => onShareTrip(tr)}
           accessibilityRole="button"
-          accessibilityLabel={`${t("share", lang)} — ${tr.from} ${tr.to}`}
+          accessibilityLabel={`${t("share", lang)} — ${placeNameLabel(tr.from, lang)} ${placeNameLabel(tr.to, lang)}`}
           style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
           <Icon name="share" color={V2T.text3} size={15} />
         </Pressable>
