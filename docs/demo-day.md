@@ -150,12 +150,17 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
 - **Set the sim location BEFORE launching** (`simctl location <udid> set
   28.6139,77.2090`): the app reads a one-shot fix at launch; setting it
   mid-run leaves origin/distances on the stale fix until restart
-- Intermittent upstream MapLibre-on-simulator Metal SIGSEGV — worst on
-  virtualized GPUs (this box), rare on real Macs, absent on hardware.
-  App-side mitigations shipped (45d393a): staggered camera moves,
-  deferred tint mount, re-plan held past sheet close
+- Intermittent upstream MapLibre/RN-iOS-simulator teardown SIGSEGV —
+  worst on virtualized GPUs (this box), rare on real Macs, absent on
+  hardware. Fixes shipped: deferred search focus (643d696), close on
+  keyboardDidHide (6286c11→80cd965), always-mounted route sources /
+  endpoint markers / location puck (759994f→15f5adf), deferred nav
+  teardown (c18ac92) — the deterministic search crash and the
+  receipt-Done crash are dead; residual is rare, stochastic, at map
+  churn points only
 - If it ever drops to SpringBoard: relaunch — every state (consent,
-  vehicle, recents) persists; you're back on the map in seconds
+  vehicle, recents, trip ledger) persists; you're back on the map in
+  ~5 seconds
 - For a prepped show: finish onboarding + vehicle pick once before
   stage — the remaining journey (search → options → nav → receipt)
   runs clean repeatedly
