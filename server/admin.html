@@ -124,6 +124,7 @@
   .kv dd.sub{color:var(--ink2)}
 
   .share{padding:6px 16px 14px}
+  canvas#fieldmap{width:100%;display:block;border-radius:12px;background:var(--surface2,#f2f4f7)}
   .share-row{display:grid;grid-template-columns:88px 1fr 52px 44px;gap:10px;
              align-items:center;padding:3.5px 0;font-size:11.5px}
   .share-row .m{font-family:var(--mono);font-size:10.5px;color:var(--ink2);
@@ -170,6 +171,12 @@
   <div class="statusline" id="stamp">connecting…</div>
 
   <div class="grid" id="stats"></div>
+
+  <h2>the live field <em>the surface every route breathes through — painted from the same cells the app tints</em></h2>
+  <div class="panel" style="padding:14px">
+    <canvas id="fieldmap"></canvas>
+    <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
+  </div>
 
   <h2>source health <em>what feeds the map, and when it last fetched</em></h2>
   <div class="cols">
@@ -398,6 +405,43 @@ async function tick(){
       <span class="p">${r.pct!=null?r.pct+'%':'—'}</span>
       <span class="n">${fmt(r.trips)}</span></div>`).join('')
     :'';
+
+  /* --- live field map — the real /grid cells, dose ramp, honest
+         confidence fade (thin areas fade instead of faking detail) --- */
+  try{
+    const g=await getJSON('/grid?cells=28');
+    const cv=$('fieldmap'),ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
+    const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,ASP=0.879;   /* cos(28.6°) */
+    const w=cv.parentElement.clientWidth-28;
+    /* true map aspect: lon-deg ≈ 111·cos(lat) km vs lat-deg ≈ 111 km */
+    const W=w,H=Math.round(w*(Y1-Y0)/((X1-X0)*ASP));
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
+    ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+    const feats=(g&&g.features)||[];
+    const alpha={'hi':.92,'med':.58,'lo':.30};
+    let vmin=null,vmax=null;
+    for(const ft of feats){
+      const p=(ft.properties||{}),ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+      if(!ring||ring.length<3)continue;
+      const t=Math.min(1,(p.pm25||0)/300);
+      ctx.fillStyle=ramp(t,alpha[p.conf]??.3);
+      ctx.beginPath();
+      ring.forEach(([lo,la],i)=>{const x=(lo-X0)/(X1-X0)*W,y=(1-(la-Y0)/(Y1-Y0))*H;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+      ctx.closePath();ctx.fill();
+      if(vmin==null||p.pm25<vmin)vmin=p.pm25;
+      if(vmax==null||p.pm25>vmax)vmax=p.pm25;
+    }
+    /* centre mark — the centroid the city numbers are computed at */
+    const cx=(77.2167-X0)/(X1-X0)*W,cy=(1-(28.6315-Y0)/(Y1-Y0))*H;
+    ctx.strokeStyle='rgba(20,24,31,.55)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(cx,cy,4,0,6.283);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-7,cy);ctx.lineTo(cx+7,cy);ctx.moveTo(cx,cy-7);ctx.lineTo(cx,cy+7);ctx.stroke();
+    $('fieldmap-sub').innerHTML=feats.length
+      ?`${fmt(feats.length)} real cells · PM2.5 ${fmt1(vmin)}–${fmt1(vmax)} µg/m³ · faded cells sit farther from a measured sample — never a guess`
+      :'field empty — the map paints only measured cells, and there are none right now';
+  }catch(e){
+    $('fieldmap-sub').textContent='grid unreachable — '+esc(e.message||e);
+  }
 
   /* --- corridors (aggregate rows only; the k≥3 set comes from the store) --- */
   const rows=corridors.rows||[];
