@@ -13,9 +13,16 @@ Two honest contributions, no fake sensing:
    clean air) with a 6h TTL — the Waze model applied to air. Stored
    in-memory, snapshotted to data/community.json for restart survival.
 
-Privacy: observations carry no identity. A shared anonymous id lets a
-device be counted once for 'contributors' without tracking who it is.
+Privacy (docs/plan/07 §3 — the product promise, enforced here):
+observations carry no identity. The client-sent anonymous id is hashed
+like v2/trip.py's device_token before it can touch any store, and raw
+coordinates are folded into ~500 m cell traversals at ingest — no raw
+trajectories at rest. Anything this module publishes is an aggregate;
+a corridor cell is revealed only with >=_K_MIN_DEVICES distinct hashed
+devices inside the 72 h window (same rule v2/store.py TripAggregates
+implements). Per-device rows are never returned — that was the leak.
 """
+import hashlib
 import json
 import math
 import os
@@ -39,6 +46,21 @@ _last_s3_put = 0.0
 _obs: list[dict] = []
 _reports: list[dict] = []
 _loaded = False
+
+# k-anonymity contract shared with v2/store.py TripAggregates: a cell is
+# publishable only with >=3 distinct (hashed) devices and a traversal
+# inside the last 72 h. Keep these in lockstep.
+_K_MIN_DEVICES = 3
+_CELL_WINDOW_S = 72 * 3600
+
+
+def _token(contributor) -> str:
+    """Hash the anonymous device id before it may touch a store or a
+    snapshot — the same treatment v2/trip.py gives device_token.
+    Distinct-countable for the k>=3 threshold, not linkable."""
+    if not contributor:
+        return ""
+    return hashlib.sha256(str(contributor).encode()).hexdigest()[:16]
 
 
 def _s3():
@@ -107,17 +129,29 @@ def _prune_reports() -> None:
 def observe(vehicle: str, coords: list, duration_s: float,
             dose_ug: Optional[float], avoided_ug: Optional[float],
             contributor: Optional[str]) -> dict:
-    """Store an anonymized traversal. coords: [[lon, lat], ...] sampled."""
+    """Store an anonymized traversal. coords: [[lon, lat], ...] sampled.
+
+    The raw coordinate list is folded into ~500 m cell traversals here
+    and never stored — doc 07 §3's "no raw trajectories at rest". What
+    persists per trip is exactly what every aggregate needs and nothing
+    more: cells touched, path km, mode, dose sums, a hashed token."""
     _load()
+    pts = [[round(float(c[0]), 5), round(float(c[1]), 5)]
+           for c in coords[:400] if len(c) >= 2]
+    cells: list = []
+    for lon, lat in pts:
+        cell = _cell(lon, lat)
+        if not cells or cells[-1] != cell:
+            cells.append(list(cell))
     obs = {
         "ts": time.time(),
         "vehicle": vehicle,
         "duration_s": round(float(duration_s), 1),
         "dose_ug": None if dose_ug is None else round(float(dose_ug), 1),
         "avoided_ug": None if avoided_ug is None else round(float(avoided_ug), 1),
-        "contributor": (contributor or "")[:16],
-        "points": [[round(float(c[0]), 5), round(float(c[1]), 5)]
-                   for c in coords[:400] if len(c) >= 2],
+        "contributor": _token(contributor),
+        "km": round(_hav_km(pts), 3),
+        "cells": cells,
     }
     _obs.append(obs)
     _save()
@@ -147,29 +181,36 @@ def reports_geojson() -> dict:
 
 
 def contributors_detail() -> list[dict]:
-    """Per-contributor rollup for the admin dashboard — anon ids only."""
+    """Per-day city rollup for the admin dashboard — aggregates only.
+
+    This used to return one row per contributor id (trips/km/dose/
+    modes/last-seen per device) — exactly the per-device surface
+    doc 07 §3 forbids, even hashed, because a persistent id makes the
+    rows linkable across days. Rows are now UTC-day buckets: what the
+    city did each day, plus the count of distinct devices behind it.
+    `last_seen_min_ago` is kept so /admin/api's live-activity check
+    still computes."""
     _load()
     by: dict = {}
     for o in _obs:
-        c = by.setdefault(o["contributor"] or "anon", {
+        day = time.strftime("%Y-%m-%d", time.gmtime(o["ts"]))
+        c = by.setdefault(day, {
             "trips": 0, "dose_ug": 0.0, "avoided_ug": 0.0,
-            "km": 0.0, "last_ts": 0, "modes": set(),
+            "km": 0.0, "last_ts": 0.0, "modes": set(), "devices": set(),
         })
         c["trips"] += 1
         c["dose_ug"] += o["dose_ug"] or 0
         c["avoided_ug"] += o["avoided_ug"] or 0
+        c["km"] += _obs_km(o)
         c["last_ts"] = max(c["last_ts"], o["ts"])
         c["modes"].add(o["vehicle"])
-        pts = o["points"]
-        for a, b in zip(pts, pts[1:]):
-            c["km"] += 6371 * 2 * math.asin(min(1, math.sqrt(
-                math.sin(math.radians(b[1] - a[1]) / 2) ** 2 +
-                math.cos(math.radians(a[1])) * math.cos(math.radians(b[1])) *
-                math.sin(math.radians(b[0] - a[0]) / 2) ** 2)))
+        if o["contributor"]:
+            c["devices"].add(o["contributor"])
     out = [{
-        "contributor": k,
+        "day": k,
         "trips": v["trips"], "km": round(v["km"], 1),
         "dose_ug": round(v["dose_ug"], 1), "avoided_ug": round(v["avoided_ug"], 1),
+        "contributors": len(v["devices"]),
         "last_seen_min_ago": round((time.time() - v["last_ts"]) / 60),
         "modes": sorted(v["modes"]),
     } for k, v in by.items()]
@@ -178,13 +219,39 @@ def contributors_detail() -> list[dict]:
 
 
 def recent_obs(limit: int = 20) -> list[dict]:
+    """Recent activity as per-hour city aggregates, newest first.
+
+    This used to return per-trip rows carrying the contributor id —
+    linkable slices of individual journeys. Doc 07 §2 asks the admin
+    surface for 'trips (aggregate): per hour/day', so each row is an
+    hour bucket the whole city's trips collapsed into."""
     _load()
-    return [{
-        "ts": o["ts"], "age_min": round((time.time() - o["ts"]) / 60, 1),
-        "vehicle": o["vehicle"], "duration_s": o["duration_s"],
-        "dose_ug": o["dose_ug"], "avoided_ug": o["avoided_ug"],
-        "contributor": o["contributor"],
-    } for o in _obs[-limit:]][::-1]
+    by: dict = {}
+    for o in _obs:
+        h = int(o["ts"] // 3600)
+        r = by.setdefault(h, {
+            "trips": 0, "duration_s": 0.0, "dose_ug": 0.0,
+            "avoided_ug": 0.0, "km": 0.0, "last_ts": 0.0, "modes": {},
+        })
+        r["trips"] += 1
+        r["duration_s"] += o["duration_s"] or 0
+        r["dose_ug"] += o["dose_ug"] or 0
+        r["avoided_ug"] += o["avoided_ug"] or 0
+        r["km"] += _obs_km(o)
+        r["last_ts"] = max(r["last_ts"], o["ts"])
+        r["modes"][o["vehicle"]] = r["modes"].get(o["vehicle"], 0) + 1
+    out = [{
+        "hour": time.strftime("%Y-%m-%d %H:00Z", time.gmtime(h * 3600)),
+        "age_min": round((time.time() - r["last_ts"]) / 60, 1),
+        "trips": r["trips"],
+        "vehicle": max(r["modes"], key=r["modes"].get) if r["modes"] else None,
+        "duration_s": round(r["duration_s"], 1),
+        "dose_ug": round(r["dose_ug"], 1),
+        "avoided_ug": round(r["avoided_ug"], 1),
+        "km": round(r["km"], 1),
+    } for h, r in by.items()]
+    out.sort(key=lambda x: x["age_min"])
+    return out[:limit]
 
 
 def live_reports() -> list[dict]:
@@ -193,7 +260,6 @@ def live_reports() -> list[dict]:
     return [{
         "kind": r["kind"], "lat": r["lat"], "lon": r["lon"],
         "age_min": round((time.time() - r["ts"]) / 60),
-        "contributor": r.get("contributor"),
     } for r in _reports]
 
 
@@ -212,6 +278,32 @@ def journeys_per_hour(hours: int = 24) -> list[int]:
 def _cell(lon: float, lat: float) -> tuple[float, float]:
     """~500m snap — groups traversals into corridors."""
     return (round(lon / 0.005) * 0.005, round(lat / 0.005) * 0.005)
+
+
+def _hav_km(pts) -> float:
+    """Path distance over [[lon, lat], ...] points."""
+    d = 0.0
+    for a, b in zip(pts, pts[1:]):
+        d += 6371 * 2 * math.asin(min(1, math.sqrt(
+            math.sin(math.radians(b[1] - a[1]) / 2) ** 2 +
+            math.cos(math.radians(a[1])) * math.cos(math.radians(b[1])) *
+            math.sin(math.radians(b[0] - a[0]) / 2) ** 2)))
+    return d
+
+
+def _obs_cells(o: dict) -> list:
+    """~500m cells a traversal touched. Current obs store them
+    directly; snapshots written before raw points stopped being
+    persisted carry 'points' — fold those on the fly."""
+    if o.get("cells") is not None:
+        return [tuple(c) for c in o["cells"]]
+    return [_cell(p[0], p[1]) for p in o.get("points", [])]
+
+
+def _obs_km(o: dict) -> float:
+    if o.get("km") is not None:
+        return float(o["km"])
+    return _hav_km(o.get("points", []))
 
 
 # mode microenv + ventilation lookups for backing ambient concentration
@@ -247,12 +339,18 @@ def corridor_field_samples() -> list:
         c = o["dose_ug"] / (ve * dur_min * me)
         if not (10 <= c <= 900):
             continue
-        for lon, lat in o["points"]:
-            cell = _cell(lon, lat)
-            cells.setdefault(cell, []).append(c)
+        for cell in dict.fromkeys(_obs_cells(o)):
+            v = cells.setdefault(cell, {"vals": [], "devices": set()})
+            v["vals"].append(c)
+            if o["contributor"]:
+                v["devices"].add(o["contributor"])
     out = []
-    for (lon, lat), vals in cells.items():
-        if len(vals) < 3:
+    for (lon, lat), v in cells.items():
+        vals = v["vals"]
+        # median needs >=3 fresh traversals AND >=_K_MIN_DEVICES distinct
+        # hashed devices — otherwise one device looping a block could
+        # write a 'measurement' into the city field
+        if len(vals) < 3 or len(v["devices"]) < _K_MIN_DEVICES:
             continue
         vals.sort()
         med = vals[len(vals) // 2]
@@ -294,21 +392,38 @@ def corridor_estimate(lat: float, lon: float):
 def corridors(limit: int = 10) -> list[dict]:
     """Where Delhi actually travels, ranked — donated traversal density
     per ~500m cell with average inhaled dose. This is street-level
-    movement data no station grid or routing API can produce."""
+    movement data no station grid or routing API can produce.
+
+    Publishable-set semantics mirror v2/store.py TripAggregates: a trip
+    counts a cell once, and a cell is revealed only with >=_K_MIN_DEVICES
+    distinct hashed devices and a traversal inside the 72 h window.
+    Below k the cell simply does not exist in the output — the old code
+    published any cell with samples, so one device pacing a block could
+    draw its own commute onto the map."""
     _load()
+    now = time.time()
     cells: dict = {}
     for o in _obs:
-        for lon, lat in o["points"]:
-            c = _cell(lon, lat)
-            v = cells.setdefault(c, {"count": 0, "dose_sum": 0.0, "modes": {}})
-            v["count"] += 1
+        for c in dict.fromkeys(_obs_cells(o)):
+            v = cells.setdefault(c, {"trips": 0, "dose_sum": 0.0,
+                                     "modes": {}, "devices": set(),
+                                     "last_ts": 0.0})
+            v["trips"] += 1
             v["dose_sum"] += o["dose_ug"] or 0
             v["modes"][o["vehicle"]] = v["modes"].get(o["vehicle"], 0) + 1
+            if o["contributor"]:
+                v["devices"].add(o["contributor"])
+            v["last_ts"] = max(v["last_ts"], o["ts"])
     out = []
     for (lon, lat), v in cells.items():
+        if len(v["devices"]) < _K_MIN_DEVICES:
+            continue  # below-k suppression — never publishable
+        if now - v["last_ts"] > _CELL_WINDOW_S:
+            continue  # stale corridor — doc 07 shows only live corridors
         out.append({
-            "lon": lon, "lat": lat, "samples": v["count"],
-            "avg_dose_ug": round(v["dose_sum"] / max(v["count"], 1), 1),
+            "lon": lon, "lat": lat, "samples": v["trips"],
+            "devices": len(v["devices"]),
+            "avg_dose_ug": round(v["dose_sum"] / max(v["trips"], 1), 1),
             "top_mode": max(v["modes"], key=v["modes"].get) if v["modes"] else None,
         })
     out.sort(key=lambda x: -x["samples"])
@@ -316,25 +431,20 @@ def corridors(limit: int = 10) -> list[dict]:
 
 
 def totals() -> dict:
-    """City rollup — the collective ledger judges can read at a glance."""
+    """City rollup — the collective ledger judges can read at a glance.
+
+    Every field is a city-level total or a k>=3-suppressed corridor —
+    recomputeable from aggregate-only data (doc 07 §3), never per
+    device. `basis` states the provenance plainly for the client."""
     _load()
     day = time.time() - 86400
     recent = [o for o in _obs if o["ts"] > day]
-    def _km(o):
-        pts = o["points"]
-        d = 0.0
-        for a, b in zip(pts, pts[1:]):
-            d += 6371 * 2 * math.asin(min(1, math.sqrt(
-                math.sin(math.radians(b[1] - a[1]) / 2) ** 2 +
-                math.cos(math.radians(a[1])) * math.cos(math.radians(b[1])) *
-                math.sin(math.radians(b[0] - a[0]) / 2) ** 2)))
-        return d
     contrib = {o["contributor"] for o in _obs if o["contributor"]}
     return {
         "obs_total": len(_obs),
         "obs_24h": len(recent),
         "contributors": len(contrib),
-        "km_24h": round(sum(_km(o) for o in recent), 1),
+        "km_24h": round(sum(_obs_km(o) for o in recent), 1),
         "dose_ug_24h": round(sum(o["dose_ug"] or 0 for o in recent), 1),
         "avoided_ug_24h": round(sum(o["avoided_ug"] or 0 for o in recent), 1),
         "avoided_ug_all": round(sum(o["avoided_ug"] or 0 for o in _obs), 1),
@@ -343,4 +453,7 @@ def totals() -> dict:
                       for v in {o["vehicle"] for o in recent}},
         "latest_obs_age_min": round((time.time() - max((o["ts"] for o in _obs), default=0)) / 60) if _obs else None,
         "top_corridors": corridors(5),
+        "source": "donated_trip_aggregates",
+        "basis": ("aggregate of donated trips, anonymized — corridor "
+                  "cells published only with >=3 distinct devices in 72 h"),
     }
