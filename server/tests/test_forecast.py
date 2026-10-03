@@ -73,5 +73,72 @@ class TestForecastField(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(v)
 
 
+def _synthetic_field(wind_ms=10.0):
+    """Two-point grid: dirty west cell (200 µg), clean east cell (20 µg),
+    steady westerly wind (FROM 270 → parcels move EAST). No live anchor —
+    deterministic, no network."""
+    f = ForecastField(live=None)
+    t0 = datetime.now(timezone.utc).replace(hour=0, minute=0,
+                                            second=0, microsecond=0)
+    times = [(t0 + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M")
+             for i in range(120)]
+    f._aq = [
+        {"lat": 28.6, "lon": 77.0, "name": "", "t0": t0, "times": times,
+         "vars": {"pm2_5": [200.0] * 120}},
+        {"lat": 28.6, "lon": 77.4, "name": "", "t0": t0, "times": times,
+         "vars": {"pm2_5": [20.0] * 120}},
+    ]
+    f._met = [
+        {"lat": 28.6, "lon": 77.0, "name": "", "t0": t0, "times": times,
+         "vars": {"wind_speed_10m": [wind_ms] * 120,
+                  "wind_direction_10m": [270.0] * 120}},
+        {"lat": 28.6, "lon": 77.4, "name": "", "t0": t0, "times": times,
+         "vars": {"wind_speed_10m": [wind_ms] * 120,
+                  "wind_direction_10m": [270.0] * 120}},
+    ]
+    return f
+
+
+class TestAdvection(unittest.TestCase):
+    """Semi-Lagrangian back-trajectory lookups on the synthetic grid."""
+
+    EAST = (28.6, 77.4)
+
+    def test_plume_advects_east(self):
+        """At +1-3h the air arriving at the clean east cell left from the
+        dirty west cell (10 m/s × hours ≈ 36-108 km, capped at 45 km) —
+        the displaced sample must read ~west values, not local 20."""
+        f = _synthetic_field()
+        v = f.pm25(*self.EAST, 3)
+        self.assertIsNotNone(v)
+        self.assertGreater(v, 120)   # ~200 upwind vs 20 undisplaced
+        undisplaced = f._idw(f._aq, *self.EAST, "pm2_5", 0)
+        self.assertLessEqual(undisplaced, 20.0)
+
+    def test_calm_degrades_to_undisplaced(self):
+        """~calm wind ⇒ no displacement — same answer the old path gave."""
+        f = _synthetic_field(wind_ms=0.1)
+        self.assertEqual(f._advected_origin(*self.EAST, 40), self.EAST)
+        v = f.pm25(*self.EAST, 3)
+        self.assertIsNotNone(v)
+        self.assertLess(v, 40)  # undisplaced blend, not the plume
+
+    def test_displacement_capped(self):
+        """Far-horizon + strong wind can't look up outside the grid —
+        the cap holds the origin within ADV_MAX_M (~0.45° here)."""
+        f = _synthetic_field(wind_ms=25.0)
+        alat, alon = f._advected_origin(*self.EAST, 119)
+        self.assertAlmostEqual(alat, self.EAST[0], places=6)
+        self.assertLess(abs(alon - self.EAST[1]), 0.5)
+        self.assertGreater(alon, 76.9)
+
+    def test_missing_met_degrades(self):
+        """No met grid ⇒ undisplaced lookup — never None for a covered point."""
+        f = _synthetic_field()
+        f._met = []
+        self.assertEqual(f._advected_origin(*self.EAST, 40), self.EAST)
+        self.assertIsNotNone(f.pm25(*self.EAST, 3))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
