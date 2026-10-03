@@ -252,10 +252,13 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   }, [options, selected, from, to, camRef]);
 
   const exitNav = useCallback(() => {
-    setPhase("compare"); setFollow(false);
-    /* same commit-frame guard as startNav — pitch drop rides the sheet
-       remount, not the flip commit */
-    setTimeout(() => camRef.current?.setStop({ pitch: 0, duration: 700 }), 80);
+    setPhase("compare");
+    /* the flip frame already carries receipt-unmount + chrome remount —
+       the follow-toggle (a Camera prop commit) and the pitch drop ride
+       after it, not inside it. Pitch waits for the compare sheet's own
+       enter spring (~300 ms) so the two anims never overlap. */
+    setTimeout(() => setFollow(false), 120);
+    setTimeout(() => camRef.current?.setStop({ pitch: 0, duration: 700 }), 350);
   }, [camRef]);
 
   /* ---- ledger: only a COMPLETED trip is logged (claims audit — logging

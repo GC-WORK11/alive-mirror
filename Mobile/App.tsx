@@ -514,6 +514,15 @@ function NavSession({
   onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
 }) {
   const [summary, setSummary] = useState<NavSummary | null>(null);
+  /* the arrival swap is two commits, not one: NavChrome unmounts on its
+     own frame, then the receipt mounts next frame — a remove+add swap
+     against the map's draw is the residual-SIGSEGV class (ci15). */
+  const [receiptReady, setReceiptReady] = useState(false);
+  useEffect(() => {
+    if (!summary) return;
+    const raf = requestAnimationFrame(() => setReceiptReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, [summary]);
   /* "× less than by X" compares against the smokiest *other* option —
      when the taken mode was itself the worst-dose plan the line would
      read as a nonsense self-comparison ("56× less than by On foot" on a
@@ -559,9 +568,13 @@ function NavSession({
   useEffect(() => { navRef.current = nav; });   // refs update in effects, never during render
   useEffect(() => {
     navRef.current.start();
-    return () => { navRef.current.stop(); };
+    /* teardown must not run inside the unmount commit — tearing the GNSS
+       watcher down while the receipt->compare flip is on the draw thread
+       is the same crash class as stopping inside the location callback. */
+    return () => { const n = navRef.current; setTimeout(() => n.stop(), 50); };
   }, []);
 
+  if (summary && !receiptReady) return null;   // chrome's own remove commit
   if (summary) {
     const data: ReceiptData = {
       durationMin: summary.durationS / 60,

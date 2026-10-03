@@ -176,15 +176,18 @@ function SearchSheet({
   const inputRef = useRef<TextInput>(null);
   const closingRef = useRef(false);
   const insets = useSafeAreaInsets();
+  /* mount in two frames: the shell commits first, the field+list subtree
+     lands next frame — one giant mount commit against the map's draw
+     thread is the residual-SIGSEGV trigger (ci15: search-open ~2/5).
+     Keyboard waits for the enter spring to finish for the same reason. */
+  const [bodyReady, setBodyReady] = useState(false);
 
-  /* mount: warm the index, load saved places, raise the keyboard one frame
-     in — the sheet is a plain overlay (no Modal), so focus after mount is
-     safe; closingRef guards the pick-then-frame edge. */
   useEffect(() => {
     warm();
     getPlaces().then(setStore).catch(() => {});
-    const raf = requestAnimationFrame(() => { if (!closingRef.current) inputRef.current?.focus(); });
-    return () => { cancelAnimationFrame(raf); search.dispose(); };
+    const raf = requestAnimationFrame(() => setBodyReady(true));
+    const foc = setTimeout(() => { if (!closingRef.current) inputRef.current?.focus(); }, 350);
+    return () => { cancelAnimationFrame(raf); clearTimeout(foc); search.dispose(); };
   }, [search]);
 
   const loc = userLocation ?? undefined;
@@ -296,8 +299,8 @@ function SearchSheet({
           placeholder={t("searchPlaceholder", lang)}
           placeholderTextColor={V2T.text2} // text3-on-surface2 = 4.33:1 < AA
           /* no autoFocus — becomeFirstResponder during mount races the
-             responder chain on this stack; the rAF focus in the mount
-             effect lands one frame in, before any user interaction */
+             responder chain on this stack; the +350ms focus lands after
+             the enter spring settles */
           autoCorrect={false}
           autoCapitalize="none"
           autoComplete="off"
@@ -320,6 +323,7 @@ function SearchSheet({
         )}
       </View>
 
+      {bodyReady && (
       <KeyboardAvoidingView
         style={ss.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -430,6 +434,7 @@ function SearchSheet({
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      )}
     </View>
   );
 }
