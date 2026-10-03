@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# ALive-108 deploy — image -> ECR -> ECS Fargate redeploy -> NLB target fix.
+# ALive-108 deploy — image -> ECR -> ECS Fargate redeploy -> NLB auto-registration.
+#
+# NOTE: the service now carries the target group in its own loadBalancers
+# config — ECS registers each new task ENI itself (update 2026-10-03, the
+# "redeploys orphan the target" outage). deploy.sh still verifies the
+# newest task IP ends up healthy and prunes stale manual registrations.
 #
 # Pipeline:
 #   1. build image (local Docker if available, else AWS CodeBuild from a
@@ -188,17 +193,11 @@ if [ "$SG" = "None" ] || [ -z "$SG" ]; then
 fi
 SUBNET="$(run aws ec2 describe-subnets --query 'Subnets[0].SubnetId' --output text)"
 
-if ! aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
-     --query 'services[?status==`ACTIVE`].serviceArn' --output text | grep -q .; then
-  run aws ecs create-service --cluster "$CLUSTER" --service-name "$SERVICE" \
-    --task-definition "$TD_ARN" --desired-count 1 --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=ENABLED}"
-else
-  run aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
-    --task-definition "$TD_ARN" --force-new-deployment >/dev/null
-fi
-
-# NLB + target group (first deploy only — survives task redeploys)
+# NLB + target group BEFORE the service — the service must be created
+# (or updated) with the TG attached so ECS registers each new task's
+# ENI itself. A service without loadBalancers silently deploys to zero
+# targets: the old task IP stays registered dead and the new one never
+# joins — the outage this script used to paper over by hand.
 TG="$(aws elbv2 describe-target-groups --names "$TG_NAME" \
      --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo None)"
 if [ "$TG" = "None" ] || [ -z "$TG" ]; then
@@ -221,13 +220,27 @@ else
   EIP="$(aws ec2 describe-addresses --query 'Addresses[0].PublicIp' --output text)"
 fi
 
-# --------------------------------------------- 4. wait, then fix NLB target
+LB_SPEC="targetGroupArn=$TG,containerName=alive108,containerPort=$PORT"
+if ! aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+     --query 'services[?status==`ACTIVE`].serviceArn' --output text | grep -q .; then
+  run aws ecs create-service --cluster "$CLUSTER" --service-name "$SERVICE" \
+    --task-definition "$TD_ARN" --desired-count 1 --launch-type FARGATE \
+    --load-balancers "$LB_SPEC" --health-check-grace-period-seconds 150 \
+    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=ENABLED}"
+else
+  run aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
+    --task-definition "$TD_ARN" --force-new-deployment \
+    --load-balancers "$LB_SPEC" --health-check-grace-period-seconds 150 >/dev/null
+fi
+
+# --------------------------------------------- 4. wait, then verify NLB target
 log "waiting for service to stabilize (rolling deploy)…"
 run aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
 
-# Discover the NEWEST running task's ENI -> private IP. GOTCHA: after a
-# redeploy the target group still points at the dead task's IP; the NLB
-# does NOT follow ECS automatically. Always re-register.
+# Discover the NEWEST running task's ENI -> private IP. ECS registers
+# it on the TG itself now (service has loadBalancers attached); the
+# manual re-register below survives only as a belt-and-suspenders
+# fallback for services created before the attachment existed.
 TASKS="$(aws ecs list-tasks --cluster "$CLUSTER" --service-name "$SERVICE" \
   --desired-status RUNNING --query 'taskArns' --output text)"
 [ -n "$TASKS" ] && [ "$TASKS" != "None" ] || fail "no RUNNING tasks in $CLUSTER/$SERVICE"
@@ -248,7 +261,7 @@ PRIV="$(run aws ec2 describe-network-interfaces --network-interface-ids "$ENI" \
 [ -n "$PRIV" ] && [ "$PRIV" != "None" ] || fail "ENI $ENI has no private IP"
 log "new task $TASK_ARN ENI $ENI -> $PRIV"
 
-# deregister EVERY stale target (old task IPs), register the live one
+# deregister stale targets ECS left behind (manual regs it doesn't own)
 for OLD in $(aws elbv2 describe-target-health --target-group-arn "$TG" \
     --query 'TargetHealthDescriptions[*].Target.Id' --output text); do
   if [ "$OLD" != "$PRIV" ]; then
@@ -256,6 +269,7 @@ for OLD in $(aws elbv2 describe-target-health --target-group-arn "$TG" \
       --targets "Id=$OLD,Port=$PORT"
   fi
 done
+# belt-and-suspenders: a no-op when ECS already registered $PRIV
 run aws elbv2 register-targets --target-group-arn "$TG" \
   --targets "Id=$PRIV,Port=$PORT"
 
