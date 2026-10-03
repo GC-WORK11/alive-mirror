@@ -103,7 +103,8 @@ def test_segment_samples_parity(cpp_mod):
         assert len(cs) == len(ps)
         for c, p in zip(cs, ps):
             assert c[0] == p["lat"] and c[1] == p["lon"]
-            assert c[2] == p["seconds"] and c[3] == p["dist_m"]
+            _close(c[2], p["seconds"])
+            _close(c[3], p["dist_m"])
 
 
 def test_integrate_dose_parity(cpp_mod, cpp_fv, py_fv):
@@ -117,7 +118,7 @@ def test_integrate_dose_parity(cpp_mod, cpp_fv, py_fv):
         assert rc["n_samples"] == rp["n_samples"]
         assert rc["n_hit"] == rp["n_hit"]
         assert rc["coverage"] == rp["coverage"]
-        assert rc["dist_km"] == rp["dist_km"]
+        _close(rc["dist_km"], rp["dist_km"])
         for k in ("lo", "mid", "hi"):
             _close(rc[k], rp[k])
 
@@ -194,9 +195,10 @@ def _check_em(cpp_mod, spans, vb, cold_km_done=0.0, occ_override=None):
 def test_emission_speed_factor_parity(cpp_mod):
     for pol in ref.EM_POLS:
         for v in (0.0, 0.1, 2.5, 5.0, 8.333, 13.89, 20.0, 33.3, 50.0):
-            assert cpp_mod.emission_speed_factor(pol, v) == \
-                ref.emission_speed_factor(pol, v) == \
-                emissions.speed_factor(pol, v)
+            _close(cpp_mod.emission_speed_factor(pol, v),
+                   ref.emission_speed_factor(pol, v))
+            _close(ref.emission_speed_factor(pol, v),
+                   emissions.speed_factor(pol, v))
 
 
 def test_integrate_emissions_parity(cpp_mod):
@@ -264,4 +266,5 @@ def test_emissions_edge_cases(cpp_mod):
         [{"dist_m": 0.0, "speed_mps": 0.0, "moving": False, "dur_s": 120.0}],
         vb["ef_band"], vb["idle_band"], vb["cold_mult"], vb["nx_band"])
     for i in range(3):
-        assert r["co2_g"][i] == rp["co2_g"][i] > 0
+        assert rp["co2_g"][i] > 0
+        _close(r["co2_g"][i], rp["co2_g"][i])

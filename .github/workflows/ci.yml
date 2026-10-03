@@ -58,10 +58,14 @@ jobs:
           key: cmake-deps-${{ runner.os }}-${{ hashFiles('server/core/CMakeLists.txt') }}
           restore-keys: cmake-deps-${{ runner.os }}-
 
+      # ALIVE_CORE_WITH_EIGEN=ON pulls src/krige.cpp + bindings_krige.cpp in
+      # (default OFF keeps the production image light — server/krige.py is
+      # the runtime path). Without it alive_core.KrigeField doesn't exist
+      # and test_parity_krige AttributeErrors on every test.
       - name: Build C++ core (alive_core)
         working-directory: server/core
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DALIVE_CORE_WITH_EIGEN=ON
           cmake --build build -j"$(nproc)"
 
       - name: Verify alive_core importable
