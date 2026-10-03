@@ -394,9 +394,15 @@ function NavSession({
   onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
 }) {
   const [summary, setSummary] = useState<NavSummary | null>(null);
-  const worstDose = Math.max(...options.map((o) => o.dose?.mid ?? 0), 0);
+  /* "× less than by X" compares against the smokiest *other* option —
+     when the taken mode was itself the worst-dose plan the line would
+     read as a nonsense self-comparison ("56× less than by On foot" on a
+     walk trip). Options array is the same objects the sheet picked from,
+     so identity holds. */
+  const worstDose = Math.max(
+    ...options.filter((o) => o !== option).map((o) => o.dose?.mid ?? 0), 0);
   const worstOpt = worstDose > 0
-    ? options.find((o) => (o.dose?.mid ?? 0) === worstDose) : undefined;
+    ? options.find((o) => o !== option && (o.dose?.mid ?? 0) === worstDose) : undefined;
   const altEmit = options
     .filter((o) => o !== option && (o.emissions?.co2_kg?.mid ?? 0) > 0)
     .sort((a, b) => (a.emissions.co2_kg?.mid ?? 0) - (b.emissions.co2_kg?.mid ?? 0))[0];
