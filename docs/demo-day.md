@@ -155,21 +155,30 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
 - **Set the sim location BEFORE launching** (`simctl location <udid> set
   28.6139,77.2090`): the app reads a one-shot fix at launch; setting it
   mid-run leaves origin/distances on the stale fix until restart
-- Intermittent upstream MapLibre/RN-iOS-simulator teardown SIGSEGV —
-  worst on virtualized GPUs (this box), rare on real Macs, absent on
-  hardware. Fixes shipped: deferred search focus (643d696), close on
-  keyboardDidHide (6286c11→80cd965), always-mounted route sources /
-  endpoint markers / location puck (759994f→15f5adf), deferred nav
-  teardown (c18ac92), and replacing the React-Native Modal with an
-  overlay sheet outright (8db9635) — the deterministic search crash
-  and the receipt-Done crash are dead; residual is rare, stochastic,
-  at map churn points only
-- If it ever drops to SpringBoard: relaunch — every state (consent,
-  vehicle, recents, trip ledger) persists; you're back on the map in
-  ~5 seconds
+- Upstream MapLibre/RN-iOS-simulator render-thread SIGSEGV — measured
+  on this box (virtualized GPU) post-8db9635: ~6 drops in ~35 driven
+  interactions, i.e. roughly 1 in 6 map-churn commits, identical on
+  ci15 (iOS 27.0) and demo265 (iOS 26.5). Cold launches are always
+  clean (6/6); crashes cluster at sheet transitions and camera moves
+  (incl. location updates during nav — even stepped ones). Fixes
+  shipped: deferred search focus (643d696), close on keyboardDidHide
+  (6286c11→80cd965), always-mounted route sources / endpoint markers /
+  location puck (759994f→15f5adf), deferred nav teardown (c18ac92),
+  and replacing the React-Native Modal with an overlay sheet outright
+  (8db9635) — the deterministic search crash and the receipt-Done
+  crash are dead; the residual is stochastic and upstream, so a fully
+  interactive live drive on THIS box will usually drop at least once
+- If it drops to SpringBoard: relaunch — every state (consent, vehicle,
+  recents, trip ledger) persists; back on the map in ~9 seconds
 - For a prepped show: finish onboarding + vehicle pick once before
-  stage — the remaining journey (search → options → nav → receipt)
-  runs clean repeatedly
+  stage. To skip the vehicle sheets entirely, seed
+  `Documents/vehicle.json` in the sim container with
+  `{"cls":"car","fuel":"petrol","year":"y2021_plus"}` — removes two
+  churn transitions from the demo path
+- Honest stage plan on this box: prefer the recorded iOS take on the
+  phone, or run iOS from a bare-metal Mac (the upstream bug is rare
+  there); on this sim, expect ~1 relaunch per long demo. Android —
+  the release target — has never crashed in E2E
 - The sim app points at localhost:8000 — keep the local uvicorn up
   (`PYTHONPATH=core/build AGG_TABLE="" .venv312/bin/uvicorn main:app
   --host 127.0.0.1 --port 8000` from server/) or set
