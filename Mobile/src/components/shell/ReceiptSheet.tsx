@@ -364,8 +364,8 @@ const s = StyleSheet.create({
     position: "absolute", left: 12, right: 12, bottom: 28,
     backgroundColor: V2T.surface, borderRadius: V2Radius.sheet,
     borderWidth: 1, borderColor: V2T.line, padding: 18, paddingBottom: 14,
-    shadowColor: "#000", shadowOpacity: 0.55, shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 }, elevation: 12,
+    shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 18,
+    shadowOffset: { width: 0, height: 4 }, elevation: 12,
   },
 
   /* header */

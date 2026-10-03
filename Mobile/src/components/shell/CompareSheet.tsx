@@ -559,7 +559,7 @@ const s = StyleSheet.create({
     minHeight: 44, justifyContent: "center", alignItems: "center",
     backgroundColor: V2T.accent, borderRadius: V2Radius.pill, paddingHorizontal: 34,
   },
-  goBtnTxt: { fontSize: V2Type.body, color: V2T.text },
+  goBtnTxt: { fontSize: V2Type.body, color: V2T.bg },   // light on accent pill (V2T.bg ≈7:1 on accent)
 
   /* ---- states ---- */
   stateWrap: { paddingVertical: 24, paddingHorizontal: 24, alignItems: "center" },
@@ -575,5 +575,5 @@ const s = StyleSheet.create({
     backgroundColor: V2T.accent, borderRadius: V2Radius.pill,
     paddingHorizontal: 26, paddingVertical: 12,
   },
-  retryTxt: { fontSize: V2Type.secondary, color: V2T.text },
+  retryTxt: { fontSize: V2Type.secondary, color: V2T.bg }, // accent pill → light text
 });

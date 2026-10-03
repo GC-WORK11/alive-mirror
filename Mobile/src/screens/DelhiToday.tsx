@@ -1,5 +1,5 @@
 // "Delhi today" — the consumer city view (docs/plan/07 §1, sidebar §5).
-// One scrolling page, dark, editorial: the day's breath hero number in
+// One scrolling page, light, editorial: the day's breath hero number in
 // consumer words (cigarettes — never µg/AQI on the surface), the streets
 // travellers actually crossed (k>=3 aggregates only, never trajectories),
 // what all ALive travellers did today, and a "why this is an estimate"

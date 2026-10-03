@@ -173,7 +173,7 @@ const s = StyleSheet.create({
   bars: { flexDirection: "row", alignItems: "stretch" },
   cell: { flex: 1 },
   col: { flex: 1, alignItems: "center", justifyContent: "flex-end", borderRadius: 5 },
-  colSel: { backgroundColor: "rgba(76,141,255,0.10)" },
+  colSel: { backgroundColor: V2T.accentTint }, // solid tint — no rgba surface fills (doc 03)
   bar: { width: "58%", minWidth: 4, maxWidth: 11, borderRadius: 2 },
   whisker: { position: "absolute", width: 3, borderRadius: 1.5, alignSelf: "center" },
   bestDot: {
