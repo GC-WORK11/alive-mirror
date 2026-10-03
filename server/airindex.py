@@ -42,6 +42,14 @@ builds. Every field carries a `build` block (duration_ms, sources_used,
 sources_degraded), per-source `attempts` in provenance, and QC reject
 counts (qc.dropped_counts / dropped_total) so ingest health is
 self-describing.
+
+Realtime-honesty contract (r5): a degraded status carries the upstream
+verdict verbatim — HTTP status codes survive ("unavailable: HTTP 401"
+auth, "unavailable: HTTP 429" quota) rather than flattening to the
+exception class; a source whose every read failed says so, never "ok"
+with an empty list. Every bundle + provenance entry carries fetched_at,
+n (observations contributed) and age so /health can render
+"model: 48 pts, 42s old" per source.
 """
 import gzip
 import json
@@ -103,8 +111,12 @@ RETRY_JITTER_S = 0.25
 # ---------------------------------------------------------------- grid
 
 def _h3_cells() -> list:
-    """H3 res-8 cells covering the bbox polygon (h3-py >=4 API first)."""
+    """H3 res-8 cells covering the bbox polygon. h3-py 4.x: LatLngPoly +
+    polygon_to_cells (h3.Polygon/h3shape_to_cells/polyfill are all gone)."""
     w, s, e, n = BBOX
+    if hasattr(h3, "LatLngPoly"):
+        poly = h3.LatLngPoly([(s, w), (s, e), (n, e), (n, w)])
+        return list(h3.polygon_to_cells(poly, H3_RES))
     if hasattr(h3, "Polygon"):
         poly = h3.Polygon([(s, w), (s, e), (n, e), (n, w)])
         return list(h3.h3shape_to_cells(poly, H3_RES))
@@ -289,6 +301,43 @@ class UpstreamError(Exception):
     the bundle's status string ('unavailable: UpstreamError')."""
 
 
+class _SourceDown(Exception):
+    """Raised by a fetcher when the whole source answered but is unusable
+    (e.g. every per-location read failed). str(e) is the verbatim
+    upstream reason and lands in the status string via _describe_error —
+    a quota/auth HTTP code stays visible instead of flattening to
+    'unavailable: HTTPStatusError'."""
+
+
+def _describe_error(err) -> str:
+    """Status suffix for a failed fetch — carries the real upstream
+    verdict so /health can say *why*, not just *that*:
+
+      _SourceDown        -> its own verbatim reason ("HTTP 401 (all 3
+                            location reads failed)")
+      HTTPStatusError    -> "HTTP 429" — the status code is the story
+                            for quota (429) and auth (401/403) failures
+      anything else      -> "<ExcType>: <msg>" verbatim, e.g.
+                            "ConnectError: [Errno 111] Connection refused"
+
+    Truncated so a stack fragment can't balloon a health payload."""
+    if isinstance(err, _SourceDown):
+        return str(err).strip() or "source down"
+    if isinstance(err, httpx.HTTPStatusError):
+        resp = getattr(err, "response", None)
+        code = getattr(resp, "status_code", None)
+        if code:
+            return f"HTTP {code}"
+        # fakes may raise without a Response — keep the message
+        msg = str(err).strip()
+        return f"HTTPStatusError: {msg}" if msg else "HTTPStatusError"
+    name = type(err).__name__
+    msg = str(err).strip()
+    if msg and msg != name:
+        return f"{name}: {msg[:120]}"
+    return name
+
+
 # Empty bundle skeletons: what a source contributes while it is down. A
 # failed fetch NEVER raises out of fetch_inputs — it degrades to this
 # shape with status "unavailable: ..." so the field still builds.
@@ -300,6 +349,32 @@ _EMPTY = {
               "n_fires": 0, "belt_fires": 0},
     "stations": {"source": "openaq-v3", "stations": []},
 }
+
+
+def _bundle_n(name: str, bundle: dict):
+    """Observations a source bundle contributed (the 'N pts' in
+    /health's 'model: 48 pts, 42s old'):
+
+      model    -> len(samples)  — CAMS grid points fetched
+      stations -> len(stations) — instrument readings fetched
+      fires    -> n_fires       — FIRMS rows in the 24 h CSVs
+      met      -> 1 when a wind/BLH reading landed, else 0 (it is a
+                  single point read, not a sample set)
+
+    0 for a degraded/empty bundle — never invented."""
+    try:
+        if name == "model":
+            return len(bundle.get("samples") or [])
+        if name == "stations":
+            return len(bundle.get("stations") or [])
+        if name == "fires":
+            return int(bundle.get("n_fires") or 0)
+        if name == "met":
+            return 1 if any(bundle.get(k) is not None for k in
+                            ("wind_ms", "blh_m", "vc_m2s")) else 0
+    except (TypeError, ValueError):
+        pass
+    return 0
 
 
 def _retry(call, attempts, sleep) -> tuple:
@@ -323,16 +398,19 @@ def _retry(call, attempts, sleep) -> tuple:
 
 def _run_source(name, call, *, attempts=None, sleep=None) -> dict:
     """Retry `call` per RETRY_ATTEMPTS[name]; on exhaustion return the
-    empty bundle marked 'unavailable: <ExcType>'. The returned bundle
-    always carries 'attempts' so provenance shows source flakiness."""
-    t = time.time()
+    empty bundle marked 'unavailable: <verbatim reason>' (HTTP codes
+    survive — 'HTTP 429' for quota, 'HTTP 401' for auth). The returned
+    bundle always carries 'attempts' + 'n' so provenance shows both
+    source flakiness and how much each source actually contributed;
+    fetched_at stamps the LAST attempt, not the first."""
     out, tries, err = _retry(call, attempts or RETRY_ATTEMPTS[name],
                              sleep or time.sleep)
     if out is None:
         out = dict(_EMPTY[name])
-        out["status"] = f"unavailable: {type(err).__name__}"
-        out["fetched_at"] = t
+        out["status"] = f"unavailable: {_describe_error(err)}"
+        out["fetched_at"] = time.time()   # last contact attempt, honestly
     out["attempts"] = tries
+    out["n"] = _bundle_n(name, out)
     return out
 
 
@@ -351,11 +429,12 @@ def _safe_source(name, call) -> dict:
         merged.setdefault("status", "ok")
         merged.setdefault("fetched_at", t)
         merged.setdefault("attempts", 1)
+        merged["n"] = _bundle_n(name, merged)
         return merged
     except Exception as e:  # noqa: BLE001 - degrade this source only
         out = dict(_EMPTY[name])
-        out.update({"status": f"unavailable: {type(e).__name__}",
-                    "fetched_at": t, "attempts": 1})
+        out.update({"status": f"unavailable: {_describe_error(e)}",
+                    "fetched_at": t, "attempts": 1, "n": 0})
         return out
 
 
@@ -494,8 +573,15 @@ def _fetch_stations_once(client) -> dict:
                     "name": loc.get("name") or f"station {loc.get('id')}",
                     "loc_id": loc["id"],
                 }
-    stations = []
-    for loc_id in sorted({v["loc_id"] for v in sensors.values()}):
+    # Per-location reads stay individually tolerant (one sick location
+    # must not sink the layer — same rule as airfield._grab_openaq), but
+    # failures are COUNTED: when every read fails the source is down, not
+    # "reporting zero stations". _SourceDown carries the verbatim reason
+    # (HTTP 401/403 auth, HTTP 429 quota) into the bundle status — a
+    # stations bundle that is really a quota error must never say "ok".
+    stations, loc_errs = [], []
+    loc_ids = sorted({v["loc_id"] for v in sensors.values()})
+    for loc_id in loc_ids:
         try:
             r = client.get(f"{OPENAQ_V3}/locations/{loc_id}/latest",
                            headers=headers,
@@ -519,10 +605,19 @@ def _fetch_stations_once(client) -> dict:
                 stations.append({"lat": meta["lat"], "lon": meta["lon"],
                                  "name": meta["name"], "pm25": best["v"],
                                  "ts": ts})
-        except httpx.HTTPError:
+        except (httpx.HTTPError, ValueError) as e:
+            loc_errs.append(_describe_error(e))
             continue
-    return {"status": "ok", "source": "openaq-v3",
-            "fetched_at": time.time(), "stations": stations}
+    if loc_errs and len(loc_errs) == len(loc_ids):
+        raise _SourceDown(
+            f"{loc_errs[0]} (all {len(loc_ids)} location reads failed)")
+    out = {"status": "ok", "source": "openaq-v3",
+           "fetched_at": time.time(), "stations": stations,
+           "n_locations": len(loc_ids)}
+    if loc_errs:  # partial loss is reported, never hidden
+        out["locations_failed"] = len(loc_errs)
+        out["location_errors"] = sorted(set(loc_errs))[:4]
+    return out
 
 
 def _fetch_stations(client, *, attempts=None, sleep=None) -> dict:
@@ -533,11 +628,14 @@ def _fetch_stations(client, *, attempts=None, sleep=None) -> dict:
 
 def fetch_inputs(now=None, client=None) -> dict:
     """Pull all four upstreams. Every bundle carries status + fetched_at
-    + attempts; each source is retried per RETRY_ATTEMPTS and a failed
-    source degrades to status 'unavailable: ...' — the field still
-    builds on what arrived (offline-ish by contract). _safe_source is
-    the belt-and-suspenders: even a raising fetcher cannot abort the
-    other three sources."""
+    + attempts + n (observations contributed) + age_s (staleness vs the
+    `now` reference — 'model: 48 pts, 42s old' for /health); each source
+    is retried per RETRY_ATTEMPTS and a failed source degrades to status
+    'unavailable: <verbatim reason>' — HTTP status codes survive
+    ('unavailable: HTTP 429' for quota, 'HTTP 401' for auth), never a
+    bare 'unavailable'. The field still builds on what arrived
+    (offline-ish by contract). _safe_source is the belt-and-suspenders:
+    even a raising fetcher cannot abort the other three sources."""
     now = _epoch(now)
     own = client is None
     c = client or httpx.Client(
@@ -552,6 +650,16 @@ def fetch_inputs(now=None, client=None) -> dict:
     finally:
         if own:
             c.close()
+    for b in (model, met, fires, stations):
+        fa = b.get("fetched_at")
+        try:
+            # just-fetched -> ~0 s; injected/older fetched_at -> honest
+            # staleness. Clamped: a fetched_at a hair after `now` is
+            # clock slop, not time travel.
+            b["age_s"] = round(max(0.0, now - float(fa)), 1) \
+                if fa is not None else None
+        except (TypeError, ValueError):
+            b["age_s"] = None
     return {"model": model, "met": met, "fires": fires,
             "stations": stations}
 
@@ -734,30 +842,36 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
     stats = {"mean_sigma": round(sig_sum / n_cells, 3) if n_cells else None,
              "mean_pm25": round(pm_sum / n_cells, 2) if n_cells else None}
 
-    def prov_entry(bundle, label, extra=None):
+    def prov_entry(name, bundle, label, extra=None):
         fa = bundle.get("fetched_at")
+        n = bundle.get("n")
         e = {"label": label,
              "source": bundle.get("source"),
              "status": bundle.get("status", "ok"),
              "fetched_at": _iso(float(fa)) if fa else None,
-             "age_s": int(now - float(fa)) if fa else None,
-             "attempts": bundle.get("attempts")}
+             # clamped: `now` was taken before the fetch ran, so a just-
+             # landed fetched_at is clock slop (0 s), never negative
+             "age_s": max(0, int(now - float(fa))) if fa else None,
+             "attempts": bundle.get("attempts"),
+             # observations the source contributed — 'model: 48 pts'
+             # for /health; falls back to a recount for injected inputs
+             "n": _bundle_n(name, bundle) if n is None else n}
         if extra:
             e.update(extra)
         return e
 
     provenance = {
-        "model": prov_entry(model_in, "model",
+        "model": prov_entry("model", model_in, "model",
                             {"n_points": len(model_pts),
                              "fire_modifier_applied": round(modifier, 3)}),
-        "stations": prov_entry(st_in, "station",
+        "stations": prov_entry("stations", st_in, "station",
                                {"n_raw": len(raw_st),
                                 "n_used": len(survivors)}),
-        "fires": prov_entry(fires_in, "model",
+        "fires": prov_entry("fires", fires_in, "model",
                             {"belt_fires": fires_in.get("belt_fires"),
                              "n_fires": fires_in.get("n_fires"),
                              "modifier": round(modifier, 3)}),
-        "met": prov_entry(met_in, "model",
+        "met": prov_entry("met", met_in, "model",
                           {"wind_ms": met_in.get("wind_ms"),
                            "wind_deg": met_in.get("wind_deg"),
                            "blh_m": met_in.get("blh_m"),
