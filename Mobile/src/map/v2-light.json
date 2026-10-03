@@ -1141,7 +1141,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#EBC177",
+        "line-color": "#E8E4DA",
         "line-width": [
           "interpolate",
           [
@@ -1223,7 +1223,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#FDE1A8",
+        "line-color": "#FFFDF6",
         "line-width": [
           "interpolate",
           [
@@ -1296,7 +1296,7 @@
       },
       "paint": {
         "line-color": "#F6D992",
-        "line-opacity": 0.45,
+        "line-opacity": 0.3,
         "line-width": [
           "interpolate",
           [
