@@ -58,6 +58,17 @@ W_DIST = 0.15     # -log1p(distance_km)
 MIN_COV = 0.5     # at least half the query tokens must cover
 KIND_BOOST = 0.30
 
+# popularity is a 0..1 weight — but geonames corpus rows carry raw
+# population. Same guard as alive_core_ref._norm_popularity: unbounded
+# sources log-map into (0,1] so the term stays a tiebreaker.
+_POP_LOG_CEIL = math.log1p(20_000_000.0)
+
+
+def _norm_popularity(p: float) -> float:
+    if p <= 1.0:
+        return p
+    return min(1.0, math.log1p(p) / _POP_LOG_CEIL)
+
 # intent -> kind substrings; fires only when an intent word is among the
 # expanded query atoms (so "vaishali metro" boosts stations but
 # "sarojni nagar" does not).
@@ -91,6 +102,8 @@ PHRASE_ALIASES = {
     "ndls": "new delhi railway station",
     "isbt": "inter state bus terminal",
     "chandni chok": "chandni chowk",
+    "hkv": "hauz khas village",
+    "old fort": "purana qila",
 }
 TOKEN_ALIASES = {
     "chok": "chowk",
@@ -392,7 +405,7 @@ class Gazetteer:
             "match_tokens": match,
             "kind": kind or "place",
             "lat": float(lat), "lon": float(lon),
-            "pop": float(pop or 0.0),
+            "pop": _norm_popularity(float(pop or 0.0)),
         })
 
     def _load(self) -> list:
