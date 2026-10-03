@@ -5,9 +5,16 @@ routes come from OSRM on the real OSM road graph. No hardcoded places.
 """
 import asyncio
 import math
+import os
+import subprocess
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+# Sibling modules are flat imports — put this file's dir on sys.path so
+# `import server.main` works from the repo root too, not just `cd server`.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
 from fastapi import FastAPI, Query
@@ -63,9 +70,74 @@ def _calibration() -> Optional[dict]:
     return _calib_cache or None
 
 
+_BUILD_SHA_CACHE: Optional[str] = None
+
+
+def _build_sha() -> str:
+    """BUILD_SHA env (CodeBuild stamps it) else the worktree's git sha."""
+    global _BUILD_SHA_CACHE
+    if _BUILD_SHA_CACHE:
+        return _BUILD_SHA_CACHE
+    sha = os.environ.get("BUILD_SHA", "").strip()
+    if not sha:
+        try:
+            out = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, timeout=3,
+                cwd=os.path.dirname(os.path.abspath(__file__)))
+            if out.returncode == 0:
+                sha = out.stdout.strip()
+        except Exception:
+            pass
+    _BUILD_SHA_CACHE = sha or "unknown"
+    return _BUILD_SHA_CACHE
+
+
 @app.get("/health")
 async def health():
-    return {"ok": True, "ts": time.time(), "history": history.summary()}
+    """Liveness + provenance: build sha, field age, per-source up/down."""
+    try:
+        fstat = FIELD.status()
+    except Exception:
+        fstat = {}
+    try:
+        fires_stat = FIRES.status()
+    except Exception:
+        fires_stat = {}
+    loc_up = False
+    try:
+        from v2 import deps as _v2deps
+    except ImportError:
+        try:
+            from server.v2 import deps as _v2deps
+        except Exception:
+            _v2deps = None
+    if _v2deps is not None:
+        try:
+            _loc = _v2deps.get_location()
+            loc_up = bool(_loc is not None and getattr(_loc, "enabled", False))
+        except Exception:
+            pass
+    return {
+        "ok": True,
+        "ts": time.time(),
+        "version": "v2",
+        "build_sha": _build_sha(),
+        "field_age_s": fstat.get("age_s"),
+        "sources": {
+            "model": {"up": bool(fstat.get("samples")),
+                      "samples": fstat.get("samples", 0),
+                      "source": fstat.get("source")},
+            "stations": {"up": bool(fstat.get("station_readings")),
+                         "count": fstat.get("station_readings", 0)},
+            "fires": {"up": bool(fires_stat.get("fires")),
+                      "fires": fires_stat.get("fires", 0),
+                      "age_s": fires_stat.get("age_s")},
+            "location": {"up": loc_up,
+                         "key": "ALIVE_LOCATION_KEY" if loc_up else "unset"},
+        },
+        "history": history.summary(),
+    }
 
 
 _LOCATION = None
@@ -977,3 +1049,17 @@ async def directions(from_lat: float, from_lon: float, to_lat: float, to_lon: fl
         "geometry": rt["geometry"],
         "steps": steps,
     }
+
+
+# --- /v2 API (docs/plan/05 §3) — additive mount; nothing above changes ---
+try:
+    from v2 import router as _v2_router
+except ImportError:  # when imported as a package (import server.main)
+    try:
+        from server.v2 import router as _v2_router
+    except Exception:
+        _v2_router = None
+except Exception:
+    _v2_router = None
+if _v2_router is not None:
+    app.include_router(_v2_router)
