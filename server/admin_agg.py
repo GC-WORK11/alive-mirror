@@ -307,7 +307,12 @@ async def sources():
             "wind_ms": (prov.get("met") or {}).get("wind_ms"),
             "wind_deg": (prov.get("met") or {}).get("wind_deg"),
             "blh_m": (prov.get("met") or {}).get("blh_m"),
-            "vc_m2s": (prov.get("met") or {}).get("vc_m2s")}),
+            "vc_m2s": (prov.get("met") or {}).get("vc_m2s"),
+            # live serving wind from FIELD.status() — covers tasks whose
+            # newest disk snapshot predates met provenance (met serves
+            # wind on /aqi but the build record has nothing to show)
+            "wind_kmh": (f.get("wind") or {}).get("speed_kmh"),
+            "wind_from_deg": (f.get("wind") or {}).get("from_deg")}),
         "stations": merged("stations", {
             "readings": f.get("station_readings"),
             "n_raw": (prov.get("stations") or {}).get("n_raw"),

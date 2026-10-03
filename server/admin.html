@@ -335,7 +335,8 @@ async function tick(){
   const srcRows=Object.entries(sources.sources||{});
   $('sources').innerHTML=srcRows.map(([name,s])=>{
     const observed=(s.samples>0)||(s.n_points>0)||(s.fires!=null)
-      ||(s.readings>0)||(s.wind_ms!=null)||(s.enabled===true);
+      ||(s.readings>0)||(s.wind_ms!=null)||(s.wind_kmh!=null)
+      ||(s.enabled===true);
     const pill=s.up===true?['up','']:s.up===false?['down','down']
       :observed?['live','']:['no live data','idle'];
     const build=s.status&&s.status!=='ok'
@@ -348,6 +349,7 @@ async function tick(){
     if(s.samples!=null)extra.push(`${fmt(s.samples)} samples`);
     if(s.fires!=null)extra.push(`${fmt(s.fires)} fires${s.belt_fires!=null?` · ${fmt(s.belt_fires)} belt`:''}`);
     if(s.wind_ms!=null)extra.push(`wind ${fmt1(s.wind_ms)} m/s from ${Math.round(s.wind_deg??0)}°`);
+    else if(s.wind_kmh!=null)extra.push(`wind ${fmt1(s.wind_kmh)} km/h from ${Math.round(s.wind_from_deg??0)}°`);
     if(s.vc_m2s!=null)extra.push(`vc ${fmt(s.vc_m2s)} m²/s`);
     if(s.blh_m!=null)extra.push(`blh ${fmt(s.blh_m)} m`);
     if(s.modifier!=null)extra.push(`smoke ×${s.modifier}`);
