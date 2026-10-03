@@ -2,7 +2,8 @@
  *  curve: the SAME route scored against the hourly forecast field, one
  *  slot per departure hour for the next `hours` (default 24).
  *
- *  Server response → mapped here:
+ *  Server response → mapped here (Contract-sync: mapped view of
+ *  Bridge/contract.ts DepartResponse — renamed keys, not raw wire):
  *    slots[].hours_ahead   → hour        (0 = leave now)
  *    slots[].start         → start       (naive ISO, UTC — render +5:30)
  *    slots[].dose_ug       → dose_mid    (µg inhaled PM2.5, point estimate)

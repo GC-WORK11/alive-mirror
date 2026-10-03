@@ -32,6 +32,9 @@ export type CityDayTotals = {
   modes: Record<string, number>;
 };
 
+// Contract-sync: shadows Bridge/contract.ts V2CityResponse (duplicated,
+// not imported — see the header note there; test_contract_sync.py holds
+// the wire honest in both directions).
 export type CityPayload = {
   ts: number;
   generated_at?: string;
@@ -116,6 +119,7 @@ export type CityMovesModeRow = {
   share: number;
 };
 
+// Contract-sync: shadows Bridge/contract.ts V2CityMovesResponse.
 export type CityMovesPayload = {
   ts: number;
   generated_at?: string;

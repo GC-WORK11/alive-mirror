@@ -11,8 +11,13 @@ actually emits on the wire, in both directions:
 
 The interface→endpoint mapping below is hand-maintained by design:
 small, explicit, and each entry is reviewed when either side changes.
-Offline: location client faked, OSRM/refresh monkeypatched, FIELD
-seeded — every fetcher hits a deterministic path.
+A fetcher key may carry an "@tag" suffix (e.g. "ReverseResponse@v2")
+when two endpoints share one contract interface.
+
+Offline: location client faked, main.http()/OSRM/AWS faked (a canned
+OSRM route keeps /route /compare /decide /depart on their real option
+paths), FIELD seeded, TRIPS seeded — every fetcher hits a deterministic
+path.
 
 Run from server/:
     .venv/bin/python -m pytest tests/test_contract_sync.py -v
@@ -23,6 +28,7 @@ import re
 import sys
 import time
 
+import httpx
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -41,6 +47,9 @@ client = TestClient(main.app, raise_server_exceptions=False)
 CP = (28.6315, 77.2167)
 LINE = {"type": "LineString",
         "coordinates": [[77.20 + i * 0.001, 28.63] for i in range(30)]}
+OSRM_ROUTE = {"code": "Ok", "routes": [
+    {"distance": 6200.0, "duration": 780.0, "geometry": LINE,
+     "legs": []}]}
 
 
 # --- contract.ts parser ---------------------------------------------------------
@@ -104,6 +113,56 @@ class FakeLoc:
                  "notices": [], "source": "fake"}]
 
 
+class _FakeResp:
+    def __init__(self, payload):
+        self._p = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._p
+
+
+class FakeHttp:
+    """main.http() stand-in: serves the canned OSRM route so /route,
+    /compare, /decide and /depart exercise their real option paths,
+    and fails everything else the way an offline night does."""
+
+    async def get(self, url, params=None):
+        if "router.project-osrm.org" in str(url):
+            return _FakeResp(OSRM_ROUTE)
+        raise httpx.ConnectError("offline contract test")
+
+
+async def _fake_aws_suggest(q, lat, lon, limit=8):
+    return [{"name": "Connaught Place", "subtitle": "New Delhi",
+             "lat": 28.6315, "lon": 77.2167, "kind": "place",
+             "outside_ncr": False}]
+
+
+async def _fake_photon(q, lat, lon, limit=8, extra=None):
+    return [{"name": "Palika Bazar", "subtitle": "Connaught Place",
+             "lat": 28.6304, "lon": 77.2173, "kind": "retail",
+             "outside_ncr": False}]
+
+
+async def _fake_aws_reverse(lat, lon):
+    return [(0, 0.04, "Rajpath", "Central Secretariat, New Delhi")]
+
+
+def _seed_moves():
+    """4 donated trips, 4 distinct devices, one decodable ll: cell →
+    /v2/city/moves emits a real mode_share row + publishable corridor
+    (k>=3 on both), and /v2/city's corridors list is non-empty."""
+    for i in range(4):
+        store.TRIPS.record_trip(
+            ["ll:28.6315,77.2167"],
+            {"mode": "car", "distance_km": 6.2, "dose_ug": 120.0 + i,
+             "co2_kg_mid": 1.2, "pm25_g_mid": 0.03},
+            token_hash=f"contractdev{i}")
+
+
 @pytest.fixture(autouse=True)
 def wired(monkeypatch):
     deps.set_location(FakeLoc())
@@ -119,6 +178,13 @@ def wired(monkeypatch):
     monkeypatch.setattr(deps, "osrm_route", _noop)          # no routes
     monkeypatch.setattr(FIELD, "refresh", _noop)
     monkeypatch.setattr(main.FIRES, "refresh", _noop)
+    # v1 surface: one canned OSRM route, deterministic AWS/Photon fakes —
+    # the compare/decide/depart/search/reverse fetchers below then check
+    # real option rows, not just the error path.
+    monkeypatch.setattr(main, "http", lambda: FakeHttp())
+    monkeypatch.setattr(main, "_aws_suggest", _fake_aws_suggest)
+    monkeypatch.setattr(main, "_photon_search", _fake_photon)
+    monkeypatch.setattr(main, "_aws_reverse", _fake_aws_reverse)
     store.TRIPS.reset()
     store.ROUTES._routes.clear()
     yield
@@ -127,6 +193,8 @@ def wired(monkeypatch):
 
 
 # --- live fetchers: interface name → response body ---------------------------------
+# Keys are contract interface names; "Iface@tag" covers a second endpoint
+# that emits the same interface (e.g. /v2/reverse → ReverseResponse).
 def _seed_route():
     return store.ROUTES.put({"geometry": LINE, "mode": "car",
                              "duration_s": 600, "vehicle": "car"})
@@ -145,10 +213,16 @@ def _fetchers():
         "GridResponse": lambda: client.get("/grid").json(),
         "ReverseResponse": lambda: client.get(
             "/reverse", params={"lat": 28.6, "lon": 77.2}).json(),
+        # /v2/reverse emits the same shape (+lat/lon/distance_m/source)
+        "ReverseResponse@v2": lambda: client.get(
+            "/v2/reverse", params={"lat": CP[0], "lon": CP[1]}).json(),
         "RouteResponse": lambda: client.get("/route", params={
             "from_lat": 28.6, "from_lon": 77.2,
             "to_lat": 28.7, "to_lon": 77.3}).json(),
         "CompareResponse": lambda: client.get("/compare", params={
+            "from_lat": 28.6, "from_lon": 77.2,
+            "to_lat": 28.7, "to_lon": 77.3}).json(),
+        "DecideResponse": lambda: client.get("/decide", params={
             "from_lat": 28.6, "from_lon": 77.2,
             "to_lat": 28.7, "to_lon": 77.3}).json(),
         "DepartResponse": lambda: client.get("/depart", params={
@@ -161,12 +235,17 @@ def _fetchers():
             "from": {"lat": CP[0], "lon": CP[1]},
             "to": {"lat": 28.5708, "lon": 77.3260},
             "vehicle": "car"}).json(),
+        "V2RerouteResponse": lambda: client.post(
+            "/v2/reroute", json={}).json(),
         "V2TripResponse": lambda: client.post("/v2/trip", json={
             "device_token": "contract-tok",
             "trajectory": LINE["coordinates"]}).json(),
         "V2StripResponse": lambda: client.get("/v2/strip", params={
             "route_id": _seed_route()}).json(),
-        "V2CityResponse": lambda: client.get("/v2/city").json(),
+        "V2CityResponse": lambda: (
+            _seed_moves(), client.get("/v2/city").json())[1],
+        "V2CityMovesResponse": lambda: (
+            _seed_moves(), client.get("/v2/city/moves").json())[1],
         "V2Place": lambda: client.get("/v2/place/gaz:0").json(),
     }
 
@@ -181,28 +260,56 @@ EXTRA_REQUIRED = {
 }
 # response keys the contract knowingly does not model (allow-list)
 ALLOW_UNCONTRACTED: dict = {}
-# nested checks: (parent interface, list-key or object-key, child interface)
+# nested checks: (parent fetcher key, list-key, child interface)
 NESTED = [
     ("V2SearchResponse", "results", "Place"),
     ("V2SearchResponse", "t1", "Place"),
+    ("V2SearchResponse", "t2", "Place"),
     ("V2PlanResponse", "options", "V2PlanOption"),
     ("V2StripResponse", "samples", "V2StripSample"),
     ("SearchResponse", "results", "Place"),
+    ("RouteResponse", "routes", "RouteResult"),
+    ("CompareResponse", "options", "CompareOption"),
+    ("DecideResponse", "options", "CompareOption"),
+    ("DepartResponse", "options", "CompareOption"),
+    ("V2RerouteResponse", "options", "V2PlanOption"),
+    ("V2CityResponse", "corridors", "V2CityCorridor"),
+    ("V2CityMovesResponse", "mode_share", "V2CityModeShare"),
 ]
+# object-valued keys get the same two-direction check:
+# (parent fetcher key, object-key, child interface | None)
+# V2PlanOption.{dose,emissions} are checked per-row in
+# test_nested_v2_option_and_band_shapes (V2PlanOption is a row type,
+# not a fetcher key, so it can't sit here).
 NESTED_OBJ = [
-    ("V2PlanOption", "dose", "DoseBand"),
-    ("V2PlanOption", "emissions", "EmissionBand"),
+    ("V2TripResponse", "privacy", None),            # checked inline below
     ("V2PlanResponse", "field", "FieldStatus"),
-    ("V2TripResponse", "privacy", None),   # checked inline below
+    ("V2StripResponse", "field", "FieldStatus"),
+    ("V2CityResponse", "field", "FieldStatus"),
+    ("V2RerouteResponse", "field", "FieldStatus"),
+    ("AqiResponse", "field", "FieldStatus"),
+    ("CompareResponse", "field", "FieldStatus"),
+    ("DecideResponse", "field", "FieldStatus"),
+    ("RouteResponse", "field", "FieldStatus"),
+    ("V2CityMovesResponse", "window", "V2MovesWindow"),
+    ("V2CityMovesResponse", "corridors", "V2MovesCorridors"),
+    ("V2CityMovesResponse", "per_trip", "V2MovesPerTrip"),
 ]
+
+
+def _iface(key: str) -> str:
+    """Fetcher key → contract interface ("ReverseResponse@v2" →
+    "ReverseResponse")."""
+    return key.split("@", 1)[0]
 
 
 def _required(iface):
-    return {f for f, req in CONTRACT[iface].items() if req}
+    return {f for f, req in CONTRACT[_iface(iface)].items() if req}
 
 
 def _declared(iface):
-    return set(CONTRACT[iface]) | EXTRA_DECLARED.get(iface, set())
+    return set(CONTRACT[_iface(iface)]) | EXTRA_DECLARED.get(
+        _iface(iface), set())
 
 
 def _body(iface):
@@ -221,7 +328,10 @@ def test_contract_file_parses():
     assert CONTRACT, "no interfaces parsed from contract.ts"
     for name in ("Place", "SearchResponse", "V2SearchResponse",
                      "V2PlanResponse", "V2TripResponse", "V2StripResponse",
-                     "V2CityResponse", "V2Place"):
+                     "V2CityResponse", "V2CityMovesResponse",
+                     "V2RerouteResponse", "V2Place", "FieldStatus",
+                     "DecideResponse", "V2MovesBand", "V2CityModeShare",
+                     "V2MovesWindow", "V2MovesCorridors", "V2MovesPerTrip"):
         assert name in CONTRACT, f"{name} missing from contract.ts"
 
 
@@ -296,6 +406,81 @@ def test_v2_trip_privacy_block_contract():
     assert want <= set(priv), f"privacy block missing {want - set(priv)}"
 
 
+def test_nested_object_shapes():
+    """Object-valued keys (field/window/corridors/…) honour the same
+    two-direction rule as list rows — every required contract field on
+    the wire, nothing undeclared emitted."""
+    for parent, key, child in NESTED_OBJ:
+        if child is None:
+            continue  # dedicated test covers it (e.g. trip.privacy)
+        body = _body(parent)
+        if body is None:
+            continue
+        sub = body.get(key)
+        if not isinstance(sub, dict):
+            continue            # key absent/null on this path — honest
+        missing = _required(child) - set(sub)
+        assert not missing, (
+            f"{parent}.{key}: contract requires {sorted(missing)} "
+            f"the server doesn't emit")
+        extra = set(sub) - _declared(child)
+        assert not extra, (
+            f"{parent}.{key}: server emits undeclared {sorted(extra)} "
+            f"— add to contract.ts")
+
+
+def test_field_status_serving_honesty_block():
+    """FieldStatus must carry the serving-honesty keys wherever `field`
+    ships: serving mode, field age, staleness verdict, source, and both
+    sample/station counts — the FreshnessChip depends on all of them."""
+    want = {"serving", "age_s", "stale", "source", "samples",
+            "station_readings"}
+    missing_contract = want - _declared("FieldStatus")
+    assert not missing_contract, (
+        f"FieldStatus contract missing {sorted(missing_contract)}")
+    checked = 0
+    for iface in ("AqiResponse", "V2CityResponse", "V2PlanResponse",
+                  "V2StripResponse"):
+        body = _body(iface)
+        if body is None:
+            continue
+        f = body.get("field")
+        if not isinstance(f, dict):
+            continue
+        checked += 1
+        missing = want - set(f)
+        assert not missing, f"{iface}.field: wire missing {missing}"
+        assert f["serving"] in ("snapshot", "live", "none"), f
+        assert f["stale"] in (True, False, None), f
+        assert f["age_s"] is None or f["age_s"] >= 0, f
+        assert isinstance(f["samples"], int), f
+        assert isinstance(f["station_readings"], int), f
+    assert checked, "no endpoint emitted a field block to check"
+
+
+def test_aqi_pollutant_keys_on_wire():
+    """/aqi's widened pollutant surface (o3/co/so2/nh3/european_aqi —
+    realtime ingest) is declared in the contract AND actually emitted —
+    values may be null, the keys may not be absent."""
+    body = _body("AqiResponse")
+    if body is None:
+        pytest.skip("/aqi on a flaky path tonight")
+    want = {"pm25", "pm10", "no2", "o3", "co", "so2", "nh3",
+            "us_aqi", "european_aqi"}
+    missing = want - set(body)
+    assert not missing, f"/aqi not emitting {sorted(missing)}"
+    undeclared = want - _declared("AqiResponse")
+    assert not undeclared, f"contract missing {sorted(undeclared)}"
+
+
+def test_v1_city_is_html_not_json():
+    """/city (v1) serves the 'City Breathes' editorial page — text/html,
+    deliberately outside the JSON contract (see ENDPOINTS note)."""
+    r = client.get("/city")
+    assert r.status_code == 200
+    assert "text/html" in (r.headers.get("content-type") or "")
+
+
 def test_v2_search_t2_rows_reachable():
     """BUG probe: with the fake location client enabled, t2 runs and
     returns a row — the response must expose the rows somewhere a
@@ -321,7 +506,7 @@ def test_endpoint_constants_hit_real_routes():
             p = p.split("{")[0] + "gaz:0"      # /v2/place/{id}
         if p == "/v2/place":
             p = "/v2/place/gaz:0"
-        if p == "/v2/trip" or p == "/v2/plan":
+        if p in ("/v2/trip", "/v2/plan", "/v2/reroute"):
             r = client.post(p, json={})
         else:
             r = client.get(p)
@@ -338,7 +523,7 @@ def test_drift_summary_print(capsys):
             rows.append((iface, "no-object-response", "", ""))
             continue
         missing = sorted(_required(iface) - set(body))
-        opt_missing = sorted(f for f, req in CONTRACT[iface].items()
+        opt_missing = sorted(f for f, req in CONTRACT[_iface(iface)].items()
                              if not req and f not in body)
         extra = sorted(set(body) - _declared(iface))
         rows.append((iface, ",".join(missing) or "-",

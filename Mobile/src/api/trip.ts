@@ -30,6 +30,8 @@ export type TripPost = {
   device_token?: string;
 };
 
+// Contract-sync: shadows Bridge/contract.ts V2TripResponse (all-wire-keys-
+// optional subset — the ack is advisory, the app never blocks on it).
 export type TripAck = {
   stored: boolean;
   cells_traversed?: number;

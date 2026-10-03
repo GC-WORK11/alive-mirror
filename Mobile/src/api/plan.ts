@@ -1,4 +1,5 @@
-/** POST /v2/plan client (server/v2/plan.py). One call → ranked options
+/** POST /v2/plan client (server/v2/plan.py) — Contract-sync: maps
+ *  V2PlanResponse → PlanResultFresh (V2Option rows). One call → ranked options
  *  with dose + emissions bands, tags and the reason line computed by the
  *  server's doc-06 §4 ε-constraint rank. We map snake_case onto V2Option
  *  and keep every field nullable where the server is honest about nulls
@@ -26,7 +27,11 @@ export type PlanRequest = {
  *  `{"source": "unavailable"}`. Field-age + provenance feed
  *  components/FreshnessChip; `serving`/`sigma_coverage` keep dose
  *  honesty visible. (status() also emits wind/coverage/snapshot/
- *  load_warn_files — not mapped yet; extend here if a lane needs it.) */
+ *  load_warn_files — not mapped yet; extend here if a lane needs it.)
+ *
+ *  Contract-sync: shadowed subset of Bridge/contract.ts `FieldStatus`
+ *  (duplicated, not imported — see the header note in contract.ts;
+ *  server/tests/test_contract_sync.py enforces the wire both ways). */
 export type FieldStatus = {
   source?: string;              // "open-meteo/cams" | "openaq-stations+open-meteo/cams" | "unavailable"
   samples?: number;             // model lattice samples in the blend

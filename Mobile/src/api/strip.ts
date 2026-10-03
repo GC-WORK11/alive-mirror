@@ -2,6 +2,9 @@
  * GET /v2/strip?route_id=… — the live-counter strip (server/v2/strip.py).
  * Field samples every ~250 m along the route + emission-curve params the
  * client integrates locally (doc 04 §5: no per-second network).
+ *
+ * Contract-sync: maps V2StripResponse (Bridge/contract.ts) → RouteStrip
+ * (src/nav/strip.ts) through the guarded literal map below.
  */
 import { API, fetchJson } from "../components/shell/net";
 import type { RouteStrip } from "../nav/strip";

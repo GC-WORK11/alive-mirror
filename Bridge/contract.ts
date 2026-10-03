@@ -1,5 +1,15 @@
 // Shared wire contract between Mobile/ apps and server/.
 // Source of truth for API shapes; behavior lives in server/main.py.
+//
+// Mobile sync convention: Mobile/src/api/*.ts do NOT import this file —
+// the app maps wire payloads onto its own narrowed view types (e.g.
+// api/plan.ts FieldStatus ⊂ FieldStatus below, api/city.ts
+// CityMovesPayload ⊂ V2CityMovesResponse). The mapping is deliberate:
+// clients read through guarded mappers, so extra wire keys are always
+// legal. Drift is caught server-side by server/tests/test_contract_sync.py
+// (required fields must exist on the wire; emitted keys must be declared
+// here). When you change a shape here, mirror it in the api/*.ts type
+// comments — each file names the contract interface it shadows.
 
 export interface Place {
   name: string;
@@ -30,19 +40,30 @@ export interface RouteGeometry {
 }
 
 export interface ExposureFactors {
-  microenv: number;        // in-vehicle/ambient ratio (published, per mode)
-  ventilation_lpm: number; // breathing rate L/min
-  road_uplift: number;     // near-road multiplier applied
+  // metro options report descriptive strings ("walk 1.0 / metro 0.45")
+  // instead of scalars — union types match the wire.
+  microenv: number | string;        // in-vehicle/ambient ratio (published, per mode)
+  ventilation_lpm: number | string; // breathing rate L/min
+  road_uplift: number;              // near-road multiplier applied
+  activity?: string;                // dose() factor echo ("rest" | "moderate" | ...)
+  mode_known?: boolean;             // false = fell back to walking factors
 }
 
 export interface Exposure {
   dose_ug: number | null;          // PM2.5 mass inhaled this trip
-  avg_conc_ugm3: number | null;    // breathing-zone average
-  peak_conc: number | null;
   confidence: "high" | "medium" | "low" | "none";
-  coverage: number;                // fraction of route with field data
-  sparse: boolean;
   factors: ExposureFactors;
+  // present on every dose() result and the dose_error path; absent on
+  // metro's hand-built reduced exposure block:
+  avg_conc_ugm3?: number | null;   // breathing-zone average
+  peak_conc?: number | null;
+  coverage?: number;               // fraction of route with field data
+  sparse?: boolean;
+  warnings?: string[];             // e.g. "field_no_coverage", "speed_implausible"
+  // emitted on wire, previously undeclared (dose() krige band + speed check):
+  dose_ug_lo?: number | null;      // dose band from segment σ propagation
+  dose_ug_hi?: number | null;
+  implied_speed_kmh?: number;      // sanity echo — >120 km/h flags low conf
   dose_vs_best_pct?: number;
   ug_saved_vs_worst?: number;
 }
@@ -53,16 +74,43 @@ export interface RouteResult {
   duration_min: number;
   geometry: RouteGeometry;
   exposure: Exposure;
+  // emitted on wire, previously undeclared (/route options):
+  duration_s?: number;
+  duration_model?: "osrm" | "estimated";
+  segments?: RouteSegment[];       // _annotate_segments: ~90 s spans
+  hotspots?: RouteHotspot[];       // top-3 dose stretches
 }
 
 export interface FieldStatus {
+  // airfield.FIELD.status() verbatim — present wherever a `field` key ships.
+  // The degraded fallback (server/v2/plan.py `_field_status`) can emit just
+  // {"source": "unavailable"}, so only `source` may be relied on.
   source: string;
-  samples: number;
-  age_s: number | null;
-  // emitted on wire, previously undeclared:
-  station_readings?: number;
+  samples?: number;                // model lattice samples in the blend
+  age_s?: number | null;           // seconds since served field fetched/built
+  station_readings?: number;       // live station readings blended — 0 = dark
   wind?: Record<string, unknown>;
   kriging?: string;            // "on" | "idw"
+  // --- serving-honesty block (airfield.py status(), always emitted) ---
+  serving?: "snapshot" | "live" | "none"; // built index | live blend | empty
+  stale?: boolean | null;       // age_s > stale_after_s; null = age unknown
+  stale_after_s?: number;       // server stale threshold (2700 = 45 min)
+  sigma_coverage?: string;      // "full" | "per-query" | "none" | "partial:N/M"
+  load_warnings?: number;       // corrupt snapshot files skipped at load
+  load_warn_files?: string[];   // basenames of recent skips (≤8)
+  coverage?: {
+    bbox?: number[];            // [w, s, e, n] lon/lat
+    out_beyond_km?: number | null;
+    cells?: number;
+    sigma_cells?: number | null;
+  } | null;
+  snapshot?: {
+    path?: string;
+    built_at?: string | null;
+    built_epoch?: number;
+    grid?: string;
+    cells?: number;
+  } | null;
 }
 
 export interface RouteResponse {
@@ -103,11 +151,15 @@ export interface AqiResponse {
 
 export interface ReverseResponse {
   name: string;
-  lat?: number;                  // server emits {name, subtitle} only —
-  lon?: number;                  // lat/lon were declared but never sent
+  lat?: number;                  // /reverse (v1) emits {name, subtitle} only;
+  lon?: number;                  // /v2/reverse adds lat/lon/distance_m/source
   subtitle?: string;
   distance_m?: number;           // /v2/reverse only
   source?: string;               // /v2/reverse only
+  // /v2/reverse error bodies: 404 {error, lat, lon} / 503 {error, detail, hint}
+  error?: string;
+  detail?: string;
+  hint?: string;
 }
 
 export interface HealthResponse {
@@ -138,7 +190,12 @@ export interface CompareOption {
   segments?: RouteSegment[];  // ~90 s spans, own dose+color each (road modes)
   hotspots?: RouteHotspot[];  // top-3 dose stretches
   legs?: unknown[]; // metro walk-metro-walk decomposition
+  assumptions?: Record<string, unknown>; // metro only — model constants echoed
   exposure: Exposure;
+  // added by /decide's safety-first rank (server/decide.py):
+  decision_score?: number;    // 0-100, higher is better
+  decision_reasons?: string[]; // plain-English, e.g. "safest mode class"
+  night_black_spots?: { name: string; severity: string; dist_m: number }[];
 }
 
 export interface CompareResponse {
@@ -150,16 +207,14 @@ export interface CompareResponse {
 }
 
 export interface DecideResponse {
+  // every field except `options` is absent on the error path, which
+  // returns {"options": [], "error"} verbatim from /compare.
   options: CompareOption[]; // safety-first ranked (dose+risk+time)
-  pick: string | null;      // label of the recommended option
-  best: string | null;
-  field: FieldStatus;
+  pick?: string | null;     // label of the recommended option
+  best?: string | null;
+  field?: FieldStatus;
   error?: string;
 }
-
-// CompareOption gains, when served via /decide:
-//   decision_score?: number    // 0-100, higher is better
-//   decision_reasons?: string[] // plain-English, e.g. "safest mode class"
 
 export interface DepartSlot {
   hours_ahead: number;
@@ -229,11 +284,14 @@ export const ENDPOINTS = {
   search: "/search",
   route: "/route",
   compare: "/compare",
+  decide: "/decide",
   depart: "/depart",
   reverse: "/reverse",
   aqi: "/aqi",
   today: "/today",
   grid: "/grid",
+  // /city (v1) is the "City Breathes" editorial HTML page — text/html,
+  // intentionally NOT a JSON contract surface.
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -354,6 +412,36 @@ export interface V2StripResponse {
   samples: V2StripSample[];
   emissions_curve: Record<string, unknown>;
   field: FieldStatus;
+  // 404 path emits {error, detail}:
+  error?: string;
+  detail?: string;
+}
+
+export interface V2RerouteResponse {
+  // POST /v2/reroute — fresh option set from the current fix, plus the
+  // selected option flattened to top level AND under `option`. Only
+  // route_id/options/error ship on every path (incl. the early
+  // {"route_id": null, "options": [], "error"} validation failures).
+  route_id: string | null;      // fresh ~1 h-TTL key; null on routing-fail
+  options: V2PlanOption[];      // full ranked set; [] on every error path
+  rerouted_from?: string | null;
+  from_fix?: { lat: number; lon: number };
+  to?: { lat: number; lon: number };
+  vehicle?: string;
+  // flattened selected option (mode hint matched, else ranked winner):
+  geometry?: RouteGeometry;
+  route_geojson?: RouteGeometry;
+  eta_s?: number | null;
+  duration_s?: number | null;   // alias of eta_s
+  distance_km?: number | null;
+  steps?: V2PlanStep[];
+  dose?: DoseBand;
+  emissions?: EmissionBand;
+  mode?: string;
+  option?: V2PlanOption | null;
+  field?: FieldStatus;
+  took_ms?: number;
+  error?: string;
 }
 
 export interface V2TripRequest {
@@ -389,6 +477,7 @@ export interface V2Place {
   lon: number;
   kind: string;
   source: string;
+  error?: string;               // 404 path emits {"error": "unknown place id"}
 }
 
 export interface V2Band { lo: number | null; mid: number | null; hi: number | null }
@@ -434,14 +523,71 @@ export interface V2CityResponse {
            corridors_publishable: number };
 }
 
+// --- GET /v2/city/moves — "how Delhi moves" aggregate view -----------------
+// Aggregates only (TripAggregates store): day counters + publishable
+// corridor cells. Every emitted row clears k>=3; a mode below threshold
+// pools into "other" (itself k-gated) or ships as a suppressed count.
+// n_trips < min_k → insufficient_data: true — counts still ship, no
+// distribution is drawn from them.
+export interface V2MovesBand {
+  p25: number;
+  p50: number;
+  p75: number;
+  n: number;                    // qualifying rows behind the band
+}
+
+export interface V2CityModeShare {
+  mode: string;                 // server mode id or pooled "other"
+  trips: number;                // >= min_k on every row
+  share: number;                // trips / n_trips
+}
+
+export interface V2MovesWindow {
+  days: number;                 // trailing UTC day buckets (server: 7)
+  from: string;                 // ISO date
+  to: string;
+}
+
+export interface V2MovesCorridors {
+  window_h: number;             // corridor rule's own window (server: 72)
+  active: number;               // publishable cells right now
+  tracked: number;              // every cell ever seen
+  avg_dose_ug: V2MovesBand | null; // per-cell mean-dose distribution
+}
+
+export interface V2MovesPerTrip {
+  n_days: number;               // qualifying days (>= min_k trips)
+  dose_ug: V2MovesBand | null;
+  co2_kg: V2MovesBand | null;
+  pm25_g: V2MovesBand | null;
+  basis: string;
+}
+
+export interface V2CityMovesResponse {
+  ts: number;
+  generated_at: string;         // ISO-8601 UTC
+  window: V2MovesWindow;
+  min_k: number;                // 3
+  n_trips: number;
+  n_days: number;
+  insufficient_data: boolean;   // n_trips < min_k
+  mode_share: V2CityModeShare[];
+  mode_share_suppressed_trips: number;
+  corridors: V2MovesCorridors;
+  per_trip: V2MovesPerTrip;
+  basis: string;
+}
+
 export const V2_ENDPOINTS = {
   search: "/v2/search",
   place: "/v2/place",
   reverse: "/v2/reverse",
   plan: "/v2/plan",
+  reroute: "/v2/reroute",
   strip: "/v2/strip",
   trip: "/v2/trip",
   city: "/v2/city",
+  city_moves: "/v2/city/moves",
 } as const;
 
 export type TravelMode = "driving" | "cycling" | "walking";

@@ -14,6 +14,8 @@ export type RerouteRequest = {
   mode: string;
 };
 
+// Contract-sync: extracted view of Bridge/contract.ts V2RerouteResponse —
+// normRoute() flattens the wire's `option` wrapper into this shape.
 export type RerouteResult = {
   route_id: string;
   geometry: GeoJSON.Geometry | null;
