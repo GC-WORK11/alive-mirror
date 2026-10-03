@@ -7,6 +7,17 @@ the same NCR grid, then applies a ventilation-based stagnation
 correction. Query anywhere inside the NCR bbox via the same IDW scheme
 as AirField (p=2, named stations weighted 3x).
 
+Live-field anchor (r5): the forecast horizon is a model fetch — FIELD
+has no future data, so refresh() must pull its own grids — but every
+pm25() read is ANCHORED to the live field: delta = (live - corrected
+model now), applied with exp(-h/ANCHOR_TAU_H) decay, so the forecast
+starts at what the served field actually reports and relaxes toward raw
+CAMS over ~9 h. The live value comes from airfield.FIELD — the same
+freshness-honest serving layer the app reads (live pull or newest
+snapshot, never a stale file path this module manages). A stale (>3 h)
+or empty field contributes nothing — the raw model stands, honestly
+flagged in status().
+
 Real data only: every upstream failure degrades to None — nothing is
 invented.
 """
@@ -18,7 +29,7 @@ from typing import Optional, Union
 
 import httpx
 
-from airfield import _grid_points  # same NCR grid as the live field
+from airfield import _grid_points, FIELD  # same NCR grid + the live field
 
 AQ_API = "https://air-quality-api.open-meteo.com/v1/air-quality"
 MET_API = "https://api.open-meteo.com/v1/forecast"
@@ -26,6 +37,36 @@ AQ_VARS = "pm2_5,pm10,nitrogen_dioxide"
 MET_VARS = "boundary_layer_height,wind_speed_10m,wind_direction_10m"
 FORECAST_DAYS = 5  # API gives 120 hourly slots starting 00:00 UTC today
 CACHE_TTL = 1800  # 30 min — forecast cycles update ~hourly
+
+# Live-anchor tuning. ANCHOR_TAU_H is the e-folding horizon of the
+# nowcast correction — persistence information decays over ~6-12 h in
+# air-quality nowcasting; at +9 h ~37% of the live-vs-model delta
+# remains, by +24 h ~7% (CAMS seasonal skill takes over). Not measured —
+# a documented, conservative choice. ANCHOR_MAX_AGE_S gates the live
+# read: a served field older than the station-QC staleness rule
+# (airindex.STALE_S = 3 h) must not bend the horizon — its truth has
+# decayed.
+ANCHOR_TAU_H = 9.0
+ANCHOR_MAX_AGE_S = 3 * 3600
+
+# pm25(live=...) / ForecastField(live=...) sentinel: the default live
+# source is airfield.FIELD — pass None to disable, or a callable
+# (lat, lon) -> pm25|None to inject (tests).
+_FIELD_ANCHOR = object()
+
+
+def _live_field_pm25(lat: float, lon: float) -> Optional[float]:
+    """Current pm2_5 from the live field — only while FIELD's serving
+    layer is fresh enough to anchor a forecast (age <= ANCHOR_MAX_AGE_S).
+    Stale or empty -> None: an old truth must not bend the horizon.
+    Best-effort, never raises — the forecast stands alone without it."""
+    try:
+        age = (FIELD.status() or {}).get("age_s")
+        if age is None or age > ANCHOR_MAX_AGE_S:
+            return None
+        return FIELD.value(lat, lon, "pm2_5")
+    except Exception:  # noqa: BLE001 - the anchor is strictly optional
+        return None
 
 # Stagnation correction.
 #
@@ -54,15 +95,21 @@ def _parse_time(s: str) -> datetime:
 
 
 class ForecastField:
-    """Hourly forecast concentration field over the NCR grid."""
+    """Hourly forecast concentration field over the NCR grid.
 
-    def __init__(self) -> None:
+    live: the nowcast anchor — default _FIELD_ANCHOR reads
+    airfield.FIELD (the app's live field: freshest of live pull / newest
+    snapshot). Pass None to serve the raw model horizon, or a callable
+    (lat, lon) -> pm25|None to inject another truth source."""
+
+    def __init__(self, live=_FIELD_ANCHOR) -> None:
         # per grid point: {"lat", "lon", "name", "t0": datetime,
         #                  "vars": {var: [120 hourly values]}}
         self._aq: list = []
         self._met: list = []
         self._fetched_at: float = 0.0
         self._lock = asyncio.Lock()
+        self._live = _live_field_pm25 if live is _FIELD_ANCHOR else live
 
     # ---------- fetching ----------
 
@@ -209,11 +256,44 @@ class ForecastField:
         return {"factor": factor, "blh_m": round(blh, 1),
                 "wind_ms": round(wind, 2), "estimated": False}
 
-    def pm25(self, lat: float, lon: float, when: Union[int, float, datetime]) -> Optional[float]:
+    def _live_delta(self, lat: float, lon: float, idx: int,
+                    live=_FIELD_ANCHOR) -> Optional[float]:
+        """Nowcast correction for forecast slot `idx`:
+        (live_pm25 - corrected_model_now) * exp(-(idx - idx0)/TAU).
+
+        At the current-hour slot the correction is exact (pm25 returns
+        the live value); it decays to ~7% by +24 h where CAMS skill
+        dominates. -> delta µg/m³, or None when either side is missing —
+        a forecast never invents an anchor."""
+        fn = self._live if live is _FIELD_ANCHOR else live
+        if fn is None or not self._aq:
+            return None
+        idx0 = self.hour_index(0)
+        if idx0 is None or idx < idx0:
+            return None
+        try:
+            lv = fn(lat, lon)
+            lv = float(lv) if lv is not None else None
+        except Exception:  # noqa: BLE001 - a bad live fn loses the anchor
+            return None
+        if lv is None:
+            return None
+        model_now = self._idw(self._aq, lat, lon, "pm2_5", idx0)
+        if model_now is None:
+            return None
+        f0 = self.stagnation_factor(lat, lon, idx0)
+        model_now *= f0 if f0 is not None else 1.0
+        return (lv - model_now) * math.exp(-(idx - idx0) / ANCHOR_TAU_H)
+
+    def pm25(self, lat: float, lon: float, when: Union[int, float, datetime],
+             live=_FIELD_ANCHOR) -> Optional[float]:
         """Expected PM2.5 (µg/m³) at a future hour: IDW over the CAMS
-        forecast grid x stagnation factor. None outside the horizon.
-        If met data failed, the raw model value is returned uncorrected
-        (degraded, not invented)."""
+        forecast grid x stagnation factor, plus the decaying live-field
+        anchor (see _live_delta). None outside the horizon.
+        If met data failed, the raw model value is returned uncorrected;
+        if the live field is stale/absent, no anchor is applied —
+        degraded, never invented. live= overrides the field's anchor
+        source for this call (None disables)."""
         idx = self.hour_index(when)
         if idx is None:
             return None
@@ -221,11 +301,18 @@ class ForecastField:
         if base is None:
             return None
         factor = self.stagnation_factor(lat, lon, idx)
-        return base * (factor if factor is not None else 1.0)
+        v = base * (factor if factor is not None else 1.0)
+        delta = self._live_delta(lat, lon, idx, live)
+        if delta is not None:
+            v = max(0.0, v + delta)  # a correction can't go negative-air
+        return v
 
     def pollutant(self, lat: float, lon: float, when: Union[int, float, datetime],
                   key: str = "pm10") -> Optional[float]:
-        """Same as pm25 for the other fetched variables (pm10, no2)."""
+        """Same as pm25 for the other fetched variables (pm10, no2) —
+        deliberately UNANCHORED: the served live field (snapshot layer)
+        carries pm2_5 only, so there is no honest live truth to anchor
+        these species to."""
         idx = self.hour_index(when)
         if idx is None:
             return None
@@ -269,6 +356,15 @@ class ForecastField:
             "met_points": len(self._met),
             "hours": self._n_hours(),
             "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
+            # whether pm25 reads are anchored to the live field, and by
+            # what — honest about which truth the horizon starts from
+            "live_anchor": {
+                "enabled": self._live is not None,
+                "source": ("airfield.FIELD" if self._live is _live_field_pm25
+                           else "custom" if self._live is not None else None),
+                "tau_h": ANCHOR_TAU_H,
+                "max_age_s": ANCHOR_MAX_AGE_S,
+            },
         }
 
 

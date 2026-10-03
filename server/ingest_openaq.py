@@ -344,6 +344,8 @@ def fetch(api_key: Optional[str] = None, client=None, bbox=BBOX,
     finally:
         if own:
             c.close()
+    # observation count for the shared bundle convention (airindex 'n')
+    bundle["n"] = len(bundle.get("stations") or [])
     return bundle
 
 

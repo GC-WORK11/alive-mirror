@@ -17,11 +17,14 @@ import glob
 import json
 import os
 import sys
+import time
+from datetime import datetime, timezone
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))          # server/ on sys.path
 
 import httpx                                       # noqa: E402
+import pytest                                      # noqa: E402
 
 import airindex                                    # noqa: E402
 import ingest_worker                               # noqa: E402
@@ -322,3 +325,196 @@ def test_worker_bad_callback_is_not_fatal():
         run=lambda: {"ok": True}, sleep=lambda s: None,
         max_iters=2, on_result=bad)
     assert len(hist) == 2 and all(h["ok"] for h in hist)
+
+
+# ==================================================================== r5
+# Realtime honesty: degraded statuses carry the upstream verdict verbatim
+# (HTTP codes for quota/auth), per-source bundles surface
+# fetched_at / n / age_s, and a source whose every read failed says so —
+# never "ok" with an empty list.
+
+class _OAResp:
+    """httpx.Response stand-in whose raise_for_status raises an
+    HTTPStatusError carrying a REAL status_code — the r5 contract
+    requires the code to survive into the bundle status."""
+    def __init__(self, status=200, payload=None):
+        self.status_code = status
+        self._p = payload if payload is not None else {}
+        req = httpx.Request("GET", "https://api.openaq.org/v3/x")
+        self._real = httpx.Response(status, request=req)
+
+    def json(self):
+        return self._p
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise httpx.HTTPStatusError(
+                f"HTTP {self.status_code}", request=self._real.request,
+                response=self._real)
+
+
+class _OAClient:
+    """url -> _OAResp map for the airindex OpenAQ path; records calls."""
+    def __init__(self, routes):
+        self.routes = dict(routes)
+        self.calls = []
+
+    def get(self, url, **kw):
+        self.calls.append(url)
+        entry = self.routes[url]
+        if isinstance(entry, type) and issubclass(entry, BaseException):
+            raise entry("boom")
+        return entry
+
+
+_OA_LOCS = f"{airindex.OPENAQ_V3}/locations"
+_OA_LATEST = {lid: f"{airindex.OPENAQ_V3}/locations/{lid}/latest"
+              for lid in (100, 101)}
+
+
+def _oa_locations(n=2):
+    return {"results": [
+        {"id": 100 + i, "name": f"Loc-{i}",
+         "coordinates": {"latitude": 28.5 + i * 0.1,
+                         "longitude": 77.1 + i * 0.1},
+         "sensors": [{"id": 9000 + i,
+                      "parameter": {"id": 2, "name": "pm25"}}]}
+        for i in range(n)]}
+
+
+def _oa_latest(sensor_id, value=88.0, epoch=None):
+    ts = datetime.fromtimestamp(epoch or time.time(), tz=timezone.utc) \
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {"results": [{"value": value, "sensorsId": sensor_id,
+                         "datetime": {"utc": ts}}]}
+
+
+def test_openaq_auth_401_status_carries_http_code(monkeypatch):
+    """Key configured, API says 401 — the status must name the code,
+    not collapse to 'unavailable'/'HTTPStatusError'."""
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-key")
+    c = _OAClient({_OA_LOCS: _OAResp(401)})
+    out = airindex._fetch_stations(c, sleep=lambda s: None)
+    assert out["status"].startswith("unavailable")
+    assert "401" in out["status"]
+    assert out["stations"] == []
+    assert out["attempts"] == airindex.RETRY_ATTEMPTS["stations"]
+    assert out["n"] == 0
+
+
+def test_openaq_quota_429_status_carries_http_code(monkeypatch):
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-key")
+    c = _OAClient({_OA_LOCS: _OAResp(429)})
+    out = airindex._fetch_stations(c, sleep=lambda s: None)
+    assert "429" in out["status"]
+    assert out["status"].startswith("unavailable")
+
+
+def test_openaq_every_latest_failed_is_unavailable_not_ok(monkeypatch):
+    """/locations works but every /latest 401s: the source is DOWN — an
+    'ok' bundle with zero stations would be a lie."""
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-key")
+    c = _OAClient({_OA_LOCS: _OAResp(200, _oa_locations(2)),
+                   _OA_LATEST[100]: _OAResp(401),
+                   _OA_LATEST[101]: _OAResp(401)})
+    out = airindex._fetch_stations(c, sleep=lambda s: None)
+    assert out["status"].startswith("unavailable")
+    assert "401" in out["status"]
+    assert out["stations"] == []
+
+
+def test_openaq_partial_latest_failure_stays_ok_but_counted(monkeypatch):
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-key")
+    c = _OAClient({_OA_LOCS: _OAResp(200, _oa_locations(2)),
+                   _OA_LATEST[100]: _OAResp(200, _oa_latest(9000)),
+                   _OA_LATEST[101]: _OAResp(500)})
+    out = airindex._fetch_stations(c, sleep=lambda s: None)
+    assert out["status"] == "ok"
+    assert len(out["stations"]) == 1
+    assert out["n"] == 1
+    assert out["n_locations"] == 2
+    assert out["locations_failed"] == 1
+    assert any("500" in e for e in out["location_errors"])
+
+
+def test_failed_source_fetched_at_is_last_attempt_not_first(monkeypatch):
+    """A degraded bundle's fetched_at stamps the LAST try — an age
+    computed from it must not include the retry backoff time."""
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-key")
+    c = _OAClient({_OA_LOCS: _OAResp(503)})
+    before = time.time()
+    out = airindex._fetch_stations(c, sleep=lambda s: None)
+    assert before - 1 <= out["fetched_at"] <= time.time() + 1
+
+
+def test_fetch_inputs_bundles_surface_fetched_at_age_and_n(monkeypatch):
+    """'model: 48 pts, 42s old' — every bundle carries fetched_at, n and
+    age_s so /health can render the line without guessing."""
+    monkeypatch.setattr(airindex, "_fetch_met",
+                        lambda c: {"status": "ok", "source": "open-meteo",
+                                   "fetched_at": NOW - 10, "wind_ms": 2.0,
+                                   "wind_deg": 300, "blh_m": 700.0,
+                                   "vc_m2s": 1400.0})
+    monkeypatch.setattr(airindex, "_fetch_model",
+                        lambda c: {"status": "ok",
+                                   "source": "open-meteo/cams",
+                                   "fetched_at": NOW - 42,
+                                   "samples": _model_samples()})
+    monkeypatch.setattr(airindex, "_fetch_fires",
+                        lambda c, w: {"status": "ok",
+                                      "source": "nasa-firms-public-csv",
+                                      "fetched_at": NOW - 900,
+                                      "modifier": 1.0, "n_fires": 4,
+                                      "belt_fires": 1})
+    monkeypatch.setattr(airindex, "_fetch_stations",
+                        lambda c: {"status": "ok", "source": "openaq-v3",
+                                   "fetched_at": NOW - 120,
+                                   "stations": _stations(NOW)})
+    inp = airindex.fetch_inputs(now=NOW, client=object())
+    assert inp["model"]["n"] == len(_model_samples())
+    assert inp["model"]["age_s"] == pytest.approx(42.0)
+    assert inp["model"]["fetched_at"] == NOW - 42
+    assert inp["met"]["n"] == 1 and inp["met"]["age_s"] == pytest.approx(10.0)
+    assert inp["fires"]["n"] == 4
+    assert inp["fires"]["age_s"] == pytest.approx(900.0)
+    assert inp["stations"]["n"] == len(_stations(NOW))
+    assert inp["stations"]["age_s"] == pytest.approx(120.0)
+
+
+def test_fetch_inputs_degraded_bundle_still_carries_age_and_n(monkeypatch):
+    """An 'unavailable' bundle is still a well-formed health row:
+    fetched_at stamps the last try, n is honestly 0."""
+    monkeypatch.setattr(airindex, "_fetch_met",
+                        lambda c: {"status": "ok", "source": "open-meteo",
+                                   "fetched_at": NOW - 10, "wind_ms": 2.0,
+                                   "wind_deg": 300, "blh_m": 700.0,
+                                   "vc_m2s": 1400.0})
+    monkeypatch.setattr(airindex, "_fetch_model",
+                        lambda c: {"status": "ok",
+                                   "source": "open-meteo/cams",
+                                   "fetched_at": NOW - 42,
+                                   "samples": _model_samples()})
+    monkeypatch.setattr(airindex, "_fetch_fires",
+                        lambda c, w: {"status": "ok",
+                                      "source": "nasa-firms-public-csv",
+                                      "fetched_at": NOW - 900,
+                                      "modifier": 1.0, "n_fires": 0,
+                                      "belt_fires": 0})
+    monkeypatch.setattr(
+        airindex, "_fetch_stations",
+        lambda c: (_ for _ in ()).throw(httpx.ConnectError("refused")))
+    inp = airindex.fetch_inputs(now=NOW, client=object())
+    st = inp["stations"]
+    assert st["status"].startswith("unavailable: ConnectError")
+    assert st["n"] == 0
+    assert st["fetched_at"] is not None
+    assert isinstance(st["age_s"], (int, float))
+
+
+def test_provenance_carries_n_counts():
+    field = airindex.build_field(now=NOW, inputs=_inputs())
+    prov = field["provenance"]
+    assert prov["model"]["n"] == len(_model_samples())
+    assert prov["stations"]["n"] == len(_stations(NOW))
+    assert prov["fires"]["n"] == 4
+    assert prov["met"]["n"] == 1

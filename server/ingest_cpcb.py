@@ -67,6 +67,15 @@ PAGE_LIMIT = 1000            # OGD datastore page size (default is 10)
 MAX_PAGES = 4                # safety cap per state (~4k rows worst case)
 MAX_PM25 = 1500.0            # same implausible bound as airindex's OpenAQ path
 
+# Per-page retry policy — api.data.gov.in is TCP-refused from non-India
+# egress (see cpcb-source.md), so retries must stay BOUNDED: a refused
+# connect costs ~ms locally, but a dead route must never multiply into
+# minutes of worker time. 2 tries/page x <=4 pages x 4 states is the
+# worst case; connect-timeout (8 s on the built client) bounds each try.
+GET_ATTEMPTS = 2             # initial try + one retry per page
+BACKOFF_BASE_S = 0.5         # sleep(k) = base * 2**k, capped
+BACKOFF_CAP_S = 4.0
+
 REGISTRY = os.path.join(_HERE, "data", "delhi_climatology.json.gz")
 
 # agency suffixes seen on CPCB/OpenAQ station names: " - CPCB", " - DPCC
@@ -202,15 +211,55 @@ def _fnum(x):
         return None
 
 
+def _exc_reason(e) -> str:
+    """Verbatim upstream failure for status/report — '<ExcType>: <msg>'
+    ('ConnectError: [Errno 111] Connection refused'), truncated so a
+    stack fragment can never balloon the health payload. The reason is
+    the ops signal: 'TCP refused from non-India egress' must read in the
+    status, not collapse to 'unavailable: Delhi@0'."""
+    msg = str(e).strip()
+    out = f"{type(e).__name__}: {msg}" if msg else type(e).__name__
+    return out[:160]
+
+
+def _get_page(c, url, params, *, tries: int, sleep, stats: dict) -> tuple:
+    """One datastore page, up to `tries` bounded attempts with capped
+    exponential backoff between them.
+
+    -> (json_dict, reason_or_None). A raised error after the last try —
+    or a non-dict payload — returns the verbatim reason; callers count
+    it, never invent rows. stats["requests"] counts real HTTP calls."""
+    reason = "unknown"
+    for k in range(max(1, int(tries))):
+        stats["requests"] += 1
+        try:
+            r = c.get(url, params=params, timeout=30)
+            r.raise_for_status()
+            j = r.json()
+        except Exception as e:      # noqa: BLE001 - transport/HTTP/JSON
+            reason = _exc_reason(e)
+            if k < tries - 1:
+                sleep(min(BACKOFF_CAP_S, BACKOFF_BASE_S * (2 ** k)))
+            continue
+        if not isinstance(j, dict):
+            return None, f"unexpected payload: {type(j).__name__}"
+        return j, None
+    return None, reason
+
+
 def fetch(resource_id: str = RESOURCE_ID, api_key=None, client=None,
-          states=STATES, bbox=BBOX, limit: int = PAGE_LIMIT) -> dict:
+          states=STATES, bbox=BBOX, limit: int = PAGE_LIMIT,
+          attempts: int = None, sleep=None) -> dict:
     """Pull live CPCB station obs into the airindex stations bundle.
 
     api_key: default env CPCB_API_KEY. Absent -> status 'unavailable: no
     key — owner blocker' + empty stations (explicit, never silent).
     client: injectable httpx-like object (tests pass a fake); created and
-    closed internally when not given. Never raises on upstream failure —
-    the caller's field still builds on what arrived."""
+    closed internally when not given. attempts/sleep: page-retry policy
+    (default GET_ATTEMPTS + capped backoff — bounded so a TCP-refused
+    egress can't stall the 15-min worker). Never raises on upstream
+    failure — the caller's field still builds on what arrived, and the
+    status carries the verbatim upstream reason."""
     t0 = time.time()
     key = api_key or os.environ.get(ENV_KEY)
     if not key:
@@ -221,34 +270,41 @@ def fetch(resource_id: str = RESOURCE_ID, api_key=None, client=None,
         _remember(out)
         return out
 
+    tries = max(1, int(attempts or GET_ATTEMPTS))
+    sleep = sleep or time.sleep
     own = client is None
     c = client or httpx.Client(
         timeout=httpx.Timeout(30.0, connect=8.0),
         headers={"User-Agent": "alive108-ingest-cpcb/0.1"})
-    records, errors, pages = [], [], 0
+    records, errors, reasons, pages = [], [], [], 0
+    stats = {"requests": 0}
+    url = f"{API_BASE}/resource/{resource_id}"
     try:
         for state in states:
             offset = 0
             for _ in range(MAX_PAGES):
-                try:
-                    r = c.get(f"{API_BASE}/resource/{resource_id}", params={
-                        "api-key": key, "format": "json",
-                        "filters[state]": state,
-                        "filters[pollutant_id]": POLLUTANT,
-                        "limit": limit, "offset": offset}, timeout=30)
-                    r.raise_for_status()
-                    j = r.json()
-                    pages += 1
-                except Exception as e:      # noqa: BLE001 - upstream wobble
-                    errors.append(f"{state}@{offset}: {type(e).__name__}")
+                j, reason = _get_page(c, url, {
+                    "api-key": key, "format": "json",
+                    "filters[state]": state,
+                    "filters[pollutant_id]": POLLUTANT,
+                    "limit": limit, "offset": offset},
+                    tries=tries, sleep=sleep, stats=stats)
+                if j is None:
+                    errors.append(f"{state}@{offset}: {reason}")
+                    reasons.append(reason)
                     break
+                pages += 1
                 if j.get("status") and str(j.get("status")).lower() != "ok":
-                    errors.append(f"{state}@{offset}: "
-                                  f"{j.get('message') or j.get('status')}")
+                    reason = str(j.get("message") or j.get("status"))
+                    errors.append(f"{state}@{offset}: {reason}")
+                    reasons.append(reason)
                     break
                 chunk = j.get("records") or []
                 records += chunk
-                total = int(j.get("total") or 0)
+                try:
+                    total = int(j.get("total") or 0)
+                except (TypeError, ValueError):
+                    total = 0  # unparseable page meta -> stop, keep rows
                 offset += len(chunk)
                 if not chunk or offset >= total or len(chunk) < limit:
                     break
@@ -257,9 +313,11 @@ def fetch(resource_id: str = RESOURCE_ID, api_key=None, client=None,
             c.close()
 
     if not records and errors:
-        out = {"status": f"unavailable: {errors[0].split(':')[0]}",
+        out = {"status": f"unavailable: {reasons[0]}",
                "source": SOURCE, "fetched_at": t0, "stations": [],
-               "report": {"errors": errors, "pages": pages}}
+               "report": {"errors": errors, "pages": pages,
+                          "requests": stats["requests"],
+                          "attempts_per_page": tries}}
         _remember(out)
         return out
 
@@ -271,9 +329,11 @@ def fetch(resource_id: str = RESOURCE_ID, api_key=None, client=None,
         report["outside_bbox"] = len(stations) - len(in_box)
         stations = in_box
     report.update({"pages": pages, "errors": errors,
-                   "states": list(states), "resource_id": resource_id})
+                   "states": list(states), "resource_id": resource_id,
+                   "requests": stats["requests"],
+                   "attempts_per_page": tries})
     out = {"status": "ok", "source": SOURCE, "fetched_at": time.time(),
-           "stations": stations, "report": report}
+           "stations": stations, "n": len(stations), "report": report}
     _remember(out)
     return out
 
