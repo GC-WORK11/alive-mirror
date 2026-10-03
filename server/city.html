@@ -513,6 +513,12 @@ function paintCigs(cigs){
 function paintTicker(a,t,ad){
   const items=[
     [`pm2.5`,`${a.pm25??'—'} µg/m³`],
+    [`pm10`,`${a.pm10??'—'} µg/m³`],
+    [`no₂`,`${a.no2??'—'} µg/m³`],
+    [`o₃`,`${a.o3??'—'} µg/m³`],
+    [`co`,`${a.co??'—'} µg/m³`],
+    [`so₂`,`${a.so2??'—'} µg/m³`],
+    [`us aqi`,`${a.us_aqi??'—'}`],
     [`krige band`,`${a.pm25_lo??'—'}–${a.pm25_hi??'—'}`],
     [`wind`,`${Math.round(wind.speed_kmh)} km/h from ${compass(wind.from_deg)}`],
     [`instruments`,`${a.field?.station_readings??'—'} live`],
