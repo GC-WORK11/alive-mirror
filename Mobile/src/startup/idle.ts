@@ -4,8 +4,6 @@
 // Used by the persistence stores so disk reads + JSON.parse don't compete
 // with font loading and the mount commit; resolution is memoized, so calls
 // made later in the session resolve on the next microtask.
-import { InteractionManager } from "react-native";
-
 let firstIdle: Promise<void> | null = null;
 
 export function afterFirstFrame(capMs = 1200): Promise<void> {
@@ -18,11 +16,11 @@ export function afterFirstFrame(capMs = 1200): Promise<void> {
         resolve();
       };
       const t = setTimeout(finish, capMs);
+      // after two painted frames + a macrotask — the mount commit and any
+      // queued interactions have had their beat; the cap above is the hard
+      // bound either way. (InteractionManager is deprecated in new arch.)
       requestAnimationFrame(() =>
-        InteractionManager.runAfterInteractions(() => {
-          clearTimeout(t);
-          finish();
-        }),
+        requestAnimationFrame(() => setTimeout(finish, 0)),
       );
     });
   }
