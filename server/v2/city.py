@@ -26,6 +26,7 @@ bottom of this module. Same contract: TripAggregates only, every emitted
 row k>=3, window/min_k/n_trips always stated, and an empty store answers
 insufficient_data rather than a zero posing as measurement.
 """
+import asyncio
 import math
 import statistics
 import time
@@ -328,6 +329,36 @@ def _typical(now_pm25: Optional[float]) -> Optional[dict]:
         return None
 
 
+async def _next_hours() -> Optional[list]:
+    """Next 12 hourly PM2.5 forecast at the city centroid — the same
+    live-anchored CAMS horizon /depart uses (forecast grid x stagnation
+    factor + decaying live-field correction). Best-effort bounded
+    refresh; None when the forecast field is cold or dead — never a
+    guess."""
+    try:
+        from forecast import FORECAST
+        await asyncio.wait_for(FORECAST.refresh(deps.http()), timeout=12.0)
+    except Exception:
+        pass
+    try:
+        from forecast import FORECAST
+        out = []
+        for h in range(12):
+            v = FORECAST.pm25(28.6315, 77.2167, h)
+            if v is None:
+                continue
+            idx = FORECAST.hour_index(h)
+            out.append({
+                "h": h,
+                "start": (FORECAST.time_at(idx)
+                          if idx is not None else None),
+                "pm25": round(v, 1),
+            })
+        return out or None
+    except Exception:
+        return None
+
+
 @router.get("/city")
 async def city():
     from .plan import _field_refresh_bounded
@@ -358,6 +389,7 @@ async def city():
             now, tz=timezone.utc).isoformat(timespec="seconds"),
         "pm25_stats": stats,
         "typical": _typical(stats.get("mean")),
+        "next_hours": await _next_hours(),
         "species": _species(F),
         "breath": _breath_band(vals, sigs),
         "field": fstat,

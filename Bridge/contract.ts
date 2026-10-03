@@ -553,6 +553,10 @@ export interface V2CityResponse {
   typical?: { month: number; hour_ist: number; median: number;
               p25?: number | null; p75?: number | null;
               vs_now_pct?: number | null } | null;
+  /** Next 12 hourly PM2.5 forecast at the city centroid — live-anchored
+      CAMS horizon (same model /depart uses). Null when the forecast
+      field is cold. */
+  next_hours?: { h: number; start: string | null; pm25: number }[] | null;
   breath?: {
     pm25_ugm3: V2Band;
     day_inhaled_ug: V2Band;

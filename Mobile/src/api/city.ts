@@ -56,6 +56,8 @@ export type CityPayload = {
     p75?: number | null;
     vs_now_pct?: number | null;
   } | null;
+  /** Live-anchored CAMS forecast at the centroid — next 12 hours. */
+  next_hours?: { h: number; start: string | null; pm25: number }[] | null;
   /** The hero figure — null when the field has no data (never faked). */
   breath: {
     pm25_ugm3: CityBand;
