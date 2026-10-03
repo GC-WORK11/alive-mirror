@@ -30,6 +30,7 @@ import math
 import statistics
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter
 
@@ -303,6 +304,30 @@ async def _corridors(loc) -> list:
 
 # ---------------------------------------------------------------- endpoint
 
+def _typical(now_pm25: Optional[float]) -> Optional[dict]:
+    """Decade-climatology context at the city centroid: what Connaught
+    Place usually reads this month, this hour (9M measured station-hours
+    from the openaq-data-archive), versus the live field mean. None when
+    the archive or the live mean is unavailable — never a guess."""
+    if now_pm25 is None:
+        return None
+    try:
+        import history
+        ist = timezone(timedelta(hours=5, minutes=30))
+        n = datetime.now(ist)
+        band = history.typical_band(28.6315, 77.2167, n.month, n.hour)
+        med = band.get("median")
+        if med is None:
+            return None
+        return {"month": n.month, "hour_ist": n.hour,
+                "median": round(med, 1), "p25": band.get("p25"),
+                "p75": band.get("p75"),
+                "vs_now_pct": round((now_pm25 - med) / med * 100, 1)
+                if med else None}
+    except Exception:
+        return None
+
+
 @router.get("/city")
 async def city():
     from .plan import _field_refresh_bounded
@@ -322,6 +347,7 @@ async def city():
         pass
 
     vals, sigs = _lattice(F)
+    stats = _field_stats(vals)
     agg = TRIPS.city_aggregates()
     corridors = await _corridors(loc)
     now = time.time()
@@ -330,7 +356,8 @@ async def city():
         "ts": now,
         "generated_at": datetime.fromtimestamp(
             now, tz=timezone.utc).isoformat(timespec="seconds"),
-        "pm25_stats": _field_stats(vals),
+        "pm25_stats": stats,
+        "typical": _typical(stats.get("mean")),
         "species": _species(F),
         "breath": _breath_band(vals, sigs),
         "field": fstat,

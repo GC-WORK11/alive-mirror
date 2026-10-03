@@ -543,6 +543,13 @@ export interface V2CityResponse {
       no data for it. Keys are open-meteo names. */
   species?: Record<string, { mean: number; median: number; max: number;
                              n: number }>;
+  /** Decade-climatology at the city centroid (openaq-data-archive,
+      ~9M measured station-hours): median/p25/p75 for this month+hour
+      and the live-vs-typical delta. Omitted when the archive or the
+      live mean is unavailable — never a guess. */
+  typical?: { month: number; hour_ist: number; median: number;
+              p25?: number | null; p75?: number | null;
+              vs_now_pct?: number | null } | null;
   breath?: {
     pm25_ugm3: V2Band;
     day_inhaled_ug: V2Band;

@@ -330,6 +330,17 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
               );
             })()}
 
+            {/* vs the decade norm — real archive baseline, omitted when
+                the backend has no typical (never a fabricated one) */}
+            {data.typical?.vs_now_pct != null ? (
+              <Text style={[ss.speciesNote,
+                           { fontFamily: fam(lang, "reg") }]}>
+                {t("cityTypicalLine", lang)
+                  .replace("{pct}", `${data.typical.vs_now_pct > 0 ? "+" : ""}${data.typical.vs_now_pct}`)
+                  .replace("{med}", `${Math.round(data.typical.median)}`)}
+              </Text>
+            ) : null}
+
             {/* measured streets — k>=3 aggregates, heaviest first */}
             <Text style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
               {t("cityStreetsTitle", lang)}

@@ -46,6 +46,16 @@ export type CityPayload = {
     string,
     { mean: number; median: number; max: number; n: number }
   >;
+  /** Decade-climatology vs now at the city centroid — omitted when the
+      archive or the live mean is missing (no fabricated baseline). */
+  typical?: {
+    month: number;
+    hour_ist: number;
+    median: number;
+    p25?: number | null;
+    p75?: number | null;
+    vs_now_pct?: number | null;
+  } | null;
   /** The hero figure — null when the field has no data (never faked). */
   breath: {
     pm25_ugm3: CityBand;

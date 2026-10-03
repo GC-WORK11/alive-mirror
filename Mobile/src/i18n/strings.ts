@@ -125,6 +125,8 @@ const en = {
   cityStale: "older data — reconnecting",
   citySpeciesTitle: "the other things in the air",
   citySpeciesNote: "city mean, µg/m³ — measured every 15 minutes",
+  cityTypicalLine:
+    "running {pct}% vs the decade norm of {med} µg/m³ for this hour",
   cityStreetsTitle: "streets travellers crossed",
   cityEmptyStreets: "nothing to show yet — a street appears after 3+ travellers cross it in 3 days",
   cityHeavier: "heavier",
@@ -379,6 +381,8 @@ const hi: Record<StringKey, string> = {
   cityStale: "पुराना डेटा — फिर जुड़ रहा है",
   citySpeciesTitle: "हवा में और क्या-क्या है",
   citySpeciesNote: "शहर का औसत, µg/m³ — हर 15 मिनट ताज़ा",
+  cityTypicalLine:
+    "इस समय के दशक-औसत {med} µg/m³ की तुलना में {pct}%",
   cityStreetsTitle: "जिन सड़कों से यात्री गुज़रे",
   cityEmptyStreets: "अभी दिखाने को कुछ नहीं — 3+ यात्रियों के 3 दिन में गुज़रने पर सड़क दिखती है",
   cityHeavier: "ज़्यादा धुआँ",
