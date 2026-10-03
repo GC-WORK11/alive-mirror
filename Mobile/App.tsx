@@ -96,6 +96,16 @@ function AppInner() {
   const deferredOptions = useDeferredValue(flow.options);
   const lang = settings.lang;
 
+  /* Endpoint-pin child swaps are map-side commits — they must land clear
+     of every phase flip. pinReady lags "compare" by 450 ms BOTH ways so
+     a pin never appears/disappears inside a sheet mount/unmount frame
+     (receipt-Done teardown = residual-SIGSEGV hot spot, 3× on ci15). */
+  const [pinReady, setPinReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setPinReady(phase === "compare"), 450);
+    return () => clearTimeout(t);
+  }, [phase]);
+
   const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
   const [fires, setFires] = useState<GeoJSON.FeatureCollection | null>(null);
   const [spots, setSpots] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -333,10 +343,10 @@ function AppInner() {
             empty child; the pin never teleports because the ref holds the
             last real coordinate. */}
         <Marker lngLat={fromPin.current} anchor="center">
-          {flow.from && phase === "compare" ? <EndpointPin kind="origin" /> : <View />}
+          {flow.from && pinReady ? <EndpointPin kind="origin" /> : <View />}
         </Marker>
         <Marker lngLat={toPin.current} anchor="bottom">
-          {flow.to ? <EndpointPin kind="dest" /> : <View />}
+          {flow.to && pinReady ? <EndpointPin kind="dest" /> : <View />}
         </Marker>
       </Map>
 
@@ -576,7 +586,7 @@ function NavSession({
     /* teardown must not run inside the unmount commit — tearing the GNSS
        watcher down while the receipt->compare flip is on the draw thread
        is the same crash class as stopping inside the location callback. */
-    return () => { const n = navRef.current; setTimeout(() => n.stop(), 50); };
+    return () => { const n = navRef.current; setTimeout(() => n.stop(), 250); };
   }, []);
 
   if (summary && !receiptReady) return null;   // chrome's own remove commit
