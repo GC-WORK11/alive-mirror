@@ -42,6 +42,12 @@ light graphite/ink palette.
   +path/track/pedestrian), major spacing 350 → 300, neighbourhoods z13 → 12.5.
 - `symbol-sort-key` on POIs uses OMT `rank` so the collision manager drops
   the least important features first.
+- Bilingual labels (r5.1): road-label-major, poi-civic, poi-transit and
+  neighbourhood/suburb place labels render `latin\nDevanagari` — the
+  Google-Maps local-script pattern. Second line comes from `name:hi`
+  (OMT's Delhi `name` tag is English; `name:hi` carries देवनागरी), and is
+  suppressed when `downcase(name:hi)` equals `name` or the latin —
+  romanized `name:hi` values (e.g. "Eastern Court") don't duplicate.
 - App.tsx: deleted the inline `buildings3d` fill-extrusion layer — it
   double-drew on top of the style's own `v2-building-extrusion` (which also
   honours `render_min_height`). See map-style.md §cleanup note.
