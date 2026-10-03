@@ -9,7 +9,7 @@ import {
 import * as Location from "expo-location";
 import { File, Paths } from "expo-file-system";
 import {
-  Camera, Layer, Map, Marker, UserLocation, type CameraRef,
+  Camera, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
 import { EndpointPin } from "./src/ui";
@@ -217,10 +217,6 @@ export default function App() {
         <ReportsLayer reports={reports} />
         {layers.fires && <FiresLayer fires={fires} />}
         {layers.spots && <BlackspotsLayer spots={spots} />}
-        <Layer id="buildings3d" type="fill-extrusion" source="openmaptiles" source-layer="building" minzoom={15}
-          paint={{ "fill-extrusion-color": V2T.mapBuilding,
-            "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-            "fill-extrusion-opacity": 0.6 }} />
         {/* route-wise AQI gradient on the real /v2/plan polylines — per
             ~250 m chunk from the fetched strips, flat dose-mean until they
             land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
