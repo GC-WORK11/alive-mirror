@@ -59,6 +59,16 @@ Delhi breathes. Expo/React Native app + FastAPI backend + optional C++ `alive_co
 - `server/core/` — `alive_core` C++: `dose_series`, `emission_g_km`, krige.
   `tools/gen_ef_table.py` generates the mode table from `emissions.py` at
   configure (hexfloat literals — bit-identical). `ref_series.py` is the oracle
+- `server/v2/ledger.py` + `DeviceLedger` (v2/store.py) — GET /v2/ledger?
+  token= returns a device's own trip history + totals (sanitized summaries
+  only, hashed-token key, newest-first; /v2/trip writes it alongside the
+  k>=3 community aggregates)
+- `server/v2/strip.py` `roads[]` — strip chunks split across OSRM step
+  spans (plan.py stores steps on the RouteStore record), consecutive
+  same-name steps merged → {name, dist_m, samples, avg_pm25, dose_share}
+- FieldStatus refresh honesty — `refresh_in_s`/`refresh_ttl_s` in
+  airfield.status(), surfaced as `field_refresh_in_s`/`field_stale` in
+  /health
 - `server/admin.html` + `admin_agg.py` — ops dashboard (light, no emoji):
   per-source live age/stale, mode-share, k≥3 corridors
 - `Bridge/contract.ts` + `server/tests/test_contract_sync.py` — wire contract,
