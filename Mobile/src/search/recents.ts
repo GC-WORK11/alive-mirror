@@ -91,3 +91,12 @@ export async function clearRecents(): Promise<PlaceStore> {
   await persist(next);
   return next;
 }
+
+/** "Delete my data" — recents + saved slots are location history, the
+ *  most personal thing on the phone. Drop the mirror AND the file. */
+export async function clearPlaces(): Promise<void> {
+  mem = null;
+  try {
+    if (FILE.exists) FILE.delete();
+  } catch {}
+}

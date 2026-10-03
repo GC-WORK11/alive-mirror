@@ -281,7 +281,7 @@ type Row =
   | { kind: "day"; key: string; label: string }
   | { kind: "trip"; key: string; tr: Trip };
 
-function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
+function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; lang: Lang; onTripsChanged?: () => void }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -360,8 +360,8 @@ function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
 
   const removeTrip = useCallback((tr: Trip) => {
     setOpenKey(null);
-    deleteTrip(tr).then(setTrips).catch(() => {});
-  }, []);
+    deleteTrip(tr).then(setTrips).then(onTripsChanged).catch(() => {});
+  }, [onTripsChanged]);
 
   const confirmDeleteAll = () =>
     Alert.alert(
@@ -374,7 +374,7 @@ function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
           style: "destructive",
           onPress: () => {
             setOpenKey(null);
-            clearTrips().then(setTrips).catch(() => {});
+            clearTrips().then(setTrips).then(onTripsChanged).catch(() => {});
           },
         },
       ],
@@ -544,10 +544,12 @@ export function LedgerScreen({
   visible,
   onClose,
   lang = "en",
+  onTripsChanged,
 }: {
   visible: boolean;
   onClose: () => void;
   lang?: Lang;
+  onTripsChanged?: () => void;
 }) {
   return (
     <Modal
@@ -559,7 +561,7 @@ export function LedgerScreen({
     >
       <View style={ss.backdrop}>
         <StatusBar style="dark" />
-        {visible ? <LedgerSheet onClose={onClose} lang={lang} /> : null}
+        {visible ? <LedgerSheet onClose={onClose} lang={lang} onTripsChanged={onTripsChanged} /> : null}
       </View>
     </Modal>
   );

@@ -7,6 +7,8 @@ import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
 import { clearConsent } from "../../store/consent";
 import { clearVehicle } from "../../store/vehicle";
+import { clearPlaces } from "../../search/recents";
+import { clearOutbox } from "../../offline/queue";
 
 export type SavedPlace = { name: string; lat: number; lon: number };
 
@@ -80,6 +82,8 @@ export function clearAllData(): void {
   resetLedgerCache();
   clearConsent();   // re-arms the onboarding gate on next launch
   clearVehicle();   // vehicle.json — the S8 profile
+  clearPlaces();    // places.json — recents + home/work, the location history
+  clearOutbox();    // outbox.json — queued donations carry token + trajectory
   for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt"]) {
     try {
       const f = new File(Paths.document, name);

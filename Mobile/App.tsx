@@ -173,7 +173,8 @@ export default function App() {
 
   const deleteAll = useCallback(() => {
     clearAllData();
-    flow.setTrips([]); setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
+    flow.setTrips([]); flow.setVehicleProfile(null);
+    setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
   }, [flow]);
   const toggleLayer = useCallback((k: LayerKey, v: boolean) => {
     setLayers((l) => ({ ...l, [k]: v }));
@@ -342,7 +343,7 @@ export default function App() {
       <LayersSheet visible={layersOpen} values={layers} onToggle={toggleLayer}
         onClose={() => setLayersOpen(false)} lang={lang} />
       <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} />
-      <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} />
+      <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} onTripsChanged={flow.reloadTrips} />
       <SettingsScreen visible={settingsOpen} onClose={() => setSettingsOpen(false)}
         lang={lang} current={settings} onArmBrief={flow.armDailyBrief}
         onDeleteData={deleteAll}

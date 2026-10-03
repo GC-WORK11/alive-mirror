@@ -199,6 +199,15 @@ export async function queueSize(): Promise<number> {
   return (await load()).items.length;
 }
 
+/** "Delete my data" — queued donations hold device_token + trajectory.
+ *  Delete the file and drop watchers to zero; the store has no mirror. */
+export async function clearOutbox(): Promise<void> {
+  try {
+    if (OUTBOX.exists) OUTBOX.delete();
+  } catch {}
+  notify({ ...EMPTY });
+}
+
 /** Total items ever dropped for exceeding the cap — persisted, honest. */
 export async function droppedTotal(): Promise<number> {
   return (await load()).dropped;

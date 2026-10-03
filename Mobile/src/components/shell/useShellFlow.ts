@@ -13,7 +13,7 @@ import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notif
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
 import type { CommunityTotals } from "../../community";
 import {
-  getVehicle, saveVehicle, planVehicle, type VehicleProfile,
+  getVehicle, saveVehicle, clearVehicle, planVehicle, type VehicleProfile,
 } from "../../store/vehicle";
 import { planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
@@ -64,8 +64,14 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   }, []);
 
   /** Persist a new S8 answer; changing it re-plans (vehicle is a dep of
-   *  the compare effect below). */
-  const setVehicleProfile = useCallback((p: VehicleProfile) => {
+   *  the compare effect below). null = wiped (delete-my-data) — clear
+   *  the store instead of resurrecting a file. */
+  const setVehicleProfile = useCallback((p: VehicleProfile | null) => {
+    if (p == null) {
+      clearVehicle().catch(() => {});
+      setVehicle(null);
+      return;
+    }
     saveVehicle(p).catch(() => {});
     setVehicle(p);
   }, []);
