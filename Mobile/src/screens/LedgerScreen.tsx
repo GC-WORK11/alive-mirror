@@ -324,6 +324,14 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
     [week],
   );
 
+  // bar-strip scale: the tallest day tops out, the rest ride it;
+  // an empty day still shows a nub so the week reads as a series,
+  // not a list of gaps
+  const weekMaxUg = useMemo(
+    () => Math.max(0.1, ...week.days.map((d) => d.ug)),
+    [week],
+  );
+
   // cumulative totals across every saved trip (the ledger caps at 500)
   const allUg = useMemo(
     () => trips.reduce((s, tr) => s + tr.dose_ug, 0),
@@ -503,6 +511,26 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
                       ? ` · ${t("tripsOutDetail", lang, { n: fmtKg(weekEmitKg) })}`
                       : ""}
                   </Text>
+                  {/* the week's breathing as a shape — bars are real
+                      day-sums from saved trips, toned by dose severity;
+                      the text line above already carries the numbers,
+                      so the strip stays decorative for screen readers */}
+                  <View style={ss.barsRow} importantForAccessibility="no" accessibilityElementsHidden>
+                    {week.days.map((d, i) => (
+                      <View key={i} style={ss.barCol}>
+                        <View
+                          style={[
+                            ss.barFill,
+                            {
+                              height: d.ug <= 0 ? 3 : 4 + (d.ug / weekMaxUg) * 34,
+                              backgroundColor: cigTone(d.ug),
+                            },
+                          ]}
+                        />
+                        <Text style={ss.barLbl}>{d.label.slice(0, 1)}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
@@ -636,6 +664,15 @@ const ss = StyleSheet.create({
     textTransform: "uppercase",
   },
   weekLine: { color: V2T.text2, fontSize: V2Type.label, marginTop: 4 },
+  barsRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginTop: 12,
+    height: 52,
+  },
+  barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end" },
+  barFill: { width: 10, borderRadius: 5, minHeight: 3 },
+  barLbl: { color: V2T.text3, fontSize: 9, marginTop: 4 },
 
   dayHead: {
     color: V2T.text3,
