@@ -136,6 +136,86 @@ def _emission_curve(mode: str, vehicle: dict = None) -> dict:
     return out
 
 
+def _roads_for(samples: list, steps: list) -> list:
+    """Group strip samples under the road they were driven on.
+
+    Steps carry OSRM street names + per-step distance_m (stored on the
+    plan-time RouteStore record). Each sample's chunk length is split
+    across the step spans it overlaps; roads aggregate consecutive
+    same-name steps into one entry so the answer reads 'Ring Road:
+    3.2 km, 61% of dose', not 14 step slices.
+    dose_share is the distance-weighted pm25 fraction over chunks with
+    real readings — None when nothing sampled (honest, never invented).
+    """
+    spans = []
+    cum = 0.0
+    for st in steps or []:
+        d = float(st.get("distance_m") or 0.0)
+        if d > 0:
+            spans.append((cum, cum + d, (st.get("street") or "").strip()))
+        cum += d
+    if not samples or not spans:
+        return []
+
+    groups = []          # ordered, merge adjacent same-name spans
+    for lo, hi, name in spans:
+        name = name or "unnamed road"
+        if groups and groups[-1]["name"] == name:
+            groups[-1]["hi"] = hi
+        else:
+            groups.append({"name": name, "lo": lo, "hi": hi})
+
+    total_w = 0.0
+    for g in groups:
+        g["dist_m"] = 0.0
+        g["w_sum"] = 0.0
+        g["covered_m"] = 0.0
+        g["n"] = 0
+    cum = 0.0
+    for s in samples:
+        # sample dist_m is the chunk's own length — cumulative position is
+        # accumulated here to align with OSRM per-step distance_m spans
+        seg = float(s.get("dist_m") or STEP_M)
+        lo_d, hi_d = cum, cum + seg
+        cum = hi_d
+        pm = s.get("pm25")
+        overlapped = False
+        for g in groups:
+            ov = min(hi_d, g["hi"]) - max(lo_d, g["lo"])
+            if ov <= 0:
+                continue
+            overlapped = True
+            g["dist_m"] += ov
+            g["n"] += 1
+            if pm is not None:
+                w = float(pm) * ov
+                g["w_sum"] += w
+                g["covered_m"] += ov
+                total_w += w
+        if not overlapped:
+            # step-distance drift past the last span → last road, honestly
+            g = groups[-1]
+            g["dist_m"] += seg
+            g["n"] += 1
+            if pm is not None:
+                g["w_sum"] += float(pm) * seg
+                g["covered_m"] += seg
+                total_w += float(pm) * seg
+
+    roads = []
+    for g in groups:
+        cov = g["covered_m"]
+        roads.append({
+            "name": g["name"],
+            "dist_m": int(round(g["dist_m"])),
+            "samples": g["n"],
+            "avg_pm25": round(g["w_sum"] / cov, 1) if cov else None,
+            "dose_share": round(g["w_sum"] / total_w, 3)
+            if total_w and cov else None,
+        })
+    return [r for r in roads if r["dist_m"] > 0]
+
+
 @router.get("/strip")
 async def strip(route_id: str = Query(min_length=1)):
     rec = ROUTES.get(route_id)
@@ -176,6 +256,7 @@ async def strip(route_id: str = Query(min_length=1)):
         "route_age_s": ROUTES.age_s(route_id),
         "step_m": STEP_M,
         "samples": strip_pts,
+        "roads": _roads_for(strip_pts, rec.get("steps") or []),
         "emissions_curve": _emission_curve(
             rec.get("mode") or "", rec.get("emissions_vehicle")),
         "field": F.status() if hasattr(F, "status") else {},

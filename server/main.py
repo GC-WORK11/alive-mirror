@@ -137,6 +137,8 @@ async def health():
         "version": "v2",
         "build_sha": _build_sha(),
         "field_age_s": fstat.get("age_s"),
+        "field_refresh_in_s": fstat.get("refresh_in_s"),
+        "field_stale": fstat.get("stale"),
         "sources": {
             "model": {"up": bool(fstat.get("samples")),
                       "samples": fstat.get("samples", 0),

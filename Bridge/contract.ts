@@ -95,6 +95,8 @@ export interface FieldStatus {
   serving?: "snapshot" | "live" | "none"; // built index | live blend | empty
   stale?: boolean | null;       // age_s > stale_after_s; null = age unknown
   stale_after_s?: number;       // server stale threshold (2700 = 45 min)
+  refresh_in_s?: number | null; // seconds until the next scheduled fetch
+  refresh_ttl_s?: number;       // field cache TTL the refresh timer uses
   sigma_coverage?: string;      // "full" | "per-query" | "none" | "partial:N/M"
   load_warnings?: number;       // corrupt snapshot files skipped at load
   load_warn_files?: string[];   // basenames of recent skips (≤8)
@@ -169,6 +171,8 @@ export interface HealthResponse {
   version?: string;
   build_sha?: string;
   field_age_s?: number | null;
+  field_refresh_in_s?: number | null;  // FieldStatus.refresh_in_s surfaced
+  field_stale?: boolean | null;        // FieldStatus.stale surfaced
   sources?: Record<string, unknown>;
   history?: unknown;
 }
@@ -403,6 +407,14 @@ export interface V2StripSample {
   hi: number | null;
 }
 
+export interface V2StripRoad {
+  name: string;               // OSRM step street; "unnamed road" when blank
+  dist_m: number;             // chunk-overlap metres attributed to the road
+  samples: number;            // chunks touching the road's spans
+  avg_pm25: number | null;    // distance-weighted; null = nothing sampled
+  dose_share: number | null;  // fraction of the strip's sampled dose
+}
+
 export interface V2StripResponse {
   route_id: string;
   mode: string;
@@ -410,6 +422,7 @@ export interface V2StripResponse {
   route_age_s?: number | null;
   step_m: number;               // 250
   samples: V2StripSample[];
+  roads?: V2StripRoad[];        // [] when the route record carried no steps
   emissions_curve: Record<string, unknown>;
   field: FieldStatus;
   // 404 path emits {error, detail}:
@@ -467,6 +480,26 @@ export interface V2TripResponse {
     raw_trajectory: string;
   };
   ts: number;
+  ledger_recorded?: boolean;    // false when no device_token was supplied
+}
+
+export interface V2LedgerTrip {
+  ts: number;                   // epoch seconds of the donation
+  mode?: string;
+  distance_km?: number;
+  duration_s?: number;
+  dose_ug?: number;
+  co2_kg_mid?: number;
+  pm25_g_mid?: number;
+  switched?: boolean;
+}
+
+export interface V2LedgerResponse {
+  trips: V2LedgerTrip[];        // newest first, per-device rows only
+  totals: { trips: number; km: number; dose_ug: number;
+            co2_kg_mid: number; pm25_g_mid: number };
+  devices_tracked: number;
+  privacy: string;
 }
 
 export interface V2Place {
@@ -588,6 +621,7 @@ export const V2_ENDPOINTS = {
   trip: "/v2/trip",
   city: "/v2/city",
   city_moves: "/v2/city/moves",
+  ledger: "/v2/ledger",
 } as const;
 
 export type TravelMode = "driving" | "cycling" | "walking";

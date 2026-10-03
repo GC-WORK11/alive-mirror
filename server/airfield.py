@@ -721,11 +721,20 @@ class AirField:
         epoch = (self._snap_epoch if serving == "snapshot"
                  else self._fetched_at)
         age = round(time.time() - epoch) if epoch else None
+        now = time.time()
+        if serving == "live" and self._fetched_at:
+            refresh_in = max(0, round(CACHE_TTL - (now - self._fetched_at)))
+        elif serving == "snapshot" and self._next_snap_scan:
+            refresh_in = max(0, round(self._next_snap_scan - now))
+        else:
+            refresh_in = None
         st = {
             "source": self._source,
             "samples": len(self._samples),
             "station_readings": self._station_count,
             "age_s": age,
+            "refresh_in_s": refresh_in,
+            "refresh_ttl_s": CACHE_TTL,
             "wind": self.wind(),
             "kriging": "on" if KF.on else "idw",
             # --- serving honesty (additive; keys above unchanged) --------

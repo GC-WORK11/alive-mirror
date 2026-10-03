@@ -184,3 +184,65 @@ def _select_trips():
 
 
 TRIPS = _select_trips()
+
+
+class DeviceLedger:
+    """Per-device dose/emission history, keyed by the same hashed token
+    the aggregates use — /v2/ledger's backend.
+
+    Stores ONLY the sanitized summary fields /v2/trip already accepts
+    (km, s, dose_ug, co2/pm25 bands, mode, switched) + a timestamp —
+    never cells, never coordinates — so a device can read its own
+    history while the community layer stays aggregate-only (k>=3).
+    Pseudonymous, not private to us: whoever holds the raw device_token
+    reads the ledger; the hash alone links trips to nothing.
+    """
+    backend = "memory"
+
+    def __init__(self, per_device_cap: int = 300, device_cap: int = 5000):
+        self._per_device_cap = per_device_cap
+        self._device_cap = device_cap
+        self._ledgers: dict = {}   # token_hash -> [{ts, ...summary}]
+
+    def record(self, token_hash: str, summary: dict,
+               ts: float = None) -> None:
+        if not token_hash:
+            return
+        ts = ts or time.time()
+        with LOCK:
+            rows = self._ledgers.setdefault(token_hash, [])
+            rows.append({"ts": round(ts, 1), **dict(summary)})
+            if len(rows) > self._per_device_cap:
+                del rows[:len(rows) - self._per_device_cap]
+            if len(self._ledgers) > self._device_cap:
+                # evict the least-recently-active device, never the newest
+                oldest = min(self._ledgers.items(),
+                             key=lambda kv: kv[1][-1]["ts"] if kv[1] else 0)
+                self._ledgers.pop(oldest[0], None)
+
+    def trips(self, token_hash: str, limit: int = 200) -> list:
+        """Newest-first trip rows for one hashed token."""
+        with LOCK:
+            rows = list(self._ledgers.get(token_hash) or [])
+        return rows[-limit:][::-1]
+
+    def totals(self, token_hash: str) -> dict:
+        rows = self.trips(token_hash, limit=self._per_device_cap)
+
+        def _s(k: str) -> float:
+            return round(sum(float(r.get(k) or 0.0) for r in rows), 2)
+
+        return {"trips": len(rows), "km": _s("distance_km"),
+                "dose_ug": _s("dose_ug"), "co2_kg_mid": _s("co2_kg_mid"),
+                "pm25_g_mid": _s("pm25_g_mid")}
+
+    def devices(self) -> int:
+        with LOCK:
+            return len(self._ledgers)
+
+    def reset(self) -> None:
+        with LOCK:
+            self._ledgers.clear()
+
+
+LEDGER = DeviceLedger()

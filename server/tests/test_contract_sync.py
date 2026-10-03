@@ -240,6 +240,8 @@ def _fetchers():
         "V2TripResponse": lambda: client.post("/v2/trip", json={
             "device_token": "contract-tok",
             "trajectory": LINE["coordinates"]}).json(),
+        "V2LedgerResponse": lambda: client.get("/v2/ledger", params={
+            "token": "contract-tok"}).json(),
         "V2StripResponse": lambda: client.get("/v2/strip", params={
             "route_id": _seed_route()}).json(),
         "V2CityResponse": lambda: (
@@ -267,6 +269,8 @@ NESTED = [
     ("V2SearchResponse", "t2", "Place"),
     ("V2PlanResponse", "options", "V2PlanOption"),
     ("V2StripResponse", "samples", "V2StripSample"),
+    ("V2StripResponse", "roads", "V2StripRoad"),
+    ("V2LedgerResponse", "trips", "V2LedgerTrip"),
     ("SearchResponse", "results", "Place"),
     ("RouteResponse", "routes", "RouteResult"),
     ("CompareResponse", "options", "CompareOption"),

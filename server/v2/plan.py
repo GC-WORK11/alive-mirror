@@ -526,6 +526,7 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
         "geometry": geometry, "mode": mode,
         "duration_s": eta_s, "vehicle": vehicle,
         "emissions_vehicle": veh,
+        "steps": steps,
         "from": {"lat": origin[0], "lon": origin[1]} if origin else None,
         "to": {"lat": dest[0], "lon": dest[1]} if dest else None,
     })

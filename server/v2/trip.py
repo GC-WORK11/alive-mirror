@@ -21,7 +21,7 @@ import time
 
 from fastapi import APIRouter
 
-from .store import TRIPS
+from .store import LEDGER, TRIPS
 
 router = APIRouter()
 
@@ -143,8 +143,10 @@ async def post_trip(body: dict):
     if summary_in.get("switched"):
         summary["switched"] = bool(summary_in["switched"])
     TRIPS.record_trip(cells, summary, token_hash)
+    LEDGER.record(token_hash, summary)
     return {
         "stored": True,
+        "ledger_recorded": bool(token_hash),
         "cells_traversed": len(set(cells)),
         "points_used": len(kept),
         "privacy": {
