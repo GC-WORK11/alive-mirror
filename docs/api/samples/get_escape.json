@@ -1,0 +1,29 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/escape?lat=28.6139&lon=77.209&limit=2",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "here_pm25": 81.4,
+    "best": [
+      {
+        "lat": 28.5437,
+        "lon": 76.8344,
+        "pm25": 68.9,
+        "dist_km": 42.3,
+        "name": "Lagar Pur",
+        "data_km": 1.9,
+        "pct_less_than_here": 15
+      },
+      {
+        "lat": 28.2312,
+        "lon": 76.8344,
+        "pm25": 69.3,
+        "dist_km": 56.0,
+        "data_km": 2.7,
+        "pct_less_than_here": 15
+      }
+    ],
+    "none_cleaner": false
+  }
+}

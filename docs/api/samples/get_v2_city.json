@@ -1,0 +1,70 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/v2/city",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "ts": 1790999114.3388648,
+    "pm25_stats": {
+      "n": 25,
+      "mean": 81.7,
+      "median": 81.4,
+      "max": 88.9,
+      "above_who24h_15": 100,
+      "above_cpcb_60": 100,
+      "note": "% of sampled NCR points above each 24h guideline"
+    },
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 476,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    },
+    "field_age_s": 476,
+    "wind": {
+      "speed_kmh": 0.0,
+      "from_deg": 0.0,
+      "factor": 0.0
+    },
+    "sources": {
+      "model": {
+        "up": true,
+        "source": "open-meteo/cams"
+      },
+      "stations": {
+        "up": false,
+        "count": 0
+      },
+      "fires": {
+        "up": true,
+        "count": 72
+      },
+      "location": {
+        "up": false
+      }
+    },
+    "trips": {
+      "days": {
+        "2026-10-03": {
+          "trips": 4,
+          "km": 20.8,
+          "dose_ug": 164.8,
+          "co2_kg_mid": 0.0,
+          "pm25_g_mid": 0.0,
+          "switched": 0,
+          "modes": {
+            "auto": 4
+          }
+        }
+      },
+      "cells_tracked": 4,
+      "corridors_publishable": 0
+    }
+  }
+}

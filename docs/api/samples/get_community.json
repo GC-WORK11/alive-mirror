@@ -1,0 +1,36 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/community",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "obs_total": 4,
+    "obs_24h": 4,
+    "contributors": 0,
+    "km_24h": 8.4,
+    "dose_ug_24h": 50.0,
+    "avoided_ug_24h": 0,
+    "avoided_ug_all": 0,
+    "active_reports": 4,
+    "modes_24h": {
+      "auto": 4
+    },
+    "latest_obs_age_min": 0,
+    "top_corridors": [
+      {
+        "lon": 77.21000000000001,
+        "lat": 28.615000000000002,
+        "samples": 4,
+        "avg_dose_ug": 12.5,
+        "top_mode": "auto"
+      },
+      {
+        "lon": 77.22,
+        "lat": 28.63,
+        "samples": 4,
+        "avg_dose_ug": 12.5,
+        "top_mode": "auto"
+      }
+    ]
+  }
+}

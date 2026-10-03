@@ -1,0 +1,66 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/fires",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            77.6895,
+            28.07035
+          ]
+        },
+        "properties": {
+          "satellite": "Suomi-NPP",
+          "instrument": "VIIRS",
+          "confidence": "nominal",
+          "confidence_score": 55,
+          "frp": 2.01,
+          "acq_date": "2026-10-01",
+          "acq_time_utc": "0833",
+          "daynight": "D",
+          "belt": false
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            77.68987,
+            28.07036
+          ]
+        },
+        "properties": {
+          "satellite": "Suomi-NPP",
+          "instrument": "VIIRS",
+          "confidence": "nominal",
+          "confidence_score": 55,
+          "frp": 2.19,
+          "acq_date": "2026-10-01",
+          "acq_time_utc": "0833",
+          "daynight": "D",
+          "belt": false
+        }
+      },
+      "… (+70 more)"
+    ],
+    "metadata": {
+      "count": 72,
+      "source": "firms-public-csv",
+      "bbox_wsen": [
+        75.75,
+        27.2,
+        "… (+2 more)"
+      ],
+      "status": "live",
+      "cache_s": 21600,
+      "age_s": 459
+    }
+  }
+}

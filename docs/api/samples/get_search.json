@@ -1,0 +1,27 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/search?q=connaught&lat=28.6139&lon=77.209&limit=3",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "results": [
+      {
+        "name": "Connaught Place",
+        "subtitle": "New Delhi, Delhi",
+        "lat": 28.6317695,
+        "lon": 77.2193804,
+        "kind": "suburb",
+        "outside_ncr": false
+      },
+      {
+        "name": "Connaught Lane",
+        "subtitle": "Connaught Place, New Delhi, Delhi",
+        "lat": 28.629843,
+        "lon": 77.2226517,
+        "kind": "residential",
+        "outside_ncr": false
+      },
+      "… (+1 more)"
+    ]
+  }
+}

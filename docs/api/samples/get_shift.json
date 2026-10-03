@@ -1,0 +1,40 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/shift?lat=28.6139&lon=77.209&hours=4",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "vehicle": "driving_two_wheeler",
+    "shift_hours": 4.0,
+    "start_hour_ist": 9,
+    "dose_ug": 181.7,
+    "cig_equiv": 0.6,
+    "desk_dose_ug": 48.2,
+    "vs_desk_pct": 277,
+    "per_hour": [
+      {
+        "hour_ist": 9,
+        "conc_ugm3": 81.4
+      },
+      {
+        "hour_ist": 10,
+        "conc_ugm3": 81.4
+      },
+      "… (+2 more)"
+    ],
+    "live_adjust": 0.71,
+    "note": "dose model: ambient field × breathing-zone microenv × minute ventilation; future hours = decade climatology × today's live delta",
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 474,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    }
+  }
+}

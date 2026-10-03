@@ -1,0 +1,40 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/reports",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            77.21,
+            28.62
+          ]
+        },
+        "properties": {
+          "kind": "dust",
+          "age_min": 7
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            77.21,
+            28.62
+          ]
+        },
+        "properties": {
+          "kind": "dust",
+          "age_min": 1
+        }
+      },
+      "… (+2 more)"
+    ]
+  }
+}

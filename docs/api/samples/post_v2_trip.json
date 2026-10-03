@@ -1,0 +1,55 @@
+{
+  "method": "POST",
+  "url": "http://localhost:8188/v2/trip",
+  "status": 200,
+  "request_body": {
+    "device_token": "demo-device",
+    "trajectory": [
+      [
+        77.209,
+        28.6139
+      ],
+      [
+        77.215,
+        28.62
+      ],
+      [
+        77.222,
+        28.628
+      ],
+      [
+        77.23,
+        28.636
+      ],
+      [
+        77.238,
+        28.644
+      ],
+      [
+        77.246,
+        28.652
+      ]
+    ],
+    "summary": {
+      "mode": "auto",
+      "distance_km": 5.2,
+      "duration_s": 900,
+      "dose_ug": 41.2
+    }
+  },
+  "response": {
+    "stored": true,
+    "cells_traversed": 4,
+    "points_used": 4,
+    "privacy": {
+      "endpoint_trim_m": 300.0,
+      "thin_m": 100.0,
+      "rounded_decimals": 4,
+      "cell_scheme": "h3:8",
+      "trimmed_start_m": 896,
+      "trimmed_end_m": 1184,
+      "raw_trajectory": "discarded — only cell aggregates stored"
+    },
+    "ts": 1790999114.3379707
+  }
+}
