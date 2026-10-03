@@ -264,7 +264,7 @@ const SUB: Record<string, string> = {
 
 /** Suffix fallbacks for the gazetteer's long tail — kinds not in SUB that
  * still end in a recognisable category word. Ordered: first match wins. */
-const SUFFIX_LABELS: ReadonlyArray<readonly [string, string]> = [
+const SUFFIX_LABELS: readonly (readonly [string, string])[] = [
   ["_place_of_worship", "place of worship"], ["_subway_entrance", "metro entrance"],
   ["_guest_house", "guest house"], ["_entrance", "entrance"],
   ["_station", "station"], ["_link", "road"], ["_parking", "parking"],
