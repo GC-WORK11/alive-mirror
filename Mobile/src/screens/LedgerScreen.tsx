@@ -5,14 +5,28 @@
 // Nothing appears without data — emit_kg / dose bands / donated are optional
 // seams on Trip and only render when a real value is stored.
 // Delete controls hit store/ledger for real; "delete all" asks first.
+//
+// PROPOSED i18n keys — src/i18n/strings.ts is owned by another lane, so the
+// screen ships on existing keys; these would sharpen the copy when added:
+//   ledgerAllTime   en "all saved trips" / hi "सारी सेव की गई यात्राएँ"
+//                   — caption under the cumulative totals row
+//   ledgerEstNote   en "estimates, honestly ranged" / hi "ईमानदार रेंज वाले अनुमान"
+//                   — honesty footnote for the totals card
+//   ledgerYesterday en "yesterday" / hi "कल" — day-header special case
+//                   (today already reuses sidebarToday)
+//   ledgerShowTrip  en "show trip details" / hi "यात्रा की जानकारी देखें"
+//                   — accessibilityHint on each trip card
+//   a11yBack        en "back" / hi "पीछे" — sheet back button
+//                   (currently reuses vehicleQ_back)
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  FlatList,
+  type ListRenderItem,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StatusBar as RNStatusBar,
   StyleSheet,
   Text,
@@ -54,6 +68,16 @@ const timeLabel = (ts: number, lang: Lang) =>
     minute: "2-digit",
     hour12: true,
   });
+
+/** Stable row id — the same ts+route+mode tuple deleteTrip matches on. */
+const tripKey = (tr: Trip) => `${tr.ts}|${tr.from}|${tr.to}|${tr.vehicle}`;
+
+/** Surface dose tone — colour means severity, quiet trips stay grey (doc 03:
+ *  lightness is the absence of colour). Keyed to cigarette-equivalents. */
+const cigTone = (ug: number) => {
+  const c = ug / CIG_UG;
+  return c >= 1 ? V2T.breath2 : c >= 0.3 ? V2T.breath1 : V2T.text2;
+};
 
 function BackGlyph({ color }: { color: string }) {
   return (
@@ -131,7 +155,6 @@ function TripDetail({
       <View style={ss.dHairline} />
       <Pressable
         onPress={onDelete}
-        hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={t("ledgerDeleteTrip", lang)}
         style={({ pressed }) => [ss.dDelete, pressed && { opacity: 0.6 }]}
@@ -145,9 +168,9 @@ function TripDetail({
   );
 }
 
-/* ---------- trip row ---------- */
+/* ---------- trip card (memoized — the list can hold up to 500 trips) ---------- */
 
-function TripRow({
+const TripCard = React.memo(function TripCard({
   tr,
   lang,
   open,
@@ -157,17 +180,22 @@ function TripRow({
   tr: Trip;
   lang: Lang;
   open: boolean;
-  onToggle: () => void;
-  onDelete: () => void;
+  onToggle: (key: string) => void;
+  onDelete: (tr: Trip) => void;
 }) {
+  const key = tripKey(tr);
   return (
-    <View style={ss.tripWrap}>
+    <View style={ss.card}>
       <Pressable
-        onPress={onToggle}
+        onPress={() => onToggle(key)}
         accessibilityRole="button"
-        accessibilityLabel={`${tr.from} → ${tr.to}, ${tr.label}`}
+        accessibilityLabel={`${tr.from} → ${tr.to}, ${tr.label}, ${dayLabel(
+          tr.ts,
+          lang,
+        )} ${timeLabel(tr.ts, lang)}`}
+        accessibilityState={{ expanded: open }}
         style={({ pressed }) => [
-          ss.trip,
+          ss.cardHead,
           (pressed || open) && { backgroundColor: V2T.surface2 },
         ]}
       >
@@ -185,7 +213,7 @@ function TripRow({
             style={[ss.tripMeta, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1}
           >
-            {tr.label} · {dayLabel(tr.ts, lang)} · {timeLabel(tr.ts, lang)}
+            {tr.label} · {timeLabel(tr.ts, lang)}
           </Text>
           {tr.avoided_ug > 0 && (
             <Text
@@ -198,8 +226,14 @@ function TripRow({
         </View>
         <View style={ss.tripNums}>
           <View style={ss.cigRow}>
-            <Icon name="cigarette" color={V2T.text3} size={13} />
-            <Text style={[ss.cigNum, NUM, { fontFamily: fam(lang, "semi") }]}>
+            <Icon name="cigarette" color={cigTone(tr.dose_ug)} size={13} />
+            <Text
+              style={[
+                ss.cigNum,
+                NUM,
+                { fontFamily: fam(lang, "semi"), color: cigTone(tr.dose_ug) },
+              ]}
+            >
               {fmtCig(tr.dose_ug)}
             </Text>
           </View>
@@ -213,25 +247,64 @@ function TripRow({
           <Icon name="chevron" color={V2T.text3} size={16} />
         </View>
       </Pressable>
-      {open && <TripDetail tr={tr} lang={lang} onDelete={onDelete} />}
+      {open && <TripDetail tr={tr} lang={lang} onDelete={() => onDelete(tr)} />}
+    </View>
+  );
+});
+
+/* ---------- empty state — type-led, invites the first trip ---------- */
+
+function EmptyState({ lang }: { lang: Lang }) {
+  return (
+    <View style={ss.emptyWrap}>
+      <View style={ss.emptyBadge}>
+        <Icon name="clock" color={V2T.text3} size={26} />
+      </View>
+      <Text style={[ss.emptyTitle, { fontFamily: fam(lang, "semi") }]}>
+        {t("tripsEmpty", lang)}
+      </Text>
+      <Text style={[ss.emptyHint, { fontFamily: fam(lang, "reg") }]}>
+        {t("ledgerEmptyHint", lang)}
+      </Text>
+      <Text style={[ss.emptyPrivacy, { fontFamily: fam(lang, "reg") }]}>
+        {t("ledgerPrivacy", lang)}
+      </Text>
     </View>
   );
 }
 
 /* ---------- sheet (mounted only while visible → fresh state each open) ---------- */
 
+// FlatList rows: a day header each time the calendar day changes, then the
+// day's trips (newest first). One list keeps virtualization for 500-trip ledgers.
+type Row =
+  | { kind: "day"; key: string; label: string }
+  | { kind: "trip"; key: string; tr: Trip };
+
 function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   useEffect(() => {
-    loadTrips().then(setTrips).catch(() => {});
+    let alive = true;
+    loadTrips()
+      .then((ts) => {
+        if (alive) setTrips(ts);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const sorted = useMemo(() => [...trips].sort((a, b) => b.ts - a.ts), [trips]);
   const week = useMemo(() => weekStats(trips), [trips]);
 
-  // last-7-days rollup for the summary header (calendar days, like weekStats)
+  // last-7-days rollup for the summary card (calendar days, like weekStats)
   const weekCutoff = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -250,10 +323,45 @@ function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
     [week],
   );
 
-  const removeTrip = (tr: Trip) => {
+  // cumulative totals across every saved trip (the ledger caps at 500)
+  const allUg = useMemo(
+    () => trips.reduce((s, tr) => s + tr.dose_ug, 0),
+    [trips],
+  );
+  const allEmitKg = useMemo(
+    () => trips.reduce((s, tr) => s + (tr.emit_kg ?? 0), 0),
+    [trips],
+  );
+
+  const rows = useMemo<Row[]>(() => {
+    const today = new Date().toDateString();
+    const out: Row[] = [];
+    let day = "";
+    for (const tr of sorted) {
+      const dk = new Date(tr.ts).toDateString();
+      if (dk !== day) {
+        day = dk;
+        out.push({
+          kind: "day",
+          // PROPOSED ledgerYesterday — yesterday gets its word too
+          key: `day-${dk}`,
+          label: dk === today ? t("sidebarToday", lang) : dayLabel(tr.ts, lang),
+        });
+      }
+      out.push({ kind: "trip", key: tripKey(tr), tr });
+    }
+    return out;
+  }, [sorted, lang]);
+
+  const toggleRow = useCallback(
+    (key: string) => setOpenKey((k) => (k === key ? null : key)),
+    [],
+  );
+
+  const removeTrip = useCallback((tr: Trip) => {
     setOpenKey(null);
     deleteTrip(tr).then(setTrips).catch(() => {});
-  };
+  }, []);
 
   const confirmDeleteAll = () =>
     Alert.alert(
@@ -272,15 +380,38 @@ function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
       ],
     );
 
+  const renderRow = useCallback<ListRenderItem<Row>>(
+    ({ item }) =>
+      item.kind === "day" ? (
+        <Text
+          style={[ss.dayHead, { fontFamily: fam(lang, "semi") }]}
+          accessibilityRole="header"
+        >
+          {item.label}
+        </Text>
+      ) : (
+        <TripCard
+          tr={item.tr}
+          lang={lang}
+          open={openKey === item.key}
+          onToggle={toggleRow}
+          onDelete={removeTrip}
+        />
+      ),
+    [lang, openKey, toggleRow, removeTrip],
+  );
+
+  const keyExtractor = useCallback((item: Row) => item.key, []);
+
   return (
     <View style={ss.root}>
       {/* header bar */}
       <View style={ss.bar}>
         <Pressable
           onPress={onClose}
-          hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="back"
+          // PROPOSED a11yBack — reusing vehicleQ_back ("back") meanwhile
+          accessibilityLabel={t("vehicleQ_back", lang)}
           style={ss.barBtn}
         >
           <BackGlyph color={V2T.text2} />
@@ -291,95 +422,99 @@ function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
         <View style={ss.barBtn} />
       </View>
 
-      <ScrollView
+      <FlatList
+        data={rows}
+        renderItem={renderRow}
+        keyExtractor={keyExtractor}
+        extraData={openKey}
         style={ss.flex}
         contentContainerStyle={ss.listContent}
         showsVerticalScrollIndicator={false}
-      >
-        {sorted.length === 0 ? (
-          /* honest empty state — what gets recorded + privacy line */
-          <View style={ss.empty}>
-            <Icon name="clock" color={V2T.text3} size={28} />
-            <Text style={[ss.emptyTitle, { fontFamily: fam(lang, "med") }]}>
-              {t("tripsEmpty", lang)}
-            </Text>
-            <Text style={[ss.emptyHint, { fontFamily: fam(lang, "reg") }]}>
-              {t("ledgerEmptyHint", lang)}
-            </Text>
-            <Text style={[ss.emptyPrivacy, { fontFamily: fam(lang, "reg") }]}>
-              {t("ledgerPrivacy", lang)}
-            </Text>
-          </View>
-        ) : (
-          <>
-            {/* summary header — last 7 days, nothing without data */}
-            <Text style={[ss.sectionLabel, { fontFamily: fam(lang, "semi") }]}>
-              {t("ledgerLast7", lang)}
-            </Text>
+        initialNumToRender={14}
+        maxToRenderPerBatch={10}
+        windowSize={9}
+        ListHeaderComponent={
+          /* totals header — cumulative over saved trips, honest "est." labelling;
+             hidden until there's data (doc: no zero-fill) */
+          sorted.length > 0 ? (
             <View style={ss.summaryCard}>
-              <View style={ss.sumCol}>
-                <View style={ss.sumHead}>
-                  <Icon name="cigarette" color={V2T.text3} size={15} />
-                  <Text
-                    style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
-                  >
-                    {fmtCig(week.weekUg)}
-                  </Text>
-                </View>
-                <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
-                  {t("breathed", lang)}
-                </Text>
-              </View>
-              {weekEmitKg > 0 && (
+              <View style={ss.sumRow}>
                 <View style={ss.sumCol}>
                   <Text
                     style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
                   >
-                    ≈{fmtKg(weekEmitKg)}
-                    <Text style={ss.sumUnit}> kg</Text>
+                    {sorted.length}
                   </Text>
                   <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
-                    {t("putOut", lang)}
+                    {t(
+                      sorted.length === 1 ? "tripsCountOne" : "tripsCount",
+                      lang,
+                      { n: "" },
+                    ).trim()}
+                  </Text>
+                </View>
+                <View style={ss.sumCol}>
+                  <View style={ss.sumHead}>
+                    <Icon name="cigarette" color={V2T.text3} size={15} />
+                    <Text
+                      style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
+                    >
+                      {fmtCig(allUg)}
+                    </Text>
+                  </View>
+                  <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
+                    {t("breathed", lang)}
+                  </Text>
+                </View>
+                {allEmitKg > 0 && (
+                  <View style={ss.sumCol}>
+                    <Text
+                      style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
+                    >
+                      ≈{fmtKg(allEmitKg)}
+                      <Text style={ss.sumUnit}> kg</Text>
+                    </Text>
+                    <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
+                      {t("putOut", lang)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              {/* last-7-days context — "est." rides on the numbers via
+                  tripsOutDetail; PROPOSED ledgerEstNote for a standing footnote */}
+              {weekTrips > 0 && (
+                <View style={ss.weekRow}>
+                  <Text
+                    style={[ss.weekLabel, { fontFamily: fam(lang, "semi") }]}
+                  >
+                    {t("ledgerLast7", lang)}
+                  </Text>
+                  <Text
+                    style={[ss.weekLine, NUM, { fontFamily: fam(lang, "reg") }]}
+                    numberOfLines={2}
+                  >
+                    {t(weekTrips === 1 ? "tripsCountOne" : "tripsCount", lang, {
+                      n: weekTrips,
+                    })}
+                    {" · "}
+                    {t("tripsCigs", lang, { n: fmtCig(week.weekUg) })}
+                    {weekEmitKg > 0
+                      ? ` · ${t("tripsOutDetail", lang, { n: fmtKg(weekEmitKg) })}`
+                      : ""}
                   </Text>
                 </View>
               )}
-              <View style={ss.sumCol}>
-                <Text
-                  style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
-                >
-                  {weekTrips}
-                </Text>
-                <Text style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
-                  {t(weekTrips === 1 ? "tripsCountOne" : "tripsCount", lang, {
-                    n: "",
-                  }).trim()}
-                </Text>
-              </View>
             </View>
-
-            {/* trip list */}
-            {sorted.map((tr, i) => {
-              const key = `${tr.ts}-${i}`;
-              return (
-                <TripRow
-                  key={key}
-                  tr={tr}
-                  lang={lang}
-                  open={openKey === key}
-                  onToggle={() => setOpenKey((k) => (k === key ? null : key))}
-                  onDelete={() => removeTrip(tr)}
-                />
-              );
-            })}
-
-            {/* privacy + delete all */}
+          ) : null
+        }
+        ListFooterComponent={
+          sorted.length > 0 ? (
             <View style={ss.footer}>
               <Text style={[ss.privacy, { fontFamily: fam(lang, "reg") }]}>
                 {t("ledgerPrivacy", lang)}
               </Text>
               <Pressable
                 onPress={confirmDeleteAll}
-                hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={t("ledgerDeleteAll", lang)}
                 style={({ pressed }) => [
@@ -395,9 +530,10 @@ function LedgerSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                 </Text>
               </Pressable>
             </View>
-          </>
-        )}
-      </ScrollView>
+          ) : null
+        }
+        ListEmptyComponent={loaded ? <EmptyState lang={lang} /> : null}
+      />
     </View>
   );
 }
@@ -451,9 +587,17 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     height: 56,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: V2T.line,
   },
-  barBtn: { width: 34, padding: 6 },
+  // ≥44pt touch target on both ends of the bar
+  barBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   barTitle: {
     flex: 1,
     textAlign: "center",
@@ -461,48 +605,70 @@ const ss = StyleSheet.create({
     fontSize: V2Type.body,
   },
   flex: { flex: 1 },
-  listContent: { paddingBottom: 36 },
+  listContent: { flexGrow: 1, paddingTop: 14, paddingBottom: 36 },
 
-  sectionLabel: {
-    color: V2T.text3,
-    fontSize: V2Type.label,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginTop: 6,
-    marginBottom: 8,
-    marginHorizontal: 18,
-  },
   summaryCard: {
-    flexDirection: "row",
     backgroundColor: V2T.surface,
     borderRadius: V2Radius.row,
     borderWidth: 1,
     borderColor: V2T.line,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
     marginHorizontal: 14,
-    marginBottom: 10,
+    marginBottom: 14,
   },
+  sumRow: { flexDirection: "row" },
   sumCol: { flex: 1 },
   sumHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   sumNum: { color: V2T.text, fontSize: V2Type.title, lineHeight: 30 },
   sumUnit: { color: V2T.text2, fontSize: V2Type.secondary },
   sumCap: { color: V2T.text2, fontSize: V2Type.label, marginTop: 2 },
+  weekRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: V2T.line,
+    marginTop: 14,
+    paddingTop: 10,
+  },
+  weekLabel: {
+    color: V2T.text3,
+    fontSize: V2Type.label,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  weekLine: { color: V2T.text2, fontSize: V2Type.label, marginTop: 4 },
 
-  tripWrap: { marginHorizontal: 8 },
-  trip: {
+  dayHead: {
+    color: V2T.text3,
+    fontSize: V2Type.label,
+    letterSpacing: 0.4,
+    marginHorizontal: 18,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+
+  card: {
+    marginHorizontal: 14,
+    marginBottom: 8,
+    backgroundColor: V2T.surface,
+    borderRadius: V2Radius.row,
+    borderWidth: 1,
+    borderColor: V2T.line,
+    overflow: "hidden",
+  },
+  cardHead: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 58,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: V2Radius.row,
+    minHeight: 60,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 10,
   },
   modeBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: V2T.surface,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: V2T.surface2,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -512,18 +678,15 @@ const ss = StyleSheet.create({
   tripSaved: { color: V2T.text2, fontSize: V2Type.label, marginTop: 2 },
   tripNums: { alignItems: "flex-end", marginRight: 2 },
   cigRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  cigNum: { color: V2T.text2, fontSize: V2Type.secondary },
+  cigNum: { fontSize: V2Type.secondary },
   outNum: { color: V2T.text3, fontSize: V2Type.label, marginTop: 2 },
 
   detail: {
-    marginHorizontal: 10,
-    marginBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: V2T.line,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: V2T.surface,
-    borderRadius: V2Radius.row,
-    borderWidth: 1,
-    borderColor: V2T.line,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   dRow: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
   dLabel: { flex: 1, color: V2T.text2, fontSize: V2Type.secondary },
@@ -550,35 +713,58 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 10,
+    minHeight: 44,
     alignSelf: "flex-start",
+    paddingRight: 10,
   },
   dDeleteTxt: { color: V2T.breath3, fontSize: V2Type.label },
 
-  empty: { alignItems: "center", paddingTop: 90, paddingHorizontal: 40, gap: 8 },
-  emptyTitle: { color: V2T.text, fontSize: V2Type.body, marginTop: 8 },
+  emptyWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 44,
+    paddingBottom: 72,
+  },
+  emptyBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: V2T.surface,
+    borderWidth: 1,
+    borderColor: V2T.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTitle: {
+    color: V2T.text,
+    fontSize: V2Type.title,
+    marginTop: 18,
+  },
   emptyHint: {
     color: V2T.text2,
     fontSize: V2Type.secondary,
     textAlign: "center",
-    lineHeight: 21,
+    lineHeight: 22,
+    marginTop: 8,
+    maxWidth: 280,
   },
-  emptyPrivacy: { color: V2T.text3, fontSize: V2Type.label, marginTop: 6 },
+  emptyPrivacy: { color: V2T.text3, fontSize: V2Type.label, marginTop: 12 },
 
   footer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginHorizontal: 18,
-    marginTop: 16,
+    marginTop: 14,
   },
-  privacy: { color: V2T.text3, fontSize: V2Type.label },
+  privacy: { color: V2T.text3, fontSize: V2Type.label, flex: 1 },
   deleteAll: {
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+    minHeight: 44,
+    paddingHorizontal: 8,
   },
   deleteAllTxt: { color: V2T.breath3, fontSize: V2Type.label },
 });
