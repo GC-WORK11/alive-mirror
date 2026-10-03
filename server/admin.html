@@ -125,6 +125,11 @@
 
   .share{padding:6px 16px 14px}
   canvas#fieldmap{width:100%;display:block;border-radius:12px;background:var(--surface2,#f2f4f7)}
+  .fmsel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .fmsel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+    text-transform:uppercase;padding:4px 10px;border-radius:99px;cursor:pointer;
+    border:1px solid var(--hair);background:transparent;color:var(--ink3)}
+  .fmsel button.on{border-color:var(--ink);color:var(--ink);background:var(--surface2,#f2f4f7)}
   .share-row{display:grid;grid-template-columns:88px 1fr 52px 44px;gap:10px;
              align-items:center;padding:3.5px 0;font-size:11.5px}
   .share-row .m{font-family:var(--mono);font-size:10.5px;color:var(--ink2);
@@ -174,6 +179,7 @@
 
   <h2>the live field <em>the surface every route breathes through — painted from the same cells the app tints</em></h2>
   <div class="panel" style="padding:14px">
+    <div class="fmsel" id="fmsel"></div>
     <canvas id="fieldmap"></canvas>
     <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
   </div>
@@ -412,60 +418,8 @@ async function tick(){
       <span class="n">${fmt(r.trips)}</span></div>`).join('')
     :'';
 
-  /* --- live field map — the real /grid cells, dose ramp, honest
-         confidence fade (thin areas fade instead of faking detail) --- */
-  try{
-    const g=await getJSON('/grid?cells=28');
-    const cv=$('fieldmap'),ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
-    const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,ASP=0.879;   /* cos(28.6°) */
-    const w=cv.parentElement.clientWidth-28;
-    /* true map aspect: lon-deg ≈ 111·cos(lat) km vs lat-deg ≈ 111 km */
-    const W=w,H=Math.round(w*(Y1-Y0)/((X1-X0)*ASP));
-    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
-    ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
-    const feats=(g&&g.features)||[];
-    const alpha={'hi':.92,'med':.58,'lo':.30};
-    let vmin=null,vmax=null;
-    for(const ft of feats){
-      const p=(ft.properties||{}),ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
-      if(!ring||ring.length<3)continue;
-      const t=Math.min(1,(p.pm25||0)/300);
-      ctx.fillStyle=ramp(t,alpha[p.conf]??.3);
-      ctx.beginPath();
-      ring.forEach(([lo,la],i)=>{const x=(lo-X0)/(X1-X0)*W,y=(1-(la-Y0)/(Y1-Y0))*H;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-      ctx.closePath();ctx.fill();
-      if(vmin==null||p.pm25<vmin)vmin=p.pm25;
-      if(vmax==null||p.pm25>vmax)vmax=p.pm25;
-    }
-    /* centre mark — the centroid the city numbers are computed at */
-    const cx=(77.2167-X0)/(X1-X0)*W,cy=(1-(28.6315-Y0)/(Y1-Y0))*H;
-    ctx.strokeStyle='rgba(20,24,31,.55)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.arc(cx,cy,4,0,6.283);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(cx-7,cy);ctx.lineTo(cx+7,cy);ctx.moveTo(cx,cy-7);ctx.lineTo(cx,cy+7);ctx.stroke();
-    /* real fire detections over the same map — where the smoke may be
-       coming from (NASA FIRMS VIIRS/MODIS, verbatim coordinates) */
-    let firesPlotted=0,firesTotal=0;
-    try{
-      const fr=await getJSON('/fires');
-      const ff=(fr&&fr.features)||[];firesTotal=ff.length;
-      for(const f of ff){
-        const [flo,fla]=(f.geometry&&f.geometry.coordinates)||[];
-        if(flo==null||fla==null)continue;
-        const fx=(flo-X0)/(X1-X0)*W,fy=(1-(fla-Y0)/(Y1-Y0))*H;
-        if(fx<-6||fx>W+6||fy<-6||fy>H+6)continue;
-        ctx.fillStyle='rgba(190,87,30,.75)';
-        ctx.beginPath();ctx.arc(fx,fy,2.4,0,6.283);ctx.fill();
-        ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=.8;ctx.stroke();
-        firesPlotted++;
-      }
-    }catch(_){/* fires layer stays empty — caption still honest */}
-    $('fieldmap-sub').innerHTML=feats.length
-      ?`${fmt(feats.length)} real cells · PM2.5 ${fmt1(vmin)}–${fmt1(vmax)} µg/m³ · faded cells sit farther from a measured sample — never a guess`+
-       (firesPlotted?` · <b style="color:rgba(190,87,30,1)">${fmt(firesPlotted)}</b> fire detections plotted${firesTotal>firesPlotted?` (${fmt(firesTotal-firesPlotted)} more outside this view)`:''}`:'')
-      :'field empty — the map paints only measured cells, and there are none right now';
-  }catch(e){
-    $('fieldmap-sub').textContent='grid unreachable — '+esc(e.message||e);
-  }
+  /* --- live field map --- */
+  await paintFieldMap(FM_PARAM);
 
   /* --- corridors (aggregate rows only; the k≥3 set comes from the store) --- */
   const rows=corridors.rows||[];
@@ -481,6 +435,88 @@ async function tick(){
         <span class="mono" style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</span></td></tr>`;
   }).join(''):`<tr><td colspan="5">${emptyMsg(
     'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
+}
+
+/* ---------- live field map ----------
+   species pills re-paint the canvas from /grid?param=<species> — every
+   layer is the field's own real cells; pm2.5 keeps the absolute 0–300
+   ramp (same scale the app uses), other species ramp across their own
+   observed range and the caption says so */
+const FM_SPECIES=[['pm2_5','pm2.5'],['pm10','pm10'],
+  ['nitrogen_dioxide','no₂'],['ozone','o₃'],
+  ['carbon_monoxide','co'],['sulphur_dioxide','so₂'],['us_aqi','us aqi']];
+let FM_PARAM='pm2_5',FM_FIRES=null;
+function renderFmSel(){
+  $('fmsel').innerHTML=FM_SPECIES.map(([p,l])=>
+    `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('');
+}
+async function fmPick(p){FM_PARAM=p;renderFmSel();await paintFieldMap(p);}
+
+async function paintFieldMap(param){
+  const cv=$('fieldmap');if(!cv)return;
+  if(!$('fmsel').children.length)renderFmSel();
+  try{
+    const g=await getJSON(`/grid?cells=28&param=${param}`);
+    const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
+    const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,ASP=0.879;   /* cos(28.6°) */
+    const w=cv.parentElement.clientWidth-28;
+    /* true map aspect: lon-deg ≈ 111·cos(lat) km vs lat-deg ≈ 111 km */
+    const W=w,H=Math.round(w*(Y1-Y0)/((X1-X0)*ASP));
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+    const feats=(g&&g.features)||[];
+    const alpha={'hi':.92,'med':.58,'lo':.30};
+    let vmin=null,vmax=null;const vals=[];
+    for(const ft of feats){
+      const p=(ft.properties||{}),ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+      if(!ring||ring.length<3)continue;
+      const v=p[param]!=null?p[param]:p.pm25;
+      if(v==null)continue;
+      vals.push([ring,v,p.conf]);
+      if(vmin==null||v<vmin)vmin=v;
+      if(vmax==null||v>vmax)vmax=v;
+    }
+    const span=Math.max(1e-6,(vmax||0)-(vmin||0));
+    for(const [ring,v,conf] of vals){
+      /* pm2.5 → absolute 0–300 scale (the app's own ramp); other species
+         ramp across this layer's real observed range */
+      const t=param==='pm2_5'?Math.min(1,v/300):(v-(vmin||0))/span;
+      ctx.fillStyle=ramp(t,alpha[conf]??.3);
+      ctx.beginPath();
+      ring.forEach(([lo,la],i)=>{const x=(lo-X0)/(X1-X0)*W,y=(1-(la-Y0)/(Y1-Y0))*H;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+      ctx.closePath();ctx.fill();
+    }
+    /* centre mark — the centroid the city numbers are computed at */
+    const cx=(77.2167-X0)/(X1-X0)*W,cy=(1-(28.6315-Y0)/(Y1-Y0))*H;
+    ctx.strokeStyle='rgba(20,24,31,.55)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(cx,cy,4,0,6.283);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-7,cy);ctx.lineTo(cx+7,cy);ctx.moveTo(cx,cy-7);ctx.lineTo(cx,cy+7);ctx.stroke();
+    /* real fire detections over the same map — fetched once per page */
+    if(FM_FIRES===null){
+      try{const fr=await getJSON('/fires');FM_FIRES=(fr&&fr.features)||[]}
+      catch(_){FM_FIRES=[]}
+    }
+    let plotted=0;
+    for(const f of FM_FIRES){
+      const [flo,fla]=(f.geometry&&f.geometry.coordinates)||[];
+      if(flo==null||fla==null)continue;
+      const fx=(flo-X0)/(X1-X0)*W,fy=(1-(fla-Y0)/(Y1-Y0))*H;
+      if(fx<-6||fx>W+6||fy<-6||fy>H+6)continue;
+      ctx.fillStyle='rgba(190,87,30,.75)';
+      ctx.beginPath();ctx.arc(fx,fy,2.4,0,6.283);ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=.8;ctx.stroke();
+      plotted++;
+    }
+    const label=(FM_SPECIES.find(s=>s[0]===param)||[param,param])[1];
+    const unit=param==='us_aqi'?'':' µg/m³';
+    $('fieldmap-sub').innerHTML=vals.length
+      ?`${fmt(vals.length)} real cells · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
+       `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · faded cells sit farther from a measured sample — never a guess`+
+       (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fire detections plotted${FM_FIRES.length>plotted?` (${fmt(FM_FIRES.length-plotted)} more outside this view)`:''}`:'')
+      :`${label} — the field serves no ${label} cells right now`;
+  }catch(e){
+    $('fieldmap-sub').textContent='grid unreachable — '+esc(e.message||e);
+  }
 }
 
 function clock(){$('clock').textContent=
