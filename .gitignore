@@ -22,6 +22,9 @@ Mobile/android/app/release/
 Mobile/ios/Pods/
 Mobile/ios/build/
 Mobile/ios/DerivedData/
+# xcode -derived-data-style build roots next to the workspace
+Mobile/build/
+Mobile/build_debug/
 
 # python
 .venv/
