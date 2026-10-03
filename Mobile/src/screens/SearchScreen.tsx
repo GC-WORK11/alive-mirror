@@ -46,18 +46,6 @@ export type { PlaceResult } from "../search/t0";
 const T0_LIMIT = 6;
 const ROW_H = 54; // ≥44 pt touch target; fixed so results never shift under a finger
 
-/* Strings not yet in src/i18n/strings.ts (string-table lane owns that file).
- * Staged here so the screen ships honest copy today; swap tl() → t() once the
- * keys land. Needed keys: resultsHeader, noPlaceFound, emptySearchHint,
- * mapPickHint. */
-const LOCAL: Record<string, Record<Lang, string>> = {
-  resultsHeader: { en: "Results", hi: "नतीजे" },
-  noPlaceFound: { en: "no place found — try a landmark", hi: "कोई जगह नहीं मिली — कोई लैंडमार्क लिखकर देखें" },
-  emptySearchHint: { en: "type a place or landmark — or choose on the map", hi: "जगह या लैंडमार्क लिखें — या नक्शे पर चुनें" },
-  mapPickHint: { en: "tap the map to drop a pin there", hi: "नक्शे पर टैप करके पिन लगाएँ" },
-};
-const tl = (key: keyof typeof LOCAL, lang: Lang): string => LOCAL[key][lang];
-
 const fmtDist = (km: number): string =>
   km < 1
     ? `${Math.max(50, Math.round((km * 1000) / 50) * 50)} m`
@@ -361,14 +349,14 @@ function SearchSheet({
                 <View style={ss.stateBlock} accessibilityLiveRegion="polite">
                   <Icon name="search" color={V2T.text3} size={22} />
                   <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
-                    {tl("emptySearchHint", lang)}
+                    {t("emptySearchHint", lang)}
                   </Text>
                 </View>
               )}
             </>
           ) : (
             <>
-              {merged.length > 0 && <SectionLabel lang={lang}>{tl("resultsHeader", lang)}</SectionLabel>}
+              {merged.length > 0 && <SectionLabel lang={lang}>{t("resultsHeader", lang)}</SectionLabel>}
               {t0rows.map((p, i) => renderPlace(p, `t0-${i}`))}
               {(pending || serverRows.length > 0) && t0rows.length > 0 && <View style={ss.hairline} />}
               {pending ? (
@@ -382,7 +370,7 @@ function SearchSheet({
                 <View style={ss.stateBlock} accessibilityLiveRegion="polite">
                   <Icon name="search" color={V2T.text3} size={22} />
                   <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
-                    {tl("noPlaceFound", lang)}
+                    {t("noPlaceFound", lang)}
                   </Text>
                 </View>
               )}
@@ -415,7 +403,7 @@ function SearchSheet({
             }}
             accessibilityRole="button"
             accessibilityLabel={t("chooseOnMap", lang)}
-            accessibilityHint={tl("mapPickHint", lang)}
+            accessibilityHint={t("mapPickHint", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
           >
             <Icon name="pin" color={V2T.accent} size={18} />

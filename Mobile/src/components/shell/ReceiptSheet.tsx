@@ -27,13 +27,6 @@
  * figure gets a comparison or an "est." tag. Honest empty states —
  * a missing band says so instead of showing 0.
  *
- * ── PROPOSED strings.ts keys (strings.ts owned by the i18n lane — do
- *    not edit here; LOCAL below carries interim en+hi strings with the
- *    same interpolation contract, swap to t() once the keys land) ──
- *    receipt_distance:   "distance"          / "दूरी"
- *    receipt_duration:   "time"              / "समय"
- *    receipt_doseUgBand: "est. {lo}–{hi} µg" / "अनुमान {lo}–{hi} µg"
- *    receipt_save:       "save"              / "सहेजें"
  */
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -73,30 +66,6 @@ export type ReceiptData = {
   /** true when the rider ended the trip manually before reaching the
       destination — the header must not claim "You're here" */
   endedEarly?: boolean;
-};
-
-type LocalKey =
-  | "receipt_distance" | "receipt_duration"
-  | "receipt_doseUgBand" | "receipt_save";
-/** Interim strings for the proposed keys above — same t() contract. */
-const LOCAL: Record<Lang, Record<LocalKey, string>> = {
-  en: {
-    receipt_distance: "distance",
-    receipt_duration: "time",
-    receipt_doseUgBand: "est. {lo}–{hi} µg",
-    receipt_save: "save",
-  },
-  hi: {
-    receipt_distance: "दूरी",
-    receipt_duration: "समय",
-    receipt_doseUgBand: "अनुमान {lo}–{hi} µg",
-    receipt_save: "सहेजें",
-  },
-};
-const lt = (key: LocalKey, lang: Lang, vars?: Record<string, string | number>) => {
-  let s = LOCAL[lang][key] ?? LOCAL.en[key];
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
-  return s;
 };
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -215,7 +184,7 @@ export function ReceiptSheet({
           </Text>
           {dose && dose.hi - dose.lo >= 1 && (
             <Text style={[s.bandTxt, NUM]} {...DYNAMIC_TYPE}>
-              {lt("receipt_doseUgBand", lang, {
+              {t("receipt_doseUgBand", lang, {
                 lo: Math.round(dose.lo), hi: Math.round(dose.hi),
               })}
             </Text>
@@ -256,7 +225,7 @@ export function ReceiptSheet({
             </Text>
             <Text style={[s.cellCap, { fontFamily: fam(lang, "reg") }]}
               numberOfLines={1} {...DYNAMIC_TYPE}>
-              {lt("receipt_distance", lang)}
+              {t("receipt_distance", lang)}
             </Text>
           </View>
         )}
@@ -267,7 +236,7 @@ export function ReceiptSheet({
           </Text>
           <Text style={[s.cellCap, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
-            {lt("receipt_duration", lang)}
+            {t("receipt_duration", lang)}
           </Text>
         </View>
       </View>
@@ -352,9 +321,9 @@ export function ReceiptSheet({
           {onSave ? (
             <Pressable onPress={onSave} hitSlop={slop(10)}
               style={({ pressed }) => [s.tertiary, pressed && s.pressed]}
-              {...a11y(lt("receipt_save", lang), undefined, "button", { lang })}>
+              {...a11y(t("receipt_save", lang), undefined, "button", { lang })}>
               <Text style={[s.tertiaryTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
-                {lt("receipt_save", lang)}
+                {t("receipt_save", lang)}
               </Text>
             </Pressable>
           ) : null}
