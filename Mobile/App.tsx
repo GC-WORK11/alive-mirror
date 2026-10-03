@@ -44,6 +44,7 @@ import {
   DEFAULT_SETTINGS, clearAllData, loadSettings, saveSettings, type ShellSettings,
 } from "./src/components/shell/settings";
 import { loadTrips } from "./src/store/ledger";
+import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
 import { t } from "./src/i18n/strings";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -55,6 +56,18 @@ const STYLE_URL = v2StyleUrl();
 // liberty ships a few vector tiles MLRN can't parse — a native dev-only
 // console warning; nothing in our layers is involved
 LogBox.ignoreLogs(["Invalid geometry in line layer"]);
+
+// The S8 profile (vehicle.json) and the drawer's coarse class
+// (settings.vehicle) are two surfaces of one answer — kept in sync in
+// App so "My vehicle" can never read "not set" after the sheet saved.
+const CLS2DRAWER: Record<VehicleClass, string> = {
+  car: "car", auto: "auto", bike: "bike",
+  bus: "transit", metro: "transit", walk: "walk", cycle: "walk",
+};
+const DRAWER2CLS: Record<string, VehicleClass> = {
+  bike: "bike", car: "car", auto: "auto",
+  cab: "car", transit: "bus", walk: "walk",
+};
 
 export default function App() {
   const camRef = useRef<CameraRef>(null);
@@ -131,7 +144,33 @@ export default function App() {
     if ("share" in p) {
       saveConsent({ sharing: p.share ? "on" : "off", ts: Date.now() }).catch(() => {});
     }
-  }, []);
+    // drawer chip -> profile: a coarse pick that changes class starts a
+    // fresh profile (fuel/year are class-specific, honestly unknown)
+    if (p.vehicle != null) {
+      const cls = DRAWER2CLS[p.vehicle];
+      if (cls) {
+        getVehicle().then((cur) => {
+          if (cur?.cls !== cls) flow.setVehicleProfile({ cls, fuel: null, year: null });
+        }).catch(() => {});
+      }
+    }
+  }, [flow]);
+
+  /** Sheet/compare answer: persist the profile AND mirror its class
+   *  into the drawer so both surfaces show the same vehicle. */
+  const applyVehicle = useCallback((p: VehicleProfile) => {
+    flow.setVehicleProfile(p);
+    patchSettings({ vehicle: CLS2DRAWER[p.cls] });
+  }, [flow, patchSettings]);
+
+  /* boot sync: a profile saved in a previous run backfills the drawer's
+   *  coarse class (drawer chip -> profile sync lives in patchSettings). */
+  useEffect(() => {
+    if (!settings.vehicle && flow.vehicle) {
+      patchSettings({ vehicle: CLS2DRAWER[flow.vehicle.cls] });
+    }
+  }, [flow.vehicle, settings.vehicle, patchSettings]);
+
   const deleteAll = useCallback(() => {
     clearAllData();
     flow.setTrips([]); setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
@@ -275,7 +314,7 @@ export default function App() {
           steps={flow.steps} stepsOpen={flow.stepsOpen} onToggleSteps={() => flow.setStepsOpen(!flow.stepsOpen)}
           onStart={flow.startNav} onClose={flow.clearRoute} lang={lang}
           vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}
-          onVehicleChange={flow.setVehicleProfile}
+          onVehicleChange={applyVehicle}
           planError={flow.planError} onRetry={flow.retryPlan}
           fieldAgeS={flow.planField?.age_s} />
       )}
@@ -313,7 +352,7 @@ export default function App() {
         }} />
       <VehicleSheet visible={vehicleOpen || flow.needsVehicle} lang={lang}
         current={flow.vehicle}
-        onDone={(p) => { flow.setVehicleProfile(p); setVehicleOpen(false); }}
+        onDone={(p) => { applyVehicle(p); setVehicleOpen(false); }}
         onClose={() => setVehicleOpen(false)} />
 
       <OnboardingScreen visible={introSeen === false} lang={lang}
