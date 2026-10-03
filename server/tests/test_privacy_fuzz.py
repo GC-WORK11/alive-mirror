@@ -289,7 +289,8 @@ def test_k3_suppression_threshold():
     assert all(p["devices"] >= 3 for p in pubs)
     # published rows expose aggregates only — never a token, never a coord
     for p in pubs:
-        assert set(p) == {"cell", "trips", "devices", "avg_dose_ug"}
+        assert set(p) == {"cell", "trips", "devices", "avg_dose_ug",
+                          "co2_g_per_100m", "co2_trips"}
         assert H3_CELL.match(p["cell"])
 
 
