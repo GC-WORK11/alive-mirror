@@ -1,8 +1,28 @@
-# ALive-108 — session handoff (2026-10-03)
+# ALive-108 — session handoff (2026-10-03, updated post-merge)
 
 State of the world for whoever picks this up in Devin Cloud. Everything below is
-verified in-tree, not aspirational. Integration branch: **`base/v2` @ `d210bdd`**,
-pushed to `<owner>/Delhi-Air-108`. `main` is stale.
+verified in-tree, not aspirational. **`main` is now the trunk** — PR #4 merged
+all of `base/v2` (172 commits, merge `7fb517f`). Continue committing on
+`base/v2` and merge to `main` at milestones, or commit on `main` directly for
+small fixes — `base/v2` HEAD is `0d9b302` (all merged plus hardening).
+
+## Live deployment (AWS, ap-south-1)
+
+- NLB `alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com` → ALB TG → ECS
+  Fargate service `alive108` (1 task, 1 vCPU/2 GB). Task-def `:15`, image
+  `alive108-api:0d9b3023` — C++ `alive_core` serves kriging, field views, dose
+  sampling, emission integration, and `/v2/search` T1 (`t1_engine:"alive_core"`).
+- Deploy: `BUILD_MODE=codebuild bash scripts/deploy.sh` — zips `server/` to S3,
+  CodeBuild builds+tags `:<sha>`+`:latest`, registers task-def, force-new-deploy,
+  verifies TG health. ~4 min. AWS creds are org secrets (auto-injected —
+  do NOT override `AWS_*` env vars or the deploy can't auth).
+- Admin token: Secrets Manager `alive108/admin-token` (Bearer on `/admin/api*`).
+- Zero required third-party keys: CAMS/open-meteo + NASA FIRMS + OSRM demo are
+  all keyless. `OPENAQ_API_KEY` secret exists but the stored key is dead (401) —
+  stations honestly read 0; WAQI adapter (`ingest_waqi.py`) activates if a free
+  aqicn.org token is ever provided (`WAQI_API_TOKEN`).
+- Aggregates are per-task memory (DynamoDB only when `AGG_TABLE`+creds) —
+  redeploys reset community stats; donate a trip before demoing admin.
 
 ## What ALive-108 is
 
