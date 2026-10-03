@@ -208,12 +208,17 @@ function SearchSheet({
 
   /* Keyboard.dismiss() is async — closing the Modal in the same tick tears
      the scene down while the keyboard proxy is mid-handoff, and that race
-     segfaults this RN/iOS-sim stack (same class as the autoFocus fix). Defer
-     the actual close ~160ms so the proxy finishes while the scene is stable.
+     segfaults this RN/iOS-sim stack (same class as the autoFocus fix). Run
+     the close on keyboardDidHide instead of a fixed delay — event-driven,
+     with a 500ms cap if the keyboard never rose (no event ever arrives).
      Imperceptible to a user; identical UX on hardware. */
   const dismissThen = useCallback((fn: () => void) => {
+    if (!Keyboard.isVisible()) { fn(); return; }
+    let done = false;
+    const fire = () => { if (!done) { done = true; sub.remove(); fn(); } };
+    const sub = Keyboard.addListener("keyboardDidHide", fire);
     Keyboard.dismiss();
-    setTimeout(fn, 160);
+    setTimeout(fire, 500);
   }, []);
 
   const pick = useCallback(
