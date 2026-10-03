@@ -1,0 +1,73 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/aqi?lat=28.6139&lon=77.209",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "pm25": 90.4,
+    "pm25_ambient": 81.4,
+    "pm25_lo": null,
+    "pm25_hi": null,
+    "pm10": 227.77429066568095,
+    "no2": 42.229923334317824,
+    "us_aqi": 171.9978507948291,
+    "dust": 276.5041121306355,
+    "aod": 0.4129515289193739,
+    "conditions": {
+      "precip_mm": null,
+      "visibility_m": null,
+      "temp_c": null,
+      "is_day": null
+    },
+    "nearest_sample_km": 2.6,
+    "smoke_modifier": 1.11,
+    "fire": {
+      "status": "live",
+      "source": "firms-public-csv",
+      "fires": 72,
+      "belt_fires": 21,
+      "wind_deg": 253,
+      "modifier": 1.11,
+      "age_s": 457
+    },
+    "wind": {
+      "speed_kmh": 0.0,
+      "from_deg": 0.0,
+      "factor": 0.0
+    },
+    "grap": {
+      "indicative_stage": 1,
+      "basis_pm25": 90.4,
+      "note": "indicative only — legal GRAP stage is declared by CAQM"
+    },
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 473,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    },
+    "calibration": {
+      "method": "leave-one-out over live OpenAQ instrument readings",
+      "n_stations": 94,
+      "mae_ug": 46.1,
+      "rmse_ug": 71.9,
+      "median_abs_pct": 56.0,
+      "mean_bias_ug": 0.3,
+      "note": "error between stations — at a station the field reads the instrument itself"
+    },
+    "typical": {
+      "month": 10,
+      "hour_ist": 9,
+      "median": 115.00000000000001,
+      "p25": 82.75,
+      "p75": 171.0,
+      "vs_now_pct": -21.4
+    }
+  }
+}

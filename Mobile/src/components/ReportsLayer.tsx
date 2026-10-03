@@ -2,10 +2,10 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { Marker } from "@maplibre/maplibre-react-native";
 import { Icon, reportGlyph } from "../icons";
-import { T } from "../theme";
+import { V2T } from "../theme";
 
-/** Community hazard reports — each report renders as ITS pictograph
- * (dust swirl / smoke plume / flame / leaf), never a generic dot.
+/** Community hazard reports posted by other riders — each renders as ITS
+ * pictograph (dust swirl / smoke plume / flame / leaf), never a dot.
  * Reports carry a 6h TTL server-side. */
 export function ReportsLayer({ reports }: { reports: GeoJSON.FeatureCollection | null }) {
   if (!reports?.features?.length) return null;
@@ -19,7 +19,7 @@ export function ReportsLayer({ reports }: { reports: GeoJSON.FeatureCollection |
         return (
           <Marker key={`${lon},${lat},${i}`} lngLat={[lon, lat]} anchor="center">
             <View style={[st.wrap, severe && st.wrapSevere]}>
-              <Icon name={reportGlyph(kind)} color={severe ? T.doseOver : T.ink} size={18} />
+              <Icon name={reportGlyph(kind)} color={severe ? V2T.breath3 : V2T.text2} size={18} />
             </View>
           </Marker>
         );
@@ -31,10 +31,10 @@ export function ReportsLayer({ reports }: { reports: GeoJSON.FeatureCollection |
 const st = StyleSheet.create({
   wrap: {
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: T.surface, alignItems: "center", justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+    backgroundColor: V2T.surface, alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: V2T.line,
+    shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
     elevation: 3,
   },
-  wrapSevere: { borderColor: T.doseOver, borderWidth: 1 },
+  wrapSevere: { borderColor: V2T.breath3 },
 });

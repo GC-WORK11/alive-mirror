@@ -217,9 +217,11 @@
   <div class="hero">
     <div class="eyebrow">a live air survey · delhi ncr</div>
     <h1>the city<span class="l2"><em>breathes.</em></span></h1>
-    <div class="dek"><p>Live air over Delhi, <b>measured by its own commuters.</b>
-      Every particle below rides tonight's real wind across a field kriged
-      from government instruments — deep red is what lungs actually inhale.</p></div>
+    <div class="dek"><p>Live air over Delhi — <b>stations, satellites and
+      commutes people chose to share.</b>
+      Every particle below rides tonight's modelled wind across a field
+      kriged from instruments and air-quality models — deep red is what
+      lungs actually inhale.</p></div>
   </div>
 
   <div class="field-card">
@@ -274,9 +276,9 @@
     </div>
     <div class="ledger">
       <div class="stat">
-        <div class="k">breaths measured today</div>
+        <div class="k">breaths through shared commutes</div>
         <div class="v"><span id="breaths">—</span></div>
-        <div class="d">litres of delhi air drawn through donated commutes ÷ 0.5&nbsp;L a breath · <b>counting live</b></div>
+        <div class="d">estimated from today's donated trips — dose ÷ ambient pm2.5 ÷ 0.5&nbsp;L a breath · <b>updates each refresh</b></div>
       </div>
       <div class="stat">
         <div class="k">the city smoked today</div>
@@ -285,14 +287,14 @@
         <div class="d">collective inhaled dose · <b>316 µg = 1 cigarette</b></div>
       </div>
       <div class="stat">
-        <div class="k">citizens turned sensors</div>
+        <div class="k">commutes shared today</div>
         <div class="v"><span id="obs">—</span><small> commutes</small></div>
-        <div class="d"><b><span id="km">—</span> km</b> measured across <b><span id="contrib">—</span></b> anonymous contributors</div>
+        <div class="d"><b><span id="km">—</span> km</b> travelled by <b><span id="contrib">—</span></b> anonymous contributors</div>
       </div>
       <div class="stat">
-        <div class="k">dose dodged</div>
+        <div class="k">smoke shifted <small style="opacity:.55">est.</small></div>
         <div class="v"><span id="saved">—</span><small> µg</small></div>
-        <div class="d">avoided by choosing the cleaner route · <b><span id="savedcig">—</span> cigarettes not smoked</b></div>
+        <div class="d">estimated vs each trip's smokiest option — modelled, not measured · <b>≈<span id="savedcig">—</span> cigarettes</b></div>
       </div>
     </div>
   </section>
@@ -333,10 +335,11 @@
 
   <footer>
     <div class="foot-l">
-      <b>Alive-108</b> — commuters become the sensor network the city doesn't
-      have. Field kriged over CPCB / DPCC / HSPCB instruments + CAMS,
-      Kalman-smoothed, Bayesian-updated by traversal-implied concentration.
-      Uncertainty is rendered, not hidden. NCT outline simplified.
+      <b>Alive-108</b> — donated commutes help fill the gaps between
+      stations. Field kriged over station feeds when reachable +
+      CAMS/Open-Meteo models, Kalman-smoothed, Bayesian-updated by
+      traversal-implied concentration. Estimates carry bands —
+      uncertainty is rendered, not hidden. NCT outline simplified.
       Refreshes every 60s.
     </div>
     <div class="foot-r">
@@ -387,7 +390,7 @@ const fx=document.getElementById('fx'),px=fx.getContext('2d');
 const mm=document.getElementById('minimap'),mx=mm.getContext('2d');
 let cells=[],look=null,LW=0,LH=0;                 // pm lookup grid
 let wind={speed_kmh:10,from_deg:300},particles=[],dpr=1,W=0,H=560;
-let breaths=0,breathRate=0,lastBreathT=0;
+let breaths=0;
 const CONF_A={hi:.50,med:.32,lo:.16};
 
 function xy(lon,lat){return [(lon-BBOX[0])/(BBOX[2]-BBOX[0])*W,
@@ -434,8 +437,6 @@ async function load(){
     const t=ad.community||{};
     const pm=a.pm25||0;
     breaths=pm>0?(t.dose_ug_24h||0)/pm*2000:0;
-    const istSecs=(Date.now()/1000+19800)%86400;
-    breathRate=istSecs>0?breaths/istSecs:0;lastBreathT=performance.now();
     paintBreaths(breaths);
 
     setTxt('pm',a.pm25??'—');
@@ -503,7 +504,7 @@ function paintTicker(a,t,ad){
     [`grap indicative`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
     [`commutes today`,`${IN(t.obs_24h)}`],
     [`km measured`,`${IN(t.km_24h)}`],
-    [`µg avoided`,`${IN(t.avoided_ug_all)}`],
+    [`µg shifted (est.)`,`${IN(t.avoided_ug_all)}`],
     [`hazard reports`,`${ad.community?.active_reports??t.active_reports??0}`],
     [`uptime`,`${Math.floor((ad.uptime_s||0)/60)} min`]];
   const s=items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>◆</i>');
@@ -565,8 +566,8 @@ function drawWindArrow(){
   cx.restore()}
 const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function tick(){
-  const dt=Math.min(0.1,(performance.now()-lastBreathT)/1000);lastBreathT=performance.now();
-  breaths+=breathRate*dt;paintBreaths(breaths);
+  /* breath counter paints on each data refresh only — no fake ticking
+     between fetches (claims audit) */
   /* alpha-fade on the transparent fx layer: destination-in keeps 88%
      of last frame's alpha → luminous decaying trails over the baked field */
   px.globalCompositeOperation='destination-in';

@@ -1,0 +1,919 @@
+{
+  "comment": "T1 normalization/alias table — token -> alternative phrase(s). Merged over alive_core_ref built-ins; first phrase is the canonical form used by scripts/build_corpus.py normalization, the rest are query-expansion alternatives.",
+  "aliases": {
+    "aiims": [
+      "all india institute of medical sciences"
+    ],
+    "andrewsganj": [
+      "andrews ganj"
+    ],
+    "anvt": [
+      "anand vihar terminal"
+    ],
+    "apt": [
+      "apartment"
+    ],
+    "apts": [
+      "apartments"
+    ],
+    "ashokvihar": [
+      "ashok vihar"
+    ],
+    "assoc": [
+      "association"
+    ],
+    "av": [
+      "avenue"
+    ],
+    "ave": [
+      "avenue"
+    ],
+    "baag": [
+      "bagh"
+    ],
+    "baagh": [
+      "bagh"
+    ],
+    "bag": [
+      "bagh"
+    ],
+    "bagh": [
+      "bagh",
+      "bag",
+      "baag",
+      "baug",
+      "baagh"
+    ],
+    "barakhamba": [
+      "barakhamba",
+      "barakhambha"
+    ],
+    "barakhambha": [
+      "barakhamba"
+    ],
+    "baug": [
+      "bagh"
+    ],
+    "bazaar": [
+      "bazar"
+    ],
+    "bazar": [
+      "bazar"
+    ],
+    "bhajanpura": [
+      "bhajan pura"
+    ],
+    "blck": [
+      "block"
+    ],
+    "bldg": [
+      "building"
+    ],
+    "blk": [
+      "block"
+    ],
+    "block": [
+      "block",
+      "blk",
+      "blck",
+      "blok"
+    ],
+    "blok": [
+      "block"
+    ],
+    "center": [
+      "centre"
+    ],
+    "chandnee": [
+      "chandni"
+    ],
+    "chandni": [
+      "chandni"
+    ],
+    "chandnichowk": [
+      "chandni chowk"
+    ],
+    "chattarpur": [
+      "chhatarpur"
+    ],
+    "chauk": [
+      "chowk"
+    ],
+    "chawk": [
+      "chowk"
+    ],
+    "chiragdilli": [
+      "chirag delhi"
+    ],
+    "chok": [
+      "chowk"
+    ],
+    "chowk": [
+      "chowk",
+      "chok",
+      "chauk"
+    ],
+    "civillines": [
+      "civil lines"
+    ],
+    "clny": [
+      "colony"
+    ],
+    "cmplx": [
+      "complex"
+    ],
+    "col": [
+      "colony"
+    ],
+    "coll": [
+      "college"
+    ],
+    "colony": [
+      "colony",
+      "clny",
+      "col"
+    ],
+    "conaught": [
+      "connaught"
+    ],
+    "connaught": [
+      "connaught"
+    ],
+    "connaughtplace": [
+      "connaught place"
+    ],
+    "connuaght": [
+      "connaught"
+    ],
+    "cp": [
+      "connaught place"
+    ],
+    "cpwd": [
+      "central public works department"
+    ],
+    "ctr": [
+      "centre"
+    ],
+    "cybercity": [
+      "cyber city"
+    ],
+    "cyberhub": [
+      "cyber hub"
+    ],
+    "dariyaganj": [
+      "darya ganj"
+    ],
+    "daryaganj": [
+      "darya ganj"
+    ],
+    "dce": [
+      "delhi technological university",
+      "delhi college of engineering"
+    ],
+    "dec": [
+      "delhi cantt"
+    ],
+    "dee": [
+      "delhi sarai rohilla"
+    ],
+    "defcol": [
+      "defence colony"
+    ],
+    "defense": [
+      "defence"
+    ],
+    "del": [
+      "delhi"
+    ],
+    "dhola": [
+      "dhaula"
+    ],
+    "dilli": [
+      "delhi"
+    ],
+    "dli": [
+      "old delhi railway station"
+    ],
+    "dmrc": [
+      "delhi metro"
+    ],
+    "dnd": [
+      "dnd flyway"
+    ],
+    "dsj": [
+      "delhi safdarjung"
+    ],
+    "dtc": [
+      "delhi transport corporation"
+    ],
+    "dtu": [
+      "delhi technological university"
+    ],
+    "du": [
+      "delhi university"
+    ],
+    "duarka": [
+      "dwarka"
+    ],
+    "encl": [
+      "enclave"
+    ],
+    "enclave": [
+      "enclave",
+      "encl",
+      "enclve"
+    ],
+    "enclve": [
+      "enclave"
+    ],
+    "ex": [
+      "extension"
+    ],
+    "ext": [
+      "extension"
+    ],
+    "extension": [
+      "extension",
+      "ext",
+      "extn"
+    ],
+    "extn": [
+      "extension"
+    ],
+    "faridbad": [
+      "faridabad"
+    ],
+    "fdb": [
+      "faridabad"
+    ],
+    "flr": [
+      "floor"
+    ],
+    "gali": [
+      "gali",
+      "lane"
+    ],
+    "gandhinagar": [
+      "gandhi nagar"
+    ],
+    "ganj": [
+      "ganj"
+    ],
+    "gaziabad": [
+      "ghaziabad"
+    ],
+    "gazipur": [
+      "ghazipur"
+    ],
+    "gdn": [
+      "garden"
+    ],
+    "geetacolony": [
+      "geeta colony"
+    ],
+    "ggn": [
+      "gurugram"
+    ],
+    "ghazibad": [
+      "ghaziabad"
+    ],
+    "gk": [
+      "greater kailash"
+    ],
+    "gk1": [
+      "greater kailash 1"
+    ],
+    "gk2": [
+      "greater kailash 2"
+    ],
+    "gk3": [
+      "greater kailash 3"
+    ],
+    "gokalpuri": [
+      "gokal puri"
+    ],
+    "govindpuri": [
+      "govind puri"
+    ],
+    "govt": [
+      "government"
+    ],
+    "gr": [
+      "greater"
+    ],
+    "grdn": [
+      "garden"
+    ],
+    "greaternoida": [
+      "greater noida"
+    ],
+    "grnoida": [
+      "greater noida"
+    ],
+    "gtb": [
+      "guru tegh bahadur"
+    ],
+    "gurdwara": [
+      "gurudwara"
+    ],
+    "gurgaon": [
+      "gurugram"
+    ],
+    "gurgawan": [
+      "gurugram"
+    ],
+    "gurgoan": [
+      "gurugram"
+    ],
+    "gurudwara": [
+      "gurudwara",
+      "gurdwara"
+    ],
+    "gzb": [
+      "ghaziabad"
+    ],
+    "hauzkhas": [
+      "hauz khas"
+    ],
+    "hauzrani": [
+      "hauz rani"
+    ],
+    "hosp": [
+      "hospital"
+    ],
+    "htl": [
+      "hotel"
+    ],
+    "iari": [
+      "indian agricultural research institute"
+    ],
+    "igi": [
+      "indira gandhi international",
+      "indira gandhi international airport"
+    ],
+    "igia": [
+      "indira gandhi international airport"
+    ],
+    "iimc": [
+      "indian institute of mass communication"
+    ],
+    "iit": [
+      "indian institute of technology"
+    ],
+    "ina": [
+      "ina"
+    ],
+    "indirapuram": [
+      "indira puram"
+    ],
+    "inst": [
+      "institute"
+    ],
+    "intl": [
+      "international"
+    ],
+    "ipext": [
+      "ip extension"
+    ],
+    "ipextension": [
+      "ip extension"
+    ],
+    "isbt": [
+      "inter state bus terminus"
+    ],
+    "ito": [
+      "ito"
+    ],
+    "jamia": [
+      "jamia millia islamia"
+    ],
+    "jankpuri": [
+      "janakpuri"
+    ],
+    "janpath": [
+      "janpath",
+      "jan path"
+    ],
+    "jn": [
+      "junction"
+    ],
+    "jnu": [
+      "jawaharlal nehru university"
+    ],
+    "jorbagh": [
+      "jor bagh"
+    ],
+    "jungpura": [
+      "jangpura"
+    ],
+    "kalekhan": [
+      "kale khan"
+    ],
+    "kalkaji": [
+      "kalkaji"
+    ],
+    "kalyanpuri": [
+      "kalyan puri"
+    ],
+    "karolbagh": [
+      "karol bagh"
+    ],
+    "kashmere": [
+      "kashmiri"
+    ],
+    "kashmiri": [
+      "kashmiri",
+      "kashmere"
+    ],
+    "khanmarket": [
+      "khan market"
+    ],
+    "kirtinagar": [
+      "kirti nagar"
+    ],
+    "krishnanagar": [
+      "krishna nagar"
+    ],
+    "lajpatnagar": [
+      "lajpat nagar"
+    ],
+    "lakshminagar": [
+      "laxmi nagar"
+    ],
+    "laksmi": [
+      "laxmi"
+    ],
+    "laxminagar": [
+      "laxmi nagar"
+    ],
+    "ln": [
+      "lane"
+    ],
+    "lodhi": [
+      "lodi",
+      "lodhi"
+    ],
+    "lodi": [
+      "lodhi"
+    ],
+    "madangir": [
+      "madan gir"
+    ],
+    "mahal": [
+      "palace"
+    ],
+    "malvia": [
+      "malviya"
+    ],
+    "malviyanagar": [
+      "malviya nagar"
+    ],
+    "mandi": [
+      "market"
+    ],
+    "mandir": [
+      "temple"
+    ],
+    "mangolpuri": [
+      "mangol puri"
+    ],
+    "marg": [
+      "road",
+      "marg"
+    ],
+    "masjid": [
+      "mosque"
+    ],
+    "mayurvihar": [
+      "mayur vihar"
+    ],
+    "med": [
+      "medical"
+    ],
+    "mehroli": [
+      "mehrauli"
+    ],
+    "mkt": [
+      "market",
+      "majnu ka tila"
+    ],
+    "modeltown": [
+      "model town"
+    ],
+    "moolchand": [
+      "moolchand"
+    ],
+    "mrkt": [
+      "market"
+    ],
+    "mukharji": [
+      "mukherjee"
+    ],
+    "mukherji": [
+      "mukherjee"
+    ],
+    "munerka": [
+      "munirka"
+    ],
+    "munirka": [
+      "munirka"
+    ],
+    "nagar": [
+      "nagar",
+      "ngr",
+      "nager",
+      "nagger"
+    ],
+    "nager": [
+      "nagar"
+    ],
+    "nagger": [
+      "nagar"
+    ],
+    "naheru": [
+      "nehru"
+    ],
+    "nandnagri": [
+      "nand nagri"
+    ],
+    "natl": [
+      "national"
+    ],
+    "ncr": [
+      "national capital region"
+    ],
+    "ndls": [
+      "new delhi railway station"
+    ],
+    "nehruplace": [
+      "nehru place"
+    ],
+    "newashoknagar": [
+      "new ashok nagar"
+    ],
+    "newdelhi": [
+      "new delhi"
+    ],
+    "ngr": [
+      "nagar"
+    ],
+    "nizammudin": [
+      "nizamuddin"
+    ],
+    "nizamudin": [
+      "nizamuddin"
+    ],
+    "noida": [
+      "noida"
+    ],
+    "nr": [
+      "near"
+    ],
+    "nsit": [
+      "netaji subhas institute of technology"
+    ],
+    "nsp": [
+      "netaji subhash place"
+    ],
+    "nsut": [
+      "netaji subhas university of technology"
+    ],
+    "nzm": [
+      "hazrat nizamuddin"
+    ],
+    "okla": [
+      "okhla"
+    ],
+    "oldfaridabad": [
+      "old faridabad"
+    ],
+    "opp": [
+      "opposite"
+    ],
+    "pahadganj": [
+      "paharganj"
+    ],
+    "pahargunj": [
+      "paharganj"
+    ],
+    "panjabi": [
+      "punjabi"
+    ],
+    "parichowk": [
+      "pari chowk"
+    ],
+    "paschimvihar": [
+      "paschim vihar"
+    ],
+    "patelnagar": [
+      "patel nagar"
+    ],
+    "path": [
+      "road"
+    ],
+    "patparganj": [
+      "patpar ganj"
+    ],
+    "peeragarhi": [
+      "peera garhi"
+    ],
+    "ph": [
+      "phase"
+    ],
+    "phase": [
+      "phase",
+      "ph",
+      "phs"
+    ],
+    "phs": [
+      "phase"
+    ],
+    "pitampura": [
+      "pitam pura"
+    ],
+    "pkt": [
+      "pocket"
+    ],
+    "plc": [
+      "place"
+    ],
+    "plce": [
+      "place"
+    ],
+    "poc": [
+      "pocket"
+    ],
+    "pocket": [
+      "pocket",
+      "pkt",
+      "poc"
+    ],
+    "preetvihar": [
+      "preet vihar"
+    ],
+    "ps": [
+      "police station"
+    ],
+    "punjabibagh": [
+      "punjabi bagh"
+    ],
+    "pvr": [
+      "pvr cinemas"
+    ],
+    "qila": [
+      "fort"
+    ],
+    "racecourse": [
+      "race course"
+    ],
+    "rajendranagar": [
+      "rajendra nagar"
+    ],
+    "rajinder": [
+      "rajendra"
+    ],
+    "rajindernagar": [
+      "rajendra nagar"
+    ],
+    "rajnagar": [
+      "raj nagar"
+    ],
+    "rajori": [
+      "rajouri"
+    ],
+    "ranibagh": [
+      "rani bagh"
+    ],
+    "rd": [
+      "road"
+    ],
+    "rk": [
+      "r k"
+    ],
+    "rkpuram": [
+      "r k puram"
+    ],
+    "rly": [
+      "railway"
+    ],
+    "rohni": [
+      "rohini"
+    ],
+    "sadarbazaar": [
+      "sadar bazaar"
+    ],
+    "sadarbazar": [
+      "sadar bazaar"
+    ],
+    "safdarjang": [
+      "safdarjung"
+    ],
+    "safdurjung": [
+      "safdarjung"
+    ],
+    "sangamvihar": [
+      "sangam vihar"
+    ],
+    "sar": [
+      "sarai"
+    ],
+    "sarai": [
+      "sarai",
+      "saray"
+    ],
+    "saraikalekhan": [
+      "sarai kale khan"
+    ],
+    "saray": [
+      "sarai"
+    ],
+    "sarojini": [
+      "sarojini"
+    ],
+    "sarojininagar": [
+      "sarojini nagar"
+    ],
+    "sarojni": [
+      "sarojini"
+    ],
+    "satyaniketan": [
+      "satya niketan"
+    ],
+    "sch": [
+      "school"
+    ],
+    "sci": [
+      "sciences"
+    ],
+    "sctr": [
+      "sector"
+    ],
+    "sec": [
+      "sector"
+    ],
+    "sect": [
+      "sector"
+    ],
+    "sector": [
+      "sector",
+      "sec",
+      "sect",
+      "sctr"
+    ],
+    "seemapuri": [
+      "seema puri"
+    ],
+    "shadra": [
+      "shahdara"
+    ],
+    "shahdra": [
+      "shahdara"
+    ],
+    "shalimarbagh": [
+      "shalimar bagh"
+    ],
+    "shasthri": [
+      "shastri"
+    ],
+    "shastrinagar": [
+      "shastri nagar"
+    ],
+    "shastripark": [
+      "shastri park"
+    ],
+    "sheikhsarai": [
+      "sheikh sarai"
+    ],
+    "soc": [
+      "society"
+    ],
+    "sohnaroad": [
+      "sohna road"
+    ],
+    "sonepat": [
+      "sonipat"
+    ],
+    "southex": [
+      "south extension"
+    ],
+    "st": [
+      "street",
+      "saint"
+    ],
+    "sta": [
+      "station"
+    ],
+    "station": [
+      "station",
+      "stn",
+      "sta"
+    ],
+    "stn": [
+      "station"
+    ],
+    "street": [
+      "street",
+      "st"
+    ],
+    "subash": [
+      "subhash"
+    ],
+    "subhas": [
+      "subhash"
+    ],
+    "subhashnagar": [
+      "subhash nagar"
+    ],
+    "sultanpuri": [
+      "sultan puri"
+    ],
+    "sundar": [
+      "sunder"
+    ],
+    "sushantlok": [
+      "sushant lok"
+    ],
+    "szm": [
+      "sabzi mandi"
+    ],
+    "t1": [
+      "terminal 1"
+    ],
+    "t2": [
+      "terminal 2"
+    ],
+    "t3": [
+      "terminal 3"
+    ],
+    "tech": [
+      "technology"
+    ],
+    "thana": [
+      "police station"
+    ],
+    "tilaknagar": [
+      "tilak nagar"
+    ],
+    "trilokpuri": [
+      "trilok puri"
+    ],
+    "tughlaqabad": [
+      "tughlakabad"
+    ],
+    "tuglakabad": [
+      "tughlakabad"
+    ],
+    "udhogvihar": [
+      "udyog vihar"
+    ],
+    "udyogvihar": [
+      "udyog vihar"
+    ],
+    "univ": [
+      "university"
+    ],
+    "uttamnagar": [
+      "uttam nagar"
+    ],
+    "vasantkunj": [
+      "vasant kunj"
+    ],
+    "vasantvihar": [
+      "vasant vihar"
+    ],
+    "vasundharaenclave": [
+      "vasundhara enclave"
+    ],
+    "vehar": [
+      "vihar"
+    ],
+    "vhr": [
+      "vihar"
+    ],
+    "vihar": [
+      "vihar"
+    ],
+    "vikasmarg": [
+      "vikas marg"
+    ],
+    "vikaspuri": [
+      "vikas puri"
+    ],
+    "vivekvihar": [
+      "vivek vihar"
+    ],
+    "waali": [
+      "wali"
+    ],
+    "wali": [
+      "wali",
+      "waali"
+    ],
+    "xng": [
+      "crossing"
+    ],
+    "yamunavihar": [
+      "yamuna vihar"
+    ]
+  }
+}

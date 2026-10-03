@@ -1,0 +1,16 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/today?lat=28.6139&lon=77.209",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "month": 10,
+    "hour_now_ist": 9,
+    "hours_ist": [
+      115.00000000000001,
+      113.00000000000001,
+      "… (+22 more)"
+    ],
+    "source": "openaq-s3-climatology"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/health",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "ok": true,
+    "ts": 1790999107.8254359,
+    "version": "v2",
+    "build_sha": "c0dcf5e",
+    "field_age_s": 469,
+    "sources": {
+      "model": {
+        "up": true,
+        "samples": 48,
+        "source": "open-meteo/cams"
+      },
+      "stations": {
+        "up": false,
+        "count": 0
+      },
+      "fires": {
+        "up": true,
+        "fires": 72,
+        "age_s": 453
+      },
+      "location": {
+        "up": false,
+        "key": "unset"
+      }
+    },
+    "history": {
+      "source": "openaq-data-archive s3://openaq-data-archive/records/csv.gz (public, measurements only)",
+      "generated_at": "2026-10-01T20:50:26+00:00",
+      "stations": 125,
+      "file": "<server-path>",
+      "pollutants": [
+        "pm25",
+        "pm10",
+        "… (+1 more)"
+      ]
+    }
+  }
+}

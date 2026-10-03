@@ -1,0 +1,44 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/directions?from_lat=28.6139&from_lon=77.209&to_lat=28.7041&to_lon=77.1025&vehicle=auto",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "distance_km": 18.3,
+    "duration_min": 31,
+    "duration_s": 1859.75,
+    "geometry": {
+      "coordinates": [
+        [
+          77.208773,
+          28.613927
+        ],
+        [
+          77.208665,
+          28.613932
+        ],
+        "… (+399 more)"
+      ],
+      "type": "LineString"
+    },
+    "steps": [
+      {
+        "instruction": "Head straight on Kartavya Path",
+        "street": "Kartavya Path",
+        "type": "depart",
+        "modifier": "straight",
+        "distance_m": 463,
+        "duration_s": 42
+      },
+      {
+        "instruction": "Turn right onto North Avenue",
+        "street": "North Avenue",
+        "type": "turn",
+        "modifier": "right",
+        "distance_m": 665,
+        "duration_s": 44
+      },
+      "… (+10 more)"
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+# ALive-108 — local dev compose. Same image the deploy pipeline ships
+# (server/Dockerfile). Run from the repo root:
+#
+#   docker compose up --build          # API on http://localhost:8080
+#   docker compose --profile worker run --rm worker   # one field snapshot
+#
+# Expo / emulator reachability (the whole point of the port mapping):
+#   Android emulator  -> http://10.0.2.2:8080        (host loopback alias)
+#   iOS simulator     -> http://localhost:8080
+#   physical device   -> http://<your-LAN-IP>:8080   (same wifi)
+# Point the app's API base at whichever applies; nothing here is Expo-aware,
+# the port is just published on the host.
+#
+# Env: every ALIVE_* / key below passes straight through from your shell or a
+# repo-root .env (gitignored, never committed). Empty = feature honestly
+# disabled — the API still answers /health and all offline endpoints.
+
+services:
+  server:
+    build:
+      context: ./server            # MUST stay ./server — see Dockerfile header
+      args:
+        BUILD_SHA: ${BUILD_SHA:-dev-local}
+    image: alive108-api:dev
+    ports:
+      - "8080:8080"
+    env_file:
+      - path: .env                 # optional local overrides
+        required: false
+    environment:
+      PORT: "8080"
+      BUILD_SHA: ${BUILD_SHA:-dev-local}
+      # AWS wiring — empty means local-disk fallbacks (snapshots, community)
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      ALIVE_AIR_BUCKET: ${ALIVE_AIR_BUCKET:-}
+      AGG_TABLE: ${AGG_TABLE:-}
+      COMMUNITY_BUCKET: ${COMMUNITY_BUCKET:-}
+      # source keys — unset keeps /health sources at up=null (config absent)
+      OPENAQ_API_KEY: ${OPENAQ_API_KEY:-}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+      # Amazon Location (T2 search/places/routes) — unset = t1-only mode
+      ALIVE_LOCATION_KEY: ${ALIVE_LOCATION_KEY:-}
+      ALIVE_LOCATION_REGION: ${ALIVE_LOCATION_REGION:-ap-south-1}
+      # absolute path override for the gazetteer JSON if testing a bigger one
+      ALIVE_GAZETTEER: ${ALIVE_GAZETTEER:-}
+    volumes:
+      # persists community.json, GTFS feed cache, worker field snapshots
+      - alive-data:/app/data
+    restart: unless-stopped
+
+  # One-shot field builder (the every-15-min ECS worker, run by hand).
+  # `docker compose --profile worker run --rm worker` — writes a snapshot
+  # into the shared volume, after which /health reports a real field_age_s.
+  worker:
+    build:
+      context: ./server
+      args:
+        BUILD_SHA: ${BUILD_SHA:-dev-local}
+    image: alive108-api:dev
+    profiles: ["worker"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      ALIVE_AIR_BUCKET: ${ALIVE_AIR_BUCKET:-}
+      OPENAQ_API_KEY: ${OPENAQ_API_KEY:-}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+    volumes:
+      - alive-data:/app/data
+    command: ["python", "ingest_worker.py"]
+
+volumes:
+  alive-data:

@@ -1,0 +1,311 @@
+"""Air-index ingest worker — the every-15-min job from doc 05 §2.
+
+run_index_once():
+  1. airindex.build_field()  (live upstream pulls; `inputs` injectable for
+     tests/replay so nothing touches the network)
+  2. snapshot -> s3://{ALIVE_AIR_BUCKET}/field/YYYY/MM/DD/HHmm.json.gz when
+     the bucket env var is set AND boto3 + credentials are usable;
+     otherwise -> server/data/field/snapshots/YYYY/MM/DD/HHmm.json.gz
+  3. CloudWatch metrics (StationsUsed, FieldAgeSeconds, MeanSigma in
+     namespace "ALive-108") — emitted only when boto3 AND AWS credentials
+     resolve; skipped (reported) otherwise, never fatal.
+
+handler(event, context) is the EventBridge/Lambda entry point — same code
+path, JSON status response.
+
+run_forever(interval_s=900) is the long-lived container form (doc 05 §1
+"worker: air-index builder (every 15 min)"): per-iteration failures are
+caught + logged, consecutive failures back off exponentially, and the
+result history is a bounded deque — the loop holds no unbounded state.
+
+Snapshot rotation: local snapshots are pruned to the newest
+SNAPSHOT_KEEP (default 96 = 24 h of the 15-min cadence in doc 05 §2;
+override with ALIVE_SNAPSHOT_KEEP). The newest file — the one a live
+field would serve from (rollup.latest_snapshot, health field_age) — and
+any explicitly protected path are never deleted.
+"""
+import collections
+import glob
+import json
+import logging
+import os
+import random
+import sys
+import time
+from datetime import datetime, timezone
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+
+import airindex  # noqa: E402
+
+log = logging.getLogger("alive.ingest")
+
+DATA_DIR = os.path.join(_HERE, "data")
+SNAPSHOT_DIR = os.path.join(DATA_DIR, "field", "snapshots")
+METRIC_NS = "ALive-108"
+
+# Snapshot retention: 96 files = 24 h at the 15-min rebuild cadence
+# (doc 05 §2). Env override for ops; 0 = keep nothing but the live one.
+def _keep_env(default=96) -> int:
+    try:
+        return max(0, int(os.environ.get("ALIVE_SNAPSHOT_KEEP", default)))
+    except (TypeError, ValueError):
+        return default
+
+
+SNAPSHOT_KEEP = _keep_env()
+# Extra paths rotation must never delete (comma-sep, e.g. the snapshot a
+# long-lived process is currently serving).
+_PROTECT_ENV = os.environ.get("ALIVE_SNAPSHOT_PROTECT", "")
+
+INDEX_PERIOD_S = 900            # doc 05 §2: rebuild every 15 min
+FAIL_BACKOFF_BASE_S = 5.0       # worker loop backoff: base * 2**(fails-1)
+FAIL_BACKOFF_CAP_S = 300.0      #   ... capped well under the 15-min cadence
+FAIL_JITTER_S = 1.0
+WORKER_HISTORY = 64             # bounded ring of recent iteration results
+
+
+def _boto3():
+    """boto3 if installed (optional dep — not in requirements yet)."""
+    try:
+        import boto3
+        return boto3
+    except ImportError:
+        return None
+
+
+def _aws_ready() -> tuple:
+    """-> (boto3_module_or_None, reason). Credentials must actually resolve
+    (env vars, ~/.aws, or task role) — a boto3 install alone is not enough."""
+    b3 = _boto3()
+    if b3 is None:
+        return None, "no boto3"
+    try:
+        if b3.Session().get_credentials() is None:
+            return None, "no credentials"
+    except Exception as e:  # noqa: BLE001
+        return None, f"credential check failed: {type(e).__name__}"
+    return b3, "ok"
+
+
+def store_blob(s3_key: str, data: bytes, local_path: str) -> tuple:
+    """Write `data` to s3://{ALIVE_AIR_BUCKET}/{s3_key} when the bucket is
+    configured and AWS is usable, else to `local_path`. Always writes
+    somewhere — a failed S3 put degrades to local, never loses a snapshot.
+
+    -> (uri, backend, note)  backend in {"s3", "local"}.
+    """
+    bucket = os.environ.get("ALIVE_AIR_BUCKET")
+    if bucket:
+        b3, why = _aws_ready()
+        if b3 is not None:
+            try:
+                kw = {"Bucket": bucket, "Key": s3_key, "Body": data,
+                      "ContentType": "application/json"}
+                if s3_key.endswith(".gz"):
+                    kw["ContentEncoding"] = "gzip"
+                b3.client("s3").put_object(**kw)
+                return f"s3://{bucket}/{s3_key}", "s3", None
+            except Exception as e:  # noqa: BLE001 - fall through to local
+                note = f"s3 put failed ({type(e).__name__}: {e}) — wrote local"
+        else:
+            note = f"bucket set but {why} — wrote local"
+    else:
+        note = None
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    with open(local_path, "wb") as f:
+        f.write(data)
+    return local_path, "local", note
+
+
+def _emit_metrics(field: dict) -> dict:
+    """CloudWatch for the doc-05 dashboard: stations used, field age
+    (oldest input age), mean kriging sigma. Only when AWS is usable —
+    reported, never raised."""
+    b3, why = _aws_ready()
+    if b3 is None:
+        return {"emitted": False, "skipped": why}
+    ages = [p["age_s"] for p in field["provenance"].values()
+            if p.get("age_s") is not None]
+    datum = [
+        {"MetricName": "StationsUsed", "Value": field["qc"]["stations_used"],
+         "Unit": "Count"},
+        {"MetricName": "FieldAgeSeconds", "Value": max(ages) if ages else 0,
+         "Unit": "Seconds"},
+    ]
+    if field["stats"].get("mean_sigma") is not None:
+        datum.append({"MetricName": "MeanSigma",
+                      "Value": field["stats"]["mean_sigma"], "Unit": "None"})
+    try:
+        b3.client("cloudwatch").put_metric_data(
+            Namespace=METRIC_NS, MetricData=datum)
+        return {"emitted": True, "metrics": [d["MetricName"] for d in datum],
+                "namespace": METRIC_NS}
+    except Exception as e:  # noqa: BLE001
+        return {"emitted": False, "skipped": f"{type(e).__name__}: {e}"}
+
+
+def rotate_snapshots(snapshot_root: str = None, *, keep: int = None,
+                     protect=()) -> dict:
+    """Prune local snapshots to the newest `keep` (default SNAPSHOT_KEEP).
+
+    Paths are YYYY/MM/DD/HHmm.json.gz so lexicographic order == age order.
+    Never deletes:
+      - the lexicographically-newest file in the tree — that is the
+        snapshot a live field would serve from (rollup.latest_snapshot,
+        health field_age both read "newest")
+      - anything in `protect` or the ALIVE_SNAPSHOT_PROTECT env list
+    Empty day/month/year dirs left behind are pruned. -> counts dict."""
+    root = snapshot_root or SNAPSHOT_DIR
+    keep = SNAPSHOT_KEEP if keep is None else max(0, int(keep))
+    files = sorted(glob.glob(os.path.join(root, "**", "*.json.gz"),
+                             recursive=True))
+    protected = {os.path.abspath(p) for p in protect if p}
+    for p in _PROTECT_ENV.split(","):
+        p = p.strip()
+        if p:
+            protected.add(os.path.abspath(p))
+    if files:
+        protected.add(os.path.abspath(files[-1]))  # the live one
+    stale = files[:max(0, len(files) - keep)]
+    deleted, errors = 0, []
+    for p in stale:
+        if os.path.abspath(p) in protected:
+            continue
+        try:
+            os.remove(p)
+            deleted += 1
+        except OSError as e:
+            if len(errors) < 10:  # bound the report, not the sweep
+                errors.append(f"{p}: {e.strerror or e}")
+    # prune dirs emptied by the sweep (deepest first; ignore non-empty)
+    for dirpath, _dirs, _files in os.walk(root, topdown=False):
+        if os.path.abspath(dirpath) == os.path.abspath(root):
+            continue
+        try:
+            os.rmdir(dirpath)
+        except OSError:
+            pass
+    return {"keep": keep, "found": len(files), "deleted": deleted,
+            "protected": len(protected), "errors": errors,
+            "root": root}
+
+
+def run_index_once(now=None, *, inputs=None, snapshot_root: str = None,
+                   keep: int = None) -> dict:
+    """One 15-min index build. -> summary dict (also the handler body)."""
+    field = airindex.build_field(now=now, inputs=inputs)
+    blob = airindex.serialize(field)
+    ts = datetime.fromtimestamp(field["built_epoch"], tz=timezone.utc)
+    rel = os.path.join(f"{ts:%Y/%m/%d}", f"{ts:%H%M}.json.gz")
+    local_path = os.path.join(snapshot_root or SNAPSHOT_DIR, rel)
+    uri, backend, note = store_blob(f"field/{ts:%Y/%m/%d/%H%M}.json.gz",
+                                    blob, local_path)
+    try:
+        gc = rotate_snapshots(snapshot_root, keep=keep,
+                              protect=[local_path])
+    except Exception as e:  # noqa: BLE001 - GC must never sink a build
+        gc = {"skipped": f"{type(e).__name__}: {e}"}
+    metrics = _emit_metrics(field)
+    return {
+        "ok": True,
+        "snapshot": uri,
+        "backend": backend,
+        "note": note,
+        "built_at": field["built_at"],
+        "build_ms": field["build"]["duration_ms"],
+        "grid_system": field["grid"]["system"],
+        "cells": field["grid"]["n_cells"],
+        "stations_used": field["qc"]["stations_used"],
+        "qc_dropped": {k: len(v) for k, v in field["qc"]["dropped"].items()},
+        "qc_dropped_total": field["qc"]["dropped_total"],
+        "kriging": field["qc"]["kriging"],
+        "mean_sigma": field["stats"]["mean_sigma"],
+        "sources_used": field["build"]["sources_used"],
+        "sources_degraded": field["build"]["sources_degraded"],
+        "provenance_status": {k: v["status"]
+                              for k, v in field["provenance"].items()},
+        "gc": gc,
+        "metrics": metrics,
+    }
+
+
+def run_forever(interval_s: int = INDEX_PERIOD_S, *, run=None, sleep=None,
+                max_iters: int = None, on_result=None, history=None,
+                snapshot_root: str = None) -> list:
+    """Long-lived worker loop for the doc-05 §1 "every 15 min" container.
+
+    Per iteration: run() (default run_index_once) is fully guarded —
+    an exception is logged, recorded, and backed off exponentially
+    (FAIL_BACKOFF_BASE_S * 2**consecutive, capped at FAIL_BACKOFF_CAP_S,
+    + jitter) instead of killing the loop. A success resets the backoff.
+
+    Memory: `history` is a bounded deque(maxlen=WORKER_HISTORY); nothing
+    else accumulates across iterations (each build makes a fresh Kalman
+    smoother + KrigeField inside airindex), so the loop holds no
+    unbounded state. `max_iters` bounds the loop for tests; None = run
+    until killed, as the scheduler intends."""
+    if run is None:
+        def run():
+            return run_index_once(snapshot_root=snapshot_root) \
+                if snapshot_root else run_index_once()
+    sleep = sleep if sleep is not None else time.sleep
+    hist = history if history is not None else \
+        collections.deque(maxlen=WORKER_HISTORY)
+    fails, it = 0, 0
+    while max_iters is None or it < max_iters:
+        it += 1
+        try:
+            res = run()
+        except Exception as e:  # noqa: BLE001 - log, back off, keep going
+            fails += 1
+            wait = min(FAIL_BACKOFF_CAP_S,
+                       FAIL_BACKOFF_BASE_S * (2 ** (fails - 1))) \
+                + random.uniform(0.0, FAIL_JITTER_S)
+            log.exception("ingest iteration %d failed (%d consecutive); "
+                          "backing off %.1fs", it, fails, wait)
+            entry = {"iteration": it, "ok": False,
+                     "error": f"{type(e).__name__}: {e}",
+                     "consecutive_failures": fails,
+                     "backoff_s": round(wait, 2)}
+            hist.append(entry)
+            try:
+                if on_result:
+                    on_result(entry)
+            except Exception:  # noqa: BLE001 - a bad callback is not fatal
+                log.exception("on_result callback failed")
+            sleep(wait)
+            continue
+        fails = 0
+        entry = {"iteration": it, "ok": True,
+                 "built_at": res.get("built_at") if isinstance(res, dict)
+                 else None,
+                 "cells": res.get("cells") if isinstance(res, dict) else None,
+                 "snapshot": res.get("snapshot") if isinstance(res, dict)
+                 else None}
+        hist.append(entry)
+        try:
+            if on_result:
+                on_result(entry)
+        except Exception:  # noqa: BLE001
+            log.exception("on_result callback failed")
+        if max_iters is None or it < max_iters:
+            sleep(interval_s)
+    return list(hist)
+
+
+def handler(event, context):
+    """EventBridge Scheduler / Lambda entry point."""
+    try:
+        return {"statusCode": 200,
+                "body": json.dumps(run_index_once(), default=str)}
+    except Exception as e:  # noqa: BLE001 - surface, don't hang the schedule
+        return {"statusCode": 500,
+                "body": json.dumps({"ok": False,
+                                    "error": f"{type(e).__name__}: {e}"})}
+
+
+if __name__ == "__main__":
+    print(json.dumps(run_index_once(), indent=1, default=str))

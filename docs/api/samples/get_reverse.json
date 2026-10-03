@@ -1,0 +1,10 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/reverse?lat=28.6139&lon=77.209",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "name": "New Delhi",
+    "subtitle": "Delhi"
+  }
+}

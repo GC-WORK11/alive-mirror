@@ -1,0 +1,128 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0, "y": 0, "width": 24, "height": 2,
+      "properties": {
+        "markdown": "# ALive-108 — API + air-index ops\nApp emits `ALive108` CloudWatch metrics: `RequestCount`, `LatencyMs`, `Http5xx` (dim `Endpoint`), `FieldAgeSeconds`, `StationsUsed`, `IngestFailures` (dim `Job`)."
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 2, "width": 12, "height": 6,
+      "properties": {
+        "title": "Request rate / endpoint",
+        "region": "${AWS_REGION}",
+        "metrics": [
+          [ "ALive108", "RequestCount", "Endpoint", "search",  { "stat": "Sum", "label": "search" } ],
+          [ "...", "plan",   { "stat": "Sum", "label": "plan" } ],
+          [ "...", "strip",  { "stat": "Sum", "label": "strip" } ],
+          [ "...", "trip",   { "stat": "Sum", "label": "trip" } ],
+          [ "...", "city",   { "stat": "Sum", "label": "city" } ],
+          [ "...", "health", { "stat": "Sum", "label": "health" } ]
+        ],
+        "period": 300,
+        "view": "timeSeries",
+        "stacked": false
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 2, "width": 12, "height": 6,
+      "properties": {
+        "title": "p95 latency / endpoint (ms)",
+        "region": "${AWS_REGION}",
+        "metrics": [
+          [ "ALive108", "LatencyMs", "Endpoint", "search", { "stat": "p95", "label": "search p95" } ],
+          [ "...", "plan",  { "stat": "p95", "label": "plan p95" } ],
+          [ "...", "strip", { "stat": "p95", "label": "strip p95" } ],
+          [ "...", "trip",  { "stat": "p95", "label": "trip p95" } ],
+          [ "...", "city",  { "stat": "p95", "label": "city p95" } ]
+        ],
+        "period": 300,
+        "view": "timeSeries",
+        "stacked": false,
+        "yAxis": { "left": { "min": 0 } }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 8, "width": 8, "height": 6,
+      "properties": {
+        "title": "Field age (s) — alarm at 2700",
+        "region": "${AWS_REGION}",
+        "metrics": [
+          [ "ALive108", "FieldAgeSeconds", { "stat": "Maximum", "label": "field age" } ]
+        ],
+        "period": 300,
+        "view": "timeSeries",
+        "annotations": {
+          "horizontal": [ { "value": 2700, "label": "alarm >45 min", "color": "#d62728" } ]
+        },
+        "yAxis": { "left": { "min": 0 } }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8, "y": 8, "width": 8, "height": 6,
+      "properties": {
+        "title": "Stations used in field build",
+        "region": "${AWS_REGION}",
+        "metrics": [
+          [ "ALive108", "StationsUsed", { "stat": "Average", "label": "stations" } ]
+        ],
+        "period": 900,
+        "view": "timeSeries",
+        "yAxis": { "left": { "min": 0 } }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16, "y": 8, "width": 8, "height": 6,
+      "properties": {
+        "title": "Ingest failures / job",
+        "region": "${AWS_REGION}",
+        "metrics": [
+          [ "ALive108", "IngestFailures", "Job", "ingest",   { "stat": "Sum", "label": "ingest",   "color": "#d62728" } ],
+          [ "...", "rollup",   { "stat": "Sum", "label": "rollup" } ],
+          [ "...", "validate", { "stat": "Sum", "label": "validate" } ]
+        ],
+        "period": 900,
+        "view": "timeSeries",
+        "yAxis": { "left": { "min": 0 } }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "HTTP 5xx share (%)",
+        "region": "${AWS_REGION}",
+        "metrics": [
+          [ { "expression": "100*m5xx/mreq", "label": "5xx %", "id": "e1" } ],
+          [ "ALive108", "Http5xx", { "stat": "Sum", "id": "m5xx", "visible": false } ],
+          [ "ALive108", "RequestCount", { "stat": "Sum", "id": "mreq", "visible": false } ]
+        ],
+        "period": 300,
+        "view": "timeSeries",
+        "annotations": {
+          "horizontal": [ { "value": 1, "label": "alarm >1%", "color": "#d62728" } ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "ECS service",
+        "region": "${AWS_REGION}",
+        "metrics": [
+          [ "AWS/ECS", "CPUUtilization", "ServiceName", "alive108", "ClusterName", "alive108", { "stat": "Average", "label": "cpu %" } ],
+          [ "...", "MemoryUtilization", ".", ".", ".", ".", { "stat": "Average", "label": "mem %" } ]
+        ],
+        "period": 300,
+        "view": "timeSeries"
+      }
+    }
+  ]
+}

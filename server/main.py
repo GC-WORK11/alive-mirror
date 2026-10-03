@@ -5,15 +5,27 @@ routes come from OSRM on the real OSM road graph. No hardcoded places.
 """
 import asyncio
 import math
+import os
+import subprocess
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+# Sibling modules are flat imports — put this file's dir on sys.path so
+# `import server.main` works from the repo root too, not just `cd server`.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import httpx
-from fastapi import FastAPI, Query
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from airfield import FIELD, grap_indicative
+# local dev keys live in server/.env (gitignored) — real env vars always win
+load_dotenv()
+
+from airfield import FIELD, grap_indicative, in_service_area, OUT_OF_AREA, \
+    MAX_ROUTE_KM
 from fires import FIRES
 from blackspots import geojson as blackspots_geojson
 from forecast import FORECAST
@@ -25,7 +37,16 @@ import grid
 import community
 import decide
 
-app = FastAPI(title="Delhi-Air-108 API")
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    _start_ingest_loop()
+    yield
+
+
+app = FastAPI(title="Delhi-Air-108 API", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 PHOTON = "https://photon.komoot.io/api/"
@@ -63,9 +84,76 @@ def _calibration() -> Optional[dict]:
     return _calib_cache or None
 
 
+_BUILD_SHA_CACHE: Optional[str] = None
+
+
+def _build_sha() -> str:
+    """BUILD_SHA env (CodeBuild stamps it) else the worktree's git sha."""
+    global _BUILD_SHA_CACHE
+    if _BUILD_SHA_CACHE:
+        return _BUILD_SHA_CACHE
+    sha = os.environ.get("BUILD_SHA", "").strip()
+    if not sha:
+        try:
+            out = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, timeout=3,
+                cwd=os.path.dirname(os.path.abspath(__file__)))
+            if out.returncode == 0:
+                sha = out.stdout.strip()
+        except Exception:
+            pass
+    _BUILD_SHA_CACHE = sha or "unknown"
+    return _BUILD_SHA_CACHE
+
+
 @app.get("/health")
 async def health():
-    return {"ok": True, "ts": time.time(), "history": history.summary()}
+    """Liveness + provenance: build sha, field age, per-source up/down."""
+    try:
+        fstat = FIELD.status()
+    except Exception:
+        fstat = {}
+    try:
+        fires_stat = FIRES.status()
+    except Exception:
+        fires_stat = {}
+    loc_up = False
+    try:
+        from v2 import deps as _v2deps
+    except ImportError:
+        try:
+            from server.v2 import deps as _v2deps
+        except Exception:
+            _v2deps = None
+    if _v2deps is not None:
+        try:
+            _loc = _v2deps.get_location()
+            loc_up = bool(_loc is not None and getattr(_loc, "enabled", False))
+        except Exception:
+            pass
+    return {
+        "ok": True,
+        "ts": time.time(),
+        "version": "v2",
+        "build_sha": _build_sha(),
+        "field_age_s": fstat.get("age_s"),
+        "field_refresh_in_s": fstat.get("refresh_in_s"),
+        "field_stale": fstat.get("stale"),
+        "sources": {
+            "model": {"up": bool(fstat.get("samples")),
+                      "samples": fstat.get("samples", 0),
+                      "source": fstat.get("source")},
+            "stations": {"up": bool(fstat.get("station_readings")),
+                         "count": fstat.get("station_readings", 0)},
+            "fires": {"up": bool(fires_stat.get("fires")),
+                      "fires": fires_stat.get("fires", 0),
+                      "age_s": fires_stat.get("age_s")},
+            "location": {"up": loc_up,
+                         "key": "ALIVE_LOCATION_KEY" if loc_up else "unset"},
+        },
+        "history": history.summary(),
+    }
 
 
 _LOCATION = None
@@ -265,6 +353,9 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     prof = profile if profile in ("driving", "cycling", "walking") else "driving"
     exposure_mode = VEHICLE_TO_EXPOSURE.get((vehicle or "").lower()) or \
         ("driving_car_ac" if prof == "driving" else prof)
+    if not (in_service_area(from_lat, from_lon)
+            and in_service_area(to_lat, to_lon)):
+        return {"routes": [], "error": OUT_OF_AREA}
     url = f"https://router.project-osrm.org/route/v1/{prof}/{from_lon},{from_lat};{to_lon},{to_lat}"
     try:
         r = await http().get(url, params={
@@ -276,10 +367,12 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     except httpx.HTTPError:
         return {"routes": [], "error": "router unavailable"}
 
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
 
     options = []
     for rt in data.get("routes", [])[:3]:
+        if float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+            continue  # ocean-spanning "route" — not a servable option
         dur_s = _scaled_duration_s(vehicle or "", prof, rt)
         options.append({
             "mode": exposure_mode,
@@ -308,6 +401,11 @@ def _annotate_segments(options: list) -> None:
 
 
 async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float):
+    # OD outside the field's service area → no fetch at all: public OSRM
+    # happily returns a 10,000 km / 95k-vertex SF→Delhi "route", and the
+    # dose loop over it is what wedged the ECS task on E2E.
+    if not (in_service_area(flat, flon) and in_service_area(tlat, tlon)):
+        return None
     url = f"https://router.project-osrm.org/route/v1/{profile}/{flon},{flat};{tlon},{tlat}"
     r = await http().get(url, params={
         "overview": "full", "geometries": "geojson",
@@ -315,12 +413,18 @@ async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float
     })
     r.raise_for_status()
     routes = r.json().get("routes", [])
-    return routes[0] if routes else None
+    rt = routes[0] if routes else None
+    if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+        return None
+    return rt
 
 
 async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
     """Route through explicit via-points — used to synthesize alternative
     geometries the public OSRM demo won't return (it ignores alternatives)."""
+    if pts and not (in_service_area(pts[0][1], pts[0][0])
+                    and in_service_area(pts[-1][1], pts[-1][0])):
+        return None
     coords = ";".join(f"{lon},{lat}" for lon, lat in pts)
     url = f"https://router.project-osrm.org/route/v1/{profile}/{coords}"
     r = await http().get(url, params={
@@ -328,7 +432,10 @@ async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
     })
     r.raise_for_status()
     routes = r.json().get("routes", [])
-    return routes[0] if routes else None
+    rt = routes[0] if routes else None
+    if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+        return None
+    return rt
 
 
 # every consumer mode, scored on the geometry that mode actually travels
@@ -350,6 +457,9 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
     The screen the product exists for: one from→to, every option ranked
     by what you actually breathe, with the same honesty envelope.
     """
+    if not (in_service_area(from_lat, from_lon)
+            and in_service_area(to_lat, to_lon)):
+        return {"options": [], "error": OUT_OF_AREA}
     drive, cycle, walk = await asyncio.gather(
         _osrm("driving", from_lon, from_lat, to_lon, to_lat),
         _osrm("cycling", from_lon, from_lat, to_lon, to_lat),
@@ -360,7 +470,7 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
     if isinstance(geoms["driving"], BaseException):
         return {"options": [], "error": "router unavailable"}
 
-    await FIELD.refresh(http())
+    await _field_refresh_bounded()
     options = []
     for profile, vehicle, label in COMPARE_MODES:
         rt = geoms[profile]
@@ -483,6 +593,17 @@ VEHICLE_TIME_FACTOR = {"car": 1.0, "car_open": 1.0, "bike": 0.9,
                        "auto": 1.25, "bus": 1.6}
 
 
+async def _field_refresh_bounded(timeout: float = 10.0) -> None:
+    """FIELD.refresh is best-effort — a stale-field window plus a slow
+    upstream (OpenAQ retries sleep up to ~40 s) serializes every request
+    behind refresh's lock; cap the wait so a route request never holds
+    the event loop hostage. The refresh itself keeps running."""
+    try:
+        await asyncio.wait_for(FIELD.refresh(http()), timeout=timeout)
+    except Exception:
+        pass
+
+
 def _scaled_duration_s(vehicle: str, profile: str, rt: dict) -> float:
     if profile in MODE_SPEED_KMH:
         return rt["distance"] / 1000 / MODE_SPEED_KMH[profile] * 3600
@@ -503,11 +624,18 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if not exposure_mode or not profile:
         return {"error": "unknown vehicle", "options": []}
 
+    if not (in_service_area(from_lat, from_lon)
+            and in_service_area(to_lat, to_lon)):
+        return {"options": [], "error": OUT_OF_AREA}
+
     rt = await _osrm(profile, from_lon, from_lat, to_lon, to_lat)
     if rt is None or isinstance(rt, BaseException):
         return {"options": [], "error": "router unavailable"}
 
-    await FORECAST.refresh(http())
+    try:  # forecast refresh is best-effort — bound its upstream waits
+        await asyncio.wait_for(FORECAST.refresh(http()), timeout=12.0)
+    except Exception:
+        pass
     dur_s = _scaled_duration_s(vehicle, profile, rt)
 
     slots = []
@@ -565,7 +693,12 @@ async def aqi(lat: float, lon: float):
         "pm25_hi": round((v + sd) * mod, 1) if sd else None,
         "pm10": FIELD.value(lat, lon, "pm10"),
         "no2": FIELD.value(lat, lon, "nitrogen_dioxide"),
+        "o3": FIELD.value(lat, lon, "ozone"),
+        "co": FIELD.value(lat, lon, "carbon_monoxide"),
+        "so2": FIELD.value(lat, lon, "sulphur_dioxide"),
+        "nh3": FIELD.value(lat, lon, "ammonia"),
         "us_aqi": FIELD.value(lat, lon, "us_aqi"),
+        "european_aqi": FIELD.value(lat, lon, "european_aqi"),
         "dust": FIELD.value(lat, lon, "dust"),
         "aod": FIELD.value(lat, lon, "aerosol_optical_depth"),
         "conditions": FIELD.weather(),
@@ -810,7 +943,28 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     }
 
 
-@app.get("/admin/api")
+def _admin_guard(request: Request):
+    """Gate for /admin/api* — the ops dashboard's data surface.
+
+    `ALIVE_ADMIN_TOKEN` set  → require `Authorization: Bearer <token>`.
+    Unset                  → loopback clients only (dev default); a real
+    deployment sits behind a LB, so remote callers get 403 until the
+    operator sets the token. The /admin HTML page itself is public —
+    it carries no data; every fetch it makes goes through this guard.
+    """
+    token = os.environ.get("ALIVE_ADMIN_TOKEN")
+    if token:
+        auth = request.headers.get("authorization", "")
+        if auth != f"Bearer {token}":
+            raise HTTPException(401, "admin token required")
+        return
+    host = request.client.host if request.client else ""
+    if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        raise HTTPException(
+            403, "admin api is loopback-only until ALIVE_ADMIN_TOKEN is set")
+
+
+@app.get("/admin/api", dependencies=[Depends(_admin_guard)])
 async def admin_api():
     """Live ops snapshot for the admin dashboard — anon ids only."""
     thirty_min = 30
@@ -977,3 +1131,82 @@ async def directions(from_lat: float, from_lon: float, to_lat: float, to_lon: fl
         "geometry": rt["geometry"],
         "steps": steps,
     }
+
+
+# --- /v2 API (docs/plan/05 §3) — additive mount; nothing above changes ---
+try:
+    from v2 import router as _v2_router
+except ImportError:  # when imported as a package (import server.main)
+    try:
+        from server.v2 import router as _v2_router
+    except Exception:
+        _v2_router = None
+except Exception:
+    _v2_router = None
+if _v2_router is not None:
+    app.include_router(_v2_router)
+
+# --- additive mounts (each degrades honestly when its piece is absent) ---
+try:  # local Delhi PMTiles vector tiles — 503s until the archive exists
+    import tiles as _tiles
+except ImportError:
+    try:
+        from server import tiles as _tiles
+    except Exception:
+        _tiles = None
+except Exception:
+    _tiles = None
+if _tiles is not None:
+    app.include_router(_tiles.router)
+
+try:  # aggregate-only admin API (k>=3 enforced inside)
+    import admin_agg as _admin_agg
+except ImportError:
+    try:
+        from server import admin_agg as _admin_agg
+    except Exception:
+        _admin_agg = None
+except Exception:
+    _admin_agg = None
+if _admin_agg is not None:
+    app.include_router(_admin_agg.router,
+                       dependencies=[Depends(_admin_guard)])
+
+try:  # /metrics + request logging
+    import observability as _obs
+    _obs.install(app)
+except Exception:
+    pass
+
+try:  # rate limit + body cap + security headers (all env-tunable)
+    import middleware as _mw
+    _mw.attach(app)
+except Exception:
+    pass
+
+
+# --- in-app air-index ingest (keeps the field real-time with zero traffic) ---
+# FIELD.refresh() is request-driven — idle >45 min => stale serving. The ECS
+# deploy runs ingest_worker as its own 15-min task (doc 05 §1); on a single
+# box that task doesn't exist, so we run the same run_index_once() loop in a
+# daemon thread. ALIVE_INGEST_IN_APP=0 disables (e.g. a box that already runs
+# the worker container against the same snapshot dir).
+def _start_ingest_loop() -> None:
+    if os.environ.get("ALIVE_INGEST_IN_APP", "1").strip() in ("0", "false", "no"):
+        return
+    import threading
+
+    import ingest_worker as _ingest
+
+    def _on_result(_res: dict) -> None:
+        try:  # a fresh snapshot may now be the freshest field — pick it up
+            FIELD.load_snapshot()
+        except Exception:
+            pass
+
+    t = threading.Thread(
+        target=_ingest.run_forever,
+        kwargs={"interval_s": _ingest.INDEX_PERIOD_S,
+                "on_result": _on_result},
+        name="alive-ingest", daemon=True)
+    t.start()

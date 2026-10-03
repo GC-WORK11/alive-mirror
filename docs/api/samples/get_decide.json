@@ -1,0 +1,254 @@
+{
+  "method": "GET",
+  "url": "http://localhost:8188/decide?from_lat=28.6139&from_lon=77.209&to_lat=28.7041&to_lon=77.1025",
+  "status": 200,
+  "request_body": null,
+  "response": {
+    "options": [
+      {
+        "vehicle": "car",
+        "label": "Car (AC)",
+        "mode": "driving_car_ac",
+        "distance_km": 18.3,
+        "duration_min": 25,
+        "duration_s": 1487.8,
+        "duration_model": "osrm",
+        "geometry": {
+          "coordinates": [
+            [
+              77.208773,
+              28.613927
+            ],
+            [
+              77.208665,
+              28.613932
+            ],
+            "… (+399 more)"
+          ],
+          "type": "LineString"
+        },
+        "exposure": {
+          "dose_ug": 8.1,
+          "dose_ug_lo": null,
+          "dose_ug_hi": null,
+          "avg_conc_ugm3": 43.7,
+          "peak_conc": 44.7,
+          "confidence": "high",
+          "coverage": 1.0,
+          "sparse": false,
+          "factors": {
+            "microenv": 0.55,
+            "ventilation_lpm": 7.5,
+            "road_uplift": 1.0
+          },
+          "dose_vs_best_pct": 0.0,
+          "ug_saved_vs_worst": 236.2
+        },
+        "segments": [
+          {
+            "start_frac": 0.0,
+            "end_frac": 0.0613,
+            "minutes": 1.52,
+            "coords": [
+              [
+                77.208773,
+                28.613927
+              ],
+              [
+                77.208665,
+                28.613932
+              ],
+              "… (+15 more)"
+            ],
+            "avg_conc_ugm3": 44.5,
+            "dose_ug": 0.5,
+            "color": "#64748b"
+          },
+          {
+            "start_frac": 0.0613,
+            "end_frac": 0.1265,
+            "minutes": 1.62,
+            "coords": [
+              [
+                77.201034,
+                28.617496
+              ],
+              [
+                77.200743,
+                28.617511
+              ],
+              "… (+25 more)"
+            ],
+            "avg_conc_ugm3": 44.1,
+            "dose_ug": 0.5,
+            "color": "#64748b"
+          },
+          "… (+14 more)"
+        ],
+        "hotspots": [
+          {
+            "label": "hot zone",
+            "dose_ug": 0.6,
+            "share_pct": 7.5,
+            "midpoint_coord": [
+              77.19231,
+              28.628273
+            ],
+            "span_frac": [
+              0.1265,
+              0.2009
+            ]
+          },
+          {
+            "label": "hot zone",
+            "dose_ug": 0.6,
+            "share_pct": 7.5,
+            "midpoint_coord": [
+              77.132599,
+              28.680718
+            ],
+            "span_frac": [
+              0.6389,
+              0.7116
+            ]
+          },
+          "… (+1 more)"
+        ],
+        "decision_score": 92.5,
+        "decision_reasons": [
+          "you'd breathe the least smoke on this one",
+          "much less smoke than the smokiest"
+        ]
+      },
+      {
+        "vehicle": "car_open",
+        "label": "Car (windows down)",
+        "mode": "driving_car_open",
+        "distance_km": 18.3,
+        "duration_min": 25,
+        "duration_s": 1487.8,
+        "duration_model": "osrm",
+        "geometry": {
+          "coordinates": [
+            [
+              77.208773,
+              28.613927
+            ],
+            [
+              77.208665,
+              28.613932
+            ],
+            "… (+399 more)"
+          ],
+          "type": "LineString"
+        },
+        "exposure": {
+          "dose_ug": 11.8,
+          "dose_ug_lo": null,
+          "dose_ug_hi": null,
+          "avg_conc_ugm3": 63.5,
+          "peak_conc": 65.0,
+          "confidence": "high",
+          "coverage": 1.0,
+          "sparse": false,
+          "factors": {
+            "microenv": 0.8,
+            "ventilation_lpm": 7.5,
+            "road_uplift": 1.0
+          },
+          "dose_vs_best_pct": 45.7,
+          "ug_saved_vs_worst": 232.5
+        },
+        "segments": [
+          {
+            "start_frac": 0.0,
+            "end_frac": 0.0613,
+            "minutes": 1.52,
+            "coords": [
+              [
+                77.208773,
+                28.613927
+              ],
+              [
+                77.208665,
+                28.613932
+              ],
+              "… (+15 more)"
+            ],
+            "avg_conc_ugm3": 64.8,
+            "dose_ug": 0.7,
+            "color": "#c2415c"
+          },
+          {
+            "start_frac": 0.0613,
+            "end_frac": 0.1265,
+            "minutes": 1.62,
+            "coords": [
+              [
+                77.201034,
+                28.617496
+              ],
+              [
+                77.200743,
+                28.617511
+              ],
+              "… (+25 more)"
+            ],
+            "avg_conc_ugm3": 64.1,
+            "dose_ug": 0.8,
+            "color": "#c2415c"
+          },
+          "… (+14 more)"
+        ],
+        "hotspots": [
+          {
+            "label": "hot zone",
+            "dose_ug": 0.9,
+            "share_pct": 7.7,
+            "midpoint_coord": [
+              77.19231,
+              28.628273
+            ],
+            "span_frac": [
+              0.1265,
+              0.2009
+            ]
+          },
+          {
+            "label": "hot zone",
+            "dose_ug": 0.9,
+            "share_pct": 7.7,
+            "midpoint_coord": [
+              77.132599,
+              28.680718
+            ],
+            "span_frac": [
+              0.6389,
+              0.7116
+            ]
+          },
+          "… (+1 more)"
+        ],
+        "decision_score": 91.7,
+        "decision_reasons": [
+          "much less smoke than the smokiest"
+        ]
+      },
+      "… (+6 more)"
+    ],
+    "pick": "Car (AC)",
+    "best": "car",
+    "field": {
+      "source": "open-meteo/cams",
+      "samples": 48,
+      "station_readings": 0,
+      "age_s": 472,
+      "wind": {
+        "speed_kmh": 0.0,
+        "from_deg": 0.0,
+        "factor": 0.0
+      },
+      "kriging": "idw"
+    }
+  }
+}

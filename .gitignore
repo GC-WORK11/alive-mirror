@@ -28,10 +28,16 @@ Mobile/ios/DerivedData/
 .venv312/
 __pycache__/
 *.pyc
+uv.lock
+
+# air-index runtime snapshots (the 15-min ingest writes these;
+# the one checked-in mirror file stays tracked)
+server/data/field/snapshots/
 
 # env / secrets
 .env
 .env.*
+!.env.example
 
 # os / editor
 .DS_Store
@@ -40,3 +46,17 @@ server/data/community.json
 
 # GTFS transit feed cache (downloaded on demand, refreshed weekly)
 server/data/gtfs/
+
+# local agent worktrees
+.wt/
+
+# corpus pipeline artifacts (scripts/build_corpus.py)
+server/data/corpus/dl/
+server/data/corpus/delhi-corpus.jsonl.gz
+server/data/corpus/delhi-gazetteer-150k.json
+tools/corpus-venv/
+
+# local geo stack artifacts (scripts/geo/ pipeline — rebuildable, huge)
+data/geo/
+server/alive_core*.so
+server/core/build/
