@@ -69,6 +69,9 @@ export type ReceiptData = {
   fieldAgeMin?: number | null;
   /** whether the trip was actually donated to /v2/trip */
   donated?: boolean;
+  /** true when the rider ended the trip manually before reaching the
+      destination — the header must not claim "You're here" */
+  endedEarly?: boolean;
 };
 
 type LocalKey =
@@ -176,7 +179,7 @@ export function ReceiptSheet({
       {/* ── header: arrival + mode chip ── */}
       <View style={s.head}>
         <Text style={[s.title, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-          {t("youreHere", lang)}
+          {t(data?.endedEarly ? "tripEnded" : "youreHere", lang)}
         </Text>
         {data.modeLabel ? (
           <View style={s.modeChip}>

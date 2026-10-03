@@ -62,6 +62,9 @@ export type NavSummary = {
   co2Kg: Band;
   pm25G: Band;
   donated: boolean;
+  /** false when the rider ended the trip manually ("End") before the
+      proximity detector fired — the receipt must not claim arrival */
+  endedEarly: boolean;
 };
 
 export type NavEngineOpts = {
@@ -190,7 +193,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     }
   }, [api]);
 
-  const arrive = useCallback(() => {
+  const arrive = useCallback((completed = true) => {
     if (arrivedRef.current) return;
     arrivedRef.current = true;
     cleanup();
@@ -206,6 +209,7 @@ export function useNavEngine(opts: NavEngineOpts) {
       co2Kg: { lo: c.co2G.lo / 1000, mid: c.co2G.mid / 1000, hi: c.co2G.hi / 1000 },
       pm25G: { ...c.pm25G },
       donated: false,
+      endedEarly: !completed,
     };
     (async () => {
       if (shareEnabled && trajRef.current.length > 1) {

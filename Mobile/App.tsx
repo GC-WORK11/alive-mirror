@@ -320,7 +320,7 @@ export default function App() {
           fieldAgeS={flow.planField?.age_s} />
       )}
       {phase === "nav" && sel && (
-        <NavSession option={sel} options={flow.options} to={flow.to} steps={flow.steps}
+        <NavSession option={sel} options={flow.options} from={flow.from} to={flow.to} steps={flow.steps}
           camRef={camRef} lang={lang} share={settings.share} onExit={flow.exitNav}
           onTripDone={flow.recordTrip} />
       )}
@@ -370,9 +370,9 @@ export default function App() {
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
 function NavSession({
-  option, options, to, steps, camRef, lang, share, onExit, onTripDone,
+  option, options, from, to, steps, camRef, lang, share, onExit, onTripDone,
 }: {
-  option: V2Option; options: V2Option[]; to: Place | null; steps: Step[] | null;
+  option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
   camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
   share: boolean; onExit: () => void;
   onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
@@ -435,13 +435,15 @@ function NavSession({
         : null,
       fieldAgeMin: nav.fieldAgeMin,
       donated: summary.donated,
+      endedEarly: summary.endedEarly,
     };
     return (
       <ReceiptSheet data={data} lang={lang} onDone={onExit}
         onShare={() => Share.share({
           message: t("shareTripBody", lang, {
-            from: to?.name ?? "?", to: to?.name ?? "?",
+            from: from?.name ?? "?", to: to?.name ?? "?",
             dose: summary.doseUg.mid != null ? `~${Math.round(summary.doseUg.mid)}µg` : "—",
+            co2: summary.co2Kg.mid != null ? `~${summary.co2Kg.mid.toFixed(1)}kg CO₂` : "—",
           }),
         }).catch(() => {})} />
     );
@@ -449,7 +451,7 @@ function NavSession({
   return (
     <NavChrome option={option} steps={steps} doseUg={0}
       nav={nav} onRecenter={nav.recenter}
-      onExit={() => nav.arrive()} lang={lang} />
+      onExit={() => nav.arrive(false)} lang={lang} />
   );
 }
 

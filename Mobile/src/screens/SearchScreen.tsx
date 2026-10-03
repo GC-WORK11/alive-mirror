@@ -309,7 +309,7 @@ function SearchSheet({
 
       <KeyboardAvoidingView
         style={ss.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* bounded list — ≤6 T0 + ≤12 merged + 7 saved/recents, so a plain
             ScrollView at a fixed row height stays jank-free (doc §S2) */}
