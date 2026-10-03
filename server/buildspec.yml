@@ -17,7 +17,10 @@ phases:
       - SRC_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-${BUILD_SHA:-manual-build}}"
       - SHA="$(echo "$SRC_SHA" | cut -c1-8)"
       - export REPO SHA
-      - echo "build tags: $REPO:$SHA + $REPO:latest"
+      # NB: whole command single-quoted — an unquoted `: ` inside a plain
+      # scalar turns the line into a mapping and CodeBuild fails with
+      # "Commands[..] to be of string type: found subkeys".
+      - 'echo "build tags: $REPO:$SHA + $REPO:latest"'
   build:
     commands:
       - docker build -t $REPO:$SHA -t $REPO:latest .
