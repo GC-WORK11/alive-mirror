@@ -494,7 +494,7 @@ async function load(){
       setTxt('co2d','no donated commutes today — the app fills this as delhi moves');
     }
     paintCigs((t.dose_ug_24h||0)/316);
-    setTxt('nstations',a.field?.station_readings??'—');
+    setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
     setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
     const ty=a.typical;
     document.getElementById('typical').innerHTML=ty?
