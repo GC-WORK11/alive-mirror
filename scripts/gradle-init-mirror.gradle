@@ -12,13 +12,20 @@
 
 def mirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
 
-def rewrite = { project ->
-    project.repositories.withType(org.gradle.api.artifacts.repositories.MavenArtifactRepository).configureEach { repo ->
+def rewriteUrls = { repos, owner ->
+    repos.withType(org.gradle.api.artifacts.repositories.MavenArtifactRepository).configureEach { repo ->
         def u = repo.url?.toString() ?: ''
         if (u.contains('repo.maven.apache.org') || u.contains('repo1.maven.org')) {
-            repo.url = project.uri('https://maven-central.storage-download.googleapis.com/maven2/')
+            repo.url = owner.uri('https://maven-central.storage-download.googleapis.com/maven2/')
         }
     }
+}
+
+def rewrite = { project ->
+    rewriteUrls(project.repositories, project)
+    // buildscript{} blocks declare their own repo container (RN library
+    // modules like maplibre use it for kotlin-gradle-plugin).
+    rewriteUrls(project.buildscript.repositories, project)
 }
 
 gradle.beforeSettings { settings ->
