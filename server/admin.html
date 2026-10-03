@@ -171,7 +171,7 @@
 
   <div class="grid" id="stats"></div>
 
-  <h2>source health <em>field serving mode · ingest provenance</em></h2>
+  <h2>source health <em>what feeds the map, and when it last fetched</em></h2>
   <div class="cols">
     <div class="panel"><dl class="kv" id="field"></dl></div>
     <div class="panel"><dl class="kv" id="validation"></dl></div>
@@ -180,7 +180,7 @@
     <thead><tr><th>source</th><th>probe</th><th>build</th><th>detail</th><th class="num">age</th><th>freshness</th></tr></thead>
     <tbody id="sources"></tbody></table></div>
 
-  <h2>trip aggregates <em>donations · mode share · k≥3 corridors</em></h2>
+  <h2>trip aggregates <em>every shared trip combined · a street appears after 3+ riders cross it</em></h2>
   <div class="cols">
     <div class="panel">
       <dl class="kv" id="donations"></dl>
@@ -283,7 +283,7 @@ async function tick(){
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
      `cumulative dose · ${t.cig_equiv??'—'} cig-equiv`,'brick',t.dose_ug>0],
     [loso.mae_ugm3!=null?`${loso.mae_ugm3} <small>µg/m³</small>`:null,
-     `loso mae${validation.weekly?' · '+validation.weekly.week:''}`,'',loso.mae_ugm3!=null]];
+     `model error vs held-out stations (mae)${validation.weekly?' · '+validation.weekly.week:''}`,'',loso.mae_ugm3!=null]];
   $('stats').innerHTML=cards.map(([v,l,cl,ok])=>
     `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div></div>`).join('');
 
@@ -319,7 +319,7 @@ async function tick(){
   if(wk){
     vrows.push(['week',esc(wk.week||'—'),true],
       ['generated',esc((wk.generated||'').replace('T',' ').replace('+00:00','Z')),true],
-      ['loso',loso.status==='ok'
+      ['held-out stations (loso)',loso.status==='ok'
         ?`mae ${loso.mae_ugm3} · rmse ${loso.rmse_ugm3} · bias ${loso.bias_ugm3>0?'+':''}${loso.bias_ugm3} µg/m³ (n=${loso.n})`
         :esc(loso.status||'—'),true],
       ['archive replay',arch.status==='ok'
