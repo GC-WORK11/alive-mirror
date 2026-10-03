@@ -62,7 +62,15 @@ Delhi breathes. Expo/React Native app + FastAPI backend + optional C++ `alive_co
 - `server/v2/ledger.py` + `DeviceLedger` (v2/store.py) — GET /v2/ledger?
   token= returns a device's own trip history + totals (sanitized summaries
   only, hashed-token key, newest-first; /v2/trip writes it alongside the
-  k>=3 community aggregates)
+  k>=3 community aggregates). `agg_ddb.DDBDeviceLedger` gives it DynamoDB
+  durability in the shared alive108-agg table (pk=ledger#<hash> query
+  reads, 90d ttl) via the same env-chain selector as TRIPS
+- `server/ingest_waqi.py` — WAQI (aqicn.org) measured-stations adapter,
+  the fallback for OpenAQ in BOTH paths (airindex._fetch_stations for the
+  15-min index, airfield._grab_openaq for the live blend). Env WAQI_API_KEY;
+  free token, no region lock, republishes CPCB/DPCC. Bundle source stamps
+  the winning feed; the loser's status rides as openaq_status/waqi_status
+- `/admin/api/status` gains `ledger{backend, devices_tracked, error}`
 - `server/v2/strip.py` `roads[]` — strip chunks split across OSRM step
   spans (plan.py stores steps on the RouteStore record), consecutive
   same-name steps merged → {name, dist_m, samples, avg_pm25, dose_share}
