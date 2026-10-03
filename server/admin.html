@@ -135,6 +135,19 @@
     text-transform:uppercase;padding:4px 10px;border-radius:99px;cursor:pointer;
     border:1px solid var(--hair);background:transparent;color:var(--ink3)}
   .fmsel button.on{border-color:var(--ink);color:var(--ink);background:var(--surface2,#f2f4f7)}
+  .pipe{display:grid;grid-template-columns:repeat(6,1fr)}
+  .pipe .st{padding:15px 14px 13px;border-left:1px solid var(--hair)}
+  .pipe .st:first-child{border-left:none}
+  .pipe .n{font-family:var(--mono);font-size:10px;color:var(--ink4);
+           letter-spacing:.15em}
+  .pipe .t{font-weight:600;font-size:12.5px;margin:6px 0 4px;letter-spacing:.02em}
+  .pipe .v{font-size:10.5px;color:var(--ink2);line-height:1.6}
+  @media(max-width:920px){.pipe{grid-template-columns:repeat(3,1fr)}
+    .pipe .st:nth-child(4){border-left:none}
+    .pipe .st:nth-child(n+4){border-top:1px solid var(--hair)}}
+  @media(max-width:560px){.pipe{grid-template-columns:repeat(2,1fr)}
+    .pipe .st:nth-child(3){border-left:none;border-top:1px solid var(--hair)}
+    .pipe .st:nth-child(5){border-left:none}}
   .share-row{display:grid;grid-template-columns:88px 1fr 52px 44px;gap:10px;
              align-items:center;padding:3.5px 0;font-size:11.5px}
   .share-row .m{font-family:var(--mono);font-size:10.5px;color:var(--ink2);
@@ -188,6 +201,9 @@
     <canvas id="fieldmap"></canvas>
     <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
   </div>
+
+  <h2>the pipeline <em>how a trip becomes data — the live numbers at each stage</em></h2>
+  <div class="panel" style="padding:0;overflow:hidden"><div class="pipe" id="pipe"></div></div>
 
   <h2>source health <em>what feeds the map, and when it last fetched</em></h2>
   <div class="cols">
@@ -256,11 +272,11 @@ const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
   hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
 
 async function tick(){
-  let status,sources,corridors,donations,validation;
+  let status,sources,corridors,donations,validation,model;
   try{
-    [status,sources,corridors,donations,validation]=await Promise.all(
+    [status,sources,corridors,donations,validation,model]=await Promise.all(
       ['/admin/api/status','/admin/api/sources','/admin/api/corridors',
-       '/admin/api/donations','/admin/api/validation'].map(getJSON));
+       '/admin/api/donations','/admin/api/validation','/admin/api/model'].map(getJSON));
   }catch(e){
     /* keep the last good render on screen — flag its age, never blank it */
     $('feed').className='feed off';
@@ -437,6 +453,21 @@ async function tick(){
 
   /* --- live field map --- */
   await paintFieldMap(FM_PARAM);
+
+  /* --- the pipeline — each stage shown with its own live numbers --- */
+  const me=(model&&model.microenv)||{},ve=(model&&model.ventilation_lpm)||{},
+        cov0=f.coverage||{},csP=(t.co2_split&&t.co2_split.pct)||null;
+  const meN=n=>me[n]!=null?me[n]:'—',veN=n=>ve[n]!=null?ve[n]:'—';
+  const steps=[
+    ['01','measure',`${fmt(f.samples)} model points · ${fmt(f.station_readings)} station readings · ${esc(f.source||'—')} · ${ago(f.age_s)} old`],
+    ['02','interpolate',`${esc(f.kriging||'—')} · engine ${esc(f.engine||'—')} · ${cov0.cells!=null?fmt(cov0.cells)+' cells':'—'} in coverage`],
+    ['03','sample',`every ~${model&&model.sample_every_m||250} m along the route — street by street, never a centroid`],
+    ['04','breathe',`in-cabin exposure: car ac ×${meN('driving_car_ac')} · bus ×${meN('bus')} · auto ×${meN('auto_rickshaw')} · bike ×${meN('driving_two_wheeler')}<br>ventilation ${veN('driving_car_ac')}–${veN('cycling')} L/min by activity`],
+    ['05','emit',`BS-bucket × speed curve × idling × cold-start${csP?`<br>donated so far: moving ${csP.moving}% · idling ${csP.idle}% · cold ${csP.cold}%`:''}`],
+    ['06','aggregate',`k≥3 anonymized · ${fmt(donations.cells_tracked)} cells tracked · ${fmt(donations.corridors_publishable)} publishable · ${fmt(t.trips)} trips`],
+  ];
+  $('pipe').innerHTML=steps.map(([n,t0,v])=>
+    `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div><div class="v">${v}</div></div>`).join('');
 
   /* --- corridors (aggregate rows only; the k≥3 set comes from the store) --- */
   const rows=corridors.rows||[];

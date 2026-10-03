@@ -27,6 +27,7 @@ ENDPOINTS = [
     "/admin/api/corridors",
     "/admin/api/donations",
     "/admin/api/validation",
+    "/admin/api/model",
 ]
 
 # Field names that must never appear anywhere in an admin response —
@@ -186,6 +187,17 @@ def test_donations_co2_split_only_counts_reporters():
     assert sp["trips"] == 1 and sp["moving_g"] == 100.0
     assert sp["pct"] == {"moving": 50.0, "idle": 20.0, "cold": 30.0}
     assert t["co2_kg_mid"] == 2.8  # both trips in the headline total
+
+
+def test_model_card_serves_real_constants():
+    d = client.get("/admin/api/model").json()
+    assert d["available"] is True
+    # the panel's numbers are the model's own tables — spot-check two
+    # canonical rows so a drifted constant can never ship silently
+    assert d["microenv"]["auto_rickshaw"] == 1.15
+    assert d["ventilation_lpm"]["cycling"] == 22.0
+    assert d["cig_equiv_ug"] == 316.0
+    assert "walk" not in d["microenv"]  # canonical keys only
 
 
 def test_donations_co2_split_absent_is_null():

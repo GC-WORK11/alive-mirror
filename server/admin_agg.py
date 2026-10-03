@@ -246,6 +246,7 @@ async def index():
             "/admin/api/corridors",
             "/admin/api/donations",
             "/admin/api/validation",
+            "/admin/api/model",
         ],
     }
 
@@ -418,6 +419,50 @@ async def corridors(limit: int = 25):
         "publishable_cells": agg.get("corridors_publishable", 0),
         "cells_tracked": agg.get("cells_tracked", 0),
         "empty": not rows,
+    }
+
+
+@router.get("/model")
+async def model_card():
+    """The dose/emission model's own constants — served from the code
+    so the panel can never drift from what the engine computes.
+    Descriptive only: every number here is a published model constant
+    or a citation, never a live-data estimate."""
+    try:
+        import exposure as _ex
+    except Exception:
+        try:
+            from server import exposure as _ex
+        except Exception:
+            _ex = None
+    canon = ["metro", "driving_car_ac", "driving_car_open", "bus",
+             "driving_two_wheeler", "auto_rickshaw", "cycling", "walking"]
+    if _ex is None:
+        return {"ts": time.time(), "available": False,
+                "note": "exposure model not importable on this task"}
+    return {
+        "ts": time.time(),
+        "available": True,
+        "sample_every_m": 250.0,
+        "dose_formula": ("µg = Σ over the route's ~250 m segments: "
+                          "field-C(lat,lon) × microenv(mode) × "
+                          "ventilation(L/min) × minutes"),
+        "microenv": {m: _ex.MICROENV[m] for m in canon
+                     if m in _ex.MICROENV},
+        "ventilation_lpm": {m: _ex.VENTILATION_LPM[m] for m in canon
+                            if m in _ex.VENTILATION_LPM},
+        "road_uplift": {k: v for k, v in _ex.ROAD_UPLIFT.items()
+                        if k != "arterial"},
+        "cig_equiv_ug": _ex.CIG_UG,
+        "plausible_max_kmh": _ex.PLAUSIBLE_MAX_KMH,
+        "citations": {
+            "microenv": "measured Delhi microenvironment ratios, doc 06 §1",
+            "ventilation": ("Zuurbier 2009 — cyclists ≈2.1× in-vehicle VE; "
+                            "activity-adjusted tiers"),
+            "uplift": ("near-road PM increment decays within ~500 m of "
+                       "the curb, doc 06 §1"),
+            "cig": "1 cigarette ≈ 316 µg inhaled PM2.5 (Berkeley Earth)",
+        },
     }
 
 
