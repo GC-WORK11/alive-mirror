@@ -125,7 +125,7 @@ def test_search_t2_disabled_by_design():
     body = r.json()
     assert body["tiers"] == ["t1"]
     assert body["took_ms"]["t2"] is None
-    assert "disabled" in body["t2"]
+    assert "disabled" in body["t2_status"]
 
 
 def test_merge_dedupes_name_within_75m():

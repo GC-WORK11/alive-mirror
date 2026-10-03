@@ -131,6 +131,7 @@ def _merge(t1: list, t2: list, qn: str, blat: float, blon: float) -> list:
 async def search(q: str = Query(min_length=1, max_length=200),
                  lat: Optional[float] = None, lon: Optional[float] = None,
                  limit: int = Query(default=8, le=15)):
+    limit = max(0, limit)      # limit<=0 → no rows; never a negative slice
     blat = lat if lat is not None else deps.DELHI_CENTER["lat"]
     blon = lon if lon is not None else deps.DELHI_CENTER["lon"]
     qn = normalize(q)
@@ -176,8 +177,8 @@ async def search(q: str = Query(min_length=1, max_length=200),
         "t2": t2_rows,
         "tiers": tiers,
         "t1_engine": T1_ENGINE,
-        "t2": ("ok" if t2_task is not None else
-               "disabled:no ALIVE_LOCATION_KEY"),
+        "t2_status": ("ok" if t2_task is not None else
+                      "disabled:no ALIVE_LOCATION_KEY"),
         "took_ms": {
             "t1": round(t1_ms, 1),
             "t2": round(t2_ms, 1) if t2_ms is not None else None,

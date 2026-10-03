@@ -52,16 +52,26 @@ def _hav_m(a_lat, a_lon, b_lat, b_lon) -> float:
 
 
 def _parse(traj) -> list:
-    """[{lat,lon} | [lon,lat] GeoJSON order] → [(lat, lon), ...]."""
+    """[{lat,lon} | [lon,lat] GeoJSON order] → [(lat, lon), ...].
+
+    Points outside valid geo ranges are dropped — a garbage coordinate
+    (lat=999 wraps onto a South-Atlantic h3 cell) must never land in the
+    aggregates as a real traversal."""
     pts = []
     for p in traj or []:
         try:
             if isinstance(p, dict):
-                pts.append((float(p["lat"]), float(p["lon"])))
+                la, lo = float(p["lat"]), float(p["lon"])
             elif isinstance(p, (list, tuple)) and len(p) >= 2:
-                pts.append((float(p[1]), float(p[0])))
+                la, lo = float(p[1]), float(p[0])
+            else:
+                continue
         except (KeyError, TypeError, ValueError):
             continue
+        if not (math.isfinite(la) and math.isfinite(lo)
+                and -90.0 <= la <= 90.0 and -180.0 <= lo <= 180.0):
+            continue
+        pts.append((la, lo))
     return pts[:MAX_POINTS]
 
 
@@ -92,15 +102,29 @@ def privacy_pipeline(traj) -> tuple:
     return kept, trim_start, trim_end
 
 
-_SUMMARY_FIELDS = ("mode", "distance_km", "duration_s", "dose_ug",
-                   "co2_kg_mid", "pm25_g_mid", "switched")
+_SUMMARY_NUM = ("distance_km", "duration_s", "dose_ug",
+                "co2_kg_mid", "pm25_g_mid")
+_SUMMARY_FIELDS = _SUMMARY_NUM + ("mode", "switched")
+
+
+def _num(v) -> float | None:
+    """Coerce a summary number; anything unparseable/non-finite is
+    dropped — the store sums floats, and a hostile payload must never
+    detonate a 500."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
 
 
 @router.post("/trip")
 async def post_trip(body: dict):
     token = str(body.get("device_token") or "")[:64]
-    summary_in = body.get("summary") or {}
-    traj = body.get("trajectory") or body.get("coords") or []
+    summary_in = body.get("summary") if isinstance(body.get("summary"), dict) else {}
+    traj = body.get("trajectory") or body.get("coords")
+    if not isinstance(traj, (list, tuple)):
+        traj = []
 
     kept, trim_a, trim_b = privacy_pipeline(traj)
     # step 4: raw coordinates become cell keys here and are gone
@@ -109,8 +133,15 @@ async def post_trip(body: dict):
     token_hash = hashlib.sha256(token.encode()).hexdigest()[:16] \
         if token else ""
 
-    summary = {k: summary_in.get(k) for k in _SUMMARY_FIELDS
-               if summary_in.get(k) is not None}
+    summary = {}
+    for k in _SUMMARY_NUM:
+        v = _num(summary_in.get(k))
+        if v is not None:
+            summary[k] = v
+    if summary_in.get("mode") is not None:
+        summary["mode"] = str(summary_in["mode"])[:24]
+    if summary_in.get("switched"):
+        summary["switched"] = bool(summary_in["switched"])
     TRIPS.record_trip(cells, summary, token_hash)
     return {
         "stored": True,

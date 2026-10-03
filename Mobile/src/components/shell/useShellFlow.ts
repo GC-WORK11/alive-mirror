@@ -5,7 +5,7 @@
  * /v2 migration: options come from POST /v2/plan (dose + emissions bands,
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
  * /directions remain — /v2/plan carries no turn steps yet. */
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
 import { Keyboard } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
@@ -22,22 +22,6 @@ import type { Depart, Place, Step, V2Option } from "./types";
 
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
-
-/* Live-tick dose factors by plan mode — the same measured Delhi
- * microenvironment × minute-ventilation table the server uses
- * (server/exposure.py; docs/plan/06 §1). The nav lane's route strip
- * (GET /v2/strip) replaces this table + the /aqi poll. */
-const MODE_BREATH: Record<string, { microenv: number; ventLpm: number }> = {
-  car: { microenv: 0.55, ventLpm: 7.5 },
-  car_open: { microenv: 0.80, ventLpm: 7.5 },
-  bike: { microenv: 1.10, ventLpm: 9.0 },
-  auto: { microenv: 1.15, ventLpm: 8.5 },
-  bus: { microenv: 0.70, ventLpm: 8.0 },
-  metro: { microenv: 0.45, ventLpm: 7.5 },
-  cycle: { microenv: 1.10, ventLpm: 22.0 },
-  walk: { microenv: 1.00, ventLpm: 14.0 },
-};
-const breath = (mode?: string) => MODE_BREATH[mode ?? ""] ?? { microenv: 1.0, ventLpm: 8.0 };
 
 export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -59,9 +43,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [notified, setNotified] = useState(false);
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
-  const [navDose, setNavDose] = useState(0);
-  const [receipt, setReceipt] = useState<{ doseUg: number; savedUg: number } | null>(null);
-  const navDoseRef = useRef(0);
+  const [navDose] = useState(0); // kept: NavChrome's legacy prop path (engine's `nav` supersedes)
 
   // SEAM(trip-submit): anonymous traversal donation moved to POST /v2/trip
   // (src/api/trip.ts) — the nav lane owns it and will read `shareEnabled`
@@ -114,15 +96,11 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
       setLoadingRoute(true);
       setPlanError(null);
       try {
-        const qs = `from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}`;
-        const [pj, dj] = await Promise.all([
-          planOptions({
-            from: { lat: from.lat, lon: from.lon },
-            to: { lat: to.lat, lon: to.lon },
-            vehicle: planVehicle(vehicle),
-          }, 15000),
-          fetchJson(`${API}/depart?${qs}&vehicle=auto&hours=24`).catch(() => null),
-        ]);
+        const pj = await planOptions({
+          from: { lat: from.lat, lon: from.lon },
+          to: { lat: to.lat, lon: to.lon },
+          vehicle: planVehicle(vehicle),
+        }, 15000);
         if (cancelled) return;
         if (pj.error && pj.options.length === 0) {
           setOptions([]); setDepart(null); setPlanError(pj.error);
@@ -131,7 +109,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         const opts = pj.options;
         setOptions(opts); setSelected(0);
         setPlanField(pj.field);
-        setDepart(dj?.best ? { best: dj.best, ug_saved_vs_now: dj.ug_saved_vs_now } : null);
         const g = opts[0]?.geometry;
         if (g?.type === "LineString") {
           const c = (g as GeoJSON.LineString).coordinates;
@@ -152,6 +129,21 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
 
   /** Error retry — re-runs the compare effect. */
   const retryPlan = useCallback(() => setPlanNonce((n) => n + 1), []);
+
+  /* ---- leave-time window follows the SELECTED mode (was hardcoded
+     vehicle=auto — claims audit: the window must model the chosen ride) ---- */
+  useEffect(() => {
+    const mode = options[selected]?.mode;
+    if (phase !== "compare" || !from || !to || !mode) return;
+    let cancelled = false;
+    const qs = `from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}`;
+    fetchJson(`${API}/depart?${qs}&vehicle=${mode}&hours=24`)
+      .then((dj) => {
+        if (!cancelled) setDepart(dj?.best ? { best: dj.best, ug_saved_vs_now: dj.ug_saved_vs_now } : null);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [phase, from, to, options, selected]);
 
   /* ---- turn-by-turn steps for the selected (road) option ----
      /v2/plan options carry no steps yet → legacy /directions stays. */
@@ -178,15 +170,16 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const clearRoute = useCallback(() => {
     setTo(null); setOptions([]); setDepart(null); setSteps(null); setStepsOpen(false);
     setPlanError(null); setPlanField(null);
-    setPhase("idle"); setFollow(false); setReceipt(null);
+    setPhase("idle"); setFollow(false);
   }, []);
 
-  /* ---- navigation: live dose = conc × ventilation × microenv × dt ---- */
+  /* ---- navigation phase transitions; the live engine (src/nav) owns
+     the watcher, strip, counters, off-route + arrival — nothing here
+     ticks or polls during nav anymore. ---- */
   const startNav = useCallback(async () => {
     const o = options[selected];
     if (!o || !from || !to) return;
     setPhase("nav");
-    setNavDose(0); navDoseRef.current = 0; setReceipt(null);
     Keyboard.dismiss();
     const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
     setFollow(!!(pos && inNcr(pos.coords.latitude, pos.coords.longitude)));
@@ -197,51 +190,25 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const exitNav = useCallback(() => {
     setPhase("compare"); setFollow(false);
     camRef.current?.setStop({ pitch: 0, duration: 700 });
-    const o = options[selected];
-    if (o && navDoseRef.current > 0.5) {
-      const worst = Math.max(...options.map((x) => x.dose?.mid ?? 0));
-      setReceipt({ doseUg: navDoseRef.current, savedUg: Math.max(0, worst - (o.dose?.mid ?? 0)) });
-    }
-  }, [options, selected, camRef]);
+  }, [camRef]);
 
-  useEffect(() => {
-    if (phase !== "nav") return;
-    const o = options[selected];
-    const { microenv: micro, ventLpm } = breath(o?.mode);
-    const tick = async () => {
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
-      if (!pos || !inNcr(pos.coords.latitude, pos.coords.longitude)) return;
-      const j = await fetchJson(`${API}/aqi?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, 6000).catch(() => null);
-      if (j?.pm25 != null) {
-        navDoseRef.current += j.pm25 * micro * (ventLpm / 1000) * (25 / 60);
-        setNavDose(Math.round(navDoseRef.current * 10) / 10);
-      }
-      if (to) {
-        const dLat = (pos.coords.latitude - to.lat) * 110.6;
-        const dLon = (pos.coords.longitude - to.lon) * 99.4;
-        if (Math.sqrt(dLat * dLat + dLon * dLon) * 1000 < 80) exitNav();
-      }
-    };
-    tick();
-    const iv = setInterval(tick, 25000);
-    return () => clearInterval(iv);
-  }, [phase, options, selected, to, exitNav]);
-
-  /* ---- ledger: a picked option is a logged trip on-device ---- */
-  useEffect(() => {
-    const o = options[selected];
-    if (o?.dose?.mid == null || !from || !to || phase !== "compare") return;
-    const worst = Math.max(...options.map((x) => x.dose?.mid ?? 0));
-    const avoided = Math.max(0, Math.round((worst - o.dose.mid) * 10) / 10);
-    logTrip({
-      ts: Date.now(), label: o.label, vehicle: o.mode, dose_ug: o.dose.mid,
-      avoided_ug: avoided, from: from.name, to: to.name,
-      fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon,
-    }).then(setTrips).catch(() => {});
-    // SEAM(trip-submit): nav lane — the traversal donation moved from the
-    // legacy observeTrip→/observe call to POST /v2/trip (src/api/trip.ts),
-    // fired by whoever owns the finished-trip event in live navigation.
-  }, [selected, options, from, to, phase]);
+  /* ---- ledger: only a COMPLETED trip is logged (claims audit — logging
+     on option view fabricated trips + inflated every avoided-µg total).
+     The nav session calls this with its real arrival summary. ---- */
+  const recordTrip = useCallback(async (t: {
+    label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null;
+  }) => {
+    if (!from || !to) return;
+    try {
+      setTrips(await logTrip({
+        ts: Date.now(), label: t.label, vehicle: t.vehicle,
+        dose_ug: Math.round((t.doseUg ?? 0) * 10) / 10,
+        avoided_ug: Math.max(0, Math.round((t.avoidedUg ?? 0) * 10) / 10),
+        from: from.name, to: to.name,
+        fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon,
+      }));
+    } catch { /* ledger write is best-effort */ }
+  }, [from, to]);
 
   const routeSegs = useMemo<GeoJSON.FeatureCollection>(() => {
     const segs = options[selected]?.segments;
@@ -273,14 +240,19 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     if (!Array.isArray(h) || h.length < 24) return false;
     let best = 0;
     for (let i = 0; i <= 21; i++) if (h[i] + h[i + 1] + h[i + 2] < h[best] + h[best + 1] + h[best + 2]) best = i;
-    const drop = Math.max(5, Math.round((1 - ((h[best] + h[best + 1] + h[best + 2]) / 3) / (h.reduce((a, b) => a + b, 0) / 24)) * 100));
+    const drop = Math.max(0, Math.round((1 - ((h[best] + h[best + 1] + h[best + 2]) / 3) / (h.reduce((a, b) => a + b, 0) / 24)) * 100));
     return (await scheduleDailyBrief({ startHour: best, endHour: (best + 3) % 24, dropPct: drop })) != null;
   }, [from, to]);
 
   const remind = useCallback(async () => {
     if (!depart?.best?.start || notified || !(await requestPerms())) return;
     const fire = new Date(depart.best.start.endsWith("Z") ? depart.best.start : depart.best.start + "Z");
-    if (await scheduleDeparture({ fireAt: fire, savedPct: depart.ug_saved_vs_now ?? 0 })) setNotified(true);
+    /* /depart returns ug_saved_vs_now in µg — the notification copy wants
+       a real percent: saved / dose-if-left-now (claims audit: no unit wash). */
+    const saved = depart.ug_saved_vs_now ?? 0;
+    const doseNow = (depart.best.dose_ug ?? 0) + saved;
+    const pct = doseNow > 0 ? Math.max(0, Math.round((saved / doseNow) * 100)) : 0;
+    if (await scheduleDeparture({ fireAt: fire, savedPct: pct })) setNotified(true);
   }, [depart, notified]);
 
   const reloadTrips = useCallback(() => { loadTrips().then(setTrips).catch(() => {}); }, []);
@@ -295,10 +267,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   return {
     phase, setPhase, from, setFrom, to, setTo,
     editWhich, setEditWhich, options, selected, setSelected,
-    depart, notified, trips, setTrips, community, setCommunity, follow, setFollow,
+    depart, notified, trips, setTrips, recordTrip, community, setCommunity, follow, setFollow,
     loadingRoute, planError, retryPlan, planField,
     vehicle, setVehicleProfile, needsVehicle,
-    steps, stepsOpen, setStepsOpen, navDose, receipt, setReceipt,
+    steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
     routeSegs, altSegs, reloadTrips,
   };

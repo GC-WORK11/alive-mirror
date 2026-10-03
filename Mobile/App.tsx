@@ -12,14 +12,19 @@ import {
   Camera, GeoJSONSource, Layer, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
-import { CigStrip, EndpointPin } from "./src/ui";
+import { EndpointPin } from "./src/ui";
+import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { ReportsLayer } from "./src/components/ReportsLayer";
 import { FiresLayer, BlackspotsLayer } from "./src/components/HazardLayers";
 import { CorridorLayer } from "./src/components/CorridorLayer";
 import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
+import { VehicleSheet } from "./src/screens/VehicleSheet";
+import { DelhiToday } from "./src/screens/DelhiToday";
 import { CompareSheet } from "./src/components/shell/CompareSheet";
 import { NavChrome } from "./src/components/shell/NavChrome";
+import { ReceiptSheet, type ReceiptData } from "./src/components/shell/ReceiptSheet";
+import { useNavEngine, type NavSummary, type NavStep } from "./src/nav";
 import { LocateButton } from "./src/components/shell/LocateButton";
 import { LayersButton } from "./src/components/shell/LayersButton";
 import { LayersSheet, type LayerKey } from "./src/components/shell/LayersSheet";
@@ -54,6 +59,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [mapPickArmed, setMapPickArmed] = useState(false);
+  const [vehicleOpen, setVehicleOpen] = useState(false);
+  const [delhiOpen, setDelhiOpen] = useState(false);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
@@ -218,33 +225,30 @@ export default function App() {
         <CompareSheet options={flow.options} selected={flow.selected} onSelect={flow.setSelected}
           depart={flow.depart} notified={flow.notified} onRemind={flow.remind} loading={flow.loadingRoute}
           steps={flow.steps} stepsOpen={flow.stepsOpen} onToggleSteps={() => flow.setStepsOpen(!flow.stepsOpen)}
-          onStart={flow.startNav} onClose={flow.clearRoute} lang={lang} />
+          onStart={flow.startNav} onClose={flow.clearRoute} lang={lang}
+          vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}
+          onVehicleChange={flow.setVehicleProfile}
+          planError={flow.planError} onRetry={flow.retryPlan}
+          fieldAgeS={flow.planField?.age_s} />
       )}
       {phase === "nav" && sel && (
-        <NavChrome option={sel} steps={flow.steps} doseUg={flow.navDose} onExit={flow.exitNav} lang={lang} />
-      )}
-      {flow.receipt && phase === "compare" && (
-        <View style={s.receipt}>
-          <Text style={[s.receiptTitle, { fontFamily: fam(lang, "semi") }]}>{t("tripDone", lang)}</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 }}>
-            <CigStrip ug={flow.receipt.doseUg} size={18} color={V2T.text} />
-            <Text style={[s.receiptNum, NUM]}>{Math.round(flow.receipt.doseUg * 10) / 10}</Text>
-          </View>
-          {flow.receipt.savedUg > 2 && (
-            <Text style={s.receiptSub}>{t("receiptSaved", lang, { n: Math.round(flow.receipt.savedUg) })}</Text>
-          )}
-          <Pressable onPress={() => flow.setReceipt(null)} hitSlop={8} style={{ marginTop: 8 }}>
-            <Text style={{ fontFamily: fam(lang, "med"), fontSize: V2Type.label, color: V2T.accent }}>{t("done", lang)}</Text>
-          </Pressable>
-        </View>
+        <NavSession option={sel} options={flow.options} to={flow.to} steps={flow.steps}
+          camRef={camRef} lang={lang} share={settings.share} onExit={flow.exitNav}
+          onTripDone={flow.recordTrip} />
       )}
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} trips={flow.trips} lang={lang}
         settings={settings} onSettings={patchSettings} onDeleteData={deleteAll}
         onArmBrief={flow.armDailyBrief} currentDest={flow.to}
+        onDelhiToday={() => { setSidebarOpen(false); setDelhiOpen(true); }}
         onNavigate={(p) => flow.pick({ ...p, subtitle: "" }, "to")} />
       <LayersSheet visible={layersOpen} values={layers} onToggle={toggleLayer}
         onClose={() => setLayersOpen(false)} lang={lang} />
+      <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} />
+      <VehicleSheet visible={vehicleOpen || flow.needsVehicle} lang={lang}
+        current={flow.vehicle}
+        onDone={(p) => { flow.setVehicleProfile(p); setVehicleOpen(false); }}
+        onClose={() => setVehicleOpen(false)} />
 
       {introSeen === false && (
         <View style={s.intro}>
@@ -256,6 +260,83 @@ export default function App() {
         </View>
       )}
     </View>
+  );
+}
+
+/** Live-trip session: mounts the nav engine exactly for the nav phase —
+ *  the hook owns the GNSS watcher + 1 Hz counters + off-route + strip;
+ *  we only translate the plan option into its NavRoute and its summary
+ *  into the receipt. (src/nav contract — see src/nav/index.ts) */
+function NavSession({
+  option, options, to, steps, camRef, lang, share, onExit, onTripDone,
+}: {
+  option: V2Option; options: V2Option[]; to: Place | null; steps: Step[] | null;
+  camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
+  share: boolean; onExit: () => void;
+  onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
+}) {
+  const [summary, setSummary] = useState<NavSummary | null>(null);
+  const worstDose = Math.max(...options.map((o) => o.dose?.mid ?? 0), 0);
+  const worstOpt = worstDose > 0
+    ? options.find((o) => (o.dose?.mid ?? 0) === worstDose) : undefined;
+  const altEmit = options
+    .filter((o) => o !== option && (o.emissions?.co2_kg?.mid ?? 0) > 0)
+    .sort((a, b) => (a.emissions.co2_kg?.mid ?? 0) - (b.emissions.co2_kg?.mid ?? 0))[0];
+  const nav = useNavEngine({
+    route: {
+      route_id: option.route_id ?? "",
+      geometry: option.geometry ?? undefined,
+      eta_s: option.eta_s,
+      mode: option.mode,
+      distance_km: option.distance_km,
+      to: to ? { lat: to.lat, lon: to.lon } : undefined,
+      steps: ((option.steps ?? steps) as NavStep[] | null) ?? null,
+      alternatives: options.map((o) => ({
+        label: o.label,
+        doseUgMid: o.dose?.mid ?? null,
+        co2KgMid: o.emissions?.co2_kg?.mid ?? null,
+      })),
+      worstDoseUg: worstDose > 0 ? worstDose : null,
+    },
+    camRef,
+    lang,
+    shareEnabled: share,
+    onArrive: (s) => {
+      setSummary(s);
+      onTripDone({   // ledger entry exists only for a trip actually travelled
+        label: option.label, vehicle: s.mode,
+        doseUg: s.doseUg.mid, avoidedUg: worstDose - (s.doseUg.mid ?? 0),
+      });
+    },
+  });
+  // start once per nav session; callbacks are stable inside the engine
+  const navRef = useRef(nav);
+  navRef.current = nav;
+  useEffect(() => {
+    navRef.current.start();
+    return () => { navRef.current.stop(); };
+  }, []);
+
+  if (summary) {
+    const data: ReceiptData = {
+      durationMin: summary.durationS / 60,
+      modeLabel: option.label,
+      doseUg: nav.stripOk === false ? null : summary.doseUg,
+      co2Kg: summary.co2Kg,
+      pm25G: summary.pm25G,
+      worstDoseUg: worstDose > 0 ? worstDose : null,
+      worstLabel: worstOpt?.label ?? null,
+      alt: altEmit
+        ? { label: altEmit.label, co2KgMid: altEmit.emissions?.co2_kg?.mid ?? null }
+        : null,
+      fieldAgeMin: nav.fieldAgeMin,
+      donated: summary.donated,
+    };
+    return <ReceiptSheet data={data} lang={lang} onDone={onExit} />;
+  }
+  return (
+    <NavChrome option={option} steps={steps} doseUg={0}
+      nav={nav} onExit={() => nav.arrive()} lang={lang} />
   );
 }
 

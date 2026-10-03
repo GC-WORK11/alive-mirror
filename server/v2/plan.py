@@ -753,22 +753,29 @@ def rank_options(options: list) -> list:
     """
     scored = [o for o in options
               if _dose_key(o) != float("inf") and o.get("eta_s")]
-    if not scored:
-        return options
-    dose_min = min(_dose_key(o) for o in scored)
-    tied = [o for o in scored if _dose_key(o) <= 1.10 * dose_min]
-    winner = min(tied, key=_co2_mid)
-    emin = min(scored, key=_co2_mid)
-    dwin = min(scored, key=_dose_key)
-    fastest = min(o["eta_s"] for o in scored)
 
-    for o in scored:
+    for o in options:           # reset ALL — stale flags must never survive
         o["tag"] = None
         o["reason_line"] = ""
         o["recommended"] = False
+    if not scored:
+        return options
+
+    dose_min = min(_dose_key(o) for o in scored)
+    tied = [o for o in scored if _dose_key(o) <= 1.10 * dose_min]
+    emin = min(scored, key=_co2_mid)
+    dwin = min(scored, key=_dose_key)
+    fastest = min(o["eta_s"] for o in scored)
+    emis_known = _co2_mid(emin) != float("inf")
+    winner = min(tied, key=_co2_mid) if emis_known else dwin
+
     winner["recommended"] = True
 
-    if _co2_mid(winner) == _co2_mid(emin):
+    if not emis_known:
+        winner["tag"] = "lightest for you"
+        winner["reason_line"] = ("Least smoke for you — no emissions "
+                                 "estimate for this set.")
+    elif _co2_mid(winner) == _co2_mid(emin):
         winner["tag"] = "lightest on both"
         winner["reason_line"] = (
             "Least smoke for you and lowest emissions — the easy pick.")
@@ -832,6 +839,10 @@ async def plan(body: dict):
         return {"options": [], "error": str(e)}
     vehicle, profile = _parse_vehicle(body)
     depart_at = body.get("depart_at")
+    # echo what the client asked + what the engine actually modelled —
+    # silent remapping would hide the fallback (fuzz-lane finding)
+    vehicle_req = str(body.get("vehicle") or body.get("mode")
+                      or vehicle)[:40]
 
     await deps.field_refresh()
     options = await _build_options(flat, flon, tlat, tlon, vehicle,
@@ -841,6 +852,7 @@ async def plan(body: dict):
         "from": {"lat": flat, "lon": flon},
         "to": {"lat": tlat, "lon": tlon},
         "vehicle": vehicle,
+        "vehicle_requested": vehicle_req,
         "vehicle_profile": profile,
         "depart_at": depart_at,
         "options": options,

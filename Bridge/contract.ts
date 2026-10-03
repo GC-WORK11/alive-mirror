@@ -241,11 +241,11 @@ export interface V2SearchResponse {
   results: Place[];
   count: number;
   t1: Place[];                  // tier-1 rows (engine named by t1_engine)
-  /** BUG-T1: server emits a status STRING here ("ok"/"disabled:..."),
-   *  not rows — the t2 row list is shadowed by a duplicate dict key in
-   *  server/v2/search.py and never reaches the wire. Type reflects the
-   *  actual wire shape today; should become `Place[]` once fixed. */
-  t2: Place[] | string;
+  t2: Place[];                  // tier-2 rows (Amazon Location when keyed)
+  /** "ok" | "disabled:<reason>" — Amazon tier status (was BUG-T1: a
+   *  duplicate "t2" dict key shadowed the row list; fixed — status moved
+   *  here so t2 stays a Place[]). */
+  t2_status: string;
   tiers: string[];              // ["t1"] or ["t1","t2"]
   t1_engine: string;            // alive_core | alive_core_ref | gazetteer
   took_ms: { t1: number; t2: number | null; total: number };
@@ -280,10 +280,20 @@ export type V2PlanTag =
   | "lightest for Delhi"
   | null;
 
+export interface V2PlanStep {
+  instruction: string;
+  distance_m: number;
+  lat?: number;
+  lon?: number;
+}
+
 export interface V2PlanOption {
   mode: string;                 // car|car_open|bike|auto|bus|cycle|walk|metro
   label: string;
   route_geojson: RouteGeometry;
+  geometry?: RouteGeometry;     // alias of route_geojson
+  steps?: V2PlanStep[];         // turn list — client needn't call /directions
+  steps_source?: string;        // osrm | amazon | transit | none
   distance_km: number | null;
   eta_s: number | null;
   freeflow_s: number | null;
@@ -296,12 +306,22 @@ export interface V2PlanOption {
   your_vehicle: boolean;
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
   stations?: CompareOption["stations"]; // metro only
+  /* transit legs (metro/bus via transit_v2) — absent on road modes */
+  legs?: unknown[];             // per-leg board/alight/line detail
+  lines?: string[] | null;
+  transfers?: number | null;
+  walk_m?: number | null;
+  depart_at?: string | null;    // ISO timestamp
+  arrive_at?: string | null;
+  transit_source?: string | null;
 }
 
 export interface V2PlanResponse {
   from: { lat: number; lon: number };
   to: { lat: number; lon: number };
-  vehicle: string;
+  vehicle: string;              // canonical class the engine modelled
+  vehicle_requested: string;    // raw client echo ("unicycle" stays honest)
+  vehicle_profile?: Record<string, unknown> | null;
   depart_at: string | null;
   options: V2PlanOption[];      // recommended first when scored
   ranking: string;
@@ -322,6 +342,8 @@ export interface V2StripSample {
 export interface V2StripResponse {
   route_id: string;
   mode: string;
+  vehicle?: Record<string, unknown> | null;
+  route_age_s?: number | null;
   step_m: number;               // 250
   samples: V2StripSample[];
   emissions_curve: Record<string, unknown>;
@@ -363,11 +385,42 @@ export interface V2Place {
   source: string;
 }
 
+export interface V2Band { lo: number | null; mid: number | null; hi: number | null }
+
+export interface V2CityCorridor {
+  cell: string;
+  name: string | null;
+  lat: number;
+  lon: number;
+  trips: number;
+  devices: number;
+  avg_dose_ug: number;
+  relative: "heavier" | "lighter";
+}
+
 export interface V2CityResponse {
   ts: number;
+  generated_at?: string;
   pm25_stats: Record<string, unknown>;
+  breath?: {
+    pm25_ugm3: V2Band;
+    day_inhaled_ug: V2Band;
+    cigarettes: V2Band;
+    n_points: number;
+    basis: string;
+  } | null;
   field: FieldStatus;
   field_age_s: number | null;
+  freshness?: { field_age_s: number | null; age_min: number | null;
+                label: "live" | "stale" | "unknown" };
+  provenance?: {
+    model: { name: string; source: string; samples: number; up: boolean };
+    stations: { count: number; live: boolean; note: string };
+    trips: { publishable_corridors: number; cells_tracked: number;
+             window_h: number; k_min: number };
+  };
+  corridors?: V2CityCorridor[];
+  enough_data?: boolean;
   wind: Record<string, unknown>;
   sources: Record<string, { up: boolean; [k: string]: unknown }>;
   trips: { days: Record<string, unknown>;

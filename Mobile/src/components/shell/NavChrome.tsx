@@ -45,7 +45,7 @@ export function NavChrome({
   nav?: NavView | null; onRecenter?: (() => void) | null;
 }) {
   const min = Math.max(0, Math.round((nav?.etaS ?? option.duration_min * 60) / 60));
-  const leftM = nav?.distRemainingM ?? option.distance_km * 1000;
+  const leftM = nav?.distRemainingM ?? (option.distance_km ?? 0) * 1000;
   const banner = nav?.nextStep?.instruction
     ?? steps?.[0]?.instruction
     ?? (option.vehicle === "metro" && option.stations

@@ -179,8 +179,12 @@ def assert_ranking_holds(options, ctx=""):
             f"{ctx}: 'lightest on both' but co2 {_co2_mid(win)} "
             f"!= min {_co2_mid(emin)}")
     elif tags:
-        assert {"lightest for you", "lightest for Delhi"} <= tags, (
-            f"{ctx}: split tags incomplete: {tags}")
+        emis_known = _co2_mid(emin) != float("inf")
+        want = ({"lightest for you", "lightest for Delhi"} if emis_known
+                # no emission estimate anywhere → 'lightest for Delhi'
+                # would pick an arbitrary option — only the dose tag is honest
+                else {"lightest for you"})
+        assert want <= tags, f"{ctx}: split tags incomplete: {tags}"
 
     fastest = min(o["eta_s"] for o in scored)
     if fastest and win["eta_s"] > 1.6 * fastest:
@@ -316,7 +320,8 @@ def test_plan_unknown_vehicle_falls_back():
         "from": {"lat": 28.63, "lon": 77.21},
         "to": {"lat": 28.57, "lon": 77.32}, "vehicle": "unicycle"})
     assert r.status_code == 200
-    assert r.json()["vehicle"] == "unicycle"  # echoed, not crash
+    assert r.json()["vehicle"] == "car"             # modelled fallback
+    assert r.json()["vehicle_requested"] == "unicycle"  # echoed, not washed
 
 
 # --- /v2/strip edge cases ---------------------------------------------------------
