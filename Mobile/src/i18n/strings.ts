@@ -245,7 +245,7 @@ const en = {
   plan_failed_server: "the server couldn't route this trip",
   plan_retry: "try again",
   plan_outside_title: "this trip sits outside Delhi NCR",
-  plan_outside_body: "alive-108 only measures the air inside Delhi NCR — a trip that starts and ends outside can't be priced honestly.",
+  plan_outside_body: "alive-108 only measures the air inside Delhi NCR — this trip leaves the field, so its dose can't be priced honestly.",
   plan_outside_cta: "change the trip",
   plan_coverage_note: "smoke counted for the NCR span only",
   howWe_coverage: "the route leaves the field — only the covered {pct}% is counted, never clamped",
@@ -289,7 +289,7 @@ const en = {
   introTitle: "every trip in delhi has an air price.",
   introBody: "pick where you're going — we compare every way there by what you'd actually breathe, not just how fast it is. your journeys anonymously build a shared air map of the city.",
   introGotIt: "got it",
-  // place-name fallbacks (useShellFlow / App.tsx — not yet wired)
+  // place-name fallbacks (useShellFlow: from/to when no place is picked)
   placeCurrentLocation: "your location",
   placeCentralDelhi: "central Delhi",
   // accessibility
@@ -529,7 +529,7 @@ const hi: Record<StringKey, string> = {
   plan_failed_server: "सर्वर रास्ता नहीं बना पाया",
   plan_retry: "फिर कोशिश करें",
   plan_outside_title: "यह यात्रा दिल्ली NCR से बाहर है",
-  plan_outside_body: "alive-108 सिर्फ़ दिल्ली NCR की हवा नापता है — बाहर शुरू और ख़त्म होने वाली यात्रा का ईमानदार हिसाब नहीं बन सकता.",
+  plan_outside_body: "alive-108 सिर्फ़ दिल्ली NCR की हवा नापता है — यह यात्रा फ़ील्ड से बाहर जाती है, इसलिए धुएँ का ईमानदार हिसाब नहीं बन सकता.",
   plan_outside_cta: "यात्रा बदलें",
   plan_coverage_note: "धुएँ का हिसाब सिर्फ़ NCR वाले हिस्से का है",
   howWe_coverage: "रास्ता फ़ील्ड से बाहर जाता है — सिर्फ़ ढके हुए {pct}% की गिनती हुई, अनुमान नहीं लगाया गया",
