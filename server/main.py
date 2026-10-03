@@ -52,6 +52,14 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_fires())
+    # Same honesty gap for the forecast horizon: until the first
+    # /depart or /v2/city refreshes it, /status reports a cold pipeline.
+    async def _warm_forecast():
+        try:
+            await asyncio.wait_for(FORECAST.refresh(http()), timeout=15.0)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_forecast())
     yield
 
 
