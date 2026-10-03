@@ -15,6 +15,9 @@ Status noted per item; the fixes shipped on base/v2.
 | 8 | Business POI density vs Google — fewer restaurants/shops named | **Documented, not closeable keyless** — OSM Delhi shop coverage is thin; all POI classes are already filtered in (see map-vs-google.md) |
 | 9 | Metro line-colour badges (Yellow/Violet pills) absent | **Not closeable keyless** — line refs not in OMT tile attrs |
 | 10 | Small icon buttons (sheet close ✕, attribution) — ~28 px hit areas | **Pending Android verification** — queued in the forensic child; if taps land outside, add hitSlop (already 8 on several) |
+| 11 | **SIGSEGV on search sheet** — the app's only RN `Modal` segfaulted on present/dismiss (3 live repros: cold present, quick-pick dismiss, first open; `SIGSEGV(11)` in runningboardd) | **Fixed** — search now renders as a plain absolute overlay + `ui.Sheet`-style surface like every other sheet; `BackHandler` covers Android back; focus moves to a rAF post-mount (1e5d9b1 → rebased 8db9635) |
+| 12 | **Layers sheet bled behind compare** — toggles rendered stacked under the compare sheet when left open | **Fixed** — layers auto-closes when phase leaves idle (same commit) |
+| 13 | **"0–0 µg" / "0.0–0.0 kg"** degenerate bands on the nav card | **Fixed** — band collapses to a single number when lo/hi round equal (a6c4fe8) |
 
 ## Verified on-device this leg
 
@@ -23,6 +26,9 @@ Status noted per item; the fixes shipped on base/v2.
 - Bilingual labels live on sim: Janpath/जनपथ, Ashoka Road/अशोका रोड,
   Jhandewalan/झंडेवालान, Sarvodaya Bal School, Fateha Jame Mosque.
 - Layers toggles (fires / crash spots / measured streets) flip and persist.
+- Search sheet open ×3, quick-pick → compare, Start → nav (banner + dose
+  cards + ETA), banner-X → receipt, Done → idle — all post-Modal-removal,
+  zero errors. Ledger + trip-detail expand clean.
 
 ## Watchlist (Android forensic pass will confirm)
 
