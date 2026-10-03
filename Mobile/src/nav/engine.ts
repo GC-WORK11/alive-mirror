@@ -271,9 +271,11 @@ export function useNavEngine(opts: NavEngineOpts) {
       // alongM only grows, so one snapped fix within ARRIVE_M of the
       // route end is an honest arrival. Guard: longer routes only, else
       // a sub-90 m trip would arrive on its first fix.
+      // NB: deferred — arrive() tears down the location subscription,
+      // which must not happen inside its own callback (native SIGSEGV).
       if (routeLenRef.current > ARRIVE_M * 1.5 &&
           routeLenRef.current - alongRef.current <= ARRIVE_M) {
-        arrive();
+        setTimeout(arrive, 0);
         return;
       }
       // speed: GNSS first, else derive from fix deltas
@@ -333,7 +335,11 @@ export function useNavEngine(opts: NavEngineOpts) {
     lastFixRef.current = { lat, lon, ts: now };
 
     const dest = destRef.current;
-    if (dest && arrRef.current.update(havM(lat, lon, dest[1], dest[0]))) arrive();
+    // deferred for the same reason as the odometer trigger above —
+    // arrive() removes the watch subscription mid-callback → segfault
+    if (dest && arrRef.current.update(havM(lat, lon, dest[1], dest[0]))) {
+      setTimeout(arrive, 0);
+    }
   }, [arrive, camRef, lang, reroute]);
 
   const tick = useCallback(() => {

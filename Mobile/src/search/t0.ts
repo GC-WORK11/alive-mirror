@@ -109,6 +109,8 @@ function build(): void {
   const prefix = new Map<string, number[]>();
 
   for (const g of raw) {
+    // malformed corpus rows are skipped, never crash the sheet
+    if (!g || typeof g.n !== "string") continue;
     const nrm = g.n.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
     if (!nrm) continue;
     const e: Entry = { n: g.n, c: g.c, lat: g.lat, lon: g.lon, w: g.w, k: g.k, nrm, toks: nrm.split(" ") };
