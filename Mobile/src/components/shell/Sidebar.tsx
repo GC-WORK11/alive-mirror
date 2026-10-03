@@ -73,6 +73,10 @@ export function Sidebar({
                                      // numbers — trailing affordance per row
 }) {
   const [slide] = useState(() => new Animated.Value(-DRAWER_W));
+  /* stable interpolation node — inline re-creation trips RN 0.86's
+     animated-props detach path (see ui.tsx Sheet) */
+  const [scrimOp] = useState(() =>
+    slide.interpolate({ inputRange: [-DRAWER_W, 0], outputRange: [0, 1] }));
   const [section, setSection] = useState<Section>(null);
   const insets = useSafeAreaInsets();
   const toggle = (k: Section) => setSection((s) => (s === k ? null : k));
@@ -249,7 +253,7 @@ export function Sidebar({
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={open ? "auto" : "none"}>
       <Animated.View style={[s.scrim, {
-        opacity: slide.interpolate({ inputRange: [-DRAWER_W, 0], outputRange: [0, 1] }),
+        opacity: scrimOp,
       }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose}
           accessibilityRole="button" accessibilityLabel={t("settingsClose", lang)} />

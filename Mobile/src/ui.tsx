@@ -38,6 +38,10 @@ export function Sheet({
   const h = detent === "peek" ? WIN_H() * 0.15 : detent === "half" ? WIN_H() * 0.5 : WIN_H() * 0.92;
   const insets = useSafeAreaInsets();
   const [anim] = useState(() => new Animated.Value(0));
+  /* interpolation must be a stable node across renders — creating it inline
+     makes RN 0.86's animated-props hook detach the swapped node and throw
+     `undefined is not a function` on sheet close (reproduced live). */
+  const [ty] = useState(() => anim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }));
   useEffect(() => {
     /* useNativeDriver must stay false here: RN 0.86's createAnimatedPropsHook
        throws `undefined is not a function` inside its queueMicrotask detach /
@@ -51,7 +55,7 @@ export function Sheet({
         maxHeight: Math.max(96, h),
         // gesture-nav pill / home indicator must never sit on sheet content
         paddingBottom: insets.bottom,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
+        transform: [{ translateY: ty }],
       }, style]}
     >
       <View style={us.grabberRow}>

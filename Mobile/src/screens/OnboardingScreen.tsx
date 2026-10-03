@@ -30,7 +30,7 @@
 //   onb_pageOf     "page {n} of {m}"   — a11y label for the dots (they're
 //                  hidden from the reader until this key exists)
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Animated,
   Modal,
@@ -156,7 +156,9 @@ function OnboardingSheet({
       useNativeDriver: false,
     }).start();
   }, [step, reduceMotion, anim]);
-  const rise = anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
+  // stable node — inline interpolation re-created per render trips RN 0.86's
+  // animated-props detach path (same guard as ui.tsx Sheet)
+  const rise = useMemo(() => anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }), [anim]);
 
   /** Every exit path lands here — persists the answer, then reports it. */
   const finish = (sharing: SharingChoice) => {
