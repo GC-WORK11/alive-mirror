@@ -761,6 +761,7 @@ class AirField:
             "refresh_ttl_s": CACHE_TTL,
             "wind": self.wind(),
             "kriging": "on" if KF.on else "idw",
+            "engine": ENGINE,  # alive_core | python — the serving label
             # --- serving honesty (additive; keys above unchanged) --------
             "serving": serving,
             "stale": (age > STALE_AFTER_S) if age is not None else None,
@@ -825,7 +826,7 @@ def grap_indicative(pm25: Optional[float]) -> dict:
             "note": "indicative only — legal GRAP stage is declared by CAQM"}
 
 
-from krige import KF  # noqa: E402
+from core_engine import KF, ENGINE  # noqa: E402
 from community import corridor_estimate  # noqa: E402
 
 FIELD = AirField()

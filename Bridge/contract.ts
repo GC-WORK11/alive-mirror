@@ -91,6 +91,7 @@ export interface FieldStatus {
   station_readings?: number;       // live station readings blended — 0 = dark
   wind?: Record<string, unknown>;
   kriging?: string;            // "on" | "idw"
+  engine?: string;             // "alive_core" | "python" — which engine serves
   // --- serving-honesty block (airfield.py status(), always emitted) ---
   serving?: "snapshot" | "live" | "none"; // built index | live blend | empty
   stale?: boolean | null;       // age_s > stale_after_s; null = age unknown

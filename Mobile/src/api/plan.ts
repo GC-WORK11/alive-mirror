@@ -41,6 +41,7 @@ export type FieldStatus = {
   stale_after_s?: number;       // server's stale threshold in seconds (2700 = 45 min)
   serving?: "snapshot" | "live" | "none";  // built snapshot index vs live blend vs nothing
   kriging?: string;             // "on" | "idw" — whether σ is kriged
+  engine?: string;              // "alive_core" | "python" — which engine serves
   sigma_coverage?: string;      // "full" | "none" | "partial:N/M" | "per-query"
   load_warnings?: number;       // corrupt snapshot files skipped at load
 };
@@ -167,6 +168,7 @@ function mapFieldStatus(f: Record<string, unknown>): FieldStatus {
       ? serv
       : undefined,
     kriging: str(f.kriging) ?? undefined,
+    engine: str(f.engine) ?? undefined,
     sigma_coverage: str(f.sigma_coverage) ?? undefined,
     load_warnings: num(f.load_warnings) ?? undefined,
   };

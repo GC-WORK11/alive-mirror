@@ -69,7 +69,7 @@ import httpx  # noqa: E402
 
 import airfield          # noqa: E402  sample grid, station coords, endpoints, Kalman
 import fires as fires_mod  # noqa: E402  FIRMS CSV parsing + smoke_modifier
-from krige import KrigeField  # noqa: E402
+from core_engine import KrigeField  # noqa: E402  C++ where it loads (core_engine), krige.py otherwise
 
 try:
     import h3  # h3>=4 wanted; see report — requirements.txt owned elsewhere
