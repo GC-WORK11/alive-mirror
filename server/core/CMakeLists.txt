@@ -39,7 +39,9 @@ message(STATUS "${_gen_out}")
 
 pybind11_add_module(alive_core
   bindings.cpp
-  src/search.cpp)
+  src/search.cpp
+  src/field.cpp
+  src/emission.cpp)
 
 target_include_directories(alive_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
