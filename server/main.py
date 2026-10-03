@@ -61,6 +61,17 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_forecast())
+    # Same gap for the transit graph: default_feeds() compiles the GTFS
+    # feeds once per process — until then the first /v2/plan pays the
+    # whole parse inside its own budget (a fresh task's first plan was
+    # observed timing out at 21 s). Compile off-loop at boot.
+    async def _warm_transit():
+        try:
+            from transit_v2 import default_feeds
+            await asyncio.to_thread(default_feeds)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_transit())
     yield
 
 
