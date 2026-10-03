@@ -142,3 +142,24 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   fine, flagged `conf: medium`); farther trips get a typed notice,
   never a fabricated route
 - iOS is a dev-only test bed — the release target is Android
+
+## iOS sim specifics (only if showing iOS on stage)
+
+- The iOS build runs on this box's simulator (ci15 or any booted device) —
+  release target stays Android; iOS is demo-only
+- **Set the sim location BEFORE launching** (`simctl location <udid> set
+  28.6139,77.2090`): the app reads a one-shot fix at launch; setting it
+  mid-run leaves origin/distances on the stale fix until restart
+- Intermittent upstream MapLibre-on-simulator Metal SIGSEGV — worst on
+  virtualized GPUs (this box), rare on real Macs, absent on hardware.
+  App-side mitigations shipped (45d393a): staggered camera moves,
+  deferred tint mount, re-plan held past sheet close
+- If it ever drops to SpringBoard: relaunch — every state (consent,
+  vehicle, recents) persists; you're back on the map in seconds
+- For a prepped show: finish onboarding + vehicle pick once before
+  stage — the remaining journey (search → options → nav → receipt)
+  runs clean repeatedly
+- The sim app points at localhost:8000 — keep the local uvicorn up
+  (`PYTHONPATH=core/build AGG_TABLE="" .venv312/bin/uvicorn main:app
+  --host 127.0.0.1 --port 8000` from server/) or set
+  EXPO_PUBLIC_API_URL to the NLB
