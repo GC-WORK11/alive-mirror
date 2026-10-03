@@ -1,8 +1,9 @@
 # ALive-108 — demo-day runbook (Oct 10, offline hall)
 
-Verified against live AWS build `4a75e554` (ECS ap-south-1, task-def 23).
-Every number below was read off the running service — they drift with the
-field; re-check on the day. Nothing in the product is seeded or faked.
+Verified against live AWS build `0c7fa3fb` (ECS ap-south-1, task-def 26);
+newer commits on `base/v2` ride the next image. Every number below was
+read off the running service — they drift with the field; re-check on
+the day. Nothing in the product is seeded or faked.
 
 ## The pitches (one breath each)
 
@@ -37,12 +38,25 @@ Yes — keyless, honest provenance, verbatim labels on screen:
   token — the UI says "stations: no live data" instead of pretending
 - kriged concentration field served by our own C++ engine (`alive_core`,
   Eigen) — check `/health` → `engine: "alive_core"` live
+- a 120-hour CAMS horizon anchored to the live field — `/depart?hours=120`
+  answers "should I leave tomorrow at 8 am instead" with real numbers;
+  `/v2/city.next_hours` shows the next 12 h rising/falling
 
 **"How is PM2.5 managed on the backend?"**
 15-min ingest worker builds a snapshot → mirrors to S3 (last-good field
 survives restarts) → C++ `KrigeField` serves point queries with a real σ
 band → dose sampling along route geometry → per-mode physics. Edge of
-the field reports `coverage < 1` instead of clamping silently.
+the field reports `coverage < 1` instead of clamping silently. The 10
+other species ride the same lattice; nothing is zero-filled when a feed
+doesn't serve it.
+
+**"Street-wise how deep does the data go?"**
+The search index is built from the real OSM northern-zone extract —
+~94k rows: metro gates, market lanes, mall stores, police stations,
+hospitals. `rajiv chowk gate 5` returns "Rajiv Chowk Metro Gate No 5"
+top-hit (all eight gates resolve individually); `nai sarak` finds the
+book market. The app bundles a 96.8k-entry gazetteer so landmark-level
+search works fully offline — no network, no key.
 
 **"Privacy?"**
 Aggregate-only by construction: no accounts, tokens are hashed
@@ -69,7 +83,8 @@ CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
    reroute
 5. Arrive / End → receipt: dose µg + CO₂ kg + cigarette-equivalent +
    donate toggle
-6. Delhi Today (sidebar): breath hero, the other 8 species, "running
+6. Delhi Today (sidebar): breath hero, the other 8 species, the 12 h
+   forecast strip (CAMS horizon anchored to the live field), "running
    ±X% vs the decade norm for this hour" (9M station-hours)
 
 ## Demo flow (admin)
@@ -77,11 +92,19 @@ CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
 Open `/admin` (token in Secrets Manager `alive108/admin-token`):
 - headline cards: field age (live badge), samples, donated trips,
   publishable corridors (k≥3), trips switched lighter, daily median,
-  cumulative dose, model error vs held-out stations (MAE)
+  cumulative dose, CO₂ emitted by donated rides, model error vs
+  held-out stations (MAE)
+- **the live field map** (the judge moment): the real /grid cells
+  painted on canvas — dose ramp, cells far from a measured sample fade
+  honestly, NASA fire detections overlaid as amber dots, the city
+  centroid crosshair. Caption counts cells and the PM2.5 range
 - field panel: serving mode, kriging, σ band, the species line
-  (PM10 · NO₂ · O₃ · CO · SO₂ · US AQI — all real)
+  (PM10 · NO₂ · O₃ · CO · SO₂ · US AQI — all real), forecast horizon
+  health (hours ahead · grid points · fetch age · anchored-to-live flag)
 - sources table: model live / met live / fires live / stations no live
-  data — the honesty is the point
+  data / **routing** (self-hosted daemon first, public OSRM fallback —
+  observed from real route calls, never probed) — the honesty is the
+  point
 - donations: totals incl. "emissions (mid): kg CO₂ · g PM2.5" —
   the emission half of the pitch
 
