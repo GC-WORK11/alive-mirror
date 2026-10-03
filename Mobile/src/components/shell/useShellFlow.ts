@@ -25,6 +25,10 @@ import type { Depart, Place, Step, V2Option } from "./types";
 
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
+/** network = we never got an answer (offline/timeout/http); server =
+ *  /v2/plan answered with an `error` reason — different blame, the
+ *  sheet labels each honestly instead of blaming the connection. */
+export type PlanError = { kind: "network" | "server"; detail?: string };
 
 export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean, lang: "en" | "hi" = "en") {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -38,7 +42,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [community, setCommunity] = useState<CommunityTotals | null>(null);
   const [follow, setFollow] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<PlanError | null>(null);
   const [planNonce, setPlanNonce] = useState(0);
   const [planField, setPlanField] = useState<FieldStatus | null>(null);
   const [strips, setStrips] = useState<Record<string, RouteStrip>>({});
@@ -114,7 +118,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         }, 15000);
         if (cancelled) return;
         if (pj.error && pj.options.length === 0) {
-          setOptions([]); setDepart(null); setPlanError(pj.error);
+          setOptions([]); setDepart(null);
+          setPlanError({ kind: "server", detail: pj.error });
           return;
         }
         const opts = pj.options;
@@ -141,7 +146,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
       } catch {
         if (!cancelled) {
           setOptions([]); setDepart(null);
-          setPlanError("plan failed");   // honest retry state — no silent /decide fallback
+          setPlanError({ kind: "network" });   // honest retry state — no silent /decide fallback
         }
       } finally { if (!cancelled) setLoadingRoute(false); }
     })();

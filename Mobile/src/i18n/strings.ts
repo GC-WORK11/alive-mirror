@@ -233,6 +233,7 @@ const en = {
   compare_smokeIn: "smoke you breathe",
   compare_smokeOut: "smoke your ride puts out",
   plan_failed: "couldn't load the ways there — check the connection",
+  plan_failed_server: "the server couldn't route this trip",
   plan_retry: "try again",
   // live nav + receipt (src/nav, S6/S7)
   nav_breathe: "smoke you breathe",
@@ -495,6 +496,7 @@ const hi: Record<StringKey, string> = {
   compare_smokeIn: "आपके साँस का धुआँ",
   compare_smokeOut: "आपकी गाड़ी का धुआँ",
   plan_failed: "रास्ते नहीं खुल पाए — कनेक्शन जाँचें",
+  plan_failed_server: "सर्वर रास्ता नहीं बना पाया",
   plan_retry: "फिर कोशिश करें",
   nav_breathe: "आपके साँस का धुआँ",
   nav_putOut: "आपकी गाड़ी का धुआँ",

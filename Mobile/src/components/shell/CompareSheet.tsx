@@ -31,6 +31,7 @@ import { Sheet } from "../../ui";
 import { t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
+import type { PlanError } from "./useShellFlow";
 import {
   getVehicle, saveVehicle, vehicleLabel, type VehicleProfile,
 } from "../../store/vehicle";
@@ -248,7 +249,7 @@ export function CompareSheet({
   loading: boolean; steps: Step[] | null; stepsOpen: boolean;
   onToggleSteps: () => void; onStart: () => void; onClose: () => void; lang: Lang;
   /** v2 plan failure — honest retry state, never a silent /decide fallback */
-  planError?: string | null;
+  planError?: PlanError | null;
   onRetry?: () => void;
   /** S8 profile; leave undefined to let the sheet load the store itself */
   vehicle?: VehicleProfile | null;
@@ -304,13 +305,12 @@ export function CompareSheet({
             <View style={s.stateIcon}>
               <Icon name="info" color={V2T.accent} size={20} />
             </View>
-            <Text style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>{t("plan_failed", lang)}</Text>
-            {/* TODO(strings): `plan_failedHint` — friendly follow-up under the
-                raw detail, e.g. "your places are kept — one more try usually
-                lands"; only the server message renders for now. */}
-            {planError ? (
+            <Text style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>
+              {t(planError.kind === "network" ? "plan_failed" : "plan_failed_server", lang)}
+            </Text>
+            {planError.detail ? (
               <Text style={[s.stateSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={3}>
-                {planError}
+                {planError.detail}
               </Text>
             ) : null}
             {onRetry && (
