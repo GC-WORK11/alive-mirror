@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
 import { LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -85,6 +85,9 @@ function AppInner() {
   const [settings, setSettings] = useState<ShellSettings>(DEFAULT_SETTINGS);
   const flow = useShellFlow(camRef, settings.share, settings.lang);
   const { phase } = flow;
+  // route-tint shape sources mount at lower priority — keeps the compare
+  // sheet's entrance animation from sharing a frame with the chunk build
+  const deferredOptions = useDeferredValue(flow.options);
   const lang = settings.lang;
 
   const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -133,7 +136,9 @@ function AppInner() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       if (pos) {
         setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
-        camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: 900 });
+        // wait for the initial style/tile load to settle before animating —
+        // flyTo during first-load is a render-thread spike on the iOS sim
+        setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: 900 }), 600);
       }
     })();
     const aqiPoll = () =>
@@ -266,7 +271,7 @@ function AppInner() {
             land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
             (<RouteTintSource/> — src/components/RouteTint.tsx contract) */}
         <RouteTintSource
-          options={flow.options}
+          options={deferredOptions}
           selected={flow.selected}
           strips={flow.strips}
         />
