@@ -164,6 +164,11 @@ function AppInner() {
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); };
   }, [setFrom, setTrips, settings.lang]);
 
+  /* the layers sheet is idle-phase chrome — leaving idle (search, compare,
+     nav) must close it or it bleeds through stacked behind the next surface
+     (reproduced: its toggles rendered under the compare sheet) */
+  useEffect(() => { if (phase !== "idle") setLayersOpen(false); }, [phase]);
+
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
     // the consent record mirrors the share toggle — it is the canonical

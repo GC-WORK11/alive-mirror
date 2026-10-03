@@ -9,9 +9,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -173,17 +173,17 @@ function SearchSheet({
   const [store, setStore] = useState<PlaceStore>({ recents: [], home: null, work: null });
   const [search] = useState(() => new ServerSearch(80));
   const inputRef = useRef<TextInput>(null);
+  const closingRef = useRef(false);
   const insets = useSafeAreaInsets();
 
-  /* mount: warm the index, load saved places; autoFocus raises the keyboard —
-     an imperative focus() here races the Modal's presentation on iOS and
-     segfaults the responder chain (reproduced live on the sim). The deferred
-     focus below is the safe path: onShow lands after the window exists. */
+  /* mount: warm the index, load saved places, raise the keyboard one frame
+     in — the sheet is a plain overlay (no Modal), so focus after mount is
+     safe; closingRef guards the pick-then-frame edge. */
   useEffect(() => {
     warm();
     getPlaces().then(setStore).catch(() => {});
-    const id = setTimeout(() => inputRef.current?.focus(), 380);
-    return () => { clearTimeout(id); search.dispose(); };
+    const raf = requestAnimationFrame(() => { if (!closingRef.current) inputRef.current?.focus(); });
+    return () => { cancelAnimationFrame(raf); search.dispose(); };
   }, [search]);
 
   const loc = userLocation ?? undefined;
@@ -206,13 +206,14 @@ function SearchSheet({
     [loc, search],
   );
 
-  /* Keyboard.dismiss() is async — closing the Modal in the same tick tears
+  /* Keyboard.dismiss() is async — closing the sheet in the same tick tears
      the scene down while the keyboard proxy is mid-handoff, and that race
      segfaults this RN/iOS-sim stack (same class as the autoFocus fix). Run
      the close on keyboardDidHide instead of a fixed delay — event-driven,
      with a 500ms cap if the keyboard never rose (no event ever arrives).
      Imperceptible to a user; identical UX on hardware. */
   const dismissThen = useCallback((fn: () => void) => {
+    closingRef.current = true; // no late focus() while the sheet tears down
     if (!Keyboard.isVisible()) { fn(); return; }
     let done = false;
     const fire = () => { if (!done) { done = true; sub.remove(); fn(); } };
@@ -293,9 +294,9 @@ function SearchSheet({
           onSubmitEditing={submit}
           placeholder={t("searchPlaceholder", lang)}
           placeholderTextColor={V2T.text2} // text3-on-surface2 = 4.33:1 < AA
-          /* no autoFocus — becomeFirstResponder during the Modal's own
-             presentation segfaults this stack; the deferred focus() in the
-             mount effect lands after the window exists */
+          /* no autoFocus — becomeFirstResponder during mount races the
+             responder chain on this stack; the rAF focus in the mount
+             effect lands one frame in, before any user interaction */
           autoCorrect={false}
           autoCapitalize="none"
           autoComplete="off"
@@ -447,33 +448,36 @@ export function SearchScreen({
   userLocation?: LatLon | null;
   lang?: Lang;
 }) {
+  /* Android hardware back must close the sheet — Modal used to provide this;
+     the overlay needs BackHandler explicitly. */
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { onClose(); return true; });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  /* plain absolute overlay — every other sheet in the app renders this way.
+     RN Modal's native present/dismiss segfaults this stack (reproduced three
+     times live: open, quick-pick dismiss, cold present) — no Modal, no crash
+     class. Identical UX: scrim backdrop + sheet over the map. */
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={ss.backdrop}>
-        <StatusBar style="dark" />
-        {visible ? (
-          <SearchSheet
-            onSelect={onSelect}
-            onClose={onClose}
-            userLocation={userLocation}
-            lang={lang}
-          />
-        ) : null}
-      </View>
-    </Modal>
+    <View style={ss.backdrop}>
+      <StatusBar style="dark" />
+      <SearchSheet
+        onSelect={onSelect}
+        onClose={onClose}
+        userLocation={userLocation}
+        lang={lang}
+      />
+    </View>
   );
 }
 
 export default SearchScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.scrim },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
     // marginTop comes from useSafeAreaInsets inline
