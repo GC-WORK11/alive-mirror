@@ -26,16 +26,15 @@ import React, { useState } from "react";
 import {
   Alert,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Switch,
   Text,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants"; // transitively installed via `expo` (SDK 57)
 import { F, V2Radius, V2T, V2Type, fam } from "../theme";
 import { Icon, vehicleGlyph } from "../icons";
@@ -106,6 +105,7 @@ function SettingsSheet({
   // brief arming awaits OS perms — guard re-entry so a double-tap can't
   // queue two permission prompts (the row also reports busy to TalkBack).
   const [arming, setArming] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const sectionLabel = (key: StringKey) => (
     <Text
@@ -193,7 +193,7 @@ function SettingsSheet({
     ]);
 
   return (
-    <View style={ss.root}>
+    <View style={[ss.root, { marginTop: insets.top + 8 }]}>
       {/* header: back + title */}
       <View style={ss.header}>
         <Pressable
@@ -215,7 +215,7 @@ function SettingsSheet({
         <View style={ss.headerBtn} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={ss.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[ss.scroll, { paddingBottom: insets.bottom + 24 }]}>
         {/* ── profile: vehicle drives every dose/emission estimate (S8) ── */}
         <View style={ss.card}>
           <Pressable
@@ -482,11 +482,7 @@ const ss = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
-    marginTop: Platform.select({
-      ios: 48,
-      android: (RNStatusBar.currentHeight ?? 24) + 8,
-      default: 16,
-    }),
+
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
@@ -504,7 +500,7 @@ const ss = StyleSheet.create({
   },
   headerBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   title: { fontSize: V2Type.body, color: V2T.text },
-  scroll: { paddingHorizontal: 16, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16 },
 
   sectionLabel: {
     fontSize: V2Type.label,

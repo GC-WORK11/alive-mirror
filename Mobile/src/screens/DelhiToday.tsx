@@ -10,15 +10,14 @@
 import React, { useEffect, useState } from "react";
 import {
   Modal,
-  Platform,
   Pressable,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import {
   cigOf,
@@ -143,6 +142,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
   const [failed, setFailed] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [nonce, setNonce] = useState(0);
+  const insets = useSafeAreaInsets();
 
   /* fetch on mount / retry — aborted on close and between retries;
      moves is best-effort: a failure just leaves the card absent */
@@ -169,7 +169,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
   const tr = data?.provenance?.trips;
 
   return (
-    <View style={ss.root}>
+    <View style={[ss.root, { marginTop: insets.top + 8 }]}>
       {/* top bar — back + title */}
       <View style={ss.bar}>
         <Pressable
@@ -186,7 +186,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
         </Text>
       </View>
 
-      <ScrollView style={ss.flex} contentContainerStyle={ss.content}>
+      <ScrollView style={ss.flex} contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 24 }]}>
         {failed ? (
           <View style={ss.center}>
             <Text style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>
@@ -488,11 +488,7 @@ const ss = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
-    marginTop: Platform.select({
-      ios: 48,
-      android: (RNStatusBar.currentHeight ?? 24) + 8,
-      default: 16,
-    }),
+
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
@@ -511,7 +507,7 @@ const ss = StyleSheet.create({
   barBtn: { padding: 6, marginRight: 8 },
   title: { color: V2T.text, fontSize: V2Type.title },
   flex: { flex: 1 },
-  content: { paddingBottom: 40 },
+  content: {},
   center: { alignItems: "center", marginTop: 60 },
   waiting: {
     color: V2T.text3,

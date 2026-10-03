@@ -15,13 +15,13 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { NUM, V2Radius, V2T, V2Type, fam } from "../theme";
 import { t, type Lang } from "../i18n/strings";
@@ -184,6 +184,7 @@ function SearchSheet({
   const [store, setStore] = useState<PlaceStore>({ recents: [], home: null, work: null });
   const [search] = useState(() => new ServerSearch(80));
   const inputRef = useRef<TextInput>(null);
+  const insets = useSafeAreaInsets();
 
   /* mount: warm the index, load saved places, raise the keyboard */
   useEffect(() => {
@@ -264,7 +265,7 @@ function SearchSheet({
   const hasRecents = store.recents.length > 0;
 
   return (
-    <View style={ss.root}>
+    <View style={[ss.root, { marginTop: insets.top + 8 }]}>
       {/* search bar — pill 999 (doc 03) */}
       <View style={ss.bar}>
         <Pressable
@@ -390,7 +391,7 @@ function SearchSheet({
 
         {/* action bar — pinned above the keyboard; "Choose on map" is always
             one tap away even mid-scroll (doc 02 §S2). */}
-        <View style={ss.actionBar}>
+        <View style={[ss.actionBar, { paddingBottom: insets.bottom + 6 }]}>
           <Pressable
             onPress={() => {
               Keyboard.dismiss();
@@ -471,11 +472,8 @@ const ss = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
-    marginTop: Platform.select({
-      ios: 48,
-      android: (RNStatusBar.currentHeight ?? 24) + 8,
-      default: 16,
-    }),
+    // marginTop comes from useSafeAreaInsets inline
+
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
@@ -570,7 +568,7 @@ const ss = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: V2T.line,
     backgroundColor: V2T.surface,
-    paddingBottom: Platform.select({ ios: 18, default: 6 }),
+    // paddingBottom from useSafeAreaInsets inline
   },
   actionBtn: {
     flex: 1,

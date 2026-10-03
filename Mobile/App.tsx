@@ -11,6 +11,7 @@ import { File, Paths } from "expo-file-system";
 import {
   Camera, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
 import { EndpointPin } from "./src/ui";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
@@ -70,7 +71,16 @@ const DRAWER2CLS: Record<string, VehicleClass> = {
 };
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppInner />
+    </SafeAreaProvider>
+  );
+}
+
+function AppInner() {
   const camRef = useRef<CameraRef>(null);
+  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<ShellSettings>(DEFAULT_SETTINGS);
   const flow = useShellFlow(camRef, settings.share, settings.lang);
   const { phase } = flow;
@@ -236,7 +246,7 @@ export default function App() {
 
       {/* rest state chrome: search bar + locate + layers (doc 02 §S1) */}
       {phase !== "nav" && (
-        <View style={s.pillWrap}>
+        <View style={[s.pillWrap, { top: insets.top + 10 }]}>
           <SearchBar
             label={phase === "compare" && flow.to ? flow.to.name : undefined}
             lang={lang}
@@ -270,10 +280,10 @@ export default function App() {
         }} />
       {phase === "idle" && (
         <>
-          <View style={s.locateWrap}>
+          <View style={[s.locateWrap, { bottom: insets.bottom + 16 }]}>
             <LocateButton active={flow.follow} onPress={() => flow.setFollow(!flow.follow)} lang={lang} />
           </View>
-          <View style={s.layersWrap}>
+          <View style={[s.layersWrap, { bottom: insets.bottom + 16 }]}>
             <LayersButton anyOn={Object.values(layers).some(Boolean)} onPress={() => setLayersOpen(true)} lang={lang} />
           </View>
         </>
@@ -286,7 +296,7 @@ export default function App() {
           pending trip donations counted, tap re-probes. apiOk kept as the
           belt-and-suspenders health check from before. */}
       {(net.state !== "online" || apiOk === false) && (
-        <Pressable style={s.offlineWrap} onPress={() => void net.refresh()}
+        <Pressable style={[s.offlineWrap, { top: insets.top + 66 }]} onPress={() => void net.refresh()}
           accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
           <Text style={s.offlineTxt}>
             {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
@@ -298,7 +308,7 @@ export default function App() {
           field block during compare, else the polled /aqi field block.
           Stale shows as stale; no field → nothing claims freshness. */}
       {phase !== "nav" && mapField && (
-        <View style={s.freshWrap} pointerEvents="box-none">
+        <View style={[s.freshWrap, { top: insets.top + 62 }]} pointerEvents="box-none">
           <FreshnessChip
             ageS={mapField.age_s} stale={mapField.stale}
             sources={fieldSources(mapField)} lang={lang} compact />
@@ -453,14 +463,16 @@ function NavSession({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: V2T.bg },
-  pillWrap: { position: "absolute", top: 54, left: 16, right: 16 },
-  locateWrap: { position: "absolute", right: 14, bottom: 40 },
-  layersWrap: { position: "absolute", left: 14, bottom: 40 },
+  // top/bottom come from useSafeAreaInsets inline — status bar, notch and
+  // the gesture pill differ per device (no fixed 54/40 on real hardware)
+  pillWrap: { position: "absolute", left: 16, right: 16 },
+  locateWrap: { position: "absolute", right: 14 },
+  layersWrap: { position: "absolute", left: 14 },
   offlineWrap: {
-    position: "absolute", top: 112, alignSelf: "center",
+    position: "absolute", alignSelf: "center",
     backgroundColor: V2T.surface2, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1, borderColor: V2T.line,
   },
   offlineTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text2 },
-  freshWrap: { position: "absolute", top: 108, left: 16 },
+  freshWrap: { position: "absolute", left: 16 },
 });

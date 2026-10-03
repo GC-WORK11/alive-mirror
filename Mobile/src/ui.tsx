@@ -6,6 +6,7 @@ import {
   Animated, Dimensions, Pressable, StyleSheet, Text, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CIG_UG, F, NUM, V2Radius, V2T, V2Type } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
@@ -35,6 +36,7 @@ export function Sheet({
   style?: StyleProp<ViewStyle>;
 }) {
   const h = detent === "peek" ? WIN_H() * 0.15 : detent === "half" ? WIN_H() * 0.5 : WIN_H() * 0.92;
+  const insets = useSafeAreaInsets();
   const [anim] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: true }).start();
@@ -43,6 +45,8 @@ export function Sheet({
     <Animated.View
       style={[us.sheet, {
         maxHeight: Math.max(96, h),
+        // gesture-nav pill / home indicator must never sit on sheet content
+        paddingBottom: insets.bottom,
         transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
       }, style]}
     >

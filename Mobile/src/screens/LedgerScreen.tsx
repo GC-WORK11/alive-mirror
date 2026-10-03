@@ -25,14 +25,13 @@ import {
   FlatList,
   type ListRenderItem,
   Modal,
-  Platform,
   Pressable,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam } from "../theme";
 import { t, type Lang } from "../i18n/strings";
@@ -285,6 +284,7 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let alive = true;
@@ -404,7 +404,7 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
   const keyExtractor = useCallback((item: Row) => item.key, []);
 
   return (
-    <View style={ss.root}>
+    <View style={[ss.root, { marginTop: insets.top + 8 }]}>
       {/* header bar */}
       <View style={ss.bar}>
         <Pressable
@@ -428,7 +428,7 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
         keyExtractor={keyExtractor}
         extraData={openKey}
         style={ss.flex}
-        contentContainerStyle={ss.listContent}
+        contentContainerStyle={[ss.listContent, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
         initialNumToRender={14}
         maxToRenderPerBatch={10}
@@ -573,11 +573,7 @@ const ss = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
-    marginTop: Platform.select({
-      ios: 48,
-      android: (RNStatusBar.currentHeight ?? 24) + 8,
-      default: 16,
-    }),
+
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
@@ -607,7 +603,7 @@ const ss = StyleSheet.create({
     fontSize: V2Type.body,
   },
   flex: { flex: 1 },
-  listContent: { flexGrow: 1, paddingTop: 14, paddingBottom: 36 },
+  listContent: { flexGrow: 1, paddingTop: 14 },
 
   summaryCard: {
     backgroundColor: V2T.surface,

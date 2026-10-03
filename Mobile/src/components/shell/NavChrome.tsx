@@ -15,6 +15,7 @@ import Svg, { Path } from "react-native-svg";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 import type { CompareOption, Step } from "./types";
 
@@ -253,6 +254,7 @@ export function NavChrome({
   onExit: () => void; lang: Lang;
   nav?: NavView | null; onRecenter?: (() => void) | null;
 }) {
+  const insets = useSafeAreaInsets();
   const min = Math.max(0, Math.round((nav?.etaS ?? option.duration_min * 60) / 60));
   const leftM = nav?.distRemainingM ?? (option.distance_km ?? 0) * 1000;
   const next = nav?.nextStep ?? null;
@@ -342,7 +344,7 @@ export function NavChrome({
       )}
 
       {/* instrument cluster — the two signature counters + trip meta */}
-      <View style={s.cluster}>
+      <View style={[s.cluster, { bottom: insets.bottom + 12 }]}>
         {progress != null && progress > 0 && (
           <View style={s.progTrack} accessible={false} importantForAccessibility="no">
             <View style={[s.progFill, { width: `${progress * 100}%` }]} />
@@ -423,7 +425,7 @@ const s = StyleSheet.create({
   pillTxt: { fontSize: V2Type.label, color: V2T.text2 },
 
   cluster: {
-    position: "absolute", left: 14, right: 14, bottom: 24,
+    position: "absolute", left: 14, right: 14,
     backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
     borderWidth: 1, borderColor: V2T.line, overflow: "hidden",
     shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },

@@ -20,6 +20,7 @@ import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DRAWER_W = Math.min(340, Dimensions.get("window").width * 0.84);
 const dayKey = (ts: number) => new Date(ts).toDateString();
@@ -72,6 +73,7 @@ export function Sidebar({
 }) {
   const [slide] = useState(() => new Animated.Value(-DRAWER_W));
   const [section, setSection] = useState<Section>(null);
+  const insets = useSafeAreaInsets();
   const toggle = (k: Section) => setSection((s) => (s === k ? null : k));
 
   // drawer stays mounted off-canvas; the wrapper swallows touches when closed
@@ -251,7 +253,7 @@ export function Sidebar({
       <Animated.View style={[s.drawer, { transform: [{ translateX: slide }] }]}>
         {/* fixed header — app mark + wordmark + close (stays put while
             the list scrolls) */}
-        <View style={s.header}>
+        <View style={[s.header, { paddingTop: insets.top + 14 }]}>
           <View style={s.brandRow}>
             <View style={s.mark}>
               <Icon name="wind" color={V2T.accent} size={15} />
@@ -265,7 +267,7 @@ export function Sidebar({
           </Pressable>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 20 }]}>
           {/* 1 — Today: breathed; put-out joins when the ledger has kg
               (doc 02 §sidebar-1 — both numbers, never fake) */}
           {st.todayUg > 0 && (
@@ -489,7 +491,7 @@ const s = StyleSheet.create({
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingTop: 54, paddingHorizontal: 16, paddingBottom: 14,
+    paddingHorizontal: 16, paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
   },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -504,7 +506,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  scroll: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16, paddingTop: 6 },
 
   sectionLabel: {
     fontSize: V2Type.label, color: V2T.text3, letterSpacing: 0.8,

@@ -41,6 +41,7 @@ import { CIG_UG, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop } from "../../a11y";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 
 export type ReceiptAlt = { label: string; co2KgMid: number | null };
@@ -150,6 +151,7 @@ export function ReceiptSheet({
   /** tertiary action — explicit save to the trip ledger */
   onSave?: (() => void) | null;
 }) {
+  const insets = useSafeAreaInsets();
   if (!data) return null;
   const dose = data.doseUg;
   const cigs = dose ? cigOf(dose.mid) : null;
@@ -175,7 +177,7 @@ export function ReceiptSheet({
   const scaleA11y = [breathedTxt, ratioTxt].filter(Boolean).join(". ");
 
   return (
-    <View style={s.sheet}>
+    <View style={[s.sheet, { bottom: insets.bottom + 14 }]}>
       {/* ── header: arrival + mode chip ── */}
       <View style={s.head}>
         <Text style={[s.title, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
@@ -364,7 +366,7 @@ export function ReceiptSheet({
 
 const s = StyleSheet.create({
   sheet: {
-    position: "absolute", left: 12, right: 12, bottom: 28,
+    position: "absolute", left: 12, right: 12,
     backgroundColor: V2T.surface, borderRadius: V2Radius.sheet,
     borderWidth: 1, borderColor: V2T.line, padding: 18, paddingBottom: 14,
     shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 18,

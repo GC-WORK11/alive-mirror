@@ -34,15 +34,14 @@ import React, { useEffect, useState } from "react";
 import {
   Animated,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fam, NUM, V2Radius, V2T, V2Type } from "../theme";
 import { t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
@@ -138,6 +137,7 @@ function OnboardingSheet({
   onDone: (r: { sharing: SharingChoice }) => void;
 }) {
   const [step, setStep] = useState(0);
+  const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
 
   // soft rise-in per page, skipped under the OS reduce-motion switch —
@@ -167,7 +167,7 @@ function OnboardingSheet({
   const skip = () => finish("on");
 
   return (
-    <View style={ss.root} accessibilityViewIsModal>
+    <View style={[ss.root, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]} accessibilityViewIsModal>
       <StatusBar style="dark" />
 
       {/* brand mark + persistent skip — same spots on every page */}
@@ -408,12 +408,7 @@ const ss = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: V2T.bg },
   root: {
     flex: 1,
-    paddingTop: Platform.select({
-      ios: 56,
-      android: (RNStatusBar.currentHeight ?? 24) + 12,
-      default: 20,
-    }),
-    paddingBottom: 20,
+
   },
 
   // top bar — wordmark left, persistent skip right
