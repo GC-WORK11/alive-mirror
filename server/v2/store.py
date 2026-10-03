@@ -117,13 +117,26 @@ class TripAggregates:
             mode = str(summary.get("mode") or "unknown")[:24]
             d["modes"][mode] = d["modes"].get(mode, 0) + 1
             dose = float(summary.get("dose_ug") or 0.0)
-            for c in dict.fromkeys(cells):  # count a cell once per trip
+            distinct = list(dict.fromkeys(cells))  # a cell counts once/trip
+            km_cell = (float(summary.get("distance_km") or 0.0)
+                       / len(distinct)) if distinct else 0.0
+            for c in distinct:
                 v = self._cells.setdefault(
                     c, {"count": 0, "dose_sum": 0.0, "tokens": set(),
-                        "last_ts": 0.0})
+                        "last_ts": 0.0,
+                        "co2_kg_sum": 0.0, "km_sum": 0.0,
+                        "co2_trips": 0})
                 v["count"] += 1
                 v["dose_sum"] += dose
                 v["last_ts"] = max(v["last_ts"], ts)
+                # emission attribution: the trip's km is spread evenly
+                # over its distinct cells (the only honest split — cell-
+                # level path lengths aren't retained); trips that
+                # reported co2_kg_mid add to the intensity index
+                v["km_sum"] += km_cell
+                if summary.get("co2_kg_mid"):
+                    v["co2_kg_sum"] += float(summary["co2_kg_mid"])
+                    v["co2_trips"] += 1
                 if token_hash:
                     v["tokens"].add(token_hash)
             self._recent.append({
@@ -140,6 +153,14 @@ class TripAggregates:
             "cell": c, "trips": v["count"],
             "devices": len(v["tokens"]),
             "avg_dose_ug": round(v["dose_sum"] / v["count"], 1),
+            # g emitted per 100 m of corridor by the trips that crossed
+            # it — mode-mix implied intensity; None (not 0) when no trip
+            # carried a co2 figure or no km was attributed
+            "co2_g_per_100m": (round(v["co2_kg_sum"] * 100.0
+                                     / v["km_sum"], 1)
+                               if v["co2_trips"] and v["km_sum"] > 0
+                               else None),
+            "co2_trips": v["co2_trips"] or None,
         } for c, v in self._cells.items()
             if len(v["tokens"]) >= 3
             and now - v["last_ts"] <= self._cell_window_s]

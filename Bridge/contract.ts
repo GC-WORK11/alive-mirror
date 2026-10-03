@@ -540,6 +540,9 @@ export interface V2CityCorridor {
   trips: number;
   devices: number;
   avg_dose_ug: number;
+  /* g CO2 per 100 m of corridor — null when no crossing trip carried
+     a co2 figure (never a fake zero) */
+  co2_g_per_100m?: number | null;
   relative: "heavier" | "lighter";
 }
 
@@ -619,6 +622,9 @@ export interface V2MovesCorridors {
   active: number;               // publishable cells right now
   tracked: number;              // every cell ever seen
   avg_dose_ug: V2MovesBand | null; // per-cell mean-dose distribution
+  /* g CO2 per 100 m of corridor — band over cells whose trips carried
+     co2; null when none did (never a fake zero) */
+  co2_g_per_100m: V2MovesBand | null;
 }
 
 export interface V2MovesPerTrip {

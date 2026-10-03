@@ -298,6 +298,7 @@ async def _corridors(loc) -> list:
             "trips": c["trips"],
             "devices": c["devices"],
             "avg_dose_ug": c["avg_dose_ug"],
+            "co2_g_per_100m": c.get("co2_g_per_100m"),
             "relative": "heavier" if c["avg_dose_ug"] >= med else "lighter",
         })
     return rows
@@ -516,6 +517,11 @@ async def city_moves():
         # each input row is already a >=3-device aggregate by the store's
         # own rule, so the band never rests on a single traveller
         "avg_dose_ug": _pct_band([c["avg_dose_ug"] for c in pub], 1),
+        # emission intensity where trips reported co2 — g per 100 m of
+        # corridor; band over cells that have the index, null when none
+        "co2_g_per_100m": _pct_band(
+            [c["co2_g_per_100m"] for c in pub
+             if c.get("co2_g_per_100m") is not None], 1),
     }
 
     return {

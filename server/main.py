@@ -899,6 +899,7 @@ async def observe_trip(body: dict):
         dose_ug=body.get("dose_ug"),
         avoided_ug=body.get("avoided_ug"),
         contributor=body.get("contributor"),
+        co2_kg=body.get("co2_kg"),
     )
 
 

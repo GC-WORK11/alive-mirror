@@ -236,6 +236,7 @@ async def post_trip(body: dict):
                 dose_ug=summary.get("dose_ug"),
                 avoided_ug=None,
                 contributor=token or None,
+                co2_kg=summary.get("co2_kg_mid"),
             )
         except Exception:  # noqa: BLE001 — aggregates already stored; a
             pass               # citizen-layer hiccup must not fail a donation

@@ -128,7 +128,8 @@ def _prune_reports() -> None:
 
 def observe(vehicle: str, coords: list, duration_s: float,
             dose_ug: Optional[float], avoided_ug: Optional[float],
-            contributor: Optional[str]) -> dict:
+            contributor: Optional[str],
+            co2_kg: Optional[float] = None) -> dict:
     """Store an anonymized traversal. coords: [[lon, lat], ...] sampled.
 
     The raw coordinate list is folded into ~500 m cell traversals here
@@ -151,6 +152,7 @@ def observe(vehicle: str, coords: list, duration_s: float,
         "avoided_ug": None if avoided_ug is None else round(float(avoided_ug), 1),
         "contributor": _token(contributor),
         "km": round(_hav_km(pts), 3),
+        "co2_kg": None if co2_kg is None else round(float(co2_kg), 4),
         "cells": cells,
     }
     _obs.append(obs)
@@ -418,13 +420,21 @@ def corridors(limit: int = 10) -> list[dict]:
         for c in dict.fromkeys(_obs_cells(o)):
             v = cells.setdefault(c, {"trips": 0, "dose_sum": 0.0,
                                      "modes": {}, "devices": set(),
-                                     "last_ts": 0.0})
+                                     "last_ts": 0.0,
+                                     "co2_kg_sum": 0.0, "km_sum": 0.0,
+                                     "co2_trips": 0})
             v["trips"] += 1
             v["dose_sum"] += o["dose_ug"] or 0
             v["modes"][o["vehicle"]] = v["modes"].get(o["vehicle"], 0) + 1
             if o["contributor"]:
                 v["devices"].add(o["contributor"])
             v["last_ts"] = max(v["last_ts"], o["ts"])
+            # same even-attribution as v2/store: trip km spreads over
+            # its distinct cells; co2 counts only where reported
+            v["km_sum"] += o["km"] / max(len({tuple(x) for x in o["cells"]}), 1)
+            if o.get("co2_kg"):
+                v["co2_kg_sum"] += o["co2_kg"]
+                v["co2_trips"] += 1
     out = []
     for (lon, lat), v in cells.items():
         if len(v["devices"]) < _K_MIN_DEVICES:
@@ -436,6 +446,11 @@ def corridors(limit: int = 10) -> list[dict]:
             "devices": len(v["devices"]),
             "avg_dose_ug": round(v["dose_sum"] / max(v["trips"], 1), 1),
             "top_mode": max(v["modes"], key=v["modes"].get) if v["modes"] else None,
+            "co2_g_per_100m": (round(v["co2_kg_sum"] * 100.0
+                                     / v["km_sum"], 1)
+                               if v["co2_trips"] and v["km_sum"] > 0
+                               else None),
+            "co2_trips": v["co2_trips"] or None,
         })
     out.sort(key=lambda x: -x["samples"])
     return out[:limit]

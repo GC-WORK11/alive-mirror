@@ -407,6 +407,8 @@ async def corridors(limit: int = 25):
         "trips": r.get("trips"),
         "devices": r.get("devices"),
         "avg_dose_ug": r.get("avg_dose_ug"),
+        "co2_g_per_100m": r.get("co2_g_per_100m"),
+        "co2_trips": r.get("co2_trips"),
     } for r in raw]
     agg = TRIPS.city_aggregates() or {}
     return {

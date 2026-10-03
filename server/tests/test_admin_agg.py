@@ -129,7 +129,8 @@ def test_corridors_k_suppression_passthrough():
     # passthrough: endpoint shows exactly what the store publishes
     assert cells == [r["cell"] for r in TRIPS.corridors(limit=25)]
     row = d["rows"][0]
-    assert set(row) == {"cell", "near", "trips", "devices", "avg_dose_ug"}
+    assert set(row) == {"cell", "near", "trips", "devices", "avg_dose_ug",
+                        "co2_g_per_100m", "co2_trips"}
 
 
 def test_corridors_assert_tripwire(monkeypatch):

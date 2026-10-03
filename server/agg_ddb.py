@@ -127,8 +127,13 @@ class DDBTripAggregates:
                     ExpressionAttributeValues=vals)
             dose = float(summary.get("dose_ug") or 0.0)
             ttl = int(ts) + CELL_TTL_S
-            for c in dict.fromkeys(cells):  # a cell counts once per trip
-                self._add_cell(str(c), dose, token_hash, ts, ttl)
+            distinct = list(dict.fromkeys(cells))
+            km_cell = (float(summary.get("distance_km") or 0.0)
+                       / len(distinct)) if distinct else 0.0
+            co2_kg = float(summary.get("co2_kg_mid") or 0.0)
+            for c in distinct:  # a cell counts once per trip
+                self._add_cell(str(c), dose, token_hash, ts, ttl,
+                               km_cell, co2_kg)
             self.last_error = None
         except Exception as e:  # noqa: BLE001 - surface, never silent-loss
             self.last_error = f"{type(e).__name__}: {e}"
@@ -184,11 +189,21 @@ class DDBTripAggregates:
             return []
 
     def _add_cell(self, cell: str, dose: float, token_hash: str,
-                  ts: float, ttl: int) -> None:
-        expr = "SET last_ts = :ts, #ttl = :ttl ADD #cnt :one, dose_sum :d"
+                  ts: float, ttl: int, km_cell: float = 0.0,
+                  co2_kg: float = 0.0) -> None:
+        # even-attribution contract mirrors v2/store.TripAggregates:
+        # the trip's km spreads over its distinct cells; co2 accrues
+        # only from trips that reported it (a null index is honest
+        # absence, never a fake zero)
+        expr = ("SET last_ts = :ts, #ttl = :ttl "
+                "ADD #cnt :one, dose_sum :d, km_sum :km")
         names = {"#cnt": "count", "#ttl": "ttl"}
         vals = {":ts": _n(round(ts, 3)), ":ttl": _n(ttl),
-                ":one": _n(1), ":d": _n(dose)}
+                ":one": _n(1), ":d": _n(dose), ":km": _n(km_cell)}
+        if co2_kg:
+            expr += ", co2_kg_sum :co2, co2_trips :co2t"
+            vals[":co2"] = _n(co2_kg)
+            vals[":co2t"] = _n(1)
         if token_hash:
             # hashed tokens only (v2/trip hashes upstream); empty set is
             # illegal in DDB anyway, so no token -> no set update
@@ -227,12 +242,18 @@ class DDBTripAggregates:
             if len(toks) < K_MIN or now - last > self._cell_window_s:
                 continue
             cnt = _num(it.get("count"), 0)
+            co2_trips = int(_num(it.get("co2_trips"), 0))
+            km_sum = _num(it.get("km_sum"), 0)
             out.append({
                 "cell": it["pk"]["S"][len("cell#"):],
                 "trips": cnt,
                 "devices": len(toks),
                 "avg_dose_ug": round(_num(it.get("dose_sum")) / cnt, 1)
                 if cnt else 0.0,
+                "co2_g_per_100m": (round(_num(it.get("co2_kg_sum")) * 100.0
+                                         / km_sum, 1)
+                                   if co2_trips and km_sum > 0 else None),
+                "co2_trips": co2_trips or None,
             })
         out.sort(key=lambda x: -x["trips"])
         return out[:limit]
