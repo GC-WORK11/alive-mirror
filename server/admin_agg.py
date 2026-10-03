@@ -432,11 +432,15 @@ async def donations():
     agg = TRIPS.city_aggregates() or {}
     days = agg.get("days") or {}
     tot = {"trips": 0, "km": 0.0, "dose_ug": 0.0, "co2_kg_mid": 0.0,
-           "pm25_g_mid": 0.0, "switched": 0, "modes": {}}
+           "pm25_g_mid": 0.0, "switched": 0, "modes": {},
+           "co2_moving_g": 0.0, "co2_idle_g": 0.0, "co2_cold_g": 0.0,
+           "co2_split_trips": 0}
     for d in days.values():
         tot["trips"] += int(d.get("trips") or 0)
-        for k in ("km", "dose_ug", "co2_kg_mid", "pm25_g_mid"):
+        for k in ("km", "dose_ug", "co2_kg_mid", "pm25_g_mid",
+                  "co2_moving_g", "co2_idle_g", "co2_cold_g"):
             tot[k] += float(d.get(k) or 0.0)
+        tot["co2_split_trips"] += int(d.get("co2_split_trips") or 0)
         tot["switched"] += int(d.get("switched") or 0)
         for m, n in (d.get("modes") or {}).items():
             tot["modes"][m] = tot["modes"].get(m, 0) + int(n)
@@ -458,6 +462,22 @@ async def donations():
         "dose_ug_per_km": (round(tot["dose_ug"] / tot["km"], 1)
                            if tot["km"] else None),
     }
+    # where the donated rides' CO2 comes from — summed ONLY over trips
+    # whose receipts carried a real phase split (older builds donate
+    # totals but no split; they count in co2_kg_mid, not here)
+    _ssum = tot["co2_moving_g"] + tot["co2_idle_g"] + tot["co2_cold_g"]
+    totals["co2_split"] = (None if not tot["co2_split_trips"] else {
+        "trips": tot["co2_split_trips"],
+        "moving_g": round(tot["co2_moving_g"], 1),
+        "idle_g": round(tot["co2_idle_g"], 1),
+        "cold_g": round(tot["co2_cold_g"], 1),
+        "pct": ({"moving": round(100.0 * tot["co2_moving_g"] / _ssum, 1),
+                 "idle": round(100.0 * tot["co2_idle_g"] / _ssum, 1),
+                 "cold": round(100.0 * tot["co2_cold_g"] / _ssum, 1)}
+                if _ssum > 0 else None),
+        "note": "of trips whose receipts carried the phase split — "
+                "moving vs idling vs cold-start",
+    })
     # mode share across all donated trips (day counters — not per-cell,
     # so this is every recorded trip, not only the k>=3 corridor set)
     mode_share = sorted(

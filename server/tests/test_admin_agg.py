@@ -173,6 +173,27 @@ def test_donations_totals_sum_days():
     assert d["empty"] is False
 
 
+def test_donations_co2_split_only_counts_reporters():
+    _donate(["cellB"], ["t1"], {"mode": "car", "distance_km": 9.0,
+                               "co2_kg_mid": 1.9,
+                               "co2_moving_g": 100.0, "co2_idle_g": 40.0,
+                               "co2_cold_g": 60.0})
+    # old-build donation: counts in headline totals, never in the split
+    _donate(["cellC"], ["t2"], {"mode": "bike", "distance_km": 4.0,
+                               "co2_kg_mid": 0.9})
+    t = client.get("/admin/api/donations").json()["totals"]
+    sp = t["co2_split"]
+    assert sp["trips"] == 1 and sp["moving_g"] == 100.0
+    assert sp["pct"] == {"moving": 50.0, "idle": 20.0, "cold": 30.0}
+    assert t["co2_kg_mid"] == 2.8  # both trips in the headline total
+
+
+def test_donations_co2_split_absent_is_null():
+    _donate(["cellB"], ["t1"])
+    t = client.get("/admin/api/donations").json()["totals"]
+    assert t["co2_split"] is None
+
+
 # --- privacy scan -------------------------------------------------------------
 
 def test_no_identity_or_coordinate_fields_anywhere():

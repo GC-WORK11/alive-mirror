@@ -94,12 +94,19 @@ class TripAggregates:
             d = self._days.setdefault(day, {
                 "trips": 0, "km": 0.0, "dose_ug": 0.0,
                 "co2_kg_mid": 0.0, "pm25_g_mid": 0.0,
-                "switched": 0, "modes": {}})
+                "switched": 0, "modes": {},
+                "co2_moving_g": 0.0, "co2_idle_g": 0.0,
+                "co2_cold_g": 0.0, "co2_split_trips": 0})
             d["trips"] += 1
             d["km"] += float(summary.get("distance_km") or 0.0)
             d["dose_ug"] += float(summary.get("dose_ug") or 0.0)
             d["co2_kg_mid"] += float(summary.get("co2_kg_mid") or 0.0)
             d["pm25_g_mid"] += float(summary.get("pm25_g_mid") or 0.0)
+            for k in ("co2_moving_g", "co2_idle_g", "co2_cold_g"):
+                d[k] += float(summary.get(k) or 0.0)
+            if any(k in summary
+                   for k in ("co2_moving_g", "co2_idle_g", "co2_cold_g")):
+                d["co2_split_trips"] += 1
             if summary.get("switched"):
                 d["switched"] += 1
             mode = str(summary.get("mode") or "unknown")[:24]
@@ -234,7 +241,10 @@ class DeviceLedger:
 
         return {"trips": len(rows), "km": _s("distance_km"),
                 "dose_ug": _s("dose_ug"), "co2_kg_mid": _s("co2_kg_mid"),
-                "pm25_g_mid": _s("pm25_g_mid")}
+                "pm25_g_mid": _s("pm25_g_mid"),
+                "co2_moving_g": _s("co2_moving_g"),
+                "co2_idle_g": _s("co2_idle_g"),
+                "co2_cold_g": _s("co2_cold_g")}
 
     def devices(self) -> int:
         with LOCK:

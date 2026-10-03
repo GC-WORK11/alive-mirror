@@ -41,7 +41,14 @@ _BOUNDS = {
     "dose_ug": (0.0, 50_000.0),      # worst-day × worst-ventilation orders below
     "co2_kg_mid": (0.0, 200.0),      # 300 km × heaviest fleet factor
     "pm25_g_mid": (0.0, 50.0),
+    # optional phase split from the receipt's emissions.breakdown —
+    # grams, mid estimates only; absent on old app builds / zero-emission
+    # modes, and never fabricated server-side
+    "co2_moving_g": (0.0, 300_000.0),
+    "co2_idle_g": (0.0, 300_000.0),
+    "co2_cold_g": (0.0, 300_000.0),
 }
+CO2_SPLIT_KEYS = ("co2_moving_g", "co2_idle_g", "co2_cold_g")
 # A mode is a vehicle-class token — word characters and spaces only.
 # Anything carrying markup or punctuation can never reach mode_share.
 _MODE_RE = re.compile(r"^[a-z][a-z0-9_\- ]{0,23}$")
@@ -119,7 +126,7 @@ def privacy_pipeline(traj) -> tuple:
 
 
 _SUMMARY_NUM = ("distance_km", "duration_s", "dose_ug",
-                "co2_kg_mid", "pm25_g_mid")
+                "co2_kg_mid", "pm25_g_mid") + CO2_SPLIT_KEYS
 _SUMMARY_FIELDS = _SUMMARY_NUM + ("mode", "switched")
 
 

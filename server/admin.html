@@ -124,6 +124,11 @@
   .kv dd.sub{color:var(--ink2)}
 
   .share{padding:6px 16px 14px}
+  .split{height:9px;border-radius:5px;overflow:hidden;display:flex;
+         background:var(--surface2)}
+  .split i{display:block;height:100%}
+  .split-l{font-family:var(--mono);font-size:9.5px;color:var(--ink3);
+           margin-top:6px;letter-spacing:.06em;line-height:1.5}
   canvas#fieldmap{width:100%;display:block;border-radius:12px;background:var(--surface2,#f2f4f7)}
   .fmsel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .fmsel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
@@ -197,6 +202,7 @@
   <div class="cols">
     <div class="panel">
       <dl class="kv" id="donations"></dl>
+      <div class="share" id="co2split"></div>
       <div class="share" id="modeshare"></div>
     </div>
     <div class="panel scrollx"><table>
@@ -417,6 +423,17 @@ async function tick(){
       <span class="p">${r.pct!=null?r.pct+'%':'—'}</span>
       <span class="n">${fmt(r.trips)}</span></div>`).join('')
     :'';
+  /* where the donated CO₂ comes from — moving/idling/cold-start, summed
+     only over trips whose receipts carried the real phase split */
+  const cs=t.co2_split;
+  $('co2split').innerHTML=cs&&cs.pct?`
+    <div class="split">
+      <i style="width:${cs.pct.moving}%;background:rgba(60,110,190,.55)"></i>
+      <i style="width:${cs.pct.idle}%;background:rgba(190,87,30,.65)"></i>
+      <i style="width:${cs.pct.cold}%;background:rgba(138,45,62,.65)"></i>
+    </div>
+    <div class="split-l">where the ride CO₂ comes from — <b style="color:var(--ink)">moving ${cs.pct.moving}% · idling ${cs.pct.idle}% · cold starts ${cs.pct.cold}%</b> · over ${fmt(cs.trips)} trip${cs.trips===1?'':'s'} that reported a split</div>`
+    :(t.trips?'<div class="split-l" style="padding-top:2px">no donated trip has reported a CO₂ split yet — receipts from the current app build carry it</div>':'');
 
   /* --- live field map --- */
   await paintFieldMap(FM_PARAM);

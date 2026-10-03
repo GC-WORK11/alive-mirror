@@ -104,9 +104,17 @@ class DDBTripAggregates:
             ":c": _n(float(summary.get("co2_kg_mid") or 0.0)),
             ":p": _n(float(summary.get("pm25_g_mid") or 0.0)),
             ":sw": _n(1 if summary.get("switched") else 0),
+            ":mv": _n(float(summary.get("co2_moving_g") or 0.0)),
+            ":id": _n(float(summary.get("co2_idle_g") or 0.0)),
+            ":cd": _n(float(summary.get("co2_cold_g") or 0.0)),
+            ":st": _n(1 if any(k in summary for k in
+                              ("co2_moving_g", "co2_idle_g",
+                               "co2_cold_g")) else 0),
         }
         expr = ("ADD trips :one, km :km, dose_ug :d, "
-                "co2_kg_mid :c, pm25_g_mid :p, switched :sw")
+                "co2_kg_mid :c, pm25_g_mid :p, switched :sw, "
+                "co2_moving_g :mv, co2_idle_g :id, co2_cold_g :cd, "
+                "co2_split_trips :st")
         pk = f"day#{day}"
         try:
             for sk in (DAY_SUM_SK, f"mode#{mode}"):
@@ -196,10 +204,14 @@ class DDBTripAggregates:
                 d = days.setdefault(day, {
                     "trips": 0, "km": 0.0, "dose_ug": 0.0,
                     "co2_kg_mid": 0.0, "pm25_g_mid": 0.0,
-                    "switched": 0, "modes": {}})
+                    "switched": 0, "modes": {},
+                    "co2_moving_g": 0.0, "co2_idle_g": 0.0,
+                    "co2_cold_g": 0.0, "co2_split_trips": 0})
                 if sk == DAY_SUM_SK:
                     for k in ("trips", "km", "dose_ug", "co2_kg_mid",
-                              "pm25_g_mid", "switched"):
+                              "pm25_g_mid", "switched",
+                              "co2_moving_g", "co2_idle_g",
+                              "co2_cold_g", "co2_split_trips"):
                         d[k] = _num(it.get(k))
                 elif sk.startswith("mode#"):
                     d["modes"][sk[len("mode#"):]] = _num(it.get("trips"))
@@ -359,7 +371,10 @@ class DDBDeviceLedger:
 
         return {"trips": len(rows), "km": _s("distance_km"),
                 "dose_ug": _s("dose_ug"), "co2_kg_mid": _s("co2_kg_mid"),
-                "pm25_g_mid": _s("pm25_g_mid")}
+                "pm25_g_mid": _s("pm25_g_mid"),
+                "co2_moving_g": _s("co2_moving_g"),
+                "co2_idle_g": _s("co2_idle_g"),
+                "co2_cold_g": _s("co2_cold_g")}
 
     def devices(self) -> int:
         try:
