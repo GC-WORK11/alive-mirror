@@ -9,7 +9,7 @@ import {
 import * as Location from "expo-location";
 import { File, Paths } from "expo-file-system";
 import {
-  Camera, GeoJSONSource, Layer, Map, Marker, UserLocation, type CameraRef,
+  Camera, Layer, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { F, NUM, V2Radius, V2T, V2Type, fam } from "./src/theme";
 import { EndpointPin } from "./src/ui";
@@ -17,7 +17,8 @@ import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { v2StyleUrl } from "./src/map/style";
 import { ReportsLayer } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
-import { fieldSources } from "./src/api/plan";
+import { RouteTintSource } from "./src/components/RouteTint";
+import { fieldSources, type FieldStatus } from "./src/api/plan";
 import { FiresLayer, BlackspotsLayer } from "./src/components/HazardLayers";
 import { CorridorLayer } from "./src/components/CorridorLayer";
 import { SearchBar } from "./src/components/shell/SearchBar";
@@ -75,6 +76,7 @@ export default function App() {
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
+  const [aqiField, setAqiField] = useState<FieldStatus | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   const net = useNetStatus();
 
@@ -94,6 +96,11 @@ export default function App() {
     const poll = () => fetchJson(`${API}/reports`).then(setReports).catch(() => {});
     poll();
     const iv = setInterval(poll, 60000);
+    /* the map-screen freshness chip reads the served field's own status
+       block — GET /aqi's `field` IS FIELD.status() verbatim (same keys
+       the /v2/plan `field` block carries): real age_s or honestly absent,
+       never a guessed number. It also keeps the field warm (aqi triggers
+       a server-side refresh). */
     loadTrips().then(setTrips).catch(() => {});
     loadSettings().then(setSettings).catch(() => {});
     (async () => {
@@ -105,9 +112,16 @@ export default function App() {
         camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 12.5, duration: 900 });
       }
     })();
+    const aqiPoll = () =>
+      fetchJson(`${API}/aqi?lat=${DELHI[1]}&lon=${DELHI[0]}`, 8000)
+        .then((j) => setAqiField(
+          j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null))
+        .catch(() => {});
+    aqiPoll();
+    const aqiIv = setInterval(aqiPoll, 60000);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
-    return () => { clearInterval(iv); clearInterval(healthIv); };
+    return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); };
   }, [setFrom, setTrips]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
@@ -131,6 +145,7 @@ export default function App() {
   }, [fires, spots, flow]);
   if (!fontsLoaded) return null;
   const sel = flow.options[flow.selected];
+  const mapField = flow.planField ?? aqiField;
 
   return (
     <View style={s.root}>
@@ -166,19 +181,15 @@ export default function App() {
           paint={{ "fill-extrusion-color": V2T.mapBuilding,
             "fill-extrusion-height": ["coalesce", ["get", "render_height"], ["get", "height"], 10],
             "fill-extrusion-opacity": 0.6 }} />
-        {/* alternates keep their per-250m PM2.5 tint too — dimmer, thinner,
-            same breath ramp (routeTint collections feed both sources) */}
-        <GeoJSONSource id="alts" data={flow.altSegs}>
-          <Layer id="alts-line" type="line"
-            paint={{ "line-color": ["get", "color"], "line-width": 3, "line-opacity": 0.5 }}
-            layout={{ "line-cap": "round", "line-join": "round" }} />
-        </GeoJSONSource>
-        <GeoJSONSource id="route" data={flow.routeSegs}>
-          <Layer id="route-casing" type="line"
-            paint={{ "line-color": V2T.bg, "line-width": 9 }} layout={{ "line-cap": "round", "line-join": "round" }} />
-          <Layer id="route-line" type="line"
-            paint={{ "line-color": ["get", "color"], "line-width": 6 }} layout={{ "line-cap": "round", "line-join": "round" }} />
-        </GeoJSONSource>
+        {/* route-wise AQI gradient on the real /v2/plan polylines — per
+            ~250 m chunk from the fetched strips, flat dose-mean until they
+            land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
+            (<RouteTintSource/> — src/components/RouteTint.tsx contract) */}
+        <RouteTintSource
+          options={flow.options}
+          selected={flow.selected}
+          strips={flow.strips}
+        />
         {flow.from && phase === "compare" && (
           <Marker lngLat={[flow.from.lon, flow.from.lat]} anchor="center"><EndpointPin kind="origin" /></Marker>
         )}
@@ -247,11 +258,14 @@ export default function App() {
           </Text>
         </Pressable>
       )}
-      {phase === "compare" && flow.planField && (
+      {/* freshness chip — real field age on the map screen: the /v2/plan
+          field block during compare, else the polled /aqi field block.
+          Stale shows as stale; no field → nothing claims freshness. */}
+      {phase !== "nav" && mapField && (
         <View style={s.freshWrap} pointerEvents="box-none">
           <FreshnessChip
-            ageS={flow.planField.age_s} stale={flow.planField.stale}
-            sources={fieldSources(flow.planField)} lang={lang} compact />
+            ageS={mapField.age_s} stale={mapField.stale}
+            sources={fieldSources(mapField)} lang={lang} compact />
         </View>
       )}
       {phase === "compare" && (
@@ -411,22 +425,4 @@ const s = StyleSheet.create({
   },
   offlineTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text2 },
   freshWrap: { position: "absolute", top: 108, left: 16 },
-  receipt: {
-    position: "absolute", top: 116, alignSelf: "center",
-    backgroundColor: V2T.surface, borderRadius: V2Radius.sheet, padding: 16,
-    borderWidth: 1, borderColor: V2T.line, minWidth: 220,
-    shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
-    elevation: 10,
-  },
-  receiptTitle: { fontSize: V2Type.secondary, color: V2T.text },
-  receiptNum: { fontFamily: F.semi, fontSize: V2Type.title, color: V2T.text },
-  receiptSub: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text2, marginTop: 4, maxWidth: 240 },
-  intro: {
-    position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
-    backgroundColor: "rgba(11,13,16,0.86)", alignItems: "center", justifyContent: "center", padding: 32,
-  },
-  introTitle: { fontSize: 26, color: V2T.text, textAlign: "center" },
-  introBody: { fontSize: V2Type.secondary, color: V2T.text2, textAlign: "center", marginTop: 14, lineHeight: 22 },
-  introBtn: { marginTop: 26, backgroundColor: V2T.accent, borderRadius: V2Radius.pill, paddingHorizontal: 30, paddingVertical: 12 },
-  introBtnTxt: { fontSize: V2Type.body, color: V2T.text },
 });

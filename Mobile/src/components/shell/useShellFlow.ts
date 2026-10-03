@@ -5,7 +5,7 @@
  * /v2 migration: options come from POST /v2/plan (dose + emissions bands,
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
  * /directions remain — /v2/plan carries no turn steps yet. */
-import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import { Keyboard } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
@@ -18,7 +18,6 @@ import {
 import { planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
 import { departCurveResult, type DepartCurve } from "../../api/depart";
-import { collectionsFor } from "../../map/routeTint";
 import type { RouteStrip } from "../../nav/strip";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
@@ -235,11 +234,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     } catch { /* ledger write is best-effort */ }
   }, [from, to]);
 
-  /* route polylines tinted per ~250 m by field PM2.5 (r4-routegrad):
-     segments → strip → dose-avg → neutral, never invented. */
-  const tint = useMemo(() => collectionsFor(options, selected, strips), [options, selected, strips]);
-  const routeSegs = tint.selected;
-  const altSegs = tint.alts;
+  /* route polylines tinted per ~250 m by field PM2.5 — the derivation
+     moved inside <RouteTintSource/> (App.tsx); we just hand the strips
+     through so each option's flat dose-mean tint resolves into the real
+     along-route gradient as its strip lands. */
 
   const armDailyBrief = useCallback(async (): Promise<boolean> => {
     if (!(await requestPerms())) return false;
@@ -281,6 +279,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
-    routeSegs, altSegs, reloadTrips,
+    strips, reloadTrips,
   };
 }

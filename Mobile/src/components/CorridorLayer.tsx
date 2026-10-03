@@ -43,7 +43,7 @@ export function CorridorLayer({ corridors }: { corridors: Corridor[] | null }) {
           "circle-color": V2T.accent,
           "circle-opacity": 0.5,
           "circle-stroke-width": 1,
-          "circle-stroke-color": "rgba(11,13,16,0.85)",
+          "circle-stroke-color": V2T.surface,
         }}
       />
     </GeoJSONSource>
