@@ -149,6 +149,26 @@ def _nearest_place_name(lat: float, lon: float, max_km: float = 2.0):
     return best
 
 
+def _routing_status():
+    """Last observed OSRM call — real route traffic, not a probe."""
+    try:
+        import main as _m
+        last = getattr(_m, "OSRM_LAST", None) or {}
+    except Exception:
+        last = {}
+    at = last.get("at")
+    return {
+        "detail": ("OSRM public demo on the real OSM graph — "
+                   "driving/cycling/walking profiles"),
+        "up": last.get("ok"),
+        "ms": last.get("ms"),
+        "age_s": (round(time.time() - at, 1) if at else None),
+        "err": last.get("err"),
+        "note": ("observed from real route calls — null until the first "
+                 "request, never a synthetic ping"),
+    }
+
+
 def _corridor_label(cell: str):
     c = _cell_center(cell)
     if not c:
@@ -344,6 +364,9 @@ async def sources():
             "age_s": fires.get("age_s"),
             "modifier": (prov.get("fires") or {}).get("modifier")}),
         "location": merged("location", {"enabled": loc_up}),
+        # the routing engine — observed from real /v2/plan calls, never
+        # probed synthetically; nulls mean 'no route requested yet'
+        "routing": _routing_status(),
     }
     for s in out.values():
         a = s.get("age_s")

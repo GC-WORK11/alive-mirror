@@ -409,6 +409,16 @@ def _annotate_segments(options: list) -> None:
         o["hotspots"] = segments.hotspots(segs)
 
 
+# last observed routing-engine call — ops reads this instead of firing
+# synthetic probes at the public demo server
+OSRM_LAST: dict = {"at": None, "ok": None, "ms": None, "err": None}
+
+
+def _osrm_note(ok: bool, ms: float, err: Optional[str] = None) -> None:
+    OSRM_LAST.update({"at": time.time(), "ok": ok,
+                      "ms": round(ms), "err": err})
+
+
 async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float):
     # OD outside the field's service area → no fetch at all: public OSRM
     # happily returns a 10,000 km / 95k-vertex SF→Delhi "route", and the
@@ -416,11 +426,17 @@ async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float
     if not (in_service_area(flat, flon) and in_service_area(tlat, tlon)):
         return None
     url = f"https://router.project-osrm.org/route/v1/{profile}/{flon},{flat};{tlon},{tlat}"
-    r = await http().get(url, params={
-        "overview": "full", "geometries": "geojson",
-        "alternatives": "false", "steps": "false",
-    })
-    r.raise_for_status()
+    t0 = time.monotonic()
+    try:
+        r = await http().get(url, params={
+            "overview": "full", "geometries": "geojson",
+            "alternatives": "false", "steps": "false",
+        })
+        r.raise_for_status()
+    except Exception as e:
+        _osrm_note(False, (time.monotonic() - t0) * 1000, type(e).__name__)
+        raise
+    _osrm_note(True, (time.monotonic() - t0) * 1000)
     routes = r.json().get("routes", [])
     rt = routes[0] if routes else None
     if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
@@ -436,10 +452,16 @@ async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
         return None
     coords = ";".join(f"{lon},{lat}" for lon, lat in pts)
     url = f"https://router.project-osrm.org/route/v1/{profile}/{coords}"
-    r = await http().get(url, params={
-        "overview": "full", "geometries": "geojson", "steps": "false",
-    })
-    r.raise_for_status()
+    t0 = time.monotonic()
+    try:
+        r = await http().get(url, params={
+            "overview": "full", "geometries": "geojson", "steps": "false",
+        })
+        r.raise_for_status()
+    except Exception as e:
+        _osrm_note(False, (time.monotonic() - t0) * 1000, type(e).__name__)
+        raise
+    _osrm_note(True, (time.monotonic() - t0) * 1000)
     routes = r.json().get("routes", [])
     rt = routes[0] if routes else None
     if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:

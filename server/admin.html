@@ -374,6 +374,9 @@ async function tick(){
     if(s.vc_m2s!=null)extra.push(`vc ${fmt(s.vc_m2s)} m²/s`);
     if(s.blh_m!=null)extra.push(`blh ${fmt(s.blh_m)} m`);
     if(s.modifier!=null)extra.push(`smoke ×${s.modifier}`);
+    if(s.ms!=null)extra.push(`${fmt(s.ms)} ms last call`);
+    if(s.err)extra.push(`err ${s.err}`);
+    if(s.note)extra.push(s.note);
     if(s.enabled===true)extra.push('enabled');else if(s.enabled===false)extra.push('disabled');
     return `<tr><td class="mono">${esc(name)}</td>
       <td><span class="pill ${pill[1]}">${pill[0]}</span></td>
