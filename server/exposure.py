@@ -22,6 +22,11 @@ Sources:
 import math
 from typing import Callable, Optional
 
+try:  # C++ engine — verbatim ports verified by tests/test_parity_dose.py
+    import alive_core as _ac
+except Exception:
+    _ac = None
+
 # --- Measured Delhi microenvironment ratios -------------------------------
 # Normalized to the ambient field (what a person standing on that street
 # would breathe). Ratios derived from [2]'s measured means against a
@@ -204,6 +209,15 @@ def segment_samples(geometry: dict, duration_s: float, step_m: float = 250.0):
     (uniform-speed assumption — documented limitation vs. congestion).
     Returns list of dicts(lat, lon, seconds, dist_m); [] on degenerate
     input (empty geometry, non-finite/negative duration, zero length)."""
+    if _ac is not None and duration_s is not None and \
+            math.isfinite(duration_s) and duration_s >= 0:
+        try:  # C++ verbatim port (test_parity_dose) — tuple rows -> dicts
+            return [{"lat": t[0], "lon": t[1], "seconds": t[2],
+                     "dist_m": t[3]}
+                    for t in _ac.segment_samples(geometry, duration_s,
+                                                 step_m)]
+        except Exception:
+            pass  # malformed vertex — the reference impl tolerates it
     coords = (geometry or {}).get("coordinates") or []
     if len(coords) < 2:
         return []

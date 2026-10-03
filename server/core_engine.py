@@ -34,6 +34,25 @@ def field_view(src, coverage_km: float):
     return alive_core_ref.get_field_view(src, coverage_km, prefer_cpp=True)
 
 
+_SEARCH_IDX = None
+
+
+def search_index():
+    """T1 place index over the bundled gazetteer — alive_core.SearchIndex
+    when the extension loads, PySearchIndex (identical semantics)
+    otherwise. Built once: 26k+ entries, alias-expanded."""
+    global _SEARCH_IDX
+    if _SEARCH_IDX is None:
+        _SEARCH_IDX = alive_core_ref.get_search_index(
+            alive_core_ref.entries_from_gazetteer(), prefer_cpp=True)
+    return _SEARCH_IDX
+
+
+def search(q, lat=None, lon=None, limit=8):
+    """/v2/search T1 — index.query on whichever impl loaded."""
+    return search_index().query(q, lat, lon, limit)
+
+
 class KrigeField:
     """Drop-in for krige.KrigeField — same fit(samples)/on/estimate.
 

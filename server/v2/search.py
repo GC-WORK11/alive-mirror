@@ -43,7 +43,8 @@ def _engine_rows(out: object, default_source: str) -> list:
             continue
         row = dict(r)
         row.setdefault("id", None)
-        row.setdefault("name", r.get("title") or r.get("n") or "")
+        row.setdefault("name", r.get("title") or r.get("n")
+                       or r.get("display") or "")
         row["lat"], row["lon"] = float(lat), float(lon)
         row["source"] = r.get("source") or default_source
         row["sources"] = list(dict.fromkeys(
@@ -53,8 +54,12 @@ def _engine_rows(out: object, default_source: str) -> list:
 
 
 def _pick_t1():
+    # core_engine.SearchIndex is parked, not wired: its bag-of-tokens
+    # scoring scores 16/20 on test_search_quality's tuned acceptance —
+    # the gazetteer ranker (lead-token coverage + name-precision) wins.
+    # It stays available in core_engine until its ranking reaches parity.
     try:
-        import alive_core as mod  # C++ engine when the lane lands it
+        import alive_core as mod  # bare extension — no index wiring there
         if hasattr(mod, "search"):
             return "alive_core", mod.search
     except Exception:
