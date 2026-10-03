@@ -20,6 +20,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 # local dev keys live in server/.env (gitignored) — real env vars always win
 load_dotenv()
@@ -65,6 +66,9 @@ async def _lifespan(_app: FastAPI):
 
 app = FastAPI(title="Delhi-Air-108 API", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# the field layer is the fattest payload on the service — 784-cell
+# GeoJSON compresses ~10x and every client sends Accept-Encoding
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 PHOTON = "https://photon.komoot.io/api/"
 OSRM = "https://router.project-osrm.org/route/v1/driving/"

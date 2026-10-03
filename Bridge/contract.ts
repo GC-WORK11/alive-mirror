@@ -492,6 +492,7 @@ export interface V2TripResponse {
   };
   ts: number;
   ledger_recorded?: boolean;    // false when no device_token was supplied
+  deduplicated?: boolean;       // true when an identical donation replayed
 }
 
 export interface V2LedgerTrip {

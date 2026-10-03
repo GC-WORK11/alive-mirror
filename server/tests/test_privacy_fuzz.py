@@ -285,11 +285,15 @@ def test_k3_suppression_threshold():
 
 
 def test_repeat_trip_same_token_counts_once_per_cell_per_trip():
-    """Same device re-posting must not inflate 'devices' (k is distinct
-    devices) but still counts as a second traversal."""
+    """A device genuinely re-riding a route reports fresh summary numbers
+    and counts a second traversal without inflating 'devices'; a
+    byte-identical repost is a client retry and dedupes to one."""
     traj = _line(40, dlon=0.0009)
     _post(traj, token="repeat-dev")
-    _post(traj, token="repeat-dev")
+    _post(traj, token="repeat-dev")  # identical payload — a retry, not a ride
+    _post(traj, token="repeat-dev",
+          summary={"mode": "car", "distance_km": 5.4,
+                   "duration_s": 700, "dose_ug": 44.0})
     snap = store.TRIPS.snapshot_cells()
     assert all(c["devices"] == 1 for c in snap.values())
     assert all(c["count"] == 2 for c in snap.values())

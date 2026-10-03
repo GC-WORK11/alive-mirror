@@ -37,6 +37,43 @@ THIN_M = 100.0          # keep at most one point per this distance
 ROUND_DP = 4            # ~11 m — the documented precision ceiling
 MAX_POINTS = 5000       # payload abuse guard
 
+# Idempotency: a retried donation (network flake, offline queue replay)
+# carries an identical trajectory — re-recording it would mint a trip
+# that never happened in the totals. Signature = token hash + endpoint
+# cells + distance + duration; a hit inside the window replays stored
+# without double-counting. Per-worker memory is enough — the window is
+# short and the privacy contract already caps corridor inflation at one
+# device.
+_DEDUPE: dict = {}
+_DEDUPE_TTL_S = 24 * 3600
+_DEDUPE_MAX = 4096
+
+
+def _dupe_key(token_hash: str, cells: list, summary: dict) -> str:
+    sig = "|".join([
+        token_hash,
+        str(cells[0]) if cells else "",
+        str(cells[-1]) if cells else "",
+        str(summary.get("distance_km") or ""),
+        str(summary.get("duration_s") or ""),
+    ])
+    return hashlib.sha256(sig.encode()).hexdigest()[:24]
+
+
+def _seen_dupe(key: str) -> bool:
+    now = time.time()
+    # expire cheaply on access; a full sweep only at the cap
+    if len(_DEDUPE) >= _DEDUPE_MAX:
+        for k, t in list(_DEDUPE.items()):
+            if now - t > _DEDUPE_TTL_S:
+                _DEDUPE.pop(k, None)
+        if len(_DEDUPE) >= _DEDUPE_MAX:
+            _DEDUPE.clear()
+    if key in _DEDUPE and now - _DEDUPE[key] <= _DEDUPE_TTL_S:
+        return True
+    _DEDUPE[key] = now
+    return False
+
 # --- sanity bounds: the client is assumed hostile/buggy --------------------
 # These don't need to be tight — they only have to kill payloads that can
 # never be a real Delhi trip (e.g. distance_km=1e12 injected into the
@@ -179,14 +216,17 @@ async def post_trip(body: dict):
         # either failed every sanity check or was never a trip at all;
         # storing it would only mint a zero-km count that bumps the totals
         raise HTTPException(422, "missing or implausible distance_km")
-    TRIPS.record_trip(cells, summary, token_hash)
-    LEDGER.record(token_hash, summary)
+    dupe = _seen_dupe(_dupe_key(token_hash, cells, summary))
+    if not dupe:
+        TRIPS.record_trip(cells, summary, token_hash)
+        LEDGER.record(token_hash, summary)
     # feed the citizen layer — every donated trip is a sensor pass. The
     # coordinates that reach observe() are the trimmed/thinned/rounded
     # `kept` points (raw trajectory already gone); observe() folds them
     # straight into cells and never persists points. Without this hop a
-    # trip counted in aggregates but never informed the field.
-    if kept:
+    # trip counted in aggregates but never informed the field. A replay
+    # must not mint phantom observations either — the dedupe guard holds.
+    if kept and not dupe:
         try:
             import community
             community.observe(
@@ -201,6 +241,7 @@ async def post_trip(body: dict):
             pass               # citizen-layer hiccup must not fail a donation
     return {
         "stored": True,
+        "deduplicated": bool(dupe),
         "ledger_recorded": bool(token_hash),
         "cells_traversed": len(set(cells)),
         "points_used": len(kept),
