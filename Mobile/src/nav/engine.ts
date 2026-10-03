@@ -14,6 +14,7 @@ import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { API } from "../components/shell/net";
 import { contributorId } from "../community";
 import { fetchStrip } from "../api/strip";
+import type { EmissionsBreakdown } from "../components/shell/types";
 import { postJson, postReroute } from "../api/reroute";
 import { enqueueTripDonation } from "../offline/queue";
 import { LiveCounters } from "./counters";
@@ -51,6 +52,10 @@ export type NavRoute = {
   /** context for the receipt comparison lines */
   alternatives?: { label: string; doseUgMid?: number | null; co2KgMid?: number | null }[];
   worstDoseUg?: number | null;
+  /** the chosen option's CO2 moving/idle/cold split — donated with the
+      trip summary so the collective can break out where ride CO2
+      comes from; null on modes that never carry a breakdown */
+  emissionsBreakdown?: EmissionsBreakdown;
 };
 
 export type NavSummary = {
@@ -81,6 +86,22 @@ export type NavEngineOpts = {
 };
 
 export type NextStep = { instruction: string; distM: number };
+
+/** emissions.breakdown → the /v2/trip summary's optional CO2 split
+ *  (grams, 0.1 g rounding). Each mid is kept independently — a partial
+ *  breakdown still reports what it honestly has. */
+function co2Split(bd: EmissionsBreakdown | undefined): {
+  co2_moving_g?: number; co2_idle_g?: number; co2_cold_g?: number;
+} {
+  const out: { co2_moving_g?: number; co2_idle_g?: number; co2_cold_g?: number } = {};
+  const put = (k: keyof typeof out, v: number | null | undefined) => {
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = Math.round(v * 10) / 10;
+  };
+  put("co2_moving_g", bd?.moving_mid?.co2);
+  put("co2_idle_g", bd?.idle_mid?.co2);
+  put("co2_cold_g", bd?.cold_extra_mid?.co2);
+  return out;
+}
 
 export function useNavEngine(opts: NavEngineOpts) {
   const { route, camRef, onArrive, lang = "en", shareEnabled = false, speech = false } = opts;
@@ -182,6 +203,10 @@ export function useNavEngine(opts: NavEngineOpts) {
         dose_ug: Math.round(s.doseUg.mid * 10) / 10,
         co2_kg_mid: Math.round(s.co2Kg.mid * 1000) / 1000,
         pm25_g_mid: Math.round(s.pm25G.mid * 1000) / 1000,
+        /* CO2 split the backend asked for — optional, bounds-checked
+           server-side; absent keys are the honest answer on modes
+           without a breakdown (metro/walk/cycle), not zeros */
+        ...co2Split(routeRef.current.emissionsBreakdown),
       },
     };
     try {

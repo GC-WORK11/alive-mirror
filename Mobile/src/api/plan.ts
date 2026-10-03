@@ -119,6 +119,20 @@ function toOption(raw: unknown): V2Option | null {
       bs_class: str(em.bs_class),
       bs_options: Array.isArray(em.bs_options) ? em.bs_options.filter((x): x is string => typeof x === "string") : null,
       confidence: str(em.confidence),
+      breakdown: em.breakdown && typeof em.breakdown === "object"
+        ? (() => {
+            const bd = em.breakdown as Record<string, unknown>;
+            const mid = (k: string) =>
+              bd[k] && typeof bd[k] === "object"
+                ? { co2: num((bd[k] as Record<string, unknown>).co2) }
+                : null;
+            return {
+              moving_mid: mid("moving_mid"),
+              idle_mid: mid("idle_mid"),
+              cold_extra_mid: mid("cold_extra_mid"),
+            };
+          })()
+        : null,
       non_exhaust: em.non_exhaust && typeof em.non_exhaust === "object"
         ? {
             pm10_g: band((em.non_exhaust as Record<string, unknown>).pm10_g),

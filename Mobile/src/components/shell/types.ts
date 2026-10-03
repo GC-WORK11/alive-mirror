@@ -18,6 +18,16 @@ export type DoseBand = Band & {
   sparse?: boolean | null;
 };
 
+/** emissions.py `breakdown` — where the ride CO2 actually came from,
+ *  all values in grams (`units_g_except_co2_g`: the *_mid dicts carry
+ *  co2/pm25/nox; we keep only the co2 mids the trip-donation split
+ *  needs). Absent for metro/walk/cycle options. */
+export type EmissionsBreakdown = {
+  moving_mid?: { co2?: number | null } | null;
+  idle_mid?: { co2?: number | null } | null;
+  cold_extra_mid?: { co2?: number | null } | null;
+} | null;
+
 /** Trip emissions — tailpipe bands + provenance. Two payload flavours:
  *  the fallback table (basis = human string) and emissions.py
  *  (basis = "per_vkm"/"per_pax_km", label = the human string). */
@@ -25,6 +35,7 @@ export type Emissions = {
   co2_kg: Band | null;
   pm25_g?: Band | null;
   nox_g?: Band | null;
+  breakdown?: EmissionsBreakdown;
   label?: string | null;         // "estimated for vehicles like yours (…)"
   basis?: string | null;
   occupancy?: number | null;     // per-passenger divisor on shared modes

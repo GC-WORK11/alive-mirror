@@ -415,6 +415,7 @@ function NavSession({
         co2KgMid: o.emissions?.co2_kg?.mid ?? null,
       })),
       worstDoseUg: worstDose > 0 ? worstDose : null,
+      emissionsBreakdown: option.emissions?.breakdown ?? null,
     },
     camRef,
     lang,

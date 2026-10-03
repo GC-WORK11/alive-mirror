@@ -19,6 +19,11 @@ export type TripSummary = {
   co2_kg_mid?: number;
   pm25_g_mid?: number;
   switched?: boolean;
+  /** optional CO2 provenance in grams (moving/idle/cold-start) —
+   *  only sent when the option carried a real emissions.breakdown */
+  co2_moving_g?: number;
+  co2_idle_g?: number;
+  co2_cold_g?: number;
 };
 
 export type TripPoint = { lat: number; lon: number } | [number, number]; // [lon,lat] GeoJSON order ok
