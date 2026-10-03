@@ -52,7 +52,6 @@ server/data/gtfs/
 
 # corpus pipeline artifacts (scripts/build_corpus.py)
 server/data/corpus/dl/
-server/data/corpus/delhi-corpus.jsonl.gz
 server/data/corpus/delhi-gazetteer-150k.json
 tools/corpus-venv/
 

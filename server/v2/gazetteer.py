@@ -22,6 +22,7 @@ and >= half the tokens must cover. Kind boosts are intent-gated
 otherwise locality kinds get a small default boost).
 """
 import bisect
+import gzip
 import json
 import math
 import os
@@ -38,6 +39,8 @@ GAZETTEER_PATHS = [
 CORPUS_PATHS = [
     os.environ.get("ALIVE_CORPUS", ""),
     os.path.join(_SERVER_DIR, "data", "corpus", "delhi-corpus.jsonl"),
+    os.path.join(_SERVER_DIR, "data", "corpus",
+                 "delhi-corpus.jsonl.gz"),
     os.path.join(_SERVER_DIR, "data", "corpus",
                  "delhi-corpus-sample.jsonl"),
 ]
@@ -416,7 +419,9 @@ class Gazetteer:
             if not p or not os.path.exists(p):
                 continue
             try:
-                fh = open(p, "r", encoding="utf-8")
+                fh = (gzip.open(p, "rt", encoding="utf-8")
+                      if p.endswith(".gz")
+                      else open(p, "r", encoding="utf-8"))
             except OSError:
                 continue
             with fh:

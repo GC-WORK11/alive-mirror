@@ -923,7 +923,13 @@ def emit_mobile(entries, target: int, gaz_path: str = GAZETTEER_PATH,
             skipped += 1
             continue
         top, _, sub = e["category"].partition(":")
-        c = sub if sub else top
+        # a sub-category only earns `c` when it is a clean snake token —
+        # raw tag values ("Ayurvedic Hospital", "part:yes", "3-4_floors")
+        # fall back to the top-level bucket so the app never renders
+        # unfiltered OSM values as subtitles
+        clean_sub = bool(re.fullmatch(r"[a-z][a-z0-9_]*", sub)) \
+            and sub not in {"yes", "no", "fixme", "unknown"}
+        c = sub if clean_sub else top
         w = MOBILE_W.get(c, MOBILE_W.get(top, 5))
         new_rows.append({
             "n": e["display"],

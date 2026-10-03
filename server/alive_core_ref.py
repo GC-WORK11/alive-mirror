@@ -35,6 +35,7 @@ server/data/aliases.json when that file exists (absence is tolerated).
 from __future__ import annotations
 
 import bisect
+import gzip
 import json
 import math
 import os
@@ -59,6 +60,7 @@ GAZETTEER_PATHS = [
 CORPUS_PATHS = [
     os.environ.get("ALIVE_CORPUS", ""),
     os.path.join(_HERE, "data", "corpus", "delhi-corpus.jsonl"),
+    os.path.join(_HERE, "data", "corpus", "delhi-corpus.jsonl.gz"),
     os.path.join(_HERE, "data", "corpus", "delhi-corpus-sample.jsonl"),
 ]
 
@@ -280,7 +282,9 @@ def entries_from_gazetteer(path: Optional[str] = None,
         if not p or not os.path.exists(p):
             continue
         try:
-            fh = open(p, encoding="utf-8")
+            fh = (gzip.open(p, "rt", encoding="utf-8")
+                  if p.endswith(".gz")
+                  else open(p, encoding="utf-8"))
         except OSError:
             continue
         with fh:

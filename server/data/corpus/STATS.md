@@ -1,7 +1,7 @@
 # Delhi-NCR corpus -- STATS
 
-- built: 2026-10-03 04:03:37 UTC
-- source: `cached:northern-zone-latest.osm.pbf`
+- built: 2026-10-03 14:58:22 UTC
+- source: `local:server/data/corpus/dl/northern-zone-latest.osm.pbf`
 - script: `scripts/build_corpus.py` (pyosmium)
 - extraction bbox: lon 76.6-77.7, lat 28.0-29.0
 - strict NCR bbox (flag-only): lon 76.75-77.95, lat 28.15-28.98

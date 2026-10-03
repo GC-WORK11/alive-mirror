@@ -1,6 +1,6 @@
 # Delhi-NCR corpus report
 
-Built: 2026-10-03 04:04 UTC  |  OSM source: `cached:northern-zone-latest.osm.pbf`  |  script: `scripts/build_corpus.py`
+Built: 2026-10-03 14:58 UTC  |  OSM source: `local:server/data/corpus/dl/northern-zone-latest.osm.pbf`  |  script: `scripts/build_corpus.py`
 
 ## Sources
 

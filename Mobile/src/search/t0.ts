@@ -81,6 +81,12 @@ const SUB: Record<string, string> = {
   airport: "airport", movie_theater: "cinema", gym: "gym",
   police: "police", fire_station: "fire station", fuel_station: "fuel",
   landmark: "landmark", tourist_attraction: "attraction",
+  // corpus emit (osm tag tops) — never let a road class or admin term
+  // render raw as a subtitle
+  motorway: "road", trunk: "road", primary: "road", secondary: "road",
+  tertiary: "road", unclassified: "road", residential: "residential area",
+  living_street: "street", pedestrian: "street", administrative: "district",
+  address: "address", platform: "platform", place: "place",
 };
 
 type Entry = {
