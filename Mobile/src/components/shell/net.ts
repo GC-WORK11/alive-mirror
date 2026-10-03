@@ -18,3 +18,17 @@ export const fetchJson = (url: string, timeoutMs = 9000) => {
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`http ${r.status}`))))
     .finally(() => clearTimeout(t));
 };
+
+/** POST a JSON body; same timeout/abort behaviour as fetchJson. */
+export const postJson = (url: string, body: unknown, timeoutMs = 9000) => {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: ctrl.signal,
+  })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`http ${r.status}`))))
+    .finally(() => clearTimeout(t));
+};

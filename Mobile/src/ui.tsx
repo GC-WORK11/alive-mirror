@@ -46,14 +46,19 @@ export function Sheet({
   );
 }
 
-/** 4-step smoke-in bar — relative within this trip, no units (doc 02 §S4).
- *  Level drives the breath ramp; absence of colour reads as light. */
-export function SmokeBar({ frac, color }: { frac: number; color?: string }) {
+/** 4-step smoke bar — relative within this trip, no units (doc 02 §S4).
+ *  tone "breath" = warm ramp (smoke you breathe); tone "out" = cool greys
+ *  (smoke your ride puts out). Brighter = heavier; absence reads as light. */
+export function SmokeBar({ frac, color, tone = "breath", label }: {
+  frac: number; color?: string; tone?: "breath" | "out"; label?: string;
+}) {
   const f = Math.max(0, Math.min(1, frac));
   const lit = f <= 0 ? 0 : Math.max(1, Math.ceil(f * 4));
-  const c = color ?? (f > 0.66 ? V2T.breath3 : f > 0.33 ? V2T.breath2 : V2T.breath1);
+  const c = color ?? (tone === "out"
+    ? (f > 0.66 ? V2T.out1 : f > 0.33 ? V2T.out2 : V2T.out3)
+    : (f > 0.66 ? V2T.breath3 : f > 0.33 ? V2T.breath2 : V2T.breath1));
   return (
-    <View style={us.segRow}>
+    <View style={us.segRow} accessibilityLabel={label}>
       {[0, 1, 2, 3].map((i) => (
         <View key={i} style={[us.seg, { backgroundColor: i < lit ? c : V2T.line }]} />
       ))}
@@ -61,31 +66,42 @@ export function SmokeBar({ frac, color }: { frac: number; color?: string }) {
   );
 }
 
-/** Mode row (doc 02 §S4): mode icon | label + meta | ETA | in-bar.
- *  Tag on at most one row; no units on this screen. */
+/** Mode row (doc 02 §S4): mode icon | label + meta + reason | ETA |
+ *  two stacked 4-step bars — in (dose) over out (emissions), relative
+ *  within this trip, no units. Tag chips come from the server; a
+ *  recommended row without a split tag still reads as picked. */
 export function ModeRow({
-  vehicle, label, etaMin, meta, inFrac, tag, selected, onPress, lang = "en",
+  vehicle, label, etaMin, meta, inFrac, outFrac, tag, recommended, reasonLine,
+  selected, onPress, onLongPress, lang = "en",
 }: {
   vehicle: string; label: string; etaMin: number; meta?: string;
-  inFrac: number | null; tag?: string; selected: boolean;
-  onPress: () => void; lang?: Lang;
+  inFrac: number | null; outFrac?: number | null; tag?: string;
+  recommended?: boolean; reasonLine?: string; selected: boolean;
+  onPress: () => void; onLongPress?: () => void; lang?: Lang;
 }) {
   return (
-    <Pressable onPress={onPress}
+    <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={420}
       style={({ pressed }) => [us.modeRow, pressed && { opacity: 0.55 }, selected && us.modeRowSel]}>
       <Icon name={vehicleGlyph(vehicle)} color={selected ? V2T.accent : V2T.text2} size={30} filled={selected} />
       <View style={{ flex: 1, marginLeft: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "baseline" }}>
           <Text style={us.modeLabel} numberOfLines={1}>{label}</Text>
           {tag ? <Text style={us.bestTag}>{tag}</Text> : null}
+          {!tag && recommended ? <Text style={us.bestTag}>{t("compare_pick", lang)}</Text> : null}
         </View>
         {meta ? <Text style={us.modeMeta} numberOfLines={1}>{meta}</Text> : null}
+        {reasonLine ? <Text style={us.modeReason} numberOfLines={2}>{reasonLine}</Text> : null}
       </View>
       <View style={{ alignItems: "flex-end" }}>
         <Text style={[us.modeEta, NUM]}>
           {etaMin}<Text style={us.modeEtaUnit}> {t("minUnit", lang)}</Text>
         </Text>
-        {inFrac != null && <SmokeBar frac={inFrac} />}
+        {inFrac != null && (
+          <SmokeBar frac={inFrac} tone="breath" label={t("compare_smokeIn", lang)} />
+        )}
+        {outFrac != null && (
+          <SmokeBar frac={outFrac} tone="out" label={t("compare_smokeOut", lang)} />
+        )}
       </View>
     </Pressable>
   );
@@ -189,6 +205,7 @@ const us = StyleSheet.create({
   modeLabel: { fontFamily: F.med, fontSize: V2Type.body, color: V2T.text, flexShrink: 1 },
   bestTag: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.accent, marginLeft: 8 },
   modeMeta: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 1 },
+  modeReason: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 3 },
   modeEta: { fontFamily: F.semi, fontSize: V2Type.body, color: V2T.text },
   modeEtaUnit: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text2 },
   segRow: { flexDirection: "row", gap: 3, marginTop: 5 },

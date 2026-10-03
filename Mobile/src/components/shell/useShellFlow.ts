@@ -1,6 +1,10 @@
 /** useShellFlow — the trip-flow state machine behind the shell:
  * search → pick → compare → nav → receipt, plus the on-device ledger.
- * Kept out of App.tsx so the composition root stays declarative. */
+ * Kept out of App.tsx so the composition root stays declarative.
+ *
+ * /v2 migration: options come from POST /v2/plan (dose + emissions bands,
+ * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
+ * /directions remain — /v2/plan carries no turn steps yet. */
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Keyboard } from "react-native";
 import * as Location from "expo-location";
@@ -8,31 +12,76 @@ import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { V2T } from "../../theme";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notify";
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
-import { observeTrip, type CommunityTotals } from "../../community";
+import type { CommunityTotals } from "../../community";
+import {
+  getVehicle, saveVehicle, planVehicle, type VehicleProfile,
+} from "../../store/vehicle";
+import { planOptions } from "../../api/plan";
 import { API, DELHI, fetchJson, inNcr } from "./net";
-import type { CompareOption, Depart, Place, Step } from "./types";
+import type { Depart, Place, Step, V2Option } from "./types";
 
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
+
+/* Live-tick dose factors by plan mode — the same measured Delhi
+ * microenvironment × minute-ventilation table the server uses
+ * (server/exposure.py; docs/plan/06 §1). The nav lane's route strip
+ * (GET /v2/strip) replaces this table + the /aqi poll. */
+const MODE_BREATH: Record<string, { microenv: number; ventLpm: number }> = {
+  car: { microenv: 0.55, ventLpm: 7.5 },
+  car_open: { microenv: 0.80, ventLpm: 7.5 },
+  bike: { microenv: 1.10, ventLpm: 9.0 },
+  auto: { microenv: 1.15, ventLpm: 8.5 },
+  bus: { microenv: 0.70, ventLpm: 8.0 },
+  metro: { microenv: 0.45, ventLpm: 7.5 },
+  cycle: { microenv: 1.10, ventLpm: 22.0 },
+  walk: { microenv: 1.00, ventLpm: 14.0 },
+};
+const breath = (mode?: string) => MODE_BREATH[mode ?? ""] ?? { microenv: 1.0, ventLpm: 8.0 };
 
 export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
   const [editWhich, setEditWhich] = useState<Which>("to");
-  const [options, setOptions] = useState<CompareOption[]>([]);
+  const [options, setOptions] = useState<V2Option[]>([]);
   const [selected, setSelected] = useState(0);
   const [depart, setDepart] = useState<Depart>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [community, setCommunity] = useState<CommunityTotals | null>(null);
   const [follow, setFollow] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planNonce, setPlanNonce] = useState(0);
+  const [planField, setPlanField] = useState<{ age_s?: number | null; source?: string } | null>(null);
+  const [vehicle, setVehicle] = useState<VehicleProfile | null>(null);
+  const [vehicleLoaded, setVehicleLoaded] = useState(false);
   const [notified, setNotified] = useState(false);
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
   const [navDose, setNavDose] = useState(0);
   const [receipt, setReceipt] = useState<{ doseUg: number; savedUg: number } | null>(null);
   const navDoseRef = useRef(0);
+
+  // SEAM(trip-submit): anonymous traversal donation moved to POST /v2/trip
+  // (src/api/trip.ts) — the nav lane owns it and will read `shareEnabled`
+  // there. Kept referenced so the prop stays meaningful for App.tsx.
+  void shareEnabled;
+
+  /* the S8 vehicle answer — loaded once, drives the /v2/plan `vehicle`
+     param (which option is flagged `your_vehicle`). */
+  useEffect(() => {
+    getVehicle()
+      .then((v) => { setVehicle(v); setVehicleLoaded(true); })
+      .catch(() => setVehicleLoaded(true));
+  }, []);
+
+  /** Persist a new S8 answer; changing it re-plans (vehicle is a dep of
+   *  the compare effect below). */
+  const setVehicleProfile = useCallback((p: VehicleProfile) => {
+    saveVehicle(p).catch(() => {});
+    setVehicle(p);
+  }, []);
 
   /* search itself lives in src/screens/SearchScreen (S2: T0 on-device +
      cancellable server tiers); this hook owns the phases around it. */
@@ -55,23 +104,33 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 13.5, duration: 800 });
   }, [editWhich, from, to, camRef]);
 
-  /* ---- routes: destination+origin set → decide + depart ---- */
+  /* ---- routes: destination+origin set → /v2/plan + legacy /depart ---- */
   useEffect(() => {
-    if (phase !== "compare" || !from || !to) return;
+    if (phase !== "compare" || !from || !to || !vehicleLoaded) return;
     let cancelled = false;
     (async () => {
       setNotified(false);
       setSteps(null); setStepsOpen(false);
       setLoadingRoute(true);
+      setPlanError(null);
       try {
         const qs = `from_lat=${from.lat}&from_lon=${from.lon}&to_lat=${to.lat}&to_lon=${to.lon}`;
-        const [cj, dj] = await Promise.all([
-          fetchJson(`${API}/decide?${qs}`, 12000),
+        const [pj, dj] = await Promise.all([
+          planOptions({
+            from: { lat: from.lat, lon: from.lon },
+            to: { lat: to.lat, lon: to.lon },
+            vehicle: planVehicle(vehicle),
+          }, 15000),
           fetchJson(`${API}/depart?${qs}&vehicle=auto&hours=24`).catch(() => null),
         ]);
         if (cancelled) return;
-        const opts: CompareOption[] = cj.options ?? [];
+        if (pj.error && pj.options.length === 0) {
+          setOptions([]); setDepart(null); setPlanError(pj.error);
+          return;
+        }
+        const opts = pj.options;
         setOptions(opts); setSelected(0);
+        setPlanField(pj.field);
         setDepart(dj?.best ? { best: dj.best, ug_saved_vs_now: dj.ug_saved_vs_now } : null);
         const g = opts[0]?.geometry;
         if (g?.type === "LineString") {
@@ -81,21 +140,36 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
              Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))],
             { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 });
         }
-      } catch { if (!cancelled) { setOptions([]); setDepart(null); } }
-      finally { if (!cancelled) setLoadingRoute(false); }
+      } catch {
+        if (!cancelled) {
+          setOptions([]); setDepart(null);
+          setPlanError("plan failed");   // honest retry state — no silent /decide fallback
+        }
+      } finally { if (!cancelled) setLoadingRoute(false); }
     })();
     return () => { cancelled = true; };
-  }, [phase, from, to, camRef]);
+  }, [phase, from, to, vehicle, vehicleLoaded, planNonce, camRef]);
 
-  /* ---- turn-by-turn steps for the selected (road) option ---- */
+  /** Error retry — re-runs the compare effect. */
+  const retryPlan = useCallback(() => setPlanNonce((n) => n + 1), []);
+
+  /* ---- turn-by-turn steps for the selected (road) option ----
+     /v2/plan options carry no steps yet → legacy /directions stays. */
   useEffect(() => {
     const o = options[selected];
     let cancelled = false;
+    // deferred one tick — setState directly inside an effect cascades renders
     Promise.resolve().then(() => { if (!cancelled) setSteps(null); });
-    if (!o || !from || !to || o.vehicle === "metro") return () => { cancelled = true; };
+    if (!o || !from || !to || o.mode === "metro") return () => { cancelled = true; };
+    if (Array.isArray(o.steps) && o.steps.length) {   // inlined steps win when they exist
+      const inline = o.steps;
+      Promise.resolve().then(() => { if (!cancelled) setSteps(inline); });
+      return () => { cancelled = true; };
+    }
+    const profile = o.mode === "cycle" ? "cycling" : o.mode === "walk" ? "walking" : "driving";
     fetchJson(
       `${API}/directions?from_lat=${from.lat}&from_lon=${from.lon}` +
-        `&to_lat=${to.lat}&to_lon=${to.lon}&profile=driving&vehicle=${o.vehicle}`, 10000)
+        `&to_lat=${to.lat}&to_lon=${to.lon}&profile=${profile}&vehicle=${o.mode}`, 10000)
       .then((j) => { if (!cancelled && Array.isArray(j.steps)) setSteps(j.steps); })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -103,6 +177,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
 
   const clearRoute = useCallback(() => {
     setTo(null); setOptions([]); setDepart(null); setSteps(null); setStepsOpen(false);
+    setPlanError(null); setPlanField(null);
     setPhase("idle"); setFollow(false); setReceipt(null);
   }, []);
 
@@ -124,16 +199,15 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     camRef.current?.setStop({ pitch: 0, duration: 700 });
     const o = options[selected];
     if (o && navDoseRef.current > 0.5) {
-      const worst = Math.max(...options.map((x) => x.exposure?.dose_ug ?? 0));
-      setReceipt({ doseUg: navDoseRef.current, savedUg: Math.max(0, worst - (o.exposure?.dose_ug ?? 0)) });
+      const worst = Math.max(...options.map((x) => x.dose?.mid ?? 0));
+      setReceipt({ doseUg: navDoseRef.current, savedUg: Math.max(0, worst - (o.dose?.mid ?? 0)) });
     }
   }, [options, selected, camRef]);
 
   useEffect(() => {
     if (phase !== "nav") return;
     const o = options[selected];
-    const ventLpm = typeof o?.exposure?.factors?.ventilation_lpm === "number" ? o.exposure.factors.ventilation_lpm : 12;
-    const micro = typeof o?.exposure?.factors?.microenv === "number" ? o.exposure.factors.microenv : 1;
+    const { microenv: micro, ventLpm } = breath(o?.mode);
     const tick = async () => {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       if (!pos || !inNcr(pos.coords.latitude, pos.coords.longitude)) return;
@@ -153,27 +227,21 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     return () => clearInterval(iv);
   }, [phase, options, selected, to, exitNav]);
 
-  /* ---- ledger: a picked option is a trip + traversal donation ---- */
+  /* ---- ledger: a picked option is a logged trip on-device ---- */
   useEffect(() => {
     const o = options[selected];
-    if (!o?.exposure?.dose_ug || !from || !to || phase !== "compare") return;
-    const worst = Math.max(...options.map((x) => x.exposure?.dose_ug ?? 0));
-    const avoided = Math.max(0, Math.round((worst - o.exposure.dose_ug) * 10) / 10);
+    if (o?.dose?.mid == null || !from || !to || phase !== "compare") return;
+    const worst = Math.max(...options.map((x) => x.dose?.mid ?? 0));
+    const avoided = Math.max(0, Math.round((worst - o.dose.mid) * 10) / 10);
     logTrip({
-      ts: Date.now(), label: o.label, vehicle: o.vehicle, dose_ug: o.exposure.dose_ug,
+      ts: Date.now(), label: o.label, vehicle: o.mode, dose_ug: o.dose.mid,
       avoided_ug: avoided, from: from.name, to: to.name,
       fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon,
     }).then(setTrips).catch(() => {});
-    const coords = o.geometry?.type === "LineString" ? (o.geometry as GeoJSON.LineString).coordinates : [];
-    if (coords.length > 1 && shareEnabled) {   // data sharing: on by default, one tap off
-      const step = Math.max(1, Math.floor(coords.length / 60));
-      observeTrip(API, {
-        vehicle: o.vehicle, coords: coords.filter((_, i) => i % step === 0),
-        duration_s: o.duration_s ?? (o.duration_min || 0) * 60,
-        dose_ug: o.exposure.dose_ug, avoided_ug: avoided,
-      }).then(() => fetchJson(`${API}/community`).then(setCommunity)).catch(() => {});
-    }
-  }, [selected, options, from, to, phase, shareEnabled]);
+    // SEAM(trip-submit): nav lane — the traversal donation moved from the
+    // legacy observeTrip→/observe call to POST /v2/trip (src/api/trip.ts),
+    // fired by whoever owns the finished-trip event in live navigation.
+  }, [selected, options, from, to, phase]);
 
   const routeSegs = useMemo<GeoJSON.FeatureCollection>(() => {
     const segs = options[selected]?.segments;
@@ -194,7 +262,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     features: options.map((o, i) => ({ o, i }))
       .filter(({ o, i }) => i !== selected && o.geometry?.type === "LineString" &&
         (o.geometry as GeoJSON.LineString).coordinates.length >= 2)
-      .map(({ o }) => ({ type: "Feature" as const, properties: {}, geometry: o.geometry })),
+      .map(({ o }) => ({ type: "Feature" as const, properties: {}, geometry: o.geometry! })),
   }), [options, selected]);
 
   const armDailyBrief = useCallback(async (): Promise<boolean> => {
@@ -217,11 +285,20 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
 
   const reloadTrips = useCallback(() => { loadTrips().then(setTrips).catch(() => {}); }, []);
 
+  /* doc 02 §S5: the vehicle question belongs on first private-mode pick —
+     the integrator opens <VehicleSheet/> when this flips true. */
+  const sel = options[selected];
+  const needsVehicle =
+    vehicleLoaded && vehicle == null &&
+    (sel?.mode === "car" || sel?.mode === "car_open" || sel?.mode === "bike");
+
   return {
     phase, setPhase, from, setFrom, to, setTo,
     editWhich, setEditWhich, options, selected, setSelected,
     depart, notified, trips, setTrips, community, setCommunity, follow, setFollow,
-    loadingRoute, steps, stepsOpen, setStepsOpen, navDose, receipt, setReceipt,
+    loadingRoute, planError, retryPlan, planField,
+    vehicle, setVehicleProfile, needsVehicle,
+    steps, stepsOpen, setStepsOpen, navDose, receipt, setReceipt,
     pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
     routeSegs, altSegs, reloadTrips,
   };
