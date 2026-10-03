@@ -62,6 +62,9 @@ def wired(monkeypatch):
     yield
     deps.set_location(None)
     FIELD._samples = []
+    FIELD._snap = None          # snapshot layer must be empty too —
+    FIELD._snap_centers = []    # airfield autoloads it at import; the
+    FIELD._snap_epoch = 0.0     # serving gate keys on _snap_centers
     FIELD._station_count = 0
 
 
@@ -185,6 +188,9 @@ def test_provenance_trip_rule():
 # --- edge cases ----------------------------------------------------------------
 def test_breath_none_when_field_empty():
     FIELD._samples = []
+    FIELD._snap = None          # clear the served snapshot layer too —
+    FIELD._snap_centers = []    # _serving_snapshot() gates on centers;
+    FIELD._snap_epoch = 0.0     # else the field stays non-empty by design
     b = client.get("/v2/city").json()
     assert b["breath"] is None
     assert b["pm25_stats"]["n"] == 0
