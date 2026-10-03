@@ -1,61 +1,10 @@
-// ALive-108 design tokens — monochrome canvas + one accent + one
-// dose ramp. Nothing else has color. (docs/24-design-language-spec.md)
-export const T = {
-  ink: "#1C1917",
-  ink2: "#57534E",
-  ink3: "#A8A29E",
-  paper: "#F7F7F6",
-  surface: "#FCFCFB",
-  hairline: "#E7E5E4",
-  ambientInk: "#06070A",
-  ambientPaper: "#F5F5F4",
+// ALive-108 design tokens — v2 dark design system (docs/plan/03-design-system.md).
+// V2T / V2Type / V2Radius are the contract other lanes build on — keep names+keys.
+import type { Lang } from "./i18n/strings";
 
-  go: "#1D4ED8",          // the only accent — interactive elements only
-  goSoft: "rgba(29,78,216,0.08)",
-
-  // dose ramp — single hue, monotonic lightness; quiet = neutral
-  doseQuiet: "#78716C",
-  doseWarn: "#FB7185",
-  doseOver: "#E11D48",
-  doseSevere: "#9F1239",
-  doseExtreme: "#4C0519",
-
-  // legacy aliases kept for old components until they're rebuilt
-  glass: "#FCFCFB",
-  glassBorder: "#E7E5E4",
-  accent: "#1D4ED8",
-  accentSoft: "rgba(29,78,216,0.08)",
-  doseLow: "#78716C",
-  doseMid: "#E11D48",
-  doseHigh: "#9F1239",
-  ambient: "#06070A",
-};
-
-export const F = {
-  light: "Outfit_300Light",
-  reg: "Outfit_400Regular",
-  med: "Outfit_500Medium",
-  semi: "Outfit_600SemiBold",
-  bold: "Outfit_700Bold",
-};
-
-export const NUM = { fontVariant: ["tabular-nums" as const] };
-
-/** dose color — keyed to concentration vs the day's quiet band */
-export const doseColor = (avg: number | null | undefined) =>
-  avg == null || avg < 60 ? T.doseQuiet
-    : avg < 130 ? T.doseWarn
-    : avg < 250 ? T.doseOver
-    : avg < 400 ? T.doseSevere
-    : T.doseExtreme;
-
-/** cigarette-equivalents: 1 🚬 = 316µg inhaled PM2.5 */
-export const CIG_UG = 316;
-export const cigOf = (ug: number | null | undefined) =>
-  ug == null ? null : Math.round((ug / CIG_UG) * 100) / 100;
-
-// ── v2 dark design system (docs/plan/03-design-system.md) ────────────────
-// New code imports from V2T. T stays until the old components are rebuilt.
+// ── v2 dark tokens ────────────────────────────────────────────────────────
+// Near-black canvas, one interactive accent, colour reserved for meaning.
+// "Good" has no colour — lightness is shown by absence (no green anywhere).
 export const V2T = {
   bg: "#0B0D10",
   surface: "#15181D",
@@ -92,3 +41,72 @@ export const V2Type = {
 } as const;
 
 export const V2Radius = { row: 12, sheet: 20, pill: 999 } as const;
+
+// ── type ──────────────────────────────────────────────────────────────────
+// Inter (OFL) for everything; Noto Sans Devanagari for Hindi. Weights 400/500/600.
+// Keys kept stable so transition components compile unchanged.
+export const F = {
+  light: "Inter_400Regular",   // spec has no 300 — light maps onto regular
+  reg: "Inter_400Regular",
+  med: "Inter_500Medium",
+  semi: "Inter_600SemiBold",
+  bold: "Inter_600SemiBold",   // spec caps weight at 600
+};
+
+export const FH = {
+  reg: "NotoSansDevanagari_400Regular",
+  med: "NotoSansDevanagari_500Medium",
+  semi: "NotoSansDevanagari_600SemiBold",
+};
+
+type W = keyof typeof FH;
+/** Font family for a UI language + weight slot. */
+export const fam = (lang: Lang, w: W = "reg") => (lang === "hi" ? FH[w] : F[w]);
+
+/** tabular numerals — required on every number (doc 03 §type) */
+export const NUM = { fontVariant: ["tabular-nums" as const] };
+
+/** smoke-you-breathe colour — keyed to concentration vs the day's quiet band.
+ *  Quiet reads as plain secondary text: absence of colour = lighter air. */
+export const doseColor = (avg: number | null | undefined) =>
+  avg == null || avg < 60 ? V2T.text3
+    : avg < 130 ? V2T.breath1
+    : avg < 250 ? V2T.breath2
+    : V2T.breath3;
+
+/** cigarette-equivalents: 1 🚬 = 316µg inhaled PM2.5 (Berkeley Earth, doc 10) */
+export const CIG_UG = 316;
+export const cigOf = (ug: number | null | undefined) =>
+  ug == null ? null : Math.round((ug / CIG_UG) * 100) / 100;
+
+// ── legacy aliases ────────────────────────────────────────────────────────
+// Old component keys remapped onto the dark palette so transition-era files
+// stay legible until rebuilt. New code uses V2T/F directly.
+export const T = {
+  ink: V2T.text,
+  ink2: V2T.text2,
+  ink3: V2T.text3,
+  paper: V2T.bg,
+  surface: V2T.surface,
+  hairline: V2T.line,
+  ambientInk: V2T.bg,
+  ambientPaper: V2T.text,
+
+  go: V2T.accent,
+  goSoft: "rgba(76,141,255,0.12)",
+
+  doseQuiet: V2T.text3,
+  doseWarn: V2T.breath1,
+  doseOver: V2T.breath2,
+  doseSevere: V2T.breath3,
+  doseExtreme: "#A93A3F",
+
+  glass: V2T.surface,
+  glassBorder: V2T.line,
+  accent: V2T.accent,
+  accentSoft: "rgba(76,141,255,0.12)",
+  doseLow: V2T.text3,
+  doseMid: V2T.breath2,
+  doseHigh: V2T.breath3,
+  ambient: V2T.bg,
+};

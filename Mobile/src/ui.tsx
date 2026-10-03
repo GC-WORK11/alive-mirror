@@ -1,44 +1,18 @@
-/** ALive-108 component primitives — docs/24 spec §5.4. */
+/** ALive-108 component primitives — v2 dark design system (docs/plan/03).
+ * Sheets: surface + 1px line top edge, spring (damping 22, stiffness 220),
+ * 3 detents (peek 15% · half 50% · full 92%). */
 import React, { useEffect, useState } from "react";
 import {
-  Animated, Pressable, StyleSheet, Text, TextInput, View,
+  Animated, Dimensions, Pressable, StyleSheet, Text, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
-import { F, NUM, T, cigOf } from "./theme";
-import { Icon, vehicleGlyph, type Glyph } from "./icons";
+import { F, NUM, V2Radius, V2T, V2Type } from "./theme";
+import { Icon, vehicleGlyph } from "./icons";
+import { t, type Lang } from "./i18n/strings";
 
-/** 1 — floating search pill: one field, avatar inside right edge. */
-export function SearchPill({
-  placeholder, value, onFocus, onChange, onAvatar,
-  left, hint,
-}: {
-  placeholder: string; value: string;
-  onFocus?: () => void; onChange?: (t: string) => void;
-  onAvatar?: () => void;
-  left?: React.ReactNode; hint?: string;
-}) {
-  return (
-    <View style={us.pill}>
-      {left ?? <Icon name="pin" color={T.ink3} size={18} />}
-      <TextInput
-        style={us.pillInput}
-        placeholder={placeholder}
-        placeholderTextColor={T.ink3}
-        autoCorrect={false} autoCapitalize="none"
-        value={value} onFocus={onFocus} onChangeText={onChange}
-        returnKeyType="search" clearButtonMode="while-editing"
-      />
-      {hint ? <Text style={us.pillHint} numberOfLines={1}>{hint}</Text> : null}
-      {onAvatar && (
-        <Pressable onPress={onAvatar} hitSlop={8} style={us.avatarBtn}>
-          <Icon name="avatar" color={T.surface} size={16} filled />
-        </Pressable>
-      )}
-    </View>
-  );
-}
+const WIN_H = () => Dimensions.get("window").height;
 
-/** 2 — bottom sheet with grabber + X (NN/g: both, never stack). */
+/** Bottom sheet — grabber + optional X. Dark surface, hairline top edge. */
 export function Sheet({
   detent = "peek", onClose, children, style,
 }: {
@@ -47,20 +21,23 @@ export function Sheet({
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const h = detent === "peek" ? 96 : detent === "half" ? 340 : 560;
+  const h = detent === "peek" ? WIN_H() * 0.15 : detent === "half" ? WIN_H() * 0.5 : WIN_H() * 0.92;
   const [anim] = useState(() => new Animated.Value(0));
   useEffect(() => {
-    Animated.timing(anim, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+    Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: true }).start();
   }, [anim]);
   return (
     <Animated.View
-      style={[us.sheet, { maxHeight: h, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }, style]}
+      style={[us.sheet, {
+        maxHeight: Math.max(96, h),
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
+      }, style]}
     >
       <View style={us.grabberRow}>
         <View style={us.grabber} />
         {onClose && (
-          <Pressable onPress={onClose} hitSlop={10} style={us.sheetX}>
-            <Icon name="close" color={T.ink3} size={16} />
+          <Pressable onPress={onClose} hitSlop={10} style={us.sheetX} accessibilityRole="button">
+            <Icon name="close" color={V2T.text3} size={16} />
           </Pressable>
         )}
       </View>
@@ -69,45 +46,54 @@ export function Sheet({
   );
 }
 
-/** 3 — mode row: silhouette | ETA | meta | dose column. Ledger, not card. */
+/** 4-step smoke-in bar — relative within this trip, no units (doc 02 §S4).
+ *  Level drives the breath ramp; absence of colour reads as light. */
+export function SmokeBar({ frac, color }: { frac: number; color?: string }) {
+  const f = Math.max(0, Math.min(1, frac));
+  const lit = f <= 0 ? 0 : Math.max(1, Math.ceil(f * 4));
+  const c = color ?? (f > 0.66 ? V2T.breath3 : f > 0.33 ? V2T.breath2 : V2T.breath1);
+  return (
+    <View style={us.segRow}>
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} style={[us.seg, { backgroundColor: i < lit ? c : V2T.line }]} />
+      ))}
+    </View>
+  );
+}
+
+/** Mode row (doc 02 §S4): mode icon | label + meta | ETA | in-bar.
+ *  Tag on at most one row; no units on this screen. */
 export function ModeRow({
-  vehicle, label, etaMin, meta, doseUg, best, worst, selected, onPress, reason,
+  vehicle, label, etaMin, meta, inFrac, tag, selected, onPress, lang = "en",
 }: {
   vehicle: string; label: string; etaMin: number; meta?: string;
-  doseUg: number | null; best?: boolean; worst?: boolean;
-  selected: boolean; onPress: () => void; reason?: string;
+  inFrac: number | null; tag?: string; selected: boolean;
+  onPress: () => void; lang?: Lang;
 }) {
-  const cig = cigOf(doseUg);
-  const frac = doseUg == null ? 0 : Math.min(1, doseUg / 316);
-  const dc = doseUg == null ? T.doseQuiet
-    : frac < 0.25 ? T.doseQuiet : frac < 0.6 ? T.doseWarn
-    : frac < 1.2 ? T.doseOver : T.doseSevere;
   return (
     <Pressable onPress={onPress}
       style={({ pressed }) => [us.modeRow, pressed && { opacity: 0.55 }, selected && us.modeRowSel]}>
-      <Icon name={vehicleGlyph(vehicle)} color={selected ? T.go : T.ink2} size={30} />
+      <Icon name={vehicleGlyph(vehicle)} color={selected ? V2T.accent : V2T.text2} size={30} filled={selected} />
       <View style={{ flex: 1, marginLeft: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "baseline" }}>
           <Text style={us.modeLabel} numberOfLines={1}>{label}</Text>
-          {best && <Text style={us.bestTag}>least smoke</Text>}
+          {tag ? <Text style={us.bestTag}>{tag}</Text> : null}
         </View>
-        {reason ? <Text style={us.modeReason} numberOfLines={1}>{reason}</Text> : null}
         {meta ? <Text style={us.modeMeta} numberOfLines={1}>{meta}</Text> : null}
       </View>
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={[us.modeEta, NUM]}>{etaMin}<Text style={us.modeEtaUnit}> min</Text></Text>
-        <DoseBar frac={frac} color={dc} />
-        {cig != null && cig >= 0.05 && (
-          <Text style={[us.modeCig, NUM, { color: dc }]}>{cig} 🚬</Text>
-        )}
+        <Text style={[us.modeEta, NUM]}>
+          {etaMin}<Text style={us.modeEtaUnit}> {t("minUnit", lang)}</Text>
+        </Text>
+        {inFrac != null && <SmokeBar frac={inFrac} />}
       </View>
     </Pressable>
   );
 }
 
-/** 4 — dose bar: 44×5 hairline track, depth = dose vs cigarette budget. */
+/** Legacy dose bar — thin track, depth = dose vs cigarette budget. */
 export function DoseBar({ frac, color }: { frac: number; color?: string }) {
-  const c = color ?? T.doseQuiet;
+  const c = color ?? V2T.text3;
   return (
     <View style={us.doseTrack}>
       <View style={[us.doseFill, { flex: Math.max(0.02, Math.min(1, frac)), backgroundColor: c }]} />
@@ -116,8 +102,8 @@ export function DoseBar({ frac, color }: { frac: number; color?: string }) {
   );
 }
 
-/** 5 — cigarette strip: N glyphs, last one partially filled. */
-export function CigStrip({ ug, size = 16, color = T.ink, max = 7 }: {
+/** Cigarette strip: N glyphs, last one partially filled (receipt). */
+export function CigStrip({ ug, size = 16, color = V2T.text, max = 7 }: {
   ug: number | null | undefined; size?: number; color?: string; max?: number;
 }) {
   if (ug == null || ug <= 0) return null;
@@ -129,12 +115,9 @@ export function CigStrip({ ug, size = 16, color = T.ink, max = 7 }: {
     <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
       {Array.from({ length: n }).map((_, i) => (
         <View key={i} style={{ width: size, height: size }}>
-          <Icon name="cigarette" color={i < full ? color : T.hairline} size={size} filled={i < full} />
+          <Icon name="cigarette" color={i < full ? color : V2T.line} size={size} filled={i < full} />
           {i === full && partial > 0.05 && (
-            <View style={{
-              position: "absolute", left: 0, top: 0, bottom: 0,
-              width: size * partial, overflow: "hidden",
-            }}>
+            <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: size * partial, overflow: "hidden" }}>
               <Icon name="cigarette" color={color} size={size} filled />
             </View>
           )}
@@ -145,17 +128,7 @@ export function CigStrip({ ug, size = 16, color = T.ink, max = 7 }: {
   );
 }
 
-/** 6 — floating action button (max 2 per screen budget). */
-export function Fab({ glyph, onPress, active }: { glyph: Glyph; onPress: () => void; active?: boolean }) {
-  return (
-    <Pressable onPress={onPress} hitSlop={8}
-      style={({ pressed }) => [us.fab, active && us.fabOn, pressed && { opacity: 0.6 }]}>
-      <Icon name={glyph} color={active ? T.surface : T.ink} size={20} filled={active} />
-    </Pressable>
-  );
-}
-
-/** 7 — endpoint pins: ink dot ringed paper (origin) / ink teardrop (dest). */
+/** Endpoint pins: origin = white ring, destination = red pinlet (doc 03). */
 export function EndpointPin({ kind }: { kind: "origin" | "dest" }) {
   if (kind === "origin") {
     return (
@@ -164,21 +137,32 @@ export function EndpointPin({ kind }: { kind: "origin" | "dest" }) {
       </View>
     );
   }
+  return <Icon name="pin" color={V2T.pinDest} size={32} filled />;
+}
+
+/** Round floating map control — one shadow level (doc 03 §elevation). */
+export function MapButton({
+  glyph, onPress, active, label, filled,
+}: {
+  glyph: "locate" | "layers"; onPress: () => void; active?: boolean;
+  label?: string; filled?: boolean;
+}) {
   return (
-    <View style={{ alignItems: "center" }}>
-      <Icon name="pin" color={T.ink} size={30} filled />
-    </View>
+    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => [us.mapBtn, active && us.mapBtnOn, pressed && { opacity: 0.6 }]}>
+      <Icon name={glyph} color={active ? V2T.text : V2T.text2} size={22} filled={filled ?? active} />
+    </Pressable>
   );
 }
 
-/** 8 — small one-line banner strip (GRAP / hazard-grade events only). */
+/** Small one-line banner strip — hazard-grade events only. */
 export function AlertBanner({ text, onClose }: { text: string; onClose?: () => void }) {
   return (
     <View style={us.alert}>
       <Text style={us.alertTxt} numberOfLines={1}>{text}</Text>
       {onClose && (
         <Pressable onPress={onClose} hitSlop={8}>
-          <Icon name="close" color={T.ambientPaper} size={14} />
+          <Icon name="close" color={V2T.text} size={14} />
         </Pressable>
       )}
     </View>
@@ -186,65 +170,54 @@ export function AlertBanner({ text, onClose }: { text: string; onClose?: () => v
 }
 
 const us = StyleSheet.create({
-  pill: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: T.surface, borderRadius: 28, height: 52,
-    paddingHorizontal: 16, borderWidth: StyleSheet.hairlineWidth,
-    borderColor: T.hairline,
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  pillInput: { flex: 1, fontFamily: F.med, fontSize: 16, color: T.ink, marginLeft: 10, paddingVertical: 0 },
-  pillHint: { fontFamily: F.reg, fontSize: 11, color: T.ink3, maxWidth: 90 },
-  avatarBtn: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: T.ink,
-    alignItems: "center", justifyContent: "center", marginLeft: 8,
-  },
   sheet: {
-    backgroundColor: T.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline, borderBottomWidth: 0,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: -3 },
-    elevation: 6, overflow: "hidden",
+    backgroundColor: V2T.surface, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
+    borderTopWidth: 1, borderTopColor: V2T.line,
+    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: -4 },
+    elevation: 10, overflow: "hidden",
   },
   grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 4 },
-  grabber: { width: 36, height: 4.5, borderRadius: 2.5, backgroundColor: T.hairline },
+  grabber: { width: 36, height: 4.5, borderRadius: 2.5, backgroundColor: V2T.line },
   sheetX: { position: "absolute", right: 14, top: 4, padding: 4 },
+
   modeRow: {
     flexDirection: "row", alignItems: "center",
     paddingVertical: 12, paddingHorizontal: 16, minHeight: 56,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.hairline,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
   },
-  modeRowSel: { backgroundColor: T.goSoft },
-  modeLabel: { fontFamily: F.med, fontSize: 16, color: T.ink },
-  bestTag: { fontFamily: F.med, fontSize: 11, color: T.go, marginLeft: 8 },
-  modeReason: { fontFamily: F.reg, fontSize: 13, color: T.ink2, marginTop: 1 },
-  modeMeta: { fontFamily: F.reg, fontSize: 12, color: T.ink3, marginTop: 1 },
-  modeEta: { fontFamily: F.bold, fontSize: 17, color: T.ink },
-  modeEtaUnit: { fontFamily: F.reg, fontSize: 12, color: T.ink2 },
-  modeCig: { fontFamily: F.med, fontSize: 12, marginTop: 2 },
-  doseTrack: {
-    width: 44, height: 5, borderRadius: 2.5, backgroundColor: T.hairline,
-    flexDirection: "row", overflow: "hidden", marginTop: 4,
-  },
+  modeRowSel: { backgroundColor: "rgba(76,141,255,0.08)" },
+  modeLabel: { fontFamily: F.med, fontSize: V2Type.body, color: V2T.text, flexShrink: 1 },
+  bestTag: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.accent, marginLeft: 8 },
+  modeMeta: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 1 },
+  modeEta: { fontFamily: F.semi, fontSize: V2Type.body, color: V2T.text },
+  modeEtaUnit: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text2 },
+  segRow: { flexDirection: "row", gap: 3, marginTop: 5 },
+  seg: { width: 10, height: 4, borderRadius: 2 },
+
+  doseTrack: { width: 44, height: 5, borderRadius: 2.5, backgroundColor: V2T.line, flexDirection: "row", overflow: "hidden", marginTop: 4 },
   doseFill: { borderRadius: 2.5 },
   cigMore: { fontFamily: F.med, fontSize: 11 },
-  fab: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: T.surface,
-    alignItems: "center", justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth, borderColor: T.hairline,
-    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  fabOn: { backgroundColor: T.go, borderColor: T.go },
+
   originPin: {
-    width: 20, height: 20, borderRadius: 10, backgroundColor: T.surface,
-    borderWidth: 2, borderColor: T.go, alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+    width: 20, height: 20, borderRadius: 10, backgroundColor: V2T.bg,
+    borderWidth: 2.5, borderColor: V2T.text, alignItems: "center", justifyContent: "center",
+    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
   },
-  originDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: T.go },
+  originDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: V2T.accent },
+
+  mapBtn: {
+    width: 46, height: 46, borderRadius: 23, backgroundColor: V2T.surface,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: V2T.line,
+    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  mapBtnOn: { backgroundColor: V2T.accent, borderColor: V2T.accent },
+
   alert: {
-    flexDirection: "row", alignItems: "center", backgroundColor: T.ink,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, gap: 10,
+    flexDirection: "row", alignItems: "center", backgroundColor: V2T.surface2,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: V2Radius.row, gap: 10,
+    borderWidth: 1, borderColor: V2T.line,
   },
-  alertTxt: { flex: 1, fontFamily: F.med, fontSize: 13, color: T.ambientPaper },
+  alertTxt: { flex: 1, fontFamily: F.med, fontSize: V2Type.label, color: V2T.text },
 });
