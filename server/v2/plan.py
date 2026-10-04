@@ -904,12 +904,19 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
                          depart_at) -> list:
     """The full option set for one OD pair: motorized + slow + transit +
     the least-inhalation engine paths."""
+    # engine arm gets its own sub-budget: a cold-task first reweight
+    # (field boot + ~1.25M sample calls) can outlast the plan budget —
+    # without this its slowness cancels the WHOLE gather and motorized
+    # options die with it. wait_for only abandons the future; the
+    # detached thread still finishes pricing for the next request.
     motor, slow, eng = await asyncio.gather(
         _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                            depart_at),
         _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile),
-        asyncio.to_thread(_engine_options, flat, flon, tlat, tlon,
-                          vehicle, profile),
+        asyncio.wait_for(
+            asyncio.to_thread(_engine_options, flat, flon, tlat, tlon,
+                              vehicle, profile),
+            timeout=ENGINE_BUDGET_S),
         return_exceptions=True)
     options = ([o for o in (motor or []) if isinstance(o, dict)]
                if isinstance(motor, list) else [])
@@ -940,6 +947,7 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
 # the live field on a lazy TTL (the field itself refreshes on its own
 # cadence; 10 min always lands inside freshness).
 ENGINE_REWEIGHT_TTL_S = 600.0
+ENGINE_BUDGET_S = 8.0        # sub-budget inside PLAN_BUDGET_S
 ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
                 ("auto", "Auto-rickshaw"), ("cycle", "Bicycle"),
                 ("walk", "On foot"))
