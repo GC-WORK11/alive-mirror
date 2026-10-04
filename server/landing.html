@@ -294,8 +294,6 @@ footer{border-top:1px solid var(--line);margin-top:60px}
 </div></footer>
 
 <script>
-const RAMP=[' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '];
-const INK=[' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' '];
 const el=id=>document.getElementById(id);
 const j=(u,o)=>fetch(u,o).then(r=>r.ok?r.json():Promise.reject(r.status));
 
@@ -309,32 +307,44 @@ document.querySelectorAll('section,.field-card').forEach(s=>{s.classList.add('re
    reads /grid directly: every glyph's ink weight is a real cell's pm2.5.
    gradient of characters, not colors: air rendered as text. */
 const CH=' .·:;=+x#%@';          /* thin air → dense smog */
-const CF=' .·:;=+x#%@';          /* confidence shading */
 function renderAether(gj){
-  const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,W=76,H=30;
-  const canvas=Array.from({length:H},()=>Array(W).fill(' '));
-  const conf=Array.from({length:H},()=>Array(W).fill(' '));
-  let lo=1e9,hi=-1e9,n=0;
+  /* /grid returns the full 40×40 lattice — rebuild it as a matrix:
+     rank cells into 40 rows by centroid lat, sort each row by lon.
+     one glyph per real cell, doubled horizontally for char aspect. */
+  const pts=[];
+  let lo=1e9,hi=-1e9;
   for(const f of gj.features){
     const p=f.properties||{};const ring=f.geometry.coordinates[0];
     let cx=0,cy=0;for(const c of ring){cx+=c[0];cy+=c[1]}
     cx/=ring.length;cy/=ring.length;
-    const col=Math.round((cx-X0)/(X1-X0)*(W-1)),row=Math.round((cy-Y0)/(Y1-Y0)*(H-1));
-    if(col<0||col>=W||row<0||row>=H)continue;
-    const v=p.pm25;if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}
-    const t=hi>lo?0:0;canvas[H-1-row][col]=v;conf[H-1-row][col]=p.conf||'lo';n++;
+    const v=p.pm25;
+    if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}
+    pts.push({cx,cy,v,conf:p.conf||'lo'});
+  }
+  if(!pts.length){throw 'empty field'}
+  const side=Math.round(Math.sqrt(pts.length));
+  pts.sort((a,b)=>b.cy-a.cy);
+  const rows=[];
+  for(let r=0;r<side;r++){
+    const row=pts.slice(r*side,(r+1)*side).sort((a,b)=>a.cx-b.cx);
+    rows.push(row);
   }
   let s='';
-  for(let r=0;r<H;r++){let line='';
-    for(let c=0;c<W;c++){const v=canvas[r][c];
-      if(v===' '||v==null){line+= conf[r][c]===' '? ' ':'·';continue}
-      const t=Math.max(0,Math.min(1,(v-lo)/((hi-lo)||1)));
-      const ci=Math.min(CH.length-1,Math.round(t*(CH.length-1)));
-      line+=CH[ci];
+  for(const row of rows){let line='';
+    for(const c of row){
+      let g;
+      if(c.conf==='lo'||c.v==null)g='·';                 /* thin coverage — faint, honest */
+      else{
+        const t=Math.max(0,Math.min(1,(c.v-lo)/((hi-lo)||1)));
+        g=CH[Math.min(CH.length-1,Math.round(t*(CH.length-1)))];
+      }
+      line+=g+g;
     }s+=line+'\n'}
   el('aether').textContent=s;
-  el('fcap').innerHTML=`each glyph is a real interpolated cell — <b>${n.toLocaleString()} cells</b>,
-    ${lo.toFixed(1)}–${hi.toFixed(1)} µg/m³ right now. light ink is thin coverage, dense ink is measured smog. not a picture.`;
+  const m=pts.filter(p=>p.conf==='hi').length,i=pts.filter(p=>p.conf==='med').length,l=pts.length-m-i;
+  el('fcap').innerHTML=`each glyph is a real interpolated cell — <b>${pts.length.toLocaleString()} cells</b>,
+    ${lo.toFixed(1)}–${hi.toFixed(1)} µg/m³ right now.
+    <b>${m}</b> measured · <b>${i}</b> interpolated · <b>${l}</b> thin (faint dots). not a picture.`;
 }
 j('/grid?cells=40&param=pm2_5').then(renderAether)
   .catch(()=>{el('aether').textContent=

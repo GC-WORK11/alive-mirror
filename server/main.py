@@ -1222,10 +1222,20 @@ async def admin_api():
 
 @app.get("/")
 async def root_page():
-    """Bare domain → the public city page: a judge hitting the NLB root
-    lands on the live choropleth, not a 404."""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse("/city", status_code=302)
+    """The pitch door: a judge hitting the NLB root lands on the landing
+    page — the few-line pitch + the live ASCII field — which leads into
+    /city for the raw choropleth."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"))
+
+
+@app.get("/landing")
+async def landing_page():
+    """Explicit alias for the marketing surface (same file as /)."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"))
 
 
 @app.get("/admin")
