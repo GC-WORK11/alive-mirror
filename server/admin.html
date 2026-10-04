@@ -362,6 +362,9 @@ async function tick(){
     ['kriging',esc(f.kriging||'—'),true],
     ['σ band coverage',esc(f.sigma_coverage||'none — reads carry no honest uncertainty band'),true],
     ['coverage',cov&&cov.cells!=null?`${fmt(cov.cells)} cells · ±${cov.out_beyond_km??'—'} km edge`:'—',true],
+    ['routing engine',status.routing&&status.routing.loaded
+      ?`${esc(status.routing.engine)} · ${fmt(status.routing.edges)} edges · ${fmt(status.routing.edges_priced)} priced off the live field · repriced ${status.routing.reweight_age_s!=null?ago(status.routing.reweight_age_s)+' ago':'—'}`
+      :'loading — builds at boot / first plan',true],
     ['wind',wind.speed_kmh!=null?`${Math.round(wind.speed_kmh)} km/h from ${Math.round(wind.from_deg??0)}°`:'—',true],
     ['pollutants',(status.species&&Object.keys(status.species).length)
       ?`PM10 ${status.species.pm10?.mean??'—'} · NO₂ ${status.species.nitrogen_dioxide?.mean??'—'} · O₃ ${status.species.ozone?.mean??'—'} · CO ${status.species.carbon_monoxide?.mean??'—'} · SO₂ ${status.species.sulphur_dioxide?.mean??'—'} µg/m³${status.species.us_aqi?` · US AQI ${Math.round(status.species.us_aqi.mean)}`:''}`

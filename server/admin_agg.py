@@ -268,6 +268,39 @@ async def status():
         forecast = FORECAST.status() or {}
     except Exception:
         forecast = {}
+    routing = {"loaded": False}
+    try:
+        import routegraph
+        eng = getattr(routegraph, "_ENGINE", None)
+        if eng is not None:
+            def _n(name):
+                v = getattr(eng, name, None)
+                if v is None:
+                    v = getattr(getattr(eng, "g", None), name, None)
+                return v() if callable(v) else v
+            from v2 import plan as _v2plan
+            meta = {}
+            try:
+                mp = routegraph.GRAPH_FILE.replace(".bin.gz", ".meta.json")
+                meta = json.loads(open(mp).read())
+            except Exception:
+                pass
+            eng_t = getattr(_v2plan, "_ENG_T", 0)
+            routing = {
+                "loaded": True,
+                "engine": type(eng).__name__,
+                "edges": _n("n_edges"),
+                "nodes": _n("n_nodes"),
+                "edges_priced": _n("edges_priced"),
+                "field_mean": _n("field_mean"),
+                "reweight_age_s": round(time.time() - eng_t) if eng_t else None,
+                "reweight_ttl_s": getattr(_v2plan,
+                                          "ENGINE_REWEIGHT_TTL_S", None),
+                "graph_pbfs": meta.get("pbfs"),
+                "graph_sha": meta.get("pbf_sha256"),
+            }
+    except Exception as e:
+        routing = {"loaded": False, "error": repr(e)}
     return {
         "ts": time.time(),
         "ok": h.get("ok", True),
@@ -297,6 +330,10 @@ async def status():
         # the forecast horizon's own health — grid points, hour span,
         # fetch age, and whether reads are anchored to the live field
         "forecast": forecast,
+        # the least-inhalation path engine — graph size, how many edges
+        # are priced off the live field right now, and reprice age.
+        # loaded:false until the boot-warm or first plan builds it.
+        "routing": routing,
         "trips_backend": h.get("trips_backend"),
         "ledger": {
             "backend": getattr(LEDGER, "backend", "memory"),
