@@ -120,6 +120,14 @@ class PathEngine {
   std::vector<uint32_t> adj_flat_;
   std::vector<uint32_t> adj_off_;       // size n_nodes+1
 
+  // snap connectivity screen: radj = reverse CSR (dirs whose head is
+  // the node), reach_[mi] = {pre, post} membership bitsets built
+  // lazily per mode — routegraph.py _reach_sets is the oracle
+  mutable std::vector<uint32_t> radj_flat_, radj_off_;
+  mutable std::unordered_map<
+      int, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>>
+      reach_;
+
   // reweight state
   std::vector<float> conc_;             // per-edge concentration
   std::vector<char> conc_set_;
@@ -133,7 +141,15 @@ class PathEngine {
   std::vector<std::pair<double, double>> edge_pts(uint32_t i) const;
   double conc(uint32_t e) const;
   bool legal(uint32_t e, bool rev, const PathRule& r) const;
-  int snap(double lat, double lon, const PathRule& r, double* d_out) const;
+  // role 0 = origin (needs pre — can reach the main net),
+  // role 1 = destination (needs post — reachable from it)
+  int snap(double lat, double lon, int mi, int role,
+           double* d_out) const;
+  void build_radj() const;
+  std::vector<uint8_t> flood(uint32_t seed, const PathRule& r,
+                             bool reverse) const;
+  const std::pair<std::vector<uint8_t>, std::vector<uint8_t>>&
+      reach_sets(int mi, const PathRule& r) const;
   double mode_speed(uint32_t e, const PathRule& r) const;
 };
 

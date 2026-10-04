@@ -322,6 +322,79 @@ def test_real_ban_brackets_detour(py_eng, graph):
     assert detoured > 0
 
 
+def _pocket_arg2():
+    """Main corridor A-B-C plus a 2-node car-legal island I-J closer
+    to the query origin than A — the dead-pocket snap the connectivity
+    screen must skip. Also an isolated pair P-Q far outside the main
+    net: intra-island trips must still route via the nearest-legal
+    fallback."""
+    import struct
+    nodes = [(77000000, 28000000),   # 0 A
+             (77010000, 28000000),   # 1 B
+             (77020000, 28000000),   # 2 C
+             (77000002, 28000000),   # 3 I (0.19 m from A's coords)
+             (77001000, 28000000),   # 4 J
+             (76900000, 27900000),   # 5 P — >100 km away
+             (76901000, 27900000)]   # 6 Q
+    edges = [(0, 1, 1000.0), (1, 2, 1000.0),   # main corridor
+             (3, 4, 90.0),                      # dead-end island stub
+             (5, 6, 90.0)]                      # remote island pair
+    blob = bytearray()
+    blob += struct.pack("<4s4I", b"ARG2", len(nodes), len(edges), 0, 0)
+    blob += struct.pack("<4i", 76899000, 27899000, 77021000, 28011000)
+    for lon, lat in nodes:
+        blob += struct.pack("<2i", lon, lat)
+    pts_blob = bytearray()
+    off = 0
+    offs = []
+    for u, v, _ln in edges:
+        pts_blob += struct.pack("<2i", *nodes[u])
+        pts_blob += struct.pack("<2h", nodes[v][0] - nodes[u][0],
+                                nodes[v][1] - nodes[u][1])
+        offs.append((off, 2))
+        off += 3
+    for (u, v, ln), (po, pn) in zip(edges, offs):
+        blob += struct.pack("<IIfIHBbBiBB", u, v, ln, po, pn,
+                            9, 0, 30, 0, 1, 0)
+    blob += struct.pack("<I", 0)
+    blob += pts_blob
+    return bytes(blob)
+
+
+def test_snap_skips_dead_pocket():
+    """Querying from the island's exact spot must snap to main-net A
+    (role-aware: origin screens on pre, destination on post); the old
+    nearest-legal snap returned 'no path' here."""
+    for mk in (routegraph.PyPathEngine,
+               getattr(__import__("alive_core"), "PathEngine", None)):
+        if mk is None:
+            continue
+        eng = mk(_pocket_arg2())
+        eng.reweight(lambda lat, lon: 42.0)
+        res = eng.query(28.0, 77.000002, 28.0, 77.02, "car")
+        assert res.get("error") is None, res
+        assert res["edge_ids"] == [0, 1], res["edge_ids"]
+
+
+def test_snap_fallback_routes_intra_island():
+    """When every in-radius node is pocketed, snap falls back to the
+    nearest legal node — a trip that lives entirely inside an island
+    still routes instead of hard-failing."""
+    eng = routegraph.PyPathEngine(_pocket_arg2())
+    eng.reweight(lambda lat, lon: 42.0)
+    res = eng.query(27.9, 76.90, 27.9, 76.901, "car")
+    assert res.get("error") is None, res
+    assert res["edge_ids"] == [3], res["edge_ids"]
+
+
+def test_bike_speed_cap_40():
+    """Two-wheelers cap at auto speed, not below it — the 30 km/h cap
+    sat bikes under autos on free arterials, inflating engine-side
+    bike dose ~2x vs the router's freeflow model."""
+    spd = routegraph.MODE_RULES["bike"]["spd"]
+    assert spd(50) == 40 and spd(30) == 30
+
+
 def test_synthetic_turn_ban_detours():
     """Deterministic proof the ban changes the path: A→D by car must
     take the 3-edge detour, never the banned (e0→e2) move; walk keeps

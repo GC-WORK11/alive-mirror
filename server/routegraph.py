@@ -64,7 +64,12 @@ MODE_RULES = {
                  "spd": lambda sp: min(sp, 40)},
     "bike":     {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
                  "acc": 0b001 | 0b10000, "turn": 1,
-                 "spd": lambda sp: min(sp, 30)},
+                 # cap 40, not 30: two-wheelers sustain ~40+ on NCR
+                 # arterials freeflow (OSM maxspeed 50-70); a lower cap
+                 # flattened the len/sp axis the dose objective
+                 # optimizes and sat bikes below autos, which they
+                 # outrun in Delhi traffic
+                 "spd": lambda sp: min(sp, 40)},
     # non-motor: no motorways, oneway not applicable to legs
     "cycle":    {"deny": {0, 1}, "oneway": False,
                  "acc": 0b010, "turn": 2,
@@ -82,6 +87,18 @@ HW_UPLIFT = {0: 1.35, 1: 1.35, 2: 1.30, 3: 1.30, 4: 1.20, 5: 1.20,
              6: 1.10, 7: 1.10, 8: 1.05, 9: 1.05}
 MAX_SAMPLE_PTS = 5      # per-edge concentration sample count cap
 SNAP_RADIUS_M = 1500.0  # furthest node-snap admitted for an endpoint
+# snap connectivity screen: a candidate endpoint must sit in the
+# main network — `pre` (can reach the giant component, origin side) or
+# `post` (reachable from it, destination side). Micro-islands exist on
+# real NCR extracts (clipped stubs, ped-precinct clusters); snapping to
+# one returned 'no path in graph' on every OD touching it. Floods are
+# per-mode (mode legality shapes reachability) and lazy per engine.
+MAIN_MIN_FRAC = 0.30    # a flood must cover ≥30% of nodes to be 'main'
+SEED_CANDIDATES = 8     # highest-degree nodes tried as flood seeds
+# floods cost a full edge sweep per mode; engines rebuilt per test
+# would otherwise re-flood the identical graph — cache sets per
+# (blob length, mode); the route graph is immutable on disk
+_REACH_CACHE = {}
 
 # alternative-corridor search (alternatives()): after the optimal path,
 # re-run A* with every found path's edges taxed by ALT_TAX, up to
@@ -230,6 +247,9 @@ class PyPathEngine:
         self.conc = [None] * g.n_edges   # per-edge field mean (reweight)
         self.field_mean = None
         self.edges_priced = 0            # count priced — parity w/ C++ twin
+        self._radj = None                # reverse CSR, built lazily
+        self._reach = {}                 # mode -> (pre, post) bytearrays
+        self._blob_key = hash(blob)      # _REACH_CACHE key part
 
     # ---- reweight: per-edge concentration from the live field ----
     def _sample_pts(self, i):
@@ -290,13 +310,89 @@ class PyPathEngine:
                 return False
         return rule["spd"](g.e_sp[e]) > 0
 
-    def snap(self, lat, lon, mode="car"):
+    # ---- connectivity screen: lazy per-mode main-net floods ----------
+    def _rev_adj(self):
+        """Reverse CSR: radj[x] lists travel directions whose head is x
+        — fwd dir i (u->v) enters v when ow>=0; reversed dir i|REV
+        (v->u) enters u when ow<=0. Mirrors build_adj exactly."""
+        if self._radj is None:
+            g = self.g
+            radj = [[] for _ in range(g.n_nodes)]
+            for i in range(g.n_edges):
+                u, v, ow = g.e_u[i], g.e_v[i], g.e_ow[i]
+                if ow >= 0:
+                    radj[v].append(i)
+                if ow <= 0:
+                    radj[u].append(i | 0x80000000)
+            self._radj = radj
+        return self._radj
+
+    def _flood(self, seed, rule, adj, reverse):
+        """Mode-legal BFS over adj (forward: node -> successors) or
+        radj (reverse: node -> predecessors). Returns bytearray set."""
+        g = self.g
+        seen = bytearray(g.n_nodes)
+        seen[seed] = 1
+        fr = [seed]
+        while fr:
+            n = fr.pop()
+            for ei in adj[n]:
+                e = ei & 0x7FFFFFFF
+                rev = bool(ei & 0x80000000)
+                if not self._legal(e, rev, rule):
+                    continue
+                # forward: successor = head of the travelled dir;
+                # reverse: predecessor = tail of the travelled dir
+                if reverse:
+                    w = g.e_u[e] if not rev else g.e_v[e]
+                else:
+                    w = g.e_v[e] if not rev else g.e_u[e]
+                if not seen[w]:
+                    seen[w] = 1
+                    fr.append(w)
+        return seen
+
+    def _reach_sets(self, mode):
+        """(pre, post) main-net membership for `mode`, built lazily.
+        post = nodes reachable FROM the main seed (destination side);
+        pre = nodes that can reach it (origin side, via reverse BFS).
+        Seed = first of the 8 highest-degree nodes whose forward flood
+        covers >=MAIN_MIN_FRAC of the graph — junctions sit on the
+        main net almost surely; keeps the largest flood otherwise."""
+        sets = self._reach.get(mode)
+        if sets is not None:
+            return sets
+        g = self.g
+        cache_key = (self._blob_key, mode)
+        sets = _REACH_CACHE.get(cache_key)
+        if sets is not None:
+            self._reach[mode] = sets
+            return sets
+        rule = MODE_RULES.get(mode) or MODE_RULES["car"]
+        seeds = sorted(range(g.n_nodes),
+                       key=lambda n: (-len(g.adj[n]), n))[:SEED_CANDIDATES]
+        post, seed, best = None, seeds[0], -1
+        for s in seeds:
+            f = self._flood(s, rule, g.adj, False)
+            c = sum(f)
+            if c > best:
+                post, seed, best = f, s, c
+            if c >= g.n_nodes * MAIN_MIN_FRAC:
+                break
+        pre = self._flood(seed, rule, self._rev_adj(), True)
+        sets = (pre, post)
+        self._reach[mode] = sets
+        return sets
+
+    def snap(self, lat, lon, mode="car", role="from"):
         """nearest node within SNAP_RADIUS_M that the mode can actually
-        leave — a geometrically closer node sitting on footways only is
-        a dead snap for a car."""
+        leave AND that connects to the main network in the trip's
+        direction (role 'from' → pre, 'to' → post). Falls back to the
+        plain nearest legal node when every in-radius candidate is
+        pocketed, preserving intra-island trips."""
         g = self.g
         rule = MODE_RULES.get(mode) or MODE_RULES["car"]
-        best, bd = None, SNAP_RADIUS_M
+        cands = []               # legal exits in radius, nearest-first
         # narrow by a ~SNAP_RADIUS_M box before haversine
         dlat = SNAP_RADIUS_M / 111320.0
         dlon = dlat / max(0.2, math.cos(math.radians(lat)))
@@ -308,13 +404,21 @@ class PyPathEngine:
             if not (lon - dlon <= x <= lon + dlon):
                 continue
             d = _hav_m(lon, lat, x, y)
-            if d >= bd:
+            if d >= SNAP_RADIUS_M:
                 continue
             for ei in g.adj[n]:
                 if self._legal(ei, bool(ei & 0x80000000), rule):
-                    best, bd = n, d
+                    cands.append((d, n))
                     break
-        return (best, bd) if best is not None else (None, None)
+        if not cands:
+            return None, None
+        cands.sort()
+        pre, post = self._reach_sets(mode)
+        screen = pre if role == "from" else post
+        for d, n in cands:
+            if screen[n]:
+                return n, d
+        return cands[0][1], cands[0][0]
 
     def query(self, olat, olon, dlat, dlon, mode="car"):
         """least-dose path → dict(geometry, distance_m, duration_s,
@@ -367,8 +471,8 @@ class PyPathEngine:
         rule = MODE_RULES.get(mode) or MODE_RULES["car"]
         ve = MODE_VE.get(mode, 8.0)
         me = MODE_ME.get(mode, 1.0)
-        s, sd = self.snap(olat, olon, mode)
-        t, td = self.snap(dlat, dlon, mode)
+        s, sd = self.snap(olat, olon, mode, "from")
+        t, td = self.snap(dlat, dlon, mode, "to")
         if s is None or t is None:
             return {"error": "no graph node near endpoint"}
 

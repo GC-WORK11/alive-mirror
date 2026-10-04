@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <numeric>
 #include <queue>
 #include <stdexcept>
 #include <tuple>
@@ -78,7 +79,7 @@ const PathRule kRules[] = {
     {kDenyFoot, true, 0.0, 0.0, kAccMotor | kAccCar, 1},  // 1 car_open
     {kDenyFoot, true, 0.0, 0.0, kAccMotor | kAccCar, 1},  // 2 cab
     {kDenyFootAndMotor, true, 40.0, 0.0, kAccMotor, 1},   // 3 auto
-    {kDenyFoot, true, 30.0, 0.0, kAccMotor | kAccMoto, 1},// 4 bike
+    {kDenyFoot, true, 40.0, 0.0, kAccMotor | kAccMoto, 1},// 4 bike
     {deny({0, 1}), false, 16.0, 0.0, kAccCycle, 2},       // 5 cycle
     {deny({0, 1}), false, 0.0, 5.0, kAccFoot, 4},         // 6 walk
 };
@@ -285,31 +286,126 @@ bool PathEngine::legal(uint32_t e, bool rev, const PathRule& r) const {
   return mode_speed(e, r) > 0;
 }
 
-int PathEngine::snap(double lat, double lon, const PathRule& r,
+// ---- connectivity screen: per-mode main-net floods (lazy) ----------
+// routegraph.py _rev_adj/_flood/_reach_sets is the parity oracle.
+void PathEngine::build_radj() const {
+  if (!radj_off_.empty()) return;
+  const size_t nn = node_lon_.size(), ne = e_u_.size();
+  radj_off_.assign(nn + 1, 0);
+  for (uint32_t i = 0; i < ne; ++i) {
+    if (e_ow_[i] >= 0) radj_off_[e_v_[i] + 1]++;   // fwd dir enters v
+    if (e_ow_[i] <= 0) radj_off_[e_u_[i] + 1]++;   // rev dir enters u
+  }
+  for (size_t i = 1; i < radj_off_.size(); ++i)
+    radj_off_[i] += radj_off_[i - 1];
+  radj_flat_.resize(radj_off_[nn]);
+  std::vector<uint32_t> cur(radj_off_.begin(), radj_off_.end() - 1);
+  for (uint32_t i = 0; i < ne; ++i) {
+    if (e_ow_[i] >= 0) radj_flat_[cur[e_v_[i]]++] = i;
+    if (e_ow_[i] <= 0) radj_flat_[cur[e_u_[i]]++] = i | 0x80000000u;
+  }
+}
+
+std::vector<uint8_t> PathEngine::flood(uint32_t seed, const PathRule& r,
+                                       bool reverse) const {
+  const auto& off = reverse ? radj_off_ : adj_off_;
+  const auto& flat = reverse ? radj_flat_ : adj_flat_;
+  std::vector<uint8_t> seen(node_lon_.size(), 0);
+  seen[seed] = 1;
+  std::vector<uint32_t> fr{seed};
+  while (!fr.empty()) {
+    const uint32_t n = fr.back();
+    fr.pop_back();
+    for (uint32_t a = off[n]; a < off[n + 1]; ++a) {
+      const uint32_t ei = flat[a];
+      const uint32_t e = ei & 0x7FFFFFFFu;
+      const bool rev = (ei & 0x80000000u) != 0;
+      if (!legal(e, rev, r)) continue;
+      // forward: successor = head of the travelled dir; reverse:
+      // predecessor = tail of the travelled dir
+      const uint32_t w = reverse ? (rev ? e_v_[e] : e_u_[e])
+                                 : (rev ? e_u_[e] : e_v_[e]);
+      if (!seen[w]) { seen[w] = 1; fr.push_back(w); }
+    }
+  }
+  return seen;
+}
+
+const std::pair<std::vector<uint8_t>, std::vector<uint8_t>>&
+PathEngine::reach_sets(int mi, const PathRule& r) const {
+  auto it = reach_.find(mi);
+  if (it != reach_.end()) return it->second;
+  constexpr double kMainMinFrac = 0.30;   // routegraph.MAIN_MIN_FRAC
+  constexpr int kSeedCandidates = 8;      // routegraph.SEED_CANDIDATES
+  const size_t nn = node_lon_.size();
+  // seeds: highest-degree nodes first (junctions sit on the main net
+  // almost surely), deterministic (degree desc, id asc) like the oracle
+  std::vector<uint32_t> seeds(nn);
+  std::iota(seeds.begin(), seeds.end(), 0u);
+  const auto mid = seeds.begin() +
+      std::min<size_t>(kSeedCandidates, nn);
+  std::partial_sort(seeds.begin(), mid, seeds.end(),
+                    [&](uint32_t a, uint32_t b) {
+    const uint32_t da = adj_off_[a + 1] - adj_off_[a];
+    const uint32_t db = adj_off_[b + 1] - adj_off_[b];
+    return da != db ? da > db : a < b;
+  });
+  std::vector<uint8_t> post;
+  uint32_t seed = seeds[0];
+  size_t best = 0;
+  for (int k = 0; k < kSeedCandidates; ++k) {
+    auto f = flood(seeds[k], r, false);
+    const size_t c =
+        static_cast<size_t>(std::count(f.begin(), f.end(), 1));
+    if (c > best) { post = std::move(f); seed = seeds[k]; best = c; }
+    if (static_cast<double>(c) >= nn * kMainMinFrac) break;
+  }
+  build_radj();
+  auto pre = flood(seed, r, true);
+  auto res = reach_.emplace(mi, std::make_pair(std::move(pre),
+                                               std::move(post)));
+  return res.first->second;
+}
+
+int PathEngine::snap(double lat, double lon, int mi, int role,
                      double* d_out) const {
+  const PathRule& r = kRules[mi];
   const double dlat = kSnapRadiusM / 111320.0;
   const double dlon =
       dlat / std::max(0.2, std::cos(lat * M_PI / 180.0));
-  int best = -1;
-  double bd = kSnapRadiusM;
+  std::vector<std::pair<double, uint32_t>> cands;
   for (size_t n = 0; n < node_lat_.size(); ++n) {
     const double y = node_lat_[n] / 1e6;
     if (y < lat - dlat || y > lat + dlat) continue;
     const double x = node_lon_[n] / 1e6;
     if (x < lon - dlon || x > lon + dlon) continue;
     const double d = hav_m(lon, lat, x, y);
-    if (d >= bd) continue;
+    if (d >= kSnapRadiusM) continue;
     for (uint32_t a = adj_off_[n]; a < adj_off_[n + 1]; ++a) {
       const uint32_t ei = adj_flat_[a];
       if (legal(ei & 0x7FFFFFFFu, (ei & 0x80000000u) != 0, r)) {
-        best = static_cast<int>(n);
-        bd = d;
+        cands.emplace_back(d, static_cast<uint32_t>(n));
         break;
       }
     }
   }
-  if (d_out) *d_out = (best >= 0) ? bd : 0.0;
-  return best;
+  if (cands.empty()) {
+    if (d_out) *d_out = 0.0;
+    return -1;
+  }
+  std::sort(cands.begin(), cands.end());
+  const auto& sets = reach_sets(mi, r);
+  const auto& screen = role == 0 ? sets.first : sets.second;
+  for (const auto& [d, n] : cands) {
+    if (screen[n]) {
+      if (d_out) *d_out = d;
+      return static_cast<int>(n);
+    }
+  }
+  // every in-radius node is pocketed — fall back to the nearest legal
+  // one so intra-island trips still route (oracle: routegraph.snap)
+  if (d_out) *d_out = cands.front().first;
+  return static_cast<int>(cands.front().second);
 }
 
 PathResult PathEngine::query(double olat, double olon, double dlat,
@@ -365,8 +461,8 @@ PathResult PathEngine::route(double olat, double olon, double dlat,
   const double ve = kModeVE[mi], me = kModeME[mi];
 
   double sd = 0.0, td = 0.0;
-  const int s = snap(olat, olon, rl, &sd);
-  const int t = snap(dlat, dlon, rl, &td);
+  const int s = snap(olat, olon, mi, 0, &sd);
+  const int t = snap(dlat, dlon, mi, 1, &td);
   res.snap_from_m = sd;
   res.snap_to_m = td;
   if (s < 0 || t < 0) {
