@@ -20,18 +20,11 @@ constexpr double kRM = 6371000.0;
 constexpr double kSnapRadiusM = 1500.0;
 constexpr int kMaxSamplePts = 5;
 
-// per-mode uplift keyed by hw code — exposure.py's published factors
-double uplift(uint8_t hw) {
-  switch (hw) {
-    case 0: case 1: return 1.35;   // motorway(+link)
-    case 2: case 3: return 1.30;   // trunk(+link)
-    case 4: case 5: return 1.20;   // primary(+link)
-    case 6: case 7: return 1.10;   // secondary(+link)
-    case 8: case 9: return 1.05;   // tertiary(+link)
-    default: return 1.0;
-  }
-}
-
+// NOTE: the priced objective uses a FLAT uplift (1.0) — routegraph.py
+// documents why: the display integrator (_dose_band) never sees
+// road_class, so pricing near-road uplift made engine corridors
+// systematically slower AND worse-displayed. Priced dose now equals
+// the shown integrand.
 double hav_m(double lon1, double lat1, double lon2, double lat2) {
   const double p1 = lat1 * M_PI / 180.0, p2 = lat2 * M_PI / 180.0;
   const double dp = p2 - p1, dl = (lon2 - lon1) * M_PI / 180.0;
@@ -79,7 +72,7 @@ const PathRule kRules[] = {
     {kDenyFoot, true, 0.0, 0.0, kAccMotor | kAccCar, 1},  // 1 car_open
     {kDenyFoot, true, 0.0, 0.0, kAccMotor | kAccCar, 1},  // 2 cab
     {kDenyFootAndMotor, true, 40.0, 0.0, kAccMotor, 1},   // 3 auto
-    {kDenyFoot, true, 40.0, 0.0, kAccMotor | kAccMoto, 1},// 4 bike
+    {kDenyFoot, true, 50.0, 0.0, kAccMotor | kAccMoto, 1},// 4 bike
     {deny({0, 1}), false, 16.0, 0.0, kAccCycle, 2},       // 5 cycle
     {deny({0, 1}), false, 0.0, 5.0, kAccFoot, 4},         // 6 walk
 };
@@ -503,7 +496,7 @@ PathResult PathEngine::route(double olat, double olon, double dlat,
       if (!legal(e, rev, rl)) continue;
       const double sp = mode_speed(e, rl);
       const double rate =
-          conc(e) * me * uplift(e_hw_[e]) * (ve / 1000.0) * (0.06 / sp);
+          conc(e) * me * (ve / 1000.0) * (0.06 / sp);
       const double t0 = tax ? (*tax)[e] : 1.0;
       const uint32_t sid = (e << 1) | (rev ? 1u : 0u);
       const double ng = rate * e_len_[e] * t0;
@@ -535,7 +528,7 @@ PathResult PathEngine::route(double olat, double olon, double dlat,
       if (!legal(e2, rev2, rl)) continue;
       const double sp = mode_speed(e2, rl);
       const double rate =
-          conc(e2) * me * uplift(e_hw_[e2]) * (ve / 1000.0) * (0.06 / sp);
+          conc(e2) * me * (ve / 1000.0) * (0.06 / sp);
       // diversity pass multiplier — raises real edge costs only;
       // admissibility of h is unaffected (tax >= 1 can never go below
       // the unconstrained optimum h estimates)
@@ -577,7 +570,7 @@ PathResult PathEngine::route(double olat, double olon, double dlat,
     const double ln = e_len_[e];
     const double sp = mode_speed(e, rl);
     const double t_min = ln / (sp * 1000.0 / 60.0);
-    res.dose_ug += conc(e) * me * uplift(e_hw_[e]) * (ve / 1000.0) * t_min;
+    res.dose_ug += conc(e) * me * (ve / 1000.0) * t_min;
     res.distance_m += ln;
     res.duration_s += t_min * 60.0;
     int32_t nm = e_nm_[e];

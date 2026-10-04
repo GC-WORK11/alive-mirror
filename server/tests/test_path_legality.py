@@ -387,12 +387,69 @@ def test_snap_fallback_routes_intra_island():
     assert res["edge_ids"] == [3], res["edge_ids"]
 
 
-def test_bike_speed_cap_40():
-    """Two-wheelers cap at auto speed, not below it — the 30 km/h cap
-    sat bikes under autos on free arterials, inflating engine-side
-    bike dose ~2x vs the router's freeflow model."""
+def _uplift_arg2():
+    """Parallel A→C: edge0 motorway 1000m sp60, edge1 residential
+    1000m sp50. Under the old per-edge hw uplift (1.35 vs 1.05) the
+    residential won despite being slower; flat uplift must pick the
+    motorway — the same integrand the display band integrates."""
+    import struct
+    nodes = [(77000000, 28000000),   # 0 A
+             (77010000, 28000000)]   # 1 C
+    edges = [(0, 1, 1000.0, 0, 60),  # motorway, fast
+             (0, 1, 1000.0, 9, 50)]  # residential, slower
+    blob = bytearray()
+    blob += struct.pack("<4s4I", b"ARG2", len(nodes), len(edges), 0, 0)
+    blob += struct.pack("<4i", 76999000, 27999000, 77001000, 28001000)
+    for lon, lat in nodes:
+        blob += struct.pack("<2i", lon, lat)
+    pts_blob = bytearray()
+    off = 0
+    offs = []
+    for u, v, _ln, _hw, _sp in edges:
+        pts_blob += struct.pack("<2i", *nodes[u])
+        pts_blob += struct.pack("<2h", nodes[v][0] - nodes[u][0],
+                                nodes[v][1] - nodes[u][1])
+        offs.append((off, 2))
+        off += 3
+    for (u, v, ln, hw, sp), (po, pn) in zip(edges, offs):
+        blob += struct.pack("<IIfIHBbBiBB", u, v, ln, po, pn,
+                            hw, 0, sp, 0, 1, 0)
+    blob += struct.pack("<I", 0)
+    blob += pts_blob
+    return bytes(blob)
+
+
+def test_priced_objective_matches_display_integrand():
+    """Flat uplift: on a uniform field the engine must take the fast
+    motorway, and dose_ug must equal conc*me*ve*minutes exactly — the
+    old 1.35/1.05 road uplift would both flip the choice and inflate
+    dose_ug 5% on the residential edge."""
+    import math
+    expected = {}
+    for mk in (routegraph.PyPathEngine,
+               getattr(__import__("alive_core"), "PathEngine", None)):
+        if mk is None:
+            continue
+        eng = mk(_uplift_arg2())
+        eng.reweight(lambda lat, lon: 42.0)
+        r = eng.query(28.0, 77.0, 28.0, 77.01, "car")
+        assert r["edge_ids"] == [0], r["edge_ids"]
+        t_min = 1000.0 / (60 * 1000 / 60)          # 1 km at 60 km/h
+        want = 42.0 * 0.55 * (7.5 / 1000.0) * t_min
+        assert math.isclose(r["dose_ug"], want, rel_tol=1e-9), \
+            f"{r['dose_ug']} != {want}"
+        expected[type(eng).__name__] = r["dose_ug"]
+    # identical dose on both engines — bit-parity on the new integrand
+    assert len(set(expected.values())) <= 1
+
+
+def test_bike_speed_cap_50():
+    """Two-wheeler freeflow cap is arterial-honest: 45-55 km/h on NCR
+    arterials (OSM maxspeed 50-70), above autos (40) which bikes
+    outrun; the old 30 cap flattened the len/sp axis and inflated the
+    engine-side bike dose ~2x vs the router's freeflow model."""
     spd = routegraph.MODE_RULES["bike"]["spd"]
-    assert spd(50) == 40 and spd(30) == 30
+    assert spd(70) == 50 and spd(40) == 40
 
 
 def test_synthetic_turn_ban_detours():
