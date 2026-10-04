@@ -124,7 +124,7 @@
   .kv dd.sub{color:var(--ink2)}
 
   .share{padding:6px 16px 14px}
-  .feed{padding:2px 16px 10px}
+  .feedlist{padding:2px 16px 10px}
   .feed-h{font-size:10px;letter-spacing:.08em;text-transform:uppercase;
     color:var(--ink4);padding:6px 0 4px}
   .feed-row{display:grid;grid-template-columns:44px 1fr auto auto auto;
@@ -192,16 +192,54 @@
          display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
   a{color:var(--accent-ink);text-decoration:none}
 
-  /* ncr district chips — official cpcb band colour on the border+dot,
-     text stays the board's own ink (no traffic-light noise) */
-  .dist{display:flex;flex-wrap:wrap;gap:8px}
-  .dchip{display:flex;align-items:baseline;gap:7px;padding:7px 11px;
-         border:1.5px solid var(--line);border-radius:12px;background:var(--surface2,#f7f8fa)}
-  .dchip-dot{width:8px;height:8px;border-radius:4px;align-self:center}
-  .dchip-name{font-size:11px;font-weight:600;color:var(--ink)}
-  .dchip-v{font-family:var(--mono);font-size:11px;color:var(--ink2)}
-  .dchip-v i{font-style:normal;font-size:8.5px;color:var(--ink4);margin-left:2px}
-  .dchip-a{font-family:var(--mono);font-size:9px;letter-spacing:.06em}
+  /* ncr district tiles — a uniform grid that scales past ~20 rows: the
+     official cpcb band colour becomes a spine + the aqi tag, text stays
+     the board's own ink. honest-empty tile when a district has no read */
+  .dist{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));
+        gap:10px}
+  .dtile{position:relative;background:var(--surface2);border:1px solid var(--line);
+         border-radius:12px;padding:10px 12px 9px 15px;overflow:hidden}
+  .dtile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+                 background:var(--dc,var(--hair))}
+  .dtile.na{background:transparent;border-style:dashed;border-color:var(--hair)}
+  .dt-name{font-size:11.5px;font-weight:600;color:var(--ink);
+           white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dt-state{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
+            text-transform:uppercase;color:var(--ink4);margin-top:2px;min-height:11px}
+  .dt-v{display:flex;align-items:baseline;gap:5px;margin-top:8px}
+  .dt-pm{font-family:var(--serif);font-size:21px;letter-spacing:-.02em;
+         color:var(--ink);font-variant-numeric:tabular-nums}
+  .dt-pm i{font-style:normal;font-family:var(--sans);font-size:9px;
+           color:var(--ink3)}
+  .dt-aqi{margin-left:auto;font-family:var(--mono);font-size:9.5px;
+          letter-spacing:.04em;white-space:nowrap}
+  .dt-cat{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
+          text-transform:uppercase;color:var(--ink3);margin-top:4px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:11px}
+  .dtile.na .dt-pm{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+                   color:var(--ink4);text-transform:uppercase}
+
+  /* field-map cell inspector — click a painted cell → the cell centre is
+     reverse-geocoded via /v2/reverse and the popover lists its live values */
+  .fmwrap{position:relative}
+  canvas#fieldmap{cursor:crosshair}
+  .fmpop{position:absolute;z-index:5;min-width:200px;max-width:262px;
+         background:rgba(255,255,255,.97);border:1px solid var(--line);
+         border-radius:12px;padding:11px 13px 10px;
+         box-shadow:0 10px 28px rgba(20,24,31,.14);pointer-events:none}
+  .fmpop .p-name{font-family:var(--serif);font-size:15.5px;color:var(--ink);
+                 line-height:1.3}
+  .fmpop .p-sub{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;
+                text-transform:uppercase;color:var(--ink4);margin-top:4px}
+  .fmpop .p-v{display:flex;align-items:baseline;gap:6px;margin-top:8px;
+              font-family:var(--mono);font-size:10px;color:var(--ink2)}
+  .fmpop .p-v b{font-family:var(--serif);font-size:20px;font-weight:400;
+                color:var(--ink)}
+  .fmpop .p-conf{font-size:10px;color:var(--ink3);margin-top:6px;line-height:1.55}
+
+  /* global rollups — honest-empty until the aggregate api ships them */
+  .gtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:900px){.gtiles{grid-template-columns:1fr}}
 
   /* day-by-day trips strip — muted bars, day labels in mono */
   .daybars{display:flex;align-items:flex-end;gap:5px;padding:10px 16px 12px}
@@ -240,7 +278,7 @@
       <input type="range" id="fmh" min="0" max="11" step="1" value="0">
       <span id="fmh-lbl">now</span>
     </div>
-    <canvas id="fieldmap"></canvas>
+    <div class="fmwrap"><canvas id="fieldmap"></canvas><div class="fmpop" id="fmpop" hidden></div></div>
     <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
   </div>
 
@@ -261,7 +299,7 @@
   <div class="cols">
     <div class="panel">
       <dl class="kv" id="donations"></dl>
-      <div class="feed" id="feed"></div>
+      <div class="feedlist" id="feedlist"></div>
       <div class="share" id="co2split"></div>
       <div class="share" id="modeshare"></div>
       <div class="daybars" id="daybars"></div>
@@ -270,6 +308,9 @@
       <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th><th class="num">co₂ per 100 m</th></tr></thead>
       <tbody id="corridors"></tbody></table></div>
   </div>
+
+  <h2>the shared picture <em>global rollups — each tile fills the moment its aggregate field ships; honest-empty until then</em></h2>
+  <div class="gtiles" id="sharedpic"></div>
 
   <footer>
     <span>ALive-108 ops · auto-refresh 30s · aggregate surface — no per-person data exists to show</span>
@@ -325,54 +366,69 @@ const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
   hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
 
 async function tick(){
-  let status,sources,corridors,donations,validation,model,districts,timing;
-  try{
-    [status,sources,corridors,donations,validation,model,districts,timing]=await Promise.all(
-      ['/admin/api/status','/admin/api/sources','/admin/api/corridors',
-       '/admin/api/donations','/admin/api/validation','/admin/api/model',
-       '/v2/districts','/admin/api/timing'].map(u=>getJSON(u)));
-  }catch(e){
+  /* each feed settles on its own — one failing endpoint must not blank
+     the rest of the board; a section renders only when its payload lands */
+  const urls=['/admin/api/status','/admin/api/sources','/admin/api/corridors',
+    '/admin/api/donations','/admin/api/validation','/admin/api/model',
+    '/v2/districts','/admin/api/timing'];
+  const res=await Promise.allSettled(urls.map(u=>getJSON(u)));
+  if(res.every(r=>r.status==='rejected')){
     /* keep the last good render on screen — flag its age, never blank it */
     $('feed').className='feed off';
     $('feedtxt').textContent='offline';
+    const why=res[0]&&res[0].reason&&(res[0].reason.message||res[0].reason);
     $('stamp').innerHTML=
-      `<span class="err">admin api unreachable — ${esc(e.message||e)}</span>`+
+      `<span class="err">admin api unreachable — ${esc(why||'all endpoints failed')}</span>`+
       (LAST_OK?` · showing last good data from <b>${timeIST(LAST_OK)}</b>`:'');
     return;
   }
-  /* --- ncr district strip: official cpcb palette chips, each district's
-     own pm2.5 read — never one number stretched across the map --- */
+  const val=r=>r.status==='fulfilled'?r.value:null;
+  const [status,sources,corridors,donations,validation,model,districts,timing]=res.map(val);
+  const dn=donations||{},S=status||{};
+  const rows=(corridors&&corridors.rows)||[];
+  const failedN=res.filter(r=>r.status==='rejected').length;
+  /* --- ncr district roster: one cpcb-spined tile per district on a
+     uniform grid — holds ~20+ rows; honest-empty tile when a district
+     has no field data yet --- */
   try{
     const dr=(districts&&districts.districts)||[];
     $('districts').innerHTML=dr.length?dr.map(d=>{
-      const c=d.color||'#888';
-      return `<div class="dchip" style="border-color:${c}">
-        <span class="dchip-dot" style="background:${c}"></span>
-        <span class="dchip-name">${esc(d.name)}</span>
-        <span class="dchip-v">${d.pm25==null?'—':fmt1(d.pm25)}<i>µg/m³</i></span>
-        <span class="dchip-a" style="color:${c}">${d.aqi==null?'':('aqi '+d.aqi)}</span></div>`;
-    }).join(''):emptyMsg('district feed not serving — the strip fills when /v2/districts answers.');
-  }catch(e){ /* strip stays decorative-optional; never break the board */ }
+      const c=d.color||'#888',na=d.pm25==null&&d.aqi==null;
+      return `<div class="dtile${na?' na':''}" style="--dc:${na?'var(--hair)':c}">
+        <div class="dt-name">${esc(d.name)}</div>
+        <div class="dt-state">${esc(d.state||'')}</div>
+        <div class="dt-v">${na
+          ?'<span class="dt-pm">no field data</span>'
+          :`${d.pm25==null?'':`<span class="dt-pm">${fmt1(d.pm25)}<i> µg/m³</i></span>`}
+             ${d.aqi==null?'':`<span class="dt-aqi" style="color:${c}">aqi ${d.aqi}</span>`}`}
+        </div>
+        <div class="dt-cat">${na
+          ?(d.confidence==='sparse'?'sparse coverage — nearest cells only':'not yet in the field')
+          :esc(d.category||'')}${d.cells_covered?` · ${d.cells_covered} cells`:''}</div>
+      </div>`;
+    }).join(''):emptyMsg('district feed not serving — the roster fills when /v2/districts answers.');
+  }catch(e){ /* roster stays decorative-optional; never break the board */ }
 
   LAST_OK=new Date();
   $('feed').className='feed live';
   $('feedtxt').textContent='auto 30s';
   $('updated').textContent='updated '+timeIST(LAST_OK);
+  if(failedN)$('feedtxt').textContent=`auto 30s · ${failedN} feed${failedN>1?'s':''} down`
 
-  const f=status.field||{};
+  const f=S.field||{};
   const sv=f.serving||'none';
   $('stamp').innerHTML=
-    `uptime <b>${ago(status.uptime_s)}</b> · build <b>${esc(status.build_sha||'?')}</b> · `+
-    `v<b>${esc(status.version||'?')}</b> · store <b>${esc(status.trips_backend||'?')}</b> · `+
+    `uptime <b>${ago(S.uptime_s)}</b> · build <b>${esc(S.build_sha||'?')}</b> · `+
+    `v<b>${esc(S.version||'?')}</b> · store <b>${esc(S.trips_backend||'?')}</b> · `+
     `field <b>${esc(sv)}</b> · ${f.samples??'—'} samples · `+
     `${f.station_readings??'—'} stations · ${esc(f.source||'—')} · `+
     `age <b>${ago(f.age_s)}</b>`;
 
   /* --- headline cards --- */
-  const t=donations.totals||{};
-  const daily=validation.daily||{};
-  const loso=(validation.weekly&&validation.weekly.loso)||{};
-  const archR=(validation.weekly&&validation.weekly.archive_replay)||{};
+  const t=dn.totals||{};
+  const daily=(validation&&validation.daily)||{};
+  const loso=(validation&&validation.weekly&&validation.weekly.loso)||{};
+  const archR=(validation&&validation.weekly&&validation.weekly.archive_replay)||{};
   // headline error card: held-out LOSO when it has folds; otherwise the
   // archive replay mae is real evidence and clearly labelled as such —
   // an empty card here would undersell data the week block already shows.
@@ -386,7 +442,7 @@ async function tick(){
     [f.samples!=null?`${fmt(f.samples)} <small>pts</small>`:null,
      `field samples · ${fmt(f.station_readings)} stations`,'',f.samples!=null],
     [t.trips?fmt(t.trips):null,'donated trips · all time','',!!t.trips],
-    [donations.corridors_publishable||null,'publishable corridors · k≥3','accent',donations.corridors_publishable>0],
+    [dn.corridors_publishable||null,'publishable corridors · k≥3','accent',dn.corridors_publishable>0],
     [t.switched?fmt(t.switched):null,'trips switched lighter','accent',t.switched>0],
     [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
      `daily median pm2.5${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
@@ -395,15 +451,15 @@ async function tick(){
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
     [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
-     `model error · ${maeL} (mae)${validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null]];
+     `model error · ${maeL} (mae)${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null]];
   $('stats').innerHTML=cards.map(([v,l,cl,ok])=>
     `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div></div>`).join('');
 
   /* --- source health: what is serving, and how fresh it is --- */
-  const p=status.provenance||{};
+  const p=S.provenance||{};
   const wind=f.wind||{};
   const cov=f.coverage||null;
-  const disk=status.disk||{};
+  const disk=S.disk||{};
   const svBadge=sv==='live'?'<span class="badge live">live</span>'
     :sv==='snapshot'?'<span class="badge">snapshot</span>'
     :'<span class="badge crit">no field</span>';
@@ -416,15 +472,15 @@ async function tick(){
     ['kriging',esc(f.kriging||'—'),true],
     ['σ band coverage',esc(f.sigma_coverage||'none — reads carry no honest uncertainty band'),true],
     ['coverage',cov&&cov.cells!=null?`${fmt(cov.cells)} cells · ±${cov.out_beyond_km??'—'} km edge`:'—',true],
-    ['routing engine',status.routing&&status.routing.loaded
-      ?`${esc(status.routing.engine)} · ${fmt(status.routing.edges)} edges · ${fmt(status.routing.edges_priced)} priced off the live field · repriced ${status.routing.reweight_age_s!=null?ago(status.routing.reweight_age_s)+' ago':'—'}`
+    ['routing engine',S.routing&&S.routing.loaded
+      ?`${esc(S.routing.engine)} · ${fmt(S.routing.edges)} edges · ${fmt(S.routing.edges_priced)} priced off the live field · repriced ${S.routing.reweight_age_s!=null?ago(S.routing.reweight_age_s)+' ago':'—'}`
       :'loading — builds at boot / first plan',true],
     ['wind',wind.speed_kmh!=null?`${Math.round(wind.speed_kmh)} km/h from ${Math.round(wind.from_deg??0)}°`:'—',true],
-    ['pollutants',(status.species&&Object.keys(status.species).length)
-      ?`PM10 ${status.species.pm10?.mean??'—'} · NO₂ ${status.species.nitrogen_dioxide?.mean??'—'} · O₃ ${status.species.ozone?.mean??'—'} · CO ${status.species.carbon_monoxide?.mean??'—'} · SO₂ ${status.species.sulphur_dioxide?.mean??'—'} µg/m³${status.species.us_aqi?` · US AQI ${Math.round(status.species.us_aqi.mean)}`:''}`
+    ['pollutants',(S.species&&Object.keys(S.species).length)
+      ?`PM10 ${S.species.pm10?.mean??'—'} · NO₂ ${S.species.nitrogen_dioxide?.mean??'—'} · O₃ ${S.species.ozone?.mean??'—'} · CO ${S.species.carbon_monoxide?.mean??'—'} · SO₂ ${S.species.sulphur_dioxide?.mean??'—'} µg/m³${S.species.us_aqi?` · US AQI ${Math.round(S.species.us_aqi.mean)}`:''}`
       :'pm25 only — field serves no other species right now',true],
-    ['forecast horizon',(status.forecast&&status.forecast.hours)
-      ?`${status.forecast.hours}h ahead · ${status.forecast.aq_points??'—'} grid pts · fetched ${ago(status.forecast.age_s)} ago${status.forecast.live_anchor&&status.forecast.live_anchor.enabled?' · anchored to the live field':''}`
+    ['forecast horizon',(S.forecast&&S.forecast.hours)
+      ?`${S.forecast.hours}h ahead · ${S.forecast.aq_points??'—'} grid pts · fetched ${ago(S.forecast.age_s)} ago${S.forecast.live_anchor&&S.forecast.live_anchor.enabled?' · anchored to the live field':''}`
       :'cold — warms on first /depart or /v2/city call',true],
     ['disk free',disk.free_pct!=null?`${disk.free_pct}%${disk.low?' · <span class="badge crit">low</span>':''}`:'—',true],
     ['provenance',esc(p.field||'—'),false],
@@ -453,7 +509,7 @@ async function tick(){
   }catch(e){$('timing').innerHTML=emptyMsg('timing feed unavailable');}
 
   /* --- validation --- */
-  const wk=validation.weekly,arch=wk&&wk.archive_replay||{};
+  const wk=validation&&validation.weekly,arch=wk&&wk.archive_replay||{};
   const vrows=[];
   if(wk){
     vrows.push(['week',esc(wk.week||'—'),true],
@@ -470,7 +526,7 @@ async function tick(){
       ['above who 24h',daily.pct_cells_gt15_who!=null?`${daily.pct_cells_gt15_who}% of cells`:'—',true],
       ['above cpcb 24h',daily.pct_cells_gt60_cpcb!=null?`${daily.pct_cells_gt60_cpcb}% of cells`:'—',true]);
   }
-  vrows.push(['full report',validation.report_md?'data/field_validation.md on disk':'not generated yet',false]);
+  vrows.push(['full report',validation&&validation.report_md?'data/field_validation.md on disk':'not generated yet',false]);
   $('validation').innerHTML=vrows.map(([k,v,main])=>
     `<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
     ||emptyMsg('no validation outputs on disk yet — weekly rollup has not run');
@@ -480,7 +536,7 @@ async function tick(){
      set, else 'live' when real fields are flowing (samples/fires/wind)
      and 'no live data' when the source answered with nothing — a null
      probe never masquerades as dead while data is present */
-  const srcRows=Object.entries(sources.sources||{});
+  const srcRows=Object.entries((sources&&sources.sources)||{});
   $('sources').innerHTML=srcRows.map(([name,s])=>{
     const observed=(s.samples>0)||(s.n_points>0)||(s.fires!=null)
       ||(s.readings>0)||(s.wind_ms!=null)||(s.wind_kmh!=null)
@@ -515,9 +571,9 @@ async function tick(){
   }).join('')||`<tr><td colspan="6">${emptyMsg('source probe unavailable')}</td></tr>`;
 
   /* --- trip aggregates: donations + mode share + k≥3 corridors --- */
-  const days=donations.days||{};
+  const days=dn.days||{};
   const dayKeys=Object.keys(days).sort();
-  const share=donations.mode_share||[];
+  const share=dn.mode_share||[];
   $('donations').innerHTML=t.trips?`
       <dt>trips</dt><dd>${fmt(t.trips)} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}</dd>
       <dt>distance</dt><dd>${fmt1(t.km)} km · ${t.avg_km_per_trip??'—'} km/trip</dd>
@@ -525,8 +581,8 @@ async function tick(){
       <dt>per trip / per km</dt><dd>${t.avg_dose_per_trip_ug??'—'} µg/trip · ${t.dose_ug_per_km??'—'} µg/km</dd>
       <dt>emissions (mid)</dt><dd>${fmt1(t.co2_kg_mid)} kg CO₂ · ${t.pm25_g_mid} g PM2.5</dd>
       <dt>switched lighter</dt><dd>${fmt(t.switched)} trips</dd>
-      <dt>cells tracked</dt><dd>${fmt(donations.cells_tracked)} · ${fmt(donations.corridors_publishable)} publishable (k≥3)</dd>
-      <dt>window</dt><dd class="sub">${Math.round((donations.window_s||0)/3600)}h corridor freshness · ${esc(donations.devices_note||'')}</dd>
+      <dt>cells tracked</dt><dd>${fmt(dn.cells_tracked)} · ${fmt(dn.corridors_publishable)} publishable (k≥3)</dd>
+      <dt>window</dt><dd class="sub">${Math.round((dn.window_s||0)/3600)}h corridor freshness · ${esc(dn.devices_note||'')}</dd>
       <dt>days</dt><dd class="sub">${dayKeys.slice(-7).map(d=>{
         const v=days[d];return `${esc(d)}: ${fmt(v.trips)} trips / ${fmt1(v.km)} km`}).join('<br>')}</dd>`
     :'';
@@ -545,10 +601,10 @@ async function tick(){
   /* the live feed — UTC-hour aggregates only (mode/dose/km/co2 sums);
      a row exists only where >=3 distinct devices donated in that hour,
      so nothing shown can collapse to one person's journey */
-  const feed=donations.recent||[];
-  $('feed').innerHTML=feed.length?
+  const feed=dn.recent||[];
+  $('feedlist').innerHTML=feed.length?
     `<div class="feed-h">live feed · busiest hours (k≥3 devices)</div>`+feed.map(e=>{
-      const s=Math.max(0,Math.round(((donations.ts||Date.now()/1000)-(e.ts||0))));
+      const s=Math.max(0,Math.round(((dn.ts||Date.now()/1000)-(e.ts||0))));
       return `<div class="feed-row">
         <span class="f-t">${ago(s)} ago</span>
         <span class="f-m">${esc(e.mode||'trip')}${e.trips>1?' <span style="color:var(--ink4)">×'+e.trips+'</span>':''}${e.switched?' <span style="color:var(--ink4)">·switched</span>':''}</span>
@@ -580,6 +636,10 @@ async function tick(){
   FM_WIND=f.wind||null;
   await paintFieldMap(FM_PARAM);
 
+  /* --- the shared picture: global rollups over the feeds this page
+     already trusts — honest-empty for fields the api has not shipped --- */
+  paintShared(dn,S,rows);
+
   /* --- the pipeline — each stage shown with its own live numbers --- */
   const me=(model&&model.microenv)||{},ve=(model&&model.ventilation_lpm)||{},
         cov0=f.coverage||{},csP=(t.co2_split&&t.co2_split.pct)||null;
@@ -590,13 +650,12 @@ async function tick(){
     ['03','sample',`every ~${model&&model.sample_every_m||250} m along the route — street by street, never a centroid`],
     ['04','breathe',`in-cabin exposure: car ac ×${meN('driving_car_ac')} · bus ×${meN('bus')} · auto ×${meN('auto_rickshaw')} · bike ×${meN('driving_two_wheeler')}<br>ventilation ${veN('driving_car_ac')}–${veN('cycling')} L/min by activity`],
     ['05','emit',`BS-bucket × speed curve × idling × cold-start${csP?`<br>donated so far: moving ${csP.moving}% · idling ${csP.idle}% · cold ${csP.cold}%`:''}`],
-    ['06','aggregate',`k≥3 anonymized · ${fmt(donations.cells_tracked)} cells tracked · ${fmt(donations.corridors_publishable)} publishable · ${fmt(t.trips)} trips`],
+    ['06','aggregate',`k≥3 anonymized · ${fmt(dn.cells_tracked)} cells tracked · ${fmt(dn.corridors_publishable)} publishable · ${fmt(t.trips)} trips`],
   ];
   $('pipe').innerHTML=steps.map(([n,t0,v])=>
     `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div><div class="v">${v}</div></div>`).join('');
 
   /* --- corridors (aggregate rows only; the k≥3 set comes from the store) --- */
-  const rows=corridors.rows||[];
   const maxDose=Math.max(1,...rows.map(r=>r.avg_dose_ug||0));
   $('corridors').innerHTML=rows.length?rows.map(r=>{
     const t=doseT(r.avg_dose_ug),rel=(r.avg_dose_ug||0)/maxDose;
@@ -626,6 +685,130 @@ function renderFmSel(){
     `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('');
 }
 async function fmPick(p){FM_PARAM=p;renderFmSel();await paintFieldMap(p);}
+
+/* --- cell inspector — a click on the map names the real place under
+   the cell via the public gazetteer (/v2/reverse) and lists that cell's
+   own live values; no user data crosses this surface --- */
+let FM_FEATS=[],FM_INS=null;const FM_NAMES={};   /* centroid-key → resolved place name */
+let FM_GJ=null;   /* ncr district polygons — names every cell honestly
+                     even where the gazetteer has nothing within 150m */
+function fmDistrict(lon,lat){
+  for(const f of (FM_GJ&&FM_GJ.features)||[]){
+    const g=f.geometry;if(!g)continue;
+    const polys=g.type==='Polygon'?[g.coordinates]
+      :g.type==='MultiPolygon'?g.coordinates:[];
+    for(const poly of polys){
+      if(poly[0]&&pip(lon,lat,poly[0])){
+        let hole=false;
+        for(let h=1;h<poly.length;h++)if(pip(lon,lat,poly[h])){hole=true;break}
+        if(!hole)return f.properties||{};
+      }
+    }
+  }
+  return null;
+}
+function pip(lon,lat,ring){           /* even-odd point-in-ring */
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>lat)!==(yj>lat))&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)inside=!inside;
+  }
+  return inside;
+}
+function fmShow(ft,x,y){
+  const cv=$('fieldmap'),pop=$('fmpop');if(!cv||!pop)return;
+  const p=ft.properties||{},ring=ft.geometry.coordinates[0];
+  const clon=ring.reduce((s,c)=>s+c[0],0)/ring.length;
+  const clat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
+  const key=clon.toFixed(4)+','+clat.toFixed(4);FM_INS={key,x,y};
+  const wr=cv.parentElement.getBoundingClientRect();
+  pop.style.left=Math.min(Math.max(8,x+12),Math.max(8,wr.width-272))+'px';
+  pop.style.top=Math.min(Math.max(8,y+12),Math.max(8,wr.height-150))+'px';
+  const label=(FM_SPECIES.find(s=>s[0]===FM_PARAM)||[FM_PARAM,FM_PARAM])[1];
+  const v=p[FM_PARAM]!=null?p[FM_PARAM]:p.pm25;
+  const dist=fmDistrict(clon,clat);
+  pop.hidden=false;
+  pop.innerHTML=`<div class="p-name">${FM_NAMES[key]!=null?FM_NAMES[key]:'locating…'}</div>
+    <div class="p-sub">cell centre ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}${dist.state?', '+esc(dist.state):''}`:''}${FM_H?` · +${FM_H}h`:''}</div>
+    <div class="p-v"><b>${v==null?'—':fmt1(v)}</b> ${label}${FM_PARAM==='us_aqi'?'':' µg/m³'}</div>
+    <div class="p-conf">${p.conf==='hi'?'measured — dense samples here'
+      :p.conf==='med'?'interpolated — moderate sample density'
+      :'thin coverage — nearest samples are far'}${p.pm25!=null&&FM_PARAM!=='pm2_5'?`<br>pm2.5 ${fmt1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
+  /* name is best-effort — the card already carries the live values.
+     plain fetch (public endpoint): the api answers 404 when the
+     gazetteer has nothing within 150m — that reads 'no named place',
+     not an error; a real failure shows '—' and can retry */
+  if(FM_NAMES[key]==null){
+    fetch(`/v2/reverse?lat=${clat.toFixed(4)}&lon=${clon.toFixed(4)}`)
+      .then(async r=>{
+        if(r.status===404)return null;
+        if(!r.ok)throw new Error('reverse '+r.status);
+        return r.json();
+      })
+      .then(rr=>{
+        FM_NAMES[key]=(rr&&rr.name)
+          ?esc(rr.name)+(rr.subtitle?` <span style="font-family:var(--sans);font-size:10px;color:var(--ink3)">${esc(rr.subtitle)}</span>`:'')
+          :'<span style="font-size:12px;color:var(--ink3)">no named place within 150m</span>';
+        if(FM_INS&&FM_INS.key===key&&!pop.hidden){
+          const nm=pop.querySelector('.p-name');if(nm)nm.innerHTML=FM_NAMES[key];
+        }
+      })
+      .catch(()=>{
+        if(FM_INS&&FM_INS.key===key&&!pop.hidden){
+          const nm=pop.querySelector('.p-name');if(nm)nm.textContent='—';
+        }
+      });
+  }
+}
+function fmClick(e){
+  const cv=$('fieldmap'),pop=$('fmpop');if(!cv||!pop)return;
+  const r=cv.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95;
+  const lon=X0+x/r.width*(X1-X0),lat=Y0+(1-y/r.height)*(Y1-Y0);
+  const ft=FM_FEATS.find(ft=>{
+    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+    return ring&&ring.length>2&&pip(lon,lat,ring);
+  });
+  if(!ft){pop.hidden=true;FM_INS=null;return}
+  fmShow(ft,x,y);
+}
+
+/* --- the shared picture: global rollups. each tile reads the aggregate
+   feeds this page already trusts; a field that has not shipped renders
+   honest-empty — never an invented number --- */
+function paintShared(dn,S,rows){
+  const pick=(o,ks)=>{if(!o)return null;for(const k of ks){
+    const v=k.split('.').reduce((a,p)=>(a&&a[p]!=null)?a[p]:null,o);
+    if(v!=null)return v}return null};
+  const areas=pick(dn,['devices_by_area','areas_active','pax_by_area'])
+           ??pick(S,['devices_by_area','areas_active']);
+  const flows=pick(dn,['od_flows','journeys','flows','corridors_total'])
+           ??(rows.length?{traversals:rows.reduce((s,r)=>s+(r.trips||0),0),n:rows.length}:null);
+  const t=dn.totals||{};
+  const savedCo2=pick(t,['co2_saved_kg','co2_avoided_kg'])??pick(dn,['co2_saved_kg','saved_co2_kg']);
+  const savedDose=pick(t,['dose_saved_ug','dose_avoided_ug'])??pick(dn,['dose_saved_ug']);
+  const tiles=[
+    ['devices moving · by area',
+      areas!=null?fmt(typeof areas==='object'?Object.keys(areas).length:areas)+' areas':null,
+      'area-level device counts — lands when the aggregate field ships (never identities)'],
+    ['journeys · per od flow',
+      flows!=null?(typeof flows==='number'?fmt(flows)+' corridors'
+        :`${fmt(flows.traversals)} traversals · ${flows.n} corridors`):null,
+      'k≥3 corridors over a 72h window — grows as the fleet moves'],
+    ['pollution avoided · donated fleet',
+      (savedCo2!=null||savedDose!=null)
+        ?[savedCo2!=null?fmt1(savedCo2)+' kg co₂':null,
+          savedDose!=null?fmt(savedDose)+' µg dose':null].filter(Boolean).join(' · ')
+        :(t.co2_kg_mid?fmt1(t.co2_kg_mid)+' kg co₂ emitted · mid estimate':null),
+      'savings land when the api ships avoided-emission fields'],
+  ];
+  const el=$('sharedpic');if(!el)return;
+  el.innerHTML=tiles.map(([l,v,sub])=>
+    `<div class="card"><div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'insufficient data'}</div>
+     <div class="lbl">${l}</div>
+     <div class="lbl" style="text-transform:none;letter-spacing:.02em;margin-top:5px">${sub}</div></div>`).join('');
+}
 /* forecast scrub — /grid?h=N re-serves the cams horizon anchored to the
    live field; pm2.5 only (other species have no forecast surface) */
 function syncScrub(){
@@ -640,6 +823,9 @@ function bindScrub(){
     $('fmh-lbl').textContent=FM_H===0?'now':`+${FM_H}h`;
     await paintFieldMap(FM_PARAM);
   });
+  $('fieldmap').addEventListener('click',fmClick);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null}});
+  fetch('/ncr.geojson').then(r=>r.ok?r.json():null).then(g=>{FM_GJ=g}).catch(()=>{});
 }
 
 async function paintFieldMap(param){
@@ -650,12 +836,26 @@ async function paintFieldMap(param){
     const g=await getJSON(`/grid?cells=28&param=${param}${FM_H?`&h=${FM_H}`:''}`);
     const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
     const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,ASP=0.879;   /* cos(28.6°) */
-    const w=cv.parentElement.clientWidth-28;
+    const w=cv.parentElement.clientWidth;   /* .fmwrap: already inside the panel's padding */
     /* true map aspect: lon-deg ≈ 111·cos(lat) km vs lat-deg ≈ 111 km */
     const W=w,H=Math.round(w*(Y1-Y0)/((X1-X0)*ASP));
     cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
     const feats=(g&&g.features)||[];
+    FM_FEATS=feats;
+    /* refresh an open cell card in place — the judge keeps their cell,
+       its numbers stay live; only vanish if the cell itself left the grid */
+    const pop=$('fmpop');
+    if(pop&&FM_INS){
+      const same=feats.find(ft=>{
+        const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+        if(!ring||ring.length<3)return false;
+        return (ring.reduce((s,c)=>s+c[0],0)/ring.length).toFixed(4)+','+
+               (ring.reduce((s,c)=>s+c[1],0)/ring.length).toFixed(4)===FM_INS.key;
+      });
+      if(same)fmShow(same,FM_INS.x,FM_INS.y);
+      else{pop.hidden=true;FM_INS=null}
+    }else if(pop){pop.hidden=true}
     const alpha={'hi':.92,'med':.58,'lo':.30};
     let vmin=null,vmax=null;const vals=[];
     for(const ft of feats){

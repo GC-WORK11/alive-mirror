@@ -120,17 +120,6 @@
   @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
   @media(prefers-reduced-motion:reduce){.ticker-in{animation:none}.live-dot{animation:none}}
 
-  /* ---------- forecast strip ---------- */
-  #forecast{margin-top:14px}
-  .fc-row{display:flex;gap:6px;align-items:flex-end;height:44px}
-  .fc-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:3px}
-  .fc-bar{border-radius:3px 3px 0 0;min-height:3px}
-  .fc-lbls{display:flex;gap:6px;margin-top:5px;font-family:var(--mono);
-           font-size:8.5px;letter-spacing:.1em;color:var(--ink3)}
-  .fc-lbls span{flex:1}
-  .fc-cap{margin-top:7px;font-family:var(--mono);font-size:9.5px;
-          letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
-
   /* ---------- sections ---------- */
   section{padding:clamp(52px,8vh,96px) 0 8px}
   .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:34px;
@@ -142,31 +131,6 @@
   .sec-sub{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
            color:var(--ink3);text-transform:uppercase;margin-left:auto;text-align:right}
   @media(max-width:700px){.sec-sub{display:none}}
-
-  /* breath */
-  .breath{display:grid;grid-template-columns:1.35fr 1fr;gap:44px;align-items:end}
-  @media(max-width:820px){.breath{grid-template-columns:1fr}}
-  .big-n{font-family:var(--serif);font-size:clamp(64px,9vw,116px);
-         letter-spacing:-0.04em;line-height:1;font-weight:400}
-  .big-n small{font-family:var(--sans);font-size:clamp(14px,1.6vw,18px);
-               color:var(--ink2);font-weight:400;letter-spacing:0}
-  .band-wrap{margin-top:30px}
-  .band-scale{position:relative;height:34px;border-radius:6px;overflow:hidden;
-              background:linear-gradient(90deg,rgba(36,86,214,.06),rgba(36,86,214,.14))}
-  .band-sig{position:absolute;top:0;bottom:0;background:rgba(36,86,214,.14);
-            border-left:1px solid rgba(36,86,214,.45);
-            border-right:1px solid rgba(36,86,214,.45)}
-  .band-pt{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);
-           box-shadow:0 0 8px rgba(20,24,31,.35)}
-  .band-ticks{display:flex;justify-content:space-between;margin-top:8px;
-              font-family:var(--mono);font-size:9px;color:var(--ink4);letter-spacing:.06em}
-  .band-cap{margin-top:14px;font-size:12px;color:var(--ink3);line-height:1.6}
-  .band-cap b{color:var(--ink2);font-weight:500}
-  .breath-note{font-size:14.5px;line-height:1.75;color:var(--ink2);
-               max-width:400px}
-  .breath-note p+p{margin-top:14px}
-  .breath-note b{color:var(--ink);font-weight:500}
-  .breath-note .vs{font-family:var(--mono);font-size:12px;color:var(--brick)}
 
   /* ledger */
   .ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
@@ -268,34 +232,6 @@
   <section class="rv">
     <div class="sec-h">
       <span class="sec-n">01</span>
-      <span class="sec-t">a breath, <em>today</em></span>
-      <span class="sec-sub">point estimate + honest krige band</span>
-    </div>
-    <div class="breath">
-      <div>
-        <div class="big-n"><span id="pm">—</span><small> µg/m³ inhaled</small></div>
-        <div class="band-wrap">
-          <div class="band-scale" id="bandscale">
-            <div class="band-sig" id="bandsig"></div>
-            <div class="band-pt" id="bandpt"></div>
-          </div>
-          <div class="band-ticks"><span>0</span><span>100</span><span>200</span><span>300</span><span>400</span><span>500 µg/m³</span></div>
-          <div class="band-cap" id="bandcap">kriging the field…</div>
-        </div>
-      </div>
-      <div class="breath-note" id="note">
-        <p>Connaught Place, right now. The shaded span is the krige
-        σ-band — the width of our honesty, propagated from instrument
-        noise and station gaps, never collapsed into fake precision.</p>
-        <p id="typical"></p>
-        <div id="forecast"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="rv">
-    <div class="sec-h">
-      <span class="sec-n">02</span>
       <span class="sec-t">the ledger, <em>today</em></span>
       <span class="sec-sub">donated commutes · ist midnight → now</span>
     </div>
@@ -330,7 +266,7 @@
 
   <section class="rv">
     <div class="sec-h">
-      <span class="sec-n">03</span>
+      <span class="sec-n">02</span>
       <span class="sec-t">provenance — <em>where the field is anchored</em></span>
       <span class="sec-sub">cpcb / dpcc / hspcb + cams</span>
     </div>
@@ -351,7 +287,7 @@
 
   <section class="rv">
     <div class="sec-h">
-      <span class="sec-n">04</span>
+      <span class="sec-n">03</span>
       <span class="sec-t">the corridors <em>the city actually travels</em></span>
       <span class="sec-sub">~500m cells · donated traversals</span>
     </div>
@@ -544,32 +480,6 @@ function paintDistricts(rows){
   if(selName){const f=FEATS.find(f=>f.properties.name===selName);if(f)showDetail(f)}
 }
 
-/* ---------- breath band ---------- */
-function paintBand(a){
-  const lo=a.pm25_lo,hi=a.pm25_hi,v=a.pm25;
-  const cap=x=>Math.max(0,Math.min(100,x/500*100));
-  if(v==null){document.getElementById('bandcap').textContent='field unavailable — retrying';return}
-  const sig=document.getElementById('bandsig'),pt=document.getElementById('bandpt');
-  if(lo!=null&&hi!=null){
-    sig.style.left=cap(lo)+'%';sig.style.width=(cap(hi)-cap(lo))+'%';sig.style.display='block';
-    document.getElementById('bandcap').innerHTML=
-      `krige σ-band <b>${lo}–${hi} µg/m³</b> — interpolation variance + 12% instrument floor, widened where stations thin out`;
-  }else{sig.style.display='none';
-    document.getElementById('bandcap').innerHTML='idw fallback — <b>no σ band</b>; sparse samples, estimate only'}
-  pt.style.left=cap(v)+'%';
-}
-function paintForecast(slots){
-  const el=document.getElementById('forecast');
-  if(!slots||slots.length<2){el.innerHTML='';return}
-  const mx=Math.max(...slots.map(s=>s.pm25||0),1);
-  el.innerHTML='<div class="fc-row">'+slots.map(s=>{
-    const t=Math.min(1,(s.pm25||0)/300);
-    const h=Math.max(3,Math.round(34*(s.pm25||0)/mx));
-    return `<div class="fc-col" title="+${s.h}h · ${s.pm25} µg/m³"><div class="fc-bar" style="height:${h}px;background:rgba(36,86,214,${(0.25+0.6*t).toFixed(2)})"></div></div>`
-  }).join('')+'</div>'
-    +'<div class="fc-lbls">'+slots.map(s=>`<span>${s.h===0?'now':(s.h%3===0?'+'+s.h+'h':'')}</span>`).join('')+'</div>'
-    +'<div class="fc-cap">the next 12 hours — cams outlook anchored to the live field · µg/m³</div>';
-}
 function paintTicker(a,t,ad,nd){
   const f1=v=>v==null?'—':(+v).toFixed(1);
   const items=[
@@ -666,11 +576,9 @@ async function load(){
     const pm=a.pm25||0;
     document.getElementById('breaths').textContent=
       pm>0?Math.floor((t.dose_ug_24h||0)/pm*2000).toLocaleString('en-IN'):'—';
-    setTxt('pm',a.pm25??'—');
     setTxt('doseug',IN(t.dose_ug_24h));
     setTxt('src',`${a.field?.source||'—'} · ${a.field?.samples??'?'} samples · ${a.field?.station_readings??'?'} stations · krige ${a.field?.kriging||'—'}`);
     setTxt('windtag',`wind ${Math.round(windNow.speed_kmh)} km/h · from ${Math.round(windNow.from_deg)}° ${compass(windNow.from_deg)}`);
-    paintBand(a);
     setTxt('obs',IN(t.obs_24h??t.obs_total));
     setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_total));
     setTxt('corr',IN(t.corridors_publishable));
@@ -689,10 +597,6 @@ async function load(){
     }
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
     setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
-    const ty=a.typical;
-    document.getElementById('typical').innerHTML=ty?
-      `<span class="vs">${ty.vs_now_pct>0?'+':''}${ty.vs_now_pct}%</span> vs the decade-typical <b>${Math.round(ty.median)} µg/m³</b> for this month, this hour (9M measured station-hours).`:'';
-    paintForecast(a.next_hours);
     paintTicker(a,t,ad,(dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
     const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
