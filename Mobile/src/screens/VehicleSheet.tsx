@@ -533,14 +533,17 @@ const s = StyleSheet.create({
   listRow: { marginBottom: 8 },
   card: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
+    /* this sheet stacks over the compare sheet — glassSoft bled through
+       (Pixel_7 verify flag); glass keeps the milk while stopping the
+       double-translucency text ghost behind the tiles */
+    backgroundColor: V2T.glass, borderRadius: V2Radius.row,
     borderWidth: 1, borderColor: V2T.glassLine,
     paddingHorizontal: 12, paddingVertical: 10, minHeight: 56,
   },
   cardHalf: { flex: 1 },
   /* selected card keeps an opaque-ish milk surface so the accent label
      stays ≥4.5:1 — the accent border + radio carry the selected signal */
-  cardOn: { borderColor: V2T.accent, backgroundColor: V2T.glassFaint },
+  cardOn: { borderColor: V2T.accent, backgroundColor: V2T.glass },
   cardBody: { flex: 1, gap: 1 },
   cardTxt: { fontSize: V2Type.secondary, color: V2T.text },
   cardCap: { fontSize: V2Type.label, color: V2T.text3 },
@@ -563,7 +566,7 @@ const s = StyleSheet.create({
   fieldRow: { marginBottom: 12 },
   fieldLabel: { fontSize: V2Type.label, color: V2T.text2, marginBottom: 4, paddingHorizontal: 4 },
   input: {
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
+    backgroundColor: V2T.glass, borderRadius: V2Radius.row,
     borderWidth: 1, borderColor: V2T.glassLine,
     paddingHorizontal: 12, paddingVertical: 9,
     fontSize: V2Type.secondary, color: V2T.text, minHeight: 44,

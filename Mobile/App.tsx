@@ -560,7 +560,7 @@ function NavSession({
   voice: boolean;
   /** cigarette-equivalence framing — off by default (settings.show_cig) */
   showCig?: boolean;
-  onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
+  onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null; emitKg?: number | null }) => void;
 }) {
   const [summary, setSummary] = useState<NavSummary | null>(null);
   /* the arrival swap is two commits, not one: NavChrome unmounts on its
@@ -623,6 +623,7 @@ function NavSession({
       onTripDone({   // ledger entry exists only for a trip actually travelled
         label: option.label, vehicle: s.mode,
         doseUg: s.doseUg.mid, avoidedUg: worstDose - (s.doseUg.mid ?? 0),
+        emitKg: s.co2Kg.mid,
       });
     },
   });

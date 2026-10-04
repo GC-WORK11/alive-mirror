@@ -351,6 +351,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
      The nav session calls this with its real arrival summary. ---- */
   const recordTrip = useCallback(async (t: {
     label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null;
+    emitKg?: number | null;
   }) => {
     if (!from || !to) return;
     try {
@@ -358,6 +359,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         ts: Date.now(), label: t.label, vehicle: t.vehicle,
         dose_ug: Math.round((t.doseUg ?? 0) * 10) / 10,
         avoided_ug: Math.max(0, Math.round((t.avoidedUg ?? 0) * 10) / 10),
+        /* emit_kg powers the drawer's "put out kg" twin tile + ledger sums;
+           null on modes with no emissions model — readers treat it as
+           optional, never fabricate 0. */
+        emit_kg: t.emitKg == null ? undefined : Math.max(0, Math.round(t.emitKg * 10) / 10),
         from: from.name, to: to.name,
         fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon,
       }));
