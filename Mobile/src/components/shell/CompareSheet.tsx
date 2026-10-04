@@ -258,6 +258,11 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
           {o.reason_line ? (
             <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>{reasonTxt(o.reason_line, lang)}</Text>
           ) : null}
+          {o.via_names && o.via_names.length ? (
+            <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+              {t("viaStreets", lang, { streets: o.via_names.slice(0, 2).join(" → ") + (o.via_names.length > 2 ? "…" : "") })}
+            </Text>
+          ) : null}
           {d?.coverage != null && d.coverage < 0.999 ? (
             <Text {...DYNAMIC_TYPE} style={[s.optCoverage, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
               {t("plan_coverage_note", lang)}

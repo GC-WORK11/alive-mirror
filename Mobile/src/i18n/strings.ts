@@ -48,6 +48,13 @@ const en = {
   mode_cycle: "Bicycle",
   mode_walk: "On foot",
   mode_approx: " (approx.)",
+  /** least-inhalation engine row suffixes (server labels
+      "… · least-smoke rd" / "… · least-smoke alt N") — localized so the
+      Hindi UI never leaks the English wire text */
+  mode_leastSmoke: " · least-smoke rd",
+  mode_leastSmokeAlt: " · least-smoke alt {n}",
+  /** corridor names under an engine row — "via Outer Circle → …" */
+  viaStreets: "via {streets}",
   findingNewWay: "Finding a new way…",
   youreHere: "You're here.",
   /** manual "End" before reaching the destination — the trip is real,
@@ -405,6 +412,9 @@ const hi: Record<StringKey, string> = {
   mode_cycle: "साइकिल",
   mode_walk: "पैदल",
   mode_approx: " (अनुमानित)",
+  mode_leastSmoke: " · सबसे कम धुआँ वाला रास्ता",
+  mode_leastSmokeAlt: " · सबसे कम धुआँ विकल्प {n}",
+  viaStreets: "{streets} होते हुए",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
   youreHere: "आप पहुँच गए।",
   tripEnded: "यात्रा ख़त्म हुई।",
@@ -731,8 +741,16 @@ export function modeLabel(mode: string, label: string, lang: Lang): string {
     : BASES.find((x) => label === x.en || label.startsWith(x.en + " ") || label.startsWith(x.en + "("));
   if (!b) return label;
   const rest = label.slice(b.en.length);
-  /* " (approx.)" is wire English too — localize the whole suffix */
-  const suffix = rest.startsWith(" (approx") ? t("mode_approx", lang) : rest;
+  /* " (approx.)" is wire English too — localize the whole suffix; the
+     least-inhalation engine suffixes likewise translate instead of
+     leaking wire English into the Hindi UI */
+  let suffix = rest;
+  if (rest.startsWith(" (approx")) suffix = t("mode_approx", lang);
+  else {
+    const alt = rest.match(/^ · least-smoke alt (\d+)$/);
+    if (alt) suffix = t("mode_leastSmokeAlt", lang, { n: alt[1] });
+    else if (rest === " · least-smoke rd") suffix = t("mode_leastSmoke", lang);
+  }
   return t(b.key, lang) + suffix;
 }
 

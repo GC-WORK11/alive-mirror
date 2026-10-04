@@ -151,6 +151,11 @@ function toOption(raw: unknown): V2Option | null {
     recommended: o.recommended === true,
     reason_line: str(o.reason_line) ?? "",
     route_id: str(o.route_id),
+    engine: str(o.engine),
+    via_names: Array.isArray(o.via_names)
+      ? o.via_names.filter((x): x is string => typeof x === "string" && x.length > 0)
+      : null,
+    alternative_index: num(o.alternative_index),
     your_vehicle: o.your_vehicle === true,
     geometry: (o.route_geojson ?? o.geometry ?? null) as GeoJSON.Geometry | null,
     stations: stations
