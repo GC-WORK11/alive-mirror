@@ -129,3 +129,22 @@ Live re-audit — before → after (verified on the same merge path):
 
 Local battery after wave 3: **171/174 (98.3%)** — unchanged; p50
 0.7ms, p95 65ms (cold-start first query ~1s).
+
+Live battery vs the deployed build (174 queries over the NLB,
+0.4s spacing): **172/174 = 98.9% top-1** — every resolved query was
+top-1, zero top-3 fallbacks. Misses: `25 rajinder nagar` → `25-K`
+(honest in-area block; substring-classified wrong), `panipat` → empty
+(outside the declared 28.08–29.07°N service bbox — service-area
+ceiling). `subhash nagr` → `Subhash Nagar` on live (typed spelling
+wins; earlier local run had surfaced the `Subhashnagar` row).
+HTTP latency from this box: p50 473ms p95 616ms — dominated by the
+ap-south-1 round-trip; engine-side p50 is sub-ms.
+
+Same-place row variants observed live (defensible classification, not
+divergence — the merged local path produces identical rankings):
+`iit delhi` → `IIT Delhi` station (literal exact-name) over the
+institute campus row (alias-matched); `chattarpur` → the typed-spelling
+row; `vegas mall dwarka` → `Vegas Mall Dwarka` over `Vegas Mall`.
+Open judgment call: whether an exact-name *station* should keep its
+literal-name class over an alias-matched landmark when no accessory
+row exists (`station` is not in `_ACCESSORY_KINDS`).
