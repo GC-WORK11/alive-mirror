@@ -32,6 +32,8 @@ from typing import Optional
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 GEOJSON_PATH = os.path.join(_DIR, "static", "ncr_districts.geojson")
+SUBDISTRICT_GEOJSON_PATH = os.path.join(
+    _DIR, "static", "delhi_subdistricts.geojson")
 
 # CPCB National AQI — six categories with official colours.
 # ind_cpcb hexes per Google Air Quality API docs (matches CPCB scheme):
@@ -149,29 +151,46 @@ _lock = threading.Lock()
 _cache = None
 
 
+def _load_features(path: str, level: str) -> list:
+    with open(path) as f:
+        fc = json.load(f)
+    out = []
+    for ft in fc.get("features", []):
+        p = ft.get("properties") or {}
+        rings = _rings(ft.get("geometry") or {})
+        if not rings:
+            continue
+        out.append({
+            "name": p.get("name") or "?",
+            "state": p.get("state"),
+            "centroid": p.get("centroid"),
+            "level": p.get("level") or level,
+            "parent": p.get("parent"),
+            "rings": rings,
+            "bboxes": [_ring_bbox(r) for r in rings],
+        })
+    return out
+
+
 def _districts() -> list:
-    """Load + index the baked geojson once per process."""
+    """Load + index both baked geojsons once per process.
+
+    The NCR district list comes first, then Delhi NCT's 13 OSM
+    admin_level=5 sub-areas (level 'osm_admin_5', parent 'Delhi NCT').
+    A sub-area row is just another polygon the same cells+centroid
+    pipeline values — /v2/districts rows carry 'level'/'parent' so a
+    consumer can group them without re-deriving the geography."""
     global _cache
     if _cache is not None:
         return _cache
     with _lock:
         if _cache is not None:
             return _cache
-        with open(GEOJSON_PATH) as f:
-            fc = json.load(f)
-        out = []
-        for ft in fc.get("features", []):
-            p = ft.get("properties") or {}
-            rings = _rings(ft.get("geometry") or {})
-            if not rings:
-                continue
-            out.append({
-                "name": p.get("name") or "?",
-                "state": p.get("state"),
-                "centroid": p.get("centroid"),
-                "rings": rings,
-                "bboxes": [_ring_bbox(r) for r in rings],
-            })
+        out = _load_features(GEOJSON_PATH, "district")
+        try:
+            out += _load_features(SUBDISTRICT_GEOJSON_PATH, "subdistrict")
+        except FileNotFoundError:
+            pass  # asset absent -> district rows only, nothing invented
         _cache = out
         return out
 
@@ -179,6 +198,23 @@ def _districts() -> list:
 def districts_meta() -> dict:
     with open(GEOJSON_PATH) as f:
         return json.load(f).get("properties") or {}
+
+
+def area_for_point(lon: float, lat: float):
+    """Finest named area containing (lon, lat): a Delhi sub-district when
+    the point lands inside one of NCT's 13 OSM admin_level=5 sub-areas,
+    else the NCR district polygon, else None. Sub-areas are checked
+    first — they nest inside the Delhi NCT district ring, so district-
+    first would never resolve them. Returns
+    {"name", "level", "parent"} or None — used to snap donated-trip
+    endpoints to an area for the admin global aggregates."""
+    for d in reversed(_districts()):   # sub-areas load after districts
+        for (x0, y0, x1, y1), ring in zip(d["bboxes"], d["rings"]):
+            if x0 <= lon <= x1 and y0 <= lat <= y1 \
+                    and _point_in_ring(lon, lat, ring):
+                return {"name": d["name"], "level": d["level"],
+                        "parent": d["parent"]}
+    return None
 
 
 def _cell_center(geom: dict):
@@ -213,6 +249,19 @@ def live(grid_features: list) -> list:
         pm = (f.get("properties") or {}).get("pm25")
         cells.append((lon, lat, pm))
 
+    # partial coverage is computed, not claimed: a district whose ring
+    # bounding boxes reach past the grid's own cell-center extent can
+    # only be read on its in-field part (Rohtak's SE corner, Rewari's
+    # NE tip, the northern districts past 28.95). The flag rides every
+    # row so a consumer never reads a mean as district-wide truth.
+    if cells:
+        fx0 = min(c[0] for c in cells)
+        fy0 = min(c[1] for c in cells)
+        fx1 = max(c[0] for c in cells)
+        fy1 = max(c[1] for c in cells)
+    else:
+        fx0 = fy0 = fx1 = fy1 = None
+
     out = []
     for d in ds:
         hits = []
@@ -230,9 +279,15 @@ def live(grid_features: list) -> list:
                 hits.append(pm)
         sparse = len(hits) < 3
         pm25 = round(statistics.fmean(hits), 1) if hits else None
+        partial = (cells and any(
+            not (fx0 <= x0 and x1 <= fx1 and fy0 <= y0 and y1 <= fy1)
+            for (x0, y0, x1, y1) in d["bboxes"])) or False
         out.append({
             "name": d["name"],
             "state": d["state"],
+            "level": d["level"],
+            "parent": d["parent"],
+            "partial_field_coverage": bool(partial),
             "cells_covered": len(hits),
             "pm25": pm25,
             "_centroid": d["centroid"],

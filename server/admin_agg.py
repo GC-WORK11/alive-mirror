@@ -247,6 +247,7 @@ async def index():
             "/admin/api/validation",
             "/admin/api/model",
             "/admin/api/timing",
+            "/admin/api/global",
         ],
     }
 
@@ -635,6 +636,54 @@ async def donations():
                          "hashed tokens live only inside per-cell k-sets "
                          "(docs/plan/07 §3)"),
         "empty": tot["trips"] == 0,
+    }
+
+
+@router.get("/global")
+async def global_view():
+    """Global movement + savings view for the judges' dashboard.
+
+    Answers three questions over the donated-trip aggregates:
+      * users from which area — distinct hashed devices whose trip
+        origins snapped to each district/sub-district (k>=3, else the
+        row is suppressed and counted, never shown)
+      * journeys from-to — origin-dest area pairs, same k>=3 device rule
+      * impact — lifetime sums of reported savings only: avoided_ug
+        counts just the trips whose app computed router-fastest minus
+        taken dose; co2_avoided_kg counts only PUC-calibrated receipts.
+        A null block means no trip ever reported that figure — honest
+        absence, not a fake zero.
+
+    Everything comes from TripAggregates.global_aggregates(); this layer
+    re-asserts the invariant rather than re-checking the math."""
+    try:
+        g = TRIPS.global_aggregates() or {}
+    except AttributeError:
+        g = {}
+    except Exception:  # noqa: BLE001 - degrade, dashboard must live
+        g = {}
+    areas = g.get("areas") or []
+    od = g.get("od_pairs") or []
+    assert all(int(r.get("devices") or 0) >= K_MIN for r in areas + od), \
+        "k>=3 invariant violated upstream — refusing to publish"
+    return {
+        "ts": time.time(),
+        "k_min": K_MIN,
+        "window": "all recorded days",
+        "areas": areas,
+        "od_pairs": od,
+        "suppressed": g.get("suppressed") or {"areas": 0, "od_pairs": 0},
+        "areas_tracked": g.get("areas_tracked", 0),
+        "od_pairs_tracked": g.get("od_pairs_tracked", 0),
+        "dose_avoided": g.get("avoided"),
+        "co2_avoided": g.get("co2_avoided"),
+        "note": ("areas are district names resolved from the trimmed "
+                 "endpoint — a granularity coarser than the corridor "
+                 "cells; suppressed rows are counted, never shown; "
+                 "savings blocks are null when no donated trip ever "
+                 "reported them"),
+        "empty": not (areas or od or g.get("avoided")
+                      or g.get("co2_avoided")),
     }
 
 

@@ -467,6 +467,7 @@ async def v2_districts():
         "bands": [{"min": lo, "max": hi, "category": c, "color": col}
                   for lo, hi, c, col in _d.CPCB_BANDS],
         "geojson": "/ncr.geojson",
+        "subdistrict_geojson": "/delhi_subdistricts.geojson",
         "scale": "cpcb",
         "field_age_s": (F.status() or {}).get("age_s")
         if hasattr(F, "status") else None,

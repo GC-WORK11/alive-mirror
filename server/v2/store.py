@@ -90,9 +90,18 @@ class TripAggregates:
         # corridor cells use. Per-trip rows (ts/mode/dose/km) would
         # collapse to a single person's journey; hour buckets can't.
         self._hours: dict = {}
+        # global layer for /admin/api/global: the donated trip's
+        # endpoint AREA (district/sub-district name resolved upstream in
+        # v2/trip from the already-trimmed endpoint) — a string, not a
+        # coordinate. Distinct hashed devices per area/pair keep the
+        # k>=3 publish contract identical to corridor cells.
+        self._areas: dict = {}  # origin area -> {trips, devices:set}
+        self._od: dict = {}     # (o_area, d_area) -> {trips, devices:set}
 
     def record_trip(self, cells: list, summary: dict,
-                    token_hash: str, ts: float = None) -> None:
+                    token_hash: str, ts: float = None,
+                    origin_area: str = None,
+                    dest_area: str = None) -> None:
         ts = ts or time.time()
         day = time.strftime("%Y-%m-%d", time.gmtime(ts))
         with LOCK:
@@ -101,7 +110,9 @@ class TripAggregates:
                 "co2_kg_mid": 0.0, "pm25_g_mid": 0.0,
                 "switched": 0, "modes": {},
                 "co2_moving_g": 0.0, "co2_idle_g": 0.0,
-                "co2_cold_g": 0.0, "co2_split_trips": 0})
+                "co2_cold_g": 0.0, "co2_split_trips": 0,
+                "avoided_ug": 0.0, "avoided_trips": 0,
+                "co2_avoided_kg": 0.0, "co2_avoided_trips": 0})
             d["trips"] += 1
             d["km"] += float(summary.get("distance_km") or 0.0)
             d["dose_ug"] += float(summary.get("dose_ug") or 0.0)
@@ -114,6 +125,19 @@ class TripAggregates:
                 d["co2_split_trips"] += 1
             if summary.get("switched"):
                 d["switched"] += 1
+            # savings accounting is report-only: a trip donates
+            # avoided_ug (router-fastest dose minus taken dose) and/or
+            # co2_avoided_kg (vs the fastest option's PUC-calibrated
+            # receipt) only when the app actually computed them — the
+            # counters count just the trips that reported, so the mean
+            # is never diluted by trips that couldn't know
+            if summary.get("avoided_ug"):
+                d["avoided_ug"] += float(summary["avoided_ug"])
+                d["avoided_trips"] += 1
+            if (summary.get("co2_avoided_kg")
+                    and summary.get("puc_calibrated")):
+                d["co2_avoided_kg"] += float(summary["co2_avoided_kg"])
+                d["co2_avoided_trips"] += 1
             mode = str(summary.get("mode") or "unknown")[:24]
             d["modes"][mode] = d["modes"].get(mode, 0) + 1
             dose = float(summary.get("dose_ug") or 0.0)
@@ -156,6 +180,20 @@ class TripAggregates:
             for stale in [k for k in self._hours
                           if ts - k * 3600 > self._cell_window_s]:
                 del self._hours[stale]
+            o = str(origin_area or "").replace("#", " ")[:64] or None
+            d2 = str(dest_area or "").replace("#", " ")[:64] or None
+            if o:
+                a = self._areas.setdefault(
+                    o, {"trips": 0, "devices": set()})
+                a["trips"] += 1
+                if token_hash:
+                    a["devices"].add(token_hash)
+            if o and d2:
+                pair = self._od.setdefault(
+                    (o, d2), {"trips": 0, "devices": set()})
+                pair["trips"] += 1
+                if token_hash:
+                    pair["devices"].add(token_hash)
 
     def _publishable_cells(self, now: float, limit: int) -> list:
         """k>=3-window filter — call with LOCK held (aggregates only)."""
@@ -222,6 +260,56 @@ class TripAggregates:
             out.sort(key=lambda e: -e["ts"])
             return out[:limit]
 
+    def global_aggregates(self) -> dict:
+        """Everything /admin/api/global may reveal — area and OD-pair
+        rows plus the lifetime savings counters, k>=3 filtered on
+        distinct devices exactly like corridor cells. Mirrors
+        agg_ddb.DDBTripAggregates.global_aggregates' shape."""
+        with LOCK:
+            areas = []
+            suppressed_areas = 0
+            for name, v in self._areas.items():
+                if len(v["devices"]) < 3:
+                    suppressed_areas += 1
+                    continue
+                areas.append({"area": name, "trips": v["trips"],
+                              "devices": len(v["devices"])})
+            areas.sort(key=lambda r: (-r["devices"], -r["trips"]))
+            od = []
+            suppressed_od = 0
+            for (o, d), v in self._od.items():
+                if len(v["devices"]) < 3:
+                    suppressed_od += 1
+                    continue
+                od.append({"origin": o, "dest": d, "trips": v["trips"],
+                           "devices": len(v["devices"])})
+            od.sort(key=lambda r: (-r["trips"], -r["devices"]))
+            avoided = 0.0
+            avoided_trips = 0
+            co2_av = 0.0
+            co2_av_trips = 0
+            for v in self._days.values():
+                avoided += float(v.get("avoided_ug") or 0.0)
+                avoided_trips += int(v.get("avoided_trips") or 0)
+                co2_av += float(v.get("co2_avoided_kg") or 0.0)
+                co2_av_trips += int(v.get("co2_avoided_trips") or 0)
+        return {
+            "areas": areas,
+            "od_pairs": od,
+            "avoided": {
+                "dose_ug": round(avoided, 1),
+                "trips_reporting": avoided_trips,
+            } if avoided_trips else None,
+            "co2_avoided": {
+                "co2_kg": round(co2_av, 2),
+                "puc_calibrated_trips": co2_av_trips,
+            } if co2_av_trips else None,
+            "suppressed": {"areas": suppressed_areas,
+                           "od_pairs": suppressed_od},
+            "areas_tracked": len(self._areas),
+            "od_pairs_tracked": len(self._od),
+        }
+
     def snapshot_cells(self) -> dict:
         """Test/debug view of the cell layer (aggregates, no raw data)."""
         with LOCK:
@@ -233,6 +321,8 @@ class TripAggregates:
         with LOCK:
             self._days.clear()
             self._cells.clear()
+            self._areas.clear()
+            self._od.clear()
             self._hours.clear()
 
 

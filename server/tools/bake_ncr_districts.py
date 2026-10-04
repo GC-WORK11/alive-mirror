@@ -43,7 +43,18 @@ DISTRICTS = {
     10398317: ("Palwal", "Haryana"),
     10398371: ("Nuh", "Haryana"),                       # formerly Mewat
     17749398: ("Meerut", "Uttar Pradesh"),
+    # Partial coverage, honestly flagged: these two districts are only
+    # inside the field at an edge — Rohtak's SE corner (~10 /grid cells,
+    # measured vs cells=40 grid 2026-10-04) and Rewari's NE tip (~3
+    # cells). Every other NCR constituent sits wholly outside
+    # 76.8–77.9 x 28.2–28.95 (Bhiwani/Charkhi Dadri/Mahendragarh max
+    # lon <76.8; Jind <76.8 + north; Panipat/Karnal/Shamli/Muzaffarnagar
+    # min lat >28.95) — that is the honest ceiling, documented here.
+    1942937: ("Rohtak", "Haryana"),
+    1942991: ("Rewari", "Haryana"),
 }
+
+PARTIAL_COVERAGE = {1942937, 1942991}
 
 
 def _project(lat, lon):
@@ -219,6 +230,9 @@ def build(geom_dir: str) -> dict:
                 "centroid": [round(centroid[0], 5), round(centroid[1], 5)],
                 "outer_rings": len(polys),
                 "geom_source": src,
+                # Rohtak/Rewari intersect only an edge of the field —
+                # their read covers the in-bbox cells, not the district
+                "partial_field_coverage": rel_id in PARTIAL_COVERAGE,
             },
             "geometry": ({"type": "Polygon", "coordinates": polys[0]}
                          if len(polys) == 1 else
