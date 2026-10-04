@@ -137,3 +137,11 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 - Suite 904 passed (5 skipped); main merged at d487e71 (no-ff) — includes global API, 28-row districts, admin sweep, Mobile degraded surface, handoff.
 - Deploy d116daad verified live: 24 stations/waqi, field 142s, kriging on.
 - Lanes now: UI/UX ebe5ed90 RUNNING (Android exhaustive + admin border + recorded E2E + APK; relayed donation-fields delta). Backend 29adb480 SETTLED (mandate complete). Slot free for its queued Android-testing child.
+
+### 2026-10-04 (lead, cont.) — service-wedge root cause + degraded contract + archive-replay tile, deployed `d4e59920`
+- **Flap root cause proved in logs**: each task fired `rollup tick` at boot (daily build over 83 snapshots + LOSO folds = minutes of CPU on 1 vCPU) → health checks starved → ALB drained ~6min later → next task re-fired. `ALIVE_ROLLUP_IN_APP` default flipped to off (`main.py:_start_rollup_loop`); EventBridge runs both jobs on separate tasks. Logs show boot→tick→~6min→shutdown, twice.
+- **Deploy `d4e59920` verified live**: `stations: 24 · waqi: ok` recovered instantly (task-side WAQI fetch was timing out under rollup CPU starvation — probe task on same subnet proved bounds+feed work). Full plan 24 opts/3.4s, fast 5 opts/4ms, `degraded` absent on healthy plan (no over-flagging).
+- **Degraded contract (d4e5992)**: an arm returning [] while siblings produce rows now names itself in `degraded` (motor/slow/engine); transit stays exception-only. Router arms swallow backend failures into [] internally (osrm_route returns None for no-route AND unreachable) so "empty on routable OD" is the honest flaggable signal. 2 new tests green.
+- **Archive-replay tile live**: regenerated `s3://alive108-air/validation/weekly-2026-W40.json` (reader fixed for 6-tuple pair schema + mocks pinned) → `/admin/api/validation` serves `archive: ok mae 24.16 · pairs 7240`; loso n:0 honest ("insufficient stations" — archive only has 1 snapshot). Tile shows real MAE, not vibes.
+- **`alive108-validate-weekly` bumped** weekly→daily `cron(30 20 * * ? *)` Asia/Kolkata (00:30IST rollup + 20:30IST validation, both ENABLED).
+- Suite: 904 green at main `d487e71`. Remaining: Android physical/emulator E2E (cap slot), next main merge after suite.
