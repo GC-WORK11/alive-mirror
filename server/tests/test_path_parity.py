@@ -160,6 +160,27 @@ class _LiveOnlyField:
         return 1.0
 
 
+def test_engine_rows_carry_priced_objective(monkeypatch):
+    """Wire surface: every engine row must expose engine_dose_ug —
+    the µg the A* summed over priced edges — and keep its raster
+    display band intact (two surfaces, one for rank, one for show)."""
+    class _SigmaField(_LiveOnlyField):
+        def sigma(self, lat, lon):
+            return 3.0
+
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: _SigmaField())
+    opts = v2plan._engine_options(28.6315, 77.2167, 28.5479, 77.2511,
+                                  "car", None)
+    assert opts
+    for o in opts:
+        ed = o.get("engine_dose_ug")
+        assert isinstance(ed, (int, float)) and ed > 0, \
+            f"engine row missing priced dose: {ed}"
+        assert (o.get("dose") or {}).get("mid") is not None, \
+            "display dose band dropped from the engine row"
+
+
 def test_engine_prices_from_live_raster(monkeypatch):
     """Reweight on a live-only field builds a real FieldView raster and
     returns engine options — the exact condition that left prod unpriced."""

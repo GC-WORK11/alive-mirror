@@ -810,6 +810,17 @@ def _transit_options(flat, flon, tlat, tlon, vehicle, profile,
 # --- doc-06 §4 ranking (pure — unit-tested on constructed options) -------------
 def _dose_key(o: dict) -> float:
     d = o.get("dose") or {}
+    # Engine rows rank on the priced objective: engine_dose_ug is the
+    # edge-sum the A* minimized — the exact criterion the path won on.
+    # It's a point estimate (~mid-scale), so it's mapped into the lo
+    # space other rows rank in by THIS row's own band ratio (same
+    # raster, same model — monotone map of the minimized value).
+    ed = o.get("engine_dose_ug")
+    if ed is not None:
+        lo, mid = d.get("lo"), d.get("mid")
+        if lo is not None and mid:
+            return float(ed) * float(lo) / float(mid)
+        return float(ed)
     v = d.get("lo") if d.get("lo") is not None else d.get("mid")
     return float(v) if v is not None else float("inf")
 
@@ -1262,9 +1273,10 @@ def _geom_midpoint(geometry: dict):
 def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
     """Least-dose path per engine mode, as plan options.
 
-    The engine's own dose is only the pathfinding criterion — the option
-    still prices through the shared exposure.dose band, so every row on
-    screen comes from one dose model."""
+    Two dose surfaces per row: `engine_dose_ug` — the µg the A* summed
+    over priced edges, the exact criterion the path minimized (server
+    ranking keys on it) — and `dose` — the shared raster band through
+    exposure.dose, so every row on screen shows one dose model."""
     eng = _engine()
     if eng is None:
         _log.warning("engine options: no engine (graph/engine load failed)")
@@ -1360,6 +1372,13 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
                     "snap_m": {"from_m": round(snap.get("from_m") or 0, 1),
                                "to_m": round(snap.get("to_m") or 0, 1)},
                     "alternative_index": alt_i or None,
+                    # the priced objective the path minimized — the
+                    # wire field ranking keys on; display dose stays
+                    # the raster band in `dose`
+                    "engine_dose_ug": (round(r["dose_ug"], 1)
+                                       if isinstance(r.get("dose_ug"),
+                                                     (int, float))
+                                       else None),
                 },
                 origin=(flat, flon), dest=(tlat, tlon),
                 field_fn=field_fn, sigma_fn=sigma_fn))

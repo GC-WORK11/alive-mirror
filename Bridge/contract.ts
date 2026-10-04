@@ -391,6 +391,11 @@ export interface V2PlanOption {
   alternative_index?: number | null;  // engine rows: 1..N on corridor-diverse
                                       // least-dose alternatives; absent on the
                                       // primary route
+  engine_dose_ug?: number | null;     // engine rows: inhaled µg summed over the
+                                      // priced edges — the exact objective the
+                                      // path minimized; server ranking keys on
+                                      // it. Display dose stays `dose` (the
+                                      // raster band, one surface per response)
   reason_line: string;
   your_vehicle: boolean;
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
