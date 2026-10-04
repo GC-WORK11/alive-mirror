@@ -47,7 +47,7 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 
 Open gaps, ranked (from master-plan.md):
 1. Plan latency and engine robustness under load — LARGELY FIXED by 5805620; cold-task first-plan seconds remain (field fetch → raster → reweight chain; depth lane measuring).
-2. Search: "aiims" returns platform rows only, with the hospital missing from the top. "lodhi garden" ranks a platform above the park, plus Lodhi/Lodi duplicates. "b-12 lajpat nagar" ignores the anchor and returns Sanwal Nagar (a regression). The location agent has been told; verify live.
+2. Search regressions — VERIFIED FIXED live on 5805620 (2026-10-04): "aiims" → hospital top-1/#2, platforms demoted to tail; "lodhi garden" → parks first, platform last; "b-12 lajpat nagar" → Lajpat Nagar locality + B-12 anchor honoured. Location lane still owns the broader 174-query battery + fuzzy/compound/sector tolerance leg.
 3. Android TTS (500/150/0m cues) + gfxinfo jank — the new SWE-2 Max Android lane (below) owns it; the Ultra lane died at setup with zero pushes.
 4. Route-quality stats for the pitch — audit live numbers above; depth lane owns the worse-dose decomposition + win-rate lift.
 5. Fresh release APK on the final HEAD (NLB baked; check it in the JS bundle; debug-signed. Real signing needs his keystore).
