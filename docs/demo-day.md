@@ -1,9 +1,13 @@
 # ALive-108 — demo-day runbook (Oct 10, offline hall)
 
-Verified against live AWS build `0c7fa3fb` (ECS ap-south-1, task-def 26);
-newer commits on `base/v2` ride the next image. Every number below was
-read off the running service — they drift with the field; re-check on
-the day. Nothing in the product is seeded or faked.
+Verified against live AWS build `a0e74abe` (ECS ap-south-1, task-def 39,
+FARGATE_SPOT); newer commits on `base/v2` ride the next image. Every
+number below was read off the running service — they drift with the
+field; re-check on the day. Nothing in the product is seeded or faked.
+
+Release APK: sideload build, universal arm64+x86_64, debug-signed —
+built with `EXPO_PUBLIC_API_URL=http://alive108-…elb.ap-south-1.
+amazonaws.com` (NLB serves :80 only; never `:8000` or `https://`).
 
 ## The pitches (one breath each)
 

@@ -69,6 +69,7 @@ pybind11_add_module(alive_core
   src/search.cpp
   src/field.cpp
   src/emission.cpp
+  src/path.cpp
   $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:src/krige.cpp>
   $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:src/bindings_krige.cpp>)
 

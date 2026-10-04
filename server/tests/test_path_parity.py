@@ -1,0 +1,169 @@
+"""Parity tests — C++ alive_core.PathEngine vs Python PyPathEngine.
+
+Same packed ARG1 graph, same synthetic field: identical paths, doses
+(1e-6 rel — C++ stores per-edge concentration as float32), geometry,
+and error strings. Plus the honest error cases (far snap, no path).
+
+Runs under the system Python that has the built .so; skips cleanly
+when alive_core or the shipped graph is absent.
+"""
+
+import gzip
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "core", "build"))
+
+import routegraph  # noqa: E402
+
+BLOB_PATH = os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "data", "route_graph.bin.gz")
+
+# deterministic synthetic field — a west→east gradient
+FIELD = lambda lat, lon: 90.0 + 20.0 * (lon - 77.0)  # noqa: E731
+
+# OD pairs: (olat, olon, dlat, dlon) across Delhi + one NCR edge trip
+ODS = [
+    (28.6315, 77.2167, 28.5479, 77.2511),   # CP → Nehru Place
+    (28.6139, 77.2090, 28.7041, 77.1125),   # CP → Rohini
+    (28.4595, 77.0266, 28.6315, 77.2167),   # Gurugram → CP
+    (28.5708, 77.3260, 28.6139, 77.2090),   # Noida Sec 18 → CP
+]
+MODES = ("car", "auto", "bike", "cycle", "walk")
+
+
+@pytest.fixture(scope="module")
+def blob():
+    if not os.path.exists(BLOB_PATH):
+        pytest.skip("route_graph.bin.gz not shipped")
+    with gzip.open(BLOB_PATH, "rb") as fh:
+        return fh.read()
+
+
+@pytest.fixture(scope="module")
+def py_eng(blob):
+    eng = routegraph.PyPathEngine(blob)
+    eng.reweight(FIELD)
+    return eng
+
+
+@pytest.fixture(scope="module")
+def cpp_eng(blob):
+    cpp = pytest.importorskip(
+        "alive_core", reason="C++ module not built (server/core/build)")
+    assert hasattr(cpp, "PathEngine"), "alive_core lacks PathEngine"
+    eng = cpp.PathEngine(blob)
+    eng.reweight(FIELD)
+    return eng
+
+
+def _cmp(rc, rp, od, mode):
+    assert rc.get("error") == rp.get("error"), (
+        f"error mismatch {od} {mode}: {rc.get('error')} vs {rp.get('error')}")
+    if "error" in rp:
+        return
+    assert rc["edges"] == rp["edges"], f"edge count {od} {mode}"
+    assert rc["geometry"]["coordinates"] == rp["geometry"]["coordinates"], \
+        f"geometry {od} {mode}"
+    assert abs(rc["distance_m"] - rp["distance_m"]) < 1e-6, \
+        f"distance {od} {mode}: {rc['distance_m']} vs {rp['distance_m']}"
+    assert abs(rc["duration_s"] - rp["duration_s"]) < 1e-6, \
+        f"duration {od} {mode}"
+    assert abs(rc["dose_ug"] - rp["dose_ug"]) <= max(
+        1e-6, 1e-6 * abs(rp["dose_ug"])), \
+        f"dose {od} {mode}: {rc['dose_ug']} vs {rp['dose_ug']}"
+    assert rc["names"] == rp["names"], f"names {od} {mode}"
+    # snap nodes may resolve to sub-mm-apart twins on a float tie — the
+    # picked node and its distance must agree to 1 mm, not bit-exactly
+    assert abs(rc["snap"]["from_m"] - rp["snap"]["from_m"]) < 1e-3, \
+        f"snap from {od} {mode}"
+    assert abs(rc["snap"]["to_m"] - rp["snap"]["to_m"]) < 1e-3, \
+        f"snap to {od} {mode}"
+
+
+def test_path_parity_all_modes(cpp_eng, py_eng):
+    for od in ODS:
+        for mode in MODES:
+            rc = cpp_eng.query(*od, mode)
+            rp = py_eng.query(*od, mode)
+            _cmp(rc, rp, od, mode)
+
+
+def test_path_parity_far_endpoint(cpp_eng, py_eng):
+    """An OD whose endpoints sit beyond the snap radius — both engines
+    must emit the same honest error."""
+    for mode in ("car", "walk"):
+        rc = cpp_eng.query(28.6139, 77.2090, 31.0, 77.0, mode)  # → Punjab
+        rp = py_eng.query(28.6139, 77.2090, 31.0, 77.0, mode)
+        assert rc.get("error") == rp.get("error") == \
+            "no graph node near endpoint"
+
+
+def test_path_parity_unweighted(blob):
+    """Before reweight: edges unpriced — C++ falls back to field_mean=0,
+    same as the Python oracle."""
+    cpp = pytest.importorskip("alive_core")
+    ce = cpp.PathEngine(blob)
+    py = routegraph.PyPathEngine(blob)
+    rc = ce.query(*ODS[0], "car")
+    rp = py.query(*ODS[0], "car")
+    assert rc.get("error") == rp.get("error")
+    if "error" not in rp:
+        assert rc["geometry"]["coordinates"] == \
+            rp["geometry"]["coordinates"]
+
+
+# --- prod-shape pricing: live field, no snapshot file ---------------------
+
+class _LiveOnlyField:
+    """The shape prod actually runs: data/field/ is docker-ignored, so
+    there is no serving snapshot and no _snap_fv — F.value is the live
+    krige/IDW path. The engine must still price: through the /grid raster
+    (real reads), never through ~1.25M live crossings, and never unpriced."""
+    _snap_fv = None
+
+    def _serving_snapshot(self):
+        return False
+
+    def value(self, lat, lon, pollutant="pm2_5"):
+        if not (28.1 <= lat <= 29.0 and 76.7 <= lon <= 78.0):
+            return None
+        return 90.0 + 20.0 * (lon - 77.0)
+
+    def nearest_sample_km(self, lat, lon):
+        return 1.0
+
+
+def test_engine_prices_from_live_raster(monkeypatch):
+    """Reweight on a live-only field builds a real FieldView raster and
+    returns engine options — the exact condition that left prod unpriced."""
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: _LiveOnlyField())
+    eng = routegraph.path_engine()
+    v2plan._engine_reweight(eng)
+    ep = getattr(eng, "edges_priced", None)
+    ep = ep() if callable(ep) else (ep or 0)
+    assert ep > 0, "live-field raster left the engine unpriced"
+    opts = v2plan._engine_options(28.6315, 77.2167, 28.5479, 77.2511,
+                                  "car", None)
+    assert opts, "engine emitted nothing on a live-only field"
+    assert all(o.get("engine") == "alive_core-path" for o in opts)
+
+
+def test_live_callable_reweight_is_refused(monkeypatch):
+    """If the raster can't be built either, the engine degrades to no
+    rows — it must NOT start a ~10-minute live-callable reweight that
+    starves the whole planner."""
+    class _DeadRasterField(_LiveOnlyField):
+        def value(self, lat, lon, pollutant="pm2_5"):
+            return None   # field serves nothing — raster will be empty
+
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: _DeadRasterField())
+    eng = routegraph.PyPathEngine(routegraph.load_blob())
+    v2plan._engine_reweight(eng)
+    assert eng.edges_priced == 0

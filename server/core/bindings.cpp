@@ -20,6 +20,7 @@
 
 #include "alive/emission.hpp"
 #include "alive/field.hpp"
+#include "alive/path.hpp"
 #include "alive/search.hpp"
 
 namespace py = pybind11;
@@ -90,6 +91,71 @@ py::list index_query(const SearchIndex& idx, const std::string& q,
 // --------------------------------------------------------------------------
 // Phase 3 — field view + dose/emission integrators
 // --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// Path engine — least-inhalation routing over the packed ARG1 graph.
+// Mirrors routegraph.py PyPathEngine's dict contract exactly.
+// --------------------------------------------------------------------------
+
+std::unique_ptr<PathEngine> make_path_engine(const py::bytes& blob) {
+  return std::make_unique<PathEngine>(std::string(blob));
+}
+
+// field may be a FieldView (fast path — direct C++ value() calls) or any
+// Python callable f(lat, lon) -> float|None (parity with the oracle).
+// Returns the oracle's dict {"edges_priced", "field_mean"}.
+py::dict path_reweight(PathEngine& eng, const py::object& field) {
+  if (py::isinstance<FieldView>(field)) {
+    const FieldView* fv = field.cast<const FieldView*>();
+    eng.reweight([fv](double lat, double lon) {
+      return fv->value(lat, lon);
+    });
+  } else {
+    eng.reweight([&field](double lat, double lon) -> std::optional<double> {
+      const py::object r = field(lat, lon);
+      if (r.is_none()) return std::nullopt;
+      return r.cast<double>();
+    });
+  }
+  py::dict out;
+  out["edges_priced"] = eng.edges_priced();
+  out["field_mean"] = eng.field_mean();
+  return out;
+}
+
+py::dict path_query(PathEngine& eng, double olat, double olon, double dlat,
+                    double dlon, const std::string& mode) {
+  const PathResult r = eng.query(olat, olon, dlat, dlon, mode);
+  py::dict out;
+  if (!r.ok) {
+    out["error"] = r.error;
+    return out;
+  }
+  py::list coords;
+  for (size_t i = 0; i + 1 < r.coords.size(); i += 2) {
+    py::list pt;
+    pt.append(r.coords[i]);
+    pt.append(r.coords[i + 1]);
+    coords.append(std::move(pt));
+  }
+  py::dict geom;
+  geom["type"] = "LineString";
+  geom["coordinates"] = std::move(coords);
+  out["geometry"] = std::move(geom);
+  out["distance_m"] = r.distance_m;
+  out["duration_s"] = r.duration_s;
+  out["dose_ug"] = r.dose_ug;
+  out["edges"] = r.edges;
+  py::list names;
+  for (const auto& n : r.names) names.append(n);
+  out["names"] = std::move(names);
+  py::dict snap;
+  snap["from_m"] = r.snap_from_m;
+  snap["to_m"] = r.snap_to_m;
+  out["snap"] = std::move(snap);
+  out["engine"] = "alive_core-path";
+  return out;
+}
 
 FieldView make_field_view(const py::list& rows, double coverage_km) {
   std::vector<FieldCell> cells;
@@ -377,4 +443,19 @@ PYBIND11_MODULE(alive_core, m) {
         py::arg("ef_band"), py::arg("idle_band"), py::arg("cold_mult"),
         py::arg("nx_band") = py::none(), py::arg("cold_km_done") = 0.0,
         py::arg("occupancy") = 1.0);
+
+  // -- least-inhalation path engine ------------------------------------
+  //   pe = alive_core.PathEngine(blob_bytes)  # ARG1 packed graph
+  //   pe.reweight(field_view_or_callable)     # price edges by live field
+  //   pe.query(olat, olon, dlat, dlon, mode) -> dict (same shape as
+  //       routegraph.PyPathEngine.query)
+  py::class_<PathEngine>(m, "PathEngine")
+      .def(py::init(&make_path_engine), py::arg("blob"))
+      .def("reweight", &path_reweight, py::arg("field"))
+      .def("query", &path_query, py::arg("olat"), py::arg("olon"),
+           py::arg("dlat"), py::arg("dlon"), py::arg("mode") = "car")
+      .def("n_nodes", &PathEngine::n_nodes)
+      .def("n_edges", &PathEngine::n_edges)
+      .def("edges_priced", &PathEngine::edges_priced)
+      .def("field_mean", &PathEngine::field_mean);
 }

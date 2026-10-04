@@ -1,11 +1,12 @@
 // "Delhi today" — the consumer city view (docs/plan/07 §1, sidebar §5).
 // One scrolling page, light, editorial: the day's breath hero number in
-// consumer words (cigarettes — never µg/AQI on the surface), the streets
+// consumer words (µg inhaled by default; the cigarette figure only renders
+// when the user opts in — settings.show_cig), the streets
 // travellers actually crossed (k>=3 aggregates only, never trajectories),
 // what all ALive travellers did today, and a "why this is an estimate"
 // footer where the technical basis lives. Mount contract mirrors
-// SearchScreen: <DelhiToday visible onClose lang /> — the sheet mounts
-// only while visible, so every open is a fresh fetch.
+// SearchScreen: <DelhiToday visible onClose lang showCig /> — the sheet
+// mounts only while visible, so every open is a fresh fetch.
 
 import React, { useEffect, useState } from "react";
 import {
@@ -28,7 +29,7 @@ import {
   V2T,
   V2Type,
 } from "../theme";
-import { t, type Lang } from "../i18n/strings";
+import { approx, t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
@@ -137,7 +138,7 @@ function WhyLine({ text, lang }: { text: string; lang: Lang }) {
 
 /* ---------- sheet (mounted only while visible → fresh state each open) --- */
 
-function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
+function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lang; showCig: boolean }) {
   const [data, setData] = useState<CityPayload | null>(null);
   const [moves, setMoves] = useState<CityMovesPayload | null>(null);
   const [failed, setFailed] = useState(false);
@@ -160,6 +161,8 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
   }, [nonce]);
 
   const cig = data?.breath?.cigarettes ?? null;
+  /* the same hero figure in µg — the surface unit while show_cig is off */
+  const inhaled = data?.breath?.day_inhaled_ug ?? null;
   const pm = data?.breath?.pm25_ugm3 ?? null;
   const ageMin = data?.freshness?.age_min ?? null;
   const stale = data?.freshness?.label === "stale";
@@ -219,8 +222,10 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
           </Text>
         ) : (
           <>
-            {/* hero — one number: a day of Delhi air in cigarettes */}
-            {data.breath && cig && pm ? (
+            {/* hero — one number: a day of Delhi air. Cigarettes only with
+                showCig on; the default surface is µg inhaled + the plain
+                species/percentile context below (owner mandate). */}
+            {data.breath && pm && (showCig ? cig : inhaled) ? (
               <View style={ss.hero}>
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
@@ -238,10 +243,10 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                       },
                     ]}
                   >
-                    ≈ {fmtCig(cig.mid)}
+                    ≈ {showCig ? fmtCig(cig!.mid) : Math.round(inhaled!.mid)}
                   </Text>
                   <Icon
-                    name="cigarette"
+                    name={showCig ? "cigarette" : "dust"}
                     color={doseColor(pm.mid)}
                     size={30}
                   />
@@ -249,15 +254,20 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroUnit, { fontFamily: fam(lang, "reg") }]}
                 >
-                  {t("cityHeroUnit", lang)}
+                  {t(showCig ? "cityHeroUnit" : "cityHeroUnitUg", lang)}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroRange, NUM, { fontFamily: fam(lang, "reg") }]}
                 >
-                  {t("cityHeroRange", lang, {
-                    lo: fmtCig(cig.lo),
-                    hi: fmtCig(cig.hi),
-                  })}
+                  {showCig
+                    ? t("cityHeroRange", lang, {
+                        lo: fmtCig(cig!.lo),
+                        hi: fmtCig(cig!.hi),
+                      })
+                    : t("cityHeroRange", lang, {
+                        lo: Math.round(inhaled!.lo),
+                        hi: Math.round(inhaled!.hi),
+                      })}
                 </Text>
               </View>
             ) : (
@@ -406,12 +416,19 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                     { fontFamily: fam(lang, "reg") },
                   ]}
                 >
-                  {t("cityTravellersLine", lang, {
-                    trips: day.trips,
-                    km: fmtKm(day.km),
-                    cigs: fmtCig(cigOf(day.dose_ug) ?? 0),
-                    kg: fmtKg(day.co2_kg_mid),
-                  })}
+                  {showCig
+                    ? t("cityTravellersLine", lang, {
+                        trips: day.trips,
+                        km: fmtKm(day.km),
+                        cigs: fmtCig(cigOf(day.dose_ug) ?? 0),
+                        kg: fmtKg(day.co2_kg_mid),
+                      })
+                    : t("cityTravellersLineUg", lang, {
+                        trips: day.trips,
+                        km: fmtKm(day.km),
+                        ug: approx(Math.round(day.dose_ug)),
+                        kg: fmtKg(day.co2_kg_mid),
+                      })}
                 </Text>
                 {day.switched > 0 ? (
                   <Text {...DYNAMIC_TYPE}
@@ -468,7 +485,7 @@ function DelhiSheet({ onClose, lang }: { onClose: () => void; lang: Lang }) {
                 />
                 {pm ? (
                   <WhyLine
-                    text={t("cityBasisPm25", lang, {
+                    text={t(showCig ? "cityBasisPm25" : "cityBasisPm25Ug", lang, {
                       lo: pm.lo,
                       hi: pm.hi,
                     })}
@@ -498,10 +515,13 @@ export function DelhiToday({
   visible,
   onClose,
   lang = "en",
+  showCig = false,
 }: {
   visible: boolean;
   onClose: () => void;
   lang?: Lang;
+  /** cigarette-equivalence framing — off by default (settings.show_cig) */
+  showCig?: boolean;
 }) {
   return (
     <Modal
@@ -513,7 +533,7 @@ export function DelhiToday({
     >
       <View style={ss.backdrop}>
         <StatusBar style="dark" />
-        {visible ? <DelhiSheet onClose={onClose} lang={lang} /> : null}
+        {visible ? <DelhiSheet onClose={onClose} lang={lang} showCig={showCig} /> : null}
       </View>
     </Modal>
   );

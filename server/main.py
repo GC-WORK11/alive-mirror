@@ -72,6 +72,27 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_transit())
+    # The exposure path engine prices itself lazily on the first
+    # /v2/plan — and a cold field makes that first reweight find no
+    # raster cells, so the first minute or two of plans honestly serve
+    # no engine rows. Build the graph at boot and keep retrying the
+    # reweight until the field serves (bounded; plans still degrade
+    # honestly either way — never a fabricated row).
+    async def _warm_engine():
+        try:
+            import routegraph
+            from v2 import plan as _v2plan
+            eng = await asyncio.to_thread(routegraph.path_engine)
+            for _ in range(36):  # ~6 min ceiling
+                await asyncio.to_thread(_v2plan._engine_reweight, eng)
+                ep = getattr(eng, "edges_priced", 0)
+                ep = ep() if callable(ep) else (ep or 0)
+                if ep > 0:
+                    return
+                await asyncio.sleep(10)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_engine())
     yield
 
 
@@ -1133,12 +1154,25 @@ async def admin_page():
 
 @app.get("/city")
 async def city_page():
-    """'The City Breathes' — the dark editorial surface (docs/24 §8):
-    kriged field as wind-advected particles, the city's cigarette strip,
-    corridor measurements. Judges land here; commuters never need to."""
+    """Delhi NCR air, district by district — light ops-family surface:
+    the live CPCB choropleth over baked OSM boundaries, the pixel field
+    underneath, corridor measurements. Judges land here."""
     from fastapi.responses import FileResponse
     import os
     return FileResponse(os.path.join(os.path.dirname(__file__), "city.html"))
+
+
+@app.get("/ncr.geojson")
+async def ncr_districts_geojson():
+    """The baked NCR district boundaries the /city choropleth paints —
+    static asset (server/static/ncr_districts.geojson), cached at the
+    edge; /v2/districts carries the live numbers."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "ncr_districts.geojson"),
+        media_type="application/geo+json")
 
 
 @app.get("/reverse")

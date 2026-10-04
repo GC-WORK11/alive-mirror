@@ -1,7 +1,8 @@
 // Trips history — the on-device ledger (doc 02 §sidebar item 3, doc 10).
 // Same sheet-over-map contract as SearchScreen: <LedgerScreen visible onClose lang/>.
-// Surface speaks in cigarettes; µg and lo–hi bands live one tap down in the
-// per-trip details (doc 10: bands allowed at details level, never surface).
+// Surface speaks in µg; the cigarette figure renders only when the user
+// opts in (settings.show_cig). Bands stay one tap down in per-trip details
+// (doc 10: bands allowed at details level, never surface).
 // Nothing appears without data — emit_kg / dose bands / donated are optional
 // seams on Trip and only render when a real value is stored.
 // Delete controls hit store/ledger for real; "delete all" asks first.
@@ -57,6 +58,9 @@ const fmtCig = (ug: number) => {
 };
 const fmtUg = (ug: number) =>
   ug >= 10 ? `${Math.round(ug)}` : `${Math.round(ug * 10) / 10}`;
+/** µg readout with the estimate mark — the surface number while the
+ *  cigarette metaphor is off; templates add the "µg" unit. */
+const fmtDoseUg = (ug: number) => `≈ ${fmtUg(ug)}`;
 const fmtKg = (kg: number) => (kg >= 0.1 ? kg.toFixed(1) : kg.toFixed(2));
 
 const dayLabel = (ts: number, lang: Lang) =>
@@ -102,10 +106,12 @@ function BackGlyph({ color }: { color: string }) {
 function TripDetail({
   tr,
   lang,
+  showCig,
   onDelete,
 }: {
   tr: Trip;
   lang: Lang;
+  showCig: boolean;
   onDelete: () => void;
 }) {
   const lo = tr.dose_lo_ug;
@@ -118,7 +124,9 @@ function TripDetail({
         </Text>
         <View style={ss.dRight}>
           <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
-            {t("tripsCigs", lang, { n: fmtCig(tr.dose_ug) })}
+            {showCig
+              ? t("tripsCigs", lang, { n: fmtCig(tr.dose_ug) })
+              : t("doseUg", lang, { n: fmtDoseUg(tr.dose_ug) })}
           </Text>
           <Text {...DYNAMIC_TYPE} style={[ss.dSub, NUM, { fontFamily: fam(lang, "reg") }]}>
             {lo != null && hi != null
@@ -141,7 +149,9 @@ function TripDetail({
 
       {tr.avoided_ug > 0 && (
         <Text {...DYNAMIC_TYPE} style={[ss.dSaved, { fontFamily: fam(lang, "reg") }]}>
-          {t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })}
+          {showCig
+            ? t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })
+            : t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
         </Text>
       )}
 
@@ -176,12 +186,14 @@ function TripDetail({
 const TripCard = React.memo(function TripCard({
   tr,
   lang,
+  showCig,
   open,
   onToggle,
   onDelete,
 }: {
   tr: Trip;
   lang: Lang;
+  showCig: boolean;
   open: boolean;
   onToggle: (key: string) => void;
   onDelete: (tr: Trip) => void;
@@ -223,13 +235,15 @@ const TripCard = React.memo(function TripCard({
               style={[ss.tripSaved, { fontFamily: fam(lang, "reg") }]}
               numberOfLines={2}
             >
-              {t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })}
+              {showCig
+                ? t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })
+                : t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
             </Text>
           )}
         </View>
         <View style={ss.tripNums}>
           <View style={ss.cigRow}>
-            <Icon name="cigarette" color={cigTone(tr.dose_ug)} size={13} />
+            <Icon name={showCig ? "cigarette" : "dust"} color={cigTone(tr.dose_ug)} size={13} />
             <Text {...DYNAMIC_TYPE}
               style={[
                 ss.cigNum,
@@ -237,7 +251,7 @@ const TripCard = React.memo(function TripCard({
                 { fontFamily: fam(lang, "semi"), color: cigTone(tr.dose_ug) },
               ]}
             >
-              {fmtCig(tr.dose_ug)}
+              {showCig ? fmtCig(tr.dose_ug) : `${fmtDoseUg(tr.dose_ug)} µg`}
             </Text>
           </View>
           {tr.emit_kg != null && (
@@ -250,7 +264,7 @@ const TripCard = React.memo(function TripCard({
           <Icon name="chevron" color={V2T.text3} size={16} />
         </View>
       </Pressable>
-      {open && <TripDetail tr={tr} lang={lang} onDelete={() => onDelete(tr)} />}
+      {open && <TripDetail tr={tr} lang={lang} showCig={showCig} onDelete={() => onDelete(tr)} />}
     </View>
   );
 });
@@ -284,7 +298,9 @@ type Row =
   | { kind: "day"; key: string; label: string }
   | { kind: "trip"; key: string; tr: Trip };
 
-function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; lang: Lang; onTripsChanged?: () => void }) {
+function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
+  onClose: () => void; lang: Lang; showCig: boolean; onTripsChanged?: () => void;
+}) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -405,12 +421,13 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
         <TripCard
           tr={item.tr}
           lang={lang}
+          showCig={showCig}
           open={openKey === item.key}
           onToggle={toggleRow}
           onDelete={removeTrip}
         />
       ),
-    [lang, openKey, toggleRow, removeTrip],
+    [lang, showCig, openKey, toggleRow, removeTrip],
   );
 
   const keyExtractor = useCallback((item: Row) => item.key, []);
@@ -467,11 +484,11 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
                 </View>
                 <View style={ss.sumCol}>
                   <View style={ss.sumHead}>
-                    <Icon name="cigarette" color={V2T.text3} size={15} />
+                    <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={15} />
                     <Text {...DYNAMIC_TYPE}
                       style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
                     >
-                      {fmtCig(allUg)}
+                      {showCig ? fmtCig(allUg) : `${fmtDoseUg(allUg)} µg`}
                     </Text>
                   </View>
                   <Text {...DYNAMIC_TYPE} style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
@@ -509,7 +526,9 @@ function LedgerSheet({ onClose, lang, onTripsChanged }: { onClose: () => void; l
                       n: weekTrips,
                     })}
                     {" · "}
-                    {t("tripsCigs", lang, { n: fmtCig(week.weekUg) })}
+                    {showCig
+                      ? t("tripsCigs", lang, { n: fmtCig(week.weekUg) })
+                      : t("doseUg", lang, { n: fmtDoseUg(week.weekUg) })}
                     {weekEmitKg > 0
                       ? ` · ${t("tripsOutDetail", lang, { n: fmtKg(weekEmitKg) })}`
                       : ""}
@@ -576,11 +595,14 @@ export function LedgerScreen({
   visible,
   onClose,
   lang = "en",
+  showCig = false,
   onTripsChanged,
 }: {
   visible: boolean;
   onClose: () => void;
   lang?: Lang;
+  /** cigarette-equivalence framing — off by default (settings.show_cig) */
+  showCig?: boolean;
   onTripsChanged?: () => void;
 }) {
   return (
@@ -593,7 +615,7 @@ export function LedgerScreen({
     >
       <View style={ss.backdrop}>
         <StatusBar style="dark" />
-        {visible ? <LedgerSheet onClose={onClose} lang={lang} onTripsChanged={onTripsChanged} /> : null}
+        {visible ? <LedgerSheet onClose={onClose} lang={lang} showCig={showCig} onTripsChanged={onTripsChanged} /> : null}
       </View>
     </Modal>
   );

@@ -414,6 +414,39 @@ async def city():
     }
 
 
+# ---------------------------------------------------------------- districts
+#
+# GET /v2/districts — the NCR choropleth feed for /city. Boundaries are a
+# baked static asset (server/static/ncr_districts.geojson — OSM admin
+# relations, one-time fetch via server/tools/bake_ncr_districts.py);
+# values are the same /grid pm2.5 cells the public map paints — mean of
+# covered cells per district, centroid read under <3 (confidence:
+# 'sparse'), never zero-filled. Category/colour are the official CPCB
+# six-band scale; aqi_us is the US-EPA companion index.
+
+
+@router.get("/districts")
+async def v2_districts():
+    from .plan import _field_refresh_bounded
+    await _field_refresh_bounded()
+    import districts as _d
+    import grid as _g
+    F = deps.field()
+    geo = _g.as_geojson(F, cells=40, param="pm2_5")
+    rows = _d.live(geo.get("features", []))
+    rows = _d.finalize(rows, lambda la, lo: F.value(la, lo, "pm2_5"))
+    return {
+        "ts": time.time(),
+        "districts": rows,
+        "bands": [{"min": lo, "max": hi, "category": c, "color": col}
+                  for lo, hi, c, col in _d.CPCB_BANDS],
+        "geojson": "/ncr.geojson",
+        "scale": "cpcb",
+        "field_age_s": (F.status() or {}).get("age_s")
+        if hasattr(F, "status") else None,
+    }
+
+
 # ---------------------------------------------------------------- moves
 #
 # GET /v2/city/moves — "how Delhi moves": the aggregated mobility view.

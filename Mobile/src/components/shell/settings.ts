@@ -19,6 +19,8 @@ export type ShellSettings = {
   share: boolean;          // anonymous traversal donation — on by default (doc 02 §7)
   brief: boolean;          // daily cleanest-window notification
   remind: boolean;         // master switch for "leave later, breathe less" pings (doc 02 §S4)
+  show_cig: boolean;       // cigarette-equivalence framing — OFF by default;
+                           // dose reads in µg unless the user opts in
   vehicle: string | null;  // S8 choice, e.g. "bike" | "car" | "auto"
   home: SavedPlace | null;
   work: SavedPlace | null;
@@ -26,6 +28,7 @@ export type ShellSettings = {
 
 export const DEFAULT_SETTINGS: ShellSettings = {
   lang: "en", voice: true, share: true, brief: false, remind: true,
+  show_cig: false,
   vehicle: null, home: null, work: null,
 };
 

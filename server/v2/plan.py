@@ -26,6 +26,9 @@ metro/walk/cycle + common aliases); `vehicle_profile` may carry
 Delhi fleet prior, never a 4xx.
 """
 import asyncio
+import concurrent.futures
+import logging
+import threading
 import time
 from typing import Optional
 
@@ -33,6 +36,8 @@ from fastapi import APIRouter
 
 from . import deps
 from .store import ROUTES
+
+_log = logging.getLogger("v2.engine")
 
 router = APIRouter()
 
@@ -144,6 +149,15 @@ def _parse_vehicle(body: dict) -> tuple:
         yb = _year_bucket(vp.get("year_bucket", vp.get("year")))
         if yb != "not_sure":
             profile["year_bucket"] = yb
+    # PUC certificate: vehicle_profile.puc (or a top-level `puc`) carries
+    # the one-time analysis — measured readings + printed limits + BS.
+    # Flows into the emissions vehicle dict; emissions.integrate does
+    # the calibration and echoes `puc_calibrated`.
+    puc = vp.get("puc") if isinstance(vp.get("puc"), dict) else \
+        body.get("puc")
+    if isinstance(puc, dict) and puc:
+        profile = profile or {"class": canon}
+        profile["puc"] = puc
     return canon, profile
 
 
@@ -784,6 +798,11 @@ def rank_options(options: list) -> list:
         return options
 
     dose_min = min(_dose_key(o) for o in scored)
+    # the least-dose option IS the safest path — app renders the leaf
+    # chip on this flag (falls back to dose-min when absent)
+    for o in options:
+        o.pop("safest_path", None)
+    min(scored, key=_dose_key)["safest_path"] = True
     tied = [o for o in scored if _dose_key(o) <= 1.10 * dose_min]
     emin = min(scored, key=_co2_mid)
     dwin = min(scored, key=_dose_key)
@@ -887,16 +906,29 @@ def _pt(v, name: str):
 
 async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
                          depart_at) -> list:
-    """The full option set for one OD pair: motorized + slow + transit."""
-    motor, slow = await asyncio.gather(
+    """The full option set for one OD pair: motorized + slow + transit +
+    the least-inhalation engine paths."""
+    # engine arm gets its own sub-budget: a cold-task first reweight
+    # (field boot + ~1.25M sample calls) can outlast the plan budget —
+    # without this its slowness cancels the WHOLE gather and motorized
+    # options die with it. wait_for only abandons the future; the
+    # detached thread still finishes pricing for the next request.
+    motor, slow, eng = await asyncio.gather(
         _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                            depart_at),
         _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile),
+        asyncio.wait_for(
+            asyncio.get_running_loop().run_in_executor(
+                _ENG_EXEC, _engine_options, flat, flon, tlat, tlon,
+                vehicle, profile),
+            timeout=ENGINE_BUDGET_S),
         return_exceptions=True)
     options = ([o for o in (motor or []) if isinstance(o, dict)]
                if isinstance(motor, list) else [])
     options += ([o for o in (slow or []) if isinstance(o, dict)]
                 if isinstance(slow, list) else [])
+    if isinstance(eng, list):
+        options += _engine_merge(eng, options)
     try:
         # sync GTFS scan runs off-loop: a big OD pair's graph walk would
         # otherwise stall the single worker's event loop (and /health
@@ -910,6 +942,249 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
     except Exception:
         pass
     return options
+
+
+# --- least-inhalation path engine ----------------------------------------------
+# alive_core.PathEngine over the real NCR road graph (ARG1 packed build,
+# tools/build_route_graph.py): edge cost = inhaled dose for the queried
+# mode, A* in ~10 ms. The option it emits is the *safest* path, not the
+# fastest — the reason the engine exists. reweight() re-prices edges on
+# the live field on a lazy TTL (the field itself refreshes on its own
+# cadence; 10 min always lands inside freshness).
+ENGINE_REWEIGHT_TTL_S = 600.0
+ENGINE_BUDGET_S = 8.0        # sub-budget inside PLAN_BUDGET_S
+ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
+                ("auto", "Auto-rickshaw"), ("cycle", "Bicycle"),
+                ("walk", "On foot"))
+_ENG_T = 0.0
+_ENG_LOCK = threading.Lock()
+# private 2-worker pool: the shared default executor serves every
+# to_thread in the process (GTFS compile, rasters, forecasts) — a busy
+# moment could queue the engine arm inside its own 8 s budget and burn
+# it before a single query ran. Two workers keep concurrent plans from
+# fully serializing behind one another.
+_ENG_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="alive-eng")
+
+
+def _engine():
+    """The path engine singleton (C++ when built, Python twin otherwise).
+    None when the packed graph isn't shipped — the API degrades to the
+    upstream-router options only, never errors."""
+    try:
+        import routegraph
+        return routegraph.path_engine()
+    except Exception:
+        return None
+
+
+def _engine_reweight(eng) -> None:
+    global _ENG_T
+    if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
+        return
+    with _ENG_LOCK:
+        if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
+            return
+        try:
+            F = deps.field()
+        except Exception as e:
+            _log.warning("engine reweight: deps.field failed: %r", e)
+            return
+
+        def val(lat, lon):
+            try:
+                return F.value(lat, lon)
+            except Exception:
+                return None
+
+        # fast path: hand reweight a FieldView instead of ~1.25M
+        # python-callable crossings. The snapshot's own FieldView is used
+        # when it exists; on prod no snapshot file ships (data/field/ is
+        # docker-ignored so a stale image can't lie about field age), so
+        # the live field is rasterized through the same cells /grid serves
+        # — still the real field, read once per TTL.
+        sampler = val
+        try:
+            fv = getattr(F, "_snap_fv", None)
+            if fv is None or not hasattr(fv, "value"):
+                fv = _engine_field_view(F)
+            if fv is not None and hasattr(fv, "value"):
+                # The C++ PathEngine reweight fast path needs a real
+                # alive_core.FieldView; everything else — the Python twin,
+                # or a PyFieldView view — prices off fv.value as an
+                # ordinary callable. All are cheap nearest-cell lookups,
+                # honest on a live field either way.
+                sampler = fv.value
+                try:
+                    import alive_core
+                    if (isinstance(eng, alive_core.PathEngine)
+                            and isinstance(fv, alive_core.FieldView)):
+                        sampler = fv
+                except ImportError:
+                    pass
+        except Exception as e:
+            _log.warning("engine reweight: field view failed: %r", e)
+        _log.warning(
+            "engine reweight: sampler=%s eng=%s snap_fv=%s serving=%s",
+            type(sampler).__name__, type(eng).__name__,
+            type(getattr(F, "_snap_fv", None)).__name__,
+            getattr(F, "_serving_snapshot", lambda: "?")())
+
+        # never start a callable reweight against the live field: krige
+        # posterior + Bayesian traverse per sample makes ~1.25M crossings
+        # take minutes on one vCPU — the arm would hold the lock and
+        # starve every plan. Snapshot serving keeps F.value cheap, so the
+        # callable path is only honest then.
+        if (sampler is val
+                and not getattr(F, "_serving_snapshot", lambda: False)()):
+            return
+
+        try:
+            res = eng.reweight(sampler) or {}
+            # only mark fresh when edges actually priced — a reweight
+            # against an empty field (cold task, no snapshot yet) would
+            # otherwise stick zero-cost paths for the whole TTL
+            if res.get("edges_priced", 0) > 0:
+                _ENG_T = time.time()
+            _log.warning("engine reweight done: %s", res)
+        except Exception as e:
+            _log.warning("engine reweight failed: %r", e)
+
+
+def _engine_field_view(F):
+    """Live-field raster for the engine — the same cells /grid serves.
+
+    Reweighting ~1.25M edge samples through live F.value (krige posterior
+    + Bayesian traverse) takes minutes on one vCPU; this samples the field
+    once per reweight TTL over the /grid lattice and prices edges through
+    a FieldView instead. Rows carry only real reads — cells the field
+    can't serve are skipped, never zero-filled.
+    """
+    try:
+        import grid as _g
+        geo = _g.as_geojson(F, cells=56, param="pm2_5")
+    except Exception as e:
+        _log.warning("engine raster: as_geojson failed: %r", e)
+        return None
+    rows = []
+    for ft in (geo.get("features") or []):
+        pm = (ft.get("properties") or {}).get("pm25")
+        ring = ((ft.get("geometry") or {}).get("coordinates") or [[]])[0]
+        if pm is None or len(ring) < 4:
+            continue
+        cx = (ring[0][0] + ring[2][0]) / 2.0
+        cy = (ring[0][1] + ring[2][1]) / 2.0
+        rows.append((cy, cx, float(pm), float(pm), float(pm),
+                     float("nan")))
+    if not rows:
+        _log.warning("engine raster: field served no cells")
+        return None
+    try:
+        import core_engine
+        # 8 km coverage: every graph edge lands within reach of a raster
+        # cell — past the lattice, nearest_cell would leave edges unpriced
+        fv = core_engine.field_view(rows, 8.0)
+        _log.warning("engine raster: %d cells -> %s", len(rows),
+                     type(fv).__name__)
+        return fv
+    except Exception as e:
+        _log.warning("engine raster: field_view failed: %r", e)
+        return None
+
+
+def _geom_midpoint(geometry: dict):
+    coords = (geometry or {}).get("coordinates") or []
+    if not coords:
+        return None
+    return coords[len(coords) // 2]
+
+
+def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
+    """Least-dose path per engine mode, as plan options.
+
+    The engine's own dose is only the pathfinding criterion — the option
+    still prices through the shared exposure.dose band, so every row on
+    screen comes from one dose model."""
+    eng = _engine()
+    if eng is None:
+        _log.warning("engine options: no engine (graph/engine load failed)")
+        return []
+    _engine_reweight(eng)
+    try:
+        ep = getattr(eng, "edges_priced", None)
+        ep = ep() if callable(ep) else (ep or 0)   # C++ binding = method,
+        if ep <= 0:                                # Python twin = attr
+            _log.warning("engine options: unpriced (edges_priced=0)")
+            return []   # unpriced = degenerate paths — serve nothing
+    except Exception as e:
+        _log.warning("engine options: edges_priced probe failed: %r", e)
+        return []
+    try:
+        from airfield import MAX_ROUTE_KM
+    except Exception:
+        MAX_ROUTE_KM = 80.0
+    opts = []
+    for mode, label in ENGINE_MODES:
+        try:
+            r = eng.query(flat, flon, tlat, tlon, mode)
+        except Exception as e:
+            _log.warning("engine query %s failed: %r", mode, e)
+            continue
+        if not isinstance(r, dict) or r.get("error") or not r.get("geometry"):
+            _log.warning("engine query %s: %s", mode,
+                         (r or {}).get("error") or "no geometry")
+            continue
+        snap = r.get("snap") or {}
+        if (snap.get("from_m", 1e9) > 1200.0
+                or snap.get("to_m", 1e9) > 1200.0):
+            continue   # path would start mid-graph — not servable
+        dist_km = r["distance_m"] / 1000.0
+        if dist_km <= 0.0 or dist_km > MAX_ROUTE_KM:
+            continue
+        dur_s = float(r["duration_s"])
+        opts.append(_option(
+            mode, f"{label} · least-smoke rd",
+            r["geometry"], dist_km, dur_s, dur_s, "estimated",
+            vehicle, profile,
+            steps=None, steps_source="endpoints",
+            extra={
+                "engine": "alive_core-path",
+                "duration_model": "estimated",
+                "via_names": r.get("names") or [],
+                "snap_m": {"from_m": round(snap.get("from_m") or 0, 1),
+                           "to_m": round(snap.get("to_m") or 0, 1)},
+            },
+            origin=(flat, flon), dest=(tlat, tlon)))
+    return opts
+
+
+def _engine_merge(eng_opts: list, options: list) -> list:
+    """Drop an engine option whose geometry is essentially the same road
+    a router already returned for that mode — flag the existing option
+    'engine_confirmed' instead (the fast road IS the least-smoke one)."""
+    out = []
+    for eo in eng_opts:
+        mode = eo["mode"]
+        dup = None
+        emid = _geom_midpoint(eo.get("geometry"))
+        for o in options:
+            if o.get("mode") != mode:
+                continue
+            omid = _geom_midpoint(o.get("geometry"))
+            if emid is None or omid is None:
+                continue
+            if (abs(o.get("distance_km", 0) - eo["distance_km"])
+                    <= max(0.5, 0.03 * eo["distance_km"])):
+                # midpoint proximity ≈ same corridor (deg-space ~150 m)
+                if (abs(emid[0] - omid[0]) < 0.0015
+                        and abs(emid[1] - omid[1]) < 0.0015):
+                    dup = o
+                    break
+        if dup is not None:
+            dup["engine_confirmed"] = True
+            continue
+        out.append(eo)
+    return out
 
 
 @router.post("/plan")
@@ -955,6 +1230,9 @@ async def plan(body: dict):
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
+    if any((o.get("emissions") or {}).get("puc_calibrated")
+           for o in options):
+        resp["puc_calibrated"] = True   # server honoured the PUC card
     if opt_err:
         resp["error"] = opt_err
     elif not options:

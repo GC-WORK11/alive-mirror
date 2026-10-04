@@ -27,7 +27,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Radius, V2T, V2Type, doseColor, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
-import { Icon, vehicleGlyph } from "../../icons";
+import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { Sheet } from "../../ui";
 import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
@@ -120,17 +120,18 @@ function Track({ frac, tone }: { frac: number | null; tone: "in" | "out" }) {
   );
 }
 
-/** The pair of bars on every card — breathe-in (cigarette) over the dose
- *  band, exhaust (plume) over CO2, both relative to the worst option. */
-function PairBars({ o, worstIn, worstOut, lang }: {
-  o: V2Option; worstIn: number; worstOut: number; lang: Lang;
+/** The pair of bars on every card — breathe-in (dust/cigarette glyph) over
+ *  the dose band, exhaust (plume) over CO2, both relative to the worst
+ *  option. The cigarette glyph only renders with showCig on. */
+function PairBars({ o, worstIn, worstOut, showCig, lang }: {
+  o: V2Option; worstIn: number; worstOut: number; showCig: boolean; lang: Lang;
 }) {
   const inFrac = o.dose?.mid != null && worstIn > 0 ? o.dose.mid / worstIn : null;
   const outFrac = o.emissions?.co2_kg?.mid != null && worstOut > 0 ? o.emissions.co2_kg.mid / worstOut : null;
   return (
     <View style={s.bars}>
       <View style={s.barGroup} accessible accessibilityLabel={t("compare_smokeIn", lang)}>
-        <Icon name="cigarette" color={V2T.text3} size={11} />
+        <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={11} />
         <Track frac={inFrac} tone="in" />
       </View>
       <View style={s.barGroup} accessible accessibilityLabel={t("compare_smokeOut", lang)}>
@@ -142,10 +143,16 @@ function PairBars({ o, worstIn, worstOut, lang }: {
 }
 
 /** Tag / recommended chip — server tags fill accent, the fallback "our
- *  pick" stays neutral so the stronger claim reads stronger. */
-function Chip({ text, accent, lang }: { text: string; accent?: boolean; lang: Lang }) {
+ *  pick" stays neutral so the stronger claim reads stronger. `glyph`
+ *  puts a small icon beside the text (the "safest route" leaf). */
+function Chip({ text, accent, glyph, lang }: {
+  text: string; accent?: boolean; glyph?: Glyph; lang: Lang;
+}) {
   return (
     <View style={[s.chip, accent ? s.chipAccent : s.chipPlain]}>
+      {glyph ? (
+        <Icon name={glyph} color={accent ? V2T.accent : V2T.text2} size={10} />
+      ) : null}
       <Text {...DYNAMIC_TYPE}
         style={[s.chipTxt, accent ? s.chipTxtAccent : s.chipTxtPlain, { fontFamily: fam(lang, "med") }]}
         numberOfLines={1}>
@@ -158,16 +165,16 @@ function Chip({ text, accent, lang }: { text: string; accent?: boolean; lang: La
 /** "How we got this number" — the ONLY place jargon is allowed. Bands,
  *  bases, confidence, field age, all honest and server-sourced. Opens
  *  inside the card under a hairline so the association never gets lost. */
-function DetailBlock({ o, fieldAgeS, lang }: { o: V2Option; fieldAgeS?: number | null; lang: Lang }) {
+function DetailBlock({ o, fieldAgeS, showCig, lang }: { o: V2Option; fieldAgeS?: number | null; showCig: boolean; lang: Lang }) {
   const d = o.dose, e = o.emissions;
-  const cig = d.mid != null ? Math.round((d.mid / 316) * 100) / 100 : null;
+  const cig = showCig && d.mid != null ? Math.round((d.mid / 316) * 100) / 100 : null;
   const ageMin = fieldAgeS != null ? Math.max(0, Math.round(fieldAgeS / 60)) : null;
   const emit = [bandTxt(e.co2_kg, "kg CO2"), bandTxt(e.pm25_g, "g PM2.5")].filter(Boolean).join("  ·  ");
   return (
     <View style={s.detail}>
       <Text {...DYNAMIC_TYPE} style={[s.dTitle, { fontFamily: fam(lang, "med") }]}>{t("howWeGotThis", lang)}</Text>
       <View style={s.dRow}>
-        <Icon name="cigarette" color={V2T.breath2} size={13} />
+        <Icon name={showCig ? "cigarette" : "dust"} color={V2T.breath2} size={13} />
         {d.mid != null ? (
           <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>
             {t("howWe_in", lang, { mid: Math.round(d.mid), lo: Math.round(d.lo ?? d.mid), hi: Math.round(d.hi ?? d.mid) })}
@@ -208,9 +215,10 @@ function DetailBlock({ o, fieldAgeS, lang }: { o: V2Option; fieldAgeS?: number |
 /** One ranked option — solid card. Tap selects; the ⓘ beside the bars
  *  (or a long-press anywhere on the card) opens the details panel. */
 function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
-  fieldAgeS, lang, onSelect, onToggleDetail }: {
+  fieldAgeS, showCig, safest, lang, onSelect, onToggleDetail }: {
   o: V2Option; i: number; selected: boolean; worstIn: number; worstOut: number;
-  showYours: boolean; open: boolean; fieldAgeS?: number | null; lang: Lang;
+  showYours: boolean; open: boolean; fieldAgeS?: number | null;
+  showCig: boolean; safest: boolean; lang: Lang;
   onSelect: (i: number) => void; onToggleDetail: (i: number) => void;
 }) {
   const d = o.dose;
@@ -238,8 +246,13 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
                 ? `${modeLabel(o.mode, o.label, lang)} · ${t("compare_yours", lang)}`
                 : modeLabel(o.mode, o.label, lang)}
             </Text>
-            {tag ? <Chip text={tag} accent lang={lang} />
-              : o.recommended ? <Chip text={t("compare_pick", lang)} lang={lang} /> : null}
+            {/* the least-inhalation route leads: "safest route" (the
+                server's safest_path flag, or the dose-min option when
+                no flag was sent) sits ahead of the server tag, which is
+                demoted to plain while the headline chip is up */}
+            {safest ? <Chip text={t("compare_safest", lang)} accent glyph="leaf" lang={lang} /> : null}
+            {tag ? <Chip text={tag} accent={!safest} lang={lang} />
+              : o.recommended && !safest ? <Chip text={t("compare_pick", lang)} lang={lang} /> : null}
           </View>
           <Text {...DYNAMIC_TYPE} style={[s.optMeta, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{meta}</Text>
           {o.reason_line ? (
@@ -266,7 +279,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
             <Text {...DYNAMIC_TYPE} style={[s.optDose, s.optDoseNA, { fontFamily: fam(lang, "med") }]}>—</Text>
           )}
           <View style={s.barsRow}>
-            <PairBars o={o} worstIn={worstIn} worstOut={worstOut} lang={lang} />
+            <PairBars o={o} worstIn={worstIn} worstOut={worstOut} showCig={showCig} lang={lang} />
             <Pressable
               onPress={() => onToggleDetail(i)}
               hitSlop={16}
@@ -278,7 +291,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
           </View>
         </View>
       </Pressable>
-      {open && <DetailBlock o={o} fieldAgeS={fieldAgeS} lang={lang} />}
+      {open && <DetailBlock o={o} fieldAgeS={fieldAgeS} showCig={showCig} lang={lang} />}
     </View>
   );
 }
@@ -287,6 +300,7 @@ export function CompareSheet({
   options, selected, onSelect, depart, departCurve, notified, onRemind,
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
+  showCig = false,
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
@@ -294,6 +308,8 @@ export function CompareSheet({
   departCurve?: DepartCurve | null;
   loading: boolean; steps: Step[] | null; stepsOpen: boolean;
   onToggleSteps: () => void; onStart: () => void; onClose: () => void; lang: Lang;
+  /** cigarette-equivalence framing — off by default (settings.show_cig) */
+  showCig?: boolean;
   /** v2 plan failure — honest retry state, never a silent /decide fallback */
   planError?: PlanError | null;
   onRetry?: () => void;
@@ -322,6 +338,15 @@ export function CompareSheet({
   const anyBars = worstIn > 0 || worstOut > 0;
   const toggleDetail = (i: number) => setDetailIdx((cur) => (cur === i ? null : i));
 
+  /* The "safest route" headline: an explicit server `safest_path` flag
+   * wins wherever it appears; with no flag, the first option at the
+   * lowest dose carries it — the least-inhalation path is always obvious. */
+  const flaggedSafest = options.some((o) => o.safest_path === true);
+  const minDose = Math.min(...options.map((o) => o.dose?.mid ?? Infinity));
+  const isSafest = (o: V2Option) =>
+    o.safest_path === true ||
+    (!flaggedSafest && o.dose?.mid != null && o.dose.mid === minDose && minDose < Infinity);
+
   const chip = (
     <Pressable
       onPress={() => (onVehiclePress ? onVehiclePress() : setVehOpen(true))}
@@ -332,6 +357,13 @@ export function CompareSheet({
       <Text {...DYNAMIC_TYPE} style={[s.vehChipTxt, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
         {veh ? vehicleLabel(veh, lang) : t("vehicle_likeYours", lang)}
       </Text>
+      {veh?.puc ? (
+        <View style={s.pucBadge}>
+          <Text {...DYNAMIC_TYPE} style={[s.pucBadgeTxt, { fontFamily: fam(lang, "semi") }]}>
+            {t("puc_badge", lang)}
+          </Text>
+        </View>
+      ) : null}
       <Icon name="chevron" color={V2T.text3} size={11} />
     </Pressable>
   );
@@ -414,7 +446,7 @@ export function CompareSheet({
               {anyBars && (
                 <View style={s.legend}>
                   <View style={s.legendItem}>
-                    <Icon name="cigarette" color={V2T.text3} size={11} />
+                    <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={11} />
                     <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeIn", lang)}</Text>
                   </View>
                   <View style={s.legendItem}>
@@ -432,6 +464,8 @@ export function CompareSheet({
                   showYours={!!o.your_vehicle && veh != null}
                   open={detailIdx === i}
                   fieldAgeS={fieldAgeS}
+                  showCig={showCig}
+                  safest={isSafest(o)}
                   lang={lang}
                   onSelect={onSelect}
                   onToggleDetail={toggleDetail}
@@ -529,6 +563,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: V2T.line,
   },
   vehChipTxt: { fontSize: V2Type.label, color: V2T.text2, maxWidth: 220 },
+  /* "PUC" badge — marks a profile carrying the pollution certificate */
+  pucBadge: {
+    borderRadius: V2Radius.pill, paddingHorizontal: 5, paddingVertical: 1,
+    backgroundColor: V2T.accentTint,
+  },
+  pucBadgeTxt: { fontSize: 9, color: V2T.accent, letterSpacing: 0.4 },
   departRow: {
     flexDirection: "row", alignItems: "center", gap: 8,
     marginHorizontal: 14, marginTop: 6, marginBottom: 2, minHeight: 44,

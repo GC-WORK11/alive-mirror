@@ -379,6 +379,11 @@ export interface V2PlanOption {
   emissions: EmissionBand;
   tag: V2PlanTag;
   recommended: boolean;
+  safest_path?: boolean;        // true on the lowest-dose option — leaf chip
+  engine?: string;              // "alive_core-path" on least-inhalation engine rows
+  duration_model?: string;      // engine rows: "estimated" (graph speeds)
+  via_names?: string[];         // engine rows: street names the path takes
+  snap_m?: { from_m: number; to_m: number }; // engine rows: endpoint snap distance
   reason_line: string;
   your_vehicle: boolean;
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL

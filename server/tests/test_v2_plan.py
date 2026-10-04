@@ -259,8 +259,11 @@ def test_every_option_carries_geometry_and_steps():
         for s in o["steps"]:
             assert s["instruction"] and s["distance_m"] is not None
             assert s["lat"] is not None and s["lon"] is not None
-    road = [o for o in body["options"] if o["mode"] == "car"][0]
-    assert road["steps_source"] == "osrm"
+    # the upstream-router car must carry real turn-by-turn — the engine
+    # option may rank above it (lower dose is the point) with honest
+    # endpoint steps, so select by source, not position
+    road = [o for o in body["options"]
+            if o["mode"] == "car" and o["steps_source"] == "osrm"][0]
     assert any("Turn" in s["instruction"] or "Continue" in s["instruction"]
                for s in road["steps"])
 

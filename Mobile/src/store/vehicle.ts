@@ -13,10 +13,25 @@ export type VehicleClass = "car" | "auto" | "bike" | "bus" | "metro" | "walk" | 
 export type Fuel = "petrol" | "diesel" | "cng" | "ev";
 export type YearBand = "pre_2010" | "y2010_2016" | "y2017_2020" | "y2021_plus" | "not_sure";
 
+/* PUC — the Pollution Under Control certificate every Indian vehicle
+ * carries. All fields optional: `bs` is the Bharat stage on the
+ * certificate; the readings are its measured values (CO% / HC ppm for
+ * petrol & CNG, smoke-opacity % for diesel). The object is optional on the
+ * profile and travels verbatim in the /v2/plan vehicle_profile so the
+ * backend can calibrate the estimate to the user's real vehicle — the
+ * server ignores it gracefully until the calibration lands. */
+export type PucInfo = {
+  bs: "bs3" | "bs4" | "bs6" | null;
+  co_pct: number | null;
+  hc_ppm: number | null;
+  smoke_pct: number | null;
+};
+
 export type VehicleProfile = {
   cls: VehicleClass;
   fuel: Fuel | null;      // asked for car/bike only (doc: car/scooter/bike)
   year: YearBand | null;  // null or "not_sure" → Delhi fleet prior (doc 06 §2)
+  puc?: PucInfo | null;   // optional pollution certificate, owned vehicles
 };
 
 const CLASSES: VehicleClass[] = ["car", "auto", "bike", "bus", "metro", "walk", "cycle"];
@@ -31,6 +46,25 @@ let mem: VehicleProfile | null | undefined;
 let inflight: Promise<VehicleProfile | null> | null = null;
 let writeTail: Promise<unknown> = Promise.resolve();
 
+const BS_STAGES: PucInfo["bs"][] = ["bs3", "bs4", "bs6"];
+
+const numOrNull = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) ? v : null;
+
+/** Whitelist a stored PUC blob; an all-empty certificate counts as none. */
+function sanitizePuc(raw: unknown): PucInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Partial<PucInfo>;
+  const puc: PucInfo = {
+    bs: o.bs && BS_STAGES.includes(o.bs) ? o.bs : null,
+    co_pct: numOrNull(o.co_pct),
+    hc_ppm: numOrNull(o.hc_ppm),
+    smoke_pct: numOrNull(o.smoke_pct),
+  };
+  return puc.bs != null || puc.co_pct != null || puc.hc_ppm != null ||
+    puc.smoke_pct != null ? puc : null;
+}
+
 function sanitize(raw: unknown): VehicleProfile | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Partial<VehicleProfile>;
@@ -39,6 +73,7 @@ function sanitize(raw: unknown): VehicleProfile | null {
     cls: o.cls,
     fuel: o.fuel && FUELS.includes(o.fuel) ? o.fuel : null,
     year: o.year && YEARS.includes(o.year) ? o.year : null,
+    puc: sanitizePuc(o.puc),
   };
 }
 
@@ -106,11 +141,13 @@ const SERVER_YEAR: Record<Exclude<YearBand, "not_sure">, string> = {
 };
 export function planVehicleProfile(
   p: VehicleProfile | null,
-): { class: string; fuel?: string; year_bucket?: string } | null {
+): { class: string; fuel?: string; year_bucket?: string; puc?: PucInfo } | null {
   if (!p) return null;
-  const out: { class: string; fuel?: string; year_bucket?: string } = { class: p.cls };
+  const out: { class: string; fuel?: string; year_bucket?: string; puc?: PucInfo } = { class: p.cls };
   if (p.fuel) out.fuel = p.fuel;              // "ev" → server alias 'electric'
   if (p.year && p.year !== "not_sure") out.year_bucket = SERVER_YEAR[p.year];
+  if (p.puc) out.puc = p.puc;                 // additive — ignored until the
+                                            // backend's calibration lands
   return out;
 }
 

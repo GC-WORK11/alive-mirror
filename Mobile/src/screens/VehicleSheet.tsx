@@ -17,7 +17,7 @@
 // Re-opened from the options-sheet chip via CompareSheet's onVehiclePress.
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View,
+  Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../theme";
@@ -27,10 +27,10 @@ import { t, type Lang, type StringKey } from "../i18n/strings";
 import { Sheet } from "../ui";
 import {
   fuelsFor, needsFuel, needsYear, vehicleLabel,
-  type Fuel, type VehicleClass, type VehicleProfile, type YearBand,
+  type Fuel, type PucInfo, type VehicleClass, type VehicleProfile, type YearBand,
 } from "../store/vehicle";
 
-type Step = "cls" | "fuel" | "year" | "done";
+type Step = "cls" | "fuel" | "year" | "puc" | "done";
 
 /* ── i18n hand-off ────────────────────────────────────────────────────────
  * The caption/group strings below are queued for src/i18n/strings.ts as
@@ -132,6 +132,36 @@ const YEAR_ORDER: { year: YearBand; key: StringKey; cap: VehKey }[] = [
   { year: "not_sure", key: "yearNotSure", cap: "veh_cap_y_notsure" },
 ];
 
+const BS_STAGES: { bs: NonNullable<PucInfo["bs"]>; key: StringKey }[] = [
+  { bs: "bs3", key: "puc_bs3" },
+  { bs: "bs4", key: "puc_bs4" },
+  { bs: "bs6", key: "puc_bs6" },
+];
+
+/* The certificate step exists only for an owned motor vehicle —
+ * car/bike/auto, any tailpipe. EVs have no PUC readings, shared and
+ * non-motor classes never reach the fuel/year questions at all. */
+const pucEligible = (cls: VehicleClass | null, fuel: Fuel | null) =>
+  !!cls && needsYear(cls) && fuel !== "ev";
+
+/* the PUC readings are fuel-specific: petrol & CNG certificates print
+ * CO% + HC ppm, diesel prints smoke-opacity %. (Auto's fuel is unasked —
+ * overwhelmingly CNG — so it gets the gaseous-fuel fields too.) */
+const pucFieldKeys = (fuel: Fuel | null) =>
+  fuel === "diesel"
+    ? (["smoke_pct"] as const)
+    : (["co_pct", "hc_ppm"] as const);
+
+const PUC_LIMITS: Record<"co_pct" | "hc_ppm" | "smoke_pct", [number, number]> = {
+  co_pct: [0, 20], hc_ppm: [0, 20000], smoke_pct: [0, 100],
+};
+
+const parseReading = (s: string, field: keyof typeof PUC_LIMITS): number | null => {
+  const v = parseFloat(s);
+  const [lo, hi] = PUC_LIMITS[field];
+  return Number.isFinite(v) && v >= lo && v <= hi ? v : null;
+};
+
 /** One large select-card: optional glyph, label + spec caption, and a
  *  radio dot so the selected state reads even without colour. ≥44pt. */
 function OptionCard({ glyph, label, caption, active, onPress, lang, style }: {
@@ -185,6 +215,12 @@ function Wizard({ lang, current, onDone, onClose }: {
   const [fuel, setFuel] = useState<Fuel | null>(current?.fuel ?? null);
   const [year, setYear] = useState<YearBand | null>(current?.year ?? null);
   const [saved, setSaved] = useState<VehicleProfile | null>(null);
+  /* PUC answers — prefilled when a certificate was saved before (editing
+     keeps its values; a cleared field saved back wipes that field). */
+  const [pucBs, setPucBs] = useState<PucInfo["bs"]>(current?.puc?.bs ?? null);
+  const [pucCo, setPucCo] = useState(current?.puc?.co_pct != null ? String(current.puc.co_pct) : "");
+  const [pucHc, setPucHc] = useState(current?.puc?.hc_ppm != null ? String(current.puc.hc_ppm) : "");
+  const [pucSmoke, setPucSmoke] = useState(current?.puc?.smoke_pct != null ? String(current.puc.smoke_pct) : "");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -209,16 +245,49 @@ function Wizard({ lang, current, onDone, onClose }: {
     // every fuel-taking class (car, bike) also takes the year question
     setStep("year");
   };
-  const pickYear = (y: YearBand) => { setYear(y); finish({ cls: cls!, fuel, year: y }); };
+  const pickYear = (y: YearBand) => {
+    setYear(y);
+    if (pucEligible(cls, fuel)) setStep("puc");
+    else finish({ cls: cls!, fuel, year: y });
+  };
 
-  const back = step === "fuel" || step === "year"
-    ? () => setStep(step === "fuel" ? "cls" : needsFuel(cls!) ? "fuel" : "cls")
+  /* PUC step: "save" persists whatever was entered (all-empty → no cert);
+     "skip" leaves the previously saved certificate untouched (or none). */
+  const finishPuc = (save: boolean) => {
+    let puc: PucInfo | null = null;
+    if (save) {
+      const entered: PucInfo = {
+        bs: pucBs,
+        co_pct: parseReading(pucCo, "co_pct"),
+        hc_ppm: parseReading(pucHc, "hc_ppm"),
+        smoke_pct: parseReading(pucSmoke, "smoke_pct"),
+      };
+      if (entered.bs != null || entered.co_pct != null ||
+          entered.hc_ppm != null || entered.smoke_pct != null) puc = entered;
+    } else {
+      puc = current?.puc ?? null;
+    }
+    finish({ cls: cls!, fuel, year: year!, puc });
+  };
+
+  const back = step === "fuel" || step === "year" || step === "puc"
+    ? () => setStep(
+        step === "fuel" ? "cls"
+        : step === "year" ? (needsFuel(cls!) ? "fuel" : "cls")
+        : "year",
+      )
     : null;
 
   /* progress dots — the path length is only known once a class is picked
-   * (car/bike = 3 questions, auto = 2, shared/non-motor = 1). */
-  const totalQ = cls ? 1 + (needsFuel(cls) ? 1 : 0) + (needsYear(cls) ? 1 : 0) : 0;
-  const stepIdx = step === "cls" ? 0 : step === "fuel" ? 1 : totalQ - 1;
+   * (car/bike = 4 questions incl. PUC, auto = 3, shared/non-motor = 1). */
+  const totalQ = cls
+    ? 1 + (needsFuel(cls) ? 1 : 0) + (needsYear(cls) ? 1 : 0)
+      + (pucEligible(cls, fuel) ? 1 : 0)
+    : 0;
+  const stepIdx = step === "cls" ? 0
+    : step === "fuel" ? 1
+    : step === "year" ? totalQ - (pucEligible(cls, fuel) ? 2 : 1)
+    : totalQ - 1;   // puc / done — the last dot
 
   const classCard = ({ cls: c, glyph, key, cap }: ClassOpt) => (
     <OptionCard key={c} glyph={glyph} label={t(key, lang)} caption={tl(cap)}
@@ -231,14 +300,17 @@ function Wizard({ lang, current, onDone, onClose }: {
         <View style={s.doneWrap}>
           <Text {...DYNAMIC_TYPE} style={[s.doneTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleDone", lang)}</Text>
           {saved ? (
-            <Text {...DYNAMIC_TYPE} style={[s.doneSub, { fontFamily: fam(lang, "reg") }]}>{vehicleLabel(saved, lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.doneSub, { fontFamily: fam(lang, "reg") }]}>
+              {vehicleLabel(saved, lang)}{saved.puc ? ` · ${t("puc_badge", lang)}` : ""}
+            </Text>
           ) : null}
         </View>
       ) : (
         <>
           <View style={s.headRow}>
             <Text {...DYNAMIC_TYPE} style={[s.q, { fontFamily: fam(lang, "semi") }]}>
-              {t(step === "cls" ? "vehicleQ1" : step === "fuel" ? "vehicleQ2" : "vehicleQ3", lang)}
+              {t(step === "cls" ? "vehicleQ1" : step === "fuel" ? "vehicleQ2"
+                : step === "puc" ? "puc_title" : "vehicleQ3", lang)}
             </Text>
             {totalQ > 1 && (
               <View style={s.dots} accessible={false} importantForAccessibility="no">
@@ -252,6 +324,13 @@ function Wizard({ lang, current, onDone, onClose }: {
               plain language, on-device only */}
           {step === "cls" && (
             <Text {...DYNAMIC_TYPE} style={[s.why, { fontFamily: fam(lang, "reg") }]}>{tl("veh_why")}</Text>
+          )}
+          {/* the certificate's job in plain words — grounded in YOUR
+              vehicle, not the fleet average */}
+          {step === "puc" && (
+            <Text {...DYNAMIC_TYPE} style={[s.why, { fontFamily: fam(lang, "reg") }]}>
+              {t("puc_helper", lang)}
+            </Text>
           )}
           <ScrollView style={s.scroll} contentContainerStyle={s.scrollIn}
             showsVerticalScrollIndicator={false}>
@@ -291,6 +370,49 @@ function Wizard({ lang, current, onDone, onClose }: {
                     active={year === y} onPress={() => pickYear(y)} lang={lang} />
                 </View>
               ))}
+            {step === "puc" && (
+              <View>
+                <Text {...DYNAMIC_TYPE} style={[s.grp, { fontFamily: fam(lang, "med") }]}>
+                  {t("puc_bsQ", lang)}
+                </Text>
+                <View style={s.gridRow}>
+                  {BS_STAGES.map(({ bs, key }) => (
+                    <OptionCard key={bs} label={t(key, lang)}
+                      active={pucBs === bs}
+                      onPress={() => setPucBs((cur) => (cur === bs ? null : bs))}
+                      lang={lang} style={s.cardHalf} />
+                  ))}
+                </View>
+                {/* measured readings — the fields the certificate carries
+                    for this fuel; every one optional */}
+                {pucFieldKeys(fuel).map((field) => {
+                  const val = field === "co_pct" ? pucCo : field === "hc_ppm" ? pucHc : pucSmoke;
+                  const set = field === "co_pct" ? setPucCo : field === "hc_ppm" ? setPucHc : setPucSmoke;
+                  const labelKey = field === "co_pct" ? "puc_co" : field === "hc_ppm" ? "puc_hc" : "puc_smoke";
+                  const hintKey = field === "co_pct" ? "puc_coHint" : field === "hc_ppm" ? "puc_hcHint" : "puc_smokeHint";
+                  return (
+                    <View key={field} style={s.fieldRow}>
+                      <Text {...DYNAMIC_TYPE} style={[s.fieldLabel, { fontFamily: fam(lang, "med") }]}>
+                        {t(labelKey, lang)}
+                      </Text>
+                      <TextInput
+                        value={val}
+                        onChangeText={set}
+                        placeholder="—"
+                        placeholderTextColor={V2T.text3}
+                        keyboardType="decimal-pad"
+                        maxLength={6}
+                        accessibilityLabel={`${t(labelKey, lang)} — ${t(hintKey, lang)}`}
+                        style={[s.input, { fontFamily: fam(lang, "reg") }]}
+                      />
+                      <Text {...DYNAMIC_TYPE} style={[s.fieldHint, { fontFamily: fam(lang, "reg") }]}>
+                        {t(hintKey, lang)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </ScrollView>
           <View style={s.foot}>
             {back ? (
@@ -299,11 +421,25 @@ function Wizard({ lang, current, onDone, onClose }: {
                 <Text {...DYNAMIC_TYPE} style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_back", lang)}</Text>
               </Pressable>
             ) : <View />}
-            {/* never forced — dismissing keeps the Delhi fleet prior */}
-            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button"
-              accessibilityLabel={t("vehicleQ_skip", lang)} style={s.footBtn}>
-              <Text {...DYNAMIC_TYPE} style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_skip", lang)}</Text>
-            </Pressable>
+            <View style={s.footRight}>
+              {step === "puc" && (
+                <Pressable onPress={() => finishPuc(true)} hitSlop={8} accessibilityRole="button"
+                  accessibilityLabel={t("receipt_save", lang)} style={s.footBtn}>
+                  <Text {...DYNAMIC_TYPE} style={[s.footTxtAccent, { fontFamily: fam(lang, "semi") }]}>
+                    {t("receipt_save", lang)}
+                  </Text>
+                </Pressable>
+              )}
+              {/* never forced — dismissing keeps the Delhi fleet prior;
+                  on the PUC step skip finishes with whatever was saved
+                  before (or no certificate) */}
+              <Pressable
+                onPress={step === "puc" ? () => finishPuc(false) : onClose}
+                hitSlop={8} accessibilityRole="button"
+                accessibilityLabel={t("vehicleQ_skip", lang)} style={s.footBtn}>
+                <Text {...DYNAMIC_TYPE} style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_skip", lang)}</Text>
+              </Pressable>
+            </View>
           </View>
         </>
       )}
@@ -384,7 +520,19 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12,
   },
   footBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
+  footRight: { flexDirection: "row", alignItems: "center", gap: 16 },
   footTxt: { fontSize: V2Type.label, color: V2T.text3 },
+  footTxtAccent: { fontSize: V2Type.secondary, color: V2T.accent },
+  /* PUC certificate fields — label + numeric input + hint, one row each */
+  fieldRow: { marginBottom: 12 },
+  fieldLabel: { fontSize: V2Type.label, color: V2T.text2, marginBottom: 4, paddingHorizontal: 4 },
+  input: {
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.row,
+    borderWidth: 1, borderColor: V2T.line,
+    paddingHorizontal: 12, paddingVertical: 9,
+    fontSize: V2Type.secondary, color: V2T.text, minHeight: 44,
+  },
+  fieldHint: { fontSize: V2Type.label, color: V2T.text3, marginTop: 4, paddingHorizontal: 4 },
   doneWrap: { paddingHorizontal: 20, paddingVertical: 30, alignItems: "center" },
   doneTxt: { fontSize: V2Type.secondary, color: V2T.text, textAlign: "center" },
   doneSub: { fontSize: V2Type.label, color: V2T.text3, marginTop: 8 },
