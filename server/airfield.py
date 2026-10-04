@@ -245,7 +245,15 @@ class AirField:
         then scale every model sample by the IDW-smoothed b at its own
         location — a standard bias-correction pass. Model points keep
         their shape; instruments stay untouched. Skipped when the network
-        is too thin to trust (<8 instruments or <10 model points)."""
+        is too thin to trust (<8 instruments or <10 model points).
+
+        b is measured on PM2.5 only, so it scales only pm2_5. pm10 gets
+        the same fine-fraction increment additively (pm10 = pm2_5 +
+        coarse; the instrument evidence lives in the fine fraction, the
+        coarse residue stays modelled). Every other field — gases, dust,
+        aod, and the aqi indices — has no instrument evidence and stays
+        raw; scaling a dimensionless index by a µg/m³ ratio is just
+        wrong."""
         inst = [s for s in samples if set(s[3].keys()) == {"pm2_5"}]
         model = [s for s in samples if set(s[3].keys()) != {"pm2_5"}]
         if len(inst) < 8 or len(model) < 10:
@@ -292,8 +300,15 @@ class AirField:
                 den += w
             b = min(6.0, max(0.5, num / den)) if den else 1.0
             adj = dict(vals)
+            pm25_raw = adj.get("pm2_5")
             for k in adj:
-                adj[k] = float(adj[k]) * b if isinstance(adj[k], (int, float)) else adj[k]
+                if not isinstance(adj[k], (int, float)):
+                    continue
+                if k == "pm2_5":
+                    adj[k] = float(adj[k]) * b
+                elif k == "pm10" and isinstance(pm25_raw, (int, float)):
+                    adj[k] = float(adj[k]) + float(pm25_raw) * (b - 1.0)
+                # everything else stays raw CAMS — no instrument evidence
             out.append((slat, slon, name, adj))
         return out
 
