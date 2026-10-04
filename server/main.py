@@ -85,6 +85,30 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_transit())
+    # Same request-driven gap for the community layer: _load() reads
+    # the donated-trips state (S3 get_object, or the local file) on the
+    # first /reports, /observe or /v2/city call — that request pays the
+    # fetch+parse inside its own budget. Warm it off-loop at boot.
+    async def _warm_community():
+        try:
+            await asyncio.to_thread(community._load)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_community())
+    # Same gap for the static data files: the gazetteer JSON (119k rows,
+    # measured 2.5 s on a warm desktop — slower on a 0.5-vCPU task) is
+    # parsed on the first /search·/v2/city, and the climatology gz on the
+    # first /aqi·/shift·/city. Parse them off-loop at boot; the loaders
+    # are unchanged — this only moves existing work earlier.
+    async def _warm_static():
+        try:
+            from v2.gazetteer import GAZ
+            import history
+            await asyncio.to_thread(GAZ._load)
+            await asyncio.to_thread(history._load)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_static())
     # The exposure path engine prices itself lazily on the first
     # /v2/plan — and a cold field makes that first reweight find no
     # raster cells, so the first minute or two of plans honestly serve
@@ -212,7 +236,9 @@ async def health():
                       "samples": fstat.get("samples", 0),
                       "source": fstat.get("source")},
             "stations": {"up": bool(fstat.get("station_readings")),
-                         "count": fstat.get("station_readings", 0)},
+                         "count": fstat.get("station_readings", 0),
+                         "source": fstat.get("stations_src"),
+                         "feeds": fstat.get("stations_status")},
             "fires": {"up": bool(fires_stat.get("fires")),
                       "fires": fires_stat.get("fires", 0),
                       "age_s": fires_stat.get("age_s")},

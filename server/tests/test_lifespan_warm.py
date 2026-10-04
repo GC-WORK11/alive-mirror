@@ -22,7 +22,8 @@ class _FakeEngine:
 
 
 def test_lifespan_warms_field_at_boot(monkeypatch):
-    calls = {"field": 0, "fires": 0, "forecast": 0}
+    calls = {"field": 0, "fires": 0, "forecast": 0, "community": 0,
+             "gazetteer": 0, "history": 0}
 
     async def _field_refresh(client, force=False):
         calls["field"] += 1
@@ -33,21 +34,37 @@ def test_lifespan_warms_field_at_boot(monkeypatch):
     async def _forecast_refresh(client):
         calls["forecast"] += 1
 
+    def _community_load():
+        calls["community"] += 1
+
+    def _gaz_load():
+        calls["gazetteer"] += 1
+        return []
+
+    def _history_load():
+        calls["history"] += 1
+        return {}
+
     def _engine_reweight(eng):
         return None
 
     monkeypatch.setattr(main.FIELD, "refresh", _field_refresh)
     monkeypatch.setattr(main.FIRES, "refresh", _fires_refresh)
     monkeypatch.setattr(main.FORECAST, "refresh", _forecast_refresh)
+    monkeypatch.setattr(main.community, "_load", _community_load)
     monkeypatch.setattr(main, "http", lambda: object())
     monkeypatch.setenv("ALIVE_INGEST_IN_APP", "0")
 
     import routegraph
     import transit_v2
+    import history
     from v2 import plan as _v2plan
+    from v2.gazetteer import GAZ
     monkeypatch.setattr(routegraph, "path_engine", lambda: _FakeEngine())
     monkeypatch.setattr(_v2plan, "_engine_reweight", _engine_reweight)
     monkeypatch.setattr(transit_v2, "default_feeds", lambda: object())
+    monkeypatch.setattr(GAZ, "_load", _gaz_load)
+    monkeypatch.setattr(history, "_load", _history_load)
 
     async def _run():
         async with main._lifespan(main.app):
@@ -61,3 +78,6 @@ def test_lifespan_warms_field_at_boot(monkeypatch):
 
     assert calls["field"] >= 1, "FIELD.refresh was never kicked at boot"
     assert calls["fires"] >= 1 and calls["forecast"] >= 1
+    assert calls["community"] >= 1, "community._load never kicked at boot"
+    assert calls["gazetteer"] >= 1, "GAZ._load never kicked at boot"
+    assert calls["history"] >= 1, "history._load never kicked at boot"
