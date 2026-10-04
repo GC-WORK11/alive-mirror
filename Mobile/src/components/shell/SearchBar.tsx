@@ -48,10 +48,10 @@ export function SearchBar({
 const s = StyleSheet.create({
   bar: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.surface, borderRadius: V2Radius.pill, height: 52,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.pill, height: 52,
     paddingHorizontal: 8, paddingRight: 16,
-    borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1, borderColor: V2T.glassLine,
+    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
     elevation: 6,
   },
   menuBtn: {

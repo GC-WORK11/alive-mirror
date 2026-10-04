@@ -530,14 +530,14 @@ const s = StyleSheet.create({
   listRow: { marginBottom: 8 },
   card: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: V2T.surface2, borderRadius: V2Radius.row,
-    borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
+    borderWidth: 1, borderColor: V2T.glassLine,
     paddingHorizontal: 12, paddingVertical: 10, minHeight: 56,
   },
   cardHalf: { flex: 1 },
-  /* accentTint bg + accent label was ~3.5:1 — selected card goes to
-     surface so the accent label (4.51:1 on white) stays readable; the
-     accent border + radio carry the selected signal */ cardOn: { borderColor: V2T.accent, backgroundColor: V2T.surface },
+  /* selected card keeps an opaque-ish milk surface so the accent label
+     stays ≥4.5:1 — the accent border + radio carry the selected signal */
+  cardOn: { borderColor: V2T.accent, backgroundColor: V2T.glassFaint },
   cardBody: { flex: 1, gap: 1 },
   cardTxt: { fontSize: V2Type.secondary, color: V2T.text },
   cardCap: { fontSize: V2Type.label, color: V2T.text3 },
@@ -560,8 +560,8 @@ const s = StyleSheet.create({
   fieldRow: { marginBottom: 12 },
   fieldLabel: { fontSize: V2Type.label, color: V2T.text2, marginBottom: 4, paddingHorizontal: 4 },
   input: {
-    backgroundColor: V2T.surface2, borderRadius: V2Radius.row,
-    borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
+    borderWidth: 1, borderColor: V2T.glassLine,
     paddingHorizontal: 12, paddingVertical: 9,
     fontSize: V2Type.secondary, color: V2T.text, minHeight: 44,
   },

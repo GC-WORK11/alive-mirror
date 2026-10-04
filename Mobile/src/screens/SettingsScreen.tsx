@@ -509,11 +509,11 @@ const ss = StyleSheet.create({
   root: {
     flex: 1,
 
-    backgroundColor: V2T.bg,
+    backgroundColor: V2T.glassDeep,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    borderTopWidth: 1,
+    borderColor: V2T.glassEdge,
     overflow: "hidden",
   },
   header: {
@@ -538,10 +538,10 @@ const ss = StyleSheet.create({
     marginLeft: 4,
   },
   card: {
-    backgroundColor: V2T.surface,
+    backgroundColor: V2T.glassSoft,
     borderRadius: V2Radius.row,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
     marginTop: 8,
     overflow: "hidden",
   },
@@ -555,7 +555,7 @@ const ss = StyleSheet.create({
     paddingVertical: 10,
     minHeight: 52,
   },
-  rowPressed: { backgroundColor: V2T.surface2 },
+  rowPressed: { backgroundColor: "rgba(255,255,255,0.55)" },
   rowDisabled: { opacity: 0.55 },
   rowMid: { flex: 1 },
   rowLabel: { fontSize: V2Type.secondary, color: V2T.text },
@@ -572,7 +572,7 @@ const ss = StyleSheet.create({
     lineHeight: 18,
   },
   explainStatus: { color: V2T.text3, marginTop: 6 },
-  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.line, marginHorizontal: 14 },
+  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.glassLine, marginHorizontal: 14 },
 
   expandBody: { paddingHorizontal: 14, paddingBottom: 12 },
   bulletRow: { flexDirection: "row", gap: 8, paddingVertical: 4 },
@@ -591,11 +591,12 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     borderRadius: V2Radius.pill,
     borderWidth: 1,
-    borderColor: V2T.line,
+    borderColor: V2T.glassLine,
     overflow: "hidden",
+    backgroundColor: V2T.glassSoft,
   },
   // 44pt-tall segment targets (HIG floor), compact look preserved
   seg: { paddingHorizontal: 16, minHeight: 44, justifyContent: "center" },
-  segOn: { backgroundColor: V2T.surface2 },
+  segOn: { backgroundColor: V2T.glassSel },
   segTxt: { fontSize: V2Type.label, color: V2T.text3 },
 });

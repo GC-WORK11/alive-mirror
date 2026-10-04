@@ -27,10 +27,12 @@ import { tap } from "../../haptics";
 import { useReduceMotion } from "../../a11y";
 
 /* Old-arch Android needs the flag once; Fabric (RN 0.86) animates layout
-   natively and doesn't ship the setter — guard, don't probe internals. */
+   natively and its setter is a no-op stub that still logs a dev warning —
+   skip the call entirely when the Fabric UIManager is live. */
 const setLayoutAnimExp = (UIManager as { setLayoutAnimationEnabledExperimental?: (b: boolean) => void })
   .setLayoutAnimationEnabledExperimental;
-if (Platform.OS === "android" && setLayoutAnimExp) setLayoutAnimExp(true);
+const isFabric = Boolean((global as { nativeFabricUIManager?: unknown }).nativeFabricUIManager);
+if (Platform.OS === "android" && setLayoutAnimExp && !isFabric) setLayoutAnimExp(true);
 
 /* Engine→full swap: kept rows glide to their new order, added router/
    transit rows fade in, the refining line eases out — the sheet never

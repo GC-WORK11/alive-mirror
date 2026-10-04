@@ -296,6 +296,8 @@ export interface GridResponse extends GeoJSON.FeatureCollection {
   features: (GeoJSON.Feature<GeoJSON.Polygon> & {
     properties: { pm25: number; conf: "hi" | "med" | "lo" };
   })[];
+  // stamped by /grid so clients can skip re-painting an identical epoch
+  properties: { cell_epoch: number[] };
 }
 
 export const ENDPOINTS = {

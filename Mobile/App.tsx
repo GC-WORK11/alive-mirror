@@ -691,14 +691,14 @@ const s = StyleSheet.create({
   layersWrap: { position: "absolute", left: 14 },
   offlineWrap: {
     position: "absolute", alignSelf: "center",
-    backgroundColor: V2T.surface2, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: V2T.glassLine,
   },
   offlineTxt: { fontSize: V2Type.label, color: V2T.text2 },
   pickHintWrap: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: V2T.surface, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.pill,
     paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: V2T.accent,
     shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 8,

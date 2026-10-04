@@ -127,7 +127,7 @@ function PlaceRow({
       accessibilityLabel={`${title}${subtitle ? `, ${subtitle}` : ""}${distLabel ? `, ${distLabel}` : ""}`}
       style={({ pressed }) => [
         ss.row,
-        (pressed || armed) && { backgroundColor: V2T.surface2 },
+        (pressed || armed) && { backgroundColor: "rgba(255,255,255,0.55)" },
         dim && { opacity: 0.55 },
       ]}
     >
@@ -525,7 +525,7 @@ function SearchSheet({
             onPress={() => { tick(); dismissThen(() => onSelect({ type: "current_location" })); }}
             accessibilityRole="button"
             accessibilityLabel={t("yourLocation", lang)}
-            style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
+            style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: "rgba(255,255,255,0.55)" }]}
           >
             <Icon name="locate" color={V2T.accent} size={18} />
             <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
@@ -538,7 +538,7 @@ function SearchSheet({
             accessibilityRole="button"
             accessibilityLabel={t("chooseOnMap", lang)}
             accessibilityHint={t("mapPickHint", lang)}
-            style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
+            style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: "rgba(255,255,255,0.55)" }]}
           >
             <Icon name="pin" color={V2T.accent} size={18} />
             <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
@@ -615,11 +615,11 @@ const ss = StyleSheet.create({
     flex: 1,
     // marginTop comes from useSafeAreaInsets inline
 
-    backgroundColor: V2T.bg,
+    backgroundColor: V2T.glassDeep,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    borderTopWidth: 1,
+    borderColor: V2T.glassEdge,
     overflow: "hidden",
   },
   bar: {
@@ -630,10 +630,10 @@ const ss = StyleSheet.create({
     marginTop: 10,
     marginBottom: 6,
     paddingHorizontal: 10,
-    backgroundColor: V2T.surface2,
+    backgroundColor: V2T.glassSoft,
     borderRadius: V2Radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
   },
   barBtn: { padding: 6 },
   input: {
@@ -666,7 +666,8 @@ const ss = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: V2T.surface,
+    backgroundColor: V2T.glassFaint,
+    borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -679,7 +680,7 @@ const ss = StyleSheet.create({
   rowDist: { color: V2T.text2, fontSize: V2Type.label },
   hairline: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: V2T.line,
+    backgroundColor: V2T.glassLine,
     marginHorizontal: 14,
     marginVertical: 4,
   },
@@ -706,9 +707,9 @@ const ss = StyleSheet.create({
   actionBar: {
     flexDirection: "row",
     alignItems: "stretch",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
-    backgroundColor: V2T.surface,
+    borderTopWidth: 1,
+    borderColor: V2T.glassLine,
+    backgroundColor: V2T.glass,
     // paddingBottom from useSafeAreaInsets inline
   },
   actionBtn: {
@@ -722,7 +723,7 @@ const ss = StyleSheet.create({
   },
   actionSplit: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: V2T.line,
+    backgroundColor: V2T.glassLine,
     marginVertical: 12,
   },
   actionTxt: { color: V2T.text, fontSize: V2Type.secondary },
@@ -732,7 +733,7 @@ const ss = StyleSheet.create({
     paddingHorizontal: 56,   // sits under the row's text column
     paddingBottom: 10,
     paddingTop: 2,
-    backgroundColor: V2T.surface2,
+    backgroundColor: V2T.glassSoft,
   },
   saveBtn: {
     flexDirection: "row",
@@ -741,9 +742,9 @@ const ss = StyleSheet.create({
     minHeight: 36,
     paddingHorizontal: 12,
     borderRadius: V2Radius.pill,
-    backgroundColor: V2T.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    backgroundColor: V2T.glassFaint,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
   },
   saveTxt: { fontSize: V2Type.label },
 });

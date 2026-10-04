@@ -7,11 +7,10 @@
  * so the pre-integration call site keeps compiling. Bands stay intact
  * in `nav` — the counters render the mid with "≈" per copy rules, and
  * the lo→hi spread shows as a thin band bar + a small range label under
- * each value. Maneuver arrows are drawn here: icons.tsx carries no turn
- * glyphs and this lane owns only this file. */
+ * each value. Maneuver arrows come from the shared set (icons.tsx —
+ * Material Symbols turn/merge/ramp geometry). */
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
@@ -114,95 +113,28 @@ function maneuverOf(
   return "straight"; // head out / continue / unknown
 }
 
-/** Big glanceable maneuver glyph. Semantic kinds reuse the shared set;
- *  turn arrows are stroked paths on the same 24-px grid (icons.tsx is
- *  outside this lane, so they live here). */
+/** Big glanceable maneuver glyph — every arrow comes from the shared set
+ *  (Material Symbols turn/merge/ramp geometry), so nav directions and the
+ *  rest of the chrome speak one icon language. */
+const MANEUVER_GLYPH: Record<Exclude<Maneuver, "arrive" | "walk" | "transit" | "mode">, Glyph> = {
+  left: "turnL",
+  right: "turnR",
+  slightLeft: "slightL",
+  slightRight: "slightR",
+  uturn: "uturn",
+  roundabout: "roundabout",
+  merge: "mergeDir",
+  exit: "ramp",
+  straight: "arrowUp",
+};
+
 function ManeuverIcon({ m, mode, size = 30 }: { m: Maneuver; mode?: string; size?: number }) {
   if (m === "arrive") return <Icon name="pin" color={V2T.pinDest} size={size - 2} filled />;
   if (m === "walk") return <Icon name="walk" color={V2T.text} size={size} />;
   if (m === "transit" || m === "mode") {
     return <Icon name={vehicleGlyph(mode ?? "")} color={V2T.text} size={size} />;
   }
-  const st = {
-    stroke: V2T.text, strokeWidth: 2.2,
-    strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none",
-  };
-  let body: React.ReactNode;
-  switch (m) {
-    case "left":
-      body = (
-        <>
-          <Path d="M13 20v-6a4 4 0 0 0-4-4H5" {...st} />
-          <Path d="M9 6l-4 4 4 4" {...st} />
-        </>
-      );
-      break;
-    case "right":
-      body = (
-        <>
-          <Path d="M11 20v-6a4 4 0 0 1 4-4h4" {...st} />
-          <Path d="M15 6l4 4-4 4" {...st} />
-        </>
-      );
-      break;
-    case "slightLeft":
-      body = (
-        <>
-          <Path d="M15 20 7.5 8.5" {...st} />
-          <Path d="M11 8.5H7.5V12" {...st} />
-        </>
-      );
-      break;
-    case "slightRight":
-      body = (
-        <>
-          <Path d="M9 20l7.5-11.5" {...st} />
-          <Path d="M13 8.5h3.5V12" {...st} />
-        </>
-      );
-      break;
-    case "uturn":
-      body = (
-        <>
-          <Path d="M7 20V9a5 5 0 0 1 10 0v4" {...st} />
-          <Path d="M14.5 10.5 17 13l2.5-2.5" {...st} />
-        </>
-      );
-      break;
-    case "roundabout":
-      body = (
-        <>
-          <Path d="M18.5 12a6.5 6.5 0 1 1-1.9-4.6" {...st} />
-          <Path d="M13.2 7.2h3.4v3.4" {...st} />
-        </>
-      );
-      break;
-    case "merge":
-      body = (
-        <>
-          <Path d="M6.5 20v-5.5a3 3 0 0 1 .9-2.1L12 8l4.6 4.4a3 3 0 0 1 .9 2.1V20" {...st} />
-          <Path d="M9.5 10.5 12 8l2.5 2.5" {...st} />
-        </>
-      );
-      break;
-    case "exit":
-      body = (
-        <>
-          <Path d="M8 20v-7a4 4 0 0 1 4-4h6" {...st} />
-          <Path d="M14.5 5.5 18 9l-3.5 3.5" {...st} />
-        </>
-      );
-      break;
-    default: // straight — depart / continue / head
-      body = (
-        <>
-          <Path d="M12 20V5" {...st} />
-          <Path d="M7.5 9.5 12 5l4.5 4.5" {...st} />
-        </>
-      );
-      break;
-  }
-  return <Svg width={size} height={size} viewBox="0 0 24 24">{body}</Svg>;
+  return <Icon name={MANEUVER_GLYPH[m]} color={V2T.text} size={size} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -437,15 +369,15 @@ const s = StyleSheet.create({
   banner: {
     position: "absolute", left: 12, right: 12,
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
+    backgroundColor: V2T.glass, borderRadius: V2Radius.row + 4,
     paddingVertical: 10, paddingHorizontal: 12,
-    borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1, borderColor: V2T.glassLine,
+    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
     elevation: 8,
   },
   tile: {
     width: 52, height: 52, borderRadius: V2Radius.row + 2,
-    backgroundColor: V2T.surface2, borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center", justifyContent: "center",
   },
   bannerTxt: { flex: 1, marginLeft: 12, marginRight: 4 },
@@ -461,9 +393,9 @@ const s = StyleSheet.create({
   pill: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.surface2, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.pill,
     paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1, borderColor: V2T.line,
+    borderWidth: 1, borderColor: V2T.glassLine,
   },
   pillDot: {
     width: 7, height: 7, borderRadius: 4,
@@ -473,12 +405,12 @@ const s = StyleSheet.create({
 
   cluster: {
     position: "absolute", left: 14, right: 14,
-    backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
-    borderWidth: 1, borderColor: V2T.line, overflow: "hidden",
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },
+    backgroundColor: V2T.glass, borderRadius: V2Radius.row + 4,
+    borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
     elevation: 8,
   },
-  progTrack: { height: 3, backgroundColor: V2T.surface2 },
+  progTrack: { height: 3, backgroundColor: V2T.glassSoft },
   progFill: {
     height: 3, backgroundColor: V2T.accent,   // echoes the route line colour
     borderTopRightRadius: 2, borderBottomRightRadius: 2,
@@ -495,7 +427,7 @@ const s = StyleSheet.create({
   cellVal: { fontSize: V2Type.body, color: V2T.text, marginTop: 4 },
   bandTrack: {
     height: 3, borderRadius: 2, marginTop: 7,
-    backgroundColor: V2T.surface2, overflow: "visible",
+    backgroundColor: V2T.glassSoft, overflow: "visible",
   },
   bandSeg: { position: "absolute", top: 0, bottom: 0, borderRadius: 2, opacity: 0.5 },
   bandMid: {

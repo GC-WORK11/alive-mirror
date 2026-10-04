@@ -215,7 +215,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
               }}
               style={({ pressed }) => [
                 ss.retryBtn,
-                pressed && { backgroundColor: V2T.surface2 },
+                pressed && { backgroundColor: "rgba(255,255,255,0.55)" },
               ]}
               accessibilityRole="button"
               accessibilityLabel={t("cityRetry", lang)}
@@ -464,7 +464,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
               onPress={toggleWhy}
               style={({ pressed }) => [
                 ss.whyBtn,
-                pressed && { backgroundColor: V2T.surface2 },
+                pressed && { backgroundColor: "rgba(255,255,255,0.55)" },
               ]}
               accessibilityRole="button"
               accessibilityLabel={t("cityWhyTitle", lang)}
@@ -557,11 +557,11 @@ const ss = StyleSheet.create({
   root: {
     flex: 1,
 
-    backgroundColor: V2T.bg,
+    backgroundColor: V2T.glassDeep,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    borderTopWidth: 1,
+    borderColor: V2T.glassEdge,
     overflow: "hidden",
   },
   bar: {
@@ -570,7 +570,7 @@ const ss = StyleSheet.create({
     height: 52,
     paddingHorizontal: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: V2T.line,
+    borderBottomColor: V2T.glassLine,
   },
   barBtn: { padding: 6, marginRight: 8 },
   title: { color: V2T.text, fontSize: V2Type.title },
@@ -588,9 +588,9 @@ const ss = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: V2Radius.pill,
-    backgroundColor: V2T.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
   },
   retryText: { color: V2T.accent, fontSize: V2Type.secondary },
 
@@ -620,9 +620,9 @@ const ss = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: V2Radius.pill,
-    backgroundColor: V2T.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
   },
   chipText: { color: V2T.text2, fontSize: V2Type.label },
 
@@ -655,7 +655,8 @@ const ss = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: V2T.surface,
+    backgroundColor: V2T.glassFaint,
+    borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -715,9 +716,9 @@ const ss = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: V2Radius.row,
-    backgroundColor: V2T.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
   },
   whyLabel: { color: V2T.text2, fontSize: V2Type.secondary, flex: 1 },
   whyBody: { marginHorizontal: 20, marginTop: 10, gap: 8 },

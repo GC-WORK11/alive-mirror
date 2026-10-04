@@ -484,6 +484,30 @@ async def corridors(limit: int = 25):
     raw = TRIPS.corridors(limit=lim) or []
     assert all(int(r.get("devices") or 0) >= K_MIN for r in raw), \
         "k>=3 invariant violated upstream — refusing to publish"
+    field = None
+    try:
+        from airfield import FIELD
+        field = FIELD
+    except Exception:
+        try:
+            from server.airfield import FIELD as _F  # type: ignore
+            field = _F
+        except Exception:
+            field = None
+
+    def _field_at(cell):
+        """Live pm2.5 under this corridor's centre — the merge an admin
+        reads as 'people travel this street through air this dirty'.
+        None when the field or the cell key is unavailable — never a
+        guess."""
+        c = _cell_center(cell)
+        if not c or field is None:
+            return None
+        try:
+            return field.value(c[0], c[1], "pm2_5")
+        except Exception:
+            return None
+
     rows = [{
         "cell": r.get("cell"),
         "near": _corridor_label(r.get("cell")),
@@ -492,6 +516,7 @@ async def corridors(limit: int = 25):
         "avg_dose_ug": r.get("avg_dose_ug"),
         "co2_g_per_100m": r.get("co2_g_per_100m"),
         "co2_trips": r.get("co2_trips"),
+        "field_pm25": _field_at(r.get("cell")),
     } for r in raw]
     agg = TRIPS.city_aggregates() or {}
     return {

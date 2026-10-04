@@ -212,6 +212,46 @@ Verify: `describe-services` shows capacityProvider FARGATE and the
 unchanged (same image, new task). Note this REPLACEs the task — the
 new one boots cold, so warm it before judging.
 
+### Task-size bump for the demo window (optional, pairs with the above)
+
+The service runs 1 vCPU / 2 GB — one uvicorn worker. A burst of
+concurrent heavy calls (plans + city + admin on several devices at
+once) queues: seen live 2026-10-04, CPU pinned ~100% for 30 min while
+an emulator sweep + probes ran together — /v2/reroute hit 24 s waiting
+on the event loop (it recovers; single-user demos never see this). To
+run the demo on 2 vCPU / 4 GB — headroom for the whole room:
+
+```bash
+export AWS_DEFAULT_REGION=ap-south-1
+# current task def, same image/env/secrets, bigger cpu/memory:
+aws ecs describe-task-definition --task-definition alive108 \
+  --query 'taskDefinition.{family:family,role:taskRoleArn,exec:executionRoleArn,
+    net:networkMode,req:requiresCompatibilities,vol:volumes,ph:placementConstraints,
+    cont:containerDefinitions}' > /tmp/td.json
+python3 - <<'PY'
+import json,subprocess
+td=json.load(open('/tmp/td.json'))
+c=td['cont'][0]; c['cpu']=2048; c['memory']=4096
+reg=json.loads(subprocess.check_output([
+ 'aws','ecs','register-task-definition','--region','ap-south-1',
+ '--family',td['family'],'--task-role-arn',td['role'],
+ '--execution-role-arn',td['exec'],'--network-mode',td['net'],
+ '--requires-compatibilities']+td['req']+
+ ['--cpu','2048','--memory','4096',
+  '--container-definitions',json.dumps(td['cont'])]))
+print(reg['taskDefinition']['taskDefinitionArn'])
+PY
+aws ecs update-service --cluster alive108 --service alive108 \
+  --task-definition alive108 --capacity-provider-strategy \
+  "capacityProvider=FARGATE,weight=1,base=1" --force-new-deployment
+aws ecs wait services-stable --cluster alive108 --services alive108
+python3 tools/warm_task.py
+```
+
+Cost: 2 vCPU / 4 GB on-demand ≈ ₹8/hr in ap-south-1 — still
+single-digit rupees for the demo window. Revert to the prior task-def
+revision + FARGATE_SPOT after the event.
+
 Rollback (back to ~$0 Spot) — same command with `FARGATE_SPOT`:
 
 ```bash

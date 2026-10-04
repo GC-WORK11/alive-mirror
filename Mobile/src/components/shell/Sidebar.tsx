@@ -1,15 +1,13 @@
-/** Sidebar — full-height light drawer from the ☰ in the search bar
+/** Sidebar — full-height milk drawer from the ☰ in the search bar
  * (doc 02 §sidebar, items 1–8). Rules enforced here:
  *  - no stats dashboard beyond Today + This week
  *  - nothing appears without data — no fake numbers, ever
  *  - every consumer string goes through t() (en + hi).
- * r4 pass: solid surface, fixed brand header, grouped cards
- * (navigate / app), inset hairlines, ≥44pt rows, first-class
- * language + sharing rows.
- * SEAM(i18n): group headers would use proposed keys
- *   sidebarNavigate ("Navigate" / "नेविगेट") and
- *   sidebarApp ("App" / "ऐप") — groups ship unlabeled (the cards
- *   carry the grouping) until strings.ts lands them. */
+ * r5 pass: distributed tile rhythm — stats land as spaced frost tiles
+ * (the admin district-tile spacing the owner likes), saved places and
+ * the daily actions are a 2-col tile grid, vehicle choice expands into
+ * an icon grid under its own tile. Sections rise in with a stagger on
+ * open; every tile gives press feedback. */
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert, Animated, BackHandler, Dimensions, LayoutAnimation, Pressable,
@@ -46,7 +44,31 @@ const VEHICLES: { key: string; labelKey: Parameters<typeof t>[0] }[] = [
 const vehicleLabelKey = (v: string): Parameters<typeof t>[0] =>
   VEHICLES.find((x) => x.key === v)?.labelKey ?? "vehicleQ1";
 
-type Section = "vehicle" | "places" | "settings" | "how" | null;
+type Section = "vehicle" | "settings" | "how" | null;
+
+/** Staggered rise-in for a drawer section — each tile group fades and
+ *  drifts up ~14px as the drawer opens. One-shot per open, JS driver
+ *  (RN 0.86 native-detach guard — see ui.tsx Sheet). Skipped entirely
+ *  under reduce-motion. */
+function Rise({ i, open, children }: { i: number; open: boolean; children: React.ReactNode }) {
+  const reduce = useReduceMotion();
+  const [v] = useState(() => new Animated.Value(0));
+  const [ty] = useState(() => v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }));
+  useEffect(() => {
+    if (reduce) { v.setValue(1); return; }
+    if (open) {
+      v.setValue(0);
+      Animated.timing(v, {
+        toValue: 1, duration: 260, delay: 60 + i * 55, useNativeDriver: false,
+      }).start();
+    }
+  }, [open, i, reduce, v]);
+  return (
+    <Animated.View style={{ opacity: v, transform: [{ translateY: ty }] }}>
+      {children}
+    </Animated.View>
+  );
+}
 
 export function Sidebar({
   open, onClose, trips, lang, settings, onSettings, onDeleteData,
@@ -64,7 +86,9 @@ export function Sidebar({
   onNavigate: (p: SavedPlace) => void;
   currentDest: SavedPlace | null;
   onDelhiToday?: () => void;        // SEAM(delhi-today): doc 07 consumer city view
-  onTripReceipt?: (tr: Trip) => void; // SEAM(receipt): S7 receipt screen
+  onTripReceipt?: (tr: Trip) => void; // opens the trips ledger (App wires the
+                                     // modal — the arg is kept for a future
+                                     // deep-link into one trip)
   onFullSettings?: () => void;       // opens the dedicated SettingsScreen
   onLang?: (l: Lang) => void;        // SEAM(lang): dedicated language callback —
                                      // falls back to onSettings({lang}) when unwired
@@ -84,8 +108,8 @@ export function Sidebar({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const toggle = (k: Section) => {
-    /* panel mounts/unmounts under the row — ease it open like the
-       settings expanders (native path, off under reduce-motion) */
+    /* option grid mounts/unmounts under the tile — ease it open like the
+       settings expanders (off under reduce-motion) */
     if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSection((s) => (s === k ? null : k));
   };
@@ -132,6 +156,12 @@ export function Sidebar({
   const weekMax = Math.max(...week.days.map((d) => d.ug), 1);
 
   const setLang = (l: Lang) => (onLang ? onLang(l) : onSettings({ lang: l }));
+
+  /** Section heading — small-caps caption, the drawer's outer rhythm mark. */
+  const sectionLabel = (text: string, first = false) => (
+    <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, first && s.sectionLabelFirst,
+      { fontFamily: fam(lang, "semi") }]}>{text}</Text>
+  );
 
   /** One drawer row — fixed icon slot, label (+sub/hint), chevron when it
    *  navigates or expands. Non-pressable content renders as a plain View so
@@ -181,7 +211,7 @@ export function Sidebar({
   };
 
   /** Card = one visual group; hairlines inset to the label edge. */
-  const card = (items: React.ReactNode[], marginTop = 20) => {
+  const card = (items: React.ReactNode[], marginTop = 10) => {
     const list = items.filter(Boolean);
     if (list.length === 0) return null;
     return (
@@ -196,47 +226,69 @@ export function Sidebar({
     );
   };
 
-  /** Expanded content under a row — solid inset panel, no left-rail. */
-  const panel = (kids: React.ReactNode) => <View style={s.panel}>{kids}</View>;
+  /** The admin district-tile grammar — a frosted square-ish tile: icon badge,
+   *  label, then a value or affordance. Tappable tiles get press feedback
+   *  (dips into the accent-tint glass). */
+  const gridTile = (p: {
+    glyph: Glyph; label: string; value: string; valueAccent?: boolean;
+    onPress?: () => void; chevron?: boolean; open?: boolean;
+    corner?: React.ReactNode; a11y?: string; disabled?: boolean;
+  }) => (
+    <Pressable disabled={!p.onPress} onPress={p.onPress ? () => { tick(); p.onPress!(); } : undefined}
+      accessibilityRole={p.onPress ? "button" : undefined}
+      accessibilityState={p.open != null ? { expanded: p.open } : p.disabled ? { disabled: true } : undefined}
+      accessibilityLabel={p.a11y ?? `${p.label} — ${p.value}`}
+      style={({ pressed }) => [s.gridTile, pressed && !!p.onPress && s.gridTileDown]}>
+      <View style={s.tileTop}>
+        <View style={s.tileIcon}>
+          <Icon name={p.glyph} color={V2T.accent} size={19} filled={p.open} />
+        </View>
+        {p.corner}
+        {p.chevron && !p.corner && (
+          <View style={{ transform: [{ rotate: p.open ? "90deg" : "0deg" }] }}>
+            <Icon name="chevron" color={V2T.text3} size={14} />
+          </View>
+        )}
+      </View>
+      <Text {...DYNAMIC_TYPE} style={[s.tileLabel, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+        {p.label}
+      </Text>
+      <Text {...DYNAMIC_TYPE} style={[s.tileValue, { fontFamily: fam(lang, "med") },
+        p.valueAccent && { color: V2T.accent }]} numberOfLines={1}>
+        {p.value}
+      </Text>
+    </Pressable>
+  );
 
-  const placeRow = (slot: "home" | "work") => {
+  /** A saved-place tile — tap navigates when set, picks when not; the
+   *  corner slot carries the clear/set affordance. */
+  const placeTile = (slot: "home" | "work") => {
     const place = settings[slot];
     const labelKey = slot === "home" ? "home" : "work";
+    const label = t(labelKey, lang);
+    const tap = place
+      ? () => { onNavigate(place); onClose(); }
+      : onPickPlace ? () => onPickPlace(slot)
+        : currentDest ? () => onSettings({ [slot]: currentDest })
+          : undefined;
     return (
-      <View key={slot} style={s.subRow}>
-        <Icon name={slot} color={V2T.text2} size={18} />
-        <Pressable style={{ flex: 1 }} disabled={!place && !onPickPlace}
-          onPress={() => {
-            tick();
-            if (place) { onNavigate(place); onClose(); }
-            else if (onPickPlace) onPickPlace(slot);
-          }}
-          accessibilityRole="button" accessibilityState={{ disabled: !place && !onPickPlace }}
-          accessibilityLabel={place ? `${t(labelKey, lang)} — ${place.name}` : `${t(labelKey, lang)} — ${t("setPlace", lang)}`}>
-          <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t(labelKey, lang)}</Text>
-          <Text {...DYNAMIC_TYPE} style={[s.subValue, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
-            {place ? place.name : t("notSet", lang)}
-          </Text>
-        </Pressable>
-        {place ? (
-          <Pressable hitSlop={8} onPress={() => onSettings({ [slot]: null })}
-            accessibilityRole="button" accessibilityLabel={t("a11yClearSaved", lang)}
-            style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
-            <Icon name="close" color={V2T.text3} size={14} />
-          </Pressable>
-        ) : onPickPlace ? (
-          <Pressable hitSlop={8} onPress={() => onPickPlace(slot)}
-            accessibilityRole="button" accessibilityLabel={`${t(labelKey, lang)} — ${t("setPlace", lang)}`}
-            style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
-            <Text {...DYNAMIC_TYPE} style={[s.miniAction, { fontFamily: fam(lang, "med") }]}>{t("setPlace", lang)}</Text>
-          </Pressable>
-        ) : currentDest ? (
-          <Pressable hitSlop={8} onPress={() => onSettings({ [slot]: currentDest })}
-            accessibilityRole="button" accessibilityLabel={t("setCurrentDest", lang)}
-            style={({ pressed }) => [s.miniBtn, pressed && { opacity: 0.6 }]}>
-            <Text {...DYNAMIC_TYPE} style={[s.miniAction, { fontFamily: fam(lang, "med") }]}>{t("setCurrentDest", lang)}</Text>
-          </Pressable>
-        ) : null}
+      <View key={slot} style={{ flex: 1 }}>
+        {gridTile({
+          glyph: slot,
+          label,
+          value: place ? place.name : currentDest && !place && !onPickPlace ? t("setCurrentDest", lang) : t("setPlace", lang),
+          valueAccent: !place,
+          onPress: tap,
+          disabled: !tap,
+          a11y: place ? `${label} — ${place.name}` : `${label} — ${t("setPlace", lang)}`,
+          corner: place ? (
+            <Pressable hitSlop={10} onPress={() => onSettings({ [slot]: null })}
+              accessibilityRole="button" accessibilityLabel={t("a11yClearSaved", lang)}
+              style={({ pressed }) => [s.tileCorner, pressed && { opacity: 0.6 }]}>
+              <Icon name="close" color={V2T.text3} size={13} />
+            </Pressable>
+          ) : undefined,
+        })}
       </View>
     );
   };
@@ -262,8 +314,8 @@ export function Sidebar({
       accessibilityState={{ disabled: !onTripReceipt }}
       accessibilityLabel={`${placeNameLabel(tr.from, lang)} — ${placeNameLabel(tr.to, lang)}`}
       style={({ pressed }) => [s.trip, pressed && !!onTripReceipt && s.rowPressed]}>
-      <View style={s.rowIcon}>
-        <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={20} />
+      <View style={s.tripIcon}>
+        <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={18} />
       </View>
       <View style={s.tripMid}>
         <Text {...DYNAMIC_TYPE} style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
@@ -285,6 +337,8 @@ export function Sidebar({
       )}
     </Pressable>
   );
+
+  let rise = 0; // stagger order across the scroll content
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={open ? "auto" : "none"}>
@@ -312,54 +366,48 @@ export function Sidebar({
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 20 }]}>
-          {/* 1 — Today: breathed; put-out joins when the ledger has kg
+          {/* 1 — Today: breathed / put-out as twin hero tiles
               (doc 02 §sidebar-1 — both numbers, never fake) */}
           {st.todayUg > 0 && (
-            <>
-              <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, s.sectionLabelFirst,
-                { fontFamily: fam(lang, "semi") }]}>{t("sidebarToday", lang)}</Text>
-              <View style={s.card}>
-                <View style={s.todayRow}>
-                  <View style={s.statCol}>
-                    <View style={s.statHead}>
-                      <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={15} />
-                      <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("breathed", lang)}</Text>
-                    </View>
-                    <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>
-                      {showCig
-                        ? todayCig
-                        : t("doseUg", lang, { n: approx(Math.round(st.todayUg)) })}
-                    </Text>
-                    {yesterdayUg > 0 && (
-                      <Text {...DYNAMIC_TYPE} style={[s.statCmp, { fontFamily: fam(lang, "reg") }]}>
-                        {t(st.todayUg <= yesterdayUg ? "lessThanYesterday" : "moreThanYesterday", lang, {
-                          p: Math.abs(Math.round((1 - st.todayUg / yesterdayUg) * 100)),
-                        })}
-                      </Text>
-                    )}
+            <Rise i={rise++} open={open}>
+              {sectionLabel(t("sidebarToday", lang), true)}
+              <View style={s.tileRow}>
+                <View style={s.statTile}>
+                  <View style={s.statHead}>
+                    <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={15} />
+                    <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("breathed", lang)}</Text>
                   </View>
-                  {todayKg > 0 && (
-                    <>
-                      <View style={s.statDiv} />
-                      <View style={s.statCol}>
-                        <View style={s.statHead}>
-                          <Icon name="smoke" color={V2T.text3} size={15} />
-                          <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("putOut", lang)}</Text>
-                        </View>
-                        <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{t("nav_kg", lang, { n: approx(todayKg) })}</Text>
-                      </View>
-                    </>
+                  <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>
+                    {showCig
+                      ? todayCig
+                      : t("doseUg", lang, { n: approx(Math.round(st.todayUg)) })}
+                  </Text>
+                  {yesterdayUg > 0 && (
+                    <Text {...DYNAMIC_TYPE} style={[s.statCmp, { fontFamily: fam(lang, "reg") }]}>
+                      {t(st.todayUg <= yesterdayUg ? "lessThanYesterday" : "moreThanYesterday", lang, {
+                        p: Math.abs(Math.round((1 - st.todayUg / yesterdayUg) * 100)),
+                      })}
+                    </Text>
                   )}
                 </View>
+                {todayKg > 0 && (
+                  <View style={s.statTile}>
+                    <View style={s.statHead}>
+                      <Icon name="smoke" color={V2T.text3} size={15} />
+                      <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("putOut", lang)}</Text>
+                    </View>
+                    <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{t("nav_kg", lang, { n: approx(todayKg) })}</Text>
+                  </View>
+                )}
               </View>
-            </>
+            </Rise>
           )}
 
-          {/* 2 — This week: 7 thin bars */}
+          {/* 2 — This week: 7 thin bars + the honest rollup line */}
           {week.totalTrips > 0 && (
-            <>
-              <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, { fontFamily: fam(lang, "semi") }]}>{t("sidebarThisWeek", lang)}</Text>
-              <View style={s.card}>
+            <Rise i={rise++} open={open}>
+              {sectionLabel(t("sidebarThisWeek", lang), st.todayUg === 0)}
+              <View style={s.tile}>
                 <View style={s.weekRow}>
                   {week.days.map((d, i) => (
                     <View key={i} style={s.dayCol}>
@@ -374,155 +422,185 @@ export function Sidebar({
                     </View>
                   ))}
                 </View>
+                <Text {...DYNAMIC_TYPE} style={[s.weekCap, { fontFamily: fam(lang, "reg") }]}>
+                  {t(week.totalTrips === 1 ? "tripsCountOne" : "tripsCount", lang, { n: week.totalTrips })}
+                  {" · "}
+                  {showCig
+                    ? t("tripsCigs", lang, { n: approx(week.weekCigEq > 0 && week.weekCigEq < 0.01 ? 0.01 : week.weekCigEq) })
+                    : t("doseUg", lang, { n: approx(Math.round(week.weekUg)) })}
+                </Text>
               </View>
-            </>
+            </Rise>
           )}
 
-          {/* 3 — Trips: tap → that receipt; share affordance appears with
-              SEAM(share-trip) */}
-          {recent.length > 0 && (
-            <>
-              <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, { fontFamily: fam(lang, "semi") }]}>{t("sidebarTrips", lang)}</Text>
-              {card(recent.map((tr, i) => tripRow(tr, i)), 0)}
-            </>
-          )}
-
-          {/* ── navigate group (saved places · Delhi today · my vehicle) ── */}
-          {card([
-            <View key="places">
-              {menuRow({
-                glyph: "star", label: t("sidebarSavedPlaces", lang),
-                onPress: () => toggle("places"), open: section === "places",
-              })}
-              {section === "places" && panel(<>{placeRow("home")}{placeRow("work")}</>)}
-            </View>,
-            onDelhiToday && (
-              <View key="delhi">
-                {menuRow({ glyph: "pin", label: t("sidebarDelhiToday", lang), onPress: onDelhiToday })}
-              </View>
-            ),
-            <View key="vehicle">
-              {menuRow({
-                glyph: settings.vehicle ? vehicleGlyph(settings.vehicle) : "bike",
-                label: t("sidebarMyVehicle", lang),
-                sub: settings.vehicle ? t(vehicleLabelKey(settings.vehicle), lang) : t("notSet", lang),
-                onPress: () => toggle("vehicle"), open: section === "vehicle",
-              })}
-              {section === "vehicle" && panel(
-                <View style={s.chipWrap}>
-                  {VEHICLES.map((v) => {
-                    const sel = settings.vehicle === v.key;
-                    return (
-                      <Pressable key={v.key} accessibilityRole="button"
-                        accessibilityState={{ selected: sel }}
-                        onPress={() => { tick(); onSettings({ vehicle: v.key }); setSection(null); }}
-                        style={({ pressed }) => [
-                          s.chip, sel && s.chipOn, pressed && { opacity: 0.7 },
-                        ]}>
-                        <Icon name={vehicleGlyph(v.key)} color={sel ? V2T.accent : V2T.text2} size={18} />
-                        <Text {...DYNAMIC_TYPE} style={[s.chipTxt, { fontFamily: fam(lang, "reg") },
-                          sel && { color: V2T.accent }]}>
-                          {t(v.labelKey, lang)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>,
-              )}
-            </View>,
-          ])}
-
-          {/* ── app group (language · sharing · settings · about) ── */}
-          {card([
-            // language — first-class segmented toggle (doc 02 §sidebar-7)
-            <View key="lang" style={s.row}>
-              <View style={s.langBadge}>
-                <Text {...DYNAMIC_TYPE} style={s.langBadgeTxt}>अA</Text>
-              </View>
-              <Text {...DYNAMIC_TYPE} style={[s.rowLabel, s.rowMid, { fontFamily: fam(lang, "med") }]}>
-                {t("settingsLanguage", lang)}
-              </Text>
-              <View style={s.segWrap}>
-                {(["en", "hi"] as Lang[]).map((l) => (
-                  <Pressable key={l} onPress={() => { tick(); setLang(l); }}
-                    accessibilityRole="button" accessibilityState={{ selected: lang === l }}
-                    style={[s.seg, lang === l && s.segOn]}>
-                    <Text {...DYNAMIC_TYPE} style={[s.segTxt, { fontFamily: fam(l, "med") }, lang === l && { color: V2T.text }]}>
-                      {l === "en" ? "English" : "हिंदी"}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>,
-            // anonymous trip donation — first-class action, explained in one
-            // line, one tap off (doc 07 §3)
-            <View key="donate">
-              {menuRow({
-                glyph: "wind", label: t("settingsShareData", lang),
-                hint: t("shareDataHint", lang), hideChevron: true,
-                onPress: () => onSettings({ share: !settings.share }),
-                trailing: (
-                  <Switch value={settings.share}
-                    onValueChange={(v) => onSettings({ share: v })}
-                    accessibilityLabel={t("settingsShareData", lang)}
-                    trackColor={{ false: V2T.line, true: V2T.accent }} thumbColor={V2T.surface} />
-                ),
-              })}
-            </View>,
-            // settings — full screen when mounted; the inline expander stays
-            // as the fallback path (voice · units · morning alert)
-            <View key="settings">
-              {menuRow({
-                glyph: "layers", label: t("sidebarSettings", lang),
-                onPress: () => (onFullSettings ? onFullSettings() : toggle("settings")),
-                open: onFullSettings ? undefined : section === "settings",
-              })}
-              {!onFullSettings && section === "settings" && panel(
-                <>
-                  {switchRow("settingsVoice", settings.voice, (v) => onSettings({ voice: v }))}
-                  {switchRow("settingsShowCig", settings.show_cig, (v) => onSettings({ show_cig: v }), "settingsShowCigHint")}
-                  <View style={s.subRow}>
-                    <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t("settingsUnits", lang)}</Text>
-                    <Text {...DYNAMIC_TYPE} style={[s.subValue, { fontFamily: fam(lang, "reg") }]}>{t("unitsKm", lang)}</Text>
+          {/* 3 — the district-tile wall: saved places + the two daily
+              actions, four equal tiles in the admin 2-col rhythm */}
+          <Rise i={rise++} open={open}>
+            {sectionLabel(t("sidebarSavedPlaces", lang), st.todayUg === 0 && week.totalTrips === 0)}
+            <View style={s.tileRow}>{placeTile("home")}{placeTile("work")}</View>
+            {(onDelhiToday || true) && (
+              <View style={[s.tileRow, { marginTop: 10 }]}>
+                {onDelhiToday ? (
+                  <View style={{ flex: 1 }}>
+                    {gridTile({
+                      glyph: "city", label: t("sidebarDelhiToday", lang),
+                      value: t("delhiTodayOpen", lang), valueAccent: false,
+                      onPress: () => { onDelhiToday(); },
+                      chevron: true,
+                    })}
                   </View>
-                  {switchRow("morningAlert", settings.brief, async (v) => {
-                    if (v) onSettings({ brief: await onArmBrief() });
-                    else onSettings({ brief: false });
+                ) : <View style={{ flex: 1 }} />}
+                <View style={{ flex: 1 }}>
+                  {gridTile({
+                    glyph: (settings.vehicle ? vehicleGlyph(settings.vehicle) : "bike") as Glyph,
+                    label: t("sidebarMyVehicle", lang),
+                    value: settings.vehicle ? t(vehicleLabelKey(settings.vehicle), lang) : t("notSet", lang),
+                    onPress: () => toggle("vehicle"), chevron: true, open: section === "vehicle",
                   })}
-                </>,
-              )}
-            </View>,
-            <View key="how">
-              {menuRow({
-                glyph: "info", label: t("sidebarHowAliveWorks", lang),
-                onPress: () => toggle("how"), open: section === "how",
-              })}
-              {section === "how" && panel(
-                <Text {...DYNAMIC_TYPE} style={[s.howBody, { fontFamily: fam(lang, "reg") }]}>{t("howAliveBody", lang)}</Text>,
-                // SEAM(sources): claims-ledger sources link lands with doc 10 web surface
-              )}
-            </View>,
-            onShare && (
-              <View key="share">
-                {menuRow({ glyph: "share", label: t("share", lang), onPress: onShare })}
+                </View>
               </View>
-            ),
-          ])}
+            )}
+            {section === "vehicle" && (
+              <View style={s.optGrid}>
+                {VEHICLES.map((v) => {
+                  const sel = settings.vehicle === v.key;
+                  return (
+                    <Pressable key={v.key} accessibilityRole="button"
+                      accessibilityState={{ selected: sel }}
+                      onPress={() => { tick(); onSettings({ vehicle: v.key }); setSection(null); }}
+                      style={({ pressed }) => [
+                        s.optTile, sel && s.optTileOn, pressed && !sel && { opacity: 0.7 },
+                      ]}>
+                      <Icon name={vehicleGlyph(v.key)} color={sel ? V2T.accent : V2T.text2} size={20} />
+                      <Text {...DYNAMIC_TYPE} style={[s.optTileTxt, { fontFamily: fam(lang, "reg") },
+                        sel && { color: V2T.accent }]}>
+                        {t(v.labelKey, lang)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </Rise>
 
-          {/* destructive — lives in the sidebar by contract (settings-screen
-              doc); first-class row so it stays reachable when the inline
-              expander never mounts */}
-          {card([
-            menuRow({
-              glyph: "trash", label: t("settingsDeleteData", lang), danger: true,
-              hideChevron: true,
-              onPress: () =>
+          {/* 4 — Trips: tap → the ledger; "all saved trips" lands the
+              full ledger too */}
+          {recent.length > 0 && (
+            <Rise i={rise++} open={open}>
+              <View style={s.tripsHead}>
+                <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, { fontFamily: fam(lang, "semi"), marginBottom: 0, marginTop: 0 }]}>
+                  {t("sidebarTrips", lang)}
+                </Text>
+                {onTripReceipt && (
+                  <Pressable hitSlop={8} onPress={() => { tick(); onTripReceipt(recent[0]); }}
+                    accessibilityRole="button" accessibilityLabel={t("ledgerAllTime", lang)}
+                    style={({ pressed }) => [s.allBtn, pressed && { opacity: 0.65 }]}>
+                    <Icon name="history" color={V2T.accent} size={13} />
+                    <Text {...DYNAMIC_TYPE} style={[s.allBtnTxt, { fontFamily: fam(lang, "med") }]}>{t("ledgerAllTime", lang)}</Text>
+                  </Pressable>
+                )}
+              </View>
+              {card(recent.map((tr, i) => tripRow(tr, i)), 8)}
+            </Rise>
+          )}
+
+          {/* 5 — app group (language · sharing · settings · about) */}
+          <Rise i={rise++} open={open}>
+            {card([
+              // language — first-class segmented toggle (doc 02 §sidebar-7)
+              <View key="lang" style={s.row}>
+                <View style={s.langBadge}>
+                  <Text {...DYNAMIC_TYPE} style={s.langBadgeTxt}>अA</Text>
+                </View>
+                <Text {...DYNAMIC_TYPE} style={[s.rowLabel, s.rowMid, { fontFamily: fam(lang, "med") }]}>
+                  {t("settingsLanguage", lang)}
+                </Text>
+                <View style={s.segWrap}>
+                  {(["en", "hi"] as Lang[]).map((l) => (
+                    <Pressable key={l} onPress={() => { tick(); setLang(l); }}
+                      accessibilityRole="button" accessibilityState={{ selected: lang === l }}
+                      style={[s.seg, lang === l && s.segOn]}>
+                      <Text {...DYNAMIC_TYPE} style={[s.segTxt, { fontFamily: fam(l, "med") }, lang === l && { color: V2T.text }]}>
+                        {l === "en" ? "English" : "हिंदी"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>,
+              // anonymous trip donation — first-class action, explained in one
+              // line, one tap off (doc 07 §3)
+              <View key="donate">
+                {menuRow({
+                  glyph: "wind", label: t("settingsShareData", lang),
+                  hint: t("shareDataHint", lang), hideChevron: true,
+                  onPress: () => onSettings({ share: !settings.share }),
+                  trailing: (
+                    <Switch value={settings.share}
+                      onValueChange={(v) => onSettings({ share: v })}
+                      accessibilityLabel={t("settingsShareData", lang)}
+                      trackColor={{ false: V2T.line, true: V2T.accent }} thumbColor={V2T.surface} />
+                  ),
+                })}
+              </View>,
+              // settings — full screen when mounted; the inline expander stays
+              // as the fallback path (voice · units · morning alert)
+              <View key="settings">
+                {menuRow({
+                  glyph: "settings", label: t("sidebarSettings", lang),
+                  onPress: () => (onFullSettings ? onFullSettings() : toggle("settings")),
+                  open: onFullSettings ? undefined : section === "settings",
+                })}
+                {!onFullSettings && section === "settings" && (
+                  <View style={s.panel}>
+                    {switchRow("settingsVoice", settings.voice, (v) => onSettings({ voice: v }))}
+                    {switchRow("settingsShowCig", settings.show_cig, (v) => onSettings({ show_cig: v }), "settingsShowCigHint")}
+                    <View style={s.subRow}>
+                      <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t("settingsUnits", lang)}</Text>
+                      <Text {...DYNAMIC_TYPE} style={[s.subValue, { fontFamily: fam(lang, "reg") }]}>{t("unitsKm", lang)}</Text>
+                    </View>
+                    {switchRow("morningAlert", settings.brief, async (v) => {
+                      if (v) onSettings({ brief: await onArmBrief() });
+                      else onSettings({ brief: false });
+                    })}
+                  </View>
+                )}
+              </View>,
+              <View key="how">
+                {menuRow({
+                  glyph: "info", label: t("sidebarHowAliveWorks", lang),
+                  onPress: () => toggle("how"), open: section === "how",
+                })}
+                {section === "how" && (
+                  <View style={s.panel}>
+                    <Text {...DYNAMIC_TYPE} style={[s.howBody, { fontFamily: fam(lang, "reg") }]}>{t("howAliveBody", lang)}</Text>
+                  </View>
+                )}
+              </View>,
+              onShare && (
+                <View key="share">
+                  {menuRow({ glyph: "share", label: t("share", lang), onPress: onShare })}
+                </View>
+              ),
+            ])}
+          </Rise>
+
+          {/* destructive — a quiet row under the groups, not a card:
+              reachable, low-key, out of the accidental-tap path */}
+          <Rise i={rise++} open={open}>
+            <Pressable
+              onPress={() =>
                 Alert.alert(t("deleteConfirmTitle", lang), t("deleteConfirmBody", lang), [
                   { text: t("cancel", lang), style: "cancel" },
                   { text: t("deleteConfirmYes", lang), style: "destructive", onPress: onDeleteData },
-                ]),
-            }),
-          ])}
+                ])}
+              accessibilityRole="button" accessibilityLabel={t("settingsDeleteData", lang)}
+              style={({ pressed }) => [s.deleteRow, pressed && { opacity: 0.6 }]}>
+              <Icon name="trash" color={V2T.breath3} size={15} />
+              <Text {...DYNAMIC_TYPE} style={[s.deleteTxt, { fontFamily: fam(lang, "reg") }]}>
+                {t("settingsDeleteData", lang)}
+              </Text>
+            </Pressable>
+          </Rise>
         </ScrollView>
       </Animated.View>
     </View>
@@ -533,48 +611,84 @@ const s = StyleSheet.create({
   scrim: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: V2T.scrimDeep },
   drawer: {
     position: "absolute", left: 0, top: 0, bottom: 0, width: DRAWER_W,
-    backgroundColor: V2T.bg, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 4, height: 0 },
+    backgroundColor: V2T.glassDeep, borderRightWidth: 1, borderRightColor: V2T.glassEdge,
+    shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 26, shadowOffset: { width: 4, height: 0 },
     elevation: 12,
   },
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
+    borderBottomWidth: 1, borderBottomColor: V2T.glassLine,
   },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   mark: {
-    width: 30, height: 30, borderRadius: 9, backgroundColor: V2T.surface2,
-    borderWidth: 1, borderColor: V2T.line, alignItems: "center", justifyContent: "center",
+    width: 30, height: 30, borderRadius: 9, backgroundColor: V2T.glassSoft,
+    borderWidth: 1, borderColor: V2T.glassLine, alignItems: "center", justifyContent: "center",
   },
   wordmark: { fontFamily: F.semi, fontSize: V2Type.secondary, color: V2T.text, letterSpacing: 2.4 },
   closeBtn: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: V2T.surface2,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: V2T.line,
+    width: 32, height: 32, borderRadius: 16, backgroundColor: V2T.glassSoft,
+    borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center", justifyContent: "center",
   },
 
-  scroll: { paddingHorizontal: 16, paddingTop: 6 },
+  scroll: { paddingHorizontal: 14, paddingTop: 4 },
 
   sectionLabel: {
     fontSize: V2Type.label, color: V2T.text3, letterSpacing: 0.8,
     textTransform: "uppercase", marginTop: 18, marginBottom: 8, marginLeft: 2,
   },
-  sectionLabelFirst: { marginTop: 10 },
+  sectionLabelFirst: { marginTop: 12 },
+
+  /* ---- the tile grammar — inner frost tiles on the milk pane,
+     admin-district rhythm: 10px gaps, 12px radius, generous padding ---- */
+  tileRow: { flexDirection: "row", gap: 10 },
+  tile: {
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.glassLine,
+  },
+  gridTile: {
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.glassLine,
+    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12, minHeight: 92,
+  },
+  gridTileDown: { backgroundColor: V2T.glassSel, borderColor: V2T.accentTint },
+  tileTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  tileIcon: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: V2T.accentWash, borderWidth: 1, borderColor: V2T.glassLine,
+    alignItems: "center", justifyContent: "center",
+  },
+  tileCorner: { padding: 4, marginTop: -4, marginRight: -4 },
+  tileLabel: { fontSize: V2Type.label, color: V2T.text3, marginTop: 10 },
+  tileValue: { fontSize: V2Type.secondary, color: V2T.text, marginTop: 2 },
+
+  /* vehicle option grid — 2-col tiles under the vehicle tile */
+  optGrid: {
+    flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10,
+  },
+  optTile: {
+    flexBasis: "48%", flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 9,
+    paddingHorizontal: 12, paddingVertical: 12, minHeight: 48,
+    borderRadius: V2Radius.row, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.glassLine, backgroundColor: V2T.glassSoft,
+  },
+  optTileOn: { borderColor: V2T.accent, backgroundColor: V2T.glassSel },
+  optTileTxt: { fontSize: V2Type.label, color: V2T.text, flexShrink: 1 },
 
   card: {
-    backgroundColor: V2T.surface, borderRadius: V2Radius.row,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.glassLine,
     overflow: "hidden",
   },
-  hair: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.line, marginLeft: 50 },
+  hair: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.glassLine, marginLeft: 50 },
 
   row: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    minHeight: 50, paddingHorizontal: 14, paddingVertical: 10,
+    minHeight: 52, paddingHorizontal: 14, paddingVertical: 10,
   },
-  rowPressed: { backgroundColor: V2T.surface2 },
+  rowPressed: { backgroundColor: "rgba(255,255,255,0.55)" },
   rowDangerPress: { backgroundColor: "#FBEAEA" },
   rowIcon: { width: 24, alignItems: "center" },
   rowMid: { flex: 1 },
@@ -584,7 +698,7 @@ const s = StyleSheet.create({
 
   panel: {
     marginHorizontal: 8, marginBottom: 8, borderRadius: 10,
-    backgroundColor: V2T.surface2, paddingVertical: 2,
+    backgroundColor: V2T.glassFaint, borderWidth: 1, borderColor: V2T.glassLine, paddingVertical: 2,
   },
   subRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -595,32 +709,47 @@ const s = StyleSheet.create({
   miniBtn: { padding: 6 },
   miniAction: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.accent },
 
-  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 10 },
-  chip: {
-    flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: V2Radius.pill, borderWidth: 1, borderColor: V2T.line,
+  /* today hero tiles */
+  statTile: {
+    flex: 1, backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.glassLine,
+    paddingHorizontal: 14, paddingVertical: 14,
   },
-  chipOn: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
-  chipTxt: { fontSize: V2Type.label, color: V2T.text },
-
-  todayRow: { flexDirection: "row", alignItems: "stretch" },
-  statCol: { flex: 1, paddingHorizontal: 16, paddingVertical: 16 },
   statHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   statCap: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text2 },
-  statNum: { fontFamily: F.semi, fontSize: 30, color: V2T.text, lineHeight: 36, marginTop: 6 },
+  statNum: { fontFamily: F.semi, fontSize: 30, color: V2T.text, lineHeight: 36, marginTop: 8 },
   statCmp: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 6 },
-  statDiv: { width: StyleSheet.hairlineWidth, backgroundColor: V2T.line, marginVertical: 14 },
 
-  weekRow: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 12, paddingVertical: 14 },
+  weekRow: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 12, paddingTop: 14 },
+  weekCap: {
+    fontSize: V2Type.label, color: V2T.text3,
+    paddingHorizontal: 14, paddingTop: 8, paddingBottom: 11,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.glassLine, marginTop: 10,
+  },
   dayCol: { flex: 1, alignItems: "center" },
   dayBarWrap: { height: 46, justifyContent: "flex-end" },
   dayBar: { width: 10, borderRadius: 4 },
   dayLabel: { fontFamily: F.reg, fontSize: 10, color: V2T.text3, marginTop: 6 },
 
+  tripsHead: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginTop: 18, marginBottom: 0, marginLeft: 2,
+  },
+  allBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
+  },
+  allBtnTxt: { fontSize: V2Type.label, color: V2T.accent },
+
   trip: {
     flexDirection: "row", alignItems: "center", gap: 12,
     minHeight: 52, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  tripIcon: {
+    width: 32, height: 32, borderRadius: 9, backgroundColor: V2T.glassFaint,
+    borderWidth: 1, borderColor: V2T.glassLine,
+    alignItems: "center", justifyContent: "center",
   },
   tripMid: { flex: 1 },
   tripTxt: { fontSize: V2Type.secondary, color: V2T.text },
@@ -629,14 +758,15 @@ const s = StyleSheet.create({
 
   segWrap: {
     flexDirection: "row", borderRadius: V2Radius.pill,
-    borderWidth: 1, borderColor: V2T.line, overflow: "hidden",
+    borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
+    backgroundColor: V2T.glassSoft,
   },
   seg: { paddingHorizontal: 12, paddingVertical: 6 },
-  segOn: { backgroundColor: V2T.surface2 },
+  segOn: { backgroundColor: V2T.glassSel },
   segTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text3 },
   langBadge: {
-    width: 24, height: 24, borderRadius: 7, backgroundColor: V2T.surface2,
-    borderWidth: 1, borderColor: V2T.line, alignItems: "center", justifyContent: "center",
+    width: 24, height: 24, borderRadius: 7, backgroundColor: V2T.accentWash,
+    borderWidth: 1, borderColor: V2T.glassLine, alignItems: "center", justifyContent: "center",
   },
   langBadgeTxt: { fontFamily: F.semi, fontSize: 10, color: V2T.text2 },
 
@@ -644,4 +774,10 @@ const s = StyleSheet.create({
     fontSize: V2Type.secondary, color: V2T.text2, lineHeight: 22,
     paddingHorizontal: 12, paddingVertical: 10,
   },
+
+  deleteRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    marginTop: 22, paddingVertical: 12,
+  },
+  deleteTxt: { fontSize: V2Type.secondary, color: V2T.breath3 },
 });
