@@ -535,15 +535,16 @@ async function tick(){
   }
   if(!t.trips)$('donations').innerHTML=emptyMsg(
     'no donations yet — totals appear when the first anonymized trip summary lands. nothing is zero-filled.');
-  /* the live feed — aggregate-level events only (mode/dose/km/co2);
-     the store deliberately cannot say where or who */
+  /* the live feed — UTC-hour aggregates only (mode/dose/km/co2 sums);
+     a row exists only where >=3 distinct devices donated in that hour,
+     so nothing shown can collapse to one person's journey */
   const feed=donations.recent||[];
   $('feed').innerHTML=feed.length?
-    `<div class="feed-h">live feed · newest donations</div>`+feed.map(e=>{
+    `<div class="feed-h">live feed · busiest hours (k≥3 devices)</div>`+feed.map(e=>{
       const s=Math.max(0,Math.round(((donations.ts||Date.now()/1000)-(e.ts||0))));
       return `<div class="feed-row">
         <span class="f-t">${ago(s)} ago</span>
-        <span class="f-m">${esc(e.mode||'trip')}${e.switched?' <span style="color:var(--ink4)">·switched</span>':''}</span>
+        <span class="f-m">${esc(e.mode||'trip')}${e.trips>1?' <span style="color:var(--ink4)">×'+e.trips+'</span>':''}${e.switched?' <span style="color:var(--ink4)">·switched</span>':''}</span>
         <span class="f-d" style="color:${doseInk(e.dose_ug||0)}">${fmt1(e.dose_ug)} µg</span>
         <span class="f-k">${fmt1(e.km)} km</span>
         <span class="f-c">${e.co2_kg_mid?fmt1(e.co2_kg_mid)+' kg co₂':''}</span>

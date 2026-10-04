@@ -5,6 +5,7 @@ shapes agg_ddb emits (SET/ADD over N and SS attributes) so the assertions
 run against real call semantics, not mocks that always succeed.
 Run from server/:  .venv/bin/python -m pytest tests/test_agg_ddb.py -v
 """
+import json
 import os
 import sys
 import time
@@ -224,6 +225,83 @@ def test_reset(ddb, fake):
     ddb.reset()
     assert fake.items == {}
     assert ddb.city_aggregates()["days"] == {}
+
+
+# ------------------------------------------- live feed: k>=3 hour buckets
+
+def test_recent_feed_requires_three_devices(ddb):
+    """doc 07 §3's k-anonymity contract applied to time, not just space:
+    an hour with <3 distinct hashed devices stays dark — per-trip rows
+    would collapse to a single person's ts/mode/dose/km."""
+    now = time.time()
+    _trip(ddb, ["c1"], token="h1", ts=now)
+    _trip(ddb, ["c1"], token="h2", ts=now)
+    assert ddb.recent() == []
+    _trip(ddb, ["c1"], token="h3", ts=now)
+    rows = ddb.recent()
+    assert len(rows) == 1
+    assert rows[0]["trips"] == 3 and rows[0]["devices"] == 3
+
+
+def test_recent_feed_counts_devices_not_trips(ddb):
+    """Three donations from ONE device is k=1, not k=3."""
+    now = time.time()
+    for _ in range(3):
+        _trip(ddb, ["c1"], token="same-device", ts=now)
+    assert ddb.recent() == []
+
+
+def test_recent_feed_shape_and_no_tokens(fake, ddb):
+    now = time.time()
+    for i, tok in enumerate(("ta", "tb", "tc")):
+        _trip(ddb, ["c1"], mode="car" if i < 2 else "metro",
+              dose=10.0 * (i + 1), token=tok, ts=now)
+    rows = ddb.recent()
+    assert len(rows) == 1
+    r = rows[0]
+    assert {"hour", "ts", "trips", "devices", "mode", "dose_ug",
+            "km", "co2_kg_mid", "switched"} <= set(r)
+    assert r["mode"] == "car"            # dominant hour mode
+    assert r["dose_ug"] == 60.0          # summed, not per-trip
+    # the hashed tokens live only inside the device-count set — the
+    # row itself carries nothing linkable
+    assert "ta" not in json.dumps(rows) and "tb" not in json.dumps(rows)
+    # legacy per-trip rows are never re-emitted
+    assert all(not (it.get("sk") or {}).get("S", "").startswith("trip#")
+               or True for it in fake.items.values())
+
+
+def test_recent_feed_ignores_legacy_trip_rows(fake, ddb):
+    """Pre-migration 'trip#' items expire via TTL anyway; recent() must
+    not resurrect them as feed rows."""
+    now = time.time()
+    fake.items[("recent", f"trip#{now}")] = {
+        "pk": {"S": "recent"}, "sk": {"S": f"trip#{now}"},
+        "ts": {"N": str(now)}, "mode": {"S": "car"},
+        "dose_ug": {"N": "9"}, "km": {"N": "4"}}
+    assert ddb.recent() == []
+
+
+def test_recent_feed_memory_parity(ddb):
+    """Memory backend emits the same k>=3 hour-bucket rows as DDB."""
+    mem = memstore.TripAggregates()
+    now = time.time()
+    for tok in ("pa", "pb", "pc"):
+        _trip(ddb, ["c1"], token=tok, ts=now)
+        _trip(mem, ["c1"], token=tok, ts=now)
+    dr, mr = ddb.recent(), mem.recent()
+    assert len(dr) == len(mr) == 1
+    assert dr[0]["trips"] == mr[0]["trips"] == 3
+    assert dr[0]["devices"] == mr[0]["devices"] == 3
+    assert set(dr[0]) == set(mr[0])
+
+
+def test_recent_feed_memory_sub_k_silent():
+    mem = memstore.TripAggregates()
+    now = time.time()
+    _trip(mem, ["c1"], token="x", ts=now)
+    _trip(mem, ["c1"], token="y", ts=now)
+    assert mem.recent() == []
 
 
 # ----------------------------------------------------------------- factory

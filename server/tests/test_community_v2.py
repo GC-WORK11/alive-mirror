@@ -200,6 +200,29 @@ def test_recent_obs_are_hour_buckets_not_trips():
             "avoided_ug", "km"} <= _keys(rows)
 
 
+def test_recent_obs_suppresses_sub_k_hours():
+    """An hour bucket of 1-2 devices is a thin slice of someone's trip
+    (mode, summed dose/km, near-exact age) — the same k>=3
+    distinct-device rule as corridor cells applies to recent_journeys."""
+    now = time.time()
+    for dev in ("dev-a", "dev-b"):                 # this hour: k=2 -> dark
+        community._obs.append(_mk_obs(now, dev))
+    for dev in ("dev-c", "dev-d", "dev-e"):        # prev hour: k=3 -> shown
+        community._obs.append(_mk_obs(now - 3700, dev))
+    rows = community.recent_obs(20)
+    assert len(rows) == 1
+    assert rows[0]["trips"] == 3 and rows[0]["devices"] == 3
+
+
+def test_recent_obs_counts_devices_not_trips():
+    """Three donations from ONE device in the same hour is k=1, not
+    k=3 — trips count alone must never publish the bucket."""
+    now = time.time()
+    for _ in range(3):
+        community._obs.append(_mk_obs(now, "same-dev"))
+    assert community.recent_obs(20) == []
+
+
 # --- endpoint-hiding trim (doc 07 §3, enforced server-side for /observe) ---
 def test_observe_untrimmed_caller_gets_endpoint_trim():
     """The legacy /observe endpoint posts the full planned polyline —

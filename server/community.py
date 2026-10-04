@@ -239,16 +239,23 @@ def recent_obs(limit: int = 20) -> list[dict]:
     This used to return per-trip rows carrying the contributor id —
     linkable slices of individual journeys. Doc 07 §2 asks the admin
     surface for 'trips (aggregate): per hour/day', so each row is an
-    hour bucket the whole city's trips collapsed into."""
+    hour bucket the whole city's trips collapsed into — AND a bucket
+    only publishes when it holds >=_K_MIN_DEVICES distinct hashed
+    contributors, the same k-anonymity contract corridor cells use:
+    a trips:1 or trips:2 bucket still collapses to someone's exact
+    hour/mode/duration/km/dose, which is per-person data."""
     _load()
     by: dict = {}
     for o in _obs:
         h = int(o["ts"] // 3600)
         r = by.setdefault(h, {
-            "trips": 0, "duration_s": 0.0, "dose_ug": 0.0,
-            "avoided_ug": 0.0, "km": 0.0, "last_ts": 0.0, "modes": {},
+            "trips": 0, "devices": set(), "duration_s": 0.0,
+            "dose_ug": 0.0, "avoided_ug": 0.0, "km": 0.0,
+            "last_ts": 0.0, "modes": {},
         })
         r["trips"] += 1
+        if o.get("contributor"):
+            r["devices"].add(o["contributor"])
         r["duration_s"] += o["duration_s"] or 0
         r["dose_ug"] += o["dose_ug"] or 0
         r["avoided_ug"] += o["avoided_ug"] or 0
@@ -259,12 +266,13 @@ def recent_obs(limit: int = 20) -> list[dict]:
         "hour": time.strftime("%Y-%m-%d %H:00Z", time.gmtime(h * 3600)),
         "age_min": round((time.time() - r["last_ts"]) / 60, 1),
         "trips": r["trips"],
+        "devices": len(r["devices"]),
         "vehicle": max(r["modes"], key=r["modes"].get) if r["modes"] else None,
         "duration_s": round(r["duration_s"], 1),
         "dose_ug": round(r["dose_ug"], 1),
         "avoided_ug": round(r["avoided_ug"], 1),
         "km": round(r["km"], 1),
-    } for h, r in by.items()]
+    } for h, r in by.items() if len(r["devices"]) >= _K_MIN_DEVICES]
     out.sort(key=lambda x: x["age_min"])
     return out[:limit]
 
