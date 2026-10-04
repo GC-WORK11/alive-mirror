@@ -4,28 +4,36 @@
  *  a render — each call site is a user-visible state change.
  *
  *  Every helper swallows failure: simulators without a vibrator, web,
- *  and devices with haptics off must never throw into a gesture path. */
+ *  devices with haptics off, and platforms where the method is missing
+ *  must never throw into a gesture path. That includes ASYNC failure —
+ *  a rejected promise escapes a plain try/catch as an unhandled
+ *  rejection, so each call also attaches a no-op .catch. */
 import * as Haptics from "expo-haptics";
+
+const silent = (p: Promise<void> | undefined): void => {
+  try { void p?.catch(() => { /* no haptics — silent */ }); }
+  catch { /* synchronous throw — silent */ }
+};
 
 /** Selection tick — picking a row/card (compare option, wizard card,
  *  search result). Subtle; fires often, so keep it the lightest. */
 export function tick(): void {
-  try { void Haptics.selectionAsync(); } catch { /* no vibrator — silent */ }
+  try { silent(Haptics.selectionAsync()); } catch { /* no vibrator — silent */ }
 }
 
 /** Soft confirm — the compare sheet's full option set lands, a reminder
  *  gets armed, a toggle flips state that costs a beat. */
 export function tap(): void {
-  try { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* silent */ }
+  try { silent(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); } catch { /* silent */ }
 }
 
 /** Commit bump — Start navigation, save, share. */
 export function confirm(): void {
-  try { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* silent */ }
+  try { silent(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)); } catch { /* silent */ }
 }
 
 /** Arrival / done buzz — the one celebration the journey earns. */
 export function arrived(): void {
-  try { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+  try { silent(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }
   catch { /* silent */ }
 }
