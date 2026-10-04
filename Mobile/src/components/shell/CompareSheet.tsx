@@ -455,8 +455,11 @@ export function CompareSheet({
               )}
               {departCurve?.slots?.length ? (
                 <View style={{ marginTop: 10, marginBottom: 4 }}>
+                  {/* a tapped column brightens + the caption quotes that
+                      slot's dose — real reading, not decoration */}
                   <DepartGraph data={departCurve.slots}
-                    bestHour={departCurve.best?.hour ?? 0} lang={lang} />
+                    bestHour={departCurve.best?.hour ?? 0} lang={lang}
+                    onSelectHour={() => tick()} />
                 </View>
               ) : null}
               {anyBars && (

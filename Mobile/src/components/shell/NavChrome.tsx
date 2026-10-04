@@ -16,6 +16,7 @@ import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { approx, t, type Lang } from "../../i18n/strings";
+import { confirm, tap } from "../../haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 import type { CompareOption, Step } from "./types";
@@ -342,13 +343,13 @@ export function NavChrome({
           </Text>
         </Animated.View>
         {onRecenter && (
-          <Pressable onPress={onRecenter} hitSlop={6}
+          <Pressable onPress={() => { tap(); onRecenter(); }} hitSlop={6}
             accessibilityRole="button" accessibilityLabel={t("nav_recenter", lang)}
             style={({ pressed }) => [s.act, pressed && s.actDown]}>
             <Icon name="locate" color={V2T.text2} size={20} />
           </Pressable>
         )}
-        <Pressable onPress={onExit} hitSlop={6}
+        <Pressable onPress={() => { confirm(); onExit(); }} hitSlop={6}
           accessibilityRole="button" accessibilityLabel={t("end", lang)}
           style={({ pressed }) => [s.act, pressed && s.actDown]}>
           <Icon name="close" color={V2T.text2} size={20} />

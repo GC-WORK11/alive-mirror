@@ -24,7 +24,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
-import { F, NUM, V2T, V2Type, fam } from "../theme";
+import { NUM, V2T, V2Type, fam } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 
@@ -49,7 +49,8 @@ export type DepartGraphProps = {
   height?: number;
 };
 
-const NOW_LABEL: Record<Lang, string> = { en: "now", hi: "अब" };
+/* "now" moved into strings.ts (departNow) — the local map predated the
+   key; t() keeps en+hi in step with the rest of the sheet. */
 
 const TICK_W = 48;
 
@@ -121,11 +122,12 @@ export function DepartGraph({
               <View style={[s.bar, { height: y(d.dose_mid), backgroundColor: c }]} />
             </View>
           );
-          const a11y = `${d.hour === nowHour ? NOW_LABEL[lang] : `+${d.hour}h`} ≈ ${Math.round(d.dose_mid)} µg`;
+          const a11y = `${d.hour === nowHour ? t("departNow", lang) : `+${d.hour}h`} ≈ ${Math.round(d.dose_mid)} µg`;
           return onSelectHour ? (
             <Pressable
               key={d.hour} style={s.cell} accessibilityRole="button" accessibilityLabel={a11y}
-              onPress={() => { setInnerSel(d.hour); onSelectHour(d.hour, d); }}>
+              onPress={() => { setInnerSel(d.hour); onSelectHour(d.hour, d); }}
+              hitSlop={4}>
               {col}
             </Pressable>
           ) : (
@@ -143,9 +145,9 @@ export function DepartGraph({
           return (
             <View key={d.hour} style={[s.tick, { left }]}>
               <Text {...DYNAMIC_TYPE} style={[s.tickOffset, { fontFamily: fam(lang, "reg") }, d.hour === bestHour && { color: V2T.accent }]} numberOfLines={1}>
-                {d.hour === nowHour ? NOW_LABEL[lang] : `+${d.hour}h`}
+                {d.hour === nowHour ? t("departNow", lang) : `+${d.hour}h`}
               </Text>
-              <Text {...DYNAMIC_TYPE} style={[s.tickClock, NUM]} numberOfLines={1}>
+              <Text {...DYNAMIC_TYPE} style={[s.tickClock, NUM, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
                 {clockOf(d.start) ?? " "}
               </Text>
             </View>
@@ -159,8 +161,8 @@ export function DepartGraph({
           {t("receipt_estShort", lang)}
         </Text>
         {detail && (
-          <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM]}>
-            {`${detail.hour === nowHour ? NOW_LABEL[lang] : `+${detail.hour}h`}` +
+          <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM, { fontFamily: fam(lang, "reg") }]}>
+            {`${detail.hour === nowHour ? t("departNow", lang) : `+${detail.hour}h`}` +
               `${clockOf(detail.start) ? ` · ${clockOf(detail.start)}` : ""} ≈ ${Math.round(detail.dose_mid)} µg`}
           </Text>
         )}
@@ -184,13 +186,13 @@ const s = StyleSheet.create({
   axis: { position: "relative", height: 30, marginTop: 3 },
   tick: { position: "absolute", width: TICK_W, alignItems: "center" },
   tickOffset: { fontSize: 10, color: V2T.text2, lineHeight: 13 },
-  tickClock: { fontFamily: F.reg, fontSize: 9, color: V2T.text3, lineHeight: 12 },
+  tickClock: { fontSize: 9, color: V2T.text3, lineHeight: 12 },
   caption: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "baseline",
     marginTop: 4, paddingHorizontal: 2,
   },
   capTxt: { fontSize: V2Type.label, color: V2T.text3 },
-  capVal: { fontFamily: F.reg, color: V2T.text2 },
+  capVal: { color: V2T.text2 },
 });
 
 export default DepartGraph;
