@@ -1133,12 +1133,25 @@ async def admin_page():
 
 @app.get("/city")
 async def city_page():
-    """'The City Breathes' — the dark editorial surface (docs/24 §8):
-    kriged field as wind-advected particles, the city's cigarette strip,
-    corridor measurements. Judges land here; commuters never need to."""
+    """Delhi NCR air, district by district — light ops-family surface:
+    the live CPCB choropleth over baked OSM boundaries, the pixel field
+    underneath, corridor measurements. Judges land here."""
     from fastapi.responses import FileResponse
     import os
     return FileResponse(os.path.join(os.path.dirname(__file__), "city.html"))
+
+
+@app.get("/ncr.geojson")
+async def ncr_districts_geojson():
+    """The baked NCR district boundaries the /city choropleth paints —
+    static asset (server/static/ncr_districts.geojson), cached at the
+    edge; /v2/districts carries the live numbers."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "ncr_districts.geojson"),
+        media_type="application/geo+json")
 
 
 @app.get("/reverse")
