@@ -76,6 +76,11 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 - 40-OD audit re-run by lead on 3c7f86d8: 10/38 ODs win vs fast row, 16/38 vs same-mode, 0 absurd detours, 103 worse-dose rows (all duration-model artifact per decomp — 0 genuinely-smokier corridors).
 - UI/UX combined lane SPAWNED (ebe5ed90, SWE-2 Max) after depth-lane terminate freed its slot — Android+admin exhaustive sweep + cross-consistency + recorded E2E + APK rebuild.
 - Backend lane (29adb480) also owns: band-coverage calibration vs held-out station truth (is the ±13% krige band calibrated? coverage % inside band at 2σ).
+- Lead `c8ee6c1` deployed live (build_sha c8ee6c1b): `_mode_cap_duration_s` clamps router-row implied speeds at the engine graph's own ceilings (routegraph.MODE_RULES spd — bike 50, auto 40, cycle 16, walk 5; car uncapped). Verified Gurugram→CP: bike osrm row exactly 50.0 km/h implied (was ~61.7 = scooter outrunning cars → ~30% dose understatement), auto exactly 40.0. freeflow_s capped identically (no phantom idle). 4 tests pin it.
+- `degraded` flag verified live: a transit-arm timeout on a warm CP→Shahdara call surfaced `degraded:["transit"]` — dead arms now visible, previously silent.
+- Lead `e11f1ca` pushed (next deploy): transit legs carry per-leg dose {mid,lo,hi,avg_conc_ugm3,microenv} — the depth lane's flagged gap; 1 test.
+- Backend lane mid-flight found a real engine pathology: C++ calls held the GIL for the whole solve → ~6 concurrent stretched the 8s budget to ~16s measured live. GIL released in pybind + conc-table RCU + reach-set locking; shipping pending.
+- OWNER RE-SCOPE (2026-10-04): /admin is a GLOBAL judge dashboard — remove "a breath, today" ticker (done in UI/UX lane brief), district spacing polish, Delhi's 11 internal revenue districts + fuller NCR roster (13 today), field-map cell click → locality name via /v2/reverse, global tiles (users-by-area, OD flows, emissions saved). Split: admin_agg/APIs → backend lane; admin.html/city.html → UI/UX lane.
 
 Open gaps, ranked (from master-plan.md):
 1. Owner's testing overhaul mandate: exhaustive per-feature Android + admin sweep (every screen/button/border) + recorded E2E vs live API — UI/UX lane RUNNING (ebe5ed90); backend lane covers admin API; lead verified admin+city+exposure live.
