@@ -184,3 +184,20 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   (scripts/geo/run_stack.sh is docker-host shaped; Fargate has none) —
   public demo carries all router arms, degraded flag makes failure
   honest. Post-submission hardening, documented not built.
+
+## handoff cont.4 — admin overhaul LIVE-verified + main merged (2026-10-04 ~18:25 UTC)
+
+- Live-verified on `a3cdf2fa` (deployed + browsed): 1,600-cell map,
+  hover cards (SECTOR + district + conf + gazetteer name), methodology
+  card painting correctly after the paint-before-unhide fix (`e44798ce`),
+  corridor table all 7 cols incl. `air pm2.5` (live field_pm25 join).
+- Contract: `properties.cell_epoch` declared on GridResponse
+  (contract.ts) — test_contract_sync 51 green. Full suite: 905 passed
+  + that 1 fix = green.
+- main merged `7552140` (no-ff): admin overhaul + Android polish lane's
+  3 commits (Material Symbols Rounded icons, milky morphism token ramp,
+  JourneyDrawer distributed rework — lane iOS-sim verified, tsc+lint
+  clean; Pixel_7 verification child devin-fcccf061 still running, lane
+  1def589f reports when it settles).
+- Perf verified live: /grid?cells=40 cold ~7s, warm ~1.5s (epoch-keyed
+  _grid_cached); admin skips identical-epoch repaints via cell_epoch.
