@@ -26,6 +26,7 @@ metro/walk/cycle + common aliases); `vehicle_profile` may carry
 Delhi fleet prior, never a 4xx.
 """
 import asyncio
+import concurrent.futures
 import logging
 import threading
 import time
@@ -917,8 +918,9 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
                            depart_at),
         _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile),
         asyncio.wait_for(
-            asyncio.to_thread(_engine_options, flat, flon, tlat, tlon,
-                              vehicle, profile),
+            asyncio.get_running_loop().run_in_executor(
+                _ENG_EXEC, _engine_options, flat, flon, tlat, tlon,
+                vehicle, profile),
             timeout=ENGINE_BUDGET_S),
         return_exceptions=True)
     options = ([o for o in (motor or []) if isinstance(o, dict)]
@@ -956,6 +958,13 @@ ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
                 ("walk", "On foot"))
 _ENG_T = 0.0
 _ENG_LOCK = threading.Lock()
+# private 2-worker pool: the shared default executor serves every
+# to_thread in the process (GTFS compile, rasters, forecasts) — a busy
+# moment could queue the engine arm inside its own 8 s budget and burn
+# it before a single query ran. Two workers keep concurrent plans from
+# fully serializing behind one another.
+_ENG_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="alive-eng")
 
 
 def _engine():

@@ -72,6 +72,27 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_transit())
+    # The exposure path engine prices itself lazily on the first
+    # /v2/plan — and a cold field makes that first reweight find no
+    # raster cells, so the first minute or two of plans honestly serve
+    # no engine rows. Build the graph at boot and keep retrying the
+    # reweight until the field serves (bounded; plans still degrade
+    # honestly either way — never a fabricated row).
+    async def _warm_engine():
+        try:
+            import routegraph
+            from v2 import plan as _v2plan
+            eng = await asyncio.to_thread(routegraph.path_engine)
+            for _ in range(36):  # ~6 min ceiling
+                await asyncio.to_thread(_v2plan._engine_reweight, eng)
+                ep = getattr(eng, "edges_priced", 0)
+                ep = ep() if callable(ep) else (ep or 0)
+                if ep > 0:
+                    return
+                await asyncio.sleep(10)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_engine())
     yield
 
 
