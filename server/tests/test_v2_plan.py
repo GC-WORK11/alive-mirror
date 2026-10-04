@@ -582,6 +582,34 @@ def test_plan_full_engine_down_is_flagged_degraded(monkeypatch):
         "failed engine arm must not fabricate engine rows"
 
 
+def test_transit_option_attaches_per_leg_dose():
+    """Every transit leg must carry the dose the row sums — per-leg
+    mid/lo/hi + avg_conc_ugm3 for the client's leg-by-leg view."""
+    journey = {
+        "mode": "metro", "duration_s": 960.0,
+        "legs": [
+            {"type": "walk", "duration_s": 300.0, "distance_m": 400,
+             "geometry": {"type": "LineString", "coordinates":
+                          [[77.2167, 28.6315], [77.2180, 28.6290]]},
+             "from": {"name": "cp"}, "to": {"name": "stn"}},
+            {"type": "metro", "duration_s": 600.0, "distance_m": 3000,
+             "wait_s": 60.0,
+             "geometry": {"type": "LineString", "coordinates":
+                          [[77.2180, 28.6290], [77.2510, 28.5494]]},
+             "from": {"name": "stn"}, "to": {"name": "stn2"}},
+        ],
+        "lines": ["Yellow"], "walk_m": 400, "transfers": 0,
+    }
+    opt = v2plan._transit_option(journey, "car", None,
+                                 (28.6315, 77.2167), (28.5494, 77.2510))
+    walk, metro = opt["legs"][0]["dose"], opt["legs"][1]["dose"]
+    for legd in (walk, metro):
+        assert legd["mid"] > 0 and legd["avg_conc_ugm3"] is not None
+    assert walk["microenv"] == "walking" and metro["microenv"] == "metro"
+    # walk breathes at walking VE — its per-leg conc×VE must exceed metro's
+    assert walk["mid"] > 0
+
+
 # --- router-row mode speed caps (honest implied speeds) -------------------------
 def test_mode_cap_clamps_bike_above_50():
     # dist 6.2 km at implied 62 km/h car freeflow → bike×0.9 implies

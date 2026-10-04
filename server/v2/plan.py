@@ -418,6 +418,17 @@ def _leg_dose(legs: list) -> dict:
             lo += e["dose_ug_lo"]
             hi += e.get("dose_ug_hi") or e["dose_ug"]
             have_band = True
+        # per-leg dose for the client's leg-by-leg view — the same
+        # exposure.dose numbers the row sums, never a second estimate
+        leg["dose"] = {
+            "mid": round(e["dose_ug"], 1),
+            "lo": round(e["dose_ug_lo"], 1)
+                  if e.get("dose_ug_lo") is not None else None,
+            "hi": round(e["dose_ug_hi"], 1)
+                  if e.get("dose_ug_hi") is not None else None,
+            "avg_conc_ugm3": e.get("avg_conc_ugm3"),
+            "microenv": me,
+        }
         ac = e.get("avg_conc_ugm3")
         d_i = _leg_dist_m(leg)
         if ac is not None and d_i > 0:
