@@ -33,7 +33,7 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 | 12 | recorded product demo | **live** — iOS 4min clean take, admin walkthrough, Android e2e_demo.mp4 (3:19) | final ≤3min hackathon cut = owner's edit |
 | 13 | admin = global aggregates only, no profiles | **live** — k≥3 enforced, hashed tokens in k-sets, AGGREGATES ONLY badge | — |
 | 14 | users-by-area, journeys per OD, emissions saved | **live** — tiles exist; dose_avoided 99.2µg flowing; areas/OD suppressed honestly until k≥3 | small donation base — tiles sparse by design |
-| 15 | "their reviews" | **live** — POST /v2/feedback (stars+≤240 note, NO token/device stored) → Settings row in app (a876ec8) → admin tile verified live "5★ · 1 review"; note bodies publish only at k≥3, hour-bucketed, ≤140 chars | — |
+| 15 | "their reviews" | **live** — POST /v2/feedback (stars+≤240 note, NO token/device stored) → Settings row → admin tile. **iOS-sim verified e2e on live API**: tap row → stars → note → send → "thanks — that helps" → server count 2, avg 4.0, hist matches taps. Bodies publish only at k≥3 | — |
 | 16 | remove "a breath, today" | **live** — removed | — |
 | 17 | Delhi internal districts + NCR (Ghaziabad, Gurgaon) | **live** — 28 tiles: 15 NCR + 13 Delhi sub-areas (OSM has no 14th+ sub-area boundary — real, not faked) | — |
 | 18 | field cell click → locality name | **live** — verified: "near NH9 trunk", "DGD Bhorgarh clinic"; 150m honest 404 | — |

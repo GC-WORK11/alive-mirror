@@ -246,3 +246,22 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   infeasible).
 - vision-audit.md refreshed: rows 15/24 live; OSRM gap now in-flight; APK gap
   logged; deploy ref e849bf6f.
+
+## handoff cont.7 — reviews verified e2e + cold-solve warm (2026-10-04 ~11:15 IST)
+
+- **Reviews e2e on iOS sim vs live API**: Settings → rate ALive·108 → 3★ +
+  note → send → "thanks — that helps"; server /admin/api/global went
+  count 1→2, avg 5.0→4.0, hist {3:1,5:1} matches the taps. k≥3 body gate
+  still honestly withholding.
+- **API contract tightened**: invalid stars → 422 (was 200 stored:false).
+- **Cold-solve warm**: first plan on a fresh task paid ~9.5s inside the 8s
+  arm budget → degraded:["engine"]. _warm_engine now burns 5 real mode
+  solves (CP→Karol Bagh) after edges_priced>0. Deploy fa332d76 carries it.
+- **Landing**: og:title/description + theme-color meta.
+- **Soak probe (120 calls, 2.5min)**: health p50 467ms, /community 557ms,
+  /v2/reverse 467ms, /city 698ms, /grid?cells=40 1.47s warm ×24 calls,
+  zero real failures (RTT floor ~460ms from this box).
+- Fresh release APK on e849bf6f delivered by lane 4890a49f (130MB, proofs
+  grepped): https://app.devin.ai/attachments/739c91df-eef9-4730-9235-3d1eb5035168/app-release.apk
+- OSRM lane 4a3551bc still running.
+- main merged f317270 (suite 910 green).
