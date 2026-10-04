@@ -29,14 +29,28 @@ sidecar is the deployment-shaped version of the same stack.
   degrades, it never takes the API down (`essential: false`, hard
   `memory: 1024` cap; task bumped 2048 → 3072).
 
-## Provenance (verify without admin)
+## Provenance
 
-- `/v2/plan` rows built from an OSRM route carry `router_backend`:
-  `osrm-local` | `osrm-public-demo`.
-- `/route` and `/directions` return `router_backend` at top level;
-  `/compare` returns it per-profile.
-- `/admin/api/status` `routing.backend` (OSRM_LAST) shows the last
-  observed backend + ms.
+- `/admin/api/sources` → `routing.backend` (OSRM_LAST) reports the
+  backend of the last real route call: `osrm-local` | `osrm-public-demo`,
+  plus ms and age — observed from traffic, never a synthetic ping.
+- `/v2/plan` rows carry `steps_source: 'osrm'` (the engine), not which
+  backend answered — the backend signal is the admin endpoint above.
+- `routing_local` also tags the route dict internally (`source`,
+  `demo_rate_limited`) if a future lane wants to forward it.
+
+## Verified live (2026-10-04)
+
+- CodeBuild `alive108-osrm-build`: extract → MLD graph (489 MB,
+  4.4 M edges) → `alive108-osrm:ncr-20261004` + `:latest` (269 MB
+  compressed) → in-build smoke test Connaught Place → Gurugram
+  31.1 km / 23 turn steps → pushed to ECR.
+- Deployed as task-def rev 103 (`SKIP_BUILD=1 IMAGE_TAG=fa332d76
+  OSRM_TAG=latest` — same API image, only the sidecar added); osrm
+  container HEALTHY, NLB target healthy.
+- `/v2/plan` Delhi OD ×3 → 24 options each; `/admin/api/sources`
+  `routing.backend="osrm-local"`, ms ≈ 116–148 (was ~600 ms +
+  rate-limit risk on the public demo).
 
 ## Build a new graph image
 
@@ -50,8 +64,10 @@ The buildspec apt-installs `osmium-tool`, runs `fetch_extract.sh` +
 `OSRM_MODES=driving build_osrm.sh`, bakes `Dockerfile.osrm`, then
 **smoke-tests the image**: `osrm-routed` serving a Connaught Place →
 Gurugram OD on the build host — `docker push` only happens after a real
-route with real turn steps comes back. The graph tarball is archived at
-`s3://alive108-build-<acct>/geo/delhi-osrm-mld-<tag>.tar.gz`.
+route with real turn steps comes back. The graph tarball archive to
+`s3://alive108-build-<acct>/geo/` is best-effort — the codebuild role
+has no `s3:PutObject` on that bucket, so the step warns and continues
+(the ECR image is the real artifact).
 
 Env overrides: `OSRM_TAG` (image tag, default `ncr-<date>`),
 `OSRM_MODES` (add `walking cycling` to ship 3 daemons later — needs
@@ -69,7 +85,7 @@ Deploy fails fast if the ECR image is absent.
 
 ## What it costs / what it is not
 
-- +1 GB Fargate task memory (~$1/mo on Spot) + ECR storage (~0.7 GB).
+- +1 GB Fargate task memory (2048 → 3072) + ECR storage (~0.27 GB).
 - Not traffic-aware (freeflow durations, same as before) and not real
   cycle/walk graphs (car parity, as the demo). Adding the two missing
   profiles is `OSRM_MODES="driving walking cycling"` + two more
