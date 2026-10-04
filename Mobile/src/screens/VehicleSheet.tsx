@@ -17,7 +17,7 @@
 // Re-opened from the options-sheet chip via CompareSheet's onVehiclePress.
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../theme";
@@ -333,7 +333,10 @@ function Wizard({ lang, current, onDone, onClose }: {
             </Text>
           )}
           <ScrollView style={s.scroll} contentContainerStyle={s.scrollIn}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+            /* a tap must still reach the cards while the PUC keyboard is
+               up — 'handled' eats taps only when they would dismiss it */
+            keyboardShouldPersistTaps="handled">
             {step === "cls" && (GROUPED ? (
               CLASS_GROUPS.map((g) => (
                 <View key={g.title}>
@@ -447,7 +450,12 @@ function Wizard({ lang, current, onDone, onClose }: {
   );
 }
 
-/** <VehicleSheet visible lang current onDone onClose/> — see header. */
+/** <VehicleSheet visible lang current onDone onClose/> — see header.
+ *  Plain overlay, not RN Modal: a Modal window ignores the activity's
+ *  adjustResize, so the decimal keyboard covered the PUC readings while
+ *  typing. Anchored in the main window the sheet rides above the IME,
+ *  and hardware BACK reaches App.tsx's dispatcher (vehicleOpen) — the
+ *  same path Modal's onRequestClose used to take. */
 export function VehicleSheet({
   visible, lang = "en", current = null, onDone, onClose,
 }: {
@@ -457,22 +465,20 @@ export function VehicleSheet({
   onDone: (p: VehicleProfile) => void;
   onClose: () => void;
 }) {
+  if (!visible) return null;
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.backdrop}>
-        <View style={{ flex: 1 }} />
-        {visible ? (
-          <Wizard lang={lang} current={current} onDone={onDone} onClose={onClose} />
-        ) : null}
-      </View>
-    </Modal>
+    <View style={s.overlay} pointerEvents="box-none">
+      <View style={s.backdrop} />
+      <Wizard lang={lang} current={current} onDone={onDone} onClose={onClose} />
+    </View>
   );
 }
 
 export default VehicleSheet;
 
 const s = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.scrim },
+  overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: V2T.scrim },
   /* half-detent (~50% viewport) crops the grouped class grid's last row
      on first paint — cap at 72% so cycle/walk is fully visible without
      a full-screen takeover. */
