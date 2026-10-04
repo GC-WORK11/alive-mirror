@@ -59,8 +59,9 @@ how the city moves, what it inhales, what it emits — with zero personal data.
    pipeline is 0.8–6.9s. Demo script should show fast-paint (ms) first.
 3. **users-by-area sparse** — real k≥3 math; needs real devices over days.
 4. **iOS-only sim artifacts** — documented; physical Android is the demo.
-5. **Release APK predates HEAD** — polish + emit_kg + review-row landed
-   after the last build; fresh APK lane building now.
+5. ~~Release APK predates HEAD~~ **RESOLVED 2026-10-04** — fresh
+   release APK built on the polish-lane HEAD and delivered
+   (emit_kg + review-row + milky morphism all in).
 
 ## the one-line pitch (for the landing page)
 
