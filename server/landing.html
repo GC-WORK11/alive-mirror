@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ALive-108 — the route your lungs pay least for</title>
+<title>ALive·108 — the route your lungs pay least for</title>
 <meta name="description" content="Delhi's air has a price per street. 1.07M road edges priced live off a kriged pollution field — we route you down the one your lungs pay least for.">
 <meta name="theme-color" content="#fafaf7">
 <meta property="og:type" content="website">
@@ -10,379 +10,664 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='monospace' font-size='13' fill='%2314181f' text-anchor='middle'%3Ea108%3C/text%3E%3Ccircle cx='24' cy='9' r='3' fill='%23b45309'/%3E%3C/svg%3E">
 <style>
 :root{
-  --paper:#fafaf7; --surface:#fff; --ink:#14181f; --ink2:#3a4150;
-  --ink3:#6b7280; --ink4:#9aa0ab; --line:#e7e4dc; --hair:#efeee9;
-  --amber:#b45309; --amber-wash:#fdf3e3; --sage:#4d7c0f; --sage-wash:#f2f7e8;
+  --paper:#fafaf7; --surface:#fffdf8; --ink:#14181f; --ink2:#3a4150;
+  --ink3:#6b7280; --ink4:#9aa0ab; --faint:#c8c9c3;
+  --line:#e7e4dc; --hair:#efeee9;
+  --amber:#b45309; --amber-wash:#fdf3e3; --maroon:#7f1d2f;
+  --sage:#4d7c0f; --sage-wash:#f2f7e8;
   --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
-  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
-  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
-*{margin:0;padding:0;box-sizing:border-box}
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
+         "Segoe UI",Inter,system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
+  --r-xl:28px; --r-lg:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);
-  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
-  text-rendering:optimizeLegibility}
-::selection{background:var(--amber-wash)}
-a{color:inherit;text-decoration:none}
-.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden}
+::selection{background:var(--amber-wash);color:var(--maroon)}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 28px}
 
-/* ————— masthead ————— */
-.mast{position:fixed;top:0;left:0;right:0;z-index:20;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  background:rgba(250,250,247,.75);border-bottom:1px solid transparent;
+/* ————— pill masthead ————— */
+.mast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:30;
+  width:min(1120px-56px,calc(100% - 40px));max-width:1064px}
+.mast-in{display:flex;align-items:center;justify-content:space-between;gap:18px;
+  background:rgba(250,250,247,.82);backdrop-filter:blur(14px) saturate(1.3);
+  -webkit-backdrop-filter:blur(14px) saturate(1.3);
+  border:1px solid var(--line);border-radius:999px;
+  padding:9px 10px 9px 20px;box-shadow:0 1px 0 rgba(20,24,31,.03),
+    0 12px 34px -18px rgba(20,24,31,.14);
   transition:border-color .3s}
-.mast.scrolled{border-color:var(--hair)}
-.mast-in{max-width:1080px;margin:0 auto;padding:14px 24px;display:flex;
-  align-items:center;justify-content:space-between}
-.wordmark{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
-  text-transform:uppercase}
-.wordmark b{color:var(--amber);font-weight:500}
-.mast nav{display:flex;gap:22px;font-family:var(--mono);font-size:10px;
+.mast.scrolled .mast-in{border-color:#ddd9cf}
+.wordmark{font-family:var(--mono);font-size:12px;letter-spacing:.18em;
+  font-weight:700;text-decoration:none;white-space:nowrap}
+.wordmark i{font-style:normal;color:var(--amber)}
+.mast nav{display:flex;gap:26px;font-family:var(--mono);font-size:10px;
   letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+.mast nav a{text-decoration:none;transition:color .2s}
 .mast nav a:hover{color:var(--ink)}
-.live-dot{display:inline-block;width:5px;height:5px;border-radius:50%;
-  background:var(--sage);margin-right:6px;animation:pulse 3s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.mast .cta{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;text-decoration:none;background:var(--ink);
+  color:var(--paper);padding:10px 18px;border-radius:999px;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),background .2s}
+.mast .cta:hover{background:var(--maroon);transform:scale(1.03)}
+@media(max-width:760px){.mast nav{display:none}}
 
 /* ————— hero ————— */
-.hero{padding:148px 0 0;text-align:center}
-.kicker{font-family:var(--mono);font-size:10px;letter-spacing:.26em;
-  text-transform:uppercase;color:var(--ink3);margin-bottom:26px}
-h1{font-family:var(--serif);font-weight:400;font-size:clamp(44px,7.2vw,84px);
-  line-height:1.02;letter-spacing:-.02em}
-h1 em{font-style:italic;letter-spacing:0}
-.hero .sub{max-width:560px;margin:26px auto 0;font-size:17px;
-  color:var(--ink3);line-height:1.65}
-.ctas{margin-top:36px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 26px;
-  border-radius:99px;font-size:14px;letter-spacing:.01em;
-  transition:transform .18s,box-shadow .18s}
-.btn.solid{background:var(--ink);color:var(--paper)}
-.btn.solid:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(20,24,31,.18)}
-.btn.ghost{border:1px solid var(--line);color:var(--ink2)}
-.btn.ghost:hover{border-color:var(--ink3)}
-.meta{font-family:var(--mono);font-size:10.5px;color:var(--ink4);
-  letter-spacing:.1em;margin-top:22px}
-.meta b{color:var(--ink3);font-weight:500}
-
-/* ————— the ascii field ————— */
-.field-frame{margin:84px auto 0;max-width:980px;padding:0 24px}
-.field-card{background:var(--surface);border:1px solid var(--line);
-  border-radius:20px;overflow:hidden;box-shadow:0 24px 70px -30px rgba(20,24,31,.18)}
-.field-head{display:flex;justify-content:space-between;align-items:center;
-  padding:13px 18px;border-bottom:1px solid var(--hair);
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+.hero{padding:170px 0 0;text-align:center}
+.micro{font-family:var(--mono);font-size:10px;letter-spacing:.34em;
   text-transform:uppercase;color:var(--ink3)}
-.field-head .r{color:var(--ink4)}
-pre.aether{font-family:var(--mono);font-size:clamp(5.4px,0.82vw,8.4px);
-  line-height:1.18;letter-spacing:.06em;padding:22px 18px;
-  overflow-x:auto;color:var(--ink2);white-space:pre;text-align:left;
-  user-select:none}
-pre.aether .g0{color:#b7bcc6}pre.aether .g1{color:#a89a7c}
-pre.aether .g2{color:#a08457}pre.aether .g3{color:#96693c}
-pre.aether .g4{color:#8a4b2e}pre.aether .g5{color:#8a2d3e}
-pre.aether .g6{color:#7f1d2f}
-.field-cap{padding:0 18px 15px;font-family:var(--mono);font-size:9.5px;
-  letter-spacing:.08em;color:var(--ink4)}
-.field-cap b{color:var(--ink3);font-weight:500}
+.micro .dot{color:var(--amber)}
+h1{font-weight:700;font-size:clamp(46px,7.6vw,96px);line-height:.98;
+  letter-spacing:-.035em;margin-top:30px}
+h1 .serif-em{font-family:var(--serif);font-style:italic;font-weight:400;
+  letter-spacing:-.02em;display:block;margin-top:.04em}
+.hero .sub{max-width:600px;margin:30px auto 0;font-size:17.5px;
+  line-height:1.6;color:var(--ink3);font-weight:400}
+.hero .sub b{color:var(--ink2);font-weight:600}
+.hero .ctas{display:flex;gap:12px;justify-content:center;margin-top:36px;
+  flex-wrap:wrap}
+.btn-s{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;text-decoration:none;padding:15px 26px;
+  border-radius:999px;background:var(--ink);color:var(--paper);
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),background .2s}
+.btn-s:hover{background:var(--maroon);transform:scale(1.04)}
+.btn-g{padding:15px 26px;border-radius:999px;border:1px solid var(--line);
+  color:var(--ink2);font-family:var(--mono);font-size:11px;
+  letter-spacing:.14em;text-transform:uppercase;text-decoration:none;
+  transition:border-color .2s,color .2s,transform .25s cubic-bezier(.34,1.56,.64,1)}
+.btn-g:hover{border-color:var(--ink4);color:var(--ink);transform:scale(1.04)}
+.hero .meta{margin-top:30px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.14em;color:var(--ink4)}
+.hero .meta b{color:var(--sage);font-weight:700}
+.stamp-row{display:flex;gap:30px;justify-content:center;margin-top:52px;
+  flex-wrap:wrap}
+.stamp{width:104px;height:104px;border-radius:50%;border:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;font-family:var(--mono);text-align:center;
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1),border-color .3s}
+.stamp:hover{transform:rotate(-6deg) scale(1.06);border-color:var(--ink4)}
+.stamp b{font-size:15px;letter-spacing:-.02em;color:var(--ink)}
+.stamp span{font-size:8px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink4);max-width:78px;line-height:1.5}
 
-/* ————— sections ————— */
-section{padding:96px 0 8px}
-.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.24em;
-  text-transform:uppercase;color:var(--amber);margin-bottom:18px}
-h2{font-family:var(--serif);font-weight:400;font-size:clamp(30px,4vw,46px);
-  line-height:1.1;letter-spacing:-.015em;max-width:640px}
-h2 em{font-style:italic}
-section p.lede{max-width:560px;margin-top:18px;font-size:16.5px;
-  color:var(--ink3);line-height:1.7}
+/* ————— the aether (live shader field) ————— */
+.aether-sec{margin:90px auto 0;max-width:1120px;padding:0 28px}
+.aether-frame{position:relative;background:var(--ink);border-radius:var(--r-xl);
+  overflow:hidden;box-shadow:0 30px 80px -40px rgba(20,24,31,.45),
+    0 2px 0 rgba(255,255,255,.06) inset}
+.aether-head{display:flex;justify-content:space-between;align-items:center;
+  padding:16px 22px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.18em;text-transform:uppercase;color:#8a8f9c;
+  border-bottom:1px solid rgba(255,255,255,.07)}
+.aether-head .live{color:#d3a356}
+.aether-head .live::before{content:"●";margin-right:7px;font-size:8px;
+  vertical-align:1px;animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+#aether{display:block;width:100%;height:auto;cursor:crosshair}
+.aether-cap{display:flex;justify-content:space-between;gap:14px;
+  padding:14px 22px 18px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.12em;color:#7c818f;flex-wrap:wrap}
+.aether-cap .hint{color:#5d6270}
+.aether-note{text-align:center;font-family:var(--mono);font-size:10px;
+  letter-spacing:.12em;color:var(--ink4);margin-top:16px;line-height:1.9}
+.aether-note b{color:var(--ink3);font-weight:600}
 
-/* pipeline */
-.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:0;margin-top:48px;border:1px solid var(--line);border-radius:16px;
-  overflow:hidden;background:var(--surface)}
-.pipe .step{padding:22px 18px 20px;border-right:1px solid var(--hair);
-  border-bottom:1px solid var(--hair)}
-.pipe .n{font-family:var(--mono);font-size:9px;color:var(--ink4);
-  letter-spacing:.2em;margin-bottom:12px}
-.pipe .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
-  text-transform:uppercase;margin-bottom:9px}
-.pipe .d{font-size:12.5px;color:var(--ink3);line-height:1.6}
-.pipe .d b{color:var(--ink);font-weight:500}
+/* ————— statement ————— */
+.statement{padding:150px 0 40px;text-align:center}
+.statement p{font-family:var(--serif);font-size:clamp(30px,4.6vw,52px);
+  line-height:1.18;letter-spacing:-.015em;max-width:860px;margin:0 auto}
+.statement p em{color:var(--amber)}
+.statement .tag{font-family:var(--mono);font-size:10px;letter-spacing:.34em;
+  text-transform:uppercase;color:var(--ink4);margin-bottom:34px;display:block}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+  max-width:760px;margin:44px auto 0}
+.chip{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  color:var(--ink3);border:1px solid var(--line);border-radius:999px;
+  padding:7px 14px;background:var(--surface);
+  transition:border-color .2s,transform .3s cubic-bezier(.34,1.56,.64,1)}
+.chip:hover{border-color:var(--ink4);transform:translateY(-2px)}
 
-/* split rows */
-.split-row{display:grid;grid-template-columns:1fr 1fr;gap:60px;
-  align-items:center;margin-top:56px}
-@media(max-width:760px){.split-row{grid-template-columns:1fr;gap:30px}}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;
-  background:var(--line);border:1px solid var(--line);border-radius:16px;
-  overflow:hidden}
-.stat{background:var(--surface);padding:20px 18px}
-.stat .v{font-family:var(--mono);font-size:22px;color:var(--ink)}
-.stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink4);margin-top:7px;line-height:1.6}
-blockquote{font-family:var(--serif);font-style:italic;font-size:clamp(21px,2.6vw,28px);
-  line-height:1.4;color:var(--ink);border:none;padding:0}
-blockquote .who{display:block;font-family:var(--mono);font-style:normal;
-  font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
-  color:var(--ink4);margin-top:16px}
+/* ————— pipeline (editorial spine) ————— */
+.pipe{padding:110px 0 0}
+.pipe h2,.faces h2,.band h2{font-size:clamp(28px,3.6vw,42px);font-weight:700;
+  letter-spacing:-.03em;line-height:1.05;max-width:560px}
+.pipe h2 em,.faces h2 em,.band h2 em{font-family:var(--serif);
+  font-style:italic;font-weight:400}
+.spine{margin-top:60px;border-left:1px solid var(--line);padding-left:0}
+.step{display:grid;grid-template-columns:64px 1fr;gap:0;
+  border-top:1px solid var(--hair)}
+.step:last-child{border-bottom:1px solid var(--hair)}
+.step .n{font-family:var(--mono);font-size:10px;color:var(--ink4);
+  letter-spacing:.2em;padding:26px 0 26px 22px}
+.step .b{padding:22px 0 22px 30px;border-left:1px solid var(--hair);
+  transition:background .25s}
+.step:hover .b{background:var(--surface)}
+.step h3{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.step p{margin-top:7px;font-size:13.5px;line-height:1.65;color:var(--ink3);
+  max-width:520px}
+.step .tag{font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--amber);margin-top:9px;display:block}
 
-/* ascii divider */
-.divider{font-family:var(--mono);font-size:10px;letter-spacing:.35em;
-  color:var(--ink4);text-align:center;padding:70px 0 0;user-select:none;
-  white-space:nowrap;overflow:hidden}
+/* ————— artifact trio (live DOM cards) ————— */
+.trio{padding:110px 0 0}
+.trio .tag{font-family:var(--mono);font-size:10px;letter-spacing:.34em;
+  text-transform:uppercase;color:var(--ink4);text-align:center;display:block}
+.trio h2{text-align:center;max-width:640px;margin:22px auto 0;
+  font-size:clamp(28px,3.6vw,42px);font-weight:700;letter-spacing:-.03em}
+.trio h2 em{font-family:var(--serif);font-style:italic;font-weight:400}
+.trio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;
+  margin-top:64px;align-items:start}
+@media(max-width:860px){.trio-grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-lg);overflow:hidden;
+  transition:transform .45s cubic-bezier(.34,1.4,.64,1),box-shadow .45s}
+.card:hover{transform:translateY(-6px) rotate(-.4deg);
+  box-shadow:0 24px 50px -28px rgba(20,24,31,.25)}
+.card:nth-child(2){transform:translateY(26px)}
+.card:nth-child(2):hover{transform:translateY(20px) rotate(.4deg)}
+.card .hd{padding:13px 18px;border-bottom:1px solid var(--hair);
+  display:flex;justify-content:space-between;font-family:var(--mono);
+  font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink4)}
+.card .hd .r{color:var(--amber)}
+.card .bd{padding:18px}
+.doserow{display:flex;align-items:baseline;gap:10px;padding:9px 0;
+  border-bottom:1px dashed var(--hair);font-size:12.5px}
+.doserow:last-child{border-bottom:none}
+.doserow .mode{flex:1;font-weight:500;color:var(--ink2)}
+.doserow .v{font-family:var(--mono);font-size:11px;color:var(--ink);
+  font-weight:600}
+.doserow .band{font-family:var(--mono);font-size:9px;color:var(--ink4)}
+.doserow.best .mode{color:var(--sage)}
+.doserow.best .v{color:var(--sage)}
+.corr{font-size:12.5px;padding:9px 0;border-bottom:1px dashed var(--hair)}
+.corr:last-child{border-bottom:none}
+.corr .nm{font-weight:500;color:var(--ink2)}
+.corr .mt{font-family:var(--mono);font-size:9.5px;color:var(--ink4);
+  margin-top:3px;letter-spacing:.04em}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  background:var(--hair)}
+.statgrid>div{background:var(--surface);padding:16px 18px}
+.statgrid b{font-size:19px;font-weight:700;letter-spacing:-.02em;
+  display:block}
+.statgrid span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink4);display:block;margin-top:4px}
+.card .ft{padding:11px 18px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.14em;color:var(--ink4);border-top:1px solid var(--hair);
+  text-transform:uppercase}
 
-/* corridor preview */
-.minitable{width:100%;border-collapse:collapse;background:var(--surface);
-  border:1px solid var(--line);border-radius:16px;overflow:hidden;
-  font-size:12.5px}
-.minitable th{font-family:var(--mono);font-size:9px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink3);font-weight:400;text-align:left;
-  padding:12px 14px;border-bottom:1px solid var(--line)}
-.minitable td{padding:11px 14px;border-bottom:1px solid var(--hair);
-  color:var(--ink2)}
-.minitable td.num,.minitable th.num{text-align:right;
-  font-variant-numeric:tabular-nums}
-.minitable .mono{font-family:var(--mono);font-size:11px}
+/* ————— the honest band ————— */
+.band{padding:130px 0 0}
+.band-in{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:start}
+@media(max-width:860px){.band-in{grid-template-columns:1fr;gap:36px}}
+.band p.lede{margin-top:26px;font-size:15.5px;line-height:1.7;
+  color:var(--ink3);max-width:440px}
+.band blockquote{font-family:var(--serif);font-style:italic;
+  font-size:clamp(19px,2.2vw,24px);line-height:1.5;color:var(--ink2);
+  border-left:2px solid var(--amber);padding-left:22px;margin-top:34px}
+.band .who{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  color:var(--ink4);margin-top:14px;padding-left:24px}
+.bandnums{display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r-lg);overflow:hidden}
+.bandnums>div{background:var(--paper);padding:24px}
+.bandnums b{font-size:26px;font-weight:700;letter-spacing:-.03em;display:block}
+.bandnums span{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink4);display:block;margin-top:6px;
+  line-height:1.7}
 
-/* cta band */
-.final{padding:110px 0 60px;text-align:center}
-.final h2{margin:0 auto}
-.final .sub{max-width:520px;margin:22px auto 0;color:var(--ink3);font-size:16px}
-footer{border-top:1px solid var(--line);margin-top:60px}
-.foot-in{max-width:1080px;margin:0 auto;padding:26px 24px 40px;
-  display:flex;justify-content:space-between;align-items:baseline;
-  flex-wrap:wrap;gap:12px;font-family:var(--mono);font-size:9.5px;
-  letter-spacing:.14em;text-transform:uppercase;color:var(--ink4)}
-.foot-in a:hover{color:var(--ink)}
-.reveal{opacity:0;transform:translateY(18px);
-  transition:opacity .7s ease,transform .7s ease}
-.reveal.on{opacity:1;transform:none}
-</style></head><body>
+/* ————— two faces ————— */
+.faces{padding:130px 0 0}
+.faces-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:60px}
+@media(max-width:860px){.faces-grid{grid-template-columns:1fr}}
+.face{border:1px solid var(--line);border-radius:var(--r-lg);padding:30px;
+  background:var(--surface);transition:transform .4s cubic-bezier(.34,1.4,.64,1)}
+.face:hover{transform:translateY(-4px)}
+.face .tag{font-family:var(--mono);font-size:9px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--ink4)}
+.face h3{font-size:21px;font-weight:700;letter-spacing:-.02em;margin-top:14px}
+.face h3 em{font-family:var(--serif);font-style:italic;font-weight:400}
+.face p{margin-top:12px;font-size:13.5px;line-height:1.65;color:var(--ink3)}
+.face ul{list-style:none;margin-top:18px}
+.face li{font-size:13px;color:var(--ink2);padding:8px 0 8px 22px;
+  border-top:1px dashed var(--hair);position:relative}
+.face li::before{content:"·";position:absolute;left:6px;color:var(--amber);
+  font-weight:700}
+.face a.more{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink);text-decoration:none;
+  display:inline-block;margin-top:20px;border-bottom:1px solid var(--ink);
+  padding-bottom:2px}
 
-<div class="mast" id="mast"><div class="mast-in">
-  <div class="wordmark">alive<b>·</b>108</div>
+/* ————— final ————— */
+.final{padding:150px 0 130px;text-align:center}
+.final h2{font-size:clamp(34px,4.8vw,58px);font-weight:700;
+  letter-spacing:-.035em;line-height:1.02}
+.final h2 em{font-family:var(--serif);font-style:italic;font-weight:400}
+.final .sub{max-width:520px;margin:24px auto 0;font-size:15.5px;
+  color:var(--ink3);line-height:1.65}
+.final .ctas{margin-top:38px;display:flex;gap:12px;justify-content:center;
+  flex-wrap:wrap}
+
+/* ————— footer ————— */
+.foot{border-top:1px solid var(--line)}
+.foot-in{max-width:1120px;margin:0 auto;padding:30px 28px 46px;
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  color:var(--ink4);text-transform:uppercase}
+.foot a{color:var(--ink3);text-decoration:none}
+.foot a:hover{color:var(--ink)}
+.foot .glyph{color:var(--amber)}
+
+/* ————— reveal ————— */
+.rv{opacity:0;transform:translateY(26px);
+  transition:opacity .9s cubic-bezier(.22,1,.36,1),
+             transform .9s cubic-bezier(.22,1,.36,1)}
+.rv.on{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  .rv{opacity:1;transform:none;transition:none}
+}
+</style>
+</head><body>
+
+<header class="mast" id="mast"><div class="mast-in">
+  <a class="wordmark" href="/">ALIVE<i>·</i>108</a>
   <nav>
-    <a href="/city">the live city</a>
-    <a href="/admin">ops board</a>
     <a href="#field">the field</a>
-    <a href="#math">the math</a>
+    <a href="#pipeline">how it prices</a>
+    <a href="#faces">the two faces</a>
   </nav>
-</div></div>
+  <a class="cta" href="/city">watch the city breathe →</a>
+</div></header>
 
-<div class="hero wrap">
-  <div class="kicker">delhi / ncr · live · every breath priced</div>
-  <h1>Delhi's air has a price<br><em>per street.</em></h1>
-  <p class="sub">1.07 million road edges, repriced this minute by the smoke
-    on each one. Type from and to — we return the route your lungs pay
-    least for, with an honest band on how sure we are.</p>
+<section class="hero">
+  <div class="micro">delhi / ncr <span class="dot">·</span> live exposure engine</div>
+  <h1>Delhi's air has a price<span class="serif-em">per street.</span></h1>
+  <p class="sub">Type <b>from</b> and <b>to</b>: in milliseconds a C++ engine
+  searches NCR's 1.07 million road edges — each one priced by the smoke
+  on it this minute — and returns the route your lungs pay least for,
+  with an honest band around it.</p>
   <div class="ctas">
-    <a class="btn solid" href="/city">watch the city breathe →</a>
-    <a class="btn ghost" href="#field">read the live field</a>
+    <a class="btn-s" href="/city">open the live field →</a>
+    <a class="btn-g" href="#field">see it breathe ↓</a>
   </div>
-  <div class="meta" id="meta"><span class="live-dot"></span>fetching live counts…</div>
-</div>
+  <div class="meta" id="meta">reading the field…</div>
+  <div class="stamp-row rv">
+    <div class="stamp"><b>1.07M</b><span>road edges priced</span></div>
+    <div class="stamp"><b id="stStat">—</b><span>instruments live</span></div>
+    <div class="stamp"><b>95.2%</b><span>band coverage @2σ</span></div>
+    <div class="stamp"><b>k≥3</b><span>privacy floor</span></div>
+  </div>
+</section>
 
-<div class="field-frame" id="field">
-  <div class="field-card">
-    <div class="field-head">
+<section class="aether-sec" id="field">
+  <div class="aether-frame rv">
+    <div class="aether-head">
       <span>the field — pm2.5, this hour</span>
-      <span class="r" id="ffieldage">—</span>
+      <span class="live" id="liveTag">connecting</span>
     </div>
-    <pre class="aether" id="aether">reading the field…</pre>
-    <div class="field-cap" id="fcap">each glyph is a real interpolated cell —
-      light ink is thin coverage, dense ink is measured smog. not a picture.</div>
+    <canvas id="aether" aria-label="live ascii field of pm2.5 over delhi ncr"></canvas>
+    <div class="aether-cap">
+      <span id="aetherCap">—</span>
+      <span class="hint">hover a cell · each glyph is one real 40×40 cell</span>
+    </div>
   </div>
-</div>
+  <p class="aether-note">not a texture — <b>the actual interpolated surface the router prices on.</b><br>
+  faint dots are thin-coverage cells. we draw the doubt instead of hiding it.</p>
+</section>
 
-<section class="wrap" id="math">
-  <div class="eyebrow">the math, in plain words</div>
-  <h2>A trip becomes a dose,<br><em>street by street.</em></h2>
-  <div class="pipe">
-    <div class="step"><div class="n">01</div><div class="t">measure</div>
-      <div class="d"><b>24 instruments</b> across NCR report a US-EPA
-      sub-index → inverted through EPA breakpoints into real µg/m³,
-      Kalman-smoothed per station.</div></div>
-    <div class="step"><div class="n">02</div><div class="t">interpolate</div>
-      <div class="d">stations blend with <b>CAMS model samples</b>, spatial
-      de-bias pulls the model toward instruments, ordinary krige renders
-      <b>1,600 live cells</b>.</div></div>
-    <div class="step"><div class="n">03</div><div class="t">price</div>
-      <div class="d">every road edge carries the <b>smoke on it, this
-      minute</b> — not yesterday's average, never a vibe.</div></div>
-    <div class="step"><div class="n">04</div><div class="t">route</div>
-      <div class="d">a C++ A* searches <b>1.07M priced edges</b> in
-      milliseconds and returns the dose-optimal way, not the fastest.</div></div>
-    <div class="step"><div class="n">05</div><div class="t">breathe</div>
-      <div class="d">dose = field × your mode's ventilation × minutes.
-      car AC ≠ windows down ≠ bike — <b>your body knows the difference</b>.</div></div>
-    <div class="step"><div class="n">06</div><div class="t">aggregate</div>
-      <div class="d">donated trips anonymize to <b>k≥3 corridors</b> — the
-      city gets a live sensor mesh, nobody gets a file.</div></div>
+<section class="statement rv">
+  <span class="tag">the pitch, in one breath</span>
+  <p>Every route home is a lungful.<br>
+  Most apps bill it to you blind —<br>
+  <em>we meter it, per street, per minute.</em></p>
+  <div class="chips">
+    <span class="chip">kriged field</span>
+    <span class="chip">5 real modes</span>
+    <span class="chip">legal turns only</span>
+    <span class="chip">honest ±bands</span>
+    <span class="chip">k≥3 aggregates</span>
+    <span class="chip">no tokens stored</span>
+    <span class="chip">$0 data feeds</span>
   </div>
 </section>
 
-<section class="wrap">
-  <div class="eyebrow">the honest band</div>
-  <h2>We quote <em>±</em> — because we'd rather<br>say it than fake it.</h2>
-  <p class="lede">Every dose carries an uncertainty band calibrated against
-    held-out station hours — krige σ ×3.2, measured 95.2% coverage at ±2σ
-    on 7,240 replayed readings. When coverage is thin, the cell tells you.
-    When a source dies, the board names it.</p>
-  <div class="split-row">
-    <div class="stat-grid">
-      <div class="stat"><div class="v">95.2%</div>
-        <div class="k">measured coverage at ±2σ — 7,240 held-out station hours</div></div>
-      <div class="stat"><div class="v">24.16 µg</div>
-        <div class="k">model error, archive-replay MAE — 7,240 pairs</div></div>
-      <div class="stat"><div class="v">ms</div>
-        <div class="k">engine solve — C++ over 1,070,459 priced edges</div></div>
-      <div class="stat"><div class="v">k ≥ 3</div>
-        <div class="k">a corridor appears only after 3+ distinct devices cross it</div></div>
-    </div>
-    <blockquote>“the band is the product.
-      a number without its error bar is a lie with good typography.”
-      <span class="who">— the standing rule, since commit one</span>
-    </blockquote>
-  </div>
-</section>
-
-<div class="divider">·&nbsp;&nbsp;˚&nbsp;&nbsp;∘&nbsp;&nbsp;°&nbsp;&nbsp;˚&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;˚&nbsp;&nbsp;∘&nbsp;&nbsp;°&nbsp;&nbsp;˚&nbsp;&nbsp;·</div>
-
-<section class="wrap">
-  <div class="eyebrow">the merged view</div>
-  <h2>Every shared trip becomes<br><em>a live sensor.</em></h2>
-  <p class="lede">Trips (aggregated, k-anonymized) joined against the live
-    field they crossed — how many bodies moved through which air, and what
-    it cost them. This table doesn't exist anywhere else.</p>
-  <div class="split-row" style="align-items:start">
-    <div>
-      <table class="minitable"><thead><tr>
-        <th>corridor</th><th class="num">traversals</th>
-        <th class="num">avg dose</th><th class="num">devices</th>
-      </tr></thead><tbody id="corr"></tbody></table>
-      <div class="field-cap" style="padding:12px 4px 0" id="corrcap">live — pulled from the ops feed</div>
-    </div>
-    <div>
-      <p class="lede" style="margin-top:0">Open Streets says where people
-        drive. CPCB says what stations breathe. Nobody else says what
-        <b>the trip itself inhaled</b> — corridor by corridor, this hour.
-        That's the aggregate surface the app quietly builds.</p>
-      <p class="lede">No profiles. No names. Hashed tokens live inside
-        per-cell k-sets and die there. The dashboard can show you the
-        city — never the citizen.</p>
+<section class="pipe" id="pipeline">
+  <div class="wrap">
+    <span class="tag" style="font-family:var(--mono);font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ink4)">how a trip gets priced</span>
+    <h2>Measure, interpolate, <em>then breathe.</em></h2>
+    <div class="spine rv">
+      <div class="step"><div class="n">01</div><div class="b">
+        <h3>measure</h3>
+        <p>WAQI + CPCB instruments across NCR land as US-EPA sub-indices —
+        we invert the breakpoint table back to µg/m³ before anything
+        touches them.</p><span class="tag">24 live now</span>
+      </div></div>
+      <div class="step"><div class="n">02</div><div class="b">
+        <h3>blend</h3>
+        <p>Kalman-smoothed station readings fold into open-meteo/CAMS
+        model samples, then station de-bias pulls the field onto what
+        the instruments actually saw.</p><span class="tag">70-model blend</span>
+      </div></div>
+      <div class="step"><div class="n">03</div><div class="b">
+        <h3>interpolate</h3>
+        <p>Kriging turns point readings into a 40×40 continuous field with
+        a real variance per cell — σ is carried, calibrated at 95.2%
+        coverage on 7,240 held-out hours.</p><span class="tag">the doubt ships too</span>
+      </div></div>
+      <div class="step"><div class="n">04</div><div class="b">
+        <h3>price</h3>
+        <p>1,070,459 road edges get re-costed: dose = concentration ×
+        ventilation × time, mode by mode, per leg — then a C++ A* with
+        real turn restrictions finds the lung-cheapest path.</p>
+        <span class="tag">engine solve: ms</span>
+      </div></div>
+      <div class="step"><div class="n">05</div><div class="b">
+        <h3>emit</h3>
+        <p>The same legs are costed for CO₂ — moving, idling, cold-start —
+        so exposure and emission ride every receipt together.</p>
+        <span class="tag">both sides of air</span>
+      </div></div>
+      <div class="step"><div class="n">06</div><div class="b">
+        <h3>aggregate</h3>
+        <p>Opted-in trips fold into corridors k≥3 — the admin board sees
+        the city breathe without a single name ever existing.</p>
+        <span class="tag">privacy by architecture</span>
+      </div></div>
     </div>
   </div>
 </section>
 
-<section class="wrap">
-  <div class="eyebrow">two faces</div>
-  <h2>Your phone, and<br><em>your city.</em></h2>
-  <p class="lede">The app prices your route in the same breath the ops
-    board prices Delhi's. Organic surfaces, Material-type icons, honest
-    empty states — a tool, not a slot machine.</p>
-  <div class="ctas" style="justify-content:flex-start;margin-top:30px">
-    <a class="btn solid" href="/city">/city — the live public surface →</a>
-    <a class="btn ghost" href="/admin">/admin — the ops board</a>
+<section class="trio">
+  <div class="wrap">
+    <span class="tag rv">what the field did — live, not lorem</span>
+    <h2 class="rv">The product, <em>mid-breath.</em></h2>
+    <div class="trio-grid">
+      <div class="card rv">
+        <div class="hd"><span>plan · fast arm</span><span class="r" id="c1meta">—</span></div>
+        <div class="bd" id="doseRows"><div class="doserow"><span class="mode">asking the engine…</span></div></div>
+        <div class="ft">connaught place → gurugram · live</div>
+      </div>
+      <div class="card rv">
+        <div class="hd"><span>corridors · k≥3</span><span class="r">city-moving</span></div>
+        <div class="bd" id="corrRows"><div class="corr"><div class="nm">reading shared trips…</div></div></div>
+        <div class="ft">aggregate traversals · no names exist</div>
+      </div>
+      <div class="card rv">
+        <div class="hd"><span>field · right now</span><span class="r" id="c3meta">—</span></div>
+        <div class="statgrid" id="statGrid">
+          <div><b>—</b><span>stations</span></div>
+          <div><b>—</b><span>fires 24h</span></div>
+          <div><b>—</b><span>field age</span></div>
+          <div><b>—</b><span>edges priced</span></div>
+        </div>
+        <div class="ft">waqi · open-meteo · cams · firms</div>
+      </div>
+    </div>
   </div>
 </section>
 
-<div class="final wrap">
-  <div class="kicker">aws × wemakedevs · environmental hacks · track 01 — air</div>
-  <h2>Breathe like the city<br><em>owes you the truth.</em></h2>
-  <p class="sub">The field is live right now. So is the route it prices.</p>
-  <div class="ctas"><a class="btn solid" href="/city">watch the city breathe →</a></div>
-</div>
+<section class="band">
+  <div class="wrap band-in">
+    <div class="rv">
+      <span class="tag" style="font-family:var(--mono);font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ink4)">the honest band</span>
+      <h2>We ship the error bars <em>like they're the product.</em></h2>
+      <p class="lede">A dose without a band is a lie of precision. Every number
+      the app shows — dose, AQI, the corridor table — carries the kriged σ,
+      inflated until the held-out truth lands inside it.</p>
+      <blockquote>"the band is the product — anyone can draw a line; we
+      draw the line and the fog around it."</blockquote>
+      <div class="who">— the honest-empty rule, enforced everywhere</div>
+    </div>
+    <div class="bandnums rv">
+      <div><b>95.2%</b><span>coverage at 2σ — 7,240 held-out station-hours</span></div>
+      <div><b>σ×3.2</b><span>the calibration the raw krige needed (was overconfident)</span></div>
+      <div><b>±13%</b><span>typical dose band on a cross-town trip</span></div>
+      <div><b>0</b><span>fabricated data points — suppressed beats faked</span></div>
+    </div>
+  </div>
+</section>
 
-<footer><div class="foot-in">
-  <span>alive·108 — priced by smoke, not speed</span>
-  <span id="fmeta">…</span>
-  <span>aggregates only · k≥3 · no per-person data exists</span>
+<section class="faces" id="faces">
+  <div class="wrap">
+    <span class="tag" style="font-family:var(--mono);font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ink4)">the two faces</span>
+    <h2>One field, <em>two readers.</em></h2>
+    <div class="faces-grid">
+      <div class="face rv">
+        <span class="tag">personal — android</span>
+        <h3>Your phone, <em>your lungs' accountant.</em></h3>
+        <p>Search like you'd talk, pick the dose the engine priced, watch
+        the band breathe as the field moves. Hindi + English, leave-later
+        curve, cigarettes toggle that stays off unless you ask.</p>
+        <ul>
+          <li>172/174 real queries land the right street</li>
+          <li>turn-by-turn on the priced path, not the fastest one</li>
+          <li>receipts: dose AND co₂, PUC-calibrated</li>
+          <li>your data only joins the city at k≥3 — or never</li>
+        </ul>
+      </div>
+      <div class="face rv">
+        <span class="tag">city — /city + admin</span>
+        <h3>Delhi, <em>as one breathing thing.</em></h3>
+        <p>28 district tiles on the CPCB scale, 1,600 hoverable field cells,
+        corridors × air merged live, the whole pipeline wearing its math.
+        No profiles exist — aggregates are the only data that can exist.</p>
+        <ul>
+          <li>hover any cell → locality + honest confidence</li>
+          <li>"how this layer is made" on every metric</li>
+          <li>journeys per origin→dest, emissions saved</li>
+          <li>the board reads the same field your route did</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap rv">
+    <h2>Breathe like the city<br><em>owes you the truth.</em></h2>
+    <p class="sub">Built for the AWS × WeMakeDevs Environmental Hacks,
+    Air track. Open the field, plan a trip, read the band.</p>
+    <div class="ctas">
+      <a class="btn-s" href="/city">watch the city breathe →</a>
+      <a class="btn-g" href="/health">read the engine's pulse</a>
+    </div>
+  </div>
+</section>
+
+<footer class="foot"><div class="foot-in">
+  <span><span class="glyph">●</span> ALIVE·108 — delhi/ncr exposure engine</span>
+  <span id="footMeta">build —</span>
+  <span>aggregates only · no per-person data exists to show</span>
 </div></footer>
 
 <script>
-const el=id=>document.getElementById(id);
-const j=(u,o)=>fetch(u,o).then(r=>r.ok?r.json():Promise.reject(r.status));
+const $=id=>document.getElementById(id);
+const api=async(p,o)=>{const r=await fetch(p,o);if(!r.ok)throw 0;return r.json()};
 
-/* mast border on scroll */
-addEventListener('scroll',()=>el('mast').classList.toggle('scrolled',scrollY>8),{passive:true});
-/* reveal on scroll */
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('on')}),{threshold:.12});
-document.querySelectorAll('section,.field-card').forEach(s=>{s.classList.add('reveal');io.observe(s)});
+/* ————— scroll reveal ————— */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target)}
+}),{threshold:.12});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 
-/* the aether — the live 40×40 field rasterized to a character ramp.
-   reads /grid directly: every glyph's ink weight is a real cell's pm2.5.
-   gradient of characters, not colors: air rendered as text. */
-const CH=' .·:;=+x#%@';          /* thin air → dense smog */
-function renderAether(gj){
-  /* /grid returns the full 40×40 lattice — rebuild it as a matrix:
-     rank cells into 40 rows by centroid lat, sort each row by lon.
-     one glyph per real cell, doubled horizontally for char aspect. */
-  const pts=[];
-  let lo=1e9,hi=-1e9;
-  for(const f of gj.features){
-    const p=f.properties||{};const ring=f.geometry.coordinates[0];
-    let cx=0,cy=0;for(const c of ring){cx+=c[0];cy+=c[1]}
-    cx/=ring.length;cy/=ring.length;
-    const v=p.pm25;
-    if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}
-    pts.push({cx,cy,v,conf:p.conf||'lo'});
-  }
-  if(!pts.length){throw 'empty field'}
-  const side=Math.round(Math.sqrt(pts.length));
-  pts.sort((a,b)=>b.cy-a.cy);
-  const rows=[];
-  for(let r=0;r<side;r++){
-    const row=pts.slice(r*side,(r+1)*side).sort((a,b)=>a.cx-b.cx);
-    rows.push(row);
-  }
-  let s='';
-  for(const row of rows){let line='';
-    for(const c of row){
-      let g;
-      if(c.conf==='lo'||c.v==null)g='·';                 /* thin coverage — faint, honest */
-      else{
-        const t=Math.max(0,Math.min(1,(c.v-lo)/((hi-lo)||1)));
-        g=CH[Math.min(CH.length-1,Math.round(t*(CH.length-1)))];
-      }
-      line+=g+g;
-    }s+=line+'\n'}
-  el('aether').textContent=s;
-  const m=pts.filter(p=>p.conf==='hi').length,i=pts.filter(p=>p.conf==='med').length,l=pts.length-m-i;
-  el('fcap').innerHTML=`each glyph is a real interpolated cell — <b>${pts.length.toLocaleString()} cells</b>,
-    ${lo.toFixed(1)}–${hi.toFixed(1)} µg/m³ right now.
-    <b>${m}</b> measured · <b>${i}</b> interpolated · <b>${l}</b> thin (faint dots). not a picture.`;
+/* ————— masthead border on scroll ————— */
+addEventListener('scroll',()=>{
+  $('mast').classList.toggle('scrolled',scrollY>40)},{passive:true});
+
+/* ————— live meta ————— */
+(async()=>{try{
+  const h=await api('/health');
+  const st=h.sources&&h.sources.stations||{};
+  const fr=h.sources&&h.sources.fires||{};
+  $('stStat').textContent=st.count||'—';
+  $('meta').innerHTML=
+    `<b>${st.count||0} instruments</b> live · field ${Math.round((h.field_age_s||0)/60)}m old · `+
+    `${fr.fires||0} fires today · engine 1,070,459 priced edges · build ${h.build_sha||'?'}`;
+  $('footMeta').textContent=`build ${h.build_sha||'?'} · field ${Math.round((h.field_age_s||0)/60)}m`;
+  $('liveTag').textContent='live · '+ (st.source||'field');
+  $('c3meta').textContent=(st.source||'field');
+}catch(e){$('meta').textContent='the field is asleep — /health answers first';$('liveTag').textContent='offline'}})();
+
+/* ————— the aether: animated ascii field (canvas shader) ————— */
+const RAMP=' .·:;=+x#%@'.split('');
+const COLS=40,ROWS=40;
+let CELLS=null; // [{v,conf,cx,cy}]
+let mouse={x:-1e4,y:-1e4,on:false};
+const cv=$('aether'),cx2=cv.getContext('2d');
+
+function aetherSize(){
+  const w=cv.clientWidth;cv.width=w*devicePixelRatio;cv.height=520*devicePixelRatio;
+  cx2.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
 }
-j('/grid?cells=40&param=pm2_5').then(renderAether)
-  .catch(()=>{el('aether').textContent=
-    '· ˚ ∘ the field is unreachable right now — the honest gap, shown as one ° ˚ ·\n'+
-    '(the api answers every other way; this one fetch failed)'});
+addEventListener('resize',aetherSize);
 
-/* live meta line */
-j('/health').then(h=>{
-  const st=(h.sources&&h.sources.stations)||{};
-  el('meta').innerHTML=`<span class="live-dot"></span><b>${st.count??'—'} instruments</b>
-    live · field ${Math.round((h.field_age_s||0)/60)}m old · engine ${'1,070,459'} priced edges · build ${String(h.build_sha||'—').slice(0,7)}`;
-  el('fmeta').textContent=`build ${h.build_sha||'—'} · ${st.count??0} stations live`;
-}).catch(()=>{el('meta').textContent='api unreachable — this page still means what it says'});
+/* glyph colour: ink ramp with a CPCB-tinted whisper at the hot end */
+function glyphColor(t,conf){
+  if(conf==='lo')return 'rgba(150,155,168,.32)';
+  const a=.34+t*.6;
+  if(t<.45)return `rgba(205,209,218,${a})`;
+  if(t<.62)return `rgba(211,163,86,${a+.06})`;      // amber haze
+  if(t<.78)return `rgba(196,116,62,${a+.1})`;
+  return `rgba(158,52,63,${a+.14})`;                // maroon peak
+}
 
-/* corridor merge preview — the same aggregate the ops board reads,
-   pulled from the PUBLIC /community rollup; names resolved like the
-   admin cell inspector does — one /v2/reverse per corridor. */
-j('/community').then(async c=>{
-  const cs=(c.top_corridors||[]).slice(0,4);
-  if(!cs.length)throw 'none';
-  const named=await Promise.all(cs.map(async k=>{
-    let near=`${k.lat.toFixed(3)}°N ${k.lon.toFixed(3)}°E`;
-    try{const r=await j(`/v2/reverse?lat=${k.lat}&lon=${k.lon}`);
-      if(r&&(r.name||r.label))near=r.name||r.label}catch(e){}
-    return {near,k};
+function drawAether(t){
+  const w=cv.clientWidth,h=520;
+  cx2.clearRect(0,0,w,h);
+  if(!CELLS)return;
+  const gw=w/COLS,gh=h/ROWS,fz=Math.min(gw*.74,gh*.82);
+  cx2.font=`${fz}px "SF Mono",ui-monospace,Menlo,monospace`;
+  cx2.textAlign='center';cx2.textBaseline='middle';
+  /* slow breathing wave marching NW→SE */
+  const wave=(t*.00021)%2.4;
+  for(let i=0;i<CELLS.length;i++){
+    const c=CELLS[i];if(c.v==null)continue;
+    const px=(c.col+.5)*gw,py=(c.row+.5)*gh;
+    let v=c.v;
+    /* shimmer: per-cell phase flicker between ramp neighbours */
+    const ph=Math.sin(t*.0016+c.px2)*0.5+0.5;
+    /* the wave: brightens cells as it passes */
+    const d=Math.abs((c.col+c.row)*.028-wave*2.4+1.2);
+    const lift=Math.max(0,1-Math.abs(d-.5)*3)*.22;
+    v=Math.min(1,v+lift);
+    /* mouse lens: pull density up near the cursor */
+    if(mouse.on){
+      const dx=px-mouse.x,dy=py-mouse.y,dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<90)v=Math.min(1,v+(1-dist/90)*.4);
+    }
+    let gi=Math.round(v*(RAMP.length-1)+ (ph>.86?1:0));
+    gi=Math.max(0,Math.min(RAMP.length-1,gi));
+    cx2.fillStyle=glyphColor(v,c.conf);
+    cx2.fillText(RAMP[gi],px,py);
+  }
+  /* crosshair readout */
+  if(mouse.on){
+    cx2.strokeStyle='rgba(211,163,86,.5)';cx2.lineWidth=1;
+    cx2.beginPath();cx2.moveTo(mouse.x,0);cx2.lineTo(mouse.x,h);
+    cx2.moveTo(0,mouse.y);cx2.lineTo(w,mouse.y);cx2.stroke();
+    const col=Math.floor(mouse.x/w*COLS),row=Math.floor(mouse.y/h*ROWS);
+    const c=CELLS.find(c=>c.col===col&&c.row===row);
+    if(c){
+      cx2.fillStyle='rgba(20,24,31,.92)';
+      const label=` ${String.fromCharCode(97+Math.min(col,25))}${String(row+1).padStart(2,'0')} · ${c.v==null?'no reading':(c.raw!==undefined?c.raw.toFixed(1)+' µg/m³':'—')} · ${c.conf==='hi'?'measured':c.conf==='med'?'interpolated':'thin'} `;
+      const tw=cx2.measureText(label).width+10;
+      const lx=Math.min(Math.max(mouse.x+12,4),w-tw-4),ly=Math.max(mouse.y-30,18);
+      cx2.fillRect(lx,ly,tw,20);
+      cx2.fillStyle='#e8e6df';cx2.font='10px ui-monospace,Menlo,monospace';
+      cx2.textAlign='left';cx2.fillText(label,lx+5,ly+10);
+    }
+  }
+}
+cv.addEventListener('mousemove',e=>{
+  const r=cv.getBoundingClientRect();mouse={x:e.clientX-r.left,y:e.clientY-r.top,on:true}});
+cv.addEventListener('mouseleave',()=>mouse.on=false);
+
+async function loadAether(){
+  try{
+    const gj=await api('/grid?cells=40');
+    const feats=(gj.features||[]).filter(f=>f.properties&&f.properties.v!=null||f.properties&&f.properties.pm25!=null);
+    /* rank rows by centroid lat, cols by lon — stable 40×40 lattice */
+    const pts=feats.map(f=>{
+      const g=f.geometry.coordinates;
+      const cs=g[0].length?g.flat(2):[];
+      const cx=cs.filter((_,i)=>i%2===0).reduce((a,b)=>a+b,0)/(cs.filter((_,i)=>i%2===0).length||1);
+      const cy=cs.filter((_,i)=>i%2===1).reduce((a,b)=>a+b,0)/(cs.filter((_,i)=>i%2===1).length||1);
+      return{cx,cy,v:f.properties.v??f.properties.pm25,conf:f.properties.conf};
+    });
+    pts.sort((a,b)=>b.cy-a.cy);
+    const cells=[];let mn=1e9,mx=-1e9;
+    pts.forEach(p=>{if(p.v!=null){mn=Math.min(mn,p.v);mx=Math.max(mx,p.v)}});
+    for(let r=0;r<ROWS;r++){
+      const row=pts.slice(r*COLS,(r+1)*COLS).sort((a,b)=>a.cx-b.cx);
+      for(let c=0;c<COLS;c++){
+        const p=row[c];if(!p)continue;
+        const vv=p.v==null?null:(p.v-mn)/Math.max(1e-6,mx-mn);
+        cells.push({col:c,row:r,v:vv,raw:p.v,conf:p.conf,px2:r*COLS+c});
+      }
+    }
+    if(cells.length<400){
+      $('aetherCap').textContent='field mid-refresh — one breath…';
+      setTimeout(loadAether,20000);
+      return;
+    }
+    CELLS=cells;
+    const hi=cells.filter(c=>c.conf==='hi').length,
+          me=cells.filter(c=>c.conf==='med').length,
+          lo=cells.filter(c=>c.conf==='lo').length;
+    $('aetherCap').textContent=
+      `${cells.length} cells · ${hi} measured · ${me} interpolated · ${lo} thin · pm2.5 ${mn.toFixed(0)}–${mx.toFixed(0)} µg/m³`;
+  }catch(e){
+    $('aetherCap').textContent='field unreachable — honest absence, not a fake raster';
+  }
+}
+aetherSize();loadAether();setInterval(loadAether,120000);
+(function tick(t){drawAether(t||0);requestAnimationFrame(tick)})();
+
+/* ————— dose rows card (live plan) ————— */
+(async()=>{try{
+  const j=await api('/v2/plan',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({from:{lat:28.6315,lon:77.2167},
+      to:{lat:28.4595,lon:77.0266},fast:true})});
+  const rows=(j.rows||j.options||[]).slice(0,4);
+  $('c1meta').textContent=(j.router_backend||'engine');
+  $('doseRows').innerHTML=rows.map((r,i)=>{
+    const d=r.dose||{},name=r.mode||r.label||r.vehicle||`option ${i+1}`;
+    return `<div class="doserow${i===0?' best':''}">
+      <span class="mode">${name}</span>
+      <span class="band">±${d.lo!=null&&d.mid?Math.round((d.hi-d.lo)/2/d.mid*100):'—'}%</span>
+      <span class="v">${d.mid!=null?d.mid.toFixed(1)+'µg':'—'}</span></div>`
+  }).join('')||'<div class="doserow"><span class="mode">engine thinking…</span></div>';
+}catch(e){$('doseRows').innerHTML='<div class="doserow"><span class="mode">engine resting — tap /health</span></div>'}})();
+
+/* ————— corridors card (live community) ————— */
+(async()=>{try{
+  const c=await api('/community');
+  const rows=(c.top_corridors||[]).slice(0,4);
+  const named=await Promise.all(rows.map(async r=>{
+    let nm='unnamed corridor';
+    try{const g=await api(`/v2/reverse?lat=${r.lat}&lon=${r.lon}`);
+      nm=g.name||nm}catch(e){}
+    return{...r,nm};
   }));
-  el('corr').innerHTML=named.map(({near,k})=>
-    `<tr><td class="mono">${near}</td><td class="num">${k.samples}</td>
-     <td class="num">${k.avg_dose_ug!=null?k.avg_dose_ug.toFixed(1)+' µg':'—'}</td>
-     <td class="num">${k.devices} dev</td></tr>`).join('');
-  el('corrcap').textContent=`live — ${c.obs_24h??'—'} traversals in 24h · every corridor ≥3 distinct devices · the ops board adds the field join`;
-}).catch(()=>{
-  el('corr').innerHTML='<tr><td colspan="4" style="color:var(--ink4);padding:18px">no donated corridors above k=3 yet — the merge lives on the ops board, <a href="/admin" style="text-decoration:underline">open /admin</a>.</td></tr>';
-  el('corrcap').textContent='aggregates only · k≥3 · nothing personal exists to leak';
-});
-</script></body></html>
+  $('corrRows').innerHTML=named.map(r=>`<div class="corr">
+    <div class="nm">${r.nm}</div>
+    <div class="mt">${r.samples||r.trips||0} traversals · ${r.devices||0} devices · ${r.avg_dose_ug!=null?r.avg_dose_ug.toFixed(1)+'µg dose':'—'}${r.co2_g_per_100m?' · '+r.co2_g_per_100m.toFixed(0)+'g co₂/100m':''}</div>
+    </div>`).join('')||'<div class="corr"><div class="nm">the city hasn\'t donated enough trips yet</div></div>';
+}catch(e){$('corrRows').innerHTML='<div class="corr"><div class="nm">corridors asleep — honest empty</div></div>'}})();
+
+/* ————— stat card ————— */
+(async()=>{try{
+  const h=await api('/health');
+  const s=h.sources||{};
+  $('statGrid').innerHTML=`
+    <div><b>${(s.stations||{}).count||'—'}</b><span>stations · ${(s.stations||{}).source||''}</span></div>
+    <div><b>${(s.fires||{}).fires||'—'}</b><span>fires last 24h</span></div>
+    <div><b>${Math.round((h.field_age_s||0)/60)}m</b><span>field age</span></div>
+    <div><b>1.07M</b><span>edges priced</span></div>`;
+}catch(e){}})();
+</script>
+</body></html>
