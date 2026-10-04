@@ -145,3 +145,14 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 - **Archive-replay tile live**: regenerated `s3://alive108-air/validation/weekly-2026-W40.json` (reader fixed for 6-tuple pair schema + mocks pinned) → `/admin/api/validation` serves `archive: ok mae 24.16 · pairs 7240`; loso n:0 honest ("insufficient stations" — archive only has 1 snapshot). Tile shows real MAE, not vibes.
 - **`alive108-validate-weekly` bumped** weekly→daily `cron(30 20 * * ? *)` Asia/Kolkata (00:30IST rollup + 20:30IST validation, both ENABLED).
 - Suite: 904 green at main `d487e71`. Remaining: Android physical/emulator E2E (cap slot), next main merge after suite.
+
+### 2026-10-04 (lead, cont.2) — full live surface sweep + demo-day hardening
+- **Deploy `d4e59920` stable** ~1h: stations 24/waqi, field fresh (730s), 75 fires, no rollup tick in logs (daemon off verified).
+- **Every endpoint swept live**: all 200s — /v2/{plan,search,city,districts,reverse,reroute,trip} + /aqi /grid /depart /today /shift /community /blackspots /reports /fires + /admin/api×6 + /city /admin pages. /depart verified physically sane (12.3µg now → 54.6µg overnight-stagnation peak → 9.7µg tomorrow midday). /decide /escape /compare are legacy v1 (9–15s, not on app path — app calls /v2/* only).
+- **Search battery on live**: all prior regressions hold — aiims→metro gate, lodhi garden→park, b-12 lajpat→block M; panipat→honest outside-corpus ceiling.
+- **Forecast horizon verified honest**: 94µg live → 236 overnight → 264 tomorrow evening = real Oct stagnation physics (CAMS×VC-ratio 0.6–2.5 + decaying live anchor), not unit bias.
+- **`/admin/api/global` honest**: dose_avoided 99.2µg×1 trip flowing; areas/od_pairs `suppressed:{1,1}` k<3 counted not shown; co2_avoided null = honest (predates field).
+- **1-vCPU burst ceiling measured**: E2E-child emulator sweep + probes pinned CPU ~100%×30min → /v2/reroute 24s queue (shares plan dedupe — wait not code). Recovered clean. Demo-day: TD :94 (2vCPU/4GB) pre-registered, command verified + documented in demo-day.md.
+- **root / → 302 /city** (136e731) + runbook bump (c1b8107) + this handoff pushed; deploy deferred until E2E child sweep ends (no mid-sweep flap).
+- **Release APK verified**: 129.5MB, NLB baked (alive108-…elb.amazonaws.com), `avoided_ug`/`co2_avoided_kg`/`puc_calibrated` all in bundle — real donations will populate admin savings tiles.
+- **Lanes**: fe91c9da Android emulator sweep running (iter ~67, inside app onboarding); ebe5ed90 UI/UX settled (assets surfaced); 29adb480 backend done-suspended; 1cb3ac27 location suspended-at-cap (403 on nudge). git-push gotcha hit+fixed: commits had landed on main checkout → cherry-picked onto base/v2, main reset to 1e86816.
