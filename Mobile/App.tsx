@@ -41,7 +41,7 @@ import { LayersButton } from "./src/components/shell/LayersButton";
 import { LayersSheet, type LayerKey } from "./src/components/shell/LayersSheet";
 import { Sidebar } from "./src/components/shell/Sidebar";
 import { useShellFlow } from "./src/components/shell/useShellFlow";
-import { API, DELHI, fetchJson } from "./src/components/shell/net";
+import { API, DELHI, fetchJson, reverseName } from "./src/components/shell/net";
 import {
   DEFAULT_SETTINGS, clearAllData, loadSettings, saveSettings, type ShellSettings,
 } from "./src/components/shell/settings";
@@ -294,23 +294,21 @@ function AppInner() {
           setMapPickArmed(false);
           const c = f.nativeEvent.lngLat;
           if (!c) return;
-          let name = `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
-          try { const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000); if (j.name) name = j.name; } catch {}
+          const rev = await reverseName(c[1], c[0]);
           if (placePickSlot) {
             // the unset home/work slot asked for this pick ("choose on map")
-            patchSettings({ [placePickSlot]: { name, lat: c[1], lon: c[0] } });
+            patchSettings({ [placePickSlot]: { name: rev.name, lat: c[1], lon: c[0] } });
             setPlacePickSlot(null);
             setSidebarOpen(true);
             return;
           }
-          flow.pick({ name, subtitle: "", lat: c[1], lon: c[0] }, "to");
+          flow.pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
         }}
         onLongPress={async (f) => {
           const c = f.nativeEvent.lngLat;
           if (!c) return;
-          let name = `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
-          try { const j = await fetchJson(`${API}/reverse?lat=${c[1]}&lon=${c[0]}`, 6000); if (j.name) name = j.name; } catch {}
-          flow.pick({ name, subtitle: "", lat: c[1], lon: c[0] }, "to");
+          const rev = await reverseName(c[1], c[0]);
+          flow.pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
         }}>
         {/* maxBounds = the dose field's service margin (NCR ±2°), not the
             tight NCR box — a destination in Agra/Jaipur must stay on

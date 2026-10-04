@@ -128,6 +128,10 @@ STREET_CELL = 0.0009        # ~100 m lat x ~89 m lon spatial-index cell
 STREET_MAX_M = 90.0         # housenumber -> named street max snap distance
 LOCALITY_MAX_M = 450.0      # housenumber -> locality max snap distance
 INTERP_MAX_NUMBERS = 250    # per-way generated housenumbers cap
+SEG_MAX_M = 60.0            # point->named-way-SEGMENT snap; stricter than
+                            # the node vote but catches long straight roads
+                            # whose nodes sit >90 m away (honest: an
+                            # interpolation way is drawn on the carriageway)
 
 POI_KEYS = ("amenity", "shop", "tourism", "leisure", "office", "craft",
             "healthcare", "emergency", "club")
@@ -177,7 +181,7 @@ SOURCE_K = {"osm": 0.90, "wikidata": 0.92, "geonames": 0.88,
 # Extra tags that turn into aliases.
 ALIAS_TAGS = (
     "name:en", "alt_name", "loc_name", "official_name", "old_name",
-    "short_name", "name:hi", "brand", "ref",
+    "short_name", "reg_name", "nat_name", "name:hi", "brand", "ref",
     # context tags: a POI's street/locality becomes searchable context
     "addr:street", "addr:place", "addr:subdistrict", "addr:city", "is_in",
 )
@@ -495,6 +499,67 @@ class _StreetIndex:
         return best_name, best
 
 
+class _StreetSegIndex:
+    """Nearest named street lookup over way SEGMENTS, not just nodes.
+
+    Same grid idea as _StreetIndex but each record is a consecutive node
+    pair (name + p1 + p2). A segment is filed under every cell its bbox
+    overlaps, and distance is point-to-segment — always <= the distance
+    to either endpoint, so long straight named roads anchor honestly even
+    when their nearest node sits past the node-vote radius.
+    """
+
+    def __init__(self):
+        self._cells: dict[tuple, list] = {}
+
+    def add(self, a, b, name: str) -> None:
+        (la, lo), (lb, lo2) = a, b
+        i0 = math.floor(min(la, lb) / STREET_CELL)
+        i1 = math.floor(max(la, lb) / STREET_CELL)
+        j0 = math.floor(min(lo, lo2) / STREET_CELL)
+        j1 = math.floor(max(lo, lo2) / STREET_CELL)
+        for i in range(i0, i1 + 1):
+            for j in range(j0, j1 + 1):
+                self._cells.setdefault((i, j), []).append(
+                    (la, lo, lb, lo2, name))
+
+    @staticmethod
+    def _seg_dist(lat, lon, la, lo, lb, lo2) -> float:
+        """Point->segment distance in metres (equirect at ~28.6N)."""
+        kx = 111320.0 * math.cos(math.radians(lat))
+        px, py = lon * kx, lat * 110540.0
+        ax, ay = lo * kx, la * 110540.0
+        bx, by = lo2 * kx, lb * 110540.0
+        dx, dy = bx - ax, by - ay
+        seg2 = dx * dx + dy * dy
+        if seg2 <= 0.0:
+            return math.hypot(px - ax, py - ay)
+        t = ((px - ax) * dx + (py - ay) * dy) / seg2
+        t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
+        return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+    def nearest(self, lat: float, lon: float, max_m: float):
+        """-> (name, dist_m) of the closest named segment, or (None, inf)."""
+        bi = math.floor(lat / STREET_CELL)
+        bj = math.floor(lon / STREET_CELL)
+        best = max_m
+        best_name = None
+        r = 0
+        while (r - 1) * STREET_CELL * 88.0 <= best * 1.12:
+            for di in range(-r, r + 1):
+                for dj in range(-r, r + 1):
+                    if max(abs(di), abs(dj)) != r:
+                        continue
+                    for s in self._cells.get((bi + di, bj + dj), ()):
+                        d = self._seg_dist(lat, lon, s[0], s[1], s[2], s[3])
+                        if d < best:
+                            best, best_name = d, s[4]
+            r += 1
+            if r > 12:
+                break
+        return best_name, best
+
+
 def _interp_numbers(a_hn: str, b_hn: str, mode: str):
     """Housenumber sequence an interpolation way asserts, or None.
 
@@ -552,6 +617,7 @@ def build_corpus(pbf_paths):
     entries: dict[tuple, dict] = {}  # dedupe key -> entry
     way_centroids: dict[int, tuple] = {}  # way id -> (lat, lon), in-box only
     street_idx = _StreetIndex()        # named-way node points
+    seg_idx = _StreetSegIndex()        # named-way segments (closer snap)
     pending_hn: list = []              # (id, housenumber, [(lat,lon),...])
     pending_interp: list = []          # {id, mode, street, chain}
     stats = {
@@ -559,9 +625,10 @@ def build_corpus(pbf_paths):
         "poi": 0, "building": 0, "street": 0, "addr": 0, "place": 0,
         "misc": 0,
         "outside_ncr_bbox": 0, "deduped": 0, "empty_name_dropped": 0,
-        "hn_pending": 0, "hn_street": 0, "hn_locality": 0,
-        "hn_unresolved": 0,
+        "hn_pending": 0, "hn_street": 0, "hn_seg": 0,
+        "hn_locality": 0, "hn_unresolved": 0,
         "interp_ways": 0, "interp_emitted": 0, "interp_skipped": 0,
+        "interp_seg": 0,
     }
 
     NAV_CLASSES = ("motorway", "trunk", "primary", "secondary", "tertiary")
@@ -572,6 +639,8 @@ def build_corpus(pbf_paths):
     def note_street(name: str, pts) -> None:
         for lat, lon in pts:
             street_idx.add(lat, lon, name)
+        for i in range(1, len(pts)):
+            seg_idx.add(pts[i - 1], pts[i], name)
 
     def classify(t):
         """Return (category, display_source) for a tag set, or None."""
@@ -776,7 +845,7 @@ def build_corpus(pbf_paths):
         rh.apply_file(pbf_path)
 
     resolve_addresses(entries, stats, pending_hn, pending_interp,
-                      street_idx, put)
+                      street_idx, seg_idx, put)
     return entries, stats
 
 
@@ -785,7 +854,7 @@ def build_corpus(pbf_paths):
 # ---------------------------------------------------------------------------
 
 def resolve_addresses(entries, stats, pending_hn, pending_interp,
-                      street_idx, put):
+                      street_idx, seg_idx, put):
     """Emit entries for housenumbers that carry no usable addr context and
     for addr:interpolation ways.
 
@@ -833,8 +902,20 @@ def resolve_addresses(entries, stats, pending_hn, pending_interp,
 
     def anchor_hn(hn: str, pts):
         """-> (context_name, kind) for a housenumber, or (None, None)."""
-        best_d = STREET_MAX_M
+        # strongest anchor first: the number fronts a named way's segment
         votes: dict[str, tuple] = {}
+        for la, lo in pts[::max(1, len(pts) // 8)]:
+            nm, d = seg_idx.nearest(la, lo, SEG_MAX_M)
+            if nm is None:
+                continue
+            cnt, mind = votes.get(nm, (0, 1e9))
+            votes[nm] = (cnt + 1, min(mind, d))
+        if votes:
+            name = min(votes.items(),
+                       key=lambda kv: (-kv[1][0], kv[1][1]))[0]
+            return name, "seg"
+        best_d = STREET_MAX_M
+        votes = {}
         for la, lo in pts[::max(1, len(pts) // 8)]:
             nm, d = street_idx.nearest(la, lo, best_d)
             if nm is None:
@@ -878,19 +959,33 @@ def resolve_addresses(entries, stats, pending_hn, pending_interp,
             continue
         street = it["street"]
         if not street:
-            best_d = STREET_MAX_M
-            votes: dict[str, tuple] = {}
+            # the way's own nearby named-highway segment is the honest
+            # anchor: interpolation ways lie on/along the carriageway
+            seg_votes: dict[str, tuple] = {}
             for la, lo, _hn in chain[::max(1, len(chain) // 6)]:
-                nm, d = street_idx.nearest(la, lo, best_d)
+                nm, d = seg_idx.nearest(la, lo, SEG_MAX_M)
                 if nm is None:
                     continue
-                cnt, mind = votes.get(nm, (0, 1e9))
-                votes[nm] = (cnt + 1, min(mind, d))
-            if not votes:
-                stats["interp_skipped"] += 1
-                continue
-            street = min(votes.items(),
-                         key=lambda kv: (-kv[1][0], kv[1][1]))[0]
+                cnt, mind = seg_votes.get(nm, (0, 1e9))
+                seg_votes[nm] = (cnt + 1, min(mind, d))
+            if seg_votes:
+                street = min(seg_votes.items(),
+                             key=lambda kv: (-kv[1][0], kv[1][1]))[0]
+                stats["interp_seg"] += 1
+            else:
+                best_d = STREET_MAX_M
+                votes: dict[str, tuple] = {}
+                for la, lo, _hn in chain[::max(1, len(chain) // 6)]:
+                    nm, d = street_idx.nearest(la, lo, best_d)
+                    if nm is None:
+                        continue
+                    cnt, mind = votes.get(nm, (0, 1e9))
+                    votes[nm] = (cnt + 1, min(mind, d))
+                if not votes:
+                    stats["interp_skipped"] += 1
+                    continue
+                street = min(votes.items(),
+                             key=lambda kv: (-kv[1][0], kv[1][1]))[0]
         hn_pos = [(i, _h) for i, (_la, _lo, _h) in enumerate(chain) if _h]
         if len(hn_pos) < 2:
             stats["interp_skipped"] += 1
@@ -1457,6 +1552,18 @@ EXPECTED_SETS = {
     "crossings republik": [{"crossings", "republik"}],
     "indirapuram": [{"indirapuram"}],
     "beta 2 greater noida": [{"beta", "2"}],
+    # reverse-depth additions: landmarks + alias/transliteration surfaces
+    "purana qila": [{"purana", "qila"}],
+    "sarita vihar": [{"sarita", "vihar"}],
+    "chirag delhi": [{"chirag", "delhi"}],
+    "dilshad garden": [{"dilshad", "garden"}],
+    "mandawali": [{"mandawali"}, {"mandawli"}],
+    "new friends colony": [{"new", "friends", "colony"}],
+    "seelam pur": [{"seelampur"}, {"seelam", "pur"}],
+    "hkv": [{"hauz", "khas"}],
+    "ndls": [{"new", "delhi", "railway"}, {"ndls"}],
+    "bhikaji": [{"bhikaji"}],
+    "srcc": [{"shri", "ram", "college"}, {"srcc"}],
 }
 
 
@@ -1725,12 +1832,14 @@ def main():
         "housenumbers (OSM addr:*)":
             f"{stats['hn_pending']:,} context-less queued -> "
             f"{stats['hn_street']:,} street-anchored + "
+            f"{stats['hn_seg']:,} segment-anchored + "
             f"{stats['hn_locality']:,} locality-anchored, "
             f"{stats['hn_unresolved']:,} unresolved (honest misses)",
         "addr:interpolation":
             f"{stats['interp_ways']:,} ways -> "
             f"{stats['interp_emitted']:,} housenumbers emitted "
-            f"({stats['interp_skipped']:,} ways skipped)",
+            f"({stats['interp_seg']:,} named via segment vote, "
+            f"{stats['interp_skipped']:,} ways skipped)",
     }
     if gstats and not gstats.get("unavailable"):
         extra["geonames"] = (f"{gstats['in_box']:,} in box -> "

@@ -36,6 +36,21 @@ def field_view(src, coverage_km: float):
 
 _SEARCH_IDX = None
 _SEARCH_PIDS: list = []
+_SEARCH_ENTRIES: Optional[list] = None
+_REV_CELLS: Optional[dict] = None
+_REV_CELL = 0.002  # ~221 m lat / ~196 m lon at Delhi's latitude
+
+
+def _search_entries() -> list:
+    """The T1 entry list — built once, shared by the search index and
+    the reverse-lookup grid so /v2/reverse rides the same universe."""
+    global _SEARCH_IDX, _SEARCH_PIDS, _SEARCH_ENTRIES
+    if _SEARCH_ENTRIES is None:
+        _SEARCH_ENTRIES = alive_core_ref.entries_from_gazetteer()
+        _SEARCH_PIDS = [e["pid"] for e in _SEARCH_ENTRIES]
+        _SEARCH_IDX = alive_core_ref.get_search_index(
+            _SEARCH_ENTRIES, prefer_cpp=True)
+    return _SEARCH_ENTRIES
 
 
 def search_index():
@@ -44,13 +59,51 @@ def search_index():
     an image shipping only data/corpus still builds). alive_core.
     SearchIndex when the extension loads, PySearchIndex (identical
     semantics) otherwise. Built once: ~45k entries, alias-expanded."""
-    global _SEARCH_IDX, _SEARCH_PIDS
-    if _SEARCH_IDX is None:
-        entries = alive_core_ref.entries_from_gazetteer()
-        _SEARCH_PIDS = [e["pid"] for e in entries]
-        _SEARCH_IDX = alive_core_ref.get_search_index(
-            entries, prefer_cpp=True)
+    _search_entries()
     return _SEARCH_IDX
+
+
+def _rev_grid() -> dict:
+    global _REV_CELLS
+    if _REV_CELLS is None:
+        cells: dict = {}
+        for i, e in enumerate(_search_entries()):
+            key = (math.floor(e["lat"] / _REV_CELL),
+                   math.floor(e["lon"] / _REV_CELL))
+            cells.setdefault(key, []).append(i)
+        _REV_CELLS = cells
+    return _REV_CELLS
+
+
+def nearest(lat, lon, max_m: float = 150.0, limit: int = 16):
+    """Reverse lookup: entry rows within max_m of a point.
+
+    Chebyshev ring scan over a lat/lon grid of the SAME entries T1
+    searches — no second index, no second data file. Returns
+    [(entry_dict, distance_m)] sorted by distance."""
+    ents = _search_entries()
+    cells = _rev_grid()
+    bi, bj = math.floor(lat / _REV_CELL), math.floor(lon / _REV_CELL)
+    found: list = []
+    r = 0
+    # ring r's points can't sit closer than (r-1) * the cell's short
+    # axis (~196 m) — stop once a ring is entirely past max_m.
+    while (r - 1) * 196.0 <= max_m:
+        for di in range(-r, r + 1):
+            for dj in range(-r, r + 1):
+                if max(abs(di), abs(dj)) != r:
+                    continue
+                for i in cells.get((bi + di, bj + dj), ()):
+                    e = ents[i]
+                    d = 1000.0 * alive_core_ref.haversine_km(
+                        lat, lon, e["lat"], e["lon"])
+                    if d <= max_m:
+                        found.append((d, i))
+        r += 1
+        if r > 12:  # ~2.4 km ceiling — nothing this far is a reverse hit
+            break
+    found.sort()
+    return [(ents[i], d) for d, i in found[:limit]]
 
 
 def search(q, lat=None, lon=None, limit=8):

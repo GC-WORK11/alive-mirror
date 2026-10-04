@@ -161,6 +161,8 @@ export interface ReverseResponse {
   subtitle?: string;
   distance_m?: number;           // /v2/reverse only
   source?: string;               // /v2/reverse only
+  kind?: string;                 // /v2/reverse: gazetteer category / amazon kind
+  dropped_pin?: boolean;         // /v2/reverse: explicit "no named place" marker
   // /v2/reverse error bodies: 404 {error, lat, lon} / 503 {error, detail, hint}
   error?: string;
   detail?: string;

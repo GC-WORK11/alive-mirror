@@ -149,17 +149,44 @@ def test_place_gazetteer_and_amazon():
     assert r.json()["name"] == "Select Citywalk"
 
 
-def test_place_and_reverse_503_without_key():
+def test_place_and_reverse_503_without_key(monkeypatch):
     deps.set_location(FakeLoc(enabled=False))
     assert client.get("/v2/place/amz:X9").status_code == 503
-    assert client.get("/v2/reverse",
-                      params={"lat": 28.61, "lon": 77.21}).status_code == 503
+    # with no gazetteer hit nearby and Amazon disabled the endpoint is an
+    # honest 404 ("no named place within ...") — never a fabricated label
+    import core_engine
+    monkeypatch.setattr(core_engine, "nearest", lambda *a, **k: [])
+    r = client.get("/v2/reverse", params={"lat": 28.61, "lon": 77.21})
+    assert r.status_code == 404
+    assert "no named place" in r.json()["error"]
 
 
 def test_reverse_names_street_level():
+    # gazetteer first: the corpus answers close pins with a real named place
     r = client.get("/v2/reverse", params={"lat": 28.615, "lon": 77.215})
     assert r.status_code == 200
-    assert "Rajpath" in r.json()["name"]
+    body = r.json()
+    assert body["name"] and body["source"] in ("gazetteer", "amazon")
+    assert body["distance_m"] <= 150
+    # force the amazon path to keep covering its street naming (fresh
+    # coords — /v2/reverse caches per rounded lat/lon)
+    import core_engine
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(core_engine, "nearest", lambda *a, **k: [])
+    r2 = client.get("/v2/reverse", params={"lat": 28.6149, "lon": 77.2151})
+    monkeypatch.undo()
+    assert r2.status_code == 200
+    assert "Rajpath" in r2.json()["name"]
+
+
+def test_reverse_gazetteer_fallback_body():
+    """A pin near Connaught Place must come back as a real named entry."""
+    r = client.get("/v2/reverse", params={"lat": CP[0], "lon": CP[1]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["source"] == "gazetteer"
+    assert body["name"] and body["distance_m"] <= 150
+    assert body["subtitle"]
 
 
 # --- plan ---------------------------------------------------------------------

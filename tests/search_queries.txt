@@ -1,6 +1,9 @@
-# The fixed 20-query Delhi list (docs/plan/09 Phase 1 acceptance).
-# Format: query <TAB> expected place (top-3 must contain it)
-# Coverage: malls, blocks, metro gates, restaurants, Hinglish typos, abbreviations.
+# The fixed Delhi acceptance list (docs/plan/09 Phase 1 acceptance +
+# address/landmark/alias depth). Format: query <TAB> expected place
+# (top-3 must contain it)
+# Coverage: malls, blocks, metro gates, restaurants, Hinglish typos,
+# abbreviations, house addresses on named streets, NCR-margin villages,
+# OSM-alias and transliteration surfaces.
 select citywalk	Select Citywalk Mall, Saket
 lajpat nagar 4	Lajpat Nagar IV
 haldiram chandni	Haldiram's, Chandni Chowk
@@ -37,3 +40,14 @@ sarai kale khan	Sarai Kale Khan
 crossings republik	Crossings Republik
 indirapuram	Indirapuram
 beta 2 greater noida	Beta 2, Greater Noida
+purana qila	Purana Qila
+sarita vihar	Sarita Vihar
+chirag delhi	Chirag Delhi
+dilshad garden	Dilshad Garden
+mandawali	Mandawali
+new friends colony	New Friends Colony
+seelam pur	Seelampur
+hkv	Hauz Khas Village
+ndls	New Delhi Railway Station
+bhikaji	Bhikaji Cama Place
+srcc	Shri Ram College of Commerce
