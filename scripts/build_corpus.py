@@ -1638,6 +1638,26 @@ EXPECTED_SETS = {
     "sector 56 gurgaon": [{"sector", "56"}],
     "alpha 1 greater noida": [{"alpha", "1"}],
     "dlf phase 2": [{"dlf", "phase", "2"}, {"dlf", "phase", "ii"}],
+    # sub-place unit queries (engine compound/area layer)
+    "pocket b sarita vihar": [{"sarita", "vihar"}],
+    "h block sector 62 noida": [{"sector", "62"}, {"h", "block"},
+                                {"62", "block"}],
+    "a 43 defence colony": [{"defence", "colony"}],
+    "e block model town": [{"model", "town"}],
+    "c 56 lajpat nagar": [{"lajpat", "nagar"}],
+    "b 7 vasundhara enclave": [{"vasundhara", "enclave"}],
+    "h no 1234 sector 15 noida": [{"sector", "15"}, {"15", "noida"}],
+    "gamma 2 greater noida": [{"gamma", "2"}, {"gamma", "ii"}],
+    "badarpur bus depot": [{"badarpur"}],
+    "e 47 greater kailash": [{"greater", "kailash"}, {"47"}],
+    "murthal dhaba": [{"murthal"}, {"dhaba"}],
+    "azadpur mandi": [{"azadpur"}],
+    "sis ganj gurudwara": [{"sis", "ganj"}, {"gurudwara"}],
+    "t3 airport": [{"terminal", "3"}, {"t3"}, {"terminal"}],
+    "gaffar market": [{"gaffar"}, {"ghaffar"}],
+    "khari baoli": [{"khari", "baoli"}],
+    "iimc": [{"iimc"}, {"indian", "institute", "mass",
+                        "communication"}],
 }
 
 
@@ -1702,11 +1722,15 @@ def append_score_stats(lines, rows_with, rows_without):
     need_list = [r["query"] for r, rn in zip(rows_with, rows_without)
                  if r["hit"] and not rn["hit"]]
     miss_list = [r["query"] for r in rows_with if not r["hit"]]
-    # kind+place compounds ("atm near cp") resolve in the production
-    # engine's compound layer — SimpleIndex is name-text only, so those
-    # misses are scorer-side, not corpus gaps
+    # kind+place compounds ("atm near cp") and sub-place units
+    # ("a 43 defence colony", "pocket b sarita vihar") resolve in the
+    # production engine's compound layer — SimpleIndex is name-text
+    # only, so those misses are scorer-side, not corpus gaps
     engine_only = [q for q in miss_list
-                   if re.search(r"\b(near|opp|opposite)\b", q)]
+                   if re.search(
+                       r"\b(near|opp|opposite|block|pocket|gali)\b"
+                       r"|\bh\s*no\b"
+                       r"|^[a-z]{1,2}\s*\d+\s", q)]
     miss_list = [q for q in miss_list if q not in engine_only]
     a("")
     a(f"- queries that NEED aliases.json to hit: {', '.join(need_list) or 'none'}")

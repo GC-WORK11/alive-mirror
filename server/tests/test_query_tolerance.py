@@ -164,3 +164,86 @@ def test_search_latency_compound_path():
         ts.append((time.perf_counter() - t0) * 1000.0)
     ts.sort()
     assert ts[int(len(ts) * 0.95)] < 50.0, f"p95 {ts[-1]:.1f}ms"
+
+
+# ------------------------------------------------------------------
+# leg-4 audit fixes: numeric hard constraint + subplace designators
+# ------------------------------------------------------------------
+
+def test_numeric_token_never_satisfied_by_another_locality():
+    """'a 43 defence colony' must not surface 'A-43 Dayal Bagh' — a
+    different colony's same-numbered unit is a wrong answer, not a
+    close one."""
+    hits = core_engine.search("a 43 defence colony", None, None, limit=5)
+    assert hits
+    top = (hits[0].get("display") or "").lower()
+    assert "dayal bagh" not in top, hits[0]
+
+
+def test_missing_sector_number_stays_sector_not_wrong_sector():
+    hits = core_engine.search("sector 99 noida", None, None, limit=5)
+    # nothing named sector-99 exists: the honest answer is a sector/Noida
+    # area row, never a row for a different number
+    assert hits
+    assert all("125" not in (h.get("display") or "") for h in hits[:3])
+
+
+def test_subplace_block_letter_stays_in_its_locality():
+    hits = core_engine.search("pocket b sarita vihar", None, None, limit=5)
+    assert hits
+    top = (hits[0].get("display") or "").lower()
+    # Pocket B doesn't exist in OSM inside Sarita Vihar — the locality
+    # itself is the honest answer, not a bare 'Pocket B' elsewhere
+    assert "sarita vihar" in top, hits[0]
+    assert hits[0].get("compound")
+
+
+def test_subplace_sector_block_resolves_inside_sector():
+    hits = core_engine.search("h block sector 62 noida",
+                              None, None, limit=5)
+    assert hits
+    d0 = (hits[0].get("display") or "").lower()
+    assert ("sector 62" in d0 or "block h" in d0 or "h-3" in d0
+            or "h-5" in d0 or "h block" in d0 or "h-block" in d0), hits[0]
+
+
+def test_subplace_city_sector_resolves_inside_city_extent():
+    """'beta 2 greater noida' — a city's sectors sit km from its
+    centroid; the sector inside the city is the answer, not the city
+    fallback and not a bank containing the word 'beta'."""
+    hits = core_engine.search("beta 2 greater noida",
+                              None, None, limit=5)
+    assert hits
+    assert "beta" in (hits[0].get("display") or "").lower(), hits[0]
+
+
+def test_subplace_house_number_falls_back_to_locality():
+    hits = core_engine.search("h no 1234 sector 15 noida",
+                              None, None, limit=5)
+    assert hits
+    assert "sector 15" in (hits[0].get("display") or "").lower()
+
+
+def test_address_like_query_does_not_cross_localities():
+    """'b 7 vasundhara enclave' — a bare 'B-7' 20 km away is a wrong
+    answer; the locality is the honest resolution."""
+    hits = core_engine.search("b 7 vasundhara enclave",
+                              None, None, limit=5)
+    assert hits
+    assert "vasundhara" in (hits[0].get("display") or "").lower()
+
+
+def test_subplace_never_fires_on_plain_weak_place():
+    """'shahdra' has no designator/digit — subplace must stay off and
+    fuzzy name matching stays in charge."""
+    hits = core_engine.search("shahdra", None, None, limit=5)
+    assert hits
+    assert not any(h.get("subplace") for h in hits)
+
+
+def test_kind_compound_still_wins_before_subplace():
+    hits = core_engine.search("school sector 62 noida",
+                              None, None, limit=5)
+    assert hits
+    assert any(h.get("compound") and h.get("match") == "category"
+               for h in hits[:3])

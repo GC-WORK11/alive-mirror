@@ -71,3 +71,20 @@ sector 21 faridabad	Sector 21
 sector 56 gurgaon	Sector 56
 alpha 1 greater noida	Alpha 1
 dlf phase 2	DLF Phase 2
+pocket b sarita vihar	Sarita Vihar
+h block sector 62 noida	Sector 62 / H Block
+a 43 defence colony	Defence Colony
+e block model town	Model Town
+c 56 lajpat nagar	Lajpat Nagar
+b 7 vasundhara enclave	Vasundhara Enclave
+h no 1234 sector 15 noida	Sector 15
+gamma 2 greater noida	Gamma 2
+badarpur bus depot	Badarpur
+e 47 greater kailash	Greater Kailash / D Block
+murthal dhaba	Murthal
+azadpur mandi	Azadpur
+sis ganj gurudwara	Sis Ganj
+t3 airport	Terminal
+gaffar market	Gaffar
+khari baoli	Khari Baoli
+iimc	IIMC
