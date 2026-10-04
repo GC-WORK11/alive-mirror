@@ -198,7 +198,7 @@ def _stub_validate(monkeypatch, pairs):
 
 def test_weekly_report_schema_and_artifacts(tmp_path, monkeypatch):
     monkeypatch.delenv("ALIVE_AIR_BUCKET", raising=False)
-    _stub_validate(monkeypatch, [("stn", "h", 100.0, 110.0, 108.0)])
+    _stub_validate(monkeypatch, [("stn", "h", 100.0, 110.0, 108.0, 0.5)])
     snap_root = tmp_path / "snaps"
     valid_dir = tmp_path / "valid"
     good = _field({"c1": 42.0}, E0, stations=_stations(6))
