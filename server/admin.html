@@ -200,6 +200,12 @@
   .dchip-v{font-family:var(--mono);font-size:11px;color:var(--ink2)}
   .dchip-v i{font-style:normal;font-size:8.5px;color:var(--ink4);margin-left:2px}
   .dchip-a{font-family:var(--mono);font-size:9px;letter-spacing:.06em}
+
+  /* day-by-day trips strip — muted bars, day labels in mono */
+  .daybars{display:flex;align-items:flex-end;gap:5px;padding:10px 16px 12px}
+  .dbar{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto}
+  .dbar i{width:14px;background:rgba(101,112,127,.5);border-radius:3px 3px 0 0}
+  .dbar span{font-family:var(--mono);font-size:8px;color:var(--ink4)}
 </style>
 </head>
 <body>
@@ -255,6 +261,7 @@
       <div class="feed" id="feed"></div>
       <div class="share" id="co2split"></div>
       <div class="share" id="modeshare"></div>
+      <div class="daybars" id="daybars"></div>
     </div>
     <div class="panel scrollx"><table>
       <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th><th class="num">co₂ per 100 m</th></tr></thead>
@@ -484,6 +491,16 @@ async function tick(){
       <dt>days</dt><dd class="sub">${dayKeys.slice(-7).map(d=>{
         const v=days[d];return `${esc(d)}: ${fmt(v.trips)} trips / ${fmt1(v.km)} km`}).join('<br>')}</dd>`
     :'';
+  /* day-by-day bar strip — every recorded day, bars = shared trips,
+     hover carries the day's dose+co2 (aggregate day counters only) */
+  if(t.trips){
+    const maxTr=Math.max(1,...dayKeys.map(d=>days[d].trips||0));
+    $('daybars').innerHTML=dayKeys.slice(-14).map(d=>{
+      const v=days[d],h=Math.max(4,Math.round((v.trips||0)/maxTr*46));
+      return `<div class="dbar" title="${esc(d)} — ${fmt(v.trips)} trips · ${fmt1(v.km)} km · ${fmt1(v.dose_ug)} µg · ${fmt1(v.co2_kg_mid)} kg co₂">
+        <i style="height:${h}px"></i><span>${esc(d.slice(5))}</span></div>`;
+    }).join('');
+  }
   if(!t.trips)$('donations').innerHTML=emptyMsg(
     'no donations yet — totals appear when the first anonymized trip summary lands. nothing is zero-filled.');
   /* the live feed — aggregate-level events only (mode/dose/km/co2);
