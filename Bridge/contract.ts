@@ -379,6 +379,7 @@ export interface V2PlanOption {
   emissions: EmissionBand;
   tag: V2PlanTag;
   recommended: boolean;
+  safest_path?: boolean;        // true on the lowest-dose option — leaf chip
   reason_line: string;
   your_vehicle: boolean;
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
