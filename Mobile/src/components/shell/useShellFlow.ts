@@ -65,6 +65,9 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   /** engine rows painted; the full option set is still landing */
   const [refining, setRefining] = useState(false);
   const [planError, setPlanError] = useState<PlanError | null>(null);
+  /* planner arms the full plan lost to timeout/cancel/raise — surfaced
+     so a sheet missing its engine rows reads as incomplete, not done */
+  const [planDegraded, setPlanDegraded] = useState<string[]>([]);
   const [planNonce, setPlanNonce] = useState(0);
   const [planField, setPlanField] = useState<FieldStatus | null>(null);
   const pickRef = useRef<{ opts: V2Option[]; sel: number }>({ opts: [], sel: 0 });
@@ -145,6 +148,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
       setSteps(null); setStepsOpen(false);
       setLoadingRoute(true);
       setPlanError(null);
+      setPlanDegraded([]);
       try {
         if (planHoldMs.current > 0) {
           const hold = planHoldMs.current;
@@ -159,6 +163,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           vehicle_profile: planVehicleProfile(vehicle),
         };
         let painted = false;      // engine-first rows already on screen
+        let paintedEngine: V2Option[] = [];   // kept if the full plan's engine arm dies
         let fullDone = false;
         let fitDone = false;
         const show = (opts: V2Option[], field: FieldStatus | null | undefined) => {
@@ -197,6 +202,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         planEngineFirst(req).then((fj) => {
           if (cancelled || fullDone || fj.options.length === 0) return;
           painted = true;
+          paintedEngine = fj.options.filter((o) => o.engine != null);
           show(fj.options, fj.field);
           setLoadingRoute(false);
           setRefining(true);
@@ -230,7 +236,16 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           setPlanError({ kind: outside ? "outside" : "server", detail: pj.error });
           return;
         }
-        show(pj.options, pj.field);
+        /* a degraded engine arm would silently drop the least-inhalation
+           rows — the feature that is the product. The engine-first paint
+           already holds real engine rows: keep them in front of whatever
+           survived, and flag the gap on the sheet rather than pretend
+           the option set is complete. */
+        const opts = (paintedEngine.length && pj.degraded?.includes("engine"))
+          ? [...paintedEngine, ...pj.options]
+          : pj.options;
+        setPlanDegraded(pj.degraded ?? []);
+        show(opts, pj.field);
       } catch {
         if (!cancelled) {
           setOptions([]); setDepart(null);
@@ -295,7 +310,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const clearRoute = useCallback(() => {
     setTo(null); setOptions([]); setDepart(null); setDepartCurve(null);
     setSteps(null); setStepsOpen(false); setStrips({});
-    setPlanError(null); setPlanField(null);
+    setPlanError(null); setPlanField(null); setPlanDegraded([]);
     setPhase("idle"); setFollow(false);
   }, []);
 
@@ -388,7 +403,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     phase, setPhase, from, setFrom, to, setTo,
     editWhich, setEditWhich, options, selected, setSelected,
     depart, notified, trips, setTrips, recordTrip, community, setCommunity, follow, setFollow,
-    loadingRoute, refining, planError, retryPlan, planField, departCurve,
+    loadingRoute, refining, planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, armDailyBrief,

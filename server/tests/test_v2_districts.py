@@ -92,11 +92,24 @@ def test_districts_shape():
     assert b["geojson"] == "/ncr.geojson"
     assert len(b["bands"]) == 6
     rows = b["districts"]
-    assert len(rows) == 13
-    names = {r["name"] for r in rows}
+    dist_rows = [r for r in rows if r["level"] == "district"]
+    sub_rows = [r for r in rows if r["level"] == "osm_admin_5"]
+    assert len(dist_rows) == 15          # NCR incl. Rohtak + Rewari
+    assert len(sub_rows) == 13           # Delhi NCT's OSM sub-areas
+    names = {r["name"] for r in dist_rows}
     assert {"Delhi NCT", "Ghaziabad", "Gautam Buddha Nagar", "Gurugram",
             "Faridabad", "Sonipat", "Jhajjar", "Nuh", "Palwal", "Meerut",
-            "Baghpat", "Hapur", "Bulandshahr"} == names
+            "Baghpat", "Hapur", "Bulandshahr", "Rohtak",
+            "Rewari"} == names
+    for r in sub_rows:
+        assert r["parent"] == "Delhi NCT"
+    # Rohtak/Rewari are partial-coverage by geometry — the flag is
+    # computed from the polygon vs the field, not asserted by name
+    by_name = {r["name"]: r for r in dist_rows}
+    assert by_name["Rohtak"]["partial_field_coverage"] is True
+    assert by_name["Rewari"]["partial_field_coverage"] is True
+    assert by_name["Delhi NCT"]["partial_field_coverage"] is False
+    assert b["subdistrict_geojson"] == "/delhi_subdistricts.geojson"
     for r in rows:
         assert r["confidence"] in ("field", "sparse", "none")
         if r["confidence"] == "none":
@@ -130,7 +143,7 @@ def test_geojson_serves_and_centroids_are_inside():
     assert r.status_code == 200
     fc = r.json()
     assert fc["type"] == "FeatureCollection"
-    assert len(fc["features"]) == 13
+    assert len(fc["features"]) == 15
     # baked centroid sits inside its own outer ring (the sparse read
     # must land inside the district it represents)
     for ft in fc["features"]:
@@ -138,6 +151,28 @@ def test_geojson_serves_and_centroids_are_inside():
         cx, cy = ft["properties"]["centroid"]
         assert any(districts._point_in_ring(cx, cy, ring)
                    for ring in rings), ft["properties"]["name"]
+
+
+def test_area_for_point_resolves_finest_level():
+    """CP lands inside a Delhi sub-area (finest level wins over the
+    enclosing NCT district); Gurugram resolves at district level; a
+    point outside every boundary is honestly None."""
+    a = districts.area_for_point(77.2167, 28.6315)     # Connaught Place
+    assert a and a["level"] == "osm_admin_5"
+    assert a["parent"] == "Delhi NCT"
+    g = districts.area_for_point(77.0266, 28.4595)     # Gurugram
+    assert g and g["name"] == "Gurugram" and g["level"] == "district"
+    assert districts.area_for_point(76.0, 28.5) is None
+
+
+def test_subdistrict_geojson_route_serves_baked_asset():
+    r = client.get("/delhi_subdistricts.geojson")
+    assert r.status_code == 200
+    fc = r.json()
+    assert fc["type"] == "FeatureCollection"
+    assert len(fc["features"]) == 13
+    for ft in fc["features"]:
+        assert ft["properties"]["level"] == "osm_admin_5"
 
 
 def test_centroid_fallback_fires_on_small_coverage(monkeypatch):

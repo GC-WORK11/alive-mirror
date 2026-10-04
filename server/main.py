@@ -1240,6 +1240,23 @@ async def ncr_districts_geojson():
         media_type="application/geo+json")
 
 
+@app.get("/delhi_subdistricts.geojson")
+async def delhi_subdistricts_geojson():
+    """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/
+    delhi_subdistricts.geojson) — the boundaries /v2/districts level
+    'osm_admin_5' rows describe. Static baked asset; 404 when the bake
+    never ran rather than a fabricated shape."""
+    from fastapi.responses import FileResponse
+    import os
+    path = os.path.join(os.path.dirname(__file__), "static",
+                        "delhi_subdistricts.geojson")
+    if not os.path.exists(path):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "sub-district boundaries not baked"},
+                            status_code=404)
+    return FileResponse(path, media_type="application/geo+json")
+
+
 @app.get("/reverse")
 async def reverse(lat: float, lon: float):
     """Best-matching named place near a point — AWS Location primary, Photon

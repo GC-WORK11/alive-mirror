@@ -90,6 +90,12 @@ _BOUNDS = {
     "co2_moving_g": (0.0, 300_000.0),
     "co2_idle_g": (0.0, 300_000.0),
     "co2_cold_g": (0.0, 300_000.0),
+    # savings-vs-fastest fields the app computes off its own plan
+    # receipt (router-dose minus taken-dose; co2 only counts when the
+    # receipt was PUC-calibrated — flagged by puc_calibrated). Absent on
+    # every donation that can't honestly know; never invented here.
+    "avoided_ug": (0.0, 50_000.0),
+    "co2_avoided_kg": (0.0, 200.0),
 }
 CO2_SPLIT_KEYS = ("co2_moving_g", "co2_idle_g", "co2_cold_g")
 # A mode is a vehicle-class token — word characters and spaces only.
@@ -169,8 +175,9 @@ def privacy_pipeline(traj) -> tuple:
 
 
 _SUMMARY_NUM = ("distance_km", "duration_s", "dose_ug",
-                "co2_kg_mid", "pm25_g_mid") + CO2_SPLIT_KEYS
-_SUMMARY_FIELDS = _SUMMARY_NUM + ("mode", "switched")
+                "co2_kg_mid", "pm25_g_mid") + CO2_SPLIT_KEYS + (
+                "avoided_ug", "co2_avoided_kg")
+_SUMMARY_FIELDS = _SUMMARY_NUM + ("mode", "switched", "puc_calibrated")
 
 
 def _num(v) -> float | None:
@@ -211,14 +218,32 @@ async def post_trip(body: dict):
             summary["mode"] = m
     if summary_in.get("switched"):
         summary["switched"] = bool(summary_in["switched"])
+    if summary_in.get("puc_calibrated"):
+        summary["puc_calibrated"] = bool(summary_in["puc_calibrated"])
     if not summary.get("distance_km"):
         # the one number every real trip carries — without it the payload
         # either failed every sanity check or was never a trip at all;
         # storing it would only mint a zero-km count that bumps the totals
         raise HTTPException(422, "missing or implausible distance_km")
     dupe = _seen_dupe(_dupe_key(token_hash, cells, summary))
+    # endpoint areas for the admin global layer — the trimmed first/last
+    # kept point snapped to its district/sub-district NAME (a string,
+    # never a coordinate — the cell keys already carry the spatial
+    # precision, the area just buckets them). None when the point lands
+    # outside every baked boundary; the global layer skips those.
+    origin_area = dest_area = None
+    if kept:
+        try:
+            import districts as _dist
+            o = _dist.area_for_point(kept[0][1], kept[0][0])
+            e = _dist.area_for_point(kept[-1][1], kept[-1][0])
+            origin_area = (o or {}).get("name")
+            dest_area = (e or {}).get("name")
+        except Exception:  # noqa: BLE001 — area rollup is cosmetic
+            origin_area = dest_area = None
     if not dupe:
-        TRIPS.record_trip(cells, summary, token_hash)
+        TRIPS.record_trip(cells, summary, token_hash,
+                          origin_area=origin_area, dest_area=dest_area)
         LEDGER.record(token_hash, summary)
     # feed the citizen layer — every donated trip is a sensor pass. The
     # coordinates that reach observe() are the trimmed/thinned/rounded
@@ -234,7 +259,7 @@ async def post_trip(body: dict):
                 coords=[[lo, la] for la, lo in kept],
                 duration_s=float(summary.get("duration_s") or 0.0),
                 dose_ug=summary.get("dose_ug"),
-                avoided_ug=None,
+                avoided_ug=summary.get("avoided_ug"),
                 contributor=token or None,
                 co2_kg=summary.get("co2_kg_mid"),
                 # `kept` already ran privacy_pipeline above — telling

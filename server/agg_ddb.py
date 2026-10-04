@@ -46,6 +46,7 @@ DEFAULT_REGION = "ap-south-1"   # doc 05 §1: every service lives here
 DAY_SUM_SK = "sum"
 CELL_SK = "cell"
 RECENT_PK = "recent"
+GLOBAL_PK = "global"
 K_MIN = 3                       # doc 07 §3: publish a cell only with >=3 tokens
 CELL_TTL_S = 30 * 86400         # doc 05 §4: corridor cells expire after 30 d
 CELL_WINDOW_S = 72 * 3600       # doc 07: k-window is the last 72 h
@@ -94,7 +95,9 @@ class DDBTripAggregates:
     # ------------------------------------------------------------ writes
 
     def record_trip(self, cells: list, summary: dict,
-                    token_hash: str, ts: float = None) -> None:
+                    token_hash: str, ts: float = None,
+                    origin_area: str = None,
+                    dest_area: str = None) -> None:
         ts = ts or time.time()
         day = time.strftime("%Y-%m-%d", time.gmtime(ts))
         mode = str(summary.get("mode") or "unknown")[:24]
@@ -111,11 +114,23 @@ class DDBTripAggregates:
             ":st": _n(1 if any(k in summary for k in
                               ("co2_moving_g", "co2_idle_g",
                                "co2_cold_g")) else 0),
+            # savings are report-only counters, folded into the same
+            # day item: trips that carried avoided_ug and trips that
+            # carried a PUC-calibrated co2_avoided_kg each add one
+            # reporter count, so readers never divide by trips that
+            # couldn't know
+            ":av": _n(float(summary.get("avoided_ug") or 0.0)),
+            ":avt": _n(1 if summary.get("avoided_ug") else 0),
+            ":cav": _n(float(summary.get("co2_avoided_kg") or 0.0)
+                       if summary.get("puc_calibrated") else 0.0),
+            ":cavt": _n(1 if (summary.get("co2_avoided_kg")
+                              and summary.get("puc_calibrated")) else 0),
         }
         expr = ("ADD trips :one, km :km, dose_ug :d, "
                 "co2_kg_mid :c, pm25_g_mid :p, switched :sw, "
                 "co2_moving_g :mv, co2_idle_g :id, co2_cold_g :cd, "
-                "co2_split_trips :st")
+                "co2_split_trips :st, avoided_ug :av, avoided_trips :avt, "
+                "co2_avoided_kg :cav, co2_avoided_trips :cavt")
         pk = f"day#{day}"
         try:
             for sk in (DAY_SUM_SK, f"mode#{mode}"):
@@ -138,6 +153,7 @@ class DDBTripAggregates:
             self.last_error = f"{type(e).__name__}: {e}"
             raise
         self._add_recent_hour(ts, summary, token_hash)
+        self._add_global(summary, token_hash, origin_area, dest_area)
 
     def _add_recent_hour(self, ts: float, summary: dict,
                          token_hash: str) -> None:
@@ -184,6 +200,62 @@ class DDBTripAggregates:
                                            ":one": _n(1)})
         except Exception as e:  # noqa: BLE001 - feed is cosmetic, log-only
             self.last_error = f"recent: {type(e).__name__}: {e}"
+
+    def _add_global(self, summary: dict, token_hash: str,
+                    origin_area: str, dest_area: str) -> None:
+        """The /admin/api/global layer — pk='global' items mirroring the
+        memory store's _areas/_od/savings. Area names arrive resolved
+        upstream (v2/trip snaps the already-trimmed endpoint to a
+        district/sub-district name): a string, never a coordinate. The
+        hashed token lands in a devices SS set under the same k>=3
+        publish rule as corridor cells. No ttl — lifetime totals, like
+        the day counters. A global-write hiccup is log-only: the trip
+        truth already landed in the day/cell items."""
+        o = str(origin_area or "").replace("#", " ")[:64] or None
+        d = str(dest_area or "").replace("#", " ")[:64] or None
+        try:
+            if o or d or summary.get("avoided_ug") or (
+                    summary.get("co2_avoided_kg")
+                    and summary.get("puc_calibrated")):
+                vals = {":one": _n(1)}
+                expr = "ADD trips :one"
+                if token_hash:
+                    expr += ", devices :tok"
+                    vals[":tok"] = {"SS": [str(token_hash)]}
+                if o:
+                    self.client.update_item(
+                        TableName=self.table_name,
+                        Key={"pk": {"S": GLOBAL_PK},
+                             "sk": {"S": f"area#{o}"}},
+                        UpdateExpression=expr,
+                        ExpressionAttributeValues=vals)
+                if o and d:
+                    self.client.update_item(
+                        TableName=self.table_name,
+                        Key={"pk": {"S": GLOBAL_PK},
+                             "sk": {"S": f"od#{o}#{d}"}},
+                        UpdateExpression=expr,
+                        ExpressionAttributeValues=vals)
+            gvals = {}
+            gexpr = ""
+            if summary.get("avoided_ug"):
+                gexpr += " ADD avoided_ug :av, avoided_trips :avt"
+                gvals[":av"] = _n(float(summary["avoided_ug"]))
+                gvals[":avt"] = _n(1)
+            if (summary.get("co2_avoided_kg")
+                    and summary.get("puc_calibrated")):
+                gexpr += (" ADD " if not gexpr else ", ") + \
+                    "co2_avoided_kg :cav, co2_avoided_trips :cavt"
+                gvals[":cav"] = _n(float(summary["co2_avoided_kg"]))
+                gvals[":cavt"] = _n(1)
+            if gvals:
+                self.client.update_item(
+                    TableName=self.table_name,
+                    Key={"pk": {"S": GLOBAL_PK}, "sk": {"S": "sum"}},
+                    UpdateExpression=gexpr.strip(),
+                    ExpressionAttributeValues=gvals)
+        except Exception as e:  # noqa: BLE001 - dashboard cosmetic
+            self.last_error = f"global: {type(e).__name__}: {e}"
 
     def recent(self, limit: int = 20) -> list:
         """Newest-first UTC-hour aggregates for the admin live feed —
@@ -233,6 +305,60 @@ class DDBTripAggregates:
         except Exception as e:  # noqa: BLE001 - dashboard degrades, not dies
             self.last_error = f"{type(e).__name__}: {e}"
             return []
+
+    def global_aggregates(self) -> dict:
+        """/admin/api/global's read — area rows, OD-pair rows, savings
+        counters; same k>=3-on-devices filter and same shape as the
+        memory store's. Degrades to the honest-empty shape on failure,
+        never a fabricated zero."""
+        out = {"areas": [], "od_pairs": [], "avoided": None,
+               "co2_avoided": None,
+               "suppressed": {"areas": 0, "od_pairs": 0},
+               "areas_tracked": 0, "od_pairs_tracked": 0}
+        try:
+            for it in self._scan(GLOBAL_PK):
+                sk = (it.get("sk") or {}).get("S", "")
+                if sk == "sum":
+                    av_t = int(_num(it.get("avoided_trips")) or 0)
+                    if av_t:
+                        out["avoided"] = {
+                            "dose_ug": round(_num(it.get("avoided_ug")), 1),
+                            "trips_reporting": av_t}
+                    cav_t = int(_num(it.get("co2_avoided_trips")) or 0)
+                    if cav_t:
+                        out["co2_avoided"] = {
+                            "co2_kg": round(
+                                _num(it.get("co2_avoided_kg")), 2),
+                            "puc_calibrated_trips": cav_t}
+                    continue
+                devices = len((it.get("devices") or {}).get("SS") or [])
+                trips = int(_num(it.get("trips")) or 0)
+                if sk.startswith("area#"):
+                    out["areas_tracked"] += 1
+                    if devices < K_MIN:
+                        out["suppressed"]["areas"] += 1
+                        continue
+                    out["areas"].append({
+                        "area": sk[len("area#"):],
+                        "trips": trips, "devices": devices})
+                elif sk.startswith("od#"):
+                    parts = sk[len("od#"):].split("#")
+                    if len(parts) != 2:
+                        continue
+                    out["od_pairs_tracked"] += 1
+                    if devices < K_MIN:
+                        out["suppressed"]["od_pairs"] += 1
+                        continue
+                    out["od_pairs"].append({
+                        "origin": parts[0], "dest": parts[1],
+                        "trips": trips, "devices": devices})
+            out["areas"].sort(key=lambda r: (-r["devices"], -r["trips"]))
+            out["od_pairs"].sort(
+                key=lambda r: (-r["trips"], -r["devices"]))
+            self.last_error = None
+        except Exception as e:  # noqa: BLE001 - degrade, dashboard must live
+            self.last_error = f"{type(e).__name__}: {e}"
+        return out
 
     def _add_cell(self, cell: str, dose: float, token_hash: str,
                   ts: float, ttl: int, km_cell: float = 0.0,
@@ -324,12 +450,16 @@ class DDBTripAggregates:
                     "co2_kg_mid": 0.0, "pm25_g_mid": 0.0,
                     "switched": 0, "modes": {},
                     "co2_moving_g": 0.0, "co2_idle_g": 0.0,
-                    "co2_cold_g": 0.0, "co2_split_trips": 0})
+                    "co2_cold_g": 0.0, "co2_split_trips": 0,
+                    "avoided_ug": 0.0, "avoided_trips": 0,
+                    "co2_avoided_kg": 0.0, "co2_avoided_trips": 0})
                 if sk == DAY_SUM_SK:
                     for k in ("trips", "km", "dose_ug", "co2_kg_mid",
                               "pm25_g_mid", "switched",
                               "co2_moving_g", "co2_idle_g",
-                              "co2_cold_g", "co2_split_trips"):
+                              "co2_cold_g", "co2_split_trips",
+                              "avoided_ug", "avoided_trips",
+                              "co2_avoided_kg", "co2_avoided_trips"):
                         d[k] = _num(it.get(k))
                 elif sk.startswith("mode#"):
                     d["modes"][sk[len("mode#"):]] = _num(it.get("trips"))
@@ -363,7 +493,7 @@ class DDBTripAggregates:
     def reset(self) -> None:
         """Drop every aggregate item (dev/test parity with the memory
         store's reset; not wired to any endpoint)."""
-        for prefix in ("day#", "cell#", RECENT_PK):
+        for prefix in ("day#", "cell#", RECENT_PK, GLOBAL_PK):
             for it in self._scan(prefix):
                 self.client.delete_item(
                     TableName=self.table_name,

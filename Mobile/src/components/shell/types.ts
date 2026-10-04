@@ -117,4 +117,8 @@ export type PlanResult = {
   /** stable machine code for the error path — 'outside_service_area' when
       the OD can't be served; clients key on this, not on error text. */
   code?: string;
+  /** arms that timed out/cancelled/raised — e.g. ["engine"]. Absent arms
+      ≠ empty arms: a plan missing its engine arm is real but incomplete,
+      and the sheet must say so rather than pretend completeness. */
+  degraded?: string[];
 };

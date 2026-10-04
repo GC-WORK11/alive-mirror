@@ -29,6 +29,7 @@ ENDPOINTS = [
     "/admin/api/validation",
     "/admin/api/model",
     "/admin/api/timing",
+    "/admin/api/global",
 ]
 
 # Field names that must never appear anywhere in an admin response —
@@ -208,6 +209,66 @@ def test_donations_co2_split_absent_is_null():
     _donate(["cellB"], ["t1"])
     t = client.get("/admin/api/donations").json()["totals"]
     assert t["co2_split"] is None
+
+
+def _donate_od(o, d, tokens, summary=None, **rec_kw):
+    summary = summary or {"mode": "metro", "distance_km": 4.0,
+                          "dose_ug": 40.0}
+    for tok in tokens:
+        TRIPS.record_trip(["cellX", "cellY"], summary, token_hash=tok,
+                          origin_area=o, dest_area=d, **rec_kw)
+
+
+def test_global_empty_is_honest():
+    d = client.get("/admin/api/global").json()
+    assert d["empty"] is True
+    assert d["areas"] == [] and d["od_pairs"] == []
+    assert d["dose_avoided"] is None and d["co2_avoided"] is None
+    assert d["suppressed"] == {"areas": 0, "od_pairs": 0}
+
+
+def test_global_areas_and_od_k_rule():
+    _donate_od("Central Delhi", "Gurugram", ["t1", "t2"])
+    _donate_od("Central Delhi", "Gurugram", ["t3"])
+    d = client.get("/admin/api/global").json()
+    a = [r for r in d["areas"] if r["area"] == "Central Delhi"]
+    assert a and a[0]["devices"] == 3 and a[0]["trips"] == 3
+    od = d["od_pairs"]
+    assert od == [{"origin": "Central Delhi", "dest": "Gurugram",
+                   "trips": 3, "devices": 3}]
+    assert d["empty"] is False
+
+
+def test_global_suppresses_below_k3_and_counts():
+    _donate_od("Shahdara", "Faridabad", ["t1", "t2"])  # 2 devices < k
+    d = client.get("/admin/api/global").json()
+    assert d["areas"] == [] and d["od_pairs"] == []
+    assert d["suppressed"] == {"areas": 1, "od_pairs": 1}
+    assert d["areas_tracked"] == 1 and d["od_pairs_tracked"] == 1
+    assert d["empty"] is True  # suppressed rows never mint data
+
+
+def test_global_savings_only_count_reporters():
+    _donate_od("A", "B", ["t1", "t2", "t3"])
+    TRIPS.record_trip(["c"], {"mode": "car", "distance_km": 5.0,
+                              "dose_ug": 60.0, "avoided_ug": 30.0,
+                              "co2_avoided_kg": 0.8,
+                              "puc_calibrated": True},
+                      token_hash="t4", origin_area="A", dest_area="B")
+    # a trip carrying co2_avoided_kg WITHOUT the PUC flag must not count
+    TRIPS.record_trip(["c"], {"mode": "car", "distance_km": 5.0,
+                              "dose_ug": 60.0, "co2_avoided_kg": 9.9},
+                      token_hash="t5")
+    d = client.get("/admin/api/global").json()
+    assert d["dose_avoided"] == {"dose_ug": 30.0, "trips_reporting": 1}
+    assert d["co2_avoided"] == {"co2_kg": 0.8, "puc_calibrated_trips": 1}
+
+
+def test_global_no_origin_means_no_area_row():
+    TRIPS.record_trip(["cellX"], {"mode": "metro", "distance_km": 3.0,
+                                 "dose_ug": 10.0}, token_hash="t1")
+    d = client.get("/admin/api/global").json()
+    assert d["areas_tracked"] == 0 and d["od_pairs_tracked"] == 0
 
 
 # --- privacy scan -------------------------------------------------------------

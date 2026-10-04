@@ -150,6 +150,59 @@ def test_parity_with_memory_store(fake, ddb):
     assert ddb.corridors(now=ts) == mem.corridors(now=ts)
 
 
+def test_global_parity_with_memory_store(fake, ddb):
+    """Same donations through both stores -> identical global view."""
+    mem = memstore.TripAggregates()
+    ts = time.time()
+    seeds = [
+        (["c1", "c9"], {"mode": "car", "distance_km": 8.0,
+                        "dose_ug": 50.0, "avoided_ug": 20.0,
+                        "co2_avoided_kg": 1.1, "puc_calibrated": True},
+         "d1", "Central Delhi", "Gurugram", ts),
+        (["c1", "c9"], {"mode": "metro", "distance_km": 8.0,
+                        "dose_ug": 30.0, "avoided_ug": 10.0},
+         "d2", "Central Delhi", "Gurugram", ts),
+        (["c1", "c9"], {"mode": "car", "distance_km": 8.0,
+                        "dose_ug": 60.0, "co2_avoided_kg": 5.5},
+         "d3", "Central Delhi", "Gurugram", ts),
+        (["c2"], {"mode": "walking", "distance_km": 1.0,
+                  "dose_ug": 8.0}, "d4", "Shahdara", "Shahdara", ts),
+    ]
+    for s in (ddb, mem):
+        for cells, summary, tok, o, d, t in seeds:
+            s.record_trip(cells, dict(summary), tok, ts=t,
+                          origin_area=o, dest_area=d)
+    dg, mg = ddb.global_aggregates(), mem.global_aggregates()
+    assert dg["areas"] == mg["areas"]
+    assert dg["od_pairs"] == mg["od_pairs"]
+    assert dg["avoided"] == mg["avoided"]
+    assert dg["co2_avoided"] == mg["co2_avoided"]
+    assert dg["suppressed"] == mg["suppressed"]
+    # the k>=3 rule actually engaged: Shahdara's 1-device pair suppressed
+    assert dg["suppressed"]["od_pairs"] == 1
+    # 3-device Central Delhi pair published; savings count only
+    # reporters (co2_avoided without puc_calibrated excluded)
+    assert dg["od_pairs"] == [{"origin": "Central Delhi",
+                               "dest": "Gurugram", "trips": 3,
+                               "devices": 3}]
+    assert dg["avoided"]["trips_reporting"] == 2
+    assert dg["co2_avoided"] == {"co2_kg": 1.1,
+                                "puc_calibrated_trips": 1}
+
+
+def test_global_empty_is_honest(ddb):
+    g = ddb.global_aggregates()
+    assert g["areas"] == [] and g["od_pairs"] == []
+    assert g["avoided"] is None and g["co2_avoided"] is None
+
+
+def test_global_read_degrades_never_crashes(fake):
+    s = agg_ddb.DDBTripAggregates(client=FakeDDB(fail_on=("scan",)),
+                                  table_name="x")
+    g = s.global_aggregates()
+    assert g["areas"] == [] and s.last_error
+
+
 # ----------------------------------------------------------------- k >= 3
 
 def test_corridors_k_threshold(ddb):

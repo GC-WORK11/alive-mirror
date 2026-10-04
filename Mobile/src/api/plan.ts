@@ -235,5 +235,8 @@ function mapPlan(j: Record<string, unknown>): PlanResultFresh {
     vehicle: str(j.vehicle) ?? undefined,
     error: str(j.error) ?? undefined,
     code: str(j.code) ?? undefined,
+    degraded: Array.isArray(j.degraded)
+      ? j.degraded.filter((x): x is string => typeof x === "string")
+      : undefined,
   };
 }
