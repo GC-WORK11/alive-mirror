@@ -509,6 +509,11 @@ addEventListener('scroll',()=>{
   $('footMeta').textContent=`build ${h.build_sha||'?'} · field ${Math.round((h.field_age_s||0)/60)}m`;
   $('liveTag').textContent='live · '+ (st.source||'field');
   $('c3meta').textContent=(st.source||'field');
+  const w=h.wind||{};
+  if(w.speed_kmh!=null){
+    WIND.deg=Number(w.from_deg||0);WIND.kmh=Number(w.speed_kmh);
+    $('liveTag').textContent='live · waqi · wind '+Math.round(WIND.kmh)+'km/h';
+  }
 }catch(e){$('meta').textContent='the field is asleep — /health answers first';$('liveTag').textContent='offline'}})();
 
 /* ————— the aether: animated ascii field (canvas shader) ————— */
@@ -516,6 +521,8 @@ const RAMP=' .·:;=+x#%@'.split('');
 const COLS=40,ROWS=40;
 let CELLS=null; // [{v,conf,cx,cy}]
 let mouse={x:-1e4,y:-1e4,on:false};
+/* live wind — the shimmer drifts the way the plume actually blows */
+const WIND={deg:140,kmh:0};
 const cv=$('aether'),cx2=cv.getContext('2d');
 
 function aetherSize(){
@@ -541,16 +548,20 @@ function drawAether(t){
   const gw=w/COLS,gh=h/ROWS,fz=Math.min(gw*.74,gh*.82);
   cx2.font=`${fz}px "SF Mono",ui-monospace,Menlo,monospace`;
   cx2.textAlign='center';cx2.textBaseline='middle';
-  /* slow breathing wave marching NW→SE */
+  /* breathing wave marching along the live wind (from_deg → to vector) */
   const wave=(t*.00021)%2.4;
+  const wr=(WIND.deg+180)*Math.PI/180;
+  const wdx=Math.sin(wr),wdy=-Math.cos(wr);
+  const wspd=.6+Math.min(2.4,(WIND.kmh||0)/30); // real speed modulates drift
   for(let i=0;i<CELLS.length;i++){
     const c=CELLS[i];if(c.v==null)continue;
     const px=(c.col+.5)*gw,py=(c.row+.5)*gh;
     let v=c.v;
     /* shimmer: per-cell phase flicker between ramp neighbours */
     const ph=Math.sin(t*.0016+c.px2)*0.5+0.5;
-    /* the wave: brightens cells as it passes */
-    const d=Math.abs((c.col+c.row)*.028-wave*2.4+1.2);
+    /* the wave: a band swept along the wind vector */
+    const along=(c.col*wdx+c.row*wdy)*.028;
+    const d=Math.abs(along-wave*2.4*wspd+1.2);
     const lift=Math.max(0,1-Math.abs(d-.5)*3)*.22;
     v=Math.min(1,v+lift);
     /* mouse lens: pull density up near the cursor */

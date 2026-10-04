@@ -310,6 +310,8 @@ def collect_health(now=None, snapshot_root=None):
         "uptime_s": round(now - _STARTED, 1),
         "field_age_s": probe["age_s"],
         "field": field_blk,
+        "wind": ((probe["payload"] or {}).get("wind")
+                 if isinstance(probe.get("payload"), dict) else None),
         "disk": _disk(snapshot_root),
         "sources": {name: _source(name, prov.get(name), now) for name in
                     ("model", "met", "stations", "fires", "location")},
