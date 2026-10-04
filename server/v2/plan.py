@@ -972,8 +972,12 @@ def _engine_reweight(eng) -> None:
                 return None
 
         try:
-            eng.reweight(val)
-            _ENG_T = time.time()
+            res = eng.reweight(val) or {}
+            # only mark fresh when edges actually priced — a reweight
+            # against an empty field (cold task, no snapshot yet) would
+            # otherwise stick zero-cost paths for the whole TTL
+            if res.get("edges_priced", 0) > 0:
+                _ENG_T = time.time()
         except Exception:
             pass  # keep the previous pricing — honest stale, not broken
 
@@ -995,6 +999,13 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
     if eng is None:
         return []
     _engine_reweight(eng)
+    try:
+        ep = getattr(eng, "edges_priced", None)
+        ep = ep() if callable(ep) else (ep or 0)   # C++ binding = method,
+        if ep <= 0:                                # Python twin = attr
+            return []   # unpriced = degenerate paths — serve nothing
+    except Exception:
+        return []
     try:
         from airfield import MAX_ROUTE_KM
     except Exception:

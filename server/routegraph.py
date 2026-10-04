@@ -193,6 +193,7 @@ class PyPathEngine:
         self.g = g
         self.conc = [None] * g.n_edges   # per-edge field mean (reweight)
         self.field_mean = None
+        self.edges_priced = 0            # count priced — parity w/ C++ twin
 
     # ---- reweight: per-edge concentration from the live field ----
     def _sample_pts(self, i):
@@ -225,6 +226,7 @@ class PyPathEngine:
                 self.conc[i] = None
         self.field_mean = (sum(vals) / len(vals)) if vals else None
         self._min_conc = min(vals) if vals else None
+        self.edges_priced = len(vals)
         return {"edges_priced": len(vals), "field_mean": self.field_mean}
 
     def _conc(self, i):
