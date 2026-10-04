@@ -17,7 +17,8 @@
 // Re-opened from the options-sheet chip via CompareSheet's onVehiclePress.
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView,
+  StyleSheet, Text, TextInput, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../theme";
@@ -469,7 +470,16 @@ export function VehicleSheet({
   return (
     <View style={s.overlay} pointerEvents="box-none">
       <View style={s.backdrop} />
-      <Wizard lang={lang} current={current} onDone={onDone} onClose={onClose} />
+      {/* the overlay pattern alone isn't enough on this build — the
+          window does not resize for the IME, so the sheet's bottom
+          edge sat under the decimal keyboard (same KAV mechanism
+          SearchScreen relies on) */}
+      <KeyboardAvoidingView
+        style={s.kav}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <Wizard lang={lang} current={current} onDone={onDone} onClose={onClose} />
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -479,6 +489,7 @@ export default VehicleSheet;
 const s = StyleSheet.create({
   overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: V2T.scrim },
+  kav: { flex: 1 },
   /* half-detent (~50% viewport) crops the grouped class grid's last row
      on first paint — cap at 72% so cycle/walk is fully visible without
      a full-screen takeover. */
