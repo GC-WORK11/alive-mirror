@@ -189,6 +189,17 @@
          letter-spacing:.12em;text-transform:uppercase;line-height:2;
          display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
   a{color:var(--accent-ink);text-decoration:none}
+
+  /* ncr district chips — official cpcb band colour on the border+dot,
+     text stays the board's own ink (no traffic-light noise) */
+  .dist{display:flex;flex-wrap:wrap;gap:8px}
+  .dchip{display:flex;align-items:baseline;gap:7px;padding:7px 11px;
+         border:1.5px solid var(--line);border-radius:12px;background:var(--surface2,#f7f8fa)}
+  .dchip-dot{width:8px;height:8px;border-radius:4px;align-self:center}
+  .dchip-name{font-size:11px;font-weight:600;color:var(--ink)}
+  .dchip-v{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+  .dchip-v i{font-style:normal;font-size:8.5px;color:var(--ink4);margin-left:2px}
+  .dchip-a{font-family:var(--mono);font-size:9px;letter-spacing:.06em}
 </style>
 </head>
 <body>
@@ -210,6 +221,9 @@
   <div class="statusline" id="stamp">connecting…</div>
 
   <div class="grid" id="stats"></div>
+
+  <h2>where the smoke sits <em>each ncr district's own reading right now · official cpcb aqi colours</em></h2>
+  <div class="panel" style="padding:12px"><div class="dist" id="districts">connecting…</div></div>
 
   <h2>the live field <em>the surface every route breathes through — painted from the same cells the app tints</em></h2>
   <div class="panel" style="padding:14px">
@@ -243,7 +257,7 @@
       <div class="share" id="modeshare"></div>
     </div>
     <div class="panel scrollx"><table>
-      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th></tr></thead>
+      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th><th class="num">co₂ per 100 m</th></tr></thead>
       <tbody id="corridors"></tbody></table></div>
   </div>
 
@@ -293,11 +307,12 @@ const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
   hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
 
 async function tick(){
-  let status,sources,corridors,donations,validation,model;
+  let status,sources,corridors,donations,validation,model,districts;
   try{
-    [status,sources,corridors,donations,validation,model]=await Promise.all(
+    [status,sources,corridors,donations,validation,model,districts]=await Promise.all(
       ['/admin/api/status','/admin/api/sources','/admin/api/corridors',
-       '/admin/api/donations','/admin/api/validation','/admin/api/model'].map(getJSON));
+       '/admin/api/donations','/admin/api/validation','/admin/api/model',
+       '/v2/districts'].map(getJSON));
   }catch(e){
     /* keep the last good render on screen — flag its age, never blank it */
     $('feed').className='feed off';
@@ -307,6 +322,20 @@ async function tick(){
       (LAST_OK?` · showing last good data from <b>${timeIST(LAST_OK)}</b>`:'');
     return;
   }
+  /* --- ncr district strip: official cpcb palette chips, each district's
+     own pm2.5 read — never one number stretched across the map --- */
+  try{
+    const dr=(districts&&districts.districts)||[];
+    $('districts').innerHTML=dr.length?dr.map(d=>{
+      const c=d.color||'#888';
+      return `<div class="dchip" style="border-color:${c}">
+        <span class="dchip-dot" style="background:${c}"></span>
+        <span class="dchip-name">${esc(d.name)}</span>
+        <span class="dchip-v">${d.pm25==null?'—':fmt1(d.pm25)}<i>µg/m³</i></span>
+        <span class="dchip-a" style="color:${c}">${d.aqi==null?'':('aqi '+d.aqi)}</span></div>`;
+    }).join(''):emptyMsg('district feed not serving — the strip fills when /v2/districts answers.');
+  }catch(e){ /* strip stays decorative-optional; never break the board */ }
+
   LAST_OK=new Date();
   $('feed').className='feed live';
   $('feedtxt').textContent='auto 30s';
@@ -520,8 +549,9 @@ async function tick(){
       <td class="num">${fmt(r.trips)}</td>
       <td class="num">${fmt(r.devices)}</td>
       <td class="num dose-cell"><span class="dose-bar" style="width:${Math.round(rel*100)}%;background:${ramp(t,.9)}"></span>
-        <span class="mono" style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</span></td></tr>`;
-  }).join(''):`<tr><td colspan="5">${emptyMsg(
+        <span class="mono" style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</span></td>
+      <td class="num muted">${r.co2_g_per_100m==null?'—':fmt1(r.co2_g_per_100m)+' g'}</td></tr>`;
+  }).join(''):`<tr><td colspan="6">${emptyMsg(
     'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
 }
 
