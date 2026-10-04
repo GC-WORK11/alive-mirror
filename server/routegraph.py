@@ -64,12 +64,11 @@ MODE_RULES = {
                  "spd": lambda sp: min(sp, 40)},
     "bike":     {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
                  "acc": 0b001 | 0b10000, "turn": 1,
-                 # cap 40, not 30: two-wheelers sustain ~40+ on NCR
-                 # arterials freeflow (OSM maxspeed 50-70); a lower cap
-                 # flattened the len/sp axis the dose objective
-                 # optimizes and sat bikes below autos, which they
-                 # outrun in Delhi traffic
-                 "spd": lambda sp: min(sp, 40)},
+                 # cap 50: two-wheelers cruise 45-55 km/h on NCR
+                 # arterials freeflow (OSM maxspeed 50-70 there) and
+                 # outrun autos (cap 40) in Delhi traffic; 30 flattened
+                 # the len/sp axis the dose objective optimizes
+                 "spd": lambda sp: min(sp, 50)},
     # non-motor: no motorways, oneway not applicable to legs
     "cycle":    {"deny": {0, 1}, "oneway": False,
                  "acc": 0b010, "turn": 2,
@@ -82,9 +81,14 @@ MODE_VE = {"car": 7.5, "car_open": 7.5, "cab": 7.5, "auto": 8.5,
            "bike": 9.0, "cycle": 22.0, "walk": 14.0}
 MODE_ME = {"car": 0.55, "car_open": 0.80, "cab": 0.80, "auto": 1.15,
            "bike": 1.10, "cycle": 1.10, "walk": 1.00}
-# ROAD_UPLIFT keyed by hw code — exposure.py's published factors
-HW_UPLIFT = {0: 1.35, 1: 1.35, 2: 1.30, 3: 1.30, 4: 1.20, 5: 1.20,
-             6: 1.10, 7: 1.10, 8: 1.05, 9: 1.05}
+# NOTE: the priced objective deliberately uses a FLAT uplift (1.0 on
+# every edge), matching the display integrator — exposure.dose via
+# _dose_band never sees road_class, so a path that 'won' on priced
+# near-road uplift lost it right back on the displayed dose (the audit
+# showed engine corridors systematically slower AND worse-displayed).
+# Pricing the same term the UI shows makes the least-dose claim
+# provable on one integrator; near-road plume physics returns only
+# when the display band can credit road class.
 MAX_SAMPLE_PTS = 5      # per-edge concentration sample count cap
 SNAP_RADIUS_M = 1500.0  # furthest node-snap admitted for an endpoint
 # snap connectivity screen: a candidate endpoint must sit in the
@@ -481,15 +485,15 @@ class PyPathEngine:
                 return None
             e = e_i & 0x7FFFFFFF
             sp = rule["spd"](g.e_sp[e])
-            up = HW_UPLIFT.get(g.e_hw[e], 1.0)
             # dose rate per metre of travel on this edge for this mode
-            return (self._conc(e) * me * up * (ve / 1000.0)
+            # — same integrand the display band integrates (flat uplift)
+            return (self._conc(e) * me * (ve / 1000.0)
                     * (0.06 / sp))  # × len_m applied by caller
 
         # admissible heuristic: gc distance × cheapest achievable dose/m.
         # mn = min edge concentration (reweight stores it); fastest speed
-        # 250 km/h keeps the rate a floor. me/ve/uplift≥1 are per-mode
-        # constants — rate must be recomputed per mode (no shared cache).
+        # 250 km/h keeps the rate a floor. me/ve are per-mode constants —
+        # rate must be recomputed per mode (no shared cache).
         # The ALT_TAX pass multiplies only real edge costs — the bound
         # stays valid (tax can only raise costs, never below h_rate).
         mn = getattr(self, "_min_conc", None)
@@ -581,8 +585,7 @@ class PyPathEngine:
             ln = g.e_len[e]
             sp = rule["spd"](g.e_sp[e])
             t_min = ln / (sp * 1000 / 60)
-            dose += (self._conc(e) * me * HW_UPLIFT.get(g.e_hw[e], 1.0)
-                     * (ve / 1000.0) * t_min)
+            dose += (self._conc(e) * me * (ve / 1000.0) * t_min)
             dist += ln
             secs += t_min * 60.0
             nm = g.e_nm[e]

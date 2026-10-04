@@ -4,7 +4,7 @@
 // PyPathEngine (the parity oracle). Any change must be mirrored there.
 //
 // Edge cost is inhaled PM2.5 dose for traversing the edge in the
-// queried mode:  dose_ug/m = conc * me_mode * uplift_hw * (ve/1000)
+// queried mode:  dose_ug/m = conc * me_mode * (ve/1000)
 // * (0.06/sp_kmh). Dose minimization physically penalizes detours —
 // extra metres are extra breaths — so no distance penalty term is
 // needed (and none is added: the cost is dose, nothing else).
