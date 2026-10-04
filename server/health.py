@@ -87,8 +87,10 @@ _SOURCE_ENV = {
     "model": (["OPEN_METEO_BASE"], "Open-Meteo/CAMS public grid — no key required"),
     "met": (["OPEN_METEO_BASE"],
             "Open-Meteo wind + boundary-layer height — no key required"),
-    "stations": (["OPENAQ_API_KEY", "OPENAQ_KEY", "DATAGOV_KEY"],
-                 "OpenAQ v3 / data.gov.in CPCB — secret alive108/openaq"),
+    "stations": (["WAQI_API_KEY", "OPENAQ_API_KEY", "OPENAQ_KEY",
+                  "DATAGOV_KEY"],
+                 "WAQI → data.gov.in CPCB → OpenAQ v3 — secrets "
+                 "alive108/{waqi,cpcb,openaq}"),
     "fires": (["FIRMS_MAP_KEY"], "NASA FIRMS — public daily CSV fallback if unset"),
     "location": (["LOCATION_API_KEY", "AWS_EXECUTION_ENV",
                   "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_ACCESS_KEY_ID"],

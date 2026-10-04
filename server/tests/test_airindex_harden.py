@@ -518,3 +518,88 @@ def test_provenance_carries_n_counts():
     assert prov["stations"]["n"] == len(_stations(NOW))
     assert prov["fires"]["n"] == 4
     assert prov["met"]["n"] == 1
+
+
+# ------------------------------------------------ rollup mirror sync
+
+class _FakeS3:
+    def __init__(self, objects):
+        self._objects = objects          # key -> bytes
+
+    def get_paginator(self, _name):
+        objs = self._objects
+
+        class _Pager:
+            def paginate(self, Bucket, Prefix):
+                hits = [{"Key": k} for k in sorted(objs)
+                        if k.startswith(Prefix)]
+                yield {"Contents": hits} if hits else {}
+
+        return _Pager()
+
+    def get_object(self, Bucket, Key):
+        import io
+
+        class _Body:
+            def __init__(self, data):
+                self._data = data
+
+            def read(self):
+                return self._data
+
+        return {"Body": _Body(self._objects[Key])}
+
+
+def _fake_b3(objects):
+    class _B3:
+        def client(self, _svc):
+            return _FakeS3(objects)
+
+        class Session:
+            @staticmethod
+            def get_credentials():
+                return object()
+
+    return _B3()
+
+
+def test_rollup_mirror_pulls_jobs_outputs(tmp_path, monkeypatch):
+    objs = {
+        "daily/2026-10-03.json": b'{"date":"2026-10-03"}',
+        "validation/weekly-2026-W40.json": b'{"week":"2026-W40"}',
+        "validation/2026-W40.json": b'{"week":"2026-W40"}',
+        "validation/field_validation.md": b"# report\n",
+        "field/2026/10/04/1043.json.gz": b'{"cells":{}}',  # not a rollup
+        "daily/": b"",                                     # bare prefix
+    }
+    monkeypatch.setenv("ALIVE_AIR_BUCKET", "bkt")
+    monkeypatch.setattr(ingest_worker, "_aws_ready",
+                        lambda: (_fake_b3(objs), "ok"))
+    res = ingest_worker.sync_rollup_outputs(str(tmp_path))
+    assert res["ok"] and not res["skipped"]
+    assert sorted(res["downloaded"]) == [
+        "daily/2026-10-03.json",
+        "validation/2026-W40.json",
+        "validation/field_validation.md",
+        "validation/weekly-2026-W40.json",
+    ]
+    assert (tmp_path / "field/daily/2026-10-03.json").exists()
+    assert (tmp_path / "field/validation/weekly-2026-W40.json").exists()
+    # the admin page checks the report at the DATA root, not under field/
+    assert (tmp_path / "field_validation.md").read_text() == "# report\n"
+    # snapshot keys under field/ must not be mirrored into rollup dirs
+    assert not list((tmp_path / "field/daily").glob("*.gz"))
+    # idempotent: second pull downloads nothing (same bytes on disk)
+    res2 = ingest_worker.sync_rollup_outputs(str(tmp_path))
+    assert res2["ok"] and res2["downloaded"] == []
+
+
+def test_rollup_mirror_skips_without_aws(tmp_path, monkeypatch):
+    monkeypatch.delenv("ALIVE_AIR_BUCKET", raising=False)
+    res = ingest_worker.sync_rollup_outputs(str(tmp_path))
+    assert not res["ok"] and res["skipped"] == "no ALIVE_AIR_BUCKET"
+    monkeypatch.setenv("ALIVE_AIR_BUCKET", "bkt")
+    monkeypatch.setattr(ingest_worker, "_aws_ready",
+                        lambda: (None, "no credentials"))
+    res = ingest_worker.sync_rollup_outputs(str(tmp_path))
+    assert not res["ok"] and res["skipped"] == "no credentials"

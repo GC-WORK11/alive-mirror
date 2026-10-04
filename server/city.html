@@ -571,14 +571,15 @@ function paintForecast(slots){
     +'<div class="fc-cap">the next 12 hours — cams outlook anchored to the live field · µg/m³</div>';
 }
 function paintTicker(a,t,ad,nd){
+  const f1=v=>v==null?'—':(+v).toFixed(1);
   const items=[
-    [`pm2.5`,`${a.pm25??'—'} µg/m³`],
-    [`pm10`,`${a.pm10??'—'} µg/m³`],
-    [`no₂`,`${a.no2??'—'} µg/m³`],
-    [`o₃`,`${a.o3??'—'} µg/m³`],
-    [`co`,`${a.co??'—'} µg/m³`],
-    [`so₂`,`${a.so2??'—'} µg/m³`],
-    [`us aqi`,`${a.us_aqi??'—'}`],
+    [`pm2.5`,`${f1(a.pm25)} µg/m³`],
+    [`pm10`,`${f1(a.pm10)} µg/m³`],
+    [`no₂`,`${f1(a.no2)} µg/m³`],
+    [`o₃`,`${f1(a.o3)} µg/m³`],
+    [`co`,`${f1(a.co)} µg/m³`],
+    [`so₂`,`${f1(a.so2)} µg/m³`],
+    [`us aqi`,`${a.us_aqi==null?'—':Math.round(+a.us_aqi)}`],
     [`krige band`,`${a.pm25_lo??'—'}–${a.pm25_hi??'—'}`],
     [`wind`,`${Math.round(windNow.speed_kmh)} km/h from ${compass(windNow.from_deg)}`],
     [`instruments`,`${a.field?.station_readings??'—'} live`],

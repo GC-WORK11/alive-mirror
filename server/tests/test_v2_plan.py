@@ -378,6 +378,12 @@ def test_metro_via_transit_v2_real_legs(monkeypatch):
     # merged geometry is one LineString
     assert o["geometry"]["type"] == "LineString"
     assert len(o["geometry"]["coordinates"]) >= 4
+    # combined leg dose carries the same fields a road row does —
+    # avg_conc is the distance-weighted mean over legs, peak the max
+    assert isinstance(o["dose"]["mid"], (int, float))
+    assert isinstance(o["dose"]["avg_conc_ugm3"], (int, float))
+    assert o["dose"]["avg_conc_ugm3"] > 0
+    assert o["dose"]["peak_conc"] >= o["dose"]["avg_conc_ugm3"]
     # emissions: per-pax-km metro band on the ride distance, not the
     # whole door-to-door geometry
     assert o["emissions"]["engine"] == "server/emissions.py"

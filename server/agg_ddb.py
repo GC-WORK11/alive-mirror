@@ -34,7 +34,6 @@ Local dev / tests: pass `client=` (a fake or stubbed DynamoDB client);
 import os
 import sys
 import time
-import uuid
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -138,51 +137,98 @@ class DDBTripAggregates:
         except Exception as e:  # noqa: BLE001 - surface, never silent-loss
             self.last_error = f"{type(e).__name__}: {e}"
             raise
-        self._append_recent(ts, summary)
+        self._add_recent_hour(ts, summary, token_hash)
 
-    def _append_recent(self, ts: float, summary: dict) -> None:
-        """One aggregate-level event row for the admin live feed.
-        pk='recent' items carry ts/mode/dose/km/co2 only — never a cell,
-        never a token — and expire on the same 72 h freshness contract
-        the corridors use. A feed-write failure is recorded but must not
-        sink the donation: the counters above already took the truth."""
+    def _add_recent_hour(self, ts: float, summary: dict,
+                         token_hash: str) -> None:
+        """Fold the donation into its UTC-hour aggregate for the admin
+        live feed — sk='hour#<h>' carries per-hour sums plus a distinct
+        hashed-token set, the same k>=3-device contract corridor cells
+        use, so a feed row can never collapse to one trip. The per-trip
+        rows this used to write (exact ts + mode + dose + km) WERE a
+        single person's journey. Mode counts live on sibling
+        'hour#<h>#mode#<m>' items; both expire on the 72 h freshness
+        contract. A feed-write failure is recorded but must not sink
+        the donation: the counters above already took the truth."""
+        h = int(ts // 3600)
+        ttl = int(ts) + CELL_WINDOW_S
         try:
-            self.client.put_item(
+            expr = ("SET #ttl = :ttl, last_ts = :ts "
+                    "ADD trips :one, dose_ug :d, km :k, "
+                    "co2_kg_mid :c, switched :sw")
+            vals = {":ttl": _n(ttl), ":ts": _n(round(ts, 3)),
+                    ":one": _n(1),
+                    ":d": _n(float(summary.get("dose_ug") or 0.0)),
+                    ":k": _n(float(summary.get("distance_km") or 0.0)),
+                    ":c": _n(float(summary.get("co2_kg_mid") or 0.0)),
+                    ":sw": _n(1 if summary.get("switched") else 0)}
+            if token_hash:
+                # already-hashed upstream — distinct-countable, never
+                # linkable; SS union dedupes a device's repeat donations
+                expr += ", devices :tok"
+                vals[":tok"] = {"SS": [str(token_hash)]}
+            self.client.update_item(
                 TableName=self.table_name,
-                Item={
-                    "pk": {"S": RECENT_PK},
-                    "sk": {"S": f"trip#{ts:.3f}#{uuid.uuid4().hex[:6]}"},
-                    "ts": _n(round(ts, 3)),
-                    "mode": {"S": str(summary.get("mode") or "unknown")[:24]},
-                    "dose_ug": _n(float(summary.get("dose_ug") or 0.0)),
-                    "km": _n(float(summary.get("distance_km") or 0.0)),
-                    "co2_kg_mid": _n(float(summary.get("co2_kg_mid") or 0.0)),
-                    "switched": _n(1 if summary.get("switched") else 0),
-                    "ttl": _n(int(ts) + CELL_WINDOW_S),
-                })
+                Key={"pk": {"S": RECENT_PK}, "sk": {"S": f"hour#{h}"}},
+                UpdateExpression=expr,
+                ExpressionAttributeNames={"#ttl": "ttl"},
+                ExpressionAttributeValues=vals)
+            mode = str(summary.get("mode") or "unknown")[:24]
+            self.client.update_item(
+                TableName=self.table_name,
+                Key={"pk": {"S": RECENT_PK},
+                     "sk": {"S": f"hour#{h}#mode#{mode}"}},
+                UpdateExpression="SET #ttl = :ttl ADD trips :one",
+                ExpressionAttributeNames={"#ttl": "ttl"},
+                ExpressionAttributeValues={":ttl": _n(ttl),
+                                           ":one": _n(1)})
         except Exception as e:  # noqa: BLE001 - feed is cosmetic, log-only
             self.last_error = f"recent: {type(e).__name__}: {e}"
 
     def recent(self, limit: int = 20) -> list:
-        """Newest-first aggregate trip events for the admin live feed."""
+        """Newest-first UTC-hour aggregates for the admin live feed —
+        only hours clearing the corridor k>=3 distinct-device rule.
+        Legacy 'trip#' rows are ignored (72 h TTL sweeps them)."""
         try:
-            out = []
+            hours, modes = {}, {}
             for it in self._scan(RECENT_PK):
-                sk = (it.get("sk") or {}).get("S", "")
-                if not sk.startswith("trip#"):
+                parts = (it.get("sk") or {}).get("S", "").split("#")
+                if len(parts) < 2 or parts[0] != "hour":
                     continue
+                h = int(parts[1])
+                if len(parts) == 2:
+                    hours[h] = {
+                        "trips": _num(it.get("trips")),
+                        "devices": len((it.get("devices") or {})
+                                       .get("SS") or []),
+                        "dose_ug": _num(it.get("dose_ug")),
+                        "km": _num(it.get("km")),
+                        "co2_kg_mid": _num(it.get("co2_kg_mid")),
+                        "switched": _num(it.get("switched")),
+                        "ts": (_num(it.get("last_ts"))
+                               or (h + 1) * 3600),
+                    }
+                elif parts[2] == "mode":
+                    modes.setdefault(h, {})["#".join(parts[3:])] = (
+                        _num(it.get("trips")))
+            out = []
+            for h, r in hours.items():
+                if r["devices"] < K_MIN:
+                    continue
+                mm = modes.get(h) or {}
                 out.append({
-                    "ts": _num(it.get("ts")),
-                    "mode": (it.get("mode") or {}).get("S", "unknown"),
-                    "dose_ug": _num(it.get("dose_ug")),
-                    "km": _num(it.get("km")),
-                    "co2_kg_mid": _num(it.get("co2_kg_mid")),
-                    "switched": bool(_num(it.get("switched"))),
-                    "_sk": sk,
+                    "hour": time.strftime("%Y-%m-%d %H:00Z",
+                                          time.gmtime(h * 3600)),
+                    "ts": r["ts"],
+                    "trips": r["trips"],
+                    "devices": r["devices"],
+                    "mode": max(mm, key=mm.get) if mm else None,
+                    "dose_ug": round(float(r["dose_ug"]), 1),
+                    "km": round(float(r["km"]), 1),
+                    "co2_kg_mid": round(float(r["co2_kg_mid"]), 3),
+                    "switched": int(r["switched"] or 0),
                 })
             out.sort(key=lambda e: -e["ts"])
-            for e in out:
-                del e["_sk"]
             return out[:limit]
         except Exception as e:  # noqa: BLE001 - dashboard degrades, not dies
             self.last_error = f"{type(e).__name__}: {e}"

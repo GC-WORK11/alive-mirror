@@ -17,7 +17,6 @@ import sys
 import threading
 import time
 import uuid
-from collections import deque
 from typing import Optional
 
 LOCK = threading.Lock()
@@ -86,10 +85,11 @@ class TripAggregates:
         self._days: dict = {}    # "YYYY-MM-DD" -> day counters
         self._cells: dict = {}   # cell key -> {count, dose_sum, tokens:set}
         self._cell_window_s = 72 * 3600  # corridor rule: 72 h freshness
-        # bounded ring of the latest donations — ts/mode/dose/km/co2 only,
-        # never a cell or a token: the admin live-feed needs the shape of
-        # activity, not its geometry
-        self._recent: deque = deque(maxlen=50)
+        # per-UTC-hour aggregates for the admin live feed — sums plus a
+        # distinct hashed-token set, the same k>=3-device contract the
+        # corridor cells use. Per-trip rows (ts/mode/dose/km) would
+        # collapse to a single person's journey; hour buckets can't.
+        self._hours: dict = {}
 
     def record_trip(self, cells: list, summary: dict,
                     token_hash: str, ts: float = None) -> None:
@@ -139,13 +139,23 @@ class TripAggregates:
                     v["co2_trips"] += 1
                 if token_hash:
                     v["tokens"].add(token_hash)
-            self._recent.append({
-                "ts": ts, "mode": mode,
-                "dose_ug": dose,
-                "km": float(summary.get("distance_km") or 0.0),
-                "co2_kg_mid": float(summary.get("co2_kg_mid") or 0.0),
-                "switched": bool(summary.get("switched")),
-            })
+            h = int(ts // 3600)
+            hr = self._hours.setdefault(h, {
+                "trips": 0, "devices": set(), "dose_ug": 0.0,
+                "km": 0.0, "co2_kg_mid": 0.0, "switched": 0,
+                "modes": {}, "last_ts": 0.0})
+            hr["trips"] += 1
+            if token_hash:
+                hr["devices"].add(token_hash)
+            hr["dose_ug"] += dose
+            hr["km"] += float(summary.get("distance_km") or 0.0)
+            hr["co2_kg_mid"] += float(summary.get("co2_kg_mid") or 0.0)
+            hr["switched"] += 1 if summary.get("switched") else 0
+            hr["modes"][mode] = hr["modes"].get(mode, 0) + 1
+            hr["last_ts"] = max(hr["last_ts"], ts)
+            for stale in [k for k in self._hours
+                          if ts - k * 3600 > self._cell_window_s]:
+                del self._hours[stale]
 
     def _publishable_cells(self, now: float, limit: int) -> list:
         """k>=3-window filter — call with LOCK held (aggregates only)."""
@@ -188,9 +198,29 @@ class TripAggregates:
         }
 
     def recent(self, limit: int = 20) -> list:
-        """Newest-first aggregate trip events for the admin live feed."""
+        """Newest-first UTC-hour aggregates for the admin live feed —
+        only hours clearing the corridor k>=3 distinct-device rule.
+        Mirrors agg_ddb.DDBTripAggregates.recent's row shape."""
         with LOCK:
-            return list(self._recent)[-limit:][::-1]
+            out = []
+            for h, r in self._hours.items():
+                if len(r["devices"]) < 3:
+                    continue
+                out.append({
+                    "hour": time.strftime("%Y-%m-%d %H:00Z",
+                                          time.gmtime(h * 3600)),
+                    "ts": r["last_ts"],
+                    "trips": r["trips"],
+                    "devices": len(r["devices"]),
+                    "mode": (max(r["modes"], key=r["modes"].get)
+                             if r["modes"] else None),
+                    "dose_ug": round(r["dose_ug"], 1),
+                    "km": round(r["km"], 1),
+                    "co2_kg_mid": round(r["co2_kg_mid"], 3),
+                    "switched": r["switched"],
+                })
+            out.sort(key=lambda e: -e["ts"])
+            return out[:limit]
 
     def snapshot_cells(self) -> dict:
         """Test/debug view of the cell layer (aggregates, no raw data)."""
@@ -203,6 +233,7 @@ class TripAggregates:
         with LOCK:
             self._days.clear()
             self._cells.clear()
+            self._hours.clear()
 
 
 ROUTES = RouteStore()

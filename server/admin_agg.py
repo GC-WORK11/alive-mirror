@@ -612,8 +612,10 @@ async def donations():
           "pct": round(100.0 * n / tot["trips"], 1) if tot["trips"] else None}
          for m, n in tot["modes"].items()),
         key=lambda r: -(r["trips"] or 0))
-    # the live feed — newest aggregate-level events first (ts/mode/dose/
-    # km/co2; cells and tokens are never part of the feed, by design)
+    # the live feed — UTC-hour aggregates, newest first. A row only
+    # appears when its hour holds >=3 distinct hashed devices (the
+    # corridor k-anonymity contract); per-trip rows would collapse to
+    # a single person's journey — that was the feed's leak.
     try:
         recent = TRIPS.recent(20)
     except Exception:  # noqa: BLE001 - a store without the ring degrades

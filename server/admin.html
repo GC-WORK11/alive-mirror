@@ -372,6 +372,13 @@ async function tick(){
   const t=donations.totals||{};
   const daily=validation.daily||{};
   const loso=(validation.weekly&&validation.weekly.loso)||{};
+  const archR=(validation.weekly&&validation.weekly.archive_replay)||{};
+  // headline error card: held-out LOSO when it has folds; otherwise the
+  // archive replay mae is real evidence and clearly labelled as such —
+  // an empty card here would undersell data the week block already shows.
+  const maeV=loso.mae_ugm3!=null?loso.mae_ugm3
+    :(archR.status==='ok'&&archR.mae_ugm3!=null?archR.mae_ugm3:null);
+  const maeL=loso.mae_ugm3!=null?'held-out stations':'archive replay';
   const ageTxt=f.age_s!=null?ago(f.age_s):null;
   const cards=[
     [f.age_s!=null?`${ageTxt}${freshBadge(f.stale)}`:null,
@@ -387,8 +394,8 @@ async function tick(){
      `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} µg/trip`,'brick',t.dose_ug>0],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
-    [loso.mae_ugm3!=null?`${loso.mae_ugm3} <small>µg/m³</small>`:null,
-     `model error vs held-out stations (mae)${validation.weekly?' · '+validation.weekly.week:''}`,'',loso.mae_ugm3!=null]];
+    [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
+     `model error · ${maeL} (mae)${validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null]];
   $('stats').innerHTML=cards.map(([v,l,cl,ok])=>
     `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div></div>`).join('');
 
@@ -535,15 +542,16 @@ async function tick(){
   }
   if(!t.trips)$('donations').innerHTML=emptyMsg(
     'no donations yet — totals appear when the first anonymized trip summary lands. nothing is zero-filled.');
-  /* the live feed — aggregate-level events only (mode/dose/km/co2);
-     the store deliberately cannot say where or who */
+  /* the live feed — UTC-hour aggregates only (mode/dose/km/co2 sums);
+     a row exists only where >=3 distinct devices donated in that hour,
+     so nothing shown can collapse to one person's journey */
   const feed=donations.recent||[];
   $('feed').innerHTML=feed.length?
-    `<div class="feed-h">live feed · newest donations</div>`+feed.map(e=>{
+    `<div class="feed-h">live feed · busiest hours (k≥3 devices)</div>`+feed.map(e=>{
       const s=Math.max(0,Math.round(((donations.ts||Date.now()/1000)-(e.ts||0))));
       return `<div class="feed-row">
         <span class="f-t">${ago(s)} ago</span>
-        <span class="f-m">${esc(e.mode||'trip')}${e.switched?' <span style="color:var(--ink4)">·switched</span>':''}</span>
+        <span class="f-m">${esc(e.mode||'trip')}${e.trips>1?' <span style="color:var(--ink4)">×'+e.trips+'</span>':''}${e.switched?' <span style="color:var(--ink4)">·switched</span>':''}</span>
         <span class="f-d" style="color:${doseInk(e.dose_ug||0)}">${fmt1(e.dose_ug)} µg</span>
         <span class="f-k">${fmt1(e.km)} km</span>
         <span class="f-c">${e.co2_kg_mid?fmt1(e.co2_kg_mid)+' kg co₂':''}</span>

@@ -96,4 +96,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD ["python", "-c", "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','8080')+'/health',timeout=4)"]
 
 # exec-form via sh so $PORT is honored and uvicorn still ends up as PID 1.
-CMD ["sh", "-c", "exec python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# ALIVE_JOB set -> this is a scheduled one-shot task (rollup/validate/
+# ingest) running rollup_lambda's job dispatch, not the API — without the
+# branch, EventBridge RunTask would boot a duplicate web server that
+# never does the job.
+CMD ["sh", "-c", "if [ -n \"$ALIVE_JOB\" ]; then exec python rollup_lambda.py \"$ALIVE_JOB\"; else exec python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}; fi"]
