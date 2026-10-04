@@ -1009,7 +1009,7 @@ def _engine_reweight(eng) -> None:
                     sampler = fv.value
         except ImportError:
             pass
-        _log.info(
+        _log.warning(
             "engine reweight: sampler=%s eng=%s snap_fv=%s serving=%s",
             type(sampler).__name__, type(eng).__name__,
             type(getattr(F, "_snap_fv", None)).__name__,
@@ -1031,7 +1031,7 @@ def _engine_reweight(eng) -> None:
             # otherwise stick zero-cost paths for the whole TTL
             if res.get("edges_priced", 0) > 0:
                 _ENG_T = time.time()
-            _log.info("engine reweight done: %s", res)
+            _log.warning("engine reweight done: %s", res)
         except Exception as e:
             _log.warning("engine reweight failed: %r", e)
 
@@ -1048,7 +1048,8 @@ def _engine_field_view(F):
     try:
         import grid as _g
         geo = _g.as_geojson(F, cells=56, param="pm2_5")
-    except Exception:
+    except Exception as e:
+        _log.warning("engine raster: as_geojson failed: %r", e)
         return None
     rows = []
     for ft in (geo.get("features") or []):
@@ -1061,13 +1062,18 @@ def _engine_field_view(F):
         rows.append((cy, cx, float(pm), float(pm), float(pm),
                      float("nan")))
     if not rows:
+        _log.warning("engine raster: field served no cells")
         return None
     try:
         import core_engine
         # 8 km coverage: every graph edge lands within reach of a raster
         # cell — past the lattice, nearest_cell would leave edges unpriced
-        return core_engine.field_view(rows, 8.0)
-    except Exception:
+        fv = core_engine.field_view(rows, 8.0)
+        _log.warning("engine raster: %d cells -> %s", len(rows),
+                     type(fv).__name__)
+        return fv
+    except Exception as e:
+        _log.warning("engine raster: field_view failed: %r", e)
         return None
 
 
@@ -1093,7 +1099,7 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
         ep = getattr(eng, "edges_priced", None)
         ep = ep() if callable(ep) else (ep or 0)   # C++ binding = method,
         if ep <= 0:                                # Python twin = attr
-            _log.info("engine options: unpriced (edges_priced=0)")
+            _log.warning("engine options: unpriced (edges_priced=0)")
             return []   # unpriced = degenerate paths — serve nothing
     except Exception as e:
         _log.warning("engine options: edges_priced probe failed: %r", e)
@@ -1110,8 +1116,8 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
             _log.warning("engine query %s failed: %r", mode, e)
             continue
         if not isinstance(r, dict) or r.get("error") or not r.get("geometry"):
-            _log.info("engine query %s: %s", mode,
-                      (r or {}).get("error") or "no geometry")
+            _log.warning("engine query %s: %s", mode,
+                         (r or {}).get("error") or "no geometry")
             continue
         snap = r.get("snap") or {}
         if (snap.get("from_m", 1e9) > 1200.0
