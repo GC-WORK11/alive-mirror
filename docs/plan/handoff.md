@@ -71,21 +71,28 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 - Suite 843 passed; main merged at 7568376 (no-ff).
 - SWE-2 slot truth: org cap 5 running — mine 2 (depth 139507b4 engine mandate, backend 29adb480) + Pocket Rig 3 (main + 2 subs) = full. efb8721d exited (its Android overhaul complete). UI/UX combined lane spawn retries on settle; location 1cb3ac27 suspended.
 - Next: UI/UX lane spawn when a slot frees; LOSO needs held-out-station snapshots to populate (validation infrastructure gap — backend lane owns).
+- ENGINE MANDATE COMPLETE — deployed live `2175ff93` (2175ff9 + deploy fix 357b7e4), suite 859. (1) priced=displayed PROVEN + pinned: engine_dose_ug = verbatim A* priced-edge sum, dose band via same _ENG_PACK, live delta ≤±2%, memo-hit byte-identical, fast/full share ("prim",ek) memo. (2) Legality: real violation found+fixed — MgRoad→Saket car alt1 1.77× detour+worse dose → ALT_MAX_DETOUR=1.6 + DETOUR_MAX_VS_FAST=1.6 two layers; test_legality_corpus pins edge legality/turn bans/bbox/cap over 40 ODs. (3) Concurrency: zero-engine-rows root-caused = old code dropped unpriced busy arms during cold first raster sweep (~26s window on a booting task); _ENG_DONE busy-join (≤3.5s wait) + ENGINE_RASTER_BUDGET_S=12s adaptive lattice; load probe: fast p50 258ms / full p50 6.9s p95 8.6s, 14/14 engine rows, 0 timeouts. (4) Duration model decision = LABEL: engine primaries 36–56 km/h implied vs router 40–57; scaling can't change argmin → `duration_basis:"freeflow"` shipped on engine rows + corpus regression. FLAG for lead: router-side dur_f implies bike 56–75 km/h (2W outruns cars) — dose understates on router bike rows.
+- Lead fix `522422a`: full-plan engine-arm death no longer silent — `_build_options` returns missing-arm names, /v2/plan + /v2/reroute emit `degraded:["engine",...]`; contract.ts declares degraded/partial/puc_calibrated; 2 tests pin it.
+- 40-OD audit re-run by lead on 3c7f86d8: 10/38 ODs win vs fast row, 16/38 vs same-mode, 0 absurd detours, 103 worse-dose rows (all duration-model artifact per decomp — 0 genuinely-smokier corridors).
+- UI/UX combined lane SPAWNED (ebe5ed90, SWE-2 Max) after depth-lane terminate freed its slot — Android+admin exhaustive sweep + cross-consistency + recorded E2E + APK rebuild.
+- Backend lane (29adb480) also owns: band-coverage calibration vs held-out station truth (is the ±13% krige band calibrated? coverage % inside band at 2σ).
 
 Open gaps, ranked (from master-plan.md):
-1. Owner's testing overhaul mandate: exhaustive per-feature Android + admin sweep (every screen/button/border) + recorded E2E vs live API — UI/UX lane briefed (/Users/devin/uiux-lane-prompt.txt), spawn blocked at 5-SWE-2 cap; backend lane covers admin API; lead verified admin+city+exposure on live 3ef36777.
-2. Cold-start residual — _warm_field + _warm_static shipped and live; depth lane verifying the fresh-task numbers.
+1. Owner's testing overhaul mandate: exhaustive per-feature Android + admin sweep (every screen/button/border) + recorded E2E vs live API — UI/UX lane RUNNING (ebe5ed90); backend lane covers admin API; lead verified admin+city+exposure live.
+2. Cold-start residual — _warm_field + _warm_static live; depth lane verified: residual honest floor ≈ first ~8.5s of a genuinely cold task (bounded, never fabricated).
 3. Android: physical-finger pass on search taps; dose-at-driving-speed untested (teleport only); PUC re-verify on final APK — all in UI/UX lane brief.
 4. Demo morning: switch Spot → on-demand, warm the task 10 min early (tools/warm_task.py ships, verified live), run the demo on a physical Android phone. iOS = recorded take (ios_e2e_clean.mp4 done).
-5. Keep main merged at checkpoints (last: 7568376).
-6. Rollup jobs wired + schedules enabled (daa0571) — daily 00:30 IST, weekly Sun 20:00 IST; one-off runs verified exit-0; admin tiles show real rollup data; LOSO held-out tile honest-empty until station-held-out snapshots exist.
+5. Keep main merged at checkpoints (last: 7568376; next merge after 522422a deploy verifies).
+6. Router-side bike duration implies 56–75 km/h (OSRM car freeflow) — understates dose on router bike rows vs engine rows; lead owns (plan.py), decide clamp-vs-label consistent with engine rows' duration_basis.
+7. Rollup jobs wired + schedules enabled — daily 00:30 IST, weekly Sun 20:00 IST; admin tiles show real rollup data; LOSO held-out tile honest-empty until station-held-out snapshots exist (backend lane owns band-coverage calibration).
 
 ## Every session ever run for this project
 Active right now:
-- 139507b46df84f939b68d447735ea203: engineering-depth lane on SWE-2 Max, Linux — legs done (route-quality truth, cold-start warmers, demo-day ops, privacy) + 3ef3677 k≥3 admin feed. NOW ON the engine mandate: priced=displayed under dedupe, live-route legality, load timeouts, duration-model decision. https://app.devin.ai/sessions/139507b46df84f939b68d447735ea203
-- 29adb48022764f489dc2eb86e15fe8b0: BACKEND lane on SWE-2 Max — field/species units audit, dose e2e, admin tiles verdict, /v2/plan robustness, edge-path tests, forecast anchor truth. https://app.devin.ai/sessions/29adb48022764f489dc2eb86e15fe8b0
-- 1cb3ac27d94642f29952845945934fc3: Location-depth lane — SUSPENDED (inactivity + SWE-2 5-session cap; resume message queued, 429 until a slot frees). Its lands through 0a3c3140 are live (172/174). Remaining: Hinglish, compound queries. https://app.devin.ai/sessions/1cb3ac27d94642f29952845945934fc3
-- UI/UX lane: brief written, spawn pending on SWE-2 slot.
+- ebe5ed9002f24fb49495638d0165218b: COMBINED UI/UX lane on SWE-2 Max, Linux — Android per-feature sweep + admin border-level + cross-consistency + recorded E2E + APK rebuild. https://app.devin.ai/sessions/ebe5ed9002f24fb49495638d0165218b
+- 29adb48022764f489dc2eb86e15fe8b0: BACKEND lane on SWE-2 Max — field/species units audit, dose e2e, admin tiles verdict, /v2/plan robustness, edge-path tests, forecast anchor truth + band-coverage calibration. https://app.devin.ai/sessions/29adb48022764f489dc2eb86e15fe8b0
+- 1cb3ac27d94642f29952845945934fc3: Location-depth lane — SUSPENDED (inactivity + SWE-2 5-session cap; resume when a slot frees). Its lands through 0a3c3140 are live (172/174). Remaining: Hinglish, compound queries. https://app.devin.ai/sessions/1cb3ac27d94642f29952845945934fc3
+Completed + terminated this stretch:
+- 139507b46df84f939b68d447735ea203: engineering-depth lane — ALL engine-mandate legs done (priced=displayed proof, legality fix, busy-join concurrency, duration-label decision) + k≥3 feed 3ef3677 + admin sweep/walkthrough + debias ce101e5; terminated at backlog-clear to free the slot for UI/UX. https://app.devin.ai/sessions/139507b46df84f939b68d447735ea203
 - efb8721d915f40d0807595b4bec3fa6d: Android UI/UX overhaul on SWE-2 Max — COMPLETE + TERMINATED (jank −31%, TTS verified, 9 polish commits, APK on 65a8619; follow-ups carried into the UI/UX lane brief: APK upload + PUC re-verify + tap-cadence pass). https://app.devin.ai/sessions/efb8721d915f40d0807595b4bec3fa6d
 Terminated (out of Ultra quota; work either pushed or handed off):
 - 13283940d1854cd4bf2ff691c4bd9bb7: the previous lead session — this session (93b8804d) is its successor as lead. https://app.devin.ai/sessions/13283940d1854cd4bf2ff691c4bd9bb7
