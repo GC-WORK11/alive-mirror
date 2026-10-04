@@ -237,6 +237,10 @@ async def post_trip(body: dict):
                 avoided_ug=None,
                 contributor=token or None,
                 co2_kg=summary.get("co2_kg_mid"),
+                # `kept` already ran privacy_pipeline above — telling
+                # observe() that stops it re-trimming another 300 m off
+                # the donated traversal's ends
+                privacy_trimmed=True,
             )
         except Exception:  # noqa: BLE001 — aggregates already stored; a
             pass               # citizen-layer hiccup must not fail a donation

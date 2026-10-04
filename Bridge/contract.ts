@@ -248,6 +248,9 @@ export interface DepartResponse {
   best?: DepartSlot;
   worst?: DepartSlot;
   ug_saved_vs_now?: number | null; // % less PM2.5 by leaving at best hour
+  // honest name for the same percent — the ug_* key lied about its unit;
+  // kept alongside until every client reads this one (claims-audit §4)
+  pct_less_vs_now?: number | null;
   slots?: DepartSlot[];
   forecast?: { aq_points: number; met_points: number; hours: number;
                age_s: number | null };

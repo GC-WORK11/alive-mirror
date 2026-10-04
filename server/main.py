@@ -789,6 +789,10 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
         "now": now_slot,
         "best": best,
         "worst": ordered[-1],
+        # percent, not µg — the ug_* name lies (claims-audit §4).
+        # pct_less_vs_now is the honest key; ug_saved_vs_now stays for
+        # clients on older builds until the app moves.
+        "pct_less_vs_now": saved,
         "ug_saved_vs_now": saved,
         "slots": slots,
         "forecast": FORECAST.status(),
@@ -1082,19 +1086,34 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     desk_ve = 7.5 / 1000.0 * 60.0
 
     per_hour = []
-    dose = desk = 0.0
+    dose = desk = dose_lo = dose_hi = 0.0
+    sd0 = FIELD.sigma(lat, lon) if live is not None else None
     for i in range(int(hours * 2)):  # half-hour steps for smooth dose
         h = (start + i * 0.5) % 24
         hh = int(h)
+        c_lo = c_hi = None
         if i == 0 and live is not None:
             c = live
+            # live hour: krige σ band when serving; else the decade
+            # quartiles for this hour stand in
+            if sd0:
+                c_lo, c_hi = max(0.0, live - sd0), live + sd0
+            elif band0.get("p25") and band0.get("p75"):
+                c_lo, c_hi = band0["p25"] * adj, band0["p75"] * adj
         else:
             t = history.typical(lat, lon, ist.month, hh)
             c = (t * adj) if t else live
+            # future hours: the real interquartile range of that
+            # month-hour, scaled by the same live delta as the median
+            band_h = history.typical_band(lat, lon, ist.month, hh)
+            if band_h.get("p25") and band_h.get("p75"):
+                c_lo, c_hi = band_h["p25"] * adj, band_h["p75"] * adj
         if c is None:
             continue
         dose += c * micro * ve_m3h * 0.5
         desk += c * 0.35 * desk_ve * 0.5
+        dose_lo += (c_lo if c_lo is not None else c) * micro * ve_m3h * 0.5
+        dose_hi += (c_hi if c_hi is not None else c) * micro * ve_m3h * 0.5
         if i % 2 == 0:
             per_hour.append({"hour_ist": hh, "conc_ugm3": round(c, 1)})
 
@@ -1104,7 +1123,11 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
         "shift_hours": hours,
         "start_hour_ist": start,
         "dose_ug": round(dose, 1),
+        "dose_ug_lo": round(dose_lo, 1),
+        "dose_ug_hi": round(dose_hi, 1),
         "cig_equiv": round(cig, 1),
+        "cig_equiv_lo": round(dose_lo / 316.0, 1),
+        "cig_equiv_hi": round(dose_hi / 316.0, 1),
         "desk_dose_ug": round(desk, 1),
         "vs_desk_pct": round((dose / desk - 1) * 100) if desk else None,
         "per_hour": per_hour,

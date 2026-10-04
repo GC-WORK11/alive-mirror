@@ -129,16 +129,29 @@ def _prune_reports() -> None:
 def observe(vehicle: str, coords: list, duration_s: float,
             dose_ug: Optional[float], avoided_ug: Optional[float],
             contributor: Optional[str],
-            co2_kg: Optional[float] = None) -> dict:
+            co2_kg: Optional[float] = None,
+            privacy_trimmed: bool = False) -> dict:
     """Store an anonymized traversal. coords: [[lon, lat], ...] sampled.
 
     The raw coordinate list is folded into ~500 m cell traversals here
     and never stored — doc 07 §3's "no raw trajectories at rest". What
     persists per trip is exactly what every aggregate needs and nothing
-    more: cells touched, path km, mode, dose sums, a hashed token."""
+    more: cells touched, path km, mode, dose sums, a hashed token.
+
+    Untrimmed callers (the legacy /observe endpoint, which the app hits
+    with its full planned polyline incl. home/destination) get the same
+    privacy pipeline /v2/trip runs: drop first+last 300 m, thin ~100 m,
+    round 4 dp — so endpoints can never persist even client-side-forgot.
+    v2/trip already trims and passes privacy_trimmed=True; re-running
+    would double-trim its `kept` set."""
     _load()
-    pts = [[round(float(c[0]), 5), round(float(c[1]), 5)]
-           for c in coords[:400] if len(c) >= 2]
+    if privacy_trimmed:
+        pts = [[round(float(c[0]), 5), round(float(c[1]), 5)]
+               for c in coords[:400] if len(c) >= 2]
+    else:
+        from v2.trip import privacy_pipeline
+        kept, _t1, _t2 = privacy_pipeline(coords)  # [(lat, lon)] @ 4 dp
+        pts = [[lo, la] for la, lo in kept]        # back to [lon, lat]
     cells: list = []
     for lon, lat in pts:
         cell = _cell(lon, lat)
@@ -445,6 +458,10 @@ def corridors(limit: int = 10) -> list[dict]:
             "lon": lon, "lat": lat, "samples": v["trips"],
             "devices": len(v["devices"]),
             "avg_dose_ug": round(v["dose_sum"] / max(v["trips"], 1), 1),
+            # traversal-implied average, not an instrument read — the
+            # claims audit wants the estimate basis on the wire, not
+            # just implied by which endpoint serves it
+            "avg_dose_basis": "est. from donated trips",
             "top_mode": max(v["modes"], key=v["modes"].get) if v["modes"] else None,
             "co2_g_per_100m": (round(v["co2_kg_sum"] * 100.0
                                      / v["km_sum"], 1)
