@@ -326,7 +326,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
   }, []);
 
   const sorted = useMemo(() => [...trips].sort((a, b) => b.ts - a.ts), [trips]);
-  const week = useMemo(() => weekStats(trips), [trips]);
+  const week = useMemo(() => weekStats(trips, undefined, lang), [trips, lang]);
 
   // last-7-days rollup for the summary card (calendar days, like weekStats)
   const weekCutoff = useMemo(() => {
@@ -569,7 +569,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                             },
                           ]}
                         />
-                        <Text style={ss.barLbl}>{d.label.slice(0, 1)}</Text>
+                        <Text style={[ss.barLbl, { fontFamily: fam(lang, "reg") }]}>{d.label}</Text>
                       </View>
                     ))}
                   </View>

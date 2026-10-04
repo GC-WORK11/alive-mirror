@@ -112,7 +112,7 @@ export function Sidebar({
   }, [open, onClose]);
 
   const st = useMemo(() => ledgerStats(trips), [trips]);
-  const week = useMemo(() => weekStats(trips), [trips]);
+  const week = useMemo(() => weekStats(trips, undefined, lang), [trips, lang]);
   const yesterdayUg = useMemo(() => {
     const d = new Date(); d.setDate(d.getDate() - 1);
     const k = dayKey(d.getTime());
@@ -370,7 +370,7 @@ export function Sidebar({
                           opacity: d.ug === 0 ? 0.3 : 1,
                         }]} />
                       </View>
-                      <Text {...DYNAMIC_TYPE} style={s.dayLabel}>{d.label.slice(0, 1)}</Text>
+                      <Text {...DYNAMIC_TYPE} style={[s.dayLabel, { fontFamily: fam(lang, "reg") }]}>{d.label}</Text>
                     </View>
                   ))}
                 </View>

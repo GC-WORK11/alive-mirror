@@ -243,7 +243,7 @@ function CounterCell({
         </View>
       )}
       {band && (
-        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM]} numberOfLines={1}>
+        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
           {band.text}
         </Text>
       )}

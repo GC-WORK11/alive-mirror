@@ -7,7 +7,7 @@ import {
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CIG_UG, F, NUM, V2Radius, V2T, V2Type } from "./theme";
+import { CIG_UG, F, NUM, V2Radius, V2T, V2Type, fam } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
 import { DYNAMIC_TYPE } from "./a11y";
@@ -137,16 +137,16 @@ export function ModeRow({
       <Icon name={vehicleGlyph(vehicle)} color={selected ? V2T.accent : V2T.text2} size={30} filled={selected} />
       <View style={{ flex: 1, marginLeft: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "baseline" }}>
-          <Text style={us.modeLabel} numberOfLines={1} {...DYNAMIC_TYPE}>{label}</Text>
-          {tag ? <Text style={us.bestTag} {...DYNAMIC_TYPE}>{tag}</Text> : null}
-          {!tag && recommended ? <Text style={us.bestTag} {...DYNAMIC_TYPE}>{t("compare_pick", lang)}</Text> : null}
+          <Text style={[us.modeLabel, { fontFamily: fam(lang, "med") }]} numberOfLines={1} {...DYNAMIC_TYPE}>{label}</Text>
+          {tag ? <Text style={[us.bestTag, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>{tag}</Text> : null}
+          {!tag && recommended ? <Text style={[us.bestTag, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>{t("compare_pick", lang)}</Text> : null}
         </View>
-        {meta ? <Text style={us.modeMeta} numberOfLines={1} {...DYNAMIC_TYPE}>{meta}</Text> : null}
-        {reasonLine ? <Text style={us.modeReason} numberOfLines={2} {...DYNAMIC_TYPE}>{reasonLine}</Text> : null}
+        {meta ? <Text style={[us.modeMeta, { fontFamily: fam(lang, "reg") }]} numberOfLines={1} {...DYNAMIC_TYPE}>{meta}</Text> : null}
+        {reasonLine ? <Text style={[us.modeReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2} {...DYNAMIC_TYPE}>{reasonLine}</Text> : null}
       </View>
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={[us.modeEta, NUM]} {...DYNAMIC_TYPE}>
-          {etaMin}<Text style={us.modeEtaUnit} {...DYNAMIC_TYPE}> {t("minUnit", lang)}</Text>
+        <Text style={[us.modeEta, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
+          {etaMin}<Text style={[us.modeEtaUnit, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}> {t("minUnit", lang)}</Text>
         </Text>
         {inFrac != null && (
           <SmokeBar frac={inFrac} tone="breath" label={t("compare_smokeIn", lang)} />
@@ -237,7 +237,7 @@ export function AlertBanner({ text, onClose, lang = "en", severity = "info" }: {
     <View style={[us.alert, { backgroundColor: sev.bg, borderColor: sev.border }]}
       accessibilityRole="alert">
       <Icon name={sev.glyph} color={sev.color} size={15} />
-      <Text style={us.alertTxt} numberOfLines={2} {...DYNAMIC_TYPE}>{text}</Text>
+      <Text style={[us.alertTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={2} {...DYNAMIC_TYPE}>{text}</Text>
       {onClose && (
         <Pressable onPress={onClose} hitSlop={15} accessibilityRole="button"
           accessibilityLabel={t("settingsClose", lang)}>
