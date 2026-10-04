@@ -178,6 +178,73 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   never a fabricated route
 - iOS is a dev-only test bed — the release target is Android
 
+## Ops: keep the task alive + make it warm
+
+### Pre-heat a fresh task (run after every deploy / task replacement)
+
+`python3 tools/warm_task.py` — walks /health, /aqi, /grid, then real
+NCR plan ODs until a row with `steps_source: "endpoints"` appears
+(priced engine serving), then /reports + /v2/city. Exit 0 = warm.
+Measured on a live task (2026-10-04): first plan 9.0 s while the
+engine repriced, engine rows ~7 s later; a fully cold task needs
+~60–100 s to price (graph load ~36 s + first field fetch + raster
+sweep) — run this the moment a new task registers healthy, never
+cold-call the first demo plan.
+
+### FARGATE_SPOT → on-demand for demo morning (do NOT pre-run; owner executes)
+
+The service runs `capacityProviderStrategy: FARGATE_SPOT weight=1 base=1`
+(verified `describe-services` 2026-10-04 — ~$0 but Spot can reclaim any
+time, including mid-demo). To pin the task on on-demand Fargate for the
+day:
+
+```bash
+export AWS_DEFAULT_REGION=ap-south-1
+aws ecs update-service --cluster alive108 --service alive108 \
+  --capacity-provider-strategy "capacityProvider=FARGATE,weight=1,base=1" \
+  --force-new-deployment
+aws ecs wait services-stable --cluster alive108 --services alive108
+python3 tools/warm_task.py   # re-heat the replacement task
+```
+
+Verify: `describe-services` shows capacityProvider FARGATE and the
+`deployments[PRIMARY].rolloutState == COMPLETED`; `/health` build_sha
+unchanged (same image, new task). Note this REPLACEs the task — the
+new one boots cold, so warm it before judging.
+
+Rollback (back to ~$0 Spot) — same command with `FARGATE_SPOT`:
+
+```bash
+aws ecs update-service --cluster alive108 --service alive108 \
+  --capacity-provider-strategy "capacityProvider=FARGATE_SPOT,weight=1,base=1" \
+  --force-new-deployment
+```
+
+Cost note: one FARGATE task (1 vCPU / 2 GB) ≈ ₹3–4/hr in ap-south-1 —
+single-digit rupees for the whole demo window. Worth it for zero
+reclaim risk. Revert to SPOT after the event.
+
+### Demo-morning checklist (T-60 → T-0)
+
+- [ ] T-60: switch SPOT→on-demand (above) or accept reclaim risk and
+  note a Spot interruption kills the task with ~2 min warning — the
+  replacement boots cold (~2 min to priced engine even with warm-up)
+- [ ] T-45: `curl $NLB/health` — `build_sha` is the build you mean to
+  demo; `field_stale: false`; `engine: "alive_core"`
+- [ ] T-40: `python3 tools/warm_task.py` exits 0 (engine rows flowing)
+- [ ] T-30: phone on the venue's network (NLB is HTTP :80 only — hotel
+  Wi-Fi "captive portal" pages break it; a phone hotspot is the safest
+  path, verified: the APK hits the NLB direct)
+- [ ] T-25: open admin page (`/reports` + aggregates) once — confirm
+  light theme + CPCB colors render and the 30 s refresh ticks
+- [ ] T-15: run ONE full demo pass offline → consent → vehicle → plan →
+  ride → donate → watch the aggregate land in the next /reports tick
+- [ ] T-10: kill background apps on the phone; disable auto-lock
+- [ ] T-5: `curl $NLB/health` once more — if the task restarted, re-run
+  warm_task.py before stepping on stage
+- [ ] Backups queued: recorded ride video, iOS-sim capture, localhost
+  backend path (see below) — pick whichever survives the hall's network
+
 ## iOS sim specifics (only if showing iOS on stage)
 
 - The iOS build runs on this box's simulator (ci15 or any booted device) —
