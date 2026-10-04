@@ -53,7 +53,6 @@ router = APIRouter(prefix="/admin/api", tags=["admin-aggregates"])
 
 K_MIN = 3                      # doc 07 §3 display threshold (store-enforced)
 CORRIDOR_WINDOW_S = 72 * 3600  # corridor freshness window (same constant)
-CIG_UG = 316.0                 # Berkeley Earth equivalence (doc 10)
 
 _DATA_DIR = os.path.join(_SERVER_DIR, "data")
 
@@ -456,7 +455,6 @@ async def model_card():
                             if m in _ex.VENTILATION_LPM},
         "road_uplift": {k: v for k, v in _ex.ROAD_UPLIFT.items()
                         if k != "arterial"},
-        "cig_equiv_ug": _ex.CIG_UG,
         "plausible_max_kmh": _ex.PLAUSIBLE_MAX_KMH,
         "citations": {
             "microenv": "measured Delhi microenvironment ratios, doc 06 §1",
@@ -464,7 +462,6 @@ async def model_card():
                             "activity-adjusted tiers"),
             "uplift": ("near-road PM increment decays within ~500 m of "
                        "the curb, doc 06 §1"),
-            "cig": "1 cigarette ≈ 316 µg inhaled PM2.5 (Berkeley Earth)",
         },
     }
 
@@ -496,7 +493,6 @@ async def donations():
         "trips": tot["trips"],
         "km": round(tot["km"], 1),
         "dose_ug": round(tot["dose_ug"], 1),
-        "cig_equiv": round(tot["dose_ug"] / CIG_UG, 2),
         "co2_kg_mid": round(tot["co2_kg_mid"], 2),
         "pm25_g_mid": round(tot["pm25_g_mid"], 3),
         "switched": tot["switched"],

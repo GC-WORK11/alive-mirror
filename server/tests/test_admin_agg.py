@@ -197,7 +197,9 @@ def test_model_card_serves_real_constants():
     # canonical rows so a drifted constant can never ship silently
     assert d["microenv"]["auto_rickshaw"] == 1.15
     assert d["ventilation_lpm"]["cycling"] == 22.0
-    assert d["cig_equiv_ug"] == 316.0
+    # cigarette framing is off admin surfaces entirely — the constant and
+    # its citation must not ship to the ops board
+    assert "cig_equiv_ug" not in d and "cig" not in d["citations"]
     assert "walk" not in d["microenv"]  # canonical keys only
 
 

@@ -46,6 +46,8 @@ Anchors used (all from repo docs):
     separate per-vkm band, NEVER folded into the headline numbers.
 """
 
+import math
+
 try:  # C++ span-accumulation kernel — parity-verified vs integrate() below
     import alive_core as _ac
 except Exception:
@@ -406,6 +408,90 @@ def _band(lo, mid, hi, nd=4):
     return {"lo": round(lo, nd), "mid": round(mid, nd), "hi": round(hi, nd)}
 
 
+# --- PUC calibration --------------------------------------------------------
+# The Pollution-Under-Control certificate is the one piece of government
+# instrument data about THIS vehicle: measured tailpipe readings next to
+# the limits printed on the same card. Two honest inputs:
+#   puc.bs        — the BS class on the registration ("bs2"|"bs3"|"bs4"|"bs6")
+#                   pins the BS bucket outright instead of the year guess
+#   readings      — {co_pct|hc_ppm|smoke_pct}: {measured, limit} pairs →
+#                   health factor = max(measured/limit), clamped [0.3, 3.0]
+# Flat numbers (co_pct: 0.4) ratio against the published idle-test rows
+# below; a cert-printed limit always wins over the table — certs differ.
+# Rows are the CMVR r115 bounds that are consistently published on cards
+# (anything we can't stand behind is simply absent, not guessed).
+_PUC_LIMITS = {
+    # (fuel_group, bs_era) -> {reading: limit}
+    ("petrol", "pre_bs4"):  {"co_pct": 0.5, "hc_ppm": 750.0},
+    ("petrol", "bs4_plus"): {"co_pct": 0.3, "hc_ppm": 200.0},
+    ("cng", "pre_bs4"):     {"co_pct": 0.5, "hc_ppm": 750.0},
+    ("cng", "bs4_plus"):    {"co_pct": 0.3, "hc_ppm": 200.0},
+    ("2w_petrol", "pre_bs4"):  {"co_pct": 4.5},
+    ("2w_petrol", "bs4_plus"): {"co_pct": 3.0},
+    ("diesel", "any"):      {"smoke_pct": 70.0},  # % opacity bound on certs
+}
+
+_PUC_CLAMP = (0.3, 3.0)
+
+
+def _puc_calib(vehicle, vclass, fuel):
+    """PUC card → (bs_override|None, health_factor, co2_factor, info|None).
+
+    health_factor scales pm25/nox bands; co2 moves at a quarter strength —
+    tailpipe health swings PM/NOx far more than fuel burn (a dirty engine
+    wastes ~10–20% fuel, never 3×)."""
+    puc = vehicle.get("puc") if isinstance(vehicle, dict) else None
+    if not isinstance(puc, dict):
+        return None, 1.0, 1.0, None
+    if fuel == "electric" or vclass in _NON_MOTOR or vclass == "metro":
+        return None, 1.0, 1.0, None
+    bs = str(puc.get("bs") or "").lower().strip()
+    bs = bs if bs in _BS_NAME else None
+
+    fg = ("2w_petrol" if _EF_GROUP.get(vclass) == "2w"
+          else "diesel" if fuel == "diesel" else fuel)
+    era = "bs4_plus" if bs in ("bs4", "bs6") else "pre_bs4"
+    rows = []
+    for key in ("co_pct", "hc_ppm", "smoke_pct"):
+        raw = puc.get(key)
+        m = lim = None
+        if isinstance(raw, dict):
+            m, lim = raw.get("measured"), raw.get("limit")
+        elif isinstance(raw, (int, float)):
+            m = raw
+            lim = ((_PUC_LIMITS.get((fg, era))
+                    or _PUC_LIMITS.get((fg, "any")) or {}).get(key))
+        try:
+            mf, lf = float(m), float(lim)
+        except (TypeError, ValueError):
+            continue
+        if lf > 0 and math.isfinite(mf) and mf >= 0:
+            rows.append((key, mf, lf, mf / lf))
+    hf = min(_PUC_CLAMP[1],
+             max(_PUC_CLAMP[0], max((r[3] for r in rows), default=1.0))) \
+        if rows else 1.0
+    co2f = min(1.5, max(0.9, 1.0 + 0.25 * (hf - 1.0)))
+    info = {
+        "calibrated": bool(rows) or bool(bs),
+        "bs_declared": bs,
+        "readings": [{"pollutant": k, "measured": m, "limit": l,
+                      "ratio": round(r, 3)} for k, m, l, r in rows],
+        "health_factor": round(hf, 3),
+        "basis": ("measured vs limits on your PUC certificate; "
+                  "clamped to 0.3–3× — one reading can't move a "
+                  "fleet-calibrated band further than that"),
+    }
+    return bs, hf, co2f, info
+
+
+def _puc_scale(band, hf, co2f):
+    if hf == 1.0 and co2f == 1.0:
+        return band
+    return {"co2": tuple(v * co2f for v in band["co2"]),
+            "pm25": tuple(v * hf for v in band["pm25"]),
+            "nox": tuple(v * hf for v in band["nox"])}
+
+
 # --- public API ------------------------------------------------------------
 def bs_bucket(vehicle):
     """declared vehicle → (bs_class, confidence).
@@ -434,13 +520,22 @@ def emission_factors(vehicle):
                 "confidence": "high",
                 "label": "metro per passenger-km (incl. electricity)"}
     dom, opts, conf, prior = _bs_options(vclass, fuel, year)
+    bs_ov, hf, co2f, puc_info = _puc_calib(vehicle, vclass, fuel)
+    if bs_ov and bs_ov in (_EF[_EF_GROUP[vclass]][fuel] or {}):
+        dom, opts, conf, prior = bs_ov, (bs_ov,), "high", None
     band = _ev_ef(vclass) if fuel == "electric" else \
         _merge_band(vclass, fuel, dom, opts, prior)
-    return {"co2": _band(*band["co2"]), "pm25": _band(*band["pm25"]),
-            "nox": _band(*band["nox"]), "units": "g/km",
-            "basis": "per_vkm", "occupancy": _occupancy(vclass),
-            "bs_class": dom, "bs_options": list(opts), "confidence": conf,
-            "label": _label(vclass, fuel, year, dom, opts)}
+    band = _puc_scale(band, hf, co2f)
+    out = {"co2": _band(*band["co2"]), "pm25": _band(*band["pm25"]),
+           "nox": _band(*band["nox"]), "units": "g/km",
+           "basis": "per_vkm", "occupancy": _occupancy(vclass),
+           "bs_class": dom, "bs_options": list(opts), "confidence": conf,
+           "label": _label(vclass, fuel, year, dom, opts)}
+    if puc_info and puc_info["calibrated"]:
+        out["puc_calibrated"] = True
+        out["puc"] = puc_info
+        out["label"] += " — tuned to your PUC certificate"
+    return out
 
 
 def _idle_band(vclass, fuel):
@@ -491,9 +586,13 @@ def integrate(vehicle, spans, cold_km_done=0.0):
                 "breakdown": {}}
 
     dom, opts, conf, prior = _bs_options(vclass, fuel, year)
+    bs_ov, hf, co2f, puc_info = _puc_calib(vehicle, vclass, fuel)
+    if bs_ov and bs_ov in (_EF[_EF_GROUP[vclass]][fuel] or {}):
+        dom, opts, conf, prior = bs_ov, (bs_ov,), "high", None
     occ = _occupancy(vclass)
     band = _ev_ef(vclass) if fuel == "electric" else \
         _merge_band(vclass, fuel, dom, opts, prior)
+    band = _puc_scale(band, hf, co2f)
     idle = _idle_band(vclass, fuel)
     cold = _COLD_MULT[fuel]
     nx = _NON_EXHAUST_PM10_GVKM[_EF_GROUP[vclass]]
@@ -596,6 +695,8 @@ def integrate(vehicle, spans, cold_km_done=0.0):
         label += " — tailpipe zero"
     if occ > 1.0:
         label += f", per passenger (÷{occ:g})"
+    if puc_info and puc_info["calibrated"]:
+        label += " — tuned to your PUC certificate"
 
     return {
         "co2_kg": _kg(acc["co2"]),
@@ -606,6 +707,8 @@ def integrate(vehicle, spans, cold_km_done=0.0):
         "occupancy": occ,
         "bs_class": dom, "bs_options": list(opts), "confidence": conf,
         "fuel": fuel, "class": vclass,
+        "puc_calibrated": bool(puc_info and puc_info["calibrated"]),
+        "puc": puc_info if (puc_info and puc_info["calibrated"]) else None,
         "non_exhaust": {
             "pm10_g": _band(*acc_nx),
             "per_vkm_g": _band(*nx),

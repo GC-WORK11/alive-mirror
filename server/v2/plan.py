@@ -26,6 +26,7 @@ metro/walk/cycle + common aliases); `vehicle_profile` may carry
 Delhi fleet prior, never a 4xx.
 """
 import asyncio
+import threading
 import time
 from typing import Optional
 
@@ -144,6 +145,15 @@ def _parse_vehicle(body: dict) -> tuple:
         yb = _year_bucket(vp.get("year_bucket", vp.get("year")))
         if yb != "not_sure":
             profile["year_bucket"] = yb
+    # PUC certificate: vehicle_profile.puc (or a top-level `puc`) carries
+    # the one-time analysis — measured readings + printed limits + BS.
+    # Flows into the emissions vehicle dict; emissions.integrate does
+    # the calibration and echoes `puc_calibrated`.
+    puc = vp.get("puc") if isinstance(vp.get("puc"), dict) else \
+        body.get("puc")
+    if isinstance(puc, dict) and puc:
+        profile = profile or {"class": canon}
+        profile["puc"] = puc
     return canon, profile
 
 
@@ -887,16 +897,21 @@ def _pt(v, name: str):
 
 async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
                          depart_at) -> list:
-    """The full option set for one OD pair: motorized + slow + transit."""
-    motor, slow = await asyncio.gather(
+    """The full option set for one OD pair: motorized + slow + transit +
+    the least-inhalation engine paths."""
+    motor, slow, eng = await asyncio.gather(
         _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                            depart_at),
         _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile),
+        asyncio.to_thread(_engine_options, flat, flon, tlat, tlon,
+                          vehicle, profile),
         return_exceptions=True)
     options = ([o for o in (motor or []) if isinstance(o, dict)]
                if isinstance(motor, list) else [])
     options += ([o for o in (slow or []) if isinstance(o, dict)]
                 if isinstance(slow, list) else [])
+    if isinstance(eng, list):
+        options += _engine_merge(eng, options)
     try:
         # sync GTFS scan runs off-loop: a big OD pair's graph walk would
         # otherwise stall the single worker's event loop (and /health
@@ -910,6 +925,139 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
     except Exception:
         pass
     return options
+
+
+# --- least-inhalation path engine ----------------------------------------------
+# alive_core.PathEngine over the real NCR road graph (ARG1 packed build,
+# tools/build_route_graph.py): edge cost = inhaled dose for the queried
+# mode, A* in ~10 ms. The option it emits is the *safest* path, not the
+# fastest — the reason the engine exists. reweight() re-prices edges on
+# the live field on a lazy TTL (the field itself refreshes on its own
+# cadence; 10 min always lands inside freshness).
+ENGINE_REWEIGHT_TTL_S = 600.0
+ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
+                ("auto", "Auto-rickshaw"), ("cycle", "Bicycle"),
+                ("walk", "On foot"))
+_ENG_T = 0.0
+_ENG_LOCK = threading.Lock()
+
+
+def _engine():
+    """The path engine singleton (C++ when built, Python twin otherwise).
+    None when the packed graph isn't shipped — the API degrades to the
+    upstream-router options only, never errors."""
+    try:
+        import routegraph
+        return routegraph.path_engine()
+    except Exception:
+        return None
+
+
+def _engine_reweight(eng) -> None:
+    global _ENG_T
+    if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
+        return
+    with _ENG_LOCK:
+        if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
+            return
+        try:
+            F = deps.field()
+        except Exception:
+            return
+
+        def val(lat, lon):
+            try:
+                return F.value(lat, lon)
+            except Exception:
+                return None
+
+        try:
+            eng.reweight(val)
+            _ENG_T = time.time()
+        except Exception:
+            pass  # keep the previous pricing — honest stale, not broken
+
+
+def _geom_midpoint(geometry: dict):
+    coords = (geometry or {}).get("coordinates") or []
+    if not coords:
+        return None
+    return coords[len(coords) // 2]
+
+
+def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
+    """Least-dose path per engine mode, as plan options.
+
+    The engine's own dose is only the pathfinding criterion — the option
+    still prices through the shared exposure.dose band, so every row on
+    screen comes from one dose model."""
+    eng = _engine()
+    if eng is None:
+        return []
+    _engine_reweight(eng)
+    try:
+        from airfield import MAX_ROUTE_KM
+    except Exception:
+        MAX_ROUTE_KM = 80.0
+    opts = []
+    for mode, label in ENGINE_MODES:
+        try:
+            r = eng.query(flat, flon, tlat, tlon, mode)
+        except Exception:
+            continue
+        if not isinstance(r, dict) or r.get("error") or not r.get("geometry"):
+            continue
+        snap = r.get("snap") or {}
+        if (snap.get("from_m", 1e9) > 1200.0
+                or snap.get("to_m", 1e9) > 1200.0):
+            continue   # path would start mid-graph — not servable
+        dist_km = r["distance_m"] / 1000.0
+        if dist_km <= 0.0 or dist_km > MAX_ROUTE_KM:
+            continue
+        dur_s = float(r["duration_s"])
+        opts.append(_option(
+            mode, f"{label} · least-smoke rd",
+            r["geometry"], dist_km, dur_s, dur_s, "estimated",
+            vehicle, profile,
+            steps=None, steps_source="endpoints",
+            extra={
+                "engine": "alive_core-path",
+                "duration_model": "estimated",
+                "via_names": r.get("names") or [],
+                "snap_m": {"from_m": round(snap.get("from_m") or 0, 1),
+                           "to_m": round(snap.get("to_m") or 0, 1)},
+            },
+            origin=(flat, flon), dest=(tlat, tlon)))
+    return opts
+
+
+def _engine_merge(eng_opts: list, options: list) -> list:
+    """Drop an engine option whose geometry is essentially the same road
+    a router already returned for that mode — flag the existing option
+    'engine_confirmed' instead (the fast road IS the least-smoke one)."""
+    out = []
+    for eo in eng_opts:
+        mode = eo["mode"]
+        dup = None
+        emid = _geom_midpoint(eo.get("geometry"))
+        for o in options:
+            if o.get("mode") != mode:
+                continue
+            omid = _geom_midpoint(o.get("geometry"))
+            if emid is None or omid is None:
+                continue
+            if (abs(o.get("distance_km", 0) - eo["distance_km"])
+                    <= max(0.5, 0.03 * eo["distance_km"])):
+                # midpoint proximity ≈ same corridor (deg-space ~150 m)
+                if (abs(emid[0] - omid[0]) < 0.0015
+                        and abs(emid[1] - omid[1]) < 0.0015):
+                    dup = o
+                    break
+        if dup is not None:
+            dup["engine_confirmed"] = True
+            continue
+        out.append(eo)
+    return out
 
 
 @router.post("/plan")
@@ -955,6 +1103,9 @@ async def plan(body: dict):
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
+    if any((o.get("emissions") or {}).get("puc_calibrated")
+           for o in options):
+        resp["puc_calibrated"] = True   # server honoured the PUC card
     if opt_err:
         resp["error"] = opt_err
     elif not options:

@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 import main  # noqa: E402
 from airfield import FIELD  # noqa: E402
 from v2 import deps, store  # noqa: E402
+from v2 import plan as v2plan  # noqa: E402
 import transit  # noqa: E402
 import transit_v2  # noqa: E402
 
@@ -136,8 +137,22 @@ def test_reroute_expired_route_id_does_not_resurrect():
 
 def test_reroute_routing_failure_is_honest(monkeypatch):
     monkeypatch.setattr(deps, "osrm_route", no_osrm)
+    monkeypatch.setattr(v2plan, "_engine", lambda: None)  # engine absent too
     r = client.post("/v2/reroute", json={"at": FIX, "to": DEST})
     body = r.json()
     assert body["route_id"] is None
     assert body["option"] is None
     assert "unavailable" in body["error"]
+
+
+def test_reroute_engine_backstop(monkeypatch):
+    """Upstream router dead but the least-inhalation engine alive: the
+    reroute still lands an engine-sourced option — 'unavailable' only
+    when truly nothing can route."""
+    monkeypatch.setattr(deps, "osrm_route", no_osrm)
+    if v2plan._engine() is None:
+        pytest.skip("path engine/graph not shipped here")
+    r = client.post("/v2/reroute", json={"at": FIX, "to": DEST})
+    body = r.json()
+    assert body["route_id"] is not None
+    assert body["option"]["engine"] == "alive_core-path"

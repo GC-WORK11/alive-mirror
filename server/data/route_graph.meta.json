@@ -1,0 +1,23 @@
+{
+ "pbf": "northern-zone-latest.osm.pbf",
+ "pbf_sha256": "4087c2bb376e0f42",
+ "bbox": [
+  76.68,
+  28.08,
+  78.02,
+  29.07
+ ],
+ "field_bbox": [
+  76.8,
+  28.2,
+  77.9,
+  28.95
+ ],
+ "rdp_tol_m": 12.0,
+ "generated": "tools/build_route_graph.py",
+ "ways_in": 1896500,
+ "edges": 721156,
+ "nodes": 548421,
+ "points": 1543713,
+ "format": "ARG1 (see tools/build_route_graph.py header)"
+}
