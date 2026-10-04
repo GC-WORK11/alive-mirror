@@ -351,7 +351,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
      The nav session calls this with its real arrival summary. ---- */
   const recordTrip = useCallback(async (t: {
     label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null;
-    emitKg?: number | null;
+    emitKg?: number | null; doseLoUg?: number | null; doseHiUg?: number | null;
   }) => {
     if (!from || !to) return;
     try {
@@ -363,6 +363,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
            null on modes with no emissions model — readers treat it as
            optional, never fabricate 0. */
         emit_kg: t.emitKg == null ? undefined : Math.max(0, Math.round(t.emitKg * 10) / 10),
+        /* dose band readers (ledger "likely between") — only written when
+           the nav summary really carried the σ band; never fabricated. */
+        dose_lo_ug: t.doseLoUg == null ? undefined : Math.max(0, Math.round(t.doseLoUg * 10) / 10),
+        dose_hi_ug: t.doseHiUg == null ? undefined : Math.max(0, Math.round(t.doseHiUg * 10) / 10),
         from: from.name, to: to.name,
         fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon,
       }));
