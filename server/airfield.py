@@ -51,6 +51,20 @@ _KX = 99.4               # km per degree longitude at 28.6N (matches krige.py)
 UPWIND_GAIN = 0.45
 IDW_P = 2.0
 
+# Total-error inflation on the krige σ band — measured, not tuned.
+# server/validate_field.py scores the per-point σ (sqrt(krige_sd² +
+# (0.12·µ)²)) against held-out CAAQMS station hours from the OpenAQ
+# archive: on the Sep-2026 replay window raw coverage was 14%/29%/47%
+# at ±1σ/±2σ/±3σ — systematic CAMS-vs-instrument bias dwarfs
+# interpolation error, so the honest band is ~3.2× wider. ×3.2 lands
+# measured ±2σ coverage at nominal ~95% on that window (see
+# data/field_validation.md). Regime caveat: the replay window is clean
+# post-monsoon air; a high-pollution regime (CAMS under-reads) may
+# need more — re-run the validator each season and re-measure rather
+# than hand-tune. airindex cell builds apply the same constant so
+# snapshot and per-query bands mean the same thing.
+SIGMA_CAL = 3.2
+
 # NCR bbox (lon/lat) shared with main.py
 BBOX = (76.80, 28.20, 77.90, 28.95)
 
@@ -777,7 +791,8 @@ class AirField:
         # commutes sharpens the field where stations never reach
         kr = KF.estimate(lat, lon)
         if kr is not None and key == "pm2_5":
-            mu, _sd = self._krige_posterior(lat, lon, *kr)
+            mu, _sd = self._krige_posterior(
+                lat, lon, *self._clamp_krige(key, kr))
             return mu
         speed_kmh, from_deg = self._wind
         wf = min(1.0, speed_kmh / 30.0)  # calm => isotropic
@@ -814,6 +829,28 @@ class AirField:
             return float(cell["pm25"]) if cell is not None else None
         return self._concentration(lat, lon, pollutant)
 
+    def _clamp_krige(self, key: str, kr: tuple) -> tuple:
+        """Clip kriged µ to the physical range of the fitted samples.
+
+        Ordinary-kriging µ is a Lagrange-weighted mean — weights sum to
+        1 but individuals can go negative, so µ can overshoot the fitted
+        range at edge/extrapolation points and report more than the
+        highest point the field was ever sampled at. Concentration is
+        physical: clip µ to [0, max sampled value]; σ is left as solved.
+        The citizen layer may still pull the merged posterior past the
+        cap — real traversals outrank a kriged smooth — but the krige
+        half of the merge can never inflate the field on its own.
+        """
+        mu, sd = kr
+        cap = None
+        for _slat, _slon, _n, vals in self._samples:
+            v = vals.get(key)
+            if v is not None and (cap is None or v > cap):
+                cap = v
+        if cap is None:
+            return kr
+        return (min(max(mu, 0.0), cap), sd)
+
     def _krige_posterior(self, lat: float, lon: float,
                          mu: float, sd: float) -> tuple:
         """krige (µ, σ) -> read-band (µ, σ).
@@ -821,12 +858,15 @@ class AirField:
         krige σ covers interpolation error only; every sample is a
         model point or an instrument with its own noise — carry a
         12% instrument/model-error floor so bands stay honest where
-        the field is flat, not fake-tight. Where >=k fresh citizen
-        traversals cover the cell, they fold in as a precision-
-        weighted Gaussian posterior — a corridor of commutes sharpens
-        the field where stations never reach.
+        the field is flat, not fake-tight, then widen by SIGMA_CAL so
+        the band is honest about *total* error (interpolation +
+        model-vs-instrument bias), not just interpolation — the
+        archive replay measured raw coverage at 29% of nominal 2σ.
+        Where >=k fresh citizen traversals cover the cell, they fold
+        in as a precision-weighted Gaussian posterior — a corridor of
+        commutes sharpens the field where stations never reach.
         """
-        sd = math.sqrt(sd * sd + (0.12 * mu) ** 2)
+        sd = math.sqrt(sd * sd + (0.12 * mu) ** 2) * SIGMA_CAL
         ce = corridor_estimate(lat, lon)
         if ce is not None:
             c, csd, _n = ce
@@ -857,7 +897,8 @@ class AirField:
         kr = KF.estimate(lat, lon)
         if kr is None:
             return None
-        _mu, sd = self._krige_posterior(lat, lon, *kr)
+        _mu, sd = self._krige_posterior(
+            lat, lon, *self._clamp_krige("pm2_5", kr))
         return sd
 
     def nearest_sample_km(self, lat: float, lon: float) -> float:

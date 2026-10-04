@@ -1,0 +1,23 @@
+{
+ "archive_replay": {
+  "status": "unavailable: ValueError: too many values to unpack (expected 5)"
+ },
+ "generated": "2026-10-04T12:14:41+00:00",
+ "inputs": {
+  "n_skipped": 0,
+  "skipped": [],
+  "snapshots_scanned": 1
+ },
+ "loso": {
+  "n": 0,
+  "n_folds": 0,
+  "n_skipped": 0,
+  "skipped": [],
+  "status": "insufficient stations"
+ },
+ "schema": "alive-validation/2",
+ "snapshot": "2026-10-03T02:02:20+00:00",
+ "snapshot_in_iso_week": true,
+ "snapshot_used": "/home/ubuntu/repos/Delhi-Air-108/server/data/field/snapshots/2026/10/03/0202.json.gz",
+ "week": "2026-W40"
+}

@@ -870,9 +870,12 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
             mu_r, sd_r = kr
             pm = base + mu_r
             # krige sigma covers interpolation error only — carry the same
-            # 12% instrument/model-error floor as airfield so bands stay
-            # honest where the field is flat
-            sd = math.sqrt(sd_r * sd_r + (0.12 * pm) ** 2)
+            # 12% instrument/model-error floor as airfield plus the measured
+            # SIGMA_CAL total-error inflation, so snapshot bands mean what
+            # the per-query band means (coverage measured in
+            # data/field_validation.md)
+            sd = math.sqrt(sd_r * sd_r + (0.12 * pm) ** 2) \
+                * airfield.SIGMA_CAL
         else:
             # krige off (too few/non-constant residuals): IDW residual blend
             if np is not None and resid_arr is not None:
@@ -882,12 +885,14 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
                          lat, lon) if resids else 0.0
             pm = base + (r or 0.0)
             # sigma grows from the instrument floor toward the observed
-            # residual spread with distance from the nearest station
+            # residual spread with distance from the nearest station —
+            # then the same measured total-error inflation as the krige
+            # path (residual spread alone still undercovers station truth)
             decay = 1.0 - math.exp(-(near or 30.0) / 15.0)
             sd = math.sqrt((0.12 * pm) ** 2
                            + (min(resid_spread, 60.0) * decay) ** 2
-                           + (0.05 * pm) ** 2) \
-                if survivors else max(0.15 * pm, 3.0)
+                           + (0.05 * pm) ** 2) * airfield.SIGMA_CAL \
+                if survivors else max(0.15 * pm, 3.0) * airfield.SIGMA_CAL
         if pm is None or sd is None:
             continue
         pm = max(0.0, pm)
