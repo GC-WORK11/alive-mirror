@@ -936,19 +936,35 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
     # _options_bounded then returned 'planner timed out' with zero rows.
     # Sync GTFS stays off-loop via to_thread (its 12 s cap still applies;
     # a slow scan just drops the transit legs, never the whole plan).
-    motor, slow, eng, transit = await asyncio.gather(
-        _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
-                           depart_at),
-        _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile),
-        asyncio.wait_for(
+    # asyncio.wait (not gather): when the plan budget lands mid-arm the
+    # arms that ALREADY finished still contribute their real rows — a
+    # cancelled cold arm no longer drags complete ones to zero.
+    arms = [
+        asyncio.ensure_future(_motorized_options(
+            flat, flon, tlat, tlon, vehicle, profile, depart_at)),
+        asyncio.ensure_future(_slow_mode_options(
+            flat, flon, tlat, tlon, vehicle, profile)),
+        asyncio.ensure_future(asyncio.wait_for(
             asyncio.get_running_loop().run_in_executor(
                 _ENG_EXEC, _engine_options, flat, flon, tlat, tlon,
                 vehicle, profile),
-            timeout=ENGINE_BUDGET_S),
-        asyncio.wait_for(asyncio.to_thread(
+            timeout=ENGINE_BUDGET_S)),
+        asyncio.ensure_future(asyncio.wait_for(asyncio.to_thread(
             _transit_options, flat, flon, tlat, tlon, vehicle, profile,
-            depart_at), timeout=TRANSIT_BUDGET_S),
-        return_exceptions=True)
+            depart_at), timeout=TRANSIT_BUDGET_S)),
+    ]
+    done, pending = await asyncio.wait(
+        arms, timeout=PLAN_BUDGET_S - 2.0)
+    for p in pending:
+        p.cancel()
+
+    def _arm(i):
+        t = arms[i]
+        if t in done and not t.cancelled() and t.exception() is None:
+            return t.result()
+        return []
+
+    motor, slow, eng, transit = _arm(0), _arm(1), _arm(2), _arm(3)
     options = ([o for o in (motor or []) if isinstance(o, dict)]
                if isinstance(motor, list) else [])
     options += ([o for o in (slow or []) if isinstance(o, dict)]
@@ -969,12 +985,18 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
 # cadence; 10 min always lands inside freshness).
 ENGINE_REWEIGHT_TTL_S = 600.0
 ENGINE_BUDGET_S = 8.0        # sub-budget inside PLAN_BUDGET_S
+ALT_OD_KM = 50.0             # buy corridor alts only at NCR scale
+ALT_ARM_SOFT_S = 6.0         # stop launching alt solves past this mark
 ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
                 ("auto", "Auto-rickshaw"), ("cycle", "Bicycle"),
                 ("walk", "On foot"))
 _ENG_T = 0.0
 _ENG_PACK = None          # (fv, sigma_fn) the last reweight priced against
 _ENG_LOCK = threading.Lock()
+_ENG_BUSY_LOCK = threading.Lock()
+_ENG_BUSY = False         # a reweight is already sweeping/repricing —
+                          # concurrent arms serve the last pricing
+                          # instead of stacking a second CPU storm
 # private 2-worker pool: the shared default executor serves every
 # to_thread in the process (GTFS compile, rasters, forecasts) — a busy
 # moment could queue the engine arm inside its own 8 s budget and burn
@@ -1024,6 +1046,28 @@ def _engine_reweight(eng) -> None:
     epoch = _field_epoch(F)
     if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S and epoch <= _ENG_T:
         return
+    global _ENG_BUSY
+    with _ENG_BUSY_LOCK:
+        if _ENG_BUSY:
+            # another arm is mid-sweep/reprice — serve the existing
+            # pricing (or no engine rows on a cold task) rather than
+            # stack a second sweep onto the same single vCPU
+            busy = True
+        else:
+            _ENG_BUSY = True
+            busy = False
+    if busy:
+        _log.warning("engine reweight: already in flight — serving last pricing")
+        return
+    try:
+        _engine_reweight_inner(eng, F, epoch)
+    finally:
+        with _ENG_BUSY_LOCK:
+            _ENG_BUSY = False
+
+
+def _engine_reweight_inner(eng, F, epoch) -> None:
+    global _ENG_T, _ENG_PACK
 
     def val(lat, lon):
         try:
@@ -1239,11 +1283,23 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
                 alts_fn = None
         except ImportError:
             alts_fn = None
+    # Bound the detached arm's CPU: each alt is a full tax-and-re-solve
+    # A* on the priced graph — up to ALT_MAX_ATTEMPTS per mode. On a
+    # single-core task an overrun keeps burning after wait_for abandons
+    # the future and starves the whole plan gather (live: opts=0 at
+    # ~30 s on a 61 km OD). Alternatives are therefore bought only for
+    # in-city-scale ODs while arm time remains; far ODs still get all
+    # five least-dose primaries.
+    air_km = exposure._haversine_m(
+        (flon, flat), (tlon, tlat)) / 1000.0
     t0 = time.time()
     opts = []
     for mode, label in ENGINE_MODES:
+        want_alts = 2 if (alts_fn is not None
+                          and air_km <= ALT_OD_KM
+                          and (time.time() - t0) < ALT_ARM_SOFT_S) else 0
         try:
-            paths = (alts_fn(flat, flon, tlat, tlon, mode, 2)
+            paths = (alts_fn(flat, flon, tlat, tlon, mode, want_alts)
                      if alts_fn is not None
                      else [eng.query(flat, flon, tlat, tlon, mode)])
         except Exception as e:
