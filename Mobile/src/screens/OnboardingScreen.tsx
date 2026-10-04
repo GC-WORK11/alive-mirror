@@ -18,9 +18,8 @@
 // re-uses real product strings (the search bar, the live counter, the
 // receipt) instead of paraphrasing. When adopting, add each to BOTH the
 // `en` and `hi` tables:
-//   onb_arcBefore  "before you go"     — kicker over journey row 1
-//   onb_arcDuring  "while you travel"  — kicker over journey row 2
-//   onb_arcAfter   "when you arrive"   — kicker over journey row 3
+//   onb_arcBefore/onb_arcDuring/onb_arcAfter  — DONE: kickers over
+//                  journey rows 1-3 land the before/during/after beat
 //   onb_whyTitle   e.g. "shared trips build Delhi's air map" — optional
 //                  harder-leading p2 heading (current title keeps the
 //                  privacy promise, which is also honest)
@@ -48,6 +47,7 @@ import { t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import { saveConsent, type SharingChoice } from "../store/consent";
 import { DYNAMIC_TYPE, MIN_TOUCH, slop, useReduceMotion } from "../a11y";
+import { confirm, tick } from "../haptics";
 
 export type { SharingChoice } from "../store/consent";
 
@@ -91,6 +91,7 @@ function JourneyRow({
   lang,
   icon,
   iconColor = V2T.text2,
+  kicker,
   title,
   subs,
   last = false,
@@ -99,6 +100,7 @@ function JourneyRow({
   lang: Lang;
   icon: Glyph;
   iconColor?: string;
+  kicker?: string;
   title: string;
   subs?: string[];
   last?: boolean;
@@ -110,6 +112,11 @@ function JourneyRow({
         <Icon name={icon} color={iconColor} size={18} />
       </View>
       <View style={ss.jText}>
+        {kicker ? (
+          <Text {...DYNAMIC_TYPE} style={[ss.jKicker, { fontFamily: fam(lang, "semi") }]}>
+            {kicker}
+          </Text>
+        ) : null}
         <Text {...DYNAMIC_TYPE} style={[ss.jTitle, { fontFamily: fam(lang, "med") }]}>
           {title}
         </Text>
@@ -195,7 +202,7 @@ function OnboardingSheet({
         </Text>
         <View style={{ flex: 1 }} />
         <Pressable
-          onPress={skip}
+          onPress={() => { tick(); skip(); }}
           hitSlop={slop(10)}
           accessibilityRole="button"
           accessibilityLabel={t("onb_skip", lang)}
@@ -216,9 +223,8 @@ function OnboardingSheet({
           {step === 0 && (
             <View>
               {/* p1 — what the app does, in the product's own words:
-                  search → live counter → receipt.
-                  PROPOSED kickers onb_arcBefore/onb_arcDuring/onb_arcAfter
-                  above rows 1-3 (see header). */}
+                  search → live counter → receipt. The onb_arc* kickers
+                  carry the before/during/after beat over each row. */}
               <Text
                 {...DYNAMIC_TYPE}
                 accessibilityRole="header"
@@ -234,6 +240,7 @@ function OnboardingSheet({
                 <JourneyRow
                   lang={lang}
                   icon="search"
+                  kicker={t("onb_arcBefore", lang)}
                   title={t("searchPlaceholder", lang)}
                   subs={[t("checkingRoutes", lang)]}
                 >
@@ -251,6 +258,7 @@ function OnboardingSheet({
                   lang={lang}
                   icon="dust"
                   iconColor={V2T.breath1}
+                  kicker={t("onb_arcDuring", lang)}
                   title={t("nav_breathe", lang)}
                   subs={[t("onboard_breatheSub", lang)]}
                 />
@@ -258,6 +266,7 @@ function OnboardingSheet({
                 <JourneyRow
                   lang={lang}
                   icon="flag"
+                  kicker={t("onb_arcAfter", lang)}
                   title={t("youreHere", lang)}
                   subs={[
                     t("onboard_receiptSub1", lang),
@@ -319,7 +328,7 @@ function OnboardingSheet({
               </Text>
               <View style={ss.choiceCol}>
                 <Pressable
-                  onPress={() => finish("on")}
+                  onPress={() => { confirm(); finish("on"); }}
                   accessibilityRole="button"
                   accessibilityLabel={`${t("consent_shareBtn", lang)} — ${t("consent_shareSub", lang)}`}
                   style={({ pressed }) => [
@@ -342,7 +351,7 @@ function OnboardingSheet({
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => finish("off")}
+                  onPress={() => { confirm(); finish("off"); }}
                   accessibilityRole="button"
                   accessibilityLabel={`${t("consent_keepBtn", lang)} — ${t("consent_keepSub", lang)}`}
                   style={({ pressed }) => [
@@ -378,7 +387,7 @@ function OnboardingSheet({
         <Dots active={step} />
         {step < PAGE_COUNT - 1 ? (
           <Pressable
-            onPress={() => setStep(step + 1)}
+            onPress={() => { tick(); setStep(step + 1); }}
             accessibilityRole="button"
             accessibilityLabel={t("onb_next", lang)}
             style={({ pressed }) => [ss.nextBtn, pressed && { opacity: 0.8 }]}
@@ -498,6 +507,14 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   jText: { flex: 1, gap: 4, paddingTop: 2 },
+  /* the before/during/after beat — the arc reads even skimmed */
+  jKicker: {
+    fontSize: V2Type.label - 1,
+    color: V2T.text3,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 1,
+  },
   jTitle: { fontSize: V2Type.body, color: V2T.text },
   jSub: { fontSize: V2Type.label, color: V2T.text2, lineHeight: 19 },
   modeRow: { flexDirection: "row", gap: 12, marginTop: 8 },
