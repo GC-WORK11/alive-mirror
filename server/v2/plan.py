@@ -984,19 +984,36 @@ def _engine_reweight(eng) -> None:
             except Exception:
                 return None
 
-        # fast path: when a serving snapshot's C++ FieldView exists AND the
-        # engine is the C++ twin, hand reweight the FieldView itself — the
-        # binding calls fv->value() directly (~80 ms) instead of ~1.25M
-        # python-callable crossings. Same pm25 semantics F.value serves.
+        # fast path: hand reweight a FieldView instead of ~1.25M
+        # python-callable crossings. The snapshot's own FieldView is used
+        # when it exists; on prod no snapshot file ships (data/field/ is
+        # docker-ignored so a stale image can't lie about field age), so
+        # the live field is rasterized through the same cells /grid serves
+        # — still the real field, read once per TTL.
         sampler = val
         try:
             import alive_core
-            fv = getattr(F, "_snap_fv", None)
-            if (isinstance(fv, alive_core.FieldView)
-                    and isinstance(eng, alive_core.PathEngine)):
-                sampler = fv
+            if isinstance(eng, alive_core.PathEngine):
+                fv = getattr(F, "_snap_fv", None)
+                if not isinstance(fv, alive_core.FieldView):
+                    fv = _engine_field_view(F)
+                if isinstance(fv, alive_core.FieldView):
+                    sampler = fv
+                elif fv is not None and hasattr(fv, "value"):
+                    # PyFieldView fallback — nearest-cell lookup is cheap
+                    # even through the callable path
+                    sampler = fv.value
         except ImportError:
             pass
+
+        # never start a callable reweight against the live field: krige
+        # posterior + Bayesian traverse per sample makes ~1.25M crossings
+        # take minutes on one vCPU — the arm would hold the lock and
+        # starve every plan. Snapshot serving keeps F.value cheap, so the
+        # callable path is only honest then.
+        if (sampler is val
+                and not getattr(F, "_serving_snapshot", lambda: False)()):
+            return
 
         try:
             res = eng.reweight(sampler) or {}
@@ -1007,6 +1024,41 @@ def _engine_reweight(eng) -> None:
                 _ENG_T = time.time()
         except Exception:
             pass  # keep the previous pricing — honest stale, not broken
+
+
+def _engine_field_view(F):
+    """Live-field raster for the engine — the same cells /grid serves.
+
+    Reweighting ~1.25M edge samples through live F.value (krige posterior
+    + Bayesian traverse) takes minutes on one vCPU; this samples the field
+    once per reweight TTL over the /grid lattice and prices edges through
+    a FieldView instead. Rows carry only real reads — cells the field
+    can't serve are skipped, never zero-filled.
+    """
+    try:
+        import grid as _g
+        geo = _g.as_geojson(F, cells=56, param="pm2_5")
+    except Exception:
+        return None
+    rows = []
+    for ft in (geo.get("features") or []):
+        pm = (ft.get("properties") or {}).get("pm25")
+        ring = ((ft.get("geometry") or {}).get("coordinates") or [[]])[0]
+        if pm is None or len(ring) < 4:
+            continue
+        cx = (ring[0][0] + ring[2][0]) / 2.0
+        cy = (ring[0][1] + ring[2][1]) / 2.0
+        rows.append((cy, cx, float(pm), float(pm), float(pm),
+                     float("nan")))
+    if not rows:
+        return None
+    try:
+        import core_engine
+        # 8 km coverage: every graph edge lands within reach of a raster
+        # cell — past the lattice, nearest_cell would leave edges unpriced
+        return core_engine.field_view(rows, 8.0)
+    except Exception:
+        return None
 
 
 def _geom_midpoint(geometry: dict):

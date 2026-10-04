@@ -115,3 +115,55 @@ def test_path_parity_unweighted(blob):
     if "error" not in rp:
         assert rc["geometry"]["coordinates"] == \
             rp["geometry"]["coordinates"]
+
+
+# --- prod-shape pricing: live field, no snapshot file ---------------------
+
+class _LiveOnlyField:
+    """The shape prod actually runs: data/field/ is docker-ignored, so
+    there is no serving snapshot and no _snap_fv — F.value is the live
+    krige/IDW path. The engine must still price: through the /grid raster
+    (real reads), never through ~1.25M live crossings, and never unpriced."""
+    _snap_fv = None
+
+    def _serving_snapshot(self):
+        return False
+
+    def value(self, lat, lon, pollutant="pm2_5"):
+        if not (28.1 <= lat <= 29.0 and 76.7 <= lon <= 78.0):
+            return None
+        return 90.0 + 20.0 * (lon - 77.0)
+
+    def nearest_sample_km(self, lat, lon):
+        return 1.0
+
+
+def test_engine_prices_from_live_raster(monkeypatch):
+    """Reweight on a live-only field builds a real FieldView raster and
+    returns engine options — the exact condition that left prod unpriced."""
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: _LiveOnlyField())
+    eng = routegraph.path_engine()
+    v2plan._engine_reweight(eng)
+    ep = getattr(eng, "edges_priced", None)
+    ep = ep() if callable(ep) else (ep or 0)
+    assert ep > 0, "live-field raster left the engine unpriced"
+    opts = v2plan._engine_options(28.6315, 77.2167, 28.5479, 77.2511,
+                                  "car", None)
+    assert opts, "engine emitted nothing on a live-only field"
+    assert all(o.get("engine") == "alive_core-path" for o in opts)
+
+
+def test_live_callable_reweight_is_refused(monkeypatch):
+    """If the raster can't be built either, the engine degrades to no
+    rows — it must NOT start a ~10-minute live-callable reweight that
+    starves the whole planner."""
+    class _DeadRasterField(_LiveOnlyField):
+        def value(self, lat, lon, pollutant="pm2_5"):
+            return None   # field serves nothing — raster will be empty
+
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: _DeadRasterField())
+    eng = routegraph.PyPathEngine(routegraph.load_blob())
+    v2plan._engine_reweight(eng)
+    assert eng.edges_priced == 0
