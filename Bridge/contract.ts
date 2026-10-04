@@ -188,6 +188,7 @@ export interface HealthResponse {
   field_refresh_in_s?: number | null;  // FieldStatus.refresh_in_s surfaced
   field_stale?: boolean | null;        // FieldStatus.stale surfaced
   engine?: string;                     // "alive_core" | "python" — serving engine
+  wind?: { speed_kmh?: number; from_deg?: number; factor?: number } | null; // FieldStatus.wind — serving wind the router prices on
   sources?: Record<string, unknown>;
   history?: unknown;
 }
