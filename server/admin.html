@@ -179,7 +179,9 @@
                 text-align:right}
 
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
-  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+  .cols3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:1200px){.cols3{grid-template-columns:1fr 1fr}}
+  @media(max-width:900px){.cols,.cols3{grid-template-columns:1fr}}
   @media(max-width:480px){td{padding:9px 8px;font-size:11.5px}
     th{padding:10px 8px 8px}
     .share-row{grid-template-columns:70px 1fr 44px 36px}}
@@ -246,9 +248,10 @@
   <div class="panel" style="padding:0;overflow:hidden"><div class="pipe" id="pipe"></div></div>
 
   <h2>source health <em>what feeds the map, and when it last fetched</em></h2>
-  <div class="cols">
+  <div class="cols cols3">
     <div class="panel"><dl class="kv" id="field"></dl></div>
     <div class="panel"><dl class="kv" id="validation"></dl></div>
+    <div class="panel"><dl class="kv" id="timing"></dl></div>
   </div>
   <div class="panel scrollx" style="margin-top:10px"><table>
     <thead><tr><th>source</th><th>probe</th><th>build</th><th>detail</th><th class="num">age</th><th>freshness</th></tr></thead>
@@ -314,12 +317,12 @@ const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
   hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
 
 async function tick(){
-  let status,sources,corridors,donations,validation,model,districts;
+  let status,sources,corridors,donations,validation,model,districts,timing;
   try{
-    [status,sources,corridors,donations,validation,model,districts]=await Promise.all(
+    [status,sources,corridors,donations,validation,model,districts,timing]=await Promise.all(
       ['/admin/api/status','/admin/api/sources','/admin/api/corridors',
        '/admin/api/donations','/admin/api/validation','/admin/api/model',
-       '/v2/districts'].map(getJSON));
+       '/v2/districts','/admin/api/timing'].map(getJSON));
   }catch(e){
     /* keep the last good render on screen — flag its age, never blank it */
     $('feed').className='feed off';
@@ -412,6 +415,27 @@ async function tick(){
     ['provenance',esc(p.field||'—'),false],
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
     ||emptyMsg('field module unavailable on this box');
+
+  /* --- api speed, measured — the server's own stopwatch, bucketed --- */
+  try{
+    const trs=(timing&&timing.routes)||[];
+    const order=['/v2/plan','/aqi','/v2/search','/v2/reverse','/grid',
+                 '/v2/districts','/v2/trip/donate','/depart'];
+    const shown=order.map(rt=>trs.find(r=>r.route===rt)).filter(Boolean)
+      .slice(0,6);
+    const other=trs.length-shown.length;
+    const fmtMs=v=>v==null?'—':(v>=1000?(v/1000).toFixed(1)+'s':Math.round(v)+'ms');
+    const trows=shown.map(r=>{
+      const p90=r.p90_le_ms==null?'>5s+':`≤${fmtMs(r.p90_le_ms)}`;
+      return [`api · ${esc(r.route)}`,
+        `${fmtMs(r.mean_ms)} avg · p90 ${p90} · n ${fmt(r.n)}`,true];
+    });
+    if(other>0)trows.push(['api · other routes',`${other} more tracked`,false]);
+    trows.unshift(['api timing · measured',`server stopwatch · window ${esc((timing&&timing.window)||'since boot')} · p90 is the covering bucket edge`,false]);
+    $('timing').innerHTML=trows.length
+      ?trows.map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
+      :emptyMsg('no requests measured yet');
+  }catch(e){$('timing').innerHTML=emptyMsg('timing feed unavailable');}
 
   /* --- validation --- */
   const wk=validation.weekly,arch=wk&&wk.archive_replay||{};

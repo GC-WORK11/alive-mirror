@@ -246,8 +246,52 @@ async def index():
             "/admin/api/donations",
             "/admin/api/validation",
             "/admin/api/model",
+            "/admin/api/timing",
         ],
     }
+
+
+@router.get("/timing")
+async def timing():
+    """Measured request latencies — the API's own stopwatch, not a
+    claim. Histograms are in-process since boot (or the registry's
+    last clear); p50/p90 are reported as the smallest bucket edge that
+    covers the share — 'p90_le_ms: 500' honestly reads 'at least 90% of
+    requests finished within 500 ms'.
+    """
+    import observability as _obs
+    out = {"ts": time.time(), "window": "since process start",
+           "routes": [], "pipeline": {}, "gauges": {}}
+    reg = _obs.REGISTRY
+    with reg._lock:
+        hists = {k: {"buckets": dict(v["buckets"]),
+                     "sum": v["sum"], "count": v["count"]}
+                 for k, v in reg._histograms.items()}
+        gauges = dict(reg._gauges)
+    def _pct_le(h, share):
+        if not h["count"]:
+            return None
+        need = h["count"] * share
+        cum = 0
+        for le in sorted(h["buckets"]):
+            cum += h["buckets"][le]
+            if cum >= need:
+                return round(le, 1)
+        return None                      # slower than every bucket edge
+    for (name, lk), h in sorted(hists.items()):
+        labels = dict(lk)
+        row = {"n": h["count"],
+               "mean_ms": round(h["sum"] / h["count"], 1) if h["count"] else None,
+               "p50_le_ms": _pct_le(h, 0.5),
+               "p90_le_ms": _pct_le(h, 0.9)}
+        if name == "alive_request_duration_ms":
+            out["routes"].append({"route": labels.get("route", "?"), **row})
+        else:
+            out["pipeline"][name] = {**labels, **row}
+    for (name, lk), v in sorted(gauges.items()):
+        out["gauges"][name] = v
+    out["routes"].sort(key=lambda r: -r["n"])
+    return out
 
 
 @router.get("/status")
