@@ -54,7 +54,7 @@ phases:
       - tar -C "$GEO_OUT/osrm" -czf "delhi-osrm-mld-$TAG.tar.gz" driving
       # provenance tarball — best-effort: the codebuild role has no
       # s3:PutObject on this bucket; the ECR image is the real artifact
-      - aws s3 cp "delhi-osrm-mld-$TAG.tar.gz" "s3://alive108-build-$ACCOUNT_ID/geo/" || echo "WARN: graph tarball upload denied — skipping provenance archive"
+      - 'aws s3 cp "delhi-osrm-mld-$TAG.tar.gz" "s3://alive108-build-$ACCOUNT_ID/geo/" || echo "WARN: graph tarball upload denied — skipping provenance archive"'
   post_build:
     commands:
       - docker push "$IMG:$TAG"
