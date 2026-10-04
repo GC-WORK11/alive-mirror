@@ -393,6 +393,9 @@ export interface V2PlanOption {
   safest_path?: boolean;        // true on the lowest-dose option — leaf chip
   engine?: string;              // "alive_core-path" on least-inhalation engine rows
   duration_model?: string;      // engine rows: "estimated" (graph speeds)
+  duration_basis?: string;      // engine rows: "freeflow" — OSM maxspeed/
+                              // class speeds, no congestion feed (real
+                              // Delhi traffic is slower → dose higher)
   via_names?: string[];         // engine rows: street names the path takes
   snap_m?: { from_m: number; to_m: number }; // engine rows: endpoint snap distance
   alternative_index?: number | null;  // engine rows: 1..N on corridor-diverse

@@ -1052,6 +1052,14 @@ ENGINE_REWEIGHT_TTL_S = 600.0
 ENGINE_BUDGET_S = 8.0        # sub-budget inside PLAN_BUDGET_S
 ALT_OD_KM = 50.0             # buy corridor alts only at NCR scale
 ALT_ARM_SOFT_S = 6.0         # stop launching alt solves past this mark
+ALT_MAX_DETOUR = 1.6         # alt corridor must stay within 1.6x its
+                             # least-dose primary's distance — past that
+                             # the diversity well is dry, not an option
+DETOUR_MAX_VS_FAST = 1.6     # wire promise: no engine row serves past
+                             # 1.6x the same-mode fast (router) row's
+                             # distance — enforced at merge where the
+                             # fast rows exist; unbounded when the
+                             # router arm failed (row kept, no compare)
 ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
                 ("auto", "Auto-rickshaw"), ("cycle", "Bicycle"),
                 ("walk", "On foot"))
@@ -1062,6 +1070,18 @@ _ENG_BUSY_LOCK = threading.Lock()
 _ENG_BUSY = False         # a reweight is already sweeping/repricing —
                           # concurrent arms serve the last pricing
                           # instead of stacking a second CPU storm
+_ENG_DONE = threading.Event()   # set when the busy holder finishes —
+                                # lets unpriced arms join instead of
+                                # serving nothing during a cold sweep
+ENG_BUSY_JOIN_S = 3.5      # unpriced arms wait this long for the
+                           # in-flight sweep — well inside the 8 s arm
+                           # budget; past it the row honestly drops
+ENGINE_RASTER_MAX_CELLS = 56
+ENGINE_RASTER_MIN_CELLS = 14
+ENGINE_RASTER_BUDGET_S = 12.0   # cap the lattice sweep's wall time —
+                                # per-read latency decides the lattice
+                                # density (a cold task's live-krige
+                                # reads crawled ~45 s on prod)
 # private pool: the shared default executor serves every to_thread in
 # the process (GTFS compile, rasters, forecasts) — a busy moment could
 # queue the engine arm inside its own 8 s budget and burn it before a
@@ -1150,7 +1170,11 @@ def _engine_primaries(eng, flat, flon, tlat, tlon) -> dict:
 def _engine_alts(eng, alts_fn, flat, flon, tlat, tlon, deadline) -> dict:
     """{mode: [primary, alt, ...]} — the taxed re-solve list per mode,
     primary included so callers can fall back to it. Bounded by the
-    arm's soft clock; a partial map is honest (fewer alts, no zeros)."""
+    arm's soft clock; a partial map is honest (fewer alts, no zeros).
+    Alternatives past ALT_MAX_DETOUR× the primary's distance are the
+    diversity well running dry — they offer no comparable trade, so
+    they are dropped rather than served (live audit: a 1.77× alt that
+    was also worse-dosed)."""
     out = {}
     for mode, _ in ENGINE_MODES:
         if time.time() >= deadline:
@@ -1163,8 +1187,14 @@ def _engine_alts(eng, alts_fn, flat, flon, tlat, tlon, deadline) -> dict:
         good = [r for r in (paths or [])
                 if isinstance(r, dict) and not r.get("error")
                 and r.get("geometry")]
-        if good:
-            out[mode] = good
+        if not good:
+            continue
+        prim_m = good[0].get("distance_m") or 0.0
+        if prim_m > 0:
+            good = [good[0]] + [r for r in good[1:]
+                                if (r.get("distance_m") or 0.0)
+                                <= ALT_MAX_DETOUR * prim_m]
+        out[mode] = good
     return out
 
 
@@ -1212,20 +1242,40 @@ def _engine_reweight(eng) -> None:
     with _ENG_BUSY_LOCK:
         if _ENG_BUSY:
             # another arm is mid-sweep/reprice — serve the existing
-            # pricing (or no engine rows on a cold task) rather than
-            # stack a second sweep onto the same single vCPU
+            # pricing rather than stack a second sweep onto the same
+            # single vCPU
             busy = True
         else:
             _ENG_BUSY = True
+            _ENG_DONE.clear()
             busy = False
     if busy:
-        _log.warning("engine reweight: already in flight — serving last pricing")
+        # last pricing genuinely exists only when edges are priced —
+        # on a cold task there is nothing to serve, so join the
+        # in-flight sweep within the arm budget instead of instantly
+        # dropping the engine rows (prod log: ~45 s of 'unpriced'
+        # while the first raster crawl ran)
+        ep = getattr(eng, "edges_priced", None)
+        try:
+            ep = ep() if callable(ep) else (ep or 0)
+        except Exception:
+            ep = 0
+        if ep > 0:
+            _log.warning("engine reweight: already in flight — "
+                         "serving last pricing")
+            return
+        if _ENG_DONE.wait(ENG_BUSY_JOIN_S):
+            _log.warning("engine reweight: joined in-flight sweep")
+        else:
+            _log.warning("engine reweight: in-flight sweep overran "
+                         "%.1fs — rows drop this call", ENG_BUSY_JOIN_S)
         return
     try:
         _engine_reweight_inner(eng, F, epoch)
     finally:
         with _ENG_BUSY_LOCK:
             _ENG_BUSY = False
+            _ENG_DONE.set()
 
 
 def _engine_reweight_inner(eng, F, epoch) -> None:
@@ -1340,7 +1390,39 @@ def _engine_field_view(F):
         x0, y0, x1, y1 = _g.BBOX
     except Exception:
         x0, y0, x1, y1 = (76.80, 28.20, 77.90, 28.95)
-    cells = 56
+    # Lattice density is read-latency adaptive: a warm field answers
+    # F.value in ~ms so the full 56-cell lattice is seconds; a cold
+    # task's krige-backed reads crawled ~45 s on prod, pinning every
+    # unpriced arm behind _ENG_BUSY. Probe a few cells, extrapolate,
+    # and pick the finest lattice that fits ENGINE_RASTER_BUDGET_S —
+    # coarser cells are still real reads on the same lattice origin.
+    def _read(cx, cy):
+        v = F.value(cy, cx)
+        try:
+            sd = F.sigma(cy, cx)
+        except Exception:
+            sd = None
+        return v, (sd if sd is not None and math.isfinite(sd) else None)
+
+    t_probe = time.time()
+    probe_n = 0
+    for i in range(3):
+        for j in range(3):
+            _read(x0 + (i + 0.5) * (x1 - x0) / 3.0,
+                  y0 + (j + 0.5) * (y1 - y0) / 3.0)
+            probe_n += 1
+            if time.time() - t_probe > ENGINE_RASTER_BUDGET_S / 4:
+                break
+        if time.time() - t_probe > ENGINE_RASTER_BUDGET_S / 4:
+            break
+    per_read = max(0.001, (time.time() - t_probe) / max(1, probe_n))
+    fits = int((ENGINE_RASTER_BUDGET_S / per_read) ** 0.5)
+    cells = max(ENGINE_RASTER_MIN_CELLS,
+                min(ENGINE_RASTER_MAX_CELLS, fits))
+    if cells < ENGINE_RASTER_MAX_CELLS:
+        _log.warning("engine raster: %.1fms/read — lattice %d cells "
+                     "(budget %.0fs)", per_read * 1000.0, cells,
+                     ENGINE_RASTER_BUDGET_S)
     dx, dy = (x1 - x0) / cells, (y1 - y0) / cells
     # one lattice pass reading value AND krige-sigma per cell center —
     # the row's sigma slot gets the real band and the returned sigma_fn
@@ -1348,22 +1430,24 @@ def _engine_field_view(F):
     # krige solve (which alone burned ~10s on a 65km OD).
     rows = []
     sig = {}
+    t_sweep = time.time()
     for ix in range(cells):
         for iy in range(cells):
             cx = x0 + (ix + 0.5) * dx   # lon
             cy = y0 + (iy + 0.5) * dy   # lat
-            v = F.value(cy, cx)
+            v, sd = _read(cx, cy)
             if v is None:
                 continue
-            try:
-                sd = F.sigma(cy, cx)
-            except Exception:
-                sd = None
-            has_sd = sd is not None and math.isfinite(sd)
-            if has_sd:
+            if sd is not None:
                 sig[(ix, iy)] = float(sd)
             rows.append((cy, cx, float(v), float(v), float(v),
-                         float(sd) if has_sd else float("nan")))
+                         float(sd) if sd is not None else float("nan")))
+            if time.time() - t_sweep > ENGINE_RASTER_BUDGET_S:
+                break   # hard cap: partial lattice still prices edges
+        if time.time() - t_sweep > ENGINE_RASTER_BUDGET_S:
+            _log.warning("engine raster: budget stop at %d/%d cells",
+                         len(rows), cells * cells)
+            break
     if not rows:
         _log.warning("engine raster: field served no cells")
         return None
@@ -1503,6 +1587,11 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile,
                 extra={
                     "engine": "alive_core-path",
                     "duration_model": "estimated",
+                    # freeflow graph speeds (OSM maxspeed / class
+                    # defaults, mode-capped) — no congestion feed;
+                    # real Delhi traffic is slower so real dose is
+                    # higher. docs/plan/duration-model.md
+                    "duration_basis": "freeflow",
                     "via_names": r.get("names") or [],
                     "snap_m": {"from_m": round(snap.get("from_m") or 0, 1),
                                "to_m": round(snap.get("to_m") or 0, 1)},
@@ -1525,9 +1614,27 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile,
 def _engine_merge(eng_opts: list, options: list) -> list:
     """Drop an engine option whose geometry is essentially the same road
     a router already returned for that mode — flag the existing option
-    'engine_confirmed' instead (the fast road IS the least-smoke one)."""
+    'engine_confirmed' instead (the fast road IS the least-smoke one).
+    Also drop any engine row past DETOUR_MAX_VS_FAST× the same-mode
+    fastest router row — a corridor that far out is not a servable
+    answer, whatever its dose."""
+    fast_min = {}
+    for o in options:
+        if o.get("engine") == "alive_core-path":
+            continue
+        d = o.get("distance_km")
+        m = o.get("mode")
+        if isinstance(d, (int, float)) and m:
+            fast_min[m] = min(fast_min.get(m, 1e18), d)
     out = []
     for eo in eng_opts:
+        base = fast_min.get(eo.get("mode"))
+        if base and eo.get("distance_km", 0) > DETOUR_MAX_VS_FAST * base:
+            _log.warning("engine row dropped: %s %.1fkm > %.1fx "
+                         "same-mode fast %.1fkm",
+                         eo.get("label"), eo["distance_km"],
+                         DETOUR_MAX_VS_FAST, base)
+            continue
         mode = eo["mode"]
         dup = None
         emid = _geom_midpoint(eo.get("geometry"))
