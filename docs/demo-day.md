@@ -1,7 +1,8 @@
 # ALive-108 — demo-day runbook (Oct 10, offline hall)
 
 Verified against live AWS build `a0e74abe` (ECS ap-south-1, task-def 39,
-FARGATE_SPOT); newer commits on `base/v2` ride the next image. Every
+FARGATE_SPOT); re-verified 2026-10-04 on `6a067ca4` (task-def ~110,
+osrm-local sidecar live). Newer commits on `base/v2` ride the next image. Every
 number below was read off the running service — they drift with the
 field; re-check on the day. Nothing in the product is seeded or faked.
 
@@ -38,8 +39,11 @@ Yes — keyless, honest provenance, verbatim labels on screen:
   countdown (`refresh_in_s`) is on the wire
 - NASA FIRMS VIIRS/MODIS fire detections (~57 over the belt right now)
   feeding a smoke modifier
-- CPCB/WAQI measured stations: adapters exist, dormant without a free
-  token — the UI says "stations: no live data" instead of pretending
+- WAQI measured stations LIVE: 24 instruments across NCR feed the
+  krige directly (the raw feed is a US-EPA sub-index, not µg/m³ —
+  inverted via the EPA breakpoint table, Kalman-smoothed, de-biased
+  against the archive). CPCB adapter exists too, dormant without a
+  CPCB key — the sources table names what is live, never pads
 - kriged concentration field served by our own C++ engine (`alive_core`,
   Eigen) — check `/health` → `engine: "alive_core"` live
 - a 120-hour CAMS horizon anchored to the live field — `/depart?hours=120`
@@ -122,9 +126,10 @@ CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
 ## Demo flow (admin)
 
 Open `/admin` (token in Secrets Manager `alive108/admin-token`):
-- **"where the smoke sits"**: all 13 NCR districts as chips in the
-  official CPCB AQI palette — each district's own live pm2.5 read
-  (`/v2/districts`), never one number stretched across the map
+- **"where the smoke sits"**: 28 chips — 15 NCR districts + 13 Delhi
+  sub-areas (real OSM admin_level=5 boundaries) — each district's own
+  live mean-of-cells pm2.5 read (`/v2/districts`), never one number
+  stretched across the map
 - headline cards: field age (live badge), samples, donated trips,
   publishable corridors (k≥3), trips switched lighter, daily median,
   cumulative dose, CO₂ emitted by donated rides, model error vs
@@ -146,10 +151,11 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
 - field panel: serving mode, kriging, σ band, the species line
   (PM10 · NO₂ · O₃ · CO · SO₂ · US AQI — all real), forecast horizon
   health (hours ahead · grid points · fetch age · anchored-to-live flag)
-- sources table: model live / met live / fires live / stations no live
-  data / **routing** (self-hosted daemon first, public OSRM fallback —
-  observed from real route calls, never probed) — the honesty is the
-  point
+- sources table: model live / met live / fires live / stations live
+  (WAQI, N instruments) / **routing** — osrm-local sidecar in the
+  same Fargate task (self-hosted MLD over 4.4M NCR edges, ~15ms),
+  public demo flagged fallback — observed from real route calls,
+  never probed; the honesty is the point
 - donations: totals incl. "emissions (mid): kg CO₂ · g PM2.5" — plus
   the **CO₂ phase split** bar (moving / idling / cold-start %) summed
   only over trips whose receipts carried the real breakdown; old
@@ -166,11 +172,36 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   30 s refresh. Aggregate-level events only: the feed can say a trip
   happened, never where or whose. Retried posts dedupe — a phantom
   trip can never enter the totals
+- **click any field cell → its locality** (debounced /v2/reverse:
+  "near {name} · µg/m³ · measured/interpolated/thin" honesty per
+  cell, sectors a01–an40 + degree ticks for indexing); "how this
+  layer is made" per species shows the real derivation chain with
+  live counts; corridors carry an `air pm2.5` column — the live
+  concentration over each corridor's cells, a merge that exists
+  nowhere else
+- **global dashboard tiles**: users-by-area (k≥3 device counts per
+  district), journeys per OD (tracked-vs-published, suppressed until
+  k≥3), dose + CO₂ avoided sums over reporting trips, and "their
+  reviews" (stars + notes — note bodies publish only at ≥3 reviews;
+  no device id or token stored)
+
+## Demo surface: the landing page
+
+`/` itself is a demo surface — open with it: the ASCII aether IS the
+live field (one glyph per interpolated cell, thin-coverage cells as
+faint dots, drifting on the real met wind from /health). Every ~14 s
+it re-prices a real OD and traces the least-dose path out of the
+lattice — the OD rotates (connaught place→gurugram, india gate→noida,
+kashmere gate→faridabad) so it plainly is not a canned animation.
+Hover any cell for its locality readout (same /v2/reverse answer as
+admin's inspector); the dose card below renders the SAME API call
+the trace draws — they cannot disagree.
 
 ## Honest limitations (say them first — it lands harder)
 
-- Measured stations are dark without a free WAQI/CPCB token — the field
-  is satellite-model only and says so
+- CPCB is dormant without a free CPCB token (WAQI covers measured
+  stations meanwhile — 24 instruments live) — the sources table names
+  which feeds are up, never pretends
 - A corridor appears only after 3 different devices cross it — early on,
   that table is honestly empty
 - Service area is Delhi/NCR + a ~2° margin (Jaipur/Agra/Panipat plan
