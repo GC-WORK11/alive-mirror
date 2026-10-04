@@ -64,14 +64,21 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 - BACKEND LANE spawned (29adb480, SWE-2 Max): field/species units audit, dose math e2e, admin "insufficient data" tiles verdict, /v2/plan robustness under load, error/edge paths, forecast anchor truth.
 - UI/UX LANE (Android exhaustive + admin border-level + recorded E2E) brief written at /Users/devin/uiux-lane-prompt.txt — spawn BLOCKED by 5-SWE-2 org cap; retry when any running session settles.
 - Elevation-tile storm noted: app fetches terrarium PNG hillshade tiles every pan/zoom — bandwidth/battery flag for UI/UX lane.
-- Next: main merge after lane batch + green suite; UI/UX lane spawn; owner gets iOS take.
+- ROLLUP/VALIDATE JOBS WIRED END-TO-END (daa0571 + live-verified): three stacked causes fixed — Dockerfile CMD honors ALIVE_JOB (`rollup_lambda.py <job>`; the scheduled RunTask previously booted a duplicate API), ingest_worker.sync_rollup_outputs() mirrors `s3://alive108-air/{daily,validation}/*` → `server/data/field/*` (admin_agg only reads local mirror), main._start_rollup_mirror daemon (boot pull + every 30min). rollup.py ships validation/field_validation.md to S3. Schedules ENABLED on task-def FAMILY: rollup-daily 00:30 IST, validate-weekly Sun 20:00 IST (ingest-15min stays DISABLED — in-app loop owns it). Schedule network config corrected to real subnet/SG (stale provision values would never have launched).
+- One-off jobs ran exit-0 live: rollup → daily/2026-10-03.json (2.8MB, 83 snapshots); validate → weekly-2026-W40.{json,md} + 2026-W40.json + field_validation.md (9.6KB).
+- ADMIN/CITY BORDER-LEVEL SWEEP BY LEAD (browser-verified): every tile renders real or honest-empty. Two real bugs fixed: (a) headline "model error" card rendered "insufficient data" while archive_replay mae 52.5 sat in the week block — now falls back labelled "model error · archive replay (mae)" (b47d5c9); (b) /city ticker rendered raw floats "317.1261538242962 µg/m³" — rounds to 1dp/int (3c7f86d).
+- DEPLOY VERIFIED 2026-10-04: build_sha 3c7f86d8 live; /admin/api/validation {status:ok, daily 2026-10-03 median 101.16µg 14155 cells, weekly archive_replay mae 52.5 rmse 56.34 bias +50.7 (7240 pairs), report_md true}; browser shows the card + rounded ticker.
+- Suite 843 passed; main merged at 7568376 (no-ff).
+- SWE-2 slot truth: org cap 5 running — mine 2 (depth 139507b4 engine mandate, backend 29adb480) + Pocket Rig 3 (main + 2 subs) = full. efb8721d exited (its Android overhaul complete). UI/UX combined lane spawn retries on settle; location 1cb3ac27 suspended.
+- Next: UI/UX lane spawn when a slot frees; LOSO needs held-out-station snapshots to populate (validation infrastructure gap — backend lane owns).
 
 Open gaps, ranked (from master-plan.md):
 1. Owner's testing overhaul mandate: exhaustive per-feature Android + admin sweep (every screen/button/border) + recorded E2E vs live API — UI/UX lane briefed (/Users/devin/uiux-lane-prompt.txt), spawn blocked at 5-SWE-2 cap; backend lane covers admin API; lead verified admin+city+exposure on live 3ef36777.
 2. Cold-start residual — _warm_field + _warm_static shipped and live; depth lane verifying the fresh-task numbers.
 3. Android: physical-finger pass on search taps; dose-at-driving-speed untested (teleport only); PUC re-verify on final APK — all in UI/UX lane brief.
 4. Demo morning: switch Spot → on-demand, warm the task 10 min early (tools/warm_task.py ships, verified live), run the demo on a physical Android phone. iOS = recorded take (ios_e2e_clean.mp4 done).
-5. Keep main merged at checkpoints (last: 06b6c3f; next merge after lane batch + green suite).
+5. Keep main merged at checkpoints (last: 7568376).
+6. Rollup jobs wired + schedules enabled (daa0571) — daily 00:30 IST, weekly Sun 20:00 IST; one-off runs verified exit-0; admin tiles show real rollup data; LOSO held-out tile honest-empty until station-held-out snapshots exist.
 
 ## Every session ever run for this project
 Active right now:
