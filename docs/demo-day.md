@@ -62,7 +62,12 @@ the inhaled dose for the queried mode (field concentration × microenv
 live kriged field. Queries answer in ~70ms and return real street
 sequences (`via_names`, snap distances) — and every option row's dose
 is integrated on the SAME raster the pathfinder minimized over, so
-the number shown is the exact criterion the path won on.
+the number shown is the exact criterion the path won on. Routes within
+~50km also return **corridor alternatives**: up to two extra least-dose
+re-solves that are penalised for re-using the primary corridor's edges
+(they must diverge ≥15% of length to count as a real alternative) — so
+the app can show "via Outer Circle" vs "via Vivekanand Marg", not just
+one blessed path.
 
 **"How fast is the live surface?"**
 `/grid` answers are pure functions of the data's own epochs (field
@@ -72,12 +77,16 @@ cache key IS the data version; gzip takes the 235 KB layer to ~11 KB
 on the wire (~0.5 s end-to-end from India).
 
 **"Street-wise how deep does the data go?"**
-The search index is built from the real OSM northern-zone extract —
-~94k rows: metro gates, market lanes, mall stores, police stations,
-hospitals. `rajiv chowk gate 5` returns "Rajiv Chowk Metro Gate No 5"
-top-hit (all eight gates resolve individually); `nai sarak` finds the
-book market. The app bundles a 96.8k-entry gazetteer so landmark-level
-search works fully offline — no network, no key.
+The search index is built from the real OSM northern+central zone
+merge — 120k server rows, ~97.5k corpus entries including **16,952
+address-level rows** (real `addr:*` house numbers plus expanded street
+interpolations): metro gates, market lanes, mall stores, police
+stations, hospitals, house numbers. `559 udyog vihar` returns a real
+house-number address; `rajiv chowk gate 5` returns "Rajiv Chowk Metro
+Gate No 5" top-hit (all eight gates resolve individually). The C++
+index answers in ~1ms p50 (~3ms live over the NLB); the app bundles a
+124k-entry gazetteer so landmark-level search works fully offline —
+no network, no key.
 
 **"Privacy?"**
 Aggregate-only by construction: no accounts, tokens are hashed
@@ -90,7 +99,7 @@ and mode share are suppressed below k=3 distinct devices. The public
 AWS free-tier shape, least-privilege IAM: ECS Fargate + NLB + DynamoDB
 (`alive108-agg`, donations survive redeploys) + S3 field snapshots +
 CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
-~1.8 ms.
+~0.9 ms p50 (120k rows).
 
 ## Demo flow (phone)
 
