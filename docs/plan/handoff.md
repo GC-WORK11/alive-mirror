@@ -46,21 +46,24 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 - main merged at 54e2ed2 (no-ff) — includes engine dedupe, search fixes, probe+audit tools, location lane query-tolerance leg. Full suite 809 passed.
 - deploy verified: build_sha 0a3c3140 on the NLB.
 - live 174-query battery on 0a3c3140 (lead re-run): 172/174 top-1 (98.9%), p50 473ms; only misses are the two documented honest ones (panipat ceiling, 25 rajinder nagar substring artefact).
+- deploy verified: build_sha 89e34132 on the NLB — contains the WAQI-first stations chain, `_warm_static` (gazetteer+climatology parsed off-loop at boot), and Android lane's hindi turn-by-turn + polish commits.
+- Android UI/UX lane COMPLETE (efb8721d, verified numbers): gfxinfo janky 42.27% → 29.07% (−31%), p99 150→93ms; TTS verified with 6 real utterances on a teleported 3.8km drive; 9 polish commits; release APK on 65a8619 (135.8MB, debug-signed, NLB verified in bundle). Gaps it flagged honestly: dose "0 µg" on teleport (real — ~zero dwell; untested at driving speed), occasional eaten adb taps in search ScrollView, metro legs untested, PUC verified on earlier build.
+- Route-quality truth DONE (depth lane, 1588dc3): dose-ratio decomposition over the 108 worse-dose rows — 0 rows genuinely smokier per metre; the count is the router's freeflow-duration overstatement (bike implied 56–75 km/h). docs/plan/engine-quality-decomp.md.
+- STATIONS = 0 live — root-caused + verdict (2026-10-04): OpenAQ key dead (401, owner banned). Probed every alternative from a one-off Fargate task in the prod VPC: api.data.gov.in CONNECTION REFUSED even from ap-south-1 India egress (the India-egress assumption was wrong — dead with or without a key); CPCB dashboard timeout; SAFAR TLS-connects-then-hangs (broken host); WAQI `demo` token silently serves SHANGHAI (fake — rejected); aqicn pages proxy keyed api.waqi.info only. ONLY real path = a WAQI token (owner, 30s signup at aqicn.org/data-platform/token/ with his email — temp-inbox signups got no activation mail; form is captcha-gated).
+- Stations chain rewired WAQI→CPCB-keyed→OpenAQ live (43f0099 in 89e34132): `WAQI_API_KEY` injected from Secrets Manager `alive108/waqi` (placeholder `REPLACE_ME` — adapter skips honestly; /health `sources.stations.feeds` reports per-feed verdicts). Flip when the token lands = `put-secret-value` + `force-new-deployment`, zero code.
 
 Open gaps, ranked (from master-plan.md):
-1. Plan latency and engine robustness under load — LARGELY FIXED by 5805620; cold-task first-plan seconds remain (field fetch → raster → reweight chain; depth lane measuring).
-2. Search regressions — VERIFIED FIXED live on 5805620 (2026-10-04): "aiims" → hospital top-1/#2, platforms demoted to tail; "lodhi garden" → parks first, platform last; "b-12 lajpat nagar" → Lajpat Nagar locality + B-12 anchor honoured. Location lane still owns the broader 174-query battery + fuzzy/compound/sector tolerance leg.
-3. Android TTS (500/150/0m cues) + gfxinfo jank — the new SWE-2 Max Android lane (below) owns it; the Ultra lane died at setup with zero pushes.
-4. Route-quality stats for the pitch — audit live numbers above; depth lane owns the worse-dose decomposition + win-rate lift.
-5. Fresh release APK on the final HEAD (NLB baked; check it in the JS bundle; debug-signed. Real signing needs his keystore).
-6. Demo morning: switch Spot → on-demand, warm the task 10 min early, run the demo on a physical Android phone. iOS = recorded take (an upstream MapLibre-on-vGPU sim crash, sim-only).
-7. Keep main merged at checkpoints.
+1. Stations live readings — blocked on ONE owner action: a WAQI token (free 30s signup, needs a real email inbox). Everything else is wired and deployed.
+2. Cold-start residual — _warm_field + _warm_static shipped; depth lane measuring the fresh task now (pre-fix ~96s to priced engine).
+3. Android: physical-finger pass on search taps; dose-at-driving-speed untested (teleport only); PUC re-verify on final APK.
+4. Demo morning: switch Spot → on-demand, warm the task 10 min early (tools/warm_task.py ships, verified live), run the demo on a physical Android phone. iOS = recorded take.
+5. Keep main merged at checkpoints (last: 54e2ed2).
 
 ## Every session ever run for this project
 Active right now:
-- efb8721d915f40d0807595b4bec3fa6d: Android UI/UX overhaul on SWE-2 Max, Linux — CONTINUES the dead Ultra lane (30c986e2, terminated out-of-quota at setup, zero pushes). gfxinfo before/after, TTS 500/150/0m, release APK on final HEAD. https://app.devin.ai/sessions/efb8721d915f40d0807595b4bec3fa6d
-- 139507b46df84f939b68d447735ea203: engineering-depth lane on SWE-2 Max, Linux — continues the old lead's unowned engineering: route-quality truth (worse-dose decomposition), cold-start latency, demo-day ops runbook, server polish. Forbidden zones: v2/plan.py (lead), search/corpus (location lane), Mobile/src (Android lane). https://app.devin.ai/sessions/139507b46df84f939b68d447735ea203
-- 1cb3ac27d94642f29952845945934fc3: Location-depth lane (gazetteer, address/house numbers, reverse geocode, aliases, Hinglish, compound queries, live 174-query battery). On leg 3: query tolerance (fuzzy/compound/sector). https://app.devin.ai/sessions/1cb3ac27d94642f29952845945934fc3
+- efb8721d915f40d0807595b4bec3fa6d: Android UI/UX overhaul on SWE-2 Max, Linux — COMPLETE (jank −31%, TTS verified, 9 polish commits, APK on 65a8619). Follow-ups assigned: upload APK + PUC re-verify + tap-cadence pass. https://app.devin.ai/sessions/efb8721d915f40d0807595b4bec3fa6d
+- 139507b46df84f939b68d447735ea203: engineering-depth lane on SWE-2 Max, Linux — shipped route-quality truth (0 genuinely smokier rows), cold-start warmers, demo-day ops, WAQI-first stations chain. Now on: cold-boot verify, station-flip script, transit-leg truth. https://app.devin.ai/sessions/139507b46df84f939b68d447735ea203
+- 1cb3ac27d94642f29952845945934fc3: Location-depth lane — SUSPENDED (inactivity + SWE-2 5-session cap; resume message queued, 429 until a slot frees). Its lands through 0a3c3140 are live (172/174). Remaining: Hinglish, compound queries. https://app.devin.ai/sessions/1cb3ac27d94642f29952845945934fc3
 Terminated (out of Ultra quota; work either pushed or handed off):
 - 13283940d1854cd4bf2ff691c4bd9bb7: the previous lead session — this session (93b8804d) is its successor as lead. https://app.devin.ai/sessions/13283940d1854cd4bf2ff691c4bd9bb7
 - 30c986e2137942488c8060da708ef40b: Android UI/UX on ULTRA — died at setup, superseded by efb8721d. https://app.devin.ai/sessions/30c986e2137942488c8060da708ef40b
