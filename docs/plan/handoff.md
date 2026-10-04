@@ -51,13 +51,17 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 - Route-quality truth DONE (depth lane, 1588dc3): dose-ratio decomposition over the 108 worse-dose rows — 0 rows genuinely smokier per metre; the count is the router's freeflow-duration overstatement (bike implied 56–75 km/h). docs/plan/engine-quality-decomp.md.
 - STATIONS = 0 live — root-caused + verdict (2026-10-04): OpenAQ key dead (401, owner banned). Probed every alternative from a one-off Fargate task in the prod VPC: api.data.gov.in CONNECTION REFUSED even from ap-south-1 India egress (the India-egress assumption was wrong — dead with or without a key); CPCB dashboard timeout; SAFAR TLS-connects-then-hangs (broken host); WAQI `demo` token silently serves SHANGHAI (fake — rejected); aqicn pages proxy keyed api.waqi.info only. ONLY real path = a WAQI token (owner, 30s signup at aqicn.org/data-platform/token/ with his email — temp-inbox signups got no activation mail; form is captcha-gated).
 - Stations chain rewired WAQI→CPCB-keyed→OpenAQ live (43f0099 in 89e34132): `WAQI_API_KEY` injected from Secrets Manager `alive108/waqi` (placeholder `REPLACE_ME` — adapter skips honestly; /health `sources.stations.feeds` reports per-feed verdicts). Flip when the token lands = `put-secret-value` + `force-new-deployment`, zero code.
+- STATIONS LIVE (owner's WAQI token, tools/flip_waqi_token.sh, 2026-10-04): `/health` `stations.count=24, source=waqi`; /admin/api/status field=`waqi-stations+open-meteo/cams`, 68-71 samples, station_readings=24 inside the krige; /city 13 districts live CPCB colours. Adapter keeps only fresh CPCB readings — count varies honestly (24 → 5 seen overnight, CPCB stations go stale for hours).
+- Debias fix live (depth lane ce101e5): `_debias` scales ONLY pm2_5 by ratio b; pm10 += pm2_5*(b-1) additively; gases/AQI/dust/aod raw CAMS. Verified live: o3 ~166-176 (was 575 absurd), aqi 173-192 sane.
+- ADMIN BOARD FIX (1436c2d, live + browser-verified): my one-prompt commit 868789c introduced a syntax bug (`{headers:'Bearer '+tok}}` — missing `authorization:` + stray `}`) that killed the whole script — page dead "connecting", no prompts at all. Fixed to `{headers:{authorization:'Bearer '+tok}}` + wrapped `.map(u=>getJSON(u))` (`.map(getJSON)` passed array index as `retried`). Verified in a fresh Chrome: exactly ONE prompt → full board (1436C2D4, 24 stations, 13 districts, 26 trips, 6 corridors).
+- main merged at 06b6c3f (no-ff) — admin fix + lanes' lands (Mobile polish, airfield debias + tests). Suite 833 passed.
 
 Open gaps, ranked (from master-plan.md):
-1. Stations live readings — blocked on ONE owner action: a WAQI token (free 30s signup, needs a real email inbox). Everything else is wired and deployed.
-2. Cold-start residual — _warm_field + _warm_static shipped; depth lane measuring the fresh task now (pre-fix ~96s to priced engine).
+1. Owner's testing overhaul mandate (latest): exhaustive per-feature Android pass (every screen/button/border) + recorded end-to-end of Android app AND admin panel against live API — Android lane owns app features/recording/APK/PUC; depth lane owns admin API sweep; lead verified admin+city visually.
+2. Cold-start residual — _warm_field + _warm_static shipped; depth lane measuring the fresh task (pre-fix ~96s to priced engine).
 3. Android: physical-finger pass on search taps; dose-at-driving-speed untested (teleport only); PUC re-verify on final APK.
 4. Demo morning: switch Spot → on-demand, warm the task 10 min early (tools/warm_task.py ships, verified live), run the demo on a physical Android phone. iOS = recorded take.
-5. Keep main merged at checkpoints (last: 54e2ed2).
+5. Keep main merged at checkpoints (last: 06b6c3f).
 
 ## Every session ever run for this project
 Active right now:
