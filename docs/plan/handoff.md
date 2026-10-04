@@ -267,3 +267,27 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   grepped): https://app.devin.ai/attachments/739c91df-eef9-4730-9235-3d1eb5035168/app-release.apk
 - OSRM lane 4a3551bc still running.
 - main merged f317270 (suite 910 green).
+
+## handoff cont.8 — landing rebuild + OSRM sidecar live (2026-10-04 ~12:50 IST)
+
+- **Owner mandate**: landing "looking shit" → rebuild as living piece with
+  "ASCII aether shaders animation", no cheap template, reference-grade
+  (supaste/devin.ai/iphone-duo/godly.design captured component-by-component).
+- **Landing v2 shipped `9e3f8fc`**: animated aether canvas = REAL /grid 40×40
+  → one glyph per cell (ramp ` .·:;=+x#%@`), temporal shimmer + breathing
+  wave + mouse lens + crosshair readout (sector ref, µg/m³, conf tier);
+  lo-conf cells stay faint dots. Signature type: bold sans + italic serif
+  ("Delhi's air has a price / *per street.*"). Circular stamps, spec chips,
+  floating artifact trio rendered as LIVE DOM — real /v2/plan dose rows,
+  /community corridors with reverse-geocoded names, /health stats.
+  Pipeline spine, honest-band numbers (95.2%@2σ, σ×3.2, ±13%, 0 faked),
+  footer live build stamp. Empty-epoch resilience: keeps last field + retries.
+- **OSRM self-hosted VERIFIED LIVE by lane 4a3551bc**: `alive108-osrm` image
+  in ECR (Geofabrik northern-zone → NCR clip, MLD car, 489MB, 4.4M edges);
+  sidecar in same Fargate task (awsvpc shared netns, OSRM_URL=127.0.0.1:5000,
+  essential:false, mem cap 1024, task 2048→3072). /admin/api/sources:
+  routing.backend=osrm-local, up:true, ~116-148ms (was ~600ms+429 risk).
+  Public demo is now fallback-only + flagged. Runbook docs/plan/osrm-selfhosted.md.
+  My deploy `9e3f8fcb` folds the sidecar in (image exists → default path).
+- Suite on HEAD: 910 passed, 5 skipped (616s).
+- main merge pending deploy verify.
