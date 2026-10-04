@@ -236,6 +236,15 @@
   .fmpop .p-v b{font-family:var(--serif);font-size:20px;font-weight:400;
                 color:var(--ink)}
   .fmpop .p-conf{font-size:10px;color:var(--ink3);margin-top:6px;line-height:1.55}
+  .fmpop.pin{outline:2px solid rgba(20,24,31,.28)}
+  /* methodology card — the 'how is this number made' truth under the map */
+  .meth{margin-top:10px;padding:11px 13px 10px;border:1px solid var(--line);
+        border-radius:12px;background:var(--surface2,#f2f4f7);
+        font-size:12px;line-height:1.65;color:var(--ink2)}
+  .meth .mt{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+            text-transform:uppercase;color:var(--ink4);margin-bottom:6px}
+  .meth .ms{margin-top:8px;font-size:10.5px;color:var(--ink3)}
+  .meth b{color:var(--ink);font-weight:600}
 
   /* global rollups — honest-empty until the aggregate api ships them */
   .gtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -269,7 +278,8 @@
   <div class="grid" id="stats"></div>
 
   <h2>where the smoke sits <em>each ncr district's own reading right now · official cpcb aqi colours</em></h2>
-  <div class="panel" style="padding:12px"><div class="dist" id="districts">connecting…</div></div>
+  <div class="panel" style="padding:12px"><div class="dist" id="districts">connecting…</div>
+    <div class="sub" style="margin-top:9px">every district number = the unweighted mean of its live field cells — the cell count is printed on the tile; borders never smooth</div></div>
 
   <h2>the live field <em>the surface every route breathes through — painted from the same cells the app tints</em></h2>
   <div class="panel" style="padding:14px">
@@ -280,6 +290,7 @@
     </div>
     <div class="fmwrap"><canvas id="fieldmap"></canvas><div class="fmpop" id="fmpop" hidden></div></div>
     <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
+    <div class="meth" id="meth" hidden></div>
   </div>
 
   <h2>the pipeline <em>how a trip becomes data — the live numbers at each stage</em></h2>
@@ -305,7 +316,7 @@
       <div class="daybars" id="daybars"></div>
     </div>
     <div class="panel scrollx"><table>
-      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th><th class="num">co₂ per 100 m</th></tr></thead>
+      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th><th class="num">co₂ per 100 m</th><th class="num">through air</th></tr></thead>
       <tbody id="corridors"></tbody></table></div>
   </div>
 
@@ -422,6 +433,7 @@ async function tick(){
   if(failedN)$('feedtxt').textContent=`auto 30s · ${failedN} feed${failedN>1?'s':''} down`+
     (sessionStorage.getItem('alive_admin_tok_no')?' · token declined — open a new tab to re-authenticate':'')
 
+  G_STATUS=S;   /* methodology cards read live counts from the status feed */
   const f=S.field||{};
   const sv=f.serving||'none';
   $('stamp').innerHTML=
@@ -673,8 +685,9 @@ async function tick(){
       <td class="num">${fmt(r.devices)}</td>
       <td class="num dose-cell"><span class="dose-bar" style="width:${Math.round(rel*100)}%;background:${ramp(t,.9)}"></span>
         <span class="mono" style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</span></td>
-      <td class="num muted">${r.co2_g_per_100m==null?'—':fmt1(r.co2_g_per_100m)+' g'}</td></tr>`;
-  }).join(''):`<tr><td colspan="6">${emptyMsg(
+      <td class="num muted">${r.co2_g_per_100m==null?'—':fmt1(r.co2_g_per_100m)+' g'}</td>
+      <td class="num" title="live pm2.5 over this corridor — the air those trips breathe">${r.field_pm25==null?'<span class="muted">—</span>':`<span class="mono" style="color:${doseInk(r.field_pm25*3.2)}">${fmt1(r.field_pm25)} µg/m³</span>`}</td></tr>`;
+  }).join(''):`<tr><td colspan="7">${emptyMsg(
     'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
 }
 
@@ -687,11 +700,52 @@ const FM_SPECIES=[['pm2_5','pm2.5'],['pm10','pm10'],
   ['nitrogen_dioxide','no₂'],['ozone','o₃'],
   ['carbon_monoxide','co'],['sulphur_dioxide','so₂'],['us_aqi','us aqi']];
 let FM_PARAM='pm2_5',FM_FIRES=null,FM_WIND=null,FM_H=0,FM_BOUND=false;
+const FM_CELLS=40,FM_X0=76.80,FM_Y0=28.20,FM_X1=77.90,FM_Y1=28.95;
+let FM_LAST_EP=null,FM_HOV=null,FM_REST=null,G_STATUS=null;
+/* sector index — spreadsheet-style refs over the 40×40 cell grid:
+   columns A…AN west→east, rows 01…40 south→north, so a cell can be
+   named ('m14') instead of a bare coordinate pair */
+function fmSector(lon,lat){
+  const C=Math.max(0,Math.min(FM_CELLS-1,Math.floor((lon-FM_X0)/((FM_X1-FM_X0)/FM_CELLS))));
+  const R=Math.max(0,Math.min(FM_CELLS-1,Math.floor((lat-FM_Y0)/((FM_Y1-FM_Y0)/FM_CELLS))));
+  let s='',c=C;do{s=String.fromCharCode(65+c%26)+s;c=Math.floor(c/26)-1}while(c>=0);
+  return s+String(R+1).padStart(2,'0');
+}
+/* methodology — every layer answers 'how is this number made' in its own
+   words: sources, inversion, de-bias, krige. verified against
+   airfield.py + ingest_waqi.py, not marketing copy */
+function paintMeth(){
+  const m=$('meth');if(!m||m.hidden)return;
+  const f=(G_STATUS&&G_STATUS.field)||{};
+  const nSt=f.station_readings??'—',nSamp=f.samples??'—';
+  const METH={
+    pm2_5:`<b>${fmt(nSt)} waqi station instruments</b> report a us-epa aqi sub-index → inverted through the epa breakpoints into real µg/m³ → kalman-smoothed per station → blended with ${fmt(nSamp)} open-meteo/cams model samples → spatial de-bias (model pulled toward instruments) → ordinary krige → the ${fmt(FM_FEATS.length)} cells above.<br>the honest band: krige σ ×3.2 — measured 95.2% coverage at ±2σ on 7,240 held-out station hours. donated trips re-weight the cells they cross.`,
+    pm10:`cams model layer + the pm2.5 instrument de-bias applied additively — pm10 = pm2.5 + coarse residue; instrument evidence lives in the fine fraction, the coarse part stays modelled.`,
+    nitrogen_dioxide:`cams model layer — the instruments we ingest carry pm2.5 evidence only; a cell's confidence fades with distance to the nearest model point.`,
+    ozone:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
+    carbon_monoxide:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
+    sulphur_dioxide:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
+    us_aqi:`the cams model's own us-scale index field — no instrument evidence for the index itself; pm2.5 dominates it through delhi's winter.`
+  };
+  let hi=0,med=0,lo=0;
+  for(const ft of FM_FEATS){const c=(ft.properties||{}).conf;
+    if(c==='hi')hi++;else if(c==='med')med++;else lo++}
+  const label=(FM_SPECIES.find(s=>s[0]===FM_PARAM)||[FM_PARAM,FM_PARAM])[1];
+  m.innerHTML=`<div class="mt">how the ${esc(label)} layer is made</div>
+    ${METH[FM_PARAM]||'—'}
+    <div class="ms">${fmt(FM_FEATS.length)} cells rendered — ${fmt(hi)} measured · ${fmt(med)} interpolated · ${fmt(lo)} thin · sector index a01–an40 · each district number = the mean of the cells inside its border</div>`;
+}
+function methToggle(){const m=$('meth');if(!m)return;
+  const b=$('methbtn');
+  if(m.hidden){paintMeth();m.hidden=false;if(b)b.textContent='hide methodology'}
+  else{m.hidden=true;if(b)b.textContent='how this layer is made'}
+}
 function renderFmSel(){
   $('fmsel').innerHTML=FM_SPECIES.map(([p,l])=>
-    `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('');
+    `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('')+
+    `<button id="methbtn" style="margin-left:auto" onclick="methToggle()">${$('meth')&&!$('meth').hidden?'hide methodology':'how this layer is made'}</button>`;
 }
-async function fmPick(p){FM_PARAM=p;renderFmSel();await paintFieldMap(p);}
+async function fmPick(p){FM_PARAM=p;renderFmSel();await paintFieldMap(p);paintMeth();}
 
 /* --- cell inspector — a click on the map names the real place under
    the cell via the public gazetteer (/v2/reverse) and lists that cell's
@@ -722,12 +776,12 @@ function pip(lon,lat,ring){           /* even-odd point-in-ring */
   }
   return inside;
 }
-function fmShow(ft,x,y){
+function fmShow(ft,x,y,pinned){
   const cv=$('fieldmap'),pop=$('fmpop');if(!cv||!pop)return;
   const p=ft.properties||{},ring=ft.geometry.coordinates[0];
   const clon=ring.reduce((s,c)=>s+c[0],0)/ring.length;
   const clat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
-  const key=clon.toFixed(4)+','+clat.toFixed(4);FM_INS={key,x,y};
+  const key=clon.toFixed(4)+','+clat.toFixed(4);FM_INS={key,x,y,pinned:!!pinned};
   const wr=cv.parentElement.getBoundingClientRect();
   pop.style.left=Math.min(Math.max(8,x+12),Math.max(8,wr.width-272))+'px';
   pop.style.top=Math.min(Math.max(8,y+12),Math.max(8,wr.height-150))+'px';
@@ -735,8 +789,9 @@ function fmShow(ft,x,y){
   const v=p[FM_PARAM]!=null?p[FM_PARAM]:p.pm25;
   const dist=fmDistrict(clon,clat);
   pop.hidden=false;
+  pop.classList.toggle('pin',!!pinned);
   pop.innerHTML=`<div class="p-name">${FM_NAMES[key]!=null?FM_NAMES[key]:'locating…'}</div>
-    <div class="p-sub">cell centre ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}${dist.state?', '+esc(dist.state):''}`:''}${FM_H?` · +${FM_H}h`:''}</div>
+    <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}${dist.state?', '+esc(dist.state):''}`:''}${FM_H?` · +${FM_H}h`:''}${pinned?' · pinned — esc closes':''}</div>
     <div class="p-v"><b>${v==null?'—':fmt1(v)}</b> ${label}${FM_PARAM==='us_aqi'?'':' µg/m³'}</div>
     <div class="p-conf">${p.conf==='hi'?'measured — dense samples here'
       :p.conf==='med'?'interpolated — moderate sample density'
@@ -746,9 +801,10 @@ function fmShow(ft,x,y){
      gazetteer has nothing within 150m — that reads 'no named place',
      not an error; a real failure shows '—' and can retry */
   if(FM_NAMES[key]==null){
-    /* 4s ceiling — the live gazetteer can hang >10s on dense-area cells;
-       a slow lookup must never leave the popover spinning through a demo */
-    fetch(`/v2/reverse?lat=${clat.toFixed(4)}&lon=${clon.toFixed(4)}`,
+    /* hover pays the gazetteer only when the pointer actually rests on a
+       cell (320ms) — a fast sweep across the map costs zero fetches;
+       a pinned card looks up immediately */
+    const doFetch=()=>fetch(`/v2/reverse?lat=${clat.toFixed(4)}&lon=${clon.toFixed(4)}`,
           {signal:AbortSignal.timeout(4000)})
       .then(async r=>{
         if(r.status===404)return null;
@@ -765,26 +821,48 @@ function fmShow(ft,x,y){
       })
       .catch(err=>{
         /* timeout vs real failure read differently — both honest; neither
-           cached, so the next click retries */
+           cached, so the next hover/click retries */
         const msg=(err&&err.name==='TimeoutError')?'name lookup timed out':'—';
         if(FM_INS&&FM_INS.key===key&&!pop.hidden){
           const nm=pop.querySelector('.p-name');if(nm)nm.textContent=msg;
         }
       });
+    if(pinned)doFetch();
+    else{clearTimeout(FM_REST);FM_REST=setTimeout(()=>{
+      if(FM_INS&&FM_INS.key===key&&!pop.hidden)doFetch()},320)}
   }
 }
-function fmClick(e){
-  const cv=$('fieldmap'),pop=$('fmpop');if(!cv||!pop)return;
+/* hover a cell → its mini card opens after a short rest; click pins it.
+   a pinned card owns the spot — hovers can't move it until esc or a
+   click on empty field dismisses it */
+function fmHit(e){
+  const cv=$('fieldmap');if(!cv)return{ft:null,x:0,y:0};
   const r=cv.getBoundingClientRect();
   const x=e.clientX-r.left,y=e.clientY-r.top;
-  const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95;
-  const lon=X0+x/r.width*(X1-X0),lat=Y0+(1-y/r.height)*(Y1-Y0);
-  const ft=FM_FEATS.find(ft=>{
+  const lon=FM_X0+x/r.width*(FM_X1-FM_X0),lat=FM_Y0+(1-y/r.height)*(FM_Y1-FM_Y0);
+  for(const ft of FM_FEATS){
     const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
-    return ring&&ring.length>2&&pip(lon,lat,ring);
-  });
+    if(ring&&ring.length>2&&pip(lon,lat,ring))return{ft,x,y};
+  }
+  return{ft:null,x,y};
+}
+function fmMove(e){
+  if(FM_INS&&FM_INS.pinned)return;
+  clearTimeout(FM_HOV);const ev=e;
+  FM_HOV=setTimeout(()=>{
+    const{ft,x,y}=fmHit(ev),pop=$('fmpop');if(!pop)return;
+    if(!ft){pop.hidden=true;FM_INS=null;return}
+    fmShow(ft,x,y,false);
+  },110);
+}
+function fmLeave(){
+  clearTimeout(FM_HOV);clearTimeout(FM_REST);
+  if(!(FM_INS&&FM_INS.pinned)){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null}
+}
+function fmClick(e){
+  const{ft,x,y}=fmHit(e),pop=$('fmpop');if(!pop)return;
   if(!ft){pop.hidden=true;FM_INS=null;return}
-  fmShow(ft,x,y);
+  fmShow(ft,x,y,true);
 }
 
 /* --- the shared picture: global rollups. each tile reads the aggregate
@@ -848,6 +926,8 @@ function bindScrub(){
     await paintFieldMap(FM_PARAM);
   });
   $('fieldmap').addEventListener('click',fmClick);
+  $('fieldmap').addEventListener('mousemove',fmMove);
+  $('fieldmap').addEventListener('mouseleave',fmLeave);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null}});
   fetch('/ncr.geojson').then(r=>r.ok?r.json():null).then(g=>{FM_GJ=g}).catch(()=>{});
 }
@@ -857,7 +937,15 @@ async function paintFieldMap(param){
   if(!$('fmsel').children.length){renderFmSel();bindScrub()}
   syncScrub();
   try{
-    const g=await getJSON(`/grid?cells=28&param=${param}${FM_H?`&h=${FM_H}`:''}`);
+    const g=await getJSON(`/grid?cells=${FM_CELLS}&param=${param}${FM_H?`&h=${FM_H}`:''}`);
+    /* epoch replay detection — the server stamps the freshness tuple;
+       an identical epoch means the canvas already shows this data, so
+       the ~1600-polygon redraw is skipped (the download stays cheap —
+       the grid is epoch-cached server-side) */
+    const ep=(g&&g.properties&&g.properties.cell_epoch)||null;
+    const epKey=ep?param+'|'+FM_H+'|'+JSON.stringify(ep):null;
+    if(epKey&&epKey===FM_LAST_EP)return;
+    FM_LAST_EP=epKey;
     const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
     const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,ASP=0.879;   /* cos(28.6°) */
     const w=cv.parentElement.clientWidth;   /* .fmwrap: already inside the panel's padding */
@@ -877,7 +965,7 @@ async function paintFieldMap(param){
         return (ring.reduce((s,c)=>s+c[0],0)/ring.length).toFixed(4)+','+
                (ring.reduce((s,c)=>s+c[1],0)/ring.length).toFixed(4)===FM_INS.key;
       });
-      if(same)fmShow(same,FM_INS.x,FM_INS.y);
+      if(same)fmShow(same,FM_INS.x,FM_INS.y,FM_INS.pinned);
       else{pop.hidden=true;FM_INS=null}
     }else if(pop){pop.hidden=true}
     const alpha={'hi':.92,'med':.58,'lo':.30};
@@ -900,6 +988,17 @@ async function paintFieldMap(param){
       ctx.beginPath();
       ring.forEach(([lo,la],i)=>{const x=(lo-X0)/(X1-X0)*W,y=(1-(la-Y0)/(Y1-Y0))*H;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
       ctx.closePath();ctx.fill();
+    }
+    /* index frame — degree ticks so a sector ref can be placed on the
+       page: lon labels along the bottom, lat up the left edge */
+    ctx.fillStyle='rgba(20,24,31,.42)';ctx.font='8.5px ui-monospace,monospace';
+    ctx.textAlign='center';
+    for(let lo=77.0;lo<FM_X1-0.05;lo+=0.2){
+      ctx.fillText(lo.toFixed(1)+'°e',(lo-FM_X0)/(FM_X1-FM_X0)*W,H-4);
+    }
+    ctx.textAlign='left';
+    for(let la=28.4;la<FM_Y1-0.02;la+=0.2){
+      ctx.fillText(la.toFixed(1)+'°n',4,(1-(la-FM_Y0)/(FM_Y1-FM_Y0))*H+3);
     }
     /* centre mark — the centroid the city numbers are computed at */
     const cx=(77.2167-X0)/(X1-X0)*W,cy=(1-(28.6315-Y0)/(Y1-Y0))*H;
@@ -947,7 +1046,7 @@ async function paintFieldMap(param){
     const hTag=FM_H?`<b style="color:var(--ink)">forecast +${FM_H}h</b> · `:'';
     const hNote=FM_H?'cams horizon anchored to the live field':'faded cells sit farther from a measured sample';
     $('fieldmap-sub').innerHTML=vals.length
-      ?`${hTag}${fmt(vals.length)} real cells · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
+      ?`${hTag}${fmt(vals.length)} real cells · grid ${FM_CELLS}×${FM_CELLS} · sectors a01–an40 · ~2.1×2.7 km each · hover a cell for its card · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
        `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · ${hNote} — never a guess`+
        (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fire detections plotted${FM_FIRES.length>plotted?` (${fmt(FM_FIRES.length-plotted)} more outside this view)`:''}`:'')+windTxt
       :`${label} — the field serves no ${label} cells right now`;

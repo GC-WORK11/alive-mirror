@@ -920,6 +920,14 @@ class _ForecastSurface:
 _GRID_CACHE: dict = {}
 
 
+def _epoch_tagged(gj: dict, epoch) -> dict:
+    """Stamp the freshness tuple onto the collection so a client can
+    skip re-painting an identical epoch — honest replay detection."""
+    if isinstance(gj, dict):
+        gj.setdefault("properties", {})["cell_epoch"] = list(epoch)
+    return gj
+
+
 def _grid_cached(key: tuple, epoch: float, build) -> dict:
     hit = _GRID_CACHE.get(key)
     if hit and hit[0] == epoch:
@@ -953,18 +961,20 @@ async def field_grid(cells: int = Query(default=22, le=40),
     if h is not None:
         await _forecast_refresh_bounded()
         # the horizon anchors to the live field too — all three epochs
+        ep = (FORECAST._fetched_at, FIELD._fetched_at,
+              community._OBS_VERSION)
         return _grid_cached(
-            ("f", cells, param, h),
-            (FORECAST._fetched_at, FIELD._fetched_at,
-             community._OBS_VERSION),
-            lambda: grid.as_geojson(_ForecastSurface(h), cells, param))
+            ("f", cells, param, h), ep,
+            lambda: _epoch_tagged(
+                grid.as_geojson(_ForecastSurface(h), cells, param), ep))
     await _field_refresh_bounded()
     # the served surface is field×corridor-posterior — a donated trip
     # shifts cells between refreshes, so the obs version rides the epoch
+    ep = (FIELD._fetched_at, community._OBS_VERSION)
     return _grid_cached(
-        ("l", cells, param),
-        (FIELD._fetched_at, community._OBS_VERSION),
-        lambda: grid.as_geojson(FIELD, cells, param))
+        ("l", cells, param), ep,
+        lambda: _epoch_tagged(
+            grid.as_geojson(FIELD, cells, param), ep))
 
 
 @app.post("/observe")
