@@ -270,6 +270,7 @@ async def health():
         "field_refresh_in_s": fstat.get("refresh_in_s"),
         "field_stale": fstat.get("stale"),
         "engine": fstat.get("engine"),
+        "wind": fstat.get("wind"),
         "sources": {
             "model": {"up": bool(fstat.get("samples")),
                       "samples": fstat.get("samples", 0),
