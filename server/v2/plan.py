@@ -995,14 +995,34 @@ def _engine():
         return None
 
 
+def _field_epoch(F) -> float:
+    """Wall-clock stamp of the field the engine would raster now —
+    live fetch time or serving-snapshot epoch, whichever applies. A
+    raster built before this stamp is stale even inside the TTL."""
+    epoch = 0.0
+    for attr in ("_fetched_at", "_snap_epoch"):
+        try:
+            v = float(getattr(F, attr, 0.0) or 0.0)
+        except Exception:
+            continue
+        if v > epoch:
+            epoch = v
+    return epoch
+
+
 def _engine_reweight(eng) -> None:
     global _ENG_T, _ENG_PACK
-    if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
-        return
     try:
         F = deps.field()
     except Exception as e:
         _log.warning("engine reweight: deps.field failed: %r", e)
+        return
+    # Reprice on TTL expiry OR when the field itself refreshed since
+    # the last reweight — a fresher field must invalidate pricing
+    # promptly, not sit out the rest of the 10 min serving a stale
+    # raster. epoch<=_ENG_T covers the "same field, cheap repack" case.
+    epoch = _field_epoch(F)
+    if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S and epoch <= _ENG_T:
         return
 
     def val(lat, lon):
@@ -1065,9 +1085,11 @@ def _engine_reweight(eng) -> None:
         return
 
     with _ENG_LOCK:
-        if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
+        if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S \
+                and epoch <= _ENG_T:
             return
         try:
+            t_rw = time.time()
             res = eng.reweight(sampler) or {}
             # only mark fresh when edges actually priced — a reweight
             # against an empty field (cold task, no snapshot yet) would
@@ -1078,7 +1100,9 @@ def _engine_reweight(eng) -> None:
                 # price their displayed dose against the same field view
                 # the pathfinder minimized over
                 _ENG_PACK = (fv if hasattr(fv, "value") else None, sig_fn)
-            _log.warning("engine reweight done: %s", res)
+            _log.warning("engine reweight done: %s in %.0fms (epoch %s)",
+                         res, (time.time() - t_rw) * 1000.0,
+                         "fresh" if epoch > 0 else "?")
         except Exception as e:
             _log.warning("engine reweight failed: %r", e)
 
@@ -1202,40 +1226,61 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
     if _ENG_PACK:
         field_fn = getattr(_ENG_PACK[0], "value", None)
         sigma_fn = _ENG_PACK[1]
+    # Honest alternative corridors need a fast engine: alternatives()
+    # runs up to ALT_MAX_ATTEMPTS A* solves per mode. The C++ kernel
+    # pays that in ~50-100 ms; the Python twin (dev fallback when the
+    # extension isn't built) would burn the whole 8 s arm budget —
+    # it serves the single optimum per mode, exactly as before.
+    alts_fn = getattr(eng, "alternatives", None)
+    if alts_fn is not None:
+        try:
+            import alive_core
+            if not isinstance(eng, alive_core.PathEngine):
+                alts_fn = None
+        except ImportError:
+            alts_fn = None
     t0 = time.time()
     opts = []
     for mode, label in ENGINE_MODES:
         try:
-            r = eng.query(flat, flon, tlat, tlon, mode)
+            paths = (alts_fn(flat, flon, tlat, tlon, mode, 2)
+                     if alts_fn is not None
+                     else [eng.query(flat, flon, tlat, tlon, mode)])
         except Exception as e:
             _log.warning("engine query %s failed: %r", mode, e)
             continue
-        if not isinstance(r, dict) or r.get("error") or not r.get("geometry"):
-            _log.warning("engine query %s: %s", mode,
-                         (r or {}).get("error") or "no geometry")
-            continue
-        snap = r.get("snap") or {}
-        if (snap.get("from_m", 1e9) > 1200.0
-                or snap.get("to_m", 1e9) > 1200.0):
-            continue   # path would start mid-graph — not servable
-        dist_km = r["distance_m"] / 1000.0
-        if dist_km <= 0.0 or dist_km > MAX_ROUTE_KM:
-            continue
-        dur_s = float(r["duration_s"])
-        opts.append(_option(
-            mode, f"{label} · least-smoke rd",
-            r["geometry"], dist_km, dur_s, dur_s, "estimated",
-            vehicle, profile,
-            steps=None, steps_source="endpoints",
-            extra={
-                "engine": "alive_core-path",
-                "duration_model": "estimated",
-                "via_names": r.get("names") or [],
-                "snap_m": {"from_m": round(snap.get("from_m") or 0, 1),
-                           "to_m": round(snap.get("to_m") or 0, 1)},
-            },
-            origin=(flat, flon), dest=(tlat, tlon),
-            field_fn=field_fn, sigma_fn=sigma_fn))
+        for alt_i, r in enumerate(paths or []):
+            if not isinstance(r, dict) or r.get("error") \
+                    or not r.get("geometry"):
+                if alt_i == 0:
+                    _log.warning("engine query %s: %s", mode,
+                                 (r or {}).get("error") or "no geometry")
+                continue
+            snap = r.get("snap") or {}
+            if (snap.get("from_m", 1e9) > 1200.0
+                    or snap.get("to_m", 1e9) > 1200.0):
+                continue   # path would start mid-graph — not servable
+            dist_km = r["distance_m"] / 1000.0
+            if dist_km <= 0.0 or dist_km > MAX_ROUTE_KM:
+                continue
+            dur_s = float(r["duration_s"])
+            row_label = (f"{label} · least-smoke rd" if alt_i == 0
+                         else f"{label} · least-smoke alt {alt_i}")
+            opts.append(_option(
+                mode, row_label,
+                r["geometry"], dist_km, dur_s, dur_s, "estimated",
+                vehicle, profile,
+                steps=None, steps_source="endpoints",
+                extra={
+                    "engine": "alive_core-path",
+                    "duration_model": "estimated",
+                    "via_names": r.get("names") or [],
+                    "snap_m": {"from_m": round(snap.get("from_m") or 0, 1),
+                               "to_m": round(snap.get("to_m") or 0, 1)},
+                    "alternative_index": alt_i or None,
+                },
+                origin=(flat, flon), dest=(tlat, tlon),
+                field_fn=field_fn, sigma_fn=sigma_fn))
     _log.warning("engine options: %d rows in %.0fms",
                  len(opts), (time.time() - t0) * 1000.0)
     return opts
@@ -1390,7 +1435,7 @@ async def reroute(body: dict):
         best = next((o for o in options
                      if _FAMILY.get(o["mode"], o["mode"]) == fam),
                     options[0])
-    return {
+    resp = {
         "rerouted_from": rid,
         "from_fix": {"lat": flat, "lon": flon},
         "to": {"lat": tlat, "lon": tlon},
@@ -1411,6 +1456,22 @@ async def reroute(body: dict):
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
+    # finish-on-foot honesty check: when the remaining leg is walkable
+    # and the selected continuation is motorized, surface the real
+    # least-dose walk option's numbers — the client can offer "park and
+    # finish on foot" with honest distance + dose, nothing synthesized.
+    if best.get("mode") != "walk":
+        walk_opts = [o for o in options if o.get("mode") == "walk"]
+        if walk_opts:
+            wopt = min(walk_opts, key=_dose_key)
+            if 0.0 < wopt.get("distance_km", 1e9) <= 1.5:
+                resp["finish_on_foot"] = {
+                    "distance_km": wopt["distance_km"],
+                    "eta_s": wopt["eta_s"],
+                    "dose": wopt.get("dose"),
+                    "route_id": wopt["route_id"],
+                }
+    return resp
 
 
 def _field_status() -> dict:

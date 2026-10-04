@@ -72,6 +72,15 @@ HW_UPLIFT = {0: 1.35, 1: 1.35, 2: 1.30, 3: 1.30, 4: 1.20, 5: 1.20,
 MAX_SAMPLE_PTS = 5      # per-edge concentration sample count cap
 SNAP_RADIUS_M = 1500.0  # furthest node-snap admitted for an endpoint
 
+# alternative-corridor search (alternatives()): after the optimal path,
+# re-run A* with every found path's edges taxed by ALT_TAX, up to
+# ALT_MAX_ATTEMPTS rounds; a candidate sharing >= ALT_MAX_SHARED of its
+# length with an already-accepted corridor is a variant, not an
+# alternative — rejected (its edges still join the tax set).
+ALT_TAX = 1.5
+ALT_MAX_ATTEMPTS = 4
+ALT_MAX_SHARED = 0.85
+
 R_M = 6371000.0
 
 
@@ -280,6 +289,50 @@ class PyPathEngine:
     def query(self, olat, olon, dlat, dlon, mode="car"):
         """least-dose path → dict(geometry, distance_m, duration_s,
         dose_ug, edge_ids, names hit, snap warnings) or {'error': ...}."""
+        return self._route(olat, olon, dlat, dlon, mode, None)
+
+    def alternatives(self, olat, olon, dlat, dlon, mode="car",
+                     max_alts=2):
+        """Least-dose corridor plus up to `max_alts` honest alternatives.
+
+        After the optimum, each subsequent A* run taxes every edge of
+        every corridor found so far by ALT_TAX — the standard
+        edge-penalty diversity pass. A candidate sharing >=
+        ALT_MAX_SHARED of its length with the accepted corridors is a
+        variant of them, not an alternative, and is rejected (its edges
+        join the tax set so the next round must go wider). Every
+        returned path carries its real dose — nothing is synthesized.
+        """
+        first = self._route(olat, olon, dlat, dlon, mode, None)
+        if first.get("error") or max_alts <= 0:
+            return [first]
+        g = self.g
+        out = [first]
+        accepted_edges = set(first["edge_ids"])     # 31-bit ids
+        taxed = set(accepted_edges)
+        tax = {}
+        attempts = 0
+        while len(out) < 1 + max_alts and attempts < ALT_MAX_ATTEMPTS:
+            for e in taxed:
+                tax[e] = ALT_TAX
+            attempts += 1
+            cand = self._route(olat, olon, dlat, dlon, mode, tax)
+            if cand.get("error"):
+                break
+            cids = set(cand["edge_ids"])
+            if cids and cids <= taxed:
+                break               # penalty moved nothing — no alt exists
+            shared = sum(g.e_len[e] for e in cids & accepted_edges)
+            if cand["distance_m"] > 0 and \
+                    shared / cand["distance_m"] < ALT_MAX_SHARED:
+                out.append(cand)
+                accepted_edges |= cids
+            taxed |= cids
+        return out
+
+    def _route(self, olat, olon, dlat, dlon, mode, tax):
+        """One least-dose A* solve; `tax` optionally maps edge id →
+        cost multiplier (diversity pass — never a legality override)."""
         g = self.g
         rule = MODE_RULES.get(mode) or MODE_RULES["car"]
         ve = MODE_VE.get(mode, 8.0)
@@ -303,6 +356,8 @@ class PyPathEngine:
         # mn = min edge concentration (reweight stores it); fastest speed
         # 250 km/h keeps the rate a floor. me/ve/uplift≥1 are per-mode
         # constants — rate must be recomputed per mode (no shared cache).
+        # The ALT_TAX pass multiplies only real edge costs — the bound
+        # stays valid (tax can only raise costs, never below h_rate).
         mn = getattr(self, "_min_conc", None)
         if self.field_mean is None or mn is None:
             h_rate = 0.0
@@ -331,7 +386,7 @@ class PyPathEngine:
                 rate = cost(e, rev)
                 if rate is None:
                     continue
-                w = rate * g.e_len[e]
+                w = rate * g.e_len[e] * (tax.get(e, 1.0) if tax else 1.0)
                 ng = gc + w
                 if to not in gscore or ng < gscore[to] - 1e-9:
                     gscore[to] = ng
@@ -350,7 +405,7 @@ class PyPathEngine:
         chain.reverse()
 
         coords, dist, secs, dose = [], 0.0, 0.0, 0.0
-        names_seen = []
+        names_seen, name_set = [], set()
         for e, rev in chain:
             pts = g.edge_pts(e)
             if rev:
@@ -369,14 +424,21 @@ class PyPathEngine:
             nm = g.e_nm[e]
             if nm:
                 nm -= 1  # stored as idx+1
-                if 0 <= nm < len(g.names) and \
-                        (not names_seen or names_seen[-1] != g.names[nm]):
+                # ordered-unique: first-appearance order, repeats skipped —
+                # the corridor list reads like the turn sequence, not a
+                # name-mixing replay of leave/rejoin oscillations
+                if 0 <= nm < len(g.names) and g.names[nm] not in name_set:
+                    name_set.add(g.names[nm])
                     names_seen.append(g.names[nm])
         return {
             "geometry": {"type": "LineString",
                          "coordinates": [[c[0], c[1]] for c in coords]},
             "distance_m": dist, "duration_s": secs,
             "dose_ug": dose, "edges": len(chain),
+            # travelled edge ids (31-bit; direction in edge_reversed) —
+            # audit/diversity bookkeeping, same ids the C++ twin emits
+            "edge_ids": [e for e, _ in chain],
+            "edge_reversed": [rev for _, rev in chain],
             "names": names_seen[:12],
             "snap": {"from_m": sd, "to_m": td},
             "engine": "alive_core-path",

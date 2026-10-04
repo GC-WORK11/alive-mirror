@@ -123,9 +123,7 @@ py::dict path_reweight(PathEngine& eng, const py::object& field) {
   return out;
 }
 
-py::dict path_query(PathEngine& eng, double olat, double olon, double dlat,
-                    double dlon, const std::string& mode) {
-  const PathResult r = eng.query(olat, olon, dlat, dlon, mode);
+py::dict path_result_dict(const PathResult& r) {
   py::dict out;
   if (!r.ok) {
     out["error"] = r.error;
@@ -146,6 +144,11 @@ py::dict path_query(PathEngine& eng, double olat, double olon, double dlat,
   out["duration_s"] = r.duration_s;
   out["dose_ug"] = r.dose_ug;
   out["edges"] = r.edges;
+  py::list ids, revs;
+  for (const uint32_t e : r.edge_ids) ids.append(e);
+  for (const char rev : r.edge_reversed) revs.append(rev != 0);
+  out["edge_ids"] = std::move(ids);
+  out["edge_reversed"] = std::move(revs);
   py::list names;
   for (const auto& n : r.names) names.append(n);
   out["names"] = std::move(names);
@@ -154,6 +157,21 @@ py::dict path_query(PathEngine& eng, double olat, double olon, double dlat,
   snap["to_m"] = r.snap_to_m;
   out["snap"] = std::move(snap);
   out["engine"] = "alive_core-path";
+  return out;
+}
+
+py::dict path_query(PathEngine& eng, double olat, double olon, double dlat,
+                    double dlon, const std::string& mode) {
+  return path_result_dict(eng.query(olat, olon, dlat, dlon, mode));
+}
+
+py::list path_alternatives(PathEngine& eng, double olat, double olon,
+                           double dlat, double dlon,
+                           const std::string& mode, int max_alts) {
+  py::list out;
+  for (const PathResult& r :
+       eng.alternatives(olat, olon, dlat, dlon, mode, max_alts))
+    out.append(path_result_dict(r));
   return out;
 }
 
@@ -454,6 +472,9 @@ PYBIND11_MODULE(alive_core, m) {
       .def("reweight", &path_reweight, py::arg("field"))
       .def("query", &path_query, py::arg("olat"), py::arg("olon"),
            py::arg("dlat"), py::arg("dlon"), py::arg("mode") = "car")
+      .def("alternatives", &path_alternatives, py::arg("olat"),
+           py::arg("olon"), py::arg("dlat"), py::arg("dlon"),
+           py::arg("mode") = "car", py::arg("max_alts") = 2)
       .def("n_nodes", &PathEngine::n_nodes)
       .def("n_edges", &PathEngine::n_edges)
       .def("edges_priced", &PathEngine::edges_priced)

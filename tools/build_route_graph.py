@@ -11,6 +11,14 @@ a compact gzipped blob the C++ engine (and the Python parity twin) loads
 at boot. Ways that exist in both extracts' overlap are deduped on
 OSM way id.
 
+Honest legality notes (audited in server/tests/test_path_legality.py):
+the build keeps OSM `highway=*` class and `oneway` (incl. `oneway=-1`),
+and both engines enforce per-mode deny-lists + oneway direction. OSM
+`restriction=*` relations (turn bans) are NOT read — osmium never sees
+relations here, so a legal-but-banned turn can appear in a path.
+`access`/`bicycle`/`foot` per-tag overrides are likewise not carried:
+legality is class-level only.
+
 Output: server/data/route_graph.bin.gz — gzipped packed binary:
   header  : magic "ARG1" | u32 n_nodes | u32 n_edges | u32 n_names |
             u32 n_pts | u32 bbox×4 (i32 microdeg)

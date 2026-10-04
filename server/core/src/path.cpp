@@ -10,6 +10,7 @@
 #include <queue>
 #include <stdexcept>
 #include <tuple>
+#include <unordered_set>
 
 namespace alive {
 namespace {
@@ -291,8 +292,53 @@ int PathEngine::snap(double lat, double lon, const PathRule& r,
 
 PathResult PathEngine::query(double olat, double olon, double dlat,
                              double dlon, const std::string& mode) const {
-  PathResult res;
+  return route(olat, olon, dlat, dlon, mode_index(mode), nullptr);
+}
+
+std::vector<PathResult> PathEngine::alternatives(
+    double olat, double olon, double dlat, double dlon,
+    const std::string& mode, int max_alts) const {
   const int mi = mode_index(mode);
+  PathResult first = route(olat, olon, dlat, dlon, mi, nullptr);
+  std::vector<PathResult> out;
+  out.push_back(std::move(first));
+  if (!out[0].ok || max_alts <= 0) return out;
+
+  std::unordered_set<uint32_t> accepted(out[0].edge_ids.begin(),
+                                        out[0].edge_ids.end());
+  std::unordered_set<uint32_t> taxed(accepted);
+  std::vector<double> tax;
+  for (int attempts = 0;
+       static_cast<int>(out.size()) < 1 + max_alts &&
+       attempts < kAltMaxAttempts;
+       ++attempts) {
+    if (tax.size() != e_u_.size()) tax.assign(e_u_.size(), 1.0);
+    for (const uint32_t e : taxed) tax[e] = kAltTax;
+    PathResult cand = route(olat, olon, dlat, dlon, mi, &tax);
+    if (!cand.ok) break;
+    const std::unordered_set<uint32_t> cids(cand.edge_ids.begin(),
+                                          cand.edge_ids.end());
+    bool all_taxed = !cids.empty();
+    for (const uint32_t e : cids)
+      if (!taxed.count(e)) { all_taxed = false; break; }
+    if (all_taxed) break;        // penalty moved nothing — no alt exists
+    double shared = 0.0;
+    for (const uint32_t e : cids)
+      if (accepted.count(e)) shared += e_len_[e];
+    if (cand.distance_m > 0.0 &&
+        shared / cand.distance_m < kAltMaxShared) {
+      accepted.insert(cids.begin(), cids.end());
+      out.push_back(std::move(cand));
+    }
+    taxed.insert(cids.begin(), cids.end());
+  }
+  return out;
+}
+
+PathResult PathEngine::route(double olat, double olon, double dlat,
+                             double dlon, int mi,
+                             const std::vector<double>* tax) const {
+  PathResult res;
   const PathRule& rl = kRules[mi];
   const double ve = kModeVE[mi], me = kModeME[mi];
 
@@ -341,7 +387,11 @@ PathResult PathEngine::query(double olat, double olon, double dlat,
       const double sp = mode_speed(e, rl);
       const double rate =
           conc(e) * me * uplift(e_hw_[e]) * (ve / 1000.0) * (0.06 / sp);
-      const double ng = gc + rate * e_len_[e];
+      // diversity pass multiplier — raises real edge costs only;
+      // admissibility of h is unaffected (tax >= 1 can never go below
+      // the unconstrained optimum h estimates)
+      const double t = tax ? (*tax)[e] : 1.0;
+      const double ng = gc + rate * e_len_[e] * t;
       const uint32_t to = rev ? e_u_[e] : e_v_[e];
       if (ng < gs[to] - 1e-9) {
         gs[to] = ng;
@@ -372,8 +422,10 @@ PathResult PathEngine::query(double olat, double olon, double dlat,
 
   res.ok = true;
   res.edges = static_cast<int>(chain.size());
-  std::string last_name;
+  std::unordered_set<std::string> name_set;
   for (const auto& [e, rev] : chain) {
+    res.edge_ids.push_back(e);
+    res.edge_reversed.push_back(rev ? 1 : 0);
     auto pts = edge_pts(e);
     if (rev) std::reverse(pts.begin(), pts.end());
     const size_t skip = res.coords.empty() ? 0 : 1;
@@ -390,10 +442,13 @@ PathResult PathEngine::query(double olat, double olon, double dlat,
     int32_t nm = e_nm_[e];
     if (nm) {
       nm -= 1;  // stored as idx+1
+      // ordered-unique (parity oracle): first-appearance order,
+      // leave/rejoin repeats skipped — the corridor list reads like
+      // the turn sequence
       if (nm >= 0 && static_cast<size_t>(nm) < names_.size() &&
-          names_[nm] != last_name) {
-        last_name = names_[nm];
-        res.names.push_back(last_name);
+          !name_set.count(names_[nm])) {
+        name_set.insert(names_[nm]);
+        res.names.push_back(names_[nm]);
       }
     }
   }

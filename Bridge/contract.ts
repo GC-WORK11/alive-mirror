@@ -384,6 +384,9 @@ export interface V2PlanOption {
   duration_model?: string;      // engine rows: "estimated" (graph speeds)
   via_names?: string[];         // engine rows: street names the path takes
   snap_m?: { from_m: number; to_m: number }; // engine rows: endpoint snap distance
+  alternative_index?: number | null;  // engine rows: 1..N on corridor-diverse
+                                      // least-dose alternatives; absent on the
+                                      // primary route
   reason_line: string;
   your_vehicle: boolean;
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
@@ -473,6 +476,11 @@ export interface V2RerouteResponse {
   emissions?: EmissionBand;
   mode?: string;
   option?: V2PlanOption | null;
+  // when the selected continuation is motorized and the remaining leg
+  // is walkable (<=1.5 km), the real least-dose walk option's numbers —
+  // the "park and finish on foot" honesty check
+  finish_on_foot?: { distance_km: number; eta_s: number;
+                     dose: DoseBand | null; route_id: string };
   field?: FieldStatus;
   took_ms?: number;
   error?: string;

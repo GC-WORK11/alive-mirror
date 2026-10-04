@@ -41,6 +41,8 @@ struct PathResult {
   double duration_s = 0.0;
   double dose_ug = 0.0;
   int edges = 0;
+  std::vector<uint32_t> edge_ids;       // travelled edge ids (31-bit)
+  std::vector<char> edge_reversed;      // 1 = traversed v->u
   std::vector<std::string> names;       // distinct road names, in order
   double snap_from_m = 0.0;
   double snap_to_m = 0.0;
@@ -68,6 +70,20 @@ class PathEngine {
   // Least-dose path for `mode` (car/car_open/cab/auto/bike/cycle/walk).
   PathResult query(double olat, double olon, double dlat, double dlon,
                    const std::string& mode) const;
+
+  // Optimum plus up to `max_alts` honest alternative corridors: each
+  // next solve taxes every edge of every corridor found so far by
+  // kAltTax (edge-penalty diversity pass); a candidate sharing >=
+  // kAltMaxShared of its length with accepted corridors is rejected as
+  // a variant. Parity oracle: routegraph.py PyPathEngine.alternatives.
+  std::vector<PathResult> alternatives(double olat, double olon,
+                                       double dlat, double dlon,
+                                       const std::string& mode,
+                                       int max_alts = 2) const;
+
+  static constexpr double kAltTax = 1.5;
+  static constexpr int kAltMaxAttempts = 4;
+  static constexpr double kAltMaxShared = 0.85;
 
   size_t n_nodes() const { return node_lon_.size(); }
   size_t n_edges() const { return e_u_.size(); }
@@ -97,6 +113,8 @@ class PathEngine {
   int edges_priced_ = 0;
 
   static const PathRule& rule(const std::string& mode);
+  PathResult route(double olat, double olon, double dlat, double dlon,
+                   int mi, const std::vector<double>* tax) const;
   std::vector<std::pair<double, double>> edge_pts(uint32_t i) const;
   double conc(uint32_t e) const;
   bool legal(uint32_t e, bool rev, const PathRule& r) const;
