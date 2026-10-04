@@ -138,8 +138,9 @@ def test_weekly_validation_loso(offline, monkeypatch):
           cells={"cell1": {"pm25": 50.0}}, stations=stations)
     monkeypatch.setattr(validate_field, "validate",
                         lambda hours_back: (None, [
-                            ("s", "h", 40.0, 42.0, 0),
-                            ("s", "h", 50.0, 48.0, 0)]))
+                            # (stn, hour, obs, krige, idw, sigma) — real schema
+                            ("s", "h", 40.0, 42.0, 41.0, 0.1),
+                            ("s", "h", 50.0, 48.0, 49.0, 0.1)]))
     out = rollup_lambda.weekly_validation(week="2026-W40")
     assert out["week"] == "2026-W40"
     assert out["loso"]["status"] == "ok" and out["loso"]["n"] == 5

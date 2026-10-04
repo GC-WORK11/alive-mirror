@@ -601,8 +601,13 @@ def weekly_validation(week: str = None, snapshot_root: str = None,
         import validate_field
         _truth, pairs = validate_field.validate(hours_back=168)
         if pairs:
-            errs = [m - o for _s, _h, o, m, _i in pairs]
-            obs = [o for _s, _h, o, _m, _i in pairs]
+            # pairs: (station, hour, obs, krige|None, idw, sigma, ...)
+            # positional reads — the schema grew fields before and the
+            # arity unpack shipped a live ValueError on the admin tile
+            errs = [p[3] - p[2] for p in pairs
+                    if len(p) >= 4 and p[3] is not None]
+            obs = [p[2] for p in pairs
+                   if len(p) >= 4 and p[3] is not None]
             nn = len(errs)
             archive = {"status": "ok", "pairs": nn,
                        "mae_ugm3": round(sum(abs(e) for e in errs) / nn, 2),

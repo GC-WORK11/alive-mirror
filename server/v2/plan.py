@@ -1098,6 +1098,17 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
         options += _engine_merge(eng, options)
     if isinstance(transit, list):
         options += [o for o in transit if isinstance(o, dict)]
+    if options:
+        # an arm that returned nothing while siblings produced rows is
+        # degraded even though it "succeeded" — the router arms swallow
+        # backend failures into [] internally (osrm_route returns None
+        # for no-route AND unreachable alike), so empty on a routable OD
+        # means that arm produced nothing. transit stays exception-only:
+        # no GTFS path on an OD is honest geography, not degradation.
+        for name, rows in (("motor", motor), ("slow", slow),
+                           ("engine", eng)):
+            if not rows and name not in missing:
+                missing.append(name)
     return options, missing
 
 
@@ -1802,7 +1813,7 @@ async def _engine_first(flat, flon, tlat, tlon, vehicle, profile):
         _log.warning("engine-first arm failed: %r", e)
         return [], "engine unavailable", ["engine"]
     return ([o for o in (rows or []) if isinstance(o, dict)],
-            None, [])
+            None, ["engine"] if not rows else [])
 
 
 @router.post("/reroute")

@@ -552,13 +552,19 @@ async function loadGeo(){
 
 async function load(){
   try{
+    /* per-feed settle — during a deploy one endpoint can die while the
+       others serve; every section keeps what it can honestly paint
+       rather than the whole page falling back to placeholders */
     const [g,a,cy,dd]=await Promise.all([
-      fetch('/grid?cells=34').then(r=>r.json()),
-      fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.json()),
-      fetch('/v2/city').then(r=>r.json()),
-      fetch('/v2/districts').then(r=>r.json())]);
-    if(g.features)paintCells(g.features);
-    paintDistricts(dd.districts||[]);
+      fetch('/grid?cells=34').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch('/v2/city').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch('/v2/districts').then(r=>r.ok?r.json():null).catch(()=>null)]);
+    if(!g&&!a&&!cy&&!dd)throw new Error('all feeds down');
+    if(g&&g.features)paintCells(g.features);
+    if(dd)paintDistricts(dd.districts||[]);
+    if(!cy)return;   /* the ledger/corridor numbers all ride /v2/city */
+    a=a||{};
     windNow=a.wind||windNow;
     const days=(cy.trips&&cy.trips.days)||{};
     const dayKeys=Object.keys(days).sort();
@@ -597,7 +603,7 @@ async function load(){
     }
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
     setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
-    paintTicker(a,t,ad,(dd.districts||[]).filter(d=>d.aqi!=null).length);
+    paintTicker(a,t,ad,(dd&&dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
     const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
       `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>

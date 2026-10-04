@@ -376,7 +376,7 @@ async function tick(){
      the rest of the board; a section renders only when its payload lands */
   const urls=['/admin/api/status','/admin/api/sources','/admin/api/corridors',
     '/admin/api/donations','/admin/api/validation','/admin/api/model',
-    '/v2/districts','/admin/api/timing'];
+    '/v2/districts','/admin/api/timing','/admin/api/global'];
   const res=await Promise.allSettled(urls.map(u=>getJSON(u)));
   if(res.every(r=>r.status==='rejected')){
     /* keep the last good render on screen — flag its age, never blank it */
@@ -389,7 +389,7 @@ async function tick(){
     return;
   }
   const val=r=>r.status==='fulfilled'?r.value:null;
-  const [status,sources,corridors,donations,validation,model,districts,timing]=res.map(val);
+  const [status,sources,corridors,donations,validation,model,districts,timing,globalAgg]=res.map(val);
   const dn=donations||{},S=status||{};
   const rows=(corridors&&corridors.rows)||[];
   const failedN=res.filter(r=>r.status==='rejected').length;
@@ -645,7 +645,7 @@ async function tick(){
 
   /* --- the shared picture: global rollups over the feeds this page
      already trusts — honest-empty for fields the api has not shipped --- */
-  paintShared(dn,S,rows);
+  paintShared(dn,S,rows,globalAgg);
 
   /* --- the pipeline — each stage shown with its own live numbers --- */
   const me=(model&&model.microenv)||{},ve=(model&&model.ventilation_lpm)||{},
@@ -790,31 +790,42 @@ function fmClick(e){
 /* --- the shared picture: global rollups. each tile reads the aggregate
    feeds this page already trusts; a field that has not shipped renders
    honest-empty — never an invented number --- */
-function paintShared(dn,S,rows){
+function paintShared(dn,S,rows,G){
   const pick=(o,ks)=>{if(!o)return null;for(const k of ks){
     const v=k.split('.').reduce((a,p)=>(a&&a[p]!=null)?a[p]:null,o);
     if(v!=null)return v}return null};
-  const areas=pick(dn,['devices_by_area','areas_active','pax_by_area'])
+  const areas=(G&&G.areas&&G.areas.length?G.areas.length:null)
+           ??pick(dn,['devices_by_area','areas_active','pax_by_area'])
            ??pick(S,['devices_by_area','areas_active']);
-  const flows=pick(dn,['od_flows','journeys','flows','corridors_total'])
+  const areasTracked=G&&G.areas_tracked;
+  const ods=(G&&G.od_pairs&&G.od_pairs.length?{n:G.od_pairs.length,traversals:G.od_pairs.reduce((s,p)=>s+(p.trips||p.n||0),0)}:null)
+           ??pick(dn,['od_flows','journeys','flows','corridors_total'])
            ??(rows.length?{traversals:rows.reduce((s,r)=>s+(r.trips||0),0),n:rows.length}:null);
   const t=dn.totals||{};
-  const savedCo2=pick(t,['co2_saved_kg','co2_avoided_kg'])??pick(dn,['co2_saved_kg','saved_co2_kg']);
-  const savedDose=pick(t,['dose_saved_ug','dose_avoided_ug'])??pick(dn,['dose_saved_ug']);
+  /* savings blocks ship either scalar or {dose_ug|kg, trips_reporting} — unbox, never fmt an object */
+  const box=(v,ks)=>{if(v==null)return null;
+    if(typeof v==='number')return v;
+    for(const k of ks)if(v[k]!=null)return v[k];return null};
+  const rep=(b)=>b&&typeof b==='object'&&b.trips_reporting!=null?b.trips_reporting:null;
+  const savedCo2=box(G&&G.co2_avoided,['kg','co2_kg','value','amount','total'])
+           ??pick(t,['co2_saved_kg','co2_avoided_kg'])??pick(dn,['co2_saved_kg','saved_co2_kg']);
+  const savedDose=box(G&&G.dose_avoided,['dose_ug','ug','value','total'])
+           ??pick(t,['dose_saved_ug','dose_avoided_ug'])??pick(dn,['dose_saved_ug']);
+  const nRep=rep(G&&G.dose_avoided)??rep(G&&G.co2_avoided);
   const tiles=[
     ['devices moving · by area',
       areas!=null?fmt(typeof areas==='object'?Object.keys(areas).length:areas)+' areas':null,
-      'area-level device counts — lands when the aggregate field ships (never identities)'],
+      `area-level device counts, k≥3 only${G&&G.suppressed&&G.suppressed.areas?` · ${fmt(G.suppressed.areas)} below-k suppressed`:''} — never identities`],
     ['journeys · per od flow',
-      flows!=null?(typeof flows==='number'?fmt(flows)+' corridors'
-        :`${fmt(flows.traversals)} traversals · ${flows.n} corridors`):null,
-      'k≥3 corridors over a 72h window — grows as the fleet moves'],
+      ods!=null?(typeof ods==='number'?fmt(ods)+' flows'
+        :`${fmt(ods.traversals)} traversals · ${ods.n} ${ods.n===1?'flow':'flows'}`):null,
+      'k≥3 anonymized od flows — suppressed pairs counted, never shown'],
     ['pollution avoided · donated fleet',
       (savedCo2!=null||savedDose!=null)
         ?[savedCo2!=null?fmt1(savedCo2)+' kg co₂':null,
           savedDose!=null?fmt(savedDose)+' µg dose':null].filter(Boolean).join(' · ')
         :(t.co2_kg_mid?fmt1(t.co2_kg_mid)+' kg co₂ emitted · mid estimate':null),
-      'savings land when the api ships avoided-emission fields'],
+      `savings from donated avoided-vs-worst-option counterfactuals${nRep!=null?` · ${fmt(nRep)} trip${nRep===1?'':'s'} reporting`:''}`],
   ];
   const el=$('sharedpic');if(!el)return;
   el.innerHTML=tiles.map(([l,v,sub])=>
