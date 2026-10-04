@@ -119,12 +119,17 @@ function toOption(raw: unknown): V2Option | null {
       co2_kg: band(em.co2_kg),
       pm25_g: band(em.pm25_g),
       nox_g: band(em.nox_g),
-      label: str(em.label),
-      basis: str(em.basis),
+      // "none" is the server's null-marker for non-motorized modes —
+      // as a bare string it would render the literal word in the explainer
+      label: em.label === "none" ? null : str(em.label),
+      basis: em.basis === "none" ? null : str(em.basis),
       occupancy: num(em.occupancy),
       bs_class: str(em.bs_class),
       bs_options: Array.isArray(em.bs_options) ? em.bs_options.filter((x): x is string => typeof x === "string") : null,
       confidence: str(em.confidence),
+      fuel: str(em.fuel),
+      class: str(em.class),
+      puc_calibrated: em.puc_calibrated === true ? true : null,
       breakdown: em.breakdown && typeof em.breakdown === "object"
         ? (() => {
             const bd = em.breakdown as Record<string, unknown>;
@@ -161,6 +166,10 @@ function toOption(raw: unknown): V2Option | null {
     stations: stations
       ? { board: str(stations.board) ?? "", alight: str(stations.alight) ?? "" }
       : null,
+    lines: Array.isArray(stations?.lines)
+      ? (stations.lines as unknown[]).filter((x): x is string => typeof x === "string")
+      : null,
+    transfers: num(stations?.transfers),
     steps: Array.isArray(o.steps) ? (o.steps as V2Option["steps"]) : null,
   };
 }

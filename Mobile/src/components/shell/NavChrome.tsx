@@ -19,6 +19,7 @@ import { approx, t, type Lang } from "../../i18n/strings";
 import { confirm, tap } from "../../haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
+import { isTransit } from "./types";
 import type { CompareOption, Step } from "./types";
 
 /** The slice of the engine the chrome needs (subset of useNavEngine's
@@ -267,16 +268,18 @@ export function NavChrome({
   const leftM = nav?.distRemainingM ?? (option.distance_km ?? 0) * 1000;
   const next = nav?.nextStep ?? null;
   const step0 = steps?.[0] ?? null;
+  const transit = isTransit(option);
   const banner = next?.instruction
     ?? step0?.instruction
-    ?? (option.vehicle === "metro" && option.stations
+    ?? (transit && option.stations
       ? t("boardMetro", lang, { a: option.stations.board, b: option.stations.alight })
+          + (option.lines?.length ? `  ·  ${option.lines.join(", ")}` : "")
       : t("followRoute", lang));
   const maneuver: Maneuver = next
     ? maneuverOf(next.instruction, next.type, next.modifier)
     : step0
       ? maneuverOf(step0.instruction, step0.type)
-      : option.vehicle === "metro" ? "transit" : "mode";
+      : transit ? "transit" : "mode";
 
   const cigs = nav ? cigOf(nav.dose.mid) : cigOf(doseUg);
   /* µg readout for the default surface (cigarette metaphor off) — the

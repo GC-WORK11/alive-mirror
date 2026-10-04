@@ -55,12 +55,18 @@ export function localizeStep(st: StepLike, lang: Lang): string {
      server string; lang "en" is itself served, so rebuild only for hi */
   if (lang !== "hi" || (!t0 && !mod)) return st.instruction;
   const onto = road ? t("navStep_onto", lang, { r: road }) : "";
+  /* Hindi reads road-first — "Rajpath पर बाएँ मुड़ें", not "बाएँ मुड़ें
+     Rajpath पर" (verb-final language; headDir/continueOn templates are
+     already {r}-first). Only verb-phrase returns take `front`; the
+     roundabout's "निकास लें X पर" keeps `onto` because fronting the
+     road would double पर. English never reaches here. */
+  const front = road ? `${road} पर ` : "";
 
-  if (mod === "uturn") return t("navStep_uturn", lang) + onto;
+  if (mod === "uturn") return front + t("navStep_uturn", lang);
   if (t0 === "depart") {
     return mod && road
       ? t("navStep_headDir", lang, { d: dir(mod, lang), r: road })
-      : t("navStep_headOut", lang) + onto;
+      : front + t("navStep_headOut", lang);
   }
   if (t0 === "arrive") return t("navStep_arrive", lang);
   if (t0 === "roundabout" || t0 === "rotary" || t0 === "roundabout turn") {
@@ -73,15 +79,15 @@ export function localizeStep(st: StepLike, lang: Lang): string {
       ? t("navStep_roundabout", lang, { o: ord }) + exRoad
       : st.instruction;
   }
-  if (t0 === "on ramp") return t("navStep_ramp", lang) + onto;
-  if (t0 === "off ramp") return t("navStep_exitRamp", lang) + onto;
+  if (t0 === "on ramp") return front + t("navStep_ramp", lang);
+  if (t0 === "off ramp") return front + t("navStep_exitRamp", lang);
   if (t0 === "merge") return (road ? t("navStep_mergeOn", lang, { r: road }) : t("navStep_merge", lang));
   if (t0 === "continue") {
     return road ? t("navStep_continueOn", lang, { r: road }) : t("navStep_continueStraight", lang);
   }
   if (t0 === "fork") {
     const side = mod.replace("slight ", "");
-    return side ? t("navStep_keep", lang, { s: dir(side, lang) }) + onto : t("navStep_continue", lang) + onto;
+    return side ? front + t("navStep_keep", lang, { s: dir(side, lang) }) : front + t("navStep_continue", lang);
   }
   if (mod) {
     if (mod === "straight") {
@@ -89,8 +95,8 @@ export function localizeStep(st: StepLike, lang: Lang): string {
     }
     const bare = mod.replace("slight ", "");
     return mod.startsWith("slight")
-      ? t("navStep_bear", lang, { d: dir(bare, lang) }) + onto
-      : t("navStep_turn", lang, { d: dir(bare, lang) }) + onto;
+      ? front + t("navStep_bear", lang, { d: dir(bare, lang) })
+      : front + t("navStep_turn", lang, { d: dir(bare, lang) });
   }
   return road ? t("navStep_continueOn", lang, { r: road }) : t("navStep_continue", lang);
 }

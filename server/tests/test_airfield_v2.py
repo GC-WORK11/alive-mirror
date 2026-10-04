@@ -283,3 +283,57 @@ def test_real_snapshot_loads_clean():
     res = f.load_snapshot()
     assert res["loaded"] and res["cells"] > 1000
     assert f.status()["load_warnings"] == 0
+
+
+# ------------------------------------------------- station debias scope
+
+def _debias_samples():
+    """10 model lattice points (full CAMS dict) + 9 instruments (pm2_5
+    only) on the same grid, instruments reading ~3x the model — matches
+    tonight's real CAMS under-read."""
+    model = [(28.55 + 0.01 * i, 77.15 + 0.01 * i, f"m{i}",
+              {"pm2_5": 50.0, "pm10": 170.0, "ozone": 190.0,
+               "nitrogen_dioxide": 12.0, "us_aqi": 150.0,
+               "dust": 80.0, "aerosol_optical_depth": 0.7})
+             for i in range(10)]
+    inst = [(28.551 + 0.01 * i, 77.151 + 0.01 * i, f"st{i}",
+             {"pm2_5": 150.0}) for i in range(9)]
+    return model + inst
+
+
+def test_debias_scales_pm25_only_pm10_gets_fine_fraction():
+    """The instrument-measured bias is a PM2.5 fact: it must lift pm2_5
+    multiplicatively and pm10 only by the fine-fraction increment —
+    gases, dust, aod and the AQI indices carry no instrument evidence
+    and stay raw CAMS."""
+    f = airfield.AirField()
+    out = f._debias(_debias_samples())
+    adj = dict(out[0][3])
+    assert adj["pm2_5"] == pytest.approx(150.0, rel=0.02)          # ×3
+    # pm10: raw 170 + fine increment 50*(3-1) = 270, NOT 170*3 = 510
+    assert adj["pm10"] == pytest.approx(270.0, rel=0.02)
+    # raw everywhere there is no instrument evidence
+    assert adj["ozone"] == pytest.approx(190.0, rel=1e-6)
+    assert adj["nitrogen_dioxide"] == pytest.approx(12.0, rel=1e-6)
+    assert adj["us_aqi"] == pytest.approx(150.0, rel=1e-6)   # index ≠ µg/m³
+    assert adj["dust"] == pytest.approx(80.0, rel=1e-6)
+    assert adj["aerosol_optical_depth"] == pytest.approx(0.7, rel=1e-6)
+
+
+def test_debias_instrument_rows_untouched():
+    f = airfield.AirField()
+    out = f._debias(_debias_samples())
+    inst_row = out[-1]
+    assert inst_row[3] == {"pm2_5": 150.0}
+
+
+def test_debias_missing_pm10_or_pm25_never_fabricates():
+    """A model point without pm2_5 must not invent a pm10 increment."""
+    model = [(28.55 + 0.01 * i, 77.15 + 0.01 * i, f"m{i}",
+              {"pm10": 170.0, "ozone": 190.0}) for i in range(10)]
+    inst = [(28.551 + 0.01 * i, 77.151 + 0.01 * i, f"st{i}",
+             {"pm2_5": 150.0}) for i in range(9)]
+    # without model pm2_5 the bias cannot be measured -> raw pass-through
+    f = airfield.AirField()
+    out = f._debias(model + inst)
+    assert out[0][3]["pm10"] == 170.0 and out[0][3]["ozone"] == 190.0

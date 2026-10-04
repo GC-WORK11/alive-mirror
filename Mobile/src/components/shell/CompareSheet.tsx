@@ -36,10 +36,12 @@ import type { PlanError } from "./useShellFlow";
 import { confirm, tap, tick } from "../../haptics";
 import { localizeStep } from "../../nav/instructions";
 import {
-  getVehicle, saveVehicle, vehicleLabel, type VehicleProfile,
+  className, fuelName, getVehicle, saveVehicle, vehicleLabel,
+  type VehicleProfile,
 } from "../../store/vehicle";
 import { VehicleSheet } from "../../screens/VehicleSheet";
-import type { Band, Depart, Step, V2Option } from "./types";
+import { isTransit } from "./types";
+import type { Band, Depart, Emissions, Step, V2Option } from "./types";
 
 const arrivalLabel = (durationMin: number) => {
   const d = new Date(Date.now() + durationMin * 60000);
@@ -88,6 +90,24 @@ const NE_KEY: Record<string, StringKey> = {
 };
 const neNoteTxt = (n: string, lang: Lang): string => {
   const key = NE_KEY[n];
+  return key ? t(key, lang) : n;
+};
+
+/** emissions.py's two fixed metro provenance sentences — the payload
+ *  carries no structured fields for these, so they map verbatim. */
+const EMLBL_KEY: Record<string, StringKey> = {
+  "metro per passenger-km (incl. electricity)": "emit_metroShort",
+  "metro per passenger-km, incl. electricity (11–25 g CO2e/pkm — DMRC + CEA grid EF, docs/31 §3)": "emit_metroLong",
+};
+
+/** plan.py dose-note strings — rendered when dose can't estimate. */
+const DOSE_NOTE_KEY: Record<string, StringKey> = {
+  "dose engine unavailable": "doseNote_engineDown",
+  "dose engine error": "doseNote_engineError",
+  "field unavailable": "doseNote_fieldDown",
+};
+const doseNoteTxt = (n: string, lang: Lang): string => {
+  const key = DOSE_NOTE_KEY[n];
   return key ? t(key, lang) : n;
 };
 
@@ -164,10 +184,70 @@ function Chip({ text, accent, glyph, lang }: {
   );
 }
 
+/* server/emissions.py:_BS_NAME — BS stages stay Latin even in Hindi
+   (that's how the standard's written in Hindi media too). */
+const BS_NAME: Record<string, string> = {
+  bs2: "BS-II", bs3: "BS-III", bs4: "BS-IV", bs6: "BS-VI",
+};
+const bsName = (b: string) => BS_NAME[b] ?? b.toUpperCase();
+
+/* _label()'s year words, keyed by the CLIENT YearBand — the bucket the
+   server resolved is recoverable because we sent it. */
+const YEAR_TXT: Record<string, { en: string; hi: string }> = {
+  pre_2010: { en: "pre-2010", hi: "2010 से पहले" },
+  y2010_2016: { en: "2010–2016", hi: "2010–2016" },
+  y2017_2020: { en: "2017–2019", hi: "2017–2019" },   // maps to server bucket 2017_2019
+  y2021_plus: { en: "2020+", hi: "2020+" },
+};
+
+/** dose confidence — the server ships an enum word; read it in the
+ *  user's language, unknown values pass through honestly. */
+const confTxt = (c: string, lang: Lang): string => {
+  const k = c === "high" ? "conf_high" : c === "medium" ? "conf_medium" : c === "low" ? "conf_low" : null;
+  return k ? t(k, lang) : c;
+};
+
+/** basis enums → words; human-string bases (labelled fallback table)
+ *  pass through as the server wrote them. */
+const basisTxt = (b: string | null | undefined, lang: Lang): string | null => {
+  if (!b) return null;
+  if (b === "per_vkm") return t("emit_basisPerVkm", lang);
+  if (b === "per_pax_km") return t("emit_basisPerPaxKm", lang);
+  return b;
+};
+
+/** The "estimated for vehicles like yours (…)" provenance line — the
+ *  server composes it in English; we rebuild it in the user's language
+ *  from the structured fields it also ships (fuel, class, bs range,
+ *  occupancy, puc), with the same grammar as _label(). English keeps
+ *  the server's own sentence; payload flavours without fuel/class
+ *  (metro, labelled fallbacks) keep it too — never a guessed rebuild. */
+function emissionsLabel(e: Emissions, yours: boolean, veh: VehicleProfile | null, lang: Lang): string | null {
+  if (e.label && EMLBL_KEY[e.label]) return t(EMLBL_KEY[e.label], lang);
+  if (lang !== "hi" || !e.fuel || !e.class || !e.bs_class) {
+    return e.label ?? basisTxt(e.basis, lang);
+  }
+  const opts = (e.bs_options ?? []).filter((x) => x !== "none");
+  const bsTxt = opts.length <= 1 ? bsName(e.bs_class)
+    : `${bsName(opts[0])}–${bsName(opts[opts.length - 1])}`;
+  const cname = className(e.class, lang);
+  const inner = e.fuel === "electric"
+    ? t("emit_innerEv", lang, { c: cname })
+    : (yours && veh?.year && veh.year !== "not_sure")
+      ? t("emit_innerYear", lang, {
+          y: YEAR_TXT[veh.year]?.[lang] ?? veh.year,
+          f: fuelName(e.fuel, lang), c: cname, b: bsTxt,
+        })
+      : t("emit_innerFleet", lang, { f: fuelName(e.fuel, lang), c: cname, b: bsTxt });
+  return t("emit_est", lang) + " (" + inner + ")"
+    + (e.occupancy != null && e.occupancy > 1 ? t("emit_perPax", lang, { o: e.occupancy }) : "")
+    + (e.puc_calibrated ? t("emit_pucTuned", lang) : "");
+}
+
 /** "How we got this number" — the ONLY place jargon is allowed. Bands,
  *  bases, confidence, field age, all honest and server-sourced. Opens
  *  inside the card under a hairline so the association never gets lost. */
-function DetailBlock({ o, fieldAgeS, showCig, lang }: { o: V2Option; fieldAgeS?: number | null; showCig: boolean; lang: Lang }) {
+function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldAgeS?: number | null; showCig: boolean; veh: VehicleProfile | null; lang: Lang }) {
   const d = o.dose, e = o.emissions;
   const cig = showCig && d.mid != null ? Math.round((d.mid / 316) * 100) / 100 : null;
   const ageMin = fieldAgeS != null ? Math.max(0, Math.round(fieldAgeS / 60)) : null;
@@ -183,10 +263,10 @@ function DetailBlock({ o, fieldAgeS, showCig, lang }: { o: V2Option; fieldAgeS?:
             {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: approx(cig) })}` : ""}
           </Text>
         ) : (
-          <Text {...DYNAMIC_TYPE} style={[s.dLine, { fontFamily: fam(lang, "reg") }]}>{d.note ?? t("howWe_none", lang)}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, { fontFamily: fam(lang, "reg") }]}>{d.note ? doseNoteTxt(d.note, lang) : t("howWe_none", lang)}</Text>
         )}
       </View>
-      {d.confidence ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{t("howWe_conf", lang, { c: d.confidence })}</Text> : null}
+      {d.confidence ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{t("howWe_conf", lang, { c: confTxt(d.confidence, lang) })}</Text> : null}
       {emit ? (
         <View style={s.dRow}>
           <Icon name="smoke" color={V2T.out1} size={13} />
@@ -198,9 +278,15 @@ function DetailBlock({ o, fieldAgeS, showCig, lang }: { o: V2Option; fieldAgeS?:
           {t("howWe_coverage", lang, { pct: Math.round(d.coverage * 100) })}
         </Text>
       ) : null}
-      {(e.label ?? e.basis) ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.label ?? e.basis}</Text> : null}
+      {(() => {
+        const lbl = emissionsLabel(e, !!o.your_vehicle, veh, lang);
+        return lbl ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{lbl}</Text> : null;
+      })()}
       {e.bs_class && e.bs_class !== "none"
-        ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{e.bs_class}{e.bs_options?.length ? ` (${e.bs_options.join("–")})` : ""}</Text>
+        ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>
+            {bsName(e.bs_class)}{(e.bs_options?.length ?? 0) > 1
+              ? ` (${(e.bs_options ?? []).map(bsName).join("–")})` : ""}
+          </Text>
         : null}
       {e.non_exhaust?.note ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{neNoteTxt(e.non_exhaust.note, lang)}</Text> : null}
       {ageMin != null ? (
@@ -217,10 +303,10 @@ function DetailBlock({ o, fieldAgeS, showCig, lang }: { o: V2Option; fieldAgeS?:
 /** One ranked option — solid card. Tap selects; the ⓘ beside the bars
  *  (or a long-press anywhere on the card) opens the details panel. */
 function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
-  fieldAgeS, showCig, safest, lang, onSelect, onToggleDetail }: {
+  fieldAgeS, showCig, safest, veh, lang, onSelect, onToggleDetail }: {
   o: V2Option; i: number; selected: boolean; worstIn: number; worstOut: number;
   showYours: boolean; open: boolean; fieldAgeS?: number | null;
-  showCig: boolean; safest: boolean; lang: Lang;
+  showCig: boolean; safest: boolean; veh: VehicleProfile | null; lang: Lang;
   onSelect: (i: number) => void; onToggleDetail: (i: number) => void;
 }) {
   const d = o.dose;
@@ -298,7 +384,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
           </View>
         </View>
       </Pressable>
-      {open && <DetailBlock o={o} fieldAgeS={fieldAgeS} showCig={showCig} lang={lang} />}
+      {open && <DetailBlock o={o} fieldAgeS={fieldAgeS} showCig={showCig} veh={veh} lang={lang} />}
     </View>
   );
 }
@@ -486,22 +572,32 @@ export function CompareSheet({
                   fieldAgeS={fieldAgeS}
                   showCig={showCig}
                   safest={isSafest(o)}
+                  veh={veh}
                   lang={lang}
                   onSelect={onSelect}
                   onToggleDetail={toggleDetail}
                 />
               ))}
-              {stepsOpen && steps && (
+              {/* transit rows have no fetched steps — the container must
+                  not gate on `steps` or the board→alight line never shows */}
+              {stepsOpen && (steps || sel?.stations) && (
                 <View style={s.stepsList}>
-                  {sel?.mode === "metro" && sel.stations ? (
+                  {sel?.stations ? (
+                    /* transit options carry {board, alight} stations —
+                       the road-step list would describe walking legs as
+                       generic maneuvers ("continue 18.8 km" for the ride
+                       itself), which reads wrong; the station line is the
+                       honest instruction. mode is "metro+walk"/"bus…" so
+                       match on stations, not the mode string. */
                     <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
                       {t("boardMetro", lang, { a: sel.stations.board, b: sel.stations.alight })}
+                      {sel.lines?.length ? `  ·  ${sel.lines.join(", ")}` : ""}
                     </Text>
-                  ) : steps.map((st, i) => (
+                  ) : (steps ?? []).map((st, i) => (
                     <View key={i} style={s.stepRow}>
                       <View style={s.stepRail}>
                         <View style={s.stepDot} />
-                        {i < steps.length - 1 && <View style={s.stepLine} />}
+                        {i < (steps?.length ?? 0) - 1 && <View style={s.stepLine} />}
                       </View>
                       <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
                         {localizeStep(st, lang)}
@@ -513,7 +609,7 @@ export function CompareSheet({
                   ))}
                 </View>
               )}
-              {stepsOpen && sel?.mode !== "metro" && !steps && (
+              {stepsOpen && sel && !isTransit(sel) && !steps && (
                 <Text {...DYNAMIC_TYPE} style={[s.stepTxt, s.stepsEmpty, { fontFamily: fam(lang, "reg") }]}>
                   {t("roadModesOnly", lang)}
                 </Text>
