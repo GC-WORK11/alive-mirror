@@ -1444,8 +1444,13 @@ async def plan(body: dict):
     # already bounded + deduped internally; awaiting it here would let a
     # slow upstream add its budget on top of the options budget
     asyncio.ensure_future(_field_refresh_bounded())
-    options, opt_err = await _options_bounded(
-        flat, flon, tlat, tlon, vehicle, profile, depart_at)
+    fast = body.get("fast") is True
+    if fast:
+        options, opt_err = await _engine_first(
+            flat, flon, tlat, tlon, vehicle, profile)
+    else:
+        options, opt_err = await _options_bounded(
+            flat, flon, tlat, tlon, vehicle, profile, depart_at)
     rank_options(options)
     resp = {
         "from": {"lat": flat, "lon": flon},
@@ -1462,11 +1467,33 @@ async def plan(body: dict):
     if any((o.get("emissions") or {}).get("puc_calibrated")
            for o in options):
         resp["puc_calibrated"] = True   # server honoured the PUC card
+    if fast:
+        # engine rows only — the client paints these first and swaps in
+        # the full set (router + transit + engine) when it lands
+        resp["partial"] = True
     if opt_err:
         resp["error"] = opt_err
     elif not options:
         resp["error"] = "no route"   # OD in-area but unroutable
     return resp
+
+
+async def _engine_first(flat, flon, tlat, tlon, vehicle, profile):
+    """Least-inhalation rows alone: no public-router or GTFS wait, so the
+    answer the engine exists for paints in ~engine time, not ~router time.
+    Same rows, same pricing as the full plan's engine arm."""
+    try:
+        rows = await asyncio.wait_for(
+            asyncio.get_running_loop().run_in_executor(
+                _ENG_EXEC, _engine_options, flat, flon, tlat, tlon,
+                vehicle, profile),
+            timeout=ENGINE_BUDGET_S)
+    except asyncio.TimeoutError:
+        return [], "engine timed out"
+    except Exception as e:
+        _log.warning("engine-first arm failed: %r", e)
+        return [], "engine unavailable"
+    return [o for o in (rows or []) if isinstance(o, dict)], None
 
 
 @router.post("/reroute")

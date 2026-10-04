@@ -510,3 +510,41 @@ def test_dose_surface_none_means_live_estimator(monkeypatch):
     F = object.__new__(FIELD.__class__)
     F._snap_fv = None
     assert v2plan._dose_surface(F) == (None, None)
+
+
+# --- engine-first paint ---------------------------------------------------------
+def test_plan_fast_returns_engine_rows_only_without_router(monkeypatch):
+    """fast:true is the engine-first paint: no public-router or GTFS call,
+    only least-inhalation rows, flagged partial so the client swaps in
+    the full set when it lands."""
+    calls = []
+    async def spy(*a, **k):
+        calls.append(a)
+        return None
+    monkeypatch.setattr(deps, "osrm_route", spy)
+    monkeypatch.setattr(deps, "field_refresh", spy)
+    row = {"mode": "car", "label": "Car (AC) · least-smoke rd",
+           "distance_km": 5.0, "duration_min": 14.0, "dose_ug": 9.0,
+           "engine_dose_ug": 9.0, "geometry": None}
+    monkeypatch.setattr(v2plan, "_engine_options", lambda *a, **k: [dict(row)])
+    monkeypatch.setattr(v2plan, "_transit_options",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("transit ran")))
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510},
+                  "vehicle": "car", "fast": True})
+    assert body["partial"] is True
+    assert [o["mode"] for o in body["options"]] == ["car"]
+    assert not [c for c in calls if c and c[0] is not None and len(c) > 1], \
+        "fast path must not wait on the public router"
+
+
+def test_plan_fast_engine_down_is_typed_not_hung(monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("graph missing")
+    async def nop(*a, **k):
+        return None
+    monkeypatch.setattr(deps, "field_refresh", nop)
+    monkeypatch.setattr(v2plan, "_engine_options", boom)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510}, "fast": True})
+    assert body["options"] == [] and body["error"] == "engine unavailable"

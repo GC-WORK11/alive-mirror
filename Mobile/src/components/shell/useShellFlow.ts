@@ -15,7 +15,7 @@ import type { CommunityTotals } from "../../community";
 import {
   getVehicle, saveVehicle, clearVehicle, planVehicle, planVehicleProfile, type VehicleProfile,
 } from "../../store/vehicle";
-import { planOptions, type FieldStatus } from "../../api/plan";
+import { planEngineFirst, planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
 import { departCurveResult, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
@@ -43,9 +43,13 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [community, setCommunity] = useState<CommunityTotals | null>(null);
   const [follow, setFollow] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
+  /** engine rows painted; the full option set is still landing */
+  const [refining, setRefining] = useState(false);
   const [planError, setPlanError] = useState<PlanError | null>(null);
   const [planNonce, setPlanNonce] = useState(0);
   const [planField, setPlanField] = useState<FieldStatus | null>(null);
+  const pickRef = useRef<{ opts: V2Option[]; sel: number }>({ opts: [], sel: 0 });
+  useEffect(() => { pickRef.current = { opts: options, sel: selected }; }, [options, selected]);
   const [strips, setStrips] = useState<Record<string, RouteStrip>>({});
   const [departCurve, setDepartCurve] = useState<DepartCurve | null>(null);
   const [vehicle, setVehicle] = useState<VehicleProfile | null>(null);
@@ -125,14 +129,68 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           await new Promise((r) => setTimeout(r, hold));
           if (cancelled) return;
         }
-        const pj = await planOptions({
+        const req = {
           from: { lat: from.lat, lon: from.lon },
           to: { lat: to.lat, lon: to.lon },
           vehicle: planVehicle(vehicle),
           vehicle_profile: planVehicleProfile(vehicle),
-        }, 30000);   // far-route plans krige per query — measured >25 s on CP→Pataudi
+        };
+        let painted = false;      // engine-first rows already on screen
+        let fullDone = false;
+        let fitDone = false;
+        const show = (opts: V2Option[], field: FieldStatus | null | undefined) => {
+          // keep the user's pick across the swap when the same route survives
+          const rid = pickRef.current.opts[pickRef.current.sel]?.route_id;
+          const j = rid ? opts.findIndex((o) => o.route_id === rid) : -1;
+          setOptions(opts); setSelected(j >= 0 ? j : 0);
+          setPlanField(field ?? null);
+          // per-route PM2.5 strips → the gradient tint resolves from flat
+          // dose-mean into real along-route colour as each lands (cached
+          // 15 min, failures leave the flat tint — never faked)
+          for (const o of opts) {
+            if (!o.route_id) continue;
+            fetchStrip(o.route_id).then((st) => {
+              if (!cancelled) setStrips((m) => (m[o.route_id!] ? m : { ...m, [o.route_id!]: st }));
+            }).catch(() => {});
+          }
+          const g = opts[0]?.geometry;
+          if (!fitDone && g?.type === "LineString") {
+            fitDone = true;
+            const c = (g as GeoJSON.LineString).coordinates;
+            const bounds: [number, number, number, number] = [
+              Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1])),
+              Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))];
+            // let the compare sheet finish mounting before the camera moves —
+            // simultaneous camera anim + layer mount is a render-thread spike
+            setTimeout(() => {
+              if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 });
+            }, 350);
+          }
+        };
+        setStrips({});
+        setRefining(false);
+        // least-smoke engine rows paint in ~engine time; the full set
+        // (public router + transit + engine) replaces them when it lands
+        planEngineFirst(req).then((fj) => {
+          if (cancelled || fullDone || fj.options.length === 0) return;
+          painted = true;
+          show(fj.options, fj.field);
+          setLoadingRoute(false);
+          setRefining(true);
+        }).catch(() => {});
+        let pj;
+        try {
+          pj = await planOptions(req, 30000);   // far-route plans krige per query — measured >25 s on CP→Pataudi
+        } catch (e) {
+          fullDone = true;
+          if (painted) { if (!cancelled) setRefining(false); return; }  // engine rows stand
+          throw e;
+        }
+        fullDone = true;
         if (cancelled) return;
+        setRefining(false);
         if (pj.error && pj.options.length === 0) {
+          if (painted) return;   // keep the real engine rows over an empty full set
           setOptions([]); setDepart(null);
           // typed outside-coverage answer → its own notice (retry can't
           // fix a geography problem; the sheet offers 'change the trip')
@@ -141,31 +199,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           setPlanError({ kind: outside ? "outside" : "server", detail: pj.error });
           return;
         }
-        const opts = pj.options;
-        setOptions(opts); setSelected(0);
-        setPlanField(pj.field);
-        setStrips({});
-        // per-route PM2.5 strips → the gradient tint resolves from flat
-        // dose-mean into real along-route colour as each lands (cached
-        // 15 min, failures leave the flat tint — never faked)
-        for (const o of opts) {
-          if (!o.route_id) continue;
-          fetchStrip(o.route_id).then((s) => {
-            if (!cancelled) setStrips((m) => (m[o.route_id!] ? m : { ...m, [o.route_id!]: s }));
-          }).catch(() => {});
-        }
-        const g = opts[0]?.geometry;
-        if (g?.type === "LineString") {
-          const c = (g as GeoJSON.LineString).coordinates;
-          const bounds: [number, number, number, number] = [
-            Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1])),
-            Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))];
-          // let the compare sheet finish mounting before the camera moves —
-          // simultaneous camera anim + layer mount is a render-thread spike
-          setTimeout(() => {
-            if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 });
-          }, 350);
-        }
+        show(pj.options, pj.field);
       } catch {
         if (!cancelled) {
           setOptions([]); setDepart(null);
@@ -173,7 +207,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         }
       } finally { if (!cancelled) setLoadingRoute(false); }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; setRefining(false); };
   }, [phase, from, to, vehicle, vehicleLoaded, planNonce, camRef]);
 
   /** Error retry — re-runs the compare effect. */
@@ -320,7 +354,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     phase, setPhase, from, setFrom, to, setTo,
     editWhich, setEditWhich, options, selected, setSelected,
     depart, notified, trips, setTrips, recordTrip, community, setCommunity, follow, setFollow,
-    loadingRoute, planError, retryPlan, planField, departCurve,
+    loadingRoute, refining, planError, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, armDailyBrief,

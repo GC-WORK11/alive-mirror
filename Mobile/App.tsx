@@ -449,7 +449,7 @@ function AppInner() {
       {phase === "compare" && (
         <CompareSheet options={flow.options} selected={flow.selected} onSelect={flow.setSelected}
           depart={flow.depart} departCurve={flow.departCurve} notified={flow.notified}
-          onRemind={flow.remind} loading={flow.loadingRoute}
+          onRemind={flow.remind} loading={flow.loadingRoute} refining={flow.refining}
           steps={flow.steps} stepsOpen={flow.stepsOpen} onToggleSteps={() => flow.setStepsOpen(!flow.stepsOpen)}
           onStart={flow.startNav} onClose={flow.clearRoute} lang={lang}
           vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}

@@ -305,7 +305,7 @@ export function CompareSheet({
   options, selected, onSelect, depart, departCurve, notified, onRemind,
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
-  showCig = false,
+  showCig = false, refining = false,
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
@@ -315,6 +315,8 @@ export function CompareSheet({
   onToggleSteps: () => void; onStart: () => void; onClose: () => void; lang: Lang;
   /** cigarette-equivalence framing — off by default (settings.show_cig) */
   showCig?: boolean;
+  /** engine rows shown; router/transit rows still landing */
+  refining?: boolean;
   /** v2 plan failure — honest retry state, never a silent /decide fallback */
   planError?: PlanError | null;
   onRetry?: () => void;
@@ -428,6 +430,14 @@ export function CompareSheet({
             <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}
               showsVerticalScrollIndicator={false}>
               {chip}
+              {refining && (
+                <View style={s.refineRow} accessibilityLiveRegion="polite">
+                  <ActivityIndicator size="small" color={V2T.accent} />
+                  <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg"), marginLeft: 8, flexShrink: 1 }]}>
+                    {t("compare_refining", lang)}
+                  </Text>
+                </View>
+              )}
               {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 8 && (
                 <Pressable onPress={onRemind} style={({ pressed }) => [s.departRow, pressed && { opacity: 0.7 }]}
                   accessibilityRole="button">
@@ -582,6 +592,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: V2T.accent,
   },
   departTxt: { fontSize: V2Type.label, color: V2T.accent, flex: 1 },
+  refineRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2 },
   legend: {
     flexDirection: "row", justifyContent: "flex-end", alignItems: "center",
     gap: 14, marginHorizontal: 28, marginTop: 7, marginBottom: 1,

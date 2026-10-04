@@ -186,6 +186,14 @@ export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<
   return r.data;
 }
 
+/** Engine-first paint: POST /v2/plan with `fast:true` returns only the
+ *  least-inhalation engine rows (~engine time, no public-router wait).
+ *  Never cached — the full plan replaces it moments later. */
+export async function planEngineFirst(req: PlanRequest, timeoutMs = 9000): Promise<PlanResultFresh> {
+  const j = (await postJson(`${API}/v2/plan`, { ...req, fast: true }, timeoutMs)) as Record<string, unknown>;
+  return mapPlan(j);
+}
+
 /** Server `field` block → FieldStatus. Guards every key — the payload
  *  degrades to {"source":"unavailable"} when status() itself throws. */
 function mapFieldStatus(f: Record<string, unknown>): FieldStatus {
