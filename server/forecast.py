@@ -348,15 +348,23 @@ class ForecastField:
             return None
         alat, alon = self._advected_origin(lat, lon, idx)
         base = self._idw(self._aq, alat, alon, "pm2_5", idx)
+        sampled_at = (alat, alon)
         if base is None and (alat, alon) != (lat, lon):
             # displaced point left the grid — fall back to the
             # undisplaced sample rather than returning nothing
             base = self._idw(self._aq, lat, lon, "pm2_5", idx)
+            sampled_at = (lat, lon)
         if base is None:
             return None
         factor = self.stagnation_factor(lat, lon, idx)
         v = base * (factor if factor is not None else 1.0)
-        delta = self._live_delta(lat, lon, idx, live)
+        # the anchor must correct the PARCEL's air, not the query
+        # point's: with advection on, base was sampled at the upwind
+        # origin, so a query-point delta (model's bias at the
+        # destination) would over-correct a genuinely different cell —
+        # seen live: CP h+2..6 pinned to 0.0 while a 7.8 km/h westerly
+        # displaced the origin ~15-30 km into cleaner model cells.
+        delta = self._live_delta(sampled_at[0], sampled_at[1], idx, live)
         if delta is not None:
             v = max(0.0, v + delta)  # a correction can't go negative-air
         return v
