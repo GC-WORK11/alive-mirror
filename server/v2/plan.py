@@ -1073,6 +1073,18 @@ def _engine_field_view(F):
     a FieldView instead. Rows carry only real reads — cells the field
     can't serve are skipped, never zero-filled.
     """
+    # cheap probe before the 3,136-cell sweep: a field that serves
+    # nothing anywhere can only yield an empty raster — one read tells
+    # us that without ~3k dead krige calls per retry (the boot-warm
+    # loop and a live plan can otherwise hold _ENG_LOCK for seconds at
+    # a time while the field is still fetching).
+    try:
+        probe = F.value(28.6315, 77.2167)
+    except Exception:
+        probe = None
+    if probe is None:
+        _log.warning("engine raster: field serves no reads — skip sweep")
+        return None
     try:
         import grid as _g
         geo = _g.as_geojson(F, cells=56, param="pm2_5")
