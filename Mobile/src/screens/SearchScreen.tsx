@@ -247,7 +247,17 @@ function SearchSheet({
     getPlaces().then(setStore).catch(() => {});
     const raf = requestAnimationFrame(() => setBodyReady(true));
     const foc = setTimeout(() => { if (!closingRef.current) inputRef.current?.focus(); }, 350);
-    return () => { cancelAnimationFrame(raf); clearTimeout(foc); search.dispose(); };
+    /* cold-start race: the 350 ms focus() can fire before the window token
+       accepts IME — field ends focused with mInputShown=false and the
+       first keystrokes drop (seen on first-ever open post-install). If
+       keyboardDidShow never fired by 1400 ms, focus() once more; the latch
+       also blocks a re-raise after the user's own dismiss. */
+    let kbShown = false;
+    const ks = Keyboard.addListener("keyboardDidShow", () => { kbShown = true; });
+    const refoc = setTimeout(() => {
+      if (!closingRef.current && !kbShown) inputRef.current?.focus();
+    }, 1400);
+    return () => { cancelAnimationFrame(raf); clearTimeout(foc); clearTimeout(refoc); ks.remove(); search.dispose(); };
   }, [search]);
 
   const loc = userLocation ?? undefined;
