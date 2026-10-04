@@ -270,6 +270,7 @@ async def health():
         "field_refresh_in_s": fstat.get("refresh_in_s"),
         "field_stale": fstat.get("stale"),
         "engine": fstat.get("engine"),
+        "wind": fstat.get("wind"),
         "sources": {
             "model": {"up": bool(fstat.get("samples")),
                       "samples": fstat.get("samples", 0),
@@ -1481,10 +1482,13 @@ async def directions(from_lat: float, from_lon: float, to_lat: float, to_lon: fl
     instructions — the Google-Maps directions list, for any mode.
     vehicle scales the OSRM duration the same way /route does."""
     prof = profile if profile in ("driving", "cycling", "walking") else "driving"
+    t0 = time.monotonic()
     routes, backend = await _osrm_get(
         prof, f"{from_lon},{from_lat};{to_lon},{to_lat}",
         {"overview": "full", "geometries": "geojson",
          "steps": "true", "alternatives": "false"})
+    _osrm_note(routes is not None, (time.monotonic() - t0) * 1000,
+               backend=backend)
     if routes is None:
         return {"steps": [], "error": "router unavailable"}
     if not routes:

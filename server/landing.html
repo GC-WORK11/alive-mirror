@@ -196,6 +196,18 @@ h1 .serif-em{font-family:var(--serif);font-style:italic;font-weight:400;
 .statgrid span{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink4);display:block;margin-top:4px}
 .card .ft{padding:11px 18px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink4);
+  border-top:1px solid var(--hair)}
+.card:nth-child(3){transform:translateY(-10px)}
+.card:nth-child(3):hover{transform:translateY(-16px) rotate(.3deg)}
+/* editorial pull-quote — the godly moment between artifact and band */
+.pull{padding:120px 28px 110px;text-align:center}
+.pull p{font-family:var(--serif);font-style:italic;font-weight:300;
+  font-size:clamp(26px,4.2vw,44px);line-height:1.32;letter-spacing:-.01em;
+  color:var(--ink2);max-width:820px;margin:0 auto}
+.pull p em{font-style:normal;color:var(--ink);border-bottom:1px solid var(--amber)}
+.pull .sig{margin-top:26px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.4em;text-transform:uppercase;color:var(--ink4)}
   letter-spacing:.14em;color:var(--ink4);border-top:1px solid var(--hair);
   text-transform:uppercase}
 
@@ -251,6 +263,11 @@ h1 .serif-em{font-family:var(--serif);font-style:italic;font-weight:400;
 .final .ctas{margin-top:38px;display:flex;gap:12px;justify-content:center;
   flex-wrap:wrap}
 
+/* degree ticks under the aether — the map's index strip */
+.aether-axis{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 16px 0;font-family:var(--mono);font-size:8px;
+  letter-spacing:.18em;color:var(--ink4);text-transform:uppercase}
+.aether-axis .hot{color:var(--amber2)}
 /* ————— footer ————— */
 .foot{border-top:1px solid var(--line)}
 .foot-in{max-width:1120px;margin:0 auto;padding:30px 28px 46px;
@@ -309,6 +326,9 @@ h1 .serif-em{font-family:var(--serif);font-style:italic;font-weight:400;
       <span class="live" id="liveTag">connecting</span>
     </div>
     <canvas id="aether" aria-label="live ascii field of pm2.5 over delhi ncr"></canvas>
+    <div class="aether-axis" aria-hidden="true">
+      <span>76.80°E</span><span class="hot" id="hotTxt">—</span><span>77.90°E</span>
+    </div>
     <div class="aether-cap">
       <span id="aetherCap">—</span>
       <span class="hint">hover a cell · each glyph is one real 40×40 cell</span>
@@ -409,6 +429,12 @@ h1 .serif-em{font-family:var(--serif);font-style:italic;font-weight:400;
   </div>
 </section>
 
+<section class="pull rv">
+  <p>the route your lungs would pick,
+     <em>if they could read the map.</em></p>
+  <div class="sig">priced · not guessed</div>
+</section>
+
 <section class="band">
   <div class="wrap band-in">
     <div class="rv">
@@ -480,6 +506,7 @@ h1 .serif-em{font-family:var(--serif);font-style:italic;font-weight:400;
 <footer class="foot"><div class="foot-in">
   <span><span class="glyph">●</span> ALIVE·108 — delhi/ncr exposure engine</span>
   <span id="footMeta">build —</span>
+  <span id="footLive">· live —</span>
   <span>aggregates only · no per-person data exists to show</span>
 </div></footer>
 
@@ -509,13 +536,49 @@ addEventListener('scroll',()=>{
   $('footMeta').textContent=`build ${h.build_sha||'?'} · field ${Math.round((h.field_age_s||0)/60)}m`;
   $('liveTag').textContent='live · '+ (st.source||'field');
   $('c3meta').textContent=(st.source||'field');
+  const w=h.wind||{};
+  if(w.speed_kmh!=null&&w.speed_kmh>0){
+    $('footLive').textContent=` · wind ${w.speed_kmh.toFixed(0)}km/h from ${Math.round(w.from_deg||0)}°`;
+  }else if(h.field_age_s!=null){
+    $('footLive').textContent=` · field ${Math.round((h.field_age_s||0)/60)}m fresh`;
+  }
+  if(w.speed_kmh!=null){
+    WIND.deg=Number(w.from_deg||0);WIND.kmh=Number(w.speed_kmh);
+    $('liveTag').textContent='live · waqi · wind '+Math.round(WIND.kmh)+'km/h';
+  }
 }catch(e){$('meta').textContent='the field is asleep — /health answers first';$('liveTag').textContent='offline'}})();
 
 /* ————— the aether: animated ascii field (canvas shader) ————— */
 const RAMP=' .·:;=+x#%@'.split('');
 const COLS=40,ROWS=40;
-let CELLS=null; // [{v,conf,cx,cy}]
+let CELLS=null,CELLMAP={}; // [{v,conf,cx,cy}], 'col,row'->cell
 let mouse={x:-1e4,y:-1e4,on:false};
+/* locality for the hovered cell — debounced reverse-geocode, cached */
+const CELLLOC={};   // 'col,row' -> 'near X' | '' | undefined(not asked)
+const LOCREQ={};    // keys asked this page-load
+function cellLonLat(c){
+  const dlon=(FIELD_BBOX.lon1-FIELD_BBOX.lon0)/COLS,
+        dlat=(FIELD_BBOX.lat0-FIELD_BBOX.lat1)/ROWS;
+  return [FIELD_BBOX.lon0+(c.col+.5)*dlon, FIELD_BBOX.lat0-(c.row+.5)*dlat];
+}
+async function askLoc(key,c){
+  LOCREQ[key]=1;
+  await new Promise(r=>setTimeout(r,320));          // hover must hold
+  if(mouse.key!==key)return;                        // moved on — skip net
+  try{
+    const[lon,lat]=cellLonLat(c);
+    const j=await api(`/v2/reverse?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`);
+    let nm=(j.name||j.display_name||'').split(',')[0].toLowerCase()
+           .replace(/^near /,'');
+    if(nm.length>40)nm=nm.slice(0,38).trimEnd()+'…';
+    CELLLOC[key]=nm?('near '+nm):'';
+  }catch(e){CELLLOC[key]=''}
+}
+/* live wind — the shimmer drifts the way the plume actually blows */
+const WIND={deg:140,kmh:0};
+/* the priced route — real engine geometry traced through the field */
+let ROUTE=null; // {pts:[[c,r]..], dose, mode, t0}
+const FIELD_BBOX={lon0:null,lon1:null,lat0:null,lat1:null};
 const cv=$('aether'),cx2=cv.getContext('2d');
 
 function aetherSize(){
@@ -541,16 +604,20 @@ function drawAether(t){
   const gw=w/COLS,gh=h/ROWS,fz=Math.min(gw*.74,gh*.82);
   cx2.font=`${fz}px "SF Mono",ui-monospace,Menlo,monospace`;
   cx2.textAlign='center';cx2.textBaseline='middle';
-  /* slow breathing wave marching NW→SE */
+  /* breathing wave marching along the live wind (from_deg → to vector) */
   const wave=(t*.00021)%2.4;
+  const wr=(WIND.deg+180)*Math.PI/180;
+  const wdx=Math.sin(wr),wdy=-Math.cos(wr);
+  const wspd=.6+Math.min(2.4,(WIND.kmh||0)/30); // real speed modulates drift
   for(let i=0;i<CELLS.length;i++){
     const c=CELLS[i];if(c.v==null)continue;
     const px=(c.col+.5)*gw,py=(c.row+.5)*gh;
     let v=c.v;
     /* shimmer: per-cell phase flicker between ramp neighbours */
     const ph=Math.sin(t*.0016+c.px2)*0.5+0.5;
-    /* the wave: brightens cells as it passes */
-    const d=Math.abs((c.col+c.row)*.028-wave*2.4+1.2);
+    /* the wave: a band swept along the wind vector */
+    const along=(c.col*wdx+c.row*wdy)*.028;
+    const d=Math.abs(along-wave*2.4*wspd+1.2);
     const lift=Math.max(0,1-Math.abs(d-.5)*3)*.22;
     v=Math.min(1,v+lift);
     /* mouse lens: pull density up near the cursor */
@@ -563,21 +630,66 @@ function drawAether(t){
     cx2.fillStyle=glyphColor(v,c.conf);
     cx2.fillText(RAMP[gi],px,py);
   }
+  /* ——— the priced route, traced live ——— */
+  if(ROUTE&&FIELD_BBOX.lon0!=null){
+    const dlon=(FIELD_BBOX.lon1-FIELD_BBOX.lon0)/COLS,
+          dlat=(FIELD_BBOX.lat0-FIELD_BBOX.lat1)/ROWS;
+    const pts=ROUTE.pts.map(([lon,lat])=>[
+      (lon-FIELD_BBOX.lon0)/dlon*gw,((FIELD_BBOX.lat0-lat)/dlat)*gh]);
+    /* progressive trace: path draws itself over ~6s, holds, retraces */
+    const cyc=((t-ROUTE.t0)%14000),frac=cyc<6000?cyc/6000:1;
+    const upto=Math.max(2,Math.floor(pts.length*frac));
+    /* glyphs under the path lift */
+    for(let i=0;i<upto;i++){
+      const col=Math.floor(pts[i][0]/gw),row=Math.floor(pts[i][1]/gh);
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+        const cc=CELLMAP[(col+dx)+','+(row+dy)];
+        if(cc&&cc.v!=null){const px=(cc.col+.5)*gw,py=(cc.row+.5)*gh;
+          cx2.fillStyle='rgba(118,161,54,.55)';
+          cx2.fillText(RAMP[Math.min(RAMP.length-1,Math.round(cc.v*9)+2)],px,py);}
+      }
+    }
+    /* the hairline */
+    cx2.save();cx2.lineWidth=1.6;
+    const grd=cx2.createLinearGradient(pts[0][0],pts[0][1],pts[Math.min(upto-1,pts.length-1)][0],pts[Math.min(upto-1,pts.length-1)][1]);
+    grd.addColorStop(0,'rgba(211,163,86,.95)');grd.addColorStop(1,'rgba(118,161,54,.95)');
+    cx2.strokeStyle=grd;cx2.shadowColor='rgba(118,161,54,.5)';cx2.shadowBlur=6;
+    cx2.beginPath();cx2.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<upto;i++)cx2.lineTo(pts[i][0],pts[i][1]);
+    cx2.stroke();cx2.restore();
+    /* endpoint tag once the trace lands */
+    if(frac>=1){
+      const[ex,ey]=pts[pts.length-1];
+      cx2.font='10px ui-monospace,Menlo,monospace';cx2.textAlign='right';
+      const tag=` cheapest for your lungs · ${ROUTE.dose!=null?ROUTE.dose.toFixed(1)+'µg':''} ${ROUTE.mode||''} `;
+      const tw2=cx2.measureText(tag).width+12;
+      cx2.fillStyle='rgba(20,24,31,.9)';cx2.fillRect(Math.min(Math.max(ex-tw2-8,4),w-tw2-4),Math.max(ey-34,16),tw2,20);
+      cx2.fillStyle='#a3c47a';cx2.fillText(tag,Math.min(Math.max(ex-16,4+tw2),w-16),Math.max(ey-24,26));
+    }
+  }
   /* crosshair readout */
   if(mouse.on){
     cx2.strokeStyle='rgba(211,163,86,.5)';cx2.lineWidth=1;
     cx2.beginPath();cx2.moveTo(mouse.x,0);cx2.lineTo(mouse.x,h);
     cx2.moveTo(0,mouse.y);cx2.lineTo(w,mouse.y);cx2.stroke();
     const col=Math.floor(mouse.x/w*COLS),row=Math.floor(mouse.y/h*ROWS);
-    const c=CELLS.find(c=>c.col===col&&c.row===row);
+    const c=CELLMAP[col+','+row];
     if(c){
+      const key=col+','+row;mouse.key=key;
+      if(CELLLOC[key]===undefined&&!LOCREQ[key]&&FIELD_BBOX.lon0!=null)askLoc(key,c);
+      const loc=CELLLOC[key]||'';
       cx2.fillStyle='rgba(20,24,31,.92)';
       const label=` ${String.fromCharCode(97+Math.min(col,25))}${String(row+1).padStart(2,'0')} · ${c.v==null?'no reading':(c.raw!==undefined?c.raw.toFixed(1)+' µg/m³':'—')} · ${c.conf==='hi'?'measured':c.conf==='med'?'interpolated':'thin'} `;
-      const tw=cx2.measureText(label).width+10;
-      const lx=Math.min(Math.max(mouse.x+12,4),w-tw-4),ly=Math.max(mouse.y-30,18);
-      cx2.fillRect(lx,ly,tw,20);
-      cx2.fillStyle='#e8e6df';cx2.font='10px ui-monospace,Menlo,monospace';
-      cx2.textAlign='left';cx2.fillText(label,lx+5,ly+10);
+      cx2.font='10px ui-monospace,Menlo,monospace';
+      const tw=Math.max(cx2.measureText(label).width,
+                        loc?cx2.measureText(' '+loc+' ').width:0)+10;
+      const ch=loc?36:20;
+      const lx=Math.min(Math.max(mouse.x+12,4),w-tw-4),ly=Math.max(mouse.y-30-ch+20,18);
+      cx2.fillRect(lx,ly,tw,ch);
+      if(loc){cx2.fillStyle='#a3c47a';cx2.textAlign='left';
+        cx2.fillText(' '+loc,lx+5,ly+11);}
+      cx2.fillStyle='#e8e6df';cx2.textAlign='left';
+      cx2.fillText(label,lx+5,ly+(loc?27:10));
     }
   }
 }
@@ -608,22 +720,50 @@ async function loadAether(){
         cells.push({col:c,row:r,v:vv,raw:p.v,conf:p.conf,px2:r*COLS+c});
       }
     }
+    /* remember the lattice extents for the route overlay */
+    const lons=pts.map(p=>p.cx),lats=pts.map(p=>p.cy);
+    FIELD_BBOX.lon0=Math.min(...lons);FIELD_BBOX.lon1=Math.max(...lons);
+    FIELD_BBOX.lat0=Math.max(...lats);FIELD_BBOX.lat1=Math.min(...lats);
     if(cells.length<400){
       $('aetherCap').textContent='field mid-refresh — one breath…';
       setTimeout(loadAether,20000);
       return;
     }
-    CELLS=cells;
+    CELLS=cells;CELLMAP={};
+    cells.forEach(c=>CELLMAP[c.col+','+c.row]=c);
     const hi=cells.filter(c=>c.conf==='hi').length,
           me=cells.filter(c=>c.conf==='med').length,
           lo=cells.filter(c=>c.conf==='lo').length;
     $('aetherCap').textContent=
       `${cells.length} cells · ${hi} measured · ${me} interpolated · ${lo} thin · pm2.5 ${mn.toFixed(0)}–${mx.toFixed(0)} µg/m³`;
+    const hot=cells.reduce((a,b)=>b.v>a.v?b:a,cells[0]);
+    const sect=c=>String.fromCharCode(97+c.col)+String(c.row+1).padStart(2,'0');
+    $('hotTxt').textContent=`hottest · ${sect(hot)} · ${(hot.raw??hot.v).toFixed(0)}µg`;
   }catch(e){
     $('aetherCap').textContent='field unreachable — honest absence, not a fake raster';
   }
 }
 aetherSize();loadAether();setInterval(loadAether,120000);
+
+/* ————— fetch the recommended route, let the field birth it ————— */
+async function loadRoute(){
+  try{
+    const j=await api('/v2/plan',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({from:{lat:28.6315,lon:77.2167},
+        to:{lat:28.4595,lon:77.0266},fast:true})});
+    const opts=(j.options||[]).filter(o=>o.geometry&&o.geometry.coordinates);
+    if(!opts.length)return;
+    const best=opts.find(o=>o.recommended)||opts[0];
+    const coords=best.geometry.coordinates;
+    /* thin to ~240 vertices for a smooth trace */
+    const step=Math.max(1,Math.floor(coords.length/240));
+    ROUTE={pts:coords.filter((_,i)=>i%step===0).map(c=>[c[0],c[1]]),
+      dose:(best.dose||{}).mid,mode:best.mode||best.label||'car',t0:performance.now()};
+  }catch(e){/* no route overlay — field alone is still honest */}
+}
+loadRoute();setInterval(loadRoute,120000);
+
 (function tick(t){drawAether(t||0);requestAnimationFrame(tick)})();
 
 /* ————— dose rows card (live plan) ————— */

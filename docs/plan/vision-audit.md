@@ -50,9 +50,11 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 
 ## open honest gaps (not faked, ranked by demo impact)
 
-1. **Self-hosted OSRM daemon never deployed** — public demo carries all
-   router arms; `degraded` flag names failure honestly. **In-flight:**
-   restore lane spawned 2026-10-04 (self-host or honest risk doc).
+1. ~~Self-hosted OSRM daemon never deployed~~ **RESOLVED 2026-10-04** —
+   `alive108-osrm` sidecar in the Fargate task (shared netns, mem cap 1024,
+   task 2048→3072); `router_backend: osrm-local` verified live on a real
+   31.1km CP→Gurugram /directions call. Public demo is flagged fallback only.
+   Runbook: docs/plan/osrm-selfhosted.md.
 2. **Full-plan latency is seconds** — engine solve is ms; the 15-option
    pipeline is 0.8–6.9s. Demo script should show fast-paint (ms) first.
 3. **users-by-area sparse** — real k≥3 math; needs real devices over days.

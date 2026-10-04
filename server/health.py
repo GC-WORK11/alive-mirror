@@ -292,6 +292,23 @@ def _trips_backend() -> str:
     return getattr(TRIPS, "backend", type(TRIPS).__name__)
 
 
+def _live_wind() -> dict | None:
+    """Live serving wind from the in-memory field status — the same
+    wind the router prices on. Lazy+guarded: health never dies on a
+    missing optional module; None when the field has none yet."""
+    try:
+        from airfield import FIELD
+    except Exception:
+        try:
+            from server.airfield import FIELD  # type: ignore
+        except Exception:
+            return None
+    try:
+        return (FIELD.status() or {}).get("wind")
+    except Exception:
+        return None
+
+
 def collect_health(now=None, snapshot_root=None):
     """Full health payload — safe to call from any route, any worker.
 
@@ -310,6 +327,7 @@ def collect_health(now=None, snapshot_root=None):
         "uptime_s": round(now - _STARTED, 1),
         "field_age_s": probe["age_s"],
         "field": field_blk,
+        "wind": _live_wind(),
         "disk": _disk(snapshot_root),
         "sources": {name: _source(name, prov.get(name), now) for name in
                     ("model", "met", "stations", "fires", "location")},

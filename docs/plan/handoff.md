@@ -291,3 +291,23 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   My deploy `9e3f8fcb` folds the sidecar in (image exists → default path).
 - Suite on HEAD: 910 passed, 5 skipped (616s).
 - main merge pending deploy verify.
+
+## cont.9 — landing v3: the field births the route (live build a6e9584)
+- Route overlay: /v2/plan best option's real geometry mapped onto the
+  40x40 lattice; sage glyph lift under the corridor, amber->sage
+  hairline draws over 6s / 14s cycle, endpoint tag 'cheapest for your
+  lungs - Nug mode'. O(1) cell lookup (CELLMAP), no perf hit.
+- Axis strip: 76.80E/77.90E degree ticks + live 'hottest - sector -
+  Nug' center tag (a01-an40 indexing shared with admin).
+- Hover mini-card: two lines - debounced /v2/reverse locality (sage)
+  over sector/value/conf readout; per-cell cache, gazetteer 'near'
+  dedupe, 38ch cap.
+- Serif pull-quote section ('the route your lungs would pick, if they
+  could read the map.') + footer live wind line; card-3 stagger.
+- /health wind: REAL handler in main.py returns fstat['wind']
+  (collect_health in health.py was dead code - the route builds its
+  own payload). Landing drift reads live: 2.1km/h from 149deg at ship.
+- /directions OSRM note fixed earlier (sources.routing populated).
+- Deploy chain learned the hard way: git archive snapshots HEAD at
+  deploy START - late commits need their own deploy; git checkout on a
+  live-serve copy clobbers uncommitted edits (happened once, reapplied).
