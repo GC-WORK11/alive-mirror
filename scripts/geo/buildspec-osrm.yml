@@ -1,0 +1,57 @@
+version: 0.2
+# Self-hosted OSRM lane — MUST sit at the source-zip root (the source is
+# `git archive HEAD:scripts/geo`, so this file lands at the root).
+#
+# What it does, end to end, in one CodeBuild run:
+#   1. fetch_extract.sh  — Geofabrik northern-zone PBF clipped to the NCR
+#      bbox (common.sh) via osmium
+#   2. build_osrm.sh     — osrm-extract/partition/customize (MLD) for the
+#      modes in $OSRM_MODES (default here: driving only — the demo it
+#      replaces is car-only, and one graph keeps the sidecar ~300 MB)
+#   3. Dockerfile.osrm   — bakes the graph into an osrm-backend image,
+#      smoke-tested by serving a real Delhi OD on the build host
+#   4. pushes ECR alive108-osrm:$TAG + :latest, archives the graph
+#      tarball to s3://alive108-build-<acct>/geo/ for provenance
+#
+# The deploy lane then puts this image in the task as a sidecar
+# (scripts/deploy.sh OSRM_SIDECAR, default on) — the API reaches it on
+# 127.0.0.1:5000 inside the task netns, OSRM_URL points there.
+phases:
+  install:
+    commands:
+      - apt-get update -qq && apt-get install -y -qq curl ca-certificates osmium-tool >/dev/null
+  pre_build:
+    commands:
+      - OSRM_IMAGE="${OSRM_IMAGE:-osrm/osrm-backend:v6.0.0}"
+      - docker pull "$OSRM_IMAGE" || { OSRM_IMAGE="osrm/osrm-backend:latest"; docker pull "$OSRM_IMAGE"; }
+      - export OSRM_IMAGE
+      - echo "osrm base image: $OSRM_IMAGE"
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      - aws ecr describe-repositories --repository-names alive108-osrm --region "$AWS_REGION" >/dev/null 2>&1 || aws ecr create-repository --repository-name alive108-osrm --region "$AWS_REGION"
+      - IMG="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/alive108-osrm"
+      - TAG="${OSRM_TAG:-ncr-$(date +%Y%m%d)}"
+      - export IMG TAG
+      - 'echo "target image: $IMG:$TAG (+:latest)"'
+  build:
+    commands:
+      - bash fetch_extract.sh
+      - OSRM_MODES="${OSRM_MODES:-driving}" FORCE="${FORCE:-1}" bash build_osrm.sh
+      - mkdir -p build && rm -rf build/delhi-osrm && cp -r data/geo/osrm/driving build/delhi-osrm
+      - du -sh build/delhi-osrm
+      - docker build --build-arg "OSRM_IMAGE=$OSRM_IMAGE" -f Dockerfile.osrm -t "$IMG:$TAG" -t "$IMG:latest" .
+      # smoke test: serve the baked graph and route a real Delhi OD
+      # (Connaught Place -> Gurugram) before anything gets pushed
+      - docker run -d --name osrm-smoke -p 5000:5000 "$IMG:$TAG"
+      - sleep "${SMOKE_WAIT:-25}"
+      - docker logs osrm-smoke | tail -15
+      - 'curl -sf "http://127.0.0.1:5000/route/v1/driving/77.2167,28.6315;77.0266,28.4595?overview=false&steps=true" | python3 -c "import json,sys; d=json.load(sys.stdin); rts=d.get(\"routes\") or []; assert rts, d; st=rts[0][\"legs\"][0].get(\"steps\") or []; print(\"SMOKE-OK driving dist_km\", round(rts[0][\"distance\"]/1000,1), \"steps\", len(st)); assert st, \"no turn steps\""'
+      - 'curl -sf "http://127.0.0.1:5000/route/v1/cycling/77.2167,28.6315;77.0266,28.4595?overview=false" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get(\"routes\"), d; print(\"SMOKE-OK cycling path served (car graph, demo parity)\")"'
+      - docker exec osrm-smoke bash -c '(echo > /dev/tcp/localhost/5000) && echo HEALTHCHECK-PROBE-OK'
+      - docker rm -f osrm-smoke
+      - tar -C data/geo/osrm -czf "delhi-osrm-mld-$TAG.tar.gz" driving
+      - aws s3 cp "delhi-osrm-mld-$TAG.tar.gz" "s3://alive108-build-$ACCOUNT_ID/geo/"
+  post_build:
+    commands:
+      - docker push "$IMG:$TAG"
+      - docker push "$IMG:latest"
+      - 'echo "pushed $IMG:$TAG and $IMG:latest"'

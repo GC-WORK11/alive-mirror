@@ -761,6 +761,7 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                                                     base * f),
                                "osrm-freeflow", vehicle,
                                profile, steps=steps, steps_source=src,
+                               extra={"router_backend": rt.get("source")},
                                origin=o, dest=d))
         return out
     return opts + await asyncio.to_thread(_rows)
@@ -788,6 +789,7 @@ async def _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
                                dist_km, dur, dur, "estimated", vehicle,
                                profile, steps=steps,
                                steps_source="osrm" if steps else "endpoints",
+                               extra={"router_backend": rt.get("source")},
                                origin=(flat, flon), dest=(tlat, tlon)))
         return out
     return opts + await asyncio.to_thread(_rows)

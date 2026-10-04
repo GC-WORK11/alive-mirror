@@ -160,9 +160,10 @@ Delhi breathes. Expo/React Native app + FastAPI backend + optional C++ `alive_co
    `ALIVE_OTD_API_KEY` for GTFS-RT buses; `ALIVE_ADMIN_TOKEN` for /admin.
 2. **Release signing** — the shipped APK is debug-signed (sideloads fine);
    a store build needs a real keystore (owner).
-3. **Self-hosted OSRM** — the public demo router stays through demo day
-   (typed fallback covers outages); hosting it in-region is the one real
-   cost decision left (~$10-15/mo).
+3. **Self-hosted OSRM** — SHIPPED as a Fargate sidecar (osrm-routed +
+   Delhi-NCR MLD graph in the same task, `OSRM_URL=127.0.0.1:5000`,
+   `docs/plan/osrm-selfhosted.md`). Public demo is now only the flagged
+   fallback; refresh the graph image via `alive108-osrm-build`.
 4. **Android TTS/jank** — wired (500/150/0 m thresholds); unverifiable on
    the macOS box (no KVM for the emulator; iOS sims lack a TTS stack) —
    needs a Linux KVM box or a physical phone.

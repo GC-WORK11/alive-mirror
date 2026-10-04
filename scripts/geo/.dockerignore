@@ -1,0 +1,4 @@
+# keep the build context tiny — only the finished graph set ships
+*
+!build/delhi-osrm/
+!Dockerfile.osrm

@@ -24,10 +24,15 @@ case "$SRC" in
       log "downloading Geofabrik northern-zone (~224 MB)"
       curl -fSL --retry 3 -o "$RAW" "$GEOFABRIK_URL"
     fi
-    # local osmium (provisioned by tools.sh — no root)
-    "$REPO_ROOT/scripts/geo/tools.sh" >/dev/null
-    OSMIUM="$TOOLS_DIR/osmium/usr/bin/osmium"
-    export LD_LIBRARY_PATH="$TOOLS_DIR/boostlib/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+    # osmium: system package when present (CodeBuild apt-installs it),
+    # else the no-root dpkg -x copy provisioned by tools.sh
+    if command -v osmium >/dev/null; then
+      OSMIUM=osmium
+    else
+      "$REPO_ROOT/scripts/geo/tools.sh" >/dev/null
+      OSMIUM="$TOOLS_DIR/osmium/usr/bin/osmium"
+      export LD_LIBRARY_PATH="$TOOLS_DIR/boostlib/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+    fi
     log "clipping to NCR bbox $BBOX (smart strategy keeps boundary ways whole)"
     "$OSMIUM" extract --bbox "$BBOX" --strategy smart \
       --set-bounds --overwrite -o "$BBOX_PBF" "$RAW"

@@ -488,21 +488,17 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if not (in_service_area(from_lat, from_lon)
             and in_service_area(to_lat, to_lon)):
         return {"routes": [], "error": OUT_OF_AREA}
-    url = f"https://router.project-osrm.org/route/v1/{prof}/{from_lon},{from_lat};{to_lon},{to_lat}"
-    try:
-        r = await http().get(url, params={
-            "overview": "full", "geometries": "geojson",
-            "alternatives": "true", "steps": "false",
-        })
-        r.raise_for_status()
-        data = r.json()
-    except httpx.HTTPError:
+    routes, backend = await _osrm_get(
+        prof, f"{from_lon},{from_lat};{to_lon},{to_lat}",
+        {"overview": "full", "geometries": "geojson",
+         "alternatives": "true", "steps": "false"})
+    if routes is None:
         return {"routes": [], "error": "router unavailable"}
 
     await _field_refresh_bounded()
 
     options = []
-    for rt in data.get("routes", [])[:3]:
+    for rt in routes[:3]:
         if float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
             continue  # ocean-spanning "route" — not a servable option
         dur_s = _scaled_duration_s(vehicle or "", prof, rt)
@@ -517,7 +513,8 @@ async def route(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
 
     exposure.compare(options, FIELD.value, FIELD.nearest_sample_km, FIELD.sigma)
     _annotate_segments(options)
-    return {"routes": options, "field": FIELD.status()}
+    return {"routes": options, "field": FIELD.status(),
+            "router_backend": backend}
 
 
 def _annotate_segments(options: list) -> None:
@@ -532,7 +529,48 @@ def _annotate_segments(options: list) -> None:
         o["hotspots"] = segments.hotspots(segs)
 
 
-def _osrm_note(ok: bool, ms: float, err: Optional[str] = None) -> None:
+OSRM_PUBLIC = "https://router.project-osrm.org"
+OSRM_LOCAL = os.environ.get("OSRM_URL", "http://127.0.0.1:5001").rstrip("/")
+
+
+def _osrm_base(profile: str) -> str:
+    """Self-hosted Delhi daemon for this profile — per-profile env like
+    routing_local (a self-hosted osrm-routed serves ONE profile and the
+    port picks it), else OSRM_URL, else the conventional local port."""
+    env = {"driving": "OSRM_URL_DRIVING", "cycling": "OSRM_URL_CYCLING",
+           "walking": "OSRM_URL_WALKING"}.get(profile)
+    override = os.environ.get(env) if env else None
+    return (override or OSRM_LOCAL).rstrip("/")
+
+
+async def _osrm_get(profile: str, coords: str, params: dict):
+    """Self-hosted Delhi daemon first (task sidecar / scripts/geo
+    run_stack.sh — ~ms local vs ~600 ms + rate limits on the public
+    demo), public demo as the flagged fallback.
+    Returns (routes, backend) or (None, err): backend is the honesty tag
+    written to OSRM_LAST, never silently demo."""
+    last_err = None
+    for base, backend in ((_osrm_base(profile), "osrm-local"),
+                          (OSRM_PUBLIC, "osrm-public-demo")):
+        try:
+            kw = {"timeout": float(os.environ.get(
+                "OSRM_LOCAL_TIMEOUT", "3.0"))} if backend == "osrm-local" else {}
+            r = await http().get(f"{base}/route/v1/{profile}/{coords}",
+                                 params=params, **kw)
+            r.raise_for_status()
+            routes = r.json().get("routes", [])
+            if not routes:
+                last_err = "no routes"
+                continue
+            return routes, backend
+        except Exception as e:
+            last_err = type(e).__name__
+            continue
+    return None, last_err
+
+
+def _osrm_note(ok: bool, ms: float, err: Optional[str] = None,
+               backend: str = "osrm-public-demo") -> None:
     """Write into v2.deps' shared observation — one record for every
     real routing call across the API surface."""
     try:
@@ -544,7 +582,7 @@ def _osrm_note(ok: bool, ms: float, err: Optional[str] = None) -> None:
             return
     _d.OSRM_LAST.update({"at": time.time(), "ok": ok,
                          "ms": round(ms), "err": err,
-                         "backend": "osrm-public-demo"})
+                         "backend": backend})
 
 
 async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float):
@@ -553,23 +591,20 @@ async def _osrm(profile: str, flon: float, flat: float, tlon: float, tlat: float
     # dose loop over it is what wedged the ECS task on E2E.
     if not (in_service_area(flat, flon) and in_service_area(tlat, tlon)):
         return None
-    url = f"https://router.project-osrm.org/route/v1/{profile}/{flon},{flat};{tlon},{tlat}"
     t0 = time.monotonic()
-    try:
-        r = await http().get(url, params={
-            "overview": "full", "geometries": "geojson",
-            "alternatives": "false", "steps": "false",
-        })
-        r.raise_for_status()
-    except Exception as e:
-        _osrm_note(False, (time.monotonic() - t0) * 1000, type(e).__name__)
-        raise
-    _osrm_note(True, (time.monotonic() - t0) * 1000)
-    routes = r.json().get("routes", [])
-    rt = routes[0] if routes else None
-    if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
-        _osrm_note(True, (time.monotonic() - t0) * 1000, "over cap")
+    routes, backend = await _osrm_get(
+        profile, f"{flon},{flat};{tlon},{tlat}",
+        {"overview": "full", "geometries": "geojson",
+         "alternatives": "false", "steps": "false"})
+    if routes is None:
+        _osrm_note(False, (time.monotonic() - t0) * 1000, backend)
+        raise ConnectionError(backend or "router unavailable")
+    rt = routes[0]
+    if float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+        _osrm_note(True, (time.monotonic() - t0) * 1000, "over cap", backend)
         return None
+    _osrm_note(True, (time.monotonic() - t0) * 1000, backend=backend)
+    rt["source"] = backend
     return rt
 
 
@@ -580,21 +615,18 @@ async def _osrm_via(profile: str, pts: list[tuple[float, float]]):
                     and in_service_area(pts[-1][1], pts[-1][0])):
         return None
     coords = ";".join(f"{lon},{lat}" for lon, lat in pts)
-    url = f"https://router.project-osrm.org/route/v1/{profile}/{coords}"
     t0 = time.monotonic()
-    try:
-        r = await http().get(url, params={
-            "overview": "full", "geometries": "geojson", "steps": "false",
-        })
-        r.raise_for_status()
-    except Exception as e:
-        _osrm_note(False, (time.monotonic() - t0) * 1000, type(e).__name__)
-        raise
-    _osrm_note(True, (time.monotonic() - t0) * 1000)
-    routes = r.json().get("routes", [])
-    rt = routes[0] if routes else None
-    if rt is not None and float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
+    routes, backend = await _osrm_get(
+        profile, coords,
+        {"overview": "full", "geometries": "geojson", "steps": "false"})
+    if routes is None:
+        _osrm_note(False, (time.monotonic() - t0) * 1000, backend)
+        raise ConnectionError(backend or "router unavailable")
+    rt = routes[0]
+    if float(rt.get("distance") or 0.0) / 1000.0 > MAX_ROUTE_KM:
         return None
+    _osrm_note(True, (time.monotonic() - t0) * 1000, backend=backend)
+    rt["source"] = backend
     return rt
 
 
@@ -681,6 +713,9 @@ async def compare_modes(from_lat: float, from_lon: float, to_lat: float, to_lon:
         "options": options,
         "best": best.get("vehicle") if best else None,
         "field": FIELD.status(),
+        "router_backend": {
+            p: (g.get("source") if isinstance(g, dict) else None)
+            for p, g in geoms.items()},
     }
 
 
@@ -1439,15 +1474,11 @@ async def directions(from_lat: float, from_lon: float, to_lat: float, to_lon: fl
     instructions — the Google-Maps directions list, for any mode.
     vehicle scales the OSRM duration the same way /route does."""
     prof = profile if profile in ("driving", "cycling", "walking") else "driving"
-    try:
-        r = await http().get(
-            f"https://router.project-osrm.org/route/v1/{prof}/"
-            f"{from_lon},{from_lat};{to_lon},{to_lat}",
-            params={"overview": "full", "geometries": "geojson",
-                    "steps": "true", "alternatives": "false"})
-        r.raise_for_status()
-        routes = r.json().get("routes", [])
-    except httpx.HTTPError:
+    routes, backend = await _osrm_get(
+        prof, f"{from_lon},{from_lat};{to_lon},{to_lat}",
+        {"overview": "full", "geometries": "geojson",
+         "steps": "true", "alternatives": "false"})
+    if routes is None:
         return {"steps": [], "error": "router unavailable"}
     if not routes:
         return {"steps": [], "error": "no route"}
@@ -1483,6 +1514,7 @@ async def directions(from_lat: float, from_lon: float, to_lat: float, to_lon: fl
         "duration_s": dur_s,
         "geometry": rt["geometry"],
         "steps": steps,
+        "router_backend": backend,
     }
 
 

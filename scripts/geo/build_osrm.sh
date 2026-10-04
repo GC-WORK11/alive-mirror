@@ -12,7 +12,10 @@ source "$(dirname "$0")/common.sh"
 "$REPO_ROOT/scripts/geo/tools.sh" >/dev/null
 mkdir -p "$OSRM_DIR"
 
-for mode in driving walking cycling; do
+# Modes to build — the deploy sidecar needs only `driving` (a self-hosted
+# osrm-routed serves ONE profile; the public demo it replaces is car-only
+# anyway). OSRM_MODES="driving" for the deploy build, all three locally.
+for mode in ${OSRM_MODES:-driving walking cycling}; do
   prof="${OSRM_PROFILES[$mode]}"
   dir="$OSRM_DIR/$mode"
   mkdir -p "$dir"

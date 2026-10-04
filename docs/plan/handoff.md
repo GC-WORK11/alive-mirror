@@ -180,10 +180,12 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   29adb480 terminated (suspended/done), 1cb3ac27 403 on terminate
   (suspended, harmless). New lanes: 1def589f Android polish (icons,
   milky morphism, sidebar). Admin overhaul = lead-owned (this session).
-- Known un-owned gap: self-hosted OSRM daemon never deployed
-  (scripts/geo/run_stack.sh is docker-host shaped; Fargate has none) —
-  public demo carries all router arms, degraded flag makes failure
-  honest. Post-submission hardening, documented not built.
+- Self-hosted OSRM is DEPLOYED (sidecar lane): osrm-routed + Delhi-NCR
+  MLD graph baked into `alive108-osrm` ECR image, runs in the same
+  Fargate task (`OSRM_URL=http://127.0.0.1:5000`, essential:false,
+  1 GB hard cap, task 3072). `deploy.sh OSRM_SIDECAR=0` reverts;
+  `docs/plan/osrm-selfhosted.md` has the build/rollback runbook.
+  Public demo remains only as the flagged fallback.
 
 ## handoff cont.4 — admin overhaul LIVE-verified + main merged (2026-10-04 ~18:25 UTC)
 

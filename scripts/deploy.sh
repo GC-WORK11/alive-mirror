@@ -157,14 +157,45 @@ run aws iam put-role-policy --role-name alive108-task \
    {"Effect":"Allow","Action":["geo-maps:*","geo-places:*","geo-routes:*","geo:Search*","geo:GetPlace","geo:ReverseGeocode","geo:CalculateRoute"],"Resource":"*"},
    {"Effect":"Allow","Action":["cloudwatch:PutMetricData"],"Resource":"*"}]}'
 
+# ---- self-hosted OSRM sidecar (docs/plan/osrm-selfhosted.md) ----------
+# One osrm-routed container in the SAME Fargate task: awsvpc gives every
+# container the shared netns, so the API reaches it on 127.0.0.1:5000 with
+# ~0 new infra (a small task-memory bump is the whole cost). The API's
+# routing chain is local-first -> flagged public-demo fallback, so a dead
+# or absent sidecar degrades to today's behavior, never to an outage.
+#   OSRM_SIDECAR=0 ./scripts/deploy.sh            # API-only deploy
+#   OSRM_SIDECAR=0 ./scripts/deploy.sh rollback <sha>   # full revert
+OSRM_SIDECAR="${OSRM_SIDECAR:-1}"
+OSRM_REPO="${OSRM_REPO:-alive108-osrm}"
+OSRM_TAG="${OSRM_TAG:-latest}"
+OSRM_IMG_URI="$ECR/$OSRM_REPO:$OSRM_TAG"
+OSRM_CONTAINER=""
+OSRM_ENV=""
+TASK_MEM="${TASK_MEMORY:-2048}"
+if [ "$OSRM_SIDECAR" = "1" ]; then
+  run aws ecr describe-images --repository-name "$OSRM_REPO" \
+    --image-ids "imageTag=$OSRM_TAG" >/dev/null \
+    || fail "no $OSRM_IMG_URI — build it first (scripts/geo/buildspec-osrm.yml via the alive108-osrm-build CodeBuild project) or deploy OSRM_SIDECAR=0"
+  TASK_MEM="${TASK_MEMORY:-3072}"
+  OSRM_CONTAINER=',{"name":"osrm","image":"'"$OSRM_IMG_URI"'","essential":false,
+    "memory":1024,"memoryReservation":512,
+    "healthCheck":{"command":["CMD-SHELL","bash -c '\''(echo > /dev/tcp/localhost/5000) && exit 0 || exit 1'\''"],
+      "interval":30,"timeout":5,"retries":3,"startPeriod":60},
+    "logConfiguration":{"logDriver":"awslogs","options":{
+      "awslogs-group":"/ecs/alive108","awslogs-region":"'"$REGION"'",
+      "awslogs-stream-prefix":"osrm","awslogs-create-group":"true"}}}'
+  OSRM_ENV='{"name":"OSRM_URL","value":"http://127.0.0.1:5000"},'
+  log "osrm sidecar: $OSRM_IMG_URI (task mem $TASK_MEM)"
+fi
+
 TD_ARN="$(run aws ecs register-task-definition \
   --family alive108 --network-mode awsvpc \
-  --requires-compatibilities FARGATE --cpu 1024 --memory 2048 \
+  --requires-compatibilities FARGATE --cpu 1024 --memory "$TASK_MEM" \
   --execution-role-arn "arn:aws:iam::$ACCOUNT:role/ecsTaskExecutionRole" \
   --task-role-arn "arn:aws:iam::$ACCOUNT:role/alive108-task" \
   --container-definitions '[{"name":"alive108","image":"'"$DEPLOY_IMG"'","essential":true,
     "portMappings":[{"containerPort":'"$PORT"',"protocol":"tcp"}],
-    "environment":[
+    "environment":['"$OSRM_ENV"'
       {"name":"AWS_REGION","value":"'"$REGION"'"},
       {"name":"COMMUNITY_BUCKET","value":"'"$BUILD_BUCKET"'"},
       {"name":"ALIVE_AIR_BUCKET","value":"alive108-air"},
@@ -178,7 +209,7 @@ TD_ARN="$(run aws ecs register-task-definition \
       "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/admin-token"}],
     "logConfiguration":{"logDriver":"awslogs","options":{
       "awslogs-group":"/ecs/alive108","awslogs-region":"'"$REGION"'",
-      "awslogs-stream-prefix":"api","awslogs-create-group":"true"}}}]' \
+      "awslogs-stream-prefix":"api","awslogs-create-group":"true"}}}'"$OSRM_CONTAINER"']' \
   --query 'taskDefinition.taskDefinitionArn' --output text)"
 log "task definition: $TD_ARN"
 
