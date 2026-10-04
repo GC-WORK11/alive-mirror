@@ -44,6 +44,7 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     _start_ingest_loop()
+    _start_rollup_mirror()
     # Fires fetch lazily on the first /fires or /aqi hit — until then
     # /health honestly reports 0 and the ops board reads "no fires".
     # Warm the cache once at boot so the first dashboard view is real.
@@ -1444,4 +1445,37 @@ def _start_ingest_loop() -> None:
         kwargs={"interval_s": _ingest.INDEX_PERIOD_S,
                 "on_result": _on_result},
         name="alive-ingest", daemon=True)
+    t.start()
+
+
+# The rollup/validate jobs run as separate one-shot Fargate tasks — the
+# API never sees their disk. They publish under
+# s3://{ALIVE_AIR_BUCKET}/{daily,validation}/ and this mirror pulls that
+# onto the local mirror admin_agg reads. First pull at boot so an older
+# task still serves the newest rollup; then hourly (the jobs are
+# daily/weekly — a fired job's output lands within one tick).
+_ROLLUP_MIRROR_PERIOD_S = 1800
+
+
+def _start_rollup_mirror() -> None:
+    if os.environ.get("ALIVE_ROLLUP_MIRROR", "1").strip() in \
+            ("0", "false", "no"):
+        return
+    import threading
+
+    import ingest_worker as _ingest
+
+    def _loop():
+        while True:
+            try:
+                res = _ingest.sync_rollup_outputs()
+                if res.get("downloaded"):
+                    _ingest.log.info("rollup mirror: pulled %s",
+                                     res["downloaded"])
+            except Exception:
+                pass
+            time.sleep(_ROLLUP_MIRROR_PERIOD_S)
+
+    t = threading.Thread(target=_loop, name="alive-rollup-mirror",
+                         daemon=True)
     t.start()

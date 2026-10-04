@@ -617,6 +617,17 @@ def weekly_validation(week: str = None, snapshot_root: str = None,
     out["summary_md"] = md_uri
     if _mn:
         out["note"] = "; ".join(x for x in (out.get("note"), _mn) if x)
+    # The archive replay wrote data/field_validation.md on THIS job
+    # task's disk — ship it too or the API's mirror never sees the report
+    # the admin page checks for.
+    try:
+        fv = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "data", "field_validation.md")
+        if os.path.exists(fv):
+            store_blob("validation/field_validation.md",
+                       open(fv, "rb").read(), fv)
+    except Exception:
+        pass
     return out
 
 

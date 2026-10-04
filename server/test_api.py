@@ -158,7 +158,14 @@ async def main():
         j = (await c.get("/admin/api")).json()
         check("admin live_users int", isinstance(j.get("live_users"), int))
         check("admin contributors", len(j.get("contributors", [])) >= 1)
-        check("admin journeys", len(j.get("recent_journeys", [])) >= 1)
+        # hour-bucketed k-anonymity feed (3ef3677): an empty list is the
+        # HONEST answer when no hour holds >=3 distinct devices yet — the
+        # assertion is shape, not population.
+        check("admin journeys", isinstance(j.get("recent_journeys"), list))
+        if j["recent_journeys"]:
+            check("admin journeys k>=3",
+                  all(b.get("devices", 0) >= 3
+                      for b in j["recent_journeys"]))
         check("admin field status", bool(j.get("field", {}).get("samples")))
 
         r = await c.get("/admin")

@@ -120,6 +120,66 @@ def store_blob(s3_key: str, data: bytes, local_path: str) -> tuple:
     return local_path, "local", note
 
 
+# Rollup outputs the scheduled jobs publish under these S3 prefixes →
+# where the admin mirror expects them on the API task's disk. The job
+# tasks are one-shot Fargate runs — their disk dies with them, so S3 is
+# the shared shelf and this mirror is how the API side ever sees them.
+_ROLLUP_MAP = (
+    ("daily/", "field/daily"),
+    ("validation/", "field/validation"),
+)
+
+
+def sync_rollup_outputs(data_root: str = None) -> dict:
+    """Pull scheduled-job outputs from s3://{ALIVE_AIR_BUCKET}/ onto the
+    local mirror admin_agg reads.
+
+    daily/*.json          -> data/field/daily/
+    validation/*.{json,md}-> data/field/validation/
+    validation/field_validation.md -> data/field_validation.md (the
+        archive-replay report lives at data root, not under field/)
+
+    No AWS / no bucket -> reported skipped, never raised."""
+    root = data_root or DATA_DIR
+    out = {"ok": False, "downloaded": [], "skipped": None}
+    bucket = os.environ.get("ALIVE_AIR_BUCKET")
+    if not bucket:
+        out["skipped"] = "no ALIVE_AIR_BUCKET"
+        return out
+    b3, why = _aws_ready()
+    if b3 is None:
+        out["skipped"] = why
+        return out
+    try:
+        s3 = b3.client("s3")
+        for prefix, sub in _ROLLUP_MAP:
+            dest = os.path.join(root, sub)
+            os.makedirs(dest, exist_ok=True)
+            for page in s3.get_paginator("list_objects_v2").paginate(
+                    Bucket=bucket, Prefix=prefix):
+                for obj in page.get("Contents") or []:
+                    key = obj["Key"]
+                    name = key.rsplit("/", 1)[-1]
+                    if not name:
+                        continue
+                    lp = (os.path.join(root, "field_validation.md")
+                          if name == "field_validation.md"
+                          else os.path.join(dest, name))
+                    body = s3.get_object(Bucket=bucket,
+                                         Key=key)["Body"].read()
+                    if os.path.exists(lp) \
+                            and os.path.getsize(lp) == len(body):
+                        continue
+                    with open(lp, "wb") as f:
+                        f.write(body)
+                    out["downloaded"].append(key)
+        out["ok"] = True
+        return out
+    except Exception as e:  # noqa: BLE001
+        out["skipped"] = f"{type(e).__name__}: {e}"
+        return out
+
+
 def _emit_metrics(field: dict) -> dict:
     """CloudWatch for the doc-05 dashboard: stations used, field age
     (oldest input age), mean kriging sigma. Only when AWS is usable —
