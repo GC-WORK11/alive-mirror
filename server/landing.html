@@ -760,12 +760,23 @@ async function loadAether(){
 aetherSize();loadAether();setInterval(loadAether,120000);
 
 /* ————— fetch the recommended route, let the field birth it ————— */
+/* iconic ODs rotate — proves the engine prices any pair, not a canned
+   animation; each refetch (2min) advances the pair */
+const ROUTE_ODS=[
+  {f:{lat:28.6315,lon:77.2167},t:{lat:28.4595,lon:77.0266},
+   fl:'connaught place',tl:'gurugram'},
+  {f:{lat:28.6129,lon:77.2295},t:{lat:28.5912,lon:77.3150},
+   fl:'india gate',tl:'noida'},
+  {f:{lat:28.6674,lon:77.2277},t:{lat:28.4089,lon:77.3178},
+   fl:'kashmere gate',tl:'faridabad'},
+];
+let ROUTE_IX=0;
 async function loadRoute(){
   try{
+    const od=ROUTE_ODS[ROUTE_IX++ % ROUTE_ODS.length];
     const j=await api('/v2/plan',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({from:{lat:28.6315,lon:77.2167},
-        to:{lat:28.4595,lon:77.0266},fast:true})});
+      body:JSON.stringify({from:od.f,to:od.t,fast:true})});
     const opts=(j.options||[]).filter(o=>o.geometry&&o.geometry.coordinates);
     if(!opts.length)return;
     const best=opts.find(o=>o.recommended)||opts[0];
@@ -774,7 +785,7 @@ async function loadRoute(){
     const step=Math.max(1,Math.floor(coords.length/240));
     ROUTE={pts:coords.filter((_,i)=>i%step===0).map(c=>[c[0],c[1]]),
       dose:(best.dose||{}).mid,mode:best.mode||best.label||'car',
-      fLabel:'connaught place',tLabel:'gurugram',
+      fLabel:od.fl,tLabel:od.tl,
       t0:performance.now()};
   }catch(e){/* no route overlay — field alone is still honest */}
 }
