@@ -8,6 +8,7 @@ import { API, postJson } from "../components/shell/net";
 import type { Band, PlanResult, V2Option } from "../components/shell/types";
 import { cacheKeys } from "./cache";
 import { fetchCached } from "../offline/net";
+import type { PucInfo } from "../store/vehicle";
 
 /** `vehicle` is a class string the server understands: car | car_open |
  *  bike | auto | bus | metro | cycle | walk (+ aliases two_wheeler,
@@ -18,8 +19,13 @@ export type PlanRequest = {
   to: { lat: number; lon: number };
   vehicle?: string;
   /** full S8 profile — server `_parse_vehicle` reads fuel/year_bucket
-      out of it; omitting it quietly falls back to the fleet prior */
-  vehicle_profile?: { class: string; fuel?: string; year_bucket?: string } | null;
+      out of it; omitting it quietly falls back to the fleet prior. `puc`
+      rides along verbatim (store/vehicle.ts `PucInfo`) — additive for
+      the backend's emissions calibration; dropped safely until then. */
+  vehicle_profile?: {
+    class: string; fuel?: string; year_bucket?: string;
+    puc?: PucInfo | null;
+  } | null;
   depart_at?: string;
 };
 
@@ -141,6 +147,7 @@ function toOption(raw: unknown): V2Option | null {
         : null,
     },
     tag: str(o.tag),
+    safest_path: o.safest_path === true ? true : null,
     recommended: o.recommended === true,
     reason_line: str(o.reason_line) ?? "",
     route_id: str(o.route_id),

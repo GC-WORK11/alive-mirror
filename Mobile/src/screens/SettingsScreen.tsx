@@ -292,6 +292,15 @@ function SettingsSheet({
             "turnByTurn",
           )}
           <View style={ss.hairline} />
+          {/* cigarette-equivalence — opt-in (owner: "absolutely wrong and
+              disgusting" as a headline); the dose stays in µg until on */}
+          {switchRow(
+            "settingsShowCig",
+            current.show_cig,
+            (v) => onChange("show_cig", v),
+            "settingsShowCigHint",
+          )}
+          <View style={ss.hairline} />
           <View style={ss.row}>
             <Text
               {...DYNAMIC_TYPE}
@@ -411,7 +420,9 @@ function SettingsSheet({
             "settingsHowNumbers",
             "numbers",
             <Text {...DYNAMIC_TYPE} style={[ss.bodyTxt, { fontFamily: fam(lang, "reg") }]}>
-              {t("settingsHowNumbersBody", lang)}
+              {/* the Berkeley-rule sentence only shows when the metaphor
+                  itself is enabled — same explainer, minus that clause */}
+              {t(current.show_cig ? "settingsHowNumbersBody" : "settingsHowNumbersBodyPlain", lang)}
             </Text>,
           )}
           <View style={ss.hairline} />

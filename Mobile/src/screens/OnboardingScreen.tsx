@@ -243,10 +243,13 @@ function OnboardingSheet({
                     ))}
                   </View>
                 </JourneyRow>
-                {/* while you travel — the live dose counter, as in nav */}
+                {/* while you travel — the live dose counter, as in nav.
+                    The dust glyph is the default breathe icon; the
+                    cigarette only returns with show_cig on — onboarding
+                    always reads the default surface. */}
                 <JourneyRow
                   lang={lang}
-                  icon="cigarette"
+                  icon="dust"
                   iconColor={V2T.breath1}
                   title={t("nav_breathe", lang)}
                   subs={[t("onboard_breatheSub", lang)]}

@@ -11,7 +11,7 @@ import {
   Camera, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { F, V2Radius, V2T, V2Type } from "./src/theme";
+import { F, V2Radius, V2T, V2Type, cigOf } from "./src/theme";
 import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
@@ -457,12 +457,13 @@ function AppInner() {
           vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}
           onVehicleChange={applyVehicle}
           planError={flow.planError} onRetry={flow.retryPlan}
-          fieldAgeS={flow.planField?.age_s} />
+          fieldAgeS={flow.planField?.age_s}
+          showCig={settings.show_cig} />
       )}
       {phase === "nav" && sel && (
         <NavSession option={sel} options={flow.options} from={flow.from} to={flow.to} steps={flow.steps}
           camRef={camRef} lang={lang} share={settings.share} onExit={flow.exitNav}
-          onTripDone={flow.recordTrip} />
+          showCig={settings.show_cig} onTripDone={flow.recordTrip} />
       )}
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} trips={flow.trips} lang={lang}
@@ -482,13 +483,18 @@ function AppInner() {
         onShareTrip={(tr) => Share.share({
           message: t("shareTripBody", lang, {
             from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
-            dose: tr.dose_ug != null ? `~${Math.round(tr.dose_ug)}µg` : "—",
+            // cigarette figure only with show_cig on; µg is the default
+            dose: tr.dose_ug != null
+              ? (settings.show_cig ? `≈${cigOf(tr.dose_ug)} cigarettes` : `~${Math.round(tr.dose_ug)}µg`)
+              : "—",
+            // co2 was never passed — the template printed a literal "{co2}"
+            co2: tr.emit_kg != null ? `~${tr.emit_kg.toFixed(1)}kg CO₂` : "—",
           }),
         }).catch(() => {})} />
       <LayersSheet visible={layersOpen} values={layers} onToggle={toggleLayer}
         onClose={() => setLayersOpen(false)} lang={lang} />
-      <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} />
-      <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} onTripsChanged={flow.reloadTrips} />
+      <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} showCig={settings.show_cig} />
+      <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} showCig={settings.show_cig} onTripsChanged={flow.reloadTrips} />
       <SettingsScreen visible={settingsOpen} onClose={() => setSettingsOpen(false)}
         lang={lang} current={settings} onArmBrief={flow.armDailyBrief}
         onDeleteData={deleteAll}
@@ -521,11 +527,13 @@ function AppInner() {
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
 function NavSession({
-  option, options, from, to, steps, camRef, lang, share, onExit, onTripDone,
+  option, options, from, to, steps, camRef, lang, share, showCig, onExit, onTripDone,
 }: {
   option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
   camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
   share: boolean; onExit: () => void;
+  /** cigarette-equivalence framing — off by default (settings.show_cig) */
+  showCig?: boolean;
   onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
 }) {
   const [summary, setSummary] = useState<NavSummary | null>(null);
@@ -613,12 +621,15 @@ function NavSession({
          past the sheet's close keeps the heavy unmount off the same frame
          as the press (iOS-sim render-thread race — same class as the
          deferred search focus/close fixes). */
-      <ReceiptSheet data={data} lang={lang} onDone={() => setTimeout(onExit, 280)}
+      <ReceiptSheet data={data} lang={lang} showCig={showCig} onDone={() => setTimeout(onExit, 280)}
         onShare={() => Share.share({
           message: t("shareTripBody", lang, {
             from: from ? placeNameLabel(from.name, lang) : "?",
             to: to ? placeNameLabel(to.name, lang) : "?",
-            dose: summary.doseUg.mid != null ? `~${Math.round(summary.doseUg.mid)}µg` : "—",
+            // cigarette figure only with show_cig on; µg is the default
+            dose: summary.doseUg.mid != null
+              ? (showCig ? `≈${cigOf(summary.doseUg.mid)} cigarettes` : `~${Math.round(summary.doseUg.mid)}µg`)
+              : "—",
             co2: summary.co2Kg.mid != null ? `~${summary.co2Kg.mid.toFixed(1)}kg CO₂` : "—",
           }),
         }).catch(() => {})} />
@@ -626,7 +637,7 @@ function NavSession({
   }
   return (
     <NavChrome option={option} steps={steps} doseUg={0}
-      nav={nav} onRecenter={nav.recenter}
+      nav={nav} onRecenter={nav.recenter} showCig={showCig}
       onExit={() => nav.arrive(false)} lang={lang} />
   );
 }

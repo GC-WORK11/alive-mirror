@@ -2,10 +2,12 @@
  *
  *   You're here.                                        [ Auto ]
  *   ─────────────────────────────────────────────────────────────
- *   🚬 YOU BREATHED
- *   ≈ 0.12 cigarettes  est.
+ *   🚬/∿ YOU BREATHED
+ *   ≈ 42 µg  est.                       (≈ 0.12 cigarettes with showCig on)
  *   est. 35–52 µg                       (the honest band, when it spreads)
- *   [████▏▏ ▏ ▏  ◯───────────────]🚬    dose ruler: 0 → 1 cigarette,
+ *   [████▏▏ ▏ ▏  ◯───────────────]🚬    dose ruler: 0 → 1 cigarette —
+ *                                        scales to trip/worst µg when
+ *                                        the metaphor is off;
  *                                        ◯ = smokiest planned option
  *   2.8× less than by auto
  *   ─────────────────────────────────────────────────────────────
@@ -79,11 +81,15 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
  *  hollow ring = the smokiest planned option (prop, not invented);
  *  upright tick + the cigarette glyph mark where one cigarette sits.
  *  The scale extends past one cigarette on genuinely heavy trips —
- *  the tick keeps the 1 🚬 point calibrated instead of clamping. */
-function DoseScale({ dose, worstUg, a11yLabel }: {
-  dose: Band; worstUg?: number | null; a11yLabel: string;
+ *  the tick keeps the 1 🚬 point calibrated instead of clamping.
+ *  With the cigarette metaphor off (showCig=false) the ruler drops the
+ *  cig tick + glyph and scales to the trip/worst µg alone. */
+function DoseScale({ dose, worstUg, showCig, a11yLabel }: {
+  dose: Band; worstUg?: number | null; showCig: boolean; a11yLabel: string;
 }) {
-  const scaleMax = Math.max(CIG_UG, dose.hi, worstUg ?? 0, 1);
+  const scaleMax = showCig
+    ? Math.max(CIG_UG, dose.hi, worstUg ?? 0, 1)
+    : Math.max(dose.hi, worstUg ?? 0, 1);
   const pct = (v: number): `${number}%` =>
     `${Math.max(0, Math.min(100, (v / scaleMax) * 100))}%`;
   return (
@@ -97,22 +103,25 @@ function DoseScale({ dose, worstUg, a11yLabel }: {
             <View style={[s.scaleWhisker, { left: pct(dose.hi) }]} />
           </>
         )}
-        {scaleMax > CIG_UG && (
+        {showCig && scaleMax > CIG_UG && (
           <View style={[s.scaleCigTick, { left: pct(CIG_UG) }]} />
         )}
         {worstUg != null && worstUg > dose.mid * 1.02 && (
           <View style={[s.scaleWorst, { left: pct(worstUg) }]} />
         )}
       </View>
-      <Icon name="cigarette" color={V2T.text3} size={13} />
+      <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={13} />
     </View>
   );
 }
 
 export function ReceiptSheet({
-  data, lang, onDone, onHowWeGotThis, onShare, onSave,
+  data, lang, onDone, onHowWeGotThis, onShare, onSave, showCig = false,
 }: {
   data: ReceiptData | null; lang: Lang;
+  /** cigarette-equivalence framing — off by default (settings.show_cig);
+   *  off → the hero reads the µg dose and the ruler drops the cig marks */
+  showCig?: boolean;
   onDone: () => void; onHowWeGotThis?: (() => void) | null;
   /** secondary action — share the receipt (integrator wires the sheet /
    *  system share); the button only appears when the callback exists */
@@ -131,12 +140,18 @@ export function ReceiptSheet({
   const savedCigs = dose != null && worst != null
     ? cigOf(Math.max(0, worst - dose.mid))
     : null;
+  /* the same "would have added" figure in µg for the default surface */
+  const savedUg = dose != null && worst != null
+    ? Math.max(0, worst - dose.mid)
+    : null;
 
   const mins = Math.max(1, Math.round(data.durationMin));
   const co2 = data.co2Kg;
   const co2Zero = co2 != null && co2.hi <= 0;
-  const breathedTxt = cigs != null
-    ? t("receipt_breathed", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
+  const breathedTxt = dose != null
+    ? (showCig && cigs != null
+      ? t("receipt_breathed", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
+      : `${t("youBreathed", lang)} ${t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}`)
     : null;
   const ratioTxt = ratio != null && ratio > 1.05
     ? (data.worstLabel
@@ -167,41 +182,47 @@ export function ReceiptSheet({
 
       {/* ── hero: what you breathed ── */}
       <View style={s.eyebrowRow}>
-        <Icon name="cigarette" color={V2T.breath1} size={15} />
+        <Icon name={showCig ? "cigarette" : "dust"} color={V2T.breath1} size={15} />
         <Text style={[s.eyebrow, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
           {t("youBreathed", lang)}
         </Text>
       </View>
-      {cigs == null ? (
+      {dose == null ? (
         <Text style={[s.heroNone, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
           {t("receipt_noDose", lang)}
         </Text>
       ) : (
         <>
           <Text style={[s.heroNum, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-            {t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })}
+            {showCig && cigs != null
+              ? t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
+              : t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}
             <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
-          {dose && dose.hi - dose.lo >= 1 && (
+          {dose.hi - dose.lo >= 1 && (
             <Text style={[s.bandTxt, NUM]} {...DYNAMIC_TYPE}>
               {t("receipt_doseUgBand", lang, {
                 lo: Math.round(dose.lo), hi: Math.round(dose.hi),
               })}
             </Text>
           )}
-          {dose && (
-            <DoseScale dose={dose} worstUg={worst} a11yLabel={scaleA11y} />
-          )}
+          <DoseScale dose={dose} worstUg={worst} showCig={showCig} a11yLabel={scaleA11y} />
           {ratioTxt ? (
             <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
               {ratioTxt}
             </Text>
           ) : null}
-          {savedCigs != null && savedCigs >= 0.02 && (
-            <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
-              {t("receiptSaved", lang, { n: approx(savedCigs) })}
-            </Text>
-          )}
+          {showCig
+            ? (savedCigs != null && savedCigs >= 0.02 && (
+                <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
+                  {t("receiptSaved", lang, { n: approx(savedCigs) })}
+                </Text>
+              ))
+            : (savedUg != null && savedUg >= 6 && (
+                <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
+                  {t("receiptSavedUg", lang, { n: approx(Math.round(savedUg)) })}
+                </Text>
+              ))}
         </>
       )}
 

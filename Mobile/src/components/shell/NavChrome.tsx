@@ -253,11 +253,13 @@ function CounterCell({
 /* ------------------------------------------------------------------ */
 
 export function NavChrome({
-  option, steps, doseUg, onExit, lang, nav, onRecenter,
+  option, steps, doseUg, onExit, lang, nav, onRecenter, showCig = false,
 }: {
   option: CompareOption; steps: Step[] | null; doseUg: number;
   onExit: () => void; lang: Lang;
   nav?: NavView | null; onRecenter?: (() => void) | null;
+  /** cigarette-equivalence framing — off by default (settings.show_cig) */
+  showCig?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const min = Math.max(0, Math.round((nav?.etaS ?? option.duration_min * 60) / 60));
@@ -276,6 +278,9 @@ export function NavChrome({
       : option.vehicle === "metro" ? "transit" : "mode";
 
   const cigs = nav ? cigOf(nav.dose.mid) : cigOf(doseUg);
+  /* µg readout for the default surface (cigarette metaphor off) — the
+     same live dose, rounded whole; "µg" is the plain unit everywhere */
+  const ugMid = nav ? nav.dose.mid : doseUg;
   const showOut = nav != null && nav.co2.hi > 0;
   const outKg = showOut ? Math.round(Math.max(0, nav.co2.mid) * 10) / 10 : null; // kg, 1dp
   const frozen = nav?.stripOk === false; // counters paused — dimmed, pill explains
@@ -371,13 +376,16 @@ export function NavChrome({
         <View style={s.cells}>
           <CounterCell
             lang={lang}
-            icon="cigarette"
+            icon={showCig ? "cigarette" : "dust"}
             tint={V2T.breath1}
             label={t("nav_breathe", lang)}
             dim={frozen}
             band={doseBand}
-            value={cigs == null ? t("nav_noSignal", lang)
-              : t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })} />
+            value={showCig
+              ? (cigs == null ? t("nav_noSignal", lang)
+                : t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) }))
+              : (ugMid == null ? t("nav_noSignal", lang)
+                : t("doseUg", lang, { n: approx(Math.round(ugMid)) }))} />
           {showOut && outKg != null && (
             <>
               <View style={s.cellDiv} />

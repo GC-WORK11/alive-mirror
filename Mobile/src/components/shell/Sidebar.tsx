@@ -113,6 +113,9 @@ export function Sidebar({
   }, [trips]);
   const recent = useMemo(() => [...trips].sort((a, b) => b.ts - a.ts).slice(0, 5), [trips]);
   const todayCig = cigOf(st.todayUg) ?? 0;
+  /* cigarette-equivalence is opt-in — the drawer reads µg unless the
+     user turns on "show cigarette comparison" in settings */
+  const showCig = settings.show_cig === true;
   // doc 02 §sidebar-1's second number — shown only when today's trips carry
   // real emit_kg readings (SEAM(emissions) rows predate the field).
   const todayKg = useMemo(
@@ -260,8 +263,10 @@ export function Sidebar({
         </Text>
         <Text {...DYNAMIC_TYPE} style={s.tripMeta}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts)}</Text>
       </View>
-      <Icon name="cigarette" color={V2T.text3} size={13} />
-      <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM]}>{cigOf(tr.dose_ug) ?? 0}</Text>
+      <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={13} />
+      <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM]}>
+        {showCig ? (cigOf(tr.dose_ug) ?? 0) : t("doseUg", lang, { n: approx(Math.round(tr.dose_ug)) })}
+      </Text>
       {onShareTrip && (
         <Pressable hitSlop={8} onPress={() => onShareTrip(tr)}
           accessibilityRole="button"
@@ -309,10 +314,14 @@ export function Sidebar({
                 <View style={s.todayRow}>
                   <View style={s.statCol}>
                     <View style={s.statHead}>
-                      <Icon name="cigarette" color={V2T.text3} size={15} />
+                      <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={15} />
                       <Text {...DYNAMIC_TYPE} style={s.statCap}>{t("breathed", lang)}</Text>
                     </View>
-                    <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{todayCig}</Text>
+                    <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>
+                      {showCig
+                        ? todayCig
+                        : t("doseUg", lang, { n: approx(Math.round(st.todayUg)) })}
+                    </Text>
                     {yesterdayUg > 0 && (
                       <Text {...DYNAMIC_TYPE} style={s.statCmp}>
                         {t(st.todayUg <= yesterdayUg ? "lessThanYesterday" : "moreThanYesterday", lang, {
@@ -463,6 +472,7 @@ export function Sidebar({
               {!onFullSettings && section === "settings" && panel(
                 <>
                   {switchRow("settingsVoice", settings.voice, (v) => onSettings({ voice: v }))}
+                  {switchRow("settingsShowCig", settings.show_cig, (v) => onSettings({ show_cig: v }), "settingsShowCigHint")}
                   <View style={s.subRow}>
                     <Text {...DYNAMIC_TYPE} style={[s.subLabel, { fontFamily: fam(lang, "reg") }]}>{t("settingsUnits", lang)}</Text>
                     <Text {...DYNAMIC_TYPE} style={s.subValue}>{t("unitsKm", lang)}</Text>

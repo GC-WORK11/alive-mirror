@@ -60,6 +60,9 @@ export type V2Option = {
   dose: DoseBand;
   emissions: Emissions;
   tag: string | null;                 // "lightest on both" | "lightest for you" | "lightest for Delhi"
+  /** server flag on the least-inhalation route (dose-optimized variant
+   *  when the path engine ships) — the headline "safest route" chip. */
+  safest_path?: boolean | null;
   recommended: boolean;               // doc 06 §4 winner
   reason_line: string;                // server one-liner under the row
   route_id?: string | null;           // for GET /v2/strip (nav lane)
