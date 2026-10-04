@@ -526,7 +526,11 @@ def test_plan_fast_returns_engine_rows_only_without_router(monkeypatch):
     row = {"mode": "car", "label": "Car (AC) · least-smoke rd",
            "distance_km": 5.0, "duration_min": 14.0, "dose_ug": 9.0,
            "engine_dose_ug": 9.0, "geometry": None}
-    monkeypatch.setattr(v2plan, "_engine_options", lambda *a, **k: [dict(row)])
+    seen = {}
+    def eng(*a, **k):
+        seen.update(k)
+        return [dict(row)]
+    monkeypatch.setattr(v2plan, "_engine_options", eng)
     monkeypatch.setattr(v2plan, "_transit_options",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("transit ran")))
     body = _post({"from": {"lat": CP[0], "lon": CP[1]},
@@ -534,6 +538,7 @@ def test_plan_fast_returns_engine_rows_only_without_router(monkeypatch):
                   "vehicle": "car", "fast": True})
     assert body["partial"] is True
     assert [o["mode"] for o in body["options"]] == ["car"]
+    assert seen.get("alts") is False, "fast paint buys primaries only"
     assert not [c for c in calls if c and c[0] is not None and len(c) > 1], \
         "fast path must not wait on the public router"
 

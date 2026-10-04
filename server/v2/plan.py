@@ -26,6 +26,7 @@ metro/walk/cycle + common aliases); `vehicle_profile` may carry
 Delhi fleet prior, never a 4xx.
 """
 import asyncio
+import functools
 import concurrent.futures
 import logging
 import threading
@@ -1270,7 +1271,8 @@ def _geom_midpoint(geometry: dict):
     return coords[len(coords) // 2]
 
 
-def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
+def _engine_options(flat, flon, tlat, tlon, vehicle, profile,
+                    alts: bool = True) -> list:
     """Least-dose path per engine mode, as plan options.
 
     Two dose surfaces per row: `engine_dose_ug` — the µg the A* summed
@@ -1333,7 +1335,7 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
     t0 = time.time()
     opts = []
     for mode, label in ENGINE_MODES:
-        want_alts = 2 if (alts_fn is not None
+        want_alts = 2 if (alts and alts_fn is not None
                           and air_km <= ALT_OD_KM
                           and (time.time() - t0) < ALT_ARM_SOFT_S) else 0
         try:
@@ -1485,8 +1487,9 @@ async def _engine_first(flat, flon, tlat, tlon, vehicle, profile):
     try:
         rows = await asyncio.wait_for(
             asyncio.get_running_loop().run_in_executor(
-                _ENG_EXEC, _engine_options, flat, flon, tlat, tlon,
-                vehicle, profile),
+                _ENG_EXEC, functools.partial(
+                    _engine_options, flat, flon, tlat, tlon, vehicle,
+                    profile, alts=False)),
             timeout=ENGINE_BUDGET_S)
     except asyncio.TimeoutError:
         return [], "engine timed out"
