@@ -249,8 +249,7 @@
   .meth b{color:var(--ink);font-weight:600}
 
   /* global rollups — honest-empty until the aggregate api ships them */
-  .gtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  @media(max-width:900px){.gtiles{grid-template-columns:1fr}}
+  .gtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
 
   /* day-by-day trips strip — muted bars, day labels in mono */
   .daybars{display:flex;align-items:flex-end;gap:5px;padding:10px 16px 12px}
@@ -892,6 +891,14 @@ function paintShared(dn,S,rows,G){
   const savedDose=box(G&&G.dose_avoided,['dose_ug','ug','value','total'])
            ??pick(t,['dose_saved_ug','dose_avoided_ug'])??pick(dn,['dose_saved_ug']);
   const nRep=rep(G&&G.dose_avoided)??rep(G&&G.co2_avoided);
+  /* 'their reviews' — authored feedback; note bodies only at k>=3 */
+  const rv=S&&S.reviews;
+  const rvSub=rv&&rv.count?[
+    [5,4,3,2,1].map(s=>`${s}★ ${fmt(rv.hist&&rv.hist[s]||0)}`).join(' · '),
+    rv.notes&&rv.notes.length?`latest: “${rv.notes[0].note}”`:null,
+    rv.notes_withheld?'note bodies withheld until ≥3 reviews':null,
+  ].filter(Boolean).join('<br>')
+    :'stars + optional note from the app; no token stored — bodies publish only at k≥3';
   const tiles=[
     ['devices moving · by area',
       areas!=null?fmt(typeof areas==='object'?Object.keys(areas).length:areas)+' areas':null,
@@ -906,6 +913,9 @@ function paintShared(dn,S,rows,G){
           savedDose!=null?fmt(savedDose)+' µg dose':null].filter(Boolean).join(' · ')
         :(t.co2_kg_mid?fmt1(t.co2_kg_mid)+' kg co₂ emitted · mid estimate':null),
       `savings from donated avoided-vs-worst-option counterfactuals${nRep!=null?` · ${fmt(nRep)} trip${nRep===1?'':'s'} reporting`:''}`],
+    ['their reviews',
+      rv&&rv.count?`${fmt1(rv.avg)}★ · ${fmt(rv.count)} review${rv.count===1?'':'s'}`:null,
+      rvSub],
   ];
   const el=$('sharedpic');if(!el)return;
   el.innerHTML=tiles.map(([l,v,sub])=>

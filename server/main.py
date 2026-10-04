@@ -133,6 +133,28 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_engine())
+    # The landing page's aether + admin's field map both read /grid?cells=40
+    # — a cold build costs ~7 s of krige on this box, paid by whoever asks
+    # first each epoch. Re-prime the epoch-keyed cache in the background
+    # whenever the epoch moves (field refresh or a new donation), so the
+    # interp cost is amortized off the request path. Threaded — the GIL-free
+    # krige work must not starve the health check.
+    async def _warm_grid():
+        last_ep = None
+        while True:
+            try:
+                if getattr(FIELD, "_fetched_at", None):
+                    ep = (FIELD._fetched_at, community._OBS_VERSION)
+                    if ep != last_ep:
+                        await asyncio.to_thread(
+                            _grid_cached, ("l", 40, "pm2_5"), ep,
+                            lambda ep=ep: _epoch_tagged(
+                                grid.as_geojson(FIELD, 40, "pm2_5"), ep))
+                        last_ep = ep
+            except Exception:
+                pass
+            await asyncio.sleep(60)
+    asyncio.create_task(_warm_grid())
     yield
 
 
@@ -1002,6 +1024,29 @@ async def hazard_report(body: dict):
     )
 
 
+_review_rate: dict = {}
+_REVIEW_MAX_PER_HOUR = 10
+
+
+@app.post("/v2/feedback")
+async def leave_feedback(body: dict, request: Request):
+    """A review: stars 1–5 + optional ≤240-char note. Stored with no token,
+    no device id — authored content only. Per-IP hour cap keeps the public
+    endpoint from becoming a billboard."""
+    host = request.client.host if request.client else "?"
+    now = time.time()
+    hits = [t for t in _review_rate.get(host, []) if now - t < 3600]
+    if len(hits) >= _REVIEW_MAX_PER_HOUR:
+        raise HTTPException(429, "feedback rate limit — try later")
+    hits.append(now)
+    _review_rate[host] = hits
+    return community.add_review(
+        stars=body.get("stars"),
+        note=body.get("note"),
+        build=body.get("build"),
+    )
+
+
 @app.get("/reports")
 async def reports():
     return community.reports_geojson()
@@ -1217,15 +1262,33 @@ async def admin_api():
         "recent_journeys": community.recent_obs(20),
         "reports": community.live_reports(),
         "journeys_per_hour": community.journeys_per_hour(),
+        "reviews": community.reviews_summary(),
     }
+
+
+@app.get("/admin/api/reviews", dependencies=[Depends(_admin_guard)])
+async def admin_reviews():
+    """'Their reviews' as an aggregate: star histogram + mean; note bodies
+    publish only at k>=3 reviews, hour-bucketed, ≤140 chars each."""
+    return community.reviews_summary()
 
 
 @app.get("/")
 async def root_page():
-    """Bare domain → the public city page: a judge hitting the NLB root
-    lands on the live choropleth, not a 404."""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse("/city", status_code=302)
+    """The pitch door: a judge hitting the NLB root lands on the landing
+    page — the few-line pitch + the live ASCII field — which leads into
+    /city for the raw choropleth."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"))
+
+
+@app.get("/landing")
+async def landing_page():
+    """Explicit alias for the marketing surface (same file as /)."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"))
 
 
 @app.get("/admin")
