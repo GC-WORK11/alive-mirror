@@ -3,93 +3,119 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ALive-108 — the city breathes</title>
+<title>ALive-108 — Delhi NCR air, district by district</title>
 <style>
+  /* light ops surface — same paper/ink family as /admin
+     (Mobile/src/theme.ts tokens). District fills carry the only hue:
+     the official CPCB six-band AQI palette. */
   :root{
-    --ink:#F5F5F4; --ink2:#A8A29E; --ink3:#57534E; --ink4:#44403C;
-    --bg:#0C0A09; --panel:#141110; --panel2:#1C1917; --hair:#292524;
-    --quiet:#78716C; --warn:#FB7185; --over:#E11D48; --severe:#9F1239; --extreme:#4C0519;
-    --go:#93C5FD;
+    --paper:#F5F4F0; --surface:#FFFFFF; --surface2:#EFEDE7; --surface3:#E8E5DB;
+    --ink:#14181F; --ink2:#4A5161; --ink3:#65707F; --ink4:#A6ACB8;
+    --line:#E4E2D9; --hair:#DCDAD0;
+    --accent:#2456D6; --accent-ink:#1E47B0; --accent-wash:#E8EDFB;
+    --bronze:#A1662F; --brick:#A34446; --wine:#8A2D3E;
     --serif:ui-serif,"New York",Georgia,"Times New Roman",serif;
     --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
     --mono:ui-monospace,"SF Mono",Menlo,"Roboto Mono",monospace;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html{background:var(--bg);scroll-behavior:smooth}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+  html{background:var(--paper);scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);
        font-variant-numeric:tabular-nums;min-height:100vh;
        -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-  ::selection{background:var(--over);color:var(--ink)}
+  ::selection{background:var(--accent-wash);color:var(--ink)}
 
   /* ---------- masthead ---------- */
   .mast{display:flex;align-items:center;justify-content:space-between;
-        padding:18px clamp(18px,4vw,44px);border-bottom:1px solid var(--hair);
-        position:sticky;top:0;background:rgba(12,10,9,.82);
+        padding:15px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);
+        position:sticky;top:0;background:rgba(245,244,240,.88);
         -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:20}
-  .mark{font-family:var(--mono);font-size:12px;letter-spacing:.34em;color:var(--ink)}
-  .mark b{color:var(--over);font-weight:400}
+  .mark{font-family:var(--mono);font-size:12px;letter-spacing:.32em;color:var(--ink)}
+  .mark b{color:var(--accent);font-weight:400}
   .mast-r{display:flex;align-items:center;gap:14px;font-family:var(--mono);
-          font-size:10px;letter-spacing:.22em;color:var(--ink3);text-transform:uppercase}
-  .live-dot{width:6px;height:6px;border-radius:3px;background:var(--warn);
-            box-shadow:0 0 0 0 rgba(251,113,133,.55);animation:pulse 2.4s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(251,113,133,.5)}
-    70%{box-shadow:0 0 0 7px rgba(251,113,133,0)}100%{box-shadow:0 0 0 0 rgba(251,113,133,0)}}
+          font-size:10px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
+  .live-dot{width:6px;height:6px;border-radius:3px;background:var(--accent);
+            box-shadow:0 0 0 0 rgba(36,86,214,.4);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(36,86,214,.4)}
+    70%{box-shadow:0 0 0 7px rgba(36,86,214,0)}100%{box-shadow:0 0 0 0 rgba(36,86,214,0)}}
   @media(max-width:560px){.mast-r .hidemob{display:none}}
 
   /* ---------- hero ---------- */
-  .wrap{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,44px)}
-  .hero{padding:clamp(48px,9vh,110px) 0 34px}
-  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.3em;
+  .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
+  .hero{padding:clamp(34px,6vh,64px) 0 26px}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;
            color:var(--ink3);text-transform:uppercase;display:flex;gap:14px;
            align-items:center}
-  .eyebrow::before{content:"";width:34px;height:1px;background:var(--over)}
-  h1{font-family:var(--serif);font-weight:400;letter-spacing:-0.035em;
-     font-size:clamp(58px,11.5vw,148px);line-height:.94;margin:26px 0 0;
+  .eyebrow::before{content:"";width:30px;height:1px;background:var(--accent)}
+  h1{font-family:var(--serif);font-weight:400;letter-spacing:-0.03em;
+     font-size:clamp(34px,5.6vw,62px);line-height:1.02;margin:18px 0 0;
      color:var(--ink)}
-  h1 .l2{display:block;padding-left:.9em}
-  h1 em{font-style:italic;color:var(--over)}
-  .dek{display:flex;justify-content:flex-end;margin-top:30px}
-  .dek p{width:100%;max-width:430px;color:var(--ink2);font-size:15px;
-         line-height:1.65;font-weight:300}
+  h1 em{font-style:italic;color:var(--accent-ink)}
+  .dek{margin-top:16px;max-width:560px}
+  .dek p{color:var(--ink2);font-size:15px;line-height:1.65;font-weight:400}
   .dek p b{color:var(--ink);font-weight:500}
-  @media(max-width:700px){.dek{justify-content:flex-start}}
 
-  /* ---------- field ---------- */
-  .field-card{position:relative;margin-top:44px;border:1px solid var(--hair);
-              border-radius:18px;overflow:hidden;background:var(--panel)}
-  .scrim{position:absolute;inset:0;pointer-events:none;
-         background:linear-gradient(180deg,rgba(12,10,9,.55),transparent 14%,transparent 84%,rgba(12,10,9,.62))}
-  canvas#field{display:block;width:100%;height:clamp(400px,62vh,660px)}
-  canvas#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-  .f-tag{position:absolute;top:16px;left:18px;font-family:var(--mono);
-         font-size:10px;letter-spacing:.24em;text-transform:uppercase;
-         color:var(--ink3);pointer-events:none}
-  .f-tag b{color:var(--ink2);font-weight:400}
-  .f-wind{position:absolute;top:16px;right:18px;font-family:var(--mono);
-          font-size:10px;letter-spacing:.18em;text-transform:uppercase;
-          color:var(--ink3);pointer-events:none;text-align:right}
-  @media(max-width:640px){.f-wind{display:none}.f-tag{max-width:58%}}
-  .legend{position:absolute;left:18px;bottom:16px;right:18px;display:flex;
-          align-items:flex-end;justify-content:space-between;gap:16px;
-          pointer-events:none;flex-wrap:wrap}
-  .rampbox{display:flex;flex-direction:column;gap:6px}
-  .ramp{width:min(300px,56vw);height:7px;border-radius:4px;
-        background:linear-gradient(90deg,#78716C,#FB7185 38%,#E11D48 58%,#9F1239 80%,#4C0519)}
-  .ramp-t{display:flex;justify-content:space-between;width:min(300px,56vw);
-          font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink3)}
-  .f-src{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
-         color:var(--ink3);text-transform:uppercase;text-align:right;line-height:1.9}
-  .f-src b{color:var(--ink2);font-weight:400}
+  /* ---------- map card ---------- */
+  .map-card{position:relative;margin-top:26px;border:1px solid var(--line);
+            border-radius:18px;overflow:hidden;background:var(--surface)}
+  svg#ncr{display:block;width:100%;height:clamp(420px,64vh,680px);
+          touch-action:manipulation;cursor:default}
+  .m-tag{position:absolute;top:16px;left:18px;font-family:var(--mono);
+         font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+         color:var(--ink3);pointer-events:none;line-height:1.9}
+  .m-tag b{color:var(--ink2);font-weight:400}
+  .m-wind{position:absolute;top:16px;right:18px;font-family:var(--mono);
+          font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+          color:var(--ink3);pointer-events:none;text-align:right;line-height:1.9}
+  @media(max-width:640px){.m-wind{display:none}.m-tag{max-width:60%}}
+  .m-legend{position:absolute;left:18px;bottom:16px;right:18px;display:flex;
+            align-items:flex-end;justify-content:space-between;gap:14px;
+            pointer-events:none;flex-wrap:wrap}
+  .chips{display:flex;gap:4px;flex-wrap:wrap;max-width:min(560px,80%)}
+  .chip{display:flex;align-items:center;gap:6px;font-family:var(--mono);
+        font-size:9px;letter-spacing:.08em;color:var(--ink2);
+        background:rgba(255,255,255,.85);border:1px solid var(--line);
+        border-radius:99px;padding:3px 9px 3px 4px}
+  .chip i{width:9px;height:9px;border-radius:3px;flex:none}
+  .m-src{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+         color:var(--ink3);text-transform:uppercase;text-align:right;
+         line-height:1.9;background:rgba(255,255,255,.85);border-radius:8px;
+         padding:4px 8px}
+  .m-src b{color:var(--ink2);font-weight:400}
+
+  /* district detail card — top-left under m-tag on desktop, docks bottom on mobile */
+  .detail{position:absolute;left:18px;top:52px;min-width:210px;max-width:250px;
+          background:rgba(255,255,255,.94);border:1px solid var(--line);
+          border-radius:12px;padding:12px 14px;pointer-events:none;
+          box-shadow:0 8px 24px rgba(20,24,31,.08);
+          opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s}
+  .detail.on{opacity:1;transform:none}
+  .detail .d-name{font-family:var(--serif);font-size:19px;letter-spacing:-.01em;
+                  color:var(--ink)}
+  .detail .d-state{font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+                   text-transform:uppercase;color:var(--ink3);margin-top:2px}
+  .detail .d-aqi{font-family:var(--serif);font-size:30px;line-height:1.15;
+                 color:var(--ink);margin-top:8px;display:flex;align-items:baseline;gap:8px}
+  .detail .d-aqi small{font-family:var(--mono);font-size:9px;letter-spacing:.14em;
+                       color:var(--ink3);text-transform:uppercase}
+  .detail .d-cat{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:99px;
+                 font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+                 text-transform:uppercase;color:#fff}
+  .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:10.5px;
+                color:var(--ink2);line-height:1.8}
+  .detail .d-conf{margin-top:4px;font-size:10px;color:var(--ink4);line-height:1.5}
+  @media(max-width:640px){.detail{top:auto;bottom:64px;left:12px;right:12px;
+    min-width:0;max-width:none}}
 
   /* ---------- ticker ---------- */
-  .ticker{border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);
-          margin-top:34px;overflow:hidden;white-space:nowrap;
+  .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+          margin-top:30px;overflow:hidden;white-space:nowrap;
           -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
           mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
   .ticker-in{display:inline-block;padding:13px 0;font-family:var(--mono);
-             font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+             font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
              color:var(--ink2);animation:scroll 46s linear infinite}
-  .ticker-in i{font-style:normal;color:var(--over);margin:0 18px}
+  .ticker-in i{font-style:normal;color:var(--accent);margin:0 18px}
   .ticker-in b{color:var(--ink);font-weight:400;text-transform:none}
   @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
   @media(prefers-reduced-motion:reduce){.ticker-in{animation:none}.live-dot{animation:none}}
@@ -100,76 +126,68 @@
   .fc-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:3px}
   .fc-bar{border-radius:3px 3px 0 0;min-height:3px}
   .fc-lbls{display:flex;gap:6px;margin-top:5px;font-family:var(--mono);
-           font-size:8.5px;letter-spacing:.1em;color:var(--ink3,#65707F)}
+           font-size:8.5px;letter-spacing:.1em;color:var(--ink3)}
   .fc-lbls span{flex:1}
   .fc-cap{margin-top:7px;font-family:var(--mono);font-size:9.5px;
-          letter-spacing:.14em;text-transform:uppercase;color:var(--ink3,#65707F)}
+          letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
 
   /* ---------- sections ---------- */
-  section{padding:clamp(56px,9vh,104px) 0 8px}
-  .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:38px;
-         border-bottom:1px solid var(--hair);padding-bottom:16px}
-  .sec-n{font-family:var(--mono);font-size:11px;color:var(--over);letter-spacing:.2em}
-  .sec-t{font-family:var(--serif);font-size:clamp(26px,3.6vw,40px);
+  section{padding:clamp(52px,8vh,96px) 0 8px}
+  .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:34px;
+         border-bottom:1px solid var(--line);padding-bottom:14px}
+  .sec-n{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.2em}
+  .sec-t{font-family:var(--serif);font-size:clamp(24px,3.4vw,38px);
          font-weight:400;letter-spacing:-0.02em}
   .sec-t em{font-style:italic;color:var(--ink2)}
-  .sec-sub{font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  .sec-sub{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
            color:var(--ink3);text-transform:uppercase;margin-left:auto;text-align:right}
   @media(max-width:700px){.sec-sub{display:none}}
 
   /* breath */
   .breath{display:grid;grid-template-columns:1.35fr 1fr;gap:44px;align-items:end}
   @media(max-width:820px){.breath{grid-template-columns:1fr}}
-  .big-n{font-family:var(--serif);font-size:clamp(72px,10vw,132px);
+  .big-n{font-family:var(--serif);font-size:clamp(64px,9vw,116px);
          letter-spacing:-0.04em;line-height:1;font-weight:400}
-  .big-n small{font-family:var(--sans);font-size:clamp(15px,1.6vw,19px);
-               color:var(--ink2);font-weight:300;letter-spacing:0}
+  .big-n small{font-family:var(--sans);font-size:clamp(14px,1.6vw,18px);
+               color:var(--ink2);font-weight:400;letter-spacing:0}
   .band-wrap{margin-top:30px}
   .band-scale{position:relative;height:34px;border-radius:6px;overflow:hidden;
-              background:linear-gradient(90deg,rgba(120,113,108,.10),rgba(251,113,133,.10) 38%,rgba(225,29,72,.10) 58%,rgba(159,18,57,.10) 80%,rgba(76,5,25,.22))}
-  .band-sig{position:absolute;top:0;bottom:0;background:rgba(245,245,244,.13);
-            border-left:1px solid rgba(245,245,244,.5);
-            border-right:1px solid rgba(245,245,244,.5)}
+              background:linear-gradient(90deg,rgba(36,86,214,.06),rgba(36,86,214,.14))}
+  .band-sig{position:absolute;top:0;bottom:0;background:rgba(36,86,214,.14);
+            border-left:1px solid rgba(36,86,214,.45);
+            border-right:1px solid rgba(36,86,214,.45)}
   .band-pt{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);
-           box-shadow:0 0 10px rgba(245,245,244,.7)}
-  .band-lab{position:absolute;top:-5px;font-family:var(--mono);font-size:9px;
-            color:var(--ink2);transform:translateX(-50%)}
+           box-shadow:0 0 8px rgba(20,24,31,.35)}
   .band-ticks{display:flex;justify-content:space-between;margin-top:8px;
               font-family:var(--mono);font-size:9px;color:var(--ink4);letter-spacing:.06em}
   .band-cap{margin-top:14px;font-size:12px;color:var(--ink3);line-height:1.6}
   .band-cap b{color:var(--ink2);font-weight:500}
-  .breath-note{font-size:14.5px;line-height:1.75;color:var(--ink2);font-weight:300;
+  .breath-note{font-size:14.5px;line-height:1.75;color:var(--ink2);
                max-width:400px}
   .breath-note p+p{margin-top:14px}
   .breath-note b{color:var(--ink);font-weight:500}
-  .breath-note .vs{font-family:var(--mono);font-size:12px;color:var(--warn)}
+  .breath-note .vs{font-family:var(--mono);font-size:12px;color:var(--brick)}
 
   /* ledger */
   .ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   @media(max-width:960px){.ledger{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:520px){.ledger{grid-template-columns:1fr}}
-  .stat{background:var(--panel);border:1px solid var(--hair);border-radius:16px;
-        padding:22px 20px 20px;display:flex;flex-direction:column;min-height:158px}
-  .stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+        padding:22px 20px 20px;display:flex;flex-direction:column;min-height:150px}
+  .stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;
            text-transform:uppercase;color:var(--ink3);line-height:1.7}
-  .stat .v{font-family:var(--serif);font-size:clamp(34px,3.4vw,46px);font-weight:400;
+  .stat .v{font-family:var(--serif);font-size:clamp(32px,3.2vw,44px);font-weight:400;
            letter-spacing:-0.03em;margin-top:auto;padding-top:16px;line-height:1}
-  .stat .v small{font-family:var(--sans);font-size:13px;color:var(--ink2);font-weight:300}
+  .stat .v small{font-family:var(--sans);font-size:13px;color:var(--ink2);font-weight:400}
   .stat .d{font-size:11.5px;color:var(--ink3);margin-top:9px;line-height:1.55}
   .stat .d b{color:var(--ink2);font-weight:500}
-  .cigs{display:flex;gap:3px;align-items:flex-end;margin-top:12px;min-height:22px;
-        flex-wrap:wrap}
-  .cig{width:13px;height:4px;border-radius:2px;background:var(--ink4);opacity:.85}
-  .cig.on{background:var(--over)}
-  .cig.part{position:relative;overflow:hidden}
-  .cig.part i{position:absolute;left:0;top:0;bottom:0;background:var(--over)}
 
   /* provenance */
   .prov{display:grid;grid-template-columns:360px 1fr;gap:44px;align-items:center}
   @media(max-width:820px){.prov{grid-template-columns:1fr}}
-  .minimap{width:100%;aspect-ratio:1/1.06;background:var(--panel);
-           border:1px solid var(--hair);border-radius:16px}
-  .prov-txt{font-size:14.5px;line-height:1.8;color:var(--ink2);font-weight:300;
+  .minimap{width:100%;aspect-ratio:1/1.05;background:var(--surface);
+           border:1px solid var(--line);border-radius:16px}
+  .prov-txt{font-size:14.5px;line-height:1.8;color:var(--ink2);
             max-width:560px}
   .prov-txt p+p{margin-top:14px}
   .prov-txt b{color:var(--ink);font-weight:500}
@@ -177,10 +195,10 @@
 
   /* corridors */
   table{width:100%;border-collapse:collapse}
-  th{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;
+  th{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
      color:var(--ink3);font-weight:400;text-align:left;padding:0 12px 12px}
-  td{padding:13px 12px;border-top:1px solid var(--hair);font-size:13.5px;
-     color:var(--ink2);font-weight:300;vertical-align:middle}
+  td{padding:13px 12px;border-top:1px solid var(--line);font-size:13.5px;
+     color:var(--ink2);font-weight:400;vertical-align:middle}
   td.rank{font-family:var(--mono);font-size:10px;color:var(--ink4);width:34px}
   td.cell{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
   td.cell small{color:var(--ink3)}
@@ -190,26 +208,26 @@
             border-radius:99px;border:1px solid var(--hair);color:var(--ink2)}
   .dose-chip{display:inline-block;min-width:64px;text-align:right;padding:3px 10px;
              border-radius:99px;font-size:12px;font-variant-numeric:tabular-nums;
-             background:rgba(225,29,72,.10)}
+             background:var(--accent-wash);color:var(--accent-ink)}
   .scrollx{overflow-x:auto}
-  .card2{background:var(--panel);border:1px solid var(--hair);border-radius:18px;
+  .card2{background:var(--surface);border:1px solid var(--line);border-radius:18px;
          padding:20px 14px 8px}
   @media(max-width:640px){td{padding:11px 8px;font-size:12.5px}th{padding:0 8px 10px}}
 
   /* reveal */
-  .rv{opacity:0;transform:translateY(22px);transition:opacity .9s ease,transform .9s cubic-bezier(.22,1,.36,1)}
+  .rv{opacity:0;transform:translateY(18px);transition:opacity .8s ease,transform .8s cubic-bezier(.22,1,.36,1)}
   .rv.in{opacity:1;transform:none}
   @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
 
   /* foot */
-  footer{margin-top:clamp(70px,12vh,130px);border-top:1px solid var(--hair);
+  footer{margin-top:clamp(60px,10vh,110px);border-top:1px solid var(--line);
          padding:34px 0 60px;display:grid;grid-template-columns:1fr auto;gap:26px}
-  .foot-l{max-width:620px;color:var(--ink3);font-size:11.5px;line-height:1.85}
+  .foot-l{max-width:640px;color:var(--ink3);font-size:11.5px;line-height:1.85}
   .foot-l b{color:var(--ink2);font-weight:500}
-  .foot-r{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  .foot-r{font-family:var(--mono);font-size:10px;letter-spacing:.16em;
           text-transform:uppercase;color:var(--ink3);text-align:right;line-height:2.2}
-  a{color:var(--go);text-decoration:none;border-bottom:1px solid rgba(147,197,253,.3)}
-  a:hover{border-bottom-color:var(--go)}
+  a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid rgba(36,86,214,.3)}
+  a:hover{border-bottom-color:var(--accent-ink)}
   @media(max-width:700px){footer{grid-template-columns:1fr}.foot-r{text-align:left}}
 </style>
 </head>
@@ -227,26 +245,21 @@
 <div class="wrap">
   <div class="hero">
     <div class="eyebrow">a live air survey · delhi ncr</div>
-    <h1>the city<span class="l2"><em>breathes.</em></span></h1>
-    <div class="dek"><p>Live air over Delhi — <b>stations, satellites and
-      commutes people chose to share.</b>
-      Every particle below rides tonight's modelled wind across a field
-      kriged from instruments and air-quality models — deep red is what
-      lungs actually inhale.</p></div>
+    <h1>Delhi NCR air, <em>right now.</em></h1>
+    <div class="dek"><p>Every district shaded by the official CPCB AQI
+      scale — a live field kriged from government stations, satellite
+      models and the commutes people chose to share.</p></div>
   </div>
 
-  <div class="field-card">
-    <canvas id="field"></canvas>
-    <canvas id="fx"></canvas>
-    <div class="scrim"></div>
-    <div class="f-tag"><b>pm2.5</b> · µg/m³ · kriged field + wind-advected particles</div>
-    <div class="f-wind" id="windtag">wind —</div>
-    <div class="legend">
-      <div class="rampbox">
-        <div class="ramp"></div>
-        <div class="ramp-t"><span>0</span><span>quiet</span><span>unhealthy</span><span>severe</span><span>400+</span></div>
-      </div>
-      <div class="f-src" id="src">connecting…</div>
+  <div class="map-card">
+    <svg id="ncr" role="img" aria-label="Delhi NCR districts shaded by live AQI"></svg>
+    <div class="m-tag"><b>pm2.5 → aqi</b> · district mean of live field cells<br>
+      tap a district for its number</div>
+    <div class="m-wind" id="windtag">wind —</div>
+    <div class="detail" id="detail"></div>
+    <div class="m-legend">
+      <div class="chips" id="chips"></div>
+      <div class="m-src" id="src">connecting…</div>
     </div>
   </div>
 
@@ -255,7 +268,7 @@
   <section class="rv">
     <div class="sec-h">
       <span class="sec-n">01</span>
-      <span class="sec-t">a breath, <em>tonight</em></span>
+      <span class="sec-t">a breath, <em>today</em></span>
       <span class="sec-sub">point estimate + honest krige band</span>
     </div>
     <div class="breath">
@@ -293,10 +306,9 @@
         <div class="d">estimated from today's donated trips — dose ÷ ambient pm2.5 ÷ 0.5&nbsp;L a breath · <b>updates each refresh</b></div>
       </div>
       <div class="stat">
-        <div class="k">the city smoked today</div>
-        <div class="v"><span id="cignum">—</span><small> cigarettes</small></div>
-        <div class="cigs" id="cigs"></div>
-        <div class="d">collective inhaled dose · <b>316 µg = 1 cigarette</b></div>
+        <div class="k">inhaled across donated trips</div>
+        <div class="v"><span id="doseug">—</span><small> µg pm2.5</small></div>
+        <div class="d">collective inhaled dose today — <b>aggregates only; raw numbers, no per-person data exists server-side</b></div>
       </div>
       <div class="stat">
         <div class="k">commutes shared today</div>
@@ -327,11 +339,11 @@
       <div class="prov-txt">
         <p>Delhi's official monitors were built to regulate, not to tell a
         commuter what they inhaled. <b><span id="nstations">28</span> named
-        instruments</b> anchor tonight's field — dots on the map — blended at
+        instruments</b> anchor today's field — dots on the map — blended at
         triple weight with the CAMS grid and every citizen traversal.</p>
         <p>Where instruments thin out, the krige band widens and the surface
-        goes quiet. That dimming is deliberate: <b>the map admits where it
-        doesn't know.</b></p>
+        goes quiet. District means follow the same rule — <b>sparse-edge
+        districts read from their centroid and say so.</b></p>
         <p class="mono" id="fieldmeta">field —</p>
       </div>
     </div>
@@ -356,8 +368,9 @@
       stations. Field kriged over station feeds when reachable +
       CAMS/Open-Meteo models, Kalman-smoothed, Bayesian-updated by
       traversal-implied concentration. Estimates carry bands —
-      uncertainty is rendered, not hidden. NCT outline simplified.
-      Refreshes every 60s.
+      uncertainty is rendered, not hidden. District boundaries from
+      OpenStreetMap admin relations (ODbL), simplified. Refreshes on the
+      field's own cadence.
     </div>
     <div class="foot-r">
       <a href="/admin">ops ↗</a><br>
@@ -368,25 +381,220 @@
 </div>
 
 <script>
-/* ---------- dose ramp: #78716C quiet → #FB7185 → #E11D48 → #9F1239 → #4C0519 extreme */
-const RAMPS=[[0,'120,113,108'],[0.30,'251,113,133'],[0.52,'225,29,72'],[0.76,'159,18,57'],[1,'76,5,25']];
-function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;
-  while(i<RAMPS.length-2&&t>RAMPS[i+1][0])i++;
-  const [t0,c0]=RAMPS[i],[t1,c1]=RAMPS[i+1];const f=t1>t0?(t-t0)/(t1-t0):0;
-  const p0=c0.split(',').map(Number),p1=c1.split(',').map(Number);
-  const c=p0.map((v,j)=>Math.round(v+(p1[j]-v)*f));return `rgba(${c},${a})`}
-const doseT=pm=>Math.min(1,(pm||0)/400);          // ramp domain 0–400 µg/m³
+/* ---------- CPCB National AQI — official six-band palette ----------
+   hexes per Google's ind_cpcb table, which implements the CPCB scheme
+   (developers.google.com/maps/documentation/air-quality/laqis):
+   Good #00B050 · Satisfactory #92D050 · Moderate #FFFF00 ·
+   Poor #FF6500 · Very Poor #FF0000 · Severe #C00000                    */
+const BANDS=[[0,50,'Good','#00B050'],[51,100,'Satisfactory','#92D050'],
+  [101,200,'Moderate','#FFFF00'],[201,300,'Poor','#FF6500'],
+  [301,400,'Very Poor','#FF0000'],[401,500,'Severe','#C00000']];
+const NODATA='#E8E5DB';
+/* -> [aqi, category, colour] so every painter reads [1]/[2] uniformly */
+const bandOf=a=>{if(a==null)return[null,'No data',NODATA];
+  const b=BANDS.find(b=>a<=b[1])||BANDS[5];return[a,b[2],b[3]]};
 const IN=n=>n==null?'—':Math.round(n).toLocaleString('en-IN');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ---------- geography ---------- */
-const BBOX=[76.80,28.20,77.90,28.95];             // server grid.py bbox
-/* simplified NCT outline (cartographic, not data) */
-const NCT=[[76.838,28.703],[76.879,28.787],[76.955,28.838],[77.036,28.869],
-  [77.111,28.876],[77.169,28.844],[77.229,28.792],[77.267,28.748],
-  [77.289,28.686],[77.310,28.628],[77.326,28.573],[77.315,28.520],
-  [77.293,28.480],[77.280,28.450],[77.229,28.424],[77.169,28.404],
-  [77.085,28.398],[77.015,28.420],[76.968,28.447],[76.951,28.514],
-  [76.932,28.558],[76.896,28.617],[76.856,28.647]];
+/* ---------- geography / projection ---------- */
+let FEATS=[],PX0=0,PY0=0,PS=1,VW=0,VH=0;   // projected px-space
+const LAT0=28.55,KM_PER_DEG_LON=111.32*Math.cos(LAT0*Math.PI/180),KM_PER_DEG_LAT=110.57;
+const toKm=(lon,lat)=>[lon*KM_PER_DEG_LON,lat*KM_PER_DEG_LAT];
+
+function computeView(){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const f of FEATS)for(const ring of f._rings)
+    for(const [lo,la] of ring){const [x,y]=toKm(lo,la);
+      if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  const pad=(x1-x0)*0.045;
+  x0-=pad;x1+=pad;y0-=pad;y1+=pad;
+  PX0=x0;PY0=y0;VW=x1-x0;VH=y1-y0;PS=1;   // viewBox already km
+}
+const X=lo=>(lo*KM_PER_DEG_LON-PX0);
+const Y=la=>(VH-(la*KM_PER_DEG_LAT-PY0));  // north-up
+
+function ringPath(ring){
+  let d='';
+  for(let i=0;i<ring.length;i++){const p=ring[i];
+    d+=(i?'L':'M')+X(p[0]).toFixed(2)+' '+Y(p[1]).toFixed(2)}
+  return d+'Z'}
+function featPath(f){return f._rings.map(ringPath).join(' ')}
+
+const SVGNS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('ncr');
+let gCells,gDist,gLab;                      // svg layers
+const DETAIL=document.getElementById('detail');
+let selName=null;
+
+function buildMap(){
+  computeView();
+  svg.setAttribute('viewBox',`0 0 ${VW.toFixed(2)} ${VH.toFixed(2)}`);
+  svg.innerHTML='';
+  gCells=document.createElementNS(SVGNS,'g');
+  gDist=document.createElementNS(SVGNS,'g');
+  gLab=document.createElementNS(SVGNS,'g');
+  svg.append(gCells,gDist,gLab);
+  for(const f of FEATS){
+    const p=document.createElementNS(SVGNS,'path');
+    p.setAttribute('d',featPath(f));
+    p.dataset.name=f.properties.name;
+    p.setAttribute('fill',NODATA);
+    p.setAttribute('fill-opacity','0.86');
+    p.setAttribute('stroke','#FFFFFF');
+    p.setAttribute('stroke-width','0.5');
+    p.setAttribute('stroke-linejoin','round');
+    p.style.transition='fill-opacity .9s ease';
+    p.style.cursor='pointer';
+    const show=f.properties.name;
+    p.addEventListener('pointerenter',()=>highlight(show));
+    p.addEventListener('pointerdown',()=>highlight(show));      // tap = same card
+    p.addEventListener('pointerleave',()=>unhighlight(show));
+    gDist.appendChild(p);f._path=p;
+    const c=f.properties.centroid;
+    if(c){
+      const t=document.createElementNS(SVGNS,'text');
+      t.setAttribute('x',X(c[0]));t.setAttribute('y',Y(c[1]));
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('font-family','ui-monospace,Menlo,monospace');
+      t.setAttribute('font-size','1.6');
+      t.setAttribute('letter-spacing','.04em');
+      t.setAttribute('fill','rgba(20,24,31,.55)');
+      t.setAttribute('pointer-events','none');
+      t.textContent=f.properties.name;
+      gLab.appendChild(t);f._label=t;
+    }
+  }
+}
+
+function highlight(name){
+  selName=name;
+  for(const f of FEATS){const on=f.properties.name===name;
+    f._path.setAttribute('stroke',on?'var(--ink)':'#FFFFFF');
+    f._path.setAttribute('stroke-width',on?'1.1':'0.5');
+    f._path.setAttribute('fill-opacity',on?'1':'0.86');
+    if(f._label)f._label.setAttribute('fill',on?'#14181F':'rgba(20,24,31,.55)');
+    if(on)gDist.appendChild(f._path)}
+  const f=FEATS.find(f=>f.properties.name===name);
+  if(f)showDetail(f);
+}
+function unhighlight(name){selName=null;DETAIL.classList.remove('on');
+  for(const f of FEATS){f._path.setAttribute('stroke','#FFFFFF');
+    f._path.setAttribute('stroke-width','0.5');
+    f._path.setAttribute('fill-opacity','0.86');
+    if(f._label)f._label.setAttribute('fill','rgba(20,24,31,.55)')}}
+
+function showDetail(f){
+  const d=f._data||{};
+  const band=bandOf(d.aqi);
+  DETAIL.innerHTML=
+    `<div class="d-name">${esc(f.properties.name)}</div>`+
+    `<div class="d-state">${esc(f.properties.state||'')}${d.cells_covered!=null?` · ${d.cells_covered} field cells`:''}</div>`+
+    `<div class="d-aqi">${d.aqi!=null?d.aqi:'—'}<small>aqi · pm2.5 ${d.pm25!=null?d.pm25+' µg/m³':'—'}</small></div>`+
+    `<div class="d-cat" style="background:${band[2]};${band[1]==='Moderate'||band[1]==='Satisfactory'?'color:#14181F':''}">${band[1]}</div>`+
+    `<div class="d-conf">${d.confidence==='sparse'?'district edge — centroid estimate, few field cells':(d.confidence==='none'?'no live read over this district':'mean of live field cells inside the boundary')}</div>`;
+  DETAIL.classList.add('on');
+}
+
+/* ---------- live-cell underlayer (the pixel field, tinted subtle) --- */
+function paintCells(features){
+  gCells.innerHTML='';
+  const seen={};
+  for(const ft of features){
+    const g=ft.geometry;if(!g||g.type!=='Polygon')continue;
+    const r=g.coordinates[0];if(!r)continue;
+    const pm=(ft.properties||{}).pm25;if(pm==null)continue;
+    const a=r[0],b=r[2];
+    const x=X(Math.min(a[0],b[0])),y=Y(Math.max(a[1],b[1]));
+    const w=Math.abs(X(Math.max(a[0],b[0]))-x),h=Math.abs(Y(Math.min(a[1],b[1]))-y);
+    const key=`${x.toFixed(1)}|${y.toFixed(1)}`;
+    const el=document.createElementNS(SVGNS,'rect');
+    el.setAttribute('x',x-w*0.48);el.setAttribute('y',y-h*0.48);
+    el.setAttribute('width',w*0.96);el.setAttribute('height',h*0.96);
+    // each pixel tinted by its own CPCB band — subtle under the fills
+    el.setAttribute('fill',bandOf(cpcbOf(pm))[2]);
+    el.setAttribute('fill-opacity','0.22');
+    gCells.appendChild(el);
+  }
+}
+/* the page re-derives the CPCB sub-index per pixel so the underlayer
+   speaks the same scale the district fills do */
+function cpcbOf(pm){
+  const T=[[0,30,0,50],[30,60,51,100],[60,90,101,200],[90,120,201,300],
+           [120,250,301,400],[250,500,401,500]];
+  for(const [lo,hi,al,ah] of T)if(pm<=hi)return al+(ah-al)*(pm-lo)/(hi-lo);
+  return 500}
+
+/* ---------- CPCB legend ---------- */
+function paintChips(){
+  document.getElementById('chips').innerHTML=
+    BANDS.map(([lo,hi,c,col])=>
+      `<div class="chip"><i style="background:${col}"></i>${c} ${lo}–${hi}</div>`).join('')+
+    `<div class="chip"><i style="background:${NODATA}"></i>no live read</div>`;
+}
+
+/* ---------- district fills ---------- */
+function paintDistricts(rows){
+  const byName={};rows.forEach(r=>byName[r.name]=r);
+  for(const f of FEATS){
+    const d=byName[f.properties.name];
+    f._data=d||null;
+    f._path.setAttribute('fill',d?bandOf(d.aqi)[2]:NODATA);
+    f._path.setAttribute('fill-opacity',d&&d.aqi!=null?'0.86':'0.55');
+  }
+  if(selName){const f=FEATS.find(f=>f.properties.name===selName);if(f)showDetail(f)}
+}
+
+/* ---------- breath band ---------- */
+function paintBand(a){
+  const lo=a.pm25_lo,hi=a.pm25_hi,v=a.pm25;
+  const cap=x=>Math.max(0,Math.min(100,x/500*100));
+  if(v==null){document.getElementById('bandcap').textContent='field unavailable — retrying';return}
+  const sig=document.getElementById('bandsig'),pt=document.getElementById('bandpt');
+  if(lo!=null&&hi!=null){
+    sig.style.left=cap(lo)+'%';sig.style.width=(cap(hi)-cap(lo))+'%';sig.style.display='block';
+    document.getElementById('bandcap').innerHTML=
+      `krige σ-band <b>${lo}–${hi} µg/m³</b> — interpolation variance + 12% instrument floor, widened where stations thin out`;
+  }else{sig.style.display='none';
+    document.getElementById('bandcap').innerHTML='idw fallback — <b>no σ band</b>; sparse samples, estimate only'}
+  pt.style.left=cap(v)+'%';
+}
+function paintForecast(slots){
+  const el=document.getElementById('forecast');
+  if(!slots||slots.length<2){el.innerHTML='';return}
+  const mx=Math.max(...slots.map(s=>s.pm25||0),1);
+  el.innerHTML='<div class="fc-row">'+slots.map(s=>{
+    const t=Math.min(1,(s.pm25||0)/300);
+    const h=Math.max(3,Math.round(34*(s.pm25||0)/mx));
+    return `<div class="fc-col" title="+${s.h}h · ${s.pm25} µg/m³"><div class="fc-bar" style="height:${h}px;background:rgba(36,86,214,${(0.25+0.6*t).toFixed(2)})"></div></div>`
+  }).join('')+'</div>'
+    +'<div class="fc-lbls">'+slots.map(s=>`<span>${s.h===0?'now':(s.h%3===0?'+'+s.h+'h':'')}</span>`).join('')+'</div>'
+    +'<div class="fc-cap">the next 12 hours — cams outlook anchored to the live field · µg/m³</div>';
+}
+function paintTicker(a,t,ad,nd){
+  const items=[
+    [`pm2.5`,`${a.pm25??'—'} µg/m³`],
+    [`pm10`,`${a.pm10??'—'} µg/m³`],
+    [`no₂`,`${a.no2??'—'} µg/m³`],
+    [`o₃`,`${a.o3??'—'} µg/m³`],
+    [`co`,`${a.co??'—'} µg/m³`],
+    [`so₂`,`${a.so2??'—'} µg/m³`],
+    [`us aqi`,`${a.us_aqi??'—'}`],
+    [`krige band`,`${a.pm25_lo??'—'}–${a.pm25_hi??'—'}`],
+    [`wind`,`${Math.round(windNow.speed_kmh)} km/h from ${compass(windNow.from_deg)}`],
+    [`instruments`,`${a.field?.station_readings??'—'} live`],
+    [`grap indicative`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
+    [`districts`,`${nd} live`],
+    [`commutes today`,`${IN(t.obs_24h)}`],
+    [`km donated`,`${IN(t.km_24h)}`],
+    [`cells tracked`,`${IN(t.cells_tracked)}`],
+    [`corridors ≥3 devices`,`${IN(t.corridors_publishable)}`],
+    [`field age`,`${ad.field_age_s!=null?Math.floor(ad.field_age_s/60)+' min':'—'}`],
+    [`next refresh`,`${ad.refresh_in_s!=null?Math.floor(ad.refresh_in_s/60)+' min':'—'}`]];
+  const s=items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>◆</i>');
+  document.getElementById('ticker').innerHTML=s+'<i>◆</i>'+s+'<i>◆</i>';
+}
+
+/* ---------- provenance minimap — district outlines + station anchors - */
 const STATIONS=[[77.3162,28.6468],[77.1754,28.6927],[77.0326,28.7936],
   [77.2010,28.7265],[77.1112,28.7501],[77.0640,28.5710],[77.2426,28.6315],
   [77.1708,28.7328],[77.2277,28.5918],[77.2015,28.6364],[77.0929,28.8522],
@@ -395,65 +603,52 @@ const STATIONS=[[77.3162,28.6468],[77.1754,28.6927],[77.0326,28.7936],
   [77.2263,28.5511],[77.2494,28.7330],[77.3153,28.6723],[77.1658,28.6999],
   [77.1317,28.4706],[77.3220,28.5440],[77.0620,28.4100],[77.3741,28.6427],
   [77.3150,28.3700]];
-const pointInPoly=(lon,lat)=>{let ins=false;
-  for(let i=0,j=NCT.length-1;i<NCT.length;j=i++){
-    const xi=NCT[i][0],yi=NCT[i][1],xj=NCT[j][0],yj=NCT[j][1];
-    if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi))ins=!ins}
-  return ins};
-
-/* ---------- state ---------- */
-const cv=document.getElementById('field'),cx=cv.getContext('2d');
-const fx=document.getElementById('fx'),px=fx.getContext('2d');
-const mm=document.getElementById('minimap'),mx=mm.getContext('2d');
-let cells=[],look=null,LW=0,LH=0;                 // pm lookup grid
-let wind={speed_kmh:10,from_deg:300},particles=[],dpr=1,W=0,H=560;
-let breaths=0;
-const CONF_A={hi:.50,med:.32,lo:.16};
-
-function xy(lon,lat){return [(lon-BBOX[0])/(BBOX[2]-BBOX[0])*W,
-                             (1-(lat-BBOX[1])/(BBOX[3]-BBOX[1]))*H]}
-function buildLook(){                              // px → pm in O(1)
-  const gw=Math.max(40,Math.round(W/16)),gh=Math.max(30,Math.round(H/16));
-  look=new Float32Array(gw*gh);LW=gw;LH=gh;
-  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){
-    const x=(i+.5)*W/gw,y=(j+.5)*H/gh;let bd=1e9,pm=0;
-    for(const c of cells){const d=(c.x-x)*(c.x-x)+(c.y-y)*(c.y-y);
-      if(d<bd){bd=d;pm=c.pm}}
-    look[j*gw+i]=pm}}
-const pmAt=(x,y)=>look?look[Math.min(LH-1,Math.max(0,(y/H*LH)|0))*LW+
-                        Math.min(LW-1,Math.max(0,(x/W*LW)|0))]:null;
-
-function boot(){
-  dpr=window.devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;
-  cv.width=W*dpr;cv.height=H*dpr;cx.setTransform(dpr,0,0,dpr,0,0);
-  fx.width=W*dpr;fx.height=H*dpr;px.setTransform(dpr,0,0,dpr,0,0);
-  const n=Math.max(320,Math.min(900,Math.round(W*H/900)));
-  particles=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,
-    vx:0,vy:0,ph:Math.random()*6.28}));
-  paintBase();
-  if(cells.length)buildLook();
+function paintMini(){
+  const mm=document.getElementById('minimap'),mx=mm.getContext('2d');
+  const r=mm.getBoundingClientRect();if(!r.width)return;
+  const d=window.devicePixelRatio||1;
+  mm.width=r.width*d;mm.height=r.height*d;mx.setTransform(d,0,0,d,0,0);
+  const mW=r.width,mH=r.height,pad=16;
+  // reuse the choropleth's own projection — fit the district extent
+  const k=Math.min((mW-2*pad)/VW,(mH-2*pad)/VH);
+  const ox=pad+(mW-2*pad-VW*k)/2, oy=pad+(mH-2*pad-VH*k)/2;
+  const px=lon=>ox+X(lon)*k, py=lat=>oy+Y(lat)*k;
+  mx.strokeStyle='rgba(101,112,127,.4)';mx.lineWidth=1;
+  for(const f of FEATS){
+    mx.beginPath();
+    f._rings.forEach(ring=>ring.forEach(([lo,la],i)=>
+      i?mx.lineTo(px(lo),py(la)):mx.moveTo(px(lo),py(la))));
+    mx.stroke()}
+  for(const [lo,la] of STATIONS){
+    const x=px(lo),y=py(la);
+    if(x<0||x>mW||y<0||y>mH)continue;
+    mx.beginPath();mx.arc(x,y,2.2,0,6.29);
+    mx.fillStyle='rgba(36,86,214,.75)';mx.fill()}
 }
 
 /* ---------- data ---------- */
+let windNow={speed_kmh:10,from_deg:300};
+let refreshMs=60000;
+
+async function loadGeo(){
+  const g=await fetch('/ncr.geojson').then(r=>r.json());
+  FEATS=(g.features||[]).map(f=>{
+    const t=f.geometry&&f.geometry.type,c=f.geometry&&f.geometry.coordinates||[];
+    f._rings=(t==='Polygon'?[c[0]]:t==='MultiPolygon'?c.map(p=>p[0]):[]).filter(Boolean);
+    return f}).filter(f=>f._rings.length);
+  buildMap();paintChips();
+}
+
 async function load(){
   try{
-    const [g,a,cy]=await Promise.all([
+    const [g,a,cy,dd]=await Promise.all([
       fetch('/grid?cells=34').then(r=>r.json()),
       fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.json()),
-      fetch('/v2/city').then(r=>r.json())]);
-    cells=(g.features||[]).map(f=>{const p=cellC(f.geometry);if(!p)return null;
-      const [x,y]=xy(p[0],p[1]);
-      return{x,y,pm:f.properties.pm25||0,conf:f.properties.conf||'lo',
-             in:pointInPoly(p[0],p[1])}})
-      .filter(Boolean);
-    cells.forEach(c=>{c.sx=W/34*1.04;c.sy=H/34*1.04});
-    buildLook();paintBase();
-    wind=a.wind||wind;
-
-    /* breath counter — dose_ug ÷ ambient pm = m³ breathed, ÷0.5L = breaths.
-     * Community aggregates come from the PUBLIC /v2/city payload
-     * (trips.days keyed by UTC date) — /admin/api is token-gated and
-     * this page must never show a 401 as zeros. */
+      fetch('/v2/city').then(r=>r.json()),
+      fetch('/v2/districts').then(r=>r.json())]);
+    if(g.features)paintCells(g.features);
+    paintDistricts(dd.districts||[]);
+    windNow=a.wind||windNow;
     const days=(cy.trips&&cy.trips.days)||{};
     const dayKeys=Object.keys(days).sort();
     const latest=dayKeys.length?days[dayKeys[dayKeys.length-1]]:{};
@@ -468,19 +663,17 @@ async function load(){
     const ad={corridors:cy.corridors||[],field_age_s:cy.field_age_s,
               refresh_in_s:cy.field?.refresh_in_s,freshness:cy.freshness};
     const pm=a.pm25||0;
-    breaths=pm>0?(t.dose_ug_24h||0)/pm*2000:0;
-    paintBreaths(breaths);
-
+    document.getElementById('breaths').textContent=
+      pm>0?Math.floor((t.dose_ug_24h||0)/pm*2000).toLocaleString('en-IN'):'—';
     setTxt('pm',a.pm25??'—');
+    setTxt('doseug',IN(t.dose_ug_24h));
     setTxt('src',`${a.field?.source||'—'} · ${a.field?.samples??'?'} samples · ${a.field?.station_readings??'?'} stations · krige ${a.field?.kriging||'—'}`);
-    setTxt('windtag',`wind ${Math.round(wind.speed_kmh)} km/h · from ${Math.round(wind.from_deg)}° ${compass(wind.from_deg)}`);
+    setTxt('windtag',`wind ${Math.round(windNow.speed_kmh)} km/h · from ${Math.round(windNow.from_deg)}° ${compass(windNow.from_deg)}`);
     paintBand(a);
     setTxt('obs',IN(t.obs_24h??t.obs_total));
     setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_total));
     setTxt('corr',IN(t.corridors_publishable));
     setTxt('cellstr',IN(t.cells_tracked));
-    /* emission parity — the same donated day carries co2_kg_mid,
-       pm25_g_mid and the mode tally; zero days read as no data */
     const co2v=latest.co2_kg_mid,pmv=latest.pm25_g_mid;
     if(co2v!=null&&(latest.trips||0)>0){
       setTxt('co2',(+co2v).toFixed(co2v<1?2:1));
@@ -493,181 +686,46 @@ async function load(){
       setTxt('co2','—');
       setTxt('co2d','no donated commutes today — the app fills this as delhi moves');
     }
-    paintCigs((t.dose_ug_24h||0)/316);
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
     setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
     const ty=a.typical;
     document.getElementById('typical').innerHTML=ty?
       `<span class="vs">${ty.vs_now_pct>0?'+':''}${ty.vs_now_pct}%</span> vs the decade-typical <b>${Math.round(ty.median)} µg/m³</b> for this month, this hour (9M measured station-hours).`:'';
     paintForecast(a.next_hours);
-    paintTicker(a,t,ad);
+    paintTicker(a,t,ad,(dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
     const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
       `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>
-       <td class="cell">${c.name||`${c.lat.toFixed(3)}°N · ${c.lon.toFixed(3)}°E`}</td>
+       <td class="cell">${esc(c.name||`${(+c.lat).toFixed(3)}°N · ${(+c.lon).toFixed(3)}°E`)}</td>
        <td class="num">${IN(c.trips)}</td>
-       <td class="num"><span class="dose-chip" style="color:${ramp(Math.min(.5,c.avg_dose_ug/316),1)};border:1px solid ${ramp(Math.min(1,c.avg_dose_ug/316),.4)}">${IN(c.avg_dose_ug)} µg</span></td>
-       <td><span class="modep">${c.relative||'—'}</span></td></tr>`).join('');
+       <td class="num"><span class="dose-chip">${IN(Math.round(c.avg_dose_ug))} µg</span></td>
+       <td><span class="modep">${c.relative||'—'} median</span></td></tr>`).join('');
     document.getElementById('corridors').innerHTML=
       '<tr><th></th><th>corridor</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>vs median</th></tr>'+
       (rows||'<tr><td colspan="5" style="color:var(--ink3)">no donated traversals yet — the app fills this as delhi moves</td></tr>');
     setTxt('stamp','updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' ist');
+    /* cadence from the field itself — refresh_in_s rides /v2/city */
+    const rs=(ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000;
+    if(rs!==refreshMs){refreshMs=rs;schedule()}
   }catch(e){setTxt('stamp','reconnecting…')}
 }
 
-function paintBand(a){
-  const lo=a.pm25_lo,hi=a.pm25_hi,v=a.pm25;
-  const sc=document.getElementById('bandscale');if(!sc)return;
-  const cap=x=>Math.max(0,Math.min(100,x/500*100));
-  if(v==null){document.getElementById('bandcap').textContent='field unavailable — retrying';return}
-  const sig=document.getElementById('bandsig'),pt=document.getElementById('bandpt');
-  if(lo!=null&&hi!=null){
-    sig.style.left=cap(lo)+'%';sig.style.width=(cap(hi)-cap(lo))+'%';sig.style.display='block';
-    document.getElementById('bandcap').innerHTML=
-      `krige σ-band <b>${lo}–${hi} µg/m³</b> — interpolation variance + 12% instrument floor, widened where stations thin out`;
-  }else{sig.style.display='none';
-    document.getElementById('bandcap').innerHTML='idw fallback — <b>no σ band</b>; sparse samples, estimate only'}
-  pt.style.left=cap(v)+'%';
-  pt.style.background=ramp(doseT(v),1);
-  pt.style.boxShadow=`0 0 12px ${ramp(doseT(v),.9)}`;
-}
-function paintCigs(cigs){
-  setTxt('cignum',cigs.toFixed(1));
-  const strip=document.getElementById('cigs');strip.innerHTML='';
-  const full=Math.min(40,Math.floor(cigs)),part=cigs-Math.floor(cigs);
-  for(let i=0;i<40;i++){const d=document.createElement('div');
-    if(i<full){d.className='cig on';d.style.background=ramp(0.52+i/40*0.48,1)}
-    else if(i===full&&part>0.02){d.className='cig part';
-      const f=document.createElement('i');f.style.width=(part*100)+'%';d.appendChild(f)}
-    else d.className='cig';
-    strip.appendChild(d)}
-}
-function paintTicker(a,t,ad){
-  const items=[
-    [`pm2.5`,`${a.pm25??'—'} µg/m³`],
-    [`pm10`,`${a.pm10??'—'} µg/m³`],
-    [`no₂`,`${a.no2??'—'} µg/m³`],
-    [`o₃`,`${a.o3??'—'} µg/m³`],
-    [`co`,`${a.co??'—'} µg/m³`],
-    [`so₂`,`${a.so2??'—'} µg/m³`],
-    [`us aqi`,`${a.us_aqi??'—'}`],
-    [`krige band`,`${a.pm25_lo??'—'}–${a.pm25_hi??'—'}`],
-    [`wind`,`${Math.round(wind.speed_kmh)} km/h from ${compass(wind.from_deg)}`],
-    [`instruments`,`${a.field?.station_readings??'—'} live`],
-    [`grap indicative`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
-    [`commutes today`,`${IN(t.obs_24h)}`],
-    [`km donated`,`${IN(t.km_24h)}`],
-    [`cells tracked`,`${IN(t.cells_tracked)}`],
-    [`corridors ≥3 devices`,`${IN(t.corridors_publishable)}`],
-    [`field age`,`${ad.field_age_s!=null?Math.floor(ad.field_age_s/60)+' min':'—'}`],
-    [`next refresh`,`${ad.refresh_in_s!=null?Math.floor(ad.refresh_in_s/60)+' min':'—'}`]];
-  const s=items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>◆</i>');
-  document.getElementById('ticker').innerHTML=s+'<i>◆</i>'+s+'<i>◆</i>';
-}
-function paintForecast(slots){
-  const el=document.getElementById('forecast');
-  if(!slots||slots.length<2){el.innerHTML='';return}
-  const mx=Math.max(...slots.map(s=>s.pm25||0),1);
-  el.innerHTML='<div class="fc-row">'+slots.map(s=>{
-    const t=Math.min(1,(s.pm25||0)/300);
-    const h=Math.max(3,Math.round(34*(s.pm25||0)/mx));
-    return `<div class="fc-col" title="+${s.h}h · ${s.pm25} µg/m³"><div class="fc-bar" style="height:${h}px;background:${ramp(t,.85)}"></div></div>`
-  }).join('')+'</div>'
-    +'<div class="fc-lbls">'+slots.map(s=>`<span>${s.h===0?'now':(s.h%3===0?'+'+s.h+'h':'')}</span>`).join('')+'</div>'
-    +'<div class="fc-cap">the next 12 hours — cams outlook anchored to the live field · µg/m³</div>';
-}
-function paintBreaths(v){const el=document.getElementById('breaths');
-  el.textContent=Math.floor(v).toLocaleString('en-IN')}
-function paintMini(){
-  const r=mm.getBoundingClientRect();if(!r.width)return;
-  const d=window.devicePixelRatio||1;
-  mm.width=r.width*d;mm.height=r.height*d;mx.setTransform(d,0,0,d,0,0);
-  const mW=r.width,mH=r.height,pad=18;
-  const x0=76.80,x1=77.90,y0=28.20,y1=28.95;
-  const px=lon=>pad+(lon-x0)/(x1-x0)*(mW-2*pad);
-  const py=lat=>pad+(1-(lat-y0)/(y1-y0))*(mH-2*pad);
-  mx.strokeStyle='rgba(168,162,158,.28)';mx.lineWidth=1;
-  mx.beginPath();NCT.forEach(([lo,la],i)=>i?mx.lineTo(px(lo),py(la)):mx.moveTo(px(lo),py(la)));
-  mx.closePath();mx.stroke();
-  mx.fillStyle='rgba(168,162,158,.05)';mx.fill();
-  for(const [lo,la] of STATIONS){
-    const inside=pointInPoly(lo,la);
-    mx.beginPath();mx.arc(px(lo),py(la),inside?2.6:1.8,0,6.29);
-    mx.fillStyle=inside?'rgba(251,113,133,.85)':'rgba(120,113,108,.5)';mx.fill();
-    if(inside){mx.beginPath();mx.arc(px(lo),py(la),5.5,0,6.29);
-      mx.strokeStyle='rgba(251,113,133,.18)';mx.stroke()}}
-}
 function setTxt(id,v){const e=document.getElementById(id);if(e)e.textContent=v}
-function cellC(g){if(!g)return null;const t=g.type,c=g.coordinates;
-  if(t==='Point')return c;const r=t==='Polygon'?c[0]:(c[0]&&c[0][0]);if(!r)return null;
-  let x=0,y=0,n=0;for(let i=0;i<r.length-1;i++){x+=r[i][0];y+=r[i][1];n++}
-  return n?[x/n,y/n]:null}
 function compass(d){const D=['N','NE','E','SE','S','SW','W','NW'];
   return D[Math.round(d/45)%8]}
-
-/* ---------- render loop ---------- */
-function drawGeo(){                                // outline + station anchors
-  cx.beginPath();NCT.forEach(([lo,la],i)=>{const [x,y]=xy(lo,la);
-    i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.closePath();
-  cx.strokeStyle='rgba(168,162,158,.22)';cx.lineWidth=1;cx.stroke();
-  for(const [lo,la] of STATIONS){const [x,y]=xy(lo,la);
-    if(x<-8||x>W+8||y<-8||y>H+8)continue;
-    const inside=pointInPoly(lo,la);
-    cx.beginPath();cx.arc(x,y,inside?2:1.4,0,6.29);
-    cx.fillStyle=inside?'rgba(245,245,244,.55)':'rgba(168,162,158,.28)';cx.fill()}}
-function paintBase(){                              // baked layer — no accumulation
-  cx.fillStyle='#0C0A09';cx.fillRect(0,0,W,H);
-  for(const c of cells){cx.fillStyle=ramp(doseT(c.pm),
-    (CONF_A[c.conf]||0.16)*(c.in?1:0.45));
-    cx.fillRect(c.x-c.sx/2,c.y-c.sy/2,c.sx,c.sy)}
-  drawGeo();drawWindArrow()}
-function drawWindArrow(){
-  const x=W-34,y=H-86,r=wind.from_deg*Math.PI/180;
-  cx.save();cx.translate(x,y);
-  cx.strokeStyle='rgba(168,162,158,.4)';cx.lineWidth=1;
-  cx.beginPath();cx.arc(0,0,13,0,6.29);cx.stroke();
-  cx.rotate(r+Math.PI);                          // air travels TO bearing from+180
-  cx.beginPath();cx.moveTo(0,-9);cx.lineTo(0,7);
-  cx.moveTo(-3.5,3.5);cx.lineTo(0,8);cx.lineTo(3.5,3.5);cx.stroke();
-  cx.restore()}
-const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-function tick(){
-  /* breath counter paints on each data refresh only — no fake ticking
-     between fetches (claims audit) */
-  /* alpha-fade on the transparent fx layer: destination-in keeps 88%
-     of last frame's alpha → luminous decaying trails over the baked field */
-  px.globalCompositeOperation='destination-in';
-  px.fillStyle='rgba(0,0,0,0.88)';px.fillRect(0,0,W,H);
-  px.globalCompositeOperation='source-over';
-  const rad=wind.from_deg*Math.PI/180,sp=0.7+Math.min(2.6,wind.speed_kmh/11);
-  const wx=-Math.sin(rad)*sp,wy=Math.cos(rad)*sp;   /* FROM bearing → TO = +180° */
-  px.lineCap='round';
-  for(const p of particles){
-    p.vx+=(wx-p.vx)*0.028+Math.sin(p.ph+=0.004)*0.012;
-    p.vy+=(wy-p.vy)*0.028+Math.cos(p.ph*0.7)*0.012;
-    const ox=p.x,oy=p.y;
-    p.x+=p.vx+(Math.random()-0.5)*0.5;p.y+=p.vy+(Math.random()-0.5)*0.5;
-    if(p.x<-8)p.x=W+8;if(p.x>W+8)p.x=-8;if(p.y<-8)p.y=H+8;if(p.y>H+8)p.y=-8;
-    const pm=pmAt(p.x,p.y);if(pm==null)continue;
-    const t=doseT(pm),spd=Math.hypot(p.vx,p.vy);
-    px.strokeStyle=ramp(t,0.42+0.30*t);           /* dose-graded colour+heat */
-    px.lineWidth=0.9+t*1.5+Math.min(0.8,spd*0.2);
-    px.beginPath();px.moveTo(ox,oy);px.lineTo(p.x,p.y);px.stroke()}
-  requestAnimationFrame(tick)}
-function stillFrame(){paintBase()}
-
 function clock(){setTxt('clock',new Date().toLocaleTimeString('en-IN',
   {timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST')}
+
+let timer=null;
+function schedule(){clearInterval(timer);timer=setInterval(load,refreshMs)}
 const io=new IntersectionObserver(es=>es.forEach(e=>
   e.isIntersecting&&e.target.classList.add('in')),{threshold:0.12});
 document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 
-boot();load();clock();
-still?stillFrame():tick();
-let stillT;window.addEventListener('resize',()=>{
-  clearTimeout(stillT);stillT=setTimeout(()=>{boot();paintMini();still&&stillFrame()},180)});
-window.addEventListener('load',paintMini);
-setInterval(load,60000);setInterval(clock,30000);
+loadGeo().then(load).catch(()=>{load()});
+clock();schedule();
+setInterval(clock,30000);
+window.addEventListener('resize',()=>{paintMini()});
 </script>
 </body>
 </html>
