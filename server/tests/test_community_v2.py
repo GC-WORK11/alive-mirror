@@ -194,3 +194,19 @@ def test_recent_obs_are_hour_buckets_not_trips():
     assert "contributor" not in _keys(rows)
     assert {"hour", "age_min", "trips", "vehicle", "dose_ug",
             "avoided_ug", "km"} <= _keys(rows)
+
+
+def test_corridors_tolerate_pre_km_snapshots():
+    """Prod regression: snapshots written before obs carried km/cells
+    (raw points only) crashed corridors() with KeyError 'km' -> /admin/api
+    500. They must fold through _obs_km/_obs_cells like every other path."""
+    now = time.time()
+    for dev in ("a", "b", "c"):
+        community._obs.append({
+            "ts": now, "vehicle": "bus", "duration_s": 600.0,
+            "dose_ug": 30.0, "avoided_ug": 0.0, "contributor": _tok(dev),
+            "points": [[77.2090, 28.6300], [77.2091, 28.6301]],
+        })
+    out = community.corridors()
+    assert len(out) == 1 and out[0]["devices"] == 3
+    assert community.totals()["obs_total"] == 3
