@@ -86,3 +86,46 @@ traffic stays at p50).
   "Rajendra Nagar"; a literal "Rajinder Nagar" exists only as post
   office/constituency rows. In-area, spelling-canonicalized — the
   classifier counts it wrong on substring, the row is honest.
+
+## Wave 3 — live-path ranking fixes (post-deploy re-audit)
+
+The wave-2 deployment (build c1d96295) surfaced a divergence: local
+engine output was correct but the live `/v2/search` merge layer
+re-sorted T1 rows by `(match_rank, -score, distance)` — destroying the
+engine's deliberate ordering — and its `match_rank` tagger knew only
+name-prefix matching (no aliases), so a literal-name platform
+("AIIMS") always beat the alias-matched landmark (the hospital).
+
+Fixes landed on the shared live index path:
+
+- `v2/search.py` merge preserves engine position within a match class
+  (`_t1_pos`), and the tagger skips rows the engine already classed.
+- Engine propagates a resolved accessory's match class to the
+  same-name landmark (`_demote_accessory`), so the hospital parks the
+  "AIIMS" bays' literal-name rank instead of being re-inverted.
+- `match_rank` compare fixed for the falsy-zero case (`cls == 0` is a
+  real class — `cur or 99` silently erased rank-0 lifts).
+- `_foreign_place(anchor, leftover)`: a house/unit row whose trailing
+  alpha tokens resolve to a place lacking every distinctive anchor
+  token is a different colony — flagged out of results at any
+  distance. The unnamed-anchor fallback (locality top-1) is now
+  deterministic rather than lat/lon-bias-fragile.
+- Dedupe extended: spelling variants at ≤150m via bounded DL
+  ('Lodi Gardens'/'Lodhi Gardens'), exact-name and city-suffix-prefix
+  rows at ≤350m ('Lodi Gardens, Delhi').
+
+Live re-audit — before → after (verified on the same merge path):
+
+- `aiims` → was [platform, platform] → now **All India Institute of
+  Medical Sciences** top-1; the two bays collapse to one demoted row.
+- `lodhi garden` → was [platform, park, park] → now **Lodi Gardens**
+  top-1, single park row (spelling/city-suffix dupes folded), the
+  platform demoted below every park.
+- `b-12 lajpat nagar` → was [B-12 Sanwal Nagar, B-12 Adarsh Nagar
+  Extension, B-12 residential] → now **Lajpat Nagar** top-1; the
+  foreign-colony rows are gone (a different neighbourhood is never an
+  answer); only anonymous B-12 rows trail.
+- `house 559 udyog vihar` → still **559 Udyog Vihar Phase V Road**.
+
+Local battery after wave 3: **171/174 (98.3%)** — unchanged; p50
+0.7ms, p95 65ms (cold-start first query ~1s).

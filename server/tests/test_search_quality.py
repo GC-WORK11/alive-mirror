@@ -228,7 +228,7 @@ def test_response_shape_and_took_ms_truthful():
     ("dilli haat", "dilli haat"),
     ("khan market", "khan market"),
     ("qutub minar", "minar"),
-    ("lodhi garden", "lodh"),
+    ("lodhi garden", ("lodh", "lodi")),
     ("nehru place", "nehru place"),
     ("lotus temple", "lotus"),
     ("akshardham", "akshard"),
@@ -239,7 +239,9 @@ def test_landmark_beats_geonames_popularity(q, name_sub):
     assert r.status_code == 200
     top = r.json()["results"][:1]
     assert top, f"no results for {q!r}"
-    assert name_sub in (top[0].get("name") or "").lower(), (
+    subs = (name_sub if isinstance(name_sub, tuple)
+            else (name_sub,))
+    assert any(s in (top[0].get("name") or "").lower() for s in subs), (
         f"{q!r} top-1 {top[0].get('name')!r} lacks {name_sub!r}")
 
 
