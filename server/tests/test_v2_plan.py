@@ -553,3 +553,63 @@ def test_plan_fast_engine_down_is_typed_not_hung(monkeypatch):
     body = _post({"from": {"lat": CP[0], "lon": CP[1]},
                   "to": {"lat": 28.5494, "lon": 77.2510}, "fast": True})
     assert body["options"] == [] and body["error"] == "engine unavailable"
+
+
+# --- shared engine solves (fast+full dedupe) ------------------------------------
+def test_solve_join_memoizes_same_key():
+    """Two calls for the same (OD, epoch) key run the solve once — the
+    fast paint's primaries are the full arm's primaries, not a second
+    A* sweep on the same vCPU."""
+    v2plan._ENG_SOLVE.clear()
+    ran = []
+
+    def compute():
+        ran.append(1)
+        return {"car": {"distance_m": 1}}
+
+    key = ("prim", 28.6315, 77.2167, 28.5479, 77.2511, 1.0)
+    a = v2plan._solve_join(key, compute)
+    b = v2plan._solve_join(key, compute)
+    assert a == b == {"car": {"distance_m": 1}}
+    assert len(ran) == 1, "second same-key call re-ran the solve"
+
+
+def test_solve_join_concurrent_callers_share_one_run():
+    """An in-flight solve is joined, not duplicated: a second caller
+    parks on the owner's result instead of stacking CPU."""
+    import threading as _t
+    v2plan._ENG_SOLVE.clear()
+    ran = []
+
+    def compute():
+        ran.append(1)
+        time.sleep(0.15)
+        return {"bike": {"distance_m": 2}}
+
+    key = ("prim", 28.6, 77.2, 28.5, 77.3, 2.0)
+    res = []
+    t = _t.Thread(
+        target=lambda: res.append(v2plan._solve_join(key, compute)))
+    t.start()
+    got = v2plan._solve_join(key, compute)
+    t.join()
+    assert got == {"bike": {"distance_m": 2}}
+    assert res == [{"bike": {"distance_m": 2}}]
+    assert len(ran) == 1, "concurrent same-key callers ran 2 solves"
+
+
+def test_solve_join_epoch_key_separates_repricings():
+    """A reprice (new _ENG_T in the key) must NOT memo-hit the old
+    pricing — stale smoke paths would be fake precision."""
+    v2plan._ENG_SOLVE.clear()
+    ran = []
+
+    def compute():
+        ran.append(1)
+        return {"car": {"distance_m": len(ran)}}
+
+    k1 = ("prim", 28.6, 77.2, 28.5, 77.3, 100.0)
+    k2 = ("prim", 28.6, 77.2, 28.5, 77.3, 200.0)
+    v2plan._solve_join(k1, compute)
+    v2plan._solve_join(k2, compute)
+    assert len(ran) == 2, "post-reprice key hit the stale memo"
