@@ -285,9 +285,11 @@ async def timing():
                "p50_le_ms": _pct_le(h, 0.5),
                "p90_le_ms": _pct_le(h, 0.9)}
         if name == "alive_request_duration_ms":
-            out["routes"].append({"route": labels.get("route", "?"), **row})
+            out["routes"].append({"path": labels.get("route", "?"), **row})
         else:
-            out["pipeline"][name] = {**labels, **row}
+            lbl = {("path" if k == "route" else k): v
+                   for k, v in labels.items()}
+            out["pipeline"][name] = {**lbl, **row}
     for (name, lk), v in sorted(gauges.items()):
         out["gauges"][name] = v
     out["routes"].sort(key=lambda r: -r["n"])

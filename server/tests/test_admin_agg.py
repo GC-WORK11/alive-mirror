@@ -28,6 +28,7 @@ ENDPOINTS = [
     "/admin/api/donations",
     "/admin/api/validation",
     "/admin/api/model",
+    "/admin/api/timing",
 ]
 
 # Field names that must never appear anywhere in an admin response —
