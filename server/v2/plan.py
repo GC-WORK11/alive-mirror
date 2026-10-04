@@ -308,14 +308,15 @@ def _dose_via_core(coords: list, microenv: str):
 
 
 def _dose_band(geometry: dict, duration_s: float, microenv: str,
-               field_fn=None) -> dict:
+               field_fn=None, sigma_fn=None) -> dict:
     """{lo,mid,hi} µg on the live field. lo/hi may be None when the
     field can't give sigma — honest, not invented.
 
     field_fn overrides the per-segment concentration read — engine
     rows pass the FieldView raster the pathfinder priced against, so
     the shown dose is computed on exactly the field the path choice
-    was made from (and at raster cost, not live-krige cost)."""
+    was made from (and at raster cost, not live-krige cost). sigma_fn
+    likewise for the krige band — same lattice, swept once per TTL."""
     coords = (geometry or {}).get("coordinates") or []
     core = _dose_via_core(coords, microenv)
     if core is not None:
@@ -327,7 +328,8 @@ def _dose_band(geometry: dict, duration_s: float, microenv: str,
     fval = field_fn or F.value
     try:
         e = exposure.dose(geometry, duration_s, microenv, fval,
-                          F.nearest_sample_km, field_sigma=F.sigma)
+                          F.nearest_sample_km,
+                          field_sigma=sigma_fn or F.sigma)
     except Exception:
         return {"lo": None, "mid": None, "hi": None,
                 "note": "dose engine error"}
@@ -537,7 +539,7 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
             extra: Optional[dict] = None,
             origin: Optional[tuple] = None,
             dest: Optional[tuple] = None,
-            field_fn=None) -> dict:
+            field_fn=None, sigma_fn=None) -> dict:
     microenv = (_MODES.get(mode) or _MODES["car"])[2]
     veh = _option_vehicle(mode, profile)
     if steps is None:
@@ -555,7 +557,8 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
         "freeflow_s": round(freeflow_s) if freeflow_s else None,
         "eta_model": eta_model,
         "dose": dose if dose is not None else _dose_band(
-            geometry, eta_s, microenv, field_fn=field_fn),
+            geometry, eta_s, microenv, field_fn=field_fn,
+            sigma_fn=sigma_fn),
         "emissions": emissions if emissions is not None else _emission_band(
             mode, dist_km, eta_s, freeflow_s, veh),
         "tag": None,
@@ -965,7 +968,7 @@ ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
                 ("auto", "Auto-rickshaw"), ("cycle", "Bicycle"),
                 ("walk", "On foot"))
 _ENG_T = 0.0
-_ENG_FV = None            # the raster the last reweight priced against
+_ENG_PACK = None          # (fv, sigma_fn) the last reweight priced against
 _ENG_LOCK = threading.Lock()
 # private 2-worker pool: the shared default executor serves every
 # to_thread in the process (GTFS compile, rasters, forecasts) — a busy
@@ -988,66 +991,77 @@ def _engine():
 
 
 def _engine_reweight(eng) -> None:
-    global _ENG_T, _ENG_FV
+    global _ENG_T, _ENG_PACK
     if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
         return
+    try:
+        F = deps.field()
+    except Exception as e:
+        _log.warning("engine reweight: deps.field failed: %r", e)
+        return
+
+    def val(lat, lon):
+        try:
+            return F.value(lat, lon)
+        except Exception:
+            return None
+
+    # fast path: hand reweight a FieldView instead of ~1.25M
+    # python-callable crossings. The snapshot's own FieldView is used
+    # when it exists; on prod no snapshot file ships (data/field/ is
+    # docker-ignored so a stale image can't lie about field age), so
+    # the live field is rasterized through the same cells /grid serves
+    # — still the real field, read once per TTL.
+    #
+    # The raster sweep (3,136 cells x value+sigma reads, seconds) runs
+    # BEFORE _ENG_LOCK: a live plan queueing its engine arm behind a
+    # whole sweep would burn its 8 s budget on the lock alone.
+    sig_fn = None
+    try:
+        fv = getattr(F, "_snap_fv", None)
+        if fv is None or not hasattr(fv, "value"):
+            pack = _engine_field_view(F)
+            if pack is None:
+                fv = None
+            else:
+                fv, sig_fn = pack
+    except Exception as e:
+        _log.warning("engine reweight: field view failed: %r", e)
+        fv = None
+    if fv is None:
+        sampler = val
+    else:
+        # The C++ PathEngine reweight fast path needs a real
+        # alive_core.FieldView; everything else — the Python twin,
+        # or a PyFieldView view — prices off fv.value as an
+        # ordinary callable. All are cheap nearest-cell lookups,
+        # honest on a live field either way.
+        sampler = fv.value
+        try:
+            import alive_core
+            if (isinstance(eng, alive_core.PathEngine)
+                    and isinstance(fv, alive_core.FieldView)):
+                sampler = fv
+        except ImportError:
+            pass
+    _log.warning(
+        "engine reweight: sampler=%s eng=%s snap_fv=%s serving=%s",
+        type(sampler).__name__, type(eng).__name__,
+        type(getattr(F, "_snap_fv", None)).__name__,
+        getattr(F, "_serving_snapshot", lambda: "?")())
+
+    # never start a callable reweight against the live field: krige
+    # posterior + Bayesian traverse per sample makes ~1.25M crossings
+    # take minutes on one vCPU — the arm would hold the lock and
+    # starve every plan. Snapshot serving keeps F.value cheap, so the
+    # callable path is only honest then.
+    if (sampler is val
+            and not getattr(F, "_serving_snapshot", lambda: False)()):
+        return
+
     with _ENG_LOCK:
         if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
             return
-        try:
-            F = deps.field()
-        except Exception as e:
-            _log.warning("engine reweight: deps.field failed: %r", e)
-            return
-
-        def val(lat, lon):
-            try:
-                return F.value(lat, lon)
-            except Exception:
-                return None
-
-        # fast path: hand reweight a FieldView instead of ~1.25M
-        # python-callable crossings. The snapshot's own FieldView is used
-        # when it exists; on prod no snapshot file ships (data/field/ is
-        # docker-ignored so a stale image can't lie about field age), so
-        # the live field is rasterized through the same cells /grid serves
-        # — still the real field, read once per TTL.
-        sampler = val
-        try:
-            fv = getattr(F, "_snap_fv", None)
-            if fv is None or not hasattr(fv, "value"):
-                fv = _engine_field_view(F)
-            if fv is not None and hasattr(fv, "value"):
-                # The C++ PathEngine reweight fast path needs a real
-                # alive_core.FieldView; everything else — the Python twin,
-                # or a PyFieldView view — prices off fv.value as an
-                # ordinary callable. All are cheap nearest-cell lookups,
-                # honest on a live field either way.
-                sampler = fv.value
-                try:
-                    import alive_core
-                    if (isinstance(eng, alive_core.PathEngine)
-                            and isinstance(fv, alive_core.FieldView)):
-                        sampler = fv
-                except ImportError:
-                    pass
-        except Exception as e:
-            _log.warning("engine reweight: field view failed: %r", e)
-        _log.warning(
-            "engine reweight: sampler=%s eng=%s snap_fv=%s serving=%s",
-            type(sampler).__name__, type(eng).__name__,
-            type(getattr(F, "_snap_fv", None)).__name__,
-            getattr(F, "_serving_snapshot", lambda: "?")())
-
-        # never start a callable reweight against the live field: krige
-        # posterior + Bayesian traverse per sample makes ~1.25M crossings
-        # take minutes on one vCPU — the arm would hold the lock and
-        # starve every plan. Snapshot serving keeps F.value cheap, so the
-        # callable path is only honest then.
-        if (sampler is val
-                and not getattr(F, "_serving_snapshot", lambda: False)()):
-            return
-
         try:
             res = eng.reweight(sampler) or {}
             # only mark fresh when edges actually priced — a reweight
@@ -1058,7 +1072,7 @@ def _engine_reweight(eng) -> None:
                 # keep the raster that priced these edges — engine rows
                 # price their displayed dose against the same field view
                 # the pathfinder minimized over
-                _ENG_FV = fv if hasattr(fv, "value") else None
+                _ENG_PACK = (fv if hasattr(fv, "value") else None, sig_fn)
             _log.warning("engine reweight done: %s", res)
         except Exception as e:
             _log.warning("engine reweight failed: %r", e)
@@ -1085,33 +1099,55 @@ def _engine_field_view(F):
     if probe is None:
         _log.warning("engine raster: field serves no reads — skip sweep")
         return None
+    import math
     try:
         import grid as _g
-        geo = _g.as_geojson(F, cells=56, param="pm2_5")
-    except Exception as e:
-        _log.warning("engine raster: as_geojson failed: %r", e)
-        return None
+        x0, y0, x1, y1 = _g.BBOX
+    except Exception:
+        x0, y0, x1, y1 = (76.80, 28.20, 77.90, 28.95)
+    cells = 56
+    dx, dy = (x1 - x0) / cells, (y1 - y0) / cells
+    # one lattice pass reading value AND krige-sigma per cell center —
+    # the row's sigma slot gets the real band and the returned sigma_fn
+    # gives exposure.dose a dict-lookup band instead of a per-segment
+    # krige solve (which alone burned ~10s on a 65km OD).
     rows = []
-    for ft in (geo.get("features") or []):
-        pm = (ft.get("properties") or {}).get("pm25")
-        ring = ((ft.get("geometry") or {}).get("coordinates") or [[]])[0]
-        if pm is None or len(ring) < 4:
-            continue
-        cx = (ring[0][0] + ring[2][0]) / 2.0
-        cy = (ring[0][1] + ring[2][1]) / 2.0
-        rows.append((cy, cx, float(pm), float(pm), float(pm),
-                     float("nan")))
+    sig = {}
+    for ix in range(cells):
+        for iy in range(cells):
+            cx = x0 + (ix + 0.5) * dx   # lon
+            cy = y0 + (iy + 0.5) * dy   # lat
+            v = F.value(cy, cx)
+            if v is None:
+                continue
+            try:
+                sd = F.sigma(cy, cx)
+            except Exception:
+                sd = None
+            has_sd = sd is not None and math.isfinite(sd)
+            if has_sd:
+                sig[(ix, iy)] = float(sd)
+            rows.append((cy, cx, float(v), float(v), float(v),
+                         float(sd) if has_sd else float("nan")))
     if not rows:
         _log.warning("engine raster: field served no cells")
         return None
+
+    def _sigma_at(lat, lon):
+        if not (x0 <= lon <= x1 and y0 <= lat <= y1):
+            return None          # past the lattice: honest 'no band'
+        ix = min(cells - 1, max(0, int((lon - x0) / dx)))
+        iy = min(cells - 1, max(0, int((lat - y0) / dy)))
+        return sig.get((ix, iy))
+
     try:
         import core_engine
         # 8 km coverage: every graph edge lands within reach of a raster
         # cell — past the lattice, nearest_cell would leave edges unpriced
         fv = core_engine.field_view(rows, 8.0)
-        _log.warning("engine raster: %d cells -> %s", len(rows),
-                     type(fv).__name__)
-        return fv
+        _log.warning("engine raster: %d cells (%d sigma) -> %s",
+                     len(rows), len(sig), type(fv).__name__)
+        return fv, _sigma_at
     except Exception as e:
         _log.warning("engine raster: field_view failed: %r", e)
         return None
@@ -1153,8 +1189,14 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
     # 65 km OD × 5 modes re-integrated through live F.value is ~1.3k
     # krige reads and burned the whole 8 s arm budget on prod, killing
     # every engine row; the raster read is the same real field and
-    # makes the shown dose the exact criterion the path won on.
-    field_fn = getattr(_ENG_FV, "value", None)
+    # makes the shown dose the exact criterion the path won on. The
+    # sigma band rides the same raster (live F.sigma would add another
+    # ~1.3k krige solves).
+    field_fn = None
+    sigma_fn = None
+    if _ENG_PACK:
+        field_fn = getattr(_ENG_PACK[0], "value", None)
+        sigma_fn = _ENG_PACK[1]
     t0 = time.time()
     opts = []
     for mode, label in ENGINE_MODES:
@@ -1188,7 +1230,7 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
                            "to_m": round(snap.get("to_m") or 0, 1)},
             },
             origin=(flat, flon), dest=(tlat, tlon),
-            field_fn=field_fn))
+            field_fn=field_fn, sigma_fn=sigma_fn))
     _log.warning("engine options: %d rows in %.0fms",
                  len(opts), (time.time() - t0) * 1000.0)
     return opts
