@@ -274,9 +274,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     let cancelled = false;
     // deferred one tick — setState directly inside an effect cascades renders
     Promise.resolve().then(() => { if (!cancelled) setSteps(null); });
-    // transit rows (metro+walk / bus) carry stations — road steps don't
-    // describe a rail leg, and the sheet shows board→alight instead
-    if (!o || !from || !to || isTransit(o)) return () => { cancelled = true; };
+    // transit rows carry stations → board→alight line; the station-less
+    // "bus" option gets road-steps that read like car maneuvers — both are
+    // dishonest, so neither fetches /directions here
+    if (!o || !from || !to || isTransit(o) || o.mode === "bus") return () => { cancelled = true; };
     if (Array.isArray(o.steps) && o.steps.length) {   // inlined steps win when they exist
       const inline = o.steps;
       Promise.resolve().then(() => { if (!cancelled) setSteps(inline); });
