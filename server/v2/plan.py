@@ -996,19 +996,25 @@ def _engine_reweight(eng) -> None:
         # — still the real field, read once per TTL.
         sampler = val
         try:
-            import alive_core
-            if isinstance(eng, alive_core.PathEngine):
-                fv = getattr(F, "_snap_fv", None)
-                if not isinstance(fv, alive_core.FieldView):
-                    fv = _engine_field_view(F)
-                if isinstance(fv, alive_core.FieldView):
-                    sampler = fv
-                elif fv is not None and hasattr(fv, "value"):
-                    # PyFieldView fallback — nearest-cell lookup is cheap
-                    # even through the callable path
-                    sampler = fv.value
-        except ImportError:
-            pass
+            fv = getattr(F, "_snap_fv", None)
+            if fv is None or not hasattr(fv, "value"):
+                fv = _engine_field_view(F)
+            if fv is not None and hasattr(fv, "value"):
+                # The C++ PathEngine reweight fast path needs a real
+                # alive_core.FieldView; everything else — the Python twin,
+                # or a PyFieldView view — prices off fv.value as an
+                # ordinary callable. All are cheap nearest-cell lookups,
+                # honest on a live field either way.
+                sampler = fv.value
+                try:
+                    import alive_core
+                    if (isinstance(eng, alive_core.PathEngine)
+                            and isinstance(fv, alive_core.FieldView)):
+                        sampler = fv
+                except ImportError:
+                    pass
+        except Exception as e:
+            _log.warning("engine reweight: field view failed: %r", e)
         _log.warning(
             "engine reweight: sampler=%s eng=%s snap_fv=%s serving=%s",
             type(sampler).__name__, type(eng).__name__,

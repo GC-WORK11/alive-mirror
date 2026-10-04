@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Build the NCR route graph for alive_core's exposure pathfinder.
 
-One-time offline step: reads the northern-zone OSM extract (already the
-gazetteer's source of truth), keeps highway=* ways inside the dose-field
-bbox + margin, collapses degree-2 node chains into junction-to-junction
-edges with full polyline geometry, and emits a compact gzipped JSON the
-C++ engine (and the Python parity twin) loads at boot.
+One-time offline step: reads the OSM zone extracts under
+server/data/corpus/dl/*.osm.pbf (northern-zone for Delhi/Haryana +
+central-zone for the UP side — Geofabrik's zone edge cuts through NCR,
+so Ghaziabad/GB Nagar only exist in the second file), keeps highway=*
+ways inside the dose-field bbox + margin, collapses degree-2 node chains
+into junction-to-junction edges with full polyline geometry, and emits
+a compact gzipped blob the C++ engine (and the Python parity twin) loads
+at boot. Ways that exist in both extracts' overlap are deduped on
+OSM way id.
 
 Output: server/data/route_graph.bin.gz — gzipped packed binary:
   header  : magic "ARG1" | u32 n_nodes | u32 n_edges | u32 n_names |
@@ -33,8 +37,11 @@ from collections import defaultdict
 import osmium
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PBF = os.path.join(ROOT, "server", "data", "corpus", "dl",
-                   "northern-zone-latest.osm.pbf")
+PBF_DIR = os.path.join(ROOT, "server", "data", "corpus", "dl")
+PBF = os.path.join(PBF_DIR, "northern-zone-latest.osm.pbf")
+PBFS = sorted(
+    os.path.join(PBF_DIR, f) for f in os.listdir(PBF_DIR)
+    if f.endswith(".osm.pbf")) or [PBF]
 OUT = os.path.join(ROOT, "server", "data", "route_graph.bin.gz")
 META = os.path.join(ROOT, "server", "data", "route_graph.meta.json")
 FIELD_BBOX = (76.80, 28.20, 77.90, 28.95)   # dose field — reweight scope
@@ -75,11 +82,15 @@ class WayScan(osmium.SimpleHandler):
         super().__init__()
         self.ways = []          # (hw_code, oneway, name, maxspeed, [node ids])
         self.need = set()       # node ids we must look up in pass 2
+        self.seen = set()       # way ids — dedupe across merged extracts
 
     def way(self, w):
         hw = w.tags.get("highway")
         if hw not in HW_CODES:
             return
+        if w.id in self.seen:
+            return
+        self.seen.add(w.id)
         # skip ways that clearly can't intersect the box: cheap check via
         # node refs is impossible here, so keep every candidate way —
         # pass-2 coords decide. (Highway filter already cut ~97% of ways.)
@@ -117,18 +128,21 @@ class NodeScan(osmium.SimpleHandler):
 def build():
     sys.setrecursionlimit(200000)
     sha = hashlib.sha256()
-    with open(PBF, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            sha.update(chunk)
+    for p in PBFS:
+        with open(p, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                sha.update(chunk)
     pbf_sha = sha.hexdigest()[:16]
 
     ws = WayScan()
-    ws.apply_file(PBF)
-    print(f"ways kept: {len(ws.ways)}; nodes needed: {len(ws.need)}",
-          file=sys.stderr)
+    for p in PBFS:
+        ws.apply_file(p)
+    print(f"ways kept: {len(ws.ways)}; nodes needed: {len(ws.need)} "
+          f"({len(PBFS)} pbfs)", file=sys.stderr)
 
     ns = NodeScan(ws.need)
-    ns.apply_file(PBF)
+    for p in PBFS:
+        ns.apply_file(p)
     print(f"coords in box+pad: {len(ns.coords)}", file=sys.stderr)
 
     # junction detection: a node is a graph junction when it is shared by
@@ -308,7 +322,9 @@ def build():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with gzip.open(OUT, "wb") as fh:
         fh.write(bytes(blob))
-    meta = {"pbf": os.path.basename(PBF), "pbf_sha256": pbf_sha,
+    meta = {"pbf": os.path.basename(PBF),
+            "pbfs": [os.path.basename(p) for p in PBFS],
+            "pbf_sha256": pbf_sha,
             "bbox": [MINLON, MINLAT, MAXLON, MAXLAT],
             "field_bbox": list(FIELD_BBOX),
             "rdp_tol_m": RDP_TOL_M,
