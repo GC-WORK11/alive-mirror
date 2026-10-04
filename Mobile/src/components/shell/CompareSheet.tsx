@@ -33,6 +33,7 @@ import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/stri
 import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
+import { confirm, tap, tick } from "../../haptics";
 import {
   getVehicle, saveVehicle, vehicleLabel, type VehicleProfile,
 } from "../../store/vehicle";
@@ -232,8 +233,8 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
   return (
     <View style={[s.card, selected && s.cardSel]}>
       <Pressable
-        onPress={() => onSelect(i)}
-        onLongPress={() => onToggleDetail(i)}
+        onPress={() => { tick(); onSelect(i); }}
+        onLongPress={() => { tick(); onToggleDetail(i); }}
         delayLongPress={400}
         accessibilityRole="button"
         accessibilityState={{ selected }}
@@ -286,7 +287,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
           <View style={s.barsRow}>
             <PairBars o={o} worstIn={worstIn} worstOut={worstOut} showCig={showCig} lang={lang} />
             <Pressable
-              onPress={() => onToggleDetail(i)}
+              onPress={() => { tick(); onToggleDetail(i); }}
               hitSlop={16}
               accessibilityRole="button"
               accessibilityLabel={t("howWeGotThis", lang)}
@@ -356,7 +357,7 @@ export function CompareSheet({
 
   const chip = (
     <Pressable
-      onPress={() => (onVehiclePress ? onVehiclePress() : setVehOpen(true))}
+      onPress={() => { tick(); if (onVehiclePress) onVehiclePress(); else setVehOpen(true); }}
       hitSlop={8}
       style={({ pressed }) => [s.vehChip, pressed && { opacity: 0.6 }]}
       accessibilityRole="button" accessibilityLabel={t("sidebarMyVehicle", lang)}>
@@ -439,7 +440,7 @@ export function CompareSheet({
                 </View>
               )}
               {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 8 && (
-                <Pressable onPress={onRemind} style={({ pressed }) => [s.departRow, pressed && { opacity: 0.7 }]}
+                <Pressable onPress={() => { tap(); onRemind(); }} style={({ pressed }) => [s.departRow, pressed && { opacity: 0.7 }]}
                   accessibilityRole="button">
                   <Icon name={notified ? "bell" : "clock"} color={V2T.accent} size={16} filled={notified} />
                   <Text {...DYNAMIC_TYPE} style={[s.departTxt, { fontFamily: fam(lang, "med") }]}>
@@ -514,14 +515,14 @@ export function CompareSheet({
             </ScrollView>
             {sel && (
               <View style={s.footer}>
-                <Pressable onPress={onToggleSteps}
+                <Pressable onPress={() => { tick(); onToggleSteps(); }}
                   style={({ pressed }) => [s.ghostBtn, stepsOpen && s.ghostBtnOn, pressed && { opacity: 0.65 }]}
                   accessibilityRole="button">
                   <Text {...DYNAMIC_TYPE} style={[s.ghostTxt, stepsOpen && s.ghostTxtOn, { fontFamily: fam(lang, "med") }]}>
                     {stepsOpen ? t("hideTurns", lang) : t("turnByTurn", lang)}
                   </Text>
                 </Pressable>
-                <Pressable onPress={onStart}
+                <Pressable onPress={() => { confirm(); onStart(); }}
                   style={({ pressed }) => [s.goBtn, pressed && { opacity: 0.8 }]}
                   accessibilityRole="button">
                   <Text {...DYNAMIC_TYPE} style={[s.goBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("start", lang)}</Text>

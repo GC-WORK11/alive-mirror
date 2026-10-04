@@ -6,7 +6,7 @@
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
  * /directions remain — /v2/plan carries no turn steps yet. */
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { Keyboard } from "react-native";
+import { Keyboard, LayoutAnimation, Platform, UIManager } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notify";
@@ -22,6 +22,24 @@ import type { RouteStrip } from "../../nav/strip";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
 import type { Depart, Place, Step, V2Option } from "./types";
+import { tap } from "../../haptics";
+import { useReduceMotion } from "../../a11y";
+
+/* Old-arch Android needs the flag once; Fabric (RN 0.86) animates layout
+   natively and doesn't ship the setter — guard, don't probe internals. */
+const setLayoutAnimExp = (UIManager as { setLayoutAnimationEnabledExperimental?: (b: boolean) => void })
+  .setLayoutAnimationEnabledExperimental;
+if (Platform.OS === "android" && setLayoutAnimExp) setLayoutAnimExp(true);
+
+/* Engine→full swap: kept rows glide to their new order, added router/
+   transit rows fade in, the refining line eases out — the sheet never
+   jumps. 280 ms easeInEaseOut matches the sheet's own enter spring. */
+const SWAP_ANIM = {
+  duration: 280,
+  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+  update: { type: LayoutAnimation.Types.easeInEaseOut },
+  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+} as const;
 
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
@@ -58,6 +76,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
   const [navDose] = useState(0); // kept: NavChrome's legacy prop path (engine's `nav` supersedes)
+  /* reduce-motion lives in a ref — the plan promise resolves after render */
+  const reduceMotion = useReduceMotion();
+  const reduceMotionRef = useRef(reduceMotion);
+  useEffect(() => { reduceMotionRef.current = reduceMotion; }, [reduceMotion]);
 
   // SEAM(trip-submit): anonymous traversal donation moved to POST /v2/trip
   // (src/api/trip.ts) — the nav lane owns it and will read `shareEnabled`
@@ -186,9 +208,17 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           if (painted) { if (!cancelled) setRefining(false); return; }  // engine rows stand
           throw e;
         }
+        // (the swap animation is configured above, before show() commits)
         fullDone = true;
         if (cancelled) return;
         setRefining(false);
+        /* engine rows already on screen → the full set morphs them, not
+           swaps: glide kept rows, fade added ones, drop the refining
+           line. The haptic says "your options are ready". */
+        if (painted) {
+          if (!reduceMotionRef.current) LayoutAnimation.configureNext(SWAP_ANIM);
+          tap();
+        }
         if (pj.error && pj.options.length === 0) {
           if (painted) return;   // keep the real engine rows over an empty full set
           setOptions([]); setDepart(null);
