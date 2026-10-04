@@ -1,22 +1,28 @@
-# ALive-108 — session handoff (2026-10-03, updated post-merge)
+# ALive-108 — session handoff (2026-10-04, refreshed)
 
 State of the world for whoever picks this up in Devin Cloud. Everything below is
-verified in-tree, not aspirational. **`main` is now the trunk** — PR #4 merged
-all of `base/v2` (172 commits, merge `7fb517f`). Continue committing on
-`base/v2` and merge to `main` at milestones, or commit on `main` directly for
-small fixes — `base/v2` HEAD is `0d9b302` (all merged plus hardening).
+verified in-tree, not aspirational. **`main` is the trunk** — PR #4 merged
+`base/v2`; `base/v2` stays the working lane, merged to `main` at milestones.
+`base/v2` HEAD ~`2b1eb3e` (753+ server tests, deployed on AWS).
 
 ## Live deployment (AWS, ap-south-1)
 
 - NLB `alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com` → ALB TG → ECS
-  Fargate service `alive108` (1 task, 1 vCPU/2 GB). Task-def `:23`, image
-  `alive108-api:4a75e554` — C++ `alive_core` serves kriging, field views, dose
-  sampling, emission integration, and `/v2/search` T1 (`t1_engine:"alive_core"`).
-- Deploy: `BUILD_MODE=codebuild bash scripts/deploy.sh` — zips `server/` to S3,
-  CodeBuild builds+tags `:<sha>`+`:latest`, registers task-def, force-new-deploy,
-  verifies TG health. ~4 min. AWS creds are org secrets (auto-injected —
+  Fargate SPOT service `alive108` (1 task, 1 vCPU/2 GB). Task-def ~`:63`,
+  October actuals $0.00. C++ `alive_core` serves kriging, field views, dose
+  sampling, emission integration, `/v2/search` (compound/fuzzy/alias index),
+  and `PathEngine` — the least-inhalation A* over a 1.07M-edge 2-zone
+  Delhi-NCR graph (northern+central Geofabrik), edge cost = length × local
+  PM2.5 off a live-field raster reweighted ≤10 min (~903k edges priced),
+  edge-state sid=(e<<1|rev) enforcing 230 OSM turn bans + 3,428 access
+  overrides, corridor-diverse alternatives (<85% shared length gate),
+  `engine_dose_ug` (Σ priced costs) on the wire.
+- Deploy: `bash scripts/deploy.sh` — zips `server/` to S3, CodeBuild
+  builds+tags `:<sha>`+`:latest`, registers task-def, force-new-deploy,
+  verifies TG health. ~5-6 min. AWS creds are org secrets (auto-injected —
   do NOT override `AWS_*` env vars or the deploy can't auth). Commits only —
-  `git archive HEAD:server` means uncommitted work never ships.
+  `git archive HEAD:server` means uncommitted work never ships. Two racing
+  deploys serialize on the service — last-in wins.
 - Admin token: Secrets Manager `alive108/admin-token`
   (`Authorization: Bearer` on `/admin/api*`).
 - Zero required third-party keys: CAMS/open-meteo (10 species, 15-min refresh)
@@ -56,7 +62,7 @@ Delhi breathes. Expo/React Native app + FastAPI backend + optional C++ `alive_co
 
 ## Verification (all re-run in main tree)
 
-- `cd server && uv run pytest -q` → **602 passed, 5 skipped, 1 xfailed**
+- `cd server && PYTHONPATH=core/build312:. .venv312/bin/python -m pytest tests -q` → **753 passed, 5 skipped** (needs `cmake --build core/build312` after C++ changes — a stale .so fails tolerance/parity tests)
 - `cd Mobile && npx tsc --noEmit` → clean; `npx expo lint` → clean
 - `uv run pytest tests/test_parity*.py` → 72 (C++ dose/emission bit-identical)
 - Live e2e: `LIVE=1 uv run pytest tests/test_e2e_live.py` → real uvicorn, real
@@ -111,24 +117,61 @@ Delhi breathes. Expo/React Native app + FastAPI backend + optional C++ `alive_co
   `src/map/style.ts` `v2StyleUrl()`: `EXPO_PUBLIC_TILES_URL` → local
   `delhi.pmtiles` → bundled `v2-light.json` on hosted tiles
 - `docs/plan/realtime-status.md` — per-source truthfulness matrix
+- `server/routegraph.py` + `server/core/src/path.cpp` — PathEngine: the
+  1.07M-edge Delhi-NCR graph (`data/route_graph.bin.gz`, `load_blob` gunzips;
+  `.meta.json` carries build provenance + sha). Edge-state A* sid=(e<<1|rev)
+  handles turn bans + reversed traversal; `path_engine()` lazy singleton
+  (alive_core PathEngine else PyPathEngine — bit-identical parity asserted).
+- `server/v2/plan.py` — the options pipeline: `_ENG_PACK=(fv,sig_fn)` priced
+  raster (56×56 resampled off `/grid` BBOX, reweighted ≤10min/field-epoch),
+  `_dose_surface(F)` picks ONE estimator per response (priced raster →
+  `_snap_fv` → live), `_options_bounded` = PLAN_BUDGET_S wall (asyncio.wait,
+  partial arms survive), engine rows carry `engine_dose_ug` (Σ priced
+  costs = the minimized objective) + `via_names` + `alternative_index`.
+- `server/v2/search.py` + `server/core/src/search.cpp` + `tools/` corpus
+  pipeline — the 120k-row index: padded-trigram + bounded-DL fuzzy (all-digit
+  /≤2-char atoms exact-only), lead-prefix boost (sector rows rank-1),
+  kind+place compounds (~90 kind phrases incl Hinglish; anchor ≤1.5 km,
+  cov≥0.75 gate, fires only when the name path is weak), 34+ real alias
+  surfaces; `/v2/reverse` gazetteer-first ≤150 m → Amazon → 404
+  `dropped_pin:true`.
+- `server/v2/city.py` — `/v2/city` public aggregates (field lattice stats,
+  decade-norm typical, next_hours forecast), `/v2/districts` 13-district
+  NCR choropleth with field-keyed 120 s cache (`cached_s` emitted).
+- `server/forecast.py` — CAMS horizon + semi-Lagrangian advection (parcels
+  translate with real met wind, capped 45 km, calm→undisplaced); the
+  live-anchor delta evaluates at the advected origin (2b1eb3e fix — a
+  query-point delta could crush a clean parcel to a clamped 0.0).
+- `server/admin_agg.py` + `server/admin.html` — ops board: district chips
+  (CPCB palette), corridor table + `co2_g_per_100m`, donation days bars,
+  species pills re-painting `/grid?param=`, pipeline panel (constants
+  served by `/admin/api/model`), wind arrow, forecast scrubber,
+  `/admin/api/timing` measured per-route latency. Banned-key guard: never
+  emit lat/lon/coord/trajectory/user/route(=path) keys — tests scan every
+  endpoint recursively.
+- `server/observability.py` — `REGISTRY` histograms (alive_request_
+  duration_ms{route} etc.) under `_lock`; `/metrics` Prometheus text.
 
 ## Remaining work (in priority order)
 
-1. **Android E2E on this cloud box** — KVM available. Build the dev client,
-   boot AVD headless, run backend on same box (app hits `10.0.2.2:8000`),
-   drive search→plan→nav→receipt, verify freshness chip shows real seconds-age,
-   screenshots to prove light theme + map paint. Prior session `7feb6b7d` did
-   this partially then became unreachable — redo cleanly.
-2. **Owner keys** (`server/.env`, not chat): `OPENAQ_API_KEY` (explore.openaq.org
+1. **Owner keys** (`server/.env`, not chat): `OPENAQ_API_KEY` (explore.openaq.org
    → API Keys) flips stations 0→N and the field label modelled→measured;
    `CPCB_API_KEY` (data.gov.in, India-egress only); `FIRMS_MAP_KEY` optional;
    `ALIVE_OTD_API_KEY` for GTFS-RT buses; `ALIVE_ADMIN_TOKEN` for /admin.
-3. **Physical-device map render check** — emulator proves plumbing; a real
+2. **Release signing** — the shipped APK is debug-signed (sideloads fine);
+   a store build needs a real keystore (owner).
+3. **Self-hosted OSRM** — the public demo router stays through demo day
+   (typed fallback covers outages); hosting it in-region is the one real
+   cost decision left (~$10-15/mo).
+4. **Android TTS/jank** — wired (500/150/0 m thresholds); unverifiable on
+   the macOS box (no KVM for the emulator; iOS sims lack a TTS stack) —
+   needs a Linux KVM box or a physical phone.
+5. **iOS upstream crash** — MapLibre render-thread SIGSEGV on virtualized-
+   GPU sims only (~1/45 interactions, ~9 s state-preserving relaunch;
+   upstream bug, not ours). Demo day: Android live or iOS recorded-take /
+   bare-metal Mac. `docs/demo-day.md`.
+6. **Physical-device map render check** — emulator proves plumbing; a real
    phone proves tile paint.
-4. **Deploy** — needs AWS creds; `scripts/deploy.sh` + `infra/` exist. CPCB
-   feed then becomes reachable from ap-south-1.
-5. `health.py` could surface provenance `n` (one-liner; provenance already
-   carries it).
 
 ## Key files to read first
 
