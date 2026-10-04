@@ -206,12 +206,18 @@ std::vector<std::pair<double, double>> PathEngine::edge_pts(
 }
 
 void PathEngine::reweight(const FieldSampler& sampler) {
+  // Price into a scratch table: queries hold conc_mtx_ shared for the
+  // whole solve, so swapping under a brief unique hold is the only
+  // moment writer and readers ever contend — a ~1.2M-edge sweep never
+  // stalls A* and A* never reads a half-updated epoch.
+  std::vector<float> conc(conc_.size(), 0.0f);
+  std::vector<char> conc_set(conc_set_.size(), 0);
   double acc = 0.0;
   double mn = std::numeric_limits<double>::max();
   int got_e = 0;
   for (uint32_t i = 0; i < e_u_.size(); ++i) {
     if (!e_field_[i]) {
-      conc_set_[i] = 0;
+      conc_set[i] = 0;
       continue;
     }
     const auto pts = edge_pts(i);
@@ -243,15 +249,18 @@ void PathEngine::reweight(const FieldSampler& sampler) {
     }
     if (got) {
       const double m = c_acc / got;
-      conc_[i] = static_cast<float>(m);
-      conc_set_[i] = 1;
+      conc[i] = static_cast<float>(m);
+      conc_set[i] = 1;
       acc += m;
       if (m < mn) mn = m;
       ++got_e;
     } else {
-      conc_set_[i] = 0;
+      conc_set[i] = 0;
     }
   }
+  std::unique_lock<std::shared_mutex> lk(conc_mtx_);
+  conc_.swap(conc);
+  conc_set_.swap(conc_set);
   edges_priced_ = got_e;
   field_mean_ = got_e ? acc / got_e : 0.0;
   min_conc_ = (mn == std::numeric_limits<double>::max()) ? 0.0 : mn;
@@ -326,8 +335,16 @@ std::vector<uint8_t> PathEngine::flood(uint32_t seed, const PathRule& r,
 
 const std::pair<std::vector<uint8_t>, std::vector<uint8_t>>&
 PathEngine::reach_sets(int mi, const PathRule& r) const {
-  auto it = reach_.find(mi);
-  if (it != reach_.end()) return it->second;
+  {
+    std::shared_lock<std::shared_mutex> lk(reach_mtx_);
+    auto it = reach_.find(mi);
+    if (it != reach_.end()) return it->second;
+  }
+  std::unique_lock<std::shared_mutex> lk(reach_mtx_);
+  {   // another builder may have won while we waited for the lock
+    auto it = reach_.find(mi);
+    if (it != reach_.end()) return it->second;
+  }
   constexpr double kMainMinFrac = 0.30;   // routegraph.MAIN_MIN_FRAC
   constexpr int kSeedCandidates = 8;      // routegraph.SEED_CANDIDATES
   const size_t nn = node_lon_.size();
@@ -449,6 +466,9 @@ std::vector<PathResult> PathEngine::alternatives(
 PathResult PathEngine::route(double olat, double olon, double dlat,
                              double dlon, int mi,
                              const std::vector<double>* tax) const {
+  // one shared hold for the whole solve: the conc table is stable for
+  // the entire A* while a reprice swaps epochs only between solves
+  std::shared_lock<std::shared_mutex> conc_lk(conc_mtx_);
   PathResult res;
   const PathRule& rl = kRules[mi];
   const double ve = kModeVE[mi], me = kModeME[mi];

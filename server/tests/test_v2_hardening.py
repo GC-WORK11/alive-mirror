@@ -448,3 +448,34 @@ def test_trip_then_city_shows_aggregates_only():
     assert trips["days"], "trip aggregates missing from /v2/city"
     day = trips["days"][time.strftime("%Y-%m-%d", time.gmtime())]
     assert day["trips"] == 3 and day["modes"] == {"cycle": 3}
+
+
+# --- DELETE /v2/ledger ---------------------------------------------------------
+def test_ledger_delete_requires_token():
+    """'Delete my data' takes a device token — no token, no scoped wipe,
+    and never a bulk wipe."""
+    r = client.delete("/v2/ledger")
+    assert r.status_code == 422
+    r = client.delete("/v2/ledger", params={"token": ""})
+    assert r.status_code == 422
+
+
+def test_ledger_delete_unknown_token_is_honest_zero():
+    """Deleting a token that never donated is an honest 0, not a 404
+    theatre or an invented success."""
+    r = client.delete("/v2/ledger",
+                      params={"token": "device-that-never-donated-x1"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted"] == 0
+    assert "corridor" in body["scope"]  # scope stated on the wire
+
+
+def test_ledger_delete_second_call_idempotent():
+    """Same token deleted twice: second call reports deleted=0 — the
+    wipe is scoped and honest, never claimed twice."""
+    tok = "idempotent-delete-probe"
+    r1 = client.delete("/v2/ledger", params={"token": tok})
+    r2 = client.delete("/v2/ledger", params={"token": tok})
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r2.json()["deleted"] == 0

@@ -90,10 +90,16 @@ def _aws_ready() -> tuple:
     return b3, "ok"
 
 
-def store_blob(s3_key: str, data: bytes, local_path: str) -> tuple:
+def store_blob(s3_key: str, data: bytes, local_path: str,
+               mirror_local: bool = False) -> tuple:
     """Write `data` to s3://{ALIVE_AIR_BUCKET}/{s3_key} when the bucket is
     configured and AWS is usable, else to `local_path`. Always writes
     somewhere — a failed S3 put degrades to local, never loses a snapshot.
+
+    `mirror_local` also writes `local_path` on a successful S3 put —
+    rollup outputs (daily/validation JSON) are read back by the admin
+    API off THIS task's disk, which an S3-only write never reaches.
+    15-min snapshots stay S3-only (~17 MB/day of ephemeral disk saved).
 
     -> (uri, backend, note)  backend in {"s3", "local"}.
     """
@@ -107,6 +113,14 @@ def store_blob(s3_key: str, data: bytes, local_path: str) -> tuple:
                 if s3_key.endswith(".gz"):
                     kw["ContentEncoding"] = "gzip"
                 b3.client("s3").put_object(**kw)
+                if mirror_local:
+                    try:
+                        os.makedirs(os.path.dirname(local_path),
+                                    exist_ok=True)
+                        with open(local_path, "wb") as f:
+                            f.write(data)
+                    except OSError:
+                        pass  # S3 copy landed; the mirror is best-effort
                 return f"s3://{bucket}/{s3_key}", "s3", None
             except Exception as e:  # noqa: BLE001 - fall through to local
                 note = f"s3 put failed ({type(e).__name__}: {e}) — wrote local"

@@ -94,6 +94,34 @@ Standard exposure-science values by activity (sitting ~0.4–0.5 m³/h; walking 
 - Kriging variance → per-segment σ → Monte-Carlo (n=200, vectorized) through the dose integral → per-itinerary dose interval.
 - Output as "120–180 µg est." not "152.3 µg". This is the product's integrity in one feature.
 
+### 6.1 Band calibration — measured, not claimed
+
+The served σ is `sqrt(krige_sd² + (0.12·µ)²) × SIGMA_CAL` where
+`airfield.SIGMA_CAL` is a measured total-error inflation, not a tuned
+constant. `server/validate_field.py` replays the field against
+held-out CAAQMS station hours from the OpenAQ archive and reports the
+fraction of observations inside the ±1σ/±2σ/±3σ band at the same
+place+hour (`server/data/field_validation.md`, refreshed by the weekly
+rollup → `s3://alive108-air/validation/field_validation.md`).
+
+- Raw σ (interpolation error only) covered **29%** at ±2σ on the
+  Sep-2026 replay window — systematic CAMS-vs-instrument bias dwarfs
+  krige σ alone. SIGMA_CAL = 3.2 restores measured coverage to nominal
+  (±2σ ≈ 95%). The constant is set only from the validator's measured
+  scale factor (`cal_2s`), never hand-tuned.
+- Residual error is heavy-tailed (±1σ under-covers, ±3σ near-nominal):
+  the band is honest about *total* error, not Gaussian-perfect.
+- Regime caveat: the calibration window is clean post-monsoon air.
+  In a high-pollution regime (CAMS under-reads) the same factor may
+  over-cover — re-run the validator each season and re-measure.
+- krige µ is clipped to `[0, max sampled value]` (`_clamp_krige`):
+  ordinary kriging is a Lagrange-weighted mean that can overshoot the
+  sample range at edge/extrapolation points — a physical bound, not a
+  cosmetic one. The citizen-corridor layer may still pull the merged
+  posterior past the cap (real traversals outrank a kriged smooth).
+- `airindex` snapshot cells fold the same SIGMA_CAL, so bands mean the
+  same thing in snapshot-serving and per-query modes.
+
 ## 7. Verdict summary
 
 | Model | Verdict |

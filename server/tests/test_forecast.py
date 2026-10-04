@@ -178,6 +178,45 @@ class TestAdvection(unittest.TestCase):
         self.assertEqual(f._advected_origin(*self.EAST, 40), self.EAST)
         self.assertIsNotNone(f.pm25(*self.EAST, 3))
 
+    def test_hour_zero_is_the_live_field_exactly(self):
+        """Nowcast anchor contract: at the current-hour slot the served
+        value IS the live read — the model value plus a delta of exactly
+        (live − model)·exp(0). This is the forecast's only hard claim."""
+        f = _synthetic_field(wind_ms=0.1)   # calm ⇒ undisplaced
+        v = f.pm25(*self.EAST, 0, live=lambda lat, lon: 137.0)
+        self.assertIsNotNone(v)
+        self.assertAlmostEqual(v, 137.0, places=6)
+
+    def test_anchor_decays_with_tau_never_overshoots_horizon(self):
+        """The correction is an e-folding persistence term, not a
+        permanent bias: at +9h ~37% of the hour-0 delta may remain, at
+        +24h ~7%, and by +48h the forecast is the model's own — the
+        anchor never overshoots the CAMS horizon it's anchored to."""
+        import math
+        f = _synthetic_field(wind_ms=0.1)
+        live_v = 500.0                       # model says 20 at the cell
+        def live(lat, lon):
+            return live_v
+        d0 = f.pm25(*self.EAST, 0, live=live) - f._idw(
+            f._aq, *self.EAST, "pm2_5", f.hour_index(0))
+        self.assertGreater(d0, 400)          # sanity: live >> model
+        idx0 = f.hour_index(0)
+        for h, max_ratio in ((9, 0.55), (24, 0.15), (48, 0.03), (96, 0.01)):
+            idx = f.hour_index(h)
+            if idx is None:
+                continue
+            model_h = f._idw(f._aq, *self.EAST, "pm2_5", idx)
+            corr = f.pm25(*self.EAST, h, live=live)
+            self.assertIsNotNone(corr)
+            resid = abs(corr - model_h)
+            self.assertLessEqual(
+                resid, max_ratio * abs(d0) + 1e-9,
+                f"h+{h}: residual {resid:.1f} not decayed vs {d0:.1f}")
+            # expected decay ~= exp(-h/TAU): also assert it's not
+            # pinned near zero (the anchor still carries signal early)
+            if h == 9:
+                self.assertGreater(resid, 0.2 * abs(d0))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

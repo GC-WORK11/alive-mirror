@@ -278,3 +278,91 @@ def test_engine_reroute_continuations(monkeypatch):
         first = o["geometry"]["coordinates"][0]
         assert abs(first[0] - 77.23) < 0.02 and abs(first[1] - 28.59) < 0.02, \
             "continuation did not start at the live position"
+
+
+def test_reweight_releases_the_gil(blob):
+    """A C++ sweep must not freeze the interpreter: while reweight runs
+    on one thread, a pure-Python counter on another keeps ticking. The
+    callable-field path re-acquires per edge so use a FieldView — the
+    fully-released production fast path."""
+    import threading
+    import time
+
+    cpp = pytest.importorskip(
+        "alive_core", reason="C++ module not built (server/core/build)")
+    rows = [(28.20 + 0.01 * i, 76.80 + 0.02 * j, 120.0, 90.0, 150.0, 8.0)
+            for i in range(40) for j in range(30)]
+    fv = cpp.FieldView(rows)
+    eng = cpp.PathEngine(blob)
+
+    ticks = [0]
+    stop = threading.Event()
+
+    def counter():
+        while not stop.is_set():
+            ticks[0] += 1
+
+    t = threading.Thread(target=counter, daemon=True)
+    t.start()
+    try:
+        eng.reweight(fv)                   # ~1.2M-edge C++ sweep
+    finally:
+        stop.set()
+        t.join()
+    assert ticks[0] > 0, "GIL held through the reweight sweep"
+
+
+def test_concurrent_reweight_queries_see_one_epoch(blob):
+    """Readers racing a live reprice must get ONE epoch's table, never a
+    torn mix: alternate two fields, then every query result must equal
+    the precomputed epoch-A or epoch-B answer exactly — or crash."""
+    import threading
+
+    cpp = pytest.importorskip(
+        "alive_core", reason="C++ module not built (server/core/build)")
+    # two epochs as FieldViews — pure-C++ sweeps (callable lambdas would
+    # put ~7 min of per-edge Python crossings on the test clock)
+    rows_a = [(28.20 + 0.01 * i, 76.80 + 0.02 * j, 80.0, 60.0, 100.0, 6.0)
+              for i in range(40) for j in range(30)]
+    rows_b = [(lat, lon, 200.0, 170.0, 230.0, 14.0)
+              for lat, lon, *_ in rows_a]
+    fa = cpp.FieldView(rows_a)
+    fb = cpp.FieldView(rows_b)
+    od = ODS[0]
+
+    eng = cpp.PathEngine(blob)
+    eng.reweight(fa)
+    ans_a = eng.query(*od, "car")
+    eng.reweight(fb)
+    ans_b = eng.query(*od, "car")
+    valid = {(ans_a["distance_m"], round(ans_a["dose_ug"], 3)),
+             (ans_b["distance_m"], round(ans_b["dose_ug"], 3))}
+
+    bad = []
+    done = threading.Event()
+
+    def reader():
+        while not done.is_set():
+            try:
+                r = eng.query(*od, "car")
+                if "error" in r:
+                    bad.append(("err", r["error"]))
+                elif (r["distance_m"], round(r["dose_ug"], 3)) not in valid:
+                    bad.append(("mixed", r["distance_m"], r["dose_ug"]))
+            except Exception as e:                          # pragma: no cover
+                bad.append(("raise", repr(e)))
+
+    def writer():
+        for i in range(2):
+            eng.reweight(fa if i % 2 == 0 else fb)
+        done.set()
+
+    readers = [threading.Thread(target=reader, daemon=True)
+               for _ in range(3)]
+    for t in readers:
+        t.start()
+    writer()
+    for t in readers:
+        t.join(timeout=30.0)
+    assert not any(t.is_alive() for t in readers), "query hung vs reprice"
+    assert bad == [], f"torn epoch reads: {bad[:3]}"

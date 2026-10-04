@@ -26,6 +26,7 @@ import math
 import os
 import statistics
 import sys
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -34,7 +35,10 @@ import httpx
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import airfield                      # noqa: E402 - real field code path
 from airfield import _grid_points    # noqa: E402
-from krige import KF                 # noqa: E402
+from core_engine import KF           # noqa: E402 - the SAME singleton
+                                     # airfield reads (C++ adapter when
+                                     # the eigen build is present;
+                                     # krige.KF is a different object)
 from openaq_archive import load_recent  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -76,8 +80,11 @@ def _model_surface(hours):
         if s is not None:
             wind[t] = (float(s), float(d or 0.0))
 
+    # raw per-hour inputs only — a shared AirField mutated per hour and
+    # stored under every key would alias: every pair would be scored
+    # against the LAST hour's surface (that's what the old code did —
+    # estimates+sigma must be taken inside each hour's own refit below)
     surfaces = {}
-    field = airfield.AirField()
     for h in sorted(hours):
         key = h.strftime("%Y-%m-%dT%H:00")
         samples = []
@@ -91,10 +98,7 @@ def _model_surface(hours):
                 samples.append((lat, lon, name, {"pm2_5": float(v)}))
         if not samples:
             continue
-        field._samples = samples
-        field._wind = wind.get(key, (0.0, 0.0))
-        KF.fit(samples)                       # same singleton production uses
-        surfaces[h] = (field, KF.on)
+        surfaces[h] = (samples, wind.get(key, (0.0, 0.0)))
     return surfaces
 
 
@@ -105,22 +109,46 @@ def validate(hours_back=48, min_pairs=6):
     hours = sorted({h for st in truth.values() for h in st["series"]})
     surfaces = _model_surface(hours)
 
-    pairs = []   # (station, hour, obs, krige|None, idw)
+    pairs = []   # (station, hour, obs, krige|None, idw, sigma|None)
+    field = airfield.AirField()
+    # The citizen-corridor layer is a different, live datasource —
+    # folding it into a days-old replay is a temporal leak: demo-seed
+    # traversals in data/community.json once pushed a Sep-28 central-
+    # Delhi replay to ~600 µg/m³ vs ~40 of station truth. Coverage is
+    # measured against the model+station field.
+    _real_corridor = airfield.corridor_estimate
+    airfield.corridor_estimate = lambda *_a, **_k: None
+    # never let the rebuilt surface be shadowed by a disk snapshot:
+    # _serving_snapshot() wins whenever _snap_epoch >= _fetched_at, and
+    # with _fetched_at unset a local data/field/snapshots/* file would
+    # quietly serve ITS cells (stale sigma, wrong hour) — mark the
+    # reconstructed samples fresher so sigma()/value() stay per-query.
+    field._fetched_at = time.time()
+    by_hour = defaultdict(list)
     for name, st in truth.items():
         for h, obs in st["series"].items():
-            surf = surfaces.get(h)
-            if not surf:
-                continue
-            field, krige_on = surf
-            est = field._concentration(st["lat"], st["lon"], "pm2_5")
+            if h in surfaces:
+                by_hour[h].append((name, st["lat"], st["lon"], obs))
+    for h in sorted(by_hour):
+        samples, w = surfaces[h]
+        # rebuild THIS hour's surface: the singleton krige and the field's
+        # samples/wind must both hold this hour's state while we score it
+        field._samples = samples
+        field._wind = w
+        KF.fit(samples)                       # same singleton production uses
+        krige_on = KF.on
+        for name, lat, lon, obs in by_hour[h]:
+            est = field._concentration(lat, lon, "pm2_5")
+            sd = field.sigma(lat, lon)        # sqrt(krige_sd² + (0.12·µ)²)
             if krige_on:
                 KF.on = False                 # same field, IDW fallback path
-                est_idw = field._concentration(st["lat"], st["lon"], "pm2_5")
+                est_idw = field._concentration(lat, lon, "pm2_5")
                 KF.on = True
             else:
                 est_idw = est
             if est is not None:
-                pairs.append((name, h, obs, est, est_idw))
+                pairs.append((name, h, obs, est, est_idw, sd))
+    airfield.corridor_estimate = _real_corridor
     return truth, pairs
 
 
@@ -132,16 +160,50 @@ def _stats(errs, obs):
     return n, mae, rmse, bias, 100.0 * bias / (sum(obs) / n)
 
 
+def coverage_stats(pairs):
+    """Fraction of held-out observations inside the model sigma-band.
+
+    For each pair the field claims obs ~ N(mu, sigma): |err| <= k*sd
+    should hold at the Gaussian rate (68% / 95% / 99.7% for k=1,2,3).
+    Returns per-k coverage, the median |err|/sd ratio, and the sigma
+    scale factor that WOULD have calibrated the band: s* s.t. k*s*sd
+    covers the nominal share of residuals — s*>1 means the band is
+    overconfident and must widen honestly.
+    """
+    rows = [(abs(m - o), sd) for _s, _h, o, m, _i, sd in pairs
+            if sd is not None and sd > 0]
+    if not rows:
+        return None
+    zs = sorted(a / s for a, s in rows)
+    n = len(zs)
+    cov = {k: sum(1 for a, s in rows if a <= k * s) / n for k in (1, 2, 3)}
+    # scale so that k*(scale*sd) covers the Gaussian share at that k:
+    # scale = z_quantile(nominal) / k, taken at k=2 (the band the app
+    # shows lo/hi) — capped sane so a lucky window can't claim 0
+    def _quant(p):
+        i = min(n - 1, max(0, int(round(p * (n - 1)))))
+        return zs[i]
+    scale = {
+        "z_median": zs[n // 2],
+        "cal_2s": _quant(0.95) / 2.0,   # s.t. 2·cal·sd ~= 95% coverage
+        "cal_1s": _quant(0.68) / 1.0,
+        "cal_3s": _quant(0.997) / 3.0,
+        "n": n,
+    }
+    return {"coverage": cov, **scale}
+
+
 def render(truth, pairs, hours_back, min_pairs):
-    errs = [m - o for _s, _h, o, m, _i in pairs]
-    obs = [o for _s, _h, o, _m, _i in pairs]
+    errs = [m - o for _s, _h, o, m, _i, _sd in pairs]
+    obs = [o for _s, _h, o, _m, _i, _sd in pairs]
     n, mae, rmse, bias, biaspct = _stats(errs, obs)
-    idw_errs = [i - o for _s, _h, o, _m, i in pairs]
+    idw_errs = [i - o for _s, _h, o, _m, i, _sd in pairs]
     _, mae_i, rmse_i, bias_i, biaspct_i = _stats(idw_errs, obs)
+    cov = coverage_stats(pairs)
 
     by_stn = defaultdict(list)
     by_hod = defaultdict(list)
-    for s, h, o, m, _i in pairs:
+    for s, h, o, m, _i, _sd in pairs:
         by_stn[s].append((o, m))
         by_hod[h.hour].append(m - o)
     hs = sorted({h for s in truth.values() for h in s["series"]})
@@ -184,6 +246,39 @@ def render(truth, pairs, hours_back, min_pairs):
              f"RMSE {rmse_i:.1f}, bias {bias_i:+.1f} ({biaspct_i:+.1f}%) "
              f"— kriging {'helps' if rmse <= rmse_i else 'does not beat IDW'} "
              f"on this window.\n")
+
+    if cov:
+        c = cov["coverage"]
+        L.append("## Uncertainty-band coverage (held-out stations)\n")
+        L.append("For a calibrated Gaussian band, |obs − model| ≤ k·σ "
+                 "should hold at the nominal rate. σ here is the per-point "
+                 "field sigma the API serves (`sqrt(krige_sd² + (0.12·µ)²) "
+                 "× SIGMA_CAL`, the measured total-error inflation in "
+                 "airfield.py) at the same station+hour.")
+        L.append("")
+        L.append("| band | nominal | measured |")
+        L.append("|---|---|---|")
+        L.append(f"| ±1σ | 68.3% | {100*c[1]:.1f}% |")
+        L.append(f"| ±2σ | 95.4% | {100*c[2]:.1f}% |")
+        L.append(f"| ±3σ | 99.7% | {100*c[3]:.1f}% |")
+        L.append("")
+        L.append(f"n={cov['n']} pairs; median |err|/σ = {cov['z_median']:.2f}. "
+                 f"σ scale factors that would have calibrated this window: "
+                 f"×{cov['cal_1s']:.2f} at 1σ, ×{cov['cal_2s']:.2f} at 2σ, "
+                 f"×{cov['cal_3s']:.2f} at 3σ.")
+        if cov["cal_2s"] <= 1.15:
+            L.append("**Verdict**: the σ-band is calibrated — measured "
+                     "±2σ coverage sits within noise of nominal 95% under "
+                     "the applied `SIGMA_CAL` total-error inflation "
+                     "(airfield.py, set from this measured factor, never "
+                     "hand-tuned).")
+        else:
+            L.append(f"**Verdict**: the served σ-band is still "
+                     f"overconfident — to cover 95% of held-out truth it "
+                     f"needs ≈×{cov['cal_2s']:.2f} more widening. Raise "
+                     "`airfield.SIGMA_CAL` from this measured factor, "
+                     "never hand-tuned.")
+        L.append("")
 
     L.append("## Per-station (n≥%d pairs, sorted by |bias%%|)\n" % min_pairs)
     L.append("| station | n | obs µg/m³ | model µg/m³ | MAE | RMSE | bias % |")
@@ -242,8 +337,8 @@ def render(truth, pairs, hours_back, min_pairs):
                  "dependent, and this window only characterises the "
                  "clean-air end.")
     L.append("- Kriged estimates carry a σ band; the live `/aqi` response "
-             "exposes it as `pm25_lo`/`pm25_hi`. These error stats are what "
-             "that band must honestly cover.\n")
+             "exposes it as `pm25_lo`/`pm25_hi`. The coverage table above "
+             "measures exactly how honest that band is.\n")
     L.append("## CPCB live feeds — reachability (tested from this deployment "
              "network)\n")
     L.append("| endpoint | result |")
