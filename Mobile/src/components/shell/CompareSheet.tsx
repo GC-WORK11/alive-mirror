@@ -40,6 +40,7 @@ import {
   type VehicleProfile,
 } from "../../store/vehicle";
 import { VehicleSheet } from "../../screens/VehicleSheet";
+import { isTransit } from "./types";
 import type { Band, Depart, Emissions, Step, V2Option } from "./types";
 
 const arrivalLabel = (durationMin: number) => {
@@ -588,6 +589,7 @@ export function CompareSheet({
                        match on stations, not the mode string. */
                     <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
                       {t("boardMetro", lang, { a: sel.stations.board, b: sel.stations.alight })}
+                      {sel.lines?.length ? `  ·  ${sel.lines.join(", ")}` : ""}
                     </Text>
                   ) : steps.map((st, i) => (
                     <View key={i} style={s.stepRow}>
@@ -605,7 +607,7 @@ export function CompareSheet({
                   ))}
                 </View>
               )}
-              {stepsOpen && sel?.mode !== "metro" && !steps && (
+              {stepsOpen && sel && !isTransit(sel) && !steps && (
                 <Text {...DYNAMIC_TYPE} style={[s.stepTxt, s.stepsEmpty, { fontFamily: fam(lang, "reg") }]}>
                   {t("roadModesOnly", lang)}
                 </Text>

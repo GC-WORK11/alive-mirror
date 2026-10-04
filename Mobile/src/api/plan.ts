@@ -166,6 +166,10 @@ function toOption(raw: unknown): V2Option | null {
     stations: stations
       ? { board: str(stations.board) ?? "", alight: str(stations.alight) ?? "" }
       : null,
+    lines: Array.isArray(stations?.lines)
+      ? (stations.lines as unknown[]).filter((x): x is string => typeof x === "string")
+      : null,
+    transfers: num(stations?.transfers),
     steps: Array.isArray(o.steps) ? (o.steps as V2Option["steps"]) : null,
   };
 }

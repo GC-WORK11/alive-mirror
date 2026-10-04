@@ -80,9 +80,18 @@ export type V2Option = {
   alternative_index?: number | null;
   geometry: GeoJSON.Geometry | null;  // mapped from `route_geojson`
   stations?: { board: string; alight: string } | null;
+  /** server `stations.lines` — transit line names the rider transfers
+   *  across ("Orange/Airport", "Blue", "781") — shown next to board→alight. */
+  lines?: string[] | null;
+  transfers?: number | null;
   steps?: Step[] | null;              // only if a future payload inlines them
   segments?: Seg[];                   // legacy colour-per-segment strip — kept as a seam
 };
+
+/** A transit option: the server only ships `stations` on transit rows
+ *  (metro+walk, bus+walk) — the mode string is "metro+walk"/"bus…", never
+ *  exactly "metro", so `mode === "metro"` checks were dead before this. */
+export const isTransit = (o: { stations?: unknown }): boolean => o.stations != null;
 
 /** Legacy name kept for files outside this lane (NavChrome.tsx). */
 export type CompareOption = V2Option;

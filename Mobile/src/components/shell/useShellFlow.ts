@@ -21,6 +21,7 @@ import { departCurveResult, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
+import { isTransit } from "./types";
 import type { Depart, Place, Step, V2Option } from "./types";
 import { tap } from "../../haptics";
 import { useReduceMotion } from "../../a11y";
@@ -273,7 +274,9 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     let cancelled = false;
     // deferred one tick — setState directly inside an effect cascades renders
     Promise.resolve().then(() => { if (!cancelled) setSteps(null); });
-    if (!o || !from || !to || o.mode === "metro") return () => { cancelled = true; };
+    // transit rows (metro+walk / bus) carry stations — road steps don't
+    // describe a rail leg, and the sheet shows board→alight instead
+    if (!o || !from || !to || isTransit(o)) return () => { cancelled = true; };
     if (Array.isArray(o.steps) && o.steps.length) {   // inlined steps win when they exist
       const inline = o.steps;
       Promise.resolve().then(() => { if (!cancelled) setSteps(inline); });
