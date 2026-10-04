@@ -2,7 +2,7 @@
 
 *Compiled from every owner prompt across all ALive-108 sessions, tail to head
 (~25 sessions mined, 2026-10-01 → 2026-10-04). Each statement → honest status
-against the live deploy (`283985db`, reviews feature deploying next).*
+against the live deploy (`e849bf6f`, verified 2026-10-04).*
 
 ## the vision, refined into one paragraph
 
@@ -33,7 +33,7 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 | 12 | recorded product demo | **live** — iOS 4min clean take, admin walkthrough, Android e2e_demo.mp4 (3:19) | final ≤3min hackathon cut = owner's edit |
 | 13 | admin = global aggregates only, no profiles | **live** — k≥3 enforced, hashed tokens in k-sets, AGGREGATES ONLY badge | — |
 | 14 | users-by-area, journeys per OD, emissions saved | **live** — tiles exist; dose_avoided 99.2µg flowing; areas/OD suppressed honestly until k≥3 | small donation base — tiles sparse by design |
-| 15 | "their reviews" | **gap** — nothing collects reviews in the product; no store listing yet. Honest N/A, not faked | could add a tiny feedback endpoint if wanted |
+| 15 | "their reviews" | **live** — POST /v2/feedback (stars+≤240 note, NO token/device stored) → Settings row in app (a876ec8) → admin tile verified live "5★ · 1 review"; note bodies publish only at k≥3, hour-bucketed, ≤140 chars | — |
 | 16 | remove "a breath, today" | **live** — removed | — |
 | 17 | Delhi internal districts + NCR (Ghaziabad, Gurgaon) | **live** — 28 tiles: 15 NCR + 13 Delhi sub-areas (OSM has no 14th+ sub-area boundary — real, not faked) | — |
 | 18 | field cell click → locality name | **live** — verified: "near NH9 trunk", "DGD Bhorgarh clinic"; 150m honest 404 | — |
@@ -42,7 +42,7 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 | 21 | methodology per metric, area-wise counting | **live** — "how this layer is made": real derivation chain + live counts; districts = mean-of-cells captioned | — |
 | 22 | keep district/state UI | **live** — untouched | — |
 | 23 | real admin: merged data that doesn't exist anywhere | **live** — corridor×field `air pm2.5` join; pipeline/source-health blocks; archive-replay MAE | — |
-| 24 | optimised and fastly | **live** — epoch-keyed grid cache (warm ~1.5s), skip-identical-repaint | — |
+| 24 | optimised and fastly | **live** — epoch-keyed grid cache + boot warmer (first 40×40 call per epoch ~1.5s not ~7s), skip-identical-repaint | — |
 | 25 | Android: icons not cheap, milky morphism, distributed sidebar | **live** — Material Symbols Rounded, glass token ramp, JourneyDrawer rework; **Pixel_7 verify PASS all surfaces** (icons/milk/drawer/regressions); its 2 flags fixed same-day: emit_kg write (put-out-kg tile had readers, no writer) + stacked-sheet ghost-bleed (tile 0.62→0.84, pane→0.90) | perf vs llvmpipe inconclusive (no hardware GL on box) — physical phone is the real measure |
 | 26 | uncrashable | **mostly live** — Android E2E no crashes; iOS sim crash = sim-only GPU (documented, no .ips) | physical Android soak = owner |
 | 27 | terminate my lanes except pocket-rig | **done** — all ALive-108 lanes except live ones ended; Pocket Rig untouched | — |
@@ -51,14 +51,14 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 ## open honest gaps (not faked, ranked by demo impact)
 
 1. **Self-hosted OSRM daemon never deployed** — public demo carries all
-   router arms; `degraded` flag names failure honestly. Post-submission
-   hardening (scripts/geo/run_stack.sh is docker-host shaped).
+   router arms; `degraded` flag names failure honestly. **In-flight:**
+   restore lane spawned 2026-10-04 (self-host or honest risk doc).
 2. **Full-plan latency is seconds** — engine solve is ms; the 15-option
    pipeline is 0.8–6.9s. Demo script should show fast-paint (ms) first.
-3. **Reviews surface** — nothing collects them (no store). Options:
-   tiny POST /v2/feedback + admin rollup, or honestly absent.
-4. **users-by-area sparse** — real k≥3 math; needs real devices over days.
-5. **iOS-only sim artifacts** — documented; physical Android is the demo.
+3. **users-by-area sparse** — real k≥3 math; needs real devices over days.
+4. **iOS-only sim artifacts** — documented; physical Android is the demo.
+5. **Release APK predates HEAD** — polish + emit_kg + review-row landed
+   after the last build; fresh APK lane building now.
 
 ## the one-line pitch (for the landing page)
 

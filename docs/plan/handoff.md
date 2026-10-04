@@ -228,3 +228,21 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   only at k≥3, hour-bucketed). 21 community tests green. App-side
   Settings "rate alive·108" row handed to polish lane (1def589f awake).
 - Suite running for main-merge gate; deploy of b676639 after green.
+
+## handoff cont.6 — reviews tile feed fix + e849bf6f live (2026-10-04 ~10:40 IST)
+
+- **Reviews tile feed bug found+fixed**: paintShared read `S.reviews` but S is
+  /admin/api/status — the page never fetches /admin/api. Moved
+  `community.reviews_summary()` into /admin/api/global (admin_agg.py
+  `_reviews()`) + tile reads `G.reviews`. Verified live: tile shows
+  "5★ · 1 review" + histogram + k-gate note ("bodies withheld until ≥3").
+- **Live `e849bf6f`**: stations 24/waqi, 75 fires, field 113s; landing `/`;
+  grid warm ~1.5s; reviews tile renders real data.
+- **Polish lane landed `a876ec8`** (Settings "rate ALive·108" row → POST
+  /v2/feedback) then terminated with its verify child — slots freed.
+- **Lanes**: `4890a49f` building fresh release APK on HEAD (last APK predates
+  polish/emit_kg/review-row); `4a3551bc` attempting self-hosted OSRM restore
+  (public-demo rate-limit is the biggest demo-day risk; honest risk doc if
+  infeasible).
+- vision-audit.md refreshed: rows 15/24 live; OSRM gap now in-flight; APK gap
+  logged; deploy ref e849bf6f.
