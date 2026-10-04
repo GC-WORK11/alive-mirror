@@ -737,7 +737,7 @@ function paintMeth(){
 }
 function methToggle(){const m=$('meth');if(!m)return;
   const b=$('methbtn');
-  if(m.hidden){paintMeth();m.hidden=false;if(b)b.textContent='hide methodology'}
+  if(m.hidden){m.hidden=false;paintMeth();if(b)b.textContent='hide methodology'}
   else{m.hidden=true;if(b)b.textContent='how this layer is made'}
 }
 function renderFmSel(){
