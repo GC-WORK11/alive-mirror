@@ -374,7 +374,7 @@ def test_feedback_endpoint_round_trip():
     r = c.post("/v2/feedback", json={"stars": 4, "note": "smoke was honest"})
     assert r.status_code == 200 and r.json()["stored"] is True
     r = c.post("/v2/feedback", json={"stars": 9})
-    assert r.json()["stored"] is False
+    assert r.status_code == 422
     s = c.get("/admin/api/reviews").json()
     assert s["count"] >= 1
     community._reviews.clear(); community._loaded = False

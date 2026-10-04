@@ -1040,11 +1040,14 @@ async def leave_feedback(body: dict, request: Request):
         raise HTTPException(429, "feedback rate limit — try later")
     hits.append(now)
     _review_rate[host] = hits
-    return community.add_review(
+    out = community.add_review(
         stars=body.get("stars"),
         note=body.get("note"),
         build=body.get("build"),
     )
+    if not out.get("stored"):
+        raise HTTPException(422, out.get("error") or "invalid review")
+    return out
 
 
 @app.get("/reports")
