@@ -509,8 +509,11 @@ const s = StyleSheet.create({
   /* half-detent (~50% viewport) crops the grouped class grid's last row
      on first paint — cap at 72% so cycle/walk is fully visible without
      a full-screen takeover. */
+  /* glassDeep, not the map-ghost glass: this wizard stacks over the
+     compare sheet and at 0.84 alpha the sheet below bleeds through. */
   sheet: { position: "absolute", bottom: 0, left: 0, right: 0,
-           maxHeight: Math.round(Dimensions.get("window").height * 0.72) },
+           maxHeight: Math.round(Dimensions.get("window").height * 0.72),
+           backgroundColor: V2T.glassDeep },
   headRow: { flexDirection: "row", alignItems: "center", paddingRight: 20 },
   q: { flex: 1, fontSize: V2Type.body, color: V2T.text, paddingLeft: 20, paddingRight: 8, paddingTop: 4, paddingBottom: 10 },
   dots: { flexDirection: "row", gap: 5, paddingBottom: 8 },
