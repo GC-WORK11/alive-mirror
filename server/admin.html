@@ -267,7 +267,7 @@ function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;
   const [t0,c0]=RAMPS[i],[t1,c1]=RAMPS[i+1];const f=t1>t0?(t-t0)/(t1-t0):0;
   const p0=c0.split(',').map(Number),p1=c1.split(',').map(Number);
   return `rgba(${p0.map((v,j)=>Math.round(v+(p1[j]-v)*f))},${a})`}
-const doseT=u=>Math.min(1,(u||0)/316);   /* 316µg = 1 cigarette */
+const doseT=u=>Math.min(1,(u||0)/320);   /* display ramp saturates ~320 µg inhaled per trip */
 const doseInk=u=>{const t=doseT(u);return t<0.08?'var(--ink3)':t<0.4?'var(--bronze)':t<0.75?'var(--brick)':'var(--wine)'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const emptyMsg=(t)=>`<div class="empty-state"><b>insufficient data</b>${t}</div>`;
@@ -337,7 +337,7 @@ async function tick(){
     [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
      `daily median pm2.5${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
-     `cumulative dose · ${t.cig_equiv??'—'} cig-equiv`,'brick',t.dose_ug>0],
+     `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} µg/trip`,'brick',t.dose_ug>0],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
     [loso.mae_ugm3!=null?`${loso.mae_ugm3} <small>µg/m³</small>`:null,
@@ -443,7 +443,7 @@ async function tick(){
   $('donations').innerHTML=t.trips?`
       <dt>trips</dt><dd>${fmt(t.trips)} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}</dd>
       <dt>distance</dt><dd>${fmt1(t.km)} km · ${t.avg_km_per_trip??'—'} km/trip</dd>
-      <dt>dose</dt><dd>${fmt(t.dose_ug)} µg · ≈${t.cig_equiv} cig-equiv</dd>
+      <dt>dose</dt><dd>${fmt(t.dose_ug)} µg inhaled · aggregates only</dd>
       <dt>per trip / per km</dt><dd>${t.avg_dose_per_trip_ug??'—'} µg/trip · ${t.dose_ug_per_km??'—'} µg/km</dd>
       <dt>emissions (mid)</dt><dd>${fmt1(t.co2_kg_mid)} kg CO₂ · ${t.pm25_g_mid} g PM2.5</dd>
       <dt>switched lighter</dt><dd>${fmt(t.switched)} trips</dd>
