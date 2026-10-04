@@ -304,8 +304,26 @@ Cost note: one FARGATE task (1 vCPU / 2 GB) ≈ ₹3–4/hr in ap-south-1 —
 single-digit rupees for the whole demo window. Worth it for zero
 reclaim risk. Revert to SPOT after the event.
 
+### Public repo (disqualifying if missed — do FIRST on Oct 8)
+
+Rule: *"a repository whose history does not match the event dates
+disqualifies the whole team."* Our private history predates Oct 8 —
+squash it to ONE baseline commit on a NEW public repo, then every
+commit after lands inside the window:
+
+```bash
+./scripts/public-repo.sh https://github.com/<owner>/<new-repo>.git
+# then work normally; every post-baseline push keeps history in-window
+```
+
+Do this before any other demo-day step — the private `main` keeps
+shipping either way, the public repo only needs the baseline + the
+commits the judges will actually read.
+
 ### Demo-morning checklist (T-60 → T-0)
 
+- [ ] FIRST: run `scripts/public-repo.sh` → new public repo (above) —
+  the private history disqualifies the entry if skipped
 - [ ] T-60: switch SPOT→on-demand (above) or accept reclaim risk and
   note a Spot interruption kills the task with ~2 min warning — the
   replacement boots cold (~2 min to priced engine even with warm-up)
