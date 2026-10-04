@@ -664,6 +664,18 @@ async def donations():
     }
 
 
+def _reviews() -> dict:
+    """'Their reviews' rides the shared-picture feed — authored stars+notes,
+    nothing linkable stored; bodies publish only at k>=3 (community.py)."""
+    try:
+        import community
+        return community.reviews_summary()
+    except Exception:  # noqa: BLE001
+        return {"count": 0, "avg": None, "hist": {}, "notes": [],
+                "notes_withheld": False,
+                "basis": "reviews store unavailable"}
+
+
 @router.get("/global")
 async def global_view():
     """Global movement + savings view for the judges' dashboard.
@@ -702,6 +714,7 @@ async def global_view():
         "od_pairs_tracked": g.get("od_pairs_tracked", 0),
         "dose_avoided": g.get("avoided"),
         "co2_avoided": g.get("co2_avoided"),
+        "reviews": _reviews(),
         "note": ("areas are district names resolved from the trimmed "
                  "endpoint — a granularity coarser than the corridor "
                  "cells; suppressed rows are counted, never shown; "

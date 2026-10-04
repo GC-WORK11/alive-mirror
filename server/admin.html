@@ -891,8 +891,9 @@ function paintShared(dn,S,rows,G){
   const savedDose=box(G&&G.dose_avoided,['dose_ug','ug','value','total'])
            ??pick(t,['dose_saved_ug','dose_avoided_ug'])??pick(dn,['dose_saved_ug']);
   const nRep=rep(G&&G.dose_avoided)??rep(G&&G.co2_avoided);
-  /* 'their reviews' — authored feedback; note bodies only at k>=3 */
-  const rv=S&&S.reviews;
+  /* 'their reviews' — authored feedback riding the global feed; note
+     bodies only at k>=3 */
+  const rv=G&&G.reviews;
   const rvSub=rv&&rv.count?[
     [5,4,3,2,1].map(s=>`${s}★ ${fmt(rv.hist&&rv.hist[s]||0)}`).join(' · '),
     rv.notes&&rv.notes.length?`latest: “${rv.notes[0].note}”`:null,
