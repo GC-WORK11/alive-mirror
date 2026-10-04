@@ -165,6 +165,51 @@ def test_totals_shape_matches_mobile_contract():
     assert t["source"] == "donated_trip_aggregates"
 
 
+# --- banned-key invariant over every output -----------------------------------
+# Coordinate leaves exist in exactly two sanctioned places: k>=3 corridor
+# cell centres (the ~500 m cells the mobile CorridorLayer and the admin
+# map draw — a corridor dict always carries {devices, samples, ...}) and
+# volunteered public report pins (GeoJSON Point features). Any banned key
+# elsewhere — or coordinates outside those two shapes — fails the build.
+BANNED_KEYS = {
+    "token", "tokens", "token_hash", "device_token",
+    "latitude", "longitude", "coord", "coords",
+    "trajectory", "points", "route", "contributor",
+    "reporter", "identity", "user", "users", "uid",
+    "uuid", "device_id", "ip",
+}
+
+
+def _walk_dicts(o):
+    if isinstance(o, dict):
+        yield o
+        for v in o.values():
+            yield from _walk_dicts(v)
+    elif isinstance(o, list):
+        for v in o:
+            yield from _walk_dicts(v)
+
+
+def test_outputs_never_leak_identity_or_foreign_coords():
+    for dev in ("ka", "kb", "kc"):
+        _donate(dev)
+    community.report("smoke", 28.61, 77.20, contributor=None)
+    for out in ALL_OUTPUTS():
+        for d in _walk_dicts(out):
+            ks = {str(k).lower() for k in d}
+            assert not (ks & BANNED_KEYS), \
+                f"banned key(s) {ks & BANNED_KEYS} in {sorted(d)}"
+            if {"lat", "lon", "latitude", "longitude"} & ks:
+                corridor = {"devices", "samples"} <= ks
+                report_pin = {"kind", "age_min"} <= ks
+                assert corridor or report_pin, \
+                    f"coordinate leaf outside a k>=3 corridor cell or " \
+                    f"volunteered report pin: {sorted(d)}"
+            if "geometry" in ks or "coordinates" in ks:
+                assert d.get("type") in ("Point", "Feature"), \
+                    f"non-pin coordinate structure: {d}"
+
+
 # --- no per-device fields anywhere --------------------------------------------
 def test_no_per_device_fields_anywhere():
     for dev in ("dev-a", "dev-b", "dev-c", "dev-d"):
