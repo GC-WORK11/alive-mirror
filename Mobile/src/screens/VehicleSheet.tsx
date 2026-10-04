@@ -229,6 +229,10 @@ function Wizard({ lang, current, onDone, onClose }: {
   const tl = (k: VehKey) => tr(k, lang) || LOCAL[lang][k] || LOCAL.en[k];
 
   const finish = (p: VehicleProfile) => {
+    /* dismiss while the PUC field still holds focus — otherwise it
+       unmounts focused and Android hands the IME to MLRNMapView,
+       leaving a QWERTY keyboard up over the compare sheet */
+    Keyboard.dismiss();
     setSaved(p);
     setStep("done");
     // the result line stays up ~1s (doc S8) — then the answer leaves
@@ -473,6 +477,11 @@ export function VehicleSheet({
     if (!visible) Keyboard.dismiss();
   }, [visible]);
 
+  /* the IME must come down BEFORE the focused field unmounts — after
+     unmount Android re-serves focus to the map view and the keyboard
+     stays up (seen live on the emulator) */
+  const closeQuiet = () => { Keyboard.dismiss(); onClose(); };
+
   if (!visible) return null;
   return (
     <View style={s.overlay} pointerEvents="box-none">
@@ -485,7 +494,7 @@ export function VehicleSheet({
         style={s.kav}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Wizard lang={lang} current={current} onDone={onDone} onClose={onClose} />
+        <Wizard lang={lang} current={current} onDone={onDone} onClose={closeQuiet} />
       </KeyboardAvoidingView>
     </View>
   );
