@@ -337,3 +337,10 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 - main `7a2c27c`; live `6a067ca4`; two epoch-watch cycles clean (24 stn, 75 fires, plan 3.5ms fast arm).
 - Snapshot "partial" builds root-caused: remote blueprint lacks server/core/build_ext.sh (real blueprint bug, owner boundary — flagged); Delhi-Air's was clone materialization flake on a file that IS tracked — reported as devin_runtime friction.
 - PLATEAU: every surface verified on current build; remaining gaps structural (real devices) or owner demo-morning. Loop continues as periodic epoch regression watch.
+
+## cont.13 — /admin/api/global shape (probe correctly)
+Flat keys, not nested: `areas:[{area,trips,devices}]`, `od_pairs:[...]`,
+`suppressed:{areas,od_pairs}`, `dose_avoided:{dose_ug,trips_reporting}`,
+`co2_avoided:{co2_kg,puc_calibrated_trips}`, `reviews:{count,avg,hist,notes,notes_withheld}`,
+`areas_tracked`,`od_pairs_tracked`. Live state ~19:50Z: New Delhi 3/3 minted,
+od 2 suppressed, dose 303.7µg/4 trips, co2 1.55kg/1 PUC trip, reviews 2 avg 4.0 withheld.
