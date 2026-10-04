@@ -265,17 +265,34 @@ std::vector<Hit> SearchIndex::query(const std::string& q,
     const uint64_t agen = ++gen_;
     touched_vids.clear();
 
-    // prefix range over the sorted vocab
+    // prefix range over the sorted vocab — all-digit atoms and atoms
+    // of 1-2 chars match EXACTLY: '12' is twelve, not 125; 'i' is not
+    // 'ii'; a digit string is an identifier, not a stem
+    const bool exact_only =
+        x.size() <= 2 ||
+        std::all_of(x.begin(), x.end(),
+                    [](unsigned char c) { return c >= '0' && c <= '9'; });
     auto lo = std::lower_bound(vocab_.begin(), vocab_.end(), x);
-    for (auto it = lo; it != vocab_.end() && it->compare(0, lx, x) == 0; ++it) {
-      uint32_t vid = (uint32_t)(it - vocab_.begin());
-      vstamp_[vid] = agen;
-      vscore_[vid] = (double)lx / (double)it->size();
-      touched_vids.push_back(vid);
+    if (exact_only) {
+      if (lo != vocab_.end() && *lo == x) {
+        uint32_t vid = (uint32_t)(lo - vocab_.begin());
+        vstamp_[vid] = agen;
+        vscore_[vid] = 1.0;
+        touched_vids.push_back(vid);
+      }
+    } else {
+      for (auto it = lo; it != vocab_.end() &&
+             it->compare(0, lx, x) == 0; ++it) {
+        uint32_t vid = (uint32_t)(it - vocab_.begin());
+        vstamp_[vid] = agen;
+        vscore_[vid] = (double)lx / (double)it->size();
+        touched_vids.push_back(vid);
+      }
     }
 
-    // fuzzy candidates via padded-trigram inverted index
-    if (lx >= 4) {
+    // fuzzy candidates via padded-trigram inverted index — never for
+    // exact-only atoms ('110001' must not fuzz to '110011')
+    if (!exact_only && lx >= 4) {
       const int bound = lx < 8 ? 1 : 2;
       for (uint32_t key : trigrams(x)) {
         auto jt = tri_.find(key);
@@ -381,10 +398,18 @@ std::vector<Hit> SearchIndex::query(const std::string& q,
       }
       prec = (double)covd / (double)dtoks.size();
     }
+    // leading-prefix bonus — the display is a strict leading token
+    // prefix of the query ('beta 2' inside 'beta 2 greater noida'):
+    // this row IS the named thing, not a POI containing its words.
+    // Folded into the w5 term alongside display precision.
+    const bool leadpref =
+        !dtoks.empty() && dtoks.size() < G &&
+        std::equal(dtoks.begin(), dtoks.end(), qtoks.begin());
     double dist = 0.0;
     if (has_bias) dist = haversine_km(*lat, *lon, en.lat, en.lon);
     double score = w_.w1 * pq + w_.w2 * cov + w_.w3 * en.popularity +
-                   w_.w5 * prec - w_.w4 * std::log1p(dist);
+                   w_.w5 * (prec + (leadpref ? 1.0 : 0.0)) -
+                   w_.w4 * std::log1p(dist);
     res.push_back(Hit{score, e, cov, fuzzy});
   }
 

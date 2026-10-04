@@ -3,6 +3,12 @@
 // first suggestion paints inside a frame (<16 ms) while the server tiers
 // (client.ts) stream in behind it. normalize() is shared with the
 // merge/dedupe layer so every tier keys names identically.
+//
+// Honest tiering delta (vs server T1): T0 is prefix+alias only — no
+// Damerau-Levenshtein fuzzy, no kind+place compounds ("atm near cp" is a
+// name query here), no numeric-exact/leading-prefix ranking. The server
+// can be smarter; offline keeps the floor: real rows, real aliases, a
+// miss rather than a fabricated place.
 
 type Raw = { n: string; c: string; lat: number; lon: number; w: number; k: number };
 

@@ -21,11 +21,13 @@ export interface Place {
   id?: string | null;
   place_id?: string;
   distance_m?: number;
-  match?: "exact-prefix" | "token-prefix" | "fuzzy" | "other";
+  match?: "exact-prefix" | "token-prefix" | "fuzzy" | "category" | "other";
   match_rank?: number;
   score?: number;               // gazetteer ranking score (T1 rows)
   cov?: number;                 // SearchIndex token-coverage ratio (T1)
   fuzzy?: boolean;              // SearchIndex DL-only match flag (T1)
+  compound?: boolean;           // kind+place compound hit ("atm near cp")
+  anchor?: string;              // resolved place the compound anchored on
   source?: string;              // gazetteer | amazon | photon | ...
   sources?: string[];           // tiers that found it, e.g. ["t1","t2"]
   outside_ncr?: boolean;

@@ -51,3 +51,23 @@ hkv	Hauz Khas Village
 ndls	New Delhi Railway Station
 bhikaji	Bhikaji Cama Place
 srcc	Shri Ram College of Commerce
+konnaught place	Connaught Place
+chandi chowk	Chandni Chowk
+lodhi gardan	Lodhi Garden
+hauz khas vilage	Hauz Khas
+jamia nagr	Jamia Nagar
+nebru place	Nehru Place
+atm near cp	ATM
+hospital near saket	hospital / Saket
+school sector 62 noida	school / Sector 62
+petrol pump near karol bagh	petrol / fuel
+bank near lajpat nagar	bank
+gym in dwarka	gym / fitness
+post office in rohini	post office
+bus stop near iit delhi	platform / bus stop
+sector 47 noida	Sector 47
+sector 12 noida	Sector 12
+sector 21 faridabad	Sector 21
+sector 56 gurgaon	Sector 56
+alpha 1 greater noida	Alpha 1
+dlf phase 2	DLF Phase 2

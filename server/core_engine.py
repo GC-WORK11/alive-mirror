@@ -106,11 +106,283 @@ def nearest(lat, lon, max_m: float = 150.0, limit: int = 16):
     return [(ents[i], d) for d, i in found[:limit]]
 
 
+# ---------------------------------------------------------------------------
+# compound (kind + place) queries — "atm near cp", "school sector 62 noida"
+# ---------------------------------------------------------------------------
+# A name-token index can't answer "a KIND of thing near a PLACE": every
+# token is name-text, so "school sector 62 noida" surfaces the wrong
+# sector's schools. The compound layer detects the kind noun, resolves
+# the remaining place phrase through the SAME index, and returns
+# kind-filtered rows nearest the resolved anchor from the SAME grid that
+# serves /v2/reverse. It fires only when the name path is weak (empty or
+# partial coverage) — a query that already resolves as a full name
+# ("school of planning", "metro station rajiv chowk") stays untouched.
+
+# place-phrase fillers Delhi users actually type around the anchor
+_COMPOUND_STOP = frozenset((
+    "in", "near", "at", "around", "round", "opp", "opposite", "of",
+    "the", "a", "an", "for", "to", "by", "from", "mein", "me", "ke",
+    "ki", "ka", "paas", "pas", "wala", "wale", "wali", "se", "par",
+    "pe", "andar", "bahar", "nazdeek", "najdeek", "kareeb", "karib",
+    "close", "nearby", "side", "samne", "saamne", "peeche", "piche",
+    "aage",
+))
+
+# "near me" style anchors — resolved to the caller's own lat/lon
+_ME_TOKENS = frozenset(("me", "mere", "yahan", "here", "pas", "paas"))
+
+# kind phrase -> cooked category set (entries_from_gazetteer kinds).
+# Multi-word forms ("petrol pump", "metro station") win before their
+# single tokens, so "bus stand" doesn't read as plain "bus" + leftover.
+_KIND_PHRASES = {
+    ("petrol", "pump"): ("fuel",), ("gas", "station"): ("fuel",),
+    ("filling", "station"): ("fuel",), ("charging", "station"):
+    ("charging_station", "charge_point"),
+    ("metro", "station"): ("metro", "station", "train_station",
+                           "subway_entrance", "platform", "stop"),
+    ("railway", "station"): ("train_station", "station",
+                             "railway:station", "rail", "halt",
+                             "platform"),
+    ("train", "station"): ("train_station", "station",
+                           "railway:station", "rail", "halt", "platform"),
+    ("rail", "station"): ("train_station", "station", "rail", "halt"),
+    ("police", "station"): ("police", "policeoutpost"),
+    ("bus", "stop"): ("bus_stop", "platform", "stop", "stop_position",
+                      "public_transport:platform"),
+    ("bus", "stand"): ("bus_station", "bus_stop", "platform", "stop"),
+    ("bus", "station"): ("bus_station", "bus_stop", "platform", "stop"),
+    ("post", "office"): ("post_office", "post_depot", "post_box"),
+    ("fire", "station"): ("fire_station",),
+    ("guest", "house"): ("guest_house", "tourism:guest_house", "hostel"),
+    ("ice", "cream"): ("ice_cream",),
+    ("swimming", "pool"): ("swimming_pool", "swimming_area"),
+    ("community", "centre"): ("community_centre", "social_centre"),
+    ("community", "center"): ("community_centre", "social_centre"),
+    ("movie", "theater"): ("cinema",),
+    ("nursing", "home"): ("hospital", "nursing_home"),
+    ("medical", "store"): ("pharmacy", "chemist", "medical_supply"),
+    ("car", "wash"): ("car_wash",),
+    ("shopping", "mall"): ("shopping_mall", "mall", "shop:mall",
+                           "shopping_centre", "department_store"),
+    ("taxi", "stand"): ("taxi",),
+    ("sports", "complex"): ("stadium_arena", "stadium", "sports_centre"),
+    ("sports", "centre"): ("sports_centre", "stadium_arena"),
+    ("golf", "course"): ("golf_course",),
+    ("atm",): ("atm",),
+    ("bank",): ("bank",),
+    ("hospital",): ("hospital", "specialty_hospital", "nursing_home",
+                   "amenity:hospital"),
+    ("aspatal",): ("hospital",),
+    ("clinic",): ("clinic", "dental_clinic", "outpatient_care_facility",
+                  "vision_or_eye_care_clinic", "healthcare"),
+    ("doctor",): ("doctors", "doctor", "clinic"),
+    ("dentist",): ("dentist", "dental_clinic"),
+    ("pharmacy",): ("pharmacy", "chemist", "medical_supply"),
+    ("chemist",): ("pharmacy", "chemist"),
+    ("school",): ("school", "prep_school", "kindergarten",
+                  "educational_institution", "language_school",
+                  "music_school", "driving_school", "dancing_school",
+                  "specialty_school", "amenity:school",
+                  "building:school"),
+    ("college",): ("college", "college_university",
+                   "educational_institution", "amenity:college",
+                   "building:college"),
+    ("university",): ("university", "college_university",
+                      "educational_institution", "amenity:university",
+                      "building:university"),
+    ("metro",): ("metro", "subway", "subway_entrance"),
+    ("station",): ("station", "train_station", "metro",
+                   "railway:station", "halt"),
+    ("airport",): ("airport", "aerodrome", "terminal", "helipad",
+                   "heliport"),
+    ("police",): ("police", "policeoutpost"),
+    ("thana",): ("police", "policeoutpost"),
+    ("parking",): ("parking", "parking_space", "parking_entrance",
+                  "motorcycle_parking", "bicycle_parking"),
+    ("restaurant",): ("restaurant", "fast_food", "food_court",
+                      "canteen"),
+    ("dhaba",): ("restaurant", "fast_food"),
+    ("hotel",): ("hotel", "guest_house", "hostel", "motel", "resort",
+                 "tourism:hotel", "tourism:guest_house"),
+    ("hostel",): ("hostel", "dormitory", "student_accommodation",
+                  "student_accomodation"),
+    ("dharamshala",): ("guest_house", "hostel"),
+    ("cafe",): ("cafe", "coffee", "internet_cafe"),
+    ("cinema",): ("cinema", "theatre"),
+    ("movie",): ("cinema", "theatre"),
+    ("multiplex",): ("cinema",),
+    ("theatre",): ("theatre", "cinema", "arts_centre"),
+    ("park",): ("park", "garden", "playground", "recreation_ground",
+                "dog_park", "leisure:park", "national_park"),
+    ("playground",): ("playground", "pitch", "park"),
+    ("gym",): ("gym", "fitness_centre", "sports_centre",
+               "fitness_station", "leisure:fitness_centre",
+               "leisure:sports_centre"),
+    ("gymnasium",): ("gym", "fitness_centre"),
+    ("stadium",): ("stadium_arena", "stadium", "sports_centre",
+                   "leisure:stadium"),
+    ("library",): ("library", "public_bookcase"),
+    ("market",): ("marketplace", "market", "greengrocer"),
+    ("mandi",): ("marketplace", "market", "greengrocer"),
+    ("bazaar",): ("marketplace", "market", "convenience"),
+    ("mall",): ("shopping_mall", "mall", "shop:mall", "shopping_centre",
+                "department_store"),
+    ("shop",): ("shop", "convenience", "supermarket", "store",
+                "variety_store", "general", "retail"),
+    ("store",): ("store", "shop", "convenience", "supermarket",
+                 "variety_store", "general"),
+    ("grocery",): ("supermarket", "convenience", "grocery",
+                   "greengrocer", "shop:supermarket",
+                   "shop:convenience"),
+    ("kirana",): ("convenience", "grocery", "general", "supermarket"),
+    ("supermarket",): ("supermarket", "shop:supermarket", "convenience"),
+    ("gymkhana",): ("club", "sports_centre"),
+    ("club",): ("club", "social_club", "sports_centre"),
+    ("temple",): ("temple", "hindu_place_of_worship", "place_of_worship",
+                  "building:temple", "amenity:place_of_worship",
+                  "shrine", "wayside_shrine"),
+    ("mandir",): ("temple", "hindu_place_of_worship", "place_of_worship",
+                  "building:temple", "amenity:place_of_worship",
+                  "shrine", "wayside_shrine"),
+    ("mosque",): ("mosque", "muslim_place_of_worship",
+                  "place_of_worship"),
+    ("masjid",): ("mosque", "muslim_place_of_worship",
+                  "place_of_worship"),
+    ("church",): ("church", "christian_place_of_worship",
+                  "place_of_worship"),
+    ("gurudwara",): ("place_of_worship", "amenity:place_of_worship"),
+    ("gurdwara",): ("place_of_worship", "amenity:place_of_worship"),
+    ("bar",): ("bar", "pub", "nightclub", "lounge"),
+    ("pub",): ("pub", "bar", "nightclub"),
+    ("theka",): ("bar", "pub", "alcohol", "wine"),
+    ("bakery",): ("bakery", "pastry", "confectionery"),
+    ("sweets",): ("sweets", "confectionery", "pastry", "sweet",
+                  "sweets_shop"),
+    ("mithai",): ("sweets", "confectionery", "sweet"),
+    ("court",): ("courthouse",),
+    ("kachahri",): ("courthouse",),
+    ("vet",): ("veterinary",),
+    ("veterinary",): ("veterinary",),
+    ("taxi",): ("taxi",),
+    ("cab",): ("taxi",),
+    ("graveyard",): ("grave_yard", "cemetery"),
+    ("cemetery",): ("cemetery", "grave_yard"),
+    ("smashan",): ("crematorium", "cemetery"),
+    ("salon",): ("hairdresser", "beauty"),
+    ("parlour",): ("beauty", "hairdresser"),
+    ("parlor",): ("beauty", "hairdresser"),
+    ("barber",): ("hairdresser",),
+    ("tailor",): ("tailor",),
+    ("electrician",): ("electrician",),
+    ("plumber",): ("plumber",),
+    ("gym", "wear"): ("gym_wear",),
+    ("pet", "shop"): ("pet",),
+    ("computer",): ("computer", "electronics", "electronics_repair"),
+    ("mobile", "shop"): ("mobile_phone", "mobile_phone_accessories"),
+}
+
+# kinds compound hits rank by anchor distance within this radius
+_COMPOUND_MAX_M = 1500.0
+
+
+def _compound(q, weak: bool, lat, lon, limit):
+    """kind+place compound rows, or [] when nothing honest resolves.
+
+    `weak` = the plain name-match came back empty or partial; only then
+    do we reinterpret the query as kind + anchor."""
+    if not weak:
+        return []
+    toks = alive_core_ref.normalize(q)
+    if len(toks) < 2:
+        return []
+    kinds = None
+    kspan = None
+    for n in (2, 1):
+        for i in range(len(toks) - n + 1):
+            ks = _KIND_PHRASES.get(tuple(toks[i:i + n]))
+            if ks:
+                kinds, kspan = ks, (i, i + n)
+                break
+        if kinds:
+            break
+    if kinds is None:
+        return []
+    rest = [t for j, t in enumerate(toks)
+            if not (kspan[0] <= j < kspan[1])]
+    kind_words = set(toks[kspan[0]:kspan[1]])
+    anchor = None
+    # "atm near me" — every non-kind token is filler or the me-marker
+    if (rest and any(t in _ME_TOKENS for t in rest)
+            and all(t in _ME_TOKENS or t in _COMPOUND_STOP
+                    for t in rest)):
+        if lat is None or lon is None:
+            return []
+        anchor = {"display": "your location", "lat": float(lat),
+                  "lon": float(lon)}
+    else:
+        place_toks = [t for t in rest if t not in _COMPOUND_STOP]
+        if not place_toks:
+            return []
+        ah = search_index().query(" ".join(place_toks), lat, lon, 1)
+        if not ah or (ah[0].get("cov") or 0.0) < 0.75:
+            return []
+        anchor = ah[0]
+
+    out = []
+    # scan deep enough that dense localities can't starve a rarer kind —
+    # Dwarka alone has ~1k rows inside the radius
+    for e, d in nearest(anchor["lat"], anchor["lon"],
+                        max_m=_COMPOUND_MAX_M, limit=4096):
+        # kind match is corpus-kind OR, for a single-word kind, a display
+        # token equal to the kind word — "The indian gym" carries kind
+        # 'named', not a gym code, but its own name honestly declares it.
+        # multi-word kinds require the whole phrase ("office" alone is
+        # not a post office)
+        if e.get("category") not in kinds:
+            etoks = set(alive_core_ref.normalize(e.get("display") or ""))
+            if len(kind_words) > 1:
+                ok = kind_words <= etoks
+            else:
+                ok = bool(kind_words & etoks)
+            if not ok:
+                continue
+        out.append({
+            "id": e["pid"],
+            "display": e["display"],
+            "category": e.get("category") or "",
+            "lat": e["lat"], "lon": e["lon"],
+            # distance to the resolved anchor — the honest semantic for
+            # "atm near cp", not distance to the caller
+            "distance_m": round(d, 1),
+            "anchor": anchor["display"],
+            "compound": True,
+            # cov=None: these rows aren't token matches; match_rank set
+            # so _merge orders them as a real answer tier, not noise
+            "score": max(0.0, 3.0 - d / 1000.0),
+            "cov": None, "fuzzy": False,
+            "match": "category", "match_rank": 1,
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
 def search(q, lat=None, lon=None, limit=8):
     """/v2/search T1 — index.query on whichever impl loaded. Index ids
     are positions (uint32 for the C++ binding); remap to the resolvable
     `pid` (gaz:<idx>/cor:<osm-id>) the gazetteer engine emits."""
     hits = search_index().query(q, lat, lon, limit)
+    weak = not hits or (hits[0].get("cov") or 0.0) < 0.9
+    comp = _compound(q, weak, lat, lon, limit)
+    if comp:
+        # intent rows first; name hits append for breadth (deduped on
+        # pid — an entry can satisfy both readings, e.g. "Saket City
+        # Hospital" for 'hospital saket')
+        seen = {r["id"] for r in comp}
+        for h in hits:
+            if h.get("id") not in seen:
+                comp.append(h)
+        hits = comp[:limit]
     for h in hits:
         i = h.get("id")
         if isinstance(i, int) and 0 <= i < len(_SEARCH_PIDS):

@@ -1450,6 +1450,44 @@ def emit_mobile(entries, target: int, gaz_path: str = GAZETTEER_PATH,
 # Step 5 -- 20-query acceptance scoring
 # ---------------------------------------------------------------------------
 
+def _dl_distance(a: str, b: str, bound: int) -> int:
+    """Damerau-Levenshtein with early exit at `bound` — same algorithm
+    the production index uses (alive_core_ref.dl_distance)."""
+    la, lb = len(a), len(b)
+    if abs(la - lb) > bound:
+        return bound + 1
+    INF = la + lb
+    da: dict[str, int] = {}
+    d = [[0] * (lb + 2) for _ in range(la + 2)]
+    d[0][0] = INF
+    for i in range(la + 1):
+        d[i + 1][0] = INF
+        d[i + 1][1] = i
+    for j in range(lb + 1):
+        d[0][j + 1] = INF
+        d[1][j + 1] = j
+    for i in range(1, la + 1):
+        db = 0
+        row_min = bound + 1
+        for j in range(1, lb + 1):
+            i1 = da.get(b[j - 1], 0)
+            j1 = db
+            cost = 1
+            if a[i - 1] == b[j - 1]:
+                cost = 0
+                db = j
+            v = min(d[i][j] + cost, d[i + 1][j] + 1, d[i][j + 1] + 1)
+            if cost == 0:
+                v = min(v, d[i1][j1] + (i - i1 - 1) + 1 + (j - j1 - 1))
+            d[i + 1][j + 1] = v
+            if v < row_min:
+                row_min = v
+        da[a[i - 1]] = i
+        if row_min > bound:
+            return bound + 1
+    return d[la + 1][lb + 1]
+
+
 class SimpleIndex:
     """normalized prefix+token index over display+aliases."""
 
@@ -1465,9 +1503,16 @@ class SimpleIndex:
             for t in toks:
                 self.postings.setdefault(t, set()).add(i)
         self.tokens = sorted(self.postings)
+        # length buckets for the bounded-DL fallback scan
+        self._by_len: dict[int, list[str]] = {}
+        for t in self.tokens:
+            self._by_len.setdefault(len(t), []).append(t)
 
     def candidates(self, qtok):
-        """indices whose tokens == qtok or startswith qtok (prefix)."""
+        """indices whose tokens == qtok or startswith qtok (prefix), plus
+        a bounded Damerau-Levenshtein fallback for tokens >= 4 chars —
+        the same typo tolerance the production engine applies, so the
+        score measures corpus coverage, not scorer strictness."""
         out = set()
         if qtok in self.postings:
             out |= self.postings[qtok]
@@ -1475,6 +1520,13 @@ class SimpleIndex:
         hi = bisect.bisect_left(self.tokens, qtok + "\xff")
         for t in self.tokens[lo:hi]:
             out |= self.postings[t]
+        if len(qtok) >= 4:
+            bound = 1 if len(qtok) < 8 else 2
+            for tl in range(len(qtok) - bound, len(qtok) + bound + 1):
+                for t in self._by_len.get(tl, ()):
+                    if (not t.startswith(qtok)
+                            and _dl_distance(qtok, t, bound) <= bound):
+                        out |= self.postings[t]
         return out
 
     def search(self, query, k=3):
@@ -1564,6 +1616,28 @@ EXPECTED_SETS = {
     "ndls": [{"new", "delhi", "railway"}, {"ndls"}],
     "bhikaji": [{"bhikaji"}],
     "srcc": [{"shri", "ram", "college"}, {"srcc"}],
+    # query-tolerance additions: typos (fuzzy/DL), kind+place compounds,
+    # numbered-sector ranking
+    "konnaught place": [{"connaught", "place"}],
+    "chandi chowk": [{"chandni", "chowk"}],
+    "lodhi gardan": [{"lodhi"}],
+    "hauz khas vilage": [{"hauz", "khas"}],
+    "jamia nagr": [{"jamia", "nagar"}],
+    "nebru place": [{"nehru", "place"}],
+    "atm near cp": [{"atm"}],
+    "hospital near saket": [{"hospital"}, {"saket"}],
+    "school sector 62 noida": [{"school"}, {"sector", "62"}],
+    "petrol pump near karol bagh": [{"petrol"}, {"fuel"}, {"petroleum"}],
+    "bank near lajpat nagar": [{"bank"}],
+    "gym in dwarka": [{"gym"}, {"fitness"}],
+    "post office in rohini": [{"post", "office"}],
+    "bus stop near iit delhi": [{"platform"}, {"bus", "stop"}],
+    "sector 47 noida": [{"sector", "47"}],
+    "sector 12 noida": [{"sector", "12"}],
+    "sector 21 faridabad": [{"sector", "21"}],
+    "sector 56 gurgaon": [{"sector", "56"}],
+    "alpha 1 greater noida": [{"alpha", "1"}],
+    "dlf phase 2": [{"dlf", "phase", "2"}, {"dlf", "phase", "ii"}],
 }
 
 
@@ -1628,9 +1702,18 @@ def append_score_stats(lines, rows_with, rows_without):
     need_list = [r["query"] for r, rn in zip(rows_with, rows_without)
                  if r["hit"] and not rn["hit"]]
     miss_list = [r["query"] for r in rows_with if not r["hit"]]
+    # kind+place compounds ("atm near cp") resolve in the production
+    # engine's compound layer — SimpleIndex is name-text only, so those
+    # misses are scorer-side, not corpus gaps
+    engine_only = [q for q in miss_list
+                   if re.search(r"\b(near|opp|opposite)\b", q)]
+    miss_list = [q for q in miss_list if q not in engine_only]
     a("")
     a(f"- queries that NEED aliases.json to hit: {', '.join(need_list) or 'none'}")
     a(f"- misses (corpus/index gaps): {', '.join(miss_list) or 'none'}")
+    if engine_only:
+        a(f"- resolves only via engine layers (kind+place compound, "
+          f"scorer-side limitation): {', '.join(engine_only)}")
     a("")
     return hits_with
 
