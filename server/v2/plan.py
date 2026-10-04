@@ -924,7 +924,13 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
     # without this its slowness cancels the WHOLE gather and motorized
     # options die with it. wait_for only abandons the future; the
     # detached thread still finishes pricing for the next request.
-    motor, slow, eng = await asyncio.gather(
+    # all four arms race together — the transit GTFS scan used to start
+    # only after the gather resolved, so a far OD serialized motor+engine
+    # (~8-10s) then transit's own 12s cap and overshot PLAN_BUDGET_S:
+    # _options_bounded then returned 'planner timed out' with zero rows.
+    # Sync GTFS stays off-loop via to_thread (its 12 s cap still applies;
+    # a slow scan just drops the transit legs, never the whole plan).
+    motor, slow, eng, transit = await asyncio.gather(
         _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                            depart_at),
         _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile),
@@ -933,6 +939,9 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
                 _ENG_EXEC, _engine_options, flat, flon, tlat, tlon,
                 vehicle, profile),
             timeout=ENGINE_BUDGET_S),
+        asyncio.wait_for(asyncio.to_thread(
+            _transit_options, flat, flon, tlat, tlon, vehicle, profile,
+            depart_at), timeout=TRANSIT_BUDGET_S),
         return_exceptions=True)
     options = ([o for o in (motor or []) if isinstance(o, dict)]
                if isinstance(motor, list) else [])
@@ -940,18 +949,8 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
                 if isinstance(slow, list) else [])
     if isinstance(eng, list):
         options += _engine_merge(eng, options)
-    try:
-        # sync GTFS scan runs off-loop: a big OD pair's graph walk would
-        # otherwise stall the single worker's event loop (and /health
-        # with it — that was the ALB wedge). Its own sub-budget keeps a
-        # slow scan (first plan on a fresh task, feed still compiling)
-        # from eating the whole plan budget — motorized+slow options
-        # still land honestly without a transit leg.
-        options += await asyncio.wait_for(asyncio.to_thread(
-            _transit_options, flat, flon, tlat, tlon, vehicle, profile,
-            depart_at), timeout=TRANSIT_BUDGET_S)
-    except Exception:
-        pass
+    if isinstance(transit, list):
+        options += [o for o in transit if isinstance(o, dict)]
     return options
 
 
