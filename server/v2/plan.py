@@ -984,8 +984,22 @@ def _engine_reweight(eng) -> None:
             except Exception:
                 return None
 
+        # fast path: when a serving snapshot's C++ FieldView exists AND the
+        # engine is the C++ twin, hand reweight the FieldView itself — the
+        # binding calls fv->value() directly (~80 ms) instead of ~1.25M
+        # python-callable crossings. Same pm25 semantics F.value serves.
+        sampler = val
         try:
-            res = eng.reweight(val) or {}
+            import alive_core
+            fv = getattr(F, "_snap_fv", None)
+            if (isinstance(fv, alive_core.FieldView)
+                    and isinstance(eng, alive_core.PathEngine)):
+                sampler = fv
+        except ImportError:
+            pass
+
+        try:
+            res = eng.reweight(sampler) or {}
             # only mark fresh when edges actually priced — a reweight
             # against an empty field (cold task, no snapshot yet) would
             # otherwise stick zero-cost paths for the whole TTL
