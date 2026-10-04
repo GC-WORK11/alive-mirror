@@ -439,7 +439,7 @@ function AppInner() {
       {/* freshness chip — real field age on the map screen: the /v2/plan
           field block during compare, else the polled /aqi field block.
           Stale shows as stale; no field → nothing claims freshness. */}
-      {phase !== "nav" && mapField && (
+      {phase !== "nav" && phase !== "search" && mapField && (
         <View style={[s.freshWrap, { top: insets.top + 62 }]} pointerEvents="box-none">
           <FreshnessChip
             ageS={mapField.age_s} stale={mapField.stale}
