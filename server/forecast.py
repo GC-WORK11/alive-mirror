@@ -368,10 +368,18 @@ class ForecastField:
         if delta is not None:
             corrected = v + delta
             if corrected <= 0.0:
-                # the anchor extrapolated a same-site hour-0 bias onto a
-                # small future signal past the physical floor — degrade
-                # to the model's own number (real physics, stated basis)
-                # rather than serve an impossible literal 0.0
+                # non-physical, with two different honest resolutions:
+                #  * idx <= idx0: the correction IS (essentially) the
+                #    live reading — at the anchor hour corrected ==
+                #    live, and a near-zero instrument is the truth.
+                #  * idx > idx0: the anchor extrapolated a same-site
+                #    hour-0 bias onto a small future signal past the
+                #    physical floor — the correction lost skill, so
+                #    serve the model's own number for that hour (real
+                #    physics, stated basis), not a clamped literal 0.0.
+                idx0 = self.hour_index(0) or 0
+                if idx <= idx0:
+                    return 0.0
                 return v if v > 0.0 else None
             v = corrected
         return v
