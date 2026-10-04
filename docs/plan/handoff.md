@@ -156,3 +156,31 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 - **root / → 302 /city** (136e731) + runbook bump (c1b8107) + this handoff pushed; deploy deferred until E2E child sweep ends (no mid-sweep flap).
 - **Release APK verified**: 129.5MB, NLB baked (alive108-…elb.amazonaws.com), `avoided_ug`/`co2_avoided_kg`/`puc_calibrated` all in bundle — real donations will populate admin savings tiles.
 - **Lanes**: fe91c9da Android emulator sweep running (iter ~67, inside app onboarding); ebe5ed90 UI/UX settled (assets surfaced); 29adb480 backend done-suspended; 1cb3ac27 location suspended-at-cap (403 on nudge). git-push gotcha hit+fixed: commits had landed on main checkout → cherry-picked onto base/v2, main reset to 1e86816.
+
+## handoff cont.3 — admin overhaul + lanes reset (2026-10-04 ~17:15 UTC)
+
+- Deployed `b65f4b59`: root / → 302 /city verified live.
+- E2E child fe91c9da FINISHED: all 14 Android surfaces PASS on emulator vs
+  live api (onboarding/consent/map/search/compare/histogram/vehicle+PUC
+  verified end-to-end server-side `puc.calibrated:true`/TBT+TTS cues via
+  logcat/nav+reroute/receipt/drawer/settings-hindi/DelhiToday/offline).
+  Fixes landed: Fabric no-op crash guard d9c6166, CityMoves 'other'
+  localization b65f4b5. Confirmed resolved live: Saharanpur plan hang,
+  degraded:['engine'] on Red Fort. Recording: attachments/6b60d4ee…/e2e_demo.mp4.
+  Untestable-honest: TTS audio-out, haptic feel (emulator has neither).
+- Owner's new admin asks → shipped in `1e2eb8cc`: 1,600-cell field map
+  (/grid?cells=40) with sector index a01–an40 + degree ticks; hover→mini
+  organic card (rest-gated gazetteer), click pins; "how this layer is
+  made" methodology per species (verified derivation copy, live counts);
+  corridor×field "through air" column (admin_agg.py FIELD.value at h3
+  centre); districts mean-of-cells caption; /grid cell_epoch stamp +
+  client skip-identical repaints. Tests: 55 green (schema test updated
+  for field_pm25).
+- Lane roster reset per owner: fe91c9da terminated (done), ebe5ed90 +
+  29adb480 terminated (suspended/done), 1cb3ac27 403 on terminate
+  (suspended, harmless). New lanes: 1def589f Android polish (icons,
+  milky morphism, sidebar). Admin overhaul = lead-owned (this session).
+- Known un-owned gap: self-hosted OSRM daemon never deployed
+  (scripts/geo/run_stack.sh is docker-host shaped; Fargate has none) —
+  public demo carries all router arms, degraded flag makes failure
+  honest. Post-submission hardening, documented not built.
