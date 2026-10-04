@@ -366,7 +366,14 @@ class ForecastField:
         # displaced the origin ~15-30 km into cleaner model cells.
         delta = self._live_delta(sampled_at[0], sampled_at[1], idx, live)
         if delta is not None:
-            v = max(0.0, v + delta)  # a correction can't go negative-air
+            corrected = v + delta
+            if corrected <= 0.0:
+                # the anchor extrapolated a same-site hour-0 bias onto a
+                # small future signal past the physical floor — degrade
+                # to the model's own number (real physics, stated basis)
+                # rather than serve an impossible literal 0.0
+                return v if v > 0.0 else None
+            v = corrected
         return v
 
     def pollutant(self, lat: float, lon: float, when: Union[int, float, datetime],

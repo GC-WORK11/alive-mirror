@@ -150,6 +150,27 @@ class TestAdvection(unittest.TestCase):
         # (60-200)·decay ≈ -98 would have clamped this to 0.0.
         self.assertGreater(v, 30.0)
 
+    def test_overshooting_anchor_degrades_to_the_model(self):
+        """When the anchor's correction pushes below the physical floor,
+        pm25 serves the model's own number — never a clamped literal 0.0."""
+        f = _synthetic_field()
+        # the west cell declines over the horizon so a displaced base
+        # sits far below that cell's hour-0 model value
+        # decline starts one slot past the current hour, wherever that
+        # lands (idx0 is hours-since-midnight — run-hour independent)
+        idx0 = f.hour_index(0) or 0
+        f._aq[0]["vars"]["pm2_5"] = (
+            [200.0] * (idx0 + 1) + [30.0] * (120 - idx0 - 1))
+        def live(lat, lon):
+            return 0.5 if lon < 77.2 else 180.0
+        # query EAST at +3h: westerly displaces the origin ~36 km west →
+        # base ≈ 30 (the declined west cell); hour-0 bias there is
+        # (0.5 - ~199)·decay ≈ -142 → corrected << 0 → serve ~30 raw.
+        v = f.pm25(*self.EAST, 3, live=live)
+        self.assertIsNotNone(v)
+        self.assertGreater(v, 0.0)
+        self.assertAlmostEqual(v, 30.0, delta=10.0)
+
     def test_missing_met_degrades(self):
         """No met grid ⇒ undisplaced lookup — never None for a covered point."""
         f = _synthetic_field()
