@@ -40,6 +40,7 @@ import {
 import { mergeResults, ServerSearch, type ServerTiers } from "../search/client";
 import { addRecent, getPlaces, type PlaceStore } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
+import { tick } from "../haptics";
 
 export type { SearchSelection } from "../search/t0";
 export type { PlaceResult } from "../search/t0";
@@ -228,6 +229,7 @@ function SearchSheet({
 
   const pick = useCallback(
     (p: PlaceResult) => {
+      tick();   // the row landed — light tick before the sheet slides away
       dismissThen(() => {
         addRecent(p).then(() => getPlaces().then(setStore)).catch(() => {});
         onSelect({ type: "place", place: p });

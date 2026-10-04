@@ -24,6 +24,7 @@ import {
 } from "./offroute";
 import { fieldAtAlongM, stripCumM, type Band, type RouteStrip } from "./strip";
 import { CueTracker, speakCue, stopCues, type NavStep } from "./speech";
+import { arrived as arriveHaptic } from "../haptics";
 import type { Lang } from "../i18n/strings";
 
 const WATCH_OPTS: Location.LocationOptions = {
@@ -228,6 +229,9 @@ export function useNavEngine(opts: NavEngineOpts) {
     cleanup();
     setArrived(true);
     setRunning(false);
+    // the trip earned its moment — success buzz on a real arrival, a
+    // silent end when the rider exits early
+    if (completed) arriveHaptic();
     const c = countersRef.current;
     const s: NavSummary = {
       mode: routeRef.current.mode ?? "",
