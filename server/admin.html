@@ -372,6 +372,13 @@ async function tick(){
   const t=donations.totals||{};
   const daily=validation.daily||{};
   const loso=(validation.weekly&&validation.weekly.loso)||{};
+  const archR=(validation.weekly&&validation.weekly.archive_replay)||{};
+  // headline error card: held-out LOSO when it has folds; otherwise the
+  // archive replay mae is real evidence and clearly labelled as such —
+  // an empty card here would undersell data the week block already shows.
+  const maeV=loso.mae_ugm3!=null?loso.mae_ugm3
+    :(archR.status==='ok'&&archR.mae_ugm3!=null?archR.mae_ugm3:null);
+  const maeL=loso.mae_ugm3!=null?'held-out stations':'archive replay';
   const ageTxt=f.age_s!=null?ago(f.age_s):null;
   const cards=[
     [f.age_s!=null?`${ageTxt}${freshBadge(f.stale)}`:null,
@@ -387,8 +394,8 @@ async function tick(){
      `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} µg/trip`,'brick',t.dose_ug>0],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
-    [loso.mae_ugm3!=null?`${loso.mae_ugm3} <small>µg/m³</small>`:null,
-     `model error vs held-out stations (mae)${validation.weekly?' · '+validation.weekly.week:''}`,'',loso.mae_ugm3!=null]];
+    [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
+     `model error · ${maeL} (mae)${validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null]];
   $('stats').innerHTML=cards.map(([v,l,cl,ok])=>
     `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div></div>`).join('');
 
