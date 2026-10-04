@@ -135,6 +135,8 @@ const en = {
   settingsDeleteData: "Delete my data",
   // settings screen (S-settings)
   settingsAbout: "About",
+  settingsGeneral: "Language & display",
+  settingsPrivacy: "Privacy & sharing",
   settingsBriefHint: "one ping each morning with today's cleanest window",
   settingsClose: "close",
   settingsDataSources: "air: satellite estimate + live stations when they connect",
@@ -530,6 +532,8 @@ const hi: Record<StringKey, string> = {
   cityRetry: "फिर कोशिश करें",
   layers: "लेयर",
   settingsAbout: "ऐप के बारे में",
+  settingsGeneral: "भाषा और दिखावट",
+  settingsPrivacy: "निजता और शेयरिंग",
   settingsBriefHint: "हर सुबह एक पिंग — आज की सबसे साफ़ यात्रा-घड़ी",
   settingsClose: "बंद करें",
   settingsDataSources: "हवा: सैटेलाइट से अंदाज़ा + जुड़े हुए लाइव स्टेशन",

@@ -15,9 +15,8 @@
 //
 // PROPOSED string keys (strings.ts is owned by the strings lane — these are
 // comments only; no code references them):
-//   settingsGeneral   — header over the language/voice/units card ("General"
-//                       or "Appearance & language")
-//   settingsPrivacy   — header over the sharing card ("Privacy & sharing")
+//   settingsGeneral/settingsPrivacy — DONE: headers over the
+//                       language/voice/units card and the sharing card
 //   settingsVoiceHint — e.g. "spoken turn-by-turn guidance" (row currently
 //                       reuses the existing "turnByTurn" key as its hint)
 //   settingsUnitsHint — e.g. "metric only" (row currently shows a bare "km")
@@ -25,6 +24,7 @@
 import React, { useState } from "react";
 import {
   Alert,
+  LayoutAnimation,
   Modal,
   Pressable,
   ScrollView,
@@ -39,7 +39,8 @@ import Constants from "expo-constants"; // transitively installed via `expo` (SD
 import { F, V2Radius, V2T, V2Type, fam } from "../theme";
 import { Icon, vehicleGlyph } from "../icons";
 import { t, type Lang, type StringKey } from "../i18n/strings";
-import { a11y, DYNAMIC_TYPE } from "../a11y";
+import { a11y, DYNAMIC_TYPE, useReduceMotion } from "../a11y";
+import { tick } from "../haptics";
 import type { ShellSettings } from "../components/shell/settings";
 
 /** Action seams that carry no persisted value — the parent owns what they open. */
@@ -101,7 +102,14 @@ function SettingsSheet({
   onDeleteData?: () => void;
 }) {
   const [expand, setExpand] = useState<ExpandKey | null>(null);
-  const toggle = (k: ExpandKey) => setExpand((e) => (e === k ? null : k));
+  const reduceMotion = useReduceMotion();
+  const toggle = (k: ExpandKey) => {
+    tick();
+    /* the body mounts/unmounts — ease it in while siblings slide
+       (native path; enabled once in useShellFlow) */
+    if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpand((e) => (e === k ? null : k));
+  };
   // brief arming awaits OS perms — guard re-entry so a double-tap can't
   // queue two permission prompts (the row also reports busy to TalkBack).
   const [arming, setArming] = useState(false);
@@ -130,7 +138,7 @@ function SettingsSheet({
     const disabled = !!opts?.disabled;
     return (
       <Pressable
-        onPress={() => onValue(!value)}
+        onPress={() => { tick(); onValue(!value); }}
         disabled={disabled}
         {...a11y(
           t(labelKey, lang),
@@ -149,7 +157,9 @@ function SettingsSheet({
             {t(labelKey, lang)}
           </Text>
           {hintKey ? (
-            <Text {...DYNAMIC_TYPE} style={ss.hint}>{t(hintKey, lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={[ss.hint, { fontFamily: fam(lang, "reg") }]}>
+              {t(hintKey, lang)}
+            </Text>
           ) : null}
         </View>
         <Switch
@@ -219,7 +229,7 @@ function SettingsSheet({
         {/* ── profile: vehicle drives every dose/emission estimate (S8) ── */}
         <View style={ss.card}>
           <Pressable
-            onPress={() => onChange("editVehicle")}
+            onPress={() => { tick(); onChange("editVehicle"); }}
             {...a11y(
               t("sidebarMyVehicle", lang),
               current.vehicle
@@ -235,20 +245,20 @@ function SettingsSheet({
               <Text {...DYNAMIC_TYPE} style={[ss.rowLabel, { fontFamily: fam(lang, "med") }]}>
                 {t("sidebarMyVehicle", lang)}
               </Text>
-              <Text {...DYNAMIC_TYPE} style={ss.hint} numberOfLines={2}>
+              <Text {...DYNAMIC_TYPE} style={[ss.hint, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>
                 {current.vehicle
                   ? `${t(VEHICLE_LABEL[current.vehicle] ?? "vehicleQ1", lang)} · ${t("settingsVehicleLike", lang)}`
                   : t("notSet", lang)}
               </Text>
             </View>
-            <Text {...DYNAMIC_TYPE} style={[ss.action, { fontFamily: fam(lang, "med") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.action, { fontFamily: fam(lang, "reg") }]}>
               {t("changeLabel", lang)}
             </Text>
           </Pressable>
         </View>
 
-        {/* ── presentation: language, guidance voice, units ──
-            PROPOSED section header: settingsGeneral */}
+        {/* ── presentation: language, guidance voice, units ── */}
+        {sectionLabel("settingsGeneral")}
         <View style={ss.card}>
           <View style={ss.row}>
             <Text
@@ -265,7 +275,7 @@ function SettingsSheet({
               {LANGS.map(({ code, name }) => (
                 <Pressable
                   key={code}
-                  onPress={() => onChange("lang", code)}
+                  onPress={() => { tick(); onChange("lang", code); }}
                   {...a11y(name, undefined, "radio", { selected: lang === code, lang: code })}
                   style={[ss.seg, lang === code && ss.segOn]}
                 >
@@ -309,21 +319,23 @@ function SettingsSheet({
               {t("settingsUnits", lang)}
             </Text>
             <View>
-              <Text {...DYNAMIC_TYPE} style={ss.value}>{t("unitsKm", lang)}</Text>
-              <Text {...DYNAMIC_TYPE} style={ss.hint}>{t("settingsUnitsHint", lang)}</Text>
+              <Text {...DYNAMIC_TYPE} style={[ss.value, { fontFamily: fam(lang, "reg") }]}>{t("unitsKm", lang)}</Text>
+              <Text {...DYNAMIC_TYPE} style={[ss.hint, { fontFamily: fam(lang, "reg") }]}>{t("settingsUnitsHint", lang)}</Text>
             </View>
           </View>
         </View>
 
-        {/* ── privacy & sharing: explained, one labelled tap off (doc 07 §3) ──
-            PROPOSED section header: settingsPrivacy */}
+        {/* ── privacy & sharing: explained, one labelled tap off (doc 07 §3) ── */}
+        {sectionLabel("settingsPrivacy")}
         <View style={ss.card}>
           {switchRow("settingsShareData", current.share, (v) => onChange("share", v))}
           <View style={ss.explainWrap}>
-            <Text {...DYNAMIC_TYPE} style={ss.explain}>{t("settingsShareExplain", lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={[ss.explain, { fontFamily: fam(lang, "reg") }]}>
+              {t("settingsShareExplain", lang)}
+            </Text>
             {/* live status line — the consequence of the CURRENT choice in
                 plain words: anonymous + aggregate when on, sealed when off */}
-            <Text {...DYNAMIC_TYPE} style={[ss.explain, ss.explainStatus]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.explain, ss.explainStatus, { fontFamily: fam(lang, "reg") }]}>
               {t(current.share ? "shareDataHint" : "settingsStoreOff", lang)}
             </Text>
           </View>
@@ -403,7 +415,9 @@ function SettingsSheet({
             >
               {t("settingsVersion", lang)}
             </Text>
-            <Text {...DYNAMIC_TYPE} style={ss.value}>{VERSION ?? t("settingsDevBuild", lang)}</Text>
+            <Text {...DYNAMIC_TYPE} style={[ss.value, { fontFamily: fam(lang, "reg") }]}>
+              {VERSION ?? t("settingsDevBuild", lang)}
+            </Text>
           </View>
           <View style={ss.hairline} />
           <View style={ss.row}>
