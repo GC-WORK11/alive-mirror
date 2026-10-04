@@ -159,4 +159,10 @@ if __name__ == "__main__":
     job = sys.argv[1] if len(sys.argv) > 1 else "ingest"
     extra = json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
     ev = {"job": job, **extra}
-    print(json.dumps(handler(ev), indent=1, default=str))
+    res = handler(ev)
+    # The result is already persisted to S3 — stdout needs only a compact
+    # digest, not the multi-MB payload (it used to flood the job log).
+    body = json.dumps(res, default=str)
+    print(json.dumps({"job": job, "ok": res.get("ok", True) if isinstance(res, dict) else True,
+                      "bytes": len(body),
+                      "keys": sorted(res)[:12] if isinstance(res, dict) else None}))
