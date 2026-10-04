@@ -29,7 +29,13 @@ PYINC=$("$PY" -c 'import sysconfig; print(sysconfig.get_paths()["include"])')
 "$PY" tools/gen_ef_table.py "$GEN/ef_table.inc"
 
 CXX="${CXX:-c++}"
-SO="$BUILD/alive_core.cpython-${PYVER}-$(uname -s | tr 'A-Z' 'a-z').so"
+# Name the artifact with the interpreter's own EXT_SUFFIX — a hardcoded
+# cpython-312-linux.so is NOT an importable name on Linux (extension
+# suffixes there carry the platform triple, e.g. cpython-312-x86_64-linux-gnu),
+# so the engine silently never loads. macOS happens to accept
+# cpython-312-darwin, which is how this shipped unnoticed.
+EXT_SUFFIX=$("$PY" -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX") or ".so")')
+SO="$BUILD/alive_core${EXT_SUFFIX}"
 case "$(uname -s)" in
   Darwin) LINK="-bundle -undefined dynamic_lookup" ;;
   *)      LINK="-shared -fPIC" ;;
