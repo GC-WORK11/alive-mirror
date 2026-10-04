@@ -168,6 +168,45 @@ def test_rank_no_scored_options_passes_through():
     assert out[0].get("recommended") in (None, False)
 
 
+def test_rank_engine_row_keys_on_priced_objective():
+    # engine row's raster band reads heavier than a router row's, but
+    # its engine_dose_ug — the exact criterion the path minimized — is
+    # lower → the engine row must win sort AND take the leaf chip
+    eng = _o("car", 120.0, 2.0, 600); eng["engine_dose_ug"] = 90.0
+    rtr = _o("car_open", 110.0, 0.5, 700)
+    out = v2plan.rank_options([rtr, eng])
+    assert out[0] is eng
+    assert eng["safest_path"] is True
+
+
+def test_rank_engine_dose_maps_into_lo_space():
+    # the priced dose is mid-scale; ranking maps it by the row's own
+    # band ratio so keys stay commensurate — ed=55 on a 4:5 band row
+    # keys at 44, beating a 50-lo router row but losing to 40
+    eng = {"mode": "car", "eta_s": 600,
+           "dose": {"lo": 80.0, "mid": 100.0},
+           "emissions": {"co2_kg": {"mid": 2.0}},
+           "engine_dose_ug": 55.0}
+    lo_rtr = _o("walk", 40.0, 0.0, 700)
+    hi_rtr = _o("auto", 50.0, 1.0, 650)
+    out = v2plan.rank_options([hi_rtr, lo_rtr, eng])
+    assert out[0] is lo_rtr        # 40 < 44
+    assert out[1] is eng           # 44 < 50
+
+
+def test_rank_engine_row_without_band_keys_on_priced_dose():
+    # band missing entirely → the raw priced dose still ranks: engine
+    # row takes the dose flag even though it holds no raster lo/mid
+    eng = {"mode": "car", "eta_s": 600,
+           "dose": {"lo": None, "mid": None},
+           "emissions": {"co2_kg": {"mid": 2.0}},
+           "engine_dose_ug": 55.0}
+    rtr = _o("walk", 60.0, 1.0, 700)
+    v2plan.rank_options([rtr, eng])
+    assert v2plan._dose_key(eng) == 55.0
+    assert eng["safest_path"] is True
+
+
 # --- vehicle / vehicle_profile parsing ------------------------------------------
 def test_vehicle_questionnaire_values_all_parse():
     for v in ("car", "auto", "bike", "bus", "metro", "walk", "cycle"):
@@ -429,3 +468,88 @@ def test_plan_edge_of_area_still_serves(monkeypatch):
                   "to": {"lat": CP[0], "lon": CP[1]}, "vehicle": "auto"})
     assert "outside service area" not in (body.get("error") or "")
     assert calls, "in-area OD should reach the router"
+
+
+# --- one dose surface per response ----------------------------------------------
+class _FakeFV:
+    def __init__(self, tag):
+        self.tag = tag
+    def value(self, lat, lon, pollutant="pm2_5"):
+        return ("v", self.tag)
+    def sigma(self, lat, lon):
+        return ("s", self.tag)
+
+
+def test_dose_surface_priced_raster_wins(monkeypatch):
+    """When the engine priced edges this epoch, every row — engine,
+    motor, transit — doses on that raster so the compare sheet ranks
+    like-for-like (regression: 'least-smoke rd' losing to an OSRM row
+    it beat because the arms priced on different estimators)."""
+    fv = _FakeFV("eng")
+    sig = lambda la, lo: ("sig", "eng")
+    monkeypatch.setattr(v2plan, "_ENG_PACK", (fv, sig))
+    F = object.__new__(FIELD.__class__)   # no _snap_fv
+    dval, dsig = v2plan._dose_surface(F)
+    assert dval == fv.value and dsig is sig
+
+
+def test_dose_surface_snapshot_when_unpriced(monkeypatch):
+    """Before any reprice, all rows share the field's own snapshot
+    cells — the raster /grid paints — never krige-here-raster-there."""
+    monkeypatch.setattr(v2plan, "_ENG_PACK", None)
+    F = object.__new__(FIELD.__class__)
+    F._snap_fv = _FakeFV("snap")
+    dval, dsig = v2plan._dose_surface(F)
+    assert dval == F._snap_fv.value and dsig == F._snap_fv.sigma
+
+
+def test_dose_surface_none_means_live_estimator(monkeypatch):
+    """No raster at all → (None, None) → callers use F.value/F.sigma —
+    still one estimator for the whole response."""
+    monkeypatch.setattr(v2plan, "_ENG_PACK", None)
+    F = object.__new__(FIELD.__class__)
+    F._snap_fv = None
+    assert v2plan._dose_surface(F) == (None, None)
+
+
+# --- engine-first paint ---------------------------------------------------------
+def test_plan_fast_returns_engine_rows_only_without_router(monkeypatch):
+    """fast:true is the engine-first paint: no public-router or GTFS call,
+    only least-inhalation rows, flagged partial so the client swaps in
+    the full set when it lands."""
+    calls = []
+    async def spy(*a, **k):
+        calls.append(a)
+        return None
+    monkeypatch.setattr(deps, "osrm_route", spy)
+    monkeypatch.setattr(deps, "field_refresh", spy)
+    row = {"mode": "car", "label": "Car (AC) · least-smoke rd",
+           "distance_km": 5.0, "duration_min": 14.0, "dose_ug": 9.0,
+           "engine_dose_ug": 9.0, "geometry": None}
+    seen = {}
+    def eng(*a, **k):
+        seen.update(k)
+        return [dict(row)]
+    monkeypatch.setattr(v2plan, "_engine_options", eng)
+    monkeypatch.setattr(v2plan, "_transit_options",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("transit ran")))
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510},
+                  "vehicle": "car", "fast": True})
+    assert body["partial"] is True
+    assert [o["mode"] for o in body["options"]] == ["car"]
+    assert seen.get("alts") is False, "fast paint buys primaries only"
+    assert not [c for c in calls if c and c[0] is not None and len(c) > 1], \
+        "fast path must not wait on the public router"
+
+
+def test_plan_fast_engine_down_is_typed_not_hung(monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("graph missing")
+    async def nop(*a, **k):
+        return None
+    monkeypatch.setattr(deps, "field_refresh", nop)
+    monkeypatch.setattr(v2plan, "_engine_options", boom)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510}, "fast": True})
+    assert body["options"] == [] and body["error"] == "engine unavailable"

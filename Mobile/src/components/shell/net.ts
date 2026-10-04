@@ -1,5 +1,6 @@
 /** Shared shell constants + fetch helper. */
 import { Platform } from "react-native";
+import { nearestPlace } from "../../search/t0";
 
 export const API =
   process.env.EXPO_PUBLIC_API_URL ??
@@ -31,4 +32,32 @@ export const postJson = (url: string, body: unknown, timeoutMs = 9000) => {
   })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`http ${r.status}`))))
     .finally(() => clearTimeout(t));
+};
+
+/** Name a dropped pin honestly.
+ *
+ *  /v2/reverse first (server gazetteer -> amazon -> honest 404). On
+ *  network failure or 404, the bundled t0 gazetteer still names the
+ *  nearest real place within 150 m — "nearest: X ~80 m" makes the
+ *  approximation explicit. Last resort is the raw coordinate, which is
+ *  honest by itself (no invented name). */
+export const reverseName = async (lat: number, lon: number): Promise<{ name: string; subtitle: string }> => {
+  try {
+    const j = await fetchJson(`${API}/v2/reverse?lat=${lat}&lon=${lon}`, 6000);
+    if (j?.name) {
+      const d = typeof j.distance_m === "number" ? Math.round(j.distance_m) : null;
+      const sub = [d != null && d > 30 ? `~${d} m away` : null,
+                   typeof j.subtitle === "string" && j.subtitle ? j.subtitle : null]
+        .filter(Boolean).join(" · ");
+      return { name: j.name, subtitle: sub };
+    }
+  } catch { /* offline or no named place — fall through to the bundle */ }
+  try {
+    const near = nearestPlace({ lat, lon }, 150);
+    if (near) {
+      const d = Math.round(near.distance_m);
+      return { name: `nearest: ${near.name}`, subtitle: `~${d} m away · offline` };
+    }
+  } catch { /* gazetteer not warmed — the coordinate is still honest */ }
+  return { name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, subtitle: "dropped pin" };
 };

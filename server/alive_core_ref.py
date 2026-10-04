@@ -437,13 +437,21 @@ class PySearchIndex:
             lx = len(x)
             scored: dict[int, float] = {}
 
+            # all-digit atoms and atoms of 1-2 chars match EXACTLY:
+            # '12' is twelve, not 125; 'i' is not 'ii'; a digit string
+            # is an identifier, not a stem (search.cpp parity)
+            exact_only = lx <= 2 or x.isdigit()
             lo = bisect.bisect_left(vocab, x)
             vid = lo
-            while vid < len(vocab) and vocab[vid].startswith(x):
-                scored[vid] = lx / len(vocab[vid])
-                vid += 1
+            if exact_only:
+                if vid < len(vocab) and vocab[vid] == x:
+                    scored[vid] = 1.0
+            else:
+                while vid < len(vocab) and vocab[vid].startswith(x):
+                    scored[vid] = lx / len(vocab[vid])
+                    vid += 1
 
-            if lx >= 4:
+            if not exact_only and lx >= 4:
                 bound = 1 if lx < 8 else 2
                 for key in _trigrams(x):
                     for cvid in self.tri.get(key, ()):
@@ -508,10 +516,15 @@ class PySearchIndex:
                         if any(t.startswith(a) or a.startswith(t)
                                for a in atoms)) / len(disp)
                     if disp else 0.0)
+            # leading-prefix bonus — the display is a strict leading
+            # token prefix of the query ('beta 2' inside 'beta 2
+            # greater noida'): the row IS the named thing (search.cpp)
+            leadpref = (bool(disp) and len(disp) < G
+                        and list(disp) == qtoks[:len(disp)])
             dist = (haversine_km(lat, lon, en["lat"], en["lon"])
                     if has_bias else 0.0)
             score = (self.w1 * pq + self.w2 * cov + self.w3 * en["popularity"]
-                     + self.w5 * prec
+                     + self.w5 * (prec + (1.0 if leadpref else 0.0))
                      - self.w4 * math.log1p(dist))
             results.append((score, en["id"], e, cov, fuzzy))
 

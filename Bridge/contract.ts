@@ -21,11 +21,15 @@ export interface Place {
   id?: string | null;
   place_id?: string;
   distance_m?: number;
-  match?: "exact-prefix" | "token-prefix" | "fuzzy" | "other";
+  match?: "exact-prefix" | "token-prefix" | "fuzzy" | "category" | "area" | "other";
   match_rank?: number;
   score?: number;               // gazetteer ranking score (T1 rows)
   cov?: number;                 // SearchIndex token-coverage ratio (T1)
   fuzzy?: boolean;              // SearchIndex DL-only match flag (T1)
+  compound?: boolean;           // kind+place compound hit ("atm near cp")
+  anchor?: string;              // resolved place the compound anchored on
+  subplace?: boolean;           // unit hit inside the anchor ("h block sector 62")
+  locality?: boolean;           // area-level fallback: the anchor place itself
   source?: string;              // gazetteer | amazon | photon | ...
   sources?: string[];           // tiers that found it, e.g. ["t1","t2"]
   outside_ncr?: boolean;
@@ -161,6 +165,8 @@ export interface ReverseResponse {
   subtitle?: string;
   distance_m?: number;           // /v2/reverse only
   source?: string;               // /v2/reverse only
+  kind?: string;                 // /v2/reverse: gazetteer category / amazon kind
+  dropped_pin?: boolean;         // /v2/reverse: explicit "no named place" marker
   // /v2/reverse error bodies: 404 {error, lat, lon} / 503 {error, detail, hint}
   error?: string;
   detail?: string;
@@ -384,6 +390,14 @@ export interface V2PlanOption {
   duration_model?: string;      // engine rows: "estimated" (graph speeds)
   via_names?: string[];         // engine rows: street names the path takes
   snap_m?: { from_m: number; to_m: number }; // engine rows: endpoint snap distance
+  alternative_index?: number | null;  // engine rows: 1..N on corridor-diverse
+                                      // least-dose alternatives; absent on the
+                                      // primary route
+  engine_dose_ug?: number | null;     // engine rows: inhaled µg summed over the
+                                      // priced edges — the exact objective the
+                                      // path minimized; server ranking keys on
+                                      // it. Display dose stays `dose` (the
+                                      // raster band, one surface per response)
   reason_line: string;
   your_vehicle: boolean;
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
@@ -473,6 +487,11 @@ export interface V2RerouteResponse {
   emissions?: EmissionBand;
   mode?: string;
   option?: V2PlanOption | null;
+  // when the selected continuation is motorized and the remaining leg
+  // is walkable (<=1.5 km), the real least-dose walk option's numbers —
+  // the "park and finish on foot" honesty check
+  finish_on_foot?: { distance_km: number; eta_s: number;
+                     dose: DoseBand | null; route_id: string };
   field?: FieldStatus;
   took_ms?: number;
   error?: string;

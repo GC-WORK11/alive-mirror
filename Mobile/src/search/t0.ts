@@ -3,6 +3,12 @@
 // first suggestion paints inside a frame (<16 ms) while the server tiers
 // (client.ts) stream in behind it. normalize() is shared with the
 // merge/dedupe layer so every tier keys names identically.
+//
+// Honest tiering delta (vs server T1): T0 is prefix+alias only — no
+// Damerau-Levenshtein fuzzy, no kind+place compounds ("atm near cp" is a
+// name query here), no numeric-exact/leading-prefix ranking. The server
+// can be smarter; offline keeps the floor: real rows, real aliases, a
+// miss rather than a fabricated place.
 
 type Raw = { n: string; c: string; lat: number; lon: number; w: number; k: number };
 
@@ -431,4 +437,59 @@ export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResul
     if (out.length >= limit) break;
   }
   return out;
+}
+
+// --- offline reverse -----------------------------------------------------------
+// Same idea as server/core_engine.nearest: a lat/lon cell grid over the
+// SAME bundled entries, built lazily. A dropped pin with no network can
+// still name the nearest real place — never a fabricated label.
+
+const GEO_CELL = 0.002; // ~221 m lat / ~196 m lon at 28.6°N
+let GEO: Map<string, number[]> | null = null;
+
+// kinds that orient a dropped pin: street/address/locality names first,
+// shops+POIs only when nothing else is nearby ("nearest:" phrasing
+// keeps it honest either way).
+const NEAR_FIRST = new Set([
+  "address", "street", "road", "locality", "place", "neighbourhood",
+  "suburb", "village", "district", "sector", "block", "residential area",
+]);
+
+export type NearestHit = { name: string; kind: string; distance_m: number };
+
+export function nearestPlace(p: LatLon, maxM = 150): NearestHit | null {
+  build();
+  const entries = ENTRIES!;
+  if (!GEO) {
+    const geo = new Map<string, number[]>();
+    entries.forEach((e, i) => {
+      const key = `${Math.floor(e.lat / GEO_CELL)},${Math.floor(e.lon / GEO_CELL)}`;
+      const l = geo.get(key);
+      if (l) l.push(i); else geo.set(key, [i]);
+    });
+    GEO = geo;
+  }
+  const geo = GEO;
+  const bi = Math.floor(p.lat / GEO_CELL), bj = Math.floor(p.lon / GEO_CELL);
+  let best: NearestHit | null = null;
+  let bestRank = 99, bestD = maxM;
+  // ring r's points can't sit closer than (r-1)*~195 m — 3 rings covers
+  // every cell that can hold a point within 150 m.
+  for (let r = 0; r <= 2; r++) {
+    for (let di = -r; di <= r; di++)
+      for (let dj = -r; dj <= r; dj++) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+        for (const i of geo.get(`${bi + di},${bj + dj}`) ?? []) {
+          const e = entries[i];
+          const d = distKm(e, p) * 1000;
+          if (d > maxM) continue;
+          const rank = NEAR_FIRST.has(e.c) ? 0 : 1;
+          if (rank < bestRank || (rank === bestRank && d < bestD)) {
+            bestRank = rank; bestD = d;
+            best = { name: e.n, kind: e.c, distance_m: d };
+          }
+        }
+      }
+  }
+  return best;
 }

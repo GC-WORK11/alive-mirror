@@ -236,6 +236,19 @@ fi
 # --------------------------------------------- 4. wait, then verify NLB target
 log "waiting for service to stabilize (rolling deploy)…"
 run aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+# services-stable can return before the forced deployment even appears
+# (the service was already steady) — then the "newest" task below is the
+# PREVIOUS build and the deregister loop evicts the real new target.
+# Gate on the PRIMARY rollout itself.
+for _ in $(seq 1 60); do
+  ROLL="$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+    --query 'services[0].deployments[?status==`PRIMARY`].rolloutState | [0]' \
+    --output text 2>/dev/null || true)"
+  [ "$ROLL" = "COMPLETED" ] && break
+  [ "$ROLL" = "FAILED" ] && fail "ECS rollout FAILED for $TD_ARN"
+  sleep 10
+done
+[ "$ROLL" = "COMPLETED" ] || fail "ECS rollout never completed (last=$ROLL)"
 
 # Discover the NEWEST running task's ENI -> private IP. ECS registers
 # it on the TG itself now (service has loadBalancers attached); the
@@ -245,7 +258,9 @@ TASKS="$(aws ecs list-tasks --cluster "$CLUSTER" --service-name "$SERVICE" \
   --desired-status RUNNING --query 'taskArns' --output text)"
 [ -n "$TASKS" ] && [ "$TASKS" != "None" ] || fail "no RUNNING tasks in $CLUSTER/$SERVICE"
 TASK_ARN="$(run aws ecs describe-tasks --cluster "$CLUSTER" --tasks $TASKS \
-  --query 'sort_by(tasks, &createdAt)[-1].taskArn' --output text)"
+  --query "sort_by(tasks[?taskDefinitionArn=='$TD_ARN'], &createdAt)[-1].taskArn" \
+  --output text)"
+[ -n "$TASK_ARN" ] && [ "$TASK_ARN" != "None" ] || fail "no RUNNING task on $TD_ARN"
 
 ENI=""; PRIV=""
 for _ in $(seq 1 12); do

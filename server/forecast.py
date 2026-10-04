@@ -348,17 +348,40 @@ class ForecastField:
             return None
         alat, alon = self._advected_origin(lat, lon, idx)
         base = self._idw(self._aq, alat, alon, "pm2_5", idx)
+        sampled_at = (alat, alon)
         if base is None and (alat, alon) != (lat, lon):
             # displaced point left the grid — fall back to the
             # undisplaced sample rather than returning nothing
             base = self._idw(self._aq, lat, lon, "pm2_5", idx)
+            sampled_at = (lat, lon)
         if base is None:
             return None
         factor = self.stagnation_factor(lat, lon, idx)
         v = base * (factor if factor is not None else 1.0)
-        delta = self._live_delta(lat, lon, idx, live)
+        # the anchor must correct the PARCEL's air, not the query
+        # point's: with advection on, base was sampled at the upwind
+        # origin, so a query-point delta (model's bias at the
+        # destination) would over-correct a genuinely different cell —
+        # seen live: CP h+2..6 pinned to 0.0 while a 7.8 km/h westerly
+        # displaced the origin ~15-30 km into cleaner model cells.
+        delta = self._live_delta(sampled_at[0], sampled_at[1], idx, live)
         if delta is not None:
-            v = max(0.0, v + delta)  # a correction can't go negative-air
+            corrected = v + delta
+            if corrected <= 0.0:
+                # non-physical, with two different honest resolutions:
+                #  * idx <= idx0: the correction IS (essentially) the
+                #    live reading — at the anchor hour corrected ==
+                #    live, and a near-zero instrument is the truth.
+                #  * idx > idx0: the anchor extrapolated a same-site
+                #    hour-0 bias onto a small future signal past the
+                #    physical floor — the correction lost skill, so
+                #    serve the model's own number for that hour (real
+                #    physics, stated basis), not a clamped literal 0.0.
+                idx0 = self.hour_index(0) or 0
+                if idx <= idx0:
+                    return 0.0
+                return v if v > 0.0 else None
+            v = corrected
         return v
 
     def pollutant(self, lat: float, lon: float, when: Union[int, float, datetime],

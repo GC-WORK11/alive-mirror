@@ -431,7 +431,7 @@ def corridors(limit: int = 10) -> list[dict]:
             v["last_ts"] = max(v["last_ts"], o["ts"])
             # same even-attribution as v2/store: trip km spreads over
             # its distinct cells; co2 counts only where reported
-            v["km_sum"] += o["km"] / max(len({tuple(x) for x in o["cells"]}), 1)
+            v["km_sum"] += _obs_km(o) / max(len(set(_obs_cells(o))), 1)
             if o.get("co2_kg"):
                 v["co2_kg_sum"] += o["co2_kg"]
                 v["co2_trips"] += 1

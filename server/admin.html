@@ -179,7 +179,9 @@
                 text-align:right}
 
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
-  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+  .cols3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:1200px){.cols3{grid-template-columns:1fr 1fr}}
+  @media(max-width:900px){.cols,.cols3{grid-template-columns:1fr}}
   @media(max-width:480px){td{padding:9px 8px;font-size:11.5px}
     th{padding:10px 8px 8px}
     .share-row{grid-template-columns:70px 1fr 44px 36px}}
@@ -189,6 +191,23 @@
          letter-spacing:.12em;text-transform:uppercase;line-height:2;
          display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
   a{color:var(--accent-ink);text-decoration:none}
+
+  /* ncr district chips — official cpcb band colour on the border+dot,
+     text stays the board's own ink (no traffic-light noise) */
+  .dist{display:flex;flex-wrap:wrap;gap:8px}
+  .dchip{display:flex;align-items:baseline;gap:7px;padding:7px 11px;
+         border:1.5px solid var(--line);border-radius:12px;background:var(--surface2,#f7f8fa)}
+  .dchip-dot{width:8px;height:8px;border-radius:4px;align-self:center}
+  .dchip-name{font-size:11px;font-weight:600;color:var(--ink)}
+  .dchip-v{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+  .dchip-v i{font-style:normal;font-size:8.5px;color:var(--ink4);margin-left:2px}
+  .dchip-a{font-family:var(--mono);font-size:9px;letter-spacing:.06em}
+
+  /* day-by-day trips strip — muted bars, day labels in mono */
+  .daybars{display:flex;align-items:flex-end;gap:5px;padding:10px 16px 12px}
+  .dbar{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto}
+  .dbar i{width:14px;background:rgba(101,112,127,.5);border-radius:3px 3px 0 0}
+  .dbar span{font-family:var(--mono);font-size:8px;color:var(--ink4)}
 </style>
 </head>
 <body>
@@ -211,6 +230,9 @@
 
   <div class="grid" id="stats"></div>
 
+  <h2>where the smoke sits <em>each ncr district's own reading right now · official cpcb aqi colours</em></h2>
+  <div class="panel" style="padding:12px"><div class="dist" id="districts">connecting…</div></div>
+
   <h2>the live field <em>the surface every route breathes through — painted from the same cells the app tints</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="fmsel"></div>
@@ -226,9 +248,10 @@
   <div class="panel" style="padding:0;overflow:hidden"><div class="pipe" id="pipe"></div></div>
 
   <h2>source health <em>what feeds the map, and when it last fetched</em></h2>
-  <div class="cols">
+  <div class="cols cols3">
     <div class="panel"><dl class="kv" id="field"></dl></div>
     <div class="panel"><dl class="kv" id="validation"></dl></div>
+    <div class="panel"><dl class="kv" id="timing"></dl></div>
   </div>
   <div class="panel scrollx" style="margin-top:10px"><table>
     <thead><tr><th>source</th><th>probe</th><th>build</th><th>detail</th><th class="num">age</th><th>freshness</th></tr></thead>
@@ -241,9 +264,10 @@
       <div class="feed" id="feed"></div>
       <div class="share" id="co2split"></div>
       <div class="share" id="modeshare"></div>
+      <div class="daybars" id="daybars"></div>
     </div>
     <div class="panel scrollx"><table>
-      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th></tr></thead>
+      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th><th class="num">co₂ per 100 m</th></tr></thead>
       <tbody id="corridors"></tbody></table></div>
   </div>
 
@@ -293,11 +317,12 @@ const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
   hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
 
 async function tick(){
-  let status,sources,corridors,donations,validation,model;
+  let status,sources,corridors,donations,validation,model,districts,timing;
   try{
-    [status,sources,corridors,donations,validation,model]=await Promise.all(
+    [status,sources,corridors,donations,validation,model,districts,timing]=await Promise.all(
       ['/admin/api/status','/admin/api/sources','/admin/api/corridors',
-       '/admin/api/donations','/admin/api/validation','/admin/api/model'].map(getJSON));
+       '/admin/api/donations','/admin/api/validation','/admin/api/model',
+       '/v2/districts','/admin/api/timing'].map(getJSON));
   }catch(e){
     /* keep the last good render on screen — flag its age, never blank it */
     $('feed').className='feed off';
@@ -307,6 +332,20 @@ async function tick(){
       (LAST_OK?` · showing last good data from <b>${timeIST(LAST_OK)}</b>`:'');
     return;
   }
+  /* --- ncr district strip: official cpcb palette chips, each district's
+     own pm2.5 read — never one number stretched across the map --- */
+  try{
+    const dr=(districts&&districts.districts)||[];
+    $('districts').innerHTML=dr.length?dr.map(d=>{
+      const c=d.color||'#888';
+      return `<div class="dchip" style="border-color:${c}">
+        <span class="dchip-dot" style="background:${c}"></span>
+        <span class="dchip-name">${esc(d.name)}</span>
+        <span class="dchip-v">${d.pm25==null?'—':fmt1(d.pm25)}<i>µg/m³</i></span>
+        <span class="dchip-a" style="color:${c}">${d.aqi==null?'':('aqi '+d.aqi)}</span></div>`;
+    }).join(''):emptyMsg('district feed not serving — the strip fills when /v2/districts answers.');
+  }catch(e){ /* strip stays decorative-optional; never break the board */ }
+
   LAST_OK=new Date();
   $('feed').className='feed live';
   $('feedtxt').textContent='auto 30s';
@@ -376,6 +415,27 @@ async function tick(){
     ['provenance',esc(p.field||'—'),false],
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
     ||emptyMsg('field module unavailable on this box');
+
+  /* --- api speed, measured — the server's own stopwatch, bucketed --- */
+  try{
+    const trs=(timing&&timing.routes)||[];
+    const order=['/v2/plan','/aqi','/v2/search','/v2/reverse','/grid',
+                 '/v2/districts','/v2/trip/donate','/depart'];
+    const shown=order.map(rt=>trs.find(r=>r.path===rt)).filter(Boolean)
+      .slice(0,6);
+    const other=trs.length-shown.length;
+    const fmtMs=v=>v==null?'—':(v>=1000?(v/1000).toFixed(1)+'s':Math.round(v)+'ms');
+    const trows=shown.map(r=>{
+      const p90=r.p90_le_ms==null?'>5s+':`≤${fmtMs(r.p90_le_ms)}`;
+      return [`api · ${esc(r.path)}`,
+        `${fmtMs(r.mean_ms)} avg · p90 ${p90} · n ${fmt(r.n)}`,true];
+    });
+    if(other>0)trows.push(['api · other routes',`${other} more tracked`,false]);
+    trows.unshift(['api timing · measured',`server stopwatch · window ${esc((timing&&timing.window)||'since boot')} · p90 is the covering bucket edge`,false]);
+    $('timing').innerHTML=trows.length
+      ?trows.map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
+      :emptyMsg('no requests measured yet');
+  }catch(e){$('timing').innerHTML=emptyMsg('timing feed unavailable');}
 
   /* --- validation --- */
   const wk=validation.weekly,arch=wk&&wk.archive_replay||{};
@@ -455,6 +515,16 @@ async function tick(){
       <dt>days</dt><dd class="sub">${dayKeys.slice(-7).map(d=>{
         const v=days[d];return `${esc(d)}: ${fmt(v.trips)} trips / ${fmt1(v.km)} km`}).join('<br>')}</dd>`
     :'';
+  /* day-by-day bar strip — every recorded day, bars = shared trips,
+     hover carries the day's dose+co2 (aggregate day counters only) */
+  if(t.trips){
+    const maxTr=Math.max(1,...dayKeys.map(d=>days[d].trips||0));
+    $('daybars').innerHTML=dayKeys.slice(-14).map(d=>{
+      const v=days[d],h=Math.max(4,Math.round((v.trips||0)/maxTr*46));
+      return `<div class="dbar" title="${esc(d)} — ${fmt(v.trips)} trips · ${fmt1(v.km)} km · ${fmt1(v.dose_ug)} µg · ${fmt1(v.co2_kg_mid)} kg co₂">
+        <i style="height:${h}px"></i><span>${esc(d.slice(5))}</span></div>`;
+    }).join('');
+  }
   if(!t.trips)$('donations').innerHTML=emptyMsg(
     'no donations yet — totals appear when the first anonymized trip summary lands. nothing is zero-filled.');
   /* the live feed — aggregate-level events only (mode/dose/km/co2);
@@ -520,8 +590,9 @@ async function tick(){
       <td class="num">${fmt(r.trips)}</td>
       <td class="num">${fmt(r.devices)}</td>
       <td class="num dose-cell"><span class="dose-bar" style="width:${Math.round(rel*100)}%;background:${ramp(t,.9)}"></span>
-        <span class="mono" style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</span></td></tr>`;
-  }).join(''):`<tr><td colspan="5">${emptyMsg(
+        <span class="mono" style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</span></td>
+      <td class="num muted">${r.co2_g_per_100m==null?'—':fmt1(r.co2_g_per_100m)+' g'}</td></tr>`;
+  }).join(''):`<tr><td colspan="6">${emptyMsg(
     'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
 }
 

@@ -1,6 +1,9 @@
-# The fixed 20-query Delhi list (docs/plan/09 Phase 1 acceptance).
-# Format: query <TAB> expected place (top-3 must contain it)
-# Coverage: malls, blocks, metro gates, restaurants, Hinglish typos, abbreviations.
+# The fixed Delhi acceptance list (docs/plan/09 Phase 1 acceptance +
+# address/landmark/alias depth). Format: query <TAB> expected place
+# (top-3 must contain it)
+# Coverage: malls, blocks, metro gates, restaurants, Hinglish typos,
+# abbreviations, house addresses on named streets, NCR-margin villages,
+# OSM-alias and transliteration surfaces.
 select citywalk	Select Citywalk Mall, Saket
 lajpat nagar 4	Lajpat Nagar IV
 haldiram chandni	Haldiram's, Chandni Chowk
@@ -21,3 +24,71 @@ saket pvr	PVR / Select Citywalk area, Saket
 connaught plce	Connaught Place
 nehru place	Nehru Place
 vaishali metro	Vaishali Metro Station
+559 udyog vihar	559 Udyog Vihar Phase V Road
+110 sadbhavana road	110 Sadbhavana Road
+105 ip extension	105 IP Extension
+458 harshvardhan marg	458 Harshvardhan Marg
+19 church road	19 Church Road
+sector 62 noida	Sector 62, Noida
+rohini sector 7	Rohini Sector 7
+nithari village	Nithari Village
+chhapraula	Chhapraula
+sorkha village	Sorkha
+pari chowk	Pari Chowk, Greater Noida
+akshardham temple	Akshardham Temple
+sarai kale khan	Sarai Kale Khan
+crossings republik	Crossings Republik
+indirapuram	Indirapuram
+beta 2 greater noida	Beta 2, Greater Noida
+purana qila	Purana Qila
+sarita vihar	Sarita Vihar
+chirag delhi	Chirag Delhi
+dilshad garden	Dilshad Garden
+mandawali	Mandawali
+new friends colony	New Friends Colony
+seelam pur	Seelampur
+hkv	Hauz Khas Village
+ndls	New Delhi Railway Station
+bhikaji	Bhikaji Cama Place
+srcc	Shri Ram College of Commerce
+konnaught place	Connaught Place
+chandi chowk	Chandni Chowk
+lodhi gardan	Lodhi Garden
+hauz khas vilage	Hauz Khas
+jamia nagr	Jamia Nagar
+nebru place	Nehru Place
+atm near cp	ATM
+hospital near saket	hospital / Saket
+school sector 62 noida	school / Sector 62
+petrol pump near karol bagh	petrol / fuel
+bank near lajpat nagar	bank
+gym in dwarka	gym / fitness
+post office in rohini	post office
+bus stop near iit delhi	platform / bus stop
+sector 47 noida	Sector 47
+sector 12 noida	Sector 12
+sector 21 faridabad	Sector 21
+sector 56 gurgaon	Sector 56
+alpha 1 greater noida	Alpha 1
+dlf phase 2	DLF Phase 2
+pocket b sarita vihar	Sarita Vihar
+h block sector 62 noida	Sector 62 / H Block
+a 43 defence colony	Defence Colony
+e block model town	Model Town
+c 56 lajpat nagar	Lajpat Nagar
+b 7 vasundhara enclave	Vasundhara Enclave
+h no 1234 sector 15 noida	Sector 15
+gamma 2 greater noida	Gamma 2
+badarpur bus depot	Badarpur
+e 47 greater kailash	Greater Kailash / D Block
+murthal dhaba	Murthal
+azadpur mandi	Azadpur
+sis ganj gurudwara	Sis Ganj
+t3 airport	Terminal
+gaffar market	Gaffar
+khari baoli	Khari Baoli
+iimc	IIMC
+house 559 udyog vihar	Udyog Vihar
+b-12 lajpat nagar	Lajpat Nagar / B-12
+aiims	AIIMS
+lodhi garden	Lodi Gardens

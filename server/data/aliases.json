@@ -34,6 +34,9 @@
     "baagh": [
       "bagh"
     ],
+    "badarpur": [
+      "badar pur"
+    ],
     "bag": [
       "bagh"
     ],
@@ -62,6 +65,9 @@
     ],
     "bhajanpura": [
       "bhajan pura"
+    ],
+    "bhikaji": [
+      "bhikaji cama place"
     ],
     "blck": [
       "block"
@@ -101,6 +107,9 @@
     ],
     "chawk": [
       "chowk"
+    ],
+    "chhattarpur": [
+      "chhatarpur"
     ],
     "chiragdilli": [
       "chirag delhi"
@@ -194,6 +203,9 @@
     "dilli": [
       "delhi"
     ],
+    "dilshadgarden": [
+      "dilshad garden"
+    ],
     "dli": [
       "old delhi railway station"
     ],
@@ -202,6 +214,9 @@
     ],
     "dnd": [
       "dnd flyway"
+    ],
+    "dsa": [
+      "delhi shahdara"
     ],
     "dsj": [
       "delhi safdarjung"
@@ -251,6 +266,9 @@
     ],
     "flr": [
       "floor"
+    ],
+    "fms": [
+      "faculty of management studies"
     ],
     "gali": [
       "gali",
@@ -360,6 +378,9 @@
     "igia": [
       "indira gandhi international airport"
     ],
+    "iift": [
+      "indian institute of foreign trade"
+    ],
     "iimc": [
       "indian institute of mass communication"
     ],
@@ -371,6 +392,9 @@
     ],
     "indirapuram": [
       "indira puram"
+    ],
+    "indraprastha": [
+      "indra prastha"
     ],
     "inst": [
       "institute"
@@ -392,6 +416,9 @@
     ],
     "jamia": [
       "jamia millia islamia"
+    ],
+    "janakpuri": [
+      "janak puri"
     ],
     "jankpuri": [
       "janakpuri"
@@ -462,17 +489,33 @@
     "lodi": [
       "lodhi"
     ],
+    "lsr": [
+      "lady shri ram college"
+    ],
     "madangir": [
       "madan gir"
     ],
     "mahal": [
       "palace"
     ],
+    "mahipalpur": [
+      "mahipal pur"
+    ],
     "malvia": [
       "malviya"
     ],
     "malviyanagar": [
       "malviya nagar"
+    ],
+    "mamc": [
+      "maulana azad medical college"
+    ],
+    "mandawali": [
+      "mandawali",
+      "mandawli"
+    ],
+    "mandawli": [
+      "mandawali"
     ],
     "mandi": [
       "market"
@@ -492,6 +535,9 @@
     ],
     "mayurvihar": [
       "mayur vihar"
+    ],
+    "mcd": [
+      "municipal corporation of delhi"
     ],
     "med": [
       "medical"
@@ -551,6 +597,9 @@
     "ndls": [
       "new delhi railway station"
     ],
+    "ndmc": [
+      "new delhi municipal council"
+    ],
     "nehruplace": [
       "nehru place"
     ],
@@ -560,8 +609,14 @@
     "newdelhi": [
       "new delhi"
     ],
+    "newfriendscolony": [
+      "new friends colony"
+    ],
     "ngr": [
       "nagar"
+    ],
+    "nift": [
+      "national institute of fashion technology"
     ],
     "nizammudin": [
       "nizamuddin"
@@ -584,6 +639,9 @@
     "nsut": [
       "netaji subhas university of technology"
     ],
+    "nur": [
+      "narela"
+    ],
     "nzm": [
       "hazrat nizamuddin"
     ],
@@ -593,11 +651,17 @@
     "oldfaridabad": [
       "old faridabad"
     ],
+    "oldfort": [
+      "purana qila"
+    ],
     "opp": [
       "opposite"
     ],
     "pahadganj": [
       "paharganj"
+    ],
+    "paharganj": [
+      "pahar ganj"
     ],
     "pahargunj": [
       "paharganj"
@@ -666,6 +730,9 @@
     "pvr": [
       "pvr cinemas"
     ],
+    "pwd": [
+      "public works department"
+    ],
     "qila": [
       "fort"
     ],
@@ -675,6 +742,9 @@
     ],
     "racecourse": [
       "race course"
+    ],
+    "rajeev": [
+      "rajiv"
     ],
     "rajendranagar": [
       "rajendra nagar"
@@ -705,6 +775,9 @@
     ],
     "rly": [
       "railway"
+    ],
+    "rml": [
+      "ram manohar lohia"
     ],
     "rohni": [
       "rohini"
@@ -770,14 +843,23 @@
       "sect",
       "sctr"
     ],
+    "seelampur": [
+      "seelam pur"
+    ],
     "seemapuri": [
       "seema puri"
+    ],
+    "shadipur": [
+      "shadi pur"
     ],
     "shadra": [
       "shahdara"
     ],
     "shahdra": [
       "shahdara"
+    ],
+    "shakurbasti": [
+      "shakur basti"
     ],
     "shalimarbagh": [
       "shalimar bagh"
@@ -794,6 +876,12 @@
     "sheikhsarai": [
       "sheikh sarai"
     ],
+    "sikandarpur": [
+      "sikandar pur"
+    ],
+    "sikanderpur": [
+      "sikandarpur"
+    ],
     "soc": [
       "society"
     ],
@@ -806,9 +894,19 @@
     "southex": [
       "south extension"
     ],
+    "spa": [
+      "school of planning and architecture"
+    ],
+    "srcc": [
+      "shri ram college of commerce"
+    ],
+    "ssb": [
+      "shakur basti"
+    ],
     "st": [
       "street",
-      "saint"
+      "saint",
+      "station"
     ],
     "sta": [
       "station"
@@ -833,6 +931,9 @@
     ],
     "subhashnagar": [
       "subhash nagar"
+    ],
+    "sultanpur": [
+      "sultan pur"
     ],
     "sultanpuri": [
       "sultan puri"
@@ -863,6 +964,9 @@
     ],
     "tilaknagar": [
       "tilak nagar"
+    ],
+    "tkd": [
+      "tughlakabad"
     ],
     "trilokpuri": [
       "trilok puri"

@@ -48,6 +48,13 @@ const en = {
   mode_cycle: "Bicycle",
   mode_walk: "On foot",
   mode_approx: " (approx.)",
+  /** least-inhalation engine row suffixes (server labels
+      "… · least-smoke rd" / "… · least-smoke alt N") — localized so the
+      Hindi UI never leaks the English wire text */
+  mode_leastSmoke: " · least-smoke rd",
+  mode_leastSmokeAlt: " · least-smoke alt {n}",
+  /** corridor names under an engine row — "via Outer Circle → …" */
+  viaStreets: "via {streets}",
   findingNewWay: "Finding a new way…",
   youreHere: "You're here.",
   /** manual "End" before reaching the destination — the trip is real,
@@ -202,7 +209,7 @@ const en = {
   layers: "Layers",
   layerFires: "fires",
   layerBlackspots: "crash spots",
-  layerCorridors: "measured streets",
+  layerCorridors: "commute-mapped streets",
   // sidebar header + ledger
   breathed: "breathed",
   putOut: "put out",
@@ -265,6 +272,7 @@ const en = {
   noResults: "nothing found — try a bigger name",
   searchingLabel: "searching",
   checkingRoutes: "checking every way there…",
+  compare_refining: "least-smoke roads first · adding metro, bus and more…",
   noRoutes: "no route found between those two places",
   leaveAtBreatheLess: "leave {time} → breathe ~{n}% less",
   departTomorrow: "tomorrow",
@@ -283,7 +291,7 @@ const en = {
   onb_next: "Next",
   onb_skip: "Skip",
   onb_whatTitle: "Every Delhi trip has an air price.",
-  onb_whatBody: "Tell ALive where you're going — it compares every way there by the smoke you'd actually breathe, not just by how fast it is.",
+  onb_whatBody: "Tell ALive where you're going — it compares every way there by the smoke you'd likely breathe, not just by how fast it is.",
   onb_numInLabel: "smoke you breathe",
   onb_numOutLabel: "smoke your ride puts out",
   onb_numCaption: "the two numbers on every trip",
@@ -347,10 +355,10 @@ const en = {
   mapPickHint: "tap the map to drop a pin there",
   // first run
   onboard_breatheSub: "counts the smoke as you ride",
-  onboard_receiptSub1: "what you actually breathed",
+  onboard_receiptSub1: "what you breathed, estimated",
   onboard_receiptSub2: "and what your ride put out",
   introTitle: "every trip in delhi has an air price.",
-  introBody: "pick where you're going — we compare every way there by what you'd actually breathe, not just how fast it is. your journeys anonymously build a shared air map of the city.",
+  introBody: "pick where you're going — we compare every way there by what you'd likely breathe, not just how fast it is. your journeys anonymously build a shared air map of the city.",
   introGotIt: "got it",
   // place-name fallbacks (useShellFlow: from/to when no place is picked)
   placeCurrentLocation: "your location",
@@ -405,6 +413,9 @@ const hi: Record<StringKey, string> = {
   mode_cycle: "साइकिल",
   mode_walk: "पैदल",
   mode_approx: " (अनुमानित)",
+  mode_leastSmoke: " · सबसे कम धुआँ वाला रास्ता",
+  mode_leastSmokeAlt: " · सबसे कम धुआँ विकल्प {n}",
+  viaStreets: "{streets} होते हुए",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
   youreHere: "आप पहुँच गए।",
   tripEnded: "यात्रा ख़त्म हुई।",
@@ -542,7 +553,7 @@ const hi: Record<StringKey, string> = {
   settingsWhatWeStore: "हम क्या रखते हैं",
   layerFires: "आग",
   layerBlackspots: "एक्सीडेंट स्पॉट",
-  layerCorridors: "मापी गई सड़कें",
+  layerCorridors: "सफ़र से बनी सड़कें",
   breathed: "साँस में लिया",
   putOut: "गाड़ी ने छोड़ा",
   lessThanYesterday: "कल से {p}% कम",
@@ -601,6 +612,7 @@ const hi: Record<StringKey, string> = {
   noResults: "कुछ नहीं मिला — बड़ा नाम लिखकर देखें",
   searchingLabel: "खोज रहे हैं",
   checkingRoutes: "हर रास्ता जाँच रहे हैं…",
+  compare_refining: "पहले सबसे कम धुएँ वाली सड़कें · मेट्रो, बस और जोड़ रहे हैं…",
   noRoutes: "दोनों जगहों के बीच कोई रास्ता नहीं मिला",
   leaveAtBreatheLess: "{time} पर निकलें → ~{n}% कम धुआँ",
   departTomorrow: "कल",
@@ -731,8 +743,16 @@ export function modeLabel(mode: string, label: string, lang: Lang): string {
     : BASES.find((x) => label === x.en || label.startsWith(x.en + " ") || label.startsWith(x.en + "("));
   if (!b) return label;
   const rest = label.slice(b.en.length);
-  /* " (approx.)" is wire English too — localize the whole suffix */
-  const suffix = rest.startsWith(" (approx") ? t("mode_approx", lang) : rest;
+  /* " (approx.)" is wire English too — localize the whole suffix; the
+     least-inhalation engine suffixes likewise translate instead of
+     leaking wire English into the Hindi UI */
+  let suffix = rest;
+  if (rest.startsWith(" (approx")) suffix = t("mode_approx", lang);
+  else {
+    const alt = rest.match(/^ · least-smoke alt (\d+)$/);
+    if (alt) suffix = t("mode_leastSmokeAlt", lang, { n: alt[1] });
+    else if (rest === " · least-smoke rd") suffix = t("mode_leastSmoke", lang);
+  }
   return t(b.key, lang) + suffix;
 }
 

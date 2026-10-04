@@ -73,10 +73,10 @@ class TestForecastField(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(v)
 
 
-def _synthetic_field(wind_ms=10.0):
+def _synthetic_field(wind_ms=10.0, wind_dir=270.0):
     """Two-point grid: dirty west cell (200 µg), clean east cell (20 µg),
-    steady westerly wind (FROM 270 → parcels move EAST). No live anchor —
-    deterministic, no network."""
+    steady wind (FROM `wind_dir`; 270 → parcels move EAST). No live
+    anchor — deterministic, no network."""
     f = ForecastField(live=None)
     t0 = datetime.now(timezone.utc).replace(hour=0, minute=0,
                                             second=0, microsecond=0)
@@ -91,10 +91,10 @@ def _synthetic_field(wind_ms=10.0):
     f._met = [
         {"lat": 28.6, "lon": 77.0, "name": "", "t0": t0, "times": times,
          "vars": {"wind_speed_10m": [wind_ms] * 120,
-                  "wind_direction_10m": [270.0] * 120}},
+                  "wind_direction_10m": [wind_dir] * 120}},
         {"lat": 28.6, "lon": 77.4, "name": "", "t0": t0, "times": times,
          "vars": {"wind_speed_10m": [wind_ms] * 120,
-                  "wind_direction_10m": [270.0] * 120}},
+                  "wind_direction_10m": [wind_dir] * 120}},
     ]
     return f
 
@@ -131,6 +131,45 @@ class TestAdvection(unittest.TestCase):
         self.assertAlmostEqual(alat, self.EAST[0], places=6)
         self.assertLess(abs(alon - self.EAST[1]), 0.5)
         self.assertGreater(alon, 76.9)
+
+    def test_anchor_evaluates_at_the_parcel_origin(self):
+        """Regression — the live-anchor delta used to be computed at the
+        query point but applied to the displaced base: a model over-read
+        AT the destination could crush an upwind parcel to a clamped 0.0
+        (seen live: CP h+2..6 read 0.0 under a westerly). The correction
+        must follow the parcel — evaluate at the advected origin."""
+        f = _synthetic_field(wind_dir=90.0)   # parcels move WEST
+        # live truth: the model massively over-reads the west cell
+        # (200 vs live 60) and slightly under-reads the east (20 vs 55).
+        def live(lat, lon):
+            return 60.0 if lon < 77.2 else 55.0
+        v = f.pm25(28.6, 77.0, 3, live=live)   # query the WEST cell
+        self.assertIsNotNone(v)
+        # base at the displaced (east) origin ≈ 20; the parcel's own
+        # bias is (55-20)·decay ≈ +24 → ~44. The old query-point delta
+        # (60-200)·decay ≈ -98 would have clamped this to 0.0.
+        self.assertGreater(v, 30.0)
+
+    def test_overshooting_anchor_degrades_to_the_model(self):
+        """When the anchor's correction pushes below the physical floor,
+        pm25 serves the model's own number — never a clamped literal 0.0."""
+        f = _synthetic_field()
+        # the west cell declines over the horizon so a displaced base
+        # sits far below that cell's hour-0 model value
+        # decline starts one slot past the current hour, wherever that
+        # lands (idx0 is hours-since-midnight — run-hour independent)
+        idx0 = f.hour_index(0) or 0
+        f._aq[0]["vars"]["pm2_5"] = (
+            [200.0] * (idx0 + 1) + [30.0] * (120 - idx0 - 1))
+        def live(lat, lon):
+            return 0.5 if lon < 77.2 else 180.0
+        # query EAST at +3h: westerly displaces the origin ~36 km west →
+        # base ≈ 30 (the declined west cell); hour-0 bias there is
+        # (0.5 - ~199)·decay ≈ -142 → corrected << 0 → serve ~30 raw.
+        v = f.pm25(*self.EAST, 3, live=live)
+        self.assertIsNotNone(v)
+        self.assertGreater(v, 0.0)
+        self.assertAlmostEqual(v, 30.0, delta=10.0)
 
     def test_missing_met_degrades(self):
         """No met grid ⇒ undisplaced lookup — never None for a covered point."""

@@ -67,6 +67,13 @@ export type V2Option = {
   reason_line: string;                // server one-liner under the row
   route_id?: string | null;           // for GET /v2/strip (nav lane)
   your_vehicle?: boolean;             // matches the declared S8 class
+  /** least-inhalation engine rows ("alive_core-path"): corridor roads the
+      path takes, and 1..N on corridor-diverse alternatives (absent on
+      the primary) — surfaced so alternatives read "via Outer Circle",
+      not three identical "Car" rows */
+  engine?: string | null;
+  via_names?: string[] | null;
+  alternative_index?: number | null;
   geometry: GeoJSON.Geometry | null;  // mapped from `route_geojson`
   stations?: { board: string; alight: string } | null;
   steps?: Step[] | null;              // only if a future payload inlines them

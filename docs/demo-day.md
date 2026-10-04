@@ -54,6 +54,21 @@ the field reports `coverage < 1` instead of clamping silently. The 10
 other species ride the same lattice; nothing is zero-filled when a feed
 doesn't serve it.
 
+**"Why these roads — is it really not the fastest path?"**
+The plan engine is an exposure-weighted A* over 1,070,452 real road
+edges (2-zone OSM merge, Delhi+Haryana+UP side): each edge's cost is
+the inhaled dose for the queried mode (field concentration × microenv
+× road uplift × ventilation × dwell), re-priced off a raster of the
+live kriged field. Queries answer in ~70ms and return real street
+sequences (`via_names`, snap distances) — and every option row's dose
+is integrated on the SAME raster the pathfinder minimized over, so
+the number shown is the exact criterion the path won on. Routes within
+~50km also return **corridor alternatives**: up to two extra least-dose
+re-solves that are penalised for re-using the primary corridor's edges
+(they must diverge ≥15% of length to count as a real alternative) — so
+the app can show "via Outer Circle" vs "via Vivekanand Marg", not just
+one blessed path.
+
 **"How fast is the live surface?"**
 `/grid` answers are pure functions of the data's own epochs (field
 fetch time, forecast fetch time, community obs version) — repeated
@@ -62,12 +77,16 @@ cache key IS the data version; gzip takes the 235 KB layer to ~11 KB
 on the wire (~0.5 s end-to-end from India).
 
 **"Street-wise how deep does the data go?"**
-The search index is built from the real OSM northern-zone extract —
-~94k rows: metro gates, market lanes, mall stores, police stations,
-hospitals. `rajiv chowk gate 5` returns "Rajiv Chowk Metro Gate No 5"
-top-hit (all eight gates resolve individually); `nai sarak` finds the
-book market. The app bundles a 96.8k-entry gazetteer so landmark-level
-search works fully offline — no network, no key.
+The search index is built from the real OSM northern+central zone
+merge — 120k server rows, ~97.5k corpus entries including **16,952
+address-level rows** (real `addr:*` house numbers plus expanded street
+interpolations): metro gates, market lanes, mall stores, police
+stations, hospitals, house numbers. `559 udyog vihar` returns a real
+house-number address; `rajiv chowk gate 5` returns "Rajiv Chowk Metro
+Gate No 5" top-hit (all eight gates resolve individually). The C++
+index answers in ~1ms p50 (~3ms live over the NLB); the app bundles a
+124k-entry gazetteer so landmark-level search works fully offline —
+no network, no key.
 
 **"Privacy?"**
 Aggregate-only by construction: no accounts, tokens are hashed
@@ -80,7 +99,7 @@ and mode share are suppressed below k=3 distinct devices. The public
 AWS free-tier shape, least-privilege IAM: ECS Fargate + NLB + DynamoDB
 (`alive108-agg`, donations survive redeploys) + S3 field snapshots +
 CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
-~1.8 ms.
+~0.9 ms p50 (120k rows).
 
 ## Demo flow (phone)
 
@@ -103,6 +122,9 @@ CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
 ## Demo flow (admin)
 
 Open `/admin` (token in Secrets Manager `alive108/admin-token`):
+- **"where the smoke sits"**: all 13 NCR districts as chips in the
+  official CPCB AQI palette — each district's own live pm2.5 read
+  (`/v2/districts`), never one number stretched across the map
 - headline cards: field age (live badge), samples, donated trips,
   publishable corridors (k≥3), trips switched lighter, daily median,
   cumulative dose, CO₂ emitted by donated rides, model error vs
@@ -134,7 +156,11 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   builds count in the headline total, never in the split
 - corridors carry a per-street emission index: `co2_g_per_100m`
   (trip CO₂ spread evenly over the cells the route crosses,
-  k≥3-gated, null — never 0 — when no receipts reported emissions)
+  k≥3-gated, null — never 0 — when no receipts reported emissions) —
+  and the table now renders it next to avg dose, so every street row
+  reads "breathed X µg · rides put out Y g per 100 m"
+- **day-by-day trips strip**: every recorded day as a bar (trips),
+  hover carries that day's km/dose/CO₂ — aggregate day counters only
 - **live feed**: the newest donations ticking in (ago · mode · dose ·
   km · co₂) — donate a trip on stage and watch it land in the next
   30 s refresh. Aggregate-level events only: the feed can say a trip

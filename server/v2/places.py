@@ -1,9 +1,10 @@
 """GET /v2/place/{id} and GET /v2/reverse — resolve + reverse-geocode.
 
-Amazon-backed (geo-places GetPlace / ReverseGeocode) with small
-in-memory caches; gazetteer ids resolve locally. Without
-ALIVE_LOCATION_KEY the Amazon paths return 503 with an honest body —
-never a silent empty result.
+/v2/reverse answers from the bundled gazetteer+corpus first (zero-key,
+offline-capable): the nearest named place/address/street within
+REV_MAX_M metres, distance reported honestly. Amazon Location is the
+second path when ALIVE_LOCATION_KEY is configured; a 404 naming the
+searched radius is the third — never a fabricated "Dropped pin" label.
 """
 import time
 from typing import Optional
@@ -118,23 +119,92 @@ def _name_reverse(items: list, lat: float, lon: float) -> Optional[dict]:
             "distance_m": dist, "source": "amazon"}
 
 
+# reverse-geocode radius: a named thing further away than this is not
+# the pin's place — "no named place within 150m" beats guessing.
+REV_MAX_M = 150.0
+
+_ADDR_KINDS = {"addr:address", "addr:interpolation", "addr:place",
+               "addr:subdistrict", "addr:city"}
+_LOCALITY_KINDS = {"locality", "neighbourhood", "neighborhood",
+                   "suburb", "village", "district", "quarter",
+                   "landuse:residential"}
+_LOCALITY_TOPS = ("place", "boundary", "landuse")
+
+
+def _rev_rank(kind: str) -> int:
+    """Street/address-level answers beat business names for a dropped
+    pin (same convention as _name_reverse over Amazon items)."""
+    if kind in _ADDR_KINDS or kind.startswith("highway:"):
+        return 0
+    if kind in _LOCALITY_KINDS or kind.split(":", 1)[0] in _LOCALITY_TOPS:
+        return 1
+    return 2
+
+
+def _rev_subtitle(kind: str) -> str:
+    if kind.startswith("addr:"):
+        return "address"
+    if kind.startswith("highway:"):
+        return "street"
+    return kind.split(":", 1)[-1].replace("_", " ")
+
+
+def _gaz_reverse(lat: float, lon: float):
+    """Nearest named corpus/gazetteer entry within REV_MAX_M, or None."""
+    try:
+        import core_engine
+        hits = core_engine.nearest(lat, lon, REV_MAX_M)
+    except Exception:
+        hits = None
+    if not hits:
+        return None
+    best = None  # (rank, dist) — class first, then distance
+    for e, d in hits:
+        cand = (_rev_rank(e.get("category") or ""), d)
+        if best is None or cand < best[:2]:
+            best = cand + (e,)
+    if best is None:
+        return None
+    rank, d, e = best
+    name = e["display"]
+    if rank == 2:
+        # a pin is never AT the poi — "near X" is the honest phrasing
+        name = f"near {name}"
+    return {"name": name,
+            "subtitle": _rev_subtitle(e.get("category") or ""),
+            "lat": e["lat"], "lon": e["lon"],
+            "distance_m": round(d, 1),
+            "kind": e.get("category") or "",
+            "source": "gazetteer"}
+
+
 @router.get("/reverse")
 async def reverse(lat: float, lon: float):
-    loc, err = _loc_or_503()
-    if err is not None:
-        return err
     ckey = (round(float(lat), 4), round(float(lon), 4))
     cached = _cache_get(_rev_cache, ckey)
     if cached is not None:
         return cached
-    try:
-        items = await loc.reverse_geocode(lat, lon, limit=10)
-    except Exception:
-        items = None
-    if not items:
+
+    # gazetteer first: the committed corpus names the nearest real
+    # place with no credentials and no network dependency at all
+    out = _gaz_reverse(lat, lon)
+
+    # Amazon second — richer street-level addresses where configured
+    if out is None:
+        loc = deps.get_location()
+        if loc is not None and getattr(loc, "enabled", False):
+            try:
+                items = await loc.reverse_geocode(lat, lon, limit=10)
+            except Exception:
+                items = None
+            if items:
+                out = (_name_reverse(items, lat, lon)
+                       or {"name": "Dropped pin", "subtitle": "",
+                           "dropped_pin": True})
+
+    if out is None:
         return JSONResponse(status_code=404, content={
-            "error": "no address found", "lat": lat, "lon": lon})
-    out = _name_reverse(items, lat, lon) or {"name": "Dropped pin",
-                                             "subtitle": ""}
+            "error": f"no named place within {int(REV_MAX_M)}m",
+            "lat": lat, "lon": lon, "dropped_pin": True})
     _cache_put(_rev_cache, ckey, out)
     return out

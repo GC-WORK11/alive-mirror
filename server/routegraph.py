@@ -44,22 +44,38 @@ HW_NAMES = ["motorway", "motorway_link", "trunk", "trunk_link", "primary",
 
 # per-mode road access + speed model (km/h). Edge sp is the plausible
 # free-flow speed stored at build; modes clamp it.
+# `acc` = per-edge access-deny bits matching build_route_graph.py:
+# 1 motor_vehicle | 2 bicycle | 4 foot | 8 motorcar-class | 16 motorcycle.
+# `turn` = which bit of a turn-ban mode mask applies to this mode
+# (1 motor | 2 cycle | 4 walk — walking ignores vehicular turn bans).
 MODE_RULES = {
     # motor: respect oneway, no foot-scale classes
     "car":      {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001 | 0b1000, "turn": 1,
                  "spd": lambda sp: sp},
     "car_open": {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001 | 0b1000, "turn": 1,
                  "spd": lambda sp: sp},
     "cab":      {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001 | 0b1000, "turn": 1,
                  "spd": lambda sp: sp},
     "auto":     {"deny": {0, 1, 15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001, "turn": 1,
                  "spd": lambda sp: min(sp, 40)},
     "bike":     {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
-                 "spd": lambda sp: min(sp, 30)},
+                 "acc": 0b001 | 0b10000, "turn": 1,
+                 # cap 40, not 30: two-wheelers sustain ~40+ on NCR
+                 # arterials freeflow (OSM maxspeed 50-70); a lower cap
+                 # flattened the len/sp axis the dose objective
+                 # optimizes and sat bikes below autos, which they
+                 # outrun in Delhi traffic
+                 "spd": lambda sp: min(sp, 40)},
     # non-motor: no motorways, oneway not applicable to legs
     "cycle":    {"deny": {0, 1}, "oneway": False,
+                 "acc": 0b010, "turn": 2,
                  "spd": lambda sp: min(sp, 16)},
     "walk":     {"deny": {0, 1}, "oneway": False,
+                 "acc": 0b100, "turn": 4,
                  "spd": lambda sp: 5.0},
 }
 MODE_VE = {"car": 7.5, "car_open": 7.5, "cab": 7.5, "auto": 8.5,
@@ -71,6 +87,27 @@ HW_UPLIFT = {0: 1.35, 1: 1.35, 2: 1.30, 3: 1.30, 4: 1.20, 5: 1.20,
              6: 1.10, 7: 1.10, 8: 1.05, 9: 1.05}
 MAX_SAMPLE_PTS = 5      # per-edge concentration sample count cap
 SNAP_RADIUS_M = 1500.0  # furthest node-snap admitted for an endpoint
+# snap connectivity screen: a candidate endpoint must sit in the
+# main network — `pre` (can reach the giant component, origin side) or
+# `post` (reachable from it, destination side). Micro-islands exist on
+# real NCR extracts (clipped stubs, ped-precinct clusters); snapping to
+# one returned 'no path in graph' on every OD touching it. Floods are
+# per-mode (mode legality shapes reachability) and lazy per engine.
+MAIN_MIN_FRAC = 0.30    # a flood must cover ≥30% of nodes to be 'main'
+SEED_CANDIDATES = 8     # highest-degree nodes tried as flood seeds
+# floods cost a full edge sweep per mode; engines rebuilt per test
+# would otherwise re-flood the identical graph — cache sets per
+# (blob length, mode); the route graph is immutable on disk
+_REACH_CACHE = {}
+
+# alternative-corridor search (alternatives()): after the optimal path,
+# re-run A* with every found path's edges taxed by ALT_TAX, up to
+# ALT_MAX_ATTEMPTS rounds; a candidate sharing >= ALT_MAX_SHARED of its
+# length with an already-accepted corridor is a variant, not an
+# alternative — rejected (its edges still join the tax set).
+ALT_TAX = 1.5
+ALT_MAX_ATTEMPTS = 4
+ALT_MAX_SHARED = 0.85
 
 R_M = 6371000.0
 
@@ -93,11 +130,11 @@ class RouteGraph:
     __slots__ = ("n_nodes", "n_edges", "n_names", "n_pts", "bbox",
                  "node_lon", "node_lat", "names", "e_u", "e_v", "e_len",
                  "e_pts_off", "e_pts_n", "e_hw", "e_ow", "e_sp", "e_nm",
-                 "e_field", "pts", "adj", "meta")
+                 "e_field", "e_acc", "bans", "pts", "adj", "meta")
 
     def __init__(self, blob: bytes):
         magic, nn, ne, nname, npts = struct.unpack_from("<4s4I", blob, 0)
-        if magic != b"ARG1":
+        if magic not in (b"ARG1", b"ARG2"):
             raise ValueError("route_graph: bad magic")
         off = 20
         self.bbox = struct.unpack_from("<4i", blob, off)
@@ -113,11 +150,15 @@ class RouteGraph:
             self.names.append(blob[off:off + ln].decode("utf-8"))
             off += ln
         self.n_names = nname
-        fmt = "<IIfIHBbBiB"
-        sz = struct.calcsize(fmt)          # 26
+        if magic == b"ARG2":
+            fmt = "<IIfIHBbBiBB"   # + u8 access-deny byte
+            sz = struct.calcsize(fmt)          # 27
+        else:
+            fmt = "<IIfIHBbBiB"
+            sz = struct.calcsize(fmt)          # 26
         (self.e_u, self.e_v, self.e_len, self.e_pts_off, self.e_pts_n,
-         self.e_hw, self.e_ow, self.e_sp, self.e_nm, self.e_field) = \
-            ([] for _ in range(10))
+         self.e_hw, self.e_ow, self.e_sp, self.e_nm, self.e_field,
+         self.e_acc) = ([] for _ in range(11))
         for i in range(ne):
             t = struct.unpack_from(fmt, blob, off + i * sz)
             self.e_u.append(t[0]); self.e_v.append(t[1])
@@ -125,8 +166,20 @@ class RouteGraph:
             self.e_pts_n.append(t[4]); self.e_hw.append(t[5])
             self.e_ow.append(t[6]); self.e_sp.append(t[7])
             self.e_nm.append(t[8]); self.e_field.append(t[9])
+            self.e_acc.append(t[10] if magic == b"ARG2" else 0)
         self.n_edges = ne
         off += sz * ne
+        # ARG2 turn-ban table: (dir-in raw id | via node | dir-out raw id
+        # | u8 mode mask) — engines key lookups on (in_dir << 32 | via)
+        self.bans = {}
+        if magic == b"ARG2":
+            (nb,) = struct.unpack_from("<I", blob, off)
+            off += 4
+            for _ in range(nb):
+                din, via, dout, mask = struct.unpack_from("<IIIB",
+                                                          blob, off)
+                off += 13
+                self.bans.setdefault((din, via), {})[dout] = mask
         # points blob — int32 stream to EOF: each edge contributes
         # 2 abs ints + (pts_n-1) packed i16-delta ints ⇒ n_pts + n_edges
         # int32s total. pts_off indexes this stream directly.
@@ -194,6 +247,9 @@ class PyPathEngine:
         self.conc = [None] * g.n_edges   # per-edge field mean (reweight)
         self.field_mean = None
         self.edges_priced = 0            # count priced — parity w/ C++ twin
+        self._radj = None                # reverse CSR, built lazily
+        self._reach = {}                 # mode -> (pre, post) bytearrays
+        self._blob_key = hash(blob)      # _REACH_CACHE key part
 
     # ---- reweight: per-edge concentration from the live field ----
     def _sample_pts(self, i):
@@ -243,6 +299,9 @@ class PyPathEngine:
         e = e_i & 0x7FFFFFFF
         if g.e_hw[e] in rule["deny"]:
             return False
+        if g.e_acc[e] & rule["acc"]:
+            return False          # per-way access override (bicycle=no,
+                                  # foot=no, motor_vehicle=no, ...)
         if rule["oneway"]:
             ow = g.e_ow[e]
             if ow == 1 and rev:
@@ -251,13 +310,89 @@ class PyPathEngine:
                 return False
         return rule["spd"](g.e_sp[e]) > 0
 
-    def snap(self, lat, lon, mode="car"):
+    # ---- connectivity screen: lazy per-mode main-net floods ----------
+    def _rev_adj(self):
+        """Reverse CSR: radj[x] lists travel directions whose head is x
+        — fwd dir i (u->v) enters v when ow>=0; reversed dir i|REV
+        (v->u) enters u when ow<=0. Mirrors build_adj exactly."""
+        if self._radj is None:
+            g = self.g
+            radj = [[] for _ in range(g.n_nodes)]
+            for i in range(g.n_edges):
+                u, v, ow = g.e_u[i], g.e_v[i], g.e_ow[i]
+                if ow >= 0:
+                    radj[v].append(i)
+                if ow <= 0:
+                    radj[u].append(i | 0x80000000)
+            self._radj = radj
+        return self._radj
+
+    def _flood(self, seed, rule, adj, reverse):
+        """Mode-legal BFS over adj (forward: node -> successors) or
+        radj (reverse: node -> predecessors). Returns bytearray set."""
+        g = self.g
+        seen = bytearray(g.n_nodes)
+        seen[seed] = 1
+        fr = [seed]
+        while fr:
+            n = fr.pop()
+            for ei in adj[n]:
+                e = ei & 0x7FFFFFFF
+                rev = bool(ei & 0x80000000)
+                if not self._legal(e, rev, rule):
+                    continue
+                # forward: successor = head of the travelled dir;
+                # reverse: predecessor = tail of the travelled dir
+                if reverse:
+                    w = g.e_u[e] if not rev else g.e_v[e]
+                else:
+                    w = g.e_v[e] if not rev else g.e_u[e]
+                if not seen[w]:
+                    seen[w] = 1
+                    fr.append(w)
+        return seen
+
+    def _reach_sets(self, mode):
+        """(pre, post) main-net membership for `mode`, built lazily.
+        post = nodes reachable FROM the main seed (destination side);
+        pre = nodes that can reach it (origin side, via reverse BFS).
+        Seed = first of the 8 highest-degree nodes whose forward flood
+        covers >=MAIN_MIN_FRAC of the graph — junctions sit on the
+        main net almost surely; keeps the largest flood otherwise."""
+        sets = self._reach.get(mode)
+        if sets is not None:
+            return sets
+        g = self.g
+        cache_key = (self._blob_key, mode)
+        sets = _REACH_CACHE.get(cache_key)
+        if sets is not None:
+            self._reach[mode] = sets
+            return sets
+        rule = MODE_RULES.get(mode) or MODE_RULES["car"]
+        seeds = sorted(range(g.n_nodes),
+                       key=lambda n: (-len(g.adj[n]), n))[:SEED_CANDIDATES]
+        post, seed, best = None, seeds[0], -1
+        for s in seeds:
+            f = self._flood(s, rule, g.adj, False)
+            c = sum(f)
+            if c > best:
+                post, seed, best = f, s, c
+            if c >= g.n_nodes * MAIN_MIN_FRAC:
+                break
+        pre = self._flood(seed, rule, self._rev_adj(), True)
+        sets = (pre, post)
+        self._reach[mode] = sets
+        return sets
+
+    def snap(self, lat, lon, mode="car", role="from"):
         """nearest node within SNAP_RADIUS_M that the mode can actually
-        leave — a geometrically closer node sitting on footways only is
-        a dead snap for a car."""
+        leave AND that connects to the main network in the trip's
+        direction (role 'from' → pre, 'to' → post). Falls back to the
+        plain nearest legal node when every in-radius candidate is
+        pocketed, preserving intra-island trips."""
         g = self.g
         rule = MODE_RULES.get(mode) or MODE_RULES["car"]
-        best, bd = None, SNAP_RADIUS_M
+        cands = []               # legal exits in radius, nearest-first
         # narrow by a ~SNAP_RADIUS_M box before haversine
         dlat = SNAP_RADIUS_M / 111320.0
         dlon = dlat / max(0.2, math.cos(math.radians(lat)))
@@ -269,23 +404,75 @@ class PyPathEngine:
             if not (lon - dlon <= x <= lon + dlon):
                 continue
             d = _hav_m(lon, lat, x, y)
-            if d >= bd:
+            if d >= SNAP_RADIUS_M:
                 continue
             for ei in g.adj[n]:
                 if self._legal(ei, bool(ei & 0x80000000), rule):
-                    best, bd = n, d
+                    cands.append((d, n))
                     break
-        return (best, bd) if best is not None else (None, None)
+        if not cands:
+            return None, None
+        cands.sort()
+        pre, post = self._reach_sets(mode)
+        screen = pre if role == "from" else post
+        for d, n in cands:
+            if screen[n]:
+                return n, d
+        return cands[0][1], cands[0][0]
 
     def query(self, olat, olon, dlat, dlon, mode="car"):
         """least-dose path → dict(geometry, distance_m, duration_s,
         dose_ug, edge_ids, names hit, snap warnings) or {'error': ...}."""
+        return self._route(olat, olon, dlat, dlon, mode, None)
+
+    def alternatives(self, olat, olon, dlat, dlon, mode="car",
+                     max_alts=2):
+        """Least-dose corridor plus up to `max_alts` honest alternatives.
+
+        After the optimum, each subsequent A* run taxes every edge of
+        every corridor found so far by ALT_TAX — the standard
+        edge-penalty diversity pass. A candidate sharing >=
+        ALT_MAX_SHARED of its length with the accepted corridors is a
+        variant of them, not an alternative, and is rejected (its edges
+        join the tax set so the next round must go wider). Every
+        returned path carries its real dose — nothing is synthesized.
+        """
+        first = self._route(olat, olon, dlat, dlon, mode, None)
+        if first.get("error") or max_alts <= 0:
+            return [first]
+        g = self.g
+        out = [first]
+        accepted_edges = set(first["edge_ids"])     # 31-bit ids
+        taxed = set(accepted_edges)
+        tax = {}
+        attempts = 0
+        while len(out) < 1 + max_alts and attempts < ALT_MAX_ATTEMPTS:
+            for e in taxed:
+                tax[e] = ALT_TAX
+            attempts += 1
+            cand = self._route(olat, olon, dlat, dlon, mode, tax)
+            if cand.get("error"):
+                break
+            cids = set(cand["edge_ids"])
+            if cids and cids <= taxed:
+                break               # penalty moved nothing — no alt exists
+            shared = sum(g.e_len[e] for e in cids & accepted_edges)
+            if cand["distance_m"] > 0 and \
+                    shared / cand["distance_m"] < ALT_MAX_SHARED:
+                out.append(cand)
+                accepted_edges |= cids
+            taxed |= cids
+        return out
+
+    def _route(self, olat, olon, dlat, dlon, mode, tax):
+        """One least-dose A* solve; `tax` optionally maps edge id →
+        cost multiplier (diversity pass — never a legality override)."""
         g = self.g
         rule = MODE_RULES.get(mode) or MODE_RULES["car"]
         ve = MODE_VE.get(mode, 8.0)
         me = MODE_ME.get(mode, 1.0)
-        s, sd = self.snap(olat, olon, mode)
-        t, td = self.snap(dlat, dlon, mode)
+        s, sd = self.snap(olat, olon, mode, "from")
+        t, td = self.snap(dlat, dlon, mode, "to")
         if s is None or t is None:
             return {"error": "no graph node near endpoint"}
 
@@ -303,6 +490,8 @@ class PyPathEngine:
         # mn = min edge concentration (reweight stores it); fastest speed
         # 250 km/h keeps the rate a floor. me/ve/uplift≥1 are per-mode
         # constants — rate must be recomputed per mode (no shared cache).
+        # The ALT_TAX pass multiplies only real edge costs — the bound
+        # stays valid (tax can only raise costs, never below h_rate).
         mn = getattr(self, "_min_conc", None)
         if self.field_mean is None or mn is None:
             h_rate = 0.0
@@ -313,44 +502,74 @@ class PyPathEngine:
             return (_hav_m(g.node_lon[n] / 1e6, g.node_lat[n] / 1e6,
                            dlon, dlat) * h_rate)
 
-        gscore = {s: 0.0}
+        # s == t leaves the search empty — the chain unwinds to [] and
+        # the caller gets the (degenerate but legal) zero-edge path.
+        # directed-edge-state A*: state id sid = (e << 1) | rev. Turn
+        # bans key on the ARRIVAL edge — a node-settled A* would let the
+        # cheapest incoming edge own the node and strand continuations
+        # the ban check needs (the parity twin does the same).
+        turn_bit = rule["turn"]
+        gscore = {}
         parent = {}
-        pq = [(h(s), 0.0, s)]
+        pq = []
         settled = set()
-        while pq:
-            f, gc, n = heapq.heappop(pq)
-            if n in settled:
+        for ei in (g.adj[s] if s != t else ()):
+            e = ei & 0x7FFFFFFF
+            rev = bool(ei & 0x80000000)
+            rate = cost(ei, rev)
+            if rate is None:
                 continue
-            settled.add(n)
+            sid = (e << 1) | (1 if rev else 0)
+            ng = (rate * g.e_len[e]
+                  * (tax.get(e, 1.0) if tax else 1.0))
+            gscore[sid] = ng
+            parent[sid] = -1
+            w0 = g.e_v[e] if not rev else g.e_u[e]
+            heapq.heappush(pq, (ng + h(w0), ng, sid))
+        end_sid = -1
+        while pq:
+            f, gc, sid = heapq.heappop(pq)
+            if sid in settled:
+                continue
+            settled.add(sid)
+            e = sid >> 1
+            rev = bool(sid & 1)
+            n = g.e_v[e] if not rev else g.e_u[e]
             if n == t:
+                end_sid = sid
                 break
+            d_raw = e | 0x80000000 if rev else e
+            bans = g.bans.get((d_raw, n))
             for ei in g.adj[n]:
-                rev = bool(ei & 0x80000000)
-                e = ei & 0x7FFFFFFF
-                to = g.e_v[e] if not rev else g.e_u[e]
-                rate = cost(e, rev)
+                rev2 = bool(ei & 0x80000000)
+                e2 = ei & 0x7FFFFFFF
+                if bans is not None and \
+                        bans.get(ei, 0) & turn_bit:
+                    continue      # restricted turn
+                rate = cost(ei, rev2)
                 if rate is None:
                     continue
-                w = rate * g.e_len[e]
-                ng = gc + w
-                if to not in gscore or ng < gscore[to] - 1e-9:
-                    gscore[to] = ng
-                    parent[to] = (n, e, rev)
-                    heapq.heappush(pq, (ng + h(to), ng, to))
-        if t not in gscore:
+                ng = (gc + rate * g.e_len[e2]
+                      * (tax.get(e2, 1.0) if tax else 1.0))
+                sid2 = (e2 << 1) | (1 if rev2 else 0)
+                if sid2 not in gscore or ng < gscore[sid2] - 1e-9:
+                    gscore[sid2] = ng
+                    parent[sid2] = sid
+                    w = g.e_v[e2] if not rev2 else g.e_u[e2]
+                    heapq.heappush(pq, (ng + h(w), ng, sid2))
+        if end_sid < 0 and s != t:
             return {"error": "no path in graph"}
 
-        # unwind
+        # unwind the directed-edge chain
         chain = []
-        n = t
-        while n != s:
-            p, e, rev = parent[n]
-            chain.append((e, rev))
-            n = p
+        sid = end_sid
+        while sid >= 0:
+            chain.append((sid >> 1, bool(sid & 1)))
+            sid = parent[sid]
         chain.reverse()
 
         coords, dist, secs, dose = [], 0.0, 0.0, 0.0
-        names_seen = []
+        names_seen, name_set = [], set()
         for e, rev in chain:
             pts = g.edge_pts(e)
             if rev:
@@ -369,14 +588,21 @@ class PyPathEngine:
             nm = g.e_nm[e]
             if nm:
                 nm -= 1  # stored as idx+1
-                if 0 <= nm < len(g.names) and \
-                        (not names_seen or names_seen[-1] != g.names[nm]):
+                # ordered-unique: first-appearance order, repeats skipped —
+                # the corridor list reads like the turn sequence, not a
+                # name-mixing replay of leave/rejoin oscillations
+                if 0 <= nm < len(g.names) and g.names[nm] not in name_set:
+                    name_set.add(g.names[nm])
                     names_seen.append(g.names[nm])
         return {
             "geometry": {"type": "LineString",
                          "coordinates": [[c[0], c[1]] for c in coords]},
             "distance_m": dist, "duration_s": secs,
             "dose_ug": dose, "edges": len(chain),
+            # travelled edge ids (31-bit; direction in edge_reversed) —
+            # audit/diversity bookkeeping, same ids the C++ twin emits
+            "edge_ids": [e for e, _ in chain],
+            "edge_reversed": [rev for _, rev in chain],
             "names": names_seen[:12],
             "snap": {"from_m": sd, "to_m": td},
             "engine": "alive_core-path",

@@ -151,6 +151,11 @@ function toOption(raw: unknown): V2Option | null {
     recommended: o.recommended === true,
     reason_line: str(o.reason_line) ?? "",
     route_id: str(o.route_id),
+    engine: str(o.engine),
+    via_names: Array.isArray(o.via_names)
+      ? o.via_names.filter((x): x is string => typeof x === "string" && x.length > 0)
+      : null,
+    alternative_index: num(o.alternative_index),
     your_vehicle: o.your_vehicle === true,
     geometry: (o.route_geojson ?? o.geometry ?? null) as GeoJSON.Geometry | null,
     stations: stations
@@ -179,6 +184,14 @@ export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<
   });
   if (!r.ok) throw new Error("plan failed");
   return r.data;
+}
+
+/** Engine-first paint: POST /v2/plan with `fast:true` returns only the
+ *  least-inhalation engine rows (~engine time, no public-router wait).
+ *  Never cached — the full plan replaces it moments later. */
+export async function planEngineFirst(req: PlanRequest, timeoutMs = 9000): Promise<PlanResultFresh> {
+  const j = (await postJson(`${API}/v2/plan`, { ...req, fast: true }, timeoutMs)) as Record<string, unknown>;
+  return mapPlan(j);
 }
 
 /** Server `field` block → FieldStatus. Guards every key — the payload

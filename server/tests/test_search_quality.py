@@ -1,10 +1,13 @@
-"""Search-quality acceptance harness — the fixed 20-query Delhi list.
+"""Search-quality acceptance harness — the Delhi query list in
+tests/search_queries.txt.
 
 docs/plan/09 Phase 1 acceptance: every query in
 tests/search_queries.txt goes through GET /v2/search (TestClient, T1
 only — the Amazon client is unset so results are deterministic) with a
 Connaught-Place bias point, and the top-3 must contain the expected
-place. Target: >= 18/20.
+place. Target: >= 90% of the list (was >= 18/20 at the 20-query
+baseline; the gate scales with the suite so new coverage can be added
+without silently weakening the bar).
 
 Expected-answer convention (parsed from the tab-separated file):
     query <TAB> expected place
@@ -134,12 +137,17 @@ def t1_only():
     deps.set_location(None)
 
 
-# --- the 20-query acceptance score ---------------------------------------------
+# --- the acceptance score ----------------------------------------------------
+# the gate floor: 90% of queries must resolve top-3 — equivalent to the
+# original 18/20 bar at the 20-query baseline
+ACCEPTANCE_FRACTION = 0.90
+
+
 def test_queries_file_is_parseable():
-    assert len(QUERIES) == 20, f"expected 20 queries, got {len(QUERIES)}"
+    assert len(QUERIES) >= 20, f"expected >= 20 queries, got {len(QUERIES)}"
 
 
-def test_acceptance_score_at_least_18_of_20():
+def test_acceptance_score():
     misses = []
     score = 0
     for q, expected in QUERIES:
@@ -155,12 +163,14 @@ def test_acceptance_score_at_least_18_of_20():
         else:
             misses.append((q, expected,
                            [res.get("name") for res in top3]))
+    n = len(QUERIES)
+    floor = int(n * ACCEPTANCE_FRACTION + 1e-9)
     detail = "\n".join(f"  {q!r} expected {e!r} got {names}"
                        for q, e, names in misses)
-    print(f"\nACCEPTANCE SCORE: {score}/20")
+    print(f"\nACCEPTANCE SCORE: {score}/{n}")
     if misses:
         print(f"missing ({len(misses)}):\n{detail}")
-    assert score >= 18, f"score {score}/20 < 18\n{detail}"
+    assert score >= floor, f"score {score}/{n} < {floor}\n{detail}"
 
 
 @pytest.mark.parametrize("q,expected", QUERIES,

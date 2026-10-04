@@ -1,7 +1,7 @@
 """Parity tests — C++ alive_core.SearchIndex vs Python reference.
 
 Asserts identical result ORDER and scores (1e-9) over:
-  - the 20 fixed Delhi queries in <repo>/tests/search_queries.txt
+  - the fixed Delhi queries in <repo>/tests/search_queries.txt
   - >=200 generated prefix/typo queries built from the real gazetteer
   - a no-geo-bias run of the fixed queries
 plus the Python-fallback path when alive_core is absent.
@@ -126,7 +126,7 @@ def _assert_same(cpp_idx, py_idx, q, lat, lon):
 
 def test_parity_fixed_queries(cpp_idx, py_idx):
     queries = _fixed_queries()
-    assert len(queries) == 20
+    assert len(queries) >= 20
     for q in queries:
         _assert_same(cpp_idx, py_idx, q, *DELHI_BIAS)
 

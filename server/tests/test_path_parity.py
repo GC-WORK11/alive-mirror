@@ -67,6 +67,9 @@ def _cmp(rc, rp, od, mode):
     if "error" in rp:
         return
     assert rc["edges"] == rp["edges"], f"edge count {od} {mode}"
+    assert rc["edge_ids"] == rp["edge_ids"], f"edge ids {od} {mode}"
+    assert rc["edge_reversed"] == rp["edge_reversed"], \
+        f"edge dirs {od} {mode}"
     assert rc["geometry"]["coordinates"] == rp["geometry"]["coordinates"], \
         f"geometry {od} {mode}"
     assert abs(rc["distance_m"] - rp["distance_m"]) < 1e-6, \
@@ -101,6 +104,25 @@ def test_path_parity_far_endpoint(cpp_eng, py_eng):
         rp = py_eng.query(28.6139, 77.2090, 31.0, 77.0, mode)
         assert rc.get("error") == rp.get("error") == \
             "no graph node near endpoint"
+
+
+def test_path_parity_alternatives(cpp_eng, py_eng):
+    """Corridor diversity pass: same penalty schedule → the C++ and
+    Python engines must accept/reject identical alternative sets —
+    count, order, geometry, dose and edge ids."""
+    for od in ODS:
+        for mode in MODES:
+            ra = cpp_eng.alternatives(*od, mode, 2)
+            rb = py_eng.alternatives(*od, mode, 2)
+            assert len(ra) == len(rb), (
+                f"alt count {od} {mode}: {len(ra)} vs {len(rb)}")
+            for rc, rp in zip(ra, rb):
+                _cmp(rc, rp, od, mode)
+            # A* optimality: every alternative's real dose ≥ the
+            # primary's (reported float32 vs float64 tolerance)
+            if len(ra) > 1 and "dose_ug" in ra[0]:
+                for r in ra[1:]:
+                    assert r["dose_ug"] >= ra[0]["dose_ug"] - 1e-6
 
 
 def test_path_parity_unweighted(blob):
@@ -138,6 +160,27 @@ class _LiveOnlyField:
         return 1.0
 
 
+def test_engine_rows_carry_priced_objective(monkeypatch):
+    """Wire surface: every engine row must expose engine_dose_ug —
+    the µg the A* summed over priced edges — and keep its raster
+    display band intact (two surfaces, one for rank, one for show)."""
+    class _SigmaField(_LiveOnlyField):
+        def sigma(self, lat, lon):
+            return 3.0
+
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: _SigmaField())
+    opts = v2plan._engine_options(28.6315, 77.2167, 28.5479, 77.2511,
+                                  "car", None)
+    assert opts
+    for o in opts:
+        ed = o.get("engine_dose_ug")
+        assert isinstance(ed, (int, float)) and ed > 0, \
+            f"engine row missing priced dose: {ed}"
+        assert (o.get("dose") or {}).get("mid") is not None, \
+            "display dose band dropped from the engine row"
+
+
 def test_engine_prices_from_live_raster(monkeypatch):
     """Reweight on a live-only field builds a real FieldView raster and
     returns engine options — the exact condition that left prod unpriced."""
@@ -167,3 +210,71 @@ def test_live_callable_reweight_is_refused(monkeypatch):
     eng = routegraph.PyPathEngine(routegraph.load_blob())
     v2plan._engine_reweight(eng)
     assert eng.edges_priced == 0
+
+
+def test_fresh_field_reprices_inside_ttl(monkeypatch):
+    """Field refresh must invalidate engine pricing promptly: a raster
+    built before the field's own epoch is stale even inside the 10-min
+    TTL — the arm must re-raster + reweight, not serve the old one."""
+    import time as _t
+
+    class _RefreshingField(_LiveOnlyField):
+        def __init__(self):
+            self._fetched_at = _t.time()
+
+        def sigma(self, lat, lon):
+            return 3.0
+
+    f = _RefreshingField()
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: f)
+    old_t, old_pack = v2plan._ENG_T, v2plan._ENG_PACK
+    try:
+        eng = routegraph.PyPathEngine(routegraph.load_blob())
+        v2plan._ENG_T = 0.0                # force the first reprice
+        v2plan._engine_reweight(eng)
+        assert eng.edges_priced > 0
+        t1 = v2plan._ENG_T
+        assert t1 > 0
+        # inside TTL: field fetches newer data → epoch advances past
+        # the last reweight → the next arm MUST reprice
+        f._fetched_at = _t.time() + 1.0
+        v2plan._engine_reweight(eng)
+        assert v2plan._ENG_T > t1, \
+            "field refresh inside TTL left engine pricing stale"
+    finally:
+        v2plan._ENG_T, v2plan._ENG_PACK = old_t, old_pack
+
+
+def test_stale_epoch_does_not_reprice(monkeypatch):
+    """Same field inside TTL → no reweight (the raster is still the
+    field the last solve priced against)."""
+    import time as _t
+    f = _LiveOnlyField()
+    f._fetched_at = _t.time() - 60.0       # older than the reweight
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: f)
+    old_t, old_pack = v2plan._ENG_T, v2plan._ENG_PACK
+    try:
+        v2plan._ENG_T = _t.time()
+        t0 = v2plan._ENG_T
+        v2plan._engine_reweight(None)
+        assert v2plan._ENG_T == t0  # untouched (early-out)
+    finally:
+        v2plan._ENG_T, v2plan._ENG_PACK = old_t, old_pack
+
+
+def test_engine_reroute_continuations(monkeypatch):
+    """Mid-trip reroute shape: engine rows re-solve least-dose FROM the
+    live position — snap must land near it, never a stored origin."""
+    from v2 import plan as v2plan
+    monkeypatch.setattr(v2plan.deps, "field", lambda: _LiveOnlyField())
+    opts = v2plan._engine_options(28.5900, 77.2300,   # mid-corridor fix
+                                  28.5479, 77.2511, "car", None)
+    assert opts, "no engine continuations from live position"
+    for o in opts:
+        snap = o.get("snap_m") or {}
+        assert snap.get("from_m", 1e9) < 1200.0
+        first = o["geometry"]["coordinates"][0]
+        assert abs(first[0] - 77.23) < 0.02 and abs(first[1] - 28.59) < 0.02, \
+            "continuation did not start at the live position"
