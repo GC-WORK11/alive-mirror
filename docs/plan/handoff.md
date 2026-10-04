@@ -43,7 +43,9 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 - deploy verified: build_sha 58056209 on the NLB.
 - cold-task first plan: 15 options in 19.3 s (inside the 20 s budget — the 34 s bug stays fixed).
 - 40-OD engine audit live on 7e92660 (tools/audit_engine_quality.py): 11/40 ODs have a least-smoke row saving ≥10% dose for ≤15% extra time vs the fast row (was 10), 17/40 vs same-mode (was 16), 0 absurd detours. 108 "worse-dose" rows are mostly the known duration-model gap (engine ~27 km/h vs OSRM freeflow ~55 — dose integrates field×ventilation×time). The depth lane (new SWE-2 Max child) owns splitting that number honestly.
-- main merged at 3163765 (no-ff) — earlier checkpoint; next merge after the next green suite.
+- main merged at 54e2ed2 (no-ff) — includes engine dedupe, search fixes, probe+audit tools, location lane query-tolerance leg. Full suite 809 passed.
+- deploy verified: build_sha 0a3c3140 on the NLB.
+- live 174-query battery on 0a3c3140 (lead re-run): 172/174 top-1 (98.9%), p50 473ms; only misses are the two documented honest ones (panipat ceiling, 25 rajinder nagar substring artefact).
 
 Open gaps, ranked (from master-plan.md):
 1. Plan latency and engine robustness under load — LARGELY FIXED by 5805620; cold-task first-plan seconds remain (field fetch → raster → reweight chain; depth lane measuring).

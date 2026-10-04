@@ -74,6 +74,15 @@ Local battery after wave 2: still **171/174 (98.3%)**, p50 0.8ms,
 p95 63ms on sub-place-heavy queries (multi-anchor scans; typical
 traffic stays at p50).
 
+## Lead verification — live on 0a3c3140 (2026-10-04, NLB)
+
+- resolved **172/174 top-1 (98.9%)**, top3 0, wrong 1, empty 1, errors 0
+- latency p50 473ms, p95 778ms — client RTT to ap-south-1 (engine p50 ~1ms local)
+- the only two non-top-1 rows are the two honest misses documented
+  below: 'panipat' (outside corpus bbox — service ceiling) and
+  '25 rajinder nagar' (real in-area block, substring-classifier artefact).
+- every category ≥9/10 resolved; border_town 13/14 (the Panipat ceiling).
+
 ## Remaining misses — honest, categorized
 
 - `panipat` → empty. Panipat city is at 29.39°N, ~30km north of the
