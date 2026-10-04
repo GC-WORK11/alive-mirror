@@ -553,6 +553,27 @@ const RAMP=' .·:;=+x#%@'.split('');
 const COLS=40,ROWS=40;
 let CELLS=null,CELLMAP={}; // [{v,conf,cx,cy}], 'col,row'->cell
 let mouse={x:-1e4,y:-1e4,on:false};
+/* locality for the hovered cell — debounced reverse-geocode, cached */
+const CELLLOC={};   // 'col,row' -> 'near X' | '' | undefined(not asked)
+const LOCREQ={};    // keys asked this page-load
+function cellLonLat(c){
+  const dlon=(FIELD_BBOX.lon1-FIELD_BBOX.lon0)/COLS,
+        dlat=(FIELD_BBOX.lat0-FIELD_BBOX.lat1)/ROWS;
+  return [FIELD_BBOX.lon0+(c.col+.5)*dlon, FIELD_BBOX.lat0-(c.row+.5)*dlat];
+}
+async function askLoc(key,c){
+  LOCREQ[key]=1;
+  await new Promise(r=>setTimeout(r,320));          // hover must hold
+  if(mouse.key!==key)return;                        // moved on — skip net
+  try{
+    const[lon,lat]=cellLonLat(c);
+    const j=await api(`/v2/reverse?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`);
+    let nm=(j.name||j.display_name||'').split(',')[0].toLowerCase()
+           .replace(/^near /,'');
+    if(nm.length>40)nm=nm.slice(0,38).trimEnd()+'…';
+    CELLLOC[key]=nm?('near '+nm):'';
+  }catch(e){CELLLOC[key]=''}
+}
 /* live wind — the shimmer drifts the way the plume actually blows */
 const WIND={deg:140,kmh:0};
 /* the priced route — real engine geometry traced through the field */
@@ -652,15 +673,23 @@ function drawAether(t){
     cx2.beginPath();cx2.moveTo(mouse.x,0);cx2.lineTo(mouse.x,h);
     cx2.moveTo(0,mouse.y);cx2.lineTo(w,mouse.y);cx2.stroke();
     const col=Math.floor(mouse.x/w*COLS),row=Math.floor(mouse.y/h*ROWS);
-    const c=CELLS.find(c=>c.col===col&&c.row===row);
+    const c=CELLMAP[col+','+row];
     if(c){
+      const key=col+','+row;mouse.key=key;
+      if(CELLLOC[key]===undefined&&!LOCREQ[key]&&FIELD_BBOX.lon0!=null)askLoc(key,c);
+      const loc=CELLLOC[key]||'';
       cx2.fillStyle='rgba(20,24,31,.92)';
       const label=` ${String.fromCharCode(97+Math.min(col,25))}${String(row+1).padStart(2,'0')} · ${c.v==null?'no reading':(c.raw!==undefined?c.raw.toFixed(1)+' µg/m³':'—')} · ${c.conf==='hi'?'measured':c.conf==='med'?'interpolated':'thin'} `;
-      const tw=cx2.measureText(label).width+10;
-      const lx=Math.min(Math.max(mouse.x+12,4),w-tw-4),ly=Math.max(mouse.y-30,18);
-      cx2.fillRect(lx,ly,tw,20);
-      cx2.fillStyle='#e8e6df';cx2.font='10px ui-monospace,Menlo,monospace';
-      cx2.textAlign='left';cx2.fillText(label,lx+5,ly+10);
+      cx2.font='10px ui-monospace,Menlo,monospace';
+      const tw=Math.max(cx2.measureText(label).width,
+                        loc?cx2.measureText(' '+loc+' ').width:0)+10;
+      const ch=loc?36:20;
+      const lx=Math.min(Math.max(mouse.x+12,4),w-tw-4),ly=Math.max(mouse.y-30-ch+20,18);
+      cx2.fillRect(lx,ly,tw,ch);
+      if(loc){cx2.fillStyle='#a3c47a';cx2.textAlign='left';
+        cx2.fillText(' '+loc,lx+5,ly+11);}
+      cx2.fillStyle='#e8e6df';cx2.textAlign='left';
+      cx2.fillText(label,lx+5,ly+(loc?27:10));
     }
   }
 }
