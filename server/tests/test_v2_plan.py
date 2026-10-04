@@ -561,6 +561,42 @@ def test_plan_fast_engine_down_is_typed_not_hung(monkeypatch):
     assert body["options"] == [] and body["error"] == "engine unavailable"
 
 
+def test_plan_full_engine_down_is_flagged_degraded(monkeypatch):
+    """The full plan used to swallow a dead engine arm silently: router
+    rows shipped, engine rows absent, no flag — indistinguishable from
+    a normal plan that simply found no engine rows. Now `degraded`
+    names the arms that failed so clients/audits can tell."""
+    def boom(*a, **k):
+        raise RuntimeError("graph missing")
+    async def nop(*a, **k):
+        return None
+    monkeypatch.setattr(deps, "field_refresh", nop)
+    monkeypatch.setattr(v2plan, "_engine_options", boom)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510}})
+    assert "engine" in body.get("degraded", [])
+    # the surviving arms still ship — degraded ≠ dead
+    assert body["options"], "router/transit rows should still be served"
+    assert not any(o.get("steps_source") == "endpoints"
+                   for o in body["options"]), \
+        "failed engine arm must not fabricate engine rows"
+
+
+def test_plan_full_healthy_has_no_degraded(monkeypatch):
+    def eng(*a, **k):
+        return [{"mode": "car", "label": "Car (AC) · least-smoke rd",
+                 "distance_km": 5.0, "duration_min": 14.0,
+                 "dose_ug": 9.0, "engine_dose_ug": 9.0,
+                 "geometry": None}]
+    async def nop(*a, **k):
+        return None
+    monkeypatch.setattr(deps, "field_refresh", nop)
+    monkeypatch.setattr(v2plan, "_engine_options", eng)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510}})
+    assert "degraded" not in body
+
+
 # --- shared engine solves (fast+full dedupe) ------------------------------------
 def test_solve_join_memoizes_same_key():
     """Two calls for the same (OD, epoch) key run the solve once — the

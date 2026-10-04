@@ -965,12 +965,13 @@ async def _options_bounded(flat, flon, tlat, tlon, vehicle, profile,
     """_build_options under the hard budget. Returns (options, error)
     — error is a fast structured string, never an open request."""
     try:
-        return await asyncio.wait_for(
+        options, missing = await asyncio.wait_for(
             _build_options(flat, flon, tlat, tlon, vehicle, profile,
                            depart_at),
-            timeout=PLAN_BUDGET_S), None
+            timeout=PLAN_BUDGET_S)
+        return options, None, missing
     except asyncio.TimeoutError:
-        return [], "planner timed out"
+        return [], "planner timed out", ["planner"]
 
 
 def _pt(v, name: str):
@@ -1024,12 +1025,20 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
         p.cancel()
 
     def _arm(i):
+        """(rows, failed): an arm that timed out, cancelled or raised is
+        *missing* — not the same as an arm that legitimately found no
+        rows. Callers must be able to tell the difference: a plan whose
+        engine arm died is degraded, not complete."""
         t = arms[i]
         if t in done and not t.cancelled() and t.exception() is None:
-            return t.result()
-        return []
+            return t.result(), False
+        return [], True
 
-    motor, slow, eng, transit = _arm(0), _arm(1), _arm(2), _arm(3)
+    (motor, m_bad), (slow, s_bad), (eng, e_bad), (transit, t_bad) = (
+        _arm(0), _arm(1), _arm(2), _arm(3))
+    missing = [name for name, bad in
+               (("motor", m_bad), ("slow", s_bad),
+                ("engine", e_bad), ("transit", t_bad)) if bad]
     options = ([o for o in (motor or []) if isinstance(o, dict)]
                if isinstance(motor, list) else [])
     options += ([o for o in (slow or []) if isinstance(o, dict)]
@@ -1038,7 +1047,7 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
         options += _engine_merge(eng, options)
     if isinstance(transit, list):
         options += [o for o in transit if isinstance(o, dict)]
-    return options
+    return options, missing
 
 
 # --- least-inhalation path engine ----------------------------------------------
@@ -1688,10 +1697,10 @@ async def plan(body: dict):
     asyncio.ensure_future(_field_refresh_bounded())
     fast = body.get("fast") is True
     if fast:
-        options, opt_err = await _engine_first(
+        options, opt_err, missing = await _engine_first(
             flat, flon, tlat, tlon, vehicle, profile)
     else:
-        options, opt_err = await _options_bounded(
+        options, opt_err, missing = await _options_bounded(
             flat, flon, tlat, tlon, vehicle, profile, depart_at)
     rank_options(options)
     resp = {
@@ -1713,6 +1722,11 @@ async def plan(body: dict):
         # engine rows only — the client paints these first and swaps in
         # the full set (router + transit + engine) when it lands
         resp["partial"] = True
+    if missing:
+        # an arm timed out/cancelled/raised — the option set is real but
+        # INCOMPLETE. Silent absence is how an engine outage used to look
+        # like a normal plan; clients + audits must be able to tell.
+        resp["degraded"] = missing
     if opt_err:
         resp["error"] = opt_err
     elif not options:
@@ -1732,11 +1746,12 @@ async def _engine_first(flat, flon, tlat, tlon, vehicle, profile):
                     profile, alts=False)),
             timeout=ENGINE_BUDGET_S)
     except asyncio.TimeoutError:
-        return [], "engine timed out"
+        return [], "engine timed out", ["engine"]
     except Exception as e:
         _log.warning("engine-first arm failed: %r", e)
-        return [], "engine unavailable"
-    return [o for o in (rows or []) if isinstance(o, dict)], None
+        return [], "engine unavailable", ["engine"]
+    return ([o for o in (rows or []) if isinstance(o, dict)],
+            None, [])
 
 
 @router.post("/reroute")
@@ -1789,7 +1804,7 @@ async def reroute(body: dict):
                 "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
 
     asyncio.ensure_future(_field_refresh_bounded())   # fire-and-forget
-    options, opt_err = await _options_bounded(
+    options, opt_err, missing = await _options_bounded(
         flat, flon, tlat, tlon, vehicle, profile, body.get("depart_at"))
     rank_options(options)
     if not options:
@@ -1827,6 +1842,8 @@ async def reroute(body: dict):
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
+    if missing:
+        resp["degraded"] = missing   # same honesty flag as /v2/plan
     # finish-on-foot honesty check: when the remaining leg is walkable
     # and the selected continuation is motorized, surface the real
     # least-dose walk option's numbers — the client can offer "park and

@@ -439,6 +439,12 @@ export interface V2PlanResponse {
   /** stable machine code on the error path — 'outside_service_area';
       clients key on this, never on error text. */
   code?: string;
+  partial?: boolean;            // fast:true — engine rows only
+  puc_calibrated?: boolean;     // server honoured the PUC card
+  /** arms that timed out/cancelled/raised — e.g. ["engine"]. Absent
+      arms ≠ empty arms: when present the option set is real but
+      incomplete. */
+  degraded?: string[];
 }
 
 export interface V2StripSample {
