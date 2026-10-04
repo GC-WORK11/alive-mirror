@@ -26,6 +26,12 @@ export function stepBoundaryM(steps: NavStep[]): number[] {
 
 const CUE_M = [500, 150, 0] as const;
 
+/* A fix this far past a boundary means the turn already happened (GPS
+   jump, tunnel exit, nav started mid-trip): its cues are marked consumed
+   without speaking — announcing a maneuver hundreds of metres late is
+   worse than silence. Matches the window the 500 m cue opens ahead. */
+const PASSED_M = 160;
+
 /** Per-maneuver cue tracker — fires each threshold once. */
 export class CueTracker {
   private fired: boolean[][] = [];
@@ -45,6 +51,12 @@ export class CueTracker {
       const remain = this.bounds[i] - alongM;
       const instr = this.steps[i + 1]?.instruction;
       if (!instr) continue;
+      if (remain < -PASSED_M) {
+        // well past: consume silently — a jump must not queue a spoken
+        // "now" for every manoeuvre it leapfrogged
+        for (let j = 0; j < CUE_M.length; j++) this.fired[i][j] = true;
+        continue;
+      }
       CUE_M.forEach((cm, j) => {
         if (this.fired[i][j]) return;
         if (cm === 0 ? remain <= 25 : remain <= cm && remain > cm - 160) {
