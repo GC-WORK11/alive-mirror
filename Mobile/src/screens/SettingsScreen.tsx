@@ -31,13 +31,15 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants"; // transitively installed via `expo` (SDK 57)
 import { F, V2Radius, V2T, V2Type, fam } from "../theme";
-import { Icon, vehicleGlyph } from "../icons";
+import { Icon, vehicleGlyph, type Glyph } from "../icons";
+import { API, postJson } from "../components/shell/net";
 import { t, type Lang, type StringKey } from "../i18n/strings";
 import { a11y, DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
@@ -80,7 +82,7 @@ const LANGS: { code: Lang; name: string }[] = [
   { code: "hi", name: "हिंदी" },
 ];
 
-type ExpandKey = "store" | "numbers" | "how";
+type ExpandKey = "store" | "numbers" | "how" | "rate";
 
 const VERSION = Constants.expoConfig?.version ?? null; // app.json version; null → "dev build"
 
@@ -114,6 +116,27 @@ function SettingsSheet({
   // queue two permission prompts (the row also reports busy to TalkBack).
   const [arming, setArming] = useState(false);
   const insets = useSafeAreaInsets();
+
+  /* rate ALive·108 — quiet expander in the About card: 1–5 stars + an
+     optional one-liner, POST /v2/feedback {stars, note, build}. Public,
+     no token; the honest states are inline (no modal fanfare). */
+  const [rateStars, setRateStars] = useState(0);
+  const [rateNote, setRateNote] = useState("");
+  const [rateState, setRateState] = useState<"idle" | "sending" | "ok" | "err">("idle");
+  const sendRate = async () => {
+    if (!rateStars || rateState === "sending") return;
+    setRateState("sending");
+    try {
+      await postJson(`${API}/v2/feedback`, {
+        stars: rateStars,
+        note: rateNote.trim().slice(0, 240) || undefined,
+        build: VERSION ?? "dev",
+      });
+      setRateState("ok");
+    } catch {
+      setRateState("err");   // keep stars+note so a retry loses nothing
+    }
+  };
 
   const sectionLabel = (key: StringKey) => (
     <Text
@@ -174,14 +197,14 @@ function SettingsSheet({
     );
   };
 
-  const expander = (labelKey: StringKey, k: ExpandKey, body: React.ReactNode) => (
+  const expander = (labelKey: StringKey, k: ExpandKey, body: React.ReactNode, icon: Glyph = "info") => (
     <View>
       <Pressable
         onPress={() => toggle(k)}
         {...a11y(t(labelKey, lang), undefined, "button", { expanded: expand === k, lang })}
         style={({ pressed }) => [ss.row, pressed && ss.rowPressed]}
       >
-        <Icon name="info" color={V2T.text2} size={20} />
+        <Icon name={icon} color={V2T.text2} size={20} />
         <Text
           {...DYNAMIC_TYPE}
           style={[ss.rowLabel, ss.rowMid, { fontFamily: fam(lang, "med") }]}
@@ -447,6 +470,78 @@ function SettingsSheet({
               {t("howAliveBody", lang)}
             </Text>,
           )}
+          <View style={ss.hairline} />
+          {expander(
+            "settingsRate",
+            "rate",
+            rateState === "ok" ? (
+              <View style={ss.rateDoneRow}>
+                <Icon name="star" filled color={V2T.accent} size={18} />
+                <Text {...DYNAMIC_TYPE} style={[ss.bodyTxt, { fontFamily: fam(lang, "reg") }]}>
+                  {t("settingsRateThanks", lang)}
+                </Text>
+              </View>
+            ) : (
+              <View>
+                <View style={ss.rateStars} accessibilityRole="radiogroup">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Pressable
+                      key={n}
+                      hitSlop={8}
+                      onPress={() => { tick(); setRateStars(n); if (rateState === "err") setRateState("idle"); }}
+                      {...a11y(`${n} / 5`, undefined, "radio", { selected: rateStars >= n, lang })}
+                    >
+                      <Icon
+                        name="star"
+                        filled={rateStars >= n}
+                        color={rateStars >= n ? V2T.accent : V2T.text3}
+                        size={28}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  {...DYNAMIC_TYPE}
+                  value={rateNote}
+                  onChangeText={setRateNote}
+                  placeholder={t("settingsRateNotePh", lang)}
+                  placeholderTextColor={V2T.text3}
+                  maxLength={240}
+                  returnKeyType="send"
+                  onSubmitEditing={sendRate}
+                  style={[ss.rateInput, { fontFamily: fam(lang, "reg") }]}
+                />
+                <View style={ss.rateFoot}>
+                  <Text
+                    {...DYNAMIC_TYPE}
+                    style={[ss.hint, rateState === "err" && ss.rateErrTxt, { fontFamily: fam(lang, "reg") }]}
+                  >
+                    {t(rateState === "err" ? "settingsRateFail" : "settingsRateHint", lang)}
+                  </Text>
+                  <Pressable
+                    onPress={sendRate}
+                    disabled={!rateStars || rateState === "sending"}
+                    {...a11y(
+                      t("settingsRateSend", lang),
+                      rateStars ? undefined : t("settingsRateHint", lang),
+                      "button",
+                      { disabled: !rateStars || rateState === "sending", busy: rateState === "sending", lang },
+                    )}
+                    style={({ pressed }) => [
+                      ss.rateSendBtn,
+                      (!rateStars || rateState === "sending") && { opacity: 0.45 },
+                      pressed && { backgroundColor: V2T.accentTint },
+                    ]}
+                  >
+                    <Text {...DYNAMIC_TYPE} style={[ss.rateSendTxt, { fontFamily: fam(lang, "med") }]}>
+                      {t(rateState === "sending" ? "settingsRateSending" : "settingsRateSend", lang)}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ),
+            "star",
+          )}
         </View>
       </ScrollView>
     </View>
@@ -599,4 +694,32 @@ const ss = StyleSheet.create({
   seg: { paddingHorizontal: 16, minHeight: 44, justifyContent: "center" },
   segOn: { backgroundColor: V2T.glassSel },
   segTxt: { fontSize: V2Type.label, color: V2T.text3 },
+
+  /* rate ALive·108 — stars + one-line note + send, inside the about card */
+  rateStars: { flexDirection: "row", gap: 12, paddingVertical: 6 },
+  rateInput: {
+    backgroundColor: V2T.glassSoft,
+    borderRadius: V2Radius.row,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: V2Type.secondary,
+    color: V2T.text,
+    minHeight: 44,
+    marginTop: 4,
+  },
+  rateFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 },
+  rateErrTxt: { color: V2T.breath3, flex: 1 },
+  rateSendBtn: {
+    backgroundColor: V2T.glassSel,
+    borderRadius: V2Radius.pill,
+    borderWidth: 1,
+    borderColor: V2T.glassLine,
+    paddingHorizontal: 16,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  rateSendTxt: { fontSize: V2Type.secondary, color: V2T.accent },
+  rateDoneRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
 });
