@@ -55,19 +55,31 @@ Shipped and live this session (verified by curl + ECS logs, not vibes):
 - Debias fix live (depth lane ce101e5): `_debias` scales ONLY pm2_5 by ratio b; pm10 += pm2_5*(b-1) additively; gases/AQI/dust/aod raw CAMS. Verified live: o3 ~166-176 (was 575 absurd), aqi 173-192 sane.
 - ADMIN BOARD FIX (1436c2d, live + browser-verified): my one-prompt commit 868789c introduced a syntax bug (`{headers:'Bearer '+tok}}` — missing `authorization:` + stray `}`) that killed the whole script — page dead "connecting", no prompts at all. Fixed to `{headers:{authorization:'Bearer '+tok}}` + wrapped `.map(u=>getJSON(u))` (`.map(getJSON)` passed array index as `retried`). Verified in a fresh Chrome: exactly ONE prompt → full board (1436C2D4, 24 stations, 13 districts, 26 trips, 6 corridors).
 - main merged at 06b6c3f (no-ff) — admin fix + lanes' lands (Mobile polish, airfield debias + tests). Suite 833 passed.
+- Depth lane legs all in base/v2: 1588dc3 (dose decomp harness), 0a90a0a (_warm_field at boot — field serving no longer request-driven, saves ~60s cold), cc3bdef (tools/warm_task.py + FARGATE_SPOT→on-demand runbook in docs/demo-day.md), d03f051 (claims-audit §4/§7 privacy+honesty).
+- Depth lane then landed 3ef3677: admin feed + recent_journeys k≥3-device hour buckets (per-trip rows dropped — privacy).
+- DEPLOY VERIFIED 2026-10-04: build_sha 3ef36777 live; stations 24/waqi; fresh-task plan 5 engine rows 1.5s.
+- EXPOSURE TRUTH verified on live 3ef36777 (lead recompute): dose = c_eff × VE × minutes reproduces every row's dose.mid within rounding; microenv×VE ordering metro 3.4 < car 4.1 < bus 5.6 < walk 14 < 2W 9.9 < cycle 24.2; engine_dose_ug ≈ dose.mid ±2% on all 5 rows (priced objective = displayed integrand holds post-dedupe); bands lo<mid<hi ≈ ±13% (krige σ linear sum).
+- iOS DEMO TAKE edited+verified: /Users/devin/ios-take/ios_e2e_clean.mp4, 241s/12.4MB — launch→permission→onboarding→consent→map→search→results→vehicle wizard→PUC→compare (leave-later histogram)→turn-by-turn nav→receipt→drawer→settings (cigarettes OFF)→Delhi today. Take-2 crashed 3× (sim-only MapLibre vGPU kill — ZERO .ips reports = GPU kill not app bug); take-1 edited with 3 cuts (LogBox era 3.5–43s, tips-overlay ~71–72s, dead-dwell+Safari ~95–186s on CFR-normalized timeline). VFR→CFR normalization required before cuts (-ss domain drifts ~4% vs wall).
+- ENGINE MANDATE assigned to depth lane (139507b4, in-session continuation): priced=displayed under dedupe (3 cases: owner solve/memo-hit/fast-vs-full), legality on live routes (230 turn restrictions + 3,428 access overrides + 1.6× detour bound + bbox), engine timeout under concurrent load post-dedupe, duration-model decision (calibrate vs label).
+- BACKEND LANE spawned (29adb480, SWE-2 Max): field/species units audit, dose math e2e, admin "insufficient data" tiles verdict, /v2/plan robustness under load, error/edge paths, forecast anchor truth.
+- UI/UX LANE (Android exhaustive + admin border-level + recorded E2E) brief written at /Users/devin/uiux-lane-prompt.txt — spawn BLOCKED by 5-SWE-2 org cap; retry when any running session settles.
+- Elevation-tile storm noted: app fetches terrarium PNG hillshade tiles every pan/zoom — bandwidth/battery flag for UI/UX lane.
+- Next: main merge after lane batch + green suite; UI/UX lane spawn; owner gets iOS take.
 
 Open gaps, ranked (from master-plan.md):
-1. Owner's testing overhaul mandate (latest): exhaustive per-feature Android pass (every screen/button/border) + recorded end-to-end of Android app AND admin panel against live API — Android lane owns app features/recording/APK/PUC; depth lane owns admin API sweep; lead verified admin+city visually.
-2. Cold-start residual — _warm_field + _warm_static shipped; depth lane measuring the fresh task (pre-fix ~96s to priced engine).
-3. Android: physical-finger pass on search taps; dose-at-driving-speed untested (teleport only); PUC re-verify on final APK.
-4. Demo morning: switch Spot → on-demand, warm the task 10 min early (tools/warm_task.py ships, verified live), run the demo on a physical Android phone. iOS = recorded take.
-5. Keep main merged at checkpoints (last: 06b6c3f).
+1. Owner's testing overhaul mandate: exhaustive per-feature Android + admin sweep (every screen/button/border) + recorded E2E vs live API — UI/UX lane briefed (/Users/devin/uiux-lane-prompt.txt), spawn blocked at 5-SWE-2 cap; backend lane covers admin API; lead verified admin+city+exposure on live 3ef36777.
+2. Cold-start residual — _warm_field + _warm_static shipped and live; depth lane verifying the fresh-task numbers.
+3. Android: physical-finger pass on search taps; dose-at-driving-speed untested (teleport only); PUC re-verify on final APK — all in UI/UX lane brief.
+4. Demo morning: switch Spot → on-demand, warm the task 10 min early (tools/warm_task.py ships, verified live), run the demo on a physical Android phone. iOS = recorded take (ios_e2e_clean.mp4 done).
+5. Keep main merged at checkpoints (last: 06b6c3f; next merge after lane batch + green suite).
 
 ## Every session ever run for this project
 Active right now:
-- efb8721d915f40d0807595b4bec3fa6d: Android UI/UX overhaul on SWE-2 Max, Linux — COMPLETE (jank −31%, TTS verified, 9 polish commits, APK on 65a8619). Follow-ups assigned: upload APK + PUC re-verify + tap-cadence pass. https://app.devin.ai/sessions/efb8721d915f40d0807595b4bec3fa6d
-- 139507b46df84f939b68d447735ea203: engineering-depth lane on SWE-2 Max, Linux — shipped route-quality truth (0 genuinely smokier rows), cold-start warmers, demo-day ops, WAQI-first stations chain. Now on: cold-boot verify, station-flip script, transit-leg truth. https://app.devin.ai/sessions/139507b46df84f939b68d447735ea203
+- 139507b46df84f939b68d447735ea203: engineering-depth lane on SWE-2 Max, Linux — legs done (route-quality truth, cold-start warmers, demo-day ops, privacy) + 3ef3677 k≥3 admin feed. NOW ON the engine mandate: priced=displayed under dedupe, live-route legality, load timeouts, duration-model decision. https://app.devin.ai/sessions/139507b46df84f939b68d447735ea203
+- 29adb48022764f489dc2eb86e15fe8b0: BACKEND lane on SWE-2 Max — field/species units audit, dose e2e, admin tiles verdict, /v2/plan robustness, edge-path tests, forecast anchor truth. https://app.devin.ai/sessions/29adb48022764f489dc2eb86e15fe8b0
 - 1cb3ac27d94642f29952845945934fc3: Location-depth lane — SUSPENDED (inactivity + SWE-2 5-session cap; resume message queued, 429 until a slot frees). Its lands through 0a3c3140 are live (172/174). Remaining: Hinglish, compound queries. https://app.devin.ai/sessions/1cb3ac27d94642f29952845945934fc3
+- UI/UX lane: brief written, spawn pending on SWE-2 slot.
+- efb8721d915f40d0807595b4bec3fa6d: Android UI/UX overhaul on SWE-2 Max — COMPLETE + TERMINATED (jank −31%, TTS verified, 9 polish commits, APK on 65a8619; follow-ups carried into the UI/UX lane brief: APK upload + PUC re-verify + tap-cadence pass). https://app.devin.ai/sessions/efb8721d915f40d0807595b4bec3fa6d
 Terminated (out of Ultra quota; work either pushed or handed off):
 - 13283940d1854cd4bf2ff691c4bd9bb7: the previous lead session — this session (93b8804d) is its successor as lead. https://app.devin.ai/sessions/13283940d1854cd4bf2ff691c4bd9bb7
 - 30c986e2137942488c8060da708ef40b: Android UI/UX on ULTRA — died at setup, superseded by efb8721d. https://app.devin.ai/sessions/30c986e2137942488c8060da708ef40b
