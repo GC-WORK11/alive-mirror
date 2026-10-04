@@ -10,7 +10,9 @@ import type { Lang } from "./i18n/strings";
 //
 // Solid-surface doctrine: elevation is a ladder of SOLID fills
 //   bg → surface (= sheet = card) → surface2 → surface3
-// rgba() is reserved for scrims and data overlays — never a surface fill.
+// rgba() is reserved for scrims, data overlays — and the milky-glass
+// floating surfaces below (owner ask, Oct '26: frosted panes over the map
+// supersede the solid rule for chrome that floats).
 // Pre-composited accentWash/accentTint replace translucent accent washes.
 export const V2T = {
   // canvas + elevation ladder — all solid. LIGHT chrome throughout: the app
@@ -60,6 +62,20 @@ export const V2T = {
   mapBuilding: "#DDE1E7",
   mapWater: "#90DAEE",
   mapPark: "#CFECCD",
+
+  // ── milky morphism (owner ask, Oct '26) ──────────────────────────────
+  // Frosted-glass floating surfaces: translucent white panes + a light
+  // sheen edge + a soft dark hairline, over the light basemap. No blur
+  // library — alpha does the frosting (cheap on Android, zero jank).
+  // Alphas stay ≥ .62 so ink keeps its AA floors on the pale map;
+  // text3 is the weakest ink allowed on glass.
+  glass: "rgba(255,255,255,0.84)",      // panes: sheets, drawer, HUD tiles
+  glassDeep: "rgba(255,255,255,0.90)",  // full-height screens that still milk
+  glassSoft: "rgba(255,255,255,0.62)",  // tiles/rows resting on a milk pane
+  glassFaint: "rgba(255,255,255,0.72)", // floating chips, FABs, search pill
+  glassSel: "rgba(211,227,253,0.74)",   // accent-tint glass — selected rows
+  glassEdge: "rgba(255,255,255,0.85)",  // sheen edge on milk panes
+  glassLine: "rgba(20,24,31,0.07)",     // soft hairline on milk surfaces
 } as const;
 
 export const V2Type = {

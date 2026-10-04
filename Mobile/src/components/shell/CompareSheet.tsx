@@ -711,21 +711,21 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginHorizontal: 14, marginTop: 4, marginBottom: 2, minHeight: 34,
     paddingHorizontal: 11, paddingVertical: 6,
-    backgroundColor: V2T.surface2, borderRadius: V2Radius.pill,
-    borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.pill,
+    borderWidth: 1, borderColor: V2T.glassLine,
   },
   vehChipTxt: { fontSize: V2Type.label, color: V2T.text2, maxWidth: 220 },
   /* "PUC" badge — marks a profile carrying the pollution certificate */
   pucBadge: {
     borderRadius: V2Radius.pill, paddingHorizontal: 5, paddingVertical: 1,
-    backgroundColor: V2T.accentTint,
+    backgroundColor: V2T.glassSel,
   },
   pucBadgeTxt: { fontSize: 9, color: V2T.accent, letterSpacing: 0.4 },
   departRow: {
     flexDirection: "row", alignItems: "center", gap: 8,
     marginHorizontal: 14, marginTop: 6, marginBottom: 2, minHeight: 44,
     paddingHorizontal: 12, paddingVertical: 9, borderRadius: V2Radius.row,
-    backgroundColor: V2T.accentTint,
+    backgroundColor: V2T.glassSel,
     borderWidth: 1, borderColor: V2T.accent,
   },
   departTxt: { fontSize: V2Type.label, color: V2T.accent, flex: 1 },
@@ -740,13 +740,13 @@ const s = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendTxt: { fontSize: V2Type.label, color: V2T.text3 },
 
-  /* ---- option card ---- */
+  /* ---- option card — inner frost tile on the milk pane ---- */
   card: {
     marginHorizontal: 14, marginTop: 7, borderRadius: V2Radius.row,
-    backgroundColor: V2T.surface2, borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
     overflow: "hidden",
   },
-  cardSel: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
+  cardSel: { borderColor: V2T.accent, backgroundColor: V2T.glassSel },
   cardRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 12, paddingHorizontal: 14, minHeight: 64,
@@ -758,8 +758,8 @@ const s = StyleSheet.create({
     borderRadius: V2Radius.pill, paddingHorizontal: 7, paddingVertical: 2,
     marginLeft: 8,
   },
-  chipAccent: { backgroundColor: V2T.accentTint },
-  chipPlain: { backgroundColor: V2T.bg, borderWidth: 1, borderColor: V2T.line },
+  chipAccent: { backgroundColor: V2T.glassSel },
+  chipPlain: { backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine },
   chipTxt: { fontSize: V2Type.label },
   chipTxtAccent: { color: V2T.accent },
   chipTxtPlain: { color: V2T.text2 },
@@ -777,7 +777,7 @@ const s = StyleSheet.create({
   bars: { flexDirection: "row", alignItems: "center", gap: 8 },
   barGroup: { flexDirection: "row", alignItems: "center", gap: 4 },
   track: {
-    width: 30, height: 5, borderRadius: 2.5, backgroundColor: V2T.bg,
+    width: 30, height: 5, borderRadius: 2.5, backgroundColor: "rgba(20,24,31,0.08)",
     flexDirection: "row", overflow: "hidden",
   },
   trackNA: { opacity: 0.35 },
@@ -818,9 +818,10 @@ const s = StyleSheet.create({
   },
   ghostBtn: {
     minHeight: 44, justifyContent: "center", borderRadius: V2Radius.pill,
-    paddingHorizontal: 16, borderWidth: 1, borderColor: V2T.line,
+    paddingHorizontal: 16, borderWidth: 1, borderColor: V2T.glassLine,
+    backgroundColor: V2T.glassSoft,
   },
-  ghostBtnOn: { borderColor: V2T.accent, backgroundColor: V2T.accentTint },
+  ghostBtnOn: { borderColor: V2T.accent, backgroundColor: V2T.glassSel },
   ghostTxt: { fontSize: V2Type.secondary, color: V2T.text2 },
   ghostTxtOn: { color: V2T.accent },
   goBtn: {
@@ -833,7 +834,7 @@ const s = StyleSheet.create({
   stateWrap: { paddingVertical: 24, paddingHorizontal: 24, alignItems: "center" },
   stateIcon: {
     width: 42, height: 42, borderRadius: 21, marginBottom: 10,
-    backgroundColor: V2T.surface2, borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center", justifyContent: "center",
   },
   stateTitle: { fontSize: V2Type.secondary, color: V2T.text, textAlign: "center" },

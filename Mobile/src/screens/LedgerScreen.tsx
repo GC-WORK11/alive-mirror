@@ -214,7 +214,7 @@ const TripCard = React.memo(function TripCard({
         accessibilityState={{ expanded: open }}
         style={({ pressed }) => [
           ss.cardHead,
-          (pressed || open) && { backgroundColor: V2T.surface2 },
+          (pressed || open) && { backgroundColor: "rgba(255,255,255,0.55)" },
         ]}
       >
         <View style={ss.modeBox}>
@@ -648,11 +648,11 @@ const ss = StyleSheet.create({
   root: {
     flex: 1,
 
-    backgroundColor: V2T.bg,
+    backgroundColor: V2T.glassDeep,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    borderTopWidth: 1,
+    borderColor: V2T.glassEdge,
     overflow: "hidden",
   },
   bar: {
@@ -661,7 +661,7 @@ const ss = StyleSheet.create({
     height: 56,
     paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: V2T.line,
+    borderBottomColor: V2T.glassLine,
   },
   // ≥44pt touch target on both ends of the bar
   barBtn: {
@@ -680,10 +680,10 @@ const ss = StyleSheet.create({
   listContent: { flexGrow: 1, paddingTop: 14 },
 
   summaryCard: {
-    backgroundColor: V2T.surface,
+    backgroundColor: V2T.glassSoft,
     borderRadius: V2Radius.row,
     borderWidth: 1,
-    borderColor: V2T.line,
+    borderColor: V2T.glassLine,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
@@ -699,7 +699,7 @@ const ss = StyleSheet.create({
   sumFoot: { color: V2T.text3, fontSize: V2Type.label, marginTop: 10 },
   weekRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: V2T.line,
+    borderTopColor: V2T.glassLine,
     marginTop: 14,
     paddingTop: 10,
   },
@@ -732,10 +732,10 @@ const ss = StyleSheet.create({
   card: {
     marginHorizontal: 14,
     marginBottom: 8,
-    backgroundColor: V2T.surface,
+    backgroundColor: V2T.glassSoft,
     borderRadius: V2Radius.row,
     borderWidth: 1,
-    borderColor: V2T.line,
+    borderColor: V2T.glassLine,
     overflow: "hidden",
   },
   cardHead: {
@@ -750,7 +750,8 @@ const ss = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: V2T.surface2,
+    backgroundColor: V2T.glassFaint,
+    borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -765,7 +766,7 @@ const ss = StyleSheet.create({
 
   detail: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: V2T.line,
+    borderTopColor: V2T.glassLine,
     paddingHorizontal: 14,
     paddingTop: 8,
     paddingBottom: 4,
@@ -780,15 +781,15 @@ const ss = StyleSheet.create({
   badge: {
     borderRadius: V2Radius.pill,
     borderWidth: 1,
-    borderColor: V2T.line,
+    borderColor: V2T.glassLine,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    backgroundColor: V2T.surface2,
+    backgroundColor: V2T.glassFaint,
   },
   badgeTxt: { color: V2T.text2, fontSize: V2Type.label },
   dHairline: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: V2T.line,
+    backgroundColor: V2T.glassLine,
     marginTop: 8,
   },
   dDelete: {
@@ -812,9 +813,9 @@ const ss = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: V2T.surface,
+    backgroundColor: V2T.glassSoft,
     borderWidth: 1,
-    borderColor: V2T.line,
+    borderColor: V2T.glassLine,
     alignItems: "center",
     justifyContent: "center",
   },

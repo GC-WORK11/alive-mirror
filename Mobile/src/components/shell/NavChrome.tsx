@@ -369,15 +369,15 @@ const s = StyleSheet.create({
   banner: {
     position: "absolute", left: 12, right: 12,
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
+    backgroundColor: V2T.glass, borderRadius: V2Radius.row + 4,
     paddingVertical: 10, paddingHorizontal: 12,
-    borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1, borderColor: V2T.glassLine,
+    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
     elevation: 8,
   },
   tile: {
     width: 52, height: 52, borderRadius: V2Radius.row + 2,
-    backgroundColor: V2T.surface2, borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center", justifyContent: "center",
   },
   bannerTxt: { flex: 1, marginLeft: 12, marginRight: 4 },
@@ -393,9 +393,9 @@ const s = StyleSheet.create({
   pill: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.surface2, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.pill,
     paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1, borderColor: V2T.line,
+    borderWidth: 1, borderColor: V2T.glassLine,
   },
   pillDot: {
     width: 7, height: 7, borderRadius: 4,
@@ -405,12 +405,12 @@ const s = StyleSheet.create({
 
   cluster: {
     position: "absolute", left: 14, right: 14,
-    backgroundColor: V2T.surface, borderRadius: V2Radius.row + 4,
-    borderWidth: 1, borderColor: V2T.line, overflow: "hidden",
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 },
+    backgroundColor: V2T.glass, borderRadius: V2Radius.row + 4,
+    borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
     elevation: 8,
   },
-  progTrack: { height: 3, backgroundColor: V2T.surface2 },
+  progTrack: { height: 3, backgroundColor: V2T.glassSoft },
   progFill: {
     height: 3, backgroundColor: V2T.accent,   // echoes the route line colour
     borderTopRightRadius: 2, borderBottomRightRadius: 2,
@@ -427,7 +427,7 @@ const s = StyleSheet.create({
   cellVal: { fontSize: V2Type.body, color: V2T.text, marginTop: 4 },
   bandTrack: {
     height: 3, borderRadius: 2, marginTop: 7,
-    backgroundColor: V2T.surface2, overflow: "visible",
+    backgroundColor: V2T.glassSoft, overflow: "visible",
   },
   bandSeg: { position: "absolute", top: 0, bottom: 0, borderRadius: 2, opacity: 0.5 },
   bandMid: {

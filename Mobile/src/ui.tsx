@@ -15,9 +15,8 @@ import { tick } from "./haptics";
 
 const WIN_H = () => Dimensions.get("window").height;
 
-/** Solid "accent wash" — accent composited 14% over surface2. No rgba surface
- *  fills: every card/row in the kit is opaque so the map never ghosts through. */
-const SEL_TINT = V2T.accentTint;
+/** Selected-row tint — accent-tint glass (milky morphism, Oct '26). */
+const SEL_TINT = V2T.glassSel;
 
 /** AlertBanner severities — solid light fills + muted borders. */
 const ALERT_SEV = {
@@ -26,7 +25,8 @@ const ALERT_SEV = {
   danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "#FBEAEA", border: "#DFA0A2" },
 } as const;
 
-/** Bottom sheet — grabber + optional X. Solid white surface, hairline top edge. */
+/** Bottom sheet — grabber + optional X. Milk pane: translucent white +
+ *  sheen top edge + soft shadow; the map ghosts through the frost. */
 export function Sheet({
   detent = "peek", onClose, children, style, lang = "en",
 }: {
@@ -250,24 +250,23 @@ export function AlertBanner({ text, onClose, lang = "en", severity = "info" }: {
 
 const us = StyleSheet.create({
   sheet: {
-    backgroundColor: V2T.surface, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
+    backgroundColor: V2T.glass, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
     borderCurve: "continuous",
-    borderTopWidth: 1, borderTopColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 16, shadowOffset: { width: 0, height: -4 },
-    elevation: 12, overflow: "hidden",
+    borderTopWidth: 1, borderTopColor: V2T.glassEdge,
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: -4 },
+    elevation: 10, overflow: "hidden",
   },
   grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 6 },
   grabber: { width: 40, height: 5, borderRadius: 2.5, backgroundColor: V2T.out3 },
   sheetX: { position: "absolute", right: 14, top: 4, padding: 4 },
 
-  /* cards in the sheet's 16px rhythm: opaque surface2, hairline border,
-     row radius — no separators, no translucent washes */
+  /* rows in the sheet's 16px rhythm — inner frost tiles on the milk pane */
   modeRow: {
     flexDirection: "row", alignItems: "center",
     marginHorizontal: 16, marginVertical: 4,
     paddingVertical: 11, paddingHorizontal: 14, minHeight: 56,
-    backgroundColor: V2T.surface2, borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.line,
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.glassLine,
   },
   modeRowSel: { backgroundColor: SEL_TINT, borderColor: V2T.accent },
   modeLabel: { fontFamily: F.med, fontSize: V2Type.body, color: V2T.text, flexShrink: 1 },
@@ -279,7 +278,7 @@ const us = StyleSheet.create({
   segRow: { flexDirection: "row", gap: 3, marginTop: 5 },
   seg: { width: 10, height: 4, borderRadius: 2 },
 
-  doseTrack: { width: 44, height: 5, borderRadius: 2.5, backgroundColor: V2T.line, flexDirection: "row", overflow: "hidden", marginTop: 4 },
+  doseTrack: { width: 44, height: 5, borderRadius: 2.5, backgroundColor: "rgba(20,24,31,0.10)", flexDirection: "row", overflow: "hidden", marginTop: 4 },
   doseFill: { borderRadius: 2.5 },
   cigMore: { fontFamily: F.med, fontSize: 11 },
 
@@ -291,10 +290,10 @@ const us = StyleSheet.create({
   originDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: V2T.accent },
 
   mapBtn: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: V2T.surface,
+    width: 46, height: 46, borderRadius: 23, backgroundColor: V2T.glassFaint,
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: V2T.line,
-    shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1, borderColor: V2T.glassLine,
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
     elevation: 6,
   },
   mapBtnOn: { backgroundColor: V2T.accent, borderColor: V2T.accent },
