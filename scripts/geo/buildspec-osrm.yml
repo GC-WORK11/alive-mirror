@@ -36,7 +36,10 @@ phases:
     commands:
       - bash fetch_extract.sh
       - OSRM_MODES="${OSRM_MODES:-driving}" FORCE="${FORCE:-1}" bash build_osrm.sh
-      - mkdir -p build && rm -rf build/delhi-osrm && cp -r data/geo/osrm/driving build/delhi-osrm
+      # GEO_DIR lives at <srcdir>/../../data/geo here (flat layout per
+      # common.sh REPO_ROOT math), not under the source dir
+      - GEO_OUT="$(cd "$CODEBUILD_SRC_DIR/../.." && pwd)/data/geo"
+      - mkdir -p build && rm -rf build/delhi-osrm && cp -r "$GEO_OUT/osrm/driving" build/delhi-osrm
       - du -sh build/delhi-osrm
       - docker build --build-arg "OSRM_IMAGE=$OSRM_IMAGE" -f Dockerfile.osrm -t "$IMG:$TAG" -t "$IMG:latest" .
       # smoke test: serve the baked graph and route a real Delhi OD
@@ -48,7 +51,7 @@ phases:
       - 'curl -sf "http://127.0.0.1:5000/route/v1/cycling/77.2167,28.6315;77.0266,28.4595?overview=false" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get(\"routes\"), d; print(\"SMOKE-OK cycling path served (car graph, demo parity)\")"'
       - docker exec osrm-smoke bash -c '(echo > /dev/tcp/localhost/5000) && echo HEALTHCHECK-PROBE-OK'
       - docker rm -f osrm-smoke
-      - tar -C data/geo/osrm -czf "delhi-osrm-mld-$TAG.tar.gz" driving
+      - tar -C "$GEO_OUT/osrm" -czf "delhi-osrm-mld-$TAG.tar.gz" driving
       - aws s3 cp "delhi-osrm-mld-$TAG.tar.gz" "s3://alive108-build-$ACCOUNT_ID/geo/"
   post_build:
     commands:
