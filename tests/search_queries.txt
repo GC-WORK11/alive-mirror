@@ -21,3 +21,19 @@ saket pvr	PVR / Select Citywalk area, Saket
 connaught plce	Connaught Place
 nehru place	Nehru Place
 vaishali metro	Vaishali Metro Station
+559 udyog vihar	559 Udyog Vihar Phase V Road
+110 sadbhavana road	110 Sadbhavana Road
+105 ip extension	105 IP Extension
+458 harshvardhan marg	458 Harshvardhan Marg
+19 church road	19 Church Road
+sector 62 noida	Sector 62, Noida
+rohini sector 7	Rohini Sector 7
+nithari village	Nithari Village
+chhapraula	Chhapraula
+sorkha village	Sorkha
+pari chowk	Pari Chowk, Greater Noida
+akshardham temple	Akshardham Temple
+sarai kale khan	Sarai Kale Khan
+crossings republik	Crossings Republik
+indirapuram	Indirapuram
+beta 2 greater noida	Beta 2, Greater Noida

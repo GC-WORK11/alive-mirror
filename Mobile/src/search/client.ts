@@ -39,12 +39,23 @@ type RawRow = {
  * ("amenity:place_of_worship") as the address/subtitle — strip the
  * namespace prefix and tidy underscores so the row reads like an
  * address, not a tag. Real addresses keep their commas untouched. */
-const OSM_TAG_PREFIX = /^(amenity|tourism|shop|leisure|office|historic|building|man_made|natural|place|highway|aeroway|railway|public_transport):/;
+const OSM_TAG_PREFIX = /^(amenity|tourism|shop|leisure|office|historic|building|man_made|natural|place|highway|aeroway|railway|public_transport|addr|landuse|waterway|power|junction|barrier|entrance|military|indoor|aerialway|craft|healthcare|emergency|club|boundary|misc):/;
+
+/** Tag-value residues that are still jargon after the prefix strip —
+ * mapped to the plain word a person would say. */
+const RESIDUE_LABELS: Record<string, string> = {
+  interpolation: "address",
+  housenumber: "address",
+  housename: "address",
+  named: "place",
+};
 
 function cleanSubtitle(s: string): string {
   const t = s.trim();
-  if (OSM_TAG_PREFIX.test(t))
-    return t.replace(OSM_TAG_PREFIX, "").replace(/_/g, " ").trim();
+  if (OSM_TAG_PREFIX.test(t)) {
+    const raw = t.replace(OSM_TAG_PREFIX, "").trim();
+    return RESIDUE_LABELS[raw] ?? raw.replace(/_/g, " ").trim();
+  }
   // bare kind token ("historic_site") — read like words, not a tag
   if (/^[a-z][a-z_]+$/.test(t) && t.includes("_")) return t.replace(/_/g, " ");
   return t;
