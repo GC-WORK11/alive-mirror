@@ -125,6 +125,9 @@ function toOption(raw: unknown): V2Option | null {
       bs_class: str(em.bs_class),
       bs_options: Array.isArray(em.bs_options) ? em.bs_options.filter((x): x is string => typeof x === "string") : null,
       confidence: str(em.confidence),
+      fuel: str(em.fuel),
+      class: str(em.class),
+      puc_calibrated: em.puc_calibrated === true ? true : null,
       breakdown: em.breakdown && typeof em.breakdown === "object"
         ? (() => {
             const bd = em.breakdown as Record<string, unknown>;

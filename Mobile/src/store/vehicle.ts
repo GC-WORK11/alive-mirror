@@ -178,6 +178,15 @@ const YEAR_KEY: Record<YearBand, StringKey> = {
   not_sure: "yearNotSure",
 };
 
+/** Single-word names for composing server-side sentences client-side
+ *  (CompareSheet's emissions-label rebuild) — same maps vehicleLabel uses. */
+export function fuelName(f: string, lang: Lang = "en"): string {
+  return FUEL_KEY[f as Fuel] ? t(FUEL_KEY[f as Fuel], lang) : f;
+}
+export function className(c: string, lang: Lang = "en"): string {
+  return CLS_KEY[c as VehicleClass] ? t(CLS_KEY[c as VehicleClass], lang) : c;
+}
+
 /** Chip / sidebar label: "2010–2016 petrol car"; partial answers shrink
  *  gracefully ("petrol car", "car"); nothing answered → the caller shows
  *  `t("vehicle_likeYours")` ("vehicles like yours") instead. */

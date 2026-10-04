@@ -42,6 +42,10 @@ export type Emissions = {
   bs_class?: string | null;
   bs_options?: string[] | null;
   confidence?: string | null;
+  fuel?: string | null;          // resolved fuel (petrol|diesel|cng|electric)
+  class?: string | null;         // resolved class (car|bike|auto|…) — lets the
+                                 // client rebuild `label` in the user's language
+  puc_calibrated?: boolean | null; // tuned to the user's PUC certificate
   non_exhaust?: { pm10_g?: Band | null; note?: string } | null;
 };
 
