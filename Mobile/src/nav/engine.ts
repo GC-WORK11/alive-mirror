@@ -54,6 +54,14 @@ export type NavRoute = {
   /** context for the receipt comparison lines */
   alternatives?: { label: string; doseUgMid?: number | null; co2KgMid?: number | null }[];
   worstDoseUg?: number | null;
+  /** heaviest OTHER option's plan-time CO2 mid — the avoided-CO2
+      counterfactual for the donation summary, same shape as
+      worstDoseUg; null when no alternative carries emissions */
+  worstCo2Kg?: number | null;
+  /** true only when this trip's emissions estimate ran on a
+      PUC-calibrated vehicle profile; null/absent on modes where the
+      question doesn't apply (metro/walk/cycle) */
+  pucCalibrated?: boolean | null;
   /** the chosen option's CO2 moving/idle/cold split — donated with the
       trip summary so the collective can break out where ride CO2
       comes from; null on modes that never carry a breakdown */
@@ -207,6 +215,25 @@ export function useNavEngine(opts: NavEngineOpts) {
         dose_ug: Math.round(s.doseUg.mid * 10) / 10,
         co2_kg_mid: Math.round(s.co2Kg.mid * 1000) / 1000,
         pm25_g_mid: Math.round(s.pm25G.mid * 1000) / 1000,
+        /* savings the admin /global tiles aggregate — the same
+           counterfactuals the receipt and ledger already show:
+           avoided_ug = worst OTHER option's plan-time dose mid minus
+           this trip's measured mid (clamped, exactly the ledger's
+           number); co2_avoided_kg the same shape against the heaviest
+           alternative's CO2. Both keys absent when there's no real
+           alternative to compare against — never zeros standing in
+           for missing data. puc_calibrated is sent only on
+           private-motor trips (it's a property of the emissions
+           estimate — meaningless on metro/walk/cycle). */
+        ...(routeRef.current.worstDoseUg != null
+          ? { avoided_ug: Math.max(0, Math.round((routeRef.current.worstDoseUg - s.doseUg.mid) * 10) / 10) }
+          : {}),
+        ...(routeRef.current.worstCo2Kg != null
+          ? { co2_avoided_kg: Math.max(0, Math.round((routeRef.current.worstCo2Kg - s.co2Kg.mid) * 1000) / 1000) }
+          : {}),
+        ...(routeRef.current.pucCalibrated != null
+          ? { puc_calibrated: routeRef.current.pucCalibrated }
+          : {}),
         /* CO2 split the backend asked for — optional, bounds-checked
            server-side; absent keys are the honest answer on modes
            without a breakdown (metro/walk/cycle), not zeros */

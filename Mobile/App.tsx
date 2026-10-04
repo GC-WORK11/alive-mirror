@@ -483,7 +483,7 @@ function AppInner() {
       {phase === "nav" && sel && (
         <NavSession option={sel} options={flow.options} from={flow.from} to={flow.to} steps={flow.steps}
           camRef={camRef} lang={lang} share={settings.share} voice={settings.voice} onExit={flow.exitNav}
-          showCig={settings.show_cig} onTripDone={flow.recordTrip} />
+          vehicle={flow.vehicle} showCig={settings.show_cig} onTripDone={flow.recordTrip} />
       )}
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} trips={flow.trips} lang={lang}
@@ -547,11 +547,14 @@ function AppInner() {
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
 function NavSession({
-  option, options, from, to, steps, camRef, lang, share, voice, showCig, onExit, onTripDone,
+  option, options, from, to, steps, camRef, lang, share, voice, vehicle, showCig, onExit, onTripDone,
 }: {
   option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
   camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
   share: boolean; onExit: () => void;
+  /** S8 profile — the donation marks puc_calibrated from it on
+      private-motor trips only */
+  vehicle?: VehicleProfile | null;
   /** turn-guidance voice — settings.voice; the engine defaults to silent
      *  without it, which left every cue dead until this was wired */
   voice: boolean;
@@ -581,6 +584,17 @@ function NavSession({
   const altEmit = options
     .filter((o) => o !== option && (o.emissions?.co2_kg?.mid ?? 0) > 0)
     .sort((a, b) => (a.emissions.co2_kg?.mid ?? 0) - (b.emissions.co2_kg?.mid ?? 0))[0];
+  /* heaviest OTHER option's CO2 mid — the co2_avoided counterfactual,
+     same excluded-self rule as worstDose */
+  const worstCo2 = Math.max(
+    ...options.filter((o) => o !== option).map((o) => o.emissions?.co2_kg?.mid ?? 0), 0);
+  /* puc_calibrated is a property of the emissions estimate — it only
+     exists on private-motor trips; on metro/walk/cycle the key stays
+     out of the donation entirely */
+  const PRIVATE_MOTOR = ["car", "car_open", "bike", "auto"];
+  const pucCalibrated = PRIVATE_MOTOR.includes(option.mode ?? "")
+    ? vehicle?.puc != null
+    : null;
   const nav = useNavEngine({
     route: {
       route_id: option.route_id ?? "",
@@ -596,6 +610,8 @@ function NavSession({
         co2KgMid: o.emissions?.co2_kg?.mid ?? null,
       })),
       worstDoseUg: worstDose > 0 ? worstDose : null,
+      worstCo2Kg: worstCo2 > 0 ? worstCo2 : null,
+      pucCalibrated,
       emissionsBreakdown: option.emissions?.breakdown ?? null,
     },
     camRef,
