@@ -230,9 +230,20 @@ if ! aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
     --load-balancers "$LB_SPEC" --health-check-grace-period-seconds 150 \
     --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=ENABLED}"
 else
-  run aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
+  # aws CLI v1 (older builds) lacks update-service --load-balancers —
+  # harmless: the service already carries loadBalancers in its own
+  # config, so the flag is belt-and-suspenders. Probe first (`try`
+  # never dies), fall back to the plain update if unsupported.
+  if try aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
     --task-definition "$TD_ARN" --force-new-deployment \
-    --load-balancers "$LB_SPEC" --health-check-grace-period-seconds 150 >/dev/null
+    --load-balancers "$LB_SPEC" --health-check-grace-period-seconds 150 >/dev/null 2>&1; then
+    log "update-service done (with loadBalancers spec)"
+  else
+    log "update-service --load-balancers unsupported — retrying without (service already carries loadBalancers)"
+    run aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
+      --task-definition "$TD_ARN" --force-new-deployment \
+      --health-check-grace-period-seconds 150 >/dev/null
+  fi
 fi
 
 # --------------------------------------------- 4. wait, then verify NLB target

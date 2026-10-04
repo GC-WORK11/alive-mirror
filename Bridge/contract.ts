@@ -393,6 +393,9 @@ export interface V2PlanOption {
   safest_path?: boolean;        // true on the lowest-dose option — leaf chip
   engine?: string;              // "alive_core-path" on least-inhalation engine rows
   duration_model?: string;      // engine rows: "estimated" (graph speeds)
+  duration_basis?: string;      // engine rows: "freeflow" — OSM maxspeed/
+                              // class speeds, no congestion feed (real
+                              // Delhi traffic is slower → dose higher)
   via_names?: string[];         // engine rows: street names the path takes
   snap_m?: { from_m: number; to_m: number }; // engine rows: endpoint snap distance
   alternative_index?: number | null;  // engine rows: 1..N on corridor-diverse
@@ -436,6 +439,12 @@ export interface V2PlanResponse {
   /** stable machine code on the error path — 'outside_service_area';
       clients key on this, never on error text. */
   code?: string;
+  partial?: boolean;            // fast:true — engine rows only
+  puc_calibrated?: boolean;     // server honoured the PUC card
+  /** arms that timed out/cancelled/raised — e.g. ["engine"]. Absent
+      arms ≠ empty arms: when present the option set is real but
+      incomplete. */
+  degraded?: string[];
 }
 
 export interface V2StripSample {
