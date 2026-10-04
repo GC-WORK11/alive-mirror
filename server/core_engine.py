@@ -407,6 +407,50 @@ _UNIT_AFTER = frozenset(("sector", "phase", "part"))
 # urban area — sectors inside a city can be km from its centroid
 _SUBPLACE_HIT_MAX_M = 6000.0
 
+# address-surface vocab — a leftover name built only of these isn't a
+# place ('B-12 residential'); a leftover that resolves to another
+# locality ('B-12 Sanwal Nagar' on a Lajpat Nagar query) is a unit in
+# the WRONG colony, never an answer
+_PLACE_NEUTRAL = frozenset((
+    "road", "street", "marg", "block", "pocket", "sector", "phase",
+    "part", "extension", "enclave", "colony", "nagar", "vihar", "pur",
+    "puram", "gunj", "ganj", "bagh", "place", "market", "gali",
+    "park", "garden", "gardens", "residential", "new", "old", "west",
+    "east", "north", "south", "central", "town", "city", "village",
+    "apartment", "apartments", "building", "flat", "flats", "plot",
+    "house", "kothi", "no", "number", "near", "opp", "opposite"))
+
+_FOREIGN_Q_CACHE: dict = {}
+
+
+def _foreign_place(anchor, leftover):
+    """do the row's leftover tokens name a different colony? 'B-12
+    Sanwal Nagar' — {sanwal, nagar} resolves to Sanwal Nagar, which
+    carries none of the anchor's distinctive tokens → wrong
+    neighbourhood. 'B-12 Lajpat Nagar IV' keeps {lajpat} → in-area."""
+    name_toks = frozenset(t for t in leftover if t.isalpha())
+    if not name_toks or name_toks <= _PLACE_NEUTRAL:
+        return False
+    if len(name_toks) == 1 and len(next(iter(name_toks))) <= 2:
+        return False  # a stray letter/suffix isn't a place name
+    atoks = set(alive_core_ref.normalize(anchor.get("display") or ""))
+    distinctive = {t for t in atoks
+                   if t not in _PLACE_NEUTRAL and not t.isdigit()
+                   and len(t) > 1}
+    if not distinctive:
+        return False
+    cands = _FOREIGN_Q_CACHE.get(name_toks)
+    if cands is None:
+        cands = search_index().query(
+            " ".join(sorted(name_toks)), None, None, 3)
+        if len(_FOREIGN_Q_CACHE) > 512:
+            _FOREIGN_Q_CACHE.clear()
+        _FOREIGN_Q_CACHE[name_toks] = cands
+    return any((c.get("cov") or 0.0) >= 0.75
+               and distinctive - set(alive_core_ref.normalize(
+                   c.get("display") or ""))
+               for c in cands or [])
+
 
 def _hav_m(lat1, lon1, lat2, lon2):
     return 1000.0 * alive_core_ref.haversine_km(lat1, lon1, lat2, lon2)
@@ -510,6 +554,11 @@ def _subplace(toks, lat, lon, limit, hits=None):
             ht = set(alive_core_ref.normalize(h.get("display") or ""))
             if not all(_tok_wanted(ht, t) for t in want):
                 continue
+            if _foreign_place(
+                    anchor,
+                    {t for t in ht if t.isalpha() and t not in want}):
+                h["_foreign"] = True  # wrong colony at ANY distance
+                continue
             if h.get("lat") is None:
                 continue
             d = _hav_m(anchor["lat"], anchor["lon"],
@@ -542,6 +591,10 @@ def _subplace(toks, lat, lon, limit, hits=None):
             # land on 'H Block Market-Sector 22')
             if (anchor_digits and "sector" in etoks
                     and not (anchor_digits & etoks)):
+                continue
+            if _foreign_place(
+                    anchor,
+                    {t for t in etoks if t.isalpha() and t not in want}):
                 continue
             out.append(_comp_row(e, d, anchor, match="area",
                                  subplace=True))
@@ -642,6 +695,8 @@ _ACCESSORY_KINDS = frozenset((
     "subway_entrance", "railway:platform", "railway:stop",
     "public_transport:platform", "public_transport:stop_position"))
 
+_MATCH_NAMES = {0: "exact-prefix", 1: "token-prefix"}
+
 
 _AL_MAP = None
 
@@ -671,39 +726,94 @@ def _name_toks(h):
             for t in toks}
 
 
-def _demote_accessory(hits):
+def _tok_close(a, b):
+    """name sets relate through a one-token transliteration wobble —
+    'lodhi' ~ 'lodi' — when the alias table didn't already fold them."""
+    xa, xb = a - b, b - a
+    if not xa and not xb:
+        return True
+    if len(xa) > 1 or len(xb) > 1:
+        return False
+    return all(abs(len(x) - len(y)) <= 2
+               and alive_core_ref.dl_distance(x, y, 2) <= 2
+               for x in xa for y in xb)
+
+
+def _demote_accessory(hits, qn=""):
+    """accessory rows serving a landmark drop below it — and the
+    landmark inherits the accessory's query-match class, because
+    'AIIMS' platform's literal-name match is really the hospital's
+    intent (the downstream merger re-ranks on match class and would
+    otherwise put the platform back on top)."""
     if not hits or not any((h.get("category") or "") in _ACCESSORY_KINDS
                            for h in hits):
         return hits
-    land = [_name_toks(h) for h in hits
+    land = [(i, _name_toks(h)) for i, h in enumerate(hits)
             if (h.get("category") or "") not in _ACCESSORY_KINDS]
-    land = [lt for lt in land if lt]
+    land = [(i, lt) for i, lt in land if lt]
     keep, acc = [], []
     for h in hits:
         at = _name_toks(h)
-        if ((h.get("category") or "") in _ACCESSORY_KINDS and at
-                and any(at <= lt or lt <= at for lt in land)):
+        rel = [i for i, lt in land
+               if at and (at <= lt or lt <= at or _tok_close(at, lt))]
+        if (h.get("category") or "") in _ACCESSORY_KINDS and rel:
+            dn = " ".join(
+                alive_core_ref.normalize(h.get("display") or ""))
+            cls = 0 if (qn and dn.startswith(qn)) else 1
+            for i in rel:
+                cur = hits[i].get("match_rank")
+                if cur is None or cls < cur:  # 0 is a real class — never `or` it
+                    hits[i]["match_rank"] = cls
+                    hits[i]["match"] = _MATCH_NAMES[cls]
             acc.append(h)
         else:
             keep.append(h)
     return keep + acc
 
 
+_CITY_SUFFIX = frozenset(("delhi", "new", "india", "ncr"))
+
+
+def _name_prefix(a, b):
+    """one display is the other plus city-suffix filler — 'Lodi
+    Gardens' ~ 'Lodi Gardens, Delhi'."""
+    at, bt = set(a.split()), set(b.split())
+    if at <= bt and at != bt:
+        return (bt - at) <= (_PLACE_NEUTRAL | _CITY_SUFFIX)
+    if bt <= at and bt != at:
+        return (at - bt) <= (_PLACE_NEUTRAL | _CITY_SUFFIX)
+    return False
+
+
 def _dedupe_hits(rows):
-    """same-name same-kind rows within ~100m are one place — twin bus
-    bays ('AIIMS'/'AIIMS' platforms 72m apart) read as duplicates."""
+    """same-place rows collapse: twin bus bays ('AIIMS'/'AIIMS'
+    platforms 72m apart), spelling-variant parks ('Lodi Gardens' /
+    'Lodhi Gardens' 16m apart), and city-suffixed names ('Lodi
+    Gardens, Delhi') read as duplicates."""
     kept, out = [], []
     for h in rows:
-        key = (" ".join(sorted(
-            alive_core_ref.normalize(h.get("display") or ""))),
-               h.get("category") or "")
-        if h.get("lat") is not None and any(
-                key == k
-                and _hav_m(h["lat"], h["lon"], ph["lat"], ph["lon"])
-                <= 100.0
-                for k, ph in kept):
+        disp = " ".join(sorted(
+            alive_core_ref.normalize(h.get("display") or "")))
+        cat = h.get("category") or ""
+        if h.get("lat") is not None:
+            for k, ph in kept:
+                if cat != k[1]:
+                    continue
+                m = _hav_m(h["lat"], h["lon"],
+                           ph["lat"], ph["lon"])
+                if m > 350.0:
+                    continue
+                if ((disp == k[0] or _name_prefix(disp, k[0]))
+                        or (m <= 150.0
+                            and abs(len(disp) - len(k[0])) <= 2
+                            and alive_core_ref.dl_distance(
+                                disp, k[0], 2) <= 2)):
+                    break
+            else:
+                kept.append(((disp, cat), h))
+                out.append(h)
             continue
-        kept.append((key, h))
+        kept.append(((disp, cat), h))
         out.append(h)
     return out
 
@@ -733,7 +843,7 @@ def search(q, lat=None, lon=None, limit=8):
         hits = [h for h in hits
                 if all(n in set(alive_core_ref.normalize(
                     h.get("display") or "")) for n in nums)]
-    hits = _demote_accessory(hits)
+    hits = _demote_accessory(hits, " ".join(qtoks))
     weak = not hits or (hits[0].get("cov") or 0.0) < 0.9
     comp = _compound(q, weak, lat, lon, limit, hits)
     if comp:
@@ -742,7 +852,7 @@ def search(q, lat=None, lon=None, limit=8):
         # Hospital" for 'hospital saket')
         seen = {r["id"] for r in comp}
         for h in hits:
-            if h.get("id") not in seen:
+            if h.get("id") not in seen and not h.get("_foreign"):
                 comp.append(h)
         hits = comp
     hits = _dedupe_hits(hits)[:limit]

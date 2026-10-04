@@ -38,30 +38,30 @@ It has two faces: (1) the personal mobile app (Android = the released product; i
 docs/plan/master-plan.md (latest mandate matrix + ranked gaps, written this session), docs/plan/00-README.md … 10-claims-ledger.md (master plan set), docs/plan/runbook.md, docs/plan/test-commands.md, docs/plan/probe-audit.md (174-query search battery), docs/plan/judge-lens.md, docs/claims-audit.md, docs/demo-day.md (iOS sim crash verdict + demo protocol), docs/plan/map-vs-google.md, docs/18-aws-architecture.md, docs/19-submission-checklist.md, docs/20-hackathon-playbook.md, docs/28-pitch.md, docs/17-submission-writeup.md.
 
 ## Where we are (latest)
-Shipped and live this session:
-- engine-first paint (c1d9629). The app paints least-smoke engine rows first, then swaps in the full set, keeping the user's pick.
-- fast paint uses primaries only (d6ea7b7).
-- motor/slow row dosing moved off the event loop (734dbb9). Fixes a 34s cold first plan against the 20s budget. COMMITTED; VERIFY THE DEPLOY IS LIVE (build_sha ≥ 734dbb9) and re-measure a fresh-task first plan.
-- deploy race fix (76e46b4).
-- /admin/api 500 on legacy snapshots (879d291).
-- forecast anchor fixes.
-- copy overclaims removed (eacc413).
-- search: house numbers + multi-anchor + dedupe (4a4854a, location agent).
-Measured live: the fast plan returns 15 engine rows in ~1.6–3s server time when idle. The engine arm is 0.15–0.3s idle but 3–7s under concurrent load on 1 vCPU. Gurugram→Ghaziabad fast once hit "engine timed out" at 8s under load. NEXT: make the engine arm robust under concurrency: in-flight dedupe/memo per (rounded OD, vehicle, field epoch) so the fast and full calls share primaries, and/or the full plan reusing fast primaries.
+Shipped and live this session (verified by curl + ECS logs, not vibes):
+- engine-arm shared solves (5805620): `_solve_join` memoizes/dedupes engine primaries + corridor alts per (rounded OD, _ENG_T pricing epoch). Live under 6 concurrent fast+full calls: fast paint took_ms ~77–100 (was 1.6–3 s), full plans 0.8–4.5 s with all 15 engine rows, zero "engine timed out". Logs show owner solves 1.6–6.6 s then repeat calls 2–10 ms. ECS pool now 3 workers (joined callers park on an Event, no CPU).
+- deploy verified: build_sha 58056209 on the NLB.
+- cold-task first plan: 15 options in 19.3 s (inside the 20 s budget — the 34 s bug stays fixed).
+- 40-OD engine audit live on 7e92660 (tools/audit_engine_quality.py): 11/40 ODs have a least-smoke row saving ≥10% dose for ≤15% extra time vs the fast row (was 10), 17/40 vs same-mode (was 16), 0 absurd detours. 108 "worse-dose" rows are mostly the known duration-model gap (engine ~27 km/h vs OSRM freeflow ~55 — dose integrates field×ventilation×time). The depth lane (new SWE-2 Max child) owns splitting that number honestly.
+- main merged at 3163765 (no-ff) — earlier checkpoint; next merge after the next green suite.
 
 Open gaps, ranked (from master-plan.md):
-1. Plan latency and engine robustness under load (above).
-2. Search: "aiims" returns platform rows only, with the hospital missing from the top. "lodhi garden" ranks a platform above the park, plus Lodhi/Lodi duplicates. "b-12 lajpat nagar" ignores the anchor and returns Sanwal Nagar (a regression). The location agent has been told; verify live.
-3. Android TTS (500/150/0m cues) + gfxinfo jank are still unmeasured. The Ultra UI/UX agent on Linux is doing it.
-4. Route-quality stats for the pitch: % of least-smoke rows saving ≥10% dose for ≤15% extra time, and absurd detours >1.6× distance, over 40 real ODs.
+1. Plan latency and engine robustness under load — LARGELY FIXED by 5805620; cold-task first-plan seconds remain (field fetch → raster → reweight chain; depth lane measuring).
+2. Search regressions — VERIFIED FIXED live on 5805620 (2026-10-04): "aiims" → hospital top-1/#2, platforms demoted to tail; "lodhi garden" → parks first, platform last; "b-12 lajpat nagar" → Lajpat Nagar locality + B-12 anchor honoured. Location lane still owns the broader 174-query battery + fuzzy/compound/sector tolerance leg.
+3. Android TTS (500/150/0m cues) + gfxinfo jank — the new SWE-2 Max Android lane (below) owns it; the Ultra lane died at setup with zero pushes.
+4. Route-quality stats for the pitch — audit live numbers above; depth lane owns the worse-dose decomposition + win-rate lift.
 5. Fresh release APK on the final HEAD (NLB baked; check it in the JS bundle; debug-signed. Real signing needs his keystore).
 6. Demo morning: switch Spot → on-demand, warm the task 10 min early, run the demo on a physical Android phone. iOS = recorded take (an upstream MapLibre-on-vGPU sim crash, sim-only).
 7. Keep main merged at checkpoints.
 
 ## Every session ever run for this project
 Active right now:
-- 30c986e2137942488c8060da708ef40b: Android UI/UX overhaul on ULTRA, Linux. Peak polish + smoothness, gfxinfo before/after, TTS check, APK. KEEP IT RUNNING; collect its report. https://app.devin.ai/sessions/30c986e2137942488c8060da708ef40b
-- 1cb3ac27d94642f29952845945934fc3: Location-depth lane (gazetteer, address/house numbers, reverse geocode, aliases, Hinglish, compound queries, live 174-query battery). Currently fixing aiims / lodhi garden / b-12 lajpat nagar. https://app.devin.ai/sessions/1cb3ac27d94642f29952845945934fc3
+- efb8721d915f40d0807595b4bec3fa6d: Android UI/UX overhaul on SWE-2 Max, Linux — CONTINUES the dead Ultra lane (30c986e2, terminated out-of-quota at setup, zero pushes). gfxinfo before/after, TTS 500/150/0m, release APK on final HEAD. https://app.devin.ai/sessions/efb8721d915f40d0807595b4bec3fa6d
+- 139507b46df84f939b68d447735ea203: engineering-depth lane on SWE-2 Max, Linux — continues the old lead's unowned engineering: route-quality truth (worse-dose decomposition), cold-start latency, demo-day ops runbook, server polish. Forbidden zones: v2/plan.py (lead), search/corpus (location lane), Mobile/src (Android lane). https://app.devin.ai/sessions/139507b46df84f939b68d447735ea203
+- 1cb3ac27d94642f29952845945934fc3: Location-depth lane (gazetteer, address/house numbers, reverse geocode, aliases, Hinglish, compound queries, live 174-query battery). On leg 3: query tolerance (fuzzy/compound/sector). https://app.devin.ai/sessions/1cb3ac27d94642f29952845945934fc3
+Terminated (out of Ultra quota; work either pushed or handed off):
+- 13283940d1854cd4bf2ff691c4bd9bb7: the previous lead session — this session (93b8804d) is its successor as lead. https://app.devin.ai/sessions/13283940d1854cd4bf2ff691c4bd9bb7
+- 30c986e2137942488c8060da708ef40b: Android UI/UX on ULTRA — died at setup, superseded by efb8721d. https://app.devin.ai/sessions/30c986e2137942488c8060da708ef40b
 Closed for slot reasons (its work is pushed):
 - 3fa2600978ae46c18e5e5502253269e6: Routing-depth lane. Shipped corridor alternatives, field-epoch invalidation, legality audit, OSM turn restrictions (230) + access overrides (3,428), connectivity-screened snap, bike cap 40, and the 40-OD audit (98 anomalies, 0 teleports; the engine-vs-OSRM dose gap is mostly a duration model, engine ~27 km/h vs OSRM freeflow ~55). YOU now own its next leg (route-quality stats, item 4).
 Finished / suspended earlier (read their messages via devin_session_interact get_messages if needed):

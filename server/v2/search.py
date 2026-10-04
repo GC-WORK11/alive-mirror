@@ -57,6 +57,9 @@ def _engine_rows(out: object, default_source: str) -> list:
         row["source"] = r.get("source") or default_source
         row["sources"] = list(dict.fromkeys(
             (r.get("sources") or []) + ["t1"]))
+        # engine order is ranking evidence (accessory demotion, anchor
+        # fallbacks) — keep the position so the merge can honour it
+        row["_t1_pos"] = len(rows)
         rows.append(row)
     return rows
 
@@ -151,13 +154,18 @@ def _merge(t1: list, t2: list, qn: str, blat: float, blon: float) -> list:
         else:
             merged.append(r)
     merged.sort(key=lambda r: (r.get("match_rank", 3),
-                               # scored T1 rows order by score inside a
-                               # match class; unscored rows (T2, rank 3
-                               # partials) stay distance-ordered
-                               -(r.get("score") or 0.0)
-                               if r.get("match_rank", 3) < 3 else 0.0,
+                               # inside a match class the engine's own
+                               # order is the ranking — it already
+                               # applied alias knowledge, landmark
+                               # demotion and anchor fallbacks that
+                               # this classifier can't see
+                               (r.get("_t1_pos")
+                                if r.get("_t1_pos") is not None
+                                else 1_000_000_000),
                                r.get("distance_m") or 9e9,
                                0 if "t1" in r.get("sources", []) else 1))
+    for r in merged:
+        r.pop("_t1_pos", None)
     return merged
 
 

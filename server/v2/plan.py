@@ -1047,13 +1047,110 @@ _ENG_BUSY_LOCK = threading.Lock()
 _ENG_BUSY = False         # a reweight is already sweeping/repricing —
                           # concurrent arms serve the last pricing
                           # instead of stacking a second CPU storm
-# private 2-worker pool: the shared default executor serves every
-# to_thread in the process (GTFS compile, rasters, forecasts) — a busy
-# moment could queue the engine arm inside its own 8 s budget and burn
-# it before a single query ran. Two workers keep concurrent plans from
-# fully serializing behind one another.
+# private pool: the shared default executor serves every to_thread in
+# the process (GTFS compile, rasters, forecasts) — a busy moment could
+# queue the engine arm inside its own 8 s budget and burn it before a
+# single query ran. Joined callers park on an Event (no CPU), so a
+# third worker keeps a queued arm from starving behind a parked one.
 _ENG_EXEC = concurrent.futures.ThreadPoolExecutor(
-    max_workers=2, thread_name_prefix="alive-eng")
+    max_workers=3, thread_name_prefix="alive-eng")
+
+# --- shared engine solves ------------------------------------------------------
+# One in-flight/memoized solve per (rounded OD, pricing epoch): the
+# fast paint (primaries only) and the full plan's engine arm
+# (primaries + corridor alts) — which the app always fires together —
+# split the A* work instead of stacking a second sweep onto the same
+# single vCPU (live: the arm hit its 8 s budget under concurrency).
+# Keys carry _ENG_T, so a reprice retires entries by construction; the
+# size cap only bounds memory left behind on stale epochs.
+_ENG_SOLVE = {}
+_ENG_SOLVE_LOCK = threading.Lock()
+ENGINE_SOLVE_JOIN_S = 7.0      # < ENGINE_BUDGET_S — then the waiter
+                               # solves for itself rather than serve 0
+ENGINE_SOLVE_MAX = 256         # bound map memory across stale epochs
+
+
+class _SolveSlot:
+    __slots__ = ("ev", "val")
+
+    def __init__(self):
+        self.ev = threading.Event()
+        self.val = None
+
+
+def _solve_join(key, compute):
+    """Run compute() once per key: first caller owns it, concurrent
+    callers wait on the same result instead of duplicating the solve —
+    the dedupe that keeps fast+full plans from doubling engine CPU.
+    Owner results (failures -> {}) stay memoized under the epoch key;
+    a waiter whose owner overruns the join window solves for itself."""
+    with _ENG_SOLVE_LOCK:
+        slot = _ENG_SOLVE.get(key)
+        if slot is None:
+            slot = _SolveSlot()
+            _ENG_SOLVE[key] = slot
+            while len(_ENG_SOLVE) > ENGINE_SOLVE_MAX:
+                _ENG_SOLVE.pop(next(iter(_ENG_SOLVE)))
+            owner = True
+        else:
+            owner = False
+    if owner:
+        try:
+            slot.val = compute()
+        except Exception as e:
+            _log.warning("engine solve %s failed: %r", key[0], e)
+            slot.val = {}
+        finally:
+            slot.ev.set()
+        return slot.val
+    if slot.ev.wait(ENGINE_SOLVE_JOIN_S):
+        return slot.val if isinstance(slot.val, dict) else {}
+    _log.warning("engine solve %s: owner overran — solving", key[0])
+    try:
+        return compute() or {}
+    except Exception as e:
+        _log.warning("engine solve %s fallback failed: %r", key[0], e)
+        return {}
+
+
+def _engine_primaries(eng, flat, flon, tlat, tlon) -> dict:
+    """{mode: least-dose path} — the primaries every engine row needs,
+    one A* per engine mode on the currently priced graph."""
+    out = {}
+    for mode, _ in ENGINE_MODES:
+        try:
+            r = eng.query(flat, flon, tlat, tlon, mode)
+        except Exception as e:
+            _log.warning("engine query %s failed: %r", mode, e)
+            continue
+        if isinstance(r, dict) and not r.get("error") \
+                and r.get("geometry"):
+            out[mode] = r
+        else:
+            _log.warning("engine query %s: %s", mode,
+                         (r or {}).get("error") or "no geometry")
+    return out
+
+
+def _engine_alts(eng, alts_fn, flat, flon, tlat, tlon, deadline) -> dict:
+    """{mode: [primary, alt, ...]} — the taxed re-solve list per mode,
+    primary included so callers can fall back to it. Bounded by the
+    arm's soft clock; a partial map is honest (fewer alts, no zeros)."""
+    out = {}
+    for mode, _ in ENGINE_MODES:
+        if time.time() >= deadline:
+            break
+        try:
+            paths = alts_fn(flat, flon, tlat, tlon, mode, 2)
+        except Exception as e:
+            _log.warning("engine alts %s failed: %r", mode, e)
+            continue
+        good = [r for r in (paths or [])
+                if isinstance(r, dict) and not r.get("error")
+                and r.get("geometry")]
+        if good:
+            out[mode] = good
+    return out
 
 
 def _engine():
@@ -1345,19 +1442,28 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile,
     air_km = exposure._haversine_m(
         (flon, flat), (tlon, tlat)) / 1000.0
     t0 = time.time()
+    # shared solves keyed on the OD (~11 m rounding) + the pricing
+    # epoch — the fast paint's primaries are the same A* work this arm
+    # needs, so a fast+full pair costs one solve, not two.
+    ek = (round(flat, 4), round(flon, 4), round(tlat, 4),
+          round(tlon, 4), _ENG_T)
+    prim = _solve_join(
+        ("prim",) + ek,
+        lambda: _engine_primaries(eng, flat, flon, tlat, tlon))
+    altmap = {}
+    if (alts and alts_fn is not None and air_km <= ALT_OD_KM
+            and (time.time() - t0) < ALT_ARM_SOFT_S):
+        altmap = _solve_join(
+            ("alts",) + ek,
+            lambda: _engine_alts(eng, alts_fn, flat, flon, tlat, tlon,
+                                 t0 + ALT_ARM_SOFT_S))
     opts = []
     for mode, label in ENGINE_MODES:
-        want_alts = 2 if (alts and alts_fn is not None
-                          and air_km <= ALT_OD_KM
-                          and (time.time() - t0) < ALT_ARM_SOFT_S) else 0
-        try:
-            paths = (alts_fn(flat, flon, tlat, tlon, mode, want_alts)
-                     if alts_fn is not None
-                     else [eng.query(flat, flon, tlat, tlon, mode)])
-        except Exception as e:
-            _log.warning("engine query %s failed: %r", mode, e)
-            continue
-        for alt_i, r in enumerate(paths or []):
+        alist = altmap.get(mode) or []
+        primary = prim.get(mode) or (alist[0] if alist else None)
+        paths = ([primary] if isinstance(primary, dict) else []) \
+            + alist[1:]
+        for alt_i, r in enumerate(paths):
             if not isinstance(r, dict) or r.get("error") \
                     or not r.get("geometry"):
                 if alt_i == 0:

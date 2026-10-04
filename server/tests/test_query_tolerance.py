@@ -17,6 +17,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.pop("ALIVE_LOCATION_KEY", None)  # T1 only — deterministic
 
+import alive_core_ref  # noqa: E402
 import core_engine  # noqa: E402
 
 CP = (28.6315, 77.2167)
@@ -281,3 +282,42 @@ def test_platform_named_after_a_park_demotes_below_the_park():
     hits = core_engine.search("lodhi garden", None, None, limit=5)
     assert hits
     assert "park" in (hits[0].get("category") or "")
+
+
+def test_foreign_colony_unit_never_replaces_the_anchor():
+    """'b-12 lajpat nagar' — the only real B-12 rows live in other
+    colonies (Sanwal Nagar, Adarsh Nagar). A unit named for a different
+    colony must never outrank the anchor locality — and must not sit in
+    the tail pretending to be in-area either."""
+    hits = core_engine.search("b-12 lajpat nagar", None, None, limit=8)
+    assert hits
+    assert "lajpat nagar" in (hits[0].get("display") or "").lower()
+    assert not any(
+        c in (h.get("display") or "").lower()
+        for h in hits for c in ("sanwal", "adarsh"))
+
+
+def test_landmark_inherits_the_accessory_match_class():
+    """Downstream merger re-ranks on match class: the hospital must
+    carry the platform's literal-name class or the platform wins it
+    back — this is the live /v2/search path, not just engine order."""
+    hits = core_engine.search("aiims", None, None, limit=6)
+    assert hits
+    landmark = hits[0]
+    assert "platform" not in (landmark.get("category") or "")
+    assert landmark.get("match_rank") == 0
+
+
+def test_spelling_variant_dupes_collapse_to_one_row():
+    """'Lodi Gardens' / 'Lodhi Gardens' / 'Lodi Gardens, Delhi' are
+    one park — spelling wobbles and city suffixes must not read as
+    extra results."""
+    hits = core_engine.search("lodhi garden", None, None, limit=8)
+    parks = [h for h in hits
+             if (h.get("category") or "") == "park"
+             and h.get("lat") and abs(h["lat"] - 28.594) < 0.005
+             and abs((h.get("lon") or 0) - 77.22) < 0.005
+             and set(alive_core_ref.normalize(
+                 (h.get("display") or "").replace(", Delhi", "")))
+             <= {"lodi", "lodhi", "garden", "gardens"}]
+    assert len(parks) == 1

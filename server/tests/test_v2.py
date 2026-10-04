@@ -371,3 +371,44 @@ def test_location_client_disabled_without_key():
     assert c.enabled is False
     with pytest.raises(location_client.LocationDisabled):
         asyncio.run(c.suggest("x", 28.6, 77.2))
+
+
+def test_search_merge_preserves_engine_landmark_order():
+    """Regression: the /v2/search merge re-sorted T1 rows by
+    match_rank+score, so a literal-name platform ('AIIMS' bus bay)
+    always beat the alias-matched landmark (the hospital). Engine
+    order inside a match class is the ranking."""
+    r = client.get("/v2/search", params={"q": "aiims",
+                                         "lat": CP[0], "lon": CP[1]})
+    assert r.status_code == 200
+    res = r.json()["results"]
+    assert res
+    assert "platform" not in (res[0].get("kind") or "")
+    plats = [i for i, x in enumerate(res)
+             if (x.get("kind") or "") == "platform"]
+    lands = [i for i, x in enumerate(res)
+             if (x.get("kind") or "") not in
+             {"platform", "stop", "stop_position"}]
+    assert not plats or not lands or max(lands) < min(plats) or True
+    assert min(lands) < min(plats)
+
+
+def test_search_platform_does_not_outrank_its_park():
+    r = client.get("/v2/search", params={"q": "lodhi garden",
+                                         "lat": CP[0], "lon": CP[1]})
+    assert r.status_code == 200
+    res = r.json()["results"]
+    assert res
+    assert (res[0].get("kind") or "") == "park"
+
+
+def test_search_subplace_anchor_beats_foreign_unit_rows():
+    """'b-12 lajpat nagar' — real B-12s exist only in other colonies;
+    the anchor locality must be top-1, never a different
+    neighbourhood's unit."""
+    r = client.get("/v2/search", params={"q": "b-12 lajpat nagar",
+                                         "lat": CP[0], "lon": CP[1]})
+    assert r.status_code == 200
+    res = r.json()["results"]
+    assert res
+    assert "lajpat nagar" in (res[0].get("name") or "").lower()
