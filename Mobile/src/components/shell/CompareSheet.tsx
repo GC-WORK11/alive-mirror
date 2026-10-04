@@ -578,7 +578,9 @@ export function CompareSheet({
                   onToggleDetail={toggleDetail}
                 />
               ))}
-              {stepsOpen && steps && (
+              {/* transit rows have no fetched steps — the container must
+                  not gate on `steps` or the board→alight line never shows */}
+              {stepsOpen && (steps || sel?.stations) && (
                 <View style={s.stepsList}>
                   {sel?.stations ? (
                     /* transit options carry {board, alight} stations —
@@ -591,11 +593,11 @@ export function CompareSheet({
                       {t("boardMetro", lang, { a: sel.stations.board, b: sel.stations.alight })}
                       {sel.lines?.length ? `  ·  ${sel.lines.join(", ")}` : ""}
                     </Text>
-                  ) : steps.map((st, i) => (
+                  ) : (steps ?? []).map((st, i) => (
                     <View key={i} style={s.stepRow}>
                       <View style={s.stepRail}>
                         <View style={s.stepDot} />
-                        {i < steps.length - 1 && <View style={s.stepLine} />}
+                        {i < (steps?.length ?? 0) - 1 && <View style={s.stepLine} />}
                       </View>
                       <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
                         {localizeStep(st, lang)}
