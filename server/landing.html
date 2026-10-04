@@ -784,18 +784,34 @@ loadRoute();setInterval(loadRoute,120000);
 }catch(e){$('doseRows').innerHTML='<div class="doserow"><span class="mode">engine resting — tap /health</span></div>'}})();
 
 /* ————— corridors card (live community) ————— */
+/* wait for the aether lattice so corridor rows can quote the live air
+   they run through — same merge the admin board does */
+function aetherReady(ms){return new Promise(res=>{
+  const t0=Date.now();(function tick(){
+    if(CELLS||Date.now()-t0>ms)return res();
+    setTimeout(tick,250)})()})}
+function cellAt(lon,lat){
+  if(FIELD_BBOX.lon0==null)return null;
+  const dlon=(FIELD_BBOX.lon1-FIELD_BBOX.lon0)/COLS,
+        dlat=(FIELD_BBOX.lat0-FIELD_BBOX.lat1)/ROWS;
+  const c=Math.floor((lon-FIELD_BBOX.lon0)/dlon),
+        r=Math.floor((FIELD_BBOX.lat0-lat)/dlat);
+  return CELLMAP[c+','+r]||null;
+}
 (async()=>{try{
   const c=await api('/community');
   const rows=(c.top_corridors||[]).slice(0,4);
+  await aetherReady(9000);
   const named=await Promise.all(rows.map(async r=>{
     let nm='unnamed corridor';
     try{const g=await api(`/v2/reverse?lat=${r.lat}&lon=${r.lon}`);
       nm=g.name||nm}catch(e){}
-    return{...r,nm};
+    const cc=cellAt(r.lon,r.lat);
+    return{...r,nm,air:cc&&cc.raw!=null?cc.raw:null};
   }));
   $('corrRows').innerHTML=named.map(r=>`<div class="corr">
     <div class="nm">${r.nm}</div>
-    <div class="mt">${r.samples||r.trips||0} traversals · ${r.devices||0} devices · ${r.avg_dose_ug!=null?r.avg_dose_ug.toFixed(1)+'µg dose':'—'}${r.co2_g_per_100m?' · '+r.co2_g_per_100m.toFixed(0)+'g co₂/100m':''}</div>
+    <div class="mt">${r.samples||r.trips||0} traversals · ${r.devices||0} devices · ${r.avg_dose_ug!=null?r.avg_dose_ug.toFixed(1)+'µg dose':'—'}${r.co2_g_per_100m?' · '+r.co2_g_per_100m.toFixed(0)+'g co₂/100m':''}${r.air!=null?' · '+r.air.toFixed(0)+'µg air':''}</div>
     </div>`).join('')||'<div class="corr"><div class="nm">the city hasn\'t donated enough trips yet</div></div>';
 }catch(e){$('corrRows').innerHTML='<div class="corr"><div class="nm">corridors asleep — honest empty</div></div>'}})();
 
