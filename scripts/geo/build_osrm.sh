@@ -9,7 +9,10 @@
 source "$(dirname "$0")/common.sh"
 
 [[ -s "$BBOX_PBF" ]] || die "missing $BBOX_PBF — run fetch_extract.sh first"
-"$REPO_ROOT/scripts/geo/tools.sh" >/dev/null
+# Only need the OSRM docker image — not tools.sh (it provisions osmium +
+# planetiler for the tile lane and dies without java, which this build
+# doesn't need).
+docker image inspect "$OSRM_IMAGE" >/dev/null 2>&1 || docker pull "$OSRM_IMAGE"
 mkdir -p "$OSRM_DIR"
 
 # Modes to build — the deploy sidecar needs only `driving` (a self-hosted

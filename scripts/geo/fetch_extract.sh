@@ -29,7 +29,7 @@ case "$SRC" in
     if command -v osmium >/dev/null; then
       OSMIUM=osmium
     else
-      "$REPO_ROOT/scripts/geo/tools.sh" >/dev/null
+      "$(dirname "$0")/tools.sh" >/dev/null
       OSMIUM="$TOOLS_DIR/osmium/usr/bin/osmium"
       export LD_LIBRARY_PATH="$TOOLS_DIR/boostlib/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
     fi
