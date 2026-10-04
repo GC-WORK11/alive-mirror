@@ -579,7 +579,13 @@ export function CompareSheet({
               ))}
               {stepsOpen && steps && (
                 <View style={s.stepsList}>
-                  {sel?.mode === "metro" && sel.stations ? (
+                  {sel?.stations ? (
+                    /* transit options carry {board, alight} stations —
+                       the road-step list would describe walking legs as
+                       generic maneuvers ("continue 18.8 km" for the ride
+                       itself), which reads wrong; the station line is the
+                       honest instruction. mode is "metro+walk"/"bus…" so
+                       match on stations, not the mode string. */
                     <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
                       {t("boardMetro", lang, { a: sel.stations.board, b: sel.stations.alight })}
                     </Text>
