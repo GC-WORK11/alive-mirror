@@ -128,8 +128,22 @@ async def _lifespan(_app: FastAPI):
                 ep = getattr(eng, "edges_priced", 0)
                 ep = ep() if callable(ep) else (ep or 0)
                 if ep > 0:
-                    return
+                    break
                 await asyncio.sleep(10)
+            else:
+                return
+            # Priced isn't solved: the first real A* query lazy-builds its
+            # traversal structures (~9 s on this box) and used to blow the
+            # 8 s arm budget → degraded:["engine"] on the first request.
+            # Burn the cold solve here instead — all five modes on a tiny
+            # OD so no per-mode structure stays cold.
+            def _warm_solve():
+                for mode, _ in _v2plan.ENGINE_MODES:
+                    try:
+                        eng.query(28.6315, 77.2167, 28.6519, 77.1907, mode)
+                    except Exception:
+                        pass
+            await asyncio.to_thread(_warm_solve)
         except Exception:
             pass
     asyncio.create_task(_warm_engine())
