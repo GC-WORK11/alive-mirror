@@ -50,10 +50,14 @@ void register_krige(py::module_& m) {
   py::class_<KrigeField>(m, "KrigeField")
       .def(py::init<>())
       .def("fit", &KrigeField::fit, py::arg("lat"), py::arg("lon"),
-           py::arg("z"), py::arg("params") = KrigeParams{})
+           py::arg("z"), py::arg("params") = KrigeParams{},
+           // variogram solve is pure C++ — drop the GIL so a field rebuild
+           // can't stall the request loop on the same vCPU
+           py::call_guard<py::gil_scoped_release>())
       .def("fit_universal", &KrigeField::fit_universal, py::arg("lat"),
            py::arg("lon"), py::arg("z"), py::arg("drift"),
-           py::arg("params") = KrigeParams{})
+           py::arg("params") = KrigeParams{},
+           py::call_guard<py::gil_scoped_release>())
       .def("estimate", &KrigeField::estimate, py::arg("lat"), py::arg("lon"),
            py::arg("drift") = std::vector<double>{})
       .def("weights", &KrigeField::weights, py::arg("lat"), py::arg("lon"),

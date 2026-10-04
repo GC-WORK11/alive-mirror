@@ -28,6 +28,8 @@
 #pragma once
 
 #include <cstdint>
+#include <mutex>
+#include <shared_mutex>
 #include <functional>
 #include <optional>
 #include <string>
@@ -74,8 +76,14 @@ class PathEngine {
   // evenly-spaced polyline points; out-of-field / unsampled edges get
   // the computed field mean (honest — never free).
   void reweight(const FieldSampler& sampler);
-  double field_mean() const { return field_mean_; }
-  int edges_priced() const { return edges_priced_; }
+  double field_mean() const {
+    std::shared_lock<std::shared_mutex> lk(conc_mtx_);
+    return field_mean_;
+  }
+  int edges_priced() const {
+    std::shared_lock<std::shared_mutex> lk(conc_mtx_);
+    return edges_priced_;
+  }
 
   // Least-dose path for `mode` (car/car_open/cab/auto/bike/cycle/walk).
   PathResult query(double olat, double olon, double dlat, double dlon,
@@ -128,7 +136,16 @@ class PathEngine {
       int, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>>
       reach_;
 
-  // reweight state
+  // reweight state. Once pybind drops the GIL (gil_scoped_release) the
+  // paths below genuinely run concurrently with reweight: queries take
+  // conc_mtx_ shared for a whole solve while reweight prices into a
+  // scratch table and swaps it in under a brief unique hold — a reprice
+  // never stalls A* and A* never reads a half-updated table. reach_
+  // (lazy per-mode floods) is built under reach_mtx_ unique after a
+  // shared find, so concurrent first queries can't double-build into
+  // the same unordered_map.
+  mutable std::shared_mutex conc_mtx_;
+  mutable std::shared_mutex reach_mtx_;
   std::vector<float> conc_;             // per-edge concentration
   std::vector<char> conc_set_;
   double field_mean_ = 0.0;

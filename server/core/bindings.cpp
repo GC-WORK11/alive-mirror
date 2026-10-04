@@ -71,8 +71,13 @@ py::list index_query(const SearchIndex& idx, const std::string& q,
   std::optional<double> blat, blon;
   if (!lat.is_none()) blat = lat.cast<double>();
   if (!lon.is_none()) blon = lon.cast<double>();
+  std::vector<Hit> hits;
+  {
+    py::gil_scoped_release rel;   // fuzzy scan over the whole index
+    hits = idx.query(q, blat, blon, limit);
+  }
   py::list out;
-  for (const Hit& h : idx.query(q, blat, blon, limit)) {
+  for (const Hit& h : hits) {
     const Entry& e = idx.entry(h.eidx);
     py::dict r;
     r["id"] = e.id;
@@ -98,7 +103,9 @@ py::list index_query(const SearchIndex& idx, const std::string& q,
 // --------------------------------------------------------------------------
 
 std::unique_ptr<PathEngine> make_path_engine(const py::bytes& blob) {
-  return std::make_unique<PathEngine>(std::string(blob));
+  const std::string buf = blob;   // py bytes -> std::string needs the GIL
+  py::gil_scoped_release rel;     // ARG1 parse is pure C++
+  return std::make_unique<PathEngine>(buf);
 }
 
 // field may be a FieldView (fast path — direct C++ value() calls) or any
@@ -107,11 +114,18 @@ std::unique_ptr<PathEngine> make_path_engine(const py::bytes& blob) {
 py::dict path_reweight(PathEngine& eng, const py::object& field) {
   if (py::isinstance<FieldView>(field)) {
     const FieldView* fv = field.cast<const FieldView*>();
+    // pure C++ sweep over ~1.2M edges — release the GIL or the whole
+    // asyncio loop stalls for the duration of a reprice.
+    py::gil_scoped_release rel;
     eng.reweight([fv](double lat, double lon) {
       return fv->value(lat, lon);
     });
   } else {
+    // same sweep, but each edge callback re-enters Python to sample the
+    // field — release for the sweep, re-acquire per callback.
+    py::gil_scoped_release rel;
     eng.reweight([&field](double lat, double lon) -> std::optional<double> {
+      py::gil_scoped_acquire acq;
       const py::object r = field(lat, lon);
       if (r.is_none()) return std::nullopt;
       return r.cast<double>();
@@ -162,15 +176,24 @@ py::dict path_result_dict(const PathResult& r) {
 
 py::dict path_query(PathEngine& eng, double olat, double olon, double dlat,
                     double dlon, const std::string& mode) {
-  return path_result_dict(eng.query(olat, olon, dlat, dlon, mode));
+  PathResult r;
+  {
+    py::gil_scoped_release rel;   // A* is pure C++ — let the loop run
+    r = eng.query(olat, olon, dlat, dlon, mode);
+  }
+  return path_result_dict(r);
 }
 
 py::list path_alternatives(PathEngine& eng, double olat, double olon,
                            double dlat, double dlon,
                            const std::string& mode, int max_alts) {
+  std::vector<PathResult> rs;
+  {
+    py::gil_scoped_release rel;
+    rs = eng.alternatives(olat, olon, dlat, dlon, mode, max_alts);
+  }
   py::list out;
-  for (const PathResult& r :
-       eng.alternatives(olat, olon, dlat, dlon, mode, max_alts))
+  for (const PathResult& r : rs)
     out.append(path_result_dict(r));
   return out;
 }
@@ -244,17 +267,26 @@ std::vector<std::pair<double, double>> parse_coords(const py::object& src) {
 
 py::list seg_samples_py(const py::object& coords, double duration_s,
                         double step_m) {
+  const auto cs = parse_coords(coords);   // py objects — needs the GIL
+  std::vector<SegSample> ss;
+  {
+    py::gil_scoped_release rel;
+    ss = segment_samples(cs, duration_s, step_m);
+  }
   py::list out;
-  for (const SegSample& s :
-       segment_samples(parse_coords(coords), duration_s, step_m))
+  for (const SegSample& s : ss)
     out.append(py::make_tuple(s.lat, s.lon, s.seconds, s.dist_m));
   return out;
 }
 
 py::dict dose_py(const py::object& coords, const FieldView& field, double me,
                  double ve, double duration_s, double step_m) {
-  const DoseResult r =
-      integrate_dose(parse_coords(coords), field, me, ve, duration_s, step_m);
+  const auto cs = parse_coords(coords);
+  DoseResult r;
+  {
+    py::gil_scoped_release rel;
+    r = integrate_dose(cs, field, me, ve, duration_s, step_m);
+  }
   py::dict out;
   out["lo"] = r.lo ? py::float_(*r.lo) : py::object(py::none());
   out["mid"] = r.mid ? py::float_(*r.mid) : py::object(py::none());
@@ -292,6 +324,7 @@ double dose_series_py(const py::object& pm25_obj, const py::object& dt_obj,
   } else {
     dts.assign(pm.size(), dt_obj.cast<double>());
   }
+  py::gil_scoped_release rel;
   return dose_series(pm, dts, ve_lpm, me);
 }
 
@@ -365,11 +398,14 @@ py::dict emissions_py(const py::list& spans, const py::dict& ef_band,
   Band3 nx{0, 0, 0};
   if (!nx_band.is_none()) nx = parse_band3(nx_band);
 
-  const EmissionResult r =
-      integrate_emissions(es, parse_band_dict(ef_band),
-                          parse_band_dict(idle_band),
-                          parse_mult_dict(cold_mult), nx, cold_km_done,
-                          occupancy);
+  const auto efb = parse_band_dict(ef_band);
+  const auto ib = parse_band_dict(idle_band);
+  const auto cm = parse_mult_dict(cold_mult);
+  EmissionResult r;
+  {
+    py::gil_scoped_release rel;
+    r = integrate_emissions(es, efb, ib, cm, nx, cold_km_done, occupancy);
+  }
 
   auto band_t = [](const Band3& b) { return py::make_tuple(b.lo, b.mid, b.hi); };
   auto mid_d = [](const double v[3]) {
