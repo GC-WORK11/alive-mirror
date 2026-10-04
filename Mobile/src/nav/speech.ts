@@ -7,12 +7,16 @@
 
 import * as Speech from "expo-speech";
 import { t, type Lang } from "../i18n/strings";
+import { localizeStep } from "./instructions";
 
 const LANG_TAG: Record<Lang, string> = { en: "en-IN", hi: "hi-IN" };
 
-/** Steps carry only instruction + distance_m (the length of that step's
- *  leg); the maneuver sits at the cumulative boundary. */
-export type NavStep = { instruction: string; distance_m: number; type?: string };
+/** Steps carry instruction + distance_m (the length of that step's
+ *  leg); the maneuver sits at the cumulative boundary. The /directions
+ *  payload also ships type/modifier/street — kept so localizeStep can
+ *  rebuild the sentence in the user's language instead of speaking the
+ *  server's English string. */
+export type NavStep = { instruction: string; distance_m: number; type?: string; modifier?: string; street?: string };
 
 export function stepBoundaryM(steps: NavStep[]): number[] {
   const out: number[] = [];
@@ -25,6 +29,12 @@ export function stepBoundaryM(steps: NavStep[]): number[] {
 }
 
 const CUE_M = [500, 150, 0] as const;
+
+/* A fix this far past a boundary means the turn already happened (GPS
+   jump, tunnel exit, nav started mid-trip): its cues are marked consumed
+   without speaking — announcing a maneuver hundreds of metres late is
+   worse than silence. Matches the window the 500 m cue opens ahead. */
+const PASSED_M = 160;
 
 /** Per-maneuver cue tracker — fires each threshold once. */
 export class CueTracker {
@@ -43,19 +53,31 @@ export class CueTracker {
     const out: string[] = [];
     for (let i = 0; i < this.bounds.length; i++) {
       const remain = this.bounds[i] - alongM;
-      const instr = this.steps[i + 1]?.instruction;
+      const st = this.steps[i + 1];
+      const instr = st ? localizeStep(st, lang) : undefined;
       if (!instr) continue;
-      CUE_M.forEach((cm, j) => {
-        if (this.fired[i][j]) return;
-        if (cm === 0 ? remain <= 25 : remain <= cm && remain > cm - 160) {
-          this.fired[i][j] = true;
-          out.push(
-            cm === 0
-              ? t("nav_now", lang, { i: instr })
-              : t("nav_in", lang, { d: cm, i: instr }),
-          );
-        }
-      });
+      if (remain < -PASSED_M) {
+        // well past: consume silently — a jump must not queue a spoken
+        // "now" for every manoeuvre it leapfrogged
+        for (let j = 0; j < CUE_M.length; j++) this.fired[i][j] = true;
+        continue;
+      }
+      /* most-urgent-pending only: a fix landing mid-window says the
+         truest distance once — never "in 150 m" after "now". Speaking
+         cue j consumes every earlier-window cue too (their windows are
+         already behind us); later cues stay pending. */
+      for (let j = CUE_M.length - 1; j >= 0; j--) {
+        const cm = CUE_M[j];
+        const inWin = cm === 0 ? remain <= 25 : remain <= cm && remain > cm - 160;
+        if (this.fired[i][j] || !inWin) continue;
+        for (let k = 0; k <= j; k++) this.fired[i][k] = true;
+        out.push(
+          cm === 0
+            ? t("nav_now", lang, { i: instr })
+            : t("nav_in", lang, { d: cm, i: instr }),
+        );
+        break;
+      }
     }
     return out;
   }

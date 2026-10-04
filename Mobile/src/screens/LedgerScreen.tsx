@@ -24,6 +24,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  LayoutAnimation,
   type ListRenderItem,
   Modal,
   Pressable,
@@ -35,7 +36,8 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam } from "../theme";
-import { DYNAMIC_TYPE } from "../a11y";
+import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
+import { tick } from "../haptics";
 import { modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
 import { Icon, vehicleGlyph } from "../icons";
 import {
@@ -208,6 +210,7 @@ const TripCard = React.memo(function TripCard({
           tr.ts,
           lang,
         )} ${timeLabel(tr.ts, lang)}`}
+        accessibilityHint={t("ledgerShowTrip", lang)}
         accessibilityState={{ expanded: open }}
         style={({ pressed }) => [
           ss.cardHead,
@@ -305,6 +308,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
   const [loaded, setLoaded] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     let alive = true;
@@ -322,7 +326,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
   }, []);
 
   const sorted = useMemo(() => [...trips].sort((a, b) => b.ts - a.ts), [trips]);
-  const week = useMemo(() => weekStats(trips), [trips]);
+  const week = useMemo(() => weekStats(trips, undefined, lang), [trips, lang]);
 
   // last-7-days rollup for the summary card (calendar days, like weekStats)
   const weekCutoff = useMemo(() => {
@@ -362,7 +366,10 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
   );
 
   const rows = useMemo<Row[]>(() => {
+    const yest = new Date();
+    yest.setDate(yest.getDate() - 1);
     const today = new Date().toDateString();
+    const yesterday = yest.toDateString();
     const out: Row[] = [];
     let day = "";
     for (const tr of sorted) {
@@ -371,9 +378,12 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
         day = dk;
         out.push({
           kind: "day",
-          // PROPOSED ledgerYesterday — yesterday gets its word too
           key: `day-${dk}`,
-          label: dk === today ? t("sidebarToday", lang) : dayLabel(tr.ts, lang),
+          label: dk === today
+            ? t("sidebarToday", lang)
+            : dk === yesterday
+              ? t("ledgerYesterday", lang)
+              : dayLabel(tr.ts, lang),
         });
       }
       out.push({ kind: "trip", key: tripKey(tr), tr });
@@ -382,8 +392,14 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
   }, [sorted, lang]);
 
   const toggleRow = useCallback(
-    (key: string) => setOpenKey((k) => (k === key ? null : key)),
-    [],
+    (key: string) => {
+      tick();
+      /* the receipt detail mounts under the card head — ease the open
+         like the settings expanders (native path) */
+      if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setOpenKey((k) => (k === key ? null : key));
+    },
+    [reduceMotion],
   );
 
   const removeTrip = useCallback((tr: Trip) => {
@@ -437,10 +453,9 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
       {/* header bar */}
       <View style={ss.bar}>
         <Pressable
-          onPress={onClose}
+          onPress={() => { tick(); onClose(); }}
           accessibilityRole="button"
-          // PROPOSED a11yBack — reusing vehicleQ_back ("back") meanwhile
-          accessibilityLabel={t("vehicleQ_back", lang)}
+          accessibilityLabel={t("a11yBack", lang)}
           style={ss.barBtn}
         >
           <BackGlyph color={V2T.text2} />
@@ -509,8 +524,13 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                   </View>
                 )}
               </View>
-              {/* last-7-days context — "est." rides on the numbers via
-                  tripsOutDetail; PROPOSED ledgerEstNote for a standing footnote */}
+              {/* scope + honesty caption — cumulative vs the 7-day
+                  block below, ranged estimates not fake-exact sums */}
+              <Text {...DYNAMIC_TYPE}
+                style={[ss.sumFoot, { fontFamily: fam(lang, "reg") }]}
+              >
+                {t("ledgerAllTime", lang)} · {t("ledgerEstNote", lang)}
+              </Text>
               {weekTrips > 0 && (
                 <View style={ss.weekRow}>
                   <Text {...DYNAMIC_TYPE}
@@ -549,7 +569,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                             },
                           ]}
                         />
-                        <Text style={ss.barLbl}>{d.label.slice(0, 1)}</Text>
+                        <Text style={[ss.barLbl, { fontFamily: fam(lang, "reg") }]}>{d.label}</Text>
                       </View>
                     ))}
                   </View>
@@ -676,6 +696,7 @@ const ss = StyleSheet.create({
   sumNum: { color: V2T.text, fontSize: V2Type.title, lineHeight: 30 },
   sumUnit: { color: V2T.text2, fontSize: V2Type.secondary },
   sumCap: { color: V2T.text2, fontSize: V2Type.label, marginTop: 2 },
+  sumFoot: { color: V2T.text3, fontSize: V2Type.label, marginTop: 10 },
   weekRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: V2T.line,

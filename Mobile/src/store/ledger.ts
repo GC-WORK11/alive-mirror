@@ -140,15 +140,17 @@ export function stats(trips: Trip[], now = new Date()) {
   };
 }
 
-/** Last-7-days rollup for the journey drawer. */
-export function weekStats(trips: Trip[], now = new Date()) {
+/** Last-7-days rollup for the journey drawer. `weekday:"narrow"` is the
+ *  CLDR one-glyph label — en gives "M T W…", hi gives "सो मं बु…" — and
+ *  slicing short names would split Devanagari aksharas mid-glyph. */
+export function weekStats(trips: Trip[], now = new Date(), lang = "en") {
   const days: { label: string; ug: number; trips: number; avoided: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const day = trips.filter((t) => dayKey(t.ts) === dayKey(d.getTime()));
     days.push({
-      label: d.toLocaleDateString("en-IN", { weekday: "short" }),
+      label: d.toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { weekday: "narrow" }),
       ug: Math.round(day.reduce((s, t) => s + t.dose_ug, 0) * 10) / 10,
       trips: day.length,
       avoided: Math.round(day.reduce((s, t) => s + t.avoided_ug, 0) * 10) / 10,

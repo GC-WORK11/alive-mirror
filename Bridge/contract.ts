@@ -95,6 +95,8 @@ export interface FieldStatus {
   samples?: number;                // model lattice samples in the blend
   age_s?: number | null;           // seconds since served field fetched/built
   station_readings?: number;       // live station readings blended — 0 = dark
+  stations_src?: string | null;    // "waqi" | "cpcb" | "openaq" — winning feed
+  stations_status?: Record<string, string> | null; // per-feed verbatim verdicts
   wind?: Record<string, unknown>;
   kriging?: string;            // "on" | "idw"
   engine?: string;             // "alive_core" | "python" — which engine serves
@@ -248,6 +250,9 @@ export interface DepartResponse {
   best?: DepartSlot;
   worst?: DepartSlot;
   ug_saved_vs_now?: number | null; // % less PM2.5 by leaving at best hour
+  // honest name for the same percent — the ug_* key lied about its unit;
+  // kept alongside until every client reads this one (claims-audit §4)
+  pct_less_vs_now?: number | null;
   slots?: DepartSlot[];
   forecast?: { aq_points: number; met_points: number; hours: number;
                age_s: number | null };

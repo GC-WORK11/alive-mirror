@@ -31,9 +31,13 @@ def _tok(raw: str) -> str:
 
 def _donate(contributor, coords=CELL_A, vehicle="bus",
             duration_s=600.0, dose_ug=30.0, avoided_ug=12.0):
+    # the synthetic CELL_A two-pointers are ~1.6 m long — far below the
+    # 300 m endpoint trim observe() applies to untrimmed callers. They
+    # model already-trimmed payloads (what /v2/trip sends), so flag them.
     return community.observe(vehicle=vehicle, coords=coords,
                              duration_s=duration_s, dose_ug=dose_ug,
-                             avoided_ug=avoided_ug, contributor=contributor)
+                             avoided_ug=avoided_ug, contributor=contributor,
+                             privacy_trimmed=True)
 
 
 def _mk_obs(ts, contributor, cells=None, vehicle="bus",
@@ -194,6 +198,44 @@ def test_recent_obs_are_hour_buckets_not_trips():
     assert "contributor" not in _keys(rows)
     assert {"hour", "age_min", "trips", "vehicle", "dose_ug",
             "avoided_ug", "km"} <= _keys(rows)
+
+
+# --- endpoint-hiding trim (doc 07 §3, enforced server-side for /observe) ---
+def test_observe_untrimmed_caller_gets_endpoint_trim():
+    """The legacy /observe endpoint posts the full planned polyline —
+    including home and destination. observe() must run the same privacy
+    pipeline /v2/trip does before folding to cells, so the first and
+    last ~300 m can never persist even at cell granularity."""
+    # 2.0 km straight north, ~51 m spacing, through exact cell centers
+    path = [[77.2100, 28.6300 + i * 0.00046] for i in range(40)]
+    community.observe(vehicle="auto", coords=path, duration_s=480.0,
+                      dose_ug=40.0, avoided_ug=None,
+                      contributor="untrimmed-caller")
+    obs = community._obs[-1]
+    lats = {round(c[1], 3) for c in obs["cells"]}
+    assert 28.630 not in lats, "origin cell persisted — trim missing"
+    assert 28.650 not in lats, "destination cell persisted — trim missing"
+    assert lats == {28.635, 28.640, 28.645}, lats
+    assert 1.0 < obs["km"] < 1.6, obs["km"]  # ~1.4 km kept, not the 2.0 sent
+
+
+def test_observe_privacy_trimmed_skips_second_trim():
+    """v2/trip donates already-trimmed `kept` points — observe() must not
+    shave another 300 m off them (would silently shorten every real
+    donation's stored km by ~0.6 km)."""
+    _donate("pre-trimmed")  # helper passes privacy_trimmed=True
+    obs = community._obs[-1]
+    assert obs["cells"], "pre-trimmed payload must keep its cells"
+    assert obs["km"] > 0
+
+
+def test_corridor_rows_carry_est_basis():
+    """avg_dose_ug is traversal-implied, not an instrument read — the
+    claims audit requires the estimate basis on the wire."""
+    for dev in ("device-a", "device-b", "device-c"):
+        _donate(dev)
+    out = community.corridors()
+    assert out and out[0]["avg_dose_basis"] == "est. from donated trips"
 
 
 def test_corridors_tolerate_pre_km_snapshots():

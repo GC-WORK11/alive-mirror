@@ -53,6 +53,19 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_fires())
+    # Same gap for the field itself: FIELD.refresh is request-driven,
+    # so on a cold task no samples exist until the first /aqi — the
+    # engine warm loop meanwhile logs "field serves no reads". A fresh
+    # Fargate task measured graph-ready ~36 s vs field-ready ~96 s
+    # (/ecs/alive108 2026-10-04): the gap was ~60 s of waiting for a
+    # request to start the Open-Meteo fetch. Starting the same real
+    # fetch at boot removes it — nothing fabricated, just earlier.
+    async def _warm_field():
+        try:
+            await FIELD.refresh(http())
+        except Exception:
+            pass
+    asyncio.create_task(_warm_field())
     # Same honesty gap for the forecast horizon: until the first
     # /depart or /v2/city refreshes it, /status reports a cold pipeline.
     async def _warm_forecast():
@@ -72,6 +85,30 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_transit())
+    # Same request-driven gap for the community layer: _load() reads
+    # the donated-trips state (S3 get_object, or the local file) on the
+    # first /reports, /observe or /v2/city call — that request pays the
+    # fetch+parse inside its own budget. Warm it off-loop at boot.
+    async def _warm_community():
+        try:
+            await asyncio.to_thread(community._load)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_community())
+    # Same gap for the static data files: the gazetteer JSON (119k rows,
+    # measured 2.5 s on a warm desktop — slower on a 0.5-vCPU task) is
+    # parsed on the first /search·/v2/city, and the climatology gz on the
+    # first /aqi·/shift·/city. Parse them off-loop at boot; the loaders
+    # are unchanged — this only moves existing work earlier.
+    async def _warm_static():
+        try:
+            from v2.gazetteer import GAZ
+            import history
+            await asyncio.to_thread(GAZ._load)
+            await asyncio.to_thread(history._load)
+        except Exception:
+            pass
+    asyncio.create_task(_warm_static())
     # The exposure path engine prices itself lazily on the first
     # /v2/plan — and a cold field makes that first reweight find no
     # raster cells, so the first minute or two of plans honestly serve
@@ -199,7 +236,9 @@ async def health():
                       "samples": fstat.get("samples", 0),
                       "source": fstat.get("source")},
             "stations": {"up": bool(fstat.get("station_readings")),
-                         "count": fstat.get("station_readings", 0)},
+                         "count": fstat.get("station_readings", 0),
+                         "source": fstat.get("stations_src"),
+                         "feeds": fstat.get("stations_status")},
             "fires": {"up": bool(fires_stat.get("fires")),
                       "fires": fires_stat.get("fires", 0),
                       "age_s": fires_stat.get("age_s")},
@@ -776,6 +815,10 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
         "now": now_slot,
         "best": best,
         "worst": ordered[-1],
+        # percent, not µg — the ug_* name lies (claims-audit §4).
+        # pct_less_vs_now is the honest key; ug_saved_vs_now stays for
+        # clients on older builds until the app moves.
+        "pct_less_vs_now": saved,
         "ug_saved_vs_now": saved,
         "slots": slots,
         "forecast": FORECAST.status(),
@@ -1069,19 +1112,34 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     desk_ve = 7.5 / 1000.0 * 60.0
 
     per_hour = []
-    dose = desk = 0.0
+    dose = desk = dose_lo = dose_hi = 0.0
+    sd0 = FIELD.sigma(lat, lon) if live is not None else None
     for i in range(int(hours * 2)):  # half-hour steps for smooth dose
         h = (start + i * 0.5) % 24
         hh = int(h)
+        c_lo = c_hi = None
         if i == 0 and live is not None:
             c = live
+            # live hour: krige σ band when serving; else the decade
+            # quartiles for this hour stand in
+            if sd0:
+                c_lo, c_hi = max(0.0, live - sd0), live + sd0
+            elif band0.get("p25") and band0.get("p75"):
+                c_lo, c_hi = band0["p25"] * adj, band0["p75"] * adj
         else:
             t = history.typical(lat, lon, ist.month, hh)
             c = (t * adj) if t else live
+            # future hours: the real interquartile range of that
+            # month-hour, scaled by the same live delta as the median
+            band_h = history.typical_band(lat, lon, ist.month, hh)
+            if band_h.get("p25") and band_h.get("p75"):
+                c_lo, c_hi = band_h["p25"] * adj, band_h["p75"] * adj
         if c is None:
             continue
         dose += c * micro * ve_m3h * 0.5
         desk += c * 0.35 * desk_ve * 0.5
+        dose_lo += (c_lo if c_lo is not None else c) * micro * ve_m3h * 0.5
+        dose_hi += (c_hi if c_hi is not None else c) * micro * ve_m3h * 0.5
         if i % 2 == 0:
             per_hour.append({"hour_ist": hh, "conc_ugm3": round(c, 1)})
 
@@ -1091,7 +1149,11 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
         "shift_hours": hours,
         "start_hour_ist": start,
         "dose_ug": round(dose, 1),
+        "dose_ug_lo": round(dose_lo, 1),
+        "dose_ug_hi": round(dose_hi, 1),
         "cig_equiv": round(cig, 1),
+        "cig_equiv_lo": round(dose_lo / 316.0, 1),
+        "cig_equiv_hi": round(dose_hi / 316.0, 1),
         "desk_dose_ug": round(desk, 1),
         "vs_desk_pct": round((dose / desk - 1) * 100) if desk else None,
         "per_hour": per_hour,

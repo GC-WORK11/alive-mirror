@@ -11,9 +11,10 @@ import {
   Camera, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { F, V2Radius, V2T, V2Type, cigOf } from "./src/theme";
+import { V2Radius, V2T, V2Type, cigOf, fam } from "./src/theme";
 import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
+import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { v2StyleUrl } from "./src/map/style";
 import { ReportsLayer } from "./src/components/ReportsLayer";
@@ -48,6 +49,7 @@ import {
 import { loadTrips } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
 import { modeLabel, placeNameLabel, t } from "./src/i18n/strings";
+import { tap, tick } from "./src/haptics";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -294,6 +296,7 @@ function AppInner() {
           setMapPickArmed(false);
           const c = f.nativeEvent.lngLat;
           if (!c) return;
+          tap();   // the pick landed — same weight as a row tap
           const rev = await reverseName(c[1], c[0]);
           if (placePickSlot) {
             // the unset home/work slot asked for this pick ("choose on map")
@@ -428,18 +431,37 @@ function AppInner() {
           pending trip donations counted, tap re-probes. apiOk kept as the
           belt-and-suspenders health check from before. */}
       {(net.state !== "online" || apiOk === false) && (
-        <Pressable style={[s.offlineWrap, { top: insets.top + 66 }]} onPress={() => void net.refresh()}
+        <Pressable style={[s.offlineWrap, { top: insets.top + 66 }]} onPress={() => { tick(); void net.refresh(); }}
           accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
-          <Text {...DYNAMIC_TYPE} style={s.offlineTxt}>
+          <Text {...DYNAMIC_TYPE} style={[s.offlineTxt, { fontFamily: fam(lang, "med") }]}>
             {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
             {net.pending > 0 ? ` · ${t("offlinePending", lang, { n: net.pending })}` : ""}
+          </Text>
+        </Pressable>
+      )}
+      {/* "choose on map" armed state — without this the pick was
+          invisible: the sheet closed and the next map tap just did
+          something the user never asked it to. Tapping the hint
+          disarms; BACK does too (the dispatcher). Slides under the
+          offline pill when both happen to be up. */}
+      {mapPickArmed && (
+        <Pressable
+          style={[s.pickHintWrap, {
+            top: insets.top + 66 + ((net.state !== "online" || apiOk === false) ? 36 : 0),
+          }]}
+          onPress={() => { tick(); setMapPickArmed(false); }}
+          accessibilityRole="button" accessibilityLabel={t("mapPickHint", lang)}
+        >
+          <Icon name="pin" color={V2T.accent} size={14} />
+          <Text {...DYNAMIC_TYPE} style={[s.pickHintTxt, { fontFamily: fam(lang, "med") }]}>
+            {t("mapPickHint", lang)}
           </Text>
         </Pressable>
       )}
       {/* freshness chip — real field age on the map screen: the /v2/plan
           field block during compare, else the polled /aqi field block.
           Stale shows as stale; no field → nothing claims freshness. */}
-      {phase !== "nav" && mapField && (
+      {phase !== "nav" && phase !== "search" && mapField && (
         <View style={[s.freshWrap, { top: insets.top + 62 }]} pointerEvents="box-none">
           <FreshnessChip
             ageS={mapField.age_s} stale={mapField.stale}
@@ -656,6 +678,16 @@ const s = StyleSheet.create({
     backgroundColor: V2T.surface2, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1, borderColor: V2T.line,
   },
-  offlineTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text2 },
+  offlineTxt: { fontSize: V2Type.label, color: V2T.text2 },
+  pickHintWrap: {
+    position: "absolute", alignSelf: "center",
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: V2T.surface, borderRadius: V2Radius.pill,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: V2T.accent,
+    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 5,
+  },
+  pickHintTxt: { fontSize: V2Type.label, color: V2T.text },
   freshWrap: { position: "absolute", left: 16 },
 });

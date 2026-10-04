@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState } from "react";
 import {
+  LayoutAnimation,
   Modal,
   Pressable,
   ScrollView,
@@ -38,7 +39,8 @@ import {
   type CityPayload,
 } from "../api/city";
 import { CityMoves } from "../components/CityMoves";
-import { DYNAMIC_TYPE } from "../a11y";
+import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
+import { tick } from "../haptics";
 
 const fmtCig = (v: number): string => (v < 1 ? v.toFixed(2) : v.toFixed(1));
 const fmtKm = (km: number): string =>
@@ -145,6 +147,14 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
   const [whyOpen, setWhyOpen] = useState(false);
   const [nonce, setNonce] = useState(0);
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
+  const toggleWhy = () => {
+    tick();
+    /* the basis block mounts/unmounts — ease it like the settings
+       expanders (native path, off under reduce-motion) */
+    if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setWhyOpen((o) => !o);
+  };
 
   /* fetch on mount / retry — aborted on close and between retries;
      moves is best-effort: a failure just leaves the card absent */
@@ -177,7 +187,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
       {/* top bar — back + title */}
       <View style={ss.bar}>
         <Pressable
-          onPress={onClose}
+          onPress={() => { tick(); onClose(); }}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={t("a11yBack", lang)}
@@ -198,6 +208,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
             </Text>
             <Pressable
               onPress={() => {
+                tick();
                 setFailed(false);
                 setData(null);
                 setNonce((n) => n + 1);
@@ -450,7 +461,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
 
             {/* why this is an estimate — the machinery lives here */}
             <Pressable
-              onPress={() => setWhyOpen((o) => !o)}
+              onPress={toggleWhy}
               style={({ pressed }) => [
                 ss.whyBtn,
                 pressed && { backgroundColor: V2T.surface2 },

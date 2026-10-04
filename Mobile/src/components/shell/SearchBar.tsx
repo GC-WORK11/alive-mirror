@@ -6,6 +6,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
+import { tick } from "../../haptics";
 import { Icon } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
 
@@ -21,11 +22,11 @@ export function SearchBar({
 }) {
   return (
     <View style={s.bar}>
-      <Pressable onPress={onMenu} hitSlop={10} style={s.menuBtn}
+      <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10} style={s.menuBtn}
         accessibilityRole="button" accessibilityLabel={t("a11yMenu", lang)}>
         <Icon name="menu" color={V2T.text2} size={20} />
       </Pressable>
-      <Pressable onPress={onPress} style={s.field}
+      <Pressable onPress={() => { tick(); onPress(); }} style={s.field}
         accessibilityRole="button" accessibilityLabel={label ?? t("searchPlaceholder", lang)}>
         <Text {...DYNAMIC_TYPE} numberOfLines={1}
           style={[s.input, { fontFamily: fam(lang, "med") }, !label && { color: V2T.text3 }]}>
@@ -33,7 +34,7 @@ export function SearchBar({
         </Text>
       </Pressable>
       {onClear ? (
-        <Pressable onPress={onClear} hitSlop={10} style={s.clearBtn} accessibilityRole="button"
+        <Pressable onPress={() => { tick(); onClear(); }} hitSlop={10} style={s.clearBtn} accessibilityRole="button"
           accessibilityLabel={t("a11yClear", lang)}>
           <Icon name="close" color={V2T.text3} size={16} />
         </Pressable>

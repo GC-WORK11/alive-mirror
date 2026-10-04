@@ -4,6 +4,7 @@ import React from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { V2T, V2Type, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
+import { tick } from "../../haptics";
 import { Icon, type Glyph } from "../../icons";
 import { Sheet } from "../../ui";
 import { t, type Lang } from "../../i18n/strings";
@@ -36,7 +37,7 @@ export function LayersSheet({
             <Text {...DYNAMIC_TYPE} style={[s.rowLabel, { fontFamily: fam(lang, "med") }]}>{t(r.label, lang)}</Text>
             <Switch
               value={values[r.key]}
-              onValueChange={(v) => onToggle(r.key, v)}
+              onValueChange={(v) => { tick(); onToggle(r.key, v); }}
               accessibilityLabel={t(r.label, lang)}
               trackColor={{ false: V2T.line, true: V2T.accent }}
               thumbColor={V2T.surface}

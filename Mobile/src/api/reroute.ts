@@ -22,7 +22,7 @@ export type RerouteResult = {
   eta_s: number | null;
   distance_km: number | null;
   mode: string | null;
-  steps?: { instruction: string; distance_m: number; type?: string }[] | null;
+  steps?: { instruction: string; distance_m: number; type?: string; modifier?: string; street?: string }[] | null;
 };
 
 /** The full answer: a route when one came back, plus the server's

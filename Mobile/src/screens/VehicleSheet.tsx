@@ -17,7 +17,8 @@
 // Re-opened from the options-sheet chip via CompareSheet's onVehiclePress.
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable,
+  ScrollView, StyleSheet, Text, TextInput, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../theme";
@@ -228,6 +229,10 @@ function Wizard({ lang, current, onDone, onClose }: {
   const tl = (k: VehKey) => tr(k, lang) || LOCAL[lang][k] || LOCAL.en[k];
 
   const finish = (p: VehicleProfile) => {
+    /* dismiss while the PUC field still holds focus — otherwise it
+       unmounts focused and Android hands the IME to MLRNMapView,
+       leaving a QWERTY keyboard up over the compare sheet */
+    Keyboard.dismiss();
     setSaved(p);
     setStep("done");
     // the result line stays up ~1s (doc S8) — then the answer leaves
@@ -333,7 +338,10 @@ function Wizard({ lang, current, onDone, onClose }: {
             </Text>
           )}
           <ScrollView style={s.scroll} contentContainerStyle={s.scrollIn}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+            /* a tap must still reach the cards while the PUC keyboard is
+               up — 'handled' eats taps only when they would dismiss it */
+            keyboardShouldPersistTaps="handled">
             {step === "cls" && (GROUPED ? (
               CLASS_GROUPS.map((g) => (
                 <View key={g.title}>
@@ -447,7 +455,12 @@ function Wizard({ lang, current, onDone, onClose }: {
   );
 }
 
-/** <VehicleSheet visible lang current onDone onClose/> — see header. */
+/** <VehicleSheet visible lang current onDone onClose/> — see header.
+ *  Plain overlay, not RN Modal: a Modal window ignores the activity's
+ *  adjustResize, so the decimal keyboard covered the PUC readings while
+ *  typing. Anchored in the main window the sheet rides above the IME,
+ *  and hardware BACK reaches App.tsx's dispatcher (vehicleOpen) — the
+ *  same path Modal's onRequestClose used to take. */
 export function VehicleSheet({
   visible, lang = "en", current = null, onDone, onClose,
 }: {
@@ -457,22 +470,42 @@ export function VehicleSheet({
   onDone: (p: VehicleProfile) => void;
   onClose: () => void;
 }) {
+  /* closing while a PUC field holds focus leaves the IME up over the
+     compare sheet (unmount does not ask the IME to hide) — dismiss on
+     every visible→false edge so save / skip / ✕ / BACK all end quiet */
+  useEffect(() => {
+    if (!visible) Keyboard.dismiss();
+  }, [visible]);
+
+  /* the IME must come down BEFORE the focused field unmounts — after
+     unmount Android re-serves focus to the map view and the keyboard
+     stays up (seen live on the emulator) */
+  const closeQuiet = () => { Keyboard.dismiss(); onClose(); };
+
+  if (!visible) return null;
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.backdrop}>
-        <View style={{ flex: 1 }} />
-        {visible ? (
-          <Wizard lang={lang} current={current} onDone={onDone} onClose={onClose} />
-        ) : null}
-      </View>
-    </Modal>
+    <View style={s.overlay} pointerEvents="box-none">
+      <View style={s.backdrop} />
+      {/* the overlay pattern alone isn't enough on this build — the
+          window does not resize for the IME, so the sheet's bottom
+          edge sat under the decimal keyboard (same KAV mechanism
+          SearchScreen relies on) */}
+      <KeyboardAvoidingView
+        style={s.kav}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <Wizard lang={lang} current={current} onDone={onDone} onClose={closeQuiet} />
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 export default VehicleSheet;
 
 const s = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.scrim },
+  overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: V2T.scrim },
+  kav: { flex: 1 },
   /* half-detent (~50% viewport) crops the grouped class grid's last row
      on first paint — cap at 72% so cycle/walk is fully visible without
      a full-screen takeover. */

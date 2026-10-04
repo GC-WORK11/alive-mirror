@@ -98,7 +98,9 @@ def rank(options: list, wx: dict = None) -> dict:
         if o["duration_s"] <= best_t * 1.1 and not is_worst:
             reasons.append("the quickest way there")
         if _risk(o["vehicle"], wx, h) <= best_r + 0.05:
-            reasons.append("the safest way to travel")
+            # relative scope — a coarse MoRTH tier model ranking THESE
+            # options, not a universal safety claim (claims-audit §4)
+            reasons.append("the safest pick of these")
         if bad_wx and o["vehicle"] in _OPEN:
             reasons.append("open ride in bad weather — riskier")
         elif night and o["vehicle"] in _OPEN:
