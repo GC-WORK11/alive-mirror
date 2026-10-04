@@ -318,3 +318,14 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 - Endpoint sweep on new build: all 200s; 422s on bare /aqi /decide /escape = param validation (correct); /aqi?lat&lon real (pm25 88.4µg band 65.9-111); /decide real options.
 - /health lean `{ok,version}` pre-warm is normal — full payload (build_sha, stations, wind, fires) after first field refresh (~2min); don't flag as regression on fresh tasks.
 - Memory updated: deploy-archive pin-at-start, git-checkout clobber, /health≠health.py serving path, contract-declare pattern.
+
+## cont.11 — live verification round (lead, ~12:15Z Oct 4)
+- Deploy `6a067ca4` fully stable: dose card + trace share one plan fetch (meta names rotated OD); renderDose live in served HTML.
+- Full endpoint sweep green: 422s on bare /aqi|/decide|/escape are param-validation only; /aqi?lat&lon real; /depart honest (8.8µg now → 1.5µg +14h → 39.0µg +21h, 83% less).
+- /v2/plan per-option provenance correct: router rows `router_backend:"osrm-local"`, engine rows `engine:"alive_core-path"`, transit `steps_source:"gtfs"` — top-level rollup skipped (fast arm is engine-only, naming a router would lie; admin api/sources already shows it).
+- cell_epoch mechanic PROVEN across a refresh: [1791140497,0]→[1791141408,0] at the ~15min epoch tick; field_age 623s→12s. Landing/admin skip-repaint keys on a value that only moves when data changes.
+- /admin/api/global: first real users-by-area row (New Delhi 3 trips/3 devices ≥k3); reviews count2/avg4.0 hist{3:1,5:1} notes withheld (k<3 correct); od_pairs tracked2 shown0 suppressed; co2_avoided 1.55kg/1 puc trip; dose_avoided 303.7µg/4 trips.
+- tools/warm_task.py exit-0 on live (owner's T-40 tool healthy): 23 rows/15 engine rows in 1.5s.
+- Release APK (4890a49f lane) built on e849bf6 INCLUDES rate-row(a876ec8)+emit_kg(97b8904/311c823) — verified via proof greps (v2/feedback in bundle, NLB host inlined, no 10.0.2.2 fallback).
+- Full-plan one-off degrade `['engine','transit']` during task warm window — flaky not systematic (3× healthy 19opts after); degraded flag did its job.
+- demo-day.md synced: WAQI 24 stations answer, 28 tiles, osrm-local routing row, cell-inspector+derivation+corridors×air+global tiles, landing as demo surface.
