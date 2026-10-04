@@ -38,9 +38,9 @@ import {
   type SearchSelection,
 } from "../search/t0";
 import { mergeResults, ServerSearch, type ServerTiers } from "../search/client";
-import { addRecent, getPlaces, type PlaceStore } from "../search/recents";
+import { addRecent, getPlaces, setSaved, type PlaceStore, type SavedSlot } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
-import { tick } from "../haptics";
+import { confirm, tick } from "../haptics";
 
 export type { SearchSelection } from "../search/t0";
 export type { PlaceResult } from "../search/t0";
@@ -103,7 +103,8 @@ function Title({ text, query, lang }: { text: string; query: string; lang: Lang 
 }
 
 function PlaceRow({
-  glyph, title, subtitle, distLabel, outsideNote, dim, lang, query = "", onPress,
+  glyph, title, subtitle, distLabel, outsideNote, dim, lang, query = "",
+  onPress, onLongPress, armed,
 }: {
   glyph: React.ReactNode;
   title: string;
@@ -114,15 +115,19 @@ function PlaceRow({
   lang: Lang;
   query?: string;
   onPress: () => void;
+  onLongPress?: () => void;
+  armed?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={320}
       accessibilityRole="button"
       accessibilityLabel={`${title}${subtitle ? `, ${subtitle}` : ""}${distLabel ? `, ${distLabel}` : ""}`}
       style={({ pressed }) => [
         ss.row,
-        pressed && { backgroundColor: V2T.surface2 },
+        (pressed || armed) && { backgroundColor: V2T.surface2 },
         dim && { opacity: 0.55 },
       ]}
     >
@@ -146,6 +151,58 @@ function SectionLabel({ children, lang }: { children: string; lang: Lang }) {
       {children}
     </Text>
   );
+}
+
+/* Long-press action strip — the write path for the Home/Work slots the
+ * empty field renders top of list. One row arms at a time: pick a place,
+ * tap a slot. Slots already holding that exact place dim to their saved
+ * label instead of re-writing. Saved rows arm in remove-mode — one slot,
+ * one trash action. */
+function SaveStrip({
+  place, removeSlot, store, lang, onSave, onRemove,
+}: {
+  place: PlaceResult;
+  removeSlot?: SavedSlot;
+  store: PlaceStore;
+  lang: Lang;
+  onSave: (slot: SavedSlot, p: PlaceResult) => void;
+  onRemove: (slot: SavedSlot) => void;
+}) {
+  if (removeSlot) {
+    return (
+      <View style={ss.saveStrip}>
+        <Pressable
+          onPress={() => { confirm(); onRemove(removeSlot); }}
+          accessibilityRole="button"
+          style={({ pressed }) => [ss.saveBtn, pressed && { opacity: 0.65 }]}
+        >
+          <Icon name="trash" color={V2T.pinDest} size={15} />
+          <Text {...DYNAMIC_TYPE} style={[ss.saveTxt, { fontFamily: fam(lang, "med"), color: V2T.pinDest }]}>
+            {t(removeSlot === "home" ? "removeHome" : "removeWork", lang)}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+  const slotBtn = (slot: SavedSlot) => {
+    const held = store[slot];
+    const already = held != null && samePlace(held, place);
+    return (
+      <Pressable
+        key={slot}
+        disabled={already}
+        onPress={() => { confirm(); onSave(slot, place); }}
+        accessibilityRole="button"
+        style={({ pressed }) => [ss.saveBtn, pressed && { opacity: 0.65 }, already && { opacity: 0.45 }]}
+      >
+        <Icon name={slot} color={already ? V2T.text3 : V2T.accent} size={15} />
+        <Text {...DYNAMIC_TYPE} style={[ss.saveTxt, { fontFamily: fam(lang, "med"), color: already ? V2T.text3 : V2T.accent }]}>
+          {t(already ? (slot === "home" ? "savedHome" : "savedWork") : (slot === "home" ? "saveAsHome" : "saveAsWork"), lang)}
+        </Text>
+      </Pressable>
+    );
+  };
+  return <View style={ss.saveStrip}>{slotBtn("home")}{slotBtn("work")}</View>;
 }
 
 function BackGlyph({ color }: { color: string }) {
@@ -173,6 +230,8 @@ function SearchSheet({
   const [t0rows, setT0rows] = useState<PlaceResult[]>([]);
   const [tiers, setTiers] = useState<ServerTiers | null>(null);
   const [store, setStore] = useState<PlaceStore>({ recents: [], home: null, work: null });
+  // armed = the row whose long-press save/remove strip is showing
+  const [armed, setArmed] = useState<{ place: PlaceResult; removeSlot?: SavedSlot } | null>(null);
   const [search] = useState(() => new ServerSearch(80));
   const inputRef = useRef<TextInput>(null);
   const closingRef = useRef(false);
@@ -196,6 +255,7 @@ function SearchSheet({
   const onChange = useCallback(
     (text: string) => {
       setQ(text);
+      setArmed(null);   // the list just rebuilt — the armed row may be gone
       const trimmed = text.trim();
       if (!trimmed) {
         setT0rows([]);
@@ -243,6 +303,21 @@ function SearchSheet({
     [loc],
   );
 
+  const saveSlot = useCallback((slot: SavedSlot, p: PlaceResult | null) => {
+    setArmed(null);
+    setSaved(slot, p).then(setStore).catch(() => {});
+  }, []);
+
+  const armedFor = useCallback(
+    (p: PlaceResult) => armed != null && !armed.removeSlot && samePlace(armed.place, p),
+    [armed],
+  );
+
+  const armedRemove = useCallback(
+    (slot: SavedSlot) => armed?.removeSlot === slot,
+    [armed],
+  );
+
   /* T0 section + deduped server rows below the hairline (doc 04 §2 merge) */
   const merged = useMemo(
     () => mergeResults(t0rows, tiers?.t1 ?? [], tiers?.t2 ?? []),
@@ -262,18 +337,24 @@ function SearchSheet({
   }, [merged, pick]);
 
   const renderPlace = (p: PlaceResult, key: string) => (
-    <PlaceRow
-      key={key}
-      lang={lang}
-      query={q}
-      glyph={categoryGlyph(p.kind, V2T.text2)}
-      title={p.name}
-      subtitle={p.subtitle}
-      distLabel={distLabel(p)}
-      outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
-      dim={p.outside_ncr}
-      onPress={() => pick(p)}
-    />
+    <View key={key}>
+      <PlaceRow
+        lang={lang}
+        query={q}
+        glyph={categoryGlyph(p.kind, V2T.text2)}
+        title={p.name}
+        subtitle={p.subtitle}
+        distLabel={distLabel(p)}
+        outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
+        dim={p.outside_ncr}
+        armed={armedFor(p)}
+        onPress={() => pick(p)}
+        onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
+      />
+      {armedFor(p) && (
+        <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+      )}
+    </View>
   );
 
   const hasSaved = !!(store.home || store.work);
@@ -341,38 +422,58 @@ function SearchSheet({
             <>
               {hasSaved && <SectionLabel lang={lang}>{t("sidebarSavedPlaces", lang)}</SectionLabel>}
               {store.home && (
-                <PlaceRow
-                  lang={lang}
-                  glyph={<Icon name="home" color={V2T.accent} size={20} />}
-                  title={t("home", lang)}
-                  subtitle={store.home.name}
-                  distLabel={distLabel(store.home)}
-                  onPress={() => pick(store.home!)}
-                />
+                <>
+                  <PlaceRow
+                    lang={lang}
+                    glyph={<Icon name="home" color={V2T.accent} size={20} />}
+                    title={t("home", lang)}
+                    subtitle={store.home.name}
+                    distLabel={distLabel(store.home)}
+                    armed={armedRemove("home")}
+                    onPress={() => pick(store.home!)}
+                    onLongPress={() => { tick(); setArmed(armedRemove("home") ? null : { place: store.home!, removeSlot: "home" }); }}
+                  />
+                  {armedRemove("home") && (
+                    <SaveStrip place={store.home} removeSlot="home" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+                  )}
+                </>
               )}
               {store.work && (
-                <PlaceRow
-                  lang={lang}
-                  glyph={<Icon name="work" color={V2T.text2} size={20} />}
-                  title={t("work", lang)}
-                  subtitle={store.work.name}
-                  distLabel={distLabel(store.work)}
-                  onPress={() => pick(store.work!)}
-                />
+                <>
+                  <PlaceRow
+                    lang={lang}
+                    glyph={<Icon name="work" color={V2T.text2} size={20} />}
+                    title={t("work", lang)}
+                    subtitle={store.work.name}
+                    distLabel={distLabel(store.work)}
+                    armed={armedRemove("work")}
+                    onPress={() => pick(store.work!)}
+                    onLongPress={() => { tick(); setArmed(armedRemove("work") ? null : { place: store.work!, removeSlot: "work" }); }}
+                  />
+                  {armedRemove("work") && (
+                    <SaveStrip place={store.work} removeSlot="work" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+                  )}
+                </>
               )}
               {hasRecents && <SectionLabel lang={lang}>{t("recents", lang)}</SectionLabel>}
               {store.recents.map((p, i) => (
-                <PlaceRow
-                  key={`recent-${i}`}
-                  lang={lang}
-                  glyph={<Icon name="clock" color={V2T.text2} size={20} />}
-                  title={p.name}
-                  subtitle={p.subtitle}
-                  distLabel={distLabel(p)}
-                  outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
-                  dim={p.outside_ncr}
-                  onPress={() => pick(p)}
-                />
+                <View key={`recent-${i}`}>
+                  <PlaceRow
+                    lang={lang}
+                    glyph={<Icon name="clock" color={V2T.text2} size={20} />}
+                    title={p.name}
+                    subtitle={p.subtitle}
+                    distLabel={distLabel(p)}
+                    outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
+                    dim={p.outside_ncr}
+                    armed={armedFor(p)}
+                    onPress={() => pick(p)}
+                    onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
+                  />
+                  {armedFor(p) && (
+                    <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+                  )}
+                </View>
               ))}
               {!hasSaved && !hasRecents && (
                 <View style={ss.stateBlock} accessibilityLiveRegion="polite">
@@ -615,4 +716,24 @@ const ss = StyleSheet.create({
     marginVertical: 12,
   },
   actionTxt: { color: V2T.text, fontSize: V2Type.secondary },
+  saveStrip: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 56,   // sits under the row's text column
+    paddingBottom: 10,
+    paddingTop: 2,
+    backgroundColor: V2T.surface2,
+  },
+  saveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: V2Radius.pill,
+    backgroundColor: V2T.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: V2T.line,
+  },
+  saveTxt: { fontSize: V2Type.label },
 });
