@@ -280,10 +280,13 @@ export function CityMoves({
                     { fontFamily: fam(lang, "reg") },
                   ]}
                 >
-                  {t("receipt_pmBand", lang, {
-                    lo: fmtUg(perTrip.pm25_g.p25),
-                    hi: fmtUg(perTrip.pm25_g.p75),
-                  })}
+                  {(() => {
+                    /* same collapse rule as the receipt: p25===p75 at display
+                       precision must never print "0.2–0.2" */
+                    const lo = fmtUg(perTrip.pm25_g.p25), hi = fmtUg(perTrip.pm25_g.p75);
+                    return t(lo === hi ? "receipt_pmBandOne" : "receipt_pmBand", lang,
+                      lo === hi ? { x: hi } : { lo, hi });
+                  })()}
                 </Text>
               ) : null}
             </>
