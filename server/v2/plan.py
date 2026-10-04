@@ -307,9 +307,15 @@ def _dose_via_core(coords: list, microenv: str):
     return None
 
 
-def _dose_band(geometry: dict, duration_s: float, microenv: str) -> dict:
+def _dose_band(geometry: dict, duration_s: float, microenv: str,
+               field_fn=None) -> dict:
     """{lo,mid,hi} µg on the live field. lo/hi may be None when the
-    field can't give sigma — honest, not invented."""
+    field can't give sigma — honest, not invented.
+
+    field_fn overrides the per-segment concentration read — engine
+    rows pass the FieldView raster the pathfinder priced against, so
+    the shown dose is computed on exactly the field the path choice
+    was made from (and at raster cost, not live-krige cost)."""
     coords = (geometry or {}).get("coordinates") or []
     core = _dose_via_core(coords, microenv)
     if core is not None:
@@ -318,8 +324,9 @@ def _dose_band(geometry: dict, duration_s: float, microenv: str) -> dict:
         return {"lo": None, "mid": None, "hi": None,
                 "note": "dose engine unavailable"}
     F = deps.field()
+    fval = field_fn or F.value
     try:
-        e = exposure.dose(geometry, duration_s, microenv, F.value,
+        e = exposure.dose(geometry, duration_s, microenv, fval,
                           F.nearest_sample_km, field_sigma=F.sigma)
     except Exception:
         return {"lo": None, "mid": None, "hi": None,
@@ -529,7 +536,8 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
             dose: Optional[dict] = None, emissions: Optional[dict] = None,
             extra: Optional[dict] = None,
             origin: Optional[tuple] = None,
-            dest: Optional[tuple] = None) -> dict:
+            dest: Optional[tuple] = None,
+            field_fn=None) -> dict:
     microenv = (_MODES.get(mode) or _MODES["car"])[2]
     veh = _option_vehicle(mode, profile)
     if steps is None:
@@ -547,7 +555,7 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
         "freeflow_s": round(freeflow_s) if freeflow_s else None,
         "eta_model": eta_model,
         "dose": dose if dose is not None else _dose_band(
-            geometry, eta_s, microenv),
+            geometry, eta_s, microenv, field_fn=field_fn),
         "emissions": emissions if emissions is not None else _emission_band(
             mode, dist_km, eta_s, freeflow_s, veh),
         "tag": None,
@@ -957,6 +965,7 @@ ENGINE_MODES = (("car", "Car (AC)"), ("bike", "Bike / scooter"),
                 ("auto", "Auto-rickshaw"), ("cycle", "Bicycle"),
                 ("walk", "On foot"))
 _ENG_T = 0.0
+_ENG_FV = None            # the raster the last reweight priced against
 _ENG_LOCK = threading.Lock()
 # private 2-worker pool: the shared default executor serves every
 # to_thread in the process (GTFS compile, rasters, forecasts) — a busy
@@ -979,7 +988,7 @@ def _engine():
 
 
 def _engine_reweight(eng) -> None:
-    global _ENG_T
+    global _ENG_T, _ENG_FV
     if time.time() - _ENG_T <= ENGINE_REWEIGHT_TTL_S:
         return
     with _ENG_LOCK:
@@ -1046,6 +1055,10 @@ def _engine_reweight(eng) -> None:
             # otherwise stick zero-cost paths for the whole TTL
             if res.get("edges_priced", 0) > 0:
                 _ENG_T = time.time()
+                # keep the raster that priced these edges — engine rows
+                # price their displayed dose against the same field view
+                # the pathfinder minimized over
+                _ENG_FV = fv if hasattr(fv, "value") else None
             _log.warning("engine reweight done: %s", res)
         except Exception as e:
             _log.warning("engine reweight failed: %r", e)
@@ -1123,6 +1136,14 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
         from airfield import MAX_ROUTE_KM
     except Exception:
         MAX_ROUTE_KM = 80.0
+    # dose sampler for the option rows: the FieldView raster the edges
+    # were priced against (nearest-cell, ~µs) — NOT the live krige. A
+    # 65 km OD × 5 modes re-integrated through live F.value is ~1.3k
+    # krige reads and burned the whole 8 s arm budget on prod, killing
+    # every engine row; the raster read is the same real field and
+    # makes the shown dose the exact criterion the path won on.
+    field_fn = getattr(_ENG_FV, "value", None)
+    t0 = time.time()
     opts = []
     for mode, label in ENGINE_MODES:
         try:
@@ -1154,7 +1175,10 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
                 "snap_m": {"from_m": round(snap.get("from_m") or 0, 1),
                            "to_m": round(snap.get("to_m") or 0, 1)},
             },
-            origin=(flat, flon), dest=(tlat, tlon)))
+            origin=(flat, flon), dest=(tlat, tlon),
+            field_fn=field_fn))
+    _log.warning("engine options: %d rows in %.0fms",
+                 len(opts), (time.time() - t0) * 1000.0)
     return opts
 
 
