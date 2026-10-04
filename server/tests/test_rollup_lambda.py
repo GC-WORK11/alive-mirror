@@ -152,6 +152,109 @@ def test_weekly_validation_loso(offline, monkeypatch):
 
 # ---------------------------------------------------------------- dispatch
 
+# ------------------------------------------------------------ store_blob
+
+def test_store_blob_mirror_local_on_s3(offline, tmp_path, monkeypatch):
+    """S3-first tasks must still mirror rollup outputs to the local disk
+    the admin API reads — an S3-only write never reaches it."""
+    class _S3:
+        def put_object(self, **kw):
+            return {}
+
+    class _B3:
+        def client(self, name):
+            assert name == "s3"
+            return _S3()
+
+    monkeypatch.setenv("ALIVE_AIR_BUCKET", "test-bucket")
+    monkeypatch.setattr(ingest_worker, "_aws_ready", lambda: (_B3(), "ok"))
+    target = tmp_path / "mirror" / "out.json"
+    uri, backend, note = ingest_worker.store_blob(
+        "daily/2026-10-03.json", b"{}", str(target), mirror_local=True)
+    assert backend == "s3" and uri.startswith("s3://")
+    assert json.loads(target.read_text()) == {}
+    # and without the flag the S3 path stays disk-free (snapshot contract)
+    target2 = tmp_path / "mirror" / "out2.json"
+    uri, backend, _n = ingest_worker.store_blob(
+        "field/2026/10/03/0000.json.gz", b"{}", str(target2))
+    assert backend == "s3" and not target2.exists()
+
+
+# ------------------------------------------------------------ rollup_tick
+
+def test_rollup_tick_builds_missing_outputs(offline, monkeypatch):
+    """The in-app tick builds the missing daily + weekly files once, then
+    reports 'present' — never rewrites a closed day."""
+    import rollup_lambda as rl
+
+    # freeze "now" so yesterday and the ISO week are deterministic
+    now = datetime.now(timezone.utc)
+    day = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    ts = datetime.strptime(day, "%Y-%m-%d").replace(
+        tzinfo=timezone.utc).timestamp() + 3600
+    stations = [{"name": f"s{i}", "lat": 28.5 + 0.05 * i, "lon": 77.2,
+                 "pm25": 50.0, "residual": r}
+                for i, r in enumerate((4.0, -2.0, 3.0, -1.0, 2.0))]
+    _seed(offline / "snaps", ts,
+          cells={"cell1": {"pm25": 40.0}, "cell2": {"pm25": 60.0}},
+          stations=stations)
+    monkeypatch.setattr(validate_field, "validate",
+                        lambda hours_back: (None, []))
+    # snapshots live under the env-configured root the tick's jobs read
+    out = rl.rollup_tick(now=now)
+    iso_y, iso_w, _ = now.isocalendar()
+    wk = f"{iso_y}-W{iso_w:02d}"
+    assert out["daily"]["built"] == day and out["daily"]["backend"] == "local"
+    assert out["weekly"]["built"] == wk and out["weekly"]["loso"] == "ok"
+    ddir = os.environ["ALIVE_DAILY_DIR"]
+    vdir = os.environ["ALIVE_VALID_DIR"]
+    assert os.path.exists(os.path.join(ddir, f"{day}.json"))
+    assert os.path.exists(os.path.join(vdir, f"weekly-{wk}.json"))
+    saved = json.load(open(os.path.join(ddir, f"{day}.json")))
+    assert saved["city"]["median_pm25"] == 60.0  # means[1] of [40, 60]
+    # second tick: files exist -> nothing rebuilt
+    out2 = rl.rollup_tick(now=now)
+    assert out2["daily"] == "present" and out2["weekly"] == "present"
+
+
+def test_rollup_tick_errors_are_reported_not_raised(offline, monkeypatch):
+    """A failing build lands in the tick body — the hourly caller retries
+    next tick instead of dying mid-loop."""
+    import rollup_lambda as rl
+    monkeypatch.setattr(rl, "daily_rollup",
+                        lambda **kw: (_ for _ in ()).throw(RuntimeError("x")))
+    monkeypatch.setattr(rl, "weekly_validation",
+                        lambda **kw: (_ for _ in ()).throw(RuntimeError("y")))
+    out = rl.rollup_tick()
+    assert "error" in out["daily"] and "error" in out["weekly"]
+
+
+def test_weekly_validation_reads_s3_week(offline, monkeypatch):
+    """The ECS task keeps no local snapshots (S3-only writes) — the weekly
+    LOSO must scan the S3 field/ prefix too or it can never find a field."""
+    import rollup as _ro
+    ts = time.time()
+    field = _field(ts, cells={"cell1": {"pm25": 50.0}},
+                   stations=[{"name": f"s{i}", "lat": 28.5 + 0.05 * i,
+                              "lon": 77.2, "pm25": 50.0, "residual": r}
+                             for i, r in enumerate((4.0, -2.0, 3.0,
+                                                    -1.0, 2.0))])
+    blob = airindex.serialize(field)
+    calls = []
+
+    def _fake_s3(date, desc=False):
+        calls.append((date, desc))
+        yield "s3://bucket/field/x.json.gz", blob
+
+    monkeypatch.setattr(_ro, "_iter_s3_blobs", _fake_s3)
+    monkeypatch.setattr(validate_field, "validate",
+                        lambda hours_back: (None, []))
+    out = rollup_lambda.weekly_validation(week="2026-W40")
+    assert out["loso"]["status"] == "ok" and out["loso"]["n"] == 5
+    assert calls and all(d is True for _d, d in calls)
+    assert out["snapshot_used"].startswith("s3://")
+
+
 def test_handler_routes_and_400s(offline, monkeypatch):
     monkeypatch.setattr(ingest_worker, "run_index_once",
                         lambda **kw: {"ok": True, "mocked": True})

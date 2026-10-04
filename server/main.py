@@ -44,7 +44,9 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     _start_ingest_loop()
+    _start_rollup_loop()
     _start_rollup_mirror()
+
     # Fires fetch lazily on the first /fires or /aqi hit — until then
     # /health honestly reports 0 and the ops board reads "no fires".
     # Warm the cache once at boot so the first dashboard view is real.
@@ -1479,3 +1481,33 @@ def _start_rollup_mirror() -> None:
     t = threading.Thread(target=_loop, name="alive-rollup-mirror",
                          daemon=True)
     t.start()
+
+
+def _start_rollup_loop() -> None:
+    """Daily/weekly rollups as an in-app daemon — the EventBridge
+    schedules that would normally fire them are provision.sh stubs
+    (created DISABLED), so on this single-task deploy nothing else ever
+    runs them and the admin validation/daily tiles stay empty forever.
+    Wake hourly; rollup_tick() builds only what is missing or stale.
+    ALIVE_ROLLUP_IN_APP=0 disables."""
+    if os.environ.get("ALIVE_ROLLUP_IN_APP", "1").strip() in ("0", "false", "no"):
+        return
+    import logging
+    import threading
+
+    log = logging.getLogger("alive.rollup")
+
+    def _loop():
+        import rollup_lambda
+        while True:
+            try:
+                r = rollup_lambda.rollup_tick()
+                if r.get("daily") != "present" or r.get("weekly") != "present":
+                    log.warning("rollup tick: %s", r)
+            except Exception as e:  # noqa: BLE001
+                log.warning("rollup tick failed: %r", e)
+            time.sleep(3600)
+
+    threading.Thread(target=_loop, name="alive-rollup",
+                     daemon=True).start()
+

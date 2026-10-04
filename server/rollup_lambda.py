@@ -27,6 +27,7 @@ Env-configured paths (all optional, defaults = the repo's data/ mirror):
 import json
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -63,24 +64,68 @@ def field_tick(event=None, context=None, *, now=None, inputs=None) -> dict:
         snapshot_root=_env_path("ALIVE_SNAPSHOT_DIR"))
 
 
-def daily_rollup(event=None, context=None, *, date: str = None) -> dict:
+def daily_rollup(event=None, context=None, *, date: str = None,
+                 daily_dir: str = None) -> dict:
     """Roll snapshots of `date` -> daily/{date}.json (S3 or local)."""
     date = (date or (event or {}).get("date")
             or os.environ.get("ALIVE_ROLLUP_DATE") or _last_closed_day())
     return rollup.daily_rollup(
         date,
         snapshot_root=_env_path("ALIVE_SNAPSHOT_DIR"),
-        daily_dir=_env_path("ALIVE_DAILY_DIR"))
+        daily_dir=daily_dir or _env_path("ALIVE_DAILY_DIR"))
 
 
-def weekly_validation(event=None, context=None, *, week: str = None) -> dict:
+def weekly_validation(event=None, context=None, *, week: str = None,
+                      valid_dir: str = None) -> dict:
     """Weekly LOSO + archive replay -> validation/{week}.json."""
     week = (week or (event or {}).get("week")
             or os.environ.get("ALIVE_VALIDATION_WEEK") or None)
     return rollup.weekly_validation(
         week,
         snapshot_root=_env_path("ALIVE_SNAPSHOT_DIR"),
-        valid_dir=_env_path("ALIVE_VALID_DIR"))
+        valid_dir=valid_dir or _env_path("ALIVE_VALID_DIR"))
+
+
+def rollup_tick(now: datetime = None, *,
+                daily_dir: str = None, valid_dir: str = None) -> dict:
+    """Build whichever rollup outputs are missing — idempotent; safe to
+    run on an hourly timer.
+
+    The EventBridge schedules that would normally fire these jobs are
+    provision.sh stubs (created DISABLED); on the single-task ECS deploy
+    nothing else ever runs them, so without this tick the admin
+    validation/daily tiles stay empty forever. Daily file: the last
+    fully-closed UTC snapshot day. Weekly file: the current ISO week,
+    rebuilt when absent or >20 h old so a snapshot improved by new
+    station inputs re-validates daily instead of weekly."""
+    now = now or datetime.now(timezone.utc)
+    ddir = (daily_dir or os.environ.get("ALIVE_DAILY_DIR")
+            or os.path.join(_HERE, "data", "field", "daily"))
+    vdir = (valid_dir or os.environ.get("ALIVE_VALID_DIR")
+            or os.path.join(_HERE, "data", "field", "validation"))
+    out = {"ts": now.isoformat(timespec="seconds"),
+           "daily": "present", "weekly": "present"}
+    yday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    if not os.path.exists(os.path.join(ddir, f"{yday}.json")):
+        try:
+            r = daily_rollup(date=yday, daily_dir=ddir)
+            out["daily"] = {"built": yday, "backend": r.get("backend"),
+                            "n_snapshots": r.get("n_snapshots")}
+        except Exception as e:  # noqa: BLE001 - a failed build retries hourly
+            out["daily"] = {"error": f"{type(e).__name__}: {e}"}
+    iso_y, iso_w, _ = now.isocalendar()
+    wk = f"{iso_y}-W{iso_w:02d}"
+    wpath = os.path.join(vdir, f"weekly-{wk}.json")
+    wstale = (not os.path.exists(wpath)
+              or (time.time() - os.path.getmtime(wpath)) > 20 * 3600)
+    if wstale:
+        try:
+            r = weekly_validation(week=wk, valid_dir=vdir)
+            out["weekly"] = {"built": wk, "backend": r.get("backend"),
+                             "loso": (r.get("loso") or {}).get("status")}
+        except Exception as e:  # noqa: BLE001
+            out["weekly"] = {"error": f"{type(e).__name__}: {e}"}
+    return out
 
 
 JOBS = {

@@ -79,9 +79,11 @@ def _iter_local_blobs(date: str, snapshot_root: str = None):
             continue
 
 
-def _iter_s3_blobs(date: str):
+def _iter_s3_blobs(date: str, desc: bool = False):
     """Yield (s3:// label, gzip-bytes) for the day's S3 prefix; empty when
-    ALIVE_AIR_BUCKET/boto3/credentials are not usable."""
+    ALIVE_AIR_BUCKET/boto3/credentials are not usable. `desc` lists the
+    day's keys first, then fetches newest-first — a newest-usable scan
+    costs ~1 object instead of the whole day."""
     dt = datetime.strptime(date, "%Y-%m-%d")
     bucket = os.environ.get("ALIVE_AIR_BUCKET")
     b3 = _boto3() if bucket else None
@@ -90,15 +92,19 @@ def _iter_s3_blobs(date: str):
     try:
         s3 = b3.client("s3")
         prefix = f"field/{dt:%Y/%m/%d}/"
+        keys = []
         for page in s3.get_paginator("list_objects_v2").paginate(
                 Bucket=bucket, Prefix=prefix):
-            for obj in page.get("Contents", []):
-                try:
-                    body = s3.get_object(Bucket=bucket,
-                                         Key=obj["Key"])["Body"].read()
-                    yield f"s3://{bucket}/{obj['Key']}", body
-                except Exception:  # noqa: BLE001
-                    continue
+            keys.extend(obj["Key"] for obj in page.get("Contents", []))
+        if desc:
+            keys = keys[::-1]
+        for key in keys:
+            try:
+                body = s3.get_object(Bucket=bucket,
+                                     Key=key)["Body"].read()
+                yield f"s3://{bucket}/{key}", body
+            except Exception:  # noqa: BLE001
+                continue
     except Exception:  # noqa: BLE001 - S3 listing is best-effort
         return
 
@@ -324,7 +330,8 @@ def daily_rollup(date: str, snapshot_root: str = None,
     payload = json.dumps(rollup, sort_keys=True).encode("utf-8")
     uri, backend, note = store_blob(
         f"daily/{date}.json", payload,
-        os.path.join(daily_dir or DAILY_DIR, f"{date}.json"))
+        os.path.join(daily_dir or DAILY_DIR, f"{date}.json"),
+        mirror_local=True)
     rollup["written_to"] = uri
     rollup["backend"] = backend
     if note:
@@ -462,8 +469,10 @@ def _iter_week_labels(week: str, snapshot_root: str = None):
 def _latest_usable_in_week(week: str, snapshot_root: str = None):
     """-> (field_or_None, skipped, n_scanned): walk the week's snapshots
     newest-first; first that deserializes to an airindex field wins.
-    Every failure is counted — corrupt inputs are never silently passed
-    over and never fabricated."""
+    Local mirror first, then the S3 field/ prefix — the ECS task writes
+    snapshots S3-only, so without this hop a weekly LOSO on the box that
+    actually runs it finds no field. Every failure is counted — corrupt
+    inputs are never silently passed over and never fabricated."""
     skipped = []
     paths = _iter_week_labels(week, snapshot_root)
     for p in paths:
@@ -478,7 +487,28 @@ def _latest_usable_in_week(week: str, snapshot_root: str = None):
         except Exception as e:  # noqa: BLE001 - count it, try the next
             skipped.append({"snapshot": p,
                             "reason": f"{type(e).__name__}: {e}"[:160]})
-    return None, skipped, len(paths)
+    n_scanned = len(paths)
+    try:
+        y, w = week.split("-W", 1)
+        days = [_date.fromisocalendar(int(y), int(w), 1) + timedelta(days=d)
+                for d in range(6, -1, -1)]   # newest day first
+    except (ValueError, AttributeError):
+        days = []
+    for day in days:
+        for label, blob in _iter_s3_blobs(day.strftime("%Y-%m-%d"),
+                                          desc=True):
+            n_scanned += 1
+            try:
+                cand = airindex.deserialize(blob)
+                if not isinstance(cand, dict) or not isinstance(
+                        cand.get("cells"), dict):
+                    raise ValueError("not an airindex field (no cells dict)")
+                cand["_snapshot"] = label
+                return cand, skipped, n_scanned
+            except Exception as e:  # noqa: BLE001
+                skipped.append({"snapshot": label,
+                                "reason": f"{type(e).__name__}: {e}"[:160]})
+    return None, skipped, n_scanned
 
 
 def _render_weekly_summary(out: dict) -> str:
@@ -601,11 +631,11 @@ def weekly_validation(week: str = None, snapshot_root: str = None,
     vdir = valid_dir or VALID_DIR
     uri, backend, note = store_blob(
         f"validation/weekly-{week}.json", payload,
-        os.path.join(vdir, f"weekly-{week}.json"))
+        os.path.join(vdir, f"weekly-{week}.json"), mirror_local=True)
     # compat copy under the pre-v2 name — weekly-{week}.json is canonical
     _u2, _b2, _n2 = store_blob(
         f"validation/{week}.json", payload,
-        os.path.join(vdir, f"{week}.json"))
+        os.path.join(vdir, f"{week}.json"), mirror_local=True)
     out["written_to"] = uri
     out["backend"] = backend
     if note or _n2:
@@ -613,7 +643,7 @@ def weekly_validation(week: str = None, snapshot_root: str = None,
     md = _render_weekly_summary(out)
     md_uri, _mb, _mn = store_blob(
         f"validation/weekly-{week}.md", md.encode("utf-8"),
-        os.path.join(vdir, f"weekly-{week}.md"))
+        os.path.join(vdir, f"weekly-{week}.md"), mirror_local=True)
     out["summary_md"] = md_uri
     if _mn:
         out["note"] = "; ".join(x for x in (out.get("note"), _mn) if x)
