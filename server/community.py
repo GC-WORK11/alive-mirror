@@ -45,6 +45,9 @@ _last_s3_put = 0.0
 
 _obs: list[dict] = []
 _reports: list[dict] = []
+_reviews: list[dict] = []
+_REVIEW_CAP = 400
+_NOTE_CAP = 240
 _loaded = False
 
 # k-anonymity contract shared with v2/store.py TripAggregates: a cell is
@@ -75,9 +78,10 @@ def _s3():
 
 
 def _apply(d: dict) -> None:
-    global _obs, _reports
+    global _obs, _reports, _reviews
     _obs = d.get("obs", [])[-20000:]
     _reports = d.get("reports", [])[-2000:]
+    _reviews = d.get("reviews", [])[-_REVIEW_CAP:]
 
 
 def _load() -> None:
@@ -104,7 +108,8 @@ def _load() -> None:
 
 def _save() -> None:
     global _last_s3_put
-    payload = {"obs": _obs[-20000:], "reports": _reports[-2000:]}
+    payload = {"obs": _obs[-20000:], "reports": _reports[-2000:],
+               "reviews": _reviews[-_REVIEW_CAP:]}
     try:
         _FILE.parent.mkdir(parents=True, exist_ok=True)
         _FILE.write_text(json.dumps(payload))
@@ -508,3 +513,58 @@ def totals() -> dict:
         "basis": ("aggregate of donated trips, anonymized — corridor "
                   "cells published only with >=3 distinct devices in 72 h"),
     }
+
+
+# ---------------------------------------------------------------- reviews
+# "Their reviews" for the admin surface — star ratings + short notes the
+# app lets a user leave voluntarily (Settings → rate). Stored WITHOUT any
+# token or device id: a review is authored content meant for display, so
+# nothing linkable needs to exist at rest. The same k-gate as corridors:
+# individual notes only publish once >=_K_MIN_DEVICES reviews exist —
+# one lonely review is identifiable by timing alone.
+
+def add_review(stars, note: Optional[str], build: Optional[str]) -> dict:
+    _load()
+    try:
+        s = int(stars)
+    except Exception:
+        return {"stored": False, "error": "stars must be 1..5"}
+    if s < 1 or s > 5:
+        return {"stored": False, "error": "stars must be 1..5"}
+    n = (note or "").strip()[:_NOTE_CAP]
+    r = {"ts": time.time(), "stars": s, "note": n,
+         "build": (build or "")[:16]}
+    _reviews.append(r)
+    del _reviews[:-_REVIEW_CAP]
+    _save()
+    return {"stored": True, "total_reviews": len(_reviews)}
+
+
+def reviews_summary(notes_limit: int = 8) -> dict:
+    """Aggregate review rollup — the only shape the admin surface reads.
+    Histogram + mean always publish; note bodies only once the count
+    clears the same k>=3 gate corridor cells use, each truncated and
+    timestamped to the hour so they can't be re-pinned to a moment."""
+    _load()
+    hist = {str(i): 0 for i in range(1, 6)}
+    for r in _reviews:
+        hist[str(r["stars"])] += 1
+    out = {
+        "count": len(_reviews),
+        "avg": round(sum(r["stars"] for r in _reviews) / len(_reviews), 2)
+               if _reviews else None,
+        "hist": hist,
+        "notes": [],
+        "notes_withheld": False,
+        "basis": ("authored reviews — stars + optional note; no device id "
+                  "or token stored; note bodies publish only at >=3 reviews"),
+    }
+    if len(_reviews) >= _K_MIN_DEVICES:
+        out["notes"] = [
+            {"ts_hour": int(r["ts"] // 3600) * 3600,
+             "stars": r["stars"], "note": r["note"][:140]}
+            for r in _reviews[-notes_limit:] if r.get("note")
+        ][::-1]
+    else:
+        out["notes_withheld"] = bool(_reviews)
+    return out

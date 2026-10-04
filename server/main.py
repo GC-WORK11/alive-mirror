@@ -1002,6 +1002,29 @@ async def hazard_report(body: dict):
     )
 
 
+_review_rate: dict = {}
+_REVIEW_MAX_PER_HOUR = 10
+
+
+@app.post("/v2/feedback")
+async def leave_feedback(body: dict, request: Request):
+    """A review: stars 1–5 + optional ≤240-char note. Stored with no token,
+    no device id — authored content only. Per-IP hour cap keeps the public
+    endpoint from becoming a billboard."""
+    host = request.client.host if request.client else "?"
+    now = time.time()
+    hits = [t for t in _review_rate.get(host, []) if now - t < 3600]
+    if len(hits) >= _REVIEW_MAX_PER_HOUR:
+        raise HTTPException(429, "feedback rate limit — try later")
+    hits.append(now)
+    _review_rate[host] = hits
+    return community.add_review(
+        stars=body.get("stars"),
+        note=body.get("note"),
+        build=body.get("build"),
+    )
+
+
 @app.get("/reports")
 async def reports():
     return community.reports_geojson()
@@ -1217,7 +1240,15 @@ async def admin_api():
         "recent_journeys": community.recent_obs(20),
         "reports": community.live_reports(),
         "journeys_per_hour": community.journeys_per_hour(),
+        "reviews": community.reviews_summary(),
     }
+
+
+@app.get("/admin/api/reviews", dependencies=[Depends(_admin_guard)])
+async def admin_reviews():
+    """'Their reviews' as an aggregate: star histogram + mean; note bodies
+    publish only at k>=3 reviews, hour-bucketed, ≤140 chars each."""
+    return community.reviews_summary()
 
 
 @app.get("/")

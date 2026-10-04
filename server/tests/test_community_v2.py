@@ -320,3 +320,61 @@ def test_corridors_tolerate_pre_km_snapshots():
     out = community.corridors()
     assert len(out) == 1 and out[0]["devices"] == 3
     assert community.totals()["obs_total"] == 3
+
+
+# ---------------------------------------------------------------- reviews
+def _fresh_reviews(monkeypatch):
+    community._reviews.clear()
+    community._loaded = True
+    monkeypatch.setattr(community, "_save", lambda: None)
+    yield
+    community._reviews.clear()
+    community._loaded = False
+
+
+def test_review_rejects_bad_stars():
+    community._reviews.clear(); community._loaded = True
+    assert community.add_review(stars=0, note="", build="x")["stored"] is False
+    assert community.add_review(stars=6, note="", build="x")["stored"] is False
+    assert community.add_review(stars="junk", note="", build="x")["stored"] is False
+    community._reviews.clear(); community._loaded = False
+
+
+def test_review_validates_and_caps():
+    community._reviews.clear(); community._loaded = True
+    assert community.add_review(stars=5, note="  x " * 200, build="abc123456789defg")["stored"]
+    r = community._reviews[-1]
+    assert r["stars"] == 5
+    assert len(r["note"]) <= 240
+    assert len(r["build"]) <= 16
+    assert "contributor" not in r and "token" not in r  # nothing linkable at rest
+    community._reviews.clear(); community._loaded = False
+
+
+def test_reviews_notes_kgated():
+    community._reviews.clear(); community._loaded = True
+    community.add_review(stars=5, note="one", build="a")
+    community.add_review(stars=4, note="two", build="a")
+    s = community.reviews_summary()
+    assert s["count"] == 2 and s["avg"] == 4.5
+    assert s["notes"] == [] and s["notes_withheld"] is True
+    community.add_review(stars=1, note="three", build="a")
+    s = community.reviews_summary()
+    assert s["count"] == 3 and s["notes_withheld"] is False
+    assert {n["note"] for n in s["notes"]} == {"one", "two", "three"}
+    assert all(n["ts_hour"] % 3600 == 0 for n in s["notes"])  # hour bucket
+    community._reviews.clear(); community._loaded = False
+
+
+def test_feedback_endpoint_round_trip():
+    from fastapi.testclient import TestClient
+    from main import app
+    community._reviews.clear(); community._loaded = True
+    c = TestClient(app)
+    r = c.post("/v2/feedback", json={"stars": 4, "note": "smoke was honest"})
+    assert r.status_code == 200 and r.json()["stored"] is True
+    r = c.post("/v2/feedback", json={"stars": 9})
+    assert r.json()["stored"] is False
+    s = c.get("/admin/api/reviews").json()
+    assert s["count"] >= 1
+    community._reviews.clear(); community._loaded = False

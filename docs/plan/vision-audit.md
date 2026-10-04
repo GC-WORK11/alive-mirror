@@ -43,7 +43,7 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 | 22 | keep district/state UI | **live** — untouched | — |
 | 23 | real admin: merged data that doesn't exist anywhere | **live** — corridor×field `air pm2.5` join; pipeline/source-health blocks; archive-replay MAE | — |
 | 24 | optimised and fastly | **live** — epoch-keyed grid cache (warm ~1.5s), skip-identical-repaint | — |
-| 25 | Android: icons not cheap, milky morphism, distributed sidebar | **live on base/v2+main** — Material Symbols Rounded, glass token ramp, JourneyDrawer rework; iOS-sim verified | Pixel_7 verify child mid-flight — will land report |
+| 25 | Android: icons not cheap, milky morphism, distributed sidebar | **live** — Material Symbols Rounded, glass token ramp, JourneyDrawer rework; **Pixel_7 verify PASS all surfaces** (icons/milk/drawer/regressions); its 2 flags fixed same-day: emit_kg write (put-out-kg tile had readers, no writer) + stacked-sheet ghost-bleed (tile 0.62→0.84, pane→0.90) | perf vs llvmpipe inconclusive (no hardware GL on box) — physical phone is the real measure |
 | 26 | uncrashable | **mostly live** — Android E2E no crashes; iOS sim crash = sim-only GPU (documented, no .ips) | physical Android soak = owner |
 | 27 | terminate my lanes except pocket-rig | **done** — all ALive-108 lanes except live ones ended; Pocket Rig untouched | — |
 | 28 | loop for days/12h, don't stop | **in progress** — this audit + landing + continued loop | — |
