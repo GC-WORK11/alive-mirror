@@ -201,3 +201,30 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   1def589f reports when it settles).
 - Perf verified live: /grid?cells=40 cold ~7s, warm ~1.5s (epoch-keyed
   _grid_cached); admin skips identical-epoch repaints via cell_epoch.
+
+## handoff cont.5 — landing page live + reviews feature + Pixel_7 verdict (2026-10-04 ~17:35 UTC)
+
+- **Landing page LIVE at `/` and `/landing`** (deploy `283985db`, verified
+  in-browser): marketing page in the owner's reference genre (supaste/
+  devin.ai/Apple/godly.design) — cream paper, serif+italic headline
+  ("Delhi's air has a price *per street.*"), quiet mono nav, and the
+  **ASCII aether**: `/grid?cells=40` rebuilt as the true 40×40 lattice —
+  one glyph per real cell on a character ramp, `conf=lo` cells as faint
+  dots, live counts + conf split under it. Sections: pipeline math,
+  honest band (95.2% @2σ, MAE 24.16µg), corridor-merge teaser (points
+  to /admin — token-gated, honest fallback), two-faces CTAs, hackathon
+  footer. Root `/` serves it (was 302→/city); /city and /admin unchanged.
+- **Pixel_7 verify child (fcccf061) DONE — ALL PASS**: icons, milky
+  morphism, JourneyDrawer, every regression (Hindi, consent, cig-off,
+  honest-empty, 1080p fit). Its 2 flags fixed same-day by BOTH lanes
+  independently (compatible superset landed): emit_kg+dose band ledger
+  writes (97b8904) + stacked-sheet ghost-bleed (pane glassDeep 546e54a,
+  tiles glass 311c823). Perf vs llvmpipe inconclusive — physical phone
+  is the real measure.
+- **"Their reviews" feature committed (b676639)**: `POST /v2/feedback`
+  (public, stars 1–5 + ≤240 note, per-IP 10/hr, NO token/device at rest)
+  + `GET /admin/api/reviews` (gated) + admin "their reviews" tile
+  (avg/count/histogram/latest note or honest-empty; note bodies publish
+  only at k≥3, hour-bucketed). 21 community tests green. App-side
+  Settings "rate alive·108" row handed to polish lane (1def589f awake).
+- Suite running for main-merge gate; deploy of b676639 after green.
