@@ -26,6 +26,7 @@ metro/walk/cycle + common aliases); `vehicle_profile` may carry
 Delhi fleet prior, never a 4xx.
 """
 import asyncio
+import logging
 import threading
 import time
 from typing import Optional
@@ -34,6 +35,8 @@ from fastapi import APIRouter
 
 from . import deps
 from .store import ROUTES
+
+_log = logging.getLogger("v2.engine")
 
 router = APIRouter()
 
@@ -975,7 +978,8 @@ def _engine_reweight(eng) -> None:
             return
         try:
             F = deps.field()
-        except Exception:
+        except Exception as e:
+            _log.warning("engine reweight: deps.field failed: %r", e)
             return
 
         def val(lat, lon):
@@ -1005,6 +1009,11 @@ def _engine_reweight(eng) -> None:
                     sampler = fv.value
         except ImportError:
             pass
+        _log.info(
+            "engine reweight: sampler=%s eng=%s snap_fv=%s serving=%s",
+            type(sampler).__name__, type(eng).__name__,
+            type(getattr(F, "_snap_fv", None)).__name__,
+            getattr(F, "_serving_snapshot", lambda: "?")())
 
         # never start a callable reweight against the live field: krige
         # posterior + Bayesian traverse per sample makes ~1.25M crossings
@@ -1022,8 +1031,9 @@ def _engine_reweight(eng) -> None:
             # otherwise stick zero-cost paths for the whole TTL
             if res.get("edges_priced", 0) > 0:
                 _ENG_T = time.time()
-        except Exception:
-            pass  # keep the previous pricing — honest stale, not broken
+            _log.info("engine reweight done: %s", res)
+        except Exception as e:
+            _log.warning("engine reweight failed: %r", e)
 
 
 def _engine_field_view(F):
@@ -1076,14 +1086,17 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
     screen comes from one dose model."""
     eng = _engine()
     if eng is None:
+        _log.warning("engine options: no engine (graph/engine load failed)")
         return []
     _engine_reweight(eng)
     try:
         ep = getattr(eng, "edges_priced", None)
         ep = ep() if callable(ep) else (ep or 0)   # C++ binding = method,
         if ep <= 0:                                # Python twin = attr
+            _log.info("engine options: unpriced (edges_priced=0)")
             return []   # unpriced = degenerate paths — serve nothing
-    except Exception:
+    except Exception as e:
+        _log.warning("engine options: edges_priced probe failed: %r", e)
         return []
     try:
         from airfield import MAX_ROUTE_KM
@@ -1093,9 +1106,12 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
     for mode, label in ENGINE_MODES:
         try:
             r = eng.query(flat, flon, tlat, tlon, mode)
-        except Exception:
+        except Exception as e:
+            _log.warning("engine query %s failed: %r", mode, e)
             continue
         if not isinstance(r, dict) or r.get("error") or not r.get("geometry"):
+            _log.info("engine query %s: %s", mode,
+                      (r or {}).get("error") or "no geometry")
             continue
         snap = r.get("snap") or {}
         if (snap.get("from_m", 1e9) > 1200.0
