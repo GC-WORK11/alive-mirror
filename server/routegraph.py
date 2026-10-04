@@ -44,22 +44,33 @@ HW_NAMES = ["motorway", "motorway_link", "trunk", "trunk_link", "primary",
 
 # per-mode road access + speed model (km/h). Edge sp is the plausible
 # free-flow speed stored at build; modes clamp it.
+# `acc` = per-edge access-deny bits matching build_route_graph.py:
+# 1 motor_vehicle | 2 bicycle | 4 foot | 8 motorcar-class | 16 motorcycle.
+# `turn` = which bit of a turn-ban mode mask applies to this mode
+# (1 motor | 2 cycle | 4 walk — walking ignores vehicular turn bans).
 MODE_RULES = {
     # motor: respect oneway, no foot-scale classes
     "car":      {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001 | 0b1000, "turn": 1,
                  "spd": lambda sp: sp},
     "car_open": {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001 | 0b1000, "turn": 1,
                  "spd": lambda sp: sp},
     "cab":      {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001 | 0b1000, "turn": 1,
                  "spd": lambda sp: sp},
     "auto":     {"deny": {0, 1, 15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001, "turn": 1,
                  "spd": lambda sp: min(sp, 40)},
     "bike":     {"deny": {15, 16, 17, 18, 19, 20, 21}, "oneway": True,
+                 "acc": 0b001 | 0b10000, "turn": 1,
                  "spd": lambda sp: min(sp, 30)},
     # non-motor: no motorways, oneway not applicable to legs
     "cycle":    {"deny": {0, 1}, "oneway": False,
+                 "acc": 0b010, "turn": 2,
                  "spd": lambda sp: min(sp, 16)},
     "walk":     {"deny": {0, 1}, "oneway": False,
+                 "acc": 0b100, "turn": 4,
                  "spd": lambda sp: 5.0},
 }
 MODE_VE = {"car": 7.5, "car_open": 7.5, "cab": 7.5, "auto": 8.5,
@@ -102,11 +113,11 @@ class RouteGraph:
     __slots__ = ("n_nodes", "n_edges", "n_names", "n_pts", "bbox",
                  "node_lon", "node_lat", "names", "e_u", "e_v", "e_len",
                  "e_pts_off", "e_pts_n", "e_hw", "e_ow", "e_sp", "e_nm",
-                 "e_field", "pts", "adj", "meta")
+                 "e_field", "e_acc", "bans", "pts", "adj", "meta")
 
     def __init__(self, blob: bytes):
         magic, nn, ne, nname, npts = struct.unpack_from("<4s4I", blob, 0)
-        if magic != b"ARG1":
+        if magic not in (b"ARG1", b"ARG2"):
             raise ValueError("route_graph: bad magic")
         off = 20
         self.bbox = struct.unpack_from("<4i", blob, off)
@@ -122,11 +133,15 @@ class RouteGraph:
             self.names.append(blob[off:off + ln].decode("utf-8"))
             off += ln
         self.n_names = nname
-        fmt = "<IIfIHBbBiB"
-        sz = struct.calcsize(fmt)          # 26
+        if magic == b"ARG2":
+            fmt = "<IIfIHBbBiBB"   # + u8 access-deny byte
+            sz = struct.calcsize(fmt)          # 27
+        else:
+            fmt = "<IIfIHBbBiB"
+            sz = struct.calcsize(fmt)          # 26
         (self.e_u, self.e_v, self.e_len, self.e_pts_off, self.e_pts_n,
-         self.e_hw, self.e_ow, self.e_sp, self.e_nm, self.e_field) = \
-            ([] for _ in range(10))
+         self.e_hw, self.e_ow, self.e_sp, self.e_nm, self.e_field,
+         self.e_acc) = ([] for _ in range(11))
         for i in range(ne):
             t = struct.unpack_from(fmt, blob, off + i * sz)
             self.e_u.append(t[0]); self.e_v.append(t[1])
@@ -134,8 +149,20 @@ class RouteGraph:
             self.e_pts_n.append(t[4]); self.e_hw.append(t[5])
             self.e_ow.append(t[6]); self.e_sp.append(t[7])
             self.e_nm.append(t[8]); self.e_field.append(t[9])
+            self.e_acc.append(t[10] if magic == b"ARG2" else 0)
         self.n_edges = ne
         off += sz * ne
+        # ARG2 turn-ban table: (dir-in raw id | via node | dir-out raw id
+        # | u8 mode mask) — engines key lookups on (in_dir << 32 | via)
+        self.bans = {}
+        if magic == b"ARG2":
+            (nb,) = struct.unpack_from("<I", blob, off)
+            off += 4
+            for _ in range(nb):
+                din, via, dout, mask = struct.unpack_from("<IIIB",
+                                                          blob, off)
+                off += 13
+                self.bans.setdefault((din, via), {})[dout] = mask
         # points blob — int32 stream to EOF: each edge contributes
         # 2 abs ints + (pts_n-1) packed i16-delta ints ⇒ n_pts + n_edges
         # int32s total. pts_off indexes this stream directly.
@@ -252,6 +279,9 @@ class PyPathEngine:
         e = e_i & 0x7FFFFFFF
         if g.e_hw[e] in rule["deny"]:
             return False
+        if g.e_acc[e] & rule["acc"]:
+            return False          # per-way access override (bicycle=no,
+                                  # foot=no, motor_vehicle=no, ...)
         if rule["oneway"]:
             ow = g.e_ow[e]
             if ow == 1 and rev:
@@ -368,40 +398,70 @@ class PyPathEngine:
             return (_hav_m(g.node_lon[n] / 1e6, g.node_lat[n] / 1e6,
                            dlon, dlat) * h_rate)
 
-        gscore = {s: 0.0}
+        # s == t leaves the search empty — the chain unwinds to [] and
+        # the caller gets the (degenerate but legal) zero-edge path.
+        # directed-edge-state A*: state id sid = (e << 1) | rev. Turn
+        # bans key on the ARRIVAL edge — a node-settled A* would let the
+        # cheapest incoming edge own the node and strand continuations
+        # the ban check needs (the parity twin does the same).
+        turn_bit = rule["turn"]
+        gscore = {}
         parent = {}
-        pq = [(h(s), 0.0, s)]
+        pq = []
         settled = set()
-        while pq:
-            f, gc, n = heapq.heappop(pq)
-            if n in settled:
+        for ei in (g.adj[s] if s != t else ()):
+            e = ei & 0x7FFFFFFF
+            rev = bool(ei & 0x80000000)
+            rate = cost(ei, rev)
+            if rate is None:
                 continue
-            settled.add(n)
+            sid = (e << 1) | (1 if rev else 0)
+            ng = (rate * g.e_len[e]
+                  * (tax.get(e, 1.0) if tax else 1.0))
+            gscore[sid] = ng
+            parent[sid] = -1
+            w0 = g.e_v[e] if not rev else g.e_u[e]
+            heapq.heappush(pq, (ng + h(w0), ng, sid))
+        end_sid = -1
+        while pq:
+            f, gc, sid = heapq.heappop(pq)
+            if sid in settled:
+                continue
+            settled.add(sid)
+            e = sid >> 1
+            rev = bool(sid & 1)
+            n = g.e_v[e] if not rev else g.e_u[e]
             if n == t:
+                end_sid = sid
                 break
+            d_raw = e | 0x80000000 if rev else e
+            bans = g.bans.get((d_raw, n))
             for ei in g.adj[n]:
-                rev = bool(ei & 0x80000000)
-                e = ei & 0x7FFFFFFF
-                to = g.e_v[e] if not rev else g.e_u[e]
-                rate = cost(e, rev)
+                rev2 = bool(ei & 0x80000000)
+                e2 = ei & 0x7FFFFFFF
+                if bans is not None and \
+                        bans.get(ei, 0) & turn_bit:
+                    continue      # restricted turn
+                rate = cost(ei, rev2)
                 if rate is None:
                     continue
-                w = rate * g.e_len[e] * (tax.get(e, 1.0) if tax else 1.0)
-                ng = gc + w
-                if to not in gscore or ng < gscore[to] - 1e-9:
-                    gscore[to] = ng
-                    parent[to] = (n, e, rev)
-                    heapq.heappush(pq, (ng + h(to), ng, to))
-        if t not in gscore:
+                ng = (gc + rate * g.e_len[e2]
+                      * (tax.get(e2, 1.0) if tax else 1.0))
+                sid2 = (e2 << 1) | (1 if rev2 else 0)
+                if sid2 not in gscore or ng < gscore[sid2] - 1e-9:
+                    gscore[sid2] = ng
+                    parent[sid2] = sid
+                    w = g.e_v[e2] if not rev2 else g.e_u[e2]
+                    heapq.heappush(pq, (ng + h(w), ng, sid2))
+        if end_sid < 0 and s != t:
             return {"error": "no path in graph"}
 
-        # unwind
+        # unwind the directed-edge chain
         chain = []
-        n = t
-        while n != s:
-            p, e, rev = parent[n]
-            chain.append((e, rev))
-            n = p
+        sid = end_sid
+        while sid >= 0:
+            chain.append((sid >> 1, bool(sid & 1)))
+            sid = parent[sid]
         chain.reverse()
 
         coords, dist, secs, dose = [], 0.0, 0.0, 0.0

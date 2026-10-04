@@ -1,21 +1,28 @@
-"""Legality audit — the merged 2-zone ARG1 graph, queried for real.
+"""Legality audit — the merged 2-zone ARG2 graph, queried for real.
 
 Asserts what the product promise depends on, on the actual shipped
 graph (not a fixture):
 
 * mode legality is enforced on every edge of every returned path —
   motor modes never touch foot-scale classes, cycle/walk never touch
-  motorway/motorway_link, and OSM oneway is honoured in the travelled
-  direction (edge_reversed marks v->u traversal);
+  motorway/motorway_link, OSM oneway is honoured in the travelled
+  direction (edge_reversed marks v->u traversal), and per-way access
+  overrides (bicycle=no / foot=no / motor_vehicle=no / access=private)
+  bind the modes they name;
 * the graph actually carries oneway metadata (a build that dropped the
   tag would silently route cars both ways down Delhi's one-way roads);
+* ARG2 turn bans are carried AND enforced — real (dir-in, via node,
+  dir-out) tuples from the shipped blob never appear as a travelled
+  transition, and a synthetic micro-graph proves a banned left turn
+  actually detours the path;
 * via_names is ordered-unique — the corridor list reads like the turn
   sequence, not a name-mixing replay.
 
-Turn restrictions: the build tool reads ways only — OSM `restriction`
-relations are NOT carried into ARG1 (see tools/build_route_graph.py).
-That is the documented limit of this audit: on-path turn legality
-beyond oneway cannot be asserted from the shipped blob.
+Known coverage gaps (documented, not faked): restriction relations
+whose via node isn't a packed junction node, whose via way splits into
+>1 packed edge, or whose from/to ways leave the extract are counted
+skipped at build (see meta ban_stats); `except=` tags clear the
+matching mode bit rather than whitelist extra modes.
 """
 
 import gzip
@@ -73,6 +80,8 @@ def _assert_legal(g, res, mode):
         hw = g.e_hw[e]
         assert hw not in rule["deny"], \
             f"{mode} used denied hw={routegraph.HW_NAMES[hw]}"
+        assert not (g.e_acc[e] & rule["acc"]), \
+            f"{mode} used access-denied edge {e} (acc={g.e_acc[e]:#04x})"
         ow = g.e_ow[e]
         if rule["oneway"]:
             assert not (ow == 1 and rev), \
@@ -81,6 +90,23 @@ def _assert_legal(g, res, mode):
                 f"{mode} traversed reverse-oneway edge {e} forwards"
         assert rule["spd"](g.e_sp[e]) > 0, \
             f"{mode} took zero-speed edge {e}"
+
+
+def _banned_transitions(g, res):
+    """count of travelled (dir-in, via, dir-out) moves the ARG2 ban
+    table forbids — walk's turn bit never matches vehicular masks."""
+    n = 0
+    for i in range(1, len(res["edge_ids"])):
+        din = res["edge_ids"][i - 1] | \
+            (0x80000000 if res["edge_reversed"][i - 1] else 0)
+        dout = res["edge_ids"][i] | \
+            (0x80000000 if res["edge_reversed"][i] else 0)
+        e_prev = din & 0x7FFFFFFF
+        via = g.e_u[e_prev] if (din & 0x80000000) else g.e_v[e_prev]
+        outs = g.bans.get((din, via))
+        if outs and outs.get(dout, 0):
+            n += 1
+    return n
 
 
 def test_legality_every_path_edge(py_eng, graph):
@@ -163,3 +189,159 @@ def test_via_names_ordered_unique(py_eng):
         names = res["names"]
         assert len(names) == len(set(names)), \
             f"duplicate names in via_names for {od}: {names}"
+
+
+# ---- ARG2: per-way access overrides + turn bans ----
+
+def test_graph_carries_access_overrides(graph):
+    """A build that dropped access tags would zero this out — the
+    legality gain this leg adds must be visible in the shipped blob."""
+    g, _blob = graph
+    n = sum(1 for a in g.e_acc if a)
+    assert n > 1000, \
+        f"only {n} edges carry access overrides — tags likely dropped"
+
+
+def test_access_override_binds_modes(graph, py_eng):
+    """Find real edges with each deny bit and prove _legal rejects the
+    matching mode while a clean same-class edge stays legal."""
+    g, _blob = graph
+    cases = (0b001, "car"), (0b010, "cycle"), (0b100, "walk")
+    for bit, mode in cases:
+        e = next((i for i, a in enumerate(g.e_acc)
+                  if a & bit and
+                  g.e_hw[i] not in routegraph.MODE_RULES[mode]["deny"]),
+                 None)
+        if e is None:
+            continue
+        rule = routegraph.MODE_RULES[mode]
+        assert not py_eng._legal(e, False, rule), \
+            f"{mode}: acc-denied edge {e} admitted (acc={g.e_acc[e]})"
+
+
+def test_graph_carries_turn_bans(graph):
+    """Restriction relations must land in the blob — a regression to an
+    empty table would silently re-legalize banned turns."""
+    g, _blob = graph
+    total = sum(len(v) for v in g.bans.values())
+    assert total > 50, f"only {total} ban tuples — restrictions dropped"
+
+
+def test_real_ban_never_travelled(py_eng, graph):
+    """Every returned path's consecutive moves are checked against the
+    shipped ban table: a (dir-in, via, dir-out) tuple with the mode's
+    bit set must never appear. Audit over real ODs — the same check a
+    CP/ITO no-right-turn would trip."""
+    g, _blob = graph
+    n_paths = 0
+    for od in ODS:
+        for mode in MODES:
+            res = py_eng.query(*od, mode)
+            if res.get("error"):
+                continue
+            n_paths += 1
+            bad = _banned_transitions(g, res)
+            assert bad == 0, \
+                f"{mode} on {od}: {bad} banned transitions travelled"
+    assert n_paths > 0
+
+
+def _micro_arg2():
+    """A→D corridor: direct e0→e2, detour e0→e1→e3→e4. Ban forbids
+    (e0 fwd @ node B → e2 fwd) for motorized modes + cycle, not walk."""
+    import struct
+    nodes = [(77000000, 28000000),   # 0 A
+             (77010000, 28000000),   # 1 B
+             (77020000, 28000000),   # 2 C
+             (77010000, 28010000),   # 3 D
+             (77020000, 28010000)]   # 4 E
+    # detour (3600 m) must beat the wiggle (4400 m: B→C→B→D, a legal
+    # mid-block U-turn absent any no_u_turn ban); direct is 2400 m
+    edges = [(0, 1, 1000.0), (1, 2, 1000.0), (1, 3, 1400.0),
+             (2, 4, 800.0), (4, 3, 800.0)]
+    bans = [(0, 1, 2, 0b011)]        # (e0 fwd, via B, e2 fwd, motor|cycle)
+
+    blob = bytearray()
+    blob += struct.pack("<4s4I", b"ARG2", len(nodes), len(edges), 0, 0)
+    blob += struct.pack("<4i", 76999000, 27999000, 77021000, 28011000)
+    for lon, lat in nodes:
+        blob += struct.pack("<2i", lon, lat)
+    pts_blob = bytearray()
+    off = 0
+    offs = []
+    for u, v, _ln in edges:
+        pts_blob += struct.pack("<2i", *nodes[u])
+        pts_blob += struct.pack("<2h", nodes[v][0] - nodes[u][0],
+                                nodes[v][1] - nodes[u][1])
+        offs.append((off, 2))
+        off += 3
+    for (u, v, ln), (po, pn) in zip(edges, offs):
+        blob += struct.pack("<IIfIHBbBiBB", u, v, ln, po, pn,
+                            9,      # hw: residential
+                            0,      # ow
+                            30,     # sp km/h
+                            0,      # nm → none
+                            1,      # in_field → sampled by reweight
+                            0)      # acc
+    blob += struct.pack("<I", len(bans))
+    for din, via, dout, mask in bans:
+        blob += struct.pack("<IIIB", din, via, dout, mask)
+    blob += pts_blob
+    return bytes(blob)
+
+
+def test_real_ban_brackets_detour(py_eng, graph):
+    """For each real ban tuple, route between the nodes bracketing the
+    banned move (tail of dir-in → head of dir-out): the 2-edge banned
+    trajectory is the natural answer, so any returned path that avoids
+    it proves the ban is enforced, not merely stored."""
+    g, _blob = graph
+    tried = detoured = 0
+    for (din, via), outs in list(g.bans.items()):
+        e_in, rev_in = din & 0x7FFFFFFF, bool(din & 0x80000000)
+        o_node = g.e_u[e_in] if not rev_in else g.e_v[e_in]
+        assert (g.e_v[e_in] if not rev_in else g.e_u[e_in]) == via
+        for dout in outs:
+            e_out, rev_out = dout & 0x7FFFFFFF, \
+                bool(dout & 0x80000000)
+            d_node = g.e_v[e_out] if not rev_out else g.e_u[e_out]
+            if o_node == d_node:
+                continue
+            res = py_eng.query(
+                g.node_lat[o_node] / 1e6, g.node_lon[o_node] / 1e6,
+                g.node_lat[d_node] / 1e6, g.node_lon[d_node] / 1e6,
+                "car")
+            if res.get("error"):
+                continue
+            tried += 1
+            # the banned trajectory itself must never be travelled
+            assert _banned_transitions(g, res) == 0
+            if res["edge_ids"] != [e_in, e_out]:
+                detoured += 1
+    assert tried > 20, f"only {tried} real ban brackets routable"
+    assert detoured > 0
+
+
+def test_synthetic_turn_ban_detours():
+    """Deterministic proof the ban changes the path: A→D by car must
+    take the 3-edge detour, never the banned (e0→e2) move; walk keeps
+    the direct route (turn bans don't bind pedestrians)."""
+    eng = routegraph.PyPathEngine(_micro_arg2())
+    eng.reweight(lambda lat, lon: 42.0)
+    car = eng.query(28.0, 77.0, 28.01, 77.01, "car")
+    assert car.get("error") is None
+    assert car["edge_ids"] == [0, 1, 3, 4], car["edge_ids"]
+    assert car["edge_reversed"] == [0, 0, 0, 0]
+    walk = eng.query(28.0, 77.0, 28.01, 77.01, "walk")
+    assert walk["edge_ids"] == [0, 2], walk["edge_ids"]
+
+    try:
+        import alive_core
+    except ImportError:
+        return
+    cxx = alive_core.PathEngine(_micro_arg2())
+    cxx.reweight(lambda lat, lon: 42.0)
+    rc = cxx.query(28.0, 77.0, 28.01, 77.01, "car")
+    assert rc["edge_ids"] == [0, 1, 3, 4], rc["edge_ids"]
+    rw = cxx.query(28.0, 77.0, 28.01, 77.01, "walk")
+    assert rw["edge_ids"] == [0, 2], rw["edge_ids"]

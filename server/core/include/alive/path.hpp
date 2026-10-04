@@ -9,10 +9,17 @@
 // extra metres are extra breaths — so no distance penalty term is
 // needed (and none is added: the cost is dose, nothing else).
 //
-// Binary input: ARG1 packed graph (tools/build_route_graph.py)
+// Binary input: ARG2 packed graph (tools/build_route_graph.py)
 //   <4s4I header | <4i bbox | nodes <2i (lon,lat e6) | names | edges
-//   <IIfIHBbBiB 26B | pts i32 stream: per edge 2 abs ints then one
-//   packed i16-pair int per delta; pts_off indexes int32 slots.
+//   <IIfIHBbBiBB 27B (+u8 access-deny) | bans <I count then <IIIB
+//   triples (dir-in | via node | dir-out | u8 mode mask) | pts i32
+//   stream: per edge 2 abs ints then one packed i16-pair int per
+//   delta; pts_off indexes int32 slots. ARG1 (26B edges, no bans) is
+//   still read — access degrades to the class-level deny lists.
+//
+// Search runs over directed-edge states (e<<1 | rev): turn bans key
+// on the arrival edge, so a node-settled A* could strand legal
+// continuations behind a cheap but banned incoming move.
 //
 // A* over the CSR adjacency built at init; heuristic =
 // gc-distance * min_edge_conc * me * ve/1000 * 0.06/250 — a strict
@@ -24,6 +31,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace alive {
@@ -54,6 +62,8 @@ struct PathRule {
   bool oneway = false;                  // respect OSM oneway
   double speed_cap_kmh = 0.0;           // <=0 means no cap
   double speed_const_kmh = 0.0;         // >0 overrides the stored speed
+  uint8_t acc_mask = 0;                 // e_acc bits that deny this mode
+  uint8_t turn_mask = 0;                // ban mode-mask bit that applies
 };
 
 class PathEngine {
@@ -98,8 +108,13 @@ class PathEngine {
   std::vector<uint8_t> e_hw_, e_sp_, e_field_;
   std::vector<int8_t> e_ow_;
   std::vector<int32_t> e_nm_;
+  std::vector<uint8_t> e_acc_;          // per-edge access-deny bits
   std::vector<int32_t> pts_;            // delta-packed polyline stream
   int32_t bbox_[4] = {0, 0, 0, 0};
+
+  // ARG2 turn bans: (in_dir_raw << 32 | via node) -> {out_dir_raw: mask}
+  std::unordered_map<uint64_t, std::unordered_map<uint32_t, uint8_t>>
+      bans_;
 
   // CSR adjacency: edge id | 0x80000000 = traverse v->u
   std::vector<uint32_t> adj_flat_;

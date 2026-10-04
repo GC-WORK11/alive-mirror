@@ -4,7 +4,7 @@
   "central-zone-latest.osm.pbf",
   "northern-zone-latest.osm.pbf"
  ],
- "pbf_sha256": "b6c965391de2f441",
+ "pbf_sha256": "83ef9b91051bbd29",
  "bbox": [
   76.68,
   28.08,
@@ -19,9 +19,25 @@
  ],
  "rdp_tol_m": 12.0,
  "generated": "tools/build_route_graph.py",
- "ways_in": 3994347,
- "edges": 1070452,
- "nodes": 819841,
- "points": 2324779,
- "format": "ARG1 (see tools/build_route_graph.py header)"
+ "ways_in": 3994356,
+ "edges": 1070459,
+ "nodes": 819846,
+ "points": 2324796,
+ "bans": 230,
+ "ban_stats": {
+  "via_node_outside": 164,
+  "no_left_turn": 8,
+  "no_u_turn": 3,
+  "no_right_turn": 166,
+  "via_way_seen": 128,
+  "via_way_multiedge_or_outside": 49,
+  "via_way_enforced": 50,
+  "only_u_turn": 0,
+  "via_way_to_outside": 12,
+  "only_straight_on": 0,
+  "no_straight_on": 3,
+  "to_way_outside": 4,
+  "bans": 230
+ },
+ "format": "ARG2 (see tools/build_route_graph.py header)"
 }
