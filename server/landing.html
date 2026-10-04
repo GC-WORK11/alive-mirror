@@ -251,8 +251,8 @@ footer{border-top:1px solid var(--line);margin-top:60px}
   <div class="split-row" style="align-items:start">
     <div>
       <table class="minitable"><thead><tr>
-        <th>corridor</th><th class="num">trips</th>
-        <th class="num">dose</th><th class="num">air pm2.5</th>
+        <th>corridor</th><th class="num">traversals</th>
+        <th class="num">avg dose</th><th class="num">devices</th>
       </tr></thead><tbody id="corr"></tbody></table>
       <div class="field-cap" style="padding:12px 4px 0" id="corrcap">live — pulled from the ops feed</div>
     </div>
@@ -359,8 +359,25 @@ j('/health').then(h=>{
   el('fmeta').textContent=`build ${h.build_sha||'—'} · ${st.count??0} stations live`;
 }).catch(()=>{el('meta').textContent='api unreachable — this page still means what it says'});
 
-/* corridor merge preview — the same aggregate the ops board reads */
-const TOKEN_FREE='/admin/api/corridors';  /* public? no — gated. fall back to honesty */
-el('corr').innerHTML='<tr><td colspan="4" style="color:var(--ink4);padding:18px">the corridor×field merge lives on the ops board — <a href="/admin" style="text-decoration:underline">open /admin</a> to read it live (token-gated, aggregates only).</td></tr>';
-el('corrcap').textContent='aggregates only · k≥3 · nothing personal exists to leak';
+/* corridor merge preview — the same aggregate the ops board reads,
+   pulled from the PUBLIC /community rollup; names resolved like the
+   admin cell inspector does — one /v2/reverse per corridor. */
+j('/community').then(async c=>{
+  const cs=(c.top_corridors||[]).slice(0,4);
+  if(!cs.length)throw 'none';
+  const named=await Promise.all(cs.map(async k=>{
+    let near=`${k.lat.toFixed(3)}°N ${k.lon.toFixed(3)}°E`;
+    try{const r=await j(`/v2/reverse?lat=${k.lat}&lon=${k.lon}`);
+      if(r&&(r.name||r.label))near=r.name||r.label}catch(e){}
+    return {near,k};
+  }));
+  el('corr').innerHTML=named.map(({near,k})=>
+    `<tr><td class="mono">${near}</td><td class="num">${k.samples}</td>
+     <td class="num">${k.avg_dose_ug!=null?k.avg_dose_ug.toFixed(1)+' µg':'—'}</td>
+     <td class="num">${k.devices} dev</td></tr>`).join('');
+  el('corrcap').textContent=`live — ${c.obs_24h??'—'} traversals in 24h · every corridor ≥3 distinct devices · the ops board adds the field join`;
+}).catch(()=>{
+  el('corr').innerHTML='<tr><td colspan="4" style="color:var(--ink4);padding:18px">no donated corridors above k=3 yet — the merge lives on the ops board, <a href="/admin" style="text-decoration:underline">open /admin</a>.</td></tr>';
+  el('corrcap').textContent='aggregates only · k≥3 · nothing personal exists to leak';
+});
 </script></body></html>
