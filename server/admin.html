@@ -307,7 +307,7 @@ const freshBadge=(flag)=>flag===true?'<span class="badge stale">stale</span>'
    behind the first prompt wake up to the stored token and just retry. */
 async function getJSON(u,retried){
   const tok=sessionStorage.getItem('alive_admin_tok');
-  const r=await fetch(u,tok?{headers:'Bearer '+tok}}:{});
+  const r=await fetch(u,tok?{headers:{authorization:'Bearer '+tok}}:{});
   if(r.status===401||r.status===403){
     /* re-read: another caller may have stored a token while this
        fetch/prompt was in flight — retry with it before asking */
@@ -330,7 +330,7 @@ async function tick(){
     [status,sources,corridors,donations,validation,model,districts,timing]=await Promise.all(
       ['/admin/api/status','/admin/api/sources','/admin/api/corridors',
        '/admin/api/donations','/admin/api/validation','/admin/api/model',
-       '/v2/districts','/admin/api/timing'].map(getJSON));
+       '/v2/districts','/admin/api/timing'].map(u=>getJSON(u)));
   }catch(e){
     /* keep the last good render on screen — flag its age, never blank it */
     $('feed').className='feed off';
