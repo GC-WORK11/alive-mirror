@@ -57,17 +57,22 @@ export class CueTracker {
         for (let j = 0; j < CUE_M.length; j++) this.fired[i][j] = true;
         continue;
       }
-      CUE_M.forEach((cm, j) => {
-        if (this.fired[i][j]) return;
-        if (cm === 0 ? remain <= 25 : remain <= cm && remain > cm - 160) {
-          this.fired[i][j] = true;
-          out.push(
-            cm === 0
-              ? t("nav_now", lang, { i: instr })
-              : t("nav_in", lang, { d: cm, i: instr }),
-          );
-        }
-      });
+      /* most-urgent-pending only: a fix landing mid-window says the
+         truest distance once — never "in 150 m" after "now". Speaking
+         cue j consumes every earlier-window cue too (their windows are
+         already behind us); later cues stay pending. */
+      for (let j = CUE_M.length - 1; j >= 0; j--) {
+        const cm = CUE_M[j];
+        const inWin = cm === 0 ? remain <= 25 : remain <= cm && remain > cm - 160;
+        if (this.fired[i][j] || !inWin) continue;
+        for (let k = 0; k <= j; k++) this.fired[i][k] = true;
+        out.push(
+          cm === 0
+            ? t("nav_now", lang, { i: instr })
+            : t("nav_in", lang, { d: cm, i: instr }),
+        );
+        break;
+      }
     }
     return out;
   }
