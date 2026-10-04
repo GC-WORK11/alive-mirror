@@ -665,11 +665,17 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
 
 
 async def _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
-    """Cycle/walk via OSRM profiles; durations are stated estimates."""
+    """Cycle/walk via OSRM profiles; durations are stated estimates.
+    The two profile calls race — serially they can stack ~11s each and
+    blow the whole plan budget on a far OD (seen live: opts=0 at 25s)."""
     opts = []
-    for mode, profile_name in (("cycle", "cycling"), ("walk", "walking")):
-        rt = await deps.osrm_route(profile_name, flon, flat, tlon, tlat)
-        if not rt:
+    rts = await asyncio.gather(
+        *(deps.osrm_route(p, flon, flat, tlon, tlat)
+          for _, p in (("cycle", "cycling"), ("walk", "walking"))),
+        return_exceptions=True)
+    for (mode, profile_name), rt in zip(
+            (("cycle", "cycling"), ("walk", "walking")), rts):
+        if not rt or isinstance(rt, Exception):
             continue
         dist_km = rt["distance"] / 1000.0
         dur = dist_km / MODE_SPEED_KMH[profile_name] * 3600.0
