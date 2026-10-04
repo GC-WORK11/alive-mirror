@@ -105,6 +105,15 @@ AWS free-tier shape, least-privilege IAM: ECS Fargate + NLB + DynamoDB
 CodeBuild deploys + Secrets Manager. The C++ hot path answers search in
 ~0.9 ms p50 (120k rows).
 
+**"What happens when a feed or arm dies mid-demo?"**
+It says so on the wire — nothing goes silently stale. `/v2/plan` carries
+`degraded:[<arm>]` naming any planner arm that timed out or failed while
+its siblings still returned real rows (seen live: `["engine","transit"]`
+during a cold boot, then absent once warm). `/health` reports
+`field_stale:true` + the real age instead of pretending fresh; the
+sources table names which feeds are up. The honesty is the point —
+we'd rather show a missing arm than a fabricated answer.
+
 ## Demo flow (phone)
 
 1. Search: type a Delhi landmark → real suggestions (C++ SearchIndex)
