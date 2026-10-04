@@ -34,6 +34,7 @@ import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
 import { confirm, tap, tick } from "../../haptics";
+import { localizeStep } from "../../nav/instructions";
 import {
   getVehicle, saveVehicle, vehicleLabel, type VehicleProfile,
 } from "../../store/vehicle";
@@ -502,7 +503,9 @@ export function CompareSheet({
                         <View style={s.stepDot} />
                         {i < steps.length - 1 && <View style={s.stepLine} />}
                       </View>
-                      <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>{st.instruction}</Text>
+                      <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
+                        {localizeStep(st, lang)}
+                      </Text>
                       <Text {...DYNAMIC_TYPE} style={[s.stepDist, NUM, { fontFamily: fam(lang, "reg") }]}>
                         {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} km` : `${Math.round(st.distance_m)} m`}
                       </Text>

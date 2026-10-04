@@ -24,6 +24,7 @@ import {
 } from "./offroute";
 import { fieldAtAlongM, stripCumM, type Band, type RouteStrip } from "./strip";
 import { CueTracker, speakCue, stopCues, type NavStep } from "./speech";
+import { localizeStep } from "./instructions";
 import { arrived as arriveHaptic } from "../haptics";
 import type { Lang } from "../i18n/strings";
 
@@ -356,7 +357,7 @@ export function useNavEngine(opts: NavEngineOpts) {
         for (let i = 0; i < steps.length - 1; i++) {
           acc += Math.max(0, steps[i].distance_m || 0);
           if (acc > alongRef.current + 5) {
-            found = { instruction: steps[i + 1].instruction, distM: acc - alongRef.current };
+            found = { instruction: localizeStep(steps[i + 1], lang), distM: acc - alongRef.current };
             break;
           }
         }

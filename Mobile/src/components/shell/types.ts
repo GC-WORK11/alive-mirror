@@ -93,7 +93,7 @@ export type Depart = {
   ug_saved_vs_now: number | null;
 } | null;
 
-export type Step = { instruction: string; distance_m: number; type?: string };
+export type Step = { instruction: string; distance_m: number; type?: string; modifier?: string; street?: string };
 
 /** Top-level POST /v2/plan response. */
 export type PlanResult = {
