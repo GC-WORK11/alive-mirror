@@ -425,18 +425,44 @@ async def city():
 # six-band scale; aqi_us is the US-EPA companion index.
 
 
+_DIST_TTL_S = 120.0
+_DIST_CACHE = None   # (built_ts, field_key, payload) — district means
+                     # only move when the field does; the key pins the
+                     # cache to the field state it was built from so an
+                     # emptied/reloaded field can't inherit stale rows.
+                     # A short TTL caps any drift from donated traversals
+                     # at <=2 min, disclosed via 'cached_s'. Rebuilding
+                     # per request re-solved 1600 krige cells (~4 s) for
+                     # byte-identical output.
+
+
+def _districts_field_key(F):
+    """(fetched_at, sample_count, snap_epoch) — any reload, refresh, or
+    wipe changes it and forces a rebuild."""
+    return (getattr(F, "_fetched_at", None),
+            len(getattr(F, "_samples", None) or []),
+            getattr(F, "_snap_epoch", None))
+
+
 @router.get("/districts")
 async def v2_districts():
+    global _DIST_CACHE
     from .plan import _field_refresh_bounded
     await _field_refresh_bounded()
+    F = deps.field()
+    fkey = _districts_field_key(F)
+    if (_DIST_CACHE and _DIST_CACHE[1] == fkey
+            and time.time() - _DIST_CACHE[0] < _DIST_TTL_S):
+        built, _k, payload = _DIST_CACHE
+        return {**payload, "ts": time.time(), "cached_s":
+                round(time.time() - built, 1)}
     import districts as _d
     import grid as _g
     F = deps.field()
     geo = _g.as_geojson(F, cells=40, param="pm2_5")
     rows = _d.live(geo.get("features", []))
     rows = _d.finalize(rows, lambda la, lo: F.value(la, lo, "pm2_5"))
-    return {
-        "ts": time.time(),
+    payload = {
         "districts": rows,
         "bands": [{"min": lo, "max": hi, "category": c, "color": col}
                   for lo, hi, c, col in _d.CPCB_BANDS],
@@ -445,6 +471,8 @@ async def v2_districts():
         "field_age_s": (F.status() or {}).get("age_s")
         if hasattr(F, "status") else None,
     }
+    _DIST_CACHE = (time.time(), fkey, payload)
+    return {**payload, "ts": time.time(), "cached_s": 0.0}
 
 
 # ---------------------------------------------------------------- moves
