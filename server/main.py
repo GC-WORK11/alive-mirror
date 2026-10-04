@@ -133,6 +133,28 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_engine())
+    # The landing page's aether + admin's field map both read /grid?cells=40
+    # — a cold build costs ~7 s of krige on this box, paid by whoever asks
+    # first each epoch. Re-prime the epoch-keyed cache in the background
+    # whenever the epoch moves (field refresh or a new donation), so the
+    # interp cost is amortized off the request path. Threaded — the GIL-free
+    # krige work must not starve the health check.
+    async def _warm_grid():
+        last_ep = None
+        while True:
+            try:
+                if getattr(FIELD, "_fetched_at", None):
+                    ep = (FIELD._fetched_at, community._OBS_VERSION)
+                    if ep != last_ep:
+                        await asyncio.to_thread(
+                            _grid_cached, ("l", 40, "pm2_5"), ep,
+                            lambda ep=ep: _epoch_tagged(
+                                grid.as_geojson(FIELD, 40, "pm2_5"), ep))
+                        last_ep = ep
+            except Exception:
+                pass
+            await asyncio.sleep(60)
+    asyncio.create_task(_warm_grid())
     yield
 
 

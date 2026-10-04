@@ -2,7 +2,7 @@
 
 *Compiled from every owner prompt across all ALive-108 sessions, tail to head
 (~25 sessions mined, 2026-10-01 → 2026-10-04). Each statement → honest status
-against the live deploy (`a3cdf2fa`, main `7552140`).*
+against the live deploy (`283985db`, reviews feature deploying next).*
 
 ## the vision, refined into one paragraph
 
