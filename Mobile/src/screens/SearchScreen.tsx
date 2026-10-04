@@ -284,10 +284,10 @@ function SearchSheet({
       {/* search bar — pill 999 (doc 03) */}
       <View style={ss.bar}>
         <Pressable
-          onPress={() => dismissThen(onClose)}
+          onPress={() => { tick(); dismissThen(onClose); }}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel={t("vehicleQ_back", lang)}
+          accessibilityLabel={t("a11yBack", lang)}
           style={ss.barBtn}
         >
           <BackGlyph color={V2T.text2} />
@@ -314,7 +314,7 @@ function SearchSheet({
         />
         {q.length > 0 && (
           <Pressable
-            onPress={() => onChange("")}
+            onPress={() => { tick(); onChange(""); }}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={t("a11yClear", lang)}
@@ -411,7 +411,7 @@ function SearchSheet({
             one tap away even mid-scroll (doc 02 §S2). */}
         <View style={[ss.actionBar, { paddingBottom: insets.bottom + 6 }]}>
           <Pressable
-            onPress={() => dismissThen(() => onSelect({ type: "current_location" }))}
+            onPress={() => { tick(); dismissThen(() => onSelect({ type: "current_location" })); }}
             accessibilityRole="button"
             accessibilityLabel={t("yourLocation", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: V2T.surface2 }]}
@@ -423,7 +423,7 @@ function SearchSheet({
           </Pressable>
           <View style={ss.actionSplit} />
           <Pressable
-            onPress={() => dismissThen(() => onSelect({ type: "choose_on_map" }))}
+            onPress={() => { tick(); dismissThen(() => onSelect({ type: "choose_on_map" })); }}
             accessibilityRole="button"
             accessibilityLabel={t("chooseOnMap", lang)}
             accessibilityHint={t("mapPickHint", lang)}

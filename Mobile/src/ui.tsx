@@ -11,6 +11,7 @@ import { CIG_UG, F, NUM, V2Radius, V2T, V2Type } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
 import { DYNAMIC_TYPE } from "./a11y";
+import { tick } from "./haptics";
 
 const WIN_H = () => Dimensions.get("window").height;
 
@@ -215,7 +216,7 @@ export function MapButton({
   label?: string; filled?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={label}
+    <Pressable onPress={() => { tick(); onPress(); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [us.mapBtn, active && us.mapBtnOn, pressed && { opacity: 0.6 }]}>
       {/* active = accent puck → the glyph must go light (V2T.bg ≈7:1 on
           accent); ink-on-accent was the dark-theme leftover */}
