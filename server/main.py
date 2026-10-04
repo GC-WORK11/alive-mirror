@@ -53,6 +53,19 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_fires())
+    # Same gap for the field itself: FIELD.refresh is request-driven,
+    # so on a cold task no samples exist until the first /aqi — the
+    # engine warm loop meanwhile logs "field serves no reads". A fresh
+    # Fargate task measured graph-ready ~36 s vs field-ready ~96 s
+    # (/ecs/alive108 2026-10-04): the gap was ~60 s of waiting for a
+    # request to start the Open-Meteo fetch. Starting the same real
+    # fetch at boot removes it — nothing fabricated, just earlier.
+    async def _warm_field():
+        try:
+            await FIELD.refresh(http())
+        except Exception:
+            pass
+    asyncio.create_task(_warm_field())
     # Same honesty gap for the forecast horizon: until the first
     # /depart or /v2/city refreshes it, /status reports a cold pipeline.
     async def _warm_forecast():
