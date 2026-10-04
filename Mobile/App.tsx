@@ -462,7 +462,7 @@ function AppInner() {
       )}
       {phase === "nav" && sel && (
         <NavSession option={sel} options={flow.options} from={flow.from} to={flow.to} steps={flow.steps}
-          camRef={camRef} lang={lang} share={settings.share} onExit={flow.exitNav}
+          camRef={camRef} lang={lang} share={settings.share} voice={settings.voice} onExit={flow.exitNav}
           showCig={settings.show_cig} onTripDone={flow.recordTrip} />
       )}
 
@@ -527,11 +527,14 @@ function AppInner() {
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
 function NavSession({
-  option, options, from, to, steps, camRef, lang, share, showCig, onExit, onTripDone,
+  option, options, from, to, steps, camRef, lang, share, voice, showCig, onExit, onTripDone,
 }: {
   option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
   camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
   share: boolean; onExit: () => void;
+  /** turn-guidance voice — settings.voice; the engine defaults to silent
+     *  without it, which left every cue dead until this was wired */
+  voice: boolean;
   /** cigarette-equivalence framing — off by default (settings.show_cig) */
   showCig?: boolean;
   onTripDone: (t: { label: string; vehicle: string; doseUg: number | null; avoidedUg: number | null }) => void;
@@ -578,6 +581,7 @@ function NavSession({
     camRef,
     lang,
     shareEnabled: share,
+    speech: voice,
     onArrive: (s) => {
       setSummary(s);
       onTripDone({   // ledger entry exists only for a trip actually travelled
