@@ -680,15 +680,24 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
     base = rt["duration"]  # OSRM duration ≈ free-flow — no traffic feed
     steps = rt.get("steps") or None
     src = "osrm" if steps else "endpoints"
-    for mode, label in (("car", "Car (AC)"), ("car_open", "Car (windows down)"),
-                        ("bike", "Bike / scooter"), ("auto", "Auto-rickshaw"),
-                        ("bus", "Bus")):
-        f = _MODES[mode][5]
-        opts.append(_option(mode, label, rt["geometry"], dist_km,
-                            base * f, base * f, "osrm-freeflow", vehicle,
-                            profile, steps=steps, steps_source=src,
-                            origin=o, dest=d))
-    return opts
+
+    # row dosing is sync CPU (a cold task with no priced raster falls to
+    # the live krige per segment, seconds per row): off the event loop,
+    # or it blocks the plan's own budget timer (live: 34 s first plan
+    # against a 20 s budget on a fresh task)
+    def _rows():
+        out = []
+        for mode, label in (("car", "Car (AC)"),
+                            ("car_open", "Car (windows down)"),
+                            ("bike", "Bike / scooter"),
+                            ("auto", "Auto-rickshaw"), ("bus", "Bus")):
+            f = _MODES[mode][5]
+            out.append(_option(mode, label, rt["geometry"], dist_km,
+                               base * f, base * f, "osrm-freeflow", vehicle,
+                               profile, steps=steps, steps_source=src,
+                               origin=o, dest=d))
+        return out
+    return opts + await asyncio.to_thread(_rows)
 
 
 async def _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
@@ -700,19 +709,22 @@ async def _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
         *(deps.osrm_route(p, flon, flat, tlon, tlat)
           for _, p in (("cycle", "cycling"), ("walk", "walking"))),
         return_exceptions=True)
-    for (mode, profile_name), rt in zip(
-            (("cycle", "cycling"), ("walk", "walking")), rts):
-        if not rt or isinstance(rt, Exception):
-            continue
-        dist_km = rt["distance"] / 1000.0
-        dur = dist_km / MODE_SPEED_KMH[profile_name] * 3600.0
-        steps = rt.get("steps") or None
-        opts.append(_option(mode, _MODES[mode][3], rt["geometry"], dist_km,
-                            dur, dur, "estimated", vehicle, profile,
-                            steps=steps,
-                            steps_source="osrm" if steps else "endpoints",
-                            origin=(flat, flon), dest=(tlat, tlon)))
-    return opts
+    def _rows():   # sync dosing off the loop (see _motorized_options)
+        out = []
+        for (mode, profile_name), rt in zip(
+                (("cycle", "cycling"), ("walk", "walking")), rts):
+            if not rt or isinstance(rt, Exception):
+                continue
+            dist_km = rt["distance"] / 1000.0
+            dur = dist_km / MODE_SPEED_KMH[profile_name] * 3600.0
+            steps = rt.get("steps") or None
+            out.append(_option(mode, _MODES[mode][3], rt["geometry"],
+                               dist_km, dur, dur, "estimated", vehicle,
+                               profile, steps=steps,
+                               steps_source="osrm" if steps else "endpoints",
+                               origin=(flat, flon), dest=(tlat, tlon)))
+        return out
+    return opts + await asyncio.to_thread(_rows)
 
 
 def _transit_option(j: dict, vehicle, profile, origin, dest) -> dict:
