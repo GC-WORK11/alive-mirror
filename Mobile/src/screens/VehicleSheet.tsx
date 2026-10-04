@@ -17,8 +17,8 @@
 // Re-opened from the options-sheet chip via CompareSheet's onVehiclePress.
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable,
+  ScrollView, StyleSheet, Text, TextInput, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { V2Radius, V2T, V2Type, fam } from "../theme";
@@ -466,6 +466,13 @@ export function VehicleSheet({
   onDone: (p: VehicleProfile) => void;
   onClose: () => void;
 }) {
+  /* closing while a PUC field holds focus leaves the IME up over the
+     compare sheet (unmount does not ask the IME to hide) — dismiss on
+     every visible→false edge so save / skip / ✕ / BACK all end quiet */
+  useEffect(() => {
+    if (!visible) Keyboard.dismiss();
+  }, [visible]);
+
   if (!visible) return null;
   return (
     <View style={s.overlay} pointerEvents="box-none">
