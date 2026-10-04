@@ -356,8 +356,14 @@ async function getJSON(u,retried){
     if(now&&!retried)return getJSON(u,true);
     /* the stored token itself was rejected — clear it and ask again */
     if(now&&retried)sessionStorage.removeItem('alive_admin_tok');
+    /* a cancelled prompt declines for the tab — without this the next
+       feed's 401 re-asks, so a declined operator gets nagged every tick */
+    if(sessionStorage.getItem('alive_admin_tok_no'))
+      throw new Error(u+' '+r.status);
     const t=prompt('admin token (ALIVE_ADMIN_TOKEN):');
     if(t){sessionStorage.setItem('alive_admin_tok',t);return getJSON(u,true)}
+    sessionStorage.setItem('alive_admin_tok_no','1');
+    throw new Error(u+' '+r.status+' — token declined');
   }
   if(!r.ok)throw new Error(u+' '+r.status);return r.json()}
 
@@ -413,7 +419,8 @@ async function tick(){
   $('feed').className='feed live';
   $('feedtxt').textContent='auto 30s';
   $('updated').textContent='updated '+timeIST(LAST_OK);
-  if(failedN)$('feedtxt').textContent=`auto 30s · ${failedN} feed${failedN>1?'s':''} down`
+  if(failedN)$('feedtxt').textContent=`auto 30s · ${failedN} feed${failedN>1?'s':''} down`+
+    (sessionStorage.getItem('alive_admin_tok_no')?' · token declined — open a new tab to re-authenticate':'')
 
   const f=S.field||{};
   const sv=f.serving||'none';
