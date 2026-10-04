@@ -92,3 +92,59 @@ failing page does not sink other states).
   encrypted contract — do not wire it; if data.gov.in stays blocked, the
   fallback is the OpenAQ S3 archive path already in `openaq_archive.py`
   (lagged, no key) or an India-region egress for `api.data.gov.in`.
+
+## 5. Live wiring (shipped 2026-10-04) — WAQI first after the egress probe
+
+A one-off Fargate probe inside the prod VPC (same subnets/SG as the
+service task, ap-south-1 egress) measured the upstreams live:
+
+| upstream | result |
+|---|---|
+| `api.data.gov.in` | **TCP connection refused even from ap-south-1** — dead from every egress we have |
+| CPCB public dashboard | timeout |
+| SAFAR | TLS handshake completes, then read-times-out (broken host) |
+| `api.waqi.info` | **reachable, fast** |
+| `openaq` | reachable (owner's key is revoked → 401, but the path stays for anyone else's key) |
+
+So both live chains are **WAQI → CPCB-if-key → OpenAQ**:
+
+| Path | Function | Chain |
+|---|---|---|
+| serving field refresh | `airfield.AirField._grab_stations` (async) | WAQI → CPCB → OpenAQ |
+| 15-min air-index worker | `airindex._fetch_stations` (sync) | WAQI → CPCB → OpenAQ |
+
+Semantics, identical in both places:
+
+- A feed wins only when its bundle is `status: "ok"` **and** carries
+  stations; the winner stamps the field/bundle `source`
+  (`waqi-stations+open-meteo/cams`-style on FIELD, `waqi` in the
+  airindex bundle).
+- Every tried leg's verbatim verdict is recorded and surfaced —
+  `FIELD.status().stations_status` + `.stations_src` (also visible on
+  `/health` → `sources.stations.feeds`), and `waqi_status` /
+  `cpcb_status` / `openaq_status` on the airindex bundle — including
+  when a leg raises (the retry-degraded bundle still names what the
+  earlier feeds did).
+- All-lost headline = first REAL upstream verdict in chain order, so a
+  `no key` placeholder never masks a refused/401 behind it; with no
+  keys at all the honest `unavailable: no key — owner blocker` stands.
+- `airfield` runs the sync CPCB adapter on a worker thread under a 90 s
+  `wait_for` — the bounded retry policy (2/page × ≤4 pages × 4 states,
+  8 s connect) stays, but a TCP-filtered (silent-drop) route can never
+  stall the field refresh past that bound. A refused conn fails fast.
+
+Deploy wiring: `scripts/deploy.sh` injects `WAQI_API_KEY` from Secrets
+Manager `alive108/waqi` (JSON `{"api_key": "…"}`) next to
+`alive108/openaq` + `alive108/admin-token`; the execution-role policy
+already covers `alive108/*`. The secret currently holds the placeholder
+`REPLACE_ME` — `ingest_waqi` treats that as no-key (never burns a
+doomed call), so the chain degrades honestly until the owner's real
+token lands; flipping it needs only `secretsmanager put-secret-value` +
+`force-new-deployment`, no code change. `CPCB_API_KEY` /
+`OPENAQ_API_KEY` stay optional legs — the CPCB adapter is already keyed
+into the middle slot if a working egress ever exists; flip the order by
+moving one block, no new code.
+
+Tests: `server/tests/test_station_chain.py` + `test_ingest_waqi.py` —
+order, winner-stamping, loser-status visibility, placeholder/no-key
+headlines for both paths.

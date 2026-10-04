@@ -7,7 +7,8 @@ build_field() and stores the gzip snapshot.
 Pipeline:
   1. Pull inputs, each stamped with provenance + age:
        model    — Open-Meteo/CAMS pm2_5 over the NCR sample grid (no key)
-       stations — CPCB/DPCC instruments via OpenAQ v3 (needs OPENAQ_API_KEY;
+       stations — CPCB/DPCC instruments via the WAQI → CPCB → OpenAQ
+       chain (WAQI_API_KEY / CPCB_API_KEY / OPENAQ_API_KEY;
                   optional — the field builds without it and the provenance
                   block says so explicitly, never silently)
        fires    — NASA FIRMS public 24h CSVs (no key) -> NW-belt smoke
@@ -546,7 +547,8 @@ def _fetch_fires(client, wind_deg, *, attempts=None, sleep=None) -> dict:
 
 def _fetch_stations_once(client) -> dict:
     """CPCB/DPCC instruments via OpenAQ v3 — sync variant of
-    airfield.AirField._grab_openaq that also keeps each reading's UTC
+    airfield.AirField._grab_stations' OpenAQ leg that also keeps each
+    reading's UTC
     timestamp so QC can enforce the 3 h staleness rule. Without
     OPENAQ_API_KEY the source is marked 'unavailable: no key' — explicit,
     never silent (00-README open item #1); that is a returned bundle,
@@ -574,7 +576,7 @@ def _fetch_stations_once(client) -> dict:
                     "loc_id": loc["id"],
                 }
     # Per-location reads stay individually tolerant (one sick location
-    # must not sink the layer — same rule as airfield._grab_openaq), but
+    # must not sink the layer — same rule as airfield._grab_stations), but
     # failures are COUNTED: when every read fails the source is down, not
     # "reporting zero stations". _SourceDown carries the verbatim reason
     # (HTTP 401/403 auth, HTTP 429 quota) into the bundle status — a
@@ -621,28 +623,75 @@ def _fetch_stations_once(client) -> dict:
 
 
 def _fetch_stations(client, *, attempts=None, sleep=None) -> dict:
-    """OpenAQ first, WAQI fallback — both republish the same CPCB/DPCC
-    instruments. The fallback fires only when the primary bundle is not
-    'ok' AND WAQI_API_KEY exists; whichever produced the rows stamps the
-    bundle `source`, and the loser's status rides along as
-    openaq_status/waqi_status so the degradation is visible, not hidden."""
+    """WAQI first (api.waqi.info republishes the same CPCB/DPCC CAAQMS
+    instruments and is the only live route from prod — verified by a
+    Fargate probe 2026-10-04: api.data.gov.in is TCP-refused even from
+    ap-south-1), then CPCB data.gov.in keyed-attempt (adapter kept for
+    an India-reachable egress later), then OpenAQ last — the owner's
+    key is revoked but the path stays for anyone else's.
+
+    A feed wins only when it answers 'ok' AND yields stations; the
+    winner stamps the bundle `source` and the losers' statuses ride
+    along as waqi_status/cpcb_status/openaq_status so the degradation
+    is visible, not hidden. When every feed loses, the headline is the
+    first REAL upstream verdict (a 'no key' placeholder never masks a
+    refused/401 behind it); with no keys at all it is the primary's own
+    'no key — owner blocker'. The loser statuses also survive a raising
+    leg: `tried` outlives `_try`, so even the degraded bundle from
+    _run_source names what the earlier feeds did."""
+    tried = {}
+
     def _try():
-        b = _fetch_stations_once(client)
-        if b.get("status") == "ok" or not os.environ.get("WAQI_API_KEY"):
-            return b
+        wb = None
+        if os.environ.get("WAQI_API_KEY"):
+            try:
+                import ingest_waqi
+                wb = ingest_waqi.fetch(client=client)
+            except Exception as e:  # noqa: BLE001 — surface, never crash
+                wb = {"status": f"unavailable: {_describe_error(e)}",
+                      "source": "waqi", "fetched_at": time.time(),
+                      "stations": []}
+            tried["waqi_status"] = wb.get("status")
+            if wb.get("status") == "ok" and wb.get("stations"):
+                return wb
+        else:
+            tried["waqi_status"] = "skipped: no key"
+        # keyed attempt only — api.data.gov.in is refused from this
+        # egress today; the adapter returns fast-bounded bundles, never
+        # raises on upstream failure.
+        import ingest_cpcb
+        cb = ingest_cpcb.fetch(client=client)
+        tried["cpcb_status"] = cb.get("status")
+        if cb.get("status") == "ok" and cb.get("stations"):
+            cb["waqi_status"] = tried["waqi_status"]
+            return cb
         try:
-            import ingest_waqi
-            wb = ingest_waqi.fetch(client=client)
-        except Exception as e:  # noqa: BLE001 — surface, never crash a source
-            wb = {"status": f"unavailable: {_describe_error(e)}",
-                  "source": "waqi", "fetched_at": time.time(),
-                  "stations": []}
-        if wb.get("status") == "ok":
-            wb["openaq_status"] = b.get("status")
-            return wb
-        b["waqi_status"] = wb.get("status")
-        return b
-    return _run_source("stations", _try, attempts=attempts, sleep=sleep)
+            ob = _fetch_stations_once(client)
+        except Exception as e:
+            tried["openaq_status"] = f"raised: {_describe_error(e)}"
+            raise           # retryable — _run_source owns the backoff
+        tried["openaq_status"] = ob.get("status")
+        if ob.get("status") == "ok" and ob.get("stations"):
+            ob["waqi_status"] = tried["waqi_status"]
+            ob["cpcb_status"] = tried["cpcb_status"]
+            return ob
+        # All three lost. Headline the first bundle whose status is a
+        # real upstream verdict (not a 'no key' placeholder) — in chain
+        # order that's the primary's own reason; a later real verdict
+        # (e.g. OpenAQ's HTTP 401) beats an earlier placeholder so the
+        # status names the actual failure.
+        headline = cb
+        for b in (wb, cb, ob):
+            if b and "no key" not in (b.get("status") or ""):
+                headline = b
+                break
+        for k, v in tried.items():
+            headline.setdefault(k, v)
+        return headline
+    out = _run_source("stations", _try, attempts=attempts, sleep=sleep)
+    for k, v in tried.items():
+        out.setdefault(k, v)
+    return out
 
 
 def fetch_inputs(now=None, client=None) -> dict:

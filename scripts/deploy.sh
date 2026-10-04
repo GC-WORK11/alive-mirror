@@ -172,6 +172,8 @@ TD_ARN="$(run aws ecs register-task-definition \
       {"name":"BUILD_SHA","value":"'"$TAG"'"}],
     "secrets":[{"name":"OPENAQ_API_KEY",
       "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/openaq"},
+      {"name":"WAQI_API_KEY",
+      "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/waqi:api_key::"},
       {"name":"ALIVE_ADMIN_TOKEN",
       "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/admin-token"}],
     "logConfiguration":{"logDriver":"awslogs","options":{

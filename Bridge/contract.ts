@@ -95,6 +95,8 @@ export interface FieldStatus {
   samples?: number;                // model lattice samples in the blend
   age_s?: number | null;           // seconds since served field fetched/built
   station_readings?: number;       // live station readings blended — 0 = dark
+  stations_src?: string | null;    // "waqi" | "cpcb" | "openaq" — winning feed
+  stations_status?: Record<string, string> | null; // per-feed verbatim verdicts
   wind?: Record<string, unknown>;
   kriging?: string;            // "on" | "idw"
   engine?: string;             // "alive_core" | "python" — which engine serves

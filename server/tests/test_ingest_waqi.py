@@ -165,24 +165,32 @@ def test_429_retry_then_succeed():
     assert out["retries_429"] == 1 and sleeps
 
 
-# --- airindex chain: openaq unavailable -> waqi fallback ------------------
+# --- airindex chain: waqi primary --------------------------------------
 def test_airindex_falls_back_to_waqi(monkeypatch):
     monkeypatch.setenv("WAQI_API_KEY", KEY)
+    monkeypatch.delenv("CPCB_API_KEY", raising=False)
     monkeypatch.delenv("OPENAQ_API_KEY", raising=False)
     c = _client(2)
     bundle = airindex._fetch_stations(c, attempts=1, sleep=lambda s: None)
     assert bundle["status"] == "ok" and bundle["source"] == "waqi"
-    assert bundle["openaq_status"] == "unavailable: no key"
+    # WAQI is the primary now — winning on leg 1 means the CPCB/OpenAQ
+    # legs never ran, so they carry no status at all
+    assert "cpcb_status" not in bundle
+    assert "openaq_status" not in bundle
     assert len(bundle["stations"]) == 2
 
 
-def test_airindex_no_waqi_key_keeps_openaq_bundle(monkeypatch):
+def test_airindex_no_keys_headlines_primary_blocker(monkeypatch):
+    monkeypatch.delenv("CPCB_API_KEY", raising=False)
     monkeypatch.delenv("WAQI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAQ_API_KEY", raising=False)
     bundle = airindex._fetch_stations(
         _client(1), attempts=1, sleep=lambda s: None)
-    assert bundle["source"] == "openaq-v3"
-    assert bundle["status"] == "unavailable: no key"
+    assert bundle["source"] == "data.gov.in-cpcb"
+    assert bundle["status"] == "unavailable: no key — owner blocker"
+    # the skipped tails are still named alongside
+    assert bundle["waqi_status"] == "skipped: no key"
+    assert bundle["openaq_status"] == "unavailable: no key"
 
 
 # --- grab_async (airfield path) -------------------------------------------

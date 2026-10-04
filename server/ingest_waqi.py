@@ -36,7 +36,7 @@ Contract — fetch(api_key=None, client=None, bbox=..., sleep=...) -> dict:
 
 grab_async(client, api_key=None, bbox=...) -> list is the airfield
 variant — same stations, shaped (lat, lon, name, {"pm2_5": v}) to slot
-into AirField._debias exactly like _grab_openaq's rows.
+into AirField._debias exactly like _grab_stations' rows.
 """
 import asyncio
 import os
@@ -191,7 +191,10 @@ def fetch(api_key=None, client=None, bbox=BBOX, sleep=time.sleep) -> dict:
     t0 = time.time()
     key = api_key or os.environ.get(ENV_KEY)
     skipped = {"no_pm25": 0, "bad_value": 0, "bad_ts": 0, "http_error": 0}
-    if not key:
+    # 'REPLACE_ME' = the seeded alive108/waqi Secrets Manager placeholder
+    # (scripts/deploy.sh wires it into the task env before the owner's
+    # real token lands) — treat as no key, never burn a doomed call.
+    if not key or key == "REPLACE_ME":
         return {"status": "no key — owner blocker", "source": SOURCE,
                 "fetched_at": t0, "stations": [], "obs": [],
                 "skipped": skipped}
@@ -256,12 +259,12 @@ def fetch(api_key=None, client=None, bbox=BBOX, sleep=time.sleep) -> dict:
 
 async def grab_async(client: httpx.AsyncClient, api_key=None,
                      bbox=BBOX) -> list:
-    """airfield._grab_openaq sibling — live stations as
+    """airfield._grab_stations sibling — live stations as
     (lat, lon, name, {"pm2_5": v}) rows for the IDW/_debias blend.
     Returns [] without a key or on any upstream failure — the modelled
     field stands alone, exactly like the OpenAQ path."""
     key = api_key or os.environ.get(ENV_KEY)
-    if not key:
+    if not key or key == "REPLACE_ME":   # see fetch() — seeded placeholder
         return []
     try:
         r = await client.get(f"{WAQI}/map/bounds/",
