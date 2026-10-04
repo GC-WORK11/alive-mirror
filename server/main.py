@@ -1210,6 +1210,14 @@ async def admin_api():
     }
 
 
+@app.get("/")
+async def root_page():
+    """Bare domain → the public city page: a judge hitting the NLB root
+    lands on the live choropleth, not a 404."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/city", status_code=302)
+
+
 @app.get("/admin")
 async def admin_page():
     from fastapi.responses import FileResponse
