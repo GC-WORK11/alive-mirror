@@ -739,7 +739,10 @@ function fmShow(ft,x,y){
      gazetteer has nothing within 150m — that reads 'no named place',
      not an error; a real failure shows '—' and can retry */
   if(FM_NAMES[key]==null){
-    fetch(`/v2/reverse?lat=${clat.toFixed(4)}&lon=${clon.toFixed(4)}`)
+    /* 4s ceiling — the live gazetteer can hang >10s on dense-area cells;
+       a slow lookup must never leave the popover spinning through a demo */
+    fetch(`/v2/reverse?lat=${clat.toFixed(4)}&lon=${clon.toFixed(4)}`,
+          {signal:AbortSignal.timeout(4000)})
       .then(async r=>{
         if(r.status===404)return null;
         if(!r.ok)throw new Error('reverse '+r.status);
@@ -753,9 +756,12 @@ function fmShow(ft,x,y){
           const nm=pop.querySelector('.p-name');if(nm)nm.innerHTML=FM_NAMES[key];
         }
       })
-      .catch(()=>{
+      .catch(err=>{
+        /* timeout vs real failure read differently — both honest; neither
+           cached, so the next click retries */
+        const msg=(err&&err.name==='TimeoutError')?'name lookup timed out':'—';
         if(FM_INS&&FM_INS.key===key&&!pop.hidden){
-          const nm=pop.querySelector('.p-name');if(nm)nm.textContent='—';
+          const nm=pop.querySelector('.p-name');if(nm)nm.textContent=msg;
         }
       });
   }
