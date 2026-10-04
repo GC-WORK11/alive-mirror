@@ -79,6 +79,8 @@
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;
          overflow:hidden}
   .scrollx{overflow-x:auto}
+  .scrollx td{padding:9px 10px}
+  .scrollx th{padding:9px 10px 7px}
   table{width:100%;border-collapse:collapse}
   th{text-align:left;font-family:var(--mono);font-size:9px;color:var(--ink3);
      font-weight:400;padding:12px 14px 10px;text-transform:uppercase;letter-spacing:.14em;
@@ -316,7 +318,7 @@
       <div class="daybars" id="daybars"></div>
     </div>
     <div class="panel scrollx"><table>
-      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num">avg dose / traversal</th><th class="num">co₂ per 100 m</th><th class="num">through air</th></tr></thead>
+      <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num" title="avg donated dose per traversal">avg dose</th><th class="num" title="co₂ emitted per 100 m of corridor">co₂/100m</th><th class="num" title="live pm2.5 sampled over this corridor's cells">air pm2.5</th></tr></thead>
       <tbody id="corridors"></tbody></table></div>
   </div>
 
