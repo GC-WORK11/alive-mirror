@@ -1089,6 +1089,13 @@ async def leave_feedback(body: dict, request: Request):
         raise HTTPException(429, "feedback rate limit — try later")
     hits.append(now)
     _review_rate[host] = hits
+    # the limiter map itself must stay bounded — a public endpoint would
+    # otherwise grow one entry per source IP forever on a 2 GB task
+    if len(_review_rate) > 5000:
+        stale = [h for h, ts in _review_rate.items()
+                 if now - ts[-1] > 3600]
+        for h in stale:
+            del _review_rate[h]
     out = community.add_review(
         stars=body.get("stars"),
         note=body.get("note"),
