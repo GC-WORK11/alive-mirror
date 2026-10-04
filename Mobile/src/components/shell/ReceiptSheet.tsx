@@ -30,12 +30,12 @@
  * a missing band says so instead of showing 0.
  *
  */
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { CIG_UG, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
 import { approx, t, type Lang } from "../../i18n/strings";
-import { DYNAMIC_TYPE, a11y, slop } from "../../a11y";
+import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 
@@ -87,16 +87,33 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 function DoseScale({ dose, worstUg, showCig, a11yLabel }: {
   dose: Band; worstUg?: number | null; showCig: boolean; a11yLabel: string;
 }) {
+  const reduceMotion = useReduceMotion();
   const scaleMax = showCig
     ? Math.max(CIG_UG, dose.hi, worstUg ?? 0, 1)
     : Math.max(dose.hi, worstUg ?? 0, 1);
   const pct = (v: number): `${number}%` =>
     `${Math.max(0, Math.min(100, (v / scaleMax) * 100))}%`;
+  /* the ruler fills to its real value on mount — the dose "lands" the
+     way a gauge settles, honest motion for an earned number. JS driver
+     (RN 0.86 native-detach class); reduce-motion jumps to done. */
+  const [fillAnim] = useState(() => new Animated.Value(0));
+  const [fillWidth] = useState(() =>
+    fillAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ["0%", pct(dose.mid)],
+      extrapolate: "clamp",
+    }));
+  useEffect(() => {
+    if (reduceMotion) { fillAnim.setValue(1); return; }
+    Animated.timing(fillAnim, {
+      toValue: 1, duration: 480, delay: 180, useNativeDriver: false,
+    }).start();
+  }, [fillAnim, reduceMotion]);
   return (
     <View style={s.scaleRow} accessible accessibilityRole="image"
       accessibilityLabel={a11yLabel}>
       <View style={s.scaleTrack}>
-        <View style={[s.scaleFill, { width: pct(dose.mid) }]} />
+        <Animated.View style={[s.scaleFill, { width: fillWidth }]} />
         {dose.hi - dose.lo >= 1 && (
           <>
             <View style={[s.scaleWhisker, { left: pct(dose.lo) }]} />
@@ -130,6 +147,18 @@ export function ReceiptSheet({
   onSave?: (() => void) | null;
 }) {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
+  /* enter spring — the receipt rises + fades like a real earned card;
+     stable animated node (see ui.tsx Sheet for the detach class). */
+  const [enter] = useState(() => new Animated.Value(0));
+  const [enterTy] = useState(() =>
+    enter.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }));
+  useEffect(() => {
+    if (reduceMotion) { enter.setValue(1); return; }
+    Animated.spring(enter, {
+      toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false,
+    }).start();
+  }, [enter, reduceMotion]);
   if (!data) return null;
   const dose = data.doseUg;
   const cigs = dose ? cigOf(dose.mid) : null;
@@ -161,7 +190,11 @@ export function ReceiptSheet({
   const scaleA11y = [breathedTxt, ratioTxt].filter(Boolean).join(". ");
 
   return (
-    <View style={[s.sheet, { bottom: insets.bottom + 14 }]}>
+    <Animated.View style={[s.sheet, {
+      bottom: insets.bottom + 14,
+      opacity: enter,
+      transform: [{ translateY: enterTy }],
+    }]}>
       {/* ── header: arrival + mode chip ── */}
       <View style={s.head}>
         <Text style={[s.title, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
@@ -353,7 +386,7 @@ export function ReceiptSheet({
           ) : null}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

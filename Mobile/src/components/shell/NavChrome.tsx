@@ -9,11 +9,11 @@
  * the lo→hi spread shows as a thin band bar + a small range label under
  * each value. Maneuver arrows are drawn here: icons.tsx carries no turn
  * glyphs and this lane owns only this file. */
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
-import { DYNAMIC_TYPE } from "../../a11y";
+import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { approx, t, type Lang } from "../../i18n/strings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -292,6 +292,23 @@ export function NavChrome({
     ? `${t("nav_left", lang, { min, km: kmNum(leftM) })} · ${t("arriveAt", lang, { t: clock(nav.etaS) })}`
     : `${Math.round(option.duration_min)} ${t("minUnit", lang)} · ${option.distance_km ?? 0} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: clock(option.duration_min * 60) })}`;
 
+  /* instruction swap: only the sentence/arrow change earns motion — the
+     1 Hz distance tick under it must not re-animate the card. Fade+rise
+     on `banner`/`maneuver` change, JS driver, off under reduce-motion. */
+  const reduceMotion = useReduceMotion();
+  const [swap] = useState(() => new Animated.Value(1));
+  const [swapTy] = useState(() =>
+    swap.interpolate({ inputRange: [0, 1], outputRange: [7, 0] }));
+  const lastCue = useRef<string | null>(null);
+  const cueKey = `${maneuver}|${banner}`;
+  useEffect(() => {
+    if (reduceMotion) { swap.setValue(1); return; }
+    if (lastCue.current === cueKey) return;
+    lastCue.current = cueKey;
+    swap.setValue(0);
+    Animated.timing(swap, { toValue: 1, duration: 160, useNativeDriver: false }).start();
+  }, [cueKey, swap, reduceMotion]);
+
   const doseBand: BandViz | null = nav != null && nav.dose.hi > 0
     ? {
       ...nav.dose,
@@ -308,11 +325,11 @@ export function NavChrome({
     <>
       {/* next-turn card — glance: arrow, distance, then the sentence */}
       <View style={[s.banner, { top: insets.top + 12 }]}>
-        <View style={s.tile} accessible={false}
+        <Animated.View style={[s.tile, { opacity: swap, transform: [{ translateY: swapTy }] }]} accessible={false}
           accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <ManeuverIcon m={maneuver} mode={mode} />
-        </View>
-        <View style={s.bannerTxt}>
+        </Animated.View>
+        <Animated.View style={[s.bannerTxt, { opacity: swap, transform: [{ translateY: swapTy }] }]}>
           {next && (
             <Text {...DYNAMIC_TYPE} style={[s.dist, NUM, { fontFamily: fam(lang, "semi") }]} numberOfLines={1}>
               {distToStr(next.distM, lang)}
@@ -323,7 +340,7 @@ export function NavChrome({
             numberOfLines={2}>
             {banner}
           </Text>
-        </View>
+        </Animated.View>
         {onRecenter && (
           <Pressable onPress={onRecenter} hitSlop={6}
             accessibilityRole="button" accessibilityLabel={t("nav_recenter", lang)}
