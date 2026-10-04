@@ -657,14 +657,28 @@ function drawAether(t){
     cx2.beginPath();cx2.moveTo(pts[0][0],pts[0][1]);
     for(let i=1;i<upto;i++)cx2.lineTo(pts[i][0],pts[i][1]);
     cx2.stroke();cx2.restore();
+    /* origin label while the trace draws */
+    if(frac>0&&ROUTE.fLabel){
+      const[sx,sy]=pts[0];
+      cx2.font='9px ui-monospace,Menlo,monospace';cx2.textAlign='left';
+      cx2.fillStyle='rgba(211,163,86,.9)';
+      cx2.fillText(ROUTE.fLabel,Math.max(6,Math.min(sx+6,w-120)),Math.max(14,sy-8));
+    }
     /* endpoint tag once the trace lands */
     if(frac>=1){
       const[ex,ey]=pts[pts.length-1];
       cx2.font='10px ui-monospace,Menlo,monospace';cx2.textAlign='right';
       const tag=` cheapest for your lungs · ${ROUTE.dose!=null?ROUTE.dose.toFixed(1)+'µg':''} ${ROUTE.mode||''} `;
       const tw2=cx2.measureText(tag).width+12;
-      cx2.fillStyle='rgba(20,24,31,.9)';cx2.fillRect(Math.min(Math.max(ex-tw2-8,4),w-tw2-4),Math.max(ey-34,16),tw2,20);
+      const bx=Math.min(Math.max(ex-tw2-8,4),w-tw2-4),
+            by=Math.max(ey-34,16);
+      cx2.fillStyle='rgba(20,24,31,.9)';cx2.fillRect(bx,by,tw2,20);
       cx2.fillStyle='#a3c47a';cx2.fillText(tag,Math.min(Math.max(ex-16,4+tw2),w-16),Math.max(ey-24,26));
+      if(ROUTE.tLabel){
+        cx2.textAlign='right';cx2.font='8px ui-monospace,Menlo,monospace';
+        cx2.fillStyle='rgba(154,160,170,.85)';
+        cx2.fillText(ROUTE.tLabel.toUpperCase(),bx+tw2-6,by-5);
+      }
     }
   }
   /* crosshair readout */
@@ -759,7 +773,9 @@ async function loadRoute(){
     /* thin to ~240 vertices for a smooth trace */
     const step=Math.max(1,Math.floor(coords.length/240));
     ROUTE={pts:coords.filter((_,i)=>i%step===0).map(c=>[c[0],c[1]]),
-      dose:(best.dose||{}).mid,mode:best.mode||best.label||'car',t0:performance.now()};
+      dose:(best.dose||{}).mid,mode:best.mode||best.label||'car',
+      fLabel:'connaught place',tLabel:'gurugram',
+      t0:performance.now()};
   }catch(e){/* no route overlay — field alone is still honest */}
 }
 loadRoute();setInterval(loadRoute,120000);
