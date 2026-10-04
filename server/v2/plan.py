@@ -392,6 +392,9 @@ def _leg_dose(legs: list) -> dict:
     have_mid = have_band = False
     cov_min = None
     conf = "high"
+    conc_by_dist = 0.0
+    dist_sum_m = 0.0
+    peak = 0.0
     for leg in legs or []:
         geom = leg.get("geometry")
         if not geom:
@@ -415,6 +418,15 @@ def _leg_dose(legs: list) -> dict:
             lo += e["dose_ug_lo"]
             hi += e.get("dose_ug_hi") or e["dose_ug"]
             have_band = True
+        ac = e.get("avg_conc_ugm3")
+        d_i = _leg_dist_m(leg)
+        if ac is not None and d_i > 0:
+            # distance-weighted effective concentration — the same
+            # ∫c·ds / ∫ds mean a road-mode row reports
+            conc_by_dist += ac * d_i
+            dist_sum_m += d_i
+        if e.get("peak_conc") is not None:
+            peak = max(peak, e["peak_conc"])
         if e.get("coverage") is not None:
             cov_min = e["coverage"] if cov_min is None else min(cov_min, e["coverage"])
         c = e.get("confidence") or "low"
@@ -427,6 +439,9 @@ def _leg_dose(legs: list) -> dict:
         "lo": round(lo, 1) if have_band else None,
         "mid": round(mid, 1),
         "hi": round(hi, 1) if have_band else None,
+        "avg_conc_ugm3": (round(conc_by_dist / dist_sum_m, 1)
+                         if dist_sum_m > 0 else None),
+        "peak_conc": round(peak, 1) if peak else None,
         "confidence": conf,
         # weakest leg's coverage — the shared floor a rider can trust
         "coverage": cov_min if cov_min is not None else None,
