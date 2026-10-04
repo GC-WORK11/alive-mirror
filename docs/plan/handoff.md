@@ -329,3 +329,11 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 - Release APK (4890a49f lane) built on e849bf6 INCLUDES rate-row(a876ec8)+emit_kg(97b8904/311c823) — verified via proof greps (v2/feedback in bundle, NLB host inlined, no 10.0.2.2 fallback).
 - Full-plan one-off degrade `['engine','transit']` during task warm window — flaky not systematic (3× healthy 19opts after); degraded flag did its job.
 - demo-day.md synced: WAQI 24 stations answer, 28 tiles, osrm-local routing row, cell-inspector+derivation+corridors×air+global tiles, landing as demo surface.
+
+## cont.12 — coverage + plateau state (lead, ~19:40Z Oct 4)
+- `test_landing_serve.py` (4 tests): / + /landing parity, machinery markers (ROUTE_ODS/renderDose/drawAether/FIELD_BBOX/fetch-paths/axis), balanced script + rAF — the only uncovered user surface now guarded. Suite effectively 914.
+- demo-day: "feed dies mid-demo" answer added (degraded arms, field_stale, named sources).
+- /v2/feedback already hardened: per-IP 10/hr 429, bounded 5000-entry limiter map, no linkable data — no work needed.
+- main `7a2c27c`; live `6a067ca4`; two epoch-watch cycles clean (24 stn, 75 fires, plan 3.5ms fast arm).
+- Snapshot "partial" builds root-caused: remote blueprint lacks server/core/build_ext.sh (real blueprint bug, owner boundary — flagged); Delhi-Air's was clone materialization flake on a file that IS tracked — reported as devin_runtime friction.
+- PLATEAU: every surface verified on current build; remaining gaps structural (real devices) or owner demo-morning. Loop continues as periodic epoch regression watch.
