@@ -47,6 +47,8 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 | 26 | uncrashable | **mostly live** — Android E2E no crashes; iOS sim crash = sim-only GPU (documented, no .ips) | physical Android soak = owner |
 | 27 | terminate my lanes except pocket-rig | **done** — all ALive-108 lanes except live ones ended; Pocket Rig untouched | — |
 | 28 | loop for days/12h, don't stop | **in progress** — this audit + landing + continued loop | — |
+| 29 | marketing landing page, 4-ref genre (supaste/devin/iphone/godly) | **live** — `/` + `/landing` cream-paper serif+italic, no SaaS chrome; verified on prod | — |
+| 30 | "ASCII aether shaders animation… not a cheap template… amaze me" | **live** — real 40×40 field as shader lattice; trace births routes from cells rotating 3 ODs; wind-drift on real /health wind; a01–an40 indexing + hottest tag; locality hover card; pull-quote; footer live stamps; dose card+trace share one fetch | landing.html has no pytest coverage — browser-verified only, by design |
 
 ## open honest gaps (not faked, ranked by demo impact)
 
