@@ -794,6 +794,11 @@ def rank_options(options: list) -> list:
         return options
 
     dose_min = min(_dose_key(o) for o in scored)
+    # the least-dose option IS the safest path — app renders the leaf
+    # chip on this flag (falls back to dose-min when absent)
+    for o in options:
+        o.pop("safest_path", None)
+    min(scored, key=_dose_key)["safest_path"] = True
     tied = [o for o in scored if _dose_key(o) <= 1.10 * dose_min]
     emin = min(scored, key=_co2_mid)
     dwin = min(scored, key=_dose_key)
