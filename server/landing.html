@@ -519,10 +519,13 @@ addEventListener('scroll',()=>{
 /* ————— the aether: animated ascii field (canvas shader) ————— */
 const RAMP=' .·:;=+x#%@'.split('');
 const COLS=40,ROWS=40;
-let CELLS=null; // [{v,conf,cx,cy}]
+let CELLS=null,CELLMAP={}; // [{v,conf,cx,cy}], 'col,row'->cell
 let mouse={x:-1e4,y:-1e4,on:false};
 /* live wind — the shimmer drifts the way the plume actually blows */
 const WIND={deg:140,kmh:0};
+/* the priced route — real engine geometry traced through the field */
+let ROUTE=null; // {pts:[[c,r]..], dose, mode, t0}
+const FIELD_BBOX={lon0:null,lon1:null,lat0:null,lat1:null};
 const cv=$('aether'),cx2=cv.getContext('2d');
 
 function aetherSize(){
@@ -574,6 +577,43 @@ function drawAether(t){
     cx2.fillStyle=glyphColor(v,c.conf);
     cx2.fillText(RAMP[gi],px,py);
   }
+  /* ——— the priced route, traced live ——— */
+  if(ROUTE&&FIELD_BBOX.lon0!=null){
+    const dlon=(FIELD_BBOX.lon1-FIELD_BBOX.lon0)/COLS,
+          dlat=(FIELD_BBOX.lat0-FIELD_BBOX.lat1)/ROWS;
+    const pts=ROUTE.pts.map(([lon,lat])=>[
+      (lon-FIELD_BBOX.lon0)/dlon*gw,((FIELD_BBOX.lat0-lat)/dlat)*gh]);
+    /* progressive trace: path draws itself over ~6s, holds, retraces */
+    const cyc=((t-ROUTE.t0)%14000),frac=cyc<6000?cyc/6000:1;
+    const upto=Math.max(2,Math.floor(pts.length*frac));
+    /* glyphs under the path lift */
+    for(let i=0;i<upto;i++){
+      const col=Math.floor(pts[i][0]/gw),row=Math.floor(pts[i][1]/gh);
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+        const cc=CELLMAP[(col+dx)+','+(row+dy)];
+        if(cc&&cc.v!=null){const px=(cc.col+.5)*gw,py=(cc.row+.5)*gh;
+          cx2.fillStyle='rgba(118,161,54,.55)';
+          cx2.fillText(RAMP[Math.min(RAMP.length-1,Math.round(cc.v*9)+2)],px,py);}
+      }
+    }
+    /* the hairline */
+    cx2.save();cx2.lineWidth=1.6;
+    const grd=cx2.createLinearGradient(pts[0][0],pts[0][1],pts[Math.min(upto-1,pts.length-1)][0],pts[Math.min(upto-1,pts.length-1)][1]);
+    grd.addColorStop(0,'rgba(211,163,86,.95)');grd.addColorStop(1,'rgba(118,161,54,.95)');
+    cx2.strokeStyle=grd;cx2.shadowColor='rgba(118,161,54,.5)';cx2.shadowBlur=6;
+    cx2.beginPath();cx2.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<upto;i++)cx2.lineTo(pts[i][0],pts[i][1]);
+    cx2.stroke();cx2.restore();
+    /* endpoint tag once the trace lands */
+    if(frac>=1){
+      const[ex,ey]=pts[pts.length-1];
+      cx2.font='10px ui-monospace,Menlo,monospace';cx2.textAlign='right';
+      const tag=` cheapest for your lungs · ${ROUTE.dose!=null?ROUTE.dose.toFixed(1)+'µg':''} ${ROUTE.mode||''} `;
+      const tw2=cx2.measureText(tag).width+12;
+      cx2.fillStyle='rgba(20,24,31,.9)';cx2.fillRect(Math.min(Math.max(ex-tw2-8,4),w-tw2-4),Math.max(ey-34,16),tw2,20);
+      cx2.fillStyle='#a3c47a';cx2.fillText(tag,Math.min(Math.max(ex-16,4+tw2),w-16),Math.max(ey-24,26));
+    }
+  }
   /* crosshair readout */
   if(mouse.on){
     cx2.strokeStyle='rgba(211,163,86,.5)';cx2.lineWidth=1;
@@ -619,12 +659,17 @@ async function loadAether(){
         cells.push({col:c,row:r,v:vv,raw:p.v,conf:p.conf,px2:r*COLS+c});
       }
     }
+    /* remember the lattice extents for the route overlay */
+    const lons=pts.map(p=>p.cx),lats=pts.map(p=>p.cy);
+    FIELD_BBOX.lon0=Math.min(...lons);FIELD_BBOX.lon1=Math.max(...lons);
+    FIELD_BBOX.lat0=Math.max(...lats);FIELD_BBOX.lat1=Math.min(...lats);
     if(cells.length<400){
       $('aetherCap').textContent='field mid-refresh — one breath…';
       setTimeout(loadAether,20000);
       return;
     }
-    CELLS=cells;
+    CELLS=cells;CELLMAP={};
+    cells.forEach(c=>CELLMAP[c.col+','+c.row]=c);
     const hi=cells.filter(c=>c.conf==='hi').length,
           me=cells.filter(c=>c.conf==='med').length,
           lo=cells.filter(c=>c.conf==='lo').length;
@@ -635,6 +680,26 @@ async function loadAether(){
   }
 }
 aetherSize();loadAether();setInterval(loadAether,120000);
+
+/* ————— fetch the recommended route, let the field birth it ————— */
+async function loadRoute(){
+  try{
+    const j=await api('/v2/plan',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({from:{lat:28.6315,lon:77.2167},
+        to:{lat:28.4595,lon:77.0266},fast:true})});
+    const opts=(j.options||[]).filter(o=>o.geometry&&o.geometry.coordinates);
+    if(!opts.length)return;
+    const best=opts.find(o=>o.recommended)||opts[0];
+    const coords=best.geometry.coordinates;
+    /* thin to ~240 vertices for a smooth trace */
+    const step=Math.max(1,Math.floor(coords.length/240));
+    ROUTE={pts:coords.filter((_,i)=>i%step===0).map(c=>[c[0],c[1]]),
+      dose:(best.dose||{}).mid,mode:best.mode||best.label||'car',t0:performance.now()};
+  }catch(e){/* no route overlay — field alone is still honest */}
+}
+loadRoute();setInterval(loadRoute,120000);
+
 (function tick(t){drawAether(t||0);requestAnimationFrame(tick)})();
 
 /* ————— dose rows card (live plan) ————— */
