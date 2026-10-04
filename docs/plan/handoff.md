@@ -311,3 +311,10 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 - Deploy chain learned the hard way: git archive snapshots HEAD at
   deploy START - late commits need their own deploy; git checkout on a
   live-serve copy clobbers uncommitted edits (happened once, reapplied).
+
+## cont.10 — OD rotation + endpoint sweep (lead, 11:55Z Oct 4)
+- `31735c6` landing: trace rotates 3 iconic ODs per 2min refetch (CP→Ggn, India Gate→Noida, KG→Faridabad); labels follow; all 3 verified real routes via /v2/plan fast arm (3.2/8.9/10.3µg car, 127-277pts, fully inside field bbox).
+- Deployed `31735c66`; verified prod: served JS contains ROUTE_ODS, trace draws w/ "connaught place" label, axis+hottest tag live, field 459m/875i/266t.
+- Endpoint sweep on new build: all 200s; 422s on bare /aqi /decide /escape = param validation (correct); /aqi?lat&lon real (pm25 88.4µg band 65.9-111); /decide real options.
+- /health lean `{ok,version}` pre-warm is normal — full payload (build_sha, stations, wind, fires) after first field refresh (~2min); don't flag as regression on fresh tasks.
+- Memory updated: deploy-archive pin-at-start, git-checkout clobber, /health≠health.py serving path, contract-declare pattern.

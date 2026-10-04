@@ -657,14 +657,28 @@ function drawAether(t){
     cx2.beginPath();cx2.moveTo(pts[0][0],pts[0][1]);
     for(let i=1;i<upto;i++)cx2.lineTo(pts[i][0],pts[i][1]);
     cx2.stroke();cx2.restore();
+    /* origin label while the trace draws */
+    if(frac>0&&ROUTE.fLabel){
+      const[sx,sy]=pts[0];
+      cx2.font='9px ui-monospace,Menlo,monospace';cx2.textAlign='left';
+      cx2.fillStyle='rgba(211,163,86,.9)';
+      cx2.fillText(ROUTE.fLabel,Math.max(6,Math.min(sx+6,w-120)),Math.max(14,sy-8));
+    }
     /* endpoint tag once the trace lands */
     if(frac>=1){
       const[ex,ey]=pts[pts.length-1];
       cx2.font='10px ui-monospace,Menlo,monospace';cx2.textAlign='right';
       const tag=` cheapest for your lungs · ${ROUTE.dose!=null?ROUTE.dose.toFixed(1)+'µg':''} ${ROUTE.mode||''} `;
       const tw2=cx2.measureText(tag).width+12;
-      cx2.fillStyle='rgba(20,24,31,.9)';cx2.fillRect(Math.min(Math.max(ex-tw2-8,4),w-tw2-4),Math.max(ey-34,16),tw2,20);
+      const bx=Math.min(Math.max(ex-tw2-8,4),w-tw2-4),
+            by=Math.max(ey-34,16);
+      cx2.fillStyle='rgba(20,24,31,.9)';cx2.fillRect(bx,by,tw2,20);
       cx2.fillStyle='#a3c47a';cx2.fillText(tag,Math.min(Math.max(ex-16,4+tw2),w-16),Math.max(ey-24,26));
+      if(ROUTE.tLabel){
+        cx2.textAlign='right';cx2.font='8px ui-monospace,Menlo,monospace';
+        cx2.fillStyle='rgba(154,160,170,.85)';
+        cx2.fillText(ROUTE.tLabel.toUpperCase(),bx+tw2-6,by-5);
+      }
     }
   }
   /* crosshair readout */
@@ -746,34 +760,21 @@ async function loadAether(){
 aetherSize();loadAether();setInterval(loadAether,120000);
 
 /* ————— fetch the recommended route, let the field birth it ————— */
-async function loadRoute(){
-  try{
-    const j=await api('/v2/plan',{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({from:{lat:28.6315,lon:77.2167},
-        to:{lat:28.4595,lon:77.0266},fast:true})});
-    const opts=(j.options||[]).filter(o=>o.geometry&&o.geometry.coordinates);
-    if(!opts.length)return;
-    const best=opts.find(o=>o.recommended)||opts[0];
-    const coords=best.geometry.coordinates;
-    /* thin to ~240 vertices for a smooth trace */
-    const step=Math.max(1,Math.floor(coords.length/240));
-    ROUTE={pts:coords.filter((_,i)=>i%step===0).map(c=>[c[0],c[1]]),
-      dose:(best.dose||{}).mid,mode:best.mode||best.label||'car',t0:performance.now()};
-  }catch(e){/* no route overlay — field alone is still honest */}
-}
-loadRoute();setInterval(loadRoute,120000);
-
-(function tick(t){drawAether(t||0);requestAnimationFrame(tick)})();
-
-/* ————— dose rows card (live plan) ————— */
-(async()=>{try{
-  const j=await api('/v2/plan',{method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({from:{lat:28.6315,lon:77.2167},
-      to:{lat:28.4595,lon:77.0266},fast:true})});
+/* iconic ODs rotate — proves the engine prices any pair, not a canned
+   animation; each refetch (2min) advances the pair */
+const ROUTE_ODS=[
+  {f:{lat:28.6315,lon:77.2167},t:{lat:28.4595,lon:77.0266},
+   fl:'connaught place',tl:'gurugram'},
+  {f:{lat:28.6129,lon:77.2295},t:{lat:28.5912,lon:77.3150},
+   fl:'india gate',tl:'noida'},
+  {f:{lat:28.6674,lon:77.2277},t:{lat:28.4089,lon:77.3178},
+   fl:'kashmere gate',tl:'faridabad'},
+];
+/* the dose card renders the SAME response the trace draws — one call,
+   one OD, no chance of card/trace disagreement */
+function renderDose(j,od){
   const rows=(j.rows||j.options||[]).slice(0,4);
-  $('c1meta').textContent=(j.router_backend||'engine');
+  $('c1meta').textContent=`${od.fl} → ${od.tl}`;
   $('doseRows').innerHTML=rows.map((r,i)=>{
     const d=r.dose||{},name=r.mode||r.label||r.vehicle||`option ${i+1}`;
     return `<div class="doserow${i===0?' best':''}">
@@ -781,21 +782,60 @@ loadRoute();setInterval(loadRoute,120000);
       <span class="band">±${d.lo!=null&&d.mid?Math.round((d.hi-d.lo)/2/d.mid*100):'—'}%</span>
       <span class="v">${d.mid!=null?d.mid.toFixed(1)+'µg':'—'}</span></div>`
   }).join('')||'<div class="doserow"><span class="mode">engine thinking…</span></div>';
-}catch(e){$('doseRows').innerHTML='<div class="doserow"><span class="mode">engine resting — tap /health</span></div>'}})();
+}
+let ROUTE_IX=0;
+async function loadRoute(){
+  try{
+    const od=ROUTE_ODS[ROUTE_IX++ % ROUTE_ODS.length];
+    const j=await api('/v2/plan',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({from:od.f,to:od.t,fast:true})});
+    renderDose(j,od);
+    const opts=(j.options||[]).filter(o=>o.geometry&&o.geometry.coordinates);
+    if(!opts.length)return;
+    const best=opts.find(o=>o.recommended)||opts[0];
+    const coords=best.geometry.coordinates;
+    /* thin to ~240 vertices for a smooth trace */
+    const step=Math.max(1,Math.floor(coords.length/240));
+    ROUTE={pts:coords.filter((_,i)=>i%step===0).map(c=>[c[0],c[1]]),
+      dose:(best.dose||{}).mid,mode:best.mode||best.label||'car',
+      fLabel:od.fl,tLabel:od.tl,
+      t0:performance.now()};
+  }catch(e){$('doseRows').innerHTML='<div class="doserow"><span class="mode">engine resting — tap /health</span></div>'}
+}
+loadRoute();setInterval(loadRoute,120000);
+
+(function tick(t){drawAether(t||0);requestAnimationFrame(tick)})();
 
 /* ————— corridors card (live community) ————— */
+/* wait for the aether lattice so corridor rows can quote the live air
+   they run through — same merge the admin board does */
+function aetherReady(ms){return new Promise(res=>{
+  const t0=Date.now();(function tick(){
+    if(CELLS||Date.now()-t0>ms)return res();
+    setTimeout(tick,250)})()})}
+function cellAt(lon,lat){
+  if(FIELD_BBOX.lon0==null)return null;
+  const dlon=(FIELD_BBOX.lon1-FIELD_BBOX.lon0)/COLS,
+        dlat=(FIELD_BBOX.lat0-FIELD_BBOX.lat1)/ROWS;
+  const c=Math.floor((lon-FIELD_BBOX.lon0)/dlon),
+        r=Math.floor((FIELD_BBOX.lat0-lat)/dlat);
+  return CELLMAP[c+','+r]||null;
+}
 (async()=>{try{
   const c=await api('/community');
   const rows=(c.top_corridors||[]).slice(0,4);
+  await aetherReady(9000);
   const named=await Promise.all(rows.map(async r=>{
     let nm='unnamed corridor';
     try{const g=await api(`/v2/reverse?lat=${r.lat}&lon=${r.lon}`);
       nm=g.name||nm}catch(e){}
-    return{...r,nm};
+    const cc=cellAt(r.lon,r.lat);
+    return{...r,nm,air:cc&&cc.raw!=null?cc.raw:null};
   }));
   $('corrRows').innerHTML=named.map(r=>`<div class="corr">
     <div class="nm">${r.nm}</div>
-    <div class="mt">${r.samples||r.trips||0} traversals · ${r.devices||0} devices · ${r.avg_dose_ug!=null?r.avg_dose_ug.toFixed(1)+'µg dose':'—'}${r.co2_g_per_100m?' · '+r.co2_g_per_100m.toFixed(0)+'g co₂/100m':''}</div>
+    <div class="mt">${r.samples||r.trips||0} traversals · ${r.devices||0} devices · ${r.avg_dose_ug!=null?r.avg_dose_ug.toFixed(1)+'µg dose':'—'}${r.co2_g_per_100m?' · '+r.co2_g_per_100m.toFixed(0)+'g co₂/100m':''}${r.air!=null?' · '+r.air.toFixed(0)+'µg air':''}</div>
     </div>`).join('')||'<div class="corr"><div class="nm">the city hasn\'t donated enough trips yet</div></div>';
 }catch(e){$('corrRows').innerHTML='<div class="corr"><div class="nm">corridors asleep — honest empty</div></div>'}})();
 
