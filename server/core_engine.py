@@ -319,7 +319,7 @@ _WANT_DROP = frozenset(("sector", "phase", "part", "extension"))
 # address filler that never disambiguates the sub-row
 _DESIG_FILLER = frozenset((
     "no", "hno", "house", "number", "num", "unit", "gf", "ff",
-    "floor", "kothi", "near",
+    "floor", "kothi", "near", "flat", "plot", "bungalow",
 ))
 
 
@@ -328,6 +328,10 @@ def _comp_row(e, d, anchor, match="category", **extra):
         "id": e["pid"],
         "display": e["display"],
         "category": e.get("category") or "",
+        # '<kind> · <anchor>' — the resolved place stays visible next to
+        # the unit row ('address · Defence Colony')
+        "subtitle": f"{e.get('category') or 'place'}"
+                    f" · {anchor['display']}",
         "lat": e["lat"], "lon": e["lon"],
         # distance to the resolved anchor — the honest semantic for
         # "atm near cp", not distance to the caller
@@ -361,6 +365,14 @@ def _anchor_row(toks, lat, lon):
     return None
 
 
+def _anchor_candidates(toks, lat, lon, k=6):
+    """every plausible anchor, not just the top-1 — 'udyog vihar' is a
+    Delhi locality AND the Gurgaon phases the user usually means; the
+    first candidate whose area actually contains the unit wins."""
+    return [h for h in search_index().query(" ".join(toks), lat, lon, k)
+            if (h.get("cov") or 0.0) >= 0.75]
+
+
 def _area_row(anchor):
     """the resolved place itself as the honest area-level answer —
     'E Block' may be missing from OSM, but the locality the user named
@@ -372,6 +384,7 @@ def _area_row(anchor):
         "id": pid,
         "display": anchor["display"],
         "category": anchor.get("category") or "",
+        "subtitle": anchor.get("category") or "place",
         "lat": anchor["lat"], "lon": anchor["lon"],
         "distance_m": 0.0,
         "anchor": anchor["display"],
@@ -446,78 +459,106 @@ def _subplace(toks, lat, lon, limit, hits=None):
     anchor_toks = [t for t in base
                    if t not in _SUBPLACE_STRUCT and t not in letters
                    and (not t.isdigit() or t in anchor_digits)]
-    anchor, used = None, None
+    anchors, used = None, None
     for drop in (0, 1):  # full phrase, then minus anchor digits
         qt = [t for t in anchor_toks if not (drop and t.isdigit())]
         if not qt:
             continue
-        a = _anchor_row(qt, lat, lon)
-        if a is not None:
-            anchor, used = a, set(qt)
+        cands = _anchor_candidates(qt, lat, lon)
+        if cands:
+            anchors, used = cands, set(qt)
             break
-    if anchor is None:
+    if not anchors:
         return []
-    # a letter/digit counts as consumed only if the anchor's own
-    # display carries it — 'beta' in 'HDFC Beta Plaza' doesn't make
-    # the bank the answer to 'beta 2'
-    atoks = set(alive_core_ref.normalize(anchor.get("display") or ""))
-    used = {t for t in used
-            if not ((len(t) == 1 and t.isalpha()) or t.isdigit())
-            or t in atoks}
-    want = [t for t in base if t not in used and t not in _WANT_DROP]
-    if not want:
+
+    atoks0 = set(
+        alive_core_ref.normalize(anchors[0].get("display") or ""))
+    used0 = {t for t in used
+             if not ((len(t) == 1 and t.isalpha()) or t.isdigit())
+             or t in atoks0}
+    if not [t for t in base
+            if t not in used0 and t not in _WANT_DROP]:
         return []  # pure place query — the name path's hits stand
-    if all(_tok_wanted(atoks, t) for t in want):
-        return [_area_row(anchor)]  # the anchor IS the sub-place
-    # 'inside the named place' — a locality's pockets sit close, a
-    # city's sectors sit km out; scale the membership radius to the
-    # anchor's measured extent, never beyond the metro ceiling
-    radius = min(_SUBPLACE_HIT_MAX_M,
-                 max(_COMPOUND_MAX_M, _anchor_extent(anchor) * 1.5))
-    # a name-path row that already carries the unit and sits inside
-    # the anchor's urban area IS the real sub-place — promote it ahead
-    # of same-named units elsewhere ('Pocket B' in Jasola fails this
-    # for 'pocket b sarita vihar'; 'Beta 2' inside Greater Noida passes)
-    cand = []
-    for h in hits or []:
-        ht = set(alive_core_ref.normalize(h.get("display") or ""))
-        if not all(_tok_wanted(ht, t) for t in want):
-            continue
-        if h.get("lat") is None:
-            continue
-        d = _hav_m(anchor["lat"], anchor["lon"], h["lat"], h["lon"])
-        if d > radius:
-            continue
-        hid = h.get("id")
-        pid = (_SEARCH_PIDS[hid]
-               if isinstance(hid, int) and 0 <= hid < len(_SEARCH_PIDS)
-               else hid)
-        cand.append(_comp_row(
-            {"pid": pid, "display": h["display"],
-             "category": h.get("category"), "lat": h["lat"],
-             "lon": h["lon"]}, d, anchor, match="area",
-            subplace=True))
-        if len(cand) >= limit:
+
+    def resolve(anchor):
+        # a letter/digit counts as consumed only if the anchor's own
+        # display carries it — 'beta' in 'HDFC Beta Plaza' doesn't make
+        # the bank the answer to 'beta 2'
+        atoks = set(
+            alive_core_ref.normalize(anchor.get("display") or ""))
+        used_a = {t for t in used
+                  if not ((len(t) == 1 and t.isalpha()) or t.isdigit())
+                  or t in atoks}
+        want = [t for t in base
+                if t not in used_a and t not in _WANT_DROP]
+        if not want:
+            return []
+        if all(_tok_wanted(atoks, t) for t in want):
+            return [_area_row(anchor)]  # the anchor IS the sub-place
+        # 'inside the named place' — a locality's pockets sit close, a
+        # city's sectors sit km out; scale the membership radius to the
+        # anchor's measured extent, never beyond the metro ceiling
+        radius = min(_SUBPLACE_HIT_MAX_M,
+                     max(_COMPOUND_MAX_M, _anchor_extent(anchor) * 1.5))
+        # a name-path row that already carries the unit and sits inside
+        # the anchor's urban area IS the real sub-place — promote it
+        # ahead of same-named units elsewhere ('Pocket B' in Jasola
+        # fails for 'pocket b sarita vihar'; 'Beta 2' inside Greater
+        # Noida passes)
+        cand = []
+        for h in hits or []:
+            ht = set(alive_core_ref.normalize(h.get("display") or ""))
+            if not all(_tok_wanted(ht, t) for t in want):
+                continue
+            if h.get("lat") is None:
+                continue
+            d = _hav_m(anchor["lat"], anchor["lon"],
+                       h["lat"], h["lon"])
+            if d > radius:
+                continue
+            hid = h.get("id")
+            pid = (_SEARCH_PIDS[hid]
+                   if isinstance(hid, int)
+                   and 0 <= hid < len(_SEARCH_PIDS)
+                   else hid)
+            cand.append(_comp_row(
+                {"pid": pid, "display": h["display"],
+                 "category": h.get("category"), "lat": h["lat"],
+                 "lon": h["lon"]}, d, anchor, match="area",
+                subplace=True))
+            if len(cand) >= limit:
+                break
+        if cand:
+            return cand
+        out = []
+        for e, d in nearest(anchor["lat"], anchor["lon"],
+                            max_m=radius, limit=4096):
+            etoks = set(
+                alive_core_ref.normalize(e.get("display") or ""))
+            if not all(_tok_wanted(etoks, t) for t in want):
+                continue
+            # a row that declares a DIFFERENT sector number than the
+            # anchored one is a wrong answer ('h block sector 62' can't
+            # land on 'H Block Market-Sector 22')
+            if (anchor_digits and "sector" in etoks
+                    and not (anchor_digits & etoks)):
+                continue
+            out.append(_comp_row(e, d, anchor, match="area",
+                                 subplace=True))
+            if len(out) >= limit:
+                break
+        return out
+
+    # first anchor whose area actually holds the unit wins; when no
+    # candidate does, the top anchor itself is the honest area answer.
+    # 3 candidates max — each resolve() is a spatial scan, and deeper
+    # ambiguity is a wrong anchor more often than a hidden right one
+    rows = []
+    for anchor in anchors[:3]:
+        rows = resolve(anchor)
+        if rows:
             break
-    if cand:
-        return cand
-    out = []
-    for e, d in nearest(anchor["lat"], anchor["lon"],
-                        max_m=radius, limit=4096):
-        etoks = set(alive_core_ref.normalize(e.get("display") or ""))
-        if not all(_tok_wanted(etoks, t) for t in want):
-            continue
-        # a row that declares a DIFFERENT sector number than the
-        # anchored one is a wrong answer ('h block sector 62' can't
-        # land on 'H Block Market-Sector 22')
-        if (anchor_digits and "sector" in etoks
-                and not (anchor_digits & etoks)):
-            continue
-        out.append(_comp_row(e, d, anchor, match="area",
-                             subplace=True))
-        if len(out) >= limit:
-            break
-    return out or [_area_row(anchor)]
+    return rows or [_area_row(anchors[0])]
 
 
 def _compound(q, weak: bool, lat, lon, limit, hits=None):
@@ -593,6 +634,80 @@ def _compound(q, weak: bool, lat, lon, limit, hits=None):
     return _subplace(toks, lat, lon, limit, hits)
 
 
+# transit accessories named after a landmark ('AIIMS' platform,
+# 'Lodhi Garden' bus bay) must not outrank the landmark they serve —
+# 'aiims' means the hospital, 'lodhi garden' the park
+_ACCESSORY_KINDS = frozenset((
+    "platform", "stop", "stop_position", "bus_stop",
+    "subway_entrance", "railway:platform", "railway:stop",
+    "public_transport:platform", "public_transport:stop_position"))
+
+
+_AL_MAP = None
+
+
+def _alias_map():
+    global _AL_MAP
+    if _AL_MAP is None:
+        _AL_MAP = alive_core_ref.load_aliases()
+    return _AL_MAP
+
+
+def _name_toks(h):
+    """display + entry-alias tokens + one-level table expansion ('aiims'
+    reaches 'all india institute of medical sciences'),
+    singular-collapsed ('lodi gardens' ~ 'lodhi garden')."""
+    src = [h.get("display") or ""]
+    hid = h.get("id")
+    if isinstance(hid, int) and 0 <= hid < len(_SEARCH_ENTRIES):
+        src.extend(_SEARCH_ENTRIES[hid].get("aliases") or [])
+    toks = set()
+    for s in src:
+        toks.update(alive_core_ref.normalize(s))
+    for t in list(toks):
+        for alt in _alias_map().get(t, ()):
+            toks.update(alt)
+    return {t[:-1] if len(t) > 3 and t.endswith("s") else t
+            for t in toks}
+
+
+def _demote_accessory(hits):
+    if not hits or not any((h.get("category") or "") in _ACCESSORY_KINDS
+                           for h in hits):
+        return hits
+    land = [_name_toks(h) for h in hits
+            if (h.get("category") or "") not in _ACCESSORY_KINDS]
+    land = [lt for lt in land if lt]
+    keep, acc = [], []
+    for h in hits:
+        at = _name_toks(h)
+        if ((h.get("category") or "") in _ACCESSORY_KINDS and at
+                and any(at <= lt or lt <= at for lt in land)):
+            acc.append(h)
+        else:
+            keep.append(h)
+    return keep + acc
+
+
+def _dedupe_hits(rows):
+    """same-name same-kind rows within ~100m are one place — twin bus
+    bays ('AIIMS'/'AIIMS' platforms 72m apart) read as duplicates."""
+    kept, out = [], []
+    for h in rows:
+        key = (" ".join(sorted(
+            alive_core_ref.normalize(h.get("display") or ""))),
+               h.get("category") or "")
+        if h.get("lat") is not None and any(
+                key == k
+                and _hav_m(h["lat"], h["lon"], ph["lat"], ph["lon"])
+                <= 100.0
+                for k, ph in kept):
+            continue
+        kept.append((key, h))
+        out.append(h)
+    return out
+
+
 def search(q, lat=None, lon=None, limit=8):
     """/v2/search T1 — index.query on whichever impl loaded. Index ids
     are positions (uint32 for the C++ binding); remap to the resolvable
@@ -604,11 +719,21 @@ def search(q, lat=None, lon=None, limit=8):
     # contain them verbatim are wrong answers, not close-enough ones.
     # ask the index wider so honest digit-bearing rows survive the cut
     q_limit = max(limit, limit * 5, 32) if nums else limit
-    hits = search_index().query(q, lat, lon, q_limit)
+    # address filler ('house', 'h no', 'flat', 'plot') is real vocab —
+    # it makes 'house 559 udyog vihar' match 'Gaurd House' across the
+    # city. When digits anchor the query, the number leads, not the
+    # decoration
+    q_use = q
+    if nums:
+        kept = [t for t in qtoks if t not in _DESIG_FILLER]
+        if kept:
+            q_use = " ".join(kept)
+    hits = search_index().query(q_use, lat, lon, q_limit)
     if nums:
         hits = [h for h in hits
                 if all(n in set(alive_core_ref.normalize(
                     h.get("display") or "")) for n in nums)]
+    hits = _demote_accessory(hits)
     weak = not hits or (hits[0].get("cov") or 0.0) < 0.9
     comp = _compound(q, weak, lat, lon, limit, hits)
     if comp:
@@ -619,7 +744,8 @@ def search(q, lat=None, lon=None, limit=8):
         for h in hits:
             if h.get("id") not in seen:
                 comp.append(h)
-        hits = comp[:limit]
+        hits = comp
+    hits = _dedupe_hits(hits)[:limit]
     for h in hits:
         i = h.get("id")
         if isinstance(i, int) and 0 <= i < len(_SEARCH_PIDS):

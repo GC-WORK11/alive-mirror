@@ -1658,6 +1658,12 @@ EXPECTED_SETS = {
     "khari baoli": [{"khari", "baoli"}],
     "iimc": [{"iimc"}, {"indian", "institute", "mass",
                         "communication"}],
+    "house 559 udyog vihar": [{"559", "udyog"}, {"udyog", "vihar"}],
+    "b-12 lajpat nagar": [{"lajpat", "nagar"}, {"b", "12"}],
+    "aiims": [{"aiims"}, {"all", "india", "institute"},
+              {"medical", "sciences"}],
+    "lodhi garden": [{"lodi", "garden"}, {"lodhi", "garden"},
+                     {"gardens"}],
 }
 
 
@@ -1730,7 +1736,7 @@ def append_score_stats(lines, rows_with, rows_without):
                    if re.search(
                        r"\b(near|opp|opposite|block|pocket|gali)\b"
                        r"|\bh\s*no\b"
-                       r"|^[a-z]{1,2}\s*\d+\s", q)]
+                       r"|^[a-z]{1,2}[-\s]*\d+[-\s]", q)]
     miss_list = [q for q in miss_list if q not in engine_only]
     a("")
     a(f"- queries that NEED aliases.json to hit: {', '.join(need_list) or 'none'}")

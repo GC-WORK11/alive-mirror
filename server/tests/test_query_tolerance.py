@@ -247,3 +247,37 @@ def test_kind_compound_still_wins_before_subplace():
     assert hits
     assert any(h.get("compound") and h.get("match") == "category"
                for h in hits[:3])
+
+
+def test_address_filler_does_not_drown_the_number():
+    """'house 559 udyog vihar' — 'house' is real vocab ('House of
+    Diagnostics'); the number must lead, not the decoration."""
+    hits = core_engine.search("house 559 udyog vihar",
+                              None, None, limit=5)
+    assert hits
+    assert "559" in (hits[0].get("display") or ""), hits[0]
+
+
+def test_filler_still_works_as_a_name_without_digits():
+    hits = core_engine.search("house of diagnostics",
+                              None, None, limit=5)
+    assert hits
+    assert "diagnostics" in (hits[0].get("display") or "").lower()
+
+
+def test_accessory_kind_never_outranks_its_landmark():
+    """'aiims' means the institute, not the bus bays named after it —
+    and the twin bays collapse to one row."""
+    hits = core_engine.search("aiims", None, None, limit=6)
+    assert hits
+    assert (hits[0].get("category") or "") not in \
+        {"platform", "stop", "stop_position", "bus_stop"}
+    plats = [h for h in hits if h.get("display") == "AIIMS"
+             and h.get("category") == "platform"]
+    assert len(plats) <= 1
+
+
+def test_platform_named_after_a_park_demotes_below_the_park():
+    hits = core_engine.search("lodhi garden", None, None, limit=5)
+    assert hits
+    assert "park" in (hits[0].get("category") or "")

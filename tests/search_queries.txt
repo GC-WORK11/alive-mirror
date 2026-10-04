@@ -88,3 +88,7 @@ t3 airport	Terminal
 gaffar market	Gaffar
 khari baoli	Khari Baoli
 iimc	IIMC
+house 559 udyog vihar	Udyog Vihar
+b-12 lajpat nagar	Lajpat Nagar / B-12
+aiims	AIIMS
+lodhi garden	Lodi Gardens

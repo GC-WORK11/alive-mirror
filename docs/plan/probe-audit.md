@@ -47,6 +47,33 @@ spacing) and classifies each query top-1 / top-3 / wrong / empty.
   `bus depot`/`terminal`/`terminus` phrases map to bus kinds incl.
   `amenity:bus_station` — `badarpur bus depot` now resolves.
 
+## Second wave (live re-audit by parent)
+
+Four more live misses on the deployed build, all fixed engine-side:
+
+- `house 559 udyog vihar` → was "Mayur Vihar Gaurd House": 'house' is
+  real vocab and drowned the number. Now filler tokens
+  (house/h.no/flat/plot/no/unit/floor/kothi/bungalow) are stripped when
+  the query carries digits → real `559 Udyog Vihar Phase V Road` top-1.
+- `b-12 lajpat nagar` → was a mandir: numeric constraint removes it;
+  the multi-anchor pass finds `B-12 Sanwal Nagar` — the real B-12 in
+  the adjacent colony inside the anchor's extent — with the anchor
+  visible in the subtitle ('address · Lajpat Nagar').
+- `aiims` → twin 'AIIMS' platform bays 72m apart outranked the
+  hospital. Same-name same-kind rows within 100m now collapse to one,
+  and accessory kinds (platform/stop_position/stop/bus_stop/
+  subway_entrance) demote below a landmark their name expands to —
+  'AIIMS' aliases to the institute's full name, so the hospital leads.
+- `lodhi garden` → 'Lodhi Garden' platform beat 'Lodi Gardens' park on
+  spelling proximity. Same accessory-demotion rule; the park leads.
+
+Comp rows now carry `subtitle = '<kind> · <anchor>'` so the resolved
+area stays visible next to the unit row.
+
+Local battery after wave 2: still **171/174 (98.3%)**, p50 0.8ms,
+p95 63ms on sub-place-heavy queries (multi-anchor scans; typical
+traffic stays at p50).
+
 ## Remaining misses — honest, categorized
 
 - `panipat` → empty. Panipat city is at 29.39°N, ~30km north of the
@@ -54,7 +81,8 @@ spacing) and classifies each query top-1 / top-3 / wrong / empty.
 - `subhash nagr` → Subhashnagar. Both spellings are real places in the
   corpus (joined spelling mostly outside Delhi proper); cov-1.0 tie —
   which one the user meant is genuinely ambiguous.
-- `25 rajinder nagar` → Rajendra Nagar (area). The OSM-canonical name
-  of the locality is "Rajendra Nagar" — the fuzzy anchor resolves to
-  the right area; a literal "Rajinder Nagar" exists only as post
-  office/constituency rows. Area-correct, spelling-canonicalized.
+- `25 rajinder nagar` → `25-K` (a real block inside Rajendra Nagar,
+  ~1.4km from the locality anchor). The OSM-canonical spelling is
+  "Rajendra Nagar"; a literal "Rajinder Nagar" exists only as post
+  office/constituency rows. In-area, spelling-canonicalized — the
+  classifier counts it wrong on substring, the row is honest.
