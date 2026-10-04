@@ -429,3 +429,45 @@ def test_plan_edge_of_area_still_serves(monkeypatch):
                   "to": {"lat": CP[0], "lon": CP[1]}, "vehicle": "auto"})
     assert "outside service area" not in (body.get("error") or "")
     assert calls, "in-area OD should reach the router"
+
+
+# --- one dose surface per response ----------------------------------------------
+class _FakeFV:
+    def __init__(self, tag):
+        self.tag = tag
+    def value(self, lat, lon, pollutant="pm2_5"):
+        return ("v", self.tag)
+    def sigma(self, lat, lon):
+        return ("s", self.tag)
+
+
+def test_dose_surface_priced_raster_wins(monkeypatch):
+    """When the engine priced edges this epoch, every row — engine,
+    motor, transit — doses on that raster so the compare sheet ranks
+    like-for-like (regression: 'least-smoke rd' losing to an OSRM row
+    it beat because the arms priced on different estimators)."""
+    fv = _FakeFV("eng")
+    sig = lambda la, lo: ("sig", "eng")
+    monkeypatch.setattr(v2plan, "_ENG_PACK", (fv, sig))
+    F = object.__new__(FIELD.__class__)   # no _snap_fv
+    dval, dsig = v2plan._dose_surface(F)
+    assert dval == fv.value and dsig is sig
+
+
+def test_dose_surface_snapshot_when_unpriced(monkeypatch):
+    """Before any reprice, all rows share the field's own snapshot
+    cells — the raster /grid paints — never krige-here-raster-there."""
+    monkeypatch.setattr(v2plan, "_ENG_PACK", None)
+    F = object.__new__(FIELD.__class__)
+    F._snap_fv = _FakeFV("snap")
+    dval, dsig = v2plan._dose_surface(F)
+    assert dval == F._snap_fv.value and dsig == F._snap_fv.sigma
+
+
+def test_dose_surface_none_means_live_estimator(monkeypatch):
+    """No raster at all → (None, None) → callers use F.value/F.sigma —
+    still one estimator for the whole response."""
+    monkeypatch.setattr(v2plan, "_ENG_PACK", None)
+    F = object.__new__(FIELD.__class__)
+    F._snap_fv = None
+    assert v2plan._dose_surface(F) == (None, None)

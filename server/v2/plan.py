@@ -307,6 +307,27 @@ def _dose_via_core(coords: list, microenv: str):
     return None
 
 
+def _dose_surface(F):
+    """The ONE surface every option row in a response doses against —
+    a compare sheet that mixes estimators (krige here, raster there)
+    can rank a 'least-smoke' row below a route it actually beat. Order:
+      1. _ENG_PACK — the priced raster the path engine just minimized
+         over (nearest-cell, ~µs/read);
+      2. F._snap_fv — the field's own snapshot cells, the same raster
+         /grid and the admin map paint (nearest-cell, ~µs/read);
+      3. (None, None) -> callers fall to F.value/F.sigma — the live
+         krige+IDW point estimator.
+    Rasters first because per-segment krige re-integration over a 65 km
+    OD is ~1.3k solves per row and burned the whole arm budget on prod;
+    the raster reads are the same real field, discretized."""
+    if _ENG_PACK:
+        return getattr(_ENG_PACK[0], "value", None), _ENG_PACK[1]
+    fv = getattr(F, "_snap_fv", None)
+    if fv is not None and hasattr(fv, "value"):
+        return fv.value, getattr(fv, "sigma", None)
+    return None, None
+
+
 def _dose_band(geometry: dict, duration_s: float, microenv: str,
                field_fn=None, sigma_fn=None) -> dict:
     """{lo,mid,hi} µg on the live field. lo/hi may be None when the
@@ -325,11 +346,12 @@ def _dose_band(geometry: dict, duration_s: float, microenv: str,
         return {"lo": None, "mid": None, "hi": None,
                 "note": "dose engine unavailable"}
     F = deps.field()
-    fval = field_fn or F.value
+    dval, dsig = _dose_surface(F)
+    fval = field_fn or dval or F.value
     try:
         e = exposure.dose(geometry, duration_s, microenv, fval,
                           F.nearest_sample_km,
-                          field_sigma=sigma_fn or F.sigma)
+                          field_sigma=sigma_fn or dsig or F.sigma)
     except Exception:
         return {"lo": None, "mid": None, "hi": None,
                 "note": "dose engine error"}
@@ -362,6 +384,9 @@ def _leg_dose(legs: list) -> dict:
     except Exception:
         return {"lo": None, "mid": None, "hi": None,
                 "note": "field unavailable"}
+    # same surface the road-mode rows dose on — a transit row ranked
+    # against car/bike must not ride a different estimator
+    dval, dsig = _dose_surface(F)
     lo = mid = hi = 0.0
     have_mid = have_band = False
     cov_min = None
@@ -375,8 +400,9 @@ def _leg_dose(legs: list) -> dict:
         if leg.get("type") != "walk":
             dur += float(leg.get("wait_s") or 0.0)
         try:
-            e = exposure.dose(geom, dur, me, F.value,
-                              F.nearest_sample_km, field_sigma=F.sigma)
+            e = exposure.dose(geom, dur, me, dval or F.value,
+                              F.nearest_sample_km,
+                              field_sigma=dsig or F.sigma)
         except Exception:
             continue
         if e.get("dose_ug") is None:
