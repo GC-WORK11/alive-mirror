@@ -68,6 +68,23 @@ const TAG_KEY: Record<string, StringKey> = {
   "lightest for delhi": "lightestForDelhi",
 };
 
+/** degraded arm → row detector + string key. The banner lists only arms
+ *  that left a real gap on screen: an arm whose rows survived anyway
+ *  (e.g. engine-first paint merged in) is not "unavailable" to the user,
+ *  and an empty arm that never had rows is not a loss either. */
+const ARM_KEY: Record<string, StringKey> = {
+  engine: "degradedEngine",
+  transit: "degradedTransit",
+  motor: "degradedMotor",
+  slow: "degradedSlow",
+};
+const ARM_PRESENT: Record<string, (o: V2Option) => boolean> = {
+  engine: (o) => o.engine != null,
+  transit: (o) => isTransit(o),
+  motor: (o) => !isTransit(o) && o.mode !== "cycle" && o.mode !== "walk",
+  slow: (o) => o.mode === "cycle" || o.mode === "walk",
+};
+
 /** server reason_line (server/v2/plan.py rank_options) is a fixed set of
  * English templates — translate verbatim so the card stays in the user's
  * language. The trailing " +N min vs fastest." gets re-composed locally.
@@ -393,7 +410,7 @@ export function CompareSheet({
   options, selected, onSelect, depart, departCurve, notified, onRemind,
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
-  showCig = false, refining = false,
+  showCig = false, refining = false, degraded,
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
@@ -405,6 +422,9 @@ export function CompareSheet({
   showCig?: boolean;
   /** engine rows shown; router/transit rows still landing */
   refining?: boolean;
+  /** planner arms the /v2/plan response lost — names which kind of route
+      is absent so the sheet reads as incomplete, not complete-and-empty */
+  degraded?: string[];
   /** v2 plan failure — honest retry state, never a silent /decide fallback */
   planError?: PlanError | null;
   onRetry?: () => void;
@@ -518,6 +538,20 @@ export function CompareSheet({
             <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}
               showsVerticalScrollIndicator={false}>
               {chip}
+              {(() => {
+                const missing = (degraded ?? []).filter((a) => {
+                  const det = ARM_PRESENT[a];
+                  return det ? !options.some(det) : true;   /* unknown arms flag honestly */
+                });
+                return missing.length ? (
+                  <View style={s.degradedRow} accessibilityLiveRegion="polite">
+                    <Icon name="info" color={V2T.text3} size={13} />
+                    <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg"), marginLeft: 8, flexShrink: 1 }]}>
+                      {missing.map((a) => t(ARM_KEY[a] ?? "degradedGeneric", lang)).join(" · ")}
+                    </Text>
+                  </View>
+                ) : null;
+              })()}
               {refining && (
                 <View style={s.refineRow} accessibilityLiveRegion="polite">
                   <ActivityIndicator size="small" color={V2T.accent} />
@@ -696,6 +730,9 @@ const s = StyleSheet.create({
   },
   departTxt: { fontSize: V2Type.label, color: V2T.accent, flex: 1 },
   refineRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2 },
+  degradedRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2,
+    paddingVertical: 5, paddingHorizontal: 10, borderRadius: V2Radius.row,
+    backgroundColor: V2T.accentWash, borderWidth: StyleSheet.hairlineWidth, borderColor: V2T.hairline },
   legend: {
     flexDirection: "row", justifyContent: "flex-end", alignItems: "center",
     gap: 14, marginHorizontal: 28, marginTop: 7, marginBottom: 1,

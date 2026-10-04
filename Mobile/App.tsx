@@ -476,7 +476,7 @@ function AppInner() {
           onStart={flow.startNav} onClose={flow.clearRoute} lang={lang}
           vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}
           onVehicleChange={applyVehicle}
-          planError={flow.planError} onRetry={flow.retryPlan}
+          planError={flow.planError} onRetry={flow.retryPlan} degraded={flow.planDegraded}
           fieldAgeS={flow.planField?.age_s}
           showCig={settings.show_cig} />
       )}
