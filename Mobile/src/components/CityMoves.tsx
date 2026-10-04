@@ -70,9 +70,11 @@ const META_FALLBACK = { icon: "flag" as Glyph, color: V2T.out2 };
 function modeLabel(m: string, lang: Lang): string {
   const meta = MODE_META[m];
   if (meta?.label) return t(meta.label, lang);
-  // "other" and unrecognized ids render the server token itself — it is
-  // data, not copy (same rule as a corridor's gazetteer name). Proposed
-  // key for "other": movesModeOther ("other ways").
+  // The pooled under-k bucket gets a real label in both languages — the
+  // wire token "other" is data, not copy, and must not leak into the UI.
+  if (m === "other") return t("movesModeOther", lang);
+  // unrecognized ids render the server token itself — it is data, not
+  // copy (same rule as a corridor's gazetteer name).
   return m;
 }
 

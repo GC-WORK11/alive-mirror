@@ -197,6 +197,9 @@ const en = {
   cityHeavier: "heavier",
   cityLighter: "lighter",
   cityTrips: "{n} trips",
+  /** CityMoves pooled under-k bucket — the pool is the publishable unit,
+      no member mode's name may surface (server token is "other"). */
+  movesModeOther: "other ways",
   cityUnnamed: "a street we can't name yet",
   cityTravellersTitle: "what ALive travellers did today",
   cityTravellersLine: "{trips} trips · {km} km · ≈{cigs} cigarettes breathed · ≈{kg} kg put out",
@@ -575,6 +578,7 @@ const hi: Record<StringKey, string> = {
   cityHeavier: "ज़्यादा धुआँ",
   cityLighter: "कम धुआँ",
   cityTrips: "{n} यात्राएँ",
+  movesModeOther: "बाक़ी तरीक़े",
   cityUnnamed: "एक सड़क जिसका नाम नहीं जानते",
   cityTravellersTitle: "ALive यात्रियों ने आज क्या किया",
   cityTravellersLine: "{trips} यात्राएँ · {km} किमी · ≈{cigs} सिगरेट साँस में · ≈{kg} किग्रा छोड़ा",
