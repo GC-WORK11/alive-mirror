@@ -650,6 +650,38 @@ def test_plan_osrm_bike_row_capped_at_50(monkeypatch):
     assert bike["freeflow_s"] == bike["eta_s"]
 
 
+def test_plan_empty_engine_arm_is_flagged_degraded(monkeypatch):
+    """An arm that returns [] cleanly while siblings produce rows is
+    degraded too — the router arms swallow backend failures into []
+    internally, so empty-on-a-routable-OD means the arm produced
+    nothing, and a silently partial sheet reads as complete. Seen live:
+    degraded:["transit"] while engine rows were absent unflagged."""
+    def empty_eng(*a, **k):
+        return []
+    monkeypatch.setattr(v2plan, "_engine_options", empty_eng)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510}})
+    assert "engine" in body.get("degraded", [])
+    assert body["options"], "router rows still ship"
+    # producing arms are NOT flagged — degraded names the empty ones
+    assert "motor" not in body["degraded"]
+    assert "slow" not in body["degraded"]
+    # transit returned [] here too but honest-empty is not degradation —
+    # no GTFS path on an OD is geography, not a dead arm
+    assert "transit" not in body["degraded"]
+
+
+def test_plan_fast_empty_engine_is_flagged_degraded(monkeypatch):
+    """fast:true runs only the engine arm — its clean-empty is the
+    whole answer missing."""
+    def empty_eng(*a, **k):
+        return []
+    monkeypatch.setattr(v2plan, "_engine_options", empty_eng)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510}, "fast": True})
+    assert "engine" in body.get("degraded", [])
+
+
 def test_plan_full_healthy_has_no_degraded(monkeypatch):
     def eng(*a, **k):
         return [{"mode": "car", "label": "Car (AC) · least-smoke rd",

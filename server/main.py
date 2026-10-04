@@ -1501,13 +1501,17 @@ def _start_rollup_mirror() -> None:
 
 
 def _start_rollup_loop() -> None:
-    """Daily/weekly rollups as an in-app daemon — the EventBridge
-    schedules that would normally fire them are provision.sh stubs
-    (created DISABLED), so on this single-task deploy nothing else ever
-    runs them and the admin validation/daily tiles stay empty forever.
-    Wake hourly; rollup_tick() builds only what is missing or stale.
-    ALIVE_ROLLUP_IN_APP=0 disables."""
-    if os.environ.get("ALIVE_ROLLUP_IN_APP", "1").strip() in ("0", "false", "no"):
+    """Daily/weekly rollups as an in-app daemon — DISABLED by default:
+    the EventBridge schedules (rollup-daily 00:30 IST, validate-weekly
+    Sun 20:00 IST) run them on separate one-off Fargate tasks now, and
+    the compute is heavy — a weekly validation rebuilds ~168 hourly
+    krige surfaces on the same 1 vCPU as the serving API, GIL-starving
+    the event loop until health checks die and the ALB drains the task
+    (the observed "service wedged" flap pattern). The 30-min S3→local
+    mirror (_start_rollup_mirror) stays on — it only pulls the files
+    the scheduled jobs wrote. ALIVE_ROLLUP_IN_APP=1 re-enables for
+    local dev where no scheduler exists."""
+    if os.environ.get("ALIVE_ROLLUP_IN_APP", "0").strip() in ("0", "false", "no"):
         return
     import logging
     import threading
