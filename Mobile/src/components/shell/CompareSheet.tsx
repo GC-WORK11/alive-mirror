@@ -92,6 +92,24 @@ const neNoteTxt = (n: string, lang: Lang): string => {
   return key ? t(key, lang) : n;
 };
 
+/** emissions.py's two fixed metro provenance sentences — the payload
+ *  carries no structured fields for these, so they map verbatim. */
+const EMLBL_KEY: Record<string, StringKey> = {
+  "metro per passenger-km (incl. electricity)": "emit_metroShort",
+  "metro per passenger-km, incl. electricity (11–25 g CO2e/pkm — DMRC + CEA grid EF, docs/31 §3)": "emit_metroLong",
+};
+
+/** plan.py dose-note strings — rendered when dose can't estimate. */
+const DOSE_NOTE_KEY: Record<string, StringKey> = {
+  "dose engine unavailable": "doseNote_engineDown",
+  "dose engine error": "doseNote_engineError",
+  "field unavailable": "doseNote_fieldDown",
+};
+const doseNoteTxt = (n: string, lang: Lang): string => {
+  const key = DOSE_NOTE_KEY[n];
+  return key ? t(key, lang) : n;
+};
+
 const reasonTxt = (n: string, lang: Lang): string => {
   const m = n.match(SLOWER_RE);
   const base = m ? n.slice(0, -m[0].length) : n;
@@ -204,6 +222,7 @@ const basisTxt = (b: string | null | undefined, lang: Lang): string | null => {
  *  the server's own sentence; payload flavours without fuel/class
  *  (metro, labelled fallbacks) keep it too — never a guessed rebuild. */
 function emissionsLabel(e: Emissions, yours: boolean, veh: VehicleProfile | null, lang: Lang): string | null {
+  if (e.label && EMLBL_KEY[e.label]) return t(EMLBL_KEY[e.label], lang);
   if (lang !== "hi" || !e.fuel || !e.class || !e.bs_class) {
     return e.label ?? basisTxt(e.basis, lang);
   }
@@ -243,7 +262,7 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
             {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: approx(cig) })}` : ""}
           </Text>
         ) : (
-          <Text {...DYNAMIC_TYPE} style={[s.dLine, { fontFamily: fam(lang, "reg") }]}>{d.note ?? t("howWe_none", lang)}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, { fontFamily: fam(lang, "reg") }]}>{d.note ? doseNoteTxt(d.note, lang) : t("howWe_none", lang)}</Text>
         )}
       </View>
       {d.confidence ? <Text {...DYNAMIC_TYPE} style={[s.dSub, { fontFamily: fam(lang, "reg") }]}>{t("howWe_conf", lang, { c: confTxt(d.confidence, lang) })}</Text> : null}
