@@ -802,10 +802,16 @@ function paintShared(dn,S,rows,G){
            ??pick(dn,['od_flows','journeys','flows','corridors_total'])
            ??(rows.length?{traversals:rows.reduce((s,r)=>s+(r.trips||0),0),n:rows.length}:null);
   const t=dn.totals||{};
-  const savedCo2=(G&&G.co2_avoided!=null?G.co2_avoided:null)
+  /* savings blocks ship either scalar or {dose_ug|kg, trips_reporting} — unbox, never fmt an object */
+  const box=(v,ks)=>{if(v==null)return null;
+    if(typeof v==='number')return v;
+    for(const k of ks)if(v[k]!=null)return v[k];return null};
+  const rep=(b)=>b&&typeof b==='object'&&b.trips_reporting!=null?b.trips_reporting:null;
+  const savedCo2=box(G&&G.co2_avoided,['kg','co2_kg','value','amount','total'])
            ??pick(t,['co2_saved_kg','co2_avoided_kg'])??pick(dn,['co2_saved_kg','saved_co2_kg']);
-  const savedDose=(G&&G.dose_avoided!=null?G.dose_avoided:null)
+  const savedDose=box(G&&G.dose_avoided,['dose_ug','ug','value','total'])
            ??pick(t,['dose_saved_ug','dose_avoided_ug'])??pick(dn,['dose_saved_ug']);
+  const nRep=rep(G&&G.dose_avoided)??rep(G&&G.co2_avoided);
   const tiles=[
     ['devices moving · by area',
       areas!=null?fmt(typeof areas==='object'?Object.keys(areas).length:areas)+' areas':null,
@@ -819,7 +825,7 @@ function paintShared(dn,S,rows,G){
         ?[savedCo2!=null?fmt1(savedCo2)+' kg co₂':null,
           savedDose!=null?fmt(savedDose)+' µg dose':null].filter(Boolean).join(' · ')
         :(t.co2_kg_mid?fmt1(t.co2_kg_mid)+' kg co₂ emitted · mid estimate':null),
-      'savings land when the api ships avoided-emission fields'],
+      `savings from donated avoided-vs-worst-option counterfactuals${nRep!=null?` · ${fmt(nRep)} trip${nRep===1?'':'s'} reporting`:''}`],
   ];
   const el=$('sharedpic');if(!el)return;
   el.innerHTML=tiles.map(([l,v,sub])=>
