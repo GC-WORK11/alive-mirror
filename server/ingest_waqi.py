@@ -17,7 +17,9 @@ API shapes used here (api.waqi.info):
   GET /feed/@<uid>/?token=<t>
       -> {"status":"ok","data":{aqi, time:{s,tz,v(epoch)},
           city:{name,geo}, iaqi:{pm25:{v},pm10:{v},no2:{v},o3:{v},
-          co:{v},so2:{v}}, station:{name}}} — iaqi v is µg/m³ already.
+          co:{v},so2:{v}}, station:{name}}} — iaqi v is the pollutant's
+          Individual AQI sub-index (US-EPA scale), NOT µg/m³ — inverted
+          through the EPA breakpoints below before use.
   Body `status` is "ok"|"error"; error payloads carry data.message
   verbatim ("Invalid key", "Over quota", ...) into our status reason.
 
@@ -39,6 +41,7 @@ variant — same stations, shaped (lat, lon, name, {"pm2_5": v}) to slot
 into AirField._debias exactly like _grab_stations' rows.
 """
 import asyncio
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -59,9 +62,13 @@ BACKOFF_BASE_S = 5.0
 BACKOFF_CAP_S = 60.0
 FEED_SEM = 12              # concurrent feeds in grab_async
 
-# Pollutants we keep — WAQI iaqi names. All are already µg/m³; the
-# plausibility ranges mirror ingest_openaq.PARAMS so a sensor glitch
-# reports honestly instead of contaminating the blend.
+# Pollutants we keep — WAQI iaqi names. `iaqi.<p>.v` is NOT µg/m³: it is
+# each pollutant's Individual AQI sub-index on the US-EPA scale
+# (aqicn.org/api — "Individual AQI for all pollutants"; a real feed shows
+# iaqi.co ~2-6, which as µg/m³ would be three orders low). iaqi_to_ugm3
+# inverts through the EPA piecewise breakpoints and `range` then checks
+# the converted µg/m³ for plausibility, so a sensor/index glitch reports
+# honestly instead of contaminating the blend.
 PARAMS = {
     "pm25": {"range": (0.0, 1500.0)},
     "pm10": {"range": (0.0, 3000.0)},
@@ -70,6 +77,78 @@ PARAMS = {
     "co": {"range": (0.0, 60000.0)},
     "so2": {"range": (0.0, 3000.0)},
 }
+
+IAQI_MAX = 800.0   # indices past this are dropped, not extrapolated
+
+
+def _ppm(mw):    # ppm -> µg/m³ at 25 °C/1 atm (MW/24.45 — the same
+    return mw / 24.45 * 1000.0   # convention ingest_openaq.to_ugm3 uses)
+
+
+def _ppb(mw):    # ppb -> µg/m³, same convention
+    return mw / 24.45
+
+
+# US-EPA AQI breakpoints as (conc_lo, conc_hi, aqi_lo, aqi_hi) in each
+# species' EPA reporting unit, with that unit's µg/m³ factor.
+# O3: 8-hr bands to AQI 300, then the EPA 1-hr bands.
+_EPA_BP = {
+    "pm25": ("µg/m³", 1.0, [
+        (0.0, 12.0, 0, 50), (12.1, 35.4, 51, 100), (35.5, 55.4, 101, 150),
+        (55.5, 150.4, 151, 200), (150.5, 250.4, 201, 300),
+        (250.5, 350.4, 301, 400), (350.5, 500.4, 401, 500)]),
+    "pm10": ("µg/m³", 1.0, [
+        (0.0, 54.0, 0, 50), (55.0, 154.0, 51, 100), (155.0, 254.0, 101, 150),
+        (255.0, 354.0, 151, 200), (355.0, 424.0, 201, 300),
+        (425.0, 504.0, 301, 400), (505.0, 604.0, 401, 500)]),
+    "no2": ("ppb", _ppb(46.0055), [
+        (0.0, 53.0, 0, 50), (54.0, 100.0, 51, 100), (101.0, 360.0, 101, 150),
+        (361.0, 649.0, 151, 200), (650.0, 1249.0, 201, 300),
+        (1250.0, 1649.0, 301, 400), (1650.0, 2049.0, 401, 500)]),
+    "so2": ("ppb", _ppb(64.066), [
+        (0.0, 35.0, 0, 50), (36.0, 75.0, 51, 100), (76.0, 185.0, 101, 150),
+        (186.0, 304.0, 151, 200), (305.0, 604.0, 201, 300),
+        (605.0, 804.0, 301, 400), (805.0, 1004.0, 401, 500)]),
+    "co": ("ppm", _ppm(28.01), [
+        (0.0, 4.4, 0, 50), (4.5, 9.4, 51, 100), (9.5, 12.4, 101, 150),
+        (12.5, 15.4, 151, 200), (15.5, 30.4, 201, 300),
+        (30.5, 40.4, 301, 400), (40.5, 50.4, 401, 500)]),
+    "o3": ("ppm", _ppm(48.0), [
+        (0.0, 0.054, 0, 50), (0.055, 0.070, 51, 100),
+        (0.071, 0.085, 101, 150), (0.086, 0.105, 151, 200),
+        (0.106, 0.200, 201, 300), (0.201, 0.404, 301, 400),
+        (0.405, 0.504, 401, 500)]),
+}
+
+
+def iaqi_to_ugm3(param: str, v) -> Optional[float]:
+    """Invert a WAQI Individual-AQI sub-index to µg/m³ via the US-EPA
+    piecewise breakpoints — linear inside the band that contains the
+    index (a fractional v slides through the joins monotonically), and
+    the top band's own slope past AQI 500 (Delhi winters exceed it; the
+    raw index stays in src_value for provenance).
+
+    -> float µg/m³, or None when the param/value can't honestly invert."""
+    spec = _EPA_BP.get(param)
+    if spec is None:
+        return None
+    _src_unit, factor, bp = spec
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(v) or v < 0 or v > IAQI_MAX:
+        return None
+    # first band containing the index owns it (bands are contiguous in
+    # index space — a fractional v in the alo_i-1..ahi_i-1 overlap still
+    # interpolates monotonically through the join)
+    for clo, chi, alo, ahi in bp:
+        if v > ahi:
+            continue
+        conc = clo + (v - alo) / (ahi - alo) * (chi - clo)
+        return round(max(0.0, conc) * factor, 2)
+    clo, chi, alo, ahi = bp[-1]
+    return round((chi + (v - ahi) / (ahi - alo) * (chi - clo)) * factor, 2)
 
 
 class _SourceDown(Exception):
@@ -168,15 +247,19 @@ def _obs_from_feed(uid: int, meta: dict, j: dict,
             v = float(v)
         except (TypeError, ValueError):
             continue
+        v_ugm3 = iaqi_to_ugm3(pname, v)
+        if v_ugm3 is None:
+            skipped["bad_value"] += 1
+            continue
         lo, hi = rule["range"]
-        if not lo <= v <= hi:
+        if not lo <= v_ugm3 <= hi:
             skipped["bad_value"] += 1
             continue
         obs.append({
             "station_id": uid, "name": name,
             "lat": meta["lat"], "lon": meta["lon"],
-            "parameter": pname, "value": v, "unit": "µg/m³",
-            "src_value": v, "src_unit": "µg/m³",
+            "parameter": pname, "value": v_ugm3, "unit": "µg/m³",
+            "src_value": v, "src_unit": "iaqi-us-epa",
             "ts": ts,
             "ts_utc": datetime.fromtimestamp(
                 ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

@@ -71,6 +71,8 @@ def _bounds_payload(uids):
 
 
 def _feed_payload(name, pm25, ts_v=NOW - 60, extra=None):
+    """`pm25` here is the WAQI Individual-AQI sub-index, NOT µg/m³ —
+    iaqi.pm25.v on a real feed. The ingest must invert it to µg/m³."""
     iaqi = {"pm25": {"v": pm25}, "pm10": {"v": pm25 * 1.4}}
     if extra:
         iaqi.update(extra)
@@ -225,3 +227,66 @@ def test_grab_async_no_key_returns_empty(monkeypatch):
     monkeypatch.delenv("WAQI_API_KEY", raising=False)
     import asyncio
     assert asyncio.run(iw.grab_async(AsyncFake({}))) == []
+
+
+# --- iaqi -> µg/m³ conversion (the 2026-10-04 unit bug) -------------------
+# WAQI /feed iaqi.<p>.v is each pollutant's US-EPA Individual AQI
+# sub-index — verified on a live Delhi feed where iaqi.pm25.v equalled the
+# station's composite aqi (uid 10117: 154/154) and iaqi.co ~2-6 (µg/m³ CO
+# would be ~3 orders low). Serving the index as µg/m³ inflated every
+# blended station ~2-3x.
+
+def test_iaqi_pm25_inversion_matches_epa_table():
+    # US-EPA PM2.5 breakpoints: 35.5-55.4 µg/m³ <-> IAQI 101-150,
+    # 55.5-150.4 <-> 151-200 — the two bands Delhi lives in.
+    assert iw.iaqi_to_ugm3("pm25", 101) == pytest.approx(35.5, abs=0.05)
+    assert iw.iaqi_to_ugm3("pm25", 150) == pytest.approx(55.4, abs=0.05)
+    assert iw.iaqi_to_ugm3("pm25", 154) == pytest.approx(61.31, abs=0.05)
+    assert iw.iaqi_to_ugm3("pm25", 0) == pytest.approx(0.0)
+    assert iw.iaqi_to_ugm3("pm25", 500) == pytest.approx(500.4, abs=0.05)
+    # past the table the top-band slope continues (never clamped silent)
+    assert iw.iaqi_to_ugm3("pm25", 560) > 500.4
+
+
+def test_iaqi_other_species_convert_with_units():
+    # gas tables are ppb/ppm -> µg/m³ at 25 °C; sanity vs real Delhi
+    # orders of magnitude (CAMS o3 ~160, co ~290, no2 ~6, so2 ~14 same day)
+    assert 100 < iw.iaqi_to_ugm3("o3", 88) < 200        # 88 -> ~130 µg/m³
+    assert 150 < iw.iaqi_to_ugm3("co", 2.3) < 400       # -> ~232 µg/m³
+    assert 10 < iw.iaqi_to_ugm3("no2", 7.9) < 40        # -> ~16 µg/m³
+    assert 5 < iw.iaqi_to_ugm3("so2", 6.8) < 30         # -> ~12 µg/m³
+    assert iw.iaqi_to_ugm3("pm10", 134) == pytest.approx(221.67, abs=0.05)
+
+
+def test_iaqi_bad_values_rejected():
+    assert iw.iaqi_to_ugm3("pm25", -1) is None
+    assert iw.iaqi_to_ugm3("pm25", "x") is None
+    assert iw.iaqi_to_ugm3("pm25", float("nan")) is None
+    assert iw.iaqi_to_ugm3("pm25", iw.IAQI_MAX + 1) is None
+    assert iw.iaqi_to_ugm3("unlisted", 100) is None
+
+
+def test_station_pm25_is_ugm3_not_iaqi():
+    # the exact regression: IAQI 154 must land as ~61 µg/m³, not 154
+    c = _client(1, feed_map={
+        0: FakeResp(200, _feed_payload("Rohini-like", 154.0))})
+    out = iw.fetch(api_key=KEY, client=c, sleep=lambda s: None)
+    assert out["status"] == "ok"
+    pm25 = out["stations"][0]["pm25"]
+    assert pm25 == pytest.approx(61.31, abs=0.05)
+    # obs keeps the raw index for provenance
+    pm_obs = [o for o in out["obs"] if o["parameter"] == "pm25"][0]
+    assert pm_obs["src_value"] == 154.0
+    assert pm_obs["src_unit"] == "iaqi-us-epa"
+    assert pm_obs["value"] == pytest.approx(61.31, abs=0.05)
+
+
+def test_grab_async_rows_are_ugm3(monkeypatch):
+    monkeypatch.setenv("WAQI_API_KEY", KEY)
+    c = AsyncFake({
+        BOUNDS: FakeResp(200, _bounds_payload([0])),
+        f"{iw.WAQI}/feed/@0/": FakeResp(200, _feed_payload("S0", 154.0)),
+    })
+    import asyncio
+    rows = asyncio.run(iw.grab_async(c))
+    assert rows[0][3]["pm2_5"] == pytest.approx(61.3, abs=0.15)
