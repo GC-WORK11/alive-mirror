@@ -127,6 +127,9 @@ export interface FieldStatus {
 export interface RouteResponse {
   routes: RouteResult[];
   field?: FieldStatus;          // absent on the "router unavailable" path
+  router_backend?: string;      // which router answered: osrm-local
+                               // (self-hosted Delhi daemon) |
+                               // osrm-public-demo (rate-limited fallback)
   error?: string;
 }
 
@@ -219,6 +222,9 @@ export interface CompareResponse {
   best?: string | null;     // vehicle key of the lowest-dose option;
                             // absent on the error path
   field?: FieldStatus;      // absent on the error path
+  router_backend?: Record<string, string | null>;  // per-profile router
+                            // backend: driving|cycling|walking ->
+                            // osrm-local | osrm-public-demo | null
   error?: string;
 }
 
@@ -390,6 +396,8 @@ export interface V2PlanOption {
   eta_model: string;            // amazon-location | osrm-freeflow | estimated | gtfs
   dose: DoseBand;
   emissions: EmissionBand;
+  router_backend?: string;    // osrm rows: which router answered —
+                              // osrm-local | osrm-public-demo
   tag: V2PlanTag;
   recommended: boolean;
   safest_path?: boolean;        // true on the lowest-dose option — leaf chip

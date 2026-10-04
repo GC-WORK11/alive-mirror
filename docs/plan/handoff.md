@@ -180,10 +180,12 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   29adb480 terminated (suspended/done), 1cb3ac27 403 on terminate
   (suspended, harmless). New lanes: 1def589f Android polish (icons,
   milky morphism, sidebar). Admin overhaul = lead-owned (this session).
-- Known un-owned gap: self-hosted OSRM daemon never deployed
-  (scripts/geo/run_stack.sh is docker-host shaped; Fargate has none) —
-  public demo carries all router arms, degraded flag makes failure
-  honest. Post-submission hardening, documented not built.
+- Self-hosted OSRM is DEPLOYED (sidecar lane): osrm-routed + Delhi-NCR
+  MLD graph baked into `alive108-osrm` ECR image, runs in the same
+  Fargate task (`OSRM_URL=http://127.0.0.1:5000`, essential:false,
+  1 GB hard cap, task 3072). `deploy.sh OSRM_SIDECAR=0` reverts;
+  `docs/plan/osrm-selfhosted.md` has the build/rollback runbook.
+  Public demo remains only as the flagged fallback.
 
 ## handoff cont.4 — admin overhaul LIVE-verified + main merged (2026-10-04 ~18:25 UTC)
 
@@ -246,3 +248,46 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   infeasible).
 - vision-audit.md refreshed: rows 15/24 live; OSRM gap now in-flight; APK gap
   logged; deploy ref e849bf6f.
+
+## handoff cont.7 — reviews verified e2e + cold-solve warm (2026-10-04 ~11:15 IST)
+
+- **Reviews e2e on iOS sim vs live API**: Settings → rate ALive·108 → 3★ +
+  note → send → "thanks — that helps"; server /admin/api/global went
+  count 1→2, avg 5.0→4.0, hist {3:1,5:1} matches the taps. k≥3 body gate
+  still honestly withholding.
+- **API contract tightened**: invalid stars → 422 (was 200 stored:false).
+- **Cold-solve warm**: first plan on a fresh task paid ~9.5s inside the 8s
+  arm budget → degraded:["engine"]. _warm_engine now burns 5 real mode
+  solves (CP→Karol Bagh) after edges_priced>0. Deploy fa332d76 carries it.
+- **Landing**: og:title/description + theme-color meta.
+- **Soak probe (120 calls, 2.5min)**: health p50 467ms, /community 557ms,
+  /v2/reverse 467ms, /city 698ms, /grid?cells=40 1.47s warm ×24 calls,
+  zero real failures (RTT floor ~460ms from this box).
+- Fresh release APK on e849bf6f delivered by lane 4890a49f (130MB, proofs
+  grepped): https://app.devin.ai/attachments/739c91df-eef9-4730-9235-3d1eb5035168/app-release.apk
+- OSRM lane 4a3551bc still running.
+- main merged f317270 (suite 910 green).
+
+## handoff cont.8 — landing rebuild + OSRM sidecar live (2026-10-04 ~12:50 IST)
+
+- **Owner mandate**: landing "looking shit" → rebuild as living piece with
+  "ASCII aether shaders animation", no cheap template, reference-grade
+  (supaste/devin.ai/iphone-duo/godly.design captured component-by-component).
+- **Landing v2 shipped `9e3f8fc`**: animated aether canvas = REAL /grid 40×40
+  → one glyph per cell (ramp ` .·:;=+x#%@`), temporal shimmer + breathing
+  wave + mouse lens + crosshair readout (sector ref, µg/m³, conf tier);
+  lo-conf cells stay faint dots. Signature type: bold sans + italic serif
+  ("Delhi's air has a price / *per street.*"). Circular stamps, spec chips,
+  floating artifact trio rendered as LIVE DOM — real /v2/plan dose rows,
+  /community corridors with reverse-geocoded names, /health stats.
+  Pipeline spine, honest-band numbers (95.2%@2σ, σ×3.2, ±13%, 0 faked),
+  footer live build stamp. Empty-epoch resilience: keeps last field + retries.
+- **OSRM self-hosted VERIFIED LIVE by lane 4a3551bc**: `alive108-osrm` image
+  in ECR (Geofabrik northern-zone → NCR clip, MLD car, 489MB, 4.4M edges);
+  sidecar in same Fargate task (awsvpc shared netns, OSRM_URL=127.0.0.1:5000,
+  essential:false, mem cap 1024, task 2048→3072). /admin/api/sources:
+  routing.backend=osrm-local, up:true, ~116-148ms (was ~600ms+429 risk).
+  Public demo is now fallback-only + flagged. Runbook docs/plan/osrm-selfhosted.md.
+  My deploy `9e3f8fcb` folds the sidecar in (image exists → default path).
+- Suite on HEAD: 910 passed, 5 skipped (616s).
+- main merge pending deploy verify.

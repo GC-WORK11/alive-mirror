@@ -1,0 +1,9 @@
+# Runtime image for the self-hosted Delhi-NCR OSRM daemon.
+# Build context = scripts/geo/ (git-archived to CodeBuild): the buildspec
+# fills build/delhi-osrm/ with the MLD graph set before `docker build`.
+# osrm-routed serves on :5000; the Fargate task reaches it via 127.0.0.1.
+ARG OSRM_IMAGE=osrm/osrm-backend:latest
+FROM ${OSRM_IMAGE}
+COPY build/delhi-osrm/ /data/
+EXPOSE 5000
+ENTRYPOINT ["osrm-routed", "--algorithm=MLD", "/data/delhi.osrm"]
