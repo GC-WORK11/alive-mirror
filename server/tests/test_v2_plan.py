@@ -582,6 +582,46 @@ def test_plan_full_engine_down_is_flagged_degraded(monkeypatch):
         "failed engine arm must not fabricate engine rows"
 
 
+# --- router-row mode speed caps (honest implied speeds) -------------------------
+def test_mode_cap_clamps_bike_above_50():
+    # dist 6.2 km at implied 62 km/h car freeflow → bike×0.9 implies
+    # 55.8 km/h — over the engine graph's own 50 km/h ceiling → clamp.
+    out = v2plan._mode_cap_duration_s("bike", 6.2, 400.0)
+    assert abs(out - 6.2 / 50.0 * 3600.0) < 0.01
+
+
+def test_mode_cap_keeps_under_cap():
+    assert v2plan._mode_cap_duration_s("bike", 6.2, 600.0) == 600.0
+
+
+def test_mode_cap_uncapped_modes_untouched():
+    assert v2plan._mode_cap_duration_s("car", 6.2, 100.0) == 100.0
+    assert v2plan._mode_cap_duration_s("bus", 6.2, 100.0) == 100.0
+
+
+def test_plan_osrm_bike_row_capped_at_50(monkeypatch):
+    """A fast-freeflow OSRM route must not show a bike row implying
+    >50 km/h — the same ceiling the priced engine applies."""
+    async def fast_osrm(profile, flon, flat, tlon, tlat):
+        rt = dict(OSRM_ROUTE)
+        rt["distance"] = 6200.0
+        rt["duration"] = 360.0   # car implied ≈62 km/h
+        rt["steps"] = deps.osrm_steps(rt)
+        return rt
+    async def nop(*a, **k):
+        return None
+    monkeypatch.setattr(deps, "field_refresh", nop)
+    monkeypatch.setattr(deps, "osrm_route", fast_osrm)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": 28.5494, "lon": 77.2510}})
+    bike = next(o for o in body["options"]
+                if o["mode"] == "bike" and o["steps_source"] == "osrm")
+    expect = 6.2 / 50.0 * 3600.0
+    assert abs(bike["eta_s"] - expect) < 1.0
+    # freeflow_s capped identically — eta−ff must not fabricate idle
+    assert bike["freeflow_s"] == bike["eta_s"]
+
+
 def test_plan_full_healthy_has_no_degraded(monkeypatch):
     def eng(*a, **k):
         return [{"mode": "car", "label": "Car (AC) · least-smoke rd",

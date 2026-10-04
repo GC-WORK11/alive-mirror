@@ -621,6 +621,32 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
     return opt
 
 
+def _mode_cap_duration_s(mode: str, dist_km: float, dur_s: float) -> float:
+    """Router rows borrow a motorized router's duration and scale it
+    per mode — on fast arterials that implied ~60-75 km/h for a bike
+    (a Delhi 2W outrunning every car), which understates dose. Clamp
+    implied speed at the same ceiling the engine graph applies
+    (routegraph.MODE_RULES spd caps — bike 50, auto 40, cycle 16,
+    walk 5): a slower duration means more time breathing, the honest
+    direction. Uncapped modes return dur unchanged."""
+    if dur_s <= 0 or dist_km <= 0:
+        return dur_s
+    try:
+        import routegraph
+        rules = routegraph.MODE_RULES.get(mode)
+    except Exception:
+        rules = None
+    if not rules:
+        return dur_s
+    cap_kmh = rules["spd"](1e9)
+    if cap_kmh >= 1e9:
+        return dur_s                      # uncapped (car family)
+    implied_kmh = dist_km / (dur_s / 3600.0)
+    if implied_kmh <= cap_kmh:
+        return dur_s
+    return dist_km / cap_kmh * 3600.0
+
+
 async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                              depart_at) -> list:
     """Car-family geometries: AWS CalculateRoutes when keyed (traffic +
@@ -665,8 +691,12 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                                     steps=steps, steps_source=src,
                                     origin=o, dest=d))
                 opts.append(_option("auto", "Auto-rickshaw", geom,
-                                    dist_km, dur * 1.25,
-                                    (ff or dur) * 1.25,
+                                    dist_km,
+                                    _mode_cap_duration_s(
+                                        "auto", dist_km, dur * 1.25),
+                                    _mode_cap_duration_s(
+                                        "auto", dist_km,
+                                        (ff or dur) * 1.25),
                                     "amazon-location+est", vehicle,
                                     profile, steps=steps,
                                     steps_source=src, origin=o, dest=d))
@@ -678,9 +708,15 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
         if sco_rts:
             rt = sco_rts[0]
             steps = rt.get("steps") or None
+            dist_b = rt["distance_m"] / 1000.0
+            ff_b = rt.get("freeflow_s")
             opts.append(_option("bike", "Bike / scooter", rt["geometry"],
-                                rt["distance_m"] / 1000.0,
-                                rt["duration_s"], rt.get("freeflow_s"),
+                                dist_b,
+                                _mode_cap_duration_s(
+                                    "bike", dist_b, rt["duration_s"]),
+                                _mode_cap_duration_s("bike", dist_b,
+                                                     ff_b) if ff_b
+                                else None,
                                 "amazon-location", vehicle, profile,
                                 steps=steps,
                                 steps_source="amazon-location"
@@ -708,7 +744,11 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                             ("auto", "Auto-rickshaw"), ("bus", "Bus")):
             f = _MODES[mode][5]
             out.append(_option(mode, label, rt["geometry"], dist_km,
-                               base * f, base * f, "osrm-freeflow", vehicle,
+                               _mode_cap_duration_s(mode, dist_km,
+                                                    base * f),
+                               _mode_cap_duration_s(mode, dist_km,
+                                                    base * f),
+                               "osrm-freeflow", vehicle,
                                profile, steps=steps, steps_source=src,
                                origin=o, dest=d))
         return out
