@@ -684,3 +684,11 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **Live task rolled ~27min ago** — archive per-task: `why.evaluated.trend.n_snapshots=0` expected; self-fills ~3h post-deploy (documented constraint).
 - **Spawned**: ledger-audit `f24ad0e0` (prove hero dose math vs live field), mobile-web `89918813` (phone viewport audit — judges open links on phones), apk-drive-v3 `46407448` (FINAL demo-phone build, gate = perf landed).
 - Board: me + video `9770ef36` + ledger `f24ad0e0` + mobile-web `89918813` + apk-v3 `46407448` = 5/5.
+
+### cont.39 — ledger-audit landed; strip-bz spawned (Oct 6 ~03:15 UTC)
+
+- **ledger-audit COMPLETE `e865537`** — hero math PROVABLE: hand-recompute 62.45µg vs app 62.5; arc Σ ≡ hero exactly after fixes. 2 real bugs killed: hour-bars left-edge vs trapezoid (~4× divergence on steep ramps), past-day arc sliced at now's hour. Judge-runnable harness `node src/store/test-runner.mjs` (13 tests). Stage sentence + report in docs/lanes/ledger-audit-report.md.
+- **Open finding → strip-bz lane `fc3b1e30`**: stays integrate `bz` (ambient × smoke_modifier) vs plan/strip raw ambient — ~+9% during burn events. Basis decision (apply modifier to engine or strip it from stays) then consistency + tests.
+- writeup.md re-synced to live counters (14 contrib/22 trips; 12/54 corridors publishable) — was stale (12/19, 10/54). verify_numbers.sh flags: smoke ×1.09 today (docs say re-verify morning-of), build_sha wart (say ECR tag on stage).
+- /admin live carries self-grade (/v2/skill: h+1 MAE 16.3, bias +15.8, band-hit 71.4%, thin horizons honestly labeled) + engine room + plain-English lines.
+- Board: me + video `9770ef36` + mobile-web `89918813` + apk-v3 `46407448` + strip-bz `fc3b1e30`.
