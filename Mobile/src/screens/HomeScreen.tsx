@@ -247,14 +247,23 @@ function Sparkline({ series, lang }: { series: (number | null)[]; lang: Lang }) 
           ))}
         </Svg>
       )}
-      <View style={ss.sparkLabels}>
-        {series.map((v, i) => (
-          <Text key={i} {...DYNAMIC_TYPE}
-            style={[ss.sparkHr, { fontFamily: mtext(lang) }]}>
-            {i === 0 ? t("dayNow", lang) : i % 3 === 0 ? `+${i}h` : ""}
-          </Text>
-        ))}
-      </View>
+      {w > 0 && (
+        <View style={ss.sparkLabels}>
+          {series.map((v, i) => {
+            const label = i === 0 ? t("dayNow", lang) : i % 3 === 0 ? `+${i}h` : "";
+            if (!label) return null;
+            /* one label per marked hour, centred on its dot — wide enough
+               that "+21h" never wraps (it did, flexing 1/25 of the row) */
+            const cx = Math.min(Math.max(x(i), 18), w - 18);
+            return (
+              <Text key={i} {...DYNAMIC_TYPE} numberOfLines={1}
+                style={[ss.sparkHr, { fontFamily: mtext(lang), left: cx - 20 }]}>
+                {label}
+              </Text>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -1246,7 +1255,7 @@ const ss = StyleSheet.create({
 
   /* the hero block — an editorial block on paper, not a card */
   heroBlock: {
-    paddingHorizontal: 6, paddingTop: 14, paddingBottom: 10,
+    paddingHorizontal: 6, paddingTop: 16, paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
     marginBottom: 2,
   },
@@ -1310,8 +1319,8 @@ const ss = StyleSheet.create({
 
   /* the move — decision felt at serif scale, evidence stays mono */
   moveLine: { color: V2T.text, fontSize: 20, lineHeight: 27, marginBottom: 10 },
-  sparkLabels: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
-  sparkHr: { color: V2T.text4, fontSize: 9, flex: 1, textAlign: "center" },
+  sparkLabels: { position: "relative", height: 13, marginTop: 2 },
+  sparkHr: { position: "absolute", top: 0, width: 40, color: V2T.text4, fontSize: 9, textAlign: "center" },
   mRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
   mLine: { color: V2T.text2, fontSize: V2Type.secondary },
   noteLine: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },

@@ -386,7 +386,7 @@ function SearchSheet({
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={t("a11yBack", lang)}
-          style={ss.barBtn}
+          style={({ pressed }) => [ss.barBtn, pressed && { opacity: 0.55 }]}
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
@@ -416,7 +416,7 @@ function SearchSheet({
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={t("a11yClear", lang)}
-            style={ss.barBtn}
+            style={({ pressed }) => [ss.barBtn, pressed && { opacity: 0.55 }]}
           >
             <Icon name="close" color={V2T.text3} size={16} />
           </Pressable>

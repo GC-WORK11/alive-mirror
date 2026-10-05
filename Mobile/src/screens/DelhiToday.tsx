@@ -23,6 +23,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import {
+  bandColor,
   cigOf,
   doseColor,
   fam,
@@ -233,7 +234,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={t("a11yBack", lang)}
-          style={ss.barBtn}
+          style={({ pressed }) => [ss.barBtn, pressed && { opacity: 0.55 }]}
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
@@ -376,7 +377,9 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
               const items: string[] = [];
               const push = (key: string, label: string) => {
                 const v = sp[key];
-                if (v) items.push(`${label} ${v.mean}`);
+                /* NBSP inside a pair — the wrap may break at "·", never
+                   between "CO" and its value */
+                if (v) items.push(`${label}\u00A0${v.mean}`);
               };
               push("pm10", "PM10");
               push("nitrogen_dioxide", "NO₂");
@@ -385,11 +388,11 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
               push("sulphur_dioxide", "SO₂");
               push("ammonia", "NH₃");
               const aqi = sp.us_aqi;
-              if (aqi) items.push(`US AQI ${Math.round(aqi.mean)}`);
+              if (aqi) items.push(`US\u00A0AQI\u00A0${Math.round(aqi.mean)}`);
               if (!items.length) return null;
               return (
                 <>
-                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
                     {t("citySpeciesTitle", lang)}
                   </Text>
                   <Text {...DYNAMIC_TYPE} style={[ss.speciesLine, NUM,
@@ -423,7 +426,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
               const max = Math.max(...hrs.map((x) => x.pm25), 1);
               return (
                 <>
-                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
                     {t("cityForecastTitle", lang)}
                   </Text>
                   <View style={ss.fcRow}>
@@ -434,7 +437,10 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                           {x.h % 3 === 0 ? `${Math.round(x.pm25)}` : ""}
                         </Text>
                         <View style={[ss.fcBar,
-                              { height: 4 + Math.round(28 * x.pm25 / max) }]} />
+                              { height: 4 + Math.round(28 * x.pm25 / max),
+                                /* bars carry the band, not flat accent —
+                                   "next 12h" must read heavy when heavy */
+                                backgroundColor: bandColor(x.pm25) ?? V2T.text3 }]} />
                         <Text {...DYNAMIC_TYPE} style={[ss.fcHr,
                                      { fontFamily: famMonoText(lang, "reg") }]}>
                           {x.h === 0 ? t("cityForecastNow", lang)
@@ -452,7 +458,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
             })()}
 
             {/* measured streets — k>=3 aggregates, heaviest first */}
-            <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
               {t("cityStreetsTitle", lang)}
             </Text>
             {corridors.length === 0 ? (
@@ -469,7 +475,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                 hidden when there's nothing (doc 07: no zero-fill) */}
             {day && day.trips > 0 ? (
               <>
-                <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
+                <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
                   {t("cityTravellersTitle", lang)}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
@@ -676,7 +682,7 @@ const ss = StyleSheet.create({
   },
   retryText: { color: V2T.accent, fontSize: V2Type.secondary },
 
-  hero: { marginTop: 18, marginHorizontal: 18 },
+  hero: { marginTop: 16, marginHorizontal: 18 },
   heroLead: { color: V2T.text2, fontSize: V2Type.body },
   heroRow: {
     flexDirection: "row",
@@ -684,15 +690,15 @@ const ss = StyleSheet.create({
     marginTop: 4,
     gap: 10,
   },
-  heroNum: { fontSize: V2Type.hero, lineHeight: 40 },
+  heroNum: { fontSize: V2Type.hero, lineHeight: 46 },
   heroUnit: { color: V2T.text, fontSize: V2Type.body, marginTop: 2 },
   heroRange: { color: V2T.text3, fontSize: V2Type.label, marginTop: 4 },
 
   chips: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginHorizontal: 14,
-    marginTop: 14,
+    marginHorizontal: 18,
+    marginTop: 16,
     gap: 8,
   },
   chip: {
@@ -708,12 +714,14 @@ const ss = StyleSheet.create({
   },
   chipText: { color: V2T.text2, fontSize: V2Type.label },
 
+  /* sheet sections = the same eyebrow register as the home cards
+     (mono micro, wide tracking) — not a looser Inter label */
   sec: {
     color: V2T.text3,
-    fontSize: V2Type.label,
-    letterSpacing: 0.6,
+    fontSize: V2Type.micro,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
-    marginTop: 22,
+    marginTop: 24,
     marginBottom: 4,
     marginHorizontal: 18,
   },
@@ -793,8 +801,8 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 26,
-    marginHorizontal: 14,
+    marginTop: 24,
+    marginHorizontal: 18,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: V2Radius.row,
