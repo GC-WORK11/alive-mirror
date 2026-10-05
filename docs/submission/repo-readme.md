@@ -5,8 +5,10 @@ and when tomorrow's air is worth going out in — no device, no uploads.**
 ALive-108 reconstructs personal exposure the way the research literature
 does — timeline × concentration field → individual dose — but on the phone
 you already carry, not on a $200 gadget. Your day is reconstructed
-**on-device**; the only things that ever leave it are consented, k≥3
-privacy-floored aggregates.
+**on-device**; the only things that ever leave it are consented aggregates —
+folded into cell/hour/day counters at ingest, so **no per-trip record exists
+anywhere on the server**; nothing publishes below k=3 distinct devices over
+72 h.
 
 Exposure-aware routing is one feature inside it — the proof that the field
 and the dose math are real enough to decide with.
@@ -29,8 +31,11 @@ Three questions, three shipped surfaces:
 
 1. **"What did today cost me?"** — every trip receipts in inhaled µg and
    lands in `ledger.json` on the phone (500-trip cap, delete-all, no
-   account). Donation is opt-in and aggregate-only — `min_k` is literally
-   on the wire.
+   account). Donation is opt-in and aggregate-only at ingest — `min_k` is
+   literally on the wire, and the privacy model is written down verifiably
+   in `PRIVACY.md` (no per-trip row in memory, on disk, or in S3; the
+   raw-coords endpoint answers **410**; request logs scrub coordinates; the
+   contributor id is a 64-bit CSPRNG rotating every 30 days).
 2. **"When is today's air worth going out in?"** — `GET /v2/day` returns
    the morning card for a point: today's heavy stretch and cleanest slot
    with real σ bands, plus the decisions they change.
@@ -50,7 +55,8 @@ minutes; the vehicle decides what you inhale. Measured live today
 | bike | 17.9 | | walk | **258.8** |
 | bus | 20.4 | | auto | 23.1 |
 
-A **~33× spread the map you use today never shows you** — and it matches
+A **~35× spread on a Delhi commute the map you use today never shows you**
+— 33.2× measured today, 31–45× across ODs this week — and it matches
 published Delhi measurements (walk ≈28× metro per km; Sci. Total Environ.
 2021). `GET /v2/day` at the same point today: heavy stretch **22:30 IST →
 day end ~122 µg/m³**, honestly **no clean slot left** (lightest ~68), day
@@ -69,9 +75,12 @@ Underneath: a live field rebuilt every 15 min from 24 WAQI instruments +
 ~71 CAMS/open-meteo model samples + NASA FIRMS fires, kriged with a real
 σ band by our own C++ engine — that re-prices all **1.07M road edges** so
 dose is a routing criterion, not an annotation. Plus a 120-hour forecast,
-per-mode emissions bands (CO₂ + tailpipe PM on Delhi fleet factors), and a
-privacy-floored community layer — streets publish only after **3 different
-devices** cross them.
+an hourly **archive** recording the served field itself — `GET /v2/archive`
+replays what Delhi actually breathed, hour by hour, history not just
+forecast — per-mode emissions bands (CO₂ + tailpipe PM on Delhi fleet
+factors), and a privacy-floored community layer — streets publish only
+after **3 different devices** cross them, and donations fold to aggregates
+at ingest.
 
 <!-- SCREENSHOT 3 — PENDING CAPTURE: `/admin` engine room — pipeline
      provenance, sources trust table, FIRMS detections on the field map.
@@ -111,6 +120,9 @@ curl -s $NLB/v2/city
 
 # the privacy floor on the wire: min_k=3, suppressed buckets named
 curl -s $NLB/v2/city/moves
+
+# the field's own history — Delhi recorded hourly, replayed per day
+curl -s "$NLB/v2/archive?day=2026-10-05"
 ```
 
 Browser surfaces: `/` (dosimeter landing + field map + a→b), `/city`
@@ -134,21 +146,24 @@ Web surfaces / judges ──────────┤ HTTP :80   │  → krig
    ├─ /v2/day    the morning card: heavy/cleanest windows + decisions
    ├─ /v2/reach  bounded-Dijkstra lung reach (C++/Python parity-tested)
    ├─ /v2/ledger per-device sanitized trip summaries + DELETE-all
-   ├─ /aqi /grid /depart   field, forecast, leave-later
+   ├─ /v2/archive served-field history — recorded hourly (basis:recorded)
+   ├─ /v2/outlook + /aqi /grid /depart   field, forecast, leave-later
    ├─ /v2/search  C++ index over 97,447-entry OSM-NCR corpus
    └─ /v2/city /admin /community   aggregates, k≥3 everywhere
         │            │               │
       DynamoDB     S3            Secrets Manager
      alive108-agg  field snaps   admin + upstream keys
      (aggregates   + community    (nothing in repo)
-      only)        state
+      only)        + hourly field
+                   archive
         ▲
    CodeBuild → ECR → task-def   (every deploy builds in AWS)
 ```
 
 Self-hosted Delhi basemap: 22.7 MB pmtiles from Geofabrik OSM, z0–14
 (`/tiles/health`). Decade climatology from OpenAQ's public S3 archive
-(9M station-hours / 125 stations). Cost: ~$46/mo worst case; Fargate Spot
+(125 stations × a decade of hourly readings, medians by month×hour).
+Cost: ~$46/mo worst case; Fargate Spot
 outside demo windows.
 
 ## Validation (the part most projects skip)
@@ -188,7 +203,7 @@ outside demo windows.
   carries measured stations meanwhile); the OpenAQ live-key path is wired
   but dormant — documented in `server/data/field_validation.md`.
 - **`/health` `build_sha` can lag the deployed image** by a deploy — the
-  ECR task image tag is the truth (today: `alive108-api:1e93b9f2`).
+  ECR task image tag is the truth (today: `alive108-api:cb862533`).
 
 ## Repo layout
 

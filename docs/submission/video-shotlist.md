@@ -4,7 +4,7 @@ The video is judged — most importantly on **console proof + real product**.
 This document lists what must appear, in what order, and how long each beat
 gets. Target: **2:45–2:55** so a beat can overrun without breaching 3:00.
 The arc now sells the **dosimeter** — the numbers every beat leans on were
-re-verified live 2026-10-05 (~20:30 IST, build `07cadfdd`) unless marked otherwise. Re-run `scripts/verify_numbers.sh` before filming — the live column is the truth.
+re-verified live 2026-10-05 (build `26b674d6` serving; deployed image `alive108-api:cb862533`) unless marked otherwise. Re-run `scripts/verify_numbers.sh` before filming — the live column is the truth.
 
 ## Recording setup
 
@@ -47,8 +47,9 @@ re-verified live 2026-10-05 (~20:30 IST, build `07cadfdd`) unless marked otherwi
 
 3. **The dose gap — /v2/plan** (0:35–1:05)
    - Connaught Place → Gurugram, ~31 km. Ranked ladder: **car AC ~8 µg,
-     auto ~23, cycle ~115, walk ~260 — a ~33× spread on one trip** (has
-     run 31–45× — "about thirty-five times" is the honest line).
+     auto ~23, cycle ~115, walk ~260 — a ~35× spread on a Delhi
+     commute** (33.2× today; has run 31–45× — "about thirty-five times"
+     is the honest line).
    - One line: *"your dose is not the city's AQI — it's decided by the
      vehicle and the route."* When metro+walk appears (~26 µg GTFS row):
      it doses ~4× a sealed car (~33 µg vs ~8 today) — the walk at both
@@ -57,13 +58,12 @@ re-verified live 2026-10-05 (~20:30 IST, build `07cadfdd`) unless marked otherwi
      rows) — current route names: via Sardar Patel Marg / Benito Juarez
      Marg / Rao Tula Ram Marg.
    - Don't read the whole table — 4 modes and the spread are the story.
-   - ⚠ **cold-start fragility (verified)**: GTFS feeds download+parse at
-     runtime (gitignored, empty in the image). On a fresh task the transit
-     arm first returns silent-empty, then `degraded:["transit"]` timeouts
-     (~13 s plans), recovering over ~30–60 min. If the demo deploys
-     re-touch the service, verify a metro/bus row exists T-45 (go-nogo
-     #6); if transit is still absent on stage, the 5 road modes alone
-     still carry the ~35× line.
+   - ⚠ **transit cold-start — mostly fixed**: GTFS feeds are now baked
+     into the image (`tools/bake_gtfs.py` at docker build) and warmed
+     before the task goes healthy — the old silent-empty/degraded first
+     ~30–60 min is gone on current task-defs. Still verify a metro/bus row
+     exists T-45 (go-nogo #6); if transit is somehow absent on stage, the
+     5 road modes alone still carry the ~35× line.
 
 4. **Lung reach + the city ledger — /city** (1:05–1:35)
    - `/city` district choropleth for ~8 s (Delhi's public ledger face).
@@ -94,6 +94,9 @@ re-verified live 2026-10-05 (~20:30 IST, build `07cadfdd`) unless marked otherwi
      the trust table showing wind *unknown* is itself the honesty story.
    - The field map with real detections; the engine tile (1,070,459
      edges, 903,058 priced, C++ `alive_core`); kalman/calibration stats.
+   - The **archive tile** — one line: *"the field has recorded Delhi
+     hourly since Oct 5 — history, not just forecast; `/v2/archive`
+     replays the day, gaps admitted."*
    - Point at `coverage < 1` / `confidence:"low"` honesty: "where we can't
      support a claim, the field says so itself."
 
@@ -116,7 +119,7 @@ re-verified live 2026-10-05 (~20:30 IST, build `07cadfdd`) unless marked otherwi
 
 ## If a beat overruns (the trim plan, in order)
 
-- Beat 4: say reach in one line ("25 µg walks ~187 km of street; a sealed
+- Beat 4: say reach in one line ("25 µg walks ~131 km of street; a sealed
   car on the same budget settles ~500× more road — the veil admits it
   paints only the nearest 90,000 edges") and skip the budget sweep —
   saves ~15 s.
@@ -127,13 +130,14 @@ re-verified live 2026-10-05 (~20:30 IST, build `07cadfdd`) unless marked otherwi
 
 | number | last verified | check |
 |---|---|---|
-| dose ladder CP→Gurugram | car-AC 7.8 / car-open 14.2 / bike 17.9 / bus 20.4 / auto 23.1 / metro+walk 33.0 / bus-GTFS 80.3 / cycle 114.7 / walk 258.8 µg — **33.2×** (max 36.7×) | `POST /v2/plan` (no `fast`) today; has run 31–45× this week as smoke swings. Options count drifts 16–20 — transit rows are cold-start fragile post-deploy; verify `metro`/`bus` present + `degraded` absent |
+| dose ladder CP→Gurugram | car-AC 7.8 / car-open 14.2 / bike 17.9 / bus 20.4 / auto 23.1 / metro+walk 33.0 / bus-GTFS 80.3 / cycle 114.7 / walk 258.8 µg — **33.2×** (max 36.7×) | `POST /v2/plan` (no `fast`) today; has run 31–45× this week as smoke swings. Options count drifts 16–20 — GTFS is baked into the image since `c3d9c11`, but verify `metro`/`bus` present + `degraded` absent |
 | /v2/day windows | heavy ~22:30→day end ~122 µg/m³; **no clean slot today** (lightest ~68; day mean ~103) | `GET /v2/day` — `hours[]` + `decisions[]` strings; `heavy`/`clean` keys may be null while windows live in the decision lines |
 | /v2/reach | 25 µg walk → ~3,020 edges / ~131 km; 50 µg → ~10,756 / ~576 km; car ≤25 → ~958k edges / ~86,879 km partial (90k paint); car ≤50 → ~1.03 M / ~99,500 km partial | `GET /v2/reach` — budget settles differently hour to hour; wire time ~1–2 s walk, ~5–10 s car |
 | field age / station count | ~8 min / 24 WAQI + ~71 model samples | `GET /aqi`, `GET /health` — model samples thin to ~40 after a cold task, climb through the hour |
 | fires / modifier | 79 fires, 17 belt; modifier ×1.09 at CP at last probe (sometimes null) | `GET /aqi → smoke_modifier` — fires swing daily; say "fires feed live" not a pinned modifier |
 | corridors publishable | 10 | `GET /v2/city` — grows with donations |
-| `/health` build_sha | `07cadfdd` — an afternoon deploy landed; `/admin/api/status` can disagree (BUILD_SHA lag wart) | say the ECR image tag / "the afternoon deploy", not the stamp — two surfaces can legitimately disagree |
+| `/health` build_sha | `26b674d6` live — the deployed image tag is `alive108-api:cb862533` (BUILD_SHA lag wart: `/health` can trail the image by a deploy) | say the ECR image tag / "the afternoon deploy", not the stamp — two surfaces can legitimately disagree |
+| field archive | 2 snapshots since 2026-10-05T20:00 IST — grows hourly, gaps stay gaps | `GET /v2/archive` → `archive.total_snapshots` + `since_ist`; `/admin` archive tile reads `archive.status()` |
 
 Don't say numbers you didn't just verify. "About" and "roughly" are the
 honest words.

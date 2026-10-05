@@ -73,10 +73,10 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       The flip REPLACES the task → re-warm after.
 - [ ] T-45: `curl $NLB/health` → `stale:false`, `engine:alive_core`,
       edges 1,070,459, `build_sha` = the build you rehearsed on
-      (**drifted again: task-def now `alive108:153`, image
-      `alive108-api:c3d9c111` and `/health` matches — the BUILD_SHA env
-      lag wart is resolved on this revision; the image tag remains the
-      truth** — re-verify both on the morning).
+      (**drifted again: task-def now `alive108:158`, image
+      `alive108-api:cb862533`; `/health` build_sha reads `26b674d6` —
+      a deploy behind the image tag, the wart NUMBERS.md §2 documents;
+      the ECR image tag is the truth** — re-verify both on the morning).
 - [ ] T-45: `wind.known` can flip `false` for a refresh or two
       (upstream Open-Meteo reachability — transient, self-heals; if it's
       still false at T-30, re-probe once, don't panic).
@@ -100,6 +100,11 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       (settled edges + `took_ms` < 2000; a cold field returns the honest
       `engine_unavailable` — warm_task first). Or run the whole sweep
       read-only: `./scripts/smoke_live.sh`.
+- [ ] T-30: **archive tile on `/admin`** — the field has recorded Delhi
+      hourly since Oct 5 (`archive.status()` → `snapshots_total`,
+      `since_ist`; `GET /v2/archive` replays the day hour-by-hour). A
+      `gap` hour is honest, not a bug — it's what the recorder wrote
+      while a task was down. Whole-ledger sweep: `./scripts/verify_numbers.sh`.
 - [ ] T-20: APK on the demo phone — **caveat:** the sideloaded build is
       `6ca0ef7`. It post-dates the crash fix but predates `2c4cab4` (23
       fabricated landmark geocodes purged — the purge touched the
