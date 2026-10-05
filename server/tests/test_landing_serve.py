@@ -26,8 +26,9 @@ REQUIRED = [
     "/grid",
     "/health",
     "/city",
-    "/admin",
     "/community",
+    "/app-hero.png",
+    "hero-grid",
     "statusline",
     "confSplit",
     "fieldAge",
@@ -44,6 +45,10 @@ FORBIDDEN = [
     "border-radius: 999px",
     "aether",
     "ROUTE_ODS",
+]
+# landing-only bans (community legitimately links /admin in its nav)
+LANDING_FORBIDDEN = FORBIDDEN + [
+    "/admin",  # owner: "admin is personal — nothing admin on the marketing page"
 ]
 
 
@@ -64,7 +69,7 @@ def test_landing_machinery_intact():
     body = client.get("/").text
     missing = [s for s in REQUIRED if s not in body]
     assert not missing, f"landing lost markers: {missing}"
-    for bad in FORBIDDEN:
+    for bad in LANDING_FORBIDDEN:
         assert bad not in body, f"landing contains placeholder {bad!r}"
 
 
