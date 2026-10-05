@@ -93,6 +93,40 @@
          border:1px solid var(--line);padding:4px 8px}
   .m-src b{color:var(--ink2);font-weight:400}
 
+  /* watch the day — forecast scrubber. in-flow inside the same hairline
+     as the legend so it can never cover geography; text-link play, a
+     hairline scrubber with an ink progress fill, mono ticks */
+  .tl{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+      border-top:1px solid var(--line);padding:9px 18px 10px;
+      font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+      color:var(--ink3)}
+  .tl[hidden]{display:none}
+  .tl button{font-family:inherit;font-size:inherit;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--ink2);background:none;
+      border:none;border-bottom:1px solid var(--line2);padding:0 0 1px;
+      cursor:pointer}
+  .tl button:hover{color:var(--ink);border-bottom-color:var(--ink)}
+  .tl button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+  .tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
+      appearance:none;background:transparent;height:14px;margin:0;
+      cursor:pointer}
+  .tl-range:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+  .tl-range::-webkit-slider-runnable-track{height:1px;
+      background:linear-gradient(to right,var(--ink3) 0 var(--tp,0%),
+      var(--line2) var(--tp,0%) 100%)}
+  .tl-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+      width:9px;height:9px;background:var(--ink);border:none;
+      border-radius:0;margin-top:-4px}
+  .tl-range::-moz-range-track{height:1px;background:var(--line2)}
+  .tl-range::-moz-range-progress{height:1px;background:var(--ink3)}
+  .tl-range::-moz-range-thumb{width:9px;height:9px;background:var(--ink);
+      border:none;border-radius:0}
+  .tl-h{min-width:66px;color:var(--ink2);white-space:nowrap}
+  .tl-load{color:var(--ink4);white-space:nowrap}
+  .tl-now{white-space:nowrap}
+  .tl-note{flex-basis:100%;font-size:9.5px;letter-spacing:.12em;
+      text-transform:uppercase;color:var(--ink4)}
+
   /* district detail — top-left under m-tag on desktop, docks bottom on mobile;
      hairline popover, same language as /admin's cell inspector */
   .detail{position:absolute;left:18px;top:52px;min-width:210px;max-width:250px;
@@ -116,7 +150,7 @@
   .detail .d-conf{margin-top:4px;font-size:10px;color:var(--ink4);line-height:1.5}
   /* ≤640: chips become one scrollable row + provenance wraps under it so the
      docked detail card clears the whole legend stack (bottom:112px) */
-  @media(max-width:640px){.detail{top:auto;bottom:112px;left:12px;right:12px;
+  @media(max-width:640px){.detail{top:auto;bottom:150px;left:12px;right:12px;
     min-width:0;max-width:none}
     .chips{flex:0 0 100%;max-width:none;flex-wrap:nowrap;overflow-x:auto;
            scrollbar-width:none}
@@ -237,6 +271,15 @@
       tap a district for its number</div>
     <div class="m-wind" id="windtag">wind —</div>
     <div class="detail" id="detail"></div>
+    <div class="tl" id="tl" hidden>
+      <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
+      <input class="tl-range" id="tlRange" type="range" min="0" max="11"
+             step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
+      <span class="tl-h" id="tlHour">h+0 now</span>
+      <span class="tl-load" id="tlLoad" hidden></span>
+      <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
+      <span class="tl-note" id="tlNote"></span>
+    </div>
     <div class="m-legend">
       <div class="chips" id="chips"></div>
       <div class="m-src" id="src">connecting…</div>
@@ -477,6 +520,114 @@ function cpcbOf(pm){
   for(const [lo,hi,al,ah] of T)if(pm<=hi)return al+(ah-al)*(pm-lo)/(hi-lo);
   return 500}
 
+/* ---------- watch the day — the forecast drift over these same cells --
+   every frame is a real served /grid surface at h+N; nothing is ever
+   interpolated client-side. untouched, the underlayer keeps the live
+   field (h=0's own basis — the control only borrows the paint); once
+   played or scrubbed it re-tints from that hour's grid while district
+   fills keep reading live. a failed hour is skipped, never faked. */
+const TL={active:false,playing:false,h:0,timer:null,seq:0,
+          cache:{},pending:{}};          /* cache[h]: feats | null(failed) */
+const TL_MAX=11,TL_MS=1500;
+const tlUI={};
+const MTAG=document.querySelector('.m-tag'),MTAG0=MTAG.innerHTML;
+const tlClock=h=>new Date(Date.now()+h*36e5)
+  .toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
+    hour:'2-digit',minute:'2-digit',hour12:false});
+function tlSetHour(h){TL.seq++;TL.h=h;tlUI.range.value=h;
+  tlUI.range.style.setProperty('--tp',(h/TL_MAX*100)+'%');
+  tlUI.hour.textContent=h===0?'h+0 now':`h+${h} ${tlClock(h)}`;
+  if(TL.active)tlTag()}
+function tlTick(t){const e=tlUI.load;
+  if(t==null){e.hidden=true;return}e.hidden=false;e.textContent=t}
+function tlTag(){
+  MTAG.innerHTML=`<b>pm2.5 → aqi</b> · cells = forecast h+${TL.h} · district fills = now<br>`+
+    `tap a district for its number`}
+const TL_NOTE_ON=`cells = forecast hour · district fills = now · forecast surface — CAMS + stagnation model; confidence fades with horizon`;
+const TL_NOTE_OFF=`the next twelve hours — forecast surface — CAMS + stagnation model; confidence fades with horizon`;
+
+async function tlFetch(h){
+  if(h in TL.cache)return TL.cache[h];
+  if(TL.pending[h])return TL.pending[h];
+  TL.pending[h]=fetch(`/grid?cells=34&param=pm2_5&h=${h}`)
+    .then(r=>{if(!r.ok)throw r.status;return r.json()})
+    .then(g=>{const f=(g&&g.features)||[];
+      TL.cache[h]=f.length?f:null;return TL.cache[h]})
+    .catch(()=>{TL.cache[h]=null;return null})
+    .finally(()=>{delete TL.pending[h]});
+  return TL.pending[h];
+}
+/* paint hour h's real frame; while it flies the caption says so — a
+   missing or failed frame never produces an interpolated stand-in */
+async function tlShow(h){
+  const seq=++TL.seq;
+  TL.active=true;tlUI.now.hidden=false;
+  tlUI.note.textContent=TL_NOTE_ON;tlTag();
+  if(TL.cache[h]){paintCells(TL.cache[h]);tlTick(null);return}
+  tlTick(`loading h+${h}`);
+  const f=await tlFetch(h);
+  if(seq!==TL.seq)return;                    // a newer scrub owns the map
+  if(f){paintCells(f);tlTick(null)}
+  else if(TL.playing){tlTick(null);tlAdvance()}
+  else tlTick(`h+${h} — no surface served`);
+}
+function tlAdvance(){                        // next cached frame, or hold
+  for(let h=TL.h+1;h<=TL_MAX;h++){
+    if(TL.cache[h]){tlSetHour(h);paintCells(TL.cache[h]);tlTick(null);return}}
+  let left=false;
+  for(let h=TL.h+1;h<=TL_MAX;h++)if(TL.cache[h]!==null)left=true;
+  if(!left){tlStop();return}                 // only failed hours remain
+  tlTick(`loading h+${TL.h+1}`);
+}
+function tlDeep(){                           // lazy chain, one at a time
+  let h=0;const next=()=>{while(h<=TL_MAX&&h in TL.cache)h++;
+    if(h>TL_MAX)return;
+    tlFetch(h++).finally(()=>setTimeout(next,80))};
+  next();
+}
+function tlPlay(){
+  if(TL.h>=TL_MAX)tlSetHour(0);
+  TL.playing=true;tlUI.play.textContent='‖ pause';
+  tlUI.play.setAttribute('aria-pressed','true');
+  tlDeep();                                  // deeper hours fetch on first play
+  TL.timer=setInterval(tlAdvance,TL_MS);
+  tlShow(TL.h);
+}
+function tlPause(){TL.playing=false;clearInterval(TL.timer);
+  tlUI.play.textContent='▶ resume';tlUI.play.setAttribute('aria-pressed','false')}
+function tlStop(){TL.playing=false;clearInterval(TL.timer);
+  tlUI.play.textContent='▶ watch the day';   // honest stop at h+11
+  tlUI.play.setAttribute('aria-pressed','false')}
+function tlReset(){                          // back to the live field
+  tlStop();TL.active=false;tlSetHour(0);tlTick(null);
+  tlUI.now.hidden=true;tlUI.note.textContent=TL_NOTE_OFF;
+  MTAG.innerHTML=MTAG0;
+  if(FEAT_CELLS.length)paintCells(FEAT_CELLS)}
+
+async function tlInit(){
+  tlUI.row=document.getElementById('tl');
+  tlUI.play=document.getElementById('tlPlay');
+  tlUI.range=document.getElementById('tlRange');
+  tlUI.hour=document.getElementById('tlHour');
+  tlUI.load=document.getElementById('tlLoad');
+  tlUI.now=document.getElementById('tlNow');
+  tlUI.note=document.getElementById('tlNote');
+  tlUI.note.textContent=TL_NOTE_OFF;
+  /* h+0 doubles as the availability probe — if the horizon endpoint
+     errors, the page stays complete without a dead control */
+  const f=await tlFetch(0).catch(()=>null);
+  if(!f)return;                              // row stays hidden
+  tlUI.row.hidden=false;
+  tlUI.play.addEventListener('click',()=>TL.playing?tlPause():tlPlay());
+  tlUI.range.addEventListener('input',()=>{tlSetHour(+tlUI.range.value);tlShow(TL.h)});
+  tlUI.now.addEventListener('click',tlReset);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&TL.playing)tlPause()});
+  /* h+1…h+3 drift in on idle; deeper hours wait for first play */
+  const idle=window.requestIdleCallback||(f=>setTimeout(f,400));
+  idle(()=>{tlFetch(1).then(()=>tlFetch(2)).then(()=>tlFetch(3))});
+}
+
 /* ---------- CPCB legend ---------- */
 function paintChips(){
   document.getElementById('chips').innerHTML=
@@ -588,7 +739,9 @@ async function load(){
       fetch('/v2/city').then(r=>r.ok?r.json():null).catch(()=>null),
       fetch('/v2/districts').then(r=>r.ok?r.json():null).catch(()=>null)]);
     if(!g&&!a&&!cy&&!dd)throw new Error('all feeds down');
-    if(g&&g.features){FEAT_CELLS=g.features;paintCells(g.features)}
+    if(g&&g.features){FEAT_CELLS=g.features;
+      if(!TL.active)paintCells(g.features)}   /* a forecast frame stays put
+        through live refreshes — the 'now' link hands the layer back */
     if(dd)paintDistricts(dd.districts||[]);
     if(!cy)return;   /* the ledger/corridor numbers all ride /v2/city */
     a=a||{};
@@ -663,6 +816,7 @@ const io=new IntersectionObserver(es=>es.forEach(e=>
 document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 
 loadGeo().then(load).catch(()=>{load()});
+tlInit();
 clock();schedule();
 setInterval(clock,30000);
 window.addEventListener('resize',()=>{paintMini()});

@@ -153,6 +153,34 @@ h1 em{font-style:italic;color:var(--ink2)}
   font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--ink3)}
 .legend .conf{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
   color:var(--ink3);text-transform:uppercase}
+/* watch the day — forecast scrubber under the field; same register as
+   /city's: text-link play, hairline scrubber with ink progress, mono */
+.trow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink3)}
+.trow[hidden]{display:none}
+.trow button{font-family:inherit;font-size:inherit;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink2);background:none;border:none;
+  border-bottom:1px solid var(--line2);padding:0 0 1px;cursor:pointer}
+.trow button:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.trow button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
+  appearance:none;background:transparent;height:14px;margin:0;cursor:pointer}
+.tl-range:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.tl-range::-webkit-slider-runnable-track{height:1px;
+  background:linear-gradient(to right,var(--ink3) 0 var(--tp,0%),
+  var(--line2) var(--tp,0%) 100%)}
+.tl-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:9px;height:9px;background:var(--ink);border:none;border-radius:0;
+  margin-top:-4px}
+.tl-range::-moz-range-track{height:1px;background:var(--line2)}
+.tl-range::-moz-range-progress{height:1px;background:var(--ink3)}
+.tl-range::-moz-range-thumb{width:9px;height:9px;background:var(--ink);
+  border:none;border-radius:0}
+.tl-h{min-width:66px;color:var(--ink2);white-space:nowrap}
+.tl-load{color:var(--ink4,#a6acb8);white-space:nowrap}
+.tl-note{flex-basis:100%;font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink4,#a6acb8)}
 .routeline{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
   color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0}
 .routeline:empty{display:none}
@@ -305,6 +333,15 @@ h1 em{font-style:italic;color:var(--ink2)}
     <canvas id="raster" role="img"
       aria-label="live interpolated field over Delhi NCR — click a cell to read it"></canvas>
     <div class="fpop" id="fpop" hidden></div>
+  </div>
+  <div class="trow" id="tl" hidden>
+    <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
+    <input class="tl-range" id="tlRange" type="range" min="0" max="11"
+           step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
+    <span class="tl-h" id="tlHour">h+0 now</span>
+    <span class="tl-load" id="tlLoad" hidden></span>
+    <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
+    <span class="tl-note" id="tlNote"></span>
   </div>
   <noscript><p style="margin-top:10px;font-size:12.5px;color:var(--ink3)">
     the live field needs javascript — the router does not.</p></noscript>
@@ -474,7 +511,7 @@ function drawScene(){
   const spec=SPECS[PARAM];
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
-  for(const ft of FEATS){
+  for(const ft of viewFeats()){
     const ring=ft.geometry&&ft.geometry.coordinates&&
                ft.geometry.coordinates[0];
     if(!ring||ring.length<3)continue;
@@ -553,8 +590,120 @@ function drawPin(ctx,pt,ch){
   ctx.textBaseline='alphabetic';
 }
 
+/* --- watch the day — the forecast drift over this same raster ---------
+   every frame is a real served /grid surface at h+N; nothing is ever
+   interpolated client-side. TL.frame is the hour's features — drawScene
+   and the inspector both read viewFeats(), so what you see is what you
+   click. pm2.5-only (the horizon is a pm2.5 model); another param
+   disengages the layer and hands the canvas back to the live field. */
+const TL={playing:false,h:0,timer:null,seq:0,ok:false,frame:null,
+          cache:{},pending:{}};        /* cache[h]: feats | null(failed) */
+const TL_MAX=11,TL_MS=1500;
+const viewFeats=()=>TL.frame||FEATS;
+const tlClock=h=>new Date(Date.now()+h*36e5)
+  .toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+const TL_NOTE_ON=`cells = forecast hour · numbers elsewhere stay live — forecast surface — CAMS + stagnation model; confidence fades with horizon`;
+const TL_NOTE_OFF=`the next twelve hours — forecast surface — CAMS + stagnation model; confidence fades with horizon`;
+function tlSetHour(h){TL.seq++;TL.h=h;const r=$('tlRange');r.value=h;
+  r.style.setProperty('--tp',(h/TL_MAX*100)+'%');
+  $('tlHour').textContent=h===0?'h+0 now':`h+${h} ${tlClock(h)}`}
+function tlTick(t){const e=$('tlLoad');
+  if(t==null){e.hidden=true;return}e.hidden=false;e.textContent=t}
+async function tlFetch(h){
+  if(h in TL.cache)return TL.cache[h];
+  if(TL.pending[h])return TL.pending[h];
+  TL.pending[h]=api(`/grid?cells=${CELLS}&param=pm2_5&h=${h}`)
+    .then(g=>{const f=(g&&g.features)||[];
+      TL.cache[h]=f.length?f:null;return TL.cache[h]})
+    .catch(()=>{TL.cache[h]=null;return null})
+    .finally(()=>{delete TL.pending[h]});
+  return TL.pending[h];
+}
+function tlCap(){                        /* caption owns the frame shown */
+  const vals=(TL.frame||[]).map(f=>{const p=f.properties||{};
+    return p.pm25}).filter(v=>v!=null).sort((a,b)=>a-b);
+  if(vals.length)$('capLeft').innerHTML=
+    `cells = forecast h+${TL.h} — ${fmt(vals.length)} cells, `+
+    `${F1(vals[0])}–${F1(vals[vals.length-1])} µg/m³ · `+
+    `district chips + edge pricing stay live. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
+}
+async function tlShow(h){
+  const seq=++TL.seq;
+  $('tlNow').hidden=false;$('tlNote').textContent=TL_NOTE_ON;
+  if(TL.cache[h]){TL.frame=TL.cache[h];drawScene();tlCap();tlTick(null);return}
+  tlTick(`loading h+${h}`);
+  const f=await tlFetch(h);
+  if(seq!==TL.seq)return;                  /* a newer scrub owns the map */
+  if(f){TL.frame=f;drawScene();tlCap();tlTick(null)}
+  else if(TL.playing){tlTick(null);tlAdvance()}
+  else tlTick(`h+${h} — no surface served`);
+}
+function tlAdvance(){                      /* next cached frame, or hold */
+  for(let h=TL.h+1;h<=TL_MAX;h++){
+    if(TL.cache[h]){tlSetHour(h);TL.frame=TL.cache[h];
+      drawScene();tlCap();tlTick(null);return}}
+  let left=false;
+  for(let h=TL.h+1;h<=TL_MAX;h++)if(TL.cache[h]!==null)left=true;
+  if(!left){tlStop();return}               /* only failed hours remain */
+  tlTick(`loading h+${TL.h+1}`);
+}
+function tlDeep(){                         /* lazy chain, one at a time */
+  let h=0;const next=()=>{while(h<=TL_MAX&&h in TL.cache)h++;
+    if(h>TL_MAX)return;
+    tlFetch(h++).finally(()=>setTimeout(next,80))};
+  next();
+}
+function tlPlay(){
+  if(TL.h>=TL_MAX)tlSetHour(0);
+  TL.playing=true;$('tlPlay').textContent='‖ pause';
+  $('tlPlay').setAttribute('aria-pressed','true');
+  tlDeep();                                /* deeper hours fetch on first play */
+  TL.timer=setInterval(tlAdvance,TL_MS);
+  tlShow(TL.h);
+}
+function tlPause(){TL.playing=false;clearInterval(TL.timer);
+  $('tlPlay').textContent='▶ resume';$('tlPlay').setAttribute('aria-pressed','false')}
+function tlStop(){TL.playing=false;clearInterval(TL.timer);
+  $('tlPlay').textContent='▶ watch the day'; /* honest stop at h+11 */
+  $('tlPlay').setAttribute('aria-pressed','false')}
+function tlReset(){                        /* back to the live field */
+  tlStop();TL.frame=null;tlSetHour(0);tlTick(null);
+  $('tlNow').hidden=true;$('tlNote').textContent=TL_NOTE_OFF;
+  drawScene();capLive()}
+function tlGate(){                         /* pm2.5-only control */
+  if(!(TL.ok&&PARAM==='pm2_5')){
+    if(TL.frame||TL.playing)tlReset();
+    $('tl').hidden=true;return}
+  $('tl').hidden=false;
+}
+async function tlInit(){
+  $('tlNote').textContent=TL_NOTE_OFF;
+  /* h+0 doubles as the availability probe — if the horizon endpoint
+     errors, the section stays complete without a dead control */
+  const f=await tlFetch(0).catch(()=>null);
+  if(!f)return;
+  TL.ok=true;tlGate();
+  $('tlPlay').addEventListener('click',()=>TL.playing?tlPause():tlPlay());
+  $('tlRange').addEventListener('input',()=>{tlSetHour(+$('tlRange').value);tlShow(TL.h)});
+  $('tlNow').addEventListener('click',tlReset);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&TL.playing)tlPause()});
+  const idle=window.requestIdleCallback||(f=>setTimeout(f,400));
+  idle(()=>{tlFetch(1).then(()=>tlFetch(2)).then(()=>tlFetch(3))});
+}
+
 /* --- fetch + paint ------------------------------------------------------ */
 let PAINTSEQ=0;
+let LIVE_CAP={};                        /* live-caption facts for reset */
+function capLive(){
+  const spec=SPECS[PARAM];
+  if(!LIVE_CAP.n)return;
+  $('capLeft').innerHTML=
+    `The surface the router prices on — ${fmt(LIVE_CAP.n)} cells, `+
+    `${F1(LIVE_CAP.lo)}–${F1(LIVE_CAP.hi)} ${spec.unit}`+
+    `${LIVE_CAP.derived?` · ${esc(LIVE_CAP.derived)}`:''} `+
+    `· cell fade = distance to nearest sample. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
+}
 async function paint(){
   const seq=++PAINTSEQ;
   const cv=$('raster'),ctx=cv.getContext('2d');
@@ -594,11 +743,9 @@ async function paint(){
       `<span>${spec.ticks[0]}</span><span>${spec.ticks[1]}</span><span>${spec.ticks[2]}</span>`;
     $('fieldLbl').innerHTML=`${spec.title} — <b>the field, this hour</b>`;
     const derived=(FEATS[0]&&FEATS[0].properties&&FEATS[0].properties.derived)||null;
-    if(vals.length)$('capLeft').innerHTML=
-      `The surface the router prices on — ${fmt(vals.length)} cells, `+
-      `${F1(vals[0])}–${F1(vals[vals.length-1])} ${spec.unit}`+
-      `${derived?` · ${esc(derived)}`:''} `+
-      `· cell fade = distance to nearest sample. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
+    LIVE_CAP={n:vals.length,lo:vals.length?vals[0]:null,
+              hi:vals.length?vals[vals.length-1]:null,derived};
+    if(TL.frame)tlCap();else if(vals.length)capLive();
     cv.classList.add('ready');
     /* the boot statusline may already have rendered before MEDIAN
        landed — refresh it so 'median' isn't absent for 120s */
@@ -623,7 +770,7 @@ function renderPills(){
 }
 $('psel').addEventListener('click',e=>{
   const b=e.target.closest('button[data-p]');if(!b||b.dataset.p===PARAM)return;
-  PARAM=b.dataset.p;renderPills();
+  PARAM=b.dataset.p;renderPills();tlGate();
   INS=null;$('fpop').hidden=true;
   /* a drawn route stays valid geographically, but the surface + dose basis
      are pm2.5-specific — repaint fresh rather than recolor stale cells */
@@ -641,7 +788,7 @@ $('msel').addEventListener('click',e=>{
 /* --- cell inspector ----------------------------------------------------- */
 function hitCell(x,y){
   const lon=toLon(x),lat=toLat(y);
-  for(const ft of FEATS){
+  for(const ft of viewFeats()){
     const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
     if(ring&&ring.length>2&&pip(lon,lat,ring))return{ft,lon,lat};
   }
@@ -661,7 +808,7 @@ function showCellCard(ft,x,y,pinned){
   const bi=v!=null?bandIdx(v,spec.breaks):null;
   pop.hidden=false;
   pop.innerHTML=`<div class="p-name">${NAMES[key]!=null?NAMES[key]:'locating…'}</div>
-    <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}`:''}${pinned?' · pinned — esc closes':''}</div>
+    <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}`:''}${TL.frame?` · forecast h+${TL.h}`:''}${pinned?' · pinned — esc closes':''}</div>
     <div class="p-v"><b>${v==null?'—':F1(v)}</b> ${spec.title}${spec.unit==='aqi'?'':' µg/m³'}${bi!=null?` · <span class="pcol" style="background:rgb(${BAND[bi].join(',')})"></span>${BAND_NAME[bi]}`:''}</div>
     <div class="p-conf">${p.conf==='hi'?'hi conf — dense sample coverage'
       :p.conf==='med'?'med conf — moderate coverage'
@@ -1031,7 +1178,7 @@ async function status(){
   }
 }
 
-renderPills();paint();status();loadDistricts();
+renderPills();paint();status();loadDistricts();tlInit();
 let rsz=null;window.addEventListener('resize',()=>{
   clearTimeout(rsz);rsz=setTimeout(()=>{
     const cv=$('raster'),w=cv.parentElement.clientWidth||896,
