@@ -46,6 +46,7 @@ import {
 import { CityMoves } from "../components/CityMoves";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
+import { bump, jank } from "../perf";
 
 const fmtCig = (v: number): string => (v < 1 ? v.toFixed(2) : v.toFixed(1));
 const fmtKm = (km: number): string =>
@@ -183,7 +184,8 @@ function whyLine(
 
 /* ---------- sheet (mounted only while visible → fresh state each open) --- */
 
-function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lang; showCig: boolean }) {
+function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang: Lang; showCig: boolean }) {
+  bump("scr.DelhiSheet");
   const [data, setData] = useState<CityPayload | null>(null);
   const [moves, setMoves] = useState<CityMovesPayload | null>(null);
   const [failed, setFailed] = useState(false);
@@ -578,9 +580,11 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
   );
 }
 
+const DelhiSheet = React.memo(DelhiSheetInner);
+
 /* ---------- public component: <DelhiToday visible onClose lang /> -------- */
 
-export function DelhiToday({
+function DelhiTodayInner({
   visible,
   onClose,
   lang = "en",
@@ -592,6 +596,7 @@ export function DelhiToday({
   /** cigarette-equivalence framing — off by default (settings.show_cig) */
   showCig?: boolean;
 }) {
+  bump("scr.DelhiToday");
   /* hardware back closes the sheet — the Modal's onRequestClose used to
      provide this; the overlay needs BackHandler explicitly. */
   useEffect(() => {
@@ -620,6 +625,7 @@ export function DelhiToday({
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
+      jank("enter.delhitoday");
       Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false })
         .start(({ finished }) => finished && setSettled(true));
     }
@@ -637,6 +643,8 @@ export function DelhiToday({
     </View>
   );
 }
+
+export const DelhiToday = React.memo(DelhiTodayInner);
 
 export default DelhiToday;
 

@@ -10,7 +10,7 @@ import { tick } from "../../haptics";
 import { Icon } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
 
-export function SearchBar({
+function SearchBarInner({
   label, lang,
   onMenu, onPress, onClear,
 }: {
@@ -47,6 +47,8 @@ export function SearchBar({
     </View>
   );
 }
+
+export const SearchBar = React.memo(SearchBarInner);
 
 const s = StyleSheet.create({
   bar: {

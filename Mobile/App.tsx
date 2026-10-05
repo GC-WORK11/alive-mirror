@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -36,7 +36,7 @@ import { VehicleSheet } from "./src/screens/VehicleSheet";
 import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
-import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { OnboardingScreen, type SharingChoice } from "./src/screens/OnboardingScreen";
 import { HomeScreen, DayPeek, useDayData } from "./src/screens/HomeScreen";
 import { recordSample, setCheckin } from "./src/store/daylog";
 import { loadConsent, saveConsent } from "./src/store/consent";
@@ -53,13 +53,15 @@ import { Sidebar } from "./src/components/shell/Sidebar";
 import { useShellFlow } from "./src/components/shell/useShellFlow";
 import { API, DELHI, fetchJson, reverseName } from "./src/components/shell/net";
 import {
-  DEFAULT_SETTINGS, PROFILE_BUDGET_UG, clearAllData, loadSettings, saveSettings, type ShellSettings,
+  DEFAULT_SETTINGS, PROFILE_BUDGET_UG, clearAllData, loadSettings, saveSettings, type SavedPlace, type ShellSettings,
 } from "./src/components/shell/settings";
-import { loadTrips } from "./src/store/ledger";
+import { loadTrips, type Trip } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
 import { modeLabel, placeNameLabel, t } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
+import { bump, mark, report } from "./src/perf";
 
+mark("app.eval");
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Bundled light style — resolves local delhi.pmtiles / EXPO_PUBLIC_TILES_URL,
@@ -82,6 +84,101 @@ const DRAWER2CLS: Record<string, VehicleClass> = {
   cab: "car", transit: "bus", walk: "walk",
 };
 
+/* hoisted so the memo'd map tree sees stable prop identity — fresh array/
+   object literals each render used to defeat the memo boundary anyway */
+const INIT_VIEW = { center: DELHI, zoom: 11 } as const;
+/* maxBounds = the dose field's service margin (NCR ±2°), not the
+   tight NCR box — a destination in Agra/Jaipur must stay on
+   screen or the outside-area notice can't be understood */
+const MAX_BOUNDS: [number, number, number, number] = [74.75, 26.15, 79.95, 30.98];
+/* event payload types derived from the components' own prop signatures —
+   never hand-name maplibre event types */
+type MapPressEvent = Parameters<NonNullable<React.ComponentProps<typeof Map>["onPress"]>>[0];
+type TrackChangeEvent = Parameters<NonNullable<React.ComponentProps<typeof Camera>["onTrackUserLocationChange"]>>[0];
+
+/* The whole native map subtree behind one memo boundary: every app-level
+   poll (reports 60 s, aqi 60 s, health 15 s, ambient samples) used to
+   re-diff the Map + Camera + layers + markers per render. All props are
+   stable identities, so unrelated app state no longer touches it. */
+const MapTree = React.memo(function MapTree({
+  compassPosition, logoPosition, attributionPosition,
+  onPress, onLongPress, camRef,
+  trackUserLocation, onTrackUserLocationChange,
+  hasLoc, corridors, reportSlots, fires, spots, layers,
+  options, selected, strips,
+  fromPin, toPin, fromSet, toSet, pinReady,
+}: {
+  compassPosition: { top: number; right: number };
+  logoPosition: { bottom: number; left: number };
+  attributionPosition: { bottom: number; right: number };
+  onPress: (e: MapPressEvent) => void;
+  onLongPress: (e: MapPressEvent) => void;
+  camRef: React.RefObject<CameraRef | null>;
+  trackUserLocation: "default" | undefined;
+  onTrackUserLocationChange: (e: TrackChangeEvent) => void;
+  hasLoc: boolean;
+  corridors: React.ComponentProps<typeof CorridorLayer>["corridors"];
+  reportSlots: (ReportSlot | null)[];
+  fires: GeoJSON.FeatureCollection | null;
+  spots: GeoJSON.FeatureCollection | null;
+  layers: Record<LayerKey, boolean>;
+  options: V2Option[];
+  selected: number;
+  strips: Parameters<typeof RouteTintSource>[0]["strips"];
+  fromPin: [number, number];
+  toPin: [number, number];
+  fromSet: boolean;
+  toSet: boolean;
+  pinReady: boolean;
+}) {
+  bump("app.MapTree");
+  return (
+    <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
+      /* the compass clears the chrome: search bar at rest, the taller
+         maneuver banner in nav (was clipped behind it at top-right) */
+      compassPosition={compassPosition}
+      /* ornaments ride above the FABs — the stock bottom-edge spots
+         clip against the home-indicator bezel + the FAB shadows */
+      logoPosition={logoPosition}
+      attributionPosition={attributionPosition}
+      onPress={onPress}
+      onLongPress={onLongPress}>
+      <Camera ref={camRef} initialViewState={INIT_VIEW} maxBounds={MAX_BOUNDS}
+        trackUserLocation={trackUserLocation}
+        onTrackUserLocationChange={onTrackUserLocationChange} />
+      {/* mounted once we have a fix and left mounted — unmounting the
+          location puck pulls its native layer mid-draw (same upstream
+          sim crash class as route sources/markers). The small idle-GPS
+          cost beats a remove-during-render race; always-on dot matches
+          normal map UX anyway. */}
+      {hasLoc && <UserLocation animated accuracy />}
+      {/* all map children stay mounted for the app's life — a mid-draw
+          removeSource/removeAnnotation is the upstream sim SIGSEGV;
+          the toggles only swap data in and out (see each component) */}
+      <CorridorLayer corridors={corridors} on={layers.corridors} />
+      <ReportsLayer slots={reportSlots} />
+      <FiresLayer fires={fires} on={layers.fires} />
+      <BlackspotsLayer spots={spots} on={layers.spots} />
+      {/* route-wise AQI gradient on the real /v2/plan polylines — per
+          ~250 m chunk from the fetched strips, flat dose-mean until they
+          land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
+          (<RouteTintSource/> — src/components/RouteTint.tsx contract) */}
+      <RouteTintSource options={options} selected={selected} strips={strips} />
+      {/* endpoint annotations stay mounted at their last coordinates —
+          unmounting a MarkerView mid-draw is the same upstream
+          remove-during-render class as the route sources. Hidden is an
+          empty child; the pin never teleports because the ref holds the
+          last real coordinate. */}
+      <Marker lngLat={fromPin} anchor="center">
+        {fromSet && pinReady ? <EndpointPin kind="origin" /> : <View />}
+      </Marker>
+      <Marker lngLat={toPin} anchor="bottom">
+        {toSet && pinReady ? <EndpointPin kind="dest" /> : <View />}
+      </Marker>
+    </Map>
+  );
+});
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -91,6 +188,7 @@ export default function App() {
 }
 
 function AppInner() {
+  bump("app.AppInner");
   const camRef = useRef<CameraRef>(null);
   /* last real endpoint coords — the always-mounted markers park here when
      hidden (see the Marker block below). State not a ref: lint bans
@@ -100,22 +198,34 @@ function AppInner() {
   const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<ShellSettings>(DEFAULT_SETTINGS);
   const flow = useShellFlow(camRef, settings.share, settings.lang);
+  /* flow's return object is a fresh identity every render — using it as a
+     hook dep or prop recreates every downstream callback and defeats memo
+     on the screens below. All members are stable (useState setters +
+     useCallbacks), so destructure once and depend on them directly. */
+  const {
+    phase, setPhase, from, setFrom, to, setTo, editWhich, setEditWhich,
+    options, selected, setSelected, depart, notified, trips, setTrips, recordTrip,
+    community, setCommunity, follow, setFollow, loadingRoute, refining,
+    planError, planDegraded, retryPlan, planField, departCurve,
+    vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
+    pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
+    strips, reloadTrips,
+  } = flow;
   useEffect(() => {
-    if (!flow.from) return;
-    const c: [number, number] = [flow.from.lon, flow.from.lat];
+    if (!from) return;
+    const c: [number, number] = [from.lon, from.lat];
     const t = setTimeout(() => setFromPin(c), 0);
     return () => clearTimeout(t);
-  }, [flow.from]);
+  }, [from]);
   useEffect(() => {
-    if (!flow.to) return;
-    const c: [number, number] = [flow.to.lon, flow.to.lat];
+    if (!to) return;
+    const c: [number, number] = [to.lon, to.lat];
     const t = setTimeout(() => setToPin(c), 0);
     return () => clearTimeout(t);
-  }, [flow.to]);
-  const { phase } = flow;
+  }, [to]);
   // route-tint shape sources mount at lower priority — keeps the compare
   // sheet's entrance animation from sharing a frame with the chunk build
-  const deferredOptions = useDeferredValue(flow.options);
+  const deferredOptions = useDeferredValue(options);
   const lang = settings.lang;
 
   /* Endpoint-pin child swaps are map-side commits — they must land clear
@@ -144,10 +254,10 @@ function AppInner() {
      out (options+500 ms start + 700 ms anim + margin). */
   const [wizArmed, setWizArmed] = useState(false);
   useEffect(() => {
-    if (!flow.needsVehicle) return;
+    if (!needsVehicle) return;
     const t = setTimeout(() => setWizArmed(true), 1350);
     return () => { clearTimeout(t); setWizArmed(false); };
-  }, [flow.needsVehicle]);
+  }, [needsVehicle]);
   const [delhiOpen, setDelhiOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [placePickSlot, setPlacePickSlot] = useState<"home" | "work" | null>(null);
@@ -179,10 +289,12 @@ function AppInner() {
     Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_500Medium, Fraunces_600SemiBold,
     IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold,
   });
-  useEffect(() => { if (fontsLoaded) SplashScreen.hideAsync().catch(() => {}); }, [fontsLoaded]);
+
+  useEffect(() => {
+    if (fontsLoaded) { mark("fonts.ready"); SplashScreen.hideAsync().catch(() => {}); }
+  }, [fontsLoaded]);
 
   /* ---- boot: warm the API, load trips/settings, resolve location ---- */
-  const { setFrom, setTrips } = flow;
   useEffect(() => {
     /* one flaky ping while a 25 s plan krige is in flight flashed a false
        "can't reach the server" strip — require two consecutive misses */
@@ -323,7 +435,7 @@ function AppInner() {
      BACK fell through and exited the app (Android forensic find on the
      drawer). Checked topmost-first, matching JSX mount order; SearchScreen
      and Sidebar keep their own local handlers — registered later, they win
-     the race for the same press. flow.needsVehicle (the forced first-pick)
+     the race for the same press. needsVehicle (the forced first-pick)
      is intentionally NOT dismissable this way. */
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -338,13 +450,13 @@ function AppInner() {
          must never kill the app mid-trip — the explicit end-early
          button is the honest exit. Search handles its own press.
          BACK on the idle map returns home — the day surface is root. */
-      if (phase === "compare") { setHomeOpen(true); flow.clearRoute(); return true; }
+      if (phase === "compare") { setHomeOpen(true); clearRoute(); return true; }
       if (phase === "nav") return true;
       if (phase === "idle" && !homeOpen) { setHomeOpen(true); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, homeOpen, phase, flow]);
+  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, homeOpen, phase, clearRoute]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
@@ -363,29 +475,29 @@ function AppInner() {
       if (cls) {
         getVehicle().then((cur) => {
           if (cur == null || CLS2DRAWER[cur.cls] !== p.vehicle) {
-            flow.setVehicleProfile({ cls, fuel: null, year: null });
+            setVehicleProfile({ cls, fuel: null, year: null });
           }
         }).catch(() => {});
       }
     }
-  }, [flow]);
+  }, [setVehicleProfile]);
 
   /** Sheet/compare answer: persist the profile AND mirror its class
    *  into the drawer so both surfaces show the same vehicle. */
   const applyVehicle = useCallback((p: VehicleProfile) => {
-    flow.setVehicleProfile(p);
+    setVehicleProfile(p);
     patchSettings({ vehicle: CLS2DRAWER[p.cls] });
-  }, [flow, patchSettings]);
+  }, [setVehicleProfile, patchSettings]);
 
   /* boot sync: a profile saved in a previous run backfills the drawer's
    *  coarse class (drawer chip -> profile sync lives in patchSettings). */
   useEffect(() => {
-    if (!settings.vehicle && flow.vehicle) {
+    if (!settings.vehicle && vehicle) {
       /* react-hooks/set-state-in-effect: defer the sync out of the
          effect body — it writes settings, not an external system */
-      queueMicrotask(() => patchSettings({ vehicle: CLS2DRAWER[flow.vehicle!.cls] }));
+      queueMicrotask(() => patchSettings({ vehicle: CLS2DRAWER[vehicle!.cls] }));
     }
-  }, [flow.vehicle, settings.vehicle, patchSettings]);
+  }, [vehicle, settings.vehicle, patchSettings]);
 
   const deleteAll = useCallback(() => {
     // server half first — the raw device token dies with contributor.txt,
@@ -406,29 +518,29 @@ function AppInner() {
         }).catch(() => {});
       }
       clearAllData();
-      flow.setTrips([]); flow.setVehicleProfile(null);
+      setTrips([]); setVehicleProfile(null);
       setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
       /* closing the sheet IS the acknowledgment — the user lands back on
          a clean map; the consent gate re-arms itself on next launch */
       setSettingsOpen(false); setSidebarOpen(false);
     })();
-  }, [flow]);
+  }, [setTrips, setVehicleProfile]);
   const toggleLayer = useCallback((k: LayerKey, v: boolean) => {
     setLayers((l) => ({ ...l, [k]: v }));
     if (!v) return;                                     // lazy: fetch on first enable
     if (k === "fires" && !fires) fetchJson(`${API}/fires`).then(setFires).catch(() => {});
     if (k === "spots" && !spots) fetchJson(`${API}/blackspots`).then(setSpots).catch(() => {});
-    if (k === "corridors" && !flow.community) fetchJson(`${API}/community`).then(flow.setCommunity).catch(() => {});
-  }, [fires, spots, flow]);
+    if (k === "corridors" && !community) fetchJson(`${API}/community`).then(setCommunity).catch(() => {});
+  }, [fires, spots, community, setCommunity]);
   /* hooks before any early return — the dosimeter hook must run on the
      font-gate frame too or the hook order flips when fonts land */
   const dayPos = userPos ?? { lat: DELHI[1], lon: DELHI[0] };
   /* withCurve only once the stack is open — the peek never needs the
      12-payload forecast, so it isn't fetched on cold start */
-  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce, homeOpen, lang);
-  if (!fontsLoaded) return null;
-  const sel = flow.options[flow.selected];
-  const mapField: FieldStatus | null = flow.planField ?? (aqiField
+  const dayData = useDayData(dayPos.lat, dayPos.lon, trips, dayNonce, homeOpen, lang);
+  useEffect(() => { if (dayData) { mark("daydata.first"); report("boot"); } }, [dayData != null]);
+  const sel = options[selected];
+  const mapField: FieldStatus | null = useMemo(() => planField ?? (aqiField
     ? { ...aqiField.data,
         age_s: aqiField.data.age_s == null
           ? null
@@ -437,162 +549,207 @@ function AppInner() {
           : aqiField.data.age_s == null ? aqiField.data.stale ?? null
           : (aqiField.data.age_s + (Date.now() - aqiField.at) / 1000)
             > (aqiField.data.stale_after_s ?? 2700) }
-    : null);
+    : null), [planField, aqiField]);
 
+  /* ---- memo'd subtree props: every handler below must keep identity
+     across poll renders or the memo boundaries are theatre ---- */
+  const compassPosition = useMemo(() => (phase === "nav"
+    ? { top: insets.top + 108, right: 12 }
+    : { top: insets.top + 76, right: 12 }), [phase, insets.top]);
+  const logoPosition = useMemo(() => ({ bottom: insets.bottom + 72, left: 10 }), [insets.bottom]);
+  const attributionPosition = useMemo(() => ({ bottom: insets.bottom + 72, right: 10 }), [insets.bottom]);
+  const searchUserLoc = useMemo(() => (from ? { lat: from.lat, lon: from.lon } : null), [from]);
+
+  const onMapPress = useCallback(async (f: MapPressEvent) => {
+    if (!mapPickArmed) return;
+    setMapPickArmed(false);
+    const c = (f as { nativeEvent?: { lngLat?: [number, number] } }).nativeEvent?.lngLat;
+    if (!c) return;
+    tap();   // the pick landed — same weight as a row tap
+    const rev = await reverseName(c[1], c[0]);
+    if (placePickSlot) {
+      // the unset home/work slot asked for this pick ("choose on map")
+      patchSettings({ [placePickSlot]: { name: rev.name, lat: c[1], lon: c[0] } });
+      setPlacePickSlot(null);
+      setSidebarOpen(true);
+      return;
+    }
+    pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
+  }, [mapPickArmed, placePickSlot, patchSettings, pick]);
+  const onMapLongPress = useCallback(async (f: MapPressEvent) => {
+    const c = (f as { nativeEvent?: { lngLat?: [number, number] } }).nativeEvent?.lngLat;
+    if (!c) return;
+    const rev = await reverseName(c[1], c[0]);
+    pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
+  }, [pick]);
+  const onTrackUserLocationChange = useCallback((e: TrackChangeEvent) => {
+    if (!e.nativeEvent.trackUserLocation) setFollow(false);
+  }, [setFollow]);
+
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
+  const openSearch = useCallback(() => { setEditWhich("to"); setPhase("search"); }, [setEditWhich, setPhase]);
+  const closeCompareToHome = useCallback(() => { setHomeOpen(true); clearRoute(); }, [clearRoute]);
+  const onSearchClose = useCallback(() => {
+    if (placePickSlot) { setPlacePickSlot(null); setSidebarOpen(true); }
+    setPhase(to ? "compare" : "idle");
+  }, [placePickSlot, setPhase, to]);
+  const onSearchSelect = useCallback(async (sel: SearchSelection) => {
+    if (sel.type === "place") {
+      if (placePickSlot) {
+        // sidebar's unset home/work slot asked for a search pick —
+        // land the place in settings and return to the drawer
+        patchSettings({ [placePickSlot]: {
+          name: sel.place.name, lat: sel.place.lat, lon: sel.place.lon } });
+        setPlacePickSlot(null);
+        setPhase("idle");
+        setSidebarOpen(true);
+        return;
+      }
+      setMapPickArmed(false);
+      setHomeOpen(false);        // the journey lives on the map surface
+      pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
+        lat: sel.place.lat, lon: sel.place.lon }, "to");
+      return;
+    }
+    if (sel.type === "choose_on_map") {
+      setHomeOpen(false);        // the map surface itself
+      setPhase("idle");
+      setMapPickArmed(true);       // next map tap picks — for the slot
+                                   // when placePickSlot is armed
+      return;
+    }
+    const pos = await Location.getCurrentPositionAsync(
+      { accuracy: Location.Accuracy.Balanced }).catch(() => null);
+    if (pos && placePickSlot) {
+      patchSettings({ [placePickSlot]: { name: t("yourLocation", lang),
+        lat: pos.coords.latitude, lon: pos.coords.longitude } });
+      setPlacePickSlot(null);
+      setPhase("idle");
+      setSidebarOpen(true);
+    } else if (pos) pick({ name: t("yourLocation", lang), subtitle: "",
+      lat: pos.coords.latitude, lon: pos.coords.longitude }, "from");
+    else setPhase(to ? "compare" : "idle");
+  }, [placePickSlot, patchSettings, setPhase, pick, lang, to]);
+  const onLocate = useCallback(() => {
+    if (follow) { setFollow(false); return; }
+    /* warm the fused provider before engaging follow — MapLibre's
+       native layer posts a raw error toast when track starts with
+       no fix yet (Android forensic find); a one-shot fix primes it */
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      .then((pos) => { if (pos) { setHasLoc(true); setFollow(true); } })
+      .catch(() => {});
+  }, [follow, setFollow]);
+  const openLayers = useCallback(() => setLayersOpen(true), []);
+  const onPeekOpen = useCallback(() => setHomeOpen(true), []);
+  const onToggleSteps = useCallback(() => setStepsOpen(!stepsOpen), [stepsOpen, setStepsOpen]);
+  const onVehiclePress = useCallback(() => setVehicleOpen(true), []);
+  const onNavExit = useCallback(() => { setHomeOpen(true); exitNav(); }, [exitNav]);
+  const onHomeMap = useCallback(() => setHomeOpen(false), []);
+  const onHomeCity = useCallback(() => setDelhiOpen(true), []);
+  const onHomeTrips = useCallback(() => setLedgerOpen(true), []);
+  const onHomeProfile = useCallback((p: string) => patchSettings({ profile: p } as Partial<ShellSettings>), [patchSettings]);
+  const onCheckin = useCallback((c: Parameters<typeof setCheckin>[1]) => {
+    void setCheckin(Date.now(), c).then(() => setDayNonce((n) => n + 1));
+  }, []);
+  const onSidebarClose = useCallback(() => setSidebarOpen(false), []);
+  const onPickPlace = useCallback((slot: "home" | "work") => {
+    setPlacePickSlot(slot);
+    setSidebarOpen(false);
+    setPhase("search");
+  }, [setPhase]);
+  const onDelhiTodayOpen = useCallback(() => { setSidebarOpen(false); setDelhiOpen(true); }, []);
+  const onTripReceipt = useCallback(() => { setSidebarOpen(false); setLedgerOpen(true); }, []);
+  const onFullSettings = useCallback(() => { setSidebarOpen(false); setSettingsOpen(true); }, []);
+  const onNavigate = useCallback((p: SavedPlace) => pick({ ...p, subtitle: "" }, "to"), [pick]);
+  const onLangChange = useCallback((l: "en" | "hi") => patchSettings({ lang: l }), [patchSettings]);
+  const onShare = useCallback(() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {}), [lang]);
+  const onShareTrip = useCallback((tr: Trip) => Share.share({
+    message: t("shareTripBody", lang, {
+      from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
+      // cigarette figure only with show_cig on; µg is the default
+      dose: tr.dose_ug != null
+        ? (settings.show_cig ? `≈${cigOf(tr.dose_ug)} cigarettes` : `~${Math.round(tr.dose_ug)}µg`)
+        : "—",
+      // co2 was never passed — the template printed a literal "{co2}"
+      co2: tr.emit_kg != null ? `~${tr.emit_kg.toFixed(1)}kg CO₂` : "—",
+    }),
+  }).catch(() => {}), [lang, settings.show_cig]);
+  const onLayersClose = useCallback(() => setLayersOpen(false), []);
+  const onDelhiClose = useCallback(() => setDelhiOpen(false), []);
+  const onLedgerClose = useCallback(() => setLedgerOpen(false), []);
+  const onSettingsClose = useCallback(() => setSettingsOpen(false), []);
+  const onSettingsChange = useCallback((k: string, v?: unknown) => {
+    if (k === "editVehicle") { setSettingsOpen(false); setVehicleOpen(true); return; }
+    patchSettings({ [k]: v } as Partial<ShellSettings>);
+  }, [patchSettings]);
+  const onVehicleDone = useCallback((p: VehicleProfile) => {
+    setVehicleOpen(false);
+    /* re-plan commit must not share the sheet-close frame — the
+       close anim + options/RouteTint landing together is the
+       residual-SIGSEGV trigger on the virtualized-GPU sim */
+    setTimeout(() => applyVehicle(p), 80);
+  }, [applyVehicle]);
+  const onVehicleClose = useCallback(() => setVehicleOpen(false), []);
+  const onOnboardDone = useCallback(({ sharing }: { sharing: SharingChoice }) => {
+    patchSettings({ share: sharing === "on" });
+    setIntroSeen(true);
+  }, [patchSettings]);
+
+  if (!fontsLoaded) return null;
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
-      <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
-        /* the compass clears the chrome: search bar at rest, the taller
-           maneuver banner in nav (was clipped behind it at top-right) */
-        compassPosition={phase === "nav"
-          ? { top: insets.top + 108, right: 12 }
-          : { top: insets.top + 76, right: 12 }}
-        /* ornaments ride above the FABs — the stock bottom-edge spots
-           clip against the home-indicator bezel + the FAB shadows */
-        logoPosition={{ bottom: insets.bottom + 72, left: 10 }}
-        attributionPosition={{ bottom: insets.bottom + 72, right: 10 }}
-        onPress={async (f) => {
-          if (!mapPickArmed) return;
-          setMapPickArmed(false);
-          const c = f.nativeEvent.lngLat;
-          if (!c) return;
-          tap();   // the pick landed — same weight as a row tap
-          const rev = await reverseName(c[1], c[0]);
-          if (placePickSlot) {
-            // the unset home/work slot asked for this pick ("choose on map")
-            patchSettings({ [placePickSlot]: { name: rev.name, lat: c[1], lon: c[0] } });
-            setPlacePickSlot(null);
-            setSidebarOpen(true);
-            return;
-          }
-          flow.pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
-        }}
-        onLongPress={async (f) => {
-          const c = f.nativeEvent.lngLat;
-          if (!c) return;
-          const rev = await reverseName(c[1], c[0]);
-          flow.pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
-        }}>
-        {/* maxBounds = the dose field's service margin (NCR ±2°), not the
-            tight NCR box — a destination in Agra/Jaipur must stay on
-            screen or the outside-area notice can't be understood */}
-        <Camera ref={camRef} initialViewState={{ center: DELHI, zoom: 11 }} maxBounds={[74.75, 26.15, 79.95, 30.98]}
-          trackUserLocation={flow.follow ? "default" : undefined}
-          onTrackUserLocationChange={(e) => { if (!e.nativeEvent.trackUserLocation) flow.setFollow(false); }} />
-        {/* mounted once we have a fix and left mounted — unmounting the
-            location puck pulls its native layer mid-draw (same upstream
-            sim crash class as route sources/markers). The small idle-GPS
-            cost beats a remove-during-render race; always-on dot matches
-            normal map UX anyway. */}
-        {hasLoc && <UserLocation animated accuracy />}
-        {/* all map children stay mounted for the app's life — a mid-draw
-            removeSource/removeAnnotation is the upstream sim SIGSEGV;
-            the toggles only swap data in and out (see each component) */}
-        <CorridorLayer corridors={flow.community?.top_corridors ?? null} on={layers.corridors} />
-        <ReportsLayer slots={reportSlots} />
-        <FiresLayer fires={fires} on={layers.fires} />
-        <BlackspotsLayer spots={spots} on={layers.spots} />
-        {/* route-wise AQI gradient on the real /v2/plan polylines — per
-            ~250 m chunk from the fetched strips, flat dose-mean until they
-            land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
-            (<RouteTintSource/> — src/components/RouteTint.tsx contract) */}
-        <RouteTintSource
-          options={deferredOptions}
-          selected={flow.selected}
-          strips={flow.strips}
-        />
-        {/* endpoint annotations stay mounted at their last coordinates —
-            unmounting a MarkerView mid-draw is the same upstream
-            remove-during-render class as the route sources. Hidden is an
-            empty child; the pin never teleports because the ref holds the
-            last real coordinate. */}
-        <Marker lngLat={fromPin} anchor="center">
-          {flow.from && pinReady ? <EndpointPin kind="origin" /> : <View />}
-        </Marker>
-        <Marker lngLat={toPin} anchor="bottom">
-          {flow.to && pinReady ? <EndpointPin kind="dest" /> : <View />}
-        </Marker>
-      </Map>
+      <MapTree
+        compassPosition={compassPosition}
+        logoPosition={logoPosition}
+        attributionPosition={attributionPosition}
+        onPress={onMapPress}
+        onLongPress={onMapLongPress}
+        camRef={camRef}
+        trackUserLocation={follow ? "default" : undefined}
+        onTrackUserLocationChange={onTrackUserLocationChange}
+        hasLoc={hasLoc}
+        corridors={community?.top_corridors ?? null}
+        reportSlots={reportSlots}
+        fires={fires} spots={spots} layers={layers}
+        options={deferredOptions}
+        selected={selected}
+        strips={strips}
+        fromPin={fromPin} toPin={toPin}
+        fromSet={!!from} toSet={!!to}
+        pinReady={pinReady} />
 
       {/* rest state chrome: search bar + locate + layers (doc 02 §S1) */}
       {phase !== "nav" && (
         <View style={[s.pillWrap, { top: insets.top + 10 }]}>
           <SearchBar
-            label={phase === "compare" && flow.to ? flow.to.name : undefined}
+            label={phase === "compare" && to ? to.name : undefined}
             lang={lang}
-            onMenu={() => setSidebarOpen(true)}
-            onPress={() => { flow.setEditWhich("to"); flow.setPhase("search"); }}
-            onClear={phase === "compare" ? () => { setHomeOpen(true); flow.clearRoute(); } : undefined} />
+            onMenu={openSidebar}
+            onPress={openSearch}
+            onClear={phase === "compare" ? closeCompareToHome : undefined} />
         </View>
       )}
       <SearchScreen
         visible={phase === "search"}
         lang={lang}
-        userLocation={flow.from ? { lat: flow.from.lat, lon: flow.from.lon } : null}
-        onClose={() => {
-          if (placePickSlot) { setPlacePickSlot(null); setSidebarOpen(true); }
-          flow.setPhase(flow.to ? "compare" : "idle");
-        }}
-        onSelect={async (sel: SearchSelection) => {
-          if (sel.type === "place") {
-            if (placePickSlot) {
-              // sidebar's unset home/work slot asked for a search pick —
-              // land the place in settings and return to the drawer
-              patchSettings({ [placePickSlot]: {
-                name: sel.place.name, lat: sel.place.lat, lon: sel.place.lon } });
-              setPlacePickSlot(null);
-              flow.setPhase("idle");
-              setSidebarOpen(true);
-              return;
-            }
-            setMapPickArmed(false);
-            setHomeOpen(false);        // the journey lives on the map surface
-            flow.pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
-              lat: sel.place.lat, lon: sel.place.lon }, "to");
-            return;
-          }
-          if (sel.type === "choose_on_map") {
-            setHomeOpen(false);        // the map surface itself
-            flow.setPhase("idle");
-            setMapPickArmed(true);       // next map tap picks — for the slot
-                                         // when placePickSlot is armed
-            return;
-          }
-          const pos = await Location.getCurrentPositionAsync(
-            { accuracy: Location.Accuracy.Balanced }).catch(() => null);
-          if (pos && placePickSlot) {
-            patchSettings({ [placePickSlot]: { name: t("yourLocation", lang),
-              lat: pos.coords.latitude, lon: pos.coords.longitude } });
-            setPlacePickSlot(null);
-            flow.setPhase("idle");
-            setSidebarOpen(true);
-          } else if (pos) flow.pick({ name: t("yourLocation", lang), subtitle: "",
-            lat: pos.coords.latitude, lon: pos.coords.longitude }, "from");
-          else flow.setPhase(flow.to ? "compare" : "idle");
-        }} />
+        userLocation={searchUserLoc}
+        onClose={onSearchClose}
+        onSelect={onSearchSelect} />
       {phase === "idle" && (
         <>
           <View style={[s.locateWrap, { bottom: insets.bottom + 16 }]}>
-            <LocateButton active={flow.follow} onPress={() => {
-              if (flow.follow) { flow.setFollow(false); return; }
-              /* warm the fused provider before engaging follow — MapLibre's
-                 native layer posts a raw error toast when track starts with
-                 no fix yet (Android forensic find); a one-shot fix primes it */
-              Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-                .then((pos) => { if (pos) { setHasLoc(true); flow.setFollow(true); } })
-                .catch(() => {});
-            }} lang={lang} />
+            <LocateButton active={follow} onPress={onLocate} lang={lang} />
           </View>
           <View style={[s.layersWrap, { bottom: insets.bottom + 16 }]}>
-            <LayersButton anyOn={Object.values(layers).some(Boolean)} onPress={() => setLayersOpen(true)} lang={lang} />
+            <LayersButton anyOn={Object.values(layers).some(Boolean)} onPress={openLayers} lang={lang} />
           </View>
           {/* the peek card is the door home — floats above the corner
               FABs while the user browses the map surface. Hides itself
               before disk is read. */}
           {dayData && !homeOpen && (
             <View style={[s.peekWrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
-              <DayPeek data={dayData} lang={lang} onOpen={() => setHomeOpen(true)}
+              <DayPeek data={dayData} lang={lang} onOpen={onPeekOpen}
                 ambientUg={ambientUg} budgetUg={PROFILE_BUDGET_UG[settings.profile]} />
             </View>
           )}
@@ -647,22 +804,22 @@ function AppInner() {
         </View>
       )}
       {phase === "compare" && (
-        <CompareSheet options={flow.options} selected={flow.selected} onSelect={flow.setSelected}
-          depart={flow.depart} departCurve={flow.departCurve} notified={flow.notified}
-          onRemind={flow.remind} loading={flow.loadingRoute} refining={flow.refining}
-          steps={flow.steps} stepsOpen={flow.stepsOpen} onToggleSteps={() => flow.setStepsOpen(!flow.stepsOpen)}
-          onStart={flow.startNav} onClose={() => { setHomeOpen(true); flow.clearRoute(); }} lang={lang}
-          vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}
+        <CompareSheet options={options} selected={selected} onSelect={setSelected}
+          depart={depart} departCurve={departCurve} notified={notified}
+          onRemind={remind} loading={loadingRoute} refining={refining}
+          steps={steps} stepsOpen={stepsOpen} onToggleSteps={onToggleSteps}
+          onStart={startNav} onClose={closeCompareToHome} lang={lang}
+          vehicle={vehicle} onVehiclePress={onVehiclePress}
           onVehicleChange={applyVehicle}
-          planError={flow.planError} onRetry={flow.retryPlan} degraded={flow.planDegraded}
-          fieldAgeS={flow.planField?.age_s}
+          planError={planError} onRetry={retryPlan} degraded={planDegraded}
+          fieldAgeS={planField?.age_s}
           showCig={settings.show_cig} />
       )}
       {phase === "nav" && sel && (
-        <NavSession option={sel} options={flow.options} from={flow.from} to={flow.to} steps={flow.steps}
+        <NavSession option={sel} options={options} from={from} to={to} steps={steps}
           camRef={camRef} lang={lang} share={settings.share} voice={settings.voice}
-          onExit={() => { setHomeOpen(true); flow.exitNav(); }}
-          vehicle={flow.vehicle} showCig={settings.show_cig} onTripDone={flow.recordTrip} />
+          onExit={onNavExit}
+          vehicle={vehicle} showCig={settings.show_cig} onTripDone={recordTrip} />
       )}
 
       {/* the dosimeter home — resting surface; covers the idle map and
@@ -670,65 +827,39 @@ function AppInner() {
       <HomeScreen
         visible={homeOpen && phase === "idle" && !mapPickArmed}
         data={dayData} lang={lang} settings={settings} ambientUg={ambientUg}
-        onMenu={() => setSidebarOpen(true)}
-        onGo={() => { flow.setEditWhich("to"); flow.setPhase("search"); }}
-        onMap={() => setHomeOpen(false)}
-        onCity={() => setDelhiOpen(true)}
-        onTrips={() => setLedgerOpen(true)}
-        onProfile={(p) => patchSettings({ profile: p })}
-        onCheckin={(c) => { void setCheckin(Date.now(), c).then(() => setDayNonce((n) => n + 1)); }} />
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} trips={flow.trips} lang={lang}
+        onMenu={openSidebar}
+        onGo={openSearch}
+        onMap={onHomeMap}
+        onCity={onHomeCity}
+        onTrips={onHomeTrips}
+        onProfile={onHomeProfile}
+        onCheckin={onCheckin} />
+      <Sidebar open={sidebarOpen} onClose={onSidebarClose} trips={trips} lang={lang}
         settings={settings} onSettings={patchSettings} onDeleteData={deleteAll}
-        onPickPlace={(slot) => {
-          setPlacePickSlot(slot);
-          setSidebarOpen(false);
-          flow.setPhase("search");
-        }}
-        onArmBrief={flow.armDailyBrief} currentDest={flow.to}
-        onDelhiToday={() => { setSidebarOpen(false); setDelhiOpen(true); }}
-        onTripReceipt={() => { setSidebarOpen(false); setLedgerOpen(true); }}
-        onFullSettings={() => { setSidebarOpen(false); setSettingsOpen(true); }}
-        onNavigate={(p) => flow.pick({ ...p, subtitle: "" }, "to")}
-        onLang={(l) => patchSettings({ lang: l })}
-        onShare={() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {})}
-        onShareTrip={(tr) => Share.share({
-          message: t("shareTripBody", lang, {
-            from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
-            // cigarette figure only with show_cig on; µg is the default
-            dose: tr.dose_ug != null
-              ? (settings.show_cig ? `≈${cigOf(tr.dose_ug)} cigarettes` : `~${Math.round(tr.dose_ug)}µg`)
-              : "—",
-            // co2 was never passed — the template printed a literal "{co2}"
-            co2: tr.emit_kg != null ? `~${tr.emit_kg.toFixed(1)}kg CO₂` : "—",
-          }),
-        }).catch(() => {})} />
+        onPickPlace={onPickPlace}
+        onArmBrief={armDailyBrief} currentDest={to}
+        onDelhiToday={onDelhiTodayOpen}
+        onTripReceipt={onTripReceipt}
+        onFullSettings={onFullSettings}
+        onNavigate={onNavigate}
+        onLang={onLangChange}
+        onShare={onShare}
+        onShareTrip={onShareTrip} />
       <LayersSheet visible={layersOpen} values={layers} onToggle={toggleLayer}
-        onClose={() => setLayersOpen(false)} lang={lang} />
-      <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} showCig={settings.show_cig} />
-      <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} showCig={settings.show_cig} onTripsChanged={flow.reloadTrips} />
-      <SettingsScreen visible={settingsOpen} onClose={() => setSettingsOpen(false)}
-        lang={lang} current={settings} onArmBrief={flow.armDailyBrief}
+        onClose={onLayersClose} lang={lang} />
+      <DelhiToday visible={delhiOpen} onClose={onDelhiClose} lang={lang} showCig={settings.show_cig} />
+      <LedgerScreen visible={ledgerOpen} onClose={onLedgerClose} lang={lang} showCig={settings.show_cig} onTripsChanged={reloadTrips} />
+      <SettingsScreen visible={settingsOpen} onClose={onSettingsClose}
+        lang={lang} current={settings} onArmBrief={armDailyBrief}
         onDeleteData={deleteAll}
-        onChange={(k: string, v?: unknown) => {
-          if (k === "editVehicle") { setSettingsOpen(false); setVehicleOpen(true); return; }
-          patchSettings({ [k]: v } as Partial<ShellSettings>);
-        }} />
+        onChange={onSettingsChange} />
       <VehicleSheet visible={vehicleOpen || wizArmed} lang={lang}
-        current={flow.vehicle}
-        onDone={(p) => {
-          setVehicleOpen(false);
-          /* re-plan commit must not share the sheet-close frame — the
-             close anim + options/RouteTint landing together is the
-             residual-SIGSEGV trigger on the virtualized-GPU sim */
-          setTimeout(() => applyVehicle(p), 80);
-        }}
-        onClose={() => setVehicleOpen(false)} />
+        current={vehicle}
+        onDone={onVehicleDone}
+        onClose={onVehicleClose} />
 
       <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
-        onDone={({ sharing }) => {
-          patchSettings({ share: sharing === "on" });
-          setIntroSeen(true);
-        }} />
+        onDone={onOnboardDone} />
     </View>
   );
 }
@@ -737,7 +868,7 @@ function AppInner() {
  *  the hook owns the GNSS watcher + 1 Hz counters + off-route + strip;
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
-function NavSession({
+const NavSession = React.memo(function NavSession({
   option, options, from, to, steps, camRef, lang, share, voice, vehicle, showCig, onExit, onTripDone,
 }: {
   option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
@@ -876,7 +1007,7 @@ function NavSession({
       nav={nav} onRecenter={nav.recenter} showCig={showCig}
       onExit={() => nav.arrive(false)} lang={lang} />
   );
-}
+});
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: V2T.bg },

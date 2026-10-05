@@ -90,6 +90,7 @@ import {
   type Outlook,
 } from "../api/outlook";
 import { PROFILE_BUDGET_UG, type ShellSettings } from "../components/shell/settings";
+import { bump, jank } from "../perf";
 
 /* ---------------- the hook: one assemble of the day's data --------------- */
 
@@ -217,7 +218,8 @@ const fmtHr = (h: number) => `${((h + 11) % 12) + 1}${h % 24 < 12 ? "am" : "pm"}
 
 /* ---------------- the move (the morning card, promoted) ---------------- */
 
-function Sparkline({ series, lang }: { series: (number | null)[]; lang: Lang }) {
+function SparklineInner({ series, lang }: { series: (number | null)[]; lang: Lang }) {
+  bump("home.Sparkline");
   const [w, setW] = useState(0);
   const H = 44, PAD = 8;
   const vals = series.filter((v): v is number => v != null);
@@ -267,6 +269,8 @@ function Sparkline({ series, lang }: { series: (number | null)[]; lang: Lang }) 
     </View>
   );
 }
+
+const Sparkline = React.memo(SparklineInner);
 
 /** the 'as of' line the forecast cards share: the served field's own
  *  age in the freshness chip's tone language — stale says stale, fresh
@@ -351,9 +355,10 @@ function decisionLine(
   return d.line;
 }
 
-function MoveCard({ curve, outside, lang }: {
+function MoveCardInner({ curve, outside, lang }: {
   curve: DayCurve | null; outside: boolean; lang: Lang;
 }) {
+  bump("home.MoveCard");
   if (outside) {
     return (
       <View style={ss.card}>
@@ -457,6 +462,8 @@ function MoveCard({ curve, outside, lang }: {
   );
 }
 
+const MoveCard = React.memo(MoveCardInner);
+
 const nowHour = () => new Date().getHours();
 
 /* ---------------- the days ahead ---------------- */
@@ -527,7 +534,8 @@ function outlookCaption(o: Outlook, lang: Lang): string {
   return o.verdict;
 }
 
-function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang }) {
+function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: Lang }) {
+  bump("home.DaysAhead");
   const reduceMotion = useReduceMotion();
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (!outlook || outlook.days.length === 0) return null;
@@ -657,9 +665,12 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
   );
 }
 
+const DaysAheadCard = React.memo(DaysAheadCardInner);
+
 /* ---------------- your day: the arc ---------------- */
 
-function HourArc({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
+function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
+  bump("home.HourArc");
   const max = Math.max(...rec.arc.map((h) => h.dose_ug), 0.5);
   const nh = nowHour();
   return (
@@ -691,9 +702,12 @@ function HourArc({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
   );
 }
 
-function DayCard({ rec, budgetUg, lang }: {
+const HourArc = React.memo(HourArcInner);
+
+function DayCardInner({ rec, budgetUg, lang }: {
   rec: DayReconstruction; budgetUg: number; lang: Lang;
 }) {
+  bump("home.DayCard");
   if (rec.thin) return null; // the hero already carries the honest-empty line
   return (
     <View style={ss.card}>
@@ -724,6 +738,8 @@ function DayCard({ rec, budgetUg, lang }: {
   );
 }
 
+const DayCard = React.memo(DayCardInner);
+
 /* ---------------- the symptom lens ---------------- */
 
 const FACETS = [
@@ -733,10 +749,11 @@ const FACETS = [
 ] as const;
 const OPTS = ["lensGood", "lensMeh", "lensRough"] as const;
 
-function LensCard({ checkin, lens, lang, onCheckin }: {
+function LensCardInner({ checkin, lens, lang, onCheckin }: {
   checkin: Checkin | null; lens: LensVerdict; lang: Lang;
   onCheckin: (c: Omit<Checkin, "ts">) => void;
 }) {
+  bump("home.LensCard");
   const val = { breath: checkin?.breath ?? -1, eyes: checkin?.eyes ?? -1, energy: checkin?.energy ?? -1 };
   return (
     <View style={ss.card}>
@@ -786,6 +803,8 @@ function LensCard({ checkin, lens, lang, onCheckin }: {
   );
 }
 
+const LensCard = React.memo(LensCardInner);
+
 /* ---------------- the budget ---------------- */
 
 const PROFILES = [
@@ -794,10 +813,11 @@ const PROFILES = [
   { k: "child", labelKey: "profileChild" },
 ] as const;
 
-function BudgetCard({ totalUg, profile, lang, onProfile }: {
+function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
   totalUg: number; profile: ShellSettings["profile"]; lang: Lang;
   onProfile: (p: ShellSettings["profile"]) => void;
 }) {
+  bump("home.BudgetCard");
   const budget = PROFILE_BUDGET_UG[profile];
   const over = totalUg - budget;
   const frac = Math.max(0, Math.min(1, totalUg / budget));
@@ -839,13 +859,15 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
   );
 }
 
+const BudgetCard = React.memo(BudgetCardInner);
+
 /* ---------------- the peek card (idle map — the door back home) ------- */
 
 /** The idle-map card — one glance: today µg, the week's dots, the ambient
  *  read. Tap returns home (the dosimeter surface). An empty day says so in
  *  one line and still opens home — the move + check-in are useful before
  *  the arc fills. */
-export function DayPeek({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
+function DayPeekInner({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
   data: DayData | null; lang: Lang; onOpen: () => void;
   /** latest ambient PM2.5 read — the "outside right now" line; the aqi
       poll hands it over so the peek feels the air, not just states it */
@@ -854,6 +876,7 @@ export function DayPeek({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
       against, or the peek would colour a different day than home does */
   budgetUg?: number;
 }) {
+  bump("home.DayPeek");
   if (!data) return null;
   /* the card breathes the band it reports: band-washed fill + band-edge
      hairline + inked number — a severe day feels severe before any tap */
@@ -911,11 +934,14 @@ export function DayPeek({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
   );
 }
 
+export const DayPeek = React.memo(DayPeekInner);
+
 /* ---------------- the home surface ---------------- */
 
 const WEEKDAY_EN = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-function HomeHeader({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
+function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
+  bump("home.HomeHeader");
   const insets = useSafeAreaInsets();
   const now = new Date();
   const hh = `${now.getHours()}`.padStart(2, "0");
@@ -941,10 +967,12 @@ function HomeHeader({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
   );
 }
 
+const HomeHeader = React.memo(HomeHeaderInner);
+
 /** The dose gauge — one ring filling toward the day's budget. Oura/Apple
  *  ring grammar: fraction filled + colour does the work, no axes. Over
  *  budget keeps a full ring and turns the percent line honest. */
-function DoseGauge({ frac, color, lang }: { frac: number; color: string; lang: Lang }) {
+function DoseGaugeInner({ frac, color, lang }: { frac: number; color: string; lang: Lang }) {
   const R = 30, S = 76, SW = 7;
   const f = Math.max(0, Math.min(1, frac));
   const cx = S / 2, cy = S / 2;
@@ -971,12 +999,15 @@ function DoseGauge({ frac, color, lang }: { frac: number; color: string; lang: L
   );
 }
 
+const DoseGauge = React.memo(DoseGaugeInner);
+
 /** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
  *  breathed at display scale, coloured by the day's fraction of budget,
  *  with the covered-hours and outside-now reads as tier-2 evidence. */
-function HeroBlock({ data, budgetUg, ambientUg, lang }: {
+function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   data: DayData | null; budgetUg: number; ambientUg: number | null; lang: Lang;
 }) {
+  bump("home.HeroBlock");
   if (!data) {
     /* skeleton — blocks morph to content when the disk read lands */
     return (
@@ -1072,9 +1103,12 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
   );
 }
 
+const HeroBlock = React.memo(HeroBlockInner);
+
 /** The travel verb — the Uber-homescreen affordance: one search-shaped
  *  bar that opens the journey. The map lives behind it, never resident. */
-function TravelCta({ lang, onGo }: { lang: Lang; onGo: () => void }) {
+function TravelCtaInner({ lang, onGo }: { lang: Lang; onGo: () => void }) {
+  bump("home.TravelCta");
   return (
     <Pressable onPress={() => { tick(); onGo(); }}
       accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
@@ -1088,12 +1122,15 @@ function TravelCta({ lang, onGo }: { lang: Lang; onGo: () => void }) {
   );
 }
 
+const TravelCta = React.memo(TravelCtaInner);
+
 /** Quiet links — text-only, hairline-separated: the secondary rooms
  *  (the map surface, the city view, the trips ledger). */
-function QuietLinks({ lang, onMap, onCity, onTrips }: {
+function QuietLinksInner({ lang, onMap, onCity, onTrips }: {
   lang: Lang;
   onMap: () => void; onCity: () => void; onTrips: () => void;
 }) {
+  bump("home.QuietLinks");
   const links: { key: StringKey; fn: () => void }[] = [
     { key: "homeLinkMap", fn: onMap },
     { key: "homeLinkCity", fn: onCity },
@@ -1117,7 +1154,9 @@ function QuietLinks({ lang, onMap, onCity, onTrips }: {
   );
 }
 
-function HomeSheet({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
+const QuietLinks = React.memo(QuietLinksInner);
+
+function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
   data: DayData | null; lang: Lang; settings: ShellSettings;
   ambientUg: number | null;
   onGo: () => void; onMenu: () => void;
@@ -1125,6 +1164,7 @@ function HomeSheet({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCit
   onProfile: (p: ShellSettings["profile"]) => void;
   onCheckin: (c: Omit<Checkin, "ts">) => void;
 }) {
+  bump("home.HomeSheet");
   const insets = useSafeAreaInsets();
   const budget = PROFILE_BUDGET_UG[settings.profile];
   return (
@@ -1169,11 +1209,13 @@ function HomeSheet({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCit
   );
 }
 
+const HomeSheet = React.memo(HomeSheetInner);
+
 /** The home surface — the app's resting state. Mounts as a paper sheet
  *  over the always-live map; `visible` false slides it back down and
  *  unmounts after the exit timing (the same JS-driver pattern as the
  *  old day sheet — RN Modal's native present/dismiss segfaults this stack). */
-export function HomeScreen({ visible, data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
+function HomeScreenInner({ visible, data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
   visible: boolean;
   data: DayData | null;
   lang: Lang;
@@ -1187,6 +1229,7 @@ export function HomeScreen({ visible, data, lang, settings, ambientUg, onGo, onM
   onProfile: (p: ShellSettings["profile"]) => void;
   onCheckin: (c: Omit<Checkin, "ts">) => void;
 }) {
+  bump("home.HomeScreen");
   const reduceMotion = useReduceMotion();
   const [show, setShow] = useState(visible);
   const [enter] = useState(() => new Animated.Value(visible ? 1 : 0));
@@ -1198,6 +1241,7 @@ export function HomeScreen({ visible, data, lang, settings, ambientUg, onGo, onM
     if (visible) {
       enter.setValue(reduceMotion ? 1 : 0);
       if (!reduceMotion) {
+        jank("enter.home");
         Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
       }
       return;
@@ -1222,6 +1266,8 @@ export function HomeScreen({ visible, data, lang, settings, ambientUg, onGo, onM
     </View>
   );
 }
+
+export const HomeScreen = React.memo(HomeScreenInner);
 
 export default HomeScreen;
 

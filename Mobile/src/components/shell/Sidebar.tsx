@@ -21,6 +21,7 @@ import { approx, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "..
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { bump, jank } from "../../perf";
 
 const DRAWER_W = Math.min(340, Dimensions.get("window").width * 0.84);
 const dayKey = (ts: number) => new Date(ts).toDateString();
@@ -70,7 +71,7 @@ function Rise({ i, open, children }: { i: number; open: boolean; children: React
   );
 }
 
-export function Sidebar({
+function SidebarInner({
   open, onClose, trips, lang, settings, onSettings, onDeleteData,
   onArmBrief, onNavigate, currentDest, onDelhiToday, onTripReceipt,
   onFullSettings, onLang, onShare, onShareTrip, onPickPlace,
@@ -99,6 +100,7 @@ export function Sidebar({
   onPickPlace?: (slot: "home" | "work") => void; // SEAM(set-place): search-pick
                                      // a place for an unset home/work slot
 }) {
+  bump("shell.Sidebar");
   const [slide] = useState(() => new Animated.Value(-DRAWER_W));
   /* stable interpolation node — inline re-creation trips RN 0.86's
      animated-props detach path (see ui.tsx Sheet) */
@@ -129,6 +131,7 @@ export function Sidebar({
     setOpenSettled(false);
   }
   useEffect(() => {
+    jank(open ? "drawer.open" : "drawer.close");
     Animated.spring(slide, {
       toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: false,
     }).start(({ finished }) => {
@@ -625,6 +628,8 @@ export function Sidebar({
     </View>
   );
 }
+
+export const Sidebar = React.memo(SidebarInner);
 
 const s = StyleSheet.create({
   /* elevation must beat HomeScreen's 24 — Android dispatches sibling touches

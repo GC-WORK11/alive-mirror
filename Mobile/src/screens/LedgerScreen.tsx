@@ -48,6 +48,7 @@ import {
   weekStats,
   type Trip,
 } from "../store/ledger";
+import { bump, jank } from "../perf";
 
 /* ---------- formatting ---------- */
 
@@ -299,7 +300,7 @@ type Row =
   | { kind: "day"; key: string; label: string }
   | { kind: "trip"; key: string; tr: Trip };
 
-function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
+function LedgerSheetInner({ onClose, lang, showCig, onTripsChanged }: {
   onClose: () => void; lang: Lang; showCig: boolean; onTripsChanged?: () => void;
 }) {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -609,9 +610,11 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
   );
 }
 
+const LedgerSheet = React.memo(LedgerSheetInner);
+
 /* ---------- public component: <LedgerScreen visible onClose lang/> ---------- */
 
-export function LedgerScreen({
+function LedgerScreenInner({
   visible,
   onClose,
   lang = "en",
@@ -625,6 +628,7 @@ export function LedgerScreen({
   showCig?: boolean;
   onTripsChanged?: () => void;
 }) {
+  bump("scr.Ledger");
   /* hardware back closes the sheet — the Modal's onRequestClose used to
      provide this; the overlay needs BackHandler explicitly. */
   useEffect(() => {
@@ -642,6 +646,7 @@ export function LedgerScreen({
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
+      jank("enter.ledger");
       Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
     }
   }, [visible, enter]);
@@ -656,6 +661,8 @@ export function LedgerScreen({
     </View>
   );
 }
+
+export const LedgerScreen = React.memo(LedgerScreenInner);
 
 export default LedgerScreen;
 

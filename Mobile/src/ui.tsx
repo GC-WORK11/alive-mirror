@@ -12,6 +12,7 @@ import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
 import { DYNAMIC_TYPE, useReduceMotion } from "./a11y";
 import { tick } from "./haptics";
+import { jank } from "./perf";
 
 const WIN_H = () => Dimensions.get("window").height;
 
@@ -156,6 +157,7 @@ export function Sheet({
        throws `undefined is not a function` inside its queueMicrotask detach /
        mixed native-graph path (reproduced live on the search sheet). A 60 px
        one-shot enter doesn't need the native driver anyway. */
+    jank("enter.sheet");
     Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: false }).start();
   }, [anim]);
   return (

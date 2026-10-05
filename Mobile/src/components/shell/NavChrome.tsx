@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 import { isTransit } from "./types";
 import type { CompareOption, Step } from "./types";
+import { bump, jank } from "../../perf";
 
 /** The slice of the engine the chrome needs (subset of useNavEngine's
  *  return — pass the whole object, it satisfies this shape). */
@@ -186,7 +187,7 @@ function CounterCell({
 
 /* ------------------------------------------------------------------ */
 
-export function NavChrome({
+function NavChromeInner({
   option, steps, doseUg, onExit, lang, nav, onRecenter, showCig = false,
 }: {
   option: CompareOption; steps: Step[] | null; doseUg: number;
@@ -195,6 +196,7 @@ export function NavChrome({
   /** cigarette-equivalence framing — off by default (settings.show_cig) */
   showCig?: boolean;
 }) {
+  bump("shell.NavChrome");
   const insets = useSafeAreaInsets();
   const min = Math.max(0, Math.round((nav?.etaS ?? option.duration_min * 60) / 60));
   const leftM = nav?.distRemainingM ?? (option.distance_km ?? 0) * 1000;
@@ -242,6 +244,7 @@ export function NavChrome({
     if (lastCue.current === cueKey) return;
     lastCue.current = cueKey;
     swap.setValue(0);
+    jank("nav.swap");
     Animated.timing(swap, { toValue: 1, duration: 160, useNativeDriver: false }).start();
   }, [cueKey, swap, reduceMotion]);
 
@@ -369,6 +372,8 @@ export function NavChrome({
     </>
   );
 }
+
+export const NavChrome = React.memo(NavChromeInner);
 
 const s = StyleSheet.create({
   banner: {

@@ -40,6 +40,7 @@ import { t, type Lang, type StringKey } from "../i18n/strings";
 import { a11y, DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import type { ShellSettings } from "../components/shell/settings";
+import { bump, jank } from "../perf";
 
 /** Action seams that carry no persisted value — the parent owns what they open. */
 export type SettingsActionKey = "editVehicle";
@@ -84,7 +85,7 @@ const VERSION = Constants.expoConfig?.version ?? null; // app.json version; null
 
 /* ---------- sheet (mounted only while visible → expanders reset each open) ---------- */
 
-function SettingsSheet({
+function SettingsSheetInner({
   onClose,
   lang,
   current,
@@ -543,9 +544,11 @@ function SettingsSheet({
   );
 }
 
+const SettingsSheet = React.memo(SettingsSheetInner);
+
 /* ---------- public component ---------- */
 
-export function SettingsScreen({
+function SettingsScreenInner({
   visible,
   onClose,
   lang = "en",
@@ -567,6 +570,7 @@ export function SettingsScreen({
    *  destructive row renders only when this prop exists. */
   onDeleteData?: () => void;
 }) {
+  bump("scr.Settings");
   /* hardware back closes the sheet — the Modal's onRequestClose used to
      provide this; the overlay needs BackHandler explicitly. */
   useEffect(() => {
@@ -584,6 +588,7 @@ export function SettingsScreen({
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
+      jank("enter.settings");
       Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
     }
   }, [visible, enter]);
@@ -605,6 +610,8 @@ export function SettingsScreen({
     </View>
   );
 }
+
+export const SettingsScreen = React.memo(SettingsScreenInner);
 
 export default SettingsScreen;
 

@@ -412,7 +412,7 @@ function Wizard({ lang, current, onDone, onClose }: {
  *  typing. Anchored in the main window the sheet rides above the IME,
  *  and hardware BACK reaches App.tsx's dispatcher (vehicleOpen) — the
  *  same path Modal's onRequestClose used to take. */
-export function VehicleSheet({
+function VehicleSheetInner({
   visible, lang = "en", current = null, onDone, onClose,
 }: {
   visible: boolean;
@@ -450,6 +450,8 @@ export function VehicleSheet({
     </View>
   );
 }
+
+export const VehicleSheet = React.memo(VehicleSheetInner);
 
 export default VehicleSheet;
 

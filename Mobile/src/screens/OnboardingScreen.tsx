@@ -38,6 +38,7 @@ import { Icon, type Glyph } from "../icons";
 import { saveConsent, type SharingChoice } from "../store/consent";
 import { DYNAMIC_TYPE, MIN_TOUCH, slop, useReduceMotion } from "../a11y";
 import { confirm, tick } from "../haptics";
+import { jank } from "../perf";
 
 export type { SharingChoice } from "../store/consent";
 
@@ -149,6 +150,7 @@ function OnboardingSheet({
       return;
     }
     anim.setValue(0);
+    jank("enter.onboard");
     Animated.timing(anim, {
       toValue: 1,
       duration: 200,
@@ -399,7 +401,7 @@ function OnboardingSheet({
 
 /* ---------- public component ---------- */
 
-export function OnboardingScreen({
+function OnboardingScreenInner({
   visible,
   lang = "en",
   onDone,
@@ -427,6 +429,8 @@ export function OnboardingScreen({
     </View>
   );
 }
+
+export const OnboardingScreen = React.memo(OnboardingScreenInner);
 
 export default OnboardingScreen;
 

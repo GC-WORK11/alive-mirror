@@ -4,6 +4,8 @@ import React from "react";
 import { MapButton } from "../../ui";
 import { t, type Lang } from "../../i18n/strings";
 
-export function LocateButton({ active, onPress, lang }: { active: boolean; onPress: () => void; lang: Lang }) {
+function LocateButtonInner({ active, onPress, lang }: { active: boolean; onPress: () => void; lang: Lang }) {
   return <MapButton glyph="locate" active={active} onPress={onPress} label={t("a11yLocate", lang)} />;
 }
+
+export const LocateButton = React.memo(LocateButtonInner);

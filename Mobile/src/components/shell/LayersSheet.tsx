@@ -17,7 +17,7 @@ const ROWS: { key: LayerKey; label: Parameters<typeof t>[0]; glyph: Glyph }[] = 
   { key: "corridors", label: "layerCorridors", glyph: "smoke" },
 ];
 
-export function LayersSheet({
+function LayersSheetInner({
   visible, values, onToggle, onClose, lang,
 }: {
   visible: boolean;
@@ -48,6 +48,8 @@ export function LayersSheet({
     </View>
   );
 }
+
+export const LayersSheet = React.memo(LayersSheetInner);
 
 const s = StyleSheet.create({
   /* elevation must beat HomeScreen's 24 — Android dispatches sibling touches

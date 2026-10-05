@@ -42,6 +42,7 @@ import { mergeResults, ServerSearch, type ServerTiers } from "../search/client";
 import { addRecent, getPlaces, setSaved, type PlaceStore, type SavedSlot } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
 import { confirm, tick } from "../haptics";
+import { bump, jank } from "../perf";
 
 export type { SearchSelection } from "../search/t0";
 export type { PlaceResult } from "../search/t0";
@@ -216,7 +217,7 @@ function BackGlyph({ color }: { color: string }) {
 
 /* ---------- sheet (mounted only while visible → fresh state each open) ---------- */
 
-function SearchSheet({
+function SearchSheetInner({
   onSelect,
   onClose,
   userLocation,
@@ -553,9 +554,11 @@ function SearchSheet({
   );
 }
 
+const SearchSheet = React.memo(SearchSheetInner);
+
 /* ---------- public component: <SearchScreen visible onSelect onClose userLocation/> ---------- */
 
-export function SearchScreen({
+function SearchScreenInner({
   visible,
   onSelect,
   onClose,
@@ -568,6 +571,7 @@ export function SearchScreen({
   userLocation?: LatLon | null;
   lang?: Lang;
 }) {
+  bump("scr.Search");
   /* Android hardware back must close the sheet — Modal used to provide this;
      the overlay needs BackHandler explicitly. */
   useEffect(() => {
@@ -584,6 +588,7 @@ export function SearchScreen({
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
+      jank("enter.search");
       Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
     }
   }, [visible, enter]);
@@ -607,6 +612,8 @@ export function SearchScreen({
     </View>
   );
 }
+
+export const SearchScreen = React.memo(SearchScreenInner);
 
 export default SearchScreen;
 

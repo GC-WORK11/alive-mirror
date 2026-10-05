@@ -38,6 +38,7 @@ import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
+import { bump, jank } from "../../perf";
 
 export type ReceiptAlt = { label: string; co2KgMid: number | null };
 
@@ -88,6 +89,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 function DoseScale({ dose, worstUg, showCig, a11yLabel }: {
   dose: Band; worstUg?: number | null; showCig: boolean; a11yLabel: string;
 }) {
+  bump("shell.DoseScale");
   const reduceMotion = useReduceMotion();
   const scaleMax = showCig
     ? Math.max(CIG_UG, dose.hi, worstUg ?? 0, 1)
@@ -106,6 +108,7 @@ function DoseScale({ dose, worstUg, showCig, a11yLabel }: {
     }));
   useEffect(() => {
     if (reduceMotion) { fillAnim.setValue(1); return; }
+    jank("receipt.fill");
     Animated.timing(fillAnim, {
       toValue: 1, duration: 480, delay: 180, useNativeDriver: false,
     }).start();
@@ -133,7 +136,7 @@ function DoseScale({ dose, worstUg, showCig, a11yLabel }: {
   );
 }
 
-export function ReceiptSheet({
+function ReceiptSheetInner({
   data, lang, onDone, onHowWeGotThis, onShare, onSave, showCig = false,
 }: {
   data: ReceiptData | null; lang: Lang;
@@ -147,6 +150,7 @@ export function ReceiptSheet({
   /** tertiary action — explicit save to the trip ledger */
   onSave?: (() => void) | null;
 }) {
+  bump("shell.Receipt");
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   /* enter spring — the receipt rises + fades like a real earned card;
@@ -156,6 +160,7 @@ export function ReceiptSheet({
     enter.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }));
   useEffect(() => {
     if (reduceMotion) { enter.setValue(1); return; }
+    jank("enter.receipt");
     Animated.spring(enter, {
       toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false,
     }).start();
@@ -399,6 +404,8 @@ export function ReceiptSheet({
     </Animated.View>
   );
 }
+
+export const ReceiptSheet = React.memo(ReceiptSheetInner);
 
 const s = StyleSheet.create({
   sheet: {

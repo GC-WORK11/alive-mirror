@@ -42,6 +42,7 @@ import {
 import { VehicleSheet } from "../../screens/VehicleSheet";
 import { isTransit } from "./types";
 import type { Band, Depart, Emissions, Step, V2Option } from "./types";
+import { bump } from "../../perf";
 
 const arrivalLabel = (durationMin: number) => {
   const d = new Date(Date.now() + durationMin * 60000);
@@ -430,7 +431,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
   );
 }
 
-export function CompareSheet({
+function CompareSheetInner({
   options, selected, onSelect, depart, departCurve, notified, onRemind,
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
@@ -461,6 +462,7 @@ export function CompareSheet({
   /** field.age_s from the /v2/plan payload, for the details expander */
   fieldAgeS?: number | null;
 }) {
+  bump("shell.Compare");
   const sel = options[selected];
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
   const [vehSelf, setVehSelf] = useState<VehicleProfile | null>(null);
@@ -722,6 +724,8 @@ export function CompareSheet({
     </View>
   );
 }
+
+export const CompareSheet = React.memo(CompareSheetInner);
 
 const s = StyleSheet.create({
   wrap: { position: "absolute", bottom: 0, left: 0, right: 0 },
