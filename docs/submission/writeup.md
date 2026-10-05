@@ -82,9 +82,9 @@ Three questions, three shipped surfaces:
 
 - **"What did today cost me?"** — the ledger: every trip's inhaled µg, on the
   phone, with the receipt (µg + CO₂ band + where it accumulated). The city side
-  of the same ledger is public: 12 contributors / 19 trips all-time — 5 of
-  them, 14.3 km, in the last 24 h — and 333.5 µg of smoke counted as
-  *avoided* [`GET /community` — live].
+  of the same ledger is public — a live counter (`GET /community`): 14
+  contributors / 22 trips all-time, ~14 km in the last 24 h, and 725.9 µg
+  of smoke counted as *avoided* (read Oct 6 — it grows daily).
 - **"When is tomorrow's air worth going out in?"** — `GET /v2/day`: the
   morning card for a point — today's heavy window and cleanest slot with a
   real band each, plus the decisions they change. Live at Connaught Place
@@ -146,8 +146,8 @@ path [`docs/plan/demo-script.md` numbers sheet].
   The raw-coords `/observe` endpoint is retired (**410 Gone**); uvicorn's
   access log is off and the app's own request log writes path templates only,
   with coordinates and tokens on a denylist; the contributor id is a 64-bit
-  CSPRNG that rotates every 30 days. And k≥3 everywhere: 10 of 54 tracked
-  corridor cells are publishable today; the other 44 are honestly suppressed,
+  CSPRNG that rotates every 30 days. And k≥3 everywhere: 12 of 54 tracked
+  corridor cells are publishable today; the other 42 are honestly suppressed,
   the suppression field (`mode_share_suppressed_trips`) ships on the wire
   [`PRIVACY.md`; `server/community.py`, `server/observability.py`;
   `GET /community`, `GET /v2/city/moves` — live].
@@ -227,7 +227,8 @@ its basis ("est."), and the field's own age.
   a typed `outside_service_area` for Mumbai instead of a fabricated route,
   `null` where a feed serves nothing (ammonia today — the eleventh species
   is honestly empty).
-- Community data is young — 12 contributors, ~14 km donated in the last day.
+- Community data is young — 14 contributors, ~14 km donated in the last day
+  (Oct 6; live counters at `GET /community`).
   The k≥3 floor means the corridor table is honestly sparse.
 - `/v2/day` is the morning card's *data* — the card surface itself rides the
   app's ledger today; the endpoint is public JSON for the same answer.
