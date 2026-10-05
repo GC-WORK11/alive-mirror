@@ -536,3 +536,13 @@ All 10 findings closed + deployed + verified live:
 - test_landing_serve updated: REQUIRED gains /app-hero.png + hero-grid; /admin moves to LANDING_FORBIDDEN (community nav legitimately links /admin — the ban is landing-scoped). Suite: 958 passed + 5 skipped on 9675c4b (382s); main merged d5bb64e.
 - Epoch watcher restarted at /Users/devin/watch/epoch.sh — now logs build_sha + wind.known + age_s (catches fabrication regressions live).
 - Chrome quirk noted: omnibox autocompletes to /admin — bare-domain nav needs a landing-open tab or explicit trailing path.
+
+## cont.26 — admin NCR choropleth + param switcher live (build 04a93954, main 85132e9)
+
+- Lane batch `04a9395` (admin+Android): district tiles replaced by ONE canvas choropleth — 15 NCR districts + 13 NCT sub-areas from real boundary geojsons, each filled by live value's real band for the selected param. Switcher pm2_5/us_aqi/pm10/no2/o3/co/so2/nh3; dust/AOD honestly excluded (no official band). CPCB Table-3.1 sub-index math mirrored in-page for Indian params, EPA palette for us_aqi; CO µg→mg converted. Click → mini card (value, band chip, "mean of N cells", +12h trend — honest "forecast serves pm2.5 only" for other species). Sparse coverage → lighter alpha. Sector index a01–an40. Methodology lines per species name the real evidence level (waqi instruments vs cams-model-only).
+- Corridors tile: "donated trips · k≥3 anonymized aggregates — never a single person" basis line under the table + header "corridors publish at k≥3 devices inside 72h". Stats tiles now fully real: 2-3m field age, 67 samples/24 stations, 33 donated trips, 10 publishable corridors, 101.2µg daily median pm2.5 (2026-10-03), 101µg cumulative dose, 10.6kg CO2 estimate, 24.16µg MAE; "insufficient data" honest where no trips switched.
+- Verified live by eye: pm2.5 = green fills (satisfactory bands, honest), US AQI switch → Delhi repaints orange/yellow on EPA scale (owner's "Delhi is definitely red" instinct = index-dependent; the switcher IS the honest answer). West Delhi click → sub-area card + silhouette.
+- `/admin.html` alias added (was 404). Mobile: µg headline everywhere, cig equivalence demoted to secondary text inside detail lines, breathe-channel icon = dust. tsc+lint clean (lane-verified).
+- Deploy note: `6e4a26a` (admin-chrome-off-landing + tilt) verified first — landing now carries ZERO /admin references, /admin still serves 200 directly.
+- Suite: 958 passed + 5 skipped on 04a9395 (382s); main merged 85132e9.
+- Loop state: internals lane (63bd2eb9) still mid-run on dose-math-vs-published + load + fuzz. Admin lane follow-ups sent (null-param legend guard + per-species trend honesty naming).
