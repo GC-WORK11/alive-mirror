@@ -717,3 +717,10 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **apk-drive-v3 verdict: SHIP** — b4a96d2.apk all-green table (D1 fixed at HEAD w/ real input, consent-OFF tcpdump clean 268 reqs, hi no-tofu, ~3.6s cold-open on software-raster emulator ≈ ~3s honest claim on real GPU). One product flag → nav-start-pick lane.
 - Terminated strip-bz + mobile-web + apk-v3+child (all settled, holding slots).
 - Board: me + numbers-refresh `612940ae` + app-stress `d36d68cd` + nav-start-pick `9f50446e`.
+
+### cont.43 — numbers-refresh landed + design-audit finds (Oct 6 ~05:55 UTC)
+
+- **numbers-refresh `96f64dd`** — every published figure re-derived on `80a15258` w/ curl evidence: dose ladder car-AC 10.8→walk 358.3µg (33.2×, verified identical on both bases — modifier commutes empirically), day windows 159/45/105, depart 29.2→79.7, reach re-derived, breath 885µg/2.8 cig, skill 21 pairs h+1/h+2 graded (stale "all thin" fixed), community 22 obs/14 contributors, corridors 12/54. 8 files corrected; lane caught its own unsourced figure before commit.
+- **Design audit (mine, on shipped home shots)**: the owner's "still a little odd" = the sparse hero — fresh-install home shows an empty gray bar + "µg" (reads as failed skeleton). Lane spawned: designed sparse state (ambient arc + counting affordance, never fake dose) + DAYS-AHEAD band differentiation + confidence copy. Found+fixed myself: open-ended window mixed 24h/12h ("22:30–7pm") — `bf7c35d` (srv end_label:null → 12h fmtHr fallback; now open-ended convention).
+- Verified live: warm_task covers all /v2 surfaces; archive strip 4 recorded IST hours on schedule; depart 24 slots; store harness 13/13 post-contract.
+- Board: me + app-stress `d36d68cd`+child `10b4b376` + nav-start-pick `9f50446e` + hero-sparse `52e4d094`.
