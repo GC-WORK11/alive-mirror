@@ -7,7 +7,14 @@ osrm-local sidecar live); re-verified 2026-10-05 on `951eeb3c`
 later stamped `d08d9f74` task-def `:142`, then `c7df5db5` — and at
 ~18:00 IST the deployed image URI is `alive108-api:1e93b9f2` on
 task-def `:147` while `/health` still stamps `c7df5db5`; the BUILD_SHA
-env lag is a known wart — the ECR/task image tag is the truth.]*
+env lag is a known wart — the ECR/task image tag is the truth.
+~19:15 IST: a further deploy moved the task to `a382cdeb` task-def `:150`,
+and `/health` `build_sha` now MATCHES the image tag — the lag wart is
+resolved on this revision. New wart observed on that deploy: a fresh task
+serves a thin field (~41 model samples / 16 stations, recovering to 24 by
+~60 min), `wind.known:false` ~45 min, and transit plan rows absent until
+the runtime GTFS download+parse lands (silent-empty → `degraded:["transit"]`
+→ bus-then-metro; never deploy inside the T-60 window).]*
 Newer commits on `base/v2` ride
 the next image. Every
 number below was read off the running service — they drift with the
