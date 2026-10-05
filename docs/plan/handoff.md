@@ -629,3 +629,13 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **cut3.mp4 landed `e9b97f5`** (157s): iOS-sim drove HEAD `321e3c1` (no KVM on that box — honest swap); admin beat already includes the model-grades-itself card (7 pairs / MAE 18.4 / 55.6% band). AWS-console slot stays owner-filmed.
 - **why-lane + video-lane terminated** → spawned **hi-locale `3b4a70ca`** (real Delhi Hindi for every new surface — Devanagari glyph check is the headline risk) and **first-open `45c0e578`** (cold-install→first-real-number timing, walls audit, ~1Mbps throttle pass).
 - Board: me + apk-drive `5b7bc306` (+ emulator child `e7ffc6ca`) + hi-locale + first-open = 5.
+
+### cont.33 — why live on every surface · µ→Μ fixed · lanes on device/hindi/runbook/craft (Oct 5 late night)
+
+- **why endpoint fully landed**: `_line()` dangling-suffix fix `8d359a6` deployed `6e82f290` — live line now complete ("the air is barely moving — the day's pollution is sitting over the city"). Rendered live: /city `.whyline` under hero dek, /admin "why tonight" panel (drivers table + sparkline canvas — canvas empty until task accrues ≥3h builds, honest by design), landing `#whyLine` probe-then-reveal under day-note, app DelhiToday `whyHero` (`8d032e3` — needs next APK).
+- **hi-locale landed `416a195` mid-run**: `famMonoText()` — localized text in mono slots takes Noto Devanagari in hi (Plex Mono ships no Devanagari → tofu); decision line rebuilt in hi from served windows+series (kills wire-English leak); full moves*/veh_*/onb/settings coverage. Still running (on-device verify).
+- **µ→Μ copy bug `508fd1c`**: skillLine inside uppercase `.day-note` rendered "26.2 MG/M³" — fixed to `ug/m3`. (The `noT` span trick existed for basis line only; swept the file — only remaining uppercase-zone occurrence.)
+- Merge `986b66e` → main (1110+5 green on `6e82f29`).
+- **APK `a2b36fe` delivered + verified on emulator** (dosimeter home, consent-off silent, 83µg app vs 82.9 live). Owed to owner: D1 injected-drag dead-on-DelhiToday verdict needs his real phone (emulator can't reproduce; taps work).
+- Board: me + hi-locale `3b4a70ca` + first-open `45c0e578` + demo-proof `8beb3b31` + vibe-polish `0270f1a2` = 5.
+- Next deploy batch: `508fd1c` µ→Μ + whatever vibe-polish/server-side lands.
