@@ -38,7 +38,9 @@ phases:
       # geo/ prefix (scripts/geo/build_tiles_aws.sh + deploy.sh keep the
       # role policy in sync — do not remove the statement from either)
       - aws s3 cp "$PMT" "s3://${AIR_BUCKET:-alive108-air}/geo/delhi.pmtiles"
-      - aws s3 ls "s3://${AIR_BUCKET:-alive108-air}/geo/delhi.pmtiles"
+      # head-object not `s3 ls` — the role has GetObject on the key but no
+      # ListBucket on the bucket, so `ls` would fail the build cosmetically
+      - aws s3api head-object --bucket "${AIR_BUCKET:-alive108-air}" --key geo/delhi.pmtiles
   post_build:
     commands:
       - 'echo "published s3://${AIR_BUCKET:-alive108-air}/geo/delhi.pmtiles — API geo mirror picks it up within one 30-min tick (or next task boot)"'
