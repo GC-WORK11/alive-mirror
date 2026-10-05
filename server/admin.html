@@ -472,7 +472,7 @@ async function tick(){
     [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
      `daily median pm2.5${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
-     `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} µg/trip`,'brick',t.dose_ug>0],
+     `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'brick',t.dose_ug>0],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
     [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
@@ -731,7 +731,7 @@ function paintMeth(){
     ozone:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
     carbon_monoxide:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
     sulphur_dioxide:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
-    us_aqi:`the cams model's own us-scale index field — no instrument evidence for the index itself; pm2.5 dominates it through delhi's winter.`
+    us_aqi:`our own pm2.5 field projected through US EPA breakpoints — delhi's index is pm2.5-driven; same cells, one story. conf rides the pm2.5 surface's.`
   };
   let hi=0,med=0,lo=0;
   for(const ft of FM_FEATS){const c=(ft.properties||{}).conf;

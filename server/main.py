@@ -261,11 +261,30 @@ async def health():
             loc_up = bool(_loc is not None and getattr(_loc, "enabled", False))
         except Exception:
             pass
+    # public-safe engine size — the landing's "edges priced" claim reads
+    # the real graph instead of a frozen number (admin_agg does the same
+    # read, this one ships no internals beyond counts)
+    routing = {}
+    try:
+        import routegraph as _rg
+        _eng = getattr(_rg, "_ENGINE", None)
+        if _eng is not None:
+            def _en(name):
+                v = getattr(_eng, name, None)
+                if v is None:
+                    v = getattr(getattr(_eng, "g", None), name, None)
+                return v() if callable(v) else v
+            routing = {"loaded": True,
+                       "edges": _en("n_edges"),
+                       "edges_priced": _en("edges_priced")}
+    except Exception:
+        routing = {}
     return {
         "ok": True,
         "ts": time.time(),
         "version": "v2",
         "build_sha": _build_sha(),
+        "routing": routing,
         "field_age_s": fstat.get("age_s"),
         "field_refresh_in_s": fstat.get("refresh_in_s"),
         "field_stale": fstat.get("stale"),
@@ -308,6 +327,13 @@ def _hav_km(lat1, lon1, lat2, lon2):
     dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
     a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
     return 2 * 6371 * asin(sqrt(a))
+
+
+def _finite_coords(*pts) -> bool:
+    """FastAPI `x: float` happily coerces nan/inf query strings —
+    non-finite coords crash inside the field/history lookups (int(nan)),
+    so the lat/lon endpoints guard up front instead of 500ing."""
+    return all(math.isfinite(v) for v in pts)
 
 
 def in_ncr(lat: float, lon: float) -> bool:
@@ -928,6 +954,8 @@ async def aqi(lat: float, lon: float):
     """Interpolated PM2.5 field value at a point, with provenance and the
     decade-climatology context: what this point usually reads, this month,
     this hour, per 9M measured station-hours."""
+    if not _finite_coords(lat, lon):
+        return {"pm25": None, "error": "non-finite coordinate"}
     await asyncio.gather(_field_refresh_bounded(), _fires_refresh_bounded())
     mod = FIRES.smoke_modifier()
     v = FIELD.value(lat, lon, "pm2_5")
@@ -975,6 +1003,8 @@ async def aqi(lat: float, lon: float):
 async def today(lat: float, lon: float):
     """24 hourly decade-typical PM2.5 medians at a point (IST hours) —
     the ledger screen's background curve."""
+    if not _finite_coords(lat, lon):
+        raise HTTPException(422, "non-finite coordinate")
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     curve = history.diurnal_curve(lat, lon)
     return {
@@ -1035,7 +1065,7 @@ def _grid_cached(key: tuple, epoch: float, build) -> dict:
 
 
 @app.get("/grid")
-async def field_grid(cells: int = Query(default=22, le=40),
+async def field_grid(cells: int = Query(default=22, ge=1, le=40),
                      h: Optional[int] = Query(default=None, ge=0, le=120),
                      param: str = Query(default="pm2_5")):
     """The live surface as GeoJSON cells — the map's colour layer.
@@ -1053,6 +1083,41 @@ async def field_grid(cells: int = Query(default=22, le=40),
                 "properties": {"param": param,
                                "served": species,
                                "empty": "unknown pollutant param"}}
+    if param == "us_aqi":
+        # the index is a projection of our own pm2.5 surface, not a
+        # second model layer — the model's native index field read
+        # ~3× our station-grounded pm2.5 and the two maps told
+        # different stories. Delhi's index is pm2.5-driven (public
+        # PM2.5-AQI ≈ city AQI; other species' sub-indices stay <25),
+        # so EPA-projecting our real field is both consistent and
+        # honest. conf inherits the pm2.5 surface's — stronger than
+        # the model layer's ever was.
+        import districts as _d
+
+        def _aqi_gj(field, cells):
+            base = grid.as_geojson(field, cells, "pm2_5")
+            feats = []
+            for f in base.get("features", []):
+                p = dict(f["properties"])
+                p["us_aqi"] = _d.us_aqi(p.pop("pm25", None))
+                p["param"] = "us_aqi"
+                p["derived"] = "pm2_5 via US-EPA breakpoints"
+                feats.append({**f, "properties": p})
+            return {**base, "features": feats}
+
+        if h is not None:
+            await _forecast_refresh_bounded()
+            ep = (FORECAST._fetched_at, FIELD._fetched_at,
+                  community._OBS_VERSION)
+            return _grid_cached(
+                ("f", cells, param, h), ep,
+                lambda: _epoch_tagged(_aqi_gj(_ForecastSurface(h), cells),
+                                      ep))
+        await _field_refresh_bounded()
+        ep = (FIELD._fetched_at, community._OBS_VERSION)
+        return _grid_cached(
+            ("l", cells, param), ep,
+            lambda: _epoch_tagged(_aqi_gj(FIELD, cells), ep))
     if h is not None:
         await _forecast_refresh_bounded()
         # the horizon anchors to the live field too — all three epochs
@@ -1089,10 +1154,18 @@ async def observe_trip(body: dict):
 @app.post("/report")
 async def hazard_report(body: dict):
     """User-flagged air observation: dust | smoke | burning | clean, 6h TTL."""
+    try:
+        lat, lon = float(body["lat"]), float(body["lon"])
+    except (KeyError, TypeError, ValueError):
+        return {"stored": False, "error": "need numeric lat/lon"}
+    if not (_finite_coords(lat, lon) and in_ncr(lat, lon)):
+        # missing coords used to default to (0,0) — a real point off
+        # Ghana landing in the Delhi report layer
+        return {"stored": False, "error": "reports cover Delhi/NCR only"}
     return community.report(
         kind=str(body.get("kind", "")),
-        lat=float(body.get("lat", 0)),
-        lon=float(body.get("lon", 0)),
+        lat=lat,
+        lon=lon,
         contributor=body.get("contributor"),
     )
 
@@ -1172,6 +1245,8 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
     NCR, drop cells within 3km of the user (that's still 'here'), rank the
     rest by PM2.5, reverse-name the best. Each answer carries its own
     data-confidence so thin regions don't fake certainty."""
+    if not _finite_coords(lat, lon):
+        raise HTTPException(422, "non-finite coordinate")
     await _field_refresh_bounded()
     home_v = FIELD.value(lat, lon, "pm2_5")
     x0, y0, x1, y1 = grid.BBOX
@@ -1241,6 +1316,8 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     or decade-typical median scaled by today's live-vs-typical delta.
     vs_desk = same hours at an indoor/desk exposure basis (~35% ambient,
     rest ventilation) — the avoidable gap a gig driver pays daily."""
+    if not _finite_coords(lat, lon):
+        raise HTTPException(422, "non-finite coordinate")
     hours = max(0.5, min(12.0, hours))
     await _field_refresh_bounded()
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))

@@ -429,7 +429,7 @@ function showDetail(f){
   DETAIL.innerHTML=
     `<div class="d-name">${esc(f.properties.name)}</div>`+
     `<div class="d-state">${esc(f.properties.state||'')}${d.cells_covered!=null?` · ${d.cells_covered} field cells`:''}</div>`+
-    `<div class="d-aqi">${d.aqi!=null?d.aqi:'—'}<small>aqi · pm2.5 ${d.pm25!=null?d.pm25+' µg/m³':'—'}</small></div>`+
+    `<div class="d-aqi">${d.aqi!=null?d.aqi:'—'}<small>aqi · pm2.5 ${d.pm25!=null?d.pm25+' <span style="text-transform:none">µg/m³</span>':'—'}</small></div>`+
     `<div class="d-cat" style="background:${band[2]};${band[1]==='Moderate'||band[1]==='Satisfactory'?'color:#14181F':''}">${band[1]}</div>`+
     `<div class="d-conf">${d.confidence==='sparse'?'district edge — centroid estimate, few field cells':(d.confidence==='none'?'no live read over this district':'mean of live field cells inside the boundary')}</div>`;
   DETAIL.classList.add('on');

@@ -6,10 +6,11 @@ REV_MAX_M metres, distance reported honestly. Amazon Location is the
 second path when ALIVE_LOCATION_KEY is configured; a 404 naming the
 searched radius is the third — never a fabricated "Dropped pin" label.
 """
+import math
 import time
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 from . import deps
@@ -180,6 +181,8 @@ def _gaz_reverse(lat: float, lon: float):
 
 @router.get("/reverse")
 async def reverse(lat: float, lon: float):
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        raise HTTPException(422, "non-finite coordinate")
     ckey = (round(float(lat), 4), round(float(lon), 4))
     cached = _cache_get(_rev_cache, ckey)
     if cached is not None:

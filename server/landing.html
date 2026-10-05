@@ -46,10 +46,11 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   text-transform:uppercase;color:var(--ink2);text-decoration:none}
 .top nav a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px;text-decoration-thickness:1px}
-@media(max-width:640px){.top nav{display:none}}
+@media(max-width:640px){.top nav{gap:16px}
+  .top nav a{font-size:9px;letter-spacing:.12em}}
 
 /* hero */
-.hero{padding:128px 0 88px}
+.hero{padding:118px 0 78px}
 .eyebrow{display:flex;align-items:center;gap:10px;
   font-family:var(--mono);font-size:11px;letter-spacing:.3em;
   text-transform:uppercase;color:var(--ink3)}
@@ -65,28 +66,58 @@ h1 em{font-style:italic;color:var(--ink2)}
 .tlink:hover{border-bottom-color:transparent}
 .tlink.dim{color:var(--ink2);border-bottom-color:var(--line2);font-weight:400}
 .tlink.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
-.statusline{margin-top:58px;padding-top:18px;border-top:1px solid var(--line);
+.statusline{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
   font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
   color:var(--ink3);text-transform:uppercase;display:flex;gap:8px 26px;
   flex-wrap:wrap;font-variant-numeric:tabular-nums}
 .statusline b{color:var(--ink);font-weight:600}
 .statusline .ok{color:var(--sage)}
 
-/* the field — one honest raster, no chrome, true geography */
-.field-sec{padding:16px 0 96px}
-.field-head{display:flex;justify-content:space-between;align-items:baseline;
-  margin-bottom:16px;gap:16px}
+/* the field — one honest raster, real geography, click through it */
+.field-sec{padding:16px 0 40px}
+.field-head{display:flex;align-items:baseline;
+  margin-bottom:12px;gap:10px 14px;flex-wrap:wrap}
+.field-head .psel{margin-right:2px}
+.field-head #fieldAge{margin-left:auto}
 .field-head .lbl{font-family:var(--mono);font-size:10.5px;
   letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
 .field-head .lbl b{color:var(--ink);font-weight:600}
+.psel{display:flex;gap:0}
+.psel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;padding:5px 11px 4px;cursor:pointer;
+  border:1px solid var(--line2);border-left-width:0;background:transparent;
+  color:var(--ink3);-webkit-appearance:none;appearance:none}
+.psel button:first-child{border-left-width:1px}
+.psel button.on{color:var(--ink);border-color:var(--ink);
+  box-shadow:inset 0 0 0 1px var(--ink);z-index:1;position:relative}
+.psel button:hover{color:var(--ink)}
+.psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px;
+  z-index:2;position:relative}
+.fwrap{position:relative}
 #raster{display:block;width:100%;height:auto;border:1px solid var(--line);
-  opacity:0;transition:opacity .5s ease}
+  opacity:0;transition:opacity .5s ease;touch-action:manipulation}
 #raster.ready{opacity:1}
+#raster.pick{cursor:crosshair}
 @media(prefers-reduced-motion:reduce){#raster{transition:none;opacity:1}}
-.field-cap{margin-top:14px;font-size:12.5px;line-height:1.6;color:var(--ink3);
-  display:flex;justify-content:space-between;gap:14px 40px;flex-wrap:wrap;
+.fpop{position:absolute;z-index:5;min-width:196px;max-width:250px;
+  background:rgba(250,250,247,.97);border:1px solid var(--line2);
+  padding:11px 13px 10px;pointer-events:none;
+  box-shadow:0 8px 24px rgba(22,24,29,.10)}
+.fpop .p-name{font-family:var(--serif);font-size:15.5px;color:var(--ink);
+  line-height:1.3}
+.fpop .p-sub{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink3);margin-top:4px;line-height:1.7}
+.fpop .p-v{display:flex;align-items:baseline;gap:6px;margin-top:8px;
+  font-family:var(--mono);font-size:10px;color:var(--ink2)}
+.fpop .p-v b{font-family:var(--serif);font-size:20px;font-weight:400;
+  color:var(--ink)}
+.fpop .p-conf{font-size:10px;color:var(--ink3);margin-top:6px;line-height:1.55}
+.fpop .pcol{display:inline-block;width:8px;height:8px;margin-right:6px}
+.field-cap{margin-top:12px;font-size:12.5px;line-height:1.6;color:var(--ink3);
+  display:flex;justify-content:space-between;gap:10px 40px;flex-wrap:wrap;
   font-variant-numeric:tabular-nums}
-.field-cap .left{max-width:46ch}
+.field-cap .left{max-width:52ch}
+.field-cap .left b{color:var(--ink2);font-weight:500}
 .legend{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
 .legend .strip{display:flex;height:5px;width:132px}
 .legend .strip i{flex:1;display:block}
@@ -94,6 +125,50 @@ h1 em{font-style:italic;color:var(--ink2)}
   font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--ink3)}
 .legend .conf{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
   color:var(--ink3);text-transform:uppercase}
+.routeline{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0}
+.routeline:empty{display:none}
+.routeline b{color:var(--ink);font-weight:600}
+.routeline .rdose{font-family:var(--serif);font-size:15px;
+  letter-spacing:-.01em}
+
+/* the districts — every boundary cut, filled by its live cpcb band */
+.dist-sec{padding:34px 0 88px}
+.dist-head{display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:14px;gap:14px;flex-wrap:wrap}
+.dist-head .lbl{font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
+.dist-head .hint{font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink4,#a6acb8)}
+.distwrap{position:relative}
+.dscroll{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  -webkit-overflow-scrolling:touch}
+.dscroll::-webkit-scrollbar{display:none}
+.dchip{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:12px 18px 12px 14px;border:none;border-right:1px solid var(--line);
+  background:transparent;cursor:pointer;text-align:left;
+  -webkit-appearance:none;appearance:none;font-family:var(--sans)}
+.dchip:first-child{padding-left:4px}
+.dchip:hover{background:rgba(22,24,29,.03)}
+.dchip:focus-visible{outline:1px solid var(--ink);outline-offset:-2px}
+.dchip[aria-pressed="true"]{background:rgba(22,24,29,.05);
+  box-shadow:inset 0 0 0 1px var(--ink)}
+.dchip svg{width:40px;height:40px;flex:none;display:block}
+.dchip .dn{font-size:11px;font-weight:600;color:var(--ink);
+  white-space:nowrap;letter-spacing:-.005em}
+.dchip .ds{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink3);margin-top:3px;white-space:nowrap}
+.dchip .da{font-family:var(--serif);font-size:17px;color:var(--ink);
+  margin-left:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dchip .da i{font-style:normal;font-family:var(--mono);font-size:8px;
+  color:var(--ink3);letter-spacing:.08em}
+.dtpop .p-cut{width:44px;height:44px;float:right;margin-left:8px}
+.dtpop .daqi{display:inline-block;margin-left:8px;padding:2px 6px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.05em;
+  vertical-align:middle}
+@media(max-width:640px){.dchip{padding:10px 14px 10px 10px}
+  .dchip svg{width:34px;height:34px}}
 
 /* how — three terse rows */
 .how{border-top:1px solid var(--line)}
@@ -141,8 +216,9 @@ h1 em{font-style:italic;color:var(--ink2)}
   <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — live exposure engine</div>
   <h1 class="rise" style="--d:70ms">Delhi's air has a price <em>per street.</em></h1>
   <p class="sub rise" style="--d:140ms">Type from, type to. A C++ engine
-  prices all 1.07 million of NCR's road edges by the smoke on each this
-  minute, and returns the route your lungs pay least for.</p>
+  prices all <span id="edgecount">1.07 million</span> of NCR's road edges by
+  the smoke on each this minute, and returns the route your lungs pay least
+  for.</p>
   <div class="links rise" style="--d:210ms">
     <a class="tlink" href="/city">Open the live field →</a>
     <a class="tlink dim" href="/admin">Admin →</a>
@@ -153,21 +229,39 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="field-sec"><div class="col">
   <div class="field-head">
-    <span class="lbl">pm2.5 — <b>the field, this hour</b></span>
+    <span class="lbl" id="fieldLbl">pm2.5 — <b>the field, this hour</b></span>
+    <span class="psel" id="msel" role="group" aria-label="tool"></span>
+    <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
     <span class="lbl" id="fieldAge">—</span>
   </div>
-  <canvas id="raster" role="img"
-    aria-label="live interpolated pm2.5 field over Delhi NCR"></canvas>
+  <div class="fwrap">
+    <canvas id="raster" role="img"
+      aria-label="live interpolated field over Delhi NCR — click a cell to read it"></canvas>
+    <div class="fpop" id="fpop" hidden></div>
+  </div>
   <noscript><p style="margin-top:10px;font-size:12.5px;color:var(--ink3)">
     the live field needs javascript — the router does not.</p></noscript>
   <div class="field-cap">
-    <span class="left">The surface the router prices on — every cell
-    interpolated from live stations, confidence carried with it.</span>
+    <span class="left" id="capLeft">The surface the router prices on —
+    every cell interpolated from live stations, confidence carried with
+    it. Click a cell.</span>
     <span class="legend">
       <span class="strip" id="legendStrip"></span>
-      <span class="tick"><span>30</span><span>µg/m³</span><span>250+</span></span>
+      <span class="tick" id="legendTick"></span>
       <span class="conf" id="confSplit">—</span>
     </span>
+  </div>
+  <div class="routeline" id="routeline"></div>
+</div></section>
+
+<section class="dist-sec"><div class="col">
+  <div class="dist-head">
+    <span class="lbl">the districts — <b>each boundary cut, filled by its live cpcb band</b></span>
+    <span class="hint">tap a boundary · worst first</span>
+  </div>
+  <div class="distwrap">
+    <div class="dscroll" id="dscroll"></div>
+    <div class="fpop dtpop" id="dtpop" hidden></div>
   </div>
 </div></section>
 
@@ -198,56 +292,215 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <script>
 const $=id=>document.getElementById(id);
-const api=async(p,o)=>{const r=await fetch(p,o);if(!r.ok)throw 0;return r.json()};
+const api=async(p,o)=>{const r=await fetch(p,o);if(!r.ok)throw new Error(p+' '+r.status);return r.json()};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const F1=n=>n==null?'—':(+n).toFixed(1);
+const fmt=n=>n==null?'—':Math.round(n).toLocaleString('en-IN');
 
-/* cpcb band colours, muted to sit quietly on paper */
+/* cpcb band colours, muted to sit quietly on paper — six bands, the
+   breakpoints differ per pollutant but the hue order is the scale */
 const BAND=[[122,171,89],[200,178,90],[213,140,74],[184,84,66],[143,60,73],[110,60,84]];
-function bandCol(v){ // µg/m³ -> colour, piecewise on CPCB breakpoints
-  const b=[30,60,90,120,250];let i=0;while(i<b.length&&v>b[i])i++;
-  return BAND[Math.min(i,5)];
-}
-$('legendStrip').innerHTML=BAND.map(c=>
-  `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
+const BAND_NAME=['good','satisfactory','moderate','poor','very poor','severe'];
+const SPECS={
+  pm2_5:{prop:'pm25',breaks:[30,60,90,120,250],unit:'µg/m³',
+         ticks:['30','µg/m³','250+'],title:'pm2.5'},
+  us_aqi:{prop:'us_aqi',breaks:[50,100,150,200,300],unit:'aqi',
+          ticks:['50','aqi','300+'],title:'us aqi'},
+  pm10:{prop:'pm10',breaks:[50,100,250,350,430],unit:'µg/m³',
+        ticks:['50','µg/m³','430+'],title:'pm10'},
+};
+function bandCol(v,br){let i=0;while(i<br.length&&v>br[i])i++;
+  return BAND[Math.min(i,5)]}
+function bandIdx(v,br){let i=0;while(i<br.length&&v>br[i])i++;
+  return Math.min(i,5)}
 
 /* the server's krige window (grid.py BBOX) — cells are drawn inside
    exactly this box, so the raster sits on true geography */
 const BBOX={w:76.80,e:77.90,s:28.20,n:28.95};
 const ASP=0.879;   /* cos(28.6°) — lon-deg vs lat-deg on the ground */
-let MEDIAN=null;
+const CELLS=34;
+let MEDIAN=null,PARAM='pm2_5',MODE='inspect';
+let FEATS=[],GJ=[],WIND=null;
+let W=0,H=0,PT_A=null,PT_B=null,ROUTE=null,PLANSEQ=0;
+let INS=null;   /* inspector state {key,pinned} */
+const NAMES={}; /* centroid-key → place name html */
 
+$('legendStrip').innerHTML=BAND.map(c=>
+  `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`).join('');
+
+/* --- projection helpers -------------------------------------------------- */
+const toX=lon=>(lon-BBOX.w)/(BBOX.e-BBOX.w)*W;
+const toY=lat=>(BBOX.n-lat)/(BBOX.n-BBOX.s)*H;
+const toLon=x=>BBOX.w+x/W*(BBOX.e-BBOX.w);
+const toLat=y=>BBOX.n-y/H*(BBOX.n-BBOX.s);
+function pip(lon,lat,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>lat)!==(yj>lat))&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)inside=!inside;
+  }
+  return inside;
+}
+function cellCenter(ft){
+  const ring=ft.geometry.coordinates[0];
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for(const c of ring){if(c[0]<x0)x0=c[0];if(c[0]>x1)x1=c[0];
+    if(c[1]<y0)y0=c[1];if(c[1]>y1)y1=c[1]}
+  return [(x0+x1)/2,(y0+y1)/2];
+}
+function fmSector(lon,lat){
+  const C=Math.max(0,Math.min(CELLS-1,Math.floor((lon-BBOX.w)/((BBOX.e-BBOX.w)/CELLS))));
+  const R=Math.max(0,Math.min(CELLS-1,Math.floor((lat-BBOX.s)/((BBOX.n-BBOX.s)/CELLS))));
+  let s='',c=C;do{s=String.fromCharCode(65+c%26)+s;c=Math.floor(c/26)-1}while(c>=0);
+  return s+String(R+1).padStart(2,'0');
+}
+function inDistrict(lon,lat){
+  for(const f of GJ){
+    const g=f.geometry;if(!g)continue;
+    const polys=g.type==='Polygon'?[g.coordinates]
+      :g.type==='MultiPolygon'?g.coordinates:[];
+    for(const poly of polys){
+      if(poly[0]&&pip(lon,lat,poly[0])){
+        let hole=false;
+        for(let h=1;h<poly.length;h++)if(pip(lon,lat,poly[h])){hole=true;break}
+        if(!hole)return f.properties||{};
+      }
+    }
+  }
+  return null;
+}
+
+/* --- district boundary silhouettes (same normalisation as admin) -------- */
+const CUT={};
+function cutPath(feat){
+  const g=feat&&feat.geometry;if(!g)return null;
+  const rings=g.type==='Polygon'?[g.coordinates[0]]
+    :g.type==='MultiPolygon'?g.coordinates.map(p=>p[0]):[];
+  if(!rings.length)return null;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const r of rings)for(const c of r){
+    x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);
+    y0=Math.min(y0,c[1]);y1=Math.max(y1,c[1])}
+  const w=(x1-x0)*ASP,h=(y1-y0);
+  if(w<=0||h<=0)return null;
+  const pad=3,S=(64-2*pad)/Math.max(w,h);
+  const mx=x=>((x-x0)*ASP*S+pad).toFixed(1);
+  const my=y=>((y1-y)*S+pad).toFixed(1);
+  return rings.map(r=>
+    'M'+r.map(c=>mx(c[0])+','+my(c[1])).join('L')+'Z').join(' ');
+}
+function chipInk(hex){
+  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#14181d';
+  const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b)/255>0.6?'#14181d':'#fff';
+}
+
+/* --- the canvas -------------------------------------------------------- */
+const CONF_A={hi:.92,med:.6,lo:.34};
+function drawScene(){
+  if(!W||!H)return;
+  const cv=$('raster'),ctx=cv.getContext('2d');
+  const spec=SPECS[PARAM];
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
+  for(const ft of FEATS){
+    const ring=ft.geometry&&ft.geometry.coordinates&&
+               ft.geometry.coordinates[0];
+    if(!ring||ring.length<3)continue;
+    const p=ft.properties||{};
+    const v=p[spec.prop]!=null?p[spec.prop]:p.pm25;
+    if(v==null)continue;
+    const col=bandCol(v,spec.breaks);
+    ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${CONF_A[p.conf]??.34})`;
+    ctx.beginPath();
+    ring.forEach(([lo,la],i)=>{i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
+    ctx.closePath();ctx.fill();
+  }
+  /* the real district borders — the same geometry that fills the chips
+     below, inked thin over the field so the map reads as a map */
+  if(GJ.length){
+    ctx.lineJoin='round';
+    for(const pass of [[3.0,'rgba(250,250,247,.42)'],[1.0,'rgba(22,24,29,.34)']]){
+      ctx.lineWidth=pass[0];ctx.strokeStyle=pass[1];
+      for(const f of GJ){
+        const g=f.geometry;if(!g)continue;
+        const polys=g.type==='Polygon'?[g.coordinates]
+          :g.type==='MultiPolygon'?g.coordinates:[];
+        for(const poly of polys){
+          if(!poly[0])continue;
+          ctx.beginPath();
+          poly[0].forEach(([lo,la],i)=>{
+            i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
+          ctx.closePath();ctx.stroke();
+        }
+      }
+    }
+  }
+  /* wind — the real met vector, drawn the way smoke drifts */
+  if(WIND&&WIND.from_deg!=null&&WIND.speed_kmh>0.5){
+    const bx=W-30,by=30,L=15,
+          th=(Number(WIND.from_deg)+180)*Math.PI/180,
+          dx=Math.sin(th),dy=-Math.cos(th),
+          x2=bx+dx*L,y2=by+dy*L;
+    ctx.strokeStyle='rgba(22,24,29,.6)';ctx.fillStyle='rgba(22,24,29,.6)';
+    ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.moveTo(bx-dx*L*.4,by-dy*L*.4);ctx.lineTo(x2,y2);ctx.stroke();
+    const ah=4.6,at=Math.atan2(dy,dx);
+    ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-ah*Math.cos(at-.5),y2-ah*Math.sin(at-.5));
+    ctx.lineTo(x2-ah*Math.cos(at+.5),y2-ah*Math.sin(at+.5));
+    ctx.closePath();ctx.fill();
+    ctx.font='8px '+monoFont();ctx.textAlign='center';
+    ctx.fillText('N',bx,10);
+    ctx.fillText(`${Math.round(WIND.from_deg)}°`,bx,by+20);
+  }
+  /* a/b markers + the priced route — drawn over cells, never under */
+  if(PT_A)drawPin(ctx,PT_A,'a');
+  if(PT_B)drawPin(ctx,PT_B,'b');
+  if(ROUTE&&ROUTE.coords&&ROUTE.coords.length>1){
+    ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.beginPath();
+    ROUTE.coords.forEach(([lo,la],i)=>{
+      i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
+    ctx.strokeStyle='rgba(250,250,247,.85)';ctx.lineWidth=5;ctx.stroke();
+    ctx.strokeStyle='rgba(22,24,29,.92)';ctx.lineWidth=2;ctx.stroke();
+    /* dose along it isn't smooth-coloured — the line is the engine's own
+       geometry, so it draws in one ink */
+  }
+}
+const monoFont=()=>getComputedStyle(document.body).fontFamily.includes('SF Mono')
+  ?'"SF Mono",Menlo,monospace':'ui-monospace,Menlo,monospace';
+function drawPin(ctx,pt,ch){
+  const x=toX(pt.lon),y=toY(pt.lat);
+  ctx.beginPath();ctx.arc(x,y,9,0,6.283);
+  ctx.fillStyle='rgba(250,250,247,.9)';ctx.fill();
+  ctx.beginPath();ctx.arc(x,y,9,0,6.283);
+  ctx.strokeStyle='rgba(22,24,29,.9)';ctx.lineWidth=1.2;ctx.stroke();
+  ctx.fillStyle='#16181d';ctx.font='600 9px '+monoFont();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(ch,x,y+.5);
+  ctx.textBaseline='alphabetic';
+}
+
+/* --- fetch + paint ------------------------------------------------------ */
 async function paint(){
   const cv=$('raster'),ctx=cv.getContext('2d');
+  const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
+  W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
+  cv.width=W*dpr;cv.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const spec=SPECS[PARAM];
   try{
-    const g=await api('/grid?cells=22&param=pm2_5');
-    const f=g.features||[];
-    const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
-    const W=w,H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
-    cv.width=W*dpr;cv.height=H*dpr;
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
+    const g=await api(`/grid?cells=${CELLS}&param=${PARAM}`);
+    FEATS=g.features||[];
+    drawScene();
     let hi=0,med=0,lo=0;const vals=[];
-    for(const ft of f){
-      const ring=ft.geometry&&ft.geometry.coordinates&&
-                 ft.geometry.coordinates[0];
-      if(!ring||!ring.length)continue;
+    for(const ft of FEATS){
       const p=ft.properties||{};
-      const v=p.pm25;
+      const v=p[spec.prop]!=null?p[spec.prop]:p.pm25;
       if(v==null)continue;
       vals.push(v);
-      /* the cell's own bounds, mapped through the window */
-      let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
-      for(const c of ring){
-        if(c[0]<x0)x0=c[0];if(c[0]>x1)x1=c[0];
-        if(c[1]<y0)y0=c[1];if(c[1]>y1)y1=c[1];
-      }
-      const px=(x0-BBOX.w)/(BBOX.e-BBOX.w)*W;
-      const py=(BBOX.n-y1)/(BBOX.n-BBOX.s)*H;
-      const pw=(x1-x0)/(BBOX.e-BBOX.w)*W;
-      const ph=(y1-y0)/(BBOX.n-BBOX.s)*H;
       if(p.conf==='hi')hi++;else if(p.conf==='lo')lo++;else med++;
-      const col=bandCol(v);
-      ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;
-      ctx.fillRect(px-0.25,py-0.25,pw+0.5,ph+0.5);
     }
     vals.sort((a,b)=>a-b);
     MEDIAN=vals.length?vals[vals.length>>1]:null;
@@ -256,12 +509,15 @@ async function paint(){
     const ep=g.properties&&g.properties.cell_epoch;
     if(ep)$('fieldAge').textContent=
       `refreshed ${new Date(ep[0]*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+    $('legendTick').innerHTML=
+      `<span>${spec.ticks[0]}</span><span>${spec.ticks[1]}</span><span>${spec.ticks[2]}</span>`;
+    $('fieldLbl').innerHTML=`${spec.title} — <b>the field, this hour</b>`;
+    if(vals.length)$('capLeft').innerHTML=
+      `The surface the router prices on — ${fmt(vals.length)} cells, `+
+      `${F1(vals[0])}–${F1(vals[vals.length-1])} ${spec.unit} `+
+      `· cell fade = distance to nearest sample. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
     cv.classList.add('ready');
   }catch(e){
-    const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
-    const W=w,H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
-    cv.width=W*dpr;cv.height=H*dpr;
-    ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='#8a8d94';ctx.font='13px '+getComputedStyle(document.body).fontFamily;
     ctx.textAlign='center';
@@ -271,26 +527,320 @@ async function paint(){
   }
 }
 
+/* --- tool pills ---------------------------------------------------------- */
+function renderPills(){
+  $('psel').innerHTML=Object.keys(SPECS).map(k=>
+    `<button class="${k===PARAM?'on':''}" data-p="${k}" aria-pressed="${k===PARAM}">${SPECS[k].title}</button>`).join('');
+  $('msel').innerHTML=[['inspect','inspect'],['ab','a→b']].map(([k,l])=>
+    `<button class="${k===MODE?'on':''}" data-m="${k}" aria-pressed="${k===MODE}">${l}</button>`).join('');
+  $('raster').classList.toggle('pick',MODE==='ab');
+}
+$('psel').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-p]');if(!b||b.dataset.p===PARAM)return;
+  PARAM=b.dataset.p;renderPills();
+  INS=null;$('fpop').hidden=true;
+  /* a drawn route stays valid geographically, but the surface + dose basis
+     are pm2.5-specific — repaint fresh rather than recolor stale cells */
+  PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';
+  paint();
+});
+$('msel').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===MODE)return;
+  MODE=b.dataset.m;renderPills();
+  INS=null;$('fpop').hidden=true;
+  if(MODE==='inspect'){PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';drawScene()}
+  else $('capLeft').innerHTML='Pick two points on the field — the engine prices the corridor between them live.';
+});
+
+/* --- cell inspector ----------------------------------------------------- */
+function hitCell(x,y){
+  const lon=toLon(x),lat=toLat(y);
+  for(const ft of FEATS){
+    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+    if(ring&&ring.length>2&&pip(lon,lat,ring))return{ft,lon,lat};
+  }
+  return{ft:null,lon,lat};
+}
+function showCellCard(ft,x,y,pinned){
+  const pop=$('fpop'),wrap=$('raster').parentElement;
+  const p=ft.properties||{},spec=SPECS[PARAM];
+  const [clon,clat]=cellCenter(ft);
+  const key=clon.toFixed(4)+','+clat.toFixed(4);
+  INS={key,pinned:!!pinned};
+  const wr=wrap.getBoundingClientRect();
+  pop.style.left=Math.min(Math.max(6,x+10),Math.max(6,wr.width-262))+'px';
+  pop.style.top=Math.min(Math.max(6,y+10),Math.max(6,wr.height-140))+'px';
+  const v=p[spec.prop]!=null?p[spec.prop]:p.pm25;
+  const dist=inDistrict(clon,clat);
+  const bi=v!=null?bandIdx(v,spec.breaks):null;
+  pop.hidden=false;
+  pop.innerHTML=`<div class="p-name">${NAMES[key]!=null?NAMES[key]:'locating…'}</div>
+    <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}`:''}${pinned?' · pinned — esc closes':''}</div>
+    <div class="p-v"><b>${v==null?'—':F1(v)}</b> ${spec.title}${spec.unit==='aqi'?'':' µg/m³'}${bi!=null?` · <span class="pcol" style="background:rgb(${BAND[bi].join(',')})"></span>${BAND_NAME[bi]}`:''}</div>
+    <div class="p-conf">${p.conf==='hi'?'hi conf — dense sample coverage'
+      :p.conf==='med'?'med conf — moderate coverage'
+      :'lo conf — far from samples'}${p.pm25!=null&&PARAM!=='pm2_5'?` · pm2.5 ${F1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
+  /* name is best-effort — the card already carries live values; the
+     gazetteer answers 404 for 'no named place', not an error */
+  if(NAMES[key]==null){
+    fetch(`/v2/reverse?lat=${clat.toFixed(4)}&lon=${clon.toFixed(4)}`,
+      {signal:AbortSignal.timeout(4000)})
+      .then(async r=>{if(r.status===404)return null;
+        if(!r.ok)throw new Error('reverse '+r.status);return r.json()})
+      .then(rr=>{
+        NAMES[key]=(rr&&rr.name)
+          ?esc(rr.name)+(rr.subtitle?` <span style="font-family:var(--sans);font-size:10px;color:var(--ink3)">${esc(rr.subtitle)}</span>`:'')
+          :'<span style="font-size:12px;color:var(--ink3)">no named place within 150m</span>';
+        if(INS&&INS.key===key&&!pop.hidden){
+          const nm=pop.querySelector('.p-name');if(nm)nm.innerHTML=NAMES[key]}
+      })
+      .catch(err=>{
+        if(INS&&INS.key===key&&!pop.hidden){
+          const nm=pop.querySelector('.p-name');
+          if(nm)nm.textContent=(err&&err.name==='TimeoutError')?'name lookup timed out':'—'}
+      });
+  }
+}
+let HOV_T=null;
+$('raster').addEventListener('mousemove',e=>{
+  if(MODE!=='inspect'||(INS&&INS.pinned))return;
+  clearTimeout(HOV_T);const ev=e;
+  HOV_T=setTimeout(()=>{
+    const r=$('raster').getBoundingClientRect();
+    const x=ev.clientX-r.left,y=ev.clientY-r.top;
+    const{ft}=hitCell(x,y);
+    if(!ft){$('fpop').hidden=true;INS=null;return}
+    showCellCard(ft,x,y,false);
+  },110);
+});
+$('raster').addEventListener('mouseleave',()=>{
+  clearTimeout(HOV_T);
+  if(!(INS&&INS.pinned)){$('fpop').hidden=true;INS=null}
+});
+$('raster').addEventListener('click',e=>{
+  const r=$('raster').getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  if(MODE==='inspect'){
+    const{ft}=hitCell(x,y);
+    if(!ft){$('fpop').hidden=true;INS=null;return}
+    showCellCard(ft,x,y,true);
+    return;
+  }
+  /* a→b — two real points, then the engine answers */
+  if(!PT_A||(PT_A&&PT_B)){
+    PT_A={lon:toLon(x),lat:toLat(y)};PT_B=null;ROUTE=null;
+    $('routeline').innerHTML='<b>a</b> set — pick the second point';
+    drawScene();return;
+  }
+  PT_B={lon:toLon(x),lat:toLat(y)};
+  drawScene();planAB();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    $('fpop').hidden=true;INS=null;
+    PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';
+    drawScene();dtHide();
+  }
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.fwrap')&&!e.target.closest('#fpop')){
+    if(INS&&INS.pinned){$('fpop').hidden=true;INS=null}}
+});
+
+/* --- a→b : the real /v2/plan call --------------------------------------- */
+async function planAB(){
+  const seq=++PLANSEQ;
+  const a={...PT_A},b={...PT_B};
+  $('routeline').innerHTML='pricing the corridor — <b>live engine call</b>…';
+  try{
+    const d=await api('/v2/plan',{method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({from:{lat:a.lat,lon:a.lon},
+        to:{lat:b.lat,lon:b.lon},fast:true})});
+    if(seq!==PLANSEQ)return;
+    const opts=d.options||[];
+    if(d.code==='outside_service_area'||!opts.length){
+      ROUTE=null;drawScene();
+      $('routeline').innerHTML=
+        `<b>a→b</b> — ${esc(d.error||'no route')} — the engine only prices inside the NCR field window`;
+      return;
+    }
+    const o=opts.find(x=>x.recommended)||opts[0];
+    ROUTE={coords:((o.route_geojson||{}).coordinates)||[]};
+    drawScene();
+    const ds=o.dose||{},km=o.distance_km,min=o.eta_s!=null?Math.round(o.eta_s/60):null;
+    $('routeline').innerHTML=
+      `<b>a→b</b> ${esc(o.label||o.mode||'route')} — `+
+      `<span class="rdose">${ds.mid!=null?F1(ds.mid)+' µg':'—'}</span>`+
+      `${ds.lo!=null?` inhaled <b>${F1(ds.lo)}–${F1(ds.hi)}</b>`:''}`+
+      `${km!=null?` · <b>${F1(km)} km</b>`:''}`+
+      `${min!=null?` · ~${min} min`:` —`}`+
+      ` · ${o.tag?esc(o.tag)+' · ':''}${opts.length} option${opts.length===1?'':'s'} priced in ${d.took_ms!=null?(d.took_ms/1000).toFixed(1)+' s':'—'}`;
+  }catch(e){
+    if(seq!==PLANSEQ)return;
+    ROUTE=null;drawScene();
+    $('routeline').innerHTML='<b>a→b</b> — the engine call failed; try again';
+  }
+}
+
+/* --- district chips ------------------------------------------------------ */
+let DIST=[],DT_PIN=null,DT_GRID12=null,DT_GRID12_OK=null;
+function distMean(feats,feat){
+  const g=feat&&feat.geometry;if(!g)return null;
+  const polys=g.type==='Polygon'?[g.coordinates]
+    :g.type==='MultiPolygon'?g.coordinates:[];
+  let s=0,n=0;
+  for(const ft of feats){
+    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+    if(!ring||ring.length<3)continue;
+    const v=(ft.properties||{}).pm25;if(v==null)continue;
+    const [clon,clat]=cellCenter(ft);
+    for(const poly of polys){
+      if(!(poly[0]&&pip(clon,clat,poly[0])))continue;
+      let hole=false;
+      for(let h=1;h<poly.length;h++)if(pip(clon,clat,poly[h])){hole=true;break}
+      if(!hole){s+=v;n++}
+      break;
+    }
+  }
+  return n?s/n:null;
+}
+async function dtTrend(d){
+  if(DT_GRID12_OK===null){
+    try{const g=await api('/grid?cells=40&param=pm2_5&h=12');
+      DT_GRID12=(g&&g.features)||[];DT_GRID12_OK=DT_GRID12.length>0}
+    catch(e){DT_GRID12=[];DT_GRID12_OK=false}
+  }
+  if(!DT_GRID12_OK)return '+12h — forecast n/a';
+  const feat=GJ.find(f=>f.properties&&f.properties.name===d.name);
+  const m=feat&&distMean(DT_GRID12,feat);
+  if(m==null)return '+12h — outside forecast coverage';
+  const base=d.pm25;
+  if(base==null||base<1e-9)return `+12h → ${F1(m)} µg/m³`;
+  const pc=Math.round((m-base)/base*100);
+  return Math.abs(pc)<3
+    ?`+12h → ${F1(m)} µg/m³ · flat`
+    :`+12h → ${F1(m)} µg/m³ · ${pc>0?'+':''}${pc}%`;
+}
+function paintDChips(){
+  const el=$('dscroll');
+  if(!DIST.length){el.innerHTML=
+    '<div style="padding:14px 4px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase">district feed resting — chips fill when /v2/districts answers</div>';
+    return}
+  const rows=[...DIST].sort((a,b)=>(b.aqi??-1)-(a.aqi??-1));
+  el.innerHTML=rows.map(d=>{
+    const na=d.pm25==null&&d.aqi==null;
+    const cut=CUT[d.name];
+    return `<button class="dchip" data-name="${esc(d.name)}"
+      aria-pressed="${DT_PIN&&DT_PIN.name===d.name?'true':'false'}"
+      aria-label="${esc(d.name)}${d.aqi!=null?', aqi '+d.aqi:''}">
+      ${cut?`<svg viewBox="0 0 64 64" aria-hidden="true"><path d="${cut}" fill="${na?'#a6acb8':d.color}" fill-opacity="${na?'0.10':'0.85'}" stroke="#16181d" stroke-width="1.4" stroke-linejoin="round"/></svg>`:''}
+      <span><span class="dn">${esc(d.name)}</span><br>
+      <span class="ds">${d.level==='osm_admin_5'?esc(d.parent||'delhi'):esc(d.state||'')}</span></span>
+      <span class="da">${na?'—':d.aqi}<i> aqi</i></span>
+    </button>`;
+  }).join('');
+}
+function dtHide(){const p=$('dtpop');if(p)p.hidden=true;
+  if(DT_PIN){const t=$('dscroll').querySelector(
+    `[data-name="${CSS.escape(DT_PIN.name)}"]`);
+    if(t)t.setAttribute('aria-pressed','false')}
+  DT_PIN=null}
+async function dtShow(chip){
+  const name=chip.dataset.name;
+  const d=DIST.find(r=>r.name===name);
+  const wrap=$('dscroll').parentElement,pop=$('dtpop');
+  if(!d||!wrap||!pop)return;
+  DT_PIN={name};
+  wrap.querySelectorAll('.dchip[aria-pressed="true"]').forEach(t=>
+    t.setAttribute('aria-pressed','false'));
+  chip.setAttribute('aria-pressed','true');
+  const r=chip.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
+  pop.style.left=Math.min(Math.max(4,r.left-wr.left),Math.max(4,wr.width-256))+'px';
+  const c=d.color||'#888';
+  const na=d.pm25==null&&d.aqi==null;
+  const level=d.level==='osm_admin_5'
+    ?`sub-area · ${d.parent||'delhi nct'}`:`district · ${d.state||'—'}`;
+  const basis=d.confidence==='sparse'
+    ?`centroid read — ${d.cells_covered||0} covered cell${(d.cells_covered||0)===1?'':'s'}`
+    :d.cells_covered?`mean of ${d.cells_covered} covered cells`:'no covered cells';
+  const pcut=CUT[name];
+  pop.innerHTML=`${pcut?`<svg class="p-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${pcut}" fill="${c}" fill-opacity="${na?0.10:0.85}" stroke="#16181d" stroke-width="1.6" stroke-linejoin="round"/></svg>`:''}
+    <div class="p-name">${esc(d.name)}</div>
+    <div class="p-sub">${esc(level)}</div>
+    <div class="p-v">${na
+      ?'<b>—</b> no field data'
+      :`<b>${d.pm25==null?'—':F1(d.pm25)}</b> µg/m³ <span class="daqi" style="background:${c};color:${chipInk(c)}">aqi ${d.aqi} · ${esc((d.category||'').toLowerCase())}</span>`}
+    </div>
+    <div class="p-conf">${na
+      ?'outside the measured field'
+      :esc(basis)+(d.partial_field_coverage?' · partial coverage':'')}
+      ${na?'':'<br><span id="dttrend">trend — computing +12h field…</span>'}</div>`;
+  pop.hidden=false;
+  pop.style.top=Math.max(6,r.bottom-wr.top+6)+'px';
+  if(pop.offsetTop+pop.offsetHeight>wrap.offsetHeight)
+    pop.style.top=Math.max(6,r.top-wr.top-pop.offsetHeight-6)+'px';
+  if(!na){const nm=name;dtTrend(d).then(t=>{
+    const el=$('dttrend');
+    if(el&&!pop.hidden&&DT_PIN&&DT_PIN.name===nm)el.textContent=t})}
+}
+$('dscroll').addEventListener('click',e=>{
+  const c=e.target.closest('.dchip');
+  if(c){e.stopPropagation();
+    if(DT_PIN&&DT_PIN.name===c.dataset.name)dtHide();else dtShow(c)}
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dchip')&&!e.target.closest('#dtpop'))dtHide()});
+
+/* --- geo + status -------------------------------------------------------- */
+Promise.all([
+  fetch('/ncr.geojson').then(r=>r.ok?r.json():null).catch(()=>null),
+  fetch('/delhi_subdistricts.geojson').then(r=>r.ok?r.json():null).catch(()=>null)
+]).then(([a,b])=>{
+  GJ=[...((a&&a.features)||[]),...((b&&b.features)||[])];
+  for(const f of GJ){
+    const n=f.properties&&f.properties.name;
+    if(n&&!CUT[n]){const p=cutPath(f);if(p)CUT[n]=p}
+  }
+  if(DIST.length)paintDChips();
+  drawScene();
+});
+async function loadDistricts(){
+  try{const d=await api('/v2/districts');DIST=(d.districts||d)||[];
+    if(Array.isArray(DIST))paintDChips()}
+  catch(e){/* the strip keeps its honest-empty text */}
+}
 async function status(){
   try{
     const h=await api('/health');
     const s=h.sources||{};
     const stn=(s.stations||{}).count||0;
-    const wind=h.wind||{};
+    const wind=h.wind||{};WIND=wind.speed_kmh?wind:null;
     const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+'m':'—';
+    const edges=h.routing&&h.routing.edges?h.routing.edges:null;
+    if(edges)$('edgecount').textContent=(edges/1e6).toFixed(2)+' million';
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
       `<span>field <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
       (MEDIAN!=null?`<span>median <b>${Math.round(MEDIAN)}</b> µg/m³</span>`:'')+
       (wind.speed_kmh?`<span>wind <b>${Math.round(wind.speed_kmh)} km/h</b></span>`:'')+
-      `<span><b>1.07m</b> edges priced</span>`;
+      `<span><b>${edges?(edges/1e6).toFixed(2)+'m':'1.07m'}</b> edges priced</span>`;
     if(h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
   }catch(e){
     $('status').innerHTML='<span>field unreachable — retrying</span>';
   }
 }
 
-paint();status();
-setInterval(()=>{paint();status()},120000);
+renderPills();paint();status();loadDistricts();
+let rsz=null;window.addEventListener('resize',()=>{
+  clearTimeout(rsz);rsz=setTimeout(()=>{
+    const cv=$('raster'),w=cv.parentElement.clientWidth||896,
+          dpr=window.devicePixelRatio||1;
+    W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
+    cv.width=W*dpr;cv.height=H*dpr;
+    cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+    drawScene();
+  },160)});
+setInterval(()=>{paint();status();loadDistricts()},120000);
 </script>
 </body></html>

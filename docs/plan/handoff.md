@@ -375,3 +375,32 @@ od 2 suppressed, dose 303.7µg/4 trips, co2 1.55kg/1 PUC trip, reviews 2 avg 4.0
 - Admin mini-card earlier "broken" report was a stale-tab artifact — DevTools-dispatch verified.
 - UI lane still running: Mobile asset overhaul (stock Expo "A" icon + #4C8DFF notification color were the cheap bits), route-journey polish, CPCB toggle check.
 - Community state contamination lesson: /v2/feedback probes count toward k — a 3rd probe published note bodies. Fix = patch s3 state.json THEN zero-downtime task bounce (scale 1→2, stop dirty task, desired 1) — running tasks hold reviews in memory.
+
+## cont.15 — raster sigma-decimation + UI lane mandate complete (lead, ~11:00Z Oct 5)
+- Cold-epoch degrade root-caused + fixed (34380b3): raster probe extrapolated 4ms/read → 54×54 lattice, real sweep ran ~68ms → budget stop at 176/2916 (6%). Fix: sigma on a s_step block lattice (~89% fewer sigma calls; krige sigma is smooth), center-out cell order → partial sweeps keep Delhi core. VERIFIED LIVE on fresh task: 1101/1156 cells (95%), 275 sigma reads, zero degraded on cold-epoch plans.
+- Engine contention note: boot logs show "field serves no reads — skip sweep" correctly while field fetching.
+- UI lane 89a999d1 COMPLETE + terminated (mandate items all landed + lead-verified):
+  * district cutouts faa01c8 (verified by eye — real boundaries, band fill, mini-card)
+  * us_aqi ramp 2a92824 — toggle normalized to observed span → absolute 0-300 anchor; API serves us_aqi 215.5 today (honest deep red)
+  * brand assets a861545 — stock Expo killed: serif "a" + sage dot mark, adaptive #FAFAF7, notification #4D7C0F, ios/ regenerated ALive108 scheme
+  * map perf 5d5b8d4 — terrarium hillshade source dropped (elevation-PNG storm per pan)
+  * MAP DEPTH honest ceiling: bundled v2-light = hosted OpenFreeMap planet = max OSM detail (bilingual street names, POIs, housenumbers z16.5, nav dive 55° pitch). Our delhi.pmtiles caps z14 → shallower; its win is sovereignty/offline, not detail. App is already at the detail ceiling.
+  * route journey verified end-to-end on iPhone 17 sim (search→compare→nav with dose-tint polyline + live counters).
+- favicon 404 fixed eca69aa (data-URI icon on admin+city; landing+community already had) — rides next deploy.
+- Live `34380b3e`; main `ede60eb` (suite 930 green).
+
+## cont.15b — deploy-race lesson (lead, ~05:10Z Oct 5)
+- Deploy races silently supersede: lane's deploy.sh finished after mine → live regressed to 2a92824a (old per-cell raster). Symptom in logs: len(sig)==cells count impossible under block-keyed code → traced to task def :123 built pre-raster-fix. RULE: after any deploy, verify /health build_sha == expected AND aws ecs describe-services shows exactly one deployment. Lanes should NOT run deploy.sh — lead deploys consolidated HEADs. (Add to future lane prompts.)
+- Raster fix verified in prod on task def :124 (build a745c5d8): "1764 cells (441 sigma) -> FieldView" — full 42² lattice in budget (s_step=2 → 441 block sigma reads), NO budget stop. Cold-epoch degrade killed.
+- Live `a745c5d8` = consolidated HEAD (raster + favicon + us_aqi ramp + cutouts + all docs).
+
+## cont.16 — brutal-sweep wave: us_aqi projection + never-500 hardening (lead, ~06:30Z Oct 5)
+- **us_aqi divergence fixed** (5c6a016): /grid?param=us_aqi was a second model layer (215.5 live) telling a 3× different story than our station-grounded pm2.5 field (~55µg→~140). Now projects OUR pm2.5 surface through EPA-2024 breakpoints (districts.us_aqi) — same cells, same conf, `derived:"pm2_5 via US-EPA breakpoints"` per feature. LIVE: 104–159 vs public aqi.in Delhi ~160 — spot on. Admin derivation copy updated; contract test pins cell-for-cell EPA projection.
+- **Never-500 sweep → 6 crashers fixed** (8d8b1cb): FastAPI `x: float` coerces nan/inf; handlers then returned NaN inside bodies and strict json.dumps 500ed at render (verified traceback signature in ECS logs). Guards: `_finite_coords()` in main.py on /aqi(200+error env)/today/escape/shift(422), isfinite in v2.plan._pt + v2.places.reverse(422). Raw-JSON `NaN` literal POST body covered by _pt too.
+- **Two more bounds** (297e67d): /v2/feedback note/build as dict → 422 "must be text"; /grid cells ge=1 floor.
+- **Donation ledger hardened** (53dae87): /observe stored:true for zero-cell shells ({} → stored, "x" coords → stored — inflated totals only). Now stored:false "no usable coordinates"; coords normalize+safe-pair-parse; dose/co2/duration clamp to None below 0/non-finite. /report dropped (0,0) default — requires numeric NCR coords.
+- **S3 ledger lesson**: community._save() is write-triggered + _S3_MIN_GAP_S=60s rate-limited (a second write inside the gap silently skips the S3 put — my "flush" probe appeared to restore but didn't). Old-schema obs ({dose_ug,duration_s,contributor,ts,vehicle} — NO cells/km) exist from pre-folding donations: they inflate obs_total but can't feed corridors. Filtered state.json to cells-bearing traversals only: obs_total 98→18 real, contributors 15→12, all 5 corridors k≥3 intact. Task stopped → reloaded clean.
+- **Wind verified real**: /health wind {11.0km/h, 284°} == Open-Meteo Delhi live reading exactly (we ingest it).
+- **Concurrency**: 18 parallel POST /v2/plan across 3 ODs — all 200, zero degraded, 4.3–14.3s under load; rate limiter eats bursts correctly.
+- Live `297e67d`; next deploy pins `01d316e` (donation hardening + craft-lane interactive landing batch 1).
+- Lanes active: craft 0553281b (landing interactive surfaces: param pills, cell inspector, a→b live plan drawn on field, district strip — batch `01d316e` landed), app-ruthless 0c3304f0 (Mobile nothing-fake sweep running).

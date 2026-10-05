@@ -540,3 +540,59 @@ def test_drift_summary_print(capsys):
           f"{'optional-not-emitted':<30} {'undeclared-emitted'}")
     for r in rows:
         print(f"{r[0]:<22} {r[1]:<22} {r[2]:<30} {r[3]}")
+
+
+def test_us_aqi_grid_is_pm25_projection():
+    """param=us_aqi serves the same cells as pm2_5, each projected
+    through the EPA breakpoints — one story across the toggles, conf
+    inherited. (The model-native index read ~3× our station field.)"""
+    import districts
+    pm = client.get("/grid", params={"param": "pm2_5", "cells": 8}).json()
+    aq = client.get("/grid", params={"param": "us_aqi", "cells": 8}).json()
+    assert len(aq["features"]) == len(pm["features"]) > 0
+    for fa, fp in zip(aq["features"], pm["features"]):
+        pa, pp = fa["properties"], fp["properties"]
+        assert pa["param"] == "us_aqi"
+        assert pa["derived"]
+        assert fa["geometry"] == fp["geometry"]
+        assert pa["us_aqi"] == districts.us_aqi(pp["pm25"])
+        assert pa["conf"] == pp["conf"]
+
+
+def test_non_finite_coords_never_500():
+    """nan/inf coords are client errors, not crashes — every lat/lon
+    endpoint answers honestly (error envelope or 422), never 500."""
+    cases = [
+        # NaN isn't valid JSON but Python json.loads accepts the literal —
+        # raw bytes because a strict client serializer refuses it too
+        ("/v2/plan", {"method": "post",
+                      "content": b'{"from":{"lat":NaN,"lon":77.2},'
+                                 b'"to":{"lat":28.4,"lon":77.0}}',
+                      "headers": {"content-type": "application/json"}}),
+        ("/aqi", {"params": {"lat": "inf", "lon": 77.2}}),
+        ("/today", {"params": {"lat": "nan", "lon": 77.2}}),
+        ("/escape", {"params": {"lat": "nan", "lon": 77.2}}),
+        ("/shift", {"params": {"lat": "inf", "lon": 77.2}}),
+        ("/v2/reverse", {"params": {"lat": "nan", "lon": 77.2}}),
+    ]
+    for path, kw in cases:
+        r = getattr(client, kw.pop("method", "get"))(path, **kw)
+        assert r.status_code != 500, f"{path} 500ed on non-finite coord"
+        if path == "/v2/plan":
+            body = r.json()
+            assert body["options"] == []
+            assert "non-finite" in body["error"]
+        elif path == "/aqi":
+            assert r.json()["error"]
+        else:
+            assert r.status_code == 422
+
+
+def test_malformed_values_never_500():
+    """Bad types/bounds in non-coord params must also fail honestly."""
+    r = client.post("/v2/feedback", json={"stars": 3, "note": {"a": 1}})
+    assert r.status_code == 422 and "note" in r.json()["detail"]
+    r = client.post("/v2/feedback", json={"stars": 3, "build": {"a": 1}})
+    assert r.status_code == 422 and "build" in r.json()["detail"]
+    assert client.get("/grid", params={"cells": 0}).status_code == 422
+    assert client.get("/grid", params={"cells": 999}).status_code == 422

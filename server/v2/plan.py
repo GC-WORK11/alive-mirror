@@ -29,6 +29,7 @@ import asyncio
 import functools
 import concurrent.futures
 import logging
+import math
 import threading
 import time
 from typing import Optional
@@ -1030,14 +1031,20 @@ async def _options_bounded(flat, flon, tlat, tlon, vehicle, profile,
 def _pt(v, name: str):
     if isinstance(v, dict):
         try:
-            return float(v["lat"]), float(v["lon"])
+            lat, lon = float(v["lat"]), float(v["lon"])
         except KeyError as e:
             # name the side + the field — 'to: missing lon', not "'lon'"
             raise ValueError(f"{name}: missing {e}") from e
-    if isinstance(v, (list, tuple)) and len(v) >= 2:
+    elif isinstance(v, (list, tuple)) and len(v) >= 2:
         # [lon, lat] GeoJSON order
-        return float(v[1]), float(v[0])
-    raise ValueError(f"{name}: need {{lat,lon}} or [lon,lat]")
+        lat, lon = float(v[1]), float(v[0])
+    else:
+        raise ValueError(f"{name}: need {{lat,lon}} or [lon,lat]")
+    # NaN/inf slip past float() and in_service_area's comparisons,
+    # then crash deeper in the engine — reject at the boundary.
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        raise ValueError(f"{name}: non-finite coordinate")
+    return lat, lon
 
 
 async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
