@@ -59,7 +59,7 @@ import {
   famMono,
   famSerif,
 } from "../theme";
-import { approx, t, type Lang, type StringKey } from "../i18n/strings";
+import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
 import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
@@ -630,7 +630,7 @@ function DayCard({ rec, budgetUg, lang }: {
                 {p.label}
               </Text>
               <Text {...DYNAMIC_TYPE} style={[ss.partUg, NUM, { fontFamily: mono(lang) }]}>
-                {approx(Math.round(p.ug))}µg
+                {approx(doseUgRound(p.ug))}µg
               </Text>
             </View>
           ))}
@@ -730,8 +730,8 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
       </View>
       <Text {...DYNAMIC_TYPE} style={[ss.budgetLine, NUM, { fontFamily: mono(lang) }]}>
         {over > 0
-          ? t("budgetOver", lang, { o: Math.round(over), p: t(`profile${profile[0].toUpperCase()}${profile.slice(1)}` as never, lang) })
-          : t("budgetWithin", lang, { r: Math.round(-over), b: budget })}
+          ? t("budgetOver", lang, { o: doseUgRound(over), p: t(`profile${profile[0].toUpperCase()}${profile.slice(1)}` as never, lang) })
+          : t("budgetWithin", lang, { r: doseUgRound(-over), b: budget })}
       </Text>
       <View style={ss.profileRow}>
         {PROFILES.map((p) => {
@@ -810,7 +810,7 @@ export function DayPeek({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
           <Text {...DYNAMIC_TYPE} style={[ss.peekNum, NUM, {
             fontFamily: famSerif(lang, "semi"), color: doseCol,
           }]}>
-            ≈{Math.round(data.rec.totalUg)}
+            ≈{doseUgRound(data.rec.totalUg)}
           </Text>
           <Text {...DYNAMIC_TYPE} style={[ss.peekUnit, { fontFamily: mono(lang) }]}>µg</Text>
           <View style={ss.peekDots}>
@@ -904,7 +904,7 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
     );
   }
   const rec = data.rec;
-  const ug = Math.round(rec.totalUg);
+  const ug = rec.totalUg;
   const col = doseDotColor(rec.totalUg, budgetUg);
   const ambIdx = bandIdx(ambientUg ?? null);
   const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
@@ -938,7 +938,7 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
           <View style={ss.heroNumRow}>
             <CountUp value={ug} duration={620}
               style={[ss.heroNum, { fontFamily: famSerif(lang, "semi"), color: col }]}
-              format={(n) => `≈${Math.round(n)}`} />
+              format={(n) => `≈${doseUgRound(n)}`} />
             <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}>
               µg
             </Text>
@@ -980,7 +980,7 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
         ))}
         <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mono(lang) }]}>
           {t("homeWeek", lang, {
-            n: approx(Math.round(data.week.reduce((s, w) => s + w.ug, 0))),
+            n: approx(doseUgRound(data.week.reduce((s, w) => s + w.ug, 0))),
           })}
         </Text>
       </View>

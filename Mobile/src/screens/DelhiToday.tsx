@@ -33,7 +33,7 @@ import {
   V2T,
   V2Type,
 } from "../theme";
-import { approx, t, type Lang } from "../i18n/strings";
+import { approx, doseUgRound, t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
@@ -257,7 +257,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                       },
                     ]}
                   >
-                    ≈ {Math.round(inhaled.mid)}
+                    ≈ {doseUgRound(inhaled.mid)}
                   </Text>
                   <Icon
                     name="dust"
