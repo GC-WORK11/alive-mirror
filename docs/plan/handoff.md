@@ -598,3 +598,9 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - Lanes settled+terminated: landing 953f70c9, community 847a46b2, offline fff9863f.
 - Spawned: apk-drive 5b7bc306 (new-home device smoke + fresh owner APK), city-legible 3152b130, self-grade 6ffe2f2a (/v2/skill — product publishes its own accuracy, never-done artifact).
 - Running: app-rebuild dc8eda93 (lifestyle dosimeter home — Mobbin mandate, THE priority).
+
+## cont.31b — 2026-10-05 ~17:45 UTC
+- Deploy `a26fb4ee` STABLE + verified: landing h1 "A ledger for your lungs" + live cig figure + recorded strip; community moat/plain vocab; transit compiled at boot (GTFS warm holds).
+- **REBUILD LANDED `6bafd2b`** (app-rebuild dc8eda93 settled): boots to HomeScreen — dose hero+budget ring, THE MOVE, YOUR DAY ledger (live-accumulating), day sparkline, DAYS AHEAD 5-day +least-bad +CAMS caveat, HOW YOU FELT check-in, quiet links, daily budget. Travel="Where to?" CTA; journey untouched. Compare keeps depth pass + N× dose-gap + "leave tomorrow 12:30 → breathe ~12% less". Design brief committed: docs/plan/design-refs.md (Oura/WHOOP hero, Uber feature-in-home, CRED type, felt-FOMO). Fixed header ghost-glyph (insets.top overdraw). Residual: JS-driven sheet spring — real-device frame check owed.
+- Screenshots shown to owner (v2_row1/row2) — direction verdict pending.
+- Spawned: video-v3 QUEUED (cap hit — apk-drive spawned its own emulator-smoke child e7ffc6ca; 5 slots = me + 3 lanes + that child).
