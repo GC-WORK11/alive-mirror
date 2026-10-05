@@ -118,9 +118,10 @@ line after a task boot now has a last-seen stage instead of silence.
 ## Gates
 
 `cd server && PYTHONPATH=core/build312:. .venv312/bin/python -m pytest -q tests`
-— all ingest/airindex tests green (92/92). The full suite shows 13
-pre-existing failures in `tests/test_reach*.py` / `test_path_*` —
-`alive_core.PathEngine` in `core/build312` was built 2026-10-04, before
-`reach` landed in `core/src/path.cpp` (2026-10-05); the stale `.so` was
-rebuilt via `core/build_ext.sh` so the lane gate runs against current
-sources. No test in those files touches the ingest path.
+— **1115 passed, 10 skipped, 0 failed** (8.5 min). Before the lane runs,
+`core/build312`'s `alive_core` `.so` had to be rebuilt via
+`core/build_ext.sh` — the artifact on this box predated `reach` landing
+in `core/src/path.cpp` and failed 13 `test_reach`/`test_path_*` cases
+with `AttributeError: PathEngine.reach`; the rebuild is a gitignored
+build artifact, not a code change, and none of those tests touch the
+ingest path.
