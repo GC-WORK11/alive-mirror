@@ -239,9 +239,11 @@ class AirField:
                 self._grab_wind(client),
             )
             if results:
-                self._samples = self._debias(results + stations)
+                self._samples = self._debias(results, stations)
                 KF.fit(self._samples)
-                self._station_count = len(stations)
+                self._station_count = sum(
+                    1 for _a, _b, _c, v in stations
+                    if v.get("pm2_5") is not None)
                 if stations:
                     self._source = (
                         f"{self._stations_src or 'unknown'}-stations"
@@ -249,7 +251,7 @@ class AirField:
                 self._fetched_at = time.time()
                 self._lru.clear()  # live layer may take over serving now
 
-    def _debias(self, samples: list) -> list:
+    def _debias(self, results: list, stations: list) -> list:
         """Spatially-varying de-bias of the model grid against instruments.
 
         CAMS systematically under-reads Delhi (tonight: DTU instrument 451
@@ -268,8 +270,10 @@ class AirField:
         aod, and the aqi indices — has no instrument evidence and stays
         raw; scaling a dimensionless index by a µg/m³ ratio is just
         wrong."""
-        inst = [s for s in samples if set(s[3].keys()) == {"pm2_5"}]
-        model = [s for s in samples if set(s[3].keys()) != {"pm2_5"}]
+        samples = results + stations
+        inst = [s for s in stations
+                if isinstance(s[3].get("pm2_5"), (int, float))]
+        model = results
         if len(inst) < 8 or len(model) < 10:
             return samples
 
@@ -299,10 +303,10 @@ class AirField:
             return samples
 
         out = []
-        for slat, slon, name, vals in samples:
-            if set(vals.keys()) == {"pm2_5"}:
-                out.append((slat, slon, name, vals))
-                continue
+        for i, (slat, slon, name, vals) in enumerate(samples):
+            if i >= len(results):   # instrument row — untouched,
+                out.append((slat, slon, name, vals))  # every param it
+                continue            # measured stays as read
             num = den = 0.0
             for ilat, ilon, b in ratios:
                 d = math.hypot(ilat - slat, ilon - slon)
@@ -366,11 +370,21 @@ class AirField:
         else:
             self._stations_status["waqi"] = "ok" if rows else "unavailable"
         for slat, slon, sname, vals in rows:
-            v = vals.get("pm2_5")
-            if v is None:
-                continue
-            v = self._smooth("pm2_5", slat, slon, v)
-            out.append((slat, slon, sname, {"pm2_5": round(v, 1)}))
+            # every measured species enters the blend (pm10, gases,
+            # pm2_5) — _concentration reads them with the same 3x
+            # station weight, so the field follows instruments for
+            # whatever they measure, not just the fine fraction.
+            sm = {}
+            for k, v in vals.items():
+                try:
+                    fv = float(v)
+                except (TypeError, ValueError):
+                    continue
+                if not math.isfinite(fv) or fv < 0:
+                    continue
+                sm[k] = round(self._smooth(k, slat, slon, fv), 1)
+            if sm:
+                out.append((slat, slon, sname, sm))
         if out:
             self._stations_src = "waqi"
             return out

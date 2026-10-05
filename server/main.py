@@ -37,6 +37,7 @@ import segments
 import grid
 import community
 import decide
+import ingest_waqi
 
 from contextlib import asynccontextmanager
 
@@ -966,18 +967,40 @@ async def aqi(lat: float, lon: float):
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     band = history.typical_band(lat, lon, ist.month, ist.hour)
     typical = band.get("median")
-    return {
+    species = {
         "pm25": round(v * mod, 1),
-        "pm25_ambient": round(v, 1),
-        "pm25_lo": round(max(0.0, v - sd) * mod, 1) if sd else None,
-        "pm25_hi": round((v + sd) * mod, 1) if sd else None,
         "pm10": FIELD.value(lat, lon, "pm10"),
         "no2": FIELD.value(lat, lon, "nitrogen_dioxide"),
         "o3": FIELD.value(lat, lon, "ozone"),
         "co": FIELD.value(lat, lon, "carbon_monoxide"),
         "so2": FIELD.value(lat, lon, "sulphur_dioxide"),
+    }
+    # US AQI = max EPA sub-index over the species this response actually
+    # serves (station-grounded where instruments measure them) — not
+    # CAMS's own us_aqi cell, which runs on raw model pm10 and reported
+    # ~230 tonight vs every public source's ~160. us_aqi_model keeps the
+    # raw model value for provenance.
+    subs = {}
+    for k, val in species.items():
+        s = ingest_waqi.us_aqi_sub_index(k, val) if val is not None else None
+        if s is not None:
+            subs[k] = s
+    us_aqi_v = round(max(subs.values())) if subs else None
+    us_aqi_basis = max(subs, key=subs.get) if subs else None
+    return {
+        "pm25": species["pm25"],
+        "pm25_ambient": round(v, 1),
+        "pm25_lo": round(max(0.0, v - sd) * mod, 1) if sd else None,
+        "pm25_hi": round((v + sd) * mod, 1) if sd else None,
+        "pm10": species["pm10"],
+        "no2": species["no2"],
+        "o3": species["o3"],
+        "co": species["co"],
+        "so2": species["so2"],
         "nh3": FIELD.value(lat, lon, "ammonia"),
-        "us_aqi": FIELD.value(lat, lon, "us_aqi"),
+        "us_aqi": us_aqi_v,
+        "us_aqi_basis": us_aqi_basis,
+        "us_aqi_model": FIELD.value(lat, lon, "us_aqi"),
         "european_aqi": FIELD.value(lat, lon, "european_aqi"),
         "dust": FIELD.value(lat, lon, "dust"),
         "aod": FIELD.value(lat, lon, "aerosol_optical_depth"),

@@ -262,6 +262,53 @@ def test_iaqi_bad_values_rejected():
     assert iw.iaqi_to_ugm3("pm25", -1) is None
     assert iw.iaqi_to_ugm3("pm25", "x") is None
     assert iw.iaqi_to_ugm3("pm25", float("nan")) is None
+
+
+# --- us_aqi_sub_index (µg/m³ -> EPA sub-index, the inverse table) ----------
+
+def test_us_aqi_sub_index_round_trips_iaqi_inversion():
+    # every band edge must map back to its own index — the two functions
+    # share one breakpoint table, so this is a consistency invariant, not
+    # a tautology.
+    for idx in (25, 75, 120, 160, 210, 260, 330):
+        ugm3 = iw.iaqi_to_ugm3("pm25", idx)
+        assert iw.us_aqi_sub_index("pm25", ugm3) == pytest.approx(idx, abs=0.6)
+    # pm10 and gases ride their own bands + unit factors
+    assert iw.us_aqi_sub_index("pm10", 120.0) == pytest.approx(
+        51 + (120 - 55.0) / (154.0 - 55.0) * 49, rel=1e-3)
+    o3_sub = iw.us_aqi_sub_index("o3", iw.iaqi_to_ugm3("o3", 88))
+    assert o3_sub == pytest.approx(88, abs=0.6)
+
+
+def test_us_aqi_sub_index_guards():
+    assert iw.us_aqi_sub_index("pm25", -3) is None
+    assert iw.us_aqi_sub_index("pm25", "x") is None
+    assert iw.us_aqi_sub_index("pm25", float("nan")) is None
+    assert iw.us_aqi_sub_index("plutonium", 10.0) is None
+    # beyond the last band the top slope continues — never clamps low
+    assert iw.us_aqi_sub_index("pm25", 700.0) > 500
+
+
+def test_grab_async_emits_all_measured_params(monkeypatch):
+    """A station's pm10/o3/no2 must reach the field — pm2_5-only emission
+    left the coarse fraction raw-CAMS (public pm10 ~120 vs ours ~400)."""
+    monkeypatch.setenv("WAQI_API_KEY", KEY)
+    payload = _feed_payload("S0", 61.5)
+    payload["data"]["iaqi"]["pm10"] = {"v": 134}
+    payload["data"]["iaqi"]["no2"] = {"v": 7.9}
+    c = AsyncFake({
+        BOUNDS: FakeResp(200, _bounds_payload([0])),
+        f"{iw.WAQI}/feed/@0/": FakeResp(200, payload),
+    })
+    import asyncio
+    rows = asyncio.run(iw.grab_async(c))
+    assert len(rows) == 1
+    vals = rows[0][3]
+    assert vals["pm2_5"] == pytest.approx(
+        iw.iaqi_to_ugm3("pm25", 61.5), abs=0.1)
+    assert vals["pm10"] == pytest.approx(iw.iaqi_to_ugm3("pm10", 134), abs=0.1)
+    assert vals["nitrogen_dioxide"] == pytest.approx(
+        iw.iaqi_to_ugm3("no2", 7.9), abs=0.1)
     assert iw.iaqi_to_ugm3("pm25", iw.IAQI_MAX + 1) is None
     assert iw.iaqi_to_ugm3("unlisted", 100) is None
 

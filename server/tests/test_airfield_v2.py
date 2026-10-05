@@ -290,7 +290,7 @@ def test_real_snapshot_loads_clean():
 def _debias_samples():
     """10 model lattice points (full CAMS dict) + 9 instruments (pm2_5
     only) on the same grid, instruments reading ~3x the model — matches
-    tonight's real CAMS under-read."""
+    tonight's real CAMS under-read. Returns (results, stations)."""
     model = [(28.55 + 0.01 * i, 77.15 + 0.01 * i, f"m{i}",
               {"pm2_5": 50.0, "pm10": 170.0, "ozone": 190.0,
                "nitrogen_dioxide": 12.0, "us_aqi": 150.0,
@@ -298,7 +298,7 @@ def _debias_samples():
              for i in range(10)]
     inst = [(28.551 + 0.01 * i, 77.151 + 0.01 * i, f"st{i}",
              {"pm2_5": 150.0}) for i in range(9)]
-    return model + inst
+    return model, inst
 
 
 def test_debias_scales_pm25_only_pm10_gets_fine_fraction():
@@ -307,7 +307,8 @@ def test_debias_scales_pm25_only_pm10_gets_fine_fraction():
     gases, dust, aod and the AQI indices carry no instrument evidence
     and stay raw CAMS."""
     f = airfield.AirField()
-    out = f._debias(_debias_samples())
+    model, inst = _debias_samples()
+    out = f._debias(model, inst)
     adj = dict(out[0][3])
     assert adj["pm2_5"] == pytest.approx(150.0, rel=0.02)          # ×3
     # pm10: raw 170 + fine increment 50*(3-1) = 270, NOT 170*3 = 510
@@ -322,9 +323,42 @@ def test_debias_scales_pm25_only_pm10_gets_fine_fraction():
 
 def test_debias_instrument_rows_untouched():
     f = airfield.AirField()
-    out = f._debias(_debias_samples())
+    model, inst = _debias_samples()
+    out = f._debias(model, inst)
     inst_row = out[-1]
     assert inst_row[3] == {"pm2_5": 150.0}
+
+
+def test_debias_multiparam_station_untouched_and_not_model():
+    """A station carrying pm10/gases alongside pm2_5 is still an
+    instrument row: it must feed the bias measurement (via pm2_5), never
+    be scaled as if it were a model point, and keep every param it
+    measured. (Before the tail-index split, the keys=={pm2_5} filter
+    misclassified multi-param stations as model and re-scaled them.)"""
+    f = airfield.AirField()
+    model, inst = _debias_samples()
+    inst = [(lat, lon, n, {**v, "pm10": 120.0, "ozone": 30.0})
+            for lat, lon, n, v in inst]
+    out = f._debias(model, inst)
+    # model pm2_5 still lifted by the measured ~3x bias
+    assert out[0][3]["pm2_5"] == pytest.approx(150.0, rel=0.02)
+    # the multi-param station row survives verbatim
+    assert out[-1][3] == {"pm2_5": 150.0, "pm10": 120.0, "ozone": 30.0}
+
+
+def test_debias_station_without_pm25_does_not_count_as_instrument():
+    """A pm10-only station grounds pm10 via the blend but cannot feed
+    the pm2_5 bias measurement — the <8-instruments guard must see the
+    real instrument count."""
+    f = airfield.AirField()
+    model, _inst = _debias_samples()
+    thin_inst = _inst[:7] + [_inst[7][:3] + ({"pm10": 90.0},),
+                             _inst[8][:3] + ({"pm10": 80.0},)]
+    out = f._debias(model, thin_inst)
+    # only 7 pm2_5 instruments -> no scaling
+    assert out[0][3]["pm2_5"] == pytest.approx(50.0, rel=1e-6)
+    # but the pm10-only rows still made it into the blend untouched
+    assert out[-1][3]["pm10"] == 80.0
 
 
 def test_debias_missing_pm10_or_pm25_never_fabricates():
@@ -335,5 +369,5 @@ def test_debias_missing_pm10_or_pm25_never_fabricates():
              {"pm2_5": 150.0}) for i in range(9)]
     # without model pm2_5 the bias cannot be measured -> raw pass-through
     f = airfield.AirField()
-    out = f._debias(model + inst)
+    out = f._debias(model, inst)
     assert out[0][3]["pm10"] == 170.0 and out[0][3]["ozone"] == 190.0
