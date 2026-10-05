@@ -557,3 +557,32 @@ def test_us_aqi_grid_is_pm25_projection():
         assert fa["geometry"] == fp["geometry"]
         assert pa["us_aqi"] == districts.us_aqi(pp["pm25"])
         assert pa["conf"] == pp["conf"]
+
+
+def test_non_finite_coords_never_500():
+    """nan/inf coords are client errors, not crashes — every lat/lon
+    endpoint answers honestly (error envelope or 422), never 500."""
+    cases = [
+        # NaN isn't valid JSON but Python json.loads accepts the literal —
+        # raw bytes because a strict client serializer refuses it too
+        ("/v2/plan", {"method": "post",
+                      "content": b'{"from":{"lat":NaN,"lon":77.2},'
+                                 b'"to":{"lat":28.4,"lon":77.0}}',
+                      "headers": {"content-type": "application/json"}}),
+        ("/aqi", {"params": {"lat": "inf", "lon": 77.2}}),
+        ("/today", {"params": {"lat": "nan", "lon": 77.2}}),
+        ("/escape", {"params": {"lat": "nan", "lon": 77.2}}),
+        ("/shift", {"params": {"lat": "inf", "lon": 77.2}}),
+        ("/v2/reverse", {"params": {"lat": "nan", "lon": 77.2}}),
+    ]
+    for path, kw in cases:
+        r = getattr(client, kw.pop("method", "get"))(path, **kw)
+        assert r.status_code != 500, f"{path} 500ed on non-finite coord"
+        if path == "/v2/plan":
+            body = r.json()
+            assert body["options"] == []
+            assert "non-finite" in body["error"]
+        elif path == "/aqi":
+            assert r.json()["error"]
+        else:
+            assert r.status_code == 422

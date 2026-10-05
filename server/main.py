@@ -310,6 +310,13 @@ def _hav_km(lat1, lon1, lat2, lon2):
     return 2 * 6371 * asin(sqrt(a))
 
 
+def _finite_coords(*pts) -> bool:
+    """FastAPI `x: float` happily coerces nan/inf query strings —
+    non-finite coords crash inside the field/history lookups (int(nan)),
+    so the lat/lon endpoints guard up front instead of 500ing."""
+    return all(math.isfinite(v) for v in pts)
+
+
 def in_ncr(lat: float, lon: float) -> bool:
     lo, la, hi, la2 = (float(x) for x in NCR_BBOX.split(","))
     return la <= lat <= la2 and lo <= lon <= hi
@@ -928,6 +935,8 @@ async def aqi(lat: float, lon: float):
     """Interpolated PM2.5 field value at a point, with provenance and the
     decade-climatology context: what this point usually reads, this month,
     this hour, per 9M measured station-hours."""
+    if not _finite_coords(lat, lon):
+        return {"pm25": None, "error": "non-finite coordinate"}
     await asyncio.gather(_field_refresh_bounded(), _fires_refresh_bounded())
     mod = FIRES.smoke_modifier()
     v = FIELD.value(lat, lon, "pm2_5")
@@ -975,6 +984,8 @@ async def aqi(lat: float, lon: float):
 async def today(lat: float, lon: float):
     """24 hourly decade-typical PM2.5 medians at a point (IST hours) —
     the ledger screen's background curve."""
+    if not _finite_coords(lat, lon):
+        raise HTTPException(422, "non-finite coordinate")
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     curve = history.diurnal_curve(lat, lon)
     return {
@@ -1207,6 +1218,8 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
     NCR, drop cells within 3km of the user (that's still 'here'), rank the
     rest by PM2.5, reverse-name the best. Each answer carries its own
     data-confidence so thin regions don't fake certainty."""
+    if not _finite_coords(lat, lon):
+        raise HTTPException(422, "non-finite coordinate")
     await _field_refresh_bounded()
     home_v = FIELD.value(lat, lon, "pm2_5")
     x0, y0, x1, y1 = grid.BBOX
@@ -1276,6 +1289,8 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     or decade-typical median scaled by today's live-vs-typical delta.
     vs_desk = same hours at an indoor/desk exposure basis (~35% ambient,
     rest ventilation) — the avoidable gap a gig driver pays daily."""
+    if not _finite_coords(lat, lon):
+        raise HTTPException(422, "non-finite coordinate")
     hours = max(0.5, min(12.0, hours))
     await _field_refresh_bounded()
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
