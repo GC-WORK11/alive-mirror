@@ -1,8 +1,9 @@
 # Judges' FAQ — honest answers (no hype)
 
 Short, checkable answers to the questions that decide the score. Every
-number below was read off the live service on 2026-10-05 (build
-`951eeb3c`); the ones that drift are marked.
+number below was read off the live service on 2026-10-05 (latest pass
+~22:15 UTC, build `80a15258` — breathing-zone dose basis,
+`smoke_modifier` 1.09); the ones that drift are marked.
 
 ## "Is the data real?"
 
@@ -10,9 +11,9 @@ Yes, and the provenance is on the wire. The field is rebuilt every 15
 minutes from three live sources: **24 WAQI ground instruments** across
 NCR (their raw US-EPA sub-index is inverted back to µg/m³ via the EPA
 breakpoint table, Kalman-smoothed, and de-biased against an archive),
-**72 CAMS/open-meteo model samples** (satellite-assimilated), and **70
-NASA FIRMS VIIRS fire detections** (16 inside the smoke belt) feeding a
-×1.27 smoke modifier — all counts read live, all drifting daily. A CPCB
+**~70 CAMS/open-meteo model samples** (satellite-assimilated), and **79
+NASA FIRMS VIIRS fire detections** (17 inside the smoke belt) feeding a
+×1.09 smoke modifier — all counts read live, all drifting daily. A CPCB
 adapter exists but stays dormant without a CPCB key — the sources table
 names which feeds are up instead of padding. Every estimate carries a
 real krige σ from our own C++ engine (`/health` → `engine:"alive_core"`),
@@ -29,7 +30,8 @@ compute **inhaled micrograms = concentration (µg/m³) × ventilation rate
 actual route geometry, then corrected for the mode's micro-environment
 — a sealed AC car filters; a bike rider sits inside the exhaust stream.
 Same street, same minutes: walking Connaught Place→Gurugram inhales
-~259 µg while a sealed car inhales ~8 (measured live 2026-10-05, ~33×).
+~358 µg while a sealed car inhales ~11 (measured live 2026-10-05 ~22:15
+UTC on `80a15258`, breathing-zone basis, ~33×).
 AQI
 can't express that: it has no route, no breathing rate, no duration, no
 vehicle. A judge breathing harder than the person next to them is
@@ -45,8 +47,8 @@ a street appears on the community map only after three different riders
 cross it, mode share suppresses any bucket under 3 trips
 (`mode_share_suppressed_trips` is literally on the wire), and review
 notes publish only at ≥3 reviews. The ops board reads the same
-aggregate tables a judge sees; there is no per-user view to leak. 10 of
-54 tracked corridors are currently publishable — the other 44 are
+aggregate tables a judge sees; there is no per-user view to leak. 12 of
+54 tracked corridors are currently publishable — the other 42 are
 honestly suppressed, not hidden behind a disclaimer.
 
 ## "Could a competitor just build this?"

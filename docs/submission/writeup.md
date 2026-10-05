@@ -2,8 +2,11 @@
 
 *Draft for the AWS × WeMakeDevs Environmental Hacks (Track 01 · Air) submission
 form and the Builder Center long-form post. Every number below was read off the
-live service or traced to a repo file on 2026-10-05 — grep-able sources in
-brackets. `docs/plan/NUMBERS.md` is the canonical ledger;
+live service or traced to a repo file on 2026-10-05 — re-verified ~22:15 UTC on
+build `80a15258` (the strip-bz deploy: plan/strip/reroute dose on the
+breathing-zone basis, ambient × `smoke_modifier`, ×1.09 tonight and echoed on
+the `/v2/plan` + `/v2/reroute` wire). Grep-able sources in brackets.
+`docs/plan/NUMBERS.md` is the canonical ledger;
 `scripts/verify_numbers.sh` re-derives every figure live. Nothing is invented.*
 
 **Live now:** http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com
@@ -45,10 +48,11 @@ the dose math are real enough to decide with.
 ## The architecture: field → engine → dose → ledger
 
 - **Field.** A concentration surface rebuilt every 15 minutes from **24
-  live WAQI ground instruments** + **~71 CAMS/open-meteo model samples** +
+  live WAQI ground instruments** + **~70 CAMS/open-meteo model samples** +
   **NASA FIRMS fire detections** (79 today, 17 inside the smoke belt → ×1.09
   modifier at CP — sometimes absent), kriged with a real σ band per cell.
-  Age on the wire today: ~8 min [`GET /health`, `GET /aqi` — live]. And once
+  Age on the wire at this read: ~2 min [`GET /health`, `GET /aqi` — live
+  2026-10-05 ~22:15 UTC]. And once
   an hour the served field itself is written to durable storage — the archive
   snapshots the real served surface into S3 + a local mirror, hour-bucketed in
   IST: Delhi's air is *history*, not just forecast. `GET /v2/archive` replays
@@ -83,50 +87,57 @@ Three questions, three shipped surfaces:
 - **"What did today cost me?"** — the ledger: every trip's inhaled µg, on the
   phone, with the receipt (µg + CO₂ band + where it accumulated). The city side
   of the same ledger is public — a live counter (`GET /community`): 14
-  contributors / 22 trips all-time, ~14 km in the last 24 h, and 725.9 µg
-  of smoke counted as *avoided* (read Oct 6 — it grows daily).
+  contributors / 22 trips all-time, ~14.1 km / 477.3 µg *avoided* in the last
+  24 h, and 725.9 µg of smoke counted as *avoided* all-time
+  [`GET /community` — live, read Oct 6 ~03:50 IST — it grows daily].
 - **"When is tomorrow's air worth going out in?"** — `GET /v2/day`: the
   morning card for a point — today's heavy window and cleanest slot with a
   real band each, plus the decisions they change. Live at Connaught Place
-  today: heavy stretch **22:30 IST → day end at ~122 µg/m³**, and honestly
-  **no clean slot left** — the lightest hour reads ~68 against a ~103 day
-  mean ("no clean slot left today", "kids outdoors: before ~22:30")
-  [`GET /v2/day?lat&lon` — live].
+  tonight: cleanest slot **12:30–18:30 IST at ~45 µg/m³** against a ~105
+  day mean, and the heavy stretch runs **22:30 IST → day end at ~159**
+  ("open ~12:30–18:30; shut from ~22:30 IST" — three decision rows on the
+  wire) [`GET /v2/day?lat&lon` — live].
 - **"Where can my lungs go inside my budget?"** — `GET /v2/reach`: a bounded
   Dijkstra over the same directed-edge-state search as the router — no
   heuristic, no destination — settling every edge whose inhaled dose stays
   under `budget_ug`. The returned set is the real Dijkstra frontier as
-  polylines, never a smoothed circle. Live today: a **25 µg walking budget
-  from Connaught Place settles 3,020 road segments (~131 km of street —
+  polylines, never a smoothed circle. Live tonight: a **25 µg walking budget
+  from Connaught Place settles 3,211 road segments (~141 km of street —
   directed edges, so a two-way street counts in both directions)**;
-  ≤50 µg walks 10,756 segments (~576 km); a sealed car on a **25 µg**
-  budget settles ~958k edges, ~86,900 km [`GET /v2/reach` — live;
+  ≤50 µg walks 10,510 segments (~554 km); a sealed car on a **25 µg**
+  budget settles ~891k edges, ~75,822 km (`edge_partial:true` — the
+  2M-state cap binds; the veil paints the nearest 90,000)
+  [`GET /v2/reach` — live;
   `server/v2/reach.py`; painted as the "where can your lungs go?" veil on
   `/city`].
 
 ## The feature the judges will poke: dose-priced routing
 
 Same city, same minutes — the mode you pick decides what you inhale. Measured
-live on the demo trip (Connaught Place → Gurugram, 23.7 km) today, 18 options
-[`POST /v2/plan` — live; the count drifts 16–20 as transit rows come and go]:
+live on the demo trip (Connaught Place → Gurugram, 23.7 km) tonight, 23 options
+[`POST /v2/plan` — live, read 2026-10-05 ~22:16 UTC on build `80a15258`,
+breathing-zone basis (`smoke_modifier: 1.09` on the wire); the count drifts
+16–23 as transit rows come and go]:
 
 | mode | inhaled dose (µg PM2.5, mid) | ≈µg/km |
 |---|---|---|
-| sealed AC car | **7.8** | ~0.3 |
-| car, windows open | 14.2 | ~0.6 |
-| bike / scooter | 17.9 | ~0.8 |
-| bus | 20.4 | ~0.9 |
-| auto-rickshaw | 23.1 | ~1.0 |
-| metro + walk | 33.0 | ~1.4 |
-| cycle | 114.7 | ~4.8 |
-| **walk** | **258.8** | ~11 |
+| sealed AC car | **10.8** | ~0.5 |
+| car, windows open | 19.6 | ~0.8 |
+| bike / scooter | 24.8 | ~1.0 |
+| bus | 28.3 | ~1.2 |
+| auto-rickshaw | 32.0 | ~1.4 |
+| metro + walk | — *(absent tonight — outside transit service hours)* | — |
+| bus (GTFS timetable row) | 69.3 | ~2.9 |
+| cycle | 158.8 | ~6.7 |
+| **walk** | **358.3** | ~15 |
 
-**~35× on a Delhi commute** (33.2× measured today; 31–45× across ODs this
+**~35× on a Delhi commute** (33.2× measured tonight; 31–45× across ODs this
 week — it is a living ratio, not a constant) — and
 it matches published Delhi measurements: walking inhales ≈28× the metro per
 km, an auto-rickshaw ≈5× (Sci. Total Environ. 2021; Discover Atmosphere 2025 —
 `server/exposure.py` header, `docs/03-models.md`). The honest surprise the
-table shows: **metro+walk doses ~4× a sealed car** — the coach is clean,
+table shows on daytime reads: **metro+walk doses ~4× a sealed car** — the
+coach is clean,
 the road-level walks at both ends are not. The engine also returns least-dose
 corridor alternates that must diverge ≥15% of length to count (measured
 19–96% divergent) — "via Outer Circle vs via Vivekanand Marg", not one blessed
@@ -135,11 +146,13 @@ path [`docs/plan/demo-script.md` numbers sheet].
 ## What nobody else does
 
 - **A field that moves.** `/v2/city` serves the next 12 hours hour-by-hour —
-  today the lattice runs ~69 → ~205 µg/m³ into the evening peak, driven by a
+  tonight the lattice runs ~70 → ~151 µg/m³ into the ~03:00 IST peak, then
+  falls to ~39 by ~09:00, driven by a
   120-hour CAMS forecast anchored to the live field (τ=9 h)
   [`GET /v2/city → next_hours`; `GET /depart` — live]. `/depart` answers
-  "leave now or tonight?" in micrograms: same trip, ~23 µg now vs ~94 µg at
-  the evening peak (**~4×** today — it has run ~8× this week).
+  "leave now or later?" in micrograms: same trip, ~29 µg now vs ~80 µg at
+  tomorrow's worst hour, ~15 µg at the +12 h best (**~2.7×** now→worst
+  tonight — it has run ~8× this week).
 - **Privacy as architecture, not policy.** Donations fold into
   cell/hour/day aggregates at ingest — *no per-trip row exists in memory, on
   disk, or in S3*, so there is nothing per-person to leak, lose, or subpoena.
@@ -173,8 +186,8 @@ path [`docs/plan/demo-script.md` numbers sheet].
 | LOO calibration vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 | `GET /aqi → calibration` |
 | Archive replay (clean-air window) | MAE 22.0 µg/m³, bias +51.6 % — we publish that we over-read in clean air | `server/data/field_validation.md` |
 | Plan latency | ~0.8 s warm measured today; fresh unseen ODs ~2–8 s | `POST /v2/plan → took_ms` |
-| Reach latency | ~1–2 s wire on walk budgets ≤50 µg; ~5–10 s for a ~958k-edge car reach (partial — 2M-state cap) | `GET /v2/reach` |
-| Mode dose gap, CP→Gurugram | **~35× on a Delhi commute** — 33.2× live today; 31–45× across ODs this week | live probe + `docs/plan/demo-script.md` |
+| Reach latency | ~1–2 s wire on walk budgets ≤50 µg; ~5–10 s for a ~890k-edge car reach (partial — 2M-state cap) | `GET /v2/reach` |
+| Mode dose gap, CP→Gurugram | **~35× on a Delhi commute** — 33.2× live tonight (build `80a15258`, bz basis); 31–45× across ODs this week | live probe + `docs/plan/demo-script.md` |
 | Search | 97,447 corpus entries (16,949 real address rows); 172/174 top-1 in a live battery (98.9 %), p50 ~470 ms over the NLB; bundled on-device gazetteer 124,311 rows | `server/data/corpus/STATS.md`, `docs/plan/demo-script.md` |
 | Engine speed | C++ search index p50 0.189 ms — ~88× the Python twin, asserted bit-identical | `docs/plan/bench-results.md` |
 | Self-hosted basemap | 22.7 MB pmtiles built from Geofabrik OSM, z0–14, live at `/tiles/health` | `GET /tiles/health` |
@@ -184,8 +197,9 @@ path [`docs/plan/demo-script.md` numbers sheet].
 
 - **ECS Fargate** (ap-south-1, FARGATE_SPOT, 1 vCPU / 3 GB) runs the FastAPI
   service + C++ pybind engine + osrm-local router sidecar — one service, one
-  task, verified `ACTIVE` on task-def `alive108:158`, image tag
-  `alive108-api:cb862533` [`aws ecs describe-services` — live].
+  task; the deploy tonight reports `build_sha 80a15258` (the strip-bz build)
+  on the open wire [`GET /health` — live; the ECR image tag is the commit
+  sha].
 - **Network Load Balancer + Elastic IP** (65.2.28.40) gives the stable public
   URL above — it survives every redeploy.
 - **CodeBuild → ECR → task definition**: every deploy builds the image in
@@ -227,8 +241,9 @@ its basis ("est."), and the field's own age.
   a typed `outside_service_area` for Mumbai instead of a fabricated route,
   `null` where a feed serves nothing (ammonia today — the eleventh species
   is honestly empty).
-- Community data is young — 14 contributors, ~14 km donated in the last day
-  (Oct 6; live counters at `GET /community`).
+- Community data is young — 14 contributors, ~14.1 km / 6 donated trips in
+  the last 24 h (22 trips all-time; read Oct 6 ~03:50 IST — live counters
+  at `GET /community`).
   The k≥3 floor means the corridor table is honestly sparse.
 - `/v2/day` is the morning card's *data* — the card surface itself rides the
   app's ledger today; the endpoint is public JSON for the same answer.
@@ -244,7 +259,7 @@ its basis ("est."), and the field's own age.
 
 We can't claim "Delhi got cleaner." We can and do show: an individual's
 inhaled dose cut by about thirty-five times on the same trip (~35× on a
-Delhi commute; 33.2× measured today) and the cleanest hours of
+Delhi commute; 33.2× measured tonight) and the cleanest hours of
 their day named with a real band; N trips switched to a lower-smoke option,
 counted and auditable on the dashboard; and the first street-level, per-hour
 picture of what Delhi commuters actually breathe — aggregate,

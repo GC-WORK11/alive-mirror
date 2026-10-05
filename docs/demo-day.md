@@ -45,6 +45,25 @@ paints recorded hours now), and the why-line suffix fix (`8d359a6` —
 the line ends clean, no "— the build you see" tail). Archive: 6
 snapshots since Oct 5 20:00 IST (last 01:00 IST Oct 6). Districts: 29
 chips (16 district rows incl. Delhi NCT + 13 sub-areas).]*
+*[numbers-refresh pass 2026-10-05 ~22:15–22:20 UTC — the strip-bz deploy
+landed: `/health` stamps `80a15258` and `/v2/plan` + `/v2/reroute` now
+price on the breathing-zone basis, `smoke_modifier: 1.09` echoed on the
+wire (same ×1.09 `/aqi` serves — plan and the public pm25 finally share
+one basis). Every number below re-read on that build: dose ladder
+car-AC 10.8 / walk 358.3 µg (**33.2×**, slowest/best 38.7×), 23 options,
+warm took_ms ~56 ms (first post-deploy hit 4,653 ms — fresh-task
+reprice), day windows heavy 22:30 IST → day end ~159 / cleanest
+12:30–18:30 ~45 / mean ~105, depart 29.2 → 79.7 (2.7×, best +12 h 14.5),
+reach walk@25 3,211 edges / 141.2 km, walk@50 10,510 / 553.9 km,
+car@25 890,510 / 75,822 km (`edge_partial`), car@100 1,029,263 /
+99,503 km, breath 885 µg (2.8 cig), PM2.5@CP 76.1 breathing / 69.8
+ambient / US AQI 158, wind 4.3 km/h @182° S (fires refused — outside
+the NW gate), 24 stations / 70 samples / field age ~96 s, corridors
+12 publishable of 54 tracked, community 22 trips all-time / 14
+contributors / 725.9 µg avoided (24 h: 6 obs / 14.1 km / 477.3 µg),
+skill 21 pairs — h+1 graded MAE 16.3/+15.8 (71.4%/80.0% band-hit), h+2
+29.9/+29.6, h=0 and h≥3 still `thin`, archive 8 snapshots, why still
+stagnation (VC ~100 m²/s vs ~3,000).]*
 Newer commits on `base/v2` ride
 the next image (`416a195` i18n/hi is next). Every
 number below was read off the running service — they drift with the
@@ -90,7 +109,8 @@ Google gives travel time; an AQI site gives one city number — both answer
 the µg you actually inhale per route option — dose = concentration field
 sampled every ~250 m of the polyline × mode ventilation × time, plus a
 micro-environment factor (a sealed AC car vs walking the same trip
-measures ~33× tonight — CP→Gurugram ~11.1 vs ~363.5 µg; re-check T-45,
+measures ~33× tonight — CP→Gurugram ~10.8 vs ~358.3 µg on the
+breathing-zone basis, build `80a15258`; re-check T-45,
 `scripts/verify_numbers.sh`). Your trips receipt
 into an on-device ledger; `GET /v2/day` names today's heavy stretch and
 least-bad hours as decisions; `GET /v2/reach` draws where a 25 µg walk
@@ -106,7 +126,9 @@ Yes — keyless, honest provenance, verbatim labels on screen:
   serve stay honestly empty (NH₃ is empty today, not zero-filled)
 - NASA FIRMS VIIRS/MODIS fire detections (79 today, 17 in the smoke
   belt — drifts daily) feeding a smoke modifier (×1.09 at CP right
-  now — sometimes absent; say what `/aqi.smoke_modifier` shows)
+  now — sometimes absent; say what `/aqi.smoke_modifier` shows — and
+  since `80a15258` the same modifier is echoed on `/v2/plan` +
+  `/v2/reroute`, already inside their dose numbers)
 - WAQI measured stations LIVE: 24 instruments across NCR feed the
   krige directly (the raw feed is a US-EPA sub-index, not µg/m³ —
   inverted via the EPA breakpoint table, Kalman-smoothed, de-biased
@@ -310,23 +332,24 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
 - **the model grades itself** (`/v2/skill`, live since `a5ab92d8`):
   served-forecast vs recorded-hour pairs — n, MAE, bias, band-hit per
   horizon; buckets under 5 pairs render `thin` instead of a number.
-  Read it as "the scorecard refuses to bluff" — 11 pairs / 1,331 cells
-  tonight, MAE 26.2 µg/m³, bias +25.8 (we over-call), 43.3% cell
-  band-hit / 36.4% per-hour band-hit — every horizon bucket still
-  honestly `thin` (n<5)
+  Read it as "the scorecard refuses to bluff" — 21 pairs tonight and
+  the nearer horizons are now **graded**, not thin: h+1 MAE 16.3 µg/m³,
+  bias +15.8 (we over-call), 71.4% cell / 80.0% hour band-hit; h+2
+  MAE 29.9 / +29.6 / 13.9% / 20.0%. h=0 and h≥3 stay honestly `thin`
+  (n<5) — the card only scores what it has receipts for
 - **the why beat** (`/v2/why`, shipped `0908d9ad`; line renders on the
   /city 'why tonight' chip, the landing day-note and DelhiToday on
   `6e82f290`) — *the engine grades its own causality.* Tonight's real
-  read: `drivers[0]` is **stagnation** — "boundary layer 84.3 m + wind
-  0.99 m/s → ventilation 84 m²/s vs ~3,000 typical" — while 79 fires
-  (17 in the belt) are checked-and-refused: `carrying:false` because
-  the wind is 139° SE, outside the NW-smoke gate; and `trend` lands in
-  `cannot_tell` ("only 0 recorded build(s) in 6 h"). Curl on stage:
+  read (build `80a15258`): `drivers[0]` is **stagnation** — "boundary
+  layer 86.9 m + wind 1.15 m/s → ventilation ~100 m²/s vs ~3,000
+  typical" — while 79 fires
+  (17 in the belt, 72.1 MW FRP) are checked-and-refused: `carrying:false`
+  because the wind is 182° S, outside the NW-smoke gate. Curl on stage:
   `curl $NLB/v2/why` — the judge sees one sentence plus the honest
   `cannot_tell` block. Narration: *"it tells you why — and what it
   can't tell."*
 - **the field archive**: `/v2/archive` replays the recorded field hour
-  by hour — snapshots land hourly to S3 (`archive.total_snapshots` = 6
+  by hour — snapshots land hourly to S3 (`archive.total_snapshots` = 8
   since 2026-10-05 20:00 IST tonight; `/admin/api/status` shows
   `archive.snapshots_total` + `since_ist`); hours with no snapshot are
   honest gaps, never back-filled. The /city 'what happened' flip paints
@@ -554,16 +577,17 @@ after `auto`. Read the partial table + check missing modes separately.
   `/v2/plan` during a quiet field hour it may read 28× and we'd be
   caught in a fake-constant.
 - [ ] **The ladder** — car-AC vs walk mids move with the field (tonight
-  ~11.1 / ~363.5 µg — a ~33× spread). Read the verifier's dose table;
-  narrate "about eleven vs about three hundred sixty" unless the
-  morning reads differently.
+  ~10.8 / ~358.3 µg on the breathing-zone basis — a ~33× spread,
+  `smoke_modifier: 1.09` echoed on the plan wire). Read the verifier's
+  dose table; narrate "about eleven vs about three hundred sixty"
+  unless the morning reads differently.
 - [ ] **Day windows** — tonight `/v2/day` carried both windows + 3
-  populated `decisions` rows (heavy 06:30–11:30 @ ~155, cleanest
-  12:30–18:30 @ ~68, day mean ~113): the `decisions:[]` wart is fixed
+  populated `decisions` rows (heavy 22:30 IST → day end @ ~159, cleanest
+  12:30–18:30 @ ~45, day mean ~105): the `decisions:[]` wart is fixed
   on the deployed build (`88e37d5` is in `0908d9ad`+). Windows can
   still be `null` on a flat/rising day — if `decisions` is empty on
-  stage, read `hours[]` + `day_mean_pm25` out loud: "lightest ~68 now,
-  heaviest ~155 by mid-morning, day mean ~113."
+  stage, read `hours[]` + `day_mean_pm25` out loud: "lightest ~45
+  midday, heaviest ~159 from ~22:30 IST, day mean ~105."
 - [ ] **Fires/modifier** — `fires` swings daily (33 → 70 → 79 this
   week; still 79/17 tonight); `smoke_modifier` can be absent (`null`) at
   CP — if so, say "fires feed the field" without a multiplier.
@@ -573,32 +597,34 @@ after `auto`. Read the partial table + check missing modes separately.
   bare `/v2/archive` serves today. The 'what happened' flip IS shipped
   — /city paints recorded hours over forecast and pending hours stay
   unpainted — the honest-gap story is the beat.
-- [ ] **Options count** — drifts 16–22 as GTFS transit rows come and
-  go (19 now, 20 at `depart_at` 10:30 — `metro+walk` rows are honestly
+- [ ] **Options count** — drifts 16–23 as GTFS transit rows come and
+  go (23 now — `metro+walk` rows are honestly
   absent outside transit service hours, not `degraded`). If
   `metro+walk`/`bus` rows are absent at T-45, the road-mode rows alone
   still carry the spread line.
-- [ ] **build_sha** — `/health` tonight stamps `6e82f290`, matching the
-  deployed image (the lag wart is resolved on this revision).
+- [ ] **build_sha** — `/health` tonight stamps `80a15258` — the
+  strip-bz deploy, matching the image (the lag wart is resolved on this
+  revision).
   `/admin/api/status` can't be probed without the token — check it at
   T-45; if they disagree on stage, say the ECR image tag or "the build
   from this afternoon", never the stamp.
 - [ ] **the self-grade card** — `/v2/skill` is live; on stage read the
-  live n + the honest-thin line (every horizon under 5 pairs says
-  `thin`). Tonight: 11 pairs / 1,331 cells, MAE 26.2, bias +25.8,
-  43.3% cell band-hit, 36.4% per-hour band-hit.
+  live n + the honest-thin line (any horizon under 5 pairs says
+  `thin`). Tonight: 21 pairs — h+1 now carries a real grade (MAE 16.3,
+  bias +15.8, 71.4% cell / 80.0% hour band-hit), h+2 too (29.9/+29.6,
+  13.9%/20.0%), h=0 and h≥3 still `thin`.
 - [ ] **the why line** — `curl $NLB/v2/why` once before doors; tonight
   it reads *"the air is barely moving — the day's pollution is sitting
-  over the city"* (stagnation: VC 84 m²/s vs ~3,000; fires refused —
-  SE wind 139°; trend `cannot_tell`). On `6e82f290` the line ends
+  over the city"* (stagnation: VC ~100 m²/s vs ~3,000; fires refused —
+  S wind 182°; trend `cannot_tell`). On `6e82f290`+ the line ends
   clean; if an older build shows a "— the build you see" tail, read
   the line without it.
-- [ ] **Stations/samples** — 24 WAQI instruments, ~71 model samples
-  today; both thin out after a cold task (~16 / ~41) and recover over
+- [ ] **Stations/samples** — 24 WAQI instruments, ~70 model samples
+  tonight; both thin out after a cold task (~16 / ~41) and recover over
   ~60 min. If you redeployed inside the window, say "recovering to".
 - [ ] Reach km figures (`distance_km`) drift hour to hour — if quoted,
-  stamp them: "a 25 µg walk budget reached ~92.5 km of street tonight"
-  (car@25 is cap-pinned — `edge_partial:true` at ~67,349 km: say "the
+  stamp them: "a 25 µg walk budget reached ~141 km of street tonight"
+  (car@25 is cap-pinned — `edge_partial:true` at ~75,822 km: say "the
   whole priced graph", not a number).
 
 ## iOS sim specifics (only if showing iOS on stage)
