@@ -90,6 +90,25 @@ def _aws_ready() -> tuple:
     return b3, "ok"
 
 
+def _atomic_write(path: str, data: bytes) -> None:
+    """Write `data` to `path` via a same-dir tmp + os.replace — readers
+    (airfield.load_snapshot, admin_agg._latest_json) never see a torn
+    file, so a crashed writer can't leave a partial snapshot that
+    decodes-as-garbage or forces serving an older field. The tmp file
+    is removed when the write itself fails."""
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def store_blob(s3_key: str, data: bytes, local_path: str,
                mirror_local: bool = False) -> tuple:
     """Write `data` to s3://{ALIVE_AIR_BUCKET}/{s3_key} when the bucket is
@@ -117,8 +136,7 @@ def store_blob(s3_key: str, data: bytes, local_path: str,
                     try:
                         os.makedirs(os.path.dirname(local_path),
                                     exist_ok=True)
-                        with open(local_path, "wb") as f:
-                            f.write(data)
+                        _atomic_write(local_path, data)
                     except OSError:
                         pass  # S3 copy landed; the mirror is best-effort
                 return f"s3://{bucket}/{s3_key}", "s3", None
@@ -129,8 +147,7 @@ def store_blob(s3_key: str, data: bytes, local_path: str,
     else:
         note = None
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    with open(local_path, "wb") as f:
-        f.write(data)
+    _atomic_write(local_path, data)
     return local_path, "local", note
 
 
@@ -184,8 +201,7 @@ def sync_rollup_outputs(data_root: str = None) -> dict:
                     if os.path.exists(lp) \
                             and os.path.getsize(lp) == len(body):
                         continue
-                    with open(lp, "wb") as f:
-                        f.write(body)
+                    _atomic_write(lp, body)
                     out["downloaded"].append(key)
         out["ok"] = True
         return out

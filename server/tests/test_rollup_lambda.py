@@ -181,6 +181,57 @@ def test_store_blob_mirror_local_on_s3(offline, tmp_path, monkeypatch):
     assert backend == "s3" and not target2.exists()
 
 
+# ------------------------------------------------------------ atomic writes
+
+def test_atomic_write_leaves_no_torn_file(tmp_path, monkeypatch):
+    """A crash mid-write must never leave a partial file at the served
+    path — readers (airfield.load_snapshot, admin_agg._latest_json)
+    would otherwise see a torn blob and skip to an older snapshot."""
+    dest = tmp_path / "snap.json.gz"
+    real_open = open
+
+    class _Torn:
+        def __init__(self, *a, **k):
+            self._f = real_open(*a, **k)
+
+        def write(self, data):
+            self._f.write(data[:3])          # lands a partial prefix
+            raise OSError("disk full mid-write")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            self._f.close()
+
+    monkeypatch.setattr("builtins.open", _Torn)
+    import pytest as _pt
+    with _pt.raises(OSError):
+        ingest_worker._atomic_write(str(dest), b"full-payload")
+    assert not dest.exists()                  # never a partial blob
+    assert not (tmp_path / "snap.json.gz.tmp").exists()  # tmp cleaned
+
+
+def test_atomic_write_replaces_atomically(tmp_path):
+    dest = tmp_path / "r.json"
+    dest.write_text("old")
+    ingest_worker._atomic_write(str(dest), b"new")
+    assert dest.read_bytes() == b"new"
+
+
+def test_store_blob_local_write_is_atomic(offline, tmp_path, monkeypatch):
+    """store_blob's local path goes through _atomic_write — same torn-
+    write guarantee the geo mirror already had via tmp+replace."""
+    calls = []
+    monkeypatch.setattr(ingest_worker, "_atomic_write",
+                        lambda p, d: (calls.append(p),
+                                      open(p, "wb").write(d)))
+    target = tmp_path / "f" / "x.json.gz"
+    uri, backend, _ = ingest_worker.store_blob("k", b"{}", str(target))
+    assert backend == "local" and calls == [str(target)]
+    assert target.read_bytes() == b"{}"
+
+
 # ------------------------------------------------------------ rollup_tick
 
 def test_rollup_tick_builds_missing_outputs(offline, monkeypatch):
