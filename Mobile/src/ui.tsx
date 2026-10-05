@@ -139,7 +139,7 @@ export function Sheet({
   const pan = useMemo(() => {
     if (!onClose) return null;
     return PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+      onMoveShouldSetPanResponder: (_e, g) => { jank("sheet.drag"); return g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx); },
       onPanResponderMove: (_e, g) => drag.setValue(Math.max(0, g.dy)),
       onPanResponderRelease: (_e, g) => {
         if (g.dy > 90 || g.vy > 0.6) {
