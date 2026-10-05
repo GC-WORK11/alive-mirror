@@ -73,10 +73,10 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       The flip REPLACES the task → re-warm after.
 - [ ] T-45: `curl $NLB/health` → `stale:false`, `engine:alive_core`,
       edges 1,070,459, `build_sha` = the build you rehearsed on
-      (**drifted again: task-def now `alive108:147`, image
-      `alive108-api:1e93b9f2` — but `/health` still stamps `c7df5db5`;
-      the BUILD_SHA env lag is a known wart — the ECR/task image tag is
-      the truth** — re-verify both on the morning).
+      (**drifted again: task-def now `alive108:153`, image
+      `alive108-api:c3d9c111` and `/health` matches — the BUILD_SHA env
+      lag wart is resolved on this revision; the image tag remains the
+      truth** — re-verify both on the morning).
 - [ ] T-45: `wind.known` can flip `false` for a refresh or two
       (upstream Open-Meteo reachability — transient, self-heals; if it's
       still false at T-30, re-probe once, don't panic).
@@ -91,12 +91,15 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       `alive108:NNN · FARGATE`. The video must show the console.
 - [ ] T-30: admin token check (go-nogo #8) — `/admin/api` 200 with
       Bearer; public `/admin` renders regardless.
-- [ ] T-30: warm the two new beats `warm_task.py` doesn't cover —
-      `curl "$NLB/v2/day?lat=28.6315&lon=77.2167"` (expect heavy/cleanest
+- [ ] T-30: `warm_task.py` now covers the dosimeter beats it used to
+      miss (`/v2/day`, `/v2/reach walk`, `/v2/outlook`, `/grid?h=12`,
+      `/community`) — still spot-check
+      `curl "$NLB/v2/day?lat=28.6315&lon=77.2167"` (heavy/cleanest
       windows + decisions[]) and
       `curl "$NLB/v2/reach?lat=28.6315&lon=77.2167&mode=walk&budget_ug=25"`
-      (expect settled edges + `took_ms` < 2000; a cold field returns the
-      honest `engine_unavailable` — warm_task first).
+      (settled edges + `took_ms` < 2000; a cold field returns the honest
+      `engine_unavailable` — warm_task first). Or run the whole sweep
+      read-only: `./scripts/smoke_live.sh`.
 - [ ] T-20: APK on the demo phone — **caveat:** the sideloaded build is
       `6ca0ef7`. It post-dates the crash fix but predates `2c4cab4` (23
       fabricated landmark geocodes purged — the purge touched the

@@ -14,7 +14,17 @@ resolved on this revision. New wart observed on that deploy: a fresh task
 serves a thin field (~41 model samples / 16 stations, recovering to 24 by
 ~60 min), `wind.known:false` ~45 min, and transit plan rows absent until
 the runtime GTFS download+parse lands (silent-empty → `degraded:["transit"]`
-→ bus-then-metro; never deploy inside the T-60 window).]*
+→ bus-then-metro; never deploy inside the T-60 window).
+~19:30 IST a further deploy moved `3657d289` (`:152`) → `c3d9c111`
+task-def `:153` — "bake GTFS
+into image + boot-warm before healthy" (`tools/bake_gtfs.py`): on that
+build metro+walk rows served ~4 min after task start, killing the transit
+cold-start wart. Verified on the fresh task: `/health` now carries a
+`transit` key (on_disk/compiled/real_feeds), field 24 stations + wind
+~4 min in. The wart is FIXED on builds ≥ c3d9c11 — it can still regress
+on older images. Also observed during the deploy window: a `/v2/strip`
+call on a route_id minted pre-swap 404s (route store is per-task,
+in-memory) — re-mint plan→strip pairs after any task replacement.]*
 Newer commits on `base/v2` ride
 the next image. Every
 number below was read off the running service — they drift with the
@@ -267,7 +277,9 @@ served number, never a canned animation.
 
 `python3 tools/warm_task.py` — walks /health, /aqi, /grid, then real
 NCR plan ODs until a row with `steps_source: "endpoints"` appears
-(priced engine serving), then /reports + /v2/city. Exit 0 = warm.
+(priced engine serving), then /reports + /v2/city + the dosimeter
+surfaces (/grid?h=12, /v2/day, /v2/reach walk, /v2/outlook, /community)
++ /tiles/health. Exit 0 = warm.
 Measured on a live task (2026-10-04): first plan 9.0 s while the
 engine repriced, engine rows ~7 s later; a fully cold task needs
 ~60–100 s to price (graph load ~36 s + first field fetch + raster
@@ -277,27 +289,48 @@ cold-call the first demo plan.
 ### FARGATE_SPOT → on-demand for demo morning (do NOT pre-run; owner executes)
 
 The service runs `capacityProviderStrategy: FARGATE_SPOT weight=1 base=1`
-(verified `describe-services` 2026-10-04 — ~$0 but Spot can reclaim any
-time, including mid-demo). To pin the task on on-demand Fargate for the
-day:
+(re-verified `describe-services` 2026-10-05 ~14:00 UTC — ~$0 but Spot can
+reclaim any time, including mid-demo). To pin the task on on-demand
+Fargate for the day — **T-60: run this verbatim**:
 
 ```bash
 export AWS_DEFAULT_REGION=ap-south-1
+
+# PRE-check (expect FARGATE_SPOT before the flip):
+aws ecs describe-services --cluster alive108 --services alive108 \
+  --query 'services[0].{cap:capacityProviderStrategy,running:runningCount,taskDef:taskDefinition}'
+
+# THE FLIP — replaces the task with an on-demand one, same image:
 aws ecs update-service --cluster alive108 --service alive108 \
   --capacity-provider-strategy "capacityProvider=FARGATE,weight=1,base=1" \
   --force-new-deployment
 aws ecs wait services-stable --cluster alive108 --services alive108
-python3 tools/warm_task.py   # re-heat the replacement task
+
+# POST-verify — BOTH of these must show FARGATE (not FARGATE_SPOT):
+#  a) service strategy:
+aws ecs describe-services --cluster alive108 --services alive108 \
+  --query 'services[0].{cap:capacityProviderStrategy,deploy:deployments[].rolloutState,running:runningCount}'
+#  b) the task itself — capacityProviderName on the new task ARN:
+aws ecs describe-tasks --cluster alive108 \
+  --tasks "$(aws ecs list-tasks --cluster alive108 --service-name alive108 \
+             --query 'taskArns[0]' --output text)" \
+  --query 'tasks[].{cap:capacityProviderName,last:lastStatus}'
+
+# THEN warm the replacement task (boots cold — ~2 min to priced engine):
+python3 tools/warm_task.py
 ```
 
 Verify: `describe-services` shows capacityProvider FARGATE and the
-`deployments[PRIMARY].rolloutState == COMPLETED`; `/health` build_sha
-unchanged (same image, new task). Note this REPLACEs the task — the
-new one boots cold, so warm it before judging.
+`deployments[PRIMARY].rolloutState == COMPLETED`; `describe-tasks` shows
+`capacityProviderName: "FARGATE"`; `/health` build_sha unchanged (same
+image, new task). Note this REPLACEs the task — the new one boots cold,
+so warm it before judging. In-memory route_ids do not survive the swap:
+any `/v2/plan → /v2/strip` pair must be re-minted on the new task
+(observed live: strip 404s on a pre-deploy route_id).
 
 ### Task-size bump for the demo window (optional, pairs with the above)
 
-The service runs 1 vCPU / 3 GB (task-def `:147`) — one uvicorn worker. A burst of
+The service runs 1 vCPU / 3 GB (task-def `:153`) — one uvicorn worker. A burst of
 concurrent heavy calls (plans + city + admin on several devices at
 once) queues: seen live 2026-10-04, CPU pinned ~100% for 30 min while
 an emulator sweep + probes ran together — /v2/reroute hit 24 s waiting
@@ -314,7 +347,11 @@ aws ecs describe-task-definition --task-definition alive108 \
 python3 - <<'PY'
 import json,subprocess
 td=json.load(open('/tmp/td.json'))
-c=td['cont'][0]; c['cpu']=2048; c['memory']=4096
+# NOTE: only task-level cpu/memory are bumped. Do NOT set container-level
+# memory to the task size — the osrm sidecar carries a hard memory:1024,
+# so cont[0].memory=4096 would make the container sum 5120 > task 4096
+# and register-task-definition rejects it. Leaving containers as-is gives
+# the API ~3 GB effective headroom inside a 4 GB task.
 reg=json.loads(subprocess.check_output([
  'aws','ecs','register-task-definition','--region','ap-south-1',
  '--family',td['family'],'--task-role-arn',td['role'],
@@ -423,6 +460,7 @@ commits the judges will actually read.
   there); on this sim, expect ~1 relaunch per long demo. Android —
   the release target — has never crashed in E2E
 - The sim app points at localhost:8000 — keep the local uvicorn up
-  (`PYTHONPATH=core/build AGG_TABLE="" .venv312/bin/uvicorn main:app
-  --host 127.0.0.1 --port 8000` from server/) or set
+  (`PYTHONPATH=core/build312 AGG_TABLE="" .venv312/bin/uvicorn main:app
+  --host 127.0.0.1 --port 8000` from server/ — the extension builds into
+  `core/build312`, not `core/build`) or set
   EXPO_PUBLIC_API_URL to the NLB

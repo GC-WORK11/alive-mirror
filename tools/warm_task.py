@@ -15,6 +15,9 @@ What it does, in order — every call is a real endpoint, no fake data:
                                carries steps_source "endpoints" (i.e.
                                the priced engine contributed alts)
   4. GET /reports, /v2/city -> admin/community surfaces
+  5. GET /grid?h=12, /v2/day, /v2/reach, /v2/outlook, /community
+                             -> the dosimeter surfaces + forecast scrub
+  6. GET /tiles/health      -> self-hosted Delhi basemap archive check
 
 Usage: python3 tools/warm_task.py [BASE_URL] [--timeout 300] [--ods 12]
 Exit 0 when the engine is serving rows; 1 on timeout.
@@ -141,7 +144,26 @@ def main():
     print(f"[{time.time()-t0:6.1f}s] /reports {'ok' if not e3 else e3} · "
           f"/v2/city {'ok' if not e4 else e4}")
 
-    # 5. vector-tiles lane — the geo mirror pulls delhi.pmtiles at boot,
+    # 5. dosimeter surfaces + forecast scrub — the T-30 checklist used to
+    # warm these by hand; a cold /v2/reach honestly answers
+    # engine_unavailable, so run these only after the plan arm is warm.
+    lat, lon = WARM_ODS[0][1]
+    for label, path in [
+            ("grid?h=12", "/grid?h=12"),
+            ("v2/day", f"/v2/day?lat={lat}&lon={lon}"),
+            ("v2/reach", f"/v2/reach?lat={lat}&lon={lon}"
+                         f"&mode=walk&budget_ug=25"),
+            ("v2/outlook", f"/v2/outlook?lat={lat}&lon={lon}"),
+            ("community", "/community")]:
+        ts = time.time()
+        body, e = _get(path, timeout=60)
+        note = e or ""
+        if not e and isinstance(body, dict):
+            note = body.get("error") or body.get("code") or "ok"
+        print(f"[{time.time()-t0:6.1f}s] /{label:<12} "
+              f"{note} ({time.time()-ts:.1f}s)")
+
+    # 6. vector-tiles lane — the geo mirror pulls delhi.pmtiles at boot,
     # so /tiles/health should already report the archive; a 503 here
     # means the S3 artifact is missing (basemap falls back to hosted
     # tiles — the map still renders, just not ours).
