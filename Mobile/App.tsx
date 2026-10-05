@@ -207,30 +207,26 @@ function AppInner() {
        a server-side refresh). */
     loadTrips().then(setTrips).catch(() => {});
     loadSettings().then(setSettings).catch(() => {});
-    (async () => {
-      const r = await Location.requestForegroundPermissionsAsync().catch(() => null);
-      setHasLoc(!!r?.granted);
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
-      if (pos) {
-        setUserPos({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
-        // wait for the initial style/tile load to settle before animating —
-        // flyTo during first-load is a render-thread spike on the iOS sim
-        setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: camDur(900) }), 600);
-      }
-    })();
+    /* the OS permission dialog no longer fires at boot — on a cold install
+       it landed on top of the first open before any value or context, and
+       it still waited behind consent. It lives in the introSeen-gated
+       effect below instead. */
     /* the /aqi poll does two jobs now: the freshness chip's field block,
        AND the dosimeter's foreground ambient sample — each read lands in
        daylog.json (on-device only; the dedupe keeps the file sparse). The
        read happens at the user's own position when the OS has one; the
        Delhi centroid is the fallback the chip has always used. */
-    const aqiPoll = () => {
+    const aqiPoll = (freshGps = true) => {
       void (async () => {
         /* position for the sample: last-known fix is free — only burn a
            real GPS request when there's no fix or it's >15 min old (the
-           dedupe windows are ~450 m / 8 min, so a cached fix loses nothing) */
+           dedupe windows are ~450 m / 8 min, so a cached fix loses nothing).
+           The boot call passes freshGps=false: on a cold install there is
+           no last-known fix and no permission yet, so a GPS request would
+           only stall the first real number — read the Delhi centroid
+           (the field is city-wide anyway) and upgrade once positioned. */
         let pos = await Location.getLastKnownPositionAsync().catch(() => null);
-        if (!pos || Date.now() - pos.timestamp > 15 * 60 * 1000) {
+        if (freshGps && (!pos || Date.now() - pos.timestamp > 15 * 60 * 1000)) {
           pos = await Location.getCurrentPositionAsync(
             { accuracy: Location.Accuracy.Balanced }).catch(() => null);
         }
@@ -260,12 +256,58 @@ function AppInner() {
         } catch {}
       })();
     };
-    aqiPoll();
-    const aqiIv = setInterval(aqiPoll, 60000);
+    aqiPoll(false);
+    const aqiIv = setInterval(() => aqiPoll(), 60000);
+    aqiPollRef.current = () => aqiPoll(true);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); };
   }, [setFrom, setTrips, settings.lang]);
+
+  /* first-open ordering: the consent sheet is required on every cold
+     install, but it doesn't get to stand in front of the first real
+     number — the ambient read gets a beat of visibility first, then the
+     sheet slides in and stays required. The 9 s fallback keeps the gate
+     honest when the field can't answer (offline cold open): value-first
+     is a preference, consent is a requirement, and nothing consent-free
+     may gate the value moment either way. Donation can't fire in the
+     gap — POST /v2/trip only runs on trip arrival, gated by
+     settings.share, which this sheet itself writes. */
+  const [gateReady, setGateReady] = useState(false);
+  useEffect(() => {
+    if (gateReady || introSeen !== false) return;
+    const t = setTimeout(() => setGateReady(true), ambientUg != null ? 4000 : 9000);
+    return () => clearTimeout(t);
+  }, [gateReady, introSeen, ambientUg]);
+
+  /* the OS location ask follows the consent answer — before it, the dialog
+     is a wall over the first value and reads as a data-grab with no
+     context. Returning users already have consent on disk, so this fires
+     at boot exactly like the old code path. After a real fix lands, take
+     the positioned /aqi read immediately instead of waiting out the 60 s
+     interval (the boot read used the centroid). */
+  const aqiPollRef = useRef<(() => void) | null>(null);
+  const didAskLoc = useRef(false);
+  useEffect(() => {
+    if (introSeen !== true || didAskLoc.current) return;
+    didAskLoc.current = true;
+    let cancelled = false;
+    void (async () => {
+      const r = await Location.requestForegroundPermissionsAsync().catch(() => null);
+      if (cancelled) return;
+      setHasLoc(!!r?.granted);
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+      if (pos && !cancelled) {
+        setUserPos({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
+        // wait for the initial style/tile load to settle before animating —
+        // flyTo during first-load is a render-thread spike on the iOS sim
+        setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: camDur(900) }), 600);
+        aqiPollRef.current?.();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [introSeen, setFrom, settings.lang]);
 
   /* the layers sheet is idle-phase chrome — leaving idle (search, compare,
      nav) must close it or it bleeds through stacked behind the next surface
@@ -682,7 +724,7 @@ function AppInner() {
         }}
         onClose={() => setVehicleOpen(false)} />
 
-      <OnboardingScreen visible={introSeen === false} lang={lang}
+      <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
         onDone={({ sharing }) => {
           patchSettings({ share: sharing === "on" });
           setIntroSeen(true);
