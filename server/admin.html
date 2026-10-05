@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALive-108 · ops</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%23f4f1ea%27/%3E%3Crect x=%273%27 y=%273%27 width=%2710%27 height=%2710%27 fill=%27%234a7a5e%27/%3E%3C/svg%3E">
 <style>
   /* r5 light ops surface — paper/ink, one accent, muted bronze→brick→wine
      severity ramp (Mobile/src/theme.ts tokens). No emoji, no traffic-light
@@ -1188,9 +1189,11 @@ async function paintFieldMap(param){
     }
     const span=Math.max(1e-6,(vmax||0)-(vmin||0));
     for(const [ring,v,conf] of vals){
-      /* pm2.5 → absolute 0–300 scale (the app's own ramp); other species
-         ramp across this layer's real observed range */
-      const t=param==='pm2_5'?Math.min(1,v/300):(v-(vmin||0))/span;
+      /* pm2.5 + us_aqi → absolute 0–300 scale (the app's own ramp —
+         an index read must color by its own band anchors, not by
+         today's observed span); other species ramp across this layer's
+         real observed range */
+      const t=(param==='pm2_5'||param==='us_aqi')?Math.min(1,v/300):(v-(vmin||0))/span;
       ctx.fillStyle=ramp(t,alpha[conf]??.3);
       ctx.beginPath();
       ring.forEach(([lo,la],i)=>{const x=(lo-X0)/(X1-X0)*W,y=(1-(la-Y0)/(Y1-Y0))*H;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
@@ -1254,7 +1257,7 @@ async function paintFieldMap(param){
     const hNote=FM_H?'cams horizon anchored to the live field':'cell alpha = distance to nearest sample';
     $('fieldmap-sub').innerHTML=vals.length
       ?`${hTag}${fmt(vals.length)} cells · ${FM_CELLS}×${FM_CELLS} grid · sectors a01–an40 · ~2.1×2.7 km each · hover reads a cell · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
-       `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · ${hNote}`+
+       `${param==='pm2_5'||param==='us_aqi'?'':' · ramp spans this layer\'s own range'} · ${hNote}`+
        (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fire detections plotted${FM_FIRES.length>plotted?` (${fmt(FM_FIRES.length-plotted)} more outside this view)`:''}`:'')+windTxt
       :`${label} — the field serves no ${label} cells right now`;
   }catch(e){

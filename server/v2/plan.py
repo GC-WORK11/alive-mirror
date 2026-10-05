@@ -1497,30 +1497,48 @@ def _engine_field_view(F):
                      "(budget %.0fs)", per_read * 1000.0, cells,
                      ENGINE_RASTER_BUDGET_S)
     dx, dy = (x1 - x0) / cells, (y1 - y0) / cells
-    # one lattice pass reading value AND krige-sigma per cell center —
-    # the row's sigma slot gets the real band and the returned sigma_fn
-    # gives exposure.dose a dict-lookup band instead of a per-segment
-    # krige solve (which alone burned ~10s on a 65km OD).
-    rows = []
+    # one lattice pass reading value per cell center — the row's sigma
+    # slot gets the real band and the returned sigma_fn gives
+    # exposure.dose a dict-lookup band instead of a per-segment krige
+    # solve (which alone burned ~10s on a 65km OD). Krige sigma varies
+    # smoothly (it tracks sample distance, not the observed values), so
+    # sigma rides a coarser block lattice: one real sigma read per
+    # s_step-block stamped onto all its cells. Sweep ordering is
+    # center-out — if the budget stops mid-pass the partial raster still
+    # covers the Delhi core, where priced edges actually live.
+    s_step = max(1, cells // 16)
+    order = sorted(
+        ((ix, iy) for ix in range(cells) for iy in range(cells)),
+        key=lambda p: (p[0] - (cells - 1) / 2.0) ** 2
+                      + (p[1] - (cells - 1) / 2.0) ** 2)
     sig = {}
+    seen = []
     t_sweep = time.time()
-    for ix in range(cells):
-        for iy in range(cells):
-            cx = x0 + (ix + 0.5) * dx   # lon
-            cy = y0 + (iy + 0.5) * dy   # lat
+    stopped = False
+    for ix, iy in order:
+        cx = x0 + (ix + 0.5) * dx   # lon
+        cy = y0 + (iy + 0.5) * dy   # lat
+        blk = (ix // s_step, iy // s_step)
+        if blk not in sig and (ix % s_step == 0) and (iy % s_step == 0):
             v, sd = _read(cx, cy)
-            if v is None:
-                continue
             if sd is not None:
-                sig[(ix, iy)] = float(sd)
-            rows.append((cy, cx, float(v), float(v), float(v),
-                         float(sd) if sd is not None else float("nan")))
-            if time.time() - t_sweep > ENGINE_RASTER_BUDGET_S:
-                break   # hard cap: partial lattice still prices edges
+                sig[blk] = float(sd)
+        else:
+            v = F.value(cy, cx)
+        if v is None:
+            continue
+        seen.append((cy, cx, float(v), blk))
         if time.time() - t_sweep > ENGINE_RASTER_BUDGET_S:
-            _log.warning("engine raster: budget stop at %d/%d cells",
-                         len(rows), cells * cells)
-            break
+            stopped = True
+            break   # hard cap: partial lattice still prices edges
+    if stopped:
+        _log.warning("engine raster: budget stop at %d/%d cells",
+                     len(seen), cells * cells)
+    # stamp each block's final sigma onto all its cells — ordering means
+    # a block's anchor may be read after some of its other cells.
+    rows = [(cy, cx, v, v, v,
+             (sig[blk] if blk in sig else float("nan")))
+            for cy, cx, v, blk in seen]
     if not rows:
         _log.warning("engine raster: field served no cells")
         return None
@@ -1530,7 +1548,7 @@ def _engine_field_view(F):
             return None          # past the lattice: honest 'no band'
         ix = min(cells - 1, max(0, int((lon - x0) / dx)))
         iy = min(cells - 1, max(0, int((lat - y0) / dy)))
-        return sig.get((ix, iy))
+        return sig.get((ix // s_step, iy // s_step))
 
     try:
         import core_engine

@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0B0D10",
+        "backgroundColor": "#FAFAF7",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -34,13 +34,21 @@
     "plugins": [
       "@maplibre/maplibre-react-native",
       "expo-font",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FAFAF7"
+        }
+      ],
       [
         "expo-notifications",
         {
           "enableBackgroundRemoteNotifications": false,
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#4C8DFF"
+          "color": "#4D7C0F"
         }
       ],
       [
