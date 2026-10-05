@@ -539,7 +539,10 @@ $('psel').addEventListener('click',e=>{
   const b=e.target.closest('button[data-p]');if(!b||b.dataset.p===PARAM)return;
   PARAM=b.dataset.p;renderPills();
   INS=null;$('fpop').hidden=true;
-  if(ROUTE)drawScene();else paint();
+  /* a drawn route stays valid geographically, but the surface + dose basis
+     are pm2.5-specific — repaint fresh rather than recolor stale cells */
+  PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';
+  paint();
 });
 $('msel').addEventListener('click',e=>{
   const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===MODE)return;
