@@ -78,3 +78,19 @@ def test_landing_script_wellformed():
     assert js.count("{") == js.count("}"), "unbalanced braces in landing JS"
     assert "setInterval" in js, "refresh loop missing"
     assert "fetch(" in js, "live fetch missing"
+
+
+def test_community_serves_page_to_browsers():
+    """/community content-negotiates: browser Accept → the v5 page,
+    API clients → the totals JSON the app consumes."""
+    html = client.get("/community", headers={"accept": "text/html"})
+    assert html.status_code == 200
+    assert "text/html" in html.headers.get("content-type", "")
+    for marker in ("/community", "lgrid", "corridors", "k≥3", "top_corridors"):
+        assert marker in html.text, f"community page lost marker {marker!r}"
+    for bad in FORBIDDEN:
+        assert bad not in html.text
+    js = client.get("/community")
+    assert js.status_code == 200
+    assert "application/json" in js.headers.get("content-type", "")
+    assert "contributors" in js.json()

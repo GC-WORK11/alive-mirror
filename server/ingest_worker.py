@@ -194,6 +194,69 @@ def sync_rollup_outputs(data_root: str = None) -> dict:
         return out
 
 
+# ------------------------------------------------------------- geo mirror
+
+# Geo build artifacts the CodeBuild tiles lane publishes to the air bucket
+# (scripts/geo/buildspec-tiles.yml) — too big for git or the image, so S3
+# is the shelf and this pull is how the API task ever sees them.
+_GEO_KEYS = ("geo/delhi.pmtiles",)
+
+
+def _geo_dest(name: str) -> str:
+    """Local path a geo artifact mirrors to. delhi.pmtiles lands wherever
+    tiles.py serves it from (ALIVE_PMTILES or the repo data/geo default);
+    anything else lands beside it."""
+    try:
+        import tiles as _tiles
+        base = _tiles._path()
+    except Exception:  # noqa: BLE001
+        base = os.path.join(os.path.dirname(_HERE), "data", "geo",
+                            "delhi.pmtiles")
+    return base if name == "delhi.pmtiles" else os.path.join(
+        os.path.dirname(base), name)
+
+
+def sync_geo_artifacts() -> dict:
+    """Pull s3://{ALIVE_AIR_BUCKET}/geo/* (Delhi vector tiles) onto local
+    disk. Downloads to <name>.tmp then os.replace — a served path only
+    ever holds a whole archive, and tiles.py re-opens on mtime/size
+    change, so a rebuilt artifact hot-swaps without a redeploy.
+
+    No AWS / no bucket / artifact not yet published -> reported skipped,
+    never raised; /tiles keeps its honest 503 while the file is absent."""
+    out = {"ok": False, "downloaded": [], "skipped": None}
+    bucket = os.environ.get("ALIVE_AIR_BUCKET")
+    if not bucket:
+        out["skipped"] = "no ALIVE_AIR_BUCKET"
+        return out
+    b3, why = _aws_ready()
+    if b3 is None:
+        out["skipped"] = why
+        return out
+    try:
+        s3 = b3.client("s3")
+        for key in _GEO_KEYS:
+            name = key.rsplit("/", 1)[-1]
+            lp = _geo_dest(name)
+            try:
+                head = s3.head_object(Bucket=bucket, Key=key)
+            except Exception:  # noqa: BLE001
+                continue  # not published yet — nothing to pull
+            if os.path.exists(lp) \
+                    and os.path.getsize(lp) == head["ContentLength"]:
+                continue
+            os.makedirs(os.path.dirname(lp), exist_ok=True)
+            tmp = lp + ".tmp"
+            s3.download_file(bucket, key, tmp)
+            os.replace(tmp, lp)
+            out["downloaded"].append(key)
+        out["ok"] = True
+        return out
+    except Exception as e:  # noqa: BLE001
+        out["skipped"] = f"{type(e).__name__}: {e}"
+        return out
+
+
 def _emit_metrics(field: dict) -> dict:
     """CloudWatch for the doc-05 dashboard: stations used, field age
     (oldest input age), mean kriging sigma. Only when AWS is usable —

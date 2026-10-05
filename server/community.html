@@ -1,0 +1,266 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ALIVE·108 — donated commutes, aggregates only</title>
+<meta name="description" content="Phones that opted in donate a trip's exposure profile — never a person. k≥3 means nothing under three distinct devices is ever published.">
+<meta name="theme-color" content="#fafaf7">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%234d7c0f'/%3E%3C/svg%3E">
+<style>
+:root{
+  --paper:#fafaf7; --ink:#16181d; --ink2:#4a4e57; --ink3:#8a8d94;
+  --line:#e4e1d8; --line2:#d8d5c9;
+  --sage:#4d7c0f;
+  --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
+         "Segoe UI",Inter,system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:#eceadf}
+a{color:inherit}
+a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.col{max-width:960px;margin:0 auto;padding:0 32px}
+
+@keyframes rise{from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}}
+.rise{opacity:0;animation:rise .55s cubic-bezier(.16,.6,.24,1) forwards;
+  animation-delay:var(--d,0ms)}
+@media(prefers-reduced-motion:reduce){.rise{animation:none;opacity:1}}
+
+.top{border-bottom:1px solid var(--line)}
+.top-in{max-width:960px;margin:0 auto;padding:20px 32px;
+  display:flex;align-items:baseline;justify-content:space-between;gap:24px}
+.wm{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
+  font-weight:600;text-decoration:none}
+.wm i{font-style:normal;color:var(--sage)}
+.top nav{display:flex;gap:26px}
+.top nav a{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink2);text-decoration:none}
+.top nav a:hover{color:var(--ink);text-decoration:underline;
+  text-underline-offset:4px;text-decoration-thickness:1px}
+@media(max-width:640px){.top nav{display:none}}
+
+.hero{padding:96px 0 64px}
+.eyebrow{display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--ink3)}
+.eyebrow .sq{width:5px;height:5px;background:var(--sage);flex:none}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(40px,6.8vw,72px);
+  line-height:1.04;letter-spacing:-.028em;margin-top:28px;max-width:16ch}
+h1 em{font-style:italic;color:var(--ink2)}
+.sub{margin-top:30px;max-width:560px;font-size:16px;line-height:1.72;
+  color:var(--ink2)}
+.sub b{color:var(--ink);font-weight:500}
+.links{margin-top:38px;display:flex;gap:36px;flex-wrap:wrap}
+.tlink{font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;
+  border-bottom:1px solid var(--ink);padding-bottom:3px}
+.tlink:hover{border-bottom-color:transparent}
+.tlink.dim{color:var(--ink2);border-bottom-color:var(--line2);font-weight:400}
+.tlink.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.statusline{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  color:var(--ink3);text-transform:uppercase;display:flex;gap:8px 26px;
+  flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.statusline b{color:var(--ink);font-weight:600;text-transform:none}
+.statusline .ok{color:var(--sage)}
+
+/* the ledger — hairline rows, not cards */
+.ledger{border-top:1px solid var(--line);padding:60px 0 20px}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:40px;gap:16px}
+.sec-head h2{font-family:var(--serif);font-weight:400;font-size:29px;
+  letter-spacing:-.01em}
+.sec-head .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink3);white-space:nowrap}
+@media(max-width:560px){.sec-head .lbl{display:none}}
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 56px}
+@media(max-width:560px){.lgrid{grid-template-columns:1fr}}
+.lrow{display:flex;align-items:baseline;justify-content:space-between;gap:18px;
+  padding:20px 0;border-top:1px solid var(--line)}
+.lrow .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink3);line-height:1.7;max-width:24ch}
+.lrow .v{font-family:var(--serif);font-size:34px;font-weight:400;
+  letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.lrow .v small{font-family:var(--mono);font-size:10px;color:var(--ink3);
+  letter-spacing:.08em}
+.lrow .v.na{font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  color:var(--ink3);text-transform:uppercase}
+
+/* corridors — the same ledger rhythm as a table */
+.corridors{padding:64px 0 20px}
+table{width:100%;border-collapse:collapse}
+th{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink3);font-weight:400;
+  text-align:left;padding:0 12px 12px}
+th.num,td.num{text-align:right}
+td{padding:14px 12px;border-top:1px solid var(--line);font-size:13.5px;
+  color:var(--ink2);vertical-align:baseline}
+td.rank{font-family:var(--mono);font-size:10px;color:var(--ink3);width:30px}
+td.cell{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+td.num{color:var(--ink);font-variant-numeric:tabular-nums}
+td .empty{color:var(--ink3);font-size:13px}
+td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+  color:var(--ink3);text-transform:uppercase}
+.scrollx{overflow-x:auto}
+
+/* reports — terse mono lines */
+.reports{padding:64px 0 90px}
+.rline{display:flex;gap:16px;align-items:baseline;padding:13px 0;
+  border-top:1px solid var(--line);font-size:13px;color:var(--ink2)}
+.rline:last-child{border-bottom:1px solid var(--line)}
+.rline .rk{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink3);flex:none;width:110px}
+.rline .rn{font-family:var(--mono);font-size:10px;color:var(--ink3);
+  margin-left:auto;white-space:nowrap}
+.rline .empty{color:var(--ink3)}
+
+.foot{border-top:1px solid var(--line)}
+.foot-in{max-width:960px;margin:0 auto;padding:24px 32px 42px;
+  display:flex;justify-content:space-between;gap:12px 28px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  color:var(--ink3);text-transform:uppercase}
+.foot a{color:var(--ink2);text-decoration:none}
+.foot a:hover{color:var(--ink);text-decoration:underline;
+  text-underline-offset:4px}
+</style>
+</head><body>
+
+<header class="top"><div class="top-in">
+  <a class="wm" href="/">ALIVE<i>·</i>108</a>
+  <nav>
+    <a href="/city">the city</a>
+    <a href="/admin">admin</a>
+  </nav>
+</div></header>
+
+<section class="hero"><div class="col">
+  <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — donated commutes</div>
+  <h1 class="rise" style="--d:70ms">Commutes fill the gaps <em>between stations.</em></h1>
+  <p class="sub rise" style="--d:140ms">Phones that opted in donate a
+  trip's exposure profile — never a person. The <b>k≥3 rule</b> means
+  nothing under three distinct devices is ever published; a corridor
+  cell is the smallest unit this page can show.</p>
+  <div class="links rise" style="--d:210ms">
+    <a class="tlink" href="/city">The live field →</a>
+    <a class="tlink dim" href="/admin">Admin →</a>
+  </div>
+  <div class="statusline rise" id="status" style="--d:280ms">reading the ledger…</div>
+</div></section>
+
+<section class="ledger"><div class="col">
+  <div class="sec-head">
+    <h2>The ledger.</h2>
+    <span class="lbl" id="age">—</span>
+  </div>
+  <div class="lgrid" id="lgrid">
+    <div class="lrow"><span class="k">contributors</span><span class="v na">connecting…</span></div>
+  </div>
+</div></section>
+
+<section class="corridors"><div class="col">
+  <div class="sec-head">
+    <h2>Where the field is dense.</h2>
+    <span class="lbl">k≥3 devices · est. from donated trips</span>
+  </div>
+  <div class="scrollx"><table id="corridors"></table></div>
+</div></section>
+
+<section class="reports"><div class="col">
+  <div class="sec-head">
+    <h2>Live reports.</h2>
+    <span class="lbl">rider-pinned · expire fast</span>
+  </div>
+  <div id="reports"><div class="rline"><span class="rk">reports</span>
+    <span class="empty">connecting…</span></div></div>
+</div></section>
+
+<footer class="foot"><div class="foot-in">
+  <span>alive·108 — delhi ncr</span>
+  <span id="buildTag">—</span>
+  <span>aggregates only · k≥3 · no profiles</span>
+</div></footer>
+
+<script>
+const $=id=>document.getElementById(id);
+/* no-store: this document's own URL is /community — without it the fetch
+   can be served the cached HTML page instead of the JSON totals */
+const api=async p=>{const r=await fetch(p,{cache:'no-store'});if(!r.ok)throw 0;return r.json()};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const IN=n=>n==null?'—':Math.round(+n).toLocaleString('en-IN');
+const F1=n=>n==null?'—':(+n).toFixed(1);
+
+/* one ledger row per honest number — an absent feed renders '—'
+   with its label, never an invented figure */
+const lrow=(k,v,unit,na)=>`<div class="lrow"><span class="k">${k}</span>
+  <span class="v${na?' na':''}">${na?'—':v}${unit&&!na?` <small>${unit}</small>`:''}</span></div>`;
+
+async function load(){
+  let c=null,rp=null,h=null;
+  try{c=await api('/community')}catch(e){}
+  try{rp=await api('/reports')}catch(e){}
+  try{h=await api('/health')}catch(e){}
+  if(!c&&!h){$('status').innerHTML='<span>community feed resting — retrying</span>';
+    $('lgrid').innerHTML=lrow('ledger','', '', true);return}
+
+  /* ---- statusline ---- */
+  if(c){
+    const last=c.latest_obs_age_min;
+    $('status').innerHTML=
+      `<span><b>${IN(c.contributors)}</b> contributors</span>`+
+      `<span><b>${IN(c.obs_24h)}</b> commutes in 24h</span>`+
+      `<span><b>${F1(c.km_24h)}</b> km donated today</span>`+
+      `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 avoided, all-time</span>`+
+      (last!=null?`<span>last commute <b>${Math.round(last)}m</b> ago</span>`:'');
+  }else{
+    $('status').innerHTML='<span>ledger resting — field still live</span>';
+  }
+  if(h&&h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
+  $('age').textContent=c?`latest donation ${c.latest_obs_age_min!=null?Math.round(c.latest_obs_age_min)+'m ago':'—'}`:'—';
+
+  /* ---- ledger rows ---- */
+  const modes=c&&c.modes_24h?Object.entries(c.modes_24h).sort((a,b)=>b[1]-a[1])
+    .map(([m,n])=>`${esc(m)} ×${n}`).join(' · '):'';
+  $('lgrid').innerHTML=
+    lrow('contributors · all-time',IN(c&&c.contributors),'',!c)+
+    lrow('commutes donated · all-time',IN(c&&c.obs_total),'',!c)+
+    lrow('commutes · last 24h',IN(c&&c.obs_24h),'',!c)+
+    lrow('km travelled · 24h',F1(c&&c.km_24h),'km',!c)+
+    lrow('inhaled across donated trips · 24h',F1(c&&c.dose_ug_24h),'µg',!c)+
+    lrow('dose avoided vs worst option · 24h',IN(c&&c.avoided_ug_24h),'µg',!c)+
+    lrow('dose avoided · all-time',IN(c&&c.avoided_ug_all),'µg',!c)+
+    lrow('live reports pinned',IN(c&&c.active_reports),'',!c)+
+    (modes?lrow('modes · 24h',modes,'',false):lrow('modes · 24h','','',true));
+
+  /* ---- corridors ---- */
+  const rows=(c&&c.top_corridors||[]).map((r,i)=>
+    `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>
+     <td class="cell">${(+r.lat).toFixed(3)}°N · ${(+r.lon).toFixed(3)}°E</td>
+     <td class="num">${IN(r.samples)}</td>
+     <td class="num">${IN(r.devices)}</td>
+     <td class="num">${r.avg_dose_ug!=null?F1(r.avg_dose_ug)+' µg':'—'}</td>
+     <td class="mode">${esc(r.top_mode||'—')}</td>
+     <td class="num">${r.co2_g_per_100m!=null?F1(r.co2_g_per_100m)+' g':'—'}</td>
+    </tr>`).join('');
+  $('corridors').innerHTML=
+    '<tr><th></th><th>corridor cell</th><th class="num">traversals</th>'+
+    '<th class="num">devices</th><th class="num">avg inhaled</th>'+
+    '<th>top mode</th><th class="num">co₂/100m</th></tr>'+
+    (rows||'<tr><td colspan="7"><span class="empty">no corridor has 3 distinct devices yet — the board fills as delhi moves</span></td></tr>');
+
+  /* ---- reports ---- */
+  const feats=(rp&&rp.features)||[];
+  $('reports').innerHTML=feats.length?feats.slice(0,8).map(f=>{
+    const p=f.properties||{};
+    return `<div class="rline"><span class="rk">${esc(p.kind||p.type||'report')}</span>
+      <span>${esc(p.note||p.label||'rider report')}</span>
+      <span class="rn">${p.age_min!=null?Math.round(p.age_min)+'m ago':(p.n!=null?p.n+' pins':'')}</span></div>`;
+  }).join(''):'<div class="rline"><span class="rk">reports</span>'+
+    '<span class="empty">nothing pinned right now — reports expire after their window</span></div>';
+}
+load();setInterval(load,60000);
+</script>
+</body></html>

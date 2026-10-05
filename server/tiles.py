@@ -217,7 +217,10 @@ def _archive() -> Optional[_PMTiles]:
     with _cache_lock:
         if (_cache is None or _cache.path != p
                 or _cache.mtime != st.st_mtime or _cache.size != st.st_size):
-            _cache = _PMTiles(p)
+            try:
+                _cache = _PMTiles(p)
+            except Exception:
+                return None  # unreadable/partial archive -> honest 503
         return _cache
 
 
