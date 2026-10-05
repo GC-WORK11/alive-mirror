@@ -47,6 +47,9 @@ server/data/field/snapshots/
 *.log
 server/data/community.json
 
+# hourly field archive — written by the running server, never source
+server/data/archive/
+
 # GTFS transit feed cache (downloaded on demand, refreshed weekly)
 server/data/gtfs/
 

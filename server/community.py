@@ -32,6 +32,7 @@ import json
 import math
 import os
 import re
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -74,6 +75,13 @@ _reviews: list[dict] = []
 _REVIEW_CAP = 400
 _NOTE_CAP = 240
 _loaded = False
+# Hydration is not atomic: _hydrate() replaces cell dicts wholesale, so
+# a donation folded mid-warm would be silently overwritten (the DDB
+# layer would keep it; the community projection would lose it forever).
+# Boot warms _load() in a thread while requests are already served —
+# the lock makes every later caller wait for the hydrate to finish
+# rather than observe or fold into a half-hydrated store.
+_load_lock = threading.Lock()
 
 # k-anonymity contract shared with v2/store.py TripAggregates: a cell is
 # publishable only with >=3 distinct (hashed) devices and a traversal
@@ -347,24 +355,28 @@ def _load() -> None:
     global _loaded
     if _loaded:
         return
-    _loaded = True
-    s3 = _s3()
-    if s3:
-        try:
-            body = s3.get_object(Bucket=_BUCKET, Key=_S3_KEY)["Body"].read()
-            if _apply(json.loads(body)):
-                _save()             # rewrite as aggregates immediately
-            _prune_reports()
+    with _load_lock:
+        if _loaded:
             return
-        except Exception:
-            pass
-    if _FILE.exists():
-        try:
-            if _apply(json.loads(_FILE.read_text())):
-                _save()
-        except Exception:
-            pass
-    _prune_reports()
+        s3 = _s3()
+        if s3:
+            try:
+                body = s3.get_object(Bucket=_BUCKET, Key=_S3_KEY)["Body"].read()
+                if _apply(json.loads(body)):
+                    _save()         # rewrite as aggregates immediately
+                _prune_reports()
+                _loaded = True
+                return
+            except Exception:
+                pass
+        if _FILE.exists():
+            try:
+                if _apply(json.loads(_FILE.read_text())):
+                    _save()
+            except Exception:
+                pass
+        _prune_reports()
+        _loaded = True
 
 
 def _save() -> None:

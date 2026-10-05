@@ -52,6 +52,14 @@ DISTRICTS = {
     # min lat >28.95) — that is the honest ceiling, documented here.
     1942937: ("Rohtak", "Haryana"),
     1942991: ("Rewari", "Haryana"),
+    # Noida city boundary (rel 18814682) is a hole in OSM's Gautam
+    # Buddha Nagar district polygon — the district relation genuinely
+    # excludes it, so trips inside Noida resolved to no area. Baked
+    # last so it is checked first among districts; the finer name is
+    # the better answer wherever rings overlap (GBN/Faridabad edge
+    # strips). Delhi osm_admin_5 sub-areas are checked before all
+    # districts regardless, so no subdistrict resolution changes.
+    18814682: ("Noida", "Uttar Pradesh"),
 }
 
 PARTIAL_COVERAGE = {1942937, 1942991}
