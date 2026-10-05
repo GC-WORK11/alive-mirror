@@ -709,3 +709,11 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **apk-v3**: `alive108-b4a96d2.apk` built (137MB, live ELB baked); emulator drive mid-run on child `609ee73d`.
 - Deploying `268ed54` now.
 - Board: me + strip-bz `fc3b1e30` + apk-v3 `46407448`+child.
+
+### cont.42 — strip-bz live + merged; lanes refilled (Oct 6 ~05:35 UTC)
+
+- **strip-bz `80a1525` → main `6698fd6` → live `80a15258`** — verified: `/v2/plan` echoes `smoke_modifier:1.09`; walk/car = **33.2× identical** (uniform modifier commutes through the dose sum and cancels in the ratio — lane's proof holds in prod); absolute doses +~7% (car 10.1→10.8, walk 335→358) as expected on a non-uniform field. stays/plan/strip now share the breathing-zone basis. Stays no longer over-count during burns vs trips.
+- **why-trend live-verified**: `n_snapshots:15` spanning 2.3h (was 0 forever) — S3 read works in prod. history stays honestly suppressed until span ≥3h — and never dies on deploys again.
+- **apk-drive-v3 verdict: SHIP** — b4a96d2.apk all-green table (D1 fixed at HEAD w/ real input, consent-OFF tcpdump clean 268 reqs, hi no-tofu, ~3.6s cold-open on software-raster emulator ≈ ~3s honest claim on real GPU). One product flag → nav-start-pick lane.
+- Terminated strip-bz + mobile-web + apk-v3+child (all settled, holding slots).
+- Board: me + numbers-refresh `612940ae` + app-stress `d36d68cd` + nav-start-pick `9f50446e`.
