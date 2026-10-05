@@ -194,16 +194,26 @@
          display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
   a{color:var(--accent-ink);text-decoration:none}
 
-  /* ncr district tiles — a uniform grid that scales past ~20 rows: the
-     official cpcb band colour becomes a spine + the aqi tag, text stays
-     the board's own ink. honest-empty tile when a district has no read */
+  /* ncr district tiles — a uniform grid over ~28 rows; each tile draws
+     its own stepped pixel frame (clipped corners, 2px ink border, zero
+     radius) and carries its cpcb band colour only in the aqi chip.
+     click pins a mini card — same language as the cell inspector */
   .dist{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));
         gap:10px}
-  .dtile{position:relative;background:var(--surface2);border:1px solid var(--line);
-         border-radius:12px;padding:10px 12px 9px 15px;overflow:hidden}
-  .dtile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
-                 background:var(--dc,var(--hair))}
-  .dtile.na{background:transparent;border-style:dashed;border-color:var(--hair)}
+  .distwrap{position:relative}
+  .dtile{position:relative;background:var(--surface);border:2px solid var(--ink);
+         padding:10px 12px 10px;cursor:pointer;
+         clip-path:polygon(0 6px,3px 6px,3px 3px,6px 3px,6px 0,
+           calc(100% - 6px) 0,calc(100% - 6px) 3px,calc(100% - 3px) 3px,
+           calc(100% - 3px) 6px,100% 6px,100% calc(100% - 6px),
+           calc(100% - 3px) calc(100% - 6px),calc(100% - 3px) calc(100% - 3px),
+           calc(100% - 6px) calc(100% - 3px),calc(100% - 6px) 100%,
+           6px 100%,6px calc(100% - 3px),3px calc(100% - 3px),
+           3px calc(100% - 6px),0 calc(100% - 6px))}
+  .dtile:hover{background:var(--surface2)}
+  .dtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .dtile.na{background:transparent;border-color:var(--ink4);
+            border-style:dashed}
   .dt-name{font-size:11.5px;font-weight:600;color:var(--ink);
            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dt-state{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
@@ -214,7 +224,8 @@
   .dt-pm i{font-style:normal;font-family:var(--sans);font-size:9px;
            color:var(--ink3)}
   .dt-aqi{margin-left:auto;font-family:var(--mono);font-size:9.5px;
-          letter-spacing:.04em;white-space:nowrap}
+          letter-spacing:.04em;white-space:nowrap;padding:2px 6px;
+          background:var(--dc,var(--hair));color:var(--dink,#14181F)}
   .dt-cat{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
           text-transform:uppercase;color:var(--ink3);margin-top:4px;
           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:11px}
@@ -263,7 +274,7 @@
 <header class="mast">
   <div class="mast-l">
     <div class="mark">ALIVE<b>·</b>108 <i>/ ops</i></div>
-    <span class="mast-sub">every shared trip becomes a live sensor over delhi — this is the aggregate view</span>
+    <span class="mast-sub">aggregate view · anonymized trips · k≥3</span>
   </div>
   <div class="mast-r">
     <span class="priv-badge">aggregates only · k≥3</span>
@@ -278,11 +289,11 @@
 
   <div class="grid" id="stats"></div>
 
-  <h2>where the smoke sits <em>each ncr district's own reading right now · official cpcb aqi colours</em></h2>
-  <div class="panel" style="padding:12px"><div class="dist" id="districts">connecting…</div>
-    <div class="sub" style="margin-top:9px">every district number = the unweighted mean of its live field cells — the cell count is printed on the tile; borders never smooth</div></div>
+  <h2>ncr districts <em>unweighted mean of covered field cells · cpcb bands · click a tile</em></h2>
+  <div class="panel distwrap" style="padding:12px"><div class="dist" id="districts">connecting…</div>
+    <div class="fmpop" id="dtpop" hidden></div></div>
 
-  <h2>the live field <em>the surface every route breathes through — painted from the same cells the app tints</em></h2>
+  <h2>the field <em>the surface routes price on · hover reads a cell · click pins it</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="fmsel"></div>
     <div class="fmscrub" id="fmscrub">
@@ -294,10 +305,10 @@
     <div class="meth" id="meth" hidden></div>
   </div>
 
-  <h2>the pipeline <em>how a trip becomes data — the live numbers at each stage</em></h2>
+  <h2>pipeline <em>live values per stage</em></h2>
   <div class="panel" style="padding:0;overflow:hidden"><div class="pipe" id="pipe"></div></div>
 
-  <h2>source health <em>what feeds the map, and when it last fetched</em></h2>
+  <h2>sources <em>per-feed status · last fetch</em></h2>
   <div class="cols cols3">
     <div class="panel"><dl class="kv" id="field"></dl></div>
     <div class="panel"><dl class="kv" id="validation"></dl></div>
@@ -307,7 +318,7 @@
     <thead><tr><th>source</th><th>probe</th><th>build</th><th>detail</th><th class="num">age</th><th>freshness</th></tr></thead>
     <tbody id="sources"></tbody></table></div>
 
-  <h2>trip aggregates <em>every shared trip combined · a street appears after 3+ riders cross it</em></h2>
+  <h2>trip aggregates <em>anonymized donations · corridors publish at k≥3 devices inside 72h</em></h2>
   <div class="cols">
     <div class="panel">
       <dl class="kv" id="donations"></dl>
@@ -321,12 +332,12 @@
       <tbody id="corridors"></tbody></table></div>
   </div>
 
-  <h2>the shared picture <em>global rollups — each tile fills the moment its aggregate field ships; honest-empty until then</em></h2>
+  <h2>global rollups <em>tiles fill only when the aggregate api ships the field</em></h2>
   <div class="gtiles" id="sharedpic"></div>
 
   <footer>
-    <span>ALive-108 ops · auto-refresh 30s · aggregate surface — no per-person data exists to show</span>
-    <span><a href="/city">the city breathes ↗</a> · <a href="/v2/city">/v2/city ↗</a></span>
+    <span>alive·108 ops · refresh 30s · aggregates only · k≥3</span>
+    <span><a href="/city">/city ↗</a> · <a href="/v2/city">/v2/city ↗</a></span>
   </footer>
 </div>
 
@@ -410,21 +421,29 @@ async function tick(){
      has no field data yet --- */
   try{
     const dr=(districts&&districts.districts)||[];
+    DIST_ROWS=dr;
     $('districts').innerHTML=dr.length?dr.map(d=>{
       const c=d.color||'#888',na=d.pm25==null&&d.aqi==null;
-      return `<div class="dtile${na?' na':''}" style="--dc:${na?'var(--hair)':c}">
+      const ink=na?'#14181F':chipInk(c);
+      return `<div class="dtile${na?' na':''}" data-name="${esc(d.name)}" role="button" tabindex="0" style="--dc:${na?'var(--hair)':c};--dink:${ink}">
         <div class="dt-name">${esc(d.name)}</div>
-        <div class="dt-state">${esc(d.state||'')}</div>
+        <div class="dt-state">${d.level==='osm_admin_5'?`sub-area · ${esc(d.parent||'delhi')}`:esc(d.state||'')}</div>
         <div class="dt-v">${na
           ?'<span class="dt-pm">no field data</span>'
           :`${d.pm25==null?'':`<span class="dt-pm">${fmt1(d.pm25)}<i> µg/m³</i></span>`}
-             ${d.aqi==null?'':`<span class="dt-aqi" style="color:${c}">aqi ${d.aqi}</span>`}`}
+             ${d.aqi==null?'':`<span class="dt-aqi">aqi ${d.aqi}</span>`}`}
         </div>
         <div class="dt-cat">${na
-          ?(d.confidence==='sparse'?'sparse coverage — nearest cells only':'not yet in the field')
-          :esc(d.category||'')}${d.cells_covered?` · ${d.cells_covered} cells`:''}</div>
+          ?(d.confidence==='sparse'?'sparse — centroid read':'outside the field')
+          :esc(d.category||'')}${d.cells_covered?` · ${d.cells_covered} cells`:''}${d.partial_field_coverage?' · partial':''}</div>
       </div>`;
-    }).join(''):emptyMsg('district feed not serving — the roster fills when /v2/districts answers.');
+    }).join(''):emptyMsg('district feed not answering — tiles fill when /v2/districts returns.');
+    /* a pinned district card refreshes in place — same rule as the cell
+       inspector: the card keeps its spot, its numbers stay live */
+    if(DT_PIN){
+      const t=$('districts').querySelector(`[data-name="${DT_PIN.name}"]`);
+      if(t)dtShow(t);else dtHide();
+    }
   }catch(e){ /* roster stays decorative-optional; never break the board */ }
 
   LAST_OK=new Date();
@@ -623,7 +642,7 @@ async function tick(){
      so nothing shown can collapse to one person's journey */
   const feed=dn.recent||[];
   $('feedlist').innerHTML=feed.length?
-    `<div class="feed-h">live feed · busiest hours (k≥3 devices)</div>`+feed.map(e=>{
+    `<div class="feed-h">live feed · busiest k≥3 hours</div>`+feed.map(e=>{
       const s=Math.max(0,Math.round(((dn.ts||Date.now()/1000)-(e.ts||0))));
       return `<div class="feed-row">
         <span class="f-t">${ago(s)} ago</span>
@@ -667,8 +686,8 @@ async function tick(){
   const steps=[
     ['01','measure',`${fmt(f.samples)} model points · ${fmt(f.station_readings)} station readings · ${esc(f.source||'—')} · ${ago(f.age_s)} old`],
     ['02','interpolate',`${esc(f.kriging||'—')} · engine ${esc(f.engine||'—')} · ${cov0.cells!=null?fmt(cov0.cells)+' cells':'—'} in coverage`],
-    ['03','sample',`every ~${model&&model.sample_every_m||250} m along the route — street by street, never a centroid`],
-    ['04','breathe',`in-cabin exposure: car ac ×${meN('driving_car_ac')} · bus ×${meN('bus')} · auto ×${meN('auto_rickshaw')} · bike ×${meN('driving_two_wheeler')}<br>ventilation ${veN('driving_car_ac')}–${veN('cycling')} L/min by activity`],
+    ['03','sample',`every ~${model&&model.sample_every_m||250} m along-path — no centroid shortcut`],
+    ['04','dose',`in-cabin exposure: car ac ×${meN('driving_car_ac')} · bus ×${meN('bus')} · auto ×${meN('auto_rickshaw')} · bike ×${meN('driving_two_wheeler')}<br>ventilation ${veN('driving_car_ac')}–${veN('cycling')} L/min by activity`],
     ['05','emit',`BS-bucket × speed curve × idling × cold-start${csP?`<br>donated so far: moving ${csP.moving}% · idling ${csP.idle}% · cold ${csP.cold}%`:''}`],
     ['06','aggregate',`k≥3 anonymized · ${fmt(dn.cells_tracked)} cells tracked · ${fmt(dn.corridors_publishable)} publishable · ${fmt(t.trips)} trips`],
   ];
@@ -732,19 +751,19 @@ function paintMeth(){
   for(const ft of FM_FEATS){const c=(ft.properties||{}).conf;
     if(c==='hi')hi++;else if(c==='med')med++;else lo++}
   const label=(FM_SPECIES.find(s=>s[0]===FM_PARAM)||[FM_PARAM,FM_PARAM])[1];
-  m.innerHTML=`<div class="mt">how the ${esc(label)} layer is made</div>
+  m.innerHTML=`<div class="mt">provenance — ${esc(label)}</div>
     ${METH[FM_PARAM]||'—'}
     <div class="ms">${fmt(FM_FEATS.length)} cells rendered — ${fmt(hi)} measured · ${fmt(med)} interpolated · ${fmt(lo)} thin · sector index a01–an40 · each district number = the mean of the cells inside its border</div>`;
 }
 function methToggle(){const m=$('meth');if(!m)return;
   const b=$('methbtn');
-  if(m.hidden){m.hidden=false;paintMeth();if(b)b.textContent='hide methodology'}
-  else{m.hidden=true;if(b)b.textContent='how this layer is made'}
+  if(m.hidden){m.hidden=false;paintMeth();if(b)b.textContent='hide'}
+  else{m.hidden=true;if(b)b.textContent='provenance'}
 }
 function renderFmSel(){
   $('fmsel').innerHTML=FM_SPECIES.map(([p,l])=>
     `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('')+
-    `<button id="methbtn" style="margin-left:auto" onclick="methToggle()">${$('meth')&&!$('meth').hidden?'hide methodology':'how this layer is made'}</button>`;
+    `<button id="methbtn" style="margin-left:auto" onclick="methToggle()">${$('meth')&&!$('meth').hidden?'hide':'provenance'}</button>`;
 }
 async function fmPick(p){FM_PARAM=p;renderFmSel();await paintFieldMap(p);paintMeth();}
 
@@ -794,9 +813,9 @@ function fmShow(ft,x,y,pinned){
   pop.innerHTML=`<div class="p-name">${FM_NAMES[key]!=null?FM_NAMES[key]:'locating…'}</div>
     <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}${dist.state?', '+esc(dist.state):''}`:''}${FM_H?` · +${FM_H}h`:''}${pinned?' · pinned — esc closes':''}</div>
     <div class="p-v"><b>${v==null?'—':fmt1(v)}</b> ${label}${FM_PARAM==='us_aqi'?'':' µg/m³'}</div>
-    <div class="p-conf">${p.conf==='hi'?'measured — dense samples here'
-      :p.conf==='med'?'interpolated — moderate sample density'
-      :'thin coverage — nearest samples are far'}${p.pm25!=null&&FM_PARAM!=='pm2_5'?`<br>pm2.5 ${fmt1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
+    <div class="p-conf">${p.conf==='hi'?'hi conf — dense sample coverage'
+      :p.conf==='med'?'med conf — moderate coverage'
+      :'lo conf — far from samples'}${p.pm25!=null&&FM_PARAM!=='pm2_5'?`<br>pm2.5 ${fmt1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
   /* name is best-effort — the card already carries the live values.
      plain fetch (public endpoint): the api answers 404 when the
      gazetteer has nothing within 150m — that reads 'no named place',
@@ -860,6 +879,104 @@ function fmLeave(){
   clearTimeout(FM_HOV);clearTimeout(FM_REST);
   if(!(FM_INS&&FM_INS.pinned)){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null}
 }
+
+/* --- district mini cards — a tile click pins the same card language
+   the cell inspector uses: name, live pm2.5 + band chip, the covered-
+   cell basis, and a +12h direction read over the district's own
+   polygon (the same forward difference the forecast scrub shows) --- */
+let DIST_ROWS=[],DT_PIN=null;
+let DT_GRID12=null,DT_GRID12_OK=null;   /* cached +12h field, fetched once */
+
+/* chip text contrast — a 'satisfactory' light chip takes ink, a dark
+   wine chip takes paper */
+function chipInk(hex){
+  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#14181F';
+  const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b)/255>0.6?'#14181F':'#fff';
+}
+function dtHide(){const p=$('dtpop');if(p)p.hidden=true;DT_PIN=null}
+function fmFindDistrict(name){
+  for(const f of (FM_GJ&&FM_GJ.features)||[])
+    if(f.properties&&f.properties.name===name)return f;
+  return null;
+}
+/* unweighted mean of a cell set over a boundary feature — the same
+   read the server publishes (cells whose centres land inside) */
+function distMean(feats,feat){
+  const g=feat&&feat.geometry;if(!g)return null;
+  const polys=g.type==='Polygon'?[g.coordinates]
+    :g.type==='MultiPolygon'?g.coordinates:[];
+  let s=0,n=0;
+  for(const ft of feats){
+    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+    if(!ring||ring.length<3)continue;
+    const v=(ft.properties||{}).pm25;if(v==null)continue;
+    const clon=ring.reduce((a,c)=>a+c[0],0)/ring.length;
+    const clat=ring.reduce((a,c)=>a+c[1],0)/ring.length;
+    for(const poly of polys){
+      if(!(poly[0]&&pip(clon,clat,poly[0])))continue;
+      let hole=false;
+      for(let h=1;h<poly.length;h++)if(pip(clon,clat,poly[h])){hole=true;break}
+      if(!hole){s+=v;n++}
+      break;
+    }
+  }
+  return n?s/n:null;
+}
+/* trend = the +12h cams-anchored field mean over the same polygon —
+   a real forward difference, 'n/a' when the horizon doesn't answer */
+async function dtTrend(d){
+  if(DT_GRID12_OK===null){
+    try{const g=await getJSON('/grid?cells=40&param=pm2_5&h=12');
+      DT_GRID12=(g&&g.features)||[];DT_GRID12_OK=DT_GRID12.length>0}
+    catch(e){DT_GRID12=[];DT_GRID12_OK=false}
+  }
+  if(!DT_GRID12_OK)return '+12h — forecast n/a';
+  const feat=fmFindDistrict(d.name);
+  const m=feat&&distMean(DT_GRID12,feat);
+  if(m==null)return '+12h — outside forecast coverage';
+  const base=d.pm25;
+  if(base==null||base<1e-9)return `+12h → ${fmt1(m)} µg/m³`;
+  const pc=Math.round((m-base)/base*100);
+  return Math.abs(pc)<3
+    ?`+12h → ${fmt1(m)} µg/m³ · flat`
+    :`+12h → ${fmt1(m)} µg/m³ · ${pc>0?'+':''}${pc}%`;
+}
+function dtShow(tile){
+  const name=tile.dataset.name;
+  const d=DIST_ROWS.find(r=>r.name===name);
+  const wrap=tile.closest('.distwrap'),pop=$('dtpop');
+  if(!d||!wrap||!pop)return;
+  DT_PIN={name};
+  const r=tile.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
+  pop.style.left=Math.min(Math.max(8,r.left-wr.left),Math.max(8,wr.width-264))+'px';
+  const c=d.color||'#888';
+  const na=d.pm25==null&&d.aqi==null;
+  const level=d.level==='osm_admin_5'
+    ?`sub-area · ${d.parent||'delhi nct'}`:`district · ${d.state||'—'}`;
+  const basis=d.confidence==='sparse'
+    ?`centroid read — ${d.cells_covered||0} covered cell${(d.cells_covered||0)===1?'':'s'}`
+    :d.cells_covered?`mean of ${d.cells_covered} covered cells`:'no covered cells';
+  pop.innerHTML=`<div class="p-name">${esc(d.name)}</div>
+    <div class="p-sub">${esc(level)}</div>
+    <div class="p-v">${na
+      ?'<b>—</b> no field data'
+      :`<b>${d.pm25==null?'—':fmt1(d.pm25)}</b> µg/m³ <span class="dt-aqi" style="--dc:${c};--dink:${chipInk(c)}">aqi ${d.aqi} · ${esc((d.category||'').toLowerCase())}</span>`}
+    </div>
+    <div class="p-conf">${na
+      ?'outside the measured field'
+      :esc(basis)+(d.partial_field_coverage?' · partial coverage':'')}
+      ${na?'':'<br><span id="dttrend">trend — computing +12h field…</span>'}</div>`;
+  pop.hidden=false;pop.classList.add('pin');
+  /* opens below the tile, above it when the bottom row would overflow */
+  pop.style.top=Math.max(8,r.top-wr.top+r.height+8)+'px';
+  if(pop.offsetTop+pop.offsetHeight>wrap.clientHeight-6)
+    pop.style.top=Math.max(8,r.top-wr.top-pop.offsetHeight-8)+'px';
+  if(!na){const nm=name;dtTrend(d).then(t=>{
+    const el=$('dttrend');
+    if(el&&!pop.hidden&&DT_PIN&&DT_PIN.name===nm)el.textContent=t;
+  })}
+}
 function fmClick(e){
   const{ft,x,y}=fmHit(e),pop=$('fmpop');if(!pop)return;
   if(!ft){pop.hidden=true;FM_INS=null;return}
@@ -901,20 +1018,20 @@ function paintShared(dn,S,rows,G){
   ].filter(Boolean).join('<br>')
     :'stars + optional note from the app; no token stored — bodies publish only at k≥3';
   const tiles=[
-    ['devices moving · by area',
+    ['active areas · device counts',
       areas!=null?fmt(typeof areas==='object'?Object.keys(areas).length:areas)+' areas':null,
       `area-level device counts, k≥3 only${G&&G.suppressed&&G.suppressed.areas?` · ${fmt(G.suppressed.areas)} below-k suppressed`:''} — never identities`],
-    ['journeys · per od flow',
+    ['od flows · k≥3',
       ods!=null?(typeof ods==='number'?fmt(ods)+' flows'
         :`${fmt(ods.traversals)} traversals · ${ods.n} ${ods.n===1?'flow':'flows'}`):null,
       'k≥3 anonymized od flows — suppressed pairs counted, never shown'],
-    ['pollution avoided · donated fleet',
+    ['avoided vs worst option · donated',
       (savedCo2!=null||savedDose!=null)
         ?[savedCo2!=null?fmt1(savedCo2)+' kg co₂':null,
           savedDose!=null?fmt(savedDose)+' µg dose':null].filter(Boolean).join(' · ')
         :(t.co2_kg_mid?fmt1(t.co2_kg_mid)+' kg co₂ emitted · mid estimate':null),
       `savings from donated avoided-vs-worst-option counterfactuals${nRep!=null?` · ${fmt(nRep)} trip${nRep===1?'':'s'} reporting`:''}`],
-    ['their reviews',
+    ['rider reviews',
       rv&&rv.count?`${fmt1(rv.avg)}★ · ${fmt(rv.count)} review${rv.count===1?'':'s'}`:null,
       rvSub],
   ];
@@ -941,8 +1058,28 @@ function bindScrub(){
   $('fieldmap').addEventListener('click',fmClick);
   $('fieldmap').addEventListener('mousemove',fmMove);
   $('fieldmap').addEventListener('mouseleave',fmLeave);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null}});
-  fetch('/ncr.geojson').then(r=>r.ok?r.json():null).then(g=>{FM_GJ=g}).catch(()=>{});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null;dtHide()}});
+  /* district tiles pin a card on click; enter works from keyboard;
+     a click anywhere off the tile/card dismisses it */
+  $('districts').addEventListener('click',e=>{
+    const t=e.target.closest('.dtile');
+    if(t){e.stopPropagation();
+      /* re-click on the pinned tile un-pins; any other tile takes over */
+      if(DT_PIN&&DT_PIN.name===t.dataset.name)dtHide();else dtShow(t)}
+  });
+  $('districts').addEventListener('keydown',e=>{
+    if(e.key==='Enter'){const t=e.target.closest('.dtile');
+      if(t){e.preventDefault();dtShow(t)}}
+  });
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.dtile')&&!e.target.closest('#dtpop'))dtHide()});
+  /* both baked boundary sets — districts + the 13 delhi sub-areas —
+     name cells honestly and give the district card its polygon */
+  Promise.all([
+    fetch('/ncr.geojson').then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch('/delhi_subdistricts.geojson').then(r=>r.ok?r.json():null).catch(()=>null)
+  ]).then(([a,b])=>{FM_GJ={features:[
+    ...((a&&a.features)||[]),...((b&&b.features)||[])]}});
 }
 
 async function paintFieldMap(param){
@@ -1057,10 +1194,10 @@ async function paintFieldMap(param){
     const windTxt=(FM_WIND&&FM_WIND.speed_kmh!=null)
       ?` · wind ${Math.round(FM_WIND.speed_kmh)} km/h from ${Math.round(FM_WIND.from_deg??0)}° — the arrow is where smoke drifts`:'';
     const hTag=FM_H?`<b style="color:var(--ink)">forecast +${FM_H}h</b> · `:'';
-    const hNote=FM_H?'cams horizon anchored to the live field':'faded cells sit farther from a measured sample';
+    const hNote=FM_H?'cams horizon anchored to the live field':'cell alpha = distance to nearest sample';
     $('fieldmap-sub').innerHTML=vals.length
-      ?`${hTag}${fmt(vals.length)} real cells · grid ${FM_CELLS}×${FM_CELLS} · sectors a01–an40 · ~2.1×2.7 km each · hover a cell for its card · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
-       `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · ${hNote} — never a guess`+
+      ?`${hTag}${fmt(vals.length)} cells · ${FM_CELLS}×${FM_CELLS} grid · sectors a01–an40 · ~2.1×2.7 km each · hover reads a cell · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
+       `${param==='pm2_5'?'':' · ramp spans this layer\'s own range'} · ${hNote}`+
        (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fire detections plotted${FM_FIRES.length>plotted?` (${fmt(FM_FIRES.length-plotted)} more outside this view)`:''}`:'')+windTxt
       :`${label} — the field serves no ${label} cells right now`;
   }catch(e){
