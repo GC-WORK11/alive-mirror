@@ -49,8 +49,21 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 @media(max-width:640px){.top nav{gap:16px}
   .top nav a{font-size:9px;letter-spacing:.12em}}
 
-/* hero */
+/* hero — supaste/devin grammar: headline + copy + real product shot,
+   nothing else. two cols on wide screens, figure stacks on phones. */
 .hero{padding:118px 0 78px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 264px;
+  gap:64px;align-items:start}
+@media(max-width:840px){.hero-grid{grid-template-columns:1fr;gap:48px}}
+.shot{margin:6px 0 0;max-width:264px;width:100%;
+  border:1px solid var(--line2);border-radius:34px;overflow:hidden;
+  background:#fff;box-shadow:0 24px 56px -32px rgba(22,24,29,.28),
+    0 4px 14px -6px rgba(22,24,29,.10)}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{padding:11px 16px 12px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3)}
+@media(max-width:840px){.shot{margin-left:auto;margin-right:auto}}
 .eyebrow{display:flex;align-items:center;gap:10px;
   font-family:var(--mono);font-size:11px;letter-spacing:.3em;
   text-transform:uppercase;color:var(--ink3)}
@@ -256,22 +269,29 @@ h1 em{font-style:italic;color:var(--ink2)}
   </nav>
 </div></header>
 
-<section class="hero"><div class="col">
-  <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — live exposure engine</div>
-  <h1 class="rise" style="--d:70ms">Delhi's air has a price <em>per street.</em></h1>
-  <p class="sub rise" style="--d:140ms">Type from, type to. A C++ engine
-  prices all <span id="edgecount">1.07 million</span> of NCR's road edges by
-  the smoke on each this minute, and returns the route your lungs pay least
-  for.</p>
-  <div class="links rise" style="--d:210ms">
-    <a class="tlink" href="/city">Open the live field →</a>
-    <a class="tlink dim" href="/admin">Admin →</a>
-    <a class="tlink dim" href="/community">Community →</a>
+<section class="hero"><div class="col"><div class="hero-grid">
+  <div class="hero-copy">
+    <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — live exposure engine</div>
+    <h1 class="rise" style="--d:70ms">Delhi's air has a price <em>per street.</em></h1>
+    <p class="sub rise" style="--d:140ms">Type from, type to. A C++ engine
+    prices all <span id="edgecount">1.07 million</span> of NCR's road edges by
+    the smoke on each this minute, and returns the route your lungs pay least
+    for.</p>
+    <div class="links rise" style="--d:210ms">
+      <a class="tlink" href="/city">Open the live field →</a>
+      <a class="tlink dim" href="/admin">Admin →</a>
+      <a class="tlink dim" href="/community">Community →</a>
+    </div>
   </div>
-  <div class="statusline rise" id="status" style="--d:280ms">reading the field…</div>
-</div></section>
+  <figure class="shot rise" style="--d:280ms">
+    <img src="/app-hero.png" width="552" height="1200"
+      alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
+    <figcaption>the app, live — real route, real field</figcaption>
+  </figure>
+</div></div></section>
 
 <section class="field-sec"><div class="col">
+  <div class="statusline" id="status">reading the field…</div>
   <div class="field-head">
     <span class="lbl" id="fieldLbl">pm2.5 — <b>the field, this hour</b></span>
     <span class="psel" id="msel" role="group" aria-label="tool"></span>

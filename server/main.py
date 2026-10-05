@@ -1529,6 +1529,18 @@ async def ncr_districts_geojson():
         media_type="application/geo+json")
 
 
+@app.get("/app-hero.png")
+async def app_hero_png():
+    """The landing's hero product shot — a REAL app screen capture
+    (compare surface: dose-tinted options + depart strip), not a mockup.
+    Captured from the running build, regenerated when the app's compare
+    UI changes."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static", "app-hero.png"))
+
+
 @app.get("/delhi_subdistricts.geojson")
 async def delhi_subdistricts_geojson():
     """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/
