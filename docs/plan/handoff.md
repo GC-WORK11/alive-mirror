@@ -442,3 +442,23 @@ Lesson: **cross-check every served number against the public internet
 regularly** — pm2.5 matching doesn't prove the other layers. The
 /aqi response's `us_aqi_model` now keeps the raw index visible so a
 future divergence is one probe away.
+
+## cont.18 — us_aqi ambient coherence + review-aggregate cleanup (build 34c3ca5a, main cc82bd5)
+
+**Deployed:** `34c3ca5a` — carries city us_aqi computed per lattice point + /aqi us_aqi on AMBIENT pm2.5 (was breathing-zone: pm25 key correctly keeps smoke×microenv for inhalation numbers, but us_aqi is an ambient public index — at CP 180→168, matching public ~160 band). One definition API-wide: /aqi 168 ≈ /v2/city lattice max 168.6 ≈ /grid cells. Suite 952 green; main merged `cc82bd5`.
+
+**Review aggregate cleanup (second time — lesson hardening):** probe-authored reviews publish publicly at k≥3 (by design). Both lanes' and my own probes had accumulated to count=5 with readable probe text ("judge-probe…", "demo-day probe…"). Patched `s3://…/community/state.json` → reviews:[] (kept obs:20 — real donated telemetry), bounced the ECS task so in-memory state couldn't re-flush dirty reviews to S3. count=0 now → honest-empty. RULE for all lanes (relayed): never POST /v2/feedback|/observe|/v2/trip to live — GETs + /v2/plan only.
+
+**Sweep this wave (all honest):** /v2/feedback enforces stars 1..5 + truncates note at 240 (spec-true); /observe rejects empty/single/string coords; /depart hours≤0 → honest forecast-unavailable, hours=72 clamps to horizon; admin API 401 no-auth; tiles OOB 422; /reverse rural → gazetteer motorway at 106m; same-point OD degenerates to walk gracefully; grid cells=1 us_aqi serves.
+
+**Lanes live:** craft 0553281b retasked → hostile judge's-eye audit of live (numbers vs aqicn/WAQI, click-everything, break-everything, k-anon leakage, perf). New lane e8dbd4c4 → demo rehearsal: verified quotable numbers + docs/plan/demo-script.md + timed run + GO/NO-GO. APK lane e03c6d6d terminated (delivered).
+
+## cont.19 — hostile-audit fixes live (build 8d417cf1, suite 955 green)
+
+**Hostile judge audit (lane 0553281b) — 10 findings, all real.** Backend findings fixed + deployed + verified live:
+
+- **#1 HIGH silent truncated route** — inside→far-outside (in-margin, past priced raster) returned `recommended:true` + `confidence:"high"` + `coverage:1.0` on geometry ending ~140km short at ~28.95°N. `_option` now compares geometry's last coord to dest (`exposure._haversine_m`, [lon,lat] order): >`TRUNCATED_GAP_M` (3km — absorbs geocoder snap; the audit cut was 210km) → `reaches_destination:false`, `truncated_gap_km`, dose `confidence:"low"` + basis note, `rank_options` preserves reason_line for truncated rows and excludes them from `scored` (a clipped route can never win recommended). Contract declares both keys. Verified live: `gap:210.1km rec:False conf:low` on the exact repro.
+- **#3 MED depart asymmetry — probe artifact.** from=outside + to=outside BOTH serve (margin covers 30.5N); the "asymmetry" was `hours=0` → `range(0)` → empty slots → "forecast unavailable" on ANY OD. Label fixed anyway: hours<1 → `"hours must be >= 1"`.
+- **#4 us_aqi −17% vs public (defensible)** — our field is a spatial mean + station-grounded debias vs point instruments (Pusa 196 driven by its own pm10). Noted, not a fake.
+- Lane fixing frontend: #2 city strip→ambient-field basis (decision: strip must quote the same field the choropleth shades; breathing-zone only if explicitly labeled), #5 edges_priced real number, #6 hold stale frame on param switch, #7 token-check before API calls, #8 clip+plural, #9 legend overlap, #10 95.2% methodology link.
+- Verified live `8d417cf1`: depart 1.15s cold→0.47s warm; truncated repro flags correctly; hours=0 honest label; single deployment.

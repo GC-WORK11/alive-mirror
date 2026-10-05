@@ -73,9 +73,13 @@
           font-size:10px;letter-spacing:.14em;text-transform:uppercase;
           color:var(--ink3);pointer-events:none;text-align:right;line-height:1.9}
   @media(max-width:640px){.m-wind{display:none}.m-tag{max-width:60%}}
-  .m-legend{position:absolute;left:18px;bottom:16px;right:18px;display:flex;
+  /* legend sits in-flow under the map — absolute positioning painted it
+     over the southern districts' shapes; the frame keeps it inside the
+     same hairline without ever covering geography */
+  .m-legend{display:flex;
             align-items:flex-end;justify-content:space-between;gap:14px;
-            pointer-events:none;flex-wrap:wrap}
+            pointer-events:none;flex-wrap:wrap;
+            border-top:1px solid var(--line);padding:10px 18px 12px}
   .chips{display:flex;gap:6px;flex-wrap:wrap;max-width:min(560px,80%)}
   .chip{display:flex;align-items:center;gap:6px;font-family:var(--mono);
         font-size:9px;letter-spacing:.08em;color:var(--ink2);
@@ -345,6 +349,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 
 /* ---------- geography / projection ---------- */
 let FEATS=[],PX0=0,PY0=0,PS=1,VW=0,VH=0;   // projected px-space
+let FEAT_CELLS=[];   // /grid cell features — the strip's ambient basis
 const LAT0=28.55,KM_PER_DEG_LON=111.32*Math.cos(LAT0*Math.PI/180),KM_PER_DEG_LAT=110.57;
 const toKm=(lon,lat)=>[lon*KM_PER_DEG_LON,lat*KM_PER_DEG_LAT];
 
@@ -491,20 +496,29 @@ function paintDistricts(rows){
   if(selName){const f=FEATS.find(f=>f.properties.name===selName);if(f)showDetail(f)}
 }
 
-function paintTicker(a,t,ad,nd){
+function paintTicker(a,cy,t,ad,nd){
   const f1=v=>v==null?'—':(+v).toFixed(1);
+  /* strip reads the SAME basis the choropleth paints — the ambient field
+     aggregate from /v2/city (district means of field cells), never the
+     breathing-zone point estimate (ambient×smoke modifier) that /aqi
+     serves at one coordinate. map and strip can no longer diverge. */
+  const sp=(cy&&cy.species)||{},pm=(cy&&cy.pm25_stats)||{};
+  const rng=(()=>{let lo=1e9,hi=-1e9,n=0;
+    for(const ft of FEAT_CELLS){const v=(ft.properties||{}).pm25;
+      if(v==null)continue;n++;if(v<lo)lo=v;if(v>hi)hi=v}
+    return n?`${f1(lo)}–${f1(hi)}`:'—'})();
   const items=[
-    [`pm2.5`,`${f1(a.pm25)} µg/m³`],
-    [`pm10`,`${f1(a.pm10)} µg/m³`],
-    [`no₂`,`${f1(a.no2)} µg/m³`],
-    [`o₃`,`${f1(a.o3)} µg/m³`],
-    [`co`,`${f1(a.co)} µg/m³`],
-    [`so₂`,`${f1(a.so2)} µg/m³`],
-    [`us aqi`,`${a.us_aqi==null?'—':Math.round(+a.us_aqi)}`],
-    [`krige band`,`${a.pm25_lo??'—'}–${a.pm25_hi??'—'}`],
+    [`pm2.5 · ncr mean`,`${f1(pm.mean)} µg/m³`],
+    [`pm10 · ncr mean`,`${f1(sp.pm10&&sp.pm10.mean)} µg/m³`],
+    [`no₂ · mean`,`${f1(sp.nitrogen_dioxide&&sp.nitrogen_dioxide.mean)} µg/m³`],
+    [`o₃ · mean`,`${f1(sp.ozone&&sp.ozone.mean)} µg/m³`],
+    [`co · mean`,`${f1(sp.carbon_monoxide&&sp.carbon_monoxide.mean)} µg/m³`],
+    [`so₂ · mean`,`${f1(sp.sulphur_dioxide&&sp.sulphur_dioxide.mean)} µg/m³`],
+    [`us aqi · mean`,`${sp.us_aqi&&sp.us_aqi.mean!=null?Math.round(+sp.us_aqi.mean):'—'}`],
+    [`field pm2.5 range`,`${rng}`],
     [`wind`,`${Math.round(windNow.speed_kmh)} km/h from ${compass(windNow.from_deg)}`],
     [`instruments`,`${a.field?.station_readings??'—'} live`],
-    [`grap indicative`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
+    [`grap · incl. smoke`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
     [`districts`,`${nd} live`],
     [`commutes today`,`${IN(t.obs_24h)}`],
     [`km donated`,`${IN(t.km_24h)}`],
@@ -573,7 +587,7 @@ async function load(){
       fetch('/v2/city').then(r=>r.ok?r.json():null).catch(()=>null),
       fetch('/v2/districts').then(r=>r.ok?r.json():null).catch(()=>null)]);
     if(!g&&!a&&!cy&&!dd)throw new Error('all feeds down');
-    if(g&&g.features)paintCells(g.features);
+    if(g&&g.features){FEAT_CELLS=g.features;paintCells(g.features)}
     if(dd)paintDistricts(dd.districts||[]);
     if(!cy)return;   /* the ledger/corridor numbers all ride /v2/city */
     a=a||{};
@@ -591,7 +605,9 @@ async function load(){
     };
     const ad={corridors:cy.corridors||[],field_age_s:cy.field_age_s,
               refresh_in_s:cy.field?.refresh_in_s,freshness:cy.freshness};
-    const pm=a.pm25||0;
+    /* breaths divides the day's donated dose by the AMBIENT field mean —
+       same basis as the map — never the smoke-adjusted point estimate */
+    const pm=(cy.pm25_stats&&cy.pm25_stats.mean)||a.pm25||0;
     document.getElementById('breaths').textContent=
       pm>0?Math.floor((t.dose_ug_24h||0)/pm*2000).toLocaleString('en-IN'):'—';
     setTxt('doseug',IN(t.dose_ug_24h));
@@ -615,7 +631,7 @@ async function load(){
     }
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
     setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
-    paintTicker(a,t,ad,(dd&&dd.districts||[]).filter(d=>d.aqi!=null).length);
+    paintTicker(a,cy,t,ad,(dd&&dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
     const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
       `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>

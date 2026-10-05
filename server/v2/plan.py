@@ -622,6 +622,33 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
     }
     if extra:
         opt.update(extra)
+    # Truncation honesty: when the served geometry stops short of the
+    # requested destination (the dose field ends at ~28.95°N while the
+    # service-area margin allows farther targets), the option must say
+    # so — a clipped route reporting confidence:high + coverage:1.0 is
+    # the silent-truncation finding from the hostile audit. Mark it,
+    # demote dose confidence, and say what the number covers.
+    if dest and isinstance(geometry, dict):
+        _coords = geometry.get("coordinates") or []
+        if _coords and exposure is not None:
+            try:
+                _gap_m = exposure._haversine_m(
+                    _coords[-1], [dest[1], dest[0]])
+            except Exception:
+                _gap_m = 0.0
+            if _gap_m > TRUNCATED_GAP_M:
+                opt["reaches_destination"] = False
+                opt["truncated_gap_km"] = round(_gap_m / 1000.0, 1)
+                if isinstance(opt.get("dose"), dict):
+                    opt["dose"]["confidence"] = "low"
+                    _b = opt["dose"].get("basis") or ""
+                    opt["dose"]["basis"] = (
+                        _b + " · dose covers the served segment only — "
+                        f"route stops ~{_gap_m/1000.0:.0f}km short of the "
+                        "destination at the field edge").strip()
+                opt["reason_line"] = (
+                    "route leaves the priced field — dose is honest for "
+                    "the mapped segment, nothing claimed past it")
     opt["route_id"] = ROUTES.put({
         "geometry": geometry, "mode": mode,
         "duration_s": eta_s, "vehicle": vehicle,
@@ -924,12 +951,14 @@ def rank_options(options: list) -> list:
       than 1.6x the fastest option must say '+N min'.
     """
     scored = [o for o in options
-              if _dose_key(o) != float("inf") and o.get("eta_s")]
+              if _dose_key(o) != float("inf") and o.get("eta_s")
+              and o.get("reaches_destination") is not False]
 
     for o in options:           # reset ALL — stale flags must never survive
         o["tag"] = None
-        o["reason_line"] = ""
         o["recommended"] = False
+        if o.get("reaches_destination") is not False:
+            o["reason_line"] = ""
     if not scored:
         return options
 
@@ -991,6 +1020,12 @@ FIELD_REFRESH_BUDGET_S = 10.0
 # first plan can race the boot-time feed compile; without this the
 # scan eats the whole 20 s and even motorized options are lost.
 TRANSIT_BUDGET_S = 12.0
+
+# Geometry ending more than this far from the requested destination is
+# a clipped route — the option must say so (see _option's truncation
+# block). 3 km absorbs geocoder-snap drift; the audit's silent cut was
+# ~140 km.
+TRUNCATED_GAP_M = 3000.0
 
 
 def _service_area(flat, flon, tlat, tlon) -> bool:

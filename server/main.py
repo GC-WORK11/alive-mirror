@@ -885,6 +885,11 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if not exposure_mode or not profile:
         return {"error": "unknown vehicle", "options": []}
 
+    if hours < 1:
+        # zero slots asked for ≠ forecast missing — the audit read this
+        # honest-empty as an asymmetry bug because the label lied.
+        return {"options": [], "error": "hours must be >= 1"}
+
     if not (in_service_area(from_lat, from_lon)
             and in_service_area(to_lat, to_lon)):
         return {"options": [], "error": OUT_OF_AREA}
@@ -1313,7 +1318,8 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
             feats = r.json().get("features", [])
             if feats:
                 p = feats[0]["properties"]
-                c["name"] = p.get("name") or p.get("district") or p.get("street")
+                c["name"] = (p.get("name") or p.get("district")
+                             or p.get("street") or "unnamed area")
         except httpx.HTTPError:
             pass
         conf = c.pop("confidence", None)
