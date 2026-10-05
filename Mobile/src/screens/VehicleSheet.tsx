@@ -454,7 +454,10 @@ export function VehicleSheet({
 export default VehicleSheet;
 
 const s = StyleSheet.create({
-  overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  /* elevation must beat HomeScreen's 24 — Android dispatches sibling touches
+     by z before mount order, so the still-mounted home scroll swallowed this
+     sheet's drags. iOS ignores it. */
+  overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, elevation: 30 },
   backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: V2T.scrim },
   kav: { flex: 1 },
   /* half-detent (~50% viewport) crops the grouped class grid's last row

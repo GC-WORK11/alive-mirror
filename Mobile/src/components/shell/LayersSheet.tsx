@@ -50,7 +50,10 @@ export function LayersSheet({
 }
 
 const s = StyleSheet.create({
-  wrap: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  /* elevation must beat HomeScreen's 24 — Android dispatches sibling touches
+     by z before mount order, so the still-mounted home scroll swallowed this
+     sheet's drags. iOS ignores it. */
+  wrap: { position: "absolute", bottom: 0, left: 0, right: 0, elevation: 30 },
   title: {
     fontSize: V2Type.secondary, color: V2T.text3,
     paddingHorizontal: 18, paddingTop: 2, paddingBottom: 6,

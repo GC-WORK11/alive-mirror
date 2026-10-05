@@ -354,7 +354,7 @@ export function Sidebar({
   let rise = 0; // stagger order across the scroll content
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={open ? "auto" : "none"}>
+    <View style={[StyleSheet.absoluteFill, s.overlayZ]} pointerEvents={open ? "auto" : "none"}>
       <Animated.View style={[s.scrim, {
         opacity: scrimOp,
       }]}>
@@ -627,6 +627,10 @@ export function Sidebar({
 }
 
 const s = StyleSheet.create({
+  /* elevation must beat HomeScreen's 24 — Android dispatches sibling touches
+     by z before mount order, so the still-mounted home scroll swallowed the
+     drawer's drags. iOS ignores it. */
+  overlayZ: { elevation: 30 },
   scrim: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: V2T.scrimDeep },
   drawer: {
     position: "absolute", left: 0, top: 0, bottom: 0, width: DRAWER_W,

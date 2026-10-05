@@ -660,7 +660,10 @@ export function LedgerScreen({
 export default LedgerScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.scrim },
+  /* elevation must beat HomeScreen's 24 — Android dispatches sibling touches
+     by z before mount order, so the still-mounted home scroll swallowed this
+     sheet's drags. iOS ignores it. */
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.scrim, elevation: 30 },
   root: {
     flex: 1,
 
