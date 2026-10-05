@@ -53,7 +53,7 @@ import { Sidebar } from "./src/components/shell/Sidebar";
 import { useShellFlow } from "./src/components/shell/useShellFlow";
 import { API, DELHI, fetchJson, reverseName } from "./src/components/shell/net";
 import {
-  DEFAULT_SETTINGS, clearAllData, loadSettings, saveSettings, type ShellSettings,
+  DEFAULT_SETTINGS, PROFILE_BUDGET_UG, clearAllData, loadSettings, saveSettings, type ShellSettings,
 } from "./src/components/shell/settings";
 import { loadTrips } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
@@ -546,7 +546,7 @@ function AppInner() {
           {dayData && !homeOpen && (
             <View style={[s.peekWrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
               <DayPeek data={dayData} lang={lang} onOpen={() => setHomeOpen(true)}
-                ambientUg={ambientUg} />
+                ambientUg={ambientUg} budgetUg={PROFILE_BUDGET_UG[settings.profile]} />
             </View>
           )}
         </>

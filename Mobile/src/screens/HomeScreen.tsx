@@ -156,16 +156,22 @@ export function useDayData(
       }
 
       const outside = !inNcr(lat, lon);
-      const [curve, outlook] = outside || !withCurve
-        ? [null, null]
-        : await Promise.all([fetchDayCurve(lat, lon), fetchOutlook(lat, lon)]);
       if (!live) return;
+      /* disk-first paint: the hero + arc are local truths — they must not
+         wait on the forecast fetches. On a dead network those take the
+         full timeout and the hero would sit as skeleton blocks the whole
+         time. Cards that need the field (the move, days ahead) mount
+         when it lands — they already treat null as "not yet". */
       setData({
-        rec, week, curve, outside, outlook,
+        rec, week, curve: null, outside, outlook: null,
         lens: symptomLens(checkins, doseByDay),
         checkin: checkins[today] ?? null,
         curveAgeS: null,
       });
+      if (outside || !withCurve) return;
+      const [curve, outlook] = await Promise.all([fetchDayCurve(lat, lon), fetchOutlook(lat, lon)]);
+      if (!live) return;
+      setData((prev) => (prev ? { ...prev, curve, outlook } : prev));
     })();
     return () => { live = false; };
   }, [rl, nonce, trips, withCurve]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -755,17 +761,20 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
  *  read. Tap returns home (the dosimeter surface). An empty day says so in
  *  one line and still opens home — the move + check-in are useful before
  *  the arc fills. */
-export function DayPeek({ data, lang, onOpen, ambientUg }: {
+export function DayPeek({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
   data: DayData | null; lang: Lang; onOpen: () => void;
   /** latest ambient PM2.5 read — the "outside right now" line; the aqi
       poll hands it over so the peek feels the air, not just states it */
   ambientUg?: number | null;
+  /** the profile's daily budget — the same ceiling the hero gauges
+      against, or the peek would colour a different day than home does */
+  budgetUg?: number;
 }) {
   if (!data) return null;
   /* the card breathes the band it reports: band-washed fill + band-edge
      hairline + inked number — a severe day feels severe before any tap */
   const ambIdx = bandIdx(ambientUg ?? null);
-  const doseCol = doseDotColor(data.rec.totalUg, 216);
+  const doseCol = doseDotColor(data.rec.totalUg, budgetUg);
   return (
     <Pressable onPress={() => { tap(); onOpen(); }}
       accessibilityRole="button" accessibilityLabel={t("peekTitle", lang)}
@@ -807,7 +816,7 @@ export function DayPeek({ data, lang, onOpen, ambientUg }: {
           <View style={ss.peekDots}>
             {data.week.map((w) => (
               <View key={w.day} style={[ss.weekDot, {
-                backgroundColor: w.ug > 0 ? doseDotColor(w.ug, 216) : "transparent",
+                backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : "transparent",
                 borderWidth: w.ug > 0 ? 0 : 1, borderColor: V2T.hairline,
               }]} />
             ))}
