@@ -147,6 +147,30 @@ h1 em{font-style:italic;color:var(--ink2)}
 .depart:empty{display:none}
 .depart svg{flex:none;display:block}
 .depart b{color:var(--ink);font-weight:600}
+.ladder{margin-top:12px}
+.ladder:empty{display:none}
+.lrow{display:flex;align-items:baseline;gap:12px;padding:6px 0;
+  border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.06em;color:var(--ink3);cursor:pointer}
+.lrow:first-child{border-top:0}
+.lrow:hover{background:rgba(22,24,29,.03)}
+.lrow:focus-visible{outline:1px solid var(--ink);outline-offset:-2px}
+.lrow .lname{width:138px;flex:none;color:var(--ink2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.lrow .lbar{flex:1;position:relative;height:5px}
+.lrow .lbar i{position:absolute;left:0;top:2px;height:1px;background:var(--ink3);
+  display:block}
+.lrow.rec .lname{color:var(--ink);font-weight:600}
+.lrow.rec .lbar i{background:var(--ink)}
+.lrow.drawn .lbar i{background:var(--ink);height:2px;top:1.5px}
+.lrow.drawn .lname:after{content:' · drawn';color:var(--ink3)}
+.lrow .ldose{flex:none;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.lrow .ldose i{font-style:normal;color:var(--ink4,#a6acb8);margin-left:5px}
+.lrow .lflag{flex:none;font-size:8.5px;letter-spacing:.08em;
+  color:var(--ink4,#a6acb8);text-transform:uppercase}
+.lrow .lflag b{color:var(--ink2);font-weight:600}
+.lmore{padding:6px 0 0;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.08em;color:var(--ink4,#a6acb8);text-transform:uppercase}
 
 /* the districts — every boundary cut, filled by its live cpcb band */
 .dist-sec{padding:34px 0 88px}
@@ -273,6 +297,7 @@ h1 em{font-style:italic;color:var(--ink2)}
   </div>
   <div class="routeline" id="routeline"></div>
   <div class="depart" id="departline"></div>
+  <div class="ladder" id="ladder"></div>
 </div></section>
 
 <section class="dist-sec"><div class="col">
@@ -580,14 +605,14 @@ $('psel').addEventListener('click',e=>{
   INS=null;$('fpop').hidden=true;
   /* a drawn route stays valid geographically, but the surface + dose basis
      are pm2.5-specific — repaint fresh rather than recolor stale cells */
-  PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';
+  PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';
   paint();
 });
 $('msel').addEventListener('click',e=>{
   const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===MODE)return;
   MODE=b.dataset.m;renderPills();
   INS=null;$('fpop').hidden=true;
-  if(MODE==='inspect'){PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';drawScene()}
+  if(MODE==='inspect'){PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';drawScene()}
   else $('capLeft').innerHTML='Pick two points on the field — the engine prices the corridor between them live.';
 });
 
@@ -668,7 +693,7 @@ $('raster').addEventListener('click',e=>{
   /* a→b — two real points, then the engine answers */
   if(!PT_A||(PT_A&&PT_B)){
     PT_A={lon:toLon(x),lat:toLat(y)};PT_B=null;ROUTE=null;
-    $('routeline').innerHTML='<b>a</b> set — pick the second point';$('departline').textContent='';
+    $('routeline').innerHTML='<b>a</b> set — pick the second point';$('departline').textContent='';$('ladder').textContent='';
     drawScene();return;
   }
   PT_B={lon:toLon(x),lat:toLat(y)};
@@ -677,7 +702,7 @@ $('raster').addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     $('fpop').hidden=true;INS=null;
-    PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';
+    PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';
     drawScene();dtHide();
   }
 });
@@ -691,7 +716,7 @@ async function planAB(){
   const seq=++PLANSEQ;
   const a={...PT_A},b={...PT_B};
   $('routeline').innerHTML='pricing the corridor — <b>live engine call</b>…';
-  $('departline').textContent='';
+  $('departline').textContent='';$('ladder').textContent='';
   try{
     const d=await api('/v2/plan',{method:'POST',
       headers:{'content-type':'application/json'},
@@ -727,6 +752,7 @@ async function planAB(){
         :'')+
       ` · ${o.tag?esc(o.tag)+' · ':''}${opts.length} option${opts.length===1?'':'s'} priced in ${d.took_ms!=null?(d.took_ms/1000).toFixed(1)+' s':'—'}`+
       deg;
+    ladderAB(opts,o,seq);
     departAB(a,b,seq);
   }catch(e){
     if(seq!==PLANSEQ)return;
@@ -770,6 +796,57 @@ async function departAB(a,b,seq){
       `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="dose by departure hour">${line}${dots}</svg>`+
       `<span>${txt} · next 12h, same corridor</span>`;
   }catch(e){if(seq===PLANSEQ)$('departline').textContent='';}
+}
+
+/* dose-per-mode ladder — the engine already priced every option; this is
+   that list made visible. one hairline row per mode: name, bar ∝ dose mid,
+   dose + lo–hi band. recommended row inked; the DRAWN row gets the heavier
+   bar (drawn ≠ recommended is honest). clicking a row re-draws the canvas
+   from that option's own route_geojson — the engine's actual geometry for
+   the mode. no geometry → honest 'priced, no road path to draw'. truncated
+   options carry their gap + lo-conf flag inline and are never inked. */
+let LOPTS=[];
+function ladderAB(opts,drawnOpt,seq){
+  if(seq!==PLANSEQ)return;
+  LOPTS=opts;
+  const max=Math.max(...opts.map(o=>(o.dose&&o.dose.mid)||0),1);
+  const rows=opts.slice(0,7).map((o,i)=>{
+    const ds=o.dose||{};
+    const nm=esc(String(o.label||o.mode||'option').split('·')[0].trim());
+    const w=ds.mid!=null?Math.max(1,ds.mid/max*100):0;
+    const trunc=o.reaches_destination===false;
+    const gap=o.truncated_gap_km!=null?Math.round(o.truncated_gap_km):null;
+    const flags=[];
+    if(trunc)flags.push(`~${gap!=null?gap+' km':'—'} short`);
+    if(ds.confidence==='low')flags.push('lo conf');
+    if(ds.sparse)flags.push(ds.basis?esc(ds.basis):'sparse cells');
+    const geo=(o.route_geojson||{}).coordinates||[];
+    if(!geo.length)flags.push('priced, no road path');
+    const cls=`lrow${o.recommended&&!trunc?' rec':''}${o===drawnOpt?' drawn':''}`;
+    return `<div class="${cls}" role="button" tabindex="0" data-i="${i}"`+
+      ` title="${esc(o.label||'')}"><span class="lname">${nm}</span>`+
+      `<span class="lbar"><i style="width:${w.toFixed(1)}%"></i></span>`+
+      `<span class="ldose">${ds.mid!=null?F1(ds.mid)+' µg':'—'}`+
+      `${ds.lo!=null?`<i>${F1(ds.lo)}–${F1(ds.hi)}</i>`:''}</span>`+
+      `<span class="lflag">${flags.map(f=>`<b>${esc(f)}</b>`).join(' · ')}</span></div>`;
+  }).join('');
+  const more=opts.length>7
+    ?`<div class="lmore">+ ${opts.length-7} more priced — the engine priced all ${opts.length}</div>`:'';
+  $('ladder').innerHTML=rows+more;
+  $('ladder').querySelectorAll('.lrow').forEach(r=>{
+    const fire=()=>drawOption(+r.dataset.i,seq);
+    r.addEventListener('click',fire);
+    r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fire()}});
+  });
+}
+function drawOption(i,seq){
+  if(seq!==PLANSEQ)return;
+  const o=LOPTS[i];if(!o)return;
+  const geo=(o.route_geojson||{}).coordinates||[];
+  ROUTE=geo.length?{coords:geo}:null;
+  drawScene();
+  $('ladder').querySelectorAll('.lrow').forEach((r,j)=>{
+    r.classList.toggle('drawn',j===i&&geo.length>0)});
 }
 
 /* --- district chips ------------------------------------------------------ */
