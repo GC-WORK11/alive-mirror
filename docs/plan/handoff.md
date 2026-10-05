@@ -388,3 +388,8 @@ od 2 suppressed, dose 303.7µg/4 trips, co2 1.55kg/1 PUC trip, reviews 2 avg 4.0
   * route journey verified end-to-end on iPhone 17 sim (search→compare→nav with dose-tint polyline + live counters).
 - favicon 404 fixed eca69aa (data-URI icon on admin+city; landing+community already had) — rides next deploy.
 - Live `34380b3e`; main `ede60eb` (suite 930 green).
+
+## cont.15b — deploy-race lesson (lead, ~05:10Z Oct 5)
+- Deploy races silently supersede: lane's deploy.sh finished after mine → live regressed to 2a92824a (old per-cell raster). Symptom in logs: len(sig)==cells count impossible under block-keyed code → traced to task def :123 built pre-raster-fix. RULE: after any deploy, verify /health build_sha == expected AND aws ecs describe-services shows exactly one deployment. Lanes should NOT run deploy.sh — lead deploys consolidated HEADs. (Add to future lane prompts.)
+- Raster fix verified in prod on task def :124 (build a745c5d8): "1764 cells (441 sigma) -> FieldView" — full 42² lattice in budget (s_step=2 → 441 block sigma reads), NO budget stop. Cold-epoch degrade killed.
+- Live `a745c5d8` = consolidated HEAD (raster + favicon + us_aqi ramp + cutouts + all docs).
