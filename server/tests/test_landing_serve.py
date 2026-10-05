@@ -30,6 +30,8 @@ REQUIRED = [
     "/community",
     "statusline",
     "confSplit",
+    "fieldAge",
+    "buildTag",
     "per street",
 ]
 # owner-vetoed elements + placeholder guards
