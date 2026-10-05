@@ -197,7 +197,7 @@ def test_model_card_serves_real_constants():
     assert d["available"] is True
     # the panel's numbers are the model's own tables — spot-check two
     # canonical rows so a drifted constant can never ship silently
-    assert d["microenv"]["auto_rickshaw"] == 1.15
+    assert d["microenv"]["auto_rickshaw"] == 1.30
     assert d["ventilation_lpm"]["cycling"] == 22.0
     # cigarette framing is off admin surfaces entirely — the constant and
     # its citation must not ship to the ops board

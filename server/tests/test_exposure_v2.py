@@ -23,10 +23,12 @@ FNONE = lambda lat, lon: None
 # --- doc 06 §1 table audit -----------------------------------------------------
 
 def test_microenv_canonical_values_match_doc():
-    """Every mode row the doc specifies, at the doc's value."""
-    doc06 = {"metro": 0.45, "driving_car_ac": 0.55, "driving_car_open": 0.80,
-             "bus": 0.70, "driving_two_wheeler": 1.10, "auto_rickshaw": 1.15,
-             "cycling": 1.10, "walking": 1.00}
+    """Every mode row, at the published-anchor value (Oct-2026 re-audit:
+    open/shared modes re-pinned to Goel 2015 fixed-arterial exceedances +
+    Apte 2011 in-rickshaw ratio; prior values underdosed 12–40%)."""
+    doc06 = {"metro": 0.45, "driving_car_ac": 0.55, "driving_car_open": 1.00,
+             "bus": 0.90, "driving_two_wheeler": 1.20, "auto_rickshaw": 1.30,
+             "cycling": 1.10, "walking": 1.30}
     for mode, me in doc06.items():
         assert MICROENV[mode] == me, mode
 
@@ -34,11 +36,11 @@ def test_microenv_canonical_values_match_doc():
 def test_microenv_aliases_resolve_to_doc_values():
     """Plain app names (the doc's own wording) must land on the same rows."""
     assert MICROENV["car"] == MICROENV["driving_car_ac"] == 0.55
-    assert MICROENV["car_open"] == MICROENV["driving_car_open"] == 0.80
-    assert MICROENV["bike"] == MICROENV["two_wheeler"] == 1.10
-    assert MICROENV["auto"] == MICROENV["rickshaw"] == 1.15
+    assert MICROENV["car_open"] == MICROENV["driving_car_open"] == 1.00
+    assert MICROENV["bike"] == MICROENV["two_wheeler"] == 1.20
+    assert MICROENV["auto"] == MICROENV["rickshaw"] == 1.30
     assert MICROENV["cycle"] == MICROENV["cycling"] == 1.10
-    assert MICROENV["walk"] == MICROENV["walking"] == 1.00
+    assert MICROENV["walk"] == MICROENV["walking"] == 1.30
     # cab/taxi are flagged conservative defaults (no doc row) — never below
     # the closed-car row, and equal to open-car:
     assert MICROENV["cab"] == MICROENV["taxi"] == MICROENV["driving_car_open"]
@@ -51,13 +53,16 @@ def test_microenv_aliases_resolve_to_doc_values():
 
 def test_ventilation_is_activity_adjusted():
     """Doc 06: VE differs sitting vs walking vs cycling; cycling ≈2.1×
-    in-vehicle passengers (Zuurbier 2009 → ~10.5 L/min → ~22)."""
-    assert VENTILATION_LPM["driving_car_ac"] == 7.5   # seated tier
+    in-vehicle passengers (Zuurbier 2009 measured ~10–11 L/min seated →
+    ~22 cycling). Oct-2026 audit: seated tier raised to the measured
+    passenger band (~10) from the prior sedentary-rest tier (7.5–9)."""
+    assert VENTILATION_LPM["driving_car_ac"] == 10.0  # seated tier
+    assert 9.0 <= VENTILATION_LPM["bus"] <= 11.5
     assert 13.0 <= VENTILATION_LPM["walking"] <= 15.0
     assert 20.0 <= VENTILATION_LPM["cycling"] <= 25.0
     assert (VENTILATION_LPM["cycling"] >
             VENTILATION_LPM["walking"] > VENTILATION_LPM["metro"])
-    assert VENTILATION_LPM["cycling"] == pytest.approx(2.1 * 10.5, rel=0.06)
+    assert VENTILATION_LPM["cycling"] == pytest.approx(2.1 * 10.0, rel=0.06)
     # activity labels differentiate, and aliases inherit correctly
     assert MODE_ACTIVITY["cycling"] == MODE_ACTIVITY["cycle"] == "cycling"
     assert MODE_ACTIVITY["walking"] == MODE_ACTIVITY["walk"] == "walking"
@@ -79,13 +84,13 @@ def test_measured_delhi_ordering_holds():
 # --- doc 06 worked-example math (constant field → closed form) -----------------
 
 @pytest.mark.parametrize("mode,me,ve_lpm", [
-    ("walking",            1.00, 14.0),
-    ("metro",              0.45,  7.5),
-    ("auto_rickshaw",      1.15,  8.5),
+    ("walking",            1.30, 14.0),
+    ("metro",              0.45, 10.0),
+    ("auto_rickshaw",      1.30, 10.0),
     ("cycling",            1.10, 22.0),
-    ("driving_car_ac",     0.55,  7.5),
-    ("bus",                0.70,  8.0),
-    ("driving_two_wheeler", 1.10,  9.0),
+    ("driving_car_ac",     0.55, 10.0),
+    ("bus",                0.90, 10.0),
+    ("driving_two_wheeler", 1.20, 10.5),
 ])
 def test_dose_closed_form(mode, me, ve_lpm):
     """C=100 µg/m³, Δt=10 min → dose = 100·ME·VE·10 exactly (doc 06 §1)."""
@@ -112,12 +117,12 @@ def test_alias_dose_identical_to_canonical():
 
 def test_band_is_conservative_linear_sum():
     """Doc 06 §1: band = sum of lo / sum of hi. σ=20 walking 10 min →
-    sd_eff = 20·1.0·0.014·5 per half → ±2.8 total, linear not RSS."""
+    sd_eff = 20·1.3·0.014·5 per half → ±3.64 total, linear not RSS."""
     r = dose(GEO, 600.0, "walking", F100,
              field_sigma=lambda lat, lon: 20.0)
-    assert r["dose_ug"] == pytest.approx(14.0, abs=0.15)
-    assert r["dose_ug_lo"] == pytest.approx(11.2, abs=0.15)
-    assert r["dose_ug_hi"] == pytest.approx(16.8, abs=0.15)
+    assert r["dose_ug"] == pytest.approx(18.2, abs=0.15)
+    assert r["dose_ug_lo"] == pytest.approx(14.56, abs=0.15)
+    assert r["dose_ug_hi"] == pytest.approx(21.84, abs=0.15)
     assert 0.0 <= r["dose_ug_lo"] <= r["dose_ug"] <= r["dose_ug_hi"]
 
 
@@ -229,7 +234,7 @@ def test_malformed_coords_dont_crash():
 def test_unknown_mode_defaults_honestly():
     f = mode_factors("hovercraft")
     assert f["known_mode"] is False
-    assert f["microenv"] == 1.0 and f["ventilation_lpm"] == 8.0
+    assert f["microenv"] == 1.0 and f["ventilation_lpm"] == 10.0
     r = dose(GEO, 600.0, "hovercraft", F100)
     assert "unknown_mode_defaulted" in r["warnings"]
     assert r["dose_ug"] is not None

@@ -79,10 +79,14 @@ const PathRule kRules[] = {
 constexpr int kModeCount = sizeof(kRules) / sizeof(kRules[0]);
 const char* kModeNames[kModeCount] = {"car", "car_open", "cab", "auto",
                                       "bike", "cycle", "walk"};
-constexpr double kModeVE[kModeCount] = {7.5, 7.5, 7.5, 8.5, 9.0, 22.0,
-                                        14.0};
-constexpr double kModeME[kModeCount] = {0.55, 0.80, 0.80, 1.15, 1.10,
-                                        1.10, 1.00};
+// Mirrors routegraph.MODE_VE/MODE_ME (= exposure.MICROENV/VENTILATION_LPM
+// for these modes) — Oct-2026 re-audit anchors: Goel 2015 arterial
+// exceedances, Apte 2011 in-rickshaw 1.5x, Zuurbier 2009 passenger VE.
+// test_priced_displayed.py asserts priced == displayed per mode.
+constexpr double kModeVE[kModeCount] = {10.0, 10.0, 10.0, 10.0, 10.5,
+                                        22.0, 14.0};
+constexpr double kModeME[kModeCount] = {0.55, 1.00, 1.00, 1.30, 1.20,
+                                        1.10, 1.30};
 
 int mode_index(const std::string& mode) {
   for (int i = 0; i < kModeCount; ++i)
@@ -471,7 +475,7 @@ PathResult PathEngine::route(double olat, double olon, double dlat,
   std::shared_lock<std::shared_mutex> conc_lk(conc_mtx_);
   PathResult res;
   const PathRule& rl = kRules[mi];
-  const double ve = kModeVE[mi], me = kModeME[mi];
+  const double ve = kModeVE[mi], me = kModeME[mi];  // audit-synced
 
   double sd = 0.0, td = 0.0;
   const int s = snap(olat, olon, mi, 0, &sd);

@@ -813,7 +813,7 @@ def mode_factors(mode: str) -> tuple:
     so callers don't re-key them (dose contract takes the raw factors)."""
     import exposure  # local tables, stdlib-only
     me = exposure.MICROENV.get(mode, 1.0)
-    ve = exposure.VENTILATION_LPM.get(mode, 8.0) / 1000.0
+    ve = exposure.VENTILATION_LPM.get(mode, 10.0) / 1000.0
     return me, ve
 
 

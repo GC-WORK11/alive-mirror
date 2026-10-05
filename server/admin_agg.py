@@ -566,9 +566,12 @@ async def model_card():
                         if k != "arterial"},
         "plausible_max_kmh": _ex.PLAUSIBLE_MAX_KMH,
         "citations": {
-            "microenv": "measured Delhi microenvironment ratios, doc 06 §1",
+            "microenv": ("measured Delhi microenvironment ratios — Goel "
+                         "et al. 2015 fixed-arterial exceedances, Apte et "
+                         "al. 2011 in-rickshaw ratio, doc 06 §1"),
             "ventilation": ("Zuurbier 2009 — cyclists ≈2.1× in-vehicle VE; "
-                            "activity-adjusted tiers"),
+                            "seated tier = measured passenger ~10 L/min; "
+                            "activity-adjusted"),
             "uplift": ("near-road PM increment decays within ~500 m of "
                        "the curb, doc 06 §1"),
         },

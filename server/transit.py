@@ -213,8 +213,8 @@ def metro_option(from_lat: float, from_lon: float, to_lat: float,
             "confidence": "low" if "low" in confs else
                           ("medium" if "medium" in confs else
                            ("high" if "high" in confs else "none")),
-            "factors": {"microenv": "walk 1.0 / metro 0.45",
-                        "ventilation_lpm": "walk 14 / metro 7.5",
+            "factors": {"microenv": "walk 1.3 / metro 0.45",
+                        "ventilation_lpm": "walk 14 / metro 10",
                         "road_uplift": 1.0},
         },
     }
@@ -282,8 +282,8 @@ def _option_from_gtfs(j: dict, from_lat: float, from_lon: float,
             "confidence": "low" if "low" in confs else
                           ("medium" if "medium" in confs else
                            ("high" if "high" in confs else "none")),
-            "factors": {"microenv": "walk 1.0 / metro 0.45",
-                        "ventilation_lpm": "walk 14 / metro 7.5",
+            "factors": {"microenv": "walk 1.3 / metro 0.45",
+                        "ventilation_lpm": "walk 14 / metro 10",
                         "road_uplift": 1.0},
         },
     }

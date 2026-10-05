@@ -12,22 +12,27 @@
 
 import type { Band, EmissionCurve } from "./strip";
 
-/** Measured Delhi microenvironment ratios + minute ventilation
- *  (server/exposure.py — Sci. Total Environ. 2021, Discover Atmosphere
- *  2025, Zuurbier 2009). Keyed by the route `mode` the server stores
- *  on the route record (car, car_open, bike, auto, bus, metro, cycle,
- *  walk). Unknown modes fall back to walking — ambient, honest. */
+/** Measured Delhi microenvironment ratios + minute ventilation —
+ *  mirror of server/exposure.py MICROENV/VENTILATION_LPM (Goel et al.
+ *  2015 fixed-arterial exceedances, Apte et al. 2011 in-rickshaw ratio,
+ *  Zuurbier 2009 measured passenger VE; Sci. Total Environ. 2021,
+ *  Discover Atmosphere 2025). Keyed by the route `mode` the server
+ *  stores on the route record (car, car_open, bike, auto, bus, metro,
+ *  cycle, walk). Unknown modes fall back to open-air ambient — honest.
+ *  Oct-2026 re-audit: open/shared modes and seated VE raised to the
+ *  measured band (walk 1.0→1.3, car_open 0.8→1.0, bus 0.7→0.9,
+ *  bike 1.1→1.2, auto 1.15→1.3, seated VE 7.5–9→10–10.5). */
 export const ME_VE: Record<string, { me: number; veLpm: number }> = {
-  metro: { me: 0.45, veLpm: 7.5 },
-  car: { me: 0.55, veLpm: 7.5 },
-  car_open: { me: 0.8, veLpm: 7.5 },
-  bus: { me: 0.7, veLpm: 8.0 },
-  bike: { me: 1.1, veLpm: 9.0 },
-  auto: { me: 1.15, veLpm: 8.5 },
+  metro: { me: 0.45, veLpm: 10.0 },
+  car: { me: 0.55, veLpm: 10.0 },
+  car_open: { me: 1.0, veLpm: 10.0 },
+  bus: { me: 0.9, veLpm: 10.0 },
+  bike: { me: 1.2, veLpm: 10.5 },
+  auto: { me: 1.3, veLpm: 10.0 },
   cycle: { me: 1.1, veLpm: 22.0 },
-  walk: { me: 1.0, veLpm: 14.0 },
+  walk: { me: 1.3, veLpm: 14.0 },
 };
-const ME_VE_DEFAULT = { me: 1.0, veLpm: 8.0 };
+const ME_VE_DEFAULT = { me: 1.0, veLpm: 10.0 };
 
 /** Cold-start uplift tapers linearly from (1+COLD_UPLIFT) at km 0 to
  *  1.0 at cold_start_km. Magnitude is an est. inside the class band —

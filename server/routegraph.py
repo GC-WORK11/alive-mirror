@@ -77,10 +77,14 @@ MODE_RULES = {
                  "acc": 0b100, "turn": 4,
                  "spd": lambda sp: 5.0},
 }
-MODE_VE = {"car": 7.5, "car_open": 7.5, "cab": 7.5, "auto": 8.5,
-           "bike": 9.0, "cycle": 22.0, "walk": 14.0}
-MODE_ME = {"car": 0.55, "car_open": 0.80, "cab": 0.80, "auto": 1.15,
-           "bike": 1.10, "cycle": 1.10, "walk": 1.00}
+# Priced-table mirror of exposure.MICROENV/VENTILATION_LPM (Oct-2026
+# re-audit values — Goel 2015 / Apte 2011 / Zuurbier 2009 anchors).
+# tests/test_priced_displayed.py asserts these stay equal: pricing a
+# different factor than the UI displays would be a silent dose lie.
+MODE_VE = {"car": 10.0, "car_open": 10.0, "cab": 10.0, "auto": 10.0,
+           "bike": 10.5, "cycle": 22.0, "walk": 14.0}
+MODE_ME = {"car": 0.55, "car_open": 1.00, "cab": 1.00, "auto": 1.30,
+           "bike": 1.20, "cycle": 1.10, "walk": 1.30}
 # NOTE: the priced objective deliberately uses a FLAT uplift (1.0 on
 # every edge), matching the display integrator — exposure.dose via
 # _dose_band never sees road_class, so a path that 'won' on priced
@@ -473,7 +477,7 @@ class PyPathEngine:
         cost multiplier (diversity pass — never a legality override)."""
         g = self.g
         rule = MODE_RULES.get(mode) or MODE_RULES["car"]
-        ve = MODE_VE.get(mode, 8.0)
+        ve = MODE_VE.get(mode, 10.0)
         me = MODE_ME.get(mode, 1.0)
         s, sd = self.snap(olat, olon, mode, "from")
         t, td = self.snap(dlat, dlon, mode, "to")

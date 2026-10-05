@@ -254,11 +254,11 @@ def _emission_band(mode: str, dist_km: float, eta_s: float,
 def _microenv_ve(microenv: str) -> tuple:
     """(microenv ratio, VE m³/min) for a MICROENV-table key — getattr
     defensive so a renamed table can never 500 the endpoint."""
-    me, ve = 1.0, 0.008
+    me, ve = 1.0, 0.010
     if exposure is not None:
         try:
             me = float(exposure.MICROENV.get(microenv, 1.0))
-            ve = float(exposure.VENTILATION_LPM.get(microenv, 8.0)) / 1000.0
+            ve = float(exposure.VENTILATION_LPM.get(microenv, 10.0)) / 1000.0
         except Exception:
             pass
     return me, ve

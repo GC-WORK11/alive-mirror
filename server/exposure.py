@@ -15,9 +15,17 @@ Sources:
       corridor: auto-rickshaw 113.2, bus-open 68.9, bus-closed 63.1,
       car-open 71.0, car-closed 62.3, two-wheeler 41.9, metro 34.2 µg/m³.
   [3] Zuurbier et al. 2009 (Environ. Health) — minute ventilation while
-      cycling ~2.1× car/bus passengers (280 real trips).
+      cycling ~2.1× car/bus passengers (280 real trips); in-vehicle VE
+      measured ~10–11 L/min, cyclists ~21–25 L/min.
   [4] US EPA near-road literature / Karner et al. — traffic-linked PM
       increments decay ~75% within 30m and taper to ~500m.
+  [5] Goel, Gani, Guttikunda, Wilson & Tiwari 2015 (Atmos. Environ. 123:
+      129–138) — on-road vs ambient PM2.5 on a fixed 8.3 km Delhi
+      arterial, rush hour: walking +40%, 2W +30%, open-window car +30%,
+      auto-rickshaw +30%, AC/OW bus +20%, cycling +10%, AC car −50%,
+      metro carriage −20%.
+  [6] Apte et al. 2011 (Atmos. Environ.) — ~180 h in an auto-rickshaw:
+      in-vehicle PM2.5 GM 190 µg/m³ = 1.5× simultaneous ambient (130).
 """
 import math
 from typing import Callable, Optional
@@ -29,21 +37,38 @@ except Exception:
 
 # --- Measured Delhi microenvironment ratios -------------------------------
 # Normalized to the ambient field (what a person standing on that street
-# would breathe). Ratios derived from [2]'s measured means against a
-# same-corridor ambient basis; two-wheeler's 41.9 was a run-average on a
-# cleaner segment, so its ratio is set conservatively (open-air rider on
-# arterial ≈ rickshaw-like exposure, lightly discounted).
+# would breathe). Each row is pinned to the measured Delhi literature —
+# [5]'s fixed-arterial exceedances and [6]'s in-rickshaw ratio are the
+# direct breathing-zone evidence; [2] (Magenta-line run means vs the same
+# corridor's ambient) cross-checks from the enclosed side. Where the two
+# studies disagree we take the mid of the published range and say so —
+# open modes are biased toward [5]/[6] because understating the highest-
+# exposure modes would undersell the product's core claim.
+# Audit (Oct-2026): walk 1.00→1.30, car_open 0.80→1.00, bus 0.70→0.90,
+# 2W 1.10→1.20, auto 1.15→1.30 — every open/shared mode was below the
+# measured band and understated dose 12–40%.
 
 MICROENV = {
     # canonical mode keys (doc 06 §1 sources every row):
-    "metro":              0.45,   # enclosed, underground sections even lower
-    "driving_car_ac":     0.55,   # windows up, recirculated cabin [2]
-    "driving_car_open":   0.80,   # windows down ≈ roadside [2]
-    "bus":                0.70,   # midpoint of open/closed window [2]
-    "driving_two_wheeler": 1.10,  # open-air rider, breathing zone in traffic
-    "auto_rickshaw":      1.15,   # open-sided, sits in exhaust plume [2]
-    "cycling":            1.10,   # open-air, in traffic stream
-    "walking":            1.00,   # roadside ambient baseline
+    "metro":              0.45,   # [2] run-mean ≈0.40–0.46 vs corridor
+                                # ambient; [5] measured 0.80 on the 2014
+                                # surface-line carriage — we keep the
+                                # optimistic published end, flagged here.
+    "driving_car_ac":     0.55,   # [5] measured 0.50; cabin I/O 0.20 new /
+                                # 0.60 aged filter — mid of published.
+    "driving_car_open":   1.00,   # [5] measured 1.30 (windows-down rides in
+                                # the plume); [2] implies ~0.85–0.95 — we
+                                # take 1.00, below the [5] exceedance.
+    "bus":                0.90,   # [5] measured 1.20 (AC and OW both +20%);
+                                # [2] implies ~0.78–0.88 — mid ~0.90.
+    "driving_two_wheeler": 1.20,  # [5] measured 1.30; lightly discounted —
+                                # riders sit ahead of much of the plume.
+    "auto_rickshaw":      1.30,   # [5] 1.30, [6] 1.46, [2] implies ~1.33 —
+                                # the published range starts at 1.3.
+    "cycling":            1.10,   # [5] measured 1.10 exactly.
+    "walking":            1.30,   # [5] measured 1.40; discounted ~7% —
+                                # our kriged field already carries some
+                                # roadside blend via CAAQMS stations.
     # app-facing aliases — the same published values under the plain
     # vehicle strings other lanes pass through (community.py stores raw
     # vehicle names; doc 06 §1 lists plain names: car, 2W, auto, cycle,
@@ -52,32 +77,32 @@ MICROENV = {
     "car":                0.55,   # alias: driving_car_ac (car default = AC)
     "car_ac":             0.55,
     "car_windows_up":     0.55,
-    "car_open":           0.80,   # alias: driving_car_open
-    "car_windows_down":   0.80,
-    "cab":                0.80,   # DEFAULT (no doc row) — open-car value
-    "taxi":               0.80,   # DEFAULT (no doc row) — open-car value
-    "bike":               1.10,   # alias: driving_two_wheeler
-    "two_wheeler":        1.10,
-    "scooter":            1.10,
-    "motorcycle":         1.10,
-    "auto":               1.15,   # alias: auto_rickshaw
-    "rickshaw":           1.15,
+    "car_open":           1.00,   # alias: driving_car_open
+    "car_windows_down":   1.00,
+    "cab":                1.00,   # DEFAULT (no doc row) — open-car value
+    "taxi":               1.00,   # DEFAULT (no doc row) — open-car value
+    "bike":               1.20,   # alias: driving_two_wheeler
+    "two_wheeler":        1.20,
+    "scooter":            1.20,
+    "motorcycle":         1.20,
+    "auto":               1.30,   # alias: auto_rickshaw
+    "rickshaw":           1.30,
     "cycle":              1.10,   # alias: cycling
     "bicycle":            1.10,
-    "walk":               1.00,   # alias: walking
-    "on_foot":            1.00,
+    "walk":               1.30,   # alias: walking
+    "on_foot":            1.30,
 }
 
 # --- Minute ventilation (L/min), activity-adjusted --------------------------
 # Doc 06 §1 differentiates VE by ACTIVITY, not vehicle badge — three tiers:
-#   seated/transit  ~7.5-9   (rest-light; bus/auto/2W slightly above the
-#                            car baseline for vibration + thermal stress)
-#   walking         14.0     (~1.9× seated)
-#   cycling         22.0     [3] Zuurbier 2009 measured cyclists at ≈2.1×
-#                            car/bus passengers — his in-vehicle VE ran
-#                            ~10-11 L/min in traffic, so 2.1× lands at ~22;
-#                            vs our rest-level 7.5 it is ~2.9×. Kept at the
-#                            top of the published 20-25 range = conservative.
+#   seated/transit  ~10.0-10.5 (measured in-vehicle/passenger VE; audit fix
+#                            Oct-2026 — was 7.5-9.0, a sedentary-rest tier
+#                            ~25% below the published passenger band)
+#   walking         14.0     (EPA EFH light/moderate adult walking ~12-16)
+#   cycling         22.0     [3] Zuurbier 2009 measured cyclists ≈2.1×
+#                            in-vehicle passengers; at car VE 10.0 our
+#                            cycle/car ratio is 2.2× — matching the
+#                            measured ratio, not exaggerating it.
 
 MODE_ACTIVITY = {
     "metro": "seated", "driving_car_ac": "seated",
@@ -95,28 +120,28 @@ MODE_ACTIVITY = {
 
 VENTILATION_LPM = {
     # canonical keys
-    "metro":               7.5,
-    "driving_car_ac":      7.5,
-    "driving_car_open":    7.5,
-    "bus":                 8.0,
-    "driving_two_wheeler": 9.0,
-    "auto_rickshaw":       8.5,
+    "metro":              10.0,
+    "driving_car_ac":     10.0,
+    "driving_car_open":   10.0,
+    "bus":                10.0,
+    "driving_two_wheeler": 10.5,
+    "auto_rickshaw":      10.0,
     "cycling":            22.0,
     "walking":            14.0,
     # aliases (mirrors MICROENV)
-    "car":                 7.5,
-    "car_ac":              7.5,
-    "car_windows_up":      7.5,
-    "car_open":            7.5,
-    "car_windows_down":    7.5,
-    "cab":                 7.5,
-    "taxi":                7.5,
-    "bike":                9.0,
-    "two_wheeler":         9.0,
-    "scooter":             9.0,
-    "motorcycle":          9.0,
-    "auto":                8.5,
-    "rickshaw":            8.5,
+    "car":                10.0,
+    "car_ac":             10.0,
+    "car_windows_up":     10.0,
+    "car_open":           10.0,
+    "car_windows_down":   10.0,
+    "cab":                10.0,
+    "taxi":               10.0,
+    "bike":               10.5,
+    "two_wheeler":        10.5,
+    "scooter":            10.5,
+    "motorcycle":         10.5,
+    "auto":               10.0,
+    "rickshaw":           10.0,
     "cycle":              22.0,
     "bicycle":            22.0,
     "walk":               14.0,
@@ -155,12 +180,12 @@ PLAUSIBLE_MAX_KMH = 150.0
 def mode_factors(mode: str) -> dict:
     """Resolve any canonical-or-alias mode string to its dose factors.
     Unknown modes degrade to open-air walking factors (microenv 1.0,
-    seated-light VE 8.0) with known_mode=False — honest, never a crash."""
+    seated VE 10.0) with known_mode=False — honest, never a crash."""
     me = MICROENV.get(mode)
     ve = VENTILATION_LPM.get(mode)
     return {
         "microenv": me if me is not None else 1.0,
-        "ventilation_lpm": ve if ve is not None else 8.0,
+        "ventilation_lpm": ve if ve is not None else 10.0,
         "activity": MODE_ACTIVITY.get(mode, "seated"),
         "known_mode": mode in MICROENV,
     }

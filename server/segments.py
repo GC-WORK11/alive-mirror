@@ -82,7 +82,7 @@ def segment_doses(geometry: dict, duration_s: float, mode: str,
     """Per-segment records for one option. Field sampled at the
     midpoint + two quarter-points, mean-weighted."""
     microenv = MICROENV.get(mode, 1.0)
-    ve = VENTILATION_LPM.get(mode, 8.0) / 1000.0
+    ve = VENTILATION_LPM.get(mode, 10.0) / 1000.0
     uplift = ROAD_UPLIFT.get(road_class or "", 1.0)
     out = []
     for s in split_geometry(geometry, duration_s, seg_seconds):

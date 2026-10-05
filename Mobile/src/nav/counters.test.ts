@@ -31,27 +31,28 @@ const CONC = { lo: 50, mid: 100, hi: 150 };
 describe("dose integration (inhaled PM2.5, µg)", () => {
   it("walk: C·ME·VE·dt per band edge, accumulates over ticks", () => {
     const c = new LiveCounters();
-    const veM3s = ME_VE.walk.veLpm / 60000; // 14 L/min → 2.3333e-4 m³/s
+    const me = ME_VE.walk.me;                 // 1.3 (Goel 2015 +40%, disc.)
+    const veM3s = ME_VE.walk.veLpm / 60000;   // 14 L/min → 2.3333e-4 m³/s
     for (let i = 0; i < 60; i++) c.tick(1, 1.4, 0, CONC, null, "walk");
-    closeTo(c.doseUg.lo, 50 * 1.0 * veM3s * 60);   // 0.7
-    closeTo(c.doseUg.mid, 100 * 1.0 * veM3s * 60);  // 1.4
-    closeTo(c.doseUg.hi, 150 * 1.0 * veM3s * 60);   // 2.1
+    closeTo(c.doseUg.lo, 50 * me * veM3s * 60);   // 0.91
+    closeTo(c.doseUg.mid, 100 * me * veM3s * 60);  // 1.82
+    closeTo(c.doseUg.hi, 150 * me * veM3s * 60);   // 2.73
   });
 
   it("mode changes the ME·VE product (metro breathes less roadside air)", () => {
     const a = new LiveCounters();
-    a.tick(1, 5, 0, CONC, null, "metro"); // me 0.45, ve 7.5
+    a.tick(1, 5, 0, CONC, null, "metro"); // me 0.45, ve 10
     const b = new LiveCounters();
     b.tick(1, 5, 0, CONC, null, "cycle"); // me 1.1, ve 22
-    closeTo(a.doseUg.mid, 100 * 0.45 * (7.5 / 60000));
+    closeTo(a.doseUg.mid, 100 * 0.45 * (10 / 60000));
     closeTo(b.doseUg.mid, 100 * 1.1 * (22 / 60000));
     assert.ok(b.doseUg.mid > a.doseUg.mid);
   });
 
-  it("unknown modes fall back to the ambient default (me=1, ve=8)", () => {
+  it("unknown modes fall back to the ambient default (me=1, ve=10)", () => {
     const c = new LiveCounters();
     c.tick(1, 1, 0, CONC, null, "jetpack");
-    closeTo(c.doseUg.mid, 100 * 1.0 * (8 / 60000));
+    closeTo(c.doseUg.mid, 100 * 1.0 * (10 / 60000));
   });
 
   it("dt is measured, not assumed: half-second tick halves the dose", () => {
@@ -83,7 +84,7 @@ describe("dose integration (inhaled PM2.5, µg)", () => {
     const c = new LiveCounters();
     // mid+hi null → every edge falls back to lo=100
     c.tick(1, 1, 0, { lo: 100, mid: null, hi: null }, null, "walk");
-    const expected = 100 * 1.0 * (14 / 60000);
+    const expected = 100 * 1.3 * (14 / 60000);
     closeTo(c.doseUg.lo, expected);
     closeTo(c.doseUg.mid, expected);
     closeTo(c.doseUg.hi, expected);
@@ -91,7 +92,7 @@ describe("dose integration (inhaled PM2.5, µg)", () => {
     const d = new LiveCounters();
     // only hi present → cMid = hi
     d.tick(1, 1, 0, { lo: null, mid: null, hi: 200 }, null, "walk");
-    const exp2 = 200 * 1.0 * (14 / 60000);
+    const exp2 = 200 * 1.3 * (14 / 60000);
     closeTo(d.doseUg.lo, exp2);
     closeTo(d.doseUg.mid, exp2);
     closeTo(d.doseUg.hi, exp2);
