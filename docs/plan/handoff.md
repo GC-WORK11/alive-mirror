@@ -604,3 +604,9 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **REBUILD LANDED `6bafd2b`** (app-rebuild dc8eda93 settled): boots to HomeScreen — dose hero+budget ring, THE MOVE, YOUR DAY ledger (live-accumulating), day sparkline, DAYS AHEAD 5-day +least-bad +CAMS caveat, HOW YOU FELT check-in, quiet links, daily budget. Travel="Where to?" CTA; journey untouched. Compare keeps depth pass + N× dose-gap + "leave tomorrow 12:30 → breathe ~12% less". Design brief committed: docs/plan/design-refs.md (Oura/WHOOP hero, Uber feature-in-home, CRED type, felt-FOMO). Fixed header ghost-glyph (insets.top overdraw). Residual: JS-driven sheet spring — real-device frame check owed.
 - Screenshots shown to owner (v2_row1/row2) — direction verdict pending.
 - Spawned: video-v3 QUEUED (cap hit — apk-drive spawned its own emulator-smoke child e7ffc6ca; 5 slots = me + 3 lanes + that child).
+
+## cont.31c — 2026-10-05 ~18:35 UTC
+- `7dff816` /city legibility LIVE (merged main, deploy verified): every element carries plain "what this is"; controls "▶ the hours ahead" / "▶ the day so far"; pills "what happened · what the model called · the gap" + color key; vocab unified (map squares, street stretches, phones); noscript bug fixed (.rv sections were invisible with JS off); captured_at renders IST. Note: test_plan_ranking_invariants_on_real_ods flaked once on live field drift — watch.
+- `321e3c1` home disk-first hero paint + peek honours profile budget (apk-drive lane in-flight push).
+- Spawned video-v3 `b89b314c` (cut3: dosimeter home footage + re-verified web beats).
+- Owner asleep: 5-slot mandate holds; polish direction = "one more level" on surface register pending his morning verdict.
