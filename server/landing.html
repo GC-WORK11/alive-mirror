@@ -588,6 +588,18 @@ function drawScene(){
   if(PT_A)drawPin(ctx,PT_A,'a');
   if(PT_B)drawPin(ctx,PT_B,'b');
   if(ROUTE&&ROUTE.coords&&ROUTE.coords.length>1){
+    /* snap honesty — the engine prices roads, so the ink can start a few
+       hundred metres from where the pin sits. draw the snap as a hairline
+       dash: you see exactly where the priced path really begins. */
+    const dashTo=(pt,target)=>{ if(!pt)return;
+      const gap=Math.hypot(toX(target[0])-toX(pt.lon),toY(target[1])-toY(pt.lat));
+      if(gap<6)return;
+      ctx.save();ctx.setLineDash([3,5]);ctx.lineWidth=1.2;
+      ctx.strokeStyle='rgba(22,24,29,.55)';
+      ctx.beginPath();ctx.moveTo(toX(pt.lon),toY(pt.lat));
+      ctx.lineTo(toX(target[0]),toY(target[1]));ctx.stroke();ctx.restore();};
+    const c0=ROUTE.coords[0],cN=ROUTE.coords[ROUTE.coords.length-1];
+    dashTo(PT_A,c0);dashTo(PT_B,cN);
     ctx.lineJoin='round';ctx.lineCap='round';
     ctx.beginPath();
     ROUTE.coords.forEach(([lo,la],i)=>{
