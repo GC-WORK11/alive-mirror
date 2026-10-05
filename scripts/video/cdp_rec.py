@@ -237,9 +237,18 @@ def mux_screencast(frames, out, dur):
             lf.write("file '%s'\nduration %.4f\n" % (fp, gap))
         # concat demuxer needs the last file listed twice to hold it
         lf.write("file '%s'\nduration %.4f\n" % (fp, 0.5))
+    # ffmpeg >=8 removed -vsync (use -fps_mode); pick the flag this
+    # box's ffmpeg understands so the same mux works on both lanes.
+    try:
+        vout = subprocess.run(["ffmpeg", "-version"], capture_output=True,
+                              text=True, check=True).stdout.splitlines()[0]
+        fmaj = int(vout.split("version")[1].strip().split(".")[0])
+    except Exception:
+        fmaj = 0
+    vsync = ["-fps_mode", "vfr"] if fmaj >= 8 else ["-vsync", "vfr"]
     subprocess.run(
         ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-         "-i", listf, "-vsync", "vfr", "-c:v", "libx264",
+         "-i", listf, *vsync, "-c:v", "libx264",
          "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p", out],
         check=True)
     return True

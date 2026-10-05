@@ -6,6 +6,17 @@ gets. Target: **2:45–2:55** so a beat can overrun without breaching 3:00.
 The arc now sells the **dosimeter** — the numbers every beat leans on were
 re-verified live 2026-10-05 ~16:20 UTC (deployed image + `/health` `cb862533`; `/admin/api/status` still stamps `ec51c882` — wart live) unless marked otherwise. Re-run `scripts/verify_numbers.sh` before filming — the live column is the truth.
 
+**cut3 pass (2026-10-05 ~17:45 UTC, image `a5ab92d8`):** `/v2/skill` is
+LIVE — the model-grades-itself card sits in /admin's archive grid and
+holds a real table already (7 pairs / 847 cells / MAE 18.4 / bias +18.1 /
+55.6% band-hit, every horizon honestly `thin` — min 5 pairs). Both
+build-sha surfaces agree (`a5ab92d8` on `/health` AND
+`/admin/api/status`) — the lag wart is resolved on this image. Landing
+hero reads **3.5 cigarettes ≈1,099 µg** (drifts with the field).
+`assemble.sh` cut = `~/video/cut3.mp4` (157 s): app beats re-shot on
+iOS-sim dev client at HEAD `321e3c1` (no Android/KVM on this box — the
+APK lane covers the release build), web beats re-verified same-day.
+
 ## Recording setup
 
 - Browser at 100 %, incognito window, bookmarks bar off, notifications off.
@@ -107,8 +118,14 @@ re-verified live 2026-10-05 ~16:20 UTC (deployed image + `/health` `cb862533`; `
      MAE 11.31 µg, 24 folds, week 41 — both live on the wire).
    - The **archive tile** — one line: *"the field has recorded Delhi
      hourly since Oct 5 20:00 IST — history, not just forecast;
-     `/v2/archive` replays the day, gaps admitted."* (2 snapshots at
-     re-verify; ~60+ by demo morning — the count is itself the proof.)
+     `/v2/archive` replays the day, gaps admitted."* (5 snapshots at
+     cut3 re-verify; ~60+ by demo morning — the count is itself the proof.)
+   - The **model-grades-itself card** (`/v2/skill`, live since the
+     `a5ab92d8` deploy) — *"the forecast we served vs the hour we
+     recorded": 7 pairs, MAE 18.4 µg/m³, bias +18.1 (we over-call),
+     55.6% of cells in the right CPCB band — and it says `thin` on every
+     horizon under 5 pairs instead of pretending."* The honest thin
+     state is the story: a scorecard that refuses to bluff.
    - Point at `coverage < 1` / `confidence:"low"` honesty: "where we can't
      support a claim, the field says so itself."
 
@@ -148,9 +165,10 @@ re-verified live 2026-10-05 ~16:20 UTC (deployed image + `/health` `cb862533`; `
 | field age / station count | ~14 min / 24 WAQI + ~71 model samples | `GET /aqi`, `GET /health` — model samples thin to ~40 after a cold task, climb through the hour |
 | fires / modifier | 79 fires, 17 belt; modifier ×1.09 at CP at last probe (sometimes null) | `GET /aqi → smoke_modifier` — fires swing daily; say "fires feed live" not a pinned modifier |
 | corridors publishable | 10 | `GET /v2/city` — grows with donations |
-| breath/day + community | ~944 µg mid (≈2.99 cig); 24 h 4 obs/12.9 km/137.3 µg avoided; moves 33 trips over 3 days (car 78.8% / 'other' pool 21.2%, suppressed 0) | `GET /v2/city`, `/community`, `/v2/city/moves` — donation-dependent, drifts hourly |
-| `/health` build_sha | `cb862533` live on `/health` and matching the deployed image tag — `/admin/api/status` still reads `ec51c882` (BUILD_SHA lag wart is live again) | say the ECR image tag / "the afternoon deploy", not the stamp — two surfaces can legitimately disagree |
-| field archive | 2 snapshots since 2026-10-05T20:00 IST (hours 20,21 recorded; 0–19 honest gaps; 22,23 pending) — grows hourly, gaps stay gaps | `GET /v2/archive` → `total_snapshots` + `since_ist` (`?day=` takes YYYY-MM-DD only; bare = today); `/admin` archive tile reads `archive.status()` |
+| breath/day + community | landing hero **3.5 cigarettes ≈1,099 µg** at cut3 pass (~944 µg / ≈2.99 cig at 16:20 — drifts with the field); 24 h donation strip donation-dependent | landing `/` + `GET /v2/city`, `/community`, `/v2/city/moves` |
+| `/health` build_sha | **`a5ab92d8`** on `/health` AND `/admin/api/status` — the lag wart is resolved on this image (earlier `cb862533`/`ec51c882` pair disagreed) | if they disagree again on stage, say the ECR image tag / "the afternoon deploy", not the stamp |
+| `/v2/skill` | live since `a5ab92d8`: 7 pairs / 847 cells / MAE 18.4 µg/m³ / bias +18.1 / band-hit 55.6% · all horizons `thin` (min_pairs 5 — says so rather than scoring) | `GET /v2/skill` — pairs grow with the archive; on stage say the live n + the honest-thin line |
+| field archive | 5 snapshots since 2026-10-05T20:00 IST (Oct-5 hours 20–23 + Oct-6 h0 recorded; gaps stay gaps) — grows hourly | `GET /v2/archive` → `total_snapshots` + `since_ist` (`?day=` takes YYYY-MM-DD only; bare = today); `/admin` archive tile reads `archive.status()` |
 
 Don't say numbers you didn't just verify. "About" and "roughly" are the
 honest words.

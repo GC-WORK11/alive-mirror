@@ -617,3 +617,8 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - Spawned why-tonight `5299bd5e` (/v2/why causal explainer — fires×wind bearing, stagnation, trend → one honest line).
 - Board: apk-drive 5b7bc306 + child e7ffc6ca + video-v3 b89b314c + why 5299bd5e + me.
 - Deploy shell quirk: named shell_ids don't inherit AWS env — run deploys in plain shells.
+
+## cont.31e — 2026-10-05 ~18:05 UTC (video-v3 lane)
+- cut3.mp4 done (157 s, iOS-sim drive — no KVM on this box; Android release lane covers APK). Arc: landing hero → app HOME scroll (≈20 µg hero/ring, THE MOVE, WHERE-IT-ACCUMULATED ledger, DAYS AHEAD 112→172, HOW YOU FELT, 196-of-216 budget) → journey (search → wizard → compare dose ≈2 µg → nav counters → receipt ≈1 µg/52.4×) → a→b → reach/days → admin (+ new model-grades-itself card — /v2/skill shipped mid-lane, admin beat re-shot) → AWS placeholder → close.
+- `cdp_rec.py` ffmpeg-9 gate (-vsync→-fps_mode); `50_admin.sh` retimed + #skillwrap stop. simctl VFR seek-collapse workaround: transcode CFR before slicing.
+- Docs refreshed: shotlist numbers table (+/v2/skill row, archive 5, wart resolved on a5ab92d8), demo-day admin flow + T-45.

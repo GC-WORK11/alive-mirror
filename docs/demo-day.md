@@ -278,6 +278,11 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   reads "breathed X µg · rides put out Y g per 100 m"
 - **day-by-day trips strip**: every recorded day as a bar (trips),
   hover carries that day's km/dose/CO₂ — aggregate day counters only
+- **the model grades itself** (`/v2/skill`, live since `a5ab92d8`):
+  served-forecast vs recorded-hour pairs — n, MAE, bias, band-hit per
+  horizon; buckets under 5 pairs render `thin` instead of a number.
+  Read it as "the scorecard refuses to bluff" — 7 pairs, MAE 18.4
+  µg/m³, bias +18.1, 55.6% band-hit at first light
 - **the field archive**: `/v2/archive` replays the recorded field hour
   by hour — snapshots land hourly to S3 (`/admin/api/status` shows
   `archive.snapshots_total` + `since_ist`); hours with no snapshot are
@@ -519,8 +524,13 @@ command; read the FLAGS block; canonical ledger: `docs/plan/NUMBERS.md`.
   (`degraded` present), the road-mode rows alone still carry the spread
   line.
 - [ ] **build_sha** — `/health` and `/admin/api/status` can disagree
-  (BUILD_SHA lag wart). Say the ECR image tag or "the build from this
-  afternoon", never the stamp.
+  (BUILD_SHA lag wart; on `a5ab92d8` they agree — wart resolved).
+  Say the ECR image tag or "the build from this afternoon", never
+  the stamp.
+- [ ] **the self-grade card** — `/v2/skill` is live; on stage read the
+  live n + the honest-thin line (every horizon under 5 pairs says
+  `thin`). MAE 18.4 / bias +18.1 / 55.6% band-hit at 7 pairs last
+  check.
 - [ ] **Stations/samples** — 24 WAQI instruments, ~71 model samples
   today; both thin out after a cold task (~16 / ~41) and recover over
   ~60 min. If you redeployed inside the window, say "recovering to".

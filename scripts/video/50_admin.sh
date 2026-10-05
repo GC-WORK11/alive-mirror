@@ -20,18 +20,20 @@ JSON
 cat > /tmp/act_admin.json <<'JSON'
 [
  {"scroll_el":"#pipe"},
- {"wait":4.0},
+ {"wait":3.0},
  {"scroll_el":"#stats"},
- {"wait":4.0},
+ {"wait":3.5},
  {"scroll_el":"#timing"},
- {"wait":3.5},
+ {"wait":2.5},
  {"scroll_el":"#fieldmap"},
- {"wait":5.0},
+ {"wait":4.0},
  {"eval":"(typeof fmPick==='function')?(fmPick('nitrogen_dioxide'),'no2'):'no-fmPick'"},
- {"wait":3.5},
+ {"wait":2.5},
  {"eval":"(typeof fmPick==='function')?(fmPick('pm2_5'),'pm25'):'no-fmPick'"},
- {"wait":3.5},
+ {"wait":2.0},
  {"scroll_el":"#corridors"},
+ {"wait":3.0},
+ {"scroll_el":"#skillwrap"},
  {"wait":4.5}
 ]
 JSON
@@ -39,7 +41,7 @@ JSON
 "$PY" "$VIDEO_DIR/cdp_rec.py" \
   --url "$NLB/admin" \
   --out "$OUT_DIR/50_admin.mp4" \
-  --pre 4 --dur 33 \
+  --pre 4 --dur 30 \
   --pre-actions /tmp/act_admin_pre.json \
   --actions /tmp/act_admin.json \
   --shot "$OUT_DIR/50_admin.png"
