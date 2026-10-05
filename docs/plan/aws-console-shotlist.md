@@ -13,9 +13,10 @@ slots it into the timeline automatically. Any screen recorder works; QuickTime
 Before filming, open a terminal and run
 `curl -s http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/health | grep build_sha`
 — ideally the image tag you show equals this `build_sha`. **Known wart
-(2026-10-05):** `/health` currently stamps `c7df5db5` while the live task
-definition's image URI is `…/alive108-api:1e93b9f2` — the BUILD_SHA stamp
-lags the real image by at least one deploy. The console tag is the truth;
+(2026-10-05, re-checked ~19:30 UTC):** `/health` currently stamps
+`6e82f290`, matching the deployed image — the lag wart is resolved on
+this revision but has recurred across deploys today (`c7df5db5` vs
+`1e93b9f2`, `cb862533` vs `ec51c882`). The console tag is the truth;
 if `/health` disagrees, show the ECR/task image URI and say the deploy
 revision, not the stamp. It bumps on every deploy.
 
