@@ -389,9 +389,11 @@ function MoveCardInner({ curve, outside, lang }: {
   const clean = srv ? srv.clean : a.clean;
   const flat = srv ? (!srv.heavy && !srv.clean) : a.flat;
   const heavyF = srv?.heavyLabel ?? (heavy ? fmtHr(heavy.from + nowHour()) : "");
-  const heavyT = srv?.heavyEndLabel ?? (heavy ? fmtHr(heavy.to + nowHour()) : "");
+  const heavyT = srv?.heavyEndLabel ??
+    (srv?.heavyLabel ? "" : heavy ? fmtHr(heavy.to + nowHour()) : "");
   const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour()) : "");
-  const cleanT = srv?.cleanEndLabel ?? (clean ? fmtHr(clean.to + nowHour()) : "");
+  const cleanT = srv?.cleanEndLabel ??
+    (srv?.cleanLabel ? "" : clean ? fmtHr(clean.to + nowHour()) : "");
   const dec = srv?.decisions?.[0] ?? null;
   /* the felt decision — the served line localized (wire English must not
      leak into the hi UI); when the server named none, derive from the

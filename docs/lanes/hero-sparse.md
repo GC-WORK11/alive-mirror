@@ -33,6 +33,10 @@ outside right now); what's missing is only the personal sampling.
   - DAYS AHEAD tiles: five near-identical washed-mauve cards are hard to
     scan — differentiate by band color more strongly so worst/best reads
     at a glance (the data already has `band`).
+  - Mixed time-format bug (seen on hi home, server-composed string):
+    "सबसे भारी ~22:30–7pm" mixes 24h and 12h in one range — pick one
+    format per range (en build showed "~06:30–09:30" consistently 24h).
+    Check both locale renders.
 
 ## Scope
 - Mobile/ only: the home hero component + week strip + the two copy nits.
