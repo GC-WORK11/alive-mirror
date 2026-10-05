@@ -676,3 +676,11 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - Lane verdict: fresh-install cold-open honest ("sampled too little to count it yet"), consent-off silent, journey intact (DRAWER2CLS held).
 - Next queued: apk-drive-v3 brief (final demo-phone build AFTER perf fully lands); ledger-math audit lane next spawn — does "≈N breathed" actually equal timeline×field server-side? That's the home hero's provability.
 - Board: me + perf `e4be6a1e` + video `9770ef36` + (spawn) ledger-audit.
+
+### cont.38 — perf landed + merged (Oct 6 ~02:55 UTC)
+
+- **perf-fps COMPLETE** (3 commits): `f1295b1` root cause of "glitchy and slow" — `useShellFlow` returned fresh `flow` object per render → every poll re-rendered entire tree incl. MapLibre+sidebar+invisible screens (~148 renders/20s idle → **0**; boot 116→40). `a85517f` nativeDriver A/B: 13 pure-chain flips (ReceiptSheet width%→scaleX transform 74→23ms; DelhiToday enter 88→46ms), 5 kept at documented mixed-graph crash sites (ui.tsx Sheet cluster). `84a34cc` PERF_ON-gated probe infra (`src/perf.ts`, ships disabled). D1 gesture stays JS PanResponder legitimately — no reanimated in dep tree; real-device pass owed.
+- **Suite**: 1110+5 green at HEAD. **main merged `64988c6`** (no-ff).
+- **Live task rolled ~27min ago** — archive per-task: `why.evaluated.trend.n_snapshots=0` expected; self-fills ~3h post-deploy (documented constraint).
+- **Spawned**: ledger-audit `f24ad0e0` (prove hero dose math vs live field), mobile-web `89918813` (phone viewport audit — judges open links on phones), apk-drive-v3 `46407448` (FINAL demo-phone build, gate = perf landed).
+- Board: me + video `9770ef36` + ledger `f24ad0e0` + mobile-web `89918813` + apk-v3 `46407448` = 5/5.
