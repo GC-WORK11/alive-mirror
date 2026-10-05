@@ -245,6 +245,48 @@ def test_landmark_beats_geonames_popularity(q, name_sub):
         f"{q!r} top-1 {top[0].get('name')!r} lacks {name_sub!r}")
 
 
+# --- coordinate truth regression (phantom-geocode purge) ----------------------
+# The corpus carried fabricated rows claiming a flagship landmark's name
+# ('India Gate' monument at Jor Bagh ~4.3 km off, 'India Gate Monument' in
+# Civil Lines ~10 km, 'Red Fort' 17.8 km NW, …) whose weights could outrank
+# the real row and navigate users to a wrong pin. Guard the truth table:
+# every flagship query's top hit must sit inside the landmark's real area.
+def _km(a_lat, a_lon, b_lat, b_lon):
+    import math
+    R = 6371.0
+    p1, p2 = math.radians(a_lat), math.radians(b_lat)
+    dp, dl = math.radians(b_lat - a_lat), math.radians(b_lon - a_lon)
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(h))
+
+
+@pytest.mark.parametrize("q,tlat,tlon", [
+    ("india gate", 28.6129, 77.2295),
+    ("red fort", 28.6562, 77.2410),
+    ("qutub minar", 28.5245, 77.1855),
+    ("lotus temple", 28.5535, 77.2588),
+    ("humayun tomb", 28.5933, 77.2507),
+    ("akshardham", 28.6127, 77.2773),
+    ("connaught place", 28.6315, 77.2167),
+    ("jantar mantar", 28.6271, 77.2166),
+    ("chandni chowk", 28.6506, 77.2303),
+    ("jama masjid", 28.6507, 77.2334),
+])
+def test_flagship_top_hits_include_the_real_place(q, tlat, tlon):
+    # top-3 not top-1: 'jama masjid' names hundreds of real mosques —
+    # ambiguity is honest; the gate is that the flagship surfaces.
+    r = client.get("/v2/search",
+                   params={"q": q, "lat": CP[0], "lon": CP[1]})
+    assert r.status_code == 200
+    top = r.json()["results"][:3]
+    assert top, f"no results for {q!r}"
+    d = min(_km(t["lat"], t["lon"], tlat, tlon) for t in top)
+    assert d <= 1.5, (
+        f"{q!r} top-3 all off truth — nearest "
+        f"{top[0].get('name')!r} at {top[0]['lat']},{top[0]['lon']} "
+        f"({d:.1f} km)")
+
+
 @pytest.mark.parametrize("q,name_sub", [
     ("hkv", "hauz khas"),
     ("deerpark", "deer"),
