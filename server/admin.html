@@ -201,13 +201,15 @@
   a{color:var(--accent-ink);text-decoration:none}
 
   /* ncr district tiles — a uniform grid over ~28 rows; each tile draws
-     its own stepped pixel frame (clipped corners, 2px ink border, zero
-     radius) and carries its cpcb band colour only in the aqi chip.
+     its own stepped pixel frame (clipped corners, 2px border in that
+     district's live cpcb band, zero radius) and the same band in the
+     aqi chip — the frame colour is data, not decoration.
      click pins a mini card — same language as the cell inspector */
   .dist{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));
         gap:10px}
   .distwrap{position:relative}
-  .dtile{position:relative;background:var(--surface);border:2px solid var(--ink);
+  .dtile{position:relative;background:var(--surface);
+         border:2px solid var(--dc,var(--ink));
          padding:10px 12px 10px;cursor:pointer;
          clip-path:polygon(0 6px,3px 6px,3px 3px,6px 3px,6px 0,
            calc(100% - 6px) 0,calc(100% - 6px) 3px,calc(100% - 3px) 3px,
@@ -216,7 +218,8 @@
            calc(100% - 6px) calc(100% - 3px),calc(100% - 6px) 100%,
            6px 100%,6px calc(100% - 3px),3px calc(100% - 3px),
            3px calc(100% - 6px),0 calc(100% - 6px))}
-  .dtile:hover{background:var(--surface2)}
+  .dtile:hover{background:var(--surface2);
+         background:color-mix(in srgb,var(--dc,#000) 7%,var(--surface))}
   .dtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .dtile.na{background:transparent;border-color:var(--ink4);
             border-style:dashed}
@@ -248,9 +251,16 @@
   .fmwrap{position:relative}
   canvas#fieldmap{cursor:crosshair}
   .fmpop{position:absolute;z-index:5;min-width:200px;max-width:262px;
-         background:rgba(255,255,255,.97);border:1px solid var(--line);
-         border-radius:12px;padding:11px 13px 10px;
-         box-shadow:0 10px 28px rgba(20,24,31,.14);pointer-events:none}
+         background:rgba(255,255,255,.97);border:1.5px solid var(--ink);
+         padding:11px 13px 10px;pointer-events:none;
+         clip-path:polygon(0 8px,4px 8px,4px 4px,8px 4px,8px 0,
+           calc(100% - 8px) 0,calc(100% - 8px) 4px,calc(100% - 4px) 4px,
+           calc(100% - 4px) 8px,100% 8px,100% calc(100% - 8px),
+           calc(100% - 4px) calc(100% - 8px),calc(100% - 4px) calc(100% - 4px),
+           calc(100% - 8px) calc(100% - 4px),calc(100% - 8px) 100%,
+           8px 100%,8px calc(100% - 4px),4px calc(100% - 4px),
+           4px calc(100% - 8px),0 calc(100% - 8px));
+         filter:drop-shadow(0 8px 16px rgba(20,24,31,.16))}
   .fmpop .p-name{font-family:var(--serif);font-size:15.5px;color:var(--ink);
                  line-height:1.3}
   .fmpop .p-sub{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;
@@ -260,7 +270,8 @@
   .fmpop .p-v b{font-family:var(--serif);font-size:20px;font-weight:400;
                 color:var(--ink)}
   .fmpop .p-conf{font-size:10px;color:var(--ink3);margin-top:6px;line-height:1.55}
-  .fmpop.pin{outline:2px solid rgba(20,24,31,.28)}
+  .fmpop.pin{border-width:2px;padding:10.5px 12.5px 9.5px;
+         filter:drop-shadow(0 10px 22px rgba(20,24,31,.22))}
   /* methodology card — the 'how is this number made' truth under the map */
   .meth{margin-top:10px;padding:11px 13px 10px;border:1px solid var(--line);
         border-radius:12px;background:var(--surface2,#f2f4f7);
