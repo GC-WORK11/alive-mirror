@@ -404,3 +404,41 @@ od 2 suppressed, dose 303.7µg/4 trips, co2 1.55kg/1 PUC trip, reviews 2 avg 4.0
 - **Concurrency**: 18 parallel POST /v2/plan across 3 ODs — all 200, zero degraded, 4.3–14.3s under load; rate limiter eats bursts correctly.
 - Live `297e67d`; next deploy pins `01d316e` (donation hardening + craft-lane interactive landing batch 1).
 - Lanes active: craft 0553281b (landing interactive surfaces: param pills, cell inspector, a→b live plan drawn on field, district strip — batch `01d316e` landed), app-ruthless 0c3304f0 (Mobile nothing-fake sweep running).
+
+## cont.17 — internet cross-verification found a real field divergence (Oct 5)
+
+Brutal-verify vs public sources caught the field serving pm10 ~300-600µg
+while ~100 public Delhi locations read 60-136µg (aqi.in panel) — a 3x
+model divergence on the coarse fraction. pm2.5 matched perfectly
+(~63-78 vs ~72). Root cause: `ingest_waqi.grab_async` normalised every
+species the CAAQMS instruments report but dropped all but pm2_5, so
+pm10/o3/etc stayed raw CAMS; `/aqi` `us_aqi` was even serving CAMS's own
+index cell (~230 vs public ~160).
+
+Fixes (deploy `3232fda` + `86938c5`):
+- `grab_async` emits field-keyed vals for every measured species
+  (pm25→pm2_5, pm10, no2→nitrogen_dioxide, o3→ozone, co→carbon_monoxide,
+  so2→sulphur_dioxide) — rides the existing IDW + 3x-instrument-weight
+  path, no new machinery.
+- `_debias(results, stations)` now splits by position (was
+  `keys()=={"pm2_5"}` magic — multi-param stations were misclassified
+  as model points and would have been re-scaled).
+- pm10 gets its own multiplicative debias pass when ≥8 instruments
+  carry it (same IDW machinery: m10 floor 30µg, raw 0.2-10, clamp
+  0.3-4); additive fine-fraction increment stays as thin-network
+  fallback.
+- `/aqi` us_aqi = max EPA sub-index over the species it serves
+  (`ingest_waqi.us_aqi_sub_index`, the exact inverse of iaqi_to_ugm3),
+  + `us_aqi_basis` driver + `us_aqi_model` raw CAMS for provenance.
+  Result live: us_aqi 164 (basis pm25) vs public ~160-163 — coherent.
+- O3 grounded 139→54µg, SO2 24→11, pm10 305→240→(post-debias ~120-160).
+
+Also verified this cycle: wind 0.0 for one refresh was a real
+Open-Meteo transient (self-healed to 11.3km/h matching public exactly);
+/observe correctly rejects <600m trimmed paths + lat-first coords;
+/depart is GET-only; suite 941 green.
+
+Lesson: **cross-check every served number against the public internet
+regularly** — pm2.5 matching doesn't prove the other layers. The
+/aqi response's `us_aqi_model` now keeps the raw index visible so a
+future divergence is one probe away.
