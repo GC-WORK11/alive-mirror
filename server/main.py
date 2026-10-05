@@ -1135,10 +1135,18 @@ async def observe_trip(body: dict):
 @app.post("/report")
 async def hazard_report(body: dict):
     """User-flagged air observation: dust | smoke | burning | clean, 6h TTL."""
+    try:
+        lat, lon = float(body["lat"]), float(body["lon"])
+    except (KeyError, TypeError, ValueError):
+        return {"stored": False, "error": "need numeric lat/lon"}
+    if not (_finite_coords(lat, lon) and in_ncr(lat, lon)):
+        # missing coords used to default to (0,0) — a real point off
+        # Ghana landing in the Delhi report layer
+        return {"stored": False, "error": "reports cover Delhi/NCR only"}
     return community.report(
         kind=str(body.get("kind", "")),
-        lat=float(body.get("lat", 0)),
-        lon=float(body.get("lon", 0)),
+        lat=lat,
+        lon=lon,
         contributor=body.get("contributor"),
     )
 

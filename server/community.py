@@ -150,9 +150,21 @@ def observe(vehicle: str, coords: list, duration_s: float,
     v2/trip already trims and passes privacy_trimmed=True; re-running
     would double-trim its `kept` set."""
     _load()
+    if not isinstance(coords, (list, tuple)):
+        coords = []
     if privacy_trimmed:
-        pts = [[round(float(c[0]), 5), round(float(c[1]), 5)]
-               for c in coords[:400] if len(c) >= 2]
+        # v2/trip feeds pipeline output here (always numeric), but a
+        # direct caller's junk pair must not crash the whole donation
+        pts = []
+        for c in coords[:400]:
+            if not isinstance(c, (list, tuple)) or len(c) < 2:
+                continue
+            try:
+                lo, la = float(c[0]), float(c[1])
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(lo) and math.isfinite(la):
+                pts.append([round(lo, 5), round(la, 5)])
     else:
         from v2.trip import privacy_pipeline
         kept, _t1, _t2 = privacy_pipeline(coords)  # [(lat, lon)] @ 4 dp
@@ -162,15 +174,32 @@ def observe(vehicle: str, coords: list, duration_s: float,
         cell = _cell(lon, lat)
         if not cells or cells[-1] != cell:
             cells.append(list(cell))
+    # a donation that produced zero usable cells (empty coords, all
+    # garbage pairs, a single point) must never enter the ledger — it
+    # would only inflate the totals. found via malformed-input sweep.
+    if not cells:
+        return {"stored": False, "error": "no usable coordinates"}
+
+    def _nn(v):
+        """non-negative finite float or None — negative/junk metric
+        values can't pollute the aggregates."""
+        if v is None:
+            return None
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        return f if math.isfinite(f) and f >= 0 else None
+
     obs = {
         "ts": time.time(),
         "vehicle": vehicle,
-        "duration_s": round(float(duration_s), 1),
-        "dose_ug": None if dose_ug is None else round(float(dose_ug), 1),
-        "avoided_ug": None if avoided_ug is None else round(float(avoided_ug), 1),
+        "duration_s": round(_nn(duration_s) or 0.0, 1),
+        "dose_ug": _nn(dose_ug),
+        "avoided_ug": _nn(avoided_ug),
         "contributor": _token(contributor),
         "km": round(_hav_km(pts), 3),
-        "co2_kg": None if co2_kg is None else round(float(co2_kg), 4),
+        "co2_kg": _nn(co2_kg),
         "cells": cells,
     }
     _obs.append(obs)

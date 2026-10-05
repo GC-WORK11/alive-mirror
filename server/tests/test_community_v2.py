@@ -378,3 +378,30 @@ def test_feedback_endpoint_round_trip():
     s = c.get("/admin/api/reviews").json()
     assert s["count"] >= 1
     community._reviews.clear(); community._loaded = False
+
+
+# --- junk donations never enter the ledger -------------------------------------
+def test_observe_empty_or_garbage_coords_rejected():
+    """A donation folding to zero usable cells is not a donation."""
+    before = len(community._obs)
+    for bad in ([], None, ["x"], [["x", "y"]]):
+        out = community.observe(vehicle="car", coords=bad,
+                                duration_s=600, dose_ug=10,
+                                avoided_ug=None, contributor="junk",
+                                privacy_trimmed=True)
+        assert out["stored"] is False
+    assert len(community._obs) == before
+
+
+def test_observe_negative_metrics_dropped_not_stored():
+    _donate("neg-check", dose_ug=-5.0, avoided_ug=-1.0)
+    obs = community._obs[-1]
+    # negative doses are physically impossible — stored as unknown,
+    # never as numbers that would drag the aggregates down
+    assert obs["dose_ug"] is None and obs["avoided_ug"] is None
+
+
+def test_report_bad_kind_rejected():
+    out = community.report("hurricane", 28.63, 77.21, contributor=None)
+    assert out["stored"] is False
+    assert not community._reports
