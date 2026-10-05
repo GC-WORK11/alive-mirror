@@ -27,6 +27,7 @@ import os
 import re
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -40,6 +41,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 import main  # noqa: E402
 from airfield import FIELD  # noqa: E402
+from forecast import FORECAST  # noqa: E402
 from v2 import deps, store  # noqa: E402
 
 client = TestClient(main.app, raise_server_exceptions=False)
@@ -163,6 +165,19 @@ def _seed_moves():
             token_hash=f"contractdev{i}")
 
 
+def _seed_forecast():
+    """Synthetic CAMS horizon starting today 00:00 UTC — /v2/day's
+    fetcher reads real slots; refresh() short-circuits on the seeded TTL
+    so no network is touched."""
+    t0 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0,
+                                            microsecond=0)
+    times = [(t0 + timedelta(hours=i)).isoformat() for i in range(120)]
+    FORECAST._aq = [{"lat": CP[0], "lon": CP[1], "name": None, "t0": t0,
+                     "times": times, "vars": {"pm2_5": [150.0] * 120}}]
+    FORECAST._met = []
+    FORECAST._fetched_at = time.time()
+
+
 @pytest.fixture(autouse=True)
 def wired(monkeypatch):
     deps.set_location(FakeLoc())
@@ -171,6 +186,7 @@ def wired(monkeypatch):
         (28.6519, 77.1907, None, {"pm2_5": 185.0}),
     ]
     FIELD._fetched_at = time.time()
+    _seed_forecast()
 
     async def _noop(*a, **k):
         return None
@@ -190,6 +206,9 @@ def wired(monkeypatch):
     yield
     deps.set_location(None)
     FIELD._samples = []
+    FORECAST._aq = []
+    FORECAST._met = []
+    FORECAST._fetched_at = 0.0
 
 
 # --- live fetchers: interface name → response body ---------------------------------
@@ -252,6 +271,8 @@ def _fetchers():
             _seed_moves(), client.get("/v2/city/moves").json())[1],
         "V2Place": lambda: client.get("/v2/place/gaz:0").json(),
         "V2DistrictsResponse": lambda: client.get("/v2/districts").json(),
+        "V2DayResponse": lambda: client.get("/v2/day", params={
+            "lat": CP[0], "lon": CP[1]}).json(),
     }
 
 
@@ -283,6 +304,8 @@ NESTED = [
     ("V2CityResponse", "corridors", "V2CityCorridor"),
     ("V2CityMovesResponse", "mode_share", "V2CityModeShare"),
     ("V2DistrictsResponse", "districts", "V2DistrictRow"),
+    ("V2DayResponse", "hours", "V2DayHour"),
+    ("V2DayResponse", "decisions", "V2DayDecision"),
 ]
 # object-valued keys get the same two-direction check:
 # (parent fetcher key, object-key, child interface | None)
@@ -302,6 +325,10 @@ NESTED_OBJ = [
     ("V2CityMovesResponse", "window", "V2MovesWindow"),
     ("V2CityMovesResponse", "corridors", "V2MovesCorridors"),
     ("V2CityMovesResponse", "per_trip", "V2MovesPerTrip"),
+    ("V2DayResponse", "field", "FieldStatus"),
+    ("V2DayResponse", "forecast", "V2ForecastStatus"),
+    ("V2DayResponse", "heavy_window", "V2DayWindow"),
+    ("V2DayResponse", "cleanest_window", "V2DayWindow"),
 ]
 
 

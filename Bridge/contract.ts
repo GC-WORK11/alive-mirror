@@ -776,6 +776,70 @@ export interface V2DistrictsResponse {
   cached_s: number;
 }
 
+/* /v2/day — the morning card's day-at-a-point (docs/plan/alive-depth.md
+   L2). The remaining hours of the current IST day from the live-anchored
+   CAMS horizon (same model as /depart and /grid?h=), folded into the
+   day's heavy stretch + cleanest slot and the one decision each window
+   changes. Flat days say so; slots with no model value are skipped. */
+export interface V2DayHour {
+  h: number;                    // hours ahead (slot index into hours[])
+  start: string | null;         // ISO UTC slot start (forecast's own label)
+  ist_label: string;            // "17:30" — slot start on the Delhi clock
+  pm25_mid: number;             // anchored CAMS x stagnation, ug/m3
+  pm25_lo: number | null;       // krige-sigma band now, blended toward the
+  pm25_hi: number | null;       // hour's climatological IQR as the ~9h
+                                // live-anchor decays; null = no honest band
+  us_aqi: number | null;        // US-EPA projection (same def as /aqi)
+  band: string;                 // CPCB category of pm25_mid
+  confidence: "hi" | "med" | "lo"; // anchor-decay grade; 'med' cap without
+                                // a krige band at the point
+}
+
+export interface V2DayWindow {
+  start_h: number;              // h of the window's first hour
+  end_h: number | null;         // null = still open at day's last hour
+  start_label?: string;         // IST clock label of window start
+  end_label?: string | null;    // IST clock label of window end
+  pm25_mid?: number;            // window mean ug/m3
+  basis: string;                // why this run qualified (real numbers)
+}
+
+export interface V2DayDecision {
+  label: string;                // "outdoor exercise" | "kids outdoors" | ...
+  line: string;                 // one honest line generated from the windows
+}
+
+// forecast.FORECAST.status() verbatim — emitted by /v2/day (and matches
+// the inline forecast block on DepartResponse).
+export interface V2ForecastStatus {
+  aq_points: number;              // CAMS grid points fetched
+  met_points: number;             // met grid points (may be 0)
+  hours: number;                  // hourly slots in the horizon
+  age_s: number | null;           // seconds since the forecast fetch
+  live_anchor: { enabled: boolean; source: string | null;
+                 tau_h: number; max_age_s: number };
+}
+
+export interface V2DayResponse {
+  lat: number;
+  lon: number;
+  date_ist: string;             // the IST civil date the hours belong to
+  tz: string;                   // "Asia/Kolkata"
+  hours: V2DayHour[];           // remaining slots of the IST day
+  now_idx: number | null;       // index into hours of the slot holding now
+  day_mean_pm25: number | null; // mean of served mids
+  heavy_window: V2DayWindow | null;   // today's contiguous heavy stretch
+  cleanest_window: V2DayWindow | null;// the best contiguous run
+  decisions: V2DayDecision[];   // <=3 lines, data-generated; flat days say so
+  model: string;                // honesty string — CAMS + stagnation, anchored
+  band_basis: string;           // how pm25_lo/hi were derived
+  field_age_s: number | null;   // live-field age (seconds)
+  field: FieldStatus;
+  forecast?: V2ForecastStatus;
+  error?: string;               // "outside service area…" / "forecast
+                                //  unavailable" paths emit hours: []
+}
+
 export const V2_ENDPOINTS = {
   search: "/v2/search",
   districts: "/v2/districts",
@@ -787,6 +851,7 @@ export const V2_ENDPOINTS = {
   trip: "/v2/trip",
   city: "/v2/city",
   city_moves: "/v2/city/moves",
+  day: "/v2/day",
   ledger: "/v2/ledger",
   // /v2/today and /v2/depart are wire aliases for the v1 handlers —
   // same shapes as /today and /depart above, surfaced under the v2
