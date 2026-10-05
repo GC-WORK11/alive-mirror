@@ -60,6 +60,7 @@ tools/corpus-venv/
 
 # local geo stack artifacts (scripts/geo/ pipeline — rebuildable, huge)
 data/geo/
+server/data/geo/
 server/alive_core*.so
 server/core/build/
 server/core/build312/

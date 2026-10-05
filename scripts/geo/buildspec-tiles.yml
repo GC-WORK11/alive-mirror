@@ -1,0 +1,44 @@
+version: 0.2
+# Self-hosted Delhi vector tiles — MUST sit at the source-zip root (the
+# source is `git archive HEAD:scripts/geo`, same layout as
+# buildspec-osrm.yml). One CodeBuild run:
+#   1. fetch_extract.sh — Geofabrik northern-zone clipped to the NCR bbox
+#      (common.sh) via osmium
+#   2. build_tiles.sh   — tilemaker (OpenMapTiles schema z0-14, gzip
+#      tiles) writes delhi.pmtiles directly
+#   3. header smoke check (verify_pmtiles.py) then publish to
+#      s3://${AIR_BUCKET}/geo/delhi.pmtiles
+#
+# No ECR — the artifact is data, not an image. The API task's geo mirror
+# (ingest_worker.sync_geo_artifacts, same shelf pattern as the rollup
+# mirror) pulls it at boot and every 30 min; tiles.py re-opens the
+# archive on mtime/size change, so a rebuild goes live with no redeploy.
+phases:
+  install:
+    commands:
+      - apt-get update -qq && apt-get install -y -qq curl ca-certificates osmium-tool >/dev/null
+  pre_build:
+    commands:
+      - TILEMAKER_IMAGE="${TILEMAKER_IMAGE:-ghcr.io/systemed/tilemaker:master}"
+      - docker pull "$TILEMAKER_IMAGE"
+      - export TILEMAKER_IMAGE
+      - 'echo "tilemaker image: $TILEMAKER_IMAGE"'
+  build:
+    commands:
+      - bash fetch_extract.sh
+      - FORCE="${FORCE:-1}" bash build_tiles.sh
+      # GEO_DIR lives at <srcdir>/../../data/geo here (flat layout per
+      # common.sh REPO_ROOT math), not under the source dir
+      - GEO_OUT="$(cd "$CODEBUILD_SRC_DIR/../.." && pwd)/data/geo"
+      - PMT="$GEO_OUT/delhi.pmtiles"
+      - test -s "$PMT"
+      - python3 verify_pmtiles.py "$PMT"
+      - du -h "$PMT"
+      # publish — the codebuild role has s3:PutObject on the air bucket's
+      # geo/ prefix (scripts/geo/build_tiles_aws.sh + deploy.sh keep the
+      # role policy in sync — do not remove the statement from either)
+      - aws s3 cp "$PMT" "s3://${AIR_BUCKET:-alive108-air}/geo/delhi.pmtiles"
+      - aws s3 ls "s3://${AIR_BUCKET:-alive108-air}/geo/delhi.pmtiles"
+  post_build:
+    commands:
+      - 'echo "published s3://${AIR_BUCKET:-alive108-air}/geo/delhi.pmtiles — API geo mirror picks it up within one 30-min tick (or next task boot)"'

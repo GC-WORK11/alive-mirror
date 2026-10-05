@@ -1642,6 +1642,9 @@ def _start_ingest_loop() -> None:
 # onto the local mirror admin_agg reads. First pull at boot so an older
 # task still serves the newest rollup; then hourly (the jobs are
 # daily/weekly — a fired job's output lands within one tick).
+# The same shelf also carries geo/ build artifacts (delhi.pmtiles from
+# the CodeBuild tiles lane): sync_geo_artifacts hot-swaps the archive
+# under tiles.py — a rebuilt pmtiles goes live without a redeploy.
 _ROLLUP_MIRROR_PERIOD_S = 1800
 
 
@@ -1660,6 +1663,13 @@ def _start_rollup_mirror() -> None:
                 if res.get("downloaded"):
                     _ingest.log.info("rollup mirror: pulled %s",
                                      res["downloaded"])
+            except Exception:
+                pass
+            try:
+                geo = _ingest.sync_geo_artifacts()
+                if geo.get("downloaded"):
+                    _ingest.log.info("geo mirror: pulled %s",
+                                     geo["downloaded"])
             except Exception:
                 pass
             time.sleep(_ROLLUP_MIRROR_PERIOD_S)

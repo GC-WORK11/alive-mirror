@@ -87,9 +87,13 @@ build_codebuild() {
   run aws s3 cp "$zip" "s3://$BUILD_BUCKET/src.zip"
 
   local trust='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"codebuild.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+  # KEEP THIS POLICY IN SYNC with scripts/geo/build_tiles_aws.sh — the
+  # tiles CodeBuild lane publishes delhi.pmtiles to alive108-air/geo/,
+  # so s3:PutObject on that prefix must survive every API deploy.
   local policy='{"Version":"2012-10-17","Statement":[
     {"Effect":"Allow","Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],"Resource":"*"},
     {"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion"],"Resource":"*"},
+    {"Effect":"Allow","Action":["s3:PutObject"],"Resource":"arn:aws:s3:::alive108-air/geo/*"},
     {"Effect":"Allow","Action":["ecr:GetAuthorizationToken","ecr:CreateRepository","ecr:DescribeRepositories","ecr:BatchCheckLayerAvailability","ecr:GetDownloadUrlForLayer","ecr:BatchGetImage","ecr:InitiateLayerUpload","ecr:UploadLayerPart","ecr:CompleteLayerUpload","ecr:PutImage"],"Resource":"*"}]}'
   try aws iam create-role --role-name alive108-codebuild \
     --assume-role-policy-document "$trust" >/dev/null 2>&1 || true
@@ -199,6 +203,7 @@ TD_ARN="$(run aws ecs register-task-definition \
       {"name":"AWS_REGION","value":"'"$REGION"'"},
       {"name":"COMMUNITY_BUCKET","value":"'"$BUILD_BUCKET"'"},
       {"name":"ALIVE_AIR_BUCKET","value":"alive108-air"},
+      {"name":"ALIVE_PMTILES","value":"/app/data/geo/delhi.pmtiles"},
       {"name":"AGG_TABLE","value":"alive108-agg"},
       {"name":"BUILD_SHA","value":"'"$TAG"'"}],
     "secrets":[{"name":"OPENAQ_API_KEY",
