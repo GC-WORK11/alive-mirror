@@ -238,7 +238,7 @@ function Sparkline({ series, lang }: { series: (number | null)[]; lang: Lang }) 
         {series.map((v, i) => (
           <Text key={i} {...DYNAMIC_TYPE}
             style={[ss.sparkHr, { fontFamily: mono(lang) }]}>
-            {i % 3 === 0 ? `+${i}` : ""}
+            {i === 0 ? t("dayNow", lang) : i % 3 === 0 ? `+${i}h` : ""}
           </Text>
         ))}
       </View>
@@ -823,11 +823,12 @@ export function DayPeek({ data, lang, onOpen, ambientUg }: {
 const WEEKDAY_EN = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 function HomeHeader({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
+  const insets = useSafeAreaInsets();
   const now = new Date();
   const hh = `${now.getHours()}`.padStart(2, "0");
   const mm = `${now.getMinutes()}`.padStart(2, "0");
   return (
-    <View style={ss.homeHead}>
+    <View style={[ss.homeHead, { paddingTop: insets.top + 8 }]}>
       <View>
         <Text {...DYNAMIC_TYPE} style={[ss.brand, { fontFamily: famSerif(lang, "semi") }]}>
           ALive-108
@@ -839,7 +840,9 @@ function HomeHeader({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
       <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}
         accessibilityRole="button" accessibilityLabel={t("a11yMenu", lang)}
         style={({ pressed }) => [ss.homeMenuBtn, pressed && { opacity: 0.55 }]}>
-        <Icon name="menu" color={V2T.text2} size={20} />
+        <View style={ss.menuBars}>
+          {[0, 1, 2].map((i) => <View key={i} style={ss.menuBar} />)}
+        </View>
       </Pressable>
     </View>
   );
@@ -903,13 +906,20 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
         {t("homeBreathed", lang)}
       </Text>
       {rec.thin ? (
-        /* honest empty — the instrument has sampled too little to count */
+        /* honest empty — the instrument has sampled too little to count;
+           the dash sits in the dose slot with its unit so it reads as an
+           uncounted dose, not a stray skeleton block */
         <>
-          <Text {...DYNAMIC_TYPE} style={[ss.heroNum, {
-            fontFamily: famSerif(lang, "semi"), color: V2T.text4,
-          }]}>
-            —
-          </Text>
+          <View style={ss.heroNumRow}>
+            <Text {...DYNAMIC_TYPE} style={[ss.heroNum, {
+              fontFamily: famSerif(lang, "semi"), color: V2T.text4,
+            }]}>
+              —
+            </Text>
+            <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}>
+              µg
+            </Text>
+          </View>
           <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
             {t("dayThin", lang)}
           </Text>
@@ -1123,14 +1133,17 @@ export function HomeScreen({ visible, data, lang, settings, ambientUg, onGo, onM
 export default HomeScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "transparent" },
+  /* Android honours elevation over sibling order — without this the map's
+     floating chrome (freshness chip, FABs, search bar) pokes through the
+     paper. 24 sits above V2Elev.sheet(12)/pop(18); iOS ignores it. */
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "transparent", elevation: 24 },
   home: {
     flex: 1,
     backgroundColor: V2T.bg,
   },
   homeHead: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6,
+    paddingHorizontal: 20, paddingBottom: 6,
   },
   brand: { color: V2T.text, fontSize: 21, letterSpacing: 0.2 },
   brandSub: {
@@ -1142,6 +1155,8 @@ const ss = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
   },
+  menuBars: { gap: 4 },
+  menuBar: { width: 18, height: 2, borderRadius: 1, backgroundColor: V2T.text2 },
   flex: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 6, gap: 12 },
 
