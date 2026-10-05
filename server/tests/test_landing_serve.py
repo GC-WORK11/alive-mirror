@@ -33,7 +33,8 @@ REQUIRED = [
     "confSplit",
     "fieldAge",
     "buildTag",
-    "per street",
+    "dosimeter",
+    "the app knows what you breathed",
 ]
 # owner-vetoed elements + placeholder guards
 FORBIDDEN = [
