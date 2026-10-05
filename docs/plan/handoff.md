@@ -622,3 +622,10 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - cut3.mp4 done (157 s, iOS-sim drive — no KVM on this box; Android release lane covers APK). Arc: landing hero → app HOME scroll (≈20 µg hero/ring, THE MOVE, WHERE-IT-ACCUMULATED ledger, DAYS AHEAD 112→172, HOW YOU FELT, 196-of-216 budget) → journey (search → wizard → compare dose ≈2 µg → nav counters → receipt ≈1 µg/52.4×) → a→b → reach/days → admin (+ new model-grades-itself card — /v2/skill shipped mid-lane, admin beat re-shot) → AWS placeholder → close.
 - `cdp_rec.py` ffmpeg-9 gate (-vsync→-fps_mode); `50_admin.sh` retimed + #skillwrap stop. simctl VFR seek-collapse workaround: transcode CFR before slicing.
 - Docs refreshed: shotlist numbers table (+/v2/skill row, archive 5, wart resolved on a5ab92d8), demo-day admin flow + T-45.
+
+### cont.32 — why-endpoint salvaged+deployed · cut3 · hi-locale + first-open lanes (Oct 5 night)
+
+- **`/v2/why` shipped `0908d9a`** — the lane's box lost git creds; salvaged its patch attachment, hand-merged 3 rejects (fires.py `belt_frp_mw`, city.html whyline grafted onto post-legibility anchors, admin.html drivers table onto the renumbered engine-room layout). 20/20 why tests; suite **1110+5**; main `6574857`; deploy `0908d9ad`.
+- **cut3.mp4 landed `e9b97f5`** (157s): iOS-sim drove HEAD `321e3c1` (no KVM on that box — honest swap); admin beat already includes the model-grades-itself card (7 pairs / MAE 18.4 / 55.6% band). AWS-console slot stays owner-filmed.
+- **why-lane + video-lane terminated** → spawned **hi-locale `3b4a70ca`** (real Delhi Hindi for every new surface — Devanagari glyph check is the headline risk) and **first-open `45c0e578`** (cold-install→first-real-number timing, walls audit, ~1Mbps throttle pass).
+- Board: me + apk-drive `5b7bc306` (+ emulator child `e7ffc6ca`) + hi-locale + first-open = 5.
