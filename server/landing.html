@@ -10,6 +10,7 @@
 <style>
 :root{
   --paper:#fafaf7; --ink:#16181d; --ink2:#4a4e57; --ink3:#8a8d94;
+  --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
   --sage:#4d7c0f;
   --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
@@ -34,6 +35,10 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 @media(prefers-reduced-motion:reduce){
   .rise{animation:none;opacity:1}}
 
+/* screen-reader-only live region — announces cell reads and route results */
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap}
+
 /* top bar — plain text, one hairline */
 .top{border-bottom:1px solid var(--line)}
 .top-in{max-width:960px;margin:0 auto;padding:20px 32px;
@@ -55,6 +60,8 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 264px;
   gap:64px;align-items:start}
 @media(max-width:840px){.hero-grid{grid-template-columns:1fr;gap:48px}}
+@media(max-width:640px){.hero{padding:64px 0 48px}
+  .eyebrow{font-size:10px;letter-spacing:.18em}}
 .shot{margin:6px 0 0;max-width:264px;width:100%;
   border:1px solid var(--line2);border-radius:34px;overflow:hidden;
   background:#fff;box-shadow:0 24px 56px -32px rgba(22,24,29,.28),
@@ -69,6 +76,8 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ink3)}
 @media(max-width:840px){.shot{margin-left:auto;margin-right:auto}}
+@media(prefers-reduced-motion:reduce){.shot{transition:none}
+  .shot:hover{transform:none}}
 .eyebrow{display:flex;align-items:center;gap:10px;
   font-family:var(--mono);font-size:11px;letter-spacing:.3em;
   text-transform:uppercase;color:var(--ink3)}
@@ -119,7 +128,10 @@ h1 em{font-style:italic;color:var(--ink2)}
   opacity:0;transition:opacity .5s ease;touch-action:manipulation}
 #raster.ready{opacity:1}
 #raster.pick{cursor:crosshair}
+#raster:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){#raster{transition:none;opacity:1}}
+.kbhint{margin-top:6px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
 .fpop{position:absolute;z-index:5;min-width:196px;max-width:250px;
   background:var(--paper);border:1px solid var(--ink);
   padding:11px 13px 10px;pointer-events:none;
@@ -211,12 +223,12 @@ h1 em{font-style:italic;color:var(--ink2)}
 .lrow.drawn .lbar i{background:var(--ink);height:2px;top:1.5px}
 .lrow.drawn .lname:after{content:' · drawn';color:var(--ink3)}
 .lrow .ldose{flex:none;font-variant-numeric:tabular-nums;color:var(--ink2)}
-.lrow .ldose i{font-style:normal;color:var(--ink4,#a6acb8);margin-left:5px}
+.lrow .ldose i{font-style:normal;color:var(--ink4);margin-left:5px}
 .lrow .lflag{flex:none;font-size:8.5px;letter-spacing:.08em;
-  color:var(--ink4,#a6acb8);text-transform:uppercase}
+  color:var(--ink4);text-transform:uppercase}
 .lrow .lflag b{color:var(--ink2);font-weight:600}
 .lmore{padding:6px 0 0;font-family:var(--mono);font-size:8.5px;
-  letter-spacing:.08em;color:var(--ink4,#a6acb8);text-transform:uppercase}
+  letter-spacing:.08em;color:var(--ink4);text-transform:uppercase}
 
 /* the districts — every boundary cut, filled by its live cpcb band */
 .dist-sec{padding:34px 0 88px}
@@ -225,7 +237,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 .dist-head .lbl{font-family:var(--mono);font-size:10.5px;
   letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
 .dist-head .hint{font-family:var(--mono);font-size:9.5px;
-  letter-spacing:.12em;text-transform:uppercase;color:var(--ink4,#a6acb8)}
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink4)}
 .distwrap{position:relative}
 .dscroll{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;
   border-top:1px solid var(--line);border-bottom:1px solid var(--line);
@@ -322,7 +334,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 </div></div></section>
 
 <section class="field-sec"><div class="col">
-  <div class="statusline" id="status">reading the field…</div>
+  <div class="statusline" id="status" aria-live="polite">reading the field…</div>
   <div class="field-head">
     <span class="lbl" id="fieldLbl">pm2.5 — <b>the field, this hour</b></span>
     <span class="psel" id="msel" role="group" aria-label="tool"></span>
@@ -330,8 +342,9 @@ h1 em{font-style:italic;color:var(--ink2)}
     <span class="lbl" id="fieldAge">—</span>
   </div>
   <div class="fwrap">
-    <canvas id="raster" role="img"
-      aria-label="live interpolated field over Delhi NCR — click a cell to read it"></canvas>
+    <canvas id="raster" tabindex="0"
+      aria-label="live interpolated field over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
+      aria-describedby="kbhint"></canvas>
     <div class="fpop" id="fpop" hidden></div>
   </div>
   <div class="trow" id="tl" hidden>
@@ -343,8 +356,17 @@ h1 em{font-style:italic;color:var(--ink2)}
     <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
     <span class="tl-note" id="tlNote"></span>
   </div>
-  <noscript><p style="margin-top:10px;font-size:12.5px;color:var(--ink3)">
-    the live field needs javascript — the router does not.</p></noscript>
+  <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
+  <noscript>
+    <style>
+      #status,.field-head,.fwrap,.field-cap,.trow,.kbhint,.dist-head,.distwrap{display:none}
+    </style>
+    <p style="margin-top:14px;font-family:var(--mono);font-size:10.5px;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+      line-height:1.9">
+      the live field and the district map need javascript —
+      everything else on this page does not.</p>
+  </noscript>
   <div class="field-cap">
     <span class="left" id="capLeft">The surface the router prices on —
     every cell interpolated from live stations, confidence carried with
@@ -355,7 +377,7 @@ h1 em{font-style:italic;color:var(--ink2)}
       <span class="conf" id="confSplit">—</span>
     </span>
   </div>
-  <div class="routeline" id="routeline"></div>
+  <div class="routeline" id="routeline" aria-live="polite"></div>
   <div class="depart" id="departline"></div>
   <div class="ladder" id="ladder"></div>
 </div></section>
@@ -498,9 +520,9 @@ function cutPath(feat){
     'M'+r.map(c=>mx(c[0])+','+my(c[1])).join('L')+'Z').join(' ');
 }
 function chipInk(hex){
-  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#14181d';
+  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#16181d';
   const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
-  return (0.299*r+0.587*g+0.114*b)/255>0.6?'#14181d':'#fff';
+  return (0.299*r+0.587*g+0.114*b)/255>0.6?'#16181d':'#fff';
 }
 
 /* --- the canvas -------------------------------------------------------- */
@@ -574,6 +596,16 @@ function drawScene(){
     ctx.strokeStyle='rgba(22,24,29,.92)';ctx.lineWidth=2;ctx.stroke();
     /* dose along it isn't smooth-coloured — the line is the engine's own
        geometry, so it draws in one ink */
+  }
+  /* keyboard crosshair — visible only while the canvas holds focus */
+  if(KBD){
+    ctx.strokeStyle='rgba(22,24,29,.9)';ctx.lineWidth=1.2;
+    ctx.beginPath();
+    ctx.moveTo(KBD.x-9,KBD.y);ctx.lineTo(KBD.x+9,KBD.y);
+    ctx.moveTo(KBD.x,KBD.y-9);ctx.lineTo(KBD.x,KBD.y+9);
+    ctx.stroke();
+    ctx.beginPath();ctx.arc(KBD.x,KBD.y,5.5,0,6.283);
+    ctx.strokeStyle='rgba(250,250,247,.9)';ctx.lineWidth=2;ctx.stroke();
   }
 }
 const monoFont=()=>getComputedStyle(document.body).fontFamily.includes('SF Mono')
@@ -708,20 +740,28 @@ async function paint(){
   const seq=++PAINTSEQ;
   const cv=$('raster'),ctx=cv.getContext('2d');
   const spec=SPECS[PARAM];
-  /* hold the last painted frame while the new param fetches — assigning
-     cv.width clears the bitmap, so it happens only after the grid lands
-     (and only when the size actually changed). caption says 'loading',
-     the canvas never blanks. */
+  /* size the bitmap before the fetch so both the slow-network skeleton
+     and the failure state have a real surface to draw on — an unseen
+     W/H=0 was the old bug behind an invisible error message. */
+  const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
+  W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){
+    cv.width=W*dpr;cv.height=H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  /* hold the last painted frame while the new param fetches — caption
+     says 'loading', the canvas never blanks. on a cold first paint
+     (nothing held yet) draw an honest skeleton instead. */
+  if(!FEATS.length){
+    ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#a6acb8';ctx.font='11px '+monoFont();ctx.textAlign='center';
+    ctx.fillText('reading the live field…',W/2,H/2);
+    cv.classList.add('ready');
+  }
   $('capLeft').innerHTML=`reading the ${spec.title} field — <b>live fetch</b>…`;
   try{
     const g=await api(`/grid?cells=${CELLS}&param=${PARAM}`);
     if(seq!==PAINTSEQ)return;   /* a later click owns the canvas now */
-    const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
-    W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
-    if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){
-      cv.width=W*dpr;cv.height=H*dpr;
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-    }
     FEATS=g.features||[];
     drawScene();
     let hi=0,med=0,lo=0;const vals=[];
@@ -751,11 +791,15 @@ async function paint(){
        landed — refresh it so 'median' isn't absent for 120s */
     if(MEDIAN!=null)status();
   }catch(e){
+    /* honest failure: the grid is unreachable. say so, say the retry
+       cadence (the 120s interval does retry), never fake a surface. */
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
-    ctx.fillStyle='#8a8d94';ctx.font='13px '+getComputedStyle(document.body).fontFamily;
-    ctx.textAlign='center';
-    ctx.fillText('field resting — live grid unreachable',W/2,H/2);
+    ctx.fillStyle='#a6acb8';ctx.font='11px '+monoFont();ctx.textAlign='center';
+    ctx.fillText('the live field is unreachable — retrying',W/2,H/2-9);
+    ctx.fillText('automatically every 2 minutes',W/2,H/2+9);
     $('confSplit').textContent='';
+    $('capLeft').innerHTML=
+      'The live field is unreachable right now — this page retries every 2 minutes.';
     cv.classList.add('ready');
   }
 }
@@ -813,6 +857,9 @@ function showCellCard(ft,x,y,pinned){
     <div class="p-conf">${p.conf==='hi'?'hi conf — dense sample coverage'
       :p.conf==='med'?'med conf — moderate coverage'
       :'lo conf — far from samples'}${p.derived?` · ${esc(p.derived)}`:''}${p.pm25!=null&&PARAM!=='pm2_5'?` · pm2.5 ${F1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
+  srSay(`sector ${fmSector(clon,clat)} — `+
+    `${v==null?'no reading':F1(v)+' '+(spec.unit==='aqi'?'aqi':'µg/m³')}`+
+    `${bi!=null?', '+BAND_NAME[bi]:''}`);
   /* name is best-effort — the card already carries live values; the
      gazetteer answers 404 for 'no named place', not an error */
   if(NAMES[key]==null){
@@ -850,23 +897,67 @@ $('raster').addEventListener('mouseleave',()=>{
   clearTimeout(HOV_T);
   if(!(INS&&INS.pinned)){$('fpop').hidden=true;INS=null}
 });
-$('raster').addEventListener('click',e=>{
-  const r=$('raster').getBoundingClientRect();
-  const x=e.clientX-r.left,y=e.clientY-r.top;
+const hav=(a,b)=>{const R=6371,r=Math.PI/180,
+    dLa=(b.lat-a.lat)*r,dLo=(b.lon-a.lon)*r;
+  const s=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s))};
+function pickAt(x,y){
   if(MODE==='inspect'){
     const{ft}=hitCell(x,y);
     if(!ft){$('fpop').hidden=true;INS=null;return}
     showCellCard(ft,x,y,true);
     return;
   }
-  /* a→b — two real points, then the engine answers */
+  /* a→b — a point outside the priced grid can only ever produce 'no
+     route', so answer that honestly here instead of asking the engine. */
+  const{ft}=hitCell(x,y);
+  if(!ft){
+    $('routeline').innerHTML=
+      '<b>a→b</b> — that point sits outside the priced field; pick inside the map';
+    return;
+  }
   if(!PT_A||(PT_A&&PT_B)){
     PT_A={lon:toLon(x),lat:toLat(y)};PT_B=null;ROUTE=null;
     $('routeline').innerHTML='<b>a</b> set — pick the second point';$('departline').textContent='';$('ladder').textContent='';
     drawScene();return;
   }
-  PT_B={lon:toLon(x),lat:toLat(y)};
+  const cand={lon:toLon(x),lat:toLat(y)};
+  if(hav(PT_A,cand)<0.3){
+    $('routeline').innerHTML=
+      '<b>a→b</b> — the two points are too close to price a corridor; pick a farther second point';
+    return;
+  }
+  PT_B=cand;
   drawScene();planAB();
+}
+$('raster').addEventListener('click',e=>{
+  const r=$('raster').getBoundingClientRect();
+  pickAt(e.clientX-r.left,e.clientY-r.top);
+});
+/* keyboard path — focus shows a crosshair; arrows move it, Enter picks,
+   Esc cancels (same document handler as the mouse). */
+let KBD=null;
+const srSay=t=>{const e=$('srlive');if(e)e.textContent=t};
+$('raster').addEventListener('focus',()=>{
+  if(W&&H&&!KBD)KBD={x:W/2,y:H/2};
+  $('kbhint').hidden=false;
+  srSay('field map focused — arrow keys move the crosshair, enter selects');
+  drawScene();
+});
+$('raster').addEventListener('blur',()=>{
+  KBD=null;$('kbhint').hidden=true;drawScene();
+});
+$('raster').addEventListener('keydown',e=>{
+  if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' ']
+      .includes(e.key))return;
+  e.preventDefault();
+  if(!W||!H)return;
+  if(e.key==='Enter'||e.key===' '){if(KBD)pickAt(KBD.x,KBD.y);return}
+  if(!KBD)KBD={x:W/2,y:H/2};
+  const s=e.shiftKey?40:10;
+  KBD.x=Math.max(0,Math.min(W,KBD.x+(e.key==='ArrowLeft'?-s:e.key==='ArrowRight'?s:0)));
+  KBD.y=Math.max(0,Math.min(H,KBD.y+(e.key==='ArrowUp'?-s:e.key==='ArrowDown'?s:0)));
+  drawScene();
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
@@ -895,8 +986,9 @@ async function planAB(){
     const opts=d.options||[];
     if(d.code==='outside_service_area'||!opts.length){
       ROUTE=null;drawScene();
-      $('routeline').innerHTML=
-        `<b>a→b</b> — ${esc(d.error||'no route')} — the engine only prices inside the NCR field window`;
+      $('routeline').innerHTML=d.code==='outside_service_area'
+        ?`<b>a→b</b> — ${esc(d.error||'outside the service area')} — the engine only prices inside the NCR field window`
+        :`<b>a→b</b> — ${esc(d.error||'no route')} — try another pair of points`;
       return;
     }
     const o=opts.find(x=>x.recommended)||opts[0];
@@ -1100,7 +1192,7 @@ async function dtShow(chip){
   chip.setAttribute('aria-pressed','true');
   const r=chip.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
   pop.style.left=Math.min(Math.max(4,r.left-wr.left),Math.max(4,wr.width-256))+'px';
-  const c=d.color||'#888';
+  const c=d.color||'#8a8d94';
   const na=d.pm25==null&&d.aqi==null;
   const level=d.level==='osm_admin_5'
     ?`sub-area · ${d.parent||'delhi nct'}`:`district · ${d.state||'—'}`;
@@ -1190,4 +1282,5 @@ let rsz=null;window.addEventListener('resize',()=>{
   },160)});
 setInterval(()=>{paint();status();loadDistricts()},120000);
 </script>
+<div id="srlive" class="sr-only" aria-live="polite"></div>
 </body></html>
