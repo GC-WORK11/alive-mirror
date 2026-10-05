@@ -17,7 +17,7 @@ import { F, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } 
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { tick } from "../../haptics";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { approx, modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
+import { approx, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -117,10 +117,23 @@ export function Sidebar({
   // drawer stays mounted off-canvas; the wrapper swallows touches when closed
   // NB: JS driver — RN 0.86's native-animated detach path segfaults the
   // sheet flow (see ui.tsx Sheet for the same guard)
+  /* the live translateX comes off once the drawer has slid home — a
+     residual transform on the drawer's container swallowed drag gestures
+     on Android 15 while taps still landed (emulator drive, D1). Static
+     post-settle style is visually identical; closing re-arms it. */
+  const [openSettled, setOpenSettled] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    /* sanctioned render-phase reset — closing re-arms the spring */
+    setWasOpen(open);
+    setOpenSettled(false);
+  }
   useEffect(() => {
     Animated.spring(slide, {
       toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: false,
-    }).start();
+    }).start(({ finished }) => {
+      if (finished && open) setOpenSettled(true);
+    });
   }, [open, slide]);
 
   /* Android hardware BACK closes the drawer — this overlay has no Modal
@@ -325,7 +338,7 @@ export function Sidebar({
       </View>
       <Icon name="dust" color={V2T.text3} size={13} />
       <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM, { fontFamily: famMono(lang, "med") }]}>
-        {t("doseUg", lang, { n: approx(Math.round(tr.dose_ug)) })}
+        {t("doseUg", lang, { n: approx(doseUgRound(tr.dose_ug)) })}
       </Text>
       {onShareTrip && (
         <Pressable hitSlop={8} onPress={() => onShareTrip(tr)}
@@ -348,7 +361,7 @@ export function Sidebar({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose}
           accessibilityRole="button" accessibilityLabel={t("settingsClose", lang)} />
       </Animated.View>
-      <Animated.View style={[s.drawer, { transform: [{ translateX: slide }] }]}>
+      <Animated.View style={[s.drawer, openSettled ? null : { transform: [{ translateX: slide }] }]}>
         {/* fixed header — app mark + wordmark + close (stays put while
             the list scrolls) */}
         <View style={[s.header, { paddingTop: insets.top + 14 }]}>
@@ -378,7 +391,7 @@ export function Sidebar({
                     <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("breathed", lang)}</Text>
                   </View>
                   <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM, { fontFamily: famSerif(lang, "semi") }]}>
-                    {t("doseUg", lang, { n: approx(Math.round(st.todayUg)) })}
+                    {t("doseUg", lang, { n: approx(doseUgRound(st.todayUg)) })}
                   </Text>
                   {/* yesterday delta + opt-in cigarette equivalence sit in
                       the caption row — µg keeps the tile number */}
@@ -430,7 +443,7 @@ export function Sidebar({
                 <Text {...DYNAMIC_TYPE} style={[s.weekCap, { fontFamily: fam(lang, "reg") }]}>
                   {t(week.totalTrips === 1 ? "tripsCountOne" : "tripsCount", lang, { n: week.totalTrips })}
                   {" · "}
-                  {t("doseUg", lang, { n: approx(Math.round(week.weekUg)) })}
+                  {t("doseUg", lang, { n: approx(doseUgRound(week.weekUg)) })}
                   {showCig
                     ? ` · ${t("tripsCigs", lang, { n: approx(week.weekCigEq > 0 && week.weekCigEq < 0.01 ? 0.01 : week.weekCigEq) })}`
                     : ""}

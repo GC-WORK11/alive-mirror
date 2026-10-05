@@ -310,7 +310,13 @@ function SearchSheet({
   );
 
   const distLabel = useCallback(
-    (p: PlaceResult) => (loc ? fmtDist(distKm(p, loc)) : undefined),
+    (p: PlaceResult) => {
+      /* t0.distKm once arrived as a non-callable namespace object on a
+         cold launch (metro inline-require flake — bundler internals are
+         the perf lane's, 8d505e0): the distance hint is cosmetic, so a
+         broken binding degrades to no label instead of a render crash. */
+      return loc && typeof distKm === "function" ? fmtDist(distKm(p, loc)) : undefined;
+    },
     [loc],
   );
 

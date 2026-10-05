@@ -1060,6 +1060,12 @@ export function modeLabel(mode: string, label: string, lang: Lang): string {
 export const approx = (n: number | string): string =>
   Number(n) === 0 ? "0" : `≈ ${n}`;
 
+/** µg readout rule — the same trip dose must print identically on the
+ *  receipt hero, sidebar rows, live counter and the ledger: under 10 µg
+ *  one decimal stays (≈ 1.6, not ≈ 2), 10+ rounds whole. */
+export const doseUgRound = (ug: number): number =>
+  ug >= 10 ? Math.round(ug) : Math.round(ug * 10) / 10;
+
 const PLACE_SENTINEL: Record<string, keyof typeof en> = {
   "your location": "placeCurrentLocation",
   "आपकी लोकेशन": "placeCurrentLocation",

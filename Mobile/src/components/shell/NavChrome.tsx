@@ -14,7 +14,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { approx, t, type Lang } from "../../i18n/strings";
+import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
 import { confirm, tap } from "../../haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
@@ -343,7 +343,7 @@ export function NavChrome({
             dim={frozen}
             band={doseBand}
             value={ugMid == null ? t("nav_noSignal", lang)
-              : t("doseUg", lang, { n: approx(Math.round(ugMid)) })} />
+              : t("doseUg", lang, { n: approx(doseUgRound(ugMid)) })} />
           {showOut && outKg != null && (
             <>
               <View style={s.cellDiv} />

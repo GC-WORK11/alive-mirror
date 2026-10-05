@@ -34,7 +34,7 @@ import React, { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
-import { approx, t, type Lang } from "../../i18n/strings";
+import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
@@ -179,7 +179,7 @@ export function ReceiptSheet({
   const co2 = data.co2Kg;
   const co2Zero = co2 != null && co2.hi <= 0;
   const breathedTxt = dose != null
-    ? `${t("youBreathed", lang)} ${t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}`
+    ? `${t("youBreathed", lang)} ${t("doseUg", lang, { n: approx(doseUgRound(dose.mid)) })}`
     : null;
   /* show_cig demotes the metaphor to a secondary line — the equivalence
      stays available under the µg hero, never as the headline number */
@@ -231,13 +231,13 @@ export function ReceiptSheet({
       ) : (
         <>
           <Text style={[s.heroNum, NUM, { fontFamily: famSerif(lang, "semi") }]} {...DYNAMIC_TYPE}>
-            {t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}
+            {t("doseUg", lang, { n: approx(doseUgRound(dose.mid)) })}
             <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose.hi - dose.lo >= 1 && (
             <Text style={[s.bandTxt, NUM, { fontFamily: famMono(lang) }]} {...DYNAMIC_TYPE}>
               {t("receipt_doseUgBand", lang, {
-                lo: Math.round(dose.lo), hi: Math.round(dose.hi),
+                lo: doseUgRound(dose.lo), hi: doseUgRound(dose.hi),
               })}
             </Text>
           )}
@@ -256,7 +256,7 @@ export function ReceiptSheet({
           ) : null}
           {savedUg != null && savedUg >= 6 && (
             <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
-              {t("receiptSavedUg", lang, { n: approx(Math.round(savedUg)) })}
+              {t("receiptSavedUg", lang, { n: approx(doseUgRound(savedUg)) })}
               {showCig && savedCigs != null && savedCigs >= 0.02
                 ? `  ·  ${t("nav_cigs", lang, { n: approx(savedCigs) })}`
                 : ""}

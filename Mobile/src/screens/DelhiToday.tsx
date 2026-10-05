@@ -553,10 +553,22 @@ export function DelhiToday({
      enter spring (the proven-safe pattern from Sheet/SearchScreen). */
   const [enter] = useState(() => new Animated.Value(0));
   const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
+  /* once the enter spring has run its course the live transform comes
+     off: a residual translateY on the ScrollView's parent swallowed drag
+     gestures on Android 15 while taps still landed (emulator drive, D1).
+     Post-settle the static style is visually identical. */
+  const [settled, setSettled] = useState(false);
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    /* sanctioned render-phase reset — re-opening re-arms the spring */
+    setWasVisible(visible);
+    setSettled(false);
+  }
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
-      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false })
+        .start(({ finished }) => finished && setSettled(true));
     }
   }, [visible, enter]);
 
@@ -564,7 +576,9 @@ export function DelhiToday({
   return (
     <View style={ss.backdrop}>
       <StatusBar style="dark" />
-      <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
+      <Animated.View style={settled
+        ? { flex: 1 }
+        : { flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
         <DelhiSheet onClose={onClose} lang={lang} showCig={showCig} />
       </Animated.View>
     </View>

@@ -39,7 +39,7 @@ import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono, famSerif } from "../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
-import { modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
+import { doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
 import { Icon, vehicleGlyph } from "../icons";
 import {
   clearTrips,
@@ -59,8 +59,7 @@ const fmtCig = (ug: number) => {
   const c = ug / CIG_UG;
   return c >= 0.01 ? `≈ ${c.toFixed(2)}` : "<0.01";
 };
-const fmtUg = (ug: number) =>
-  ug >= 10 ? `${Math.round(ug)}` : `${Math.round(ug * 10) / 10}`;
+const fmtUg = (ug: number) => `${doseUgRound(ug)}`;
 /** µg readout with the estimate mark — the surface number while the
  *  cigarette metaphor is off; templates add the "µg" unit. */
 const fmtDoseUg = (ug: number) => `≈ ${fmtUg(ug)}`;
