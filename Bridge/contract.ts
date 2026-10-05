@@ -432,6 +432,14 @@ export interface V2PlanOption {
                                  // `recommended` and carry dose
                                  // confidence "low"
   truncated_gap_km?: number;    // how far short the geometry ends, km
+  starts_at_origin?: boolean;   // false when the served geometry BEGINS
+                                // >3km from the requested origin (the
+                                // router snapped an out-of-graph point to
+                                // the field edge) — same truncation class
+                                // at the start; never `recommended`,
+                                // dose confidence "low"
+  origin_gap_km?: number;       // how far the geometry starts from the
+                                // requested origin, km
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
   stations?: CompareOption["stations"]; // metro only
   /* transit legs (metro/bus via transit_v2) — absent on road modes */

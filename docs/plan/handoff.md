@@ -499,3 +499,22 @@ All 10 findings closed + deployed + verified live:
 - Epoch watch restarted on persistent path (/Users/devin/watch/epoch.log, 40×7min): field 105s fresh, 24 stations, wind 10.9km/h NW, stale:false, 903,058 edges priced.
 
 **State**: live `2ffff50a` · HEAD `39eb928` (undeployed = docs + 3-line CSS) · main `411abe7` · suite 955 green.
+
+## cont.22 — depart sparkline + dose ladder live (build 381674b4, main 4181cf8)
+
+- Landing gained two earned surfaces after a→b draws (both verified by eye on prod):
+  * **"when to leave"** — hairline sparkline of real /depart slot doses, CPCB-tinted dot per hour (tint = that slot's avg_conc on the same band math as the raster), best slot inked-ring. Honest both shapes: "now is the light slot — dose climbs to Nµg by HH:MM" (trough) / "leave ~HH:MM — N% less dose" (peak). PLANSEQ-guarded, silent on error, clears with the routeline.
+  * **dose-per-mode ladder** — the plan's own options list: hairline bars ∝ dose_mid, dose + lo–hi, recommended row inked (truncated NEVER inked — rec requires reaches_destination), click swaps canvas to that option's real route_geojson (`· drawn` ≠ recommended), metro/transit rows flag "priced, no road path", truncation carries "~N km short · lo conf", cap-7 + "+N more priced" footer, role=button + Enter/Space.
+- Verified live: field 23s fresh on new task, 24 stations, 903,058 edges, landing serves all new surfaces (22 code hits), reroute chain works (23 options, rerouted_from links), /v2/strip GET verified (71 samples · 10 roads: Kumaraswami Kamaraj Marg 74.3µg, Dara Shikoh Rd 54.8µg, honest "unnamed road").
+- Fresh-task cold-plan regime re-verified: first plan on a task ~14s w/ degraded:["engine","transit"] during boot-warm (~90-120s), then warm. Boot warming already covers field/forecast/transit/community/static/engine-solve/grid-reprime — depart's shared inputs warm with them.
+- Forecast surface verified REAL (not repaint): h=0 med 43.3 → h=6 med 253 → h=12 med 258µg — Delhi October evening-peak diurnal, coherent with /v2/city next_hours (76.8 → 299.6 peak +8h) and /depart slots.
+- Public scrapers (aqicn page, aqi.in, CPCB ccr) are JS-gated/unreachable from box — station-layer verification stays anchored to the earlier aqicn-class check (pm10 ~209 vs ~200, pm25 in 77-90 band, us_aqi 160-170 band).
+- Backend-depth lane spawned (51dbc4fbb56f): dose/emissions math vs COPERT/ARAI/EPA published factors, sustained 12-way /v2/plan load, aggregate freshness audit.
+- Suite: 955 passed + 5 skipped on exact HEAD c314cff (6m17s).
+
+## cont.23 — origin-snap honesty (symmetric truncation fix)
+- Live probe: POST /v2/plan from {lat:30.0,lon:77.4} (UP, ~113km north of graph) → Car (AC) recommended, dose mid 10.2 conf:high coverage:1.0, geo starting [77.162,28.976] — the engine silently snapped the origin to the field edge and claimed a full trip. The hostile-audit fix checked geometry-END vs destination but never geometry-START vs origin.
+- Fix (df7a70a): `_option` gains symmetric start-gap check — _coords[0] vs requested origin via _haversine_m, >TRUNCATED_GAP_M(3km) → starts_at_origin:false + origin_gap_km + dose conf:low + basis "dose covers the served segment only — route begins ~Nkm from the requested origin at the field edge" + reason_line "starts inside the priced field, not at your point". rank_options excludes starts_at_origin===false from scored (never recommended). Metro/MultiLineString coords are nested → _haversine_m raises → gap 0 → skipped (same tolerance as dest check; metro already conf:low).
+- Contract: V2PlanOption gains starts_at_origin?/origin_gap_km?. Landing: routeline renders "begins ~Nkm from a — dose covers the mapped segment only"; ladder row flags "starts ~Nkm from a", rec requires both ends true.
+- Tests: test_option_marks_geometry_snapped_at_origin + test_origin_snapped_option_never_recommended (test_v2_hardening.py) — assert gap>100km, conf low, no reach flag, not recommended.
+- Probe-shaped lesson: /v2/reroute + /v2/plan take `at`/`from` as {lat,lon} OR [lon,lat] GeoJSON order — a [lat,lon] array parses swapped and returns honest "outside service area". Live-verified both good paths: at→8 options fresh route_id, expired route_id → "destination unknown — pass `to` or a live route_id (route_ids expire after 1 h)".
