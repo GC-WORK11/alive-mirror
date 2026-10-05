@@ -419,9 +419,12 @@ The service runs `capacityProviderStrategy: FARGATE_SPOT weight=1 base=1`
 reclaim any time, including mid-demo). To pin the task on on-demand
 Fargate for the day — **T-60: run this verbatim**:
 
-*(the flip replaces the task — the admin "why tonight" driver sparkline
-needs ≥3h of field builds on one task, so it self-hides until ~T+180;
-drivers/eval/cannot_tell still render. Flip earlier if you want it.)*
+*(the flip replaces the task — SAFE for the why-trend/history surfaces
+since `268ed54`: the series reads the S3 `field/` builds, which persist
+across rollouts, so the sparkline + trend keep their full recorded
+history. The only residual: the ingest worker's first cold build on a
+new task takes ~25 min, so the recorded trail gets one ~25-min gap;
+serving stays fresh the whole time.)*
 
 ```bash
 export AWS_DEFAULT_REGION=ap-south-1
