@@ -34,6 +34,12 @@ POLLUTANTS = ("pm2_5,pm10,nitrogen_dioxide,ozone,carbon_monoxide,"
               "sulphur_dioxide,ammonia,us_aqi,european_aqi,dust,"
               "aerosol_optical_depth")
 CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
+# Wind's own retry cadence while it is unknown: a failed met fetch used
+# to wait out a whole field TTL for its next try — and under idle a
+# whole request gap — so wind.known:false was observed lingering ~45 min
+# on live after a short upstream blip. One small GET; the value stays
+# honestly unknown until a real fetch lands.
+WIND_RETRY_S = 90.0
 
 # --- snapshot serving (warm start from the built air index) ---------------
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -160,6 +166,7 @@ class AirField:
         self._fetched_at: float = 0.0
         self._wind: tuple = (0.0, 0.0)  # (speed km/h, FROM-direction deg)
         self._wind_at: float = 0.0      # last successful met fetch (0 = never)
+        self._wind_try_at: float = 0.0  # last met fetch ATTEMPT (retry gate)
         self._wx: dict = {}  # ambient weather for the safety layer
         self._source = "open-meteo/cams"
         self._station_count = 0  # live CAAQMS station readings blended in
@@ -210,6 +217,16 @@ class AirField:
             try:
                 self.load_snapshot()
             except Exception:  # noqa: BLE001 - snapshot load never crashes
+                pass
+        # Wind retries on its own cadence even when the field itself is
+        # still inside its TTL — refresh() is called on every request, so
+        # an unknown wind gets another shot every WIND_RETRY_S instead of
+        # riding only the 15-min field fetch it used to share.
+        if self._wind_expired() and \
+                time.time() - self._wind_try_at >= WIND_RETRY_S:
+            try:
+                await self._grab_wind(client)
+            except Exception:
                 pass
         if not force and time.time() - self._fetched_at < CACHE_TTL and self._samples:
             return
@@ -536,15 +553,25 @@ class AirField:
             self._stations_src = "openaq"
         return out
 
+    def _wind_expired(self) -> bool:
+        """Serving wind is past its useful life — never fetched, or older
+        than two refresh cycles. Same boundary wind() reports as
+        known:false, kept here so the retry gate and the honest flag can
+        never drift apart."""
+        return (not self._wind_at
+                or (time.time() - self._wind_at) > 2 * CACHE_TTL + 60)
+
     async def _grab_wind(self, client: httpx.AsyncClient) -> None:
         """Boundary-layer wind over NCR centre — drives the directional
         weighting below (air at a point arrives *from* upwind)."""
+        self._wind_try_at = time.time()
         try:
             r = await client.get(METEO, params={
                 "latitude": 28.61, "longitude": 77.21,
                 "current": "wind_speed_10m,wind_direction_10m,precipitation,visibility,temperature_2m,is_day",
                 "forecast_days": 1,
             })
+            r.raise_for_status()
             cur = r.json().get("current", {})
             if cur.get("wind_speed_10m") is not None:
                 self._wind = (float(cur["wind_speed_10m"]),
@@ -557,7 +584,10 @@ class AirField:
                     "temp_c": cur.get("temperature_2m"),
                     "is_day": cur.get("is_day"),
                 }
-        except httpx.HTTPError:
+        except Exception:
+            # A met failure must never take the field refresh down with
+            # it: non-2xx, a non-JSON error body, or a dead upstream all
+            # land here and leave wind honestly unknown.
             pass
 
     def wind(self) -> dict:
@@ -569,9 +599,7 @@ class AirField:
         'wind n/a' instead of a fabricated 0 km/h. Directional-IDW still
         reads `_wind` directly — factor 0 → isotropic, the safe fallback."""
         speed, from_deg = self._wind
-        stale = (not self._wind_at
-                 or (time.time() - self._wind_at) > 2 * 900 + 60)
-        if stale:
+        if self._wind_expired():
             return {"speed_kmh": None, "from_deg": None,
                     "factor": 0.0, "known": False}
         return {"speed_kmh": speed, "from_deg": from_deg,

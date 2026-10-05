@@ -191,6 +191,7 @@ export interface HealthResponse {
   field_stale?: boolean | null;        // FieldStatus.stale surfaced
   engine?: string;                     // "alive_core" | "python" — serving engine
   wind?: { speed_kmh?: number; from_deg?: number; factor?: number } | null; // FieldStatus.wind — serving wind the router prices on
+  transit?: { on_disk?: boolean; compiled?: string[]; real_feeds?: Record<string, boolean> } | null; // GTFS readiness — feeds baked/fetched and CSA indexes compiled
   routing?: { loaded?: boolean; edges?: number; edges_priced?: number } | null; // engine road graph — edges_loaded / edges carrying a live price
   sources?: Record<string, unknown>;
   history?: unknown;

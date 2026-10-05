@@ -78,14 +78,37 @@ async def _lifespan(_app: FastAPI):
         except Exception:
             pass
     asyncio.create_task(_warm_forecast())
-    # Same gap for the transit graph: default_feeds() compiles the GTFS
-    # feeds once per process — until then the first /v2/plan pays the
-    # whole parse inside its own budget (a fresh task's first plan was
-    # observed timing out at 21 s). Compile off-loop at boot.
+    # The transit graph has the same request-driven gap — and the worst
+    # version of it: an image without feeds downloads ~120 MB of GTFS and
+    # parses ~3.3M stop_times on first use (~1 min on a 1-vCPU task),
+    # past the 12 s transit arm, so cold tasks answered
+    # degraded:["transit"] until the pipeline landed (~60 min observed).
+    # The deploy image now bakes data/gtfs (Dockerfile ->
+    # tools/bake_gtfs.py), so this warm is a bounded index load. ensure_
+    # loaded starts the fetch+parse at boot rather than on the first
+    # request; when feeds are already on disk we finish the compile
+    # BEFORE the service reports healthy. Nothing about readiness is
+    # fabricated: with feeds still absent the plan arm degrades exactly
+    # as before, and the retry loop below compiles them off-request as
+    # soon as they land.
+    try:
+        import transit_real
+        transit_real.ensure_loaded()
+        if transit_real.feeds_on_disk():
+            from transit_v2 import default_feeds
+            await asyncio.wait_for(asyncio.to_thread(default_feeds),
+                                   timeout=45.0)
+    except Exception:
+        pass
+
     async def _warm_transit():
         try:
             from transit_v2 import default_feeds
-            await asyncio.to_thread(default_feeds)
+            for _ in range(36):      # ~6 min ceiling, same as _warm_engine
+                feeds = await asyncio.to_thread(default_feeds)
+                if {"metro", "bus"} <= set(feeds):
+                    break
+                await asyncio.sleep(10)
         except Exception:
             pass
     asyncio.create_task(_warm_transit())
@@ -262,6 +285,13 @@ async def health():
             loc_up = bool(_loc is not None and getattr(_loc, "enabled", False))
         except Exception:
             pass
+    # GTFS readiness for the ops eye — feeds on disk + compiled indexes;
+    # guarded like every other block here, None when the layer is absent.
+    try:
+        import health as _health
+        transit_stat = _health.live_transit()
+    except Exception:
+        transit_stat = None
     # public-safe engine size — the landing's "edges priced" claim reads
     # the real graph instead of a frozen number (admin_agg does the same
     # read, this one ships no internals beyond counts)
@@ -291,6 +321,7 @@ async def health():
         "field_stale": fstat.get("stale"),
         "engine": fstat.get("engine"),
         "wind": fstat.get("wind"),
+        "transit": transit_stat,
         "sources": {
             "model": {"up": bool(fstat.get("samples")),
                       "samples": fstat.get("samples", 0),

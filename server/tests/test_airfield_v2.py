@@ -13,6 +13,7 @@ Covers the lane contract (docs/plan/05 §2/§6):
 All tests build fresh AirField() instances on tmp dirs — no network, no
 module-FIELD state.
 """
+import asyncio
 import gzip
 import inspect
 import json
@@ -400,3 +401,60 @@ def test_debias_missing_pm10_or_pm25_never_fabricates():
     f = airfield.AirField()
     out = f._debias(model, inst)
     assert out[0][3]["pm10"] == 170.0 and out[0][3]["ozone"] == 190.0
+
+
+# --- wind retry cadence ----------------------------------------------------
+def test_wind_retries_on_own_cadence_not_field_ttl(monkeypatch):
+    """wind.known:false used to ride only the 15-min field fetch — a
+    short upstream blip read as ~45 min unknown on live. An expired wind
+    now retries inside every refresh() call once WIND_RETRY_S has passed,
+    while the samples themselves sit fresh inside their TTL."""
+    f = airfield.AirField()
+    f._samples = [(28.61, 77.21, None, {"pm2_5": 50.0})]
+    f._fetched_at = time.time()          # fresh: refresh() early-returns
+    f._next_snap_scan = time.time() + 3600
+    calls = []
+
+    async def _grab(client):
+        calls.append(1)
+        f._wind_try_at = time.time()     # the real grab stamps at its top
+    monkeypatch.setattr(f, "_grab_wind", _grab)
+
+    asyncio.run(f.refresh(object()))
+    assert calls == [1]                  # expired wind retried despite fresh TTL
+    asyncio.run(f.refresh(object()))
+    assert calls == [1]                  # gate: < WIND_RETRY_S since last attempt
+    f._wind_try_at -= airfield.WIND_RETRY_S + 1
+    asyncio.run(f.refresh(object()))
+    assert calls == [1, 1]               # next try once the cadence opens
+
+
+def test_wind_failure_stays_unknown_and_never_kills_refresh():
+    """A dead/garbled met upstream leaves wind honestly unknown — and
+    refresh() must finish normally (the met fetch used to share the
+    field's exception path)."""
+    f = airfield.AirField()
+    f._samples = [(28.61, 77.21, None, {"pm2_5": 50.0})]
+    f._fetched_at = time.time()
+    f._next_snap_scan = time.time() + 3600
+
+    class _C:  # non-httpx failure — e.g. a 502 HTML page failing .json()
+        async def get(self, *a, **k):
+            raise ValueError("not json")
+        def raise_for_status(self):
+            pass
+
+    asyncio.run(f.refresh(_C()))         # must not raise
+    assert f.wind()["known"] is False    # honest unknown, not fabricated calm
+    assert f._wind_try_at > 0            # the attempt counted (no hammering)
+
+
+def test_wind_known_until_two_cycles_then_expired():
+    """known boundary = last successful fetch within two refresh cycles —
+    the same boundary the retry gate uses."""
+    f = airfield.AirField()
+    f._wind = (12.0, 300.0)
+    f._wind_at = time.time()
+    assert f.wind()["known"] is True and not f._wind_expired()
+    f._wind_at = time.time() - (2 * airfield.CACHE_TTL + 61)
+    assert f.wind()["known"] is False and f._wind_expired()

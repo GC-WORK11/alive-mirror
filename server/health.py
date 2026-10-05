@@ -309,6 +309,32 @@ def _live_wind() -> dict | None:
         return None
 
 
+def live_transit() -> dict | None:
+    """GTFS transit readiness — which feeds the plan arm can serve from.
+    The cold-start this watches: an unbaked image used to download+parse
+    feeds inside request budgets (degraded:["transit"] for ~60 min); the
+    image now bakes them, and boot warm compiles before healthy. Lazy+
+    guarded like _live_wind: None when the layer can't even import."""
+    try:
+        import transit_real
+        import transit_v2
+    except Exception:
+        try:
+            from server import transit_real, transit_v2  # type: ignore
+        except Exception:
+            return None
+    try:
+        return {
+            "on_disk": transit_real.feeds_on_disk(),
+            "compiled": sorted(transit_v2._FEEDS),
+            "real_feeds": {k: bool(v.get("loaded"))
+                           for k, v in transit_real.status().items()
+                           if isinstance(v, dict)},
+        }
+    except Exception:
+        return None
+
+
 def collect_health(now=None, snapshot_root=None):
     """Full health payload — safe to call from any route, any worker.
 
@@ -328,6 +354,7 @@ def collect_health(now=None, snapshot_root=None):
         "field_age_s": probe["age_s"],
         "field": field_blk,
         "wind": _live_wind(),
+        "transit": live_transit(),
         "disk": _disk(snapshot_root),
         "sources": {name: _source(name, prov.get(name), now) for name in
                     ("model", "met", "stations", "fires", "location")},

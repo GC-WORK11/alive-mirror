@@ -82,6 +82,19 @@ RUN groupadd --gid 10001 alive \
         data/gtfs \
     && chown alive:alive data data/field data/field/snapshots \
         data/field/daily data/field/validation data/gtfs
+
+# Bake the GTFS transit layer into the image (tools/bake_gtfs.py):
+# data/gtfs/{metro,bus}/*.txt + both compiled indexes (_index.pkl,
+# _v2_index.pkl). Without this a fresh task downloaded ~120 MB of feeds
+# lazily on first request and paid the ~minute pure-Python parse inside
+# the 12 s transit arm — degraded:["transit"] for the first minutes of
+# every cold task (the demo-day failure the rehearsal lane measured).
+# Build fails loudly if every feed source is down — shipping without
+# the feeds is exactly the cold-start this removes. Runtime honesty is
+# unchanged: feeds older than REFRESH_DAYS still re-fetch in the
+# background and the plan arm still degrades rather than fabricate.
+RUN python tools/bake_gtfs.py \
+    && chown -R alive:alive data/gtfs
 USER alive
 
 # Bake a sha with --build-arg BUILD_SHA=$(git rev-parse --short HEAD);

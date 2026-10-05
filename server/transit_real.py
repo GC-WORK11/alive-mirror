@@ -437,6 +437,13 @@ def warm(timeout_s: float = 600) -> dict:
     return status()
 
 
+def feeds_on_disk() -> bool:
+    """Both feeds' GTFS txts present in the cache (baked image or fetched).
+    Distinguishes 'compile the index' from 'downloads still landing' —
+    boot warm blocks on the first, never on the second."""
+    return all(_feed_ok(feed) for feed in ("metro", "bus"))
+
+
 def status() -> dict:
     """Ops/debug snapshot — which feeds are live and from where."""
     out = {}
