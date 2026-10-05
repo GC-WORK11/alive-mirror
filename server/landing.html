@@ -433,6 +433,7 @@ h1 em{font-style:italic;color:var(--ink2)}
       <span class="conf" id="confSplit">—</span>
     </span>
   </div>
+  <div class="day-note" id="skillLine" hidden></div>
   <div class="routeline" id="routeline" aria-live="polite"></div>
   <div class="depart" id="departline"></div>
   <div class="ladder" id="ladder"></div>
@@ -1313,6 +1314,22 @@ async function dayStrip(){
     $('daySec').hidden=false;
   }catch(e){/* the strip stays hidden — honest absence, no fake curve */}
 }
+/* the model grades itself — one honest line, only when /v2/skill has
+   enough real forecast-vs-recorded pairs to stand behind a number.
+   thin or unreachable: the line simply doesn't exist. */
+async function skillLine(){
+  try{
+    const d=await api('/v2/skill');
+    const ov=d.overall||{},cv=d.coverage||{};
+    if(d.status!=='ok'||ov.mae_ug==null)return;
+    $('skillLine').innerHTML=
+      `this field also grades itself — over <b>${fmt(cv.hours_graded)}</b>
+       recorded hours the forecast we served missed the air delhi got by
+       <b>${F1(ov.mae_ug)} µg/m³</b> on average · ${fmt(ov.n)} pairs ·
+       <a href="/v2/skill">the raw numbers ↗</a>`;
+    $('skillLine').hidden=false;
+  }catch(e){/* hidden — no score without the pairs to back it */}
+}
 
 /* --- district chips ------------------------------------------------------ */
 let DIST=[],DT_PIN=null,DT_GRID12=null,DT_GRID12_OK=null;
@@ -1473,7 +1490,7 @@ async function status(){
   }
 }
 
-renderPills();paint();status();loadDistricts();tlInit();heroCity();dayStrip();
+renderPills();paint();status();loadDistricts();tlInit();heroCity();dayStrip();skillLine();
 let rsz=null;window.addEventListener('resize',()=>{
   clearTimeout(rsz);rsz=setTimeout(()=>{
     const cv=$('raster'),w=cv.parentElement.clientWidth||896,
@@ -1483,7 +1500,7 @@ let rsz=null;window.addEventListener('resize',()=>{
     cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
     CELLS_DIRTY=true;MID_DIRTY=true;drawScene();
   },160)});
-setInterval(()=>{paint();status();loadDistricts();heroCity()},120000);
+setInterval(()=>{paint();status();loadDistricts();heroCity();skillLine()},120000);
 </script>
 <div id="srlive" class="sr-only" aria-live="polite"></div>
 </body></html>

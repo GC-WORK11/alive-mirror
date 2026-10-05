@@ -1689,8 +1689,42 @@ function paintArchive(S){
     `<div class="card" style="grid-column:1/-1">
      <div class="lbl">recorded today — hourly · ist</div>
      <div class="hstrip" id="archstrip"></div>
-     <div class="lbl" id="archstripcap" style="text-transform:none;letter-spacing:.02em;margin-top:6px">reading /v2/archive…</div></div>`;
+     <div class="lbl" id="archstripcap" style="text-transform:none;letter-spacing:.02em;margin-top:6px">reading /v2/archive…</div></div>`+
+    /* the model grades itself — /v2/skill pairs every recorded hour
+       with the forecast surfaces the api had already served for it;
+       honest-empty until the archive holds enough pairs */
+    `<div class="card" style="grid-column:1/-1">
+     <div class="lbl">the model grades itself — the forecast we served vs the hour we recorded</div>
+     <div id="skillwrap"></div>
+     <div class="lbl" id="skillcap" style="text-transform:none;letter-spacing:.02em;margin-top:6px">reading /v2/skill…</div></div>`;
   archStrip();
+  skillCard();
+}
+/* the self-grade card — horizon × error from /v2/skill. every number
+   is a real stored pair; thin buckets say so instead of pretending */
+async function skillCard(){
+  const wrap=$('skillwrap'),cap=$('skillcap');if(!wrap)return;
+  let d=null;
+  try{const r=await fetch('/v2/skill',{signal:AbortSignal.timeout(15000)});
+      if(r.ok)d=await r.json()}catch(_){}
+  if(!wrap.isConnected)return;
+  if(!d||d.basis!=='self-graded'){
+    wrap.innerHTML='';
+    cap.textContent='/v2/skill unreachable — retrying next tick';
+    return;
+  }
+  const cv=d.coverage||{},ov=d.overall||{},hs=d.horizons||[];
+  const ok=hs.filter(x=>x.status==='ok');
+  const thin=hs.filter(x=>x.status==='thin'&&x.n>0);
+  if(d.status!=='ok'){
+    wrap.innerHTML='';
+    cap.textContent=`${fmt(d.pairs||0)} real forecast-vs-recorded pairs on file so far${cv.since_ist?` — recording since ${cv.since_ist.slice(0,10)} ${cv.since_ist.slice(11,16)} ist`:''} — a score needs ${d.min_pairs||5}+ graded hours; the table fills in as the archive grows`;
+    return;
+  }
+  wrap.innerHTML=`<table style="margin-top:8px"><thead><tr><th>served horizon</th><th class="num">n hours</th><th class="num">mae µg/m³</th><th class="num">bias</th><th class="num">band hit</th></tr></thead>
+    <tbody>${ok.map(h=>`<tr><td class="mono">+${h.h}h</td><td class="num">${fmt(h.n)}</td><td class="num">${fmt1(h.mae_ug)}</td><td class="num">${h.bias_ug>0?'+':''}${fmt1(h.bias_ug)}</td><td class="num">${fmt1(h.band_hit_pct)}%</td></tr>`).join('')}</tbody></table>`
+    +(thin.length?`<div class="lbl" style="text-transform:none;letter-spacing:.02em;margin-top:7px">still thin — ${thin.map(t=>`+${t.h}h has ${t.n}`).join(' · ')} graded hour${thin.length===1&&thin[0].n===1?'':'s'}; a horizon needs ${d.min_pairs||5} before it scores</div>`:'');
+  cap.innerHTML=`${fmt(ov.n)} pairs over ${cv.hours_graded||'—'} recorded hours${cv.first_pair_ist?` since ${cv.first_pair_ist.slice(0,10)}`:''} — overall miss ${fmt1(ov.mae_ug)} µg/m³, bias ${ov.bias_ug>0?'+':''}${fmt1(ov.bias_ug)} (${ov.bias_ug<0?'we under-called':'we over-called'}) · ${fmt1(ov.band_hit_pct)}% of cells landed in the right cpcb band`;
 }
 /* the hourly strip — every square a real snapshot or an honest gap,
    colours from the day's own payload (never status() estimates) */
