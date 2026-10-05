@@ -425,6 +425,13 @@ export interface V2PlanOption {
                                       // raster band, one surface per response)
   reason_line: string;
   your_vehicle: boolean;
+  reaches_destination?: boolean; // false when the served geometry stops
+                                 // >3km short of the requested
+                                 // destination (field/graph edge) —
+                                 // truncated options are never
+                                 // `recommended` and carry dose
+                                 // confidence "low"
+  truncated_gap_km?: number;    // how far short the geometry ends, km
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
   stations?: CompareOption["stations"]; // metro only
   /* transit legs (metro/bus via transit_v2) — absent on road modes */

@@ -519,3 +519,49 @@ def test_aqi_inside_service_area_still_serves():
     assert r.status_code == 200
     body = r.json()
     assert "outside service area" not in (body.get("error") or "")
+
+
+def test_option_marks_geometry_truncated_at_field_edge():
+    """Hostile-audit #1: geometry ending far short of the requested
+    destination (live osrm-local clips at its NCR extract edge, ~28.95°N)
+    must NOT silently report confidence:high — the option has to say it
+    never reaches the destination. Unit-level: the fixture's OSRM routes
+    globally so only _option carries the live clip."""
+    from v2 import plan as plan_mod
+    clipped = {"type": "LineString", "coordinates": [
+        [77.21, 28.61], [77.40, 28.75], [77.1966, 28.9487]]}
+    o = plan_mod._option(
+        "car", "Car (AC)", clipped, 45.11, 4135, 3600, "osrm",
+        "car", origin=(28.61, 77.21), dest=(30.0, 79.0))
+    assert o.get("reaches_destination") is False
+    assert o.get("truncated_gap_km") > 100   # ~140km short
+    assert (o.get("dose") or {}).get("confidence") == "low"
+    assert "field edge" in (o.get("dose") or {}).get("basis", "")
+    assert "priced field" in o.get("reason_line", "")
+
+
+def test_option_full_reach_is_not_marked_truncated():
+    """Guard precision: geometry ending at the destination must NOT get
+    the marker — the 3km floor absorbs geocoder snap only."""
+    from v2 import plan as plan_mod
+    full = {"type": "LineString", "coordinates": [
+        [77.2167, 28.6315], [77.10, 28.50], [77.0266, 28.4595]]}
+    o = plan_mod._option(
+        "car", "Car (AC)", full, 31.0, 1900, 1500, "osrm",
+        "car", origin=(28.6315, 77.2167), dest=(28.4595, 77.0266))
+    assert "reaches_destination" not in o
+    assert "truncated_gap_km" not in o
+
+
+def test_truncated_option_never_recommended():
+    """A clipped route must not win the 'recommended' flag even when it
+    is the only scored option."""
+    from v2 import plan as plan_mod
+    clipped = {"type": "LineString", "coordinates": [
+        [77.21, 28.61], [77.1966, 28.9487]]}
+    o = plan_mod._option(
+        "car", "Car (AC)", clipped, 45.0, 4000, 3600, "osrm",
+        "car", origin=(28.61, 77.21), dest=(30.0, 79.0))
+    out = plan_mod.rank_options([o])
+    assert not out[0].get("recommended")
+    assert out[0].get("reason_line")  # truncation note survives the reset
