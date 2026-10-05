@@ -362,6 +362,9 @@ export interface DoseBand {
       doses (transit) it is the weakest leg's coverage. */
   coverage?: number | null;
   sparse?: boolean | null;
+  /** worst single-segment concentration along the option (µg/m³) —
+      server emits it on every dose block (exposure.py, plan.py). */
+  peak_conc?: number | null;
 }
 
 export interface EmissionBandValue {
@@ -375,6 +378,25 @@ export interface EmissionBand {
   pm25_g: EmissionBandValue | null;
   basis: string;
   occupancy?: number | null;
+  /* provenance surface server/emissions.py emits — all optional
+     (subset varies by mode/engine) */
+  nox_g?: EmissionBandValue | null;
+  label?: string;               // plain-English basis, e.g. "petrol car,
+                                // Delhi fleet mix"
+  bs_class?: string | null;     // BS bucket picked for the vehicle
+  bs_options?: string[];        // buckets the caller may choose among
+  confidence?: string | null;   // high | medium | low
+  fuel?: string | null;
+  class?: string | null;
+  puc_calibrated?: boolean;     // true when live PUC data shifted the band
+  puc?: Record<string, unknown> | null;
+  non_exhaust?: Record<string, unknown> | null; // resuspend/brakes/tyres
+                                // block — never folded into tailpipe
+  breakdown?: Record<string, unknown> | null;   // moving/idle/cold split
+  distance_km?: number | null;
+  mode?: string | null;
+  engine?: string | null;       // provenance tag, e.g.
+                                // "server/emissions.py"
 }
 
 export type V2PlanTag =
@@ -720,8 +742,43 @@ export interface V2CityMovesResponse {
   basis: string;
 }
 
+/* /v2/districts — district/subdistrict AQI choropleth. Field rollup of
+   the live field over NCR districts; ages are honest (field_age_s,
+   cached_s), geojson keys are relative paths to the shape endpoints. */
+export interface V2DistrictRow {
+  name: string;
+  state: string;
+  level: string;                // "district" | "subdistrict"
+  parent: string | null;
+  partial_field_coverage: boolean;
+  cells_covered: number;
+  pm25: number | null;
+  confidence: string;           // "field" | "sparse" | "none"
+  /* sparse districts (<3 covered cells) read the field at their
+     centroid — centroid_read: true marks that path so the client can
+     badge it honestly */
+  centroid_read?: boolean;
+  aqi: number | null;
+  aqi_us: number | null;
+  category: string;
+  color: string;
+}
+
+export interface V2DistrictsResponse {
+  districts: V2DistrictRow[];
+  bands: { min: number; max: number; category: string;
+           color: string }[];   // CPCB scale legend
+  geojson: string;              // path → /ncr.geojson
+  subdistrict_geojson: string;  // path → /delhi_subdistricts.geojson
+  scale: string;                // "cpcb"
+  field_age_s: number | null;
+  ts: number;
+  cached_s: number;
+}
+
 export const V2_ENDPOINTS = {
   search: "/v2/search",
+  districts: "/v2/districts",
   place: "/v2/place",
   reverse: "/v2/reverse",
   plan: "/v2/plan",

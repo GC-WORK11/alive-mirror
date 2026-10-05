@@ -251,6 +251,7 @@ def _fetchers():
         "V2CityMovesResponse": lambda: (
             _seed_moves(), client.get("/v2/city/moves").json())[1],
         "V2Place": lambda: client.get("/v2/place/gaz:0").json(),
+        "V2DistrictsResponse": lambda: client.get("/v2/districts").json(),
     }
 
 
@@ -281,6 +282,7 @@ NESTED = [
     ("V2RerouteResponse", "options", "V2PlanOption"),
     ("V2CityResponse", "corridors", "V2CityCorridor"),
     ("V2CityMovesResponse", "mode_share", "V2CityModeShare"),
+    ("V2DistrictsResponse", "districts", "V2DistrictRow"),
 ]
 # object-valued keys get the same two-direction check:
 # (parent fetcher key, object-key, child interface | None)
@@ -383,6 +385,10 @@ def test_nested_v2_option_and_band_shapes():
             sub = o.get(key) or {}
             miss = _required(child) - set(sub)
             assert not miss, f"{o.get('mode')}.{key}: missing {miss}"
+            extra = set(sub) - _declared(child)
+            assert not extra, (
+                f"{o.get('mode')}.{key}: undeclared {extra} — "
+                f"add to contract.ts")
 
 
 def test_nested_place_and_strip_rows():
