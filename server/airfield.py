@@ -159,6 +159,7 @@ class AirField:
         self._samples: list = []  # (lat, lon, name|None, {pollutant: ug/m3})
         self._fetched_at: float = 0.0
         self._wind: tuple = (0.0, 0.0)  # (speed km/h, FROM-direction deg)
+        self._wind_at: float = 0.0      # last successful met fetch (0 = never)
         self._wx: dict = {}  # ambient weather for the safety layer
         self._source = "open-meteo/cams"
         self._station_count = 0  # live CAAQMS station readings blended in
@@ -548,6 +549,7 @@ class AirField:
             if cur.get("wind_speed_10m") is not None:
                 self._wind = (float(cur["wind_speed_10m"]),
                               float(cur.get("wind_direction_10m") or 0.0))
+                self._wind_at = time.time()
             if cur:
                 self._wx = {
                     "precip_mm": cur.get("precipitation"),
@@ -559,10 +561,22 @@ class AirField:
             pass
 
     def wind(self) -> dict:
-        """Current boundary wind: speed km/h + the direction air comes FROM."""
+        """Current boundary wind: speed km/h + the direction air comes FROM.
+
+        A failed fetch must not masquerade as calm air: before the first
+        successful grab (or after one went stale past two refresh cycles)
+        speed comes back None with `known: False` so surfaces can show
+        'wind n/a' instead of a fabricated 0 km/h. Directional-IDW still
+        reads `_wind` directly — factor 0 → isotropic, the safe fallback."""
         speed, from_deg = self._wind
+        stale = (not self._wind_at
+                 or (time.time() - self._wind_at) > 2 * 900 + 60)
+        if stale:
+            return {"speed_kmh": None, "from_deg": None,
+                    "factor": 0.0, "known": False}
         return {"speed_kmh": speed, "from_deg": from_deg,
-                "factor": min(1.0, speed / 30.0)}
+                "factor": min(1.0, speed / 30.0), "known": True,
+                "age_s": round(time.time() - self._wind_at)}
 
     def weather(self) -> dict:
         """Ambient conditions a rider feels: rain + fog/dust visibility —

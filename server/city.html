@@ -592,7 +592,7 @@ async function load(){
     if(dd)paintDistricts(dd.districts||[]);
     if(!cy)return;   /* the ledger/corridor numbers all ride /v2/city */
     a=a||{};
-    windNow=a.wind||windNow;
+    if(a.wind&&a.wind.speed_kmh!=null)windNow=a.wind;  /* null wind = unknown, keep last */
     const days=(cy.trips&&cy.trips.days)||{};
     const dayKeys=Object.keys(days).sort();
     const latest=dayKeys.length?days[dayKeys[dayKeys.length-1]]:{};

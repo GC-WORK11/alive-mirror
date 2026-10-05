@@ -598,3 +598,24 @@ def test_origin_snapped_option_never_recommended():
         "car", origin=(30.0, 77.4), dest=(28.61, 77.21))
     ranked = plan_mod.rank_options([o])
     assert all(x.get("recommended") is not True for x in ranked)
+
+
+def test_wind_unfetched_is_unknown_not_fake_calm():
+    """A failed met grab must not serve as '0 km/h from 0°' — before the
+    first successful fetch, wind() has to say unknown. Directional-IDW
+    reads _wind directly and stays isotropic (the safe physics fallback)."""
+    from airfield import AirField
+    import time as _t
+    f = AirField()
+    w = f.wind()
+    assert w["speed_kmh"] is None and w["known"] is False
+    assert w["factor"] == 0.0                    # isotropic weighting kept
+    # a real fetch marks known + stamps age
+    f._wind = (8.6, 307.0)
+    f._wind_at = _t.time() - 30
+    w = f.wind()
+    assert w["known"] is True and w["speed_kmh"] == 8.6
+    assert w["age_s"] >= 30
+    # two+ refresh cycles of failure → last-known expires to unknown
+    f._wind_at = _t.time() - 1900
+    assert f.wind()["known"] is False
