@@ -50,7 +50,23 @@ fetch "/depart?from_lat=$CP_LAT&from_lon=$CP_LON&to_lat=$GG_LAT&to_lon=$GG_LON" 
 fetch /v2/plan plan.json -X POST -H 'content-type: application/json' \
   -d "{\"from\":{\"lat\":$CP_LAT,\"lon\":$CP_LON},\"to\":{\"lat\":$GG_LAT,\"lon\":$GG_LON}}"
 
-OUT="$OUT" REPO="$REPO" python3 - <<'PY'
+# the heredoc uses 3.12+ f-string syntax (nested same-quote); stock macOS
+# python3 (3.9) dies on it. Prefer the repo venv, then any modern python3.x,
+# falling back to plain python3 with a clear error instead of a syntax traceback.
+PY_BIN=""
+for cand in "$REPO/server/.venv312/bin/python3" \
+    "$(command -v python3.14 2>/dev/null)" "$(command -v python3.13 2>/dev/null)" \
+    "$(command -v python3.12 2>/dev/null)" "$(command -v python3 2>/dev/null)"; do
+  [ -n "$cand" ] && [ -x "$cand" ] && PY_BIN="$cand" && break
+done
+if [ -z "$PY_BIN" ]; then echo "!! no python3 found"; exit 1; fi
+if ! "$PY_BIN" -c 'import sys; sys.exit(0 if sys.version_info>=(3,12) else 1)' 2>/dev/null; then
+  echo "!! $PY_BIN is <3.12 — this script needs >=3.12 (f-string nesting)."
+  echo "   run: server/.venv312/bin/python3 exists in a dev checkout, or brew install python@3.12"
+  exit 1
+fi
+echo "py  : $PY_BIN ($("$PY_BIN" -c 'import sys;print(sys.version.split()[0])'))"
+OUT="$OUT" REPO="$REPO" "$PY_BIN" - <<'PY'
 import json, os, re, gzip, struct
 OUT, REPO = os.environ["OUT"], os.environ["REPO"]
 
@@ -101,6 +117,8 @@ n_belt = sum(1 for x in feats if (x.get("properties") or {}).get("belt"))
 opts = P.get("options", []) or []
 
 def mid(o):
+    if not isinstance(o, dict):
+        return None
     d = o.get("dose") or o.get("dose_ug") or {}
     return d.get("mid") if isinstance(d, dict) else o.get("dose_ug")
 def best(mode):
