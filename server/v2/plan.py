@@ -956,10 +956,14 @@ def _dose_key(o: dict) -> float:
     ed = o.get("engine_dose_ug")
     if ed is not None:
         lo, mid = d.get("lo"), d.get("mid")
-        if lo is not None and mid:
+        if lo and mid:
             return float(ed) * float(lo) / float(mid)
         return float(ed)
-    v = d.get("lo") if d.get("lo") is not None else d.get("mid")
+    # lo bands clip to 0 on long trips — a zero lo is uninformative,
+    # not evidence of safety; fall back to the field's mid estimate so
+    # every-zero sets still rank by real dose instead of collapsing
+    # into a tie decided by emissions.
+    v = d.get("lo") if d.get("lo") else d.get("mid")
     return float(v) if v is not None else float("inf")
 
 

@@ -194,6 +194,39 @@ def test_rank_engine_dose_maps_into_lo_space():
     assert out[1] is eng           # 44 < 50
 
 
+def test_rank_zero_lo_band_does_not_degenerate_to_co2():
+    # audit find: on long trips every raster band's lo clips to 0 →
+    # every key collapsed to 0.0 → the emission tiebreak picked cycle
+    # (zero exhaust, 117µg) as 'lightest' over a 7µg car. With lo=0
+    # uninformative, engine rows must rank on their priced dose.
+    car = {"mode": "car", "eta_s": 3600,
+           "dose": {"lo": 0.0, "mid": 30.0},
+           "emissions": {"co2_kg": {"mid": 4.0}},
+           "engine_dose_ug": 7.0}
+    cyc = {"mode": "cycling", "eta_s": 7200,
+           "dose": {"lo": 0.0, "mid": 120.0},
+           "emissions": {"co2_kg": {"mid": 0.0}},
+           "engine_dose_ug": 117.5}
+    out = v2plan.rank_options([cyc, car])
+    assert out[0] is car                      # 7µg < 117.5µg — real order
+    assert out[0]["recommended"] is True
+    assert cyc["recommended"] is False
+
+
+def test_rank_mixed_zero_and_real_lo_keeps_pessimism():
+    # a row whose band is informative (lo>0) still ranks pessimistically;
+    # the zero-lo row falls back to mid — different scale, honest order:
+    # metro lo=2 beats car mid=7.
+    car = {"mode": "car", "eta_s": 3600,
+           "dose": {"lo": 0.0, "mid": 7.0},
+           "emissions": {"co2_kg": {"mid": 4.0}}}
+    metro = {"mode": "metro", "eta_s": 3800,
+             "dose": {"lo": 2.0, "mid": 9.0},
+             "emissions": {"co2_kg": {"mid": 0.5}}}
+    out = v2plan.rank_options([car, metro])
+    assert out[0] is metro
+
+
 def test_rank_engine_row_without_band_keys_on_priced_dose():
     # band missing entirely → the raw priced dose still ranks: engine
     # row takes the dose flag even though it holds no raster lo/mid
