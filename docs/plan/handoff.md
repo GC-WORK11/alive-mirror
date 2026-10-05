@@ -365,3 +365,13 @@ od 2 suppressed, dose 303.7µg/4 trips, co2 1.55kg/1 PUC trip, reviews 2 avg 4.0
 - Rebuild tiles later: `./scripts/geo/build_tiles_aws.sh` — artifact lands in S3, live tasks pick it up within one mirror tick (≤30 min), nothing else to redeploy.
 - Tests +12: test_tiles.py (hilbert ids, honest-503 on missing/corrupt, hotswap) + test_geo_mirror.py (fake-boto3 mirror logic). Suite green.
 - SHAs: `24ef2a2` lane core, `3cfdb56` script-relative fix, `d4a632a` head-object verify, `db1347e` tests.
+
+## cont.14 — pmtiles LIVE + district cutouts (lead, ~09:50Z Oct 5)
+- delhi.pmtiles served end-to-end: CodeBuild alive108-tiles-build → s3://alive108-air/geo/delhi.pmtiles (22.65MB, z0-14 OMT, Geofabrik NCR) → ingest_worker.sync_geo_artifacts (boot + ~30min mirror, atomic .tmp+os.replace hot-swap) → tiles.py PMTiles-v3 HTTP reader. /tiles/tilejson.json + /tiles/delhi/{z}/{x}/{y}.mvt + Range 206 + /tiles/health all live. Real street names verified inside z14 tiles (Sansad Marg, Kartavya Path, Rajya Sabha Marg + POIs).
+- App basemap wiring: Mobile/src/map/style.ts v2StyleUrl() chain = EXPO_PUBLIC_TILES_URL → local bundle pmtiles → bundled v2-light.json (hosted OpenFreeMap fallback). Dev-client sim rendered OUR tiles via baked env var — Rajya Sabha Marg/POIs visible, ECS logs confirm app requests. ZERO source changes needed; release APK needs EXPO_PUBLIC_TILES_URL at EAS build (demo-day.md).
+- Admin district cutouts (owner ask): faa01c8 — per-district SVG boundary silhouettes (64px, /ncr.geojson + /delhi_subdistricts.geojson, lon×0.879 aspect norm) filled by live CPCB band, inside tiles + mini-card. CPCB mapping verified at band edges. Click→mini-card live (mean-of-N-cells basis + real h=12 forecast trend).
+- Live `acc9f960`; main `ce584bd` (suite 930 green — +12 tiles/mirror tests).
+- Depart cache stub-safe fix c3a1fbb (epoch getattr guard); live cold 3.9s → warm 0.49s.
+- Admin mini-card earlier "broken" report was a stale-tab artifact — DevTools-dispatch verified.
+- UI lane still running: Mobile asset overhaul (stock Expo "A" icon + #4C8DFF notification color were the cheap bits), route-journey polish, CPCB toggle check.
+- Community state contamination lesson: /v2/feedback probes count toward k — a 3rd probe published note bodies. Fix = patch s3 state.json THEN zero-downtime task bounce (scale 1→2, stop dirty task, desired 1) — running tasks hold reviews in memory.
