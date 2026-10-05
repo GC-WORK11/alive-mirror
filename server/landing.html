@@ -58,7 +58,12 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .shot{margin:6px 0 0;max-width:264px;width:100%;
   border:1px solid var(--line2);border-radius:34px;overflow:hidden;
   background:#fff;box-shadow:0 24px 56px -32px rgba(22,24,29,.28),
-    0 4px 14px -6px rgba(22,24,29,.10)}
+    0 4px 14px -6px rgba(22,24,29,.10);
+  transition:transform .5s cubic-bezier(.22,1,.36,1),
+    box-shadow .5s cubic-bezier(.22,1,.36,1)}
+.shot:hover{transform:rotate(-1.4deg) translateY(-4px);
+  box-shadow:0 34px 72px -34px rgba(22,24,29,.34),
+    0 6px 18px -6px rgba(22,24,29,.12)}
 .shot img{display:block;width:100%;height:auto}
 .shot figcaption{padding:11px 16px 12px;border-top:1px solid var(--line);
   font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
