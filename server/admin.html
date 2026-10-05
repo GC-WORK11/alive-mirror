@@ -28,8 +28,9 @@
 
   .mast{display:flex;align-items:center;justify-content:space-between;gap:12px;
         padding:15px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);
-        position:sticky;top:0;background:rgba(245,244,240,.88);
+        position:sticky;top:0;background:rgba(245,244,240,.88);flex-wrap:wrap;
         -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:10}
+  @media(max-width:480px){.mast-r{width:100%;justify-content:flex-start}}
   .mast-l{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
   .mast-sub{font-family:var(--mono);font-size:10px;letter-spacing:.12em;
             color:var(--ink4);text-transform:lowercase}
@@ -39,13 +40,13 @@
   .mast-r{display:flex;align-items:center;gap:12px;font-family:var(--mono);
           font-size:9.5px;letter-spacing:.16em;color:var(--ink3);
           text-transform:uppercase;flex-wrap:wrap;justify-content:flex-end}
-  .priv-badge{padding:3px 10px;border:1px solid rgba(36,86,214,.28);border-radius:99px;
+  .priv-badge{padding:3px 10px;border:1px solid rgba(36,86,214,.28);
               color:var(--accent-ink);letter-spacing:.12em;background:var(--accent-wash)}
   #updated{color:var(--ink2);letter-spacing:.1em}
   .feed{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;
-        border-radius:99px;border:1px solid var(--hair);color:var(--ink3);
+        border:1px solid var(--hair);color:var(--ink3);
         background:var(--surface)}
-  .feed i{width:6px;height:6px;border-radius:3px;background:var(--ink4)}
+  .feed i{width:6px;height:6px;background:var(--ink4)}
   .feed.live i{background:var(--accent)}
   .feed.off{color:var(--wine);border-color:rgba(138,45,62,.35);background:var(--wine-wash)}
   .feed.off i{background:var(--wine)}
@@ -92,13 +93,13 @@
   td .mono{font-family:var(--mono);font-size:11px}
   .mono{font-family:var(--mono)} .muted{color:var(--ink3)}
 
-  .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-family:var(--mono);
+  .pill{display:inline-block;padding:2px 10px;font-family:var(--mono);
         font-size:9.5px;letter-spacing:.08em;background:var(--surface2);
         color:var(--ink2);border:1px solid var(--hair)}
   .pill.down{background:var(--wine-wash);color:var(--wine);
              border-color:rgba(138,45,62,.3)}
   .pill.idle{background:transparent;color:var(--ink4);border-color:var(--line)}
-  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-family:var(--mono);
+  .badge{display:inline-block;padding:2px 8px;font-family:var(--mono);
          font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
          border:1px solid var(--hair);color:var(--ink3);white-space:nowrap}
   .badge.ok{color:var(--ink3);background:var(--surface2)}
@@ -143,11 +144,12 @@
   .split i{display:block;height:100%}
   .split-l{font-family:var(--mono);font-size:9.5px;color:var(--ink3);
            margin-top:6px;letter-spacing:.06em;line-height:1.5}
-  canvas#fieldmap{width:100%;display:block;border-radius:12px;background:var(--surface2,#f2f4f7)}
+  canvas#fieldmap{width:100%;display:block;background:var(--surface2,#f2f4f7)}
   .fmsel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .fmsel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
-    text-transform:uppercase;padding:4px 10px;border-radius:99px;cursor:pointer;
+    text-transform:uppercase;padding:4px 10px;cursor:pointer;
     border:1px solid var(--hair);background:transparent;color:var(--ink3)}
+  .fmsel button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .fmsel button.on{border-color:var(--ink);color:var(--ink);background:var(--surface2,#f2f4f7)}
   .fmscrub{display:flex;align-items:center;gap:10px;margin-bottom:10px;
     font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em}
@@ -300,7 +302,8 @@
       <input type="range" id="fmh" min="0" max="11" step="1" value="0">
       <span id="fmh-lbl">now</span>
     </div>
-    <div class="fmwrap"><canvas id="fieldmap"></canvas><div class="fmpop" id="fmpop" hidden></div></div>
+    <div class="fmwrap"><canvas id="fieldmap" role="img"
+      aria-label="interpolated field map over Delhi NCR — hover reads a cell, click pins it"></canvas><div class="fmpop" id="fmpop" hidden></div></div>
     <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
     <div class="meth" id="meth" hidden></div>
   </div>
@@ -425,7 +428,7 @@ async function tick(){
     $('districts').innerHTML=dr.length?dr.map(d=>{
       const c=d.color||'#888',na=d.pm25==null&&d.aqi==null;
       const ink=na?'#14181F':chipInk(c);
-      return `<div class="dtile${na?' na':''}" data-name="${esc(d.name)}" role="button" tabindex="0" style="--dc:${na?'var(--hair)':c};--dink:${ink}">
+      return `<div class="dtile${na?' na':''}" data-name="${esc(d.name)}" role="button" tabindex="0" aria-pressed="false" style="--dc:${na?'var(--hair)':c};--dink:${ink}">
         <div class="dt-name">${esc(d.name)}</div>
         <div class="dt-state">${d.level==='osm_admin_5'?`sub-area · ${esc(d.parent||'delhi')}`:esc(d.state||'')}</div>
         <div class="dt-v">${na
@@ -894,7 +897,10 @@ function chipInk(hex){
   const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
   return (0.299*r+0.587*g+0.114*b)/255>0.6?'#14181F':'#fff';
 }
-function dtHide(){const p=$('dtpop');if(p)p.hidden=true;DT_PIN=null}
+function dtHide(){const p=$('dtpop');if(p)p.hidden=true;
+  if(DT_PIN){const t=$('districts')&&$('districts').querySelector(
+    `[data-name="${DT_PIN.name}"]`);if(t)t.setAttribute('aria-pressed','false')}
+  DT_PIN=null}
 function fmFindDistrict(name){
   for(const f of (FM_GJ&&FM_GJ.features)||[])
     if(f.properties&&f.properties.name===name)return f;
@@ -948,6 +954,11 @@ function dtShow(tile){
   const wrap=tile.closest('.distwrap'),pop=$('dtpop');
   if(!d||!wrap||!pop)return;
   DT_PIN={name};
+  /* exactly one tile is pressed at a time */
+  const grid=$('districts');
+  if(grid)grid.querySelectorAll('.dtile[aria-pressed="true"]').forEach(t=>
+    t.setAttribute('aria-pressed','false'));
+  tile.setAttribute('aria-pressed','true');
   const r=tile.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
   pop.style.left=Math.min(Math.max(8,r.left-wr.left),Math.max(8,wr.width-264))+'px';
   const c=d.color||'#888';
@@ -1067,9 +1078,11 @@ function bindScrub(){
       /* re-click on the pinned tile un-pins; any other tile takes over */
       if(DT_PIN&&DT_PIN.name===t.dataset.name)dtHide();else dtShow(t)}
   });
+  /* role=button contract: Enter and Space both pin/un-pin */
   $('districts').addEventListener('keydown',e=>{
-    if(e.key==='Enter'){const t=e.target.closest('.dtile');
-      if(t){e.preventDefault();dtShow(t)}}
+    if(e.key==='Enter'||e.key===' '){const t=e.target.closest('.dtile');
+      if(t){e.preventDefault();
+        if(DT_PIN&&DT_PIN.name===t.dataset.name)dtHide();else dtShow(t)}}
   });
   document.addEventListener('click',e=>{
     if(!e.target.closest('.dtile')&&!e.target.closest('#dtpop'))dtHide()});

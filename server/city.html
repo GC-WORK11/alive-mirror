@@ -5,59 +5,63 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALive-108 — Delhi NCR air, district by district</title>
 <style>
-  /* light ops surface — same paper/ink family as /admin
-     (Mobile/src/theme.ts tokens). District fills carry the only hue:
-     the official CPCB six-band AQI palette. */
+  /* v5 editorial register — the same paper/ink as /landing: hairlines,
+     quiet mono labels, no pills, no shadows. District fills carry the
+     only hue: the official CPCB six-band AQI palette. */
   :root{
-    --paper:#F5F4F0; --surface:#FFFFFF; --surface2:#EFEDE7; --surface3:#E8E5DB;
-    --ink:#14181F; --ink2:#4A5161; --ink3:#65707F; --ink4:#A6ACB8;
-    --line:#E4E2D9; --hair:#DCDAD0;
-    --accent:#2456D6; --accent-ink:#1E47B0; --accent-wash:#E8EDFB;
+    --paper:#fafaf7; --surface:#FFFFFF; --surface2:#F2F1EA; --surface3:#E8E5DB;
+    --ink:#16181D; --ink2:#4A4E57; --ink3:#8A8D94; --ink4:#A6ACB8;
+    --line:#E4E1D8; --line2:#D8D5C9; --hair:#D8D5C9;
+    --sage:#4D7C0F; --accent:#4D7C0F; --accent-ink:#3D610A; --accent-wash:#EEF2E2;
     --bronze:#A1662F; --brick:#A34446; --wine:#8A2D3E;
-    --serif:ui-serif,"New York",Georgia,"Times New Roman",serif;
-    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
-    --mono:ui-monospace,"SF Mono",Menlo,"Roboto Mono",monospace;
+    --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",Inter,system-ui,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{background:var(--paper);scroll-behavior:smooth}
   body{background:var(--paper);color:var(--ink);font-family:var(--sans);
        font-variant-numeric:tabular-nums;min-height:100vh;
        -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-  ::selection{background:var(--accent-wash);color:var(--ink)}
+  ::selection{background:#ECEADF;color:var(--ink)}
+  a{color:inherit}
+  a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 
   /* ---------- masthead ---------- */
-  .mast{display:flex;align-items:center;justify-content:space-between;
-        padding:15px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);
-        position:sticky;top:0;background:rgba(245,244,240,.88);
+  .mast{display:flex;align-items:baseline;justify-content:space-between;
+        padding:20px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);
+        position:sticky;top:0;background:rgba(250,250,247,.88);
         -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:20}
-  .mark{font-family:var(--mono);font-size:12px;letter-spacing:.32em;color:var(--ink)}
-  .mark b{color:var(--accent);font-weight:400}
-  .mast-r{display:flex;align-items:center;gap:14px;font-family:var(--mono);
-          font-size:10px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
-  .live-dot{width:6px;height:6px;border-radius:3px;background:var(--accent);
-            box-shadow:0 0 0 0 rgba(36,86,214,.4);animation:pulse 2.4s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(36,86,214,.4)}
-    70%{box-shadow:0 0 0 7px rgba(36,86,214,0)}100%{box-shadow:0 0 0 0 rgba(36,86,214,0)}}
+  .mark{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
+        font-weight:600;color:var(--ink);text-decoration:none}
+  .mark b{color:var(--sage);font-weight:400}
+  .mast-r{display:flex;align-items:baseline;gap:26px;font-family:var(--mono);
+          font-size:10.5px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
+  .mast-r a{color:var(--ink2);text-decoration:none}
+  .mast-r a:hover{color:var(--ink);text-decoration:underline;
+          text-underline-offset:4px;text-decoration-thickness:1px}
+  .live-sq{width:5px;height:5px;background:var(--sage);flex:none}
+  .live-lbl{display:inline-flex;align-items:center;gap:8px}
   @media(max-width:560px){.mast-r .hidemob{display:none}}
 
   /* ---------- hero ---------- */
   .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
-  .hero{padding:clamp(34px,6vh,64px) 0 26px}
-  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;
-           color:var(--ink3);text-transform:uppercase;display:flex;gap:14px;
+  .hero{padding:clamp(40px,7vh,72px) 0 26px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.3em;
+           color:var(--ink3);text-transform:uppercase;display:flex;gap:10px;
            align-items:center}
-  .eyebrow::before{content:"";width:30px;height:1px;background:var(--accent)}
-  h1{font-family:var(--serif);font-weight:400;letter-spacing:-0.03em;
-     font-size:clamp(34px,5.6vw,62px);line-height:1.02;margin:18px 0 0;
+  .eyebrow::before{content:"";width:5px;height:5px;background:var(--sage)}
+  h1{font-family:var(--serif);font-weight:400;letter-spacing:-0.028em;
+     font-size:clamp(40px,6.8vw,72px);line-height:1.04;margin:28px 0 0;
      color:var(--ink)}
-  h1 em{font-style:italic;color:var(--accent-ink)}
-  .dek{margin-top:16px;max-width:560px}
-  .dek p{color:var(--ink2);font-size:15px;line-height:1.65;font-weight:400}
+  h1 em{font-style:italic;color:var(--ink2)}
+  .dek{margin-top:26px;max-width:560px}
+  .dek p{color:var(--ink2);font-size:16px;line-height:1.72;font-weight:400}
   .dek p b{color:var(--ink);font-weight:500}
 
-  /* ---------- map card ---------- */
-  .map-card{position:relative;margin-top:26px;border:1px solid var(--line);
-            border-radius:18px;overflow:hidden;background:var(--surface)}
+  /* ---------- map frame — a hairline, not a card ---------- */
+  .map-card{position:relative;margin-top:34px;border:1px solid var(--line);
+            overflow:hidden;background:var(--surface)}
   svg#ncr{display:block;width:100%;height:clamp(420px,64vh,680px);
           touch-action:manipulation;cursor:default}
   .m-tag{position:absolute;top:16px;left:18px;font-family:var(--mono);
@@ -71,23 +75,23 @@
   .m-legend{position:absolute;left:18px;bottom:16px;right:18px;display:flex;
             align-items:flex-end;justify-content:space-between;gap:14px;
             pointer-events:none;flex-wrap:wrap}
-  .chips{display:flex;gap:4px;flex-wrap:wrap;max-width:min(560px,80%)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;max-width:min(560px,80%)}
   .chip{display:flex;align-items:center;gap:6px;font-family:var(--mono);
         font-size:9px;letter-spacing:.08em;color:var(--ink2);
-        background:rgba(255,255,255,.85);border:1px solid var(--line);
-        border-radius:99px;padding:3px 9px 3px 4px}
-  .chip i{width:9px;height:9px;border-radius:3px;flex:none}
+        background:rgba(250,250,247,.88);border:1px solid var(--line);
+        padding:3px 9px 3px 5px}
+  .chip i{width:9px;height:9px;flex:none}
   .m-src{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
          color:var(--ink3);text-transform:uppercase;text-align:right;
-         line-height:1.9;background:rgba(255,255,255,.85);border-radius:8px;
-         padding:4px 8px}
+         line-height:1.9;background:rgba(250,250,247,.88);
+         border:1px solid var(--line);padding:4px 8px}
   .m-src b{color:var(--ink2);font-weight:400}
 
-  /* district detail card — top-left under m-tag on desktop, docks bottom on mobile */
+  /* district detail — top-left under m-tag on desktop, docks bottom on mobile;
+     hairline popover, same language as /admin's cell inspector */
   .detail{position:absolute;left:18px;top:52px;min-width:210px;max-width:250px;
-          background:rgba(255,255,255,.94);border:1px solid var(--line);
-          border-radius:12px;padding:12px 14px;pointer-events:none;
-          box-shadow:0 8px 24px rgba(20,24,31,.08);
+          background:rgba(250,250,247,.96);border:1px solid var(--line2);
+          padding:12px 14px;pointer-events:none;
           opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s}
   .detail.on{opacity:1;transform:none}
   .detail .d-name{font-family:var(--serif);font-size:19px;letter-spacing:-.01em;
@@ -98,7 +102,7 @@
                  color:var(--ink);margin-top:8px;display:flex;align-items:baseline;gap:8px}
   .detail .d-aqi small{font-family:var(--mono);font-size:9px;letter-spacing:.14em;
                        color:var(--ink3);text-transform:uppercase}
-  .detail .d-cat{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:99px;
+  .detail .d-cat{display:inline-block;margin-top:6px;padding:2px 8px;
                  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
                  text-transform:uppercase;color:#fff}
   .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:10.5px;
@@ -107,42 +111,39 @@
   @media(max-width:640px){.detail{top:auto;bottom:64px;left:12px;right:12px;
     min-width:0;max-width:none}}
 
-  /* ---------- ticker ---------- */
+  /* ---------- status strip — the ticker's numbers, standing still ---------- */
   .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-          margin-top:30px;overflow:hidden;white-space:nowrap;
-          -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
-          mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
-  .ticker-in{display:inline-block;padding:13px 0;font-family:var(--mono);
-             font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
-             color:var(--ink2);animation:scroll 46s linear infinite}
-  .ticker-in i{font-style:normal;color:var(--accent);margin:0 18px}
-  .ticker-in b{color:var(--ink);font-weight:400;text-transform:none}
-  @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-  @media(prefers-reduced-motion:reduce){.ticker-in{animation:none}.live-dot{animation:none}}
+          margin-top:34px}
+  .ticker-in{display:flex;flex-wrap:wrap;gap:8px 26px;padding:14px 0;
+             font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+             text-transform:uppercase;color:var(--ink3)}
+  .ticker-in i{font-style:normal;color:var(--line2);margin:0 0}
+  .ticker-in b{color:var(--ink);font-weight:600;text-transform:none}
 
   /* ---------- sections ---------- */
   section{padding:clamp(52px,8vh,96px) 0 8px}
-  .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:34px;
+  .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:38px;
          border-bottom:1px solid var(--line);padding-bottom:14px}
-  .sec-n{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.2em}
-  .sec-t{font-family:var(--serif);font-size:clamp(24px,3.4vw,38px);
-         font-weight:400;letter-spacing:-0.02em}
+  .sec-n{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.14em}
+  .sec-t{font-family:var(--serif);font-size:clamp(24px,3.4vw,34px);
+         font-weight:400;letter-spacing:-0.01em}
   .sec-t em{font-style:italic;color:var(--ink2)}
-  .sec-sub{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  .sec-sub{font-family:var(--mono);font-size:10px;letter-spacing:.16em;
            color:var(--ink3);text-transform:uppercase;margin-left:auto;text-align:right}
   @media(max-width:700px){.sec-sub{display:none}}
 
-  /* ledger */
-  .ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  /* ledger — hairline-top cells, no boxes */
+  .ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:0 40px}
   @media(max-width:960px){.ledger{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:520px){.ledger{grid-template-columns:1fr}}
-  .stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;
-        padding:22px 20px 20px;display:flex;flex-direction:column;min-height:150px}
-  .stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;
+  .stat{border-top:1px solid var(--line);
+        padding:16px 2px 8px;display:flex;flex-direction:column;min-height:132px}
+  .stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;
            text-transform:uppercase;color:var(--ink3);line-height:1.7}
-  .stat .v{font-family:var(--serif);font-size:clamp(32px,3.2vw,44px);font-weight:400;
-           letter-spacing:-0.03em;margin-top:auto;padding-top:16px;line-height:1}
-  .stat .v small{font-family:var(--sans);font-size:13px;color:var(--ink2);font-weight:400}
+  .stat .v{font-family:var(--serif);font-size:clamp(30px,3vw,40px);font-weight:400;
+           letter-spacing:-0.02em;margin-top:auto;padding-top:14px;line-height:1}
+  .stat .v small{font-family:var(--mono);font-size:10px;color:var(--ink3);
+                 font-weight:400;letter-spacing:.06em}
   .stat .d{font-size:11.5px;color:var(--ink3);margin-top:9px;line-height:1.55}
   .stat .d b{color:var(--ink2);font-weight:500}
 
@@ -150,7 +151,7 @@
   .prov{display:grid;grid-template-columns:360px 1fr;gap:44px;align-items:center}
   @media(max-width:820px){.prov{grid-template-columns:1fr}}
   .minimap{width:100%;aspect-ratio:1/1.05;background:var(--surface);
-           border:1px solid var(--line);border-radius:16px}
+           border:1px solid var(--line)}
   .prov-txt{font-size:14.5px;line-height:1.8;color:var(--ink2);
             max-width:560px}
   .prov-txt p+p{margin-top:14px}
@@ -169,13 +170,13 @@
   td.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
   td .modep{display:inline-block;font-family:var(--mono);font-size:9.5px;
             letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;
-            border-radius:99px;border:1px solid var(--hair);color:var(--ink2)}
+            border:1px solid var(--hair);color:var(--ink2)}
   .dose-chip{display:inline-block;min-width:64px;text-align:right;padding:3px 10px;
-             border-radius:99px;font-size:12px;font-variant-numeric:tabular-nums;
+             font-size:12px;font-variant-numeric:tabular-nums;
              background:var(--accent-wash);color:var(--accent-ink)}
   .scrollx{overflow-x:auto}
-  .card2{background:var(--surface);border:1px solid var(--line);border-radius:18px;
-         padding:20px 14px 8px}
+  .card2{border:1px solid var(--line);
+         padding:16px 14px 4px;background:transparent}
   @media(max-width:640px){td{padding:11px 8px;font-size:12.5px}th{padding:0 8px 10px}}
 
   /* reveal */
@@ -185,24 +186,26 @@
 
   /* foot */
   footer{margin-top:clamp(60px,10vh,110px);border-top:1px solid var(--line);
-         padding:34px 0 60px;display:grid;grid-template-columns:1fr auto;gap:26px}
+         padding:26px 0 56px;display:grid;grid-template-columns:1fr auto;gap:26px}
   .foot-l{max-width:640px;color:var(--ink3);font-size:11.5px;line-height:1.85}
   .foot-l b{color:var(--ink2);font-weight:500}
   .foot-r{font-family:var(--mono);font-size:10px;letter-spacing:.16em;
           text-transform:uppercase;color:var(--ink3);text-align:right;line-height:2.2}
-  a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid rgba(36,86,214,.3)}
-  a:hover{border-bottom-color:var(--accent-ink)}
+  .foot-r a{color:var(--ink2);text-decoration:none}
+  .foot-r a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
   @media(max-width:700px){footer{grid-template-columns:1fr}.foot-r{text-align:left}}
 </style>
 </head>
 <body>
 
 <header class="mast">
-  <div class="mark">ALIVE<b>·</b>108</div>
+  <a class="mark" href="/">ALIVE<b>·</b>108</a>
   <div class="mast-r">
-    <span class="hidemob">national capital region</span>
-    <span id="clock">—</span>
-    <span class="live-dot"></span><span>live</span>
+    <a href="/">home</a>
+    <a href="/community">community</a>
+    <a href="/admin">admin</a>
+    <span class="hidemob" id="clock">—</span>
+    <span class="live-lbl"><span class="live-sq"></span>live</span>
   </div>
 </header>
 
@@ -501,8 +504,10 @@ function paintTicker(a,t,ad,nd){
     [`corridors ≥3 devices`,`${IN(t.corridors_publishable)}`],
     [`field age`,`${ad.field_age_s!=null?Math.floor(ad.field_age_s/60)+' min':'—'}`],
     [`next refresh`,`${ad.refresh_in_s!=null?Math.floor(ad.refresh_in_s/60)+' min':'—'}`]];
-  const s=items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>◆</i>');
-  document.getElementById('ticker').innerHTML=s+'<i>◆</i>'+s+'<i>◆</i>';
+  /* static strip — the same live numbers, standing still; nothing on
+     this page loops */
+  document.getElementById('ticker').innerHTML=
+    items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>·</i>');
 }
 
 /* ---------- provenance minimap — district outlines + station anchors - */
@@ -533,8 +538,7 @@ function paintMini(){
   for(const [lo,la] of STATIONS){
     const x=px(lo),y=py(la);
     if(x<0||x>mW||y<0||y>mH)continue;
-    mx.beginPath();mx.arc(x,y,2.2,0,6.29);
-    mx.fillStyle='rgba(36,86,214,.75)';mx.fill()}
+    mx.fillStyle='rgba(77,124,15,.8)';mx.fillRect(x-1.5,y-1.5,3,3)}
 }
 
 /* ---------- data ---------- */
@@ -555,7 +559,7 @@ async function load(){
     /* per-feed settle — during a deploy one endpoint can die while the
        others serve; every section keeps what it can honestly paint
        rather than the whole page falling back to placeholders */
-    const [g,a,cy,dd]=await Promise.all([
+    let [g,a,cy,dd]=await Promise.all([
       fetch('/grid?cells=34').then(r=>r.ok?r.json():null).catch(()=>null),
       fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.ok?r.json():null).catch(()=>null),
       fetch('/v2/city').then(r=>r.ok?r.json():null).catch(()=>null),
@@ -618,7 +622,7 @@ async function load(){
     /* cadence from the field itself — refresh_in_s rides /v2/city */
     const rs=(ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000;
     if(rs!==refreshMs){refreshMs=rs;schedule()}
-  }catch(e){setTxt('stamp','reconnecting…')}
+  }catch(e){setTxt('stamp','reconnecting…');console.error('city load',e)}
 }
 
 function setTxt(id,v){const e=document.getElementById(id);if(e)e.textContent=v}

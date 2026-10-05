@@ -1157,7 +1157,12 @@ async def fires():
 
 
 @app.get("/community")
-async def community_totals():
+async def community_totals(request: Request):
+    """Browsers get the community page; API clients (fetch's `*/*`, the
+    app) keep the JSON totals."""
+    if "text/html" in request.headers.get("accept", ""):
+        from fastapi.responses import FileResponse
+        return FileResponse(os.path.join(os.path.dirname(__file__), "community.html"))
     return community.totals()
 
 
