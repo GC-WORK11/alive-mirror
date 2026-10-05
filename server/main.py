@@ -1389,10 +1389,11 @@ async def escape(lat: float, lon: float,
     if home_v is not None:
         cand = [c for c in cand if c["pm25"] < home_v - 0.05]
     best = cand[:limit]
-    for c in best:
+    async def _name(c):
         try:
             r = await http().get("https://photon.komoot.io/reverse",
-                                 params={"lat": c["lat"], "lon": c["lon"], "limit": 1})
+                                 params={"lat": c["lat"], "lon": c["lon"], "limit": 1},
+                                 timeout=6.0)
             feats = r.json().get("features", [])
             if feats:
                 p = feats[0]["properties"]
@@ -1400,6 +1401,11 @@ async def escape(lat: float, lon: float,
                              or p.get("street") or "unnamed area")
         except httpx.HTTPError:
             pass
+    if best:
+        # parallel + bounded: sequential Photon round-trips from ap-south-1
+        # ran ~5s each — ~24s a request on one worker
+        await asyncio.gather(*[_name(c) for c in best])
+    for c in best:
         conf = c.pop("confidence", None)
         c["data_km"] = round(conf, 1) if conf is not None else None
     if home_v is not None:
