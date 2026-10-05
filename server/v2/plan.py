@@ -628,6 +628,35 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
     # so — a clipped route reporting confidence:high + coverage:1.0 is
     # the silent-truncation finding from the hostile audit. Mark it,
     # demote dose confidence, and say what the number covers.
+    if isinstance(geometry, dict) and exposure is not None:
+        _coords = geometry.get("coordinates") or []
+        # Symmetric check on the START: when the router snaps an
+        # out-of-graph origin to the nearest routable point, the
+        # geometry begins kilometres from the requested `from` — the
+        # same silent-truncation class at the other end. A judge
+        # planning from 30°N must see the 113km origin gap, not
+        # coverage:1.0 + confidence:high on a segment that isn't the
+        # requested trip.
+        if _coords and origin:
+            try:
+                _ogap_m = exposure._haversine_m(
+                    _coords[0], [origin[1], origin[0]])
+            except Exception:
+                _ogap_m = 0.0
+            if _ogap_m > TRUNCATED_GAP_M:
+                opt["starts_at_origin"] = False
+                opt["origin_gap_km"] = round(_ogap_m / 1000.0, 1)
+                if isinstance(opt.get("dose"), dict):
+                    opt["dose"]["confidence"] = "low"
+                    _b = opt["dose"].get("basis") or ""
+                    opt["dose"]["basis"] = (
+                        _b + " · dose covers the served segment only — "
+                        f"route begins ~{_ogap_m/1000.0:.0f}km from the "
+                        "requested origin at the field edge").strip()
+                opt["reason_line"] = (
+                    "route starts inside the priced field, not at your "
+                    "point — dose is honest for the mapped segment, "
+                    "nothing claimed before it")
     if dest and isinstance(geometry, dict):
         _coords = geometry.get("coordinates") or []
         if _coords and exposure is not None:
@@ -952,12 +981,14 @@ def rank_options(options: list) -> list:
     """
     scored = [o for o in options
               if _dose_key(o) != float("inf") and o.get("eta_s")
-              and o.get("reaches_destination") is not False]
+              and o.get("reaches_destination") is not False
+              and o.get("starts_at_origin") is not False]
 
     for o in options:           # reset ALL — stale flags must never survive
         o["tag"] = None
         o["recommended"] = False
-        if o.get("reaches_destination") is not False:
+        if (o.get("reaches_destination") is not False
+                and o.get("starts_at_origin") is not False):
             o["reason_line"] = ""
     if not scored:
         return options

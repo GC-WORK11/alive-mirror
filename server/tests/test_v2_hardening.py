@@ -565,3 +565,36 @@ def test_truncated_option_never_recommended():
     out = plan_mod.rank_options([o])
     assert not out[0].get("recommended")
     assert out[0].get("reason_line")  # truncation note survives the reset
+
+
+def test_option_marks_geometry_snapped_at_origin():
+    """Origin-side twin of the hostile-audit truncation: a request from
+    30°N snaps to the graph edge (~28.98°N) and the geometry BEGINS
+    ~113km from the requested origin — the option must not serve
+    coverage:1.0 + confidence:high on a segment that isn't the trip.
+    Same marker class, opposite end."""
+    from v2 import plan as plan_mod
+    snapped = {"type": "LineString", "coordinates": [
+        [77.162281, 28.976182], [77.18, 28.80], [77.21015, 28.609742]]}
+    o = plan_mod._option(
+        "car", "Car (AC)", snapped, 51.65, 3600, 3300, "osrm-local",
+        "car", origin=(30.0, 77.4), dest=(28.61, 77.21))
+    assert o.get("starts_at_origin") is False
+    assert o.get("origin_gap_km") > 100        # ~113km origin gap
+    assert "reaches_destination" not in o      # it does reach the dest
+    assert (o.get("dose") or {}).get("confidence") == "low"
+    assert "requested origin" in (o.get("dose") or {}).get("basis", "")
+    assert "starts inside the priced field" in o.get("reason_line", "")
+
+
+def test_origin_snapped_option_never_recommended():
+    """An origin-snapped option must lose scored-eligibility the same way
+    a truncated one does — even when it is the only option."""
+    from v2 import plan as plan_mod
+    snapped = {"type": "LineString", "coordinates": [
+        [77.162281, 28.976182], [77.21015, 28.609742]]}
+    o = plan_mod._option(
+        "car", "Car (AC)", snapped, 51.65, 3600, 3300, "osrm-local",
+        "car", origin=(30.0, 77.4), dest=(28.61, 77.21))
+    ranked = plan_mod.rank_options([o])
+    assert all(x.get("recommended") is not True for x in ranked)

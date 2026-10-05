@@ -739,6 +739,8 @@ async function planAB(){
        segment only. degraded engines are named, never swallowed. */
     const trunc=o.reaches_destination===false;
     const gap=o.truncated_gap_km!=null?Math.round(o.truncated_gap_km):null;
+    const snap=o.starts_at_origin===false;
+    const ogap=o.origin_gap_km!=null?Math.round(o.origin_gap_km):null;
     const deg=(d.degraded||[]).length?` · degraded: ${d.degraded.map(esc).join(', ')}`:'';
     $('routeline').innerHTML=
       `<b>a→b</b> ${esc(o.label||o.mode||'route')} — `+
@@ -747,6 +749,9 @@ async function planAB(){
       `${ds.confidence==='low'?' · <b>lo conf</b>':''}`+
       `${km!=null?` · <b>${F1(km)} km</b>`:''}`+
       `${min!=null?` · ~${min} min`:` —`}`+
+      (snap
+        ?` · <b>begins${ogap!=null?' ~'+ogap+' km':''} from a</b> — dose covers the mapped segment only`
+        :'')+
       (trunc
         ?` · <b>stops${gap!=null?' ~'+gap+' km':''} short of b</b> — dose covers the mapped segment only`
         :'')+
@@ -816,13 +821,16 @@ function ladderAB(opts,drawnOpt,seq){
     const w=ds.mid!=null?Math.max(1,ds.mid/max*100):0;
     const trunc=o.reaches_destination===false;
     const gap=o.truncated_gap_km!=null?Math.round(o.truncated_gap_km):null;
+    const snap=o.starts_at_origin===false;
+    const ogap=o.origin_gap_km!=null?Math.round(o.origin_gap_km):null;
     const flags=[];
+    if(snap)flags.push(`starts ~${ogap!=null?ogap+' km':'—'} from a`);
     if(trunc)flags.push(`~${gap!=null?gap+' km':'—'} short`);
     if(ds.confidence==='low')flags.push('lo conf');
     if(ds.sparse)flags.push(ds.basis?esc(ds.basis):'sparse cells');
     const geo=(o.route_geojson||{}).coordinates||[];
     if(!geo.length)flags.push('priced, no road path');
-    const cls=`lrow${o.recommended&&!trunc?' rec':''}${o===drawnOpt?' drawn':''}`;
+    const cls=`lrow${o.recommended&&!trunc&&!snap?' rec':''}${o===drawnOpt?' drawn':''}`;
     return `<div class="${cls}" role="button" tabindex="0" data-i="${i}"`+
       ` title="${esc(o.label||'')}"><span class="lname">${nm}</span>`+
       `<span class="lbar"><i style="width:${w.toFixed(1)}%"></i></span>`+
