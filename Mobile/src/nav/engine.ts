@@ -14,6 +14,7 @@ import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { API } from "../components/shell/net";
 import { contributorId } from "../community";
 import { fetchStrip } from "../api/strip";
+import { camDur } from "../map/cam";
 import type { EmissionsBreakdown } from "../components/shell/types";
 import { postJson, postReroute } from "../api/reroute";
 import { enqueueTripDonation } from "../offline/queue";
@@ -368,7 +369,7 @@ export function useNavEngine(opts: NavEngineOpts) {
           bearing: heading,
           zoom: speedRef.current > 10 ? 16 : 16.8,
           pitch: 55,
-          duration: teleport ? 1600 : 900,
+          duration: camDur(teleport ? 1600 : 900),
           easing: "linear",
         });
       }
@@ -507,7 +508,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     const f = lastFixRef.current;
     if (!f) return;
     camRef?.current?.easeTo({
-      center: [f.lon, f.lat], zoom: 16.8, pitch: 55, duration: 600,
+      center: [f.lon, f.lat], zoom: 16.8, pitch: 55, duration: camDur(600),
     });
   }, [camRef]);
 

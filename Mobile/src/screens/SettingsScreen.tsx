@@ -21,11 +21,12 @@
 //                       reuses the existing "turnByTurn" key as its hint)
 //   settingsUnitsHint — e.g. "metric only" (row currently shows a bare "km")
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Animated,
+  BackHandler,
   LayoutAnimation,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -572,35 +573,49 @@ export function SettingsScreen({
    *  destructive row renders only when this prop exists. */
   onDeleteData?: () => void;
 }) {
+  /* hardware back closes the sheet — the Modal's onRequestClose used to
+     provide this; the overlay needs BackHandler explicitly. */
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { onClose(); return true; });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  /* plain absolute overlay — RN Modal's native present/dismiss segfaults
+     this stack (reproduced on the search sheet three times) — no Modal,
+     no crash class. The slide-up the Modal provided is kept as a JS-driver
+     enter spring (the proven-safe pattern from Sheet/SearchScreen). */
+  const [enter] = useState(() => new Animated.Value(0));
+  const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
+  useEffect(() => {
+    if (visible) {
+      enter.setValue(0);
+      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+    }
+  }, [visible, enter]);
+
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={ss.backdrop}>
-        <StatusBar style="dark" />
-        {visible ? (
-          <SettingsSheet
-            onClose={onClose}
-            lang={lang}
-            current={current}
-            onChange={onChange}
-            onArmBrief={onArmBrief}
-            onDeleteData={onDeleteData}
-          />
-        ) : null}
-      </View>
-    </Modal>
+    <View style={ss.backdrop}>
+      <StatusBar style="dark" />
+      <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
+        <SettingsSheet
+          onClose={onClose}
+          lang={lang}
+          current={current}
+          onChange={onChange}
+          onArmBrief={onArmBrief}
+          onDeleteData={onDeleteData}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
 export default SettingsScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.scrim },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
 

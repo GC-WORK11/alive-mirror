@@ -6,7 +6,7 @@
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
  * /directions remain — /v2/plan carries no turn steps yet. */
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { Keyboard, LayoutAnimation, Platform, UIManager } from "react-native";
+import { Keyboard, Platform, UIManager } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notify";
@@ -17,6 +17,7 @@ import {
 } from "../../store/vehicle";
 import { planEngineFirst, planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
+import { camDur } from "../../map/cam";
 import { departCurveResult, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
 import { t } from "../../i18n/strings";
@@ -24,7 +25,6 @@ import { API, DELHI, fetchJson, inNcr } from "./net";
 import { isTransit } from "./types";
 import type { Depart, Place, Step, V2Option } from "./types";
 import { tap } from "../../haptics";
-import { useReduceMotion } from "../../a11y";
 
 /* Old-arch Android needs the flag once; Fabric (RN 0.86) animates layout
    natively and its setter is a no-op stub that still logs a dev warning —
@@ -34,15 +34,13 @@ const setLayoutAnimExp = (UIManager as { setLayoutAnimationEnabledExperimental?:
 const isFabric = Boolean((global as { nativeFabricUIManager?: unknown }).nativeFabricUIManager);
 if (Platform.OS === "android" && setLayoutAnimExp && !isFabric) setLayoutAnimExp(true);
 
-/* Engine→full swap: kept rows glide to their new order, added router/
-   transit rows fade in, the refining line eases out — the sheet never
-   jumps. 280 ms easeInEaseOut matches the sheet's own enter spring. */
-const SWAP_ANIM = {
-  duration: 280,
-  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-  update: { type: LayoutAnimation.Types.easeInEaseOut },
-  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-} as const;
+/* Engine→full swap commits WITHOUT LayoutAnimation: configureNext is
+   global-next-commit, so whatever layout change rides in the same commit
+   (vehicle wizard's step swap, a strip tint landing, the keyboard) gets
+   easeInEaseOut applied to views the sheet's Animated.Value is already
+   driving — the native-detach SIGSEGV this stack keeps hitting. The
+   sheet's own enter spring already covers the visual handoff; rows just
+   appear in place. */
 
 export type Phase = "idle" | "search" | "compare" | "nav";
 export type Which = "to" | "from";
@@ -82,10 +80,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
   const [navDose] = useState(0); // kept: NavChrome's legacy prop path (engine's `nav` supersedes)
-  /* reduce-motion lives in a ref — the plan promise resolves after render */
-  const reduceMotion = useReduceMotion();
-  const reduceMotionRef = useRef(reduceMotion);
-  useEffect(() => { reduceMotionRef.current = reduceMotion; }, [reduceMotion]);
 
   // SEAM(trip-submit): anonymous traversal donation moved to POST /v2/trip
   // (src/api/trip.ts) — the nav lane owns it and will read `shareEnabled`
@@ -136,10 +130,13 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         : { name: t("placeCentralDelhi", lang), subtitle: "", lat: DELHI[1], lon: DELHI[0] });
     }
     setPhase("compare");
-    // search sheet is still animating out — start the camera move after
-    // it settles, not inside the same frame
-    setTimeout(() => camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 13.5, duration: 800 }), 400);
-  }, [editWhich, from, to, camRef, lang]);
+    /* NO pick-time flyTo: the camera moves exactly once per plan — the
+       fitBounds in show() below. A fast engine-first answer used to fire
+       fitBounds while this flyTo was mid-flight; MapLibre cancelling an
+       in-flight transition is the "handler to 0" render-thread SIGSEGV
+       seen at plan:first. The sheet's "checking every way there…" covers
+       the hold. */
+  }, [editWhich, from, to, lang]);
 
   /* ---- routes: destination+origin set → /v2/plan + legacy /depart ---- */
   useEffect(() => {
@@ -190,11 +187,12 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
             const bounds: [number, number, number, number] = [
               Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1])),
               Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))];
-            // let the compare sheet finish mounting before the camera moves —
-            // simultaneous camera anim + layer mount is a render-thread spike
+            // let the compare sheet's enter spring finish before the one
+            // camera move per plan — a camera anim inside a sheet-mount
+            // frame is the same render-thread spike class
             setTimeout(() => {
-              if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: 700 });
-            }, 350);
+              if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: camDur(700) });
+            }, 500);
           }
         };
         setStrips({});
@@ -217,17 +215,13 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
           if (painted) { if (!cancelled) setRefining(false); return; }  // engine rows stand
           throw e;
         }
-        // (the swap animation is configured above, before show() commits)
+        // (no swap LayoutAnimation — see the comment at the top of this file)
         fullDone = true;
         if (cancelled) return;
         setRefining(false);
-        /* engine rows already on screen → the full set morphs them, not
-           swaps: glide kept rows, fade added ones, drop the refining
-           line. The haptic says "your options are ready". */
-        if (painted) {
-          if (!reduceMotionRef.current) LayoutAnimation.configureNext(SWAP_ANIM);
-          tap();
-        }
+        /* engine rows already on screen → the full set lands in place.
+           The haptic says "your options are ready". */
+        if (painted) tap();
         if (pj.error && pj.options.length === 0) {
           if (painted) return;   // keep the real engine rows over an empty full set
           setOptions([]); setDepart(null);
@@ -331,8 +325,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        class on the virtualized-GPU iOS sim (ci15 telemetry). Defer the
        camera work a beat so the close commit lands alone. */
     setTimeout(() => {
-      camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: 700 });
-      camRef.current?.setStop({ pitch: 55, duration: 800 });
+      camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: camDur(700) });
+      camRef.current?.setStop({ pitch: 55, duration: camDur(800) });
     }, 80);
   }, [options, selected, from, to, camRef]);
 
@@ -343,7 +337,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        so nothing piles inside the teardown window (ci15: the last
        residual-SIGSEGV hot spot, 3× at Done). */
     setTimeout(() => setFollow(false), 300);
-    setTimeout(() => camRef.current?.setStop({ pitch: 0, duration: 700 }), 400);
+    setTimeout(() => camRef.current?.setStop({ pitch: 0, duration: camDur(700) }), 400);
   }, [camRef]);
 
   /* ---- ledger: only a COMPLETED trip is logged (claims audit — logging

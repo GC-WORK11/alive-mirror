@@ -94,7 +94,10 @@ h1 em{font-style:italic;color:var(--ink2)}
 .psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px;
   z-index:2;position:relative}
 .fwrap{position:relative}
-#raster{display:block;width:100%;height:auto;border:1px solid var(--line);
+/* reserve the true map aspect before first paint — no layout jump
+   ((e-w)*ASP lon-km : (n-s) lat-km = 1.1*0.879 : 0.75) */
+#raster{display:block;width:100%;height:auto;aspect-ratio:1.2892;
+  border:1px solid var(--line);
   opacity:0;transition:opacity .5s ease;touch-action:manipulation}
 #raster.ready{opacity:1}
 #raster.pick{cursor:crosshair}
@@ -512,11 +515,16 @@ async function paint(){
     $('legendTick').innerHTML=
       `<span>${spec.ticks[0]}</span><span>${spec.ticks[1]}</span><span>${spec.ticks[2]}</span>`;
     $('fieldLbl').innerHTML=`${spec.title} — <b>the field, this hour</b>`;
+    const derived=(FEATS[0]&&FEATS[0].properties&&FEATS[0].properties.derived)||null;
     if(vals.length)$('capLeft').innerHTML=
       `The surface the router prices on — ${fmt(vals.length)} cells, `+
-      `${F1(vals[0])}–${F1(vals[vals.length-1])} ${spec.unit} `+
+      `${F1(vals[0])}–${F1(vals[vals.length-1])} ${spec.unit}`+
+      `${derived?` · ${esc(derived)}`:''} `+
       `· cell fade = distance to nearest sample. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
     cv.classList.add('ready');
+    /* the boot statusline may already have rendered before MEDIAN
+       landed — refresh it so 'median' isn't absent for 120s */
+    if(MEDIAN!=null)status();
   }catch(e){
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='#8a8d94';ctx.font='13px '+getComputedStyle(document.body).fontFamily;
@@ -579,7 +587,7 @@ function showCellCard(ft,x,y,pinned){
     <div class="p-v"><b>${v==null?'—':F1(v)}</b> ${spec.title}${spec.unit==='aqi'?'':' µg/m³'}${bi!=null?` · <span class="pcol" style="background:rgb(${BAND[bi].join(',')})"></span>${BAND_NAME[bi]}`:''}</div>
     <div class="p-conf">${p.conf==='hi'?'hi conf — dense sample coverage'
       :p.conf==='med'?'med conf — moderate coverage'
-      :'lo conf — far from samples'}${p.pm25!=null&&PARAM!=='pm2_5'?` · pm2.5 ${F1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
+      :'lo conf — far from samples'}${p.derived?` · ${esc(p.derived)}`:''}${p.pm25!=null&&PARAM!=='pm2_5'?` · pm2.5 ${F1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
   /* name is best-effort — the card already carries live values; the
      gazetteer answers 404 for 'no named place', not an error */
   if(NAMES[key]==null){
@@ -822,7 +830,7 @@ async function status(){
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
       `<span>field <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
-      (MEDIAN!=null?`<span>median <b>${Math.round(MEDIAN)}</b> µg/m³</span>`:'')+
+      (MEDIAN!=null?`<span>${PARAM==='pm2_5'?'median':SPECS[PARAM].title+' median'} <b>${Math.round(MEDIAN)}</b> <span style="text-transform:none">${SPECS[PARAM].unit}</span></span>`:'')+
       (wind.speed_kmh?`<span>wind <b>${Math.round(wind.speed_kmh)} km/h</b></span>`:'')+
       `<span><b>${edges?(edges/1e6).toFixed(2)+'m':'1.07m'}</b> edges priced</span>`;
     if(h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);

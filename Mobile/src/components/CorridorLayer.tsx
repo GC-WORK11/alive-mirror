@@ -4,12 +4,18 @@ import { V2T } from "../theme";
 
 type Corridor = { lon: number; lat: number; samples: number; avg_dose_ug: number; top_mode: string };
 
+/* Source + layers stay mounted for the app's whole life — a mid-draw
+   removeSource segfaults the iOS-sim render thread (same upstream class
+   as RouteTint). The toggle swaps in an empty FeatureCollection instead
+   of unmounting. */
+const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
 /** Streets the community has actually measured — a faint veil that grows
- * denser where more traversals landed. Optional layer: rendered only when
- * the layers sheet switches it on (doc 02 §S1 — off by default). */
-export function CorridorLayer({ corridors }: { corridors: Corridor[] | null }) {
+ * denser where more traversals landed. Optional layer: `on` from the
+ * layers sheet (doc 02 §S1 — off by default). */
+export function CorridorLayer({ corridors, on = true }: { corridors: Corridor[] | null; on?: boolean }) {
   const geo = useMemo(() => {
-    if (!corridors?.length) return null;
+    if (!corridors?.length) return EMPTY;
     const max = Math.max(...corridors.map((c) => c.samples), 1);
     return {
       type: "FeatureCollection" as const,
@@ -21,9 +27,8 @@ export function CorridorLayer({ corridors }: { corridors: Corridor[] | null }) {
     };
   }, [corridors]);
 
-  if (!geo) return null;
   return (
-    <GeoJSONSource id="corridors" data={geo}>
+    <GeoJSONSource id="corridors" data={on ? geo : EMPTY}>
       <Layer
         id="corridorGlow"
         type="circle"

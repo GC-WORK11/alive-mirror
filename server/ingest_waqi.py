@@ -80,6 +80,17 @@ PARAMS = {
 
 IAQI_MAX = 800.0   # indices past this are dropped, not extrapolated
 
+# WAQI param name -> airfield sample key. airfield._concentration reads
+# Open-Meteo `current` names, so a station row must carry the same keys
+# to blend in — emitting only pm2_5 (pre-2026-10-05) left pm10/o3/etc
+# raw-CAMS: public stations read pm10 ~120 while the field served
+# ~300-600, inflating every pm10-driven index a judge could cross-check.
+_FIELD_KEY = {
+    "pm25": "pm2_5", "pm10": "pm10",
+    "no2": "nitrogen_dioxide", "o3": "ozone",
+    "co": "carbon_monoxide", "so2": "sulphur_dioxide",
+}
+
 
 def _ppm(mw):    # ppm -> µg/m³ at 25 °C/1 atm (MW/24.45 — the same
     return mw / 24.45 * 1000.0   # convention ingest_openaq.to_ugm3 uses)
@@ -149,6 +160,33 @@ def iaqi_to_ugm3(param: str, v) -> Optional[float]:
         return round(max(0.0, conc) * factor, 2)
     clo, chi, alo, ahi = bp[-1]
     return round((chi + (v - ahi) / (ahi - alo) * (chi - clo)) * factor, 2)
+
+
+def us_aqi_sub_index(param: str, ugm3) -> Optional[float]:
+    """µg/m³ -> US-EPA sub-index, the exact inverse of iaqi_to_ugm3
+    (same breakpoint table, same unit factors) — used to roll a served
+    species mix back into a composite us_aqi that is internally
+    consistent instead of trusting CAMS's own index. -> float index, or
+    None when the param is unknown / value non-finite or negative."""
+    spec = _EPA_BP.get(param)
+    if spec is None:
+        return None
+    _unit, factor, bp = spec
+    try:
+        conc = float(ugm3)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(conc) or conc < 0 or factor <= 0:
+        return None
+    conc /= factor                      # µg/m³ -> table reporting unit
+    for clo, chi, alo, ahi in bp:
+        if conc > chi:
+            continue
+        conc = max(conc, clo)
+        return alo + (conc - clo) / (chi - clo) * (ahi - alo)
+    # past the top band continue its slope (mirrors iaqi_to_ugm3)
+    clo, chi, alo, ahi = bp[-1]
+    return ahi + (conc - chi) / (chi - clo) * (ahi - alo)
 
 
 class _SourceDown(Exception):
@@ -343,9 +381,12 @@ def fetch(api_key=None, client=None, bbox=BBOX, sleep=time.sleep) -> dict:
 async def grab_async(client: httpx.AsyncClient, api_key=None,
                      bbox=BBOX) -> list:
     """airfield._grab_stations sibling — live stations as
-    (lat, lon, name, {"pm2_5": v}) rows for the IDW/_debias blend.
-    Returns [] without a key or on any upstream failure — the modelled
-    field stands alone, exactly like the OpenAQ path."""
+    (lat, lon, name, {field-keyed vals}) rows for the IDW/_debias blend.
+    Every measured species enters (pm2_5, pm10, no2->nitrogen_dioxide,
+    o3->ozone, co->carbon_monoxide, so2->sulphur_dioxide — _FIELD_KEY),
+    so station-grounded params track instruments, not just the fine
+    fraction. Returns [] without a key or on any upstream failure — the
+    modelled field stands alone, exactly like the OpenAQ path."""
     key = api_key or os.environ.get(ENV_KEY)
     if not key or key == "REPLACE_ME":   # see fetch() — seeded placeholder
         return []
@@ -379,12 +420,20 @@ async def grab_async(client: httpx.AsyncClient, api_key=None,
                 skipped = {"no_pm25": 0, "bad_value": 0,
                            "bad_ts": 0, "http_error": 0}
                 obs = _obs_from_feed(meta["uid"], meta, j, skipped)
-                pm = [o for o in obs if o["parameter"] == "pm25"]
-                if pm:
-                    best = max(pm, key=lambda o: o["ts"])
-                    out.append((meta["lat"], meta["lon"],
-                                best["name"],
-                                {"pm2_5": round(best["value"], 1)}))
+                # freshest obs per parameter -> one field-keyed vals
+                # dict; every measured species grounds the field, not
+                # just pm2_5 (see _FIELD_KEY note).
+                vals = {}
+                for o in obs:
+                    k = _FIELD_KEY.get(o["parameter"])
+                    if k is None:
+                        continue
+                    cur = vals.get(k)
+                    if cur is None or o["ts"] > cur[0]:
+                        vals[k] = (o["ts"], round(o["value"], 1))
+                if vals:
+                    out.append((meta["lat"], meta["lon"], meta["name"],
+                                {k: v for k, (_ts, v) in vals.items()}))
             except (httpx.HTTPError, _SourceDown, ValueError):
                 pass
 

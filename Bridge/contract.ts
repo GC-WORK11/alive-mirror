@@ -145,7 +145,9 @@ export interface AqiResponse {
   pm25_ambient?: number;
   pm25_lo?: number | null;
   pm25_hi?: number | null;
-  us_aqi?: number | null;
+  us_aqi?: number | null;          // max EPA sub-index over served species
+  us_aqi_basis?: string | null;    // driving pollutant key, e.g. "pm25"
+  us_aqi_model?: number | null;    // raw CAMS index cell, for provenance
   european_aqi?: number | null;
   o3?: number | null;
   co?: number | null;
