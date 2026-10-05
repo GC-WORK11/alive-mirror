@@ -587,7 +587,7 @@ function DayCard({ rec, budgetUg, lang }: {
                 {t("dayBreathed", lang)}
               </Text>
               <Text {...DYNAMIC_TYPE} style={[ss.heroSub, NUM, { fontFamily: mono(lang) }]}>
-                µg · {t("dayCovered", lang, { h: Math.floor(rec.coveredMin / 60), m: rec.coveredMin % 60 })}
+                µg pm2.5 · {t("dayCovered", lang, { h: Math.floor(rec.coveredMin / 60), m: rec.coveredMin % 60 })}
               </Text>
             </View>
           </View>
