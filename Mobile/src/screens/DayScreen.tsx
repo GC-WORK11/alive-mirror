@@ -249,51 +249,69 @@ function MorningCard({ curve, outside, lang }: {
       </View>
     );
   }
+  const srv = curve.server;
   const a = morningAnswers(curve.series);
+  // prefer the server's own windows/decisions when /v2/day answered —
+  // it folds the same horizon /depart and /grid?h= serve, and a null
+  // window there is an honest "no meaningful run", not missing data
+  const heavy = srv ? srv.heavy : a.heavy;
+  const clean = srv ? srv.clean : a.clean;
+  const flat = srv ? (!srv.heavy && !srv.clean) : a.flat;
+  const heavyF = srv?.heavyLabel ?? (heavy ? fmtHr(heavy.from + nowHour()) : "");
+  const heavyT = srv?.heavyEndLabel ?? (heavy ? fmtHr(heavy.to + nowHour()) : "");
+  const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour()) : "");
+  const cleanT = srv?.cleanEndLabel ?? (clean ? fmtHr(clean.to + nowHour()) : "");
+  const decision = srv?.decisions?.[0]?.line ?? null;
   return (
     <View style={ss.card}>
       <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
         {t("dayMorningTitle", lang)}
       </Text>
       <Sparkline series={curve.series} lang={lang} />
-      {a.flat ? (
+      {flat ? (
         <Text {...DYNAMIC_TYPE} style={[ss.moveLine, { fontFamily: fam(lang, "med") }]}>
-          {t("dayMorningFlat", lang)}
+          {decision ?? t("dayMorningFlat", lang)}
         </Text>
       ) : (
         <>
-          {a.heavy && (
+          {heavy && (
             <View style={ss.mRow}>
-              <BandDot conc={a.heavy.conc} />
+              <BandDot conc={heavy.conc} />
               <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mono(lang) }]}>
                 {t("dayMorningHeavy", lang, {
-                  f: fmtHr(a.heavy.from + nowHour()),
-                  t: fmtHr(a.heavy.to + nowHour()),
-                  c: Math.round(a.heavy.conc),
+                  f: heavyF,
+                  t: heavyT,
+                  c: Math.round(heavy.conc),
                 })}
               </Text>
             </View>
           )}
-          {a.clean && (
+          {clean && (
             <View style={ss.mRow}>
-              <BandDot conc={a.clean.conc} />
+              <BandDot conc={clean.conc} />
               <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mono(lang) }]}>
                 {t("dayMorningClean", lang, {
-                  f: fmtHr(a.clean.from + nowHour()),
-                  t: fmtHr(a.clean.to + nowHour()),
-                  c: Math.round(a.clean.conc),
+                  f: cleanF,
+                  t: cleanT,
+                  c: Math.round(clean.conc),
                 })}
               </Text>
             </View>
           )}
-          {a.clean && a.heavy && a.ratio != null && a.ratio >= 1.2 && (
+          {decision ? (
             <Text {...DYNAMIC_TYPE} style={[ss.moveLine, NUM, { fontFamily: fam(lang, "med") }]}>
-              {t("dayMorningMove", lang, {
-                f: fmtHr(a.clean.from + nowHour()),
-                g: fmtHr(a.heavy.from + nowHour()),
-                x: a.ratio.toFixed(1),
-              })}
+              {decision}
             </Text>
+          ) : (
+            clean && heavy && a.ratio != null && a.ratio >= 1.2 && (
+              <Text {...DYNAMIC_TYPE} style={[ss.moveLine, NUM, { fontFamily: fam(lang, "med") }]}>
+                {t("dayMorningMove", lang, {
+                  f: cleanF,
+                  g: heavyF,
+                  x: a.ratio.toFixed(1),
+                })}
+              </Text>
+            )
           )}
         </>
       )}

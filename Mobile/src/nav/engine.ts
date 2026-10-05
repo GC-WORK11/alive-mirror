@@ -98,6 +98,38 @@ export type NavEngineOpts = {
 
 export type NextStep = { instruction: string; distM: number };
 
+/* Client-side privacy trim for /v2/trip donations — mirrors
+ * server/v2/trip.py's privacy_pipeline so endpoints never leave the
+ * device (the server still re-applies it, so older builds stay safe):
+ * drop the first and last TRIM metres of travelled path, thin the
+ * middle to one point per THIN metres keeping both trimmed endpoints,
+ * round to ROUND_DP decimals (~11 m). A trip shorter than 2×TRIM
+ * donates an empty trajectory — its summary counts, its path doesn't. */
+const TRAJ_TRIM_M = 300;
+const TRAJ_THIN_M = 100;
+const TRAJ_ROUND_DP = 4;
+
+export function privacyTrimTrajectory(
+  pts: { lat: number; lon: number }[],
+): { lat: number; lon: number }[] {
+  if (pts.length < 2) return [];
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) {
+    cum.push(cum[i - 1] + havM(pts[i - 1].lat, pts[i - 1].lon, pts[i].lat, pts[i].lon));
+  }
+  const total = cum[cum.length - 1];
+  const mid = pts.filter((_, i) => cum[i] >= TRAJ_TRIM_M && cum[i] <= total - TRAJ_TRIM_M);
+  if (mid.length === 0) return [];
+  const kept: { lat: number; lon: number }[] = [mid[0]];
+  for (let i = 1; i < mid.length - 1; i++) {
+    const last = kept[kept.length - 1];
+    if (havM(last.lat, last.lon, mid[i].lat, mid[i].lon) >= TRAJ_THIN_M) kept.push(mid[i]);
+  }
+  if (mid.length > 1) kept.push(mid[mid.length - 1]);
+  const r = (v: number) => Number(v.toFixed(TRAJ_ROUND_DP));
+  return kept.map((p) => ({ lat: r(p.lat), lon: r(p.lon) }));
+}
+
 /** emissions.breakdown → the /v2/trip summary's optional CO2 split
  *  (grams, 0.1 g rounding). Each mid is kept independently — a partial
  *  breakdown still reports what it honestly has. */
@@ -208,7 +240,7 @@ export function useNavEngine(opts: NavEngineOpts) {
   const donate = useCallback(async (s: NavSummary) => {
     const donation = {
       device_token: await contributorId(), // stable anonymous id (src/store)
-      trajectory: trajRef.current.map((p) => ({ lat: p.lat, lon: p.lon })),
+      trajectory: privacyTrimTrajectory(trajRef.current),
       summary: {
         mode: s.mode,
         distance_km: Math.round(s.distanceKm * 100) / 100,

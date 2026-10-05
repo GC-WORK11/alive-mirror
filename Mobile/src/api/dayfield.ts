@@ -20,6 +20,8 @@ const GRID_CELLS = 8;
 /** forecast hours pulled — h=0 is "this hour" on the horizon */
 export const DAY_HOURS = 12;
 
+export type DayWindow = { from: number; to: number; conc: number };
+
 export type DayCurve = {
   /** pm2.5 µg/m³ per forecast hour, index = hours ahead of `atIst`;
    *  null = that hour's fetch failed (a hole, not a guess) */
@@ -30,6 +32,19 @@ export type DayCurve = {
   covered: boolean;
   /** server epoch-ish: the field's own refresh tag when present */
   epoch?: string;
+  /** when /v2/day served the point: its windows + decision lines.
+   *  Present means "the server answered" — windows may still be null
+   *  on an honest flat/short day. */
+  server?: {
+    heavy: DayWindow | null;
+    clean: DayWindow | null;
+    decisions: { label: string; line: string }[];
+    /** "17:30" IST labels the server generated — spare a client clock */
+    heavyLabel?: string | null;
+    cleanLabel?: string | null;
+    heavyEndLabel?: string | null;
+    cleanEndLabel?: string | null;
+  };
 };
 
 /** Axis-aligned cell rect → containment. The grid's polygons are plain
@@ -79,14 +94,78 @@ async function fetchSeries(lat: number, lon: number): Promise<DayCurve> {
   return { series, conf, covered };
 }
 
-/** The day's hourly curve at a point — last-good cached under a ~500 m
- *  rounded cell key; offline → the previous curve returns `stale` via
- *  the fetchCached envelope the caller unwraps. */
+/* ---- /v2/day: the server's day-at-a-point -------------------------------
+ * One request replaces the 12-request h-series when the backend serves it
+ * (per-hour mid/lo/hi + heavy/cleanest windows + decision lines). Old
+ * servers 404 → we fall back to the grid derivation. */
+type V2DayHour = {
+  h: number; ist_label: string;
+  pm25_mid: number; pm25_lo: number | null; pm25_hi: number | null;
+  confidence?: string;
+};
+type V2DayWindow = {
+  start_h: number; end_h: number | null;
+  start_label?: string; end_label?: string | null;
+  pm25_mid?: number; basis?: string;
+};
+type V2DayResponse = {
+  hours?: V2DayHour[];
+  heavy_window?: V2DayWindow | null;
+  cleanest_window?: V2DayWindow | null;
+  decisions?: { label: string; line: string }[];
+  error?: string;
+};
+
+const mapWin = (w: V2DayWindow | null | undefined, series: (number | null)[]): DayWindow | null => {
+  if (!w || typeof w.start_h !== "number") return null;
+  const slice = series.slice(w.start_h, w.end_h ?? series.length).filter((v): v is number => v != null);
+  const conc = typeof w.pm25_mid === "number" ? w.pm25_mid
+    : slice.length ? slice.reduce((s, x) => s + x, 0) / slice.length : null;
+  if (conc == null) return null;
+  return { from: w.start_h, to: w.end_h ?? series.length, conc };
+};
+
+async function fetchDayServer(lat: number, lon: number): Promise<DayCurve | null> {
+  try {
+    const d = (await fetchJson(`${API}/v2/day?lat=${lat}&lon=${lon}`, 8000)) as V2DayResponse;
+    if (!d || !Array.isArray(d.hours) || d.error) return null;
+    const series: (number | null)[] = [];
+    let conf: DayCurve["conf"] = null;
+    for (const h of d.hours) {
+      if (typeof h.h !== "number" || typeof h.pm25_mid !== "number") continue;
+      series[h.h] = h.pm25_mid;
+      const cr = confRank(h.confidence);
+      if (cr >= 0 && (conf === null || confRank(conf) > cr)) conf = h.confidence as DayCurve["conf"];
+    }
+    if (!series.some((v) => v != null)) return null;
+    return {
+      series,
+      conf,
+      covered: true,
+      server: {
+        heavy: mapWin(d.heavy_window, series),
+        clean: mapWin(d.cleanest_window, series),
+        decisions: (d.decisions ?? []).filter((x) => x && typeof x.line === "string"),
+        heavyLabel: d.heavy_window?.start_label ?? null,
+        cleanLabel: d.cleanest_window?.start_label ?? null,
+        heavyEndLabel: d.heavy_window?.end_label ?? null,
+        cleanEndLabel: d.cleanest_window?.end_label ?? null,
+      },
+    };
+  } catch {
+    return null; // 404 on older servers / any parse wobble → grid path
+  }
+}
+
+/** The day's hourly curve at a point — prefers /v2/day (one request),
+ *  falls back to the 12-payload grid derivation; last-good cached under
+ *  a ~500 m rounded cell key; offline → the previous curve returns
+ *  `stale` via the fetchCached envelope the caller unwraps. */
 export async function fetchDayCurve(lat: number, lon: number): Promise<DayCurve | null> {
   const r = await fetchCached<DayCurve>(`${API}/grid`, {
     ttlMs: 15 * 60 * 1000,
     key: `v2:daycurve:${lat.toFixed(2)},${lon.toFixed(2)}`,
-    fetcher: async () => fetchSeries(lat, lon),
+    fetcher: async () => (await fetchDayServer(lat, lon)) ?? fetchSeries(lat, lon),
   });
   if (!r.ok) return null;
   return r.data;
