@@ -1121,7 +1121,24 @@ function ladderAB(opts,drawnOpt,seq){
   }).join('');
   const more=opts.length>7
     ?`<div class="lmore">+ ${opts.length-7} more priced — the engine priced all ${opts.length}</div>`:'';
-  $('ladder').innerHTML=rows+more;
+  /* annualized honesty line — µg/trip is abstract; mg/year is the number
+     a commuter actually lives. extrapolation is labelled: five return
+     trips a week, ~500 days. only when a real light vs heavy pair exists
+     and neither is truncated. */
+  const clean=opts.filter(o=>o.dose&&o.dose.mid!=null
+    &&o.reaches_destination!==false&&o.starts_at_origin!==false);
+  let annual='';
+  if(clean.length>=2){
+    const lo=Math.min(...clean.map(o=>o.dose.mid));
+    const hi=Math.max(...clean.map(o=>o.dose.mid));
+    if(hi>0&&hi/lo>=2){
+      const yLo=(lo*2*250/1000).toFixed(1), yHi=Math.round(hi*2*250/1000);
+      annual=`<div class="lmore">at five round-trips a week for a year — `
+        +`<b>${esc(yHi)} mg</b> inhaled vs <b>${esc(yLo)} mg</b>; `
+        +`same trip, different lungs</div>`;
+    }
+  }
+  $('ladder').innerHTML=rows+more+annual;
   $('ladder').querySelectorAll('.lrow').forEach(r=>{
     const fire=()=>drawOption(+r.dataset.i,seq);
     r.addEventListener('click',fire);
