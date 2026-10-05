@@ -870,6 +870,69 @@ export interface V2DayResponse {
                                 //  unavailable" paths emit hours: []
 }
 
+/* /v2/outlook — the morning card's honest companion: the days ahead,
+   inside the REAL forecast horizon. CAMS serves 120 h, so the fold is
+   today's remainder plus up to 4 more IST days — the last is often a
+   sliver, labeled partial, never padded into a week. Same anchored
+   model + band machinery as /v2/day, folded per day. */
+export interface V2OutlookDay {
+  date_ist: string;             // IST civil date this row folds
+  label: string;                // "today" | "tomorrow" | weekday name
+  partial: boolean;             // fewer than the day's 24 slots served
+                                // (today's remainder, or the horizon's
+                                // last-day sliver) — never padded
+  n_hours: number;              // hourly slots folded into this day
+  pm25_mid: number;             // day mean of served hourly mids
+  pm25_lo: number | null;       // day mean ± the mean of its hours' band
+  pm25_hi: number | null;       // halves (krige→climatology blend; no
+                                // sqrt-n narrowing — errors correlate);
+                                // null when no band source exists
+  band: string;                 // modal CPCB category — the day's character
+  heavy_hours_ist: string[];    // IST start-labels of every hour ≥ mean
+                                // +¼·spread; [] on flat days (noise, not
+                                // a stretch — same rule as the card)
+  cleanest_window: V2DayWindow | null;  // best contiguous ≥2h run below
+                                        // mean −¼·spread; null on flat
+                                        // or <3h days
+  confidence: "hi" | "med" | "lo";      // anchor-decay grade at the day's
+                                        // mid-horizon — 'lo' where raw
+                                        // CAMS leads (day-4 says so)
+  anchor_w: number;             // the day's anchor weight (e-fold) itself
+  note?: string;                // plain caveat on lo-confidence days
+}
+
+export interface V2OutlookBestDay {
+  date_ist: string;
+  label: string;                // "today" | "tomorrow" | weekday
+  pm25_mid: number;             // lowest day-mean on the horizon
+  n_hours: number;
+  partial: boolean;
+  delta_vs_mean: number;        // day-mean minus horizon mean (negative)
+  line: string;                 // "wednesday looks least-bad — avg ~120
+                                // vs ~210 ug/m3 across the horizon"
+}
+
+export interface V2OutlookResponse {
+  lat: number;
+  lon: number;
+  tz: string;                   // "Asia/Kolkata"
+  generated_ist: string;        // ISO instant the fold was computed
+  horizon_days: number;         // day rows served (≤5 — the real reach)
+  horizon_hours: number;        // hourly slots folded across all days
+  days: V2OutlookDay[];
+  best_day: V2OutlookBestDay | null;  // null on a flat horizon — the
+                                      // verdict then says so instead
+  flat: boolean;                // every day within noise of the rest
+  verdict: string;              // one honest sentence either way
+  model: string;                // same model string /v2/day carries
+  band_basis: string;           // hour-band basis + the per-day fold rule
+  field_age_s: number | null;
+  field: FieldStatus;
+  forecast?: V2ForecastStatus;
+  error?: string;               // "outside service area…" / "forecast
+                                //  unavailable" paths emit days: []
+}
+
 export const V2_ENDPOINTS = {
   search: "/v2/search",
   districts: "/v2/districts",
@@ -882,6 +945,7 @@ export const V2_ENDPOINTS = {
   city: "/v2/city",
   city_moves: "/v2/city/moves",
   day: "/v2/day",
+  outlook: "/v2/outlook",
   ledger: "/v2/ledger",
   // /v2/today and /v2/depart are wire aliases for the v1 handlers —
   // same shapes as /today and /depart above, surfaced under the v2

@@ -276,6 +276,8 @@ def _fetchers():
         "V2DistrictsResponse": lambda: client.get("/v2/districts").json(),
         "V2DayResponse": lambda: client.get("/v2/day", params={
             "lat": CP[0], "lon": CP[1]}).json(),
+        "V2OutlookResponse": lambda: client.get("/v2/outlook", params={
+            "lat": CP[0], "lon": CP[1]}).json(),
     }
 
 
@@ -309,6 +311,7 @@ NESTED = [
     ("V2DistrictsResponse", "districts", "V2DistrictRow"),
     ("V2DayResponse", "hours", "V2DayHour"),
     ("V2DayResponse", "decisions", "V2DayDecision"),
+    ("V2OutlookResponse", "days", "V2OutlookDay"),
 ]
 # object-valued keys get the same two-direction check:
 # (parent fetcher key, object-key, child interface | None)
@@ -332,6 +335,9 @@ NESTED_OBJ = [
     ("V2DayResponse", "forecast", "V2ForecastStatus"),
     ("V2DayResponse", "heavy_window", "V2DayWindow"),
     ("V2DayResponse", "cleanest_window", "V2DayWindow"),
+    ("V2OutlookResponse", "field", "FieldStatus"),
+    ("V2OutlookResponse", "forecast", "V2ForecastStatus"),
+    ("V2OutlookResponse", "best_day", "V2OutlookBestDay"),
 ]
 
 

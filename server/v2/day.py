@@ -69,6 +69,104 @@ def _conf(anchor_w: float, has_krige_sigma: bool) -> str:
     return g
 
 
+# -------------------------------------------------- shared slot machinery
+# /v2/outlook folds the SAME served hours by IST day — these helpers are
+# the single copy of the read path (slot resolution, band blend, conf
+# grade) so the two endpoints can never drift apart.
+def _resolve_slot(h):
+    """(idx, t_iso, dt_utc) for `h` hours ahead, or None when the
+    horizon doesn't resolve it — callers BREAK on None (the model's end,
+    not a hole in it)."""
+    from forecast import FORECAST
+    try:
+        idx = FORECAST.hour_index(h)
+    except Exception:
+        return None
+    if idx is None:
+        return None
+    try:
+        t_iso = FORECAST.time_at(idx)
+    except Exception:
+        t_iso = None
+    if t_iso is None:
+        return None
+    dt_utc = datetime.fromisoformat(t_iso)
+    if dt_utc.tzinfo is None:
+        dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+    return idx, t_iso, dt_utc
+
+
+def _point_anchor(F, lat: float, lon: float, ist_now: datetime) -> tuple:
+    """(sigma0, adj) — the krige σ the live field carries at the point
+    (None on sigma-less serving) and the live-vs-typical ratio that
+    scales the climatological IQR (the /shift convention). Both degrade
+    silently: a missing source narrows the band basis, never breaks the
+    read."""
+    sigma0 = _hour_sigma0(F, lat, lon)
+    live_now = None
+    try:
+        live_now = F.value(lat, lon, "pm2_5")
+    except Exception:
+        pass
+    adj = 1.0
+    try:
+        import history
+        typ0 = (history.typical_band(lat, lon, ist_now.month,
+                                     ist_now.hour) or {}).get("median")
+        if live_now and typ0:
+            adj = live_now / typ0
+    except Exception:
+        pass
+    return sigma0, adj
+
+
+def _hour_entry(lat: float, lon: float, h: int, t_iso: str,
+                dt_utc: datetime, sigma0, adj: float,
+                anchor_tau_h: float) -> Optional[tuple]:
+    """(row, band_half) for one served slot — row is the wire hour dict
+    ({h,start,ist_label,pm25_mid,pm25_lo,pm25_hi,us_aqi,band,
+    confidence}); band_half is the blended ± behind lo/hi, returned
+    beside the row because /v2/day serves rows verbatim (the wire must
+    not grow an undeclared key) while /v2/outlook folds halves upward
+    into per-day bands. None when the model has no value at this slot:
+    a real hole, skipped, never zero-filled."""
+    from forecast import FORECAST
+    import districts
+    try:
+        v = FORECAST.pm25(lat, lon, h)
+    except Exception:
+        v = None
+    if v is None:
+        return None
+    ist_dt = dt_utc.astimezone(_IST)
+    w = math.exp(-h / anchor_tau_h)
+    half_iqr = _clim_half_iqr(lat, lon, ist_dt.month, ist_dt.hour, adj)
+    if sigma0 is not None and half_iqr is not None:
+        band_half = w * sigma0 + (1.0 - w) * half_iqr
+    elif sigma0 is not None:
+        band_half = sigma0          # no climatology: krige σ stands
+    elif half_iqr is not None:
+        band_half = half_iqr        # no krige: measured spread stands
+    else:
+        band_half = None            # honest absence — lo/hi go null
+    mid = round(v, 1)
+    aqi = districts.us_aqi(mid)
+    band_name, _color = districts.cpcb_band(districts.cpcb_aqi(mid))
+    return {
+        "h": h,
+        "start": t_iso,
+        "ist_label": _ist_label(dt_utc),
+        "pm25_mid": mid,
+        "pm25_lo": round(max(0.0, mid - band_half), 1)
+        if band_half is not None else None,
+        "pm25_hi": round(mid + band_half, 1)
+        if band_half is not None else None,
+        "us_aqi": aqi,
+        "band": band_name,
+        "confidence": _conf(w, sigma0 is not None),
+    }, band_half
+
+
 # ------------------------------------------------------------------ windows
 def _runs(mids: list, thr: float, above: bool) -> list:
     """Maximal contiguous index runs with mid >=/<= thr, len>=_MIN_RUN."""
@@ -292,7 +390,6 @@ async def day(lat: float, lon: float):
     await _refresh_both()
 
     from forecast import FORECAST
-    import districts
     F = deps.field()
     ist_now = datetime.now(_IST)
     today = ist_now.date()
@@ -300,21 +397,7 @@ async def day(lat: float, lon: float):
     # the anchor σ is read once — one krige estimate per request, not per
     # hour; the forecast likewise re-samples its fetched arrays (no 12x
     # rebuilds — the whole card is one snapshot's worth of lookups)
-    sigma0 = _hour_sigma0(F, lat, lon)
-    live_now = None
-    try:
-        live_now = F.value(lat, lon, "pm2_5")
-    except Exception:
-        pass
-    adj = 1.0
-    try:
-        import history
-        typ0 = (history.typical_band(lat, lon, ist_now.month,
-                                     ist_now.hour) or {}).get("median")
-        if live_now and typ0:
-            adj = live_now / typ0
-    except Exception:
-        pass
+    sigma0, adj = _point_anchor(F, lat, lon, ist_now)
 
     hours = []
     try:
@@ -322,61 +405,20 @@ async def day(lat: float, lon: float):
     except Exception:
         ANCHOR_TAU_H = 9.0
     for h in range(_H_DAY):
-        idx = None
-        try:
-            idx = FORECAST.hour_index(h)
-        except Exception:
+        slot = _resolve_slot(h)
+        if slot is None:
             break
-        if idx is None:
-            break
-        t_iso = None
-        try:
-            t_iso = FORECAST.time_at(idx)
-        except Exception:
-            pass
-        if t_iso is None:
-            break
-        dt_utc = datetime.fromisoformat(t_iso)
-        if dt_utc.tzinfo is None:
-            dt_utc = dt_utc.replace(tzinfo=timezone.utc)
-        ist_dt = dt_utc.astimezone(_IST)
+        _idx, t_iso, dt_utc = slot
         # today only — the first slot crossing IST midnight is tomorrow's
-        if ist_dt.date() > today:
+        if dt_utc.astimezone(_IST).date() > today:
             break
-        try:
-            v = FORECAST.pm25(lat, lon, h)
-        except Exception:
-            v = None
-        if v is None:
+        entry = _hour_entry(lat, lon, h, t_iso, dt_utc, sigma0, adj,
+                            ANCHOR_TAU_H)
+        if entry is None:
             # the slot exists but the model has no value — a real hole,
             # not a zero (never fabricate the hour)
             continue
-        w = math.exp(-h / ANCHOR_TAU_H)
-        half_iqr = _clim_half_iqr(lat, lon, ist_dt.month, ist_dt.hour, adj)
-        if sigma0 is not None and half_iqr is not None:
-            band_half = w * sigma0 + (1.0 - w) * half_iqr
-        elif sigma0 is not None:
-            band_half = sigma0          # no climatology: krige σ stands
-        elif half_iqr is not None:
-            band_half = half_iqr        # no krige: measured spread stands
-        else:
-            band_half = None            # honest absence — lo/hi go null
-        mid = round(v, 1)
-        aqi = districts.us_aqi(mid)
-        band_name, _color = districts.cpcb_band(districts.cpcb_aqi(mid))
-        hours.append({
-            "h": h,
-            "start": t_iso,
-            "ist_label": _ist_label(dt_utc),
-            "pm25_mid": mid,
-            "pm25_lo": round(max(0.0, mid - band_half), 1)
-            if band_half is not None else None,
-            "pm25_hi": round(mid + band_half, 1)
-            if band_half is not None else None,
-            "us_aqi": aqi,
-            "band": band_name,
-            "confidence": _conf(w, sigma0 is not None),
-        })
+        hours.append(entry[0])
 
     fstat = {}
     try:
