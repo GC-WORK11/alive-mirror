@@ -183,7 +183,7 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 
 <section class="corridors"><div class="col">
   <div class="sec-head">
-    <h2>Where the field is dense.</h2>
+    <h2>Where the gaps are filled.</h2>
     <span class="lbl">k≥3 devices · est. from donated trips</span>
   </div>
   <div class="scrollx"><table id="corridors"></table></div>
@@ -217,6 +217,10 @@ const api=async p=>{const r=await fetch(p,{cache:'no-store',
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const IN=n=>n==null?'—':Math.round(+n).toLocaleString('en-IN');
 const F1=n=>n==null?'—':(+n).toFixed(1);
+/* minutes → a unit a stranger reads right: 42 min, 8.6 h, 3 d — never
+   a bare '517m' that reads as metres or millions */
+const agoMin=m=>m==null?'—':m<90?Math.round(m)+' min'
+  :m<60*48?(m/60).toFixed(m<600?1:0)+' h':Math.round(m/1440)+' d';
 
 /* one ledger row per honest number — an absent feed renders '—'
    with its label, never an invented figure */
@@ -236,14 +240,15 @@ async function load(){
       `<span><b>${IN(c.obs_24h)}</b> commutes in 24h</span>`+
       `<span><b>${F1(c.km_24h)}</b> km donated · 24h</span>`+
       `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 avoided, all-time</span>`+
-      (last!=null?`<span>last commute <b>${Math.round(last)}m</b> ago</span>`:'');
+      (last!=null?`<span>last commute <b>${agoMin(last)}</b> ago</span>`:'');
   }else if(h){
     $('status').innerHTML='<span>ledger resting — field still live</span>';
   }else{
     $('status').innerHTML='<span>community feed resting — retrying</span>';
   }
   if(h&&h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
-  $('age').textContent=c?`latest donation ${c.latest_obs_age_min!=null?Math.round(c.latest_obs_age_min)+'m ago':'—'}`:'—';
+  $('age').textContent=c?(c.latest_obs_age_min!=null
+    ?`latest donation ${agoMin(c.latest_obs_age_min)} ago`:'—'):'—';
 
   /* ---- ledger rows ---- */
   const modes=c&&c.modes_24h?Object.entries(c.modes_24h).sort((a,b)=>b[1]-a[1])
@@ -283,7 +288,7 @@ async function load(){
     const p=f.properties||{};
     return `<div class="rline"><span class="rk">${esc(p.kind||p.type||'report')}</span>
       <span>${esc(p.note||p.label||'rider report')}</span>
-      <span class="rn">${p.age_min!=null?Math.round(p.age_min)+'m ago':(p.n!=null?p.n+' pins':'')}</span></div>`;
+      <span class="rn">${p.age_min!=null?agoMin(p.age_min)+' ago':(p.n!=null?p.n+' pins':'')}</span></div>`;
   }).join(''):'<div class="rline"><span class="rk">reports</span>'+
     (rp
       ?'<span class="empty">nothing pinned right now — reports expire after their window</span>'

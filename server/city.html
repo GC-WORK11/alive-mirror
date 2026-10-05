@@ -308,9 +308,9 @@
     <div class="eyebrow">the instrument's evidence · delhi ncr</div>
     <h1>Delhi NCR air, <em>right now.</em></h1>
     <div class="dek"><p>Every district shaded by the official CPCB AQI
-      scale — a live field kriged from government stations, satellite
-      models and the commutes people chose to share. This is the surface
-      the app reads your day against.</p></div>
+      scale — a live field interpolated between government stations,
+      satellite models and the commutes people chose to share. This is
+      the surface the app reads your day against.</p></div>
   </div>
 
   <noscript>
@@ -381,13 +381,13 @@
         <div class="d"><b><span id="km">—</span> km</b> travelled — <b><span id="contrib">—</span></b> commutes donated in 72 h</div>
       </div>
       <div class="stat">
-        <div class="k">the city emitted today</div>
+        <div class="k">emitted on shared commutes today</div>
         <div class="v"><span id="co2">—</span><small> kg co₂</small></div>
         <div class="d" id="co2d">tailpipe co₂ + pm2.5 from donated commutes — the emission half of every receipt</div>
       </div>
       <div class="stat">
-        <div class="k">corridors measured</div>
-        <div class="v"><span id="corr">—</span><small> publishable</small></div>
+        <div class="k">street cells publishable</div>
+        <div class="v"><span id="corr">—</span><small> k≥3</small></div>
         <div class="d">a corridor cell publishes only with ≥3 distinct devices in 72 h · <b><span id="cellstr">—</span> cells tracked</b></div>
       </div>
     </div>
@@ -406,7 +406,7 @@
         commuter what they inhaled. <b><span id="nstations">—</span> named
         instruments</b> anchor today's field — dots on the map — blended at
         triple weight with the CAMS grid and every citizen traversal.</p>
-        <p>Where instruments thin out, the krige band widens and the surface
+        <p>Where instruments thin out, the error band widens and the surface
         goes quiet. District means follow the same rule — <b>sparse-edge
         districts read from their centroid and say so.</b></p>
         <p class="mono" id="fieldmeta">field —</p>
@@ -418,11 +418,11 @@
     <div class="sec-h">
       <span class="sec-n">03</span>
       <span class="sec-t">the corridors <em>the city actually travels</em></span>
-      <span class="sec-sub">~500m cells · donated traversals</span>
+      <span class="sec-sub">~500m street cells · donated traversals · ≥3 devices to publish</span>
     </div>
     <div class="card2 scrollx">
       <table id="corridors">
-        <tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>top mode</th></tr>
+        <tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>vs median</th></tr>
       </table>
     </div>
   </section>
@@ -743,7 +743,7 @@ function rchArm(){RCH.armed=true;
   /* district/cell hit-testing would swallow the tap — yield the whole
      svg while armed (the veil itself is pointer-events:none) */
   for(const g of [gCells,gDist,gLab])if(g)g.style.pointerEvents='none';
-  rchNote('tap anywhere — the veil paints the real settled road edges')}
+  rchNote('tap anywhere — the veil paints the roads reachable inside the budget')}
 function rchDisarm(){RCH.armed=false;RCH.origin=null;RCH.seq++;rchClear();
   rchUI.arm.innerHTML='◎ where can your lungs go?';
   rchUI.arm.setAttribute('aria-pressed','false');
@@ -795,7 +795,7 @@ function rchPaint(b){
   const seq=++RCH.paintSeq;
   const edges=b.edges_e6||[];
   const km=(b.distance_km||0).toLocaleString('en-IN',{maximumFractionDigits:1});
-  let cap=`${RCH.mode} ≤${RCH.budget}µg — ${km} km reachable · ${(b.edge_count||0).toLocaleString('en-IN')} edges settled`;
+  let cap=`${RCH.mode} ≤${RCH.budget}µg — ${km} km reachable · ${(b.edge_count||0).toLocaleString('en-IN')} road edges settled`;
   if(b.truncated)cap+=' · frontier cut at the state cap';
   if(b.edge_partial)cap+=` · veil shows the nearest ${(b.edges_e6.length||0).toLocaleString('en-IN')}`;
   /* the decode+paint is chunked across frames — a 90k-edge payload was a
@@ -821,7 +821,7 @@ function rchPaint(b){
       g.appendChild(c);
     }
     rchCap(cap);
-    let n='the veil is the actual dijkstra frontier — every line a road your lungs can afford';
+    let n='the veil is computed, not painted — every ink line a real road your lungs can afford';
     if(b.field_age_s!=null)n+=` · field ${Math.floor(b.field_age_s/60)} min old`;
     rchNote(n);
     if(window.__m&&__m.paint)__m.paint.done=true;
@@ -880,7 +880,7 @@ async function rchInit(){
     if(RCH.origin)rchSolve()});
   rchUI.arm.addEventListener('click',()=>RCH.armed?rchDisarm():rchArm());
   svg.addEventListener('pointerdown',rchClick,true);
-  rchNote('arm it, tap the map — dose-budget reachability on the real frontier');
+  rchNote('arm it, tap the map — the veil draws the roads your lungs can afford');
   row.hidden=false;
 }
 
@@ -905,7 +905,7 @@ function outHour(dy){
   const h=Math.max(0,Math.ceil((t0-OUT.gen)/36e5));
   return h<=TL_MAX?h:null}
 function outDetail(dy){
-  const bits=[`${dy.label} — day-avg ~${Math.round(dy.pm25_mid)} ug/m3`];
+  const bits=[`${dy.label} — day-avg ~${Math.round(dy.pm25_mid)} µg/m³`];
   if(dy.pm25_lo!=null&&dy.pm25_hi!=null)
     bits[0]+=` (${Math.round(dy.pm25_lo)}–${Math.round(dy.pm25_hi)})`;
   const cw=dy.cleanest_window;
@@ -1007,7 +1007,8 @@ function paintTicker(a,cy,t,ad,nd){
     [`field pm2.5 range`,`${rng}`],
     [`wind`,windNow?`${Math.round(windNow.speed_kmh)} km/h from ${compass(windNow.from_deg)}`:'—'],
     [`instruments`,`${a.field?.station_readings??'—'} live`],
-    [`grap · incl. smoke`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
+    [`grap · incl. smoke`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`,
+      'graded response action plan — the official smog-alert stage, smoke folded in'],
     [`districts`,`${nd} live`],
     [`commutes today`,`${IN(t.obs_24h)}`],
     [`km donated`,`${IN(t.km_24h)}`],
@@ -1018,7 +1019,9 @@ function paintTicker(a,cy,t,ad,nd){
   /* static strip — the same live numbers, standing still; nothing on
      this page loops */
   document.getElementById('ticker').innerHTML=
-    items.map(([k,v])=>`${k} <b>${v}</b>`).join('<i>·</i>');
+    items.map(([k,v,tip])=>
+      (tip?`<span title="${esc(tip)}">${k} <b>${v}</b></span>`:`${k} <b>${v}</b>`)
+    ).join('<i>·</i>');
 }
 
 /* ---------- provenance minimap — district outlines + station anchors - */
@@ -1146,7 +1149,7 @@ async function load(){
        <td class="cell">${esc(c.name||`${(+c.lat).toFixed(3)}°N · ${(+c.lon).toFixed(3)}°E`)}</td>
        <td class="num">${IN(c.trips)}</td>
        <td class="num"><span class="dose-chip">${IN(Math.round(c.avg_dose_ug))} µg</span></td>
-       <td><span class="modep">${c.relative||'—'} median</span></td></tr>`).join('');
+       <td><span class="modep">${c.relative?c.relative+' than median':'—'}</span></td></tr>`).join('');
     document.getElementById('corridors').innerHTML=
       '<tr><th></th><th>corridor</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>vs median</th></tr>'+
       (rows||'<tr><td colspan="5" style="color:var(--ink3)">no donated traversals yet — the app fills this as delhi moves</td></tr>');

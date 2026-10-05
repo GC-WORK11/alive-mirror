@@ -326,7 +326,8 @@ h1 em{font-style:italic;color:var(--ink2)}
     <p class="sub rise" style="--d:140ms">A personal PM2.5 dosimeter that
     needs no hardware — the live field below is the sensor, the app on your
     phone is the rest, on Android today. It totals what your trips inhaled,
-    in µg. Routing is one proof of it: flip the map to a→b, pick two points,
+    in µg — and your day stays on your phone. Routing is one proof of it:
+    flip the map to a→b, pick two points,
     and the engine returns the corridor your lungs pay least for —
     <span id="edgecount">1.07 million</span> road edges indexed,
     <span id="pricedcount">0.90 million</span> priced under this hour's
@@ -340,7 +341,7 @@ h1 em{font-style:italic;color:var(--ink2)}
     <img src="/app-hero.png" width="552" height="1200"
       alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
     <figcaption>the app, live — real route, real field<br>
-    your day stays on your phone — only k≥3 aggregates ever leave</figcaption>
+    only k≥3 aggregates ever leave it</figcaption>
   </figure>
 </div></div></section>
 
@@ -1338,7 +1339,7 @@ async function status(){
     const stn=(s.stations||{}).count||0;
     const wind=h.wind||{};WIND=wind.speed_kmh?wind:null;
     MID_DIRTY=true;    /* the wind arrow lives in the mid layer */
-    const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+'m':'—';
+    const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+' min':'—';
     const edges=h.routing&&h.routing.edges?h.routing.edges:null;
     const priced=h.routing&&h.routing.edges_priced?h.routing.edges_priced:null;
     if(edges)$('edgecount').textContent=(edges/1e6).toFixed(2)+' million';

@@ -306,6 +306,11 @@
              color:var(--ink);letter-spacing:-0.01em}
   .firebar .sep{color:var(--ink4)}
 
+  /* panel title — one line that names the tile for a cold reader,
+     same mono caption language as .feed-h/.sub */
+  .panel-h{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink4);padding:12px 16px 0}
+
   /* 04 · expandable corridor rows — click unfolds the full wire record */
   .crow{cursor:pointer}
   .crow:hover td{background:var(--surface2)}
@@ -343,11 +348,12 @@
       letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);line-height:1.9">
       this console is javascript-only — the token prompt and every panel on it are live renders.</p>
   </noscript>
+  <div class="sub" style="padding:14px 2px 0">the engine room — how the field becomes a route · every number below is measured live, nothing illustrative</div>
   <div class="statusline" id="stamp">connecting…</div>
 
   <div class="grid" id="stats"></div>
 
-  <h2>01 · the field pipeline <em>instruments → krige σ → priced edges — every stage stamps its own freshness</em></h2>
+  <h2>01 · the field pipeline <em>stations → interpolated map (σ = honest error band) → priced roads — every stage stamps its own freshness</em></h2>
   <div class="panel">
     <div class="prov" id="prov"></div>
     <div class="pipe" id="pipe"></div>
@@ -371,20 +377,20 @@
   <div class="panel"><div class="scrollx"><table>
     <thead><tr><th></th><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num" title="avg donated dose per traversal">avg dose</th><th class="num" title="co₂ emitted per 100 m of corridor">co₂/100m</th><th class="num" title="live pm2.5 sampled over this corridor's cells">air pm2.5</th></tr></thead>
     <tbody id="corridors"></tbody></table></div>
-    <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">donated trips · k≥3 anonymized aggregates — never a single person · 72h window · avg dose = mean donated µg per traversal · air pm2.5 = the live field under the cell right now</div></div>
+    <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">each row = one street cell ≥3 devices crossed in 72h · donated trips, k≥3 anonymized aggregates — never a single person · avg dose = mean donated µg per traversal · air pm2.5 = the live field under the cell right now</div></div>
 
   <h2>05 · the engine <em>dose math · routing internals · measured latency · model scorecard</em></h2>
   <div class="cols cols3">
-    <div class="panel"><div class="scrollx"><table>
+    <div class="panel"><div class="panel-h">dose math — what one minute of each mode breathes</div><div class="scrollx"><table>
       <thead><tr><th>mode</th><th class="num">in-cabin ×</th><th class="num">ve l/min</th></tr></thead>
       <tbody id="dosemath"></tbody></table></div>
       <div class="sub" id="doseformula" style="padding:10px 14px 12px;border-top:1px solid var(--hair)"></div></div>
-    <div class="panel"><dl class="kv" id="routingcard"></dl></div>
-    <div class="panel"><dl class="kv" id="timing"></dl></div>
+    <div class="panel"><div class="panel-h">routing internals — the engine's live state</div><dl class="kv" id="routingcard"></dl></div>
+    <div class="panel"><div class="panel-h">measured api latency — the server's own stopwatch</div><dl class="kv" id="timing"></dl></div>
   </div>
   <div class="cols" style="margin-top:10px">
-    <div class="panel"><dl class="kv" id="field"></dl></div>
-    <div class="panel"><dl class="kv" id="scorecard"></dl></div>
+    <div class="panel"><div class="panel-h">field state — what the router reads right now</div><dl class="kv" id="field"></dl></div>
+    <div class="panel"><div class="panel-h">model scorecard — error vs held-out stations</div><dl class="kv" id="scorecard"></dl></div>
   </div>
 
   <h2>06 · ncr districts <em>real boundaries filled by the live band of the selected parameter · click a district for its card</em></h2>
@@ -397,7 +403,7 @@
     <div class="sub" id="distmap-sub" style="margin-top:8px">connecting…</div>
   </div>
 
-  <h2>07 · the field <em>the surface the router prices · hover reads a cell · click pins it · fires sized by frp</em></h2>
+  <h2>07 · the field <em>the surface the router prices · hover reads a cell · click pins it · fires sized by frp (heat power)</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="fmsel"></div>
     <div class="fmscrub" id="fmscrub">
@@ -410,7 +416,7 @@
     <div class="meth" id="meth" hidden></div>
   </div>
 
-  <h2>08 · the community picture <em>anonymized donations · global rollups · k≥3 only — tiles fill only when the aggregate api ships the field</em></h2>
+  <h2>08 · the community picture <em>anonymized donations · global rollups · k≥3 only — a tile fills only when the k≥3 aggregate feed ships it</em></h2>
   <div class="cols">
     <div class="panel">
       <dl class="kv" id="donations"></dl>
@@ -476,7 +482,7 @@ async function getJSON(u,retried){
        feed's 401 re-asks, so a declined operator gets nagged every tick */
     if(sessionStorage.getItem('alive_admin_tok_no'))
       throw new Error(u+' '+r.status);
-    const t=prompt('admin token (ALIVE_ADMIN_TOKEN):');
+    const t=prompt('alive·108 engine room — operator token:');
     if(t){sessionStorage.setItem('alive_admin_tok',t);return getJSON(u,true)}
     sessionStorage.setItem('alive_admin_tok_no','1');
     throw new Error(u+' '+r.status+' — token declined');
@@ -503,7 +509,7 @@ async function tick(){
     '/health','/aqi?lat=28.6315&lon=77.2167','/fires'];
   if(!sessionStorage.getItem('alive_admin_tok')&&
      !sessionStorage.getItem('alive_admin_tok_no')){
-    const t=prompt('admin token (ALIVE_ADMIN_TOKEN) — cancel to view public feeds only:');
+    const t=prompt('alive·108 engine room — paste the operator token, or cancel to read the public feeds:');
     if(t)sessionStorage.setItem('alive_admin_tok',t);
     else sessionStorage.setItem('alive_admin_tok_no','1');
   }
@@ -562,7 +568,12 @@ async function tick(){
                edges_priced:H.routing.edges_priced};
   FIRES_DOC=firesDoc||FIRES_DOC||{};
   const rows=(corridors&&corridors.rows)||[];
-  const failedN=res.filter(r=>r.status==='rejected').length;
+  /* token-gated endpoints reject on purpose — counting them as 'feeds
+     down' makes an honest gate look broken; only genuine failures count */
+  const isGate=r=>r.status==='rejected'&&
+    String((r.reason&&r.reason.message)||r.reason||'').endsWith('token required');
+  const gatedN=res.filter(isGate).length;
+  const failedN=res.filter(r=>r.status==='rejected'&&!isGate(r)).length;
   /* --- ncr district choropleth: one map, each boundary filled by its
      live band for the selected parameter; a pinned card refreshes in
      place with the new feed --- */
@@ -578,8 +589,9 @@ async function tick(){
   $('feed').className='feed live';
   $('feedtxt').textContent='auto 30s';
   $('updated').textContent='updated '+timeIST(LAST_OK);
-  if(failedN)$('feedtxt').textContent=`auto 30s · ${failedN} feed${failedN>1?'s':''} down`+
-    (sessionStorage.getItem('alive_admin_tok_no')?' · token declined — open a new tab to re-authenticate':'')
+  if(failedN||gatedN)$('feedtxt').textContent='auto 30s'+
+    (failedN?` · ${failedN} feed${failedN>1?'s':''} down`:'')+
+    (gatedN?` · ${gatedN} gated — no operator token`:'')
 
   G_STATUS=S;   /* methodology cards read live counts from the status feed */
   const f=S.field||{};
@@ -593,12 +605,12 @@ async function tick(){
       `field <b>${esc(sv)}</b> · ${f.samples??'—'} samples · `+
       `${f.station_readings??'—'} stations · ${esc(f.source||'—')} · `+
       `age <b>${ago(f.age_s)}</b>`+
-      (gated?` · <span class="err">no admin token</span> — aggregates · internals · scorecard are gated; reopen in a new tab to re-authenticate. public feeds keep rendering`:'');
+      (gated?` · <span class="err">public view</span> — operator token unlocks internals · scorecard; everything below is live public truth`:'');
   }else{
     /* the one honest line for the token need — the pill above the
-       stamp says 'token declined', this says what the token unlocks */
+       stamp says the count, this says what the token unlocks */
     $('stamp').innerHTML=gated
-      ?'<span class="err">no admin token</span> — status · sources · timing · validation · corridors are gated on ALIVE_ADMIN_TOKEN; reopen this page in a new tab to re-authenticate. public feeds keep rendering.'
+      ?'<span class="err">public view — no operator token</span> · status · sources · timing · validation · corridors stay gated. the feeds below are live public truth.'
       :'<span class="err">status feed unavailable — retrying every 30s</span>';
   }
 
@@ -616,20 +628,20 @@ async function tick(){
   const ageTxt=f.age_s!=null?ago(f.age_s):null;
   const cards=[
     [f.age_s!=null?`${ageTxt}${freshBadge(f.stale)}`:null,
-     `field age · serving ${esc(sv)}`,'',f.age_s!=null],
+     `field age · the live map's freshness · serving ${esc(sv)}`,'',f.age_s!=null],
     [f.samples!=null?`${fmt(f.samples)} <small>pts</small>`:null,
-     `field samples · ${fmt(f.station_readings)} stations`,'',f.samples!=null],
+     `field samples · grid pts fitted to ${fmt(f.station_readings)} station readings`,'',f.samples!=null],
     [t.trips?fmt(t.trips):null,'donated trips · all time','',!!t.trips],
-    [dn.corridors_publishable||null,'publishable corridors · k≥3','accent',dn.corridors_publishable>0],
-    [t.switched?fmt(t.switched):null,'trips switched lighter','accent',t.switched>0],
+    [dn.corridors_publishable||null,'publishable corridors · street cells ≥3 devices crossed','accent',dn.corridors_publishable>0],
+    [t.switched?fmt(t.switched):null,'trips switched lighter · all time','accent',t.switched>0],
     [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
-     `daily median pm2.5${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
+     `daily median pm2.5 · mid of live cells${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
-     `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'brick',t.dose_ug>0],
+     `cumulative dose · inhaled over all donated trips · ~${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'brick',t.dose_ug>0],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
     [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
-     `model error · ${maeL} (mae)${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null]];
+     `model error · ${maeL} (mae — vs held-out stations)${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null]];
   $('stats').innerHTML=cards.map(([v,l,cl,ok])=>
     `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div></div>`).join('');
 
@@ -647,7 +659,7 @@ async function tick(){
     ['age',`${ago(f.age_s)} ${freshBadge(f.stale)}`,true],
     ['samples',`${fmt(f.samples)} model pts · ${fmt(f.station_readings)} station readings`,true],
     ['snapshot on disk',ago(f.snapshot_age_s),true],
-    ['kriging',esc(f.kriging||'—'),true],
+    ['interpolation (kriging)',esc(f.kriging||'—'),true],
     ['σ band coverage',esc(f.sigma_coverage||'none — reads carry no honest uncertainty band'),true],
     ['coverage',cov&&cov.cells!=null?`${fmt(cov.cells)} cells · ±${cov.out_beyond_km??'—'} km edge`:'—',true],
     ['routing engine',S.routing&&S.routing.loaded
@@ -657,14 +669,14 @@ async function tick(){
     ['pollutants',(S.species&&Object.keys(S.species).length)
       ?`PM10 ${S.species.pm10?.mean??'—'} · NO₂ ${S.species.nitrogen_dioxide?.mean??'—'} · O₃ ${S.species.ozone?.mean??'—'} · CO ${S.species.carbon_monoxide?.mean??'—'} · SO₂ ${S.species.sulphur_dioxide?.mean??'—'} µg/m³${S.species.us_aqi?` · US AQI ${Math.round(S.species.us_aqi.mean)}`:''}`
       :'pm25 only — field serves no other species right now',true],
-    ['forecast horizon',(S.forecast&&S.forecast.hours)
+    ['forecast reach',(S.forecast&&S.forecast.hours)
       ?`${S.forecast.hours}h ahead · ${S.forecast.aq_points??'—'} grid pts · fetched ${ago(S.forecast.age_s)} ago${S.forecast.live_anchor&&S.forecast.live_anchor.enabled?' · anchored to the live field':''}`
       :'cold — warms on first /depart or /v2/city call',true],
     ['disk free',disk.free_pct!=null?`${disk.free_pct}%${disk.low?' · <span class="badge crit">low</span>':''}`:'—',true],
     ['provenance',esc(p.field||'—'),false],
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
     ||emptyMsg('field module unavailable on this box')
-    :emptyMsg(gated?'gated — admin token required':'status feed unavailable');
+    :emptyMsg(gated?'gated — operator token required':'status feed unavailable');
 
   /* --- 02 · fires over the field — real firms detections, ember = √frp,
      belt detections ringed; belt count + modifier trace live fields --- */
@@ -711,7 +723,7 @@ async function tick(){
     if(other>0)trows.push(['api · other routes',`${other} more tracked`,false]);
     if(!trs.length){
       $('timing').innerHTML=emptyMsg(gated
-        ?'gated — admin token required':'no requests measured yet');
+        ?'gated — operator token required':'no requests measured yet');
     }else{
       trows.unshift(['api timing · measured',`server stopwatch · window ${esc(timing.window||'since boot')} · p90 is the covering bucket edge`,false]);
       $('timing').innerHTML=trows.map(([k,v,main])=>
@@ -774,7 +786,7 @@ async function tick(){
   const dayKeys=Object.keys(days).sort();
   const share=dn.mode_share||[];
   $('donations').innerHTML=donations==null
-    ?emptyMsg(gated?'gated — admin token required':'donations feed unavailable')
+    ?emptyMsg(gated?'gated — operator token required':'donations feed unavailable')
     :(t.trips?`
       <dt>trips</dt><dd>${fmt(t.trips)} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}</dd>
       <dt>distance</dt><dd>${fmt1(t.km)} km · ${t.avg_km_per_trip??'—'} km/trip</dd>
@@ -802,7 +814,7 @@ async function tick(){
      so nothing shown can collapse to one person's journey */
   const feed=dn.recent||[];
   $('feedlist').innerHTML=donations==null
-    ?emptyMsg(gated?'gated — admin token required':'donations feed unavailable')
+    ?emptyMsg(gated?'gated — operator token required':'donations feed unavailable')
     :feed.length?
     `<div class="feed-h">live feed · busiest k≥3 hours</div>`+feed.map(e=>{
       const s=Math.max(0,Math.round(((dn.ts||Date.now()/1000)-(e.ts||0))));
@@ -879,7 +891,7 @@ async function tick(){
   $('pipe').innerHTML=(S.field||S.routing)
     ?steps.map(([n,t0,v,fr])=>
       `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div><div class="v">${v}</div><div class="fr">${esc(fr||'')}</div></div>`).join('')
-    :`<div class="empty-state" style="grid-column:1/-1"><b>insufficient data</b>${gated?'pipeline gated — admin token required':'status feed unavailable'}</div>`;
+    :`<div class="empty-state" style="grid-column:1/-1"><b>insufficient data</b>${gated?'pipeline gated — operator token required':'status feed unavailable'}</div>`;
 
   /* --- live field map --- */
   FM_WIND=f.wind||null;
@@ -917,7 +929,7 @@ async function tick(){
     </td></tr>`;
   }).join(''):`<tr><td colspan="8">${emptyMsg(
     corridors==null
-      ?(gated?'gated — admin token required':'corridor feed unavailable')
+      ?(gated?'gated — operator token required':'corridor feed unavailable')
       :'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
   document.querySelectorAll('#corridors .crow').forEach(tr=>
     tr.addEventListener('click',()=>{
@@ -949,7 +961,7 @@ async function tick(){
       +(model.plausible_max_kmh!=null?`<br>plausible ceiling ${model.plausible_max_kmh} km/h — faster 'trips' are flagged, never silently clamped`:'')
       +(cit.microenv?`<br><span style="color:var(--ink4)">${esc(cit.microenv)}${cit.ventilation?' · '+esc(cit.ventilation):''}</span>`:'');
   }else{
-    $('dosemath').innerHTML=`<tr><td colspan="3">${emptyMsg(gated?'gated — admin token required':'model card unavailable')}</td></tr>`;
+    $('dosemath').innerHTML=`<tr><td colspan="3">${emptyMsg(gated?'gated — operator token required':'model card unavailable')}</td></tr>`;
     $('doseformula').textContent='';
   }
 
@@ -990,10 +1002,10 @@ async function tick(){
   }
   if(validation)crows2.push(['full report',
     validation.report_md?'data/field_validation.md on disk':'not generated yet',false]);
-  if(gated)crows2.push(['more','validation rollups · weekly loso · daily rollup — gated, admin token required',false]);
+  if(gated)crows2.push(['more','validation rollups · weekly loso · daily rollup — gated, operator token required',false]);
   $('scorecard').innerHTML=crows2.length
     ?crows2.map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
-    :emptyMsg(gated?'gated — admin token required'
+    :emptyMsg(gated?'gated — operator token required'
       :'no validation outputs on disk yet — weekly rollup has not run');
 }
 
