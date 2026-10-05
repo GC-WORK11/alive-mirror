@@ -667,3 +667,12 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **`91271a1` app-hero.png swapped** — was the pre-dosimeter journey shot; now the REAL dosimeter home at HEAD (iOS sim, live data: ≈32µg today, THE MOVE band-colored curve, honest confidence line). Rebuilt the box's stale sim dev client (`expo run:ios` — killed a stray `ios/app.xcworkspace` decoy shadowing the real scheme) + hot-swapped HEAD bundle.
 - Spawned video-v4 `9770ef36` (cut4 at HEAD — perf changes invisible → footage stays valid). Board: me + apk-drive-v2 `ad8393f1` (+emu grandchild) + perf `e4be6a1e` + video `9770ef36` = 5.
 - apk-drive-v2 note: built APK at `7a4ff35` (pre-`a38d7fc` vibe-polish) — demo-phone APK gets ONE rebuild after perf lands, not per-commit.
+
+### cont.37 — apk-drive-v2 landed (D1 real fix) + perf first win (Oct 6 ~02:40 UTC)
+
+- **apk-drive-v2 COMPLETE** — APK `app-release-4270ab8.apk` at HEAD (D1 fix inside): https://app.devin.ai/attachments/60c3d297-71ea-4580-bf96-326f265e0ba4/app-release-4270ab8.apk — evidence: smoke-drive.mp4 + ev-whyhero (why line live on Android DelhiToday, 941µg hero, band-colored 12h) + ev-coldopen (honest sparse state, no fake number).
+- **D1 WAS A REAL BUG `4270ab8`** — not an emulator artifact: HomeScreen's `elevation:24` absoluteFill backdrop (added `6bafd2b`) stays mounted under DelhiToday/sidebar; Android dispatches sibling touches by z-order BEFORE mount order → home's ScrollView claimed drags through the scrim (~230px background scroll during "dead" swipes). All 7 overlay roots raised to `elevation:30` — iOS ignores the prop, taps unaffected. Verified by emulator probe (d1fix.mp4).
+- **perf first win `f1295b1`** — memo boundaries + stable props kill the poll-driven render storm (details in its report when it settles).
+- Lane verdict: fresh-install cold-open honest ("sampled too little to count it yet"), consent-off silent, journey intact (DRAWER2CLS held).
+- Next queued: apk-drive-v3 brief (final demo-phone build AFTER perf fully lands); ledger-math audit lane next spawn — does "≈N breathed" actually equal timeline×field server-side? That's the home hero's provability.
+- Board: me + perf `e4be6a1e` + video `9770ef36` + (spawn) ledger-audit.
