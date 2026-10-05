@@ -3,7 +3,10 @@
 Verified against live AWS build `a0e74abe` (ECS ap-south-1, task-def 39,
 FARGATE_SPOT); re-verified 2026-10-04 on `6a067ca4` (task-def ~110,
 osrm-local sidecar live); re-verified 2026-10-05 on `951eeb3c`
-(task-def :141, post dose re-anchor). Newer commits on `base/v2` ride
+(task-def :141, post dose re-anchor). *[drift note added 2026-10-05
+~16:30 IST: live now reports build `d08d9f74`, task-def `:142` — a newer
+deploy landed after the :141 verification pass; numbers below were true
+when read, re-check on the day per §Ops.]* Newer commits on `base/v2` ride
 the next image. Every
 number below was read off the running service — they drift with the
 field; re-check on the day. Nothing in the product is seeded or faked.

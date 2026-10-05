@@ -43,10 +43,16 @@ visible — from your phone/console:
   RUNNING → task details. ~10 s is enough.
 - Then `http://65.2.28.40/admin` in any browser — live ops board.
 
-## 5. Writeup — paste from docs/17-submission-writeup.md
+## 5. Writeup — paste from docs/submission/writeup.md
 
-Problem / Build / Where AWS fits / Validation / Impact — it's drafted
-and matches exactly what is deployed.
+*[edited 2026-10-05 — superseded: the authoritative Builder Center draft +
+AI-disclosure + public README + video trim plan + ordered checklist now
+live in `docs/submission/`; `docs/17` is the earlier draft kept for
+history. Numbers in docs/17 predate the dose re-anchor — prefer
+docs/submission/writeup.md.]*
+
+Problem / Build / Where AWS fits / Validation / Impact — drafted
+to match exactly what is deployed.
 
 ## 6. Optional extras if you find them
 
