@@ -555,3 +555,11 @@ All 10 findings closed + deployed + verified live:
 - **Atomic writes (a38ade7)**: store_blob local path + S3 mirror_local + sync_rollup_outputs were open(lp,'wb') — mid-write crash could leave a torn newest .json.gz silently forcing an older field. Shared _atomic_write helper (tmp+os.replace); torn-write test proves no partial + cleanup.
 - Touched-area tests: 190 green on the batch (exposure_v2, priced_displayed, parity_dose, admin_agg, contract_sync, emissions, rollup_lambda, ingest×3, 63s).
 - Lane still mid-run: sustained 12-way load table, endpoint fuzz, envelopes/hygiene, freshness/TTL audit remain.
+
+## cont.28 — dose re-anchor live + "Delhi breathes" timelapse (85c70587, main a4e8623)
+- Deployed `951eeb3c` then `85c70587`: dose factors re-anchored to Delhi literature (walk ME 1.30 Goel-2015, auto 1.30 Apte-1.46, VE seated 10-10.5 Zuurbier/EPA-EFH). **Mode gap now ~37× live** (walk 250µg vs car 6.8µg CP→Gurugram, 17 opts, 690ms). Walk on CP→India Gate reads 42-56µg/3.5km.
+- Internals hostile-read batch (2938a48): `_DEDUPE` flood-wipe → oldest-⅛ evict; `_review_rate` → LRU 5000; VE fallbacks 9.0/8.0 → canonical 10.0 (community conc-inversion ~25% overstated — ledger now honest). Suite 965+5.
+- **`/grid?h=N` timelapse shipped on /city + landing** (85c7058): "watch the day" plays real 12h forecast frames — verified live: cells paint pink by h+11 03:18 while district fills stay now-green. Caption honest ("cells = forecast hour · district fills = now"). Lazy prefetch, honest stop at h+11, control hides when /grid?h= errors.
+- Load (12-way 3min): 0 errors, took p50 4043/p95 18165 — serial-queueing on single worker, honest degraded flags, 0 rank violations.
+- Contract drift now CI-guarded (served-but-undeclared keys fail tests).
+- Board: mobile-demo + web-craft + demo-day + admin-showcase lanes.
