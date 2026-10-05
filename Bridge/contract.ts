@@ -266,6 +266,9 @@ export interface DepartResponse {
   slots?: DepartSlot[];
   forecast?: { aq_points: number; met_points: number; hours: number;
                age_s: number | null };
+  // present only when the epoch-keyed cache answered — lets clients/tests
+  // prove warm hits without timing the request
+  served_from_cache?: boolean;
   options?: CompareOption[];       // error path emits this (empty)
   error?: string;
 }

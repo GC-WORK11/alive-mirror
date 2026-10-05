@@ -957,6 +957,11 @@ async def aqi(lat: float, lon: float):
     this hour, per 9M measured station-hours."""
     if not _finite_coords(lat, lon):
         return {"pm25": None, "error": "non-finite coordinate"}
+    if not in_service_area(lat, lon):
+        # the field clamps to its nearest edge — without this gate a query
+        # for London gets Delhi air presented as its own (found in the
+        # malformed-input sweep: lat=51.5/lon=-0.12 answered 69.2µg)
+        return {"pm25": None, "error": OUT_OF_AREA}
     await asyncio.gather(_field_refresh_bounded(), _fires_refresh_bounded())
     mod = FIRES.smoke_modifier()
     v = FIELD.value(lat, lon, "pm2_5")
@@ -979,10 +984,13 @@ async def aqi(lat: float, lon: float):
     # serves (station-grounded where instruments measure them) — not
     # CAMS's own us_aqi cell, which runs on raw model pm10 and reported
     # ~230 tonight vs every public source's ~160. us_aqi_model keeps the
-    # raw model value for provenance.
+    # raw model value for provenance. pm25 enters at AMBIENT v — us_aqi is
+    # a public-facing ambient index; the smoke-breathing multiplier would
+    # put ~180 where public instruments read ~160.
     subs = {}
     for k, val in species.items():
-        s = ingest_waqi.us_aqi_sub_index(k, val) if val is not None else None
+        ambient = v if k == "pm25" else val
+        s = ingest_waqi.us_aqi_sub_index(k, ambient) if ambient is not None else None
         if s is not None:
             subs[k] = s
     us_aqi_v = round(max(subs.values())) if subs else None
@@ -1028,6 +1036,8 @@ async def today(lat: float, lon: float):
     the ledger screen's background curve."""
     if not _finite_coords(lat, lon):
         raise HTTPException(422, "non-finite coordinate")
+    if not in_service_area(lat, lon):
+        return {"hours_ist": [], "error": OUT_OF_AREA}
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     curve = history.diurnal_curve(lat, lon)
     return {
@@ -1270,6 +1280,8 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
     data-confidence so thin regions don't fake certainty."""
     if not _finite_coords(lat, lon):
         raise HTTPException(422, "non-finite coordinate")
+    if not in_service_area(lat, lon):
+        return {"best": [], "error": OUT_OF_AREA}
     await _field_refresh_bounded()
     home_v = FIELD.value(lat, lon, "pm2_5")
     x0, y0, x1, y1 = grid.BBOX
@@ -1341,6 +1353,8 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     rest ventilation) — the avoidable gap a gig driver pays daily."""
     if not _finite_coords(lat, lon):
         raise HTTPException(422, "non-finite coordinate")
+    if not in_service_area(lat, lon):
+        return {"dose_ug": None, "error": OUT_OF_AREA}
     hours = max(0.5, min(12.0, hours))
     await _field_refresh_bounded()
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))

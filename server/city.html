@@ -109,8 +109,15 @@
   .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:10.5px;
                 color:var(--ink2);line-height:1.8}
   .detail .d-conf{margin-top:4px;font-size:10px;color:var(--ink4);line-height:1.5}
-  @media(max-width:640px){.detail{top:auto;bottom:64px;left:12px;right:12px;
-    min-width:0;max-width:none}}
+  /* ≤640: chips become one scrollable row + provenance wraps under it so the
+     docked detail card clears the whole legend stack (bottom:112px) */
+  @media(max-width:640px){.detail{top:auto;bottom:112px;left:12px;right:12px;
+    min-width:0;max-width:none}
+    .chips{flex:0 0 100%;max-width:none;flex-wrap:nowrap;overflow-x:auto;
+           scrollbar-width:none}
+    .chips::-webkit-scrollbar{display:none}
+    .chip{white-space:nowrap}
+    .m-src{margin-left:auto}}
 
   /* ---------- status strip — the ticker's numbers, standing still ---------- */
   .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
