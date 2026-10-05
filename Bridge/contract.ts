@@ -565,6 +565,36 @@ export interface V2RerouteResponse {
   error?: string;
 }
 
+export interface V2ReachResponse {
+  // GET /v2/reach?lat&lon&mode&budget_ug — the dose-budget reachable
+  // region ("where your lungs can go inside today's µg budget"): a
+  // bounded Dijkstra over the same directed-edge-state expansion as
+  // the least-dose engine, settling every edge whose dose stays inside
+  // the budget. The veil is the real settled edge set, never a
+  // smoothed region.
+  from: { lat: number; lon: number };
+  mode: string;                 // resolved engine mode (unknown → "car")
+  budget_ug: number;            // dose budget actually applied (>=0)
+  snap_m: number | null;        // origin snap distance; null on early errors
+  // settled road-edge polylines, flat micro-degree ints [lon,lat,...]
+  // — the graph's native coord format; sliced in settle order when
+  // edge_count exceeds the serve cap
+  edges_e6: number[][];
+  edge_count: number;           // settled undirected edges (>= edges_e6.len)
+  edge_partial: boolean;        // true when the veil was payload-sliced
+  expanded: number;             // directed edge states the Dijkstra settled
+  nodes: number;                // distinct graph nodes reached (incl. origin)
+  distance_km: number;          // summed length of settled edges
+  frontier_budget_ug: number;   // max settled dose — <= budget_ug
+  truncated: boolean;           // true when the ~2M-state cap cut the search
+  field_age_s: number | null;
+  took_ms: number;
+  error?: string;
+  // typed rejection: outside_service_area | engine_unavailable |
+  // no_snap | bad_request | timeout
+  code?: string;
+}
+
 export interface V2TripRequest {
   device_token?: string;        // opaque; hashed server-side, never stored
   summary?: { mode?: string; distance_km?: number; duration_s?: number;

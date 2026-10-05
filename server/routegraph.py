@@ -299,6 +299,16 @@ class PyPathEngine:
             return c
         return self.field_mean if self.field_mean is not None else 0.0
 
+    def _conc32(self, i):
+        """_conc through the C++ storage type. The engine keeps per-edge
+        concentration in float32 while Python holds float64 — quantizing
+        keeps the bounded-Dijkstra inputs (and so the settled sets)
+        bit-identical between twins in the parity tests."""
+        c = self.conc[i]
+        if c is not None:
+            return struct.unpack("<f", struct.pack("<f", c))[0]
+        return self.field_mean if self.field_mean is not None else 0.0
+
     # ---- A* over dose cost ----
     def _legal(self, e_i, rev, rule):
         """can `mode` traverse edge e_i in direction rev? (access only —
@@ -471,6 +481,107 @@ class PyPathEngine:
                 accepted_edges |= cids
             taxed |= cids
         return out
+
+    def reach(self, lat, lon, mode="car", budget_ug=0.0,
+              max_states=2_000_000):
+        """Dose-budget reachable region — parity oracle for
+        alive_core.PathEngine.reach (same keys the binding emits).
+
+        The _route expansion run as plain bounded Dijkstra: directed
+        edge states sid = (e << 1) | rev, same legality/turn-ban/dose
+        pricing, no heuristic, no destination — settles every state
+        whose dose stays <= budget_ug, in settle order, until the queue
+        drains or max_states pops. States priced over budget never enter
+        the queue; pop order is non-decreasing g so the last settled g
+        is the honest frontier dose."""
+        g = self.g
+        rule = MODE_RULES.get(mode) or MODE_RULES["car"]
+        ve = MODE_VE.get(mode, 10.0)
+        me = MODE_ME.get(mode, 1.0)
+        s, sd = self.snap(lat, lon, mode, "from")
+        if s is None:
+            return {"error": "no graph node near endpoint"}
+
+        def cost(e_i, travel_rev):
+            if not self._legal(e_i, travel_rev, rule):
+                return None
+            e = e_i & 0x7FFFFFFF
+            sp = rule["spd"](g.e_sp[e])
+            # identical integrand to _route — through the float32 the
+            # C++ twin actually stores (see _conc32)
+            return (self._conc32(e) * me * (ve / 1000.0)
+                    * (0.06 / sp))
+
+        turn_bit = rule["turn"]
+        gscore = {}
+        pq = []
+        settled = set()
+        edges_seen = set()
+        edge_ids = []
+        seen_node = bytearray(g.n_nodes)
+        seen_node[s] = 1
+        nodes, expanded = 1, 0
+        frontier_ug, distance_m = 0.0, 0.0
+        truncated = False
+        for ei in g.adj[s]:
+            e = ei & 0x7FFFFFFF
+            rev = bool(ei & 0x80000000)
+            rate = cost(ei, rev)
+            if rate is None:
+                continue
+            ng = rate * g.e_len[e]
+            if ng > budget_ug:
+                continue
+            sid = (e << 1) | (1 if rev else 0)
+            gscore[sid] = ng
+            heapq.heappush(pq, (ng, sid))
+        while pq:
+            gc, sid = heapq.heappop(pq)
+            if sid in settled:
+                continue
+            settled.add(sid)
+            expanded += 1
+            frontier_ug = gc          # pops are non-decreasing in g
+            e = sid >> 1
+            rev = bool(sid & 1)
+            if e not in edges_seen:
+                edges_seen.add(e)
+                edge_ids.append(e)
+                distance_m += g.e_len[e]
+            n = g.e_v[e] if not rev else g.e_u[e]
+            if not seen_node[n]:
+                seen_node[n] = 1
+                nodes += 1
+            if expanded >= max_states:
+                truncated = True
+                break
+            d_raw = e | 0x80000000 if rev else e
+            bans = g.bans.get((d_raw, n))
+            for ei in g.adj[n]:
+                rev2 = bool(ei & 0x80000000)
+                e2 = ei & 0x7FFFFFFF
+                if bans is not None and \
+                        bans.get(ei, 0) & turn_bit:
+                    continue          # restricted turn
+                rate = cost(ei, rev2)
+                if rate is None:
+                    continue
+                ng = gc + rate * g.e_len[e2]
+                if ng > budget_ug:
+                    continue
+                sid2 = (e2 << 1) | (1 if rev2 else 0)
+                if sid2 not in gscore or ng < gscore[sid2] - 1e-9:
+                    gscore[sid2] = ng
+                    heapq.heappush(pq, (ng, sid2))
+        return {
+            "edge_ids": edge_ids,
+            "expanded": expanded,
+            "nodes": nodes,
+            "frontier_ug": frontier_ug,
+            "distance_m": distance_m,
+            "snap_m": sd,
+            "truncated": truncated,
+        }
 
     def _route(self, olat, olon, dlat, dlon, mode, tax):
         """One least-dose A* solve; `tax` optionally maps edge id →

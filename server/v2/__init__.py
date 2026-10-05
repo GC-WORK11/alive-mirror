@@ -16,12 +16,12 @@ if _SERVER_DIR not in sys.path:
 
 from fastapi import APIRouter  # noqa: E402
 
-from . import city, day, ledger, places, plan, search, strip, trip  # noqa: E402
+from . import city, day, ledger, places, plan, reach, search, strip, trip  # noqa: E402
 
 router = APIRouter(prefix="/v2", tags=["v2"])
 for _r in (search.router, places.router, plan.router,
            strip.router, trip.router, city.router, ledger.router,
-           day.router):
+           day.router, reach.router):
     router.include_router(_r)
 
 __all__ = ["router"]

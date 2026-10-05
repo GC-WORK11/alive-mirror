@@ -58,6 +58,23 @@ struct PathResult {
   double snap_to_m = 0.0;
 };
 
+// Dose-budget reachable region — /v2/reach ("where your lungs can go
+// inside today's µg budget"). The same directed-edge-state expansion
+// as the A* below, run as plain Dijkstra: no heuristic, no
+// destination, settles every state whose dose stays <= budget_ug.
+struct ReachResult {
+  bool ok = false;
+  std::string error;                    // set when !ok
+  std::vector<uint32_t> edge_ids;       // settled undirected ids,
+                                        // first-settle order
+  int64_t expanded = 0;                 // directed edge states settled
+  int nodes = 0;                        // distinct nodes reached (incl. origin)
+  double frontier_ug = 0.0;             // largest settled dose (<= budget)
+  double distance_m = 0.0;              // summed length of settled edges
+  double snap_m = 0.0;
+  bool truncated = false;               // expansion cap cut the search
+};
+
 struct PathRule {
   // highway classes this mode may not use (bitmask, bit i = hw code i)
   uint32_t deny_mask = 0;
@@ -102,6 +119,17 @@ class PathEngine {
   static constexpr double kAltTax = 1.5;
   static constexpr int kAltMaxAttempts = 4;
   static constexpr double kAltMaxShared = 0.85;
+
+  // Dose-budget reachable region: bounded Dijkstra from the snapped
+  // origin — identical edge pricing (conc × me × ve/sp), legality and
+  // turn bans to route(), but no heuristic and no destination. Pops
+  // states until the frontier dose would exceed budget_ug or the
+  // expansion cap trips. Parity oracle:
+  // routegraph.py PyPathEngine.reach.
+  ReachResult reach(double lat, double lon, const std::string& mode,
+                    double budget_ug,
+                    int64_t max_states = kReachMaxStates) const;
+  static constexpr int64_t kReachMaxStates = 2000000;
 
   size_t n_nodes() const { return node_lon_.size(); }
   size_t n_edges() const { return e_u_.size(); }

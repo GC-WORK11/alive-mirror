@@ -198,6 +198,31 @@ py::list path_alternatives(PathEngine& eng, double olat, double olon,
   return out;
 }
 
+py::dict path_reach(PathEngine& eng, double lat, double lon,
+                    const std::string& mode, double budget_ug,
+                    int64_t max_states) {
+  ReachResult r;
+  {
+    py::gil_scoped_release rel;   // bounded Dijkstra is pure C++
+    r = eng.reach(lat, lon, mode, budget_ug, max_states);
+  }
+  py::dict out;
+  if (!r.ok) {
+    out["error"] = r.error;
+    return out;
+  }
+  py::list ids;
+  for (const uint32_t e : r.edge_ids) ids.append(e);
+  out["edge_ids"] = std::move(ids);
+  out["expanded"] = r.expanded;
+  out["nodes"] = r.nodes;
+  out["frontier_ug"] = r.frontier_ug;
+  out["distance_m"] = r.distance_m;
+  out["snap_m"] = r.snap_m;
+  out["truncated"] = r.truncated;
+  return out;
+}
+
 FieldView make_field_view(const py::list& rows, double coverage_km) {
   std::vector<FieldCell> cells;
   cells.reserve(rows.size());
@@ -508,6 +533,9 @@ PYBIND11_MODULE(alive_core, m) {
       .def("reweight", &path_reweight, py::arg("field"))
       .def("query", &path_query, py::arg("olat"), py::arg("olon"),
            py::arg("dlat"), py::arg("dlon"), py::arg("mode") = "car")
+      .def("reach", &path_reach, py::arg("lat"), py::arg("lon"),
+           py::arg("mode") = "car", py::arg("budget_ug") = 0.0,
+           py::arg("max_states") = PathEngine::kReachMaxStates)
       .def("alternatives", &path_alternatives, py::arg("olat"),
            py::arg("olon"), py::arg("dlat"), py::arg("dlon"),
            py::arg("mode") = "car", py::arg("max_alts") = 2)

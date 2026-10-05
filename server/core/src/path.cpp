@@ -467,6 +467,101 @@ std::vector<PathResult> PathEngine::alternatives(
   return out;
 }
 
+ReachResult PathEngine::reach(double lat, double lon,
+                              const std::string& mode, double budget_ug,
+                              int64_t max_states) const {
+  // one shared hold for the whole sweep — same conc epoch rule as route()
+  std::shared_lock<std::shared_mutex> conc_lk(conc_mtx_);
+  ReachResult res;
+  const int mi = mode_index(mode);
+  const PathRule& rl = kRules[mi];
+  const double ve = kModeVE[mi], me = kModeME[mi];  // audit-synced
+  double sd = 0.0;
+  const int s = snap(lat, lon, mi, 0, &sd);         // origin-side screen
+  res.snap_m = sd;
+  if (s < 0) {
+    res.error = "no graph node near endpoint";
+    return res;
+  }
+
+  // bounded Dijkstra — the route() expansion verbatim minus the
+  // heuristic and the destination check: sid = (e << 1) | rev states,
+  // turn bans key on the arrival edge. States priced over budget never
+  // enter the queue (they could only settle past the frontier anyway);
+  // the pop order is non-decreasing g, so the last settled g is the
+  // honest frontier dose.
+  const size_t ns = e_u_.size() * 2;
+  std::vector<double> gs(ns, std::numeric_limits<double>::infinity());
+  std::vector<char> settled(ns, 0);
+  std::vector<char> seen_node(node_lon_.size(), 0);
+  std::unordered_set<uint32_t> edges_seen;
+  seen_node[s] = 1;
+  res.nodes = 1;
+  using QI = std::pair<double, uint32_t>;             // (g, sid)
+  std::priority_queue<QI, std::vector<QI>, std::greater<QI>> pq;
+  for (uint32_t a = adj_off_[s]; a < adj_off_[s + 1]; ++a) {
+    const uint32_t ei = adj_flat_[a];
+    const bool rev = (ei & 0x80000000u) != 0;
+    const uint32_t e = ei & 0x7FFFFFFFu;
+    if (!legal(e, rev, rl)) continue;
+    const double sp = mode_speed(e, rl);
+    const double rate = conc(e) * me * (ve / 1000.0) * (0.06 / sp);
+    const double ng = rate * e_len_[e];
+    if (ng > budget_ug) continue;
+    const uint32_t sid = (e << 1) | (rev ? 1u : 0u);
+    gs[sid] = ng;
+    pq.emplace(ng, sid);
+  }
+  while (!pq.empty()) {
+    const auto [gc, sid] = pq.top();
+    pq.pop();
+    if (settled[sid]) continue;
+    settled[sid] = 1;
+    ++res.expanded;
+    res.frontier_ug = gc;   // pops are non-decreasing in g
+    const uint32_t e = sid >> 1;
+    const bool rev = (sid & 1) != 0;
+    if (edges_seen.insert(e).second) {
+      res.edge_ids.push_back(e);
+      res.distance_m += e_len_[e];
+    }
+    const uint32_t n = rev ? e_u_[e] : e_v_[e];
+    if (!seen_node[n]) {
+      seen_node[n] = 1;
+      ++res.nodes;
+    }
+    if (res.expanded >= max_states) {
+      res.truncated = true;
+      break;
+    }
+    const uint32_t d_raw = rev ? (e | 0x80000000u) : e;
+    const auto bit = bans_.find((static_cast<uint64_t>(d_raw) << 32) |
+                                static_cast<uint64_t>(n));
+    for (uint32_t a = adj_off_[n]; a < adj_off_[n + 1]; ++a) {
+      const uint32_t ei = adj_flat_[a];
+      const bool rev2 = (ei & 0x80000000u) != 0;
+      const uint32_t e2 = ei & 0x7FFFFFFFu;
+      if (bit != bans_.end()) {
+        const auto oi = bit->second.find(ei);
+        if (oi != bit->second.end() && (oi->second & rl.turn_mask))
+          continue;                    // banned turn
+      }
+      if (!legal(e2, rev2, rl)) continue;
+      const double sp = mode_speed(e2, rl);
+      const double rate = conc(e2) * me * (ve / 1000.0) * (0.06 / sp);
+      const double ng = gc + rate * e_len_[e2];
+      if (ng > budget_ug) continue;
+      const uint32_t sid2 = (e2 << 1) | (rev2 ? 1u : 0u);
+      if (ng < gs[sid2] - 1e-9) {
+        gs[sid2] = ng;
+        pq.emplace(ng, sid2);
+      }
+    }
+  }
+  res.ok = true;
+  return res;
+}
+
 PathResult PathEngine::route(double olat, double olon, double dlat,
                              double dlon, int mi,
                              const std::vector<double>* tax) const {

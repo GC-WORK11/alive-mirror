@@ -256,6 +256,9 @@ def _fetchers():
             "vehicle": "car"}).json(),
         "V2RerouteResponse": lambda: client.post(
             "/v2/reroute", json={}).json(),
+        "V2ReachResponse": lambda: client.get("/v2/reach", params={
+            "lat": CP[0], "lon": CP[1], "mode": "walk",
+            "budget_ug": 25}).json(),
         "V2TripResponse": lambda: client.post("/v2/trip", json={
             "device_token": "contract-tok",
             "summary": {"mode": "car", "distance_km": 3.0,
@@ -365,6 +368,7 @@ def test_contract_file_parses():
                      "V2PlanResponse", "V2TripResponse", "V2StripResponse",
                      "V2CityResponse", "V2CityMovesResponse",
                      "V2RerouteResponse", "V2Place", "FieldStatus",
+                     "V2ReachResponse",
                      "DecideResponse", "V2MovesBand", "V2CityModeShare",
                      "V2MovesWindow", "V2MovesCorridors", "V2MovesPerTrip"):
         assert name in CONTRACT, f"{name} missing from contract.ts"
