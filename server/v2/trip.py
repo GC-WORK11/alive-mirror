@@ -103,6 +103,26 @@ _BOUNDS = {
     "co2_avoided_kg": (0.0, 200.0),
 }
 CO2_SPLIT_KEYS = ("co2_moving_g", "co2_idle_g", "co2_cold_g")
+
+# --- plausibility floor (app-stress N2) --------------------------------------
+# A donation must describe a traversal that could have happened. The
+# hostile drive's phantom-arrival bug proved a 0 km / 37 s "trip" can
+# reach ingest; the collective totals (trips, modes, dose, km) count
+# whatever lands. Two honest floors, both still generous:
+#   * MIN_TRIP_KM — under this it is a cancelled nav or GNSS noise,
+#     real telemetry but never a traversal (and its trajectory would
+#     trim to zero corridor cells anyway). A cancelled-nav donation
+#     still POSTs from a real device — that is decided here as not a
+#     trip: the collective counts traversals, and the app keeps its own
+#     ledger copy regardless.
+#   * MAX_SPEED_KMH — implied average speed past every Delhi mode's
+#     physical ceiling is a bug or an injection. No lower bound:
+#     Delhi jams really do park a "trip" for hours, and its in-traffic
+#     dose is honest data.
+# duration_s stays optional (older clients may not send it) — the
+# check only runs when both numbers are present.
+MIN_TRIP_KM = 0.1       # 100 m — nobody navigates less
+MAX_SPEED_KMH = 140.0   # airport-express peak ≈120; nothing real tops it
 # A mode is a vehicle-class token — word characters, spaces and '+'.
 # Anything carrying markup or punctuation can never reach mode_share.
 # '+' is in the class because the planner itself emits multimodal modes
@@ -233,6 +253,13 @@ async def post_trip(body: dict):
         # either failed every sanity check or was never a trip at all;
         # storing it would only mint a zero-km count that bumps the totals
         raise HTTPException(422, "missing or implausible distance_km")
+    dist = summary["distance_km"]
+    if dist < MIN_TRIP_KM:
+        raise HTTPException(422, "implausibly short trip")
+    dur = summary.get("duration_s")
+    if dur is not None and not (dur > 0.0
+                              and dist / (dur / 3600.0) <= MAX_SPEED_KMH):
+        raise HTTPException(422, "implausible duration_s for distance_km")
     dupe = _seen_dupe(_dupe_key(token_hash, cells, summary))
     # endpoint areas for the admin global layer — the trimmed first/last
     # kept point snapped to its district/sub-district NAME (a string,

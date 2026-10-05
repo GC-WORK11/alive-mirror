@@ -777,10 +777,47 @@ function AppInner() {
       {/* SEAM(breath-chip): optional "breathing heavier/lighter" chip while moving
           (doc 02 §S1) — needs a real trailing-30min baseline; not yet wired. */}
 
+      {/* freshness chip — real field age on the map screen: the /v2/plan
+          field block during compare, else the polled /aqi field block.
+          Stale shows as stale; no field → nothing claims freshness. */}
+      {phase !== "nav" && phase !== "search" && !homeOpen && mapField && (
+        <View style={[s.freshWrap, { top: insets.top + 62 }]} pointerEvents="box-none">
+          <FreshnessChip
+            ageS={mapField.age_s} stale={mapField.stale}
+            sources={fieldSources(mapField)} lang={lang} compact />
+        </View>
+      )}
+      {phase === "compare" && (
+        <CompareSheet options={options} selected={selected} onSelect={setSelected}
+          depart={depart} departCurve={departCurve} notified={notified}
+          onRemind={remind} loading={loadingRoute} refining={refining}
+          steps={steps} stepsOpen={stepsOpen} onToggleSteps={onToggleSteps}
+          onStart={startNav} onClose={closeCompareToHome} lang={lang}
+          vehicle={vehicle} onVehiclePress={onVehiclePress}
+          onVehicleChange={applyVehicle}
+          planError={planError} onRetry={retryPlan} degraded={planDegraded}
+          fieldAgeS={planField?.age_s}
+          showCig={settings.show_cig} />
+      )}
+      {phase === "nav" && sel && (
+        <NavSession option={sel} options={options} from={from} to={to} steps={steps}
+          camRef={camRef} lang={lang} share={settings.share} voice={settings.voice}
+          onExit={onNavExit}
+          vehicle={vehicle} showCig={settings.show_cig} onTripDone={recordTrip} />
+      )}
+
       {/* offline/stale pill — real request outcomes drive it (offline/
           status.ts): live data → no pill; last-good or nothing → labelled,
           pending trip donations counted, tap re-probes. apiOk kept as the
-          belt-and-suspenders health check from before. */}
+          belt-and-suspenders health check from before.
+          Mounts AFTER NavSession: z-order on this stack is sibling
+          mount-order (iOS) and elevation-then-mount-order (Android —
+          the D1 finding), so this slot puts the pill above the nav turn
+          card (same V2Elev.float rung, later mount) while every sheet
+          below still beats it — "above map chrome, below sheets". The
+          overlap with the turn card's lower edge is deliberate: during
+          nav the +92 slot belongs to the engine's own status pills
+          (reroute / outside-field / strip-unavailable). */}
       {(net.state !== "online" || apiOk === false) && (
         <Pressable style={[s.offlineWrap, { top: insets.top + 66 }]} onPress={() => { tick(); void net.refresh(); }}
           accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
@@ -811,34 +848,6 @@ function AppInner() {
             {t("mapPickHint", lang)}
           </Text>
         </Pressable>
-      )}
-      {/* freshness chip — real field age on the map screen: the /v2/plan
-          field block during compare, else the polled /aqi field block.
-          Stale shows as stale; no field → nothing claims freshness. */}
-      {phase !== "nav" && phase !== "search" && !homeOpen && mapField && (
-        <View style={[s.freshWrap, { top: insets.top + 62 }]} pointerEvents="box-none">
-          <FreshnessChip
-            ageS={mapField.age_s} stale={mapField.stale}
-            sources={fieldSources(mapField)} lang={lang} compact />
-        </View>
-      )}
-      {phase === "compare" && (
-        <CompareSheet options={options} selected={selected} onSelect={setSelected}
-          depart={depart} departCurve={departCurve} notified={notified}
-          onRemind={remind} loading={loadingRoute} refining={refining}
-          steps={steps} stepsOpen={stepsOpen} onToggleSteps={onToggleSteps}
-          onStart={startNav} onClose={closeCompareToHome} lang={lang}
-          vehicle={vehicle} onVehiclePress={onVehiclePress}
-          onVehicleChange={applyVehicle}
-          planError={planError} onRetry={retryPlan} degraded={planDegraded}
-          fieldAgeS={planField?.age_s}
-          showCig={settings.show_cig} />
-      )}
-      {phase === "nav" && sel && (
-        <NavSession option={sel} options={options} from={from} to={to} steps={steps}
-          camRef={camRef} lang={lang} share={settings.share} voice={settings.voice}
-          onExit={onNavExit}
-          vehicle={vehicle} showCig={settings.show_cig} onTripDone={recordTrip} />
       )}
 
       {/* the dosimeter home — resting surface; covers the idle map and

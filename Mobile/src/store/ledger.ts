@@ -8,7 +8,6 @@ const CIG_UG = 316;
 // WHO 2021 24-h PM2.5 guideline 15 µg/m³ × ~14.4 m³ inhaled/day.
 const BUDGET_UG = 216;
 const FILE = new File(Paths.document, "ledger.json");
-const DEDUPE_MS = 10 * 60 * 1000;
 const MAX_TRIPS = 500; // persisted bound — every write truncates to this
 
 export type Trip = {
@@ -86,19 +85,15 @@ export async function loadTrips(): Promise<Trip[]> {
 }
 
 export async function logTrip(t: Trip): Promise<Trip[]> {
+  /* No dedupe — deliberately. The nav engine's arrivedRef already
+     guarantees one arrival callback per session, and the old 10-min
+     same-name keep-first suppression only ever masked phantom-arrival
+     noise while silently eating real trips: two genuine rides with the
+     same O&D inside the window merged into one row (app-stress F2), and
+     the key itself was locale-fragile (from/to are display strings that
+     change with the app language). A ledger must never drop a real
+     trip — every completed ride lands as its own row. */
   const trips = await ensureMem();
-  const dup = trips.find(
-    (x) => x.from === t.from && x.to === t.to && x.vehicle === t.vehicle &&
-      t.ts - x.ts < DEDUPE_MS,
-  );
-  if (dup) {
-    // backfill coords on older entries that predate them
-    let changed = false;
-    if (dup.fromLat == null && t.fromLat != null) { dup.fromLat = t.fromLat; dup.fromLon = t.fromLon; changed = true; }
-    if (dup.toLat == null && t.toLat != null) { dup.toLat = t.toLat; dup.toLon = t.toLon; changed = true; }
-    if (changed) scheduleWrite();
-    return trips.slice();
-  }
   trips.push(t);
   scheduleWrite();
   return trips.slice();

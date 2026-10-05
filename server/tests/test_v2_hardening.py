@@ -465,6 +465,61 @@ def test_trip_mode_metro_plus_walk_survives():
     assert day["modes"].get("metro+walk") == 1, day["modes"]
 
 
+# --- /v2/trip plausibility floor (app-stress N2) -------------------------------
+def test_trip_phantom_donations_rejected_and_never_counted():
+    """The hostile drive's wire capture — a 0 km / 37 s "arrival" — and
+    its neighbours (sub-100 m, implied >140 km/h) must be refused at
+    ingest and never reach the community totals. A cancelled nav can
+    honestly produce a ~0 km donation; it is still not a traversal, so
+    422 is the answer (the app keeps its own ledger row regardless)."""
+    day_key = time.strftime("%Y-%m-%d", time.gmtime())
+    before = client.get("/v2/city").json()["trips"]["days"].get(day_key, {})
+    trips_before = before.get("trips", 0)
+
+    phantoms = [
+        {"mode": "auto", "distance_km": 0, "duration_s": 37},   # F1 wire proof
+        {"mode": "auto", "distance_km": 0.04, "duration_s": 60},  # under floor
+        {"mode": "auto", "distance_km": 5.0, "duration_s": 20},   # 900 km/h
+        {"mode": "auto", "distance_km": 2.0, "duration_s": 0},    # instant travel
+    ]
+    for i, summary in enumerate(phantoms):
+        r = client.post("/v2/trip", json={
+            "device_token": f"phantom-{i}",
+            "summary": summary, "trajectory": []})
+        assert r.status_code == 422, f"{summary} → {r.status_code}"
+
+    day = client.get("/v2/city").json()["trips"]["days"].get(day_key, {})
+    assert day.get("trips", 0) == trips_before, (
+        f"phantom donations reached the totals: {day}")
+
+
+def test_trip_plausible_receipt_still_lands():
+    """The floor must not eat real receipts: a slow 1.8 km / 5 min auto
+    ride (≈22 km/h) and a fast 12 km / 6 min express run (120 km/h)
+    both store."""
+    for tok, summary in (
+        ("real-auto", {"mode": "auto", "distance_km": 1.8,
+                       "duration_s": 300, "dose_ug": 1.1}),
+        ("real-express", {"mode": "metro", "distance_km": 12.0,
+                          "duration_s": 360, "dose_ug": 3.4}),
+    ):
+        r = client.post("/v2/trip", json={
+            "device_token": tok, "summary": summary,
+            "trajectory": [[77.20 + i * 0.0011, 28.63] for i in range(50)]})
+        assert r.status_code == 200 and r.json()["stored"], summary
+
+
+def test_trip_distance_only_donation_still_lands():
+    """duration_s is optional — a distance-only donation can't be
+    speed-checked but is still bounded elsewhere; it must not be
+    refused by the floor."""
+    r = client.post("/v2/trip", json={
+        "device_token": "no-duration",
+        "summary": {"mode": "walk", "distance_km": 0.8},
+        "trajectory": []})
+    assert r.status_code == 200 and r.json()["stored"]
+
+
 # --- DELETE /v2/ledger ---------------------------------------------------------
 def test_ledger_delete_requires_token():
     """'Delete my data' takes a device token — no token, no scoped wipe,
