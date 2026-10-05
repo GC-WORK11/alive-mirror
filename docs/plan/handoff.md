@@ -658,3 +658,12 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **perf-fps lane `e4be6a1e` SPAWNED** — nativeDriver A/B (respecting ui.tsx:159 documented crash + ReceiptSheet width%), memoization hunt, D1 gesture, startup residual.
 - Board: me + red-team `65440f43` + apk-drive-v2 `ad8393f1` (+emulator `c701489f`) + perf `e4be6a1e` = 5.
 - app-hero.png swap queued: waiting apk-drive-v2's HEAD home shot (lane's composited rows pre-date vibe-polish).
+
+### cont.36 — red-team landed + 2 deploys verified + hero swapped to real home (Oct 6 ~02:00 UTC)
+
+- **red-team COMPLETE `90a1f60`** — ~280 live probes, zero writes/deploys. **F1 HIGH**: `/directions` lacked the service-area guard `/route` has — Mumbai→CP snapped ~1,100km onto the Delhi graph and served a fabricated route+steps. Now `{"steps":[],"error":OUT_OF_AREA}` — verified live on `90a1f60b`. **F2 MED**: `/escape` `limit` had le=10 no floor — `limit=-5` sliced ~185 cells → sequential Photon geocodes → 19.5s single-worker stall; `ge=0` → 422 in 0.45s verified. 6 documented non-breaks (D1-D6). Honesty audit: all claims hold except drift — breath ≈**2.98 cig** (say "~3"), depart ~100 honest slots (was "110"), spread 29-35× live-tonight 35.1×, `/v2/skill` honestly `thin` (5-pair floor; fallback line written). **95.2% vs 79.2% reconciliation written**: 95.2 = temporal σ-fit 3,550 station-hours; 79.2 = live weekly LOSO spatial — "a harder test we publish anyway". 3 scariest-left: single-worker cold path (retry line scripted), skill thin on day (thinness IS the demo), drifting numbers (quote ranges).
+- **Deployed `90a1f60b`** then **`0d38962f`**: build_sha verified, field ~108s, transit compiled.
+- **`0d38962` /escape parallel geocodes** — sequential Photon round-trips from ap-south-1 ran ~5s each → ~24s/request warm (legacy v1, not on app path, but a curl-judge wart). gather + 6s timeout.
+- **`91271a1` app-hero.png swapped** — was the pre-dosimeter journey shot; now the REAL dosimeter home at HEAD (iOS sim, live data: ≈32µg today, THE MOVE band-colored curve, honest confidence line). Rebuilt the box's stale sim dev client (`expo run:ios` — killed a stray `ios/app.xcworkspace` decoy shadowing the real scheme) + hot-swapped HEAD bundle.
+- Spawned video-v4 `9770ef36` (cut4 at HEAD — perf changes invisible → footage stays valid). Board: me + apk-drive-v2 `ad8393f1` (+emu grandchild) + perf `e4be6a1e` + video `9770ef36` = 5.
+- apk-drive-v2 note: built APK at `7a4ff35` (pre-`a38d7fc` vibe-polish) — demo-phone APK gets ONE rebuild after perf lands, not per-commit.
