@@ -1075,7 +1075,7 @@ function rchPaint(b){
   const km=(b.distance_km||0).toLocaleString('en-IN',{maximumFractionDigits:1});
   let cap=`${RCH.mode} · ≤${RCH.budget} µg dust — ${km} km of roads reachable · ${(b.edge_count||0).toLocaleString('en-IN')} road segments drawn`;
   if(b.truncated)cap+=' · reach stopped early — the engine hit its limit';
-  if(b.edge_partial)cap+=` · the map shows the nearest ${(b.edges_e6.length||0).toLocaleString('en-IN')} of them`;
+  if(b.edge_partial)cap+=` · the map shows a uniform sample of ${(b.edges_e6.length||0).toLocaleString('en-IN')} of them`;
   /* the decode+paint is chunked across frames — a 90k-edge payload was a
      ~150 ms main-thread block as one path; now each frame decodes only
      what it can paint inside its budget. the caption counts honestly

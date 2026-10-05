@@ -166,7 +166,18 @@ def _solve(eng, lat, lon, mode, budget):
     if not isinstance(res, dict) or res.get("error") or res.get("code"):
         return res
     ids = res.get("edge_ids") or []
-    served = ids[:EDGE_SERVE_MAX]
+    # Settle order is dose-ascending, so ids[:N] paints only the
+    # cheapest core around the anchor — for a big settled region (car
+    # modes routinely settle ~10x the cap) the veil showed a blob, not
+    # the real reach. A uniform stride across settle order paints the
+    # full extent at the same edge count and wire size — every dose
+    # band represented, no region invented. edge_partial still says
+    # honestly that the served set is a subset.
+    if len(ids) > EDGE_SERVE_MAX:
+        stride = len(ids) / EDGE_SERVE_MAX
+        served = [ids[int(i * stride)] for i in range(EDGE_SERVE_MAX)]
+    else:
+        served = ids
     g = _geom()
     return {
         "snap_m": res.get("snap_m"),

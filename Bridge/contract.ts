@@ -584,8 +584,9 @@ export interface V2ReachResponse {
   budget_ug: number;            // dose budget actually applied (>=0)
   snap_m: number | null;        // origin snap distance; null on early errors
   // settled road-edge polylines, flat micro-degree ints [lon,lat,...]
-  // — the graph's native coord format; sliced in settle order when
-  // edge_count exceeds the serve cap
+  // — the graph's native coord format; when edge_count exceeds the
+  // serve cap the served set is a uniform stride across settle order
+  // (dose bands sampled evenly, full reachable extent painted)
   edges_e6: number[][];
   edge_count: number;           // settled undirected edges (>= edges_e6.len)
   edge_partial: boolean;        // true when the veil was payload-sliced

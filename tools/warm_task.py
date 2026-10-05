@@ -15,8 +15,11 @@ What it does, in order — every call is a real endpoint, no fake data:
                                carries steps_source "endpoints" (i.e.
                                the priced engine contributed alts)
   4. GET /reports, /v2/city -> admin/community surfaces
-  5. GET /grid?h=12, /v2/day, /v2/reach, /v2/outlook, /community
+  5. GET /grid?h=12, /v2/day, /v2/reach (walk@25/50, car@25),
+     /v2/outlook, /v2/why, /v2/skill, /v2/archive, /community
                              -> the dosimeter surfaces + forecast scrub
+                             -> the city page's reach veil combos +
+                                the why/skill/archive demo reads
   6. GET /tiles/health      -> self-hosted Delhi basemap archive check
 
 Usage: python3 tools/warm_task.py [BASE_URL] [--timeout 300] [--ods 12]
@@ -153,7 +156,18 @@ def main():
             ("v2/day", f"/v2/day?lat={lat}&lon={lon}"),
             ("v2/reach", f"/v2/reach?lat={lat}&lon={lon}"
                          f"&mode=walk&budget_ug=25"),
+            # the city page's mode x budget pills — car@25 settled
+            # 866k edges live (~1.3 s solve + a 3.5 MB veil encode on
+            # a fresh cache); warm the pairs a demo tap is likeliest
+            # to hit
+            ("reach w@50", f"/v2/reach?lat={lat}&lon={lon}"
+                           f"&mode=walk&budget_ug=50"),
+            ("reach c@25", f"/v2/reach?lat={lat}&lon={lon}"
+                           f"&mode=car&budget_ug=25"),
             ("v2/outlook", f"/v2/outlook?lat={lat}&lon={lon}"),
+            ("v2/why", f"/v2/why?lat={lat}&lon={lon}"),
+            ("v2/skill", "/v2/skill"),
+            ("v2/archive", "/v2/archive"),
             ("community", "/community")]:
         ts = time.time()
         body, e = _get(path, timeout=60)

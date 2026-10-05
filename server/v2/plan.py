@@ -1592,7 +1592,14 @@ def _engine_field_view(F):
     seen = []
     t_sweep = time.time()
     stopped = False
-    for ix, iy in order:
+    for sweep_i, (ix, iy) in enumerate(order):
+        # donate the timeslice every 64 cells: on a single-vCPU task a
+        # live plan request queueing behind the sweep otherwise waits
+        # out whole scheduling quanta — the once-per-task reprice is
+        # exactly when a cold hit lands. Each yield costs ~µs; the
+        # budget cap bounds the total either way.
+        if sweep_i and sweep_i % 64 == 0:
+            time.sleep(0)
         cx = x0 + (ix + 0.5) * dx   # lon
         cy = y0 + (iy + 0.5) * dy   # lat
         blk = (ix // s_step, iy // s_step)
