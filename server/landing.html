@@ -1,11 +1,11 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ALive·108 — the route your lungs pay least for</title>
-<meta name="description" content="Delhi's air has a price per street. 1.07M road edges priced live off a kriged pollution field — we route you down the one your lungs pay least for.">
+<title>ALive·108 — a personal dosimeter for Delhi air</title>
+<meta name="description" content="A personal PM2.5 dosimeter without hardware — the field knows what Delhi breathed today; the app knows what you breathed. Dose-priced routing is one proof.">
 <meta name="theme-color" content="#fafaf7">
-<meta property="og:title" content="ALive·108 — the route your lungs pay least for">
-<meta property="og:description" content="Delhi's air has a price per street. 1.07M road edges priced live; we return the one your lungs pay least for.">
+<meta property="og:title" content="ALive·108 — a personal dosimeter for Delhi air">
+<meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and only k≥3 aggregates ever leave your phone.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%234d7c0f'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -315,12 +315,16 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="hero"><div class="col"><div class="hero-grid">
   <div class="hero-copy">
-    <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — live exposure engine</div>
-    <h1 class="rise" style="--d:70ms">Delhi's air has a price <em>per street.</em></h1>
-    <p class="sub rise" style="--d:140ms">Type from, type to. A C++ engine
-    prices all <span id="edgecount">1.07 million</span> of NCR's road edges by
-    the smoke on each this minute, and returns the route your lungs pay least
-    for.</p>
+    <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — a dosimeter without hardware</div>
+    <h1 class="rise" style="--d:70ms">The field knows what Delhi breathed. <em>The app knows what you breathed.</em></h1>
+    <p class="sub rise" style="--d:140ms">A personal PM2.5 dosimeter that
+    needs no hardware — the live field below is the sensor, the app on your
+    phone is the rest, on Android today. It totals what your trips inhaled,
+    in µg. Routing is one proof of it: flip the map to a→b, pick two points,
+    and the engine returns the corridor your lungs pay least for —
+    <span id="edgecount">1.07 million</span> road edges indexed,
+    <span id="pricedcount">0.90 million</span> priced under this hour's
+    field.</p>
     <div class="links rise" style="--d:210ms">
       <a class="tlink" href="/city">Open the live field →</a>
       <a class="tlink dim" href="/community">Community →</a>
@@ -329,7 +333,8 @@ h1 em{font-style:italic;color:var(--ink2)}
   <figure class="shot rise" style="--d:280ms">
     <img src="/app-hero.png" width="552" height="1200"
       alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
-    <figcaption>the app, live — real route, real field</figcaption>
+    <figcaption>the app, live — real route, real field<br>
+    your day stays on your phone — only k≥3 aggregates ever leave</figcaption>
   </figure>
 </div></div></section>
 
@@ -368,9 +373,9 @@ h1 em{font-style:italic;color:var(--ink2)}
       everything else on this page does not.</p>
   </noscript>
   <div class="field-cap">
-    <span class="left" id="capLeft">The surface the router prices on —
-    every cell interpolated from live stations, confidence carried with
-    it. Click a cell.</span>
+    <span class="left" id="capLeft">The field the dosimeter reads —
+    every cell interpolated from live instruments, confidence carried with
+    it; the same surface the router prices on. Click a cell.</span>
     <span class="legend">
       <span class="strip" id="legendStrip"></span>
       <span class="tick" id="legendTick"></span>
@@ -395,7 +400,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="how"><div class="col">
   <div class="how-head">
-    <h2>Measure, interpolate, price.</h2>
+    <h2>Measure, interpolate, dose.</h2>
   </div>
   <div class="row"><span class="n">01</span><span class="t">measure</span>
     <p class="d">WAQI and CPCB instruments across NCR report EPA
@@ -408,10 +413,11 @@ h1 em{font-style:italic;color:var(--ink2)}
     <span class="calib">method: σ = √(krige_sd² + (0.12·µ)²) × 3.2 total-error
     inflation, leave-one-out over CAAQMS station hours vs the OpenAQ archive
     — <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">field_validation.md</a></span></p></div>
-  <div class="row"><span class="n">03</span><span class="t">price</span>
-    <p class="d">A C++ A* prices every edge by dose — concentration ×
-    ventilation × minutes — under legality constraints. The number the
-    app shows is the number the engine minimized.</p></div>
+  <div class="row"><span class="n">03</span><span class="t">dose</span>
+    <p class="d">The math is one integral — concentration × ventilation ×
+    minutes, summed along the path. A C++ engine runs it over every road
+    edge to price a route; the app runs it over your trips and receipts
+    the total. The number you see is the number the engine minimized.</p></div>
 </div></section>
 
 <footer class="foot"><div class="foot-in">
@@ -743,10 +749,11 @@ function capLive(){
   const spec=SPECS[PARAM];
   if(!LIVE_CAP.n)return;
   $('capLeft').innerHTML=
-    `The surface the router prices on — ${fmt(LIVE_CAP.n)} cells, `+
+    `The field the dosimeter reads — ${fmt(LIVE_CAP.n)} cells, `+
     `${F1(LIVE_CAP.lo)}–${F1(LIVE_CAP.hi)} ${spec.unit}`+
     `${LIVE_CAP.derived?` · ${esc(LIVE_CAP.derived)}`:''} `+
-    `· cell fade = distance to nearest sample. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
+    `· cell fade = distance to nearest sample · the same surface the `+
+    `router prices on. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
 }
 async function paint(){
   const seq=++PAINTSEQ;
@@ -1295,6 +1302,8 @@ async function status(){
     const ptxt=priced!=null
       ?(priced>=1e6?(priced/1e6).toFixed(2)+'m':Math.round(priced/1e3)+'k')
       :'—';
+    if(priced!=null)$('pricedcount').textContent=
+      (priced/1e6).toFixed(2)+' million';
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
       `<span>field <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
