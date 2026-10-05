@@ -1,10 +1,12 @@
 """Landing page serve-path smoke: / + /landing must return the real
 page, not a truncated or stale file.
 
-The aether + live-data cards are assembled in-browser — the only
+The raster field + live status are assembled in-browser — the only
 automatable check is that the served HTML still contains the markers
 every piece of that machinery hangs off. A 3KB truncated write, a
 missing fetch path, or a placeholder restore fails this loudly.
+Design guards: owner rejected capsule buttons, ASCII art and heavy
+copy — the FORBIDDEN list keeps the page from drifting back.
 """
 import re
 
@@ -14,22 +16,33 @@ import main  # noqa: E402
 
 client = TestClient(main.app)
 
-# anchors that make the page what it is: the canvas, the live fetch
-# paths, the OD rotation, the shared plan fetch, the indexing axis.
+# anchors that make the page what it is: the raster canvas, the
+# live fetch paths, the status line, the CPCB band painter, nav links.
 REQUIRED = [
     "<canvas",
-    "ROUTE_ODS",
-    "renderDose",
-    "drawAether",
-    "FIELD_BBOX",
-    "/v2/plan",
-    "/v2/reverse",
-    "/community",
+    "raster",
+    "paint",
+    "bandCol",
+    "/grid",
     "/health",
-    "aether-axis",
-    "hotTxt",
+    "/city",
+    "/admin",
+    "/community",
+    "statusline",
+    "confSplit",
+    "per street",
 ]
-FORBIDDEN = ["lorem ipsum", "TODO", "FIXME", "placeholder text"]
+# owner-vetoed elements + placeholder guards
+FORBIDDEN = [
+    "lorem ipsum",
+    "TODO",
+    "FIXME",
+    "placeholder text",
+    "border-radius:999px",  # capsule buttons — rejected outright
+    "border-radius: 999px",
+    "aether",
+    "ROUTE_ODS",
+]
 
 
 def test_root_serves_landing():
@@ -61,4 +74,5 @@ def test_landing_script_wellformed():
     assert m, "landing has no inline script"
     js = m.group(1)
     assert js.count("{") == js.count("}"), "unbalanced braces in landing JS"
-    assert "requestAnimationFrame" in js, "render loop missing"
+    assert "setInterval" in js, "refresh loop missing"
+    assert "fetch(" in js, "live fetch missing"
