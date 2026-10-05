@@ -692,3 +692,10 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - writeup.md re-synced to live counters (14 contrib/22 trips; 12/54 corridors publishable) — was stale (12/19, 10/54). verify_numbers.sh flags: smoke ×1.09 today (docs say re-verify morning-of), build_sha wart (say ECR tag on stage).
 - /admin live carries self-grade (/v2/skill: h+1 MAE 16.3, bias +15.8, band-hit 71.4%, thin horizons honestly labeled) + engine room + plain-English lines.
 - Board: me + video `9770ef36` + mobile-web `89918813` + apk-v3 `46407448` + strip-bz `fc3b1e30`.
+
+### cont.40 — cut4 + final APK built; drive in progress (Oct 6 ~03:30 UTC)
+
+- **video-v4 COMPLETE**: cut4.mp4 165s all-real arc (hero 2.9 cig ≈905µg → dosimeter home → real nav drive w/ accumulating dose → DelhiToday why beat → dose gap 12.8 vs 451.1µg ~35× → strided veil mid-paint 461.7km/9,113seg → community → admin self-grade thin-but-honest → AWS placeholder 25s → close). Numbers = live at shoot time. Pipeline pushed `89c48fa` (REC passthrough, hero-hold fix, 28_today slot, cut4 default). https://app.devin.ai/attachments/b9a0dfab-6a32-4e28-a107-eac135413dbb/cut4.mp4
+- **apk-drive-v3**: final APK built `alive108-b4a96d2.apk` (137MB universal, live ELB + self-hosted tiles + cleartext, zero loopback) — https://app.devin.ai/attachments/670fb515-3b24-4119-b40c-46c94a045950/alive108-b4a96d2.apk — emulator drive spawning now (slot freed by video-v4 terminate). THIS is the demo-phone build.
+- Live sanity: why.line fresh (389s), breath mid 905µg≈2.86 cig, dose pair 10.1 vs 335µg (33.2×), 23 options incl bus+metro, /v2/skill grading (h+1 MAE 16.3/+15.8 bias, thin horizons honest), field_age 428s.
+- Board: me + mobile-web `89918813` + strip-bz `fc3b1e30` + apk-v3 `46407448` (+emu child incoming).
