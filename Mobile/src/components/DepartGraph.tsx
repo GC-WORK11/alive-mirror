@@ -97,9 +97,14 @@ export function DepartGraph({
 
   const onAxis = (e: LayoutChangeEvent) => setAxisW(e.nativeEvent.layout.width);
 
+  /* bars carry the dose they plot — the same warm in-ramp the option
+     bars use (heavier hour = warmer bar); best hour stays accent, a
+     tapped column still wins in ink */
+  const breathRamp = (f: number) =>
+    f > 0.66 ? V2T.breath3 : f > 0.33 ? V2T.breath2 : V2T.breath1;
   const barColor = (d: DepartDatum) =>
     d.hour === bestHour ? V2T.accent : d.hour === sel ? V2T.text
-      : d.hour === nowHour ? V2T.text3 : V2T.out2;
+      : breathRamp(d.dose_mid / max);
 
   return (
     <View style={s.wrap}>

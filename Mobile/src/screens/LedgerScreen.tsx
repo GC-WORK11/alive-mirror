@@ -36,7 +36,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam, famMono, famSerif } from "../theme";
+import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono, famSerif } from "../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import { modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
@@ -697,10 +697,11 @@ const ss = StyleSheet.create({
   listContent: { flexGrow: 1, paddingTop: 14 },
 
   summaryCard: {
-    backgroundColor: V2T.glassSoft,
-    borderRadius: V2Radius.row,
+    ...V2Elev.card,
+    backgroundColor: V2T.surface,
+    borderRadius: V2Radius.card,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderColor: V2T.hairline,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
@@ -747,6 +748,7 @@ const ss = StyleSheet.create({
   },
 
   card: {
+    ...V2Elev.card,
     marginHorizontal: 14,
     marginBottom: 8,
     backgroundColor: V2T.glassSoft,
@@ -830,9 +832,9 @@ const ss = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: V2T.glassSoft,
+    backgroundColor: V2T.surface,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderColor: V2T.hairline,
     alignItems: "center",
     justifyContent: "center",
   },

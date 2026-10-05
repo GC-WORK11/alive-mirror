@@ -17,7 +17,7 @@ import {
   Camera, Map, Marker, UserLocation, type CameraRef,
 } from "@maplibre/maplibre-react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { V2Radius, V2T, V2Type, cigOf, fam } from "./src/theme";
+import { V2Elev, V2Radius, V2T, V2Type, cigOf, fam } from "./src/theme";
 import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
 import { Icon } from "./src/icons";
@@ -160,6 +160,9 @@ function AppInner() {
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [aqiField, setAqiField] = useState<FieldStatus | null>(null);
+  /* the day's ambient read — feeds the peek card's "now ~N µg/m³" so the
+     idle map feels the air, not just the sampled totals */
+  const [ambientUg, setAmbientUg] = useState<number | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   const net = useNetStatus();
 
@@ -235,6 +238,9 @@ function AppInner() {
           setAqiField((prev) => JSON.stringify(prev) === JSON.stringify(nf) ? prev : nf);
           const bz = typeof j?.pm25 === "number" ? j.pm25 : null;
           const amb = typeof j?.pm25_ambient === "number" ? j.pm25_ambient : bz;
+          /* same value → no re-render — the 60 s poll usually repeats
+             the same ambient sample until the field ticks */
+          setAmbientUg((prev) => (prev === amb ? prev : amb));
           if (amb != null || bz != null) {
             /* only re-render the dosimeter surfaces when a sample actually
                lands — the dedupe drops most 60 s polls (~8 min cadence) */
@@ -517,7 +523,8 @@ function AppInner() {
               the day stack on tap. Hides itself before disk is read. */}
           {dayData && (
             <View style={[s.peekWrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
-              <DayPeek data={dayData} lang={lang} onOpen={() => setDayOpen(true)} />
+              <DayPeek data={dayData} lang={lang} onOpen={() => setDayOpen(true)}
+                ambientUg={ambientUg} />
             </View>
           )}
         </>
@@ -800,6 +807,7 @@ const s = StyleSheet.create({
   layersWrap: { position: "absolute", left: 14 },
   offlineWrap: {
     position: "absolute", alignSelf: "center",
+    ...V2Elev.float,
     backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1, borderColor: V2T.glassLine,
   },
@@ -807,6 +815,7 @@ const s = StyleSheet.create({
   pickHintWrap: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center", gap: 6,
+    ...V2Elev.float,
     backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
     paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: V2T.accent,

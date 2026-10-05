@@ -13,7 +13,7 @@ const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: 
 /** Streets the community has actually measured — a faint veil that grows
  * denser where more traversals landed. Optional layer: `on` from the
  * layers sheet (doc 02 §S1 — off by default). */
-export function CorridorLayer({ corridors, on = true }: { corridors: Corridor[] | null; on?: boolean }) {
+function CorridorLayerFn({ corridors, on = true }: { corridors: Corridor[] | null; on?: boolean }) {
   const geo = useMemo(() => {
     if (!corridors?.length) return EMPTY;
     const max = Math.max(...corridors.map((c) => c.samples), 1);
@@ -54,3 +54,7 @@ export function CorridorLayer({ corridors, on = true }: { corridors: Corridor[] 
     </GeoJSONSource>
   );
 }
+
+/** memoized: the parent re-renders every poll tick; these
+ *  map children only earn a commit when their own props move */
+export const CorridorLayer = React.memo(CorridorLayerFn);

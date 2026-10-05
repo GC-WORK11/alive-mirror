@@ -13,7 +13,7 @@ const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: 
 /** Real fire pixels (NASA FIRMS VIIRS/MODIS, NCR + 150km ring, 6h cache).
  * Optional layer — `on` from the layers sheet decides visibility.
  * Radius follows fire-radiative-power; alpha follows confidence. */
-export function FiresLayer({ fires, on = true }: { fires: GeoJSON.FeatureCollection | null; on?: boolean }) {
+function FiresLayerFn({ fires, on = true }: { fires: GeoJSON.FeatureCollection | null; on?: boolean }) {
   return (
     <GeoJSONSource id="fires" data={on && fires ? fires : EMPTY}>
       <Layer
@@ -51,7 +51,7 @@ export function FiresLayer({ fires, on = true }: { fires: GeoJSON.FeatureCollect
 /** Delhi Traffic Police crash-prone zones (official Crash Report zones,
  * geo'd from public lists). Optional layer — `on` from the layers sheet;
  * fades in at street level where the risk applies. */
-export function BlackspotsLayer({ spots, on = true }: { spots: GeoJSON.FeatureCollection | null; on?: boolean }) {
+function BlackspotsLayerFn({ spots, on = true }: { spots: GeoJSON.FeatureCollection | null; on?: boolean }) {
   return (
     <GeoJSONSource id="blackspots" data={on && spots ? spots : EMPTY}>
       <Layer
@@ -81,3 +81,11 @@ export function BlackspotsLayer({ spots, on = true }: { spots: GeoJSON.FeatureCo
     </GeoJSONSource>
   );
 }
+
+/** memoized: the parent re-renders every poll tick; these
+ *  map children only earn a commit when their own props move */
+export const FiresLayer = React.memo(FiresLayerFn);
+
+/** memoized: the parent re-renders every poll tick; these
+ *  map children only earn a commit when their own props move */
+export const BlackspotsLayer = React.memo(BlackspotsLayerFn);

@@ -13,7 +13,7 @@ import {
   Alert, Animated, BackHandler, Dimensions, LayoutAnimation, Pressable,
   ScrollView, StyleSheet, Switch, Text, View,
 } from "react-native";
-import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
+import { F, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { tick } from "../../haptics";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
@@ -618,6 +618,7 @@ const s = StyleSheet.create({
   drawer: {
     position: "absolute", left: 0, top: 0, bottom: 0, width: DRAWER_W,
     backgroundColor: V2T.glassDeep, borderRightWidth: 1, borderRightColor: V2T.glassEdge,
+    ...V2Elev.pop,
   },
 
   header: {

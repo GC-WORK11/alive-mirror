@@ -4,7 +4,7 @@
  * (docs/plan/02 §S1–S2). */
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { V2Radius, V2T, V2Type, fam } from "../../theme";
+import { V2Elev, V2Radius, V2T, V2Type, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { tick } from "../../haptics";
 import { Icon } from "../../icons";
@@ -22,12 +22,14 @@ export function SearchBar({
 }) {
   return (
     <View style={s.bar}>
-      <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10} style={s.menuBtn}
-        accessibilityRole="button" accessibilityLabel={t("a11yMenu", lang)}>
+      <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}
+        accessibilityRole="button" accessibilityLabel={t("a11yMenu", lang)}
+        style={({ pressed }) => [s.menuBtn, pressed && { opacity: 0.55 }]}>
         <Icon name="menu" color={V2T.text2} size={20} />
       </Pressable>
-      <Pressable onPress={() => { tick(); onPress(); }} style={s.field}
-        accessibilityRole="button" accessibilityLabel={label ?? t("searchPlaceholder", lang)}>
+      <Pressable onPress={() => { tick(); onPress(); }} accessibilityRole="button"
+        accessibilityLabel={label ?? t("searchPlaceholder", lang)}
+        style={({ pressed }) => [s.field, pressed && { opacity: 0.65 }]}>
         <Text {...DYNAMIC_TYPE} numberOfLines={1}
           style={[s.input, { fontFamily: fam(lang, "med") }, !label && { color: V2T.text3 }]}>
           {label ?? t("searchPlaceholder", lang)}
@@ -47,6 +49,7 @@ export function SearchBar({
 
 const s = StyleSheet.create({
   bar: {
+    ...V2Elev.float,
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.glassFaint, borderRadius: V2Radius.card, height: 52,
     paddingHorizontal: 8, paddingRight: 16,

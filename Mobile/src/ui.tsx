@@ -1,16 +1,16 @@
 /** ALive-108 component primitives — v2 light design system (docs/plan/03).
  * Sheets: surface + 1px line top edge, spring (damping 22, stiffness 220),
  * 3 detents (peek 15% · half 50% · full 92%). */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated, Dimensions, PanResponder, Pressable, StyleSheet, Text, View,
-  type StyleProp, type ViewStyle,
+  Animated, Dimensions, Easing, PanResponder, Pressable, StyleSheet, Text, View,
+  type StyleProp, type TextStyle, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CIG_UG, F, FMONO, NUM, V2Radius, V2T, V2Type, fam, famMono } from "./theme";
+import { CIG_UG, F, FMONO, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono, famSerif } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
-import { DYNAMIC_TYPE } from "./a11y";
+import { DYNAMIC_TYPE, useReduceMotion } from "./a11y";
 import { tick } from "./haptics";
 
 const WIN_H = () => Dimensions.get("window").height;
@@ -27,8 +27,90 @@ const ALERT_SEV = {
   danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "rgba(184,84,66,0.10)", border: V2T.hairline },
 } as const;
 
+/** Press feedback — the register's one press gesture: a hair of scale
+ *  + a soft fade (Uber's 0.98 made quiet for paper). Spread into any
+ *  Pressable's style callback: `[base, pressFx(pressed)]`. */
+export const pressFx = (pressed: boolean): ViewStyle | null =>
+  pressed ? { opacity: 0.78, transform: [{ scale: 0.985 }] } : null;
+
+/** Mount-in motion — a short fade + 10px rise. `delay` staggers card
+ *  stacks so a sheet's children arrive, not pop (JS driver — the RN 0.86
+ *  native-detach class the Sheet comment documents). */
+export function FadeIn({ delay = 0, children, style }: {
+  delay?: number; children: React.ReactNode; style?: StyleProp<ViewStyle>;
+}) {
+  const reduceMotion = useReduceMotion();
+  const [v] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
+  const [ty] = useState(() => v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }));
+  useEffect(() => {
+    if (reduceMotion) { v.setValue(1); return; }
+    Animated.timing(v, {
+      toValue: 1, duration: 260, delay, easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [v, delay, reduceMotion]);
+  return (
+    <Animated.View style={[style, { opacity: v, transform: [{ translateY: ty }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** The score-reveal moment — a number that counts up to its value when
+ *  the surface mounts (Oura's ring-tick). ~36 frames on one Text node,
+ *  JS-driven, silenced under reduce-motion. */
+export function CountUp({ value, format, style, duration = 620, ...rest }: {
+  value: number; format?: (n: number) => string; duration?: number;
+  style?: StyleProp<TextStyle>; [k: string]: unknown;
+}) {
+  const reduceMotion = useReduceMotion();
+  const [disp, setDisp] = useState(() => (reduceMotion ? value : 0));
+  const prev = useRef(0);
+  useEffect(() => {
+    if (reduceMotion) { prev.current = value; return; }
+    const from = prev.current;
+    const t0 = Date.now();
+    let raf = 0;
+    const step = () => {
+      const p = Math.min(1, (Date.now() - t0) / duration);
+      const e = 1 - Math.pow(1 - p, 3);
+      setDisp(from + (value - from) * e);
+      if (p < 1) raf = requestAnimationFrame(step);
+      else prev.current = value;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration, reduceMotion]);
+  /* reduce-motion skips the whole sweep — the final value renders
+     statically, no ticking state at all */
+  const shown = reduceMotion ? value : disp;
+  return <Text style={style} {...rest}>{format ? format(shown) : `${Math.round(shown)}`}</Text>;
+}
+
+/** Honest-but-designed empty state: a hairline ring holding the glyph,
+ *  a serif line, a muted sub — quiet instead of bare. */
+export function Quiet({ glyph, title, sub, lang = "en" }: {
+  glyph: Glyph; title: string; sub?: string; lang?: Lang;
+}) {
+  return (
+    <View style={us.quiet}>
+      <View style={us.quietRing}>
+        <Icon name={glyph} color={V2T.text3} size={20} />
+      </View>
+      <Text {...DYNAMIC_TYPE} style={[us.quietTitle, { fontFamily: famSerif(lang, "med") }]}>
+        {title}
+      </Text>
+      {sub ? (
+        <Text {...DYNAMIC_TYPE} style={[us.quietSub, { fontFamily: fam(lang, "reg") }]}>
+          {sub}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 /** Bottom sheet — grabber + optional X. Milk pane: translucent white +
- *  sheen top edge + soft shadow; the map ghosts through the frost. */
+ *  sheen top edge + a real shadow lift; the map ghosts through the frost. */
 export function Sheet({
   detent = "peek", onClose, children, style, lang = "en",
 }: {
@@ -88,8 +170,9 @@ export function Sheet({
       <View style={us.grabberRow} {...(pan?.panHandlers ?? {})}>
         <View style={us.grabber} />
         {onClose && (
-          <Pressable onPress={onClose} hitSlop={14} style={us.sheetX} accessibilityRole="button"
-            accessibilityLabel={t("settingsClose", lang)}>
+          <Pressable onPress={onClose} hitSlop={14} accessibilityRole="button"
+            accessibilityLabel={t("settingsClose", lang)}
+            style={({ pressed }) => [us.sheetX, pressed && { opacity: 0.55 }]}>
             <Icon name="close" color={V2T.text3} size={16} />
           </Pressable>
         )}
@@ -134,7 +217,7 @@ export function ModeRow({
 }) {
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={420}
-      style={({ pressed }) => [us.modeRow, pressed && { opacity: 0.55 }, selected && us.modeRowSel]}
+      style={({ pressed }) => [us.modeRow, pressFx(pressed), selected && us.modeRowSel]}
       accessibilityRole="button" accessibilityState={{ selected }}>
       <Icon name={vehicleGlyph(vehicle)} color={selected ? V2T.accent : V2T.text2} size={30} filled={selected} />
       <View style={{ flex: 1, marginLeft: 12 }}>
@@ -219,7 +302,7 @@ export function MapButton({
 }) {
   return (
     <Pressable onPress={() => { tick(); onPress(); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={label}
-      style={({ pressed }) => [us.mapBtn, active && us.mapBtnOn, pressed && { opacity: 0.6 }]}>
+      style={({ pressed }) => [us.mapBtn, active && us.mapBtnOn, pressed && { opacity: 0.75, transform: [{ scale: 0.9 }] }]}>
       {/* active = accent puck → the glyph must go light (V2T.bg ≈7:1 on
           accent); ink-on-accent was the dark-theme leftover */}
       <Icon name={glyph} color={active ? V2T.bg : V2T.text2} size={22} filled={filled ?? active} />
@@ -242,7 +325,8 @@ export function AlertBanner({ text, onClose, lang = "en", severity = "info" }: {
       <Text style={[us.alertTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={2} {...DYNAMIC_TYPE}>{text}</Text>
       {onClose && (
         <Pressable onPress={onClose} hitSlop={15} accessibilityRole="button"
-          accessibilityLabel={t("settingsClose", lang)}>
+          accessibilityLabel={t("settingsClose", lang)}
+          style={({ pressed }) => [pressed && { opacity: 0.55 }]}>
           <Icon name="close" color={V2T.text2} size={14} />
         </Pressable>
       )}
@@ -252,10 +336,10 @@ export function AlertBanner({ text, onClose, lang = "en", severity = "info" }: {
 
 const us = StyleSheet.create({
   sheet: {
+    ...V2Elev.sheet,
     backgroundColor: V2T.glass, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
     borderCurve: "continuous",
     borderTopWidth: 1, borderTopColor: V2T.glassEdge,
-    // the register's edge is the hairline itself — no shadow elevation
     borderWidth: 1, borderColor: V2T.glassLine,
     overflow: "hidden",
   },
@@ -292,6 +376,7 @@ const us = StyleSheet.create({
   originDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: V2T.accent },
 
   mapBtn: {
+    ...V2Elev.float,
     width: 46, height: 46, borderRadius: 23, backgroundColor: V2T.glassFaint,
     alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: V2T.glassLine,
@@ -305,4 +390,15 @@ const us = StyleSheet.create({
     borderWidth: 1, borderColor: V2T.line,
   },
   alertTxt: { flex: 1, fontFamily: F.med, fontSize: V2Type.label, color: V2T.text },
+
+  /* Quiet — the designed empty state */
+  quiet: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 20 },
+  quietRing: {
+    width: 52, height: 52, borderRadius: 26,
+    borderWidth: 1, borderColor: V2T.hairline, backgroundColor: V2T.surface,
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 10,
+  },
+  quietTitle: { fontSize: V2Type.secondary, color: V2T.text, textAlign: "center" },
+  quietSub: { fontSize: V2Type.label, color: V2T.text3, marginTop: 4, textAlign: "center", lineHeight: 18 },
 });

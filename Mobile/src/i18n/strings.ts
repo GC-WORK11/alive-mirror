@@ -510,6 +510,9 @@ const en = {
   tileBudget: "budget left",
   peekTitle: "your day so far",
   peekEmpty: "no reads yet — open the map, take a trip, this fills in",
+  peekAmbient: "now ~{n} µg/m³",
+  /* compare sheet — the gap line under a heavier option's dose */
+  compare_vsLightest: "+{n} vs lightest",
   goLabel: "go somewhere",
 } as const;
 
@@ -971,6 +974,9 @@ const hi: Record<StringKey, string> = {
   tileBudget: "बजट बाक़ी",
   peekTitle: "आपका दिन अब तक",
   peekEmpty: "अभी कोई रीडिंग नहीं — नक्शा खोलें, एक यात्रा करें, यहाँ भर जाएगा",
+  peekAmbient: "अभी ~{n} µg/m³",
+  /* compare sheet — the gap line under a heavier option's dose */
+  compare_vsLightest: "सबसे हल्के से +{n}",
   goLabel: "कहीं जाएँ",
 };
 

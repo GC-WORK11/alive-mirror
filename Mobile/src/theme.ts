@@ -1,9 +1,10 @@
 // ALive-108 design tokens — the shared paper/ink register (docs/plan/03
 // + server/landing.html, city.html, admin.html): light paper, serif display,
 // mono for every number, hairlines at ~10% ink, muted CPCB band palette as
-// the ONLY colour that means data. No shadows, no gradients, no emoji.
+// the ONLY colour that means data. No gradients, no emoji.
 // V2T / V2Type / V2Radius / fam are the contract other lanes build on —
-// keep names + keys stable; only values may move.
+// keep names + keys stable; only values may move. (V2Elev / band* helpers
+// are additive — the depth pass's own vocabulary.)
 import type { Lang } from "./i18n/strings";
 
 // ── paper / ink ───────────────────────────────────────────────────────────
@@ -72,11 +73,11 @@ export const V2T = {
   // ── floating chrome over the map ──────────────────────────────────────
   // Alpha-frosted paper panes — the map must stay legible under them, so
   // they keep alpha ≥ .62 and a 10%-ink hairline edge. No blur library.
-  glass: "rgba(255,255,255,0.86)",      // panes: sheets, drawer, HUD tiles
-  glassDeep: "rgba(255,255,255,0.92)",  // full-height screens
-  glassSoft: "rgba(255,255,255,0.66)",  // rows resting on a milk pane
-  glassFaint: "rgba(255,255,255,0.78)", // floating chips, FABs, peek card
-  glassSel: "rgba(238,242,226,0.82)",   // sage-wash glass — selected rows
+  glass: "rgba(255,255,255,0.91)",      // panes: sheets, drawer, HUD tiles
+  glassDeep: "rgba(255,255,255,0.95)",  // full-height screens
+  glassSoft: "rgba(255,255,255,0.76)",  // rows resting on a milk pane
+  glassFaint: "rgba(255,255,255,0.86)", // floating chips, FABs, peek card
+  glassSel: "rgba(238,242,226,0.88)",   // sage-wash glass — selected rows
   glassEdge: "rgba(255,255,255,0.85)",
   glassLine: "rgba(22,24,29,0.10)",     // the register's hairline on glass
 } as const;
@@ -103,6 +104,50 @@ export function bandColorIdx(i: number | null | undefined): string | null {
   return BANDS[Math.max(0, Math.min(5, i))];
 }
 
+// ── elevation ────────────────────────────────────────────────────────────
+// Physical presence for surfaces: Android reads `elevation` (soft native
+// shadow around the view), iOS gets the shadow_* pair — same scale either
+// way. Warm-ink shadow colour, low and tight: a card should sit ON the
+// paper, not hover. Translucent panes keep elevation modest — an alpha
+// surface lets its own shadow ghost through the edges.
+export const V2Elev = {
+  /** resting card on a sheet / panel */
+  card: { elevation: 2, shadowColor: "#16181D", shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  /** floating chrome over the map — FABs, pills, peek card */
+  float: { elevation: 5, shadowColor: "#16181D", shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 3 } },
+  /** sheets/drawers — the cast goes UP (they rise from the bottom edge) */
+  sheet: { elevation: 12, shadowColor: "#16181D", shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -4 } },
+  /** popovers/receipts — the biggest cast we allow */
+  pop: { elevation: 18, shadowColor: "#16181D", shadowOpacity: 0.22, shadowRadius: 30, shadowOffset: { width: 0, height: -6 } },
+} as const;
+
+// ── band washes: colour as feeling ───────────────────────────────────────
+// A CPCB band whispers on a surface — the day/stack should FEEL severe
+// without a neon alarm. Solid blends toward white (predictable over both
+// paper and the milky panes), never alpha fills that composite on whatever
+// is behind.
+const hexMix = (a: string, b: string, t: number): string => {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  const c = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
+  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+};
+/** ~10% band on surface — cell/tile fills, selected whispers */
+export const bandWashIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.90);
+export const bandWash = (v: number | null | undefined) => {
+  const i = bandIdx(v); return i == null ? null : bandWashIdx(i);
+};
+/** ~38% band — a hairline that carries the day's colour */
+export const bandEdgeIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.60);
+export const bandEdge = (v: number | null | undefined) => {
+  const i = bandIdx(v); return i == null ? null : bandEdgeIdx(i);
+};
+/** band deepened ~15% toward ink — band-coloured text that still reads */
+export const bandInkIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#16181D", 0.15);
+export const bandInk = (v: number | null | undefined) => {
+  const i = bandIdx(v); return i == null ? null : bandInkIdx(i);
+};
+
 // ── type ──────────────────────────────────────────────────────────────────
 // The register's ramp: 11/13/17/22/30/44 — eyebrow micro → hero display.
 // `secondary` stays as a 15px between-step legacy callers already use for
@@ -115,6 +160,7 @@ export const V2Type = {
   title: 22,
   display: 30,
   hero: 44,
+  heroXL: 62,     // the number that owns the card (dose hero, big verdicts)
 } as const;
 
 // Squared-ish register: hairline cards carry a small radius; only the

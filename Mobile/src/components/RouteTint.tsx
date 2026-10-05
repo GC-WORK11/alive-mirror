@@ -51,7 +51,7 @@ export type RouteTintSourceProps = {
   showAlts?: boolean;
 };
 
-export function RouteTintSource({
+function RouteTintSourceFn({
   options,
   selected = 0,
   strips,
@@ -107,5 +107,9 @@ export function RouteTintSource({
     </>
   );
 }
+
+/** memoized: the parent re-renders every poll tick; these
+ *  map children only earn a commit when their own props move */
+export const RouteTintSource = React.memo(RouteTintSourceFn);
 
 export default RouteTintSource;

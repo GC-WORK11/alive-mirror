@@ -28,6 +28,7 @@ import { NUM, V2Radius, V2T, V2Type, fam, famMono } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 import { Icon } from "../icons";
+import { Quiet } from "../ui";
 import {
   distKm,
   normalize,
@@ -486,11 +487,8 @@ function SearchSheet({
                 </View>
               ))}
               {!hasSaved && !hasRecents && (
-                <View style={ss.stateBlock} accessibilityLiveRegion="polite">
-                  <Icon name="search" color={V2T.text3} size={22} />
-                  <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
-                    {t("emptySearchHint", lang)}
-                  </Text>
+                <View accessibilityLiveRegion="polite">
+                  <Quiet glyph="search" title={t("emptySearchHint", lang)} lang={lang} />
                 </View>
               )}
             </>
@@ -507,11 +505,8 @@ function SearchSheet({
                 serverRows.map((p, i) => renderPlace(p, `srv-${p.tier}-${i}`))
               )}
               {empty && (
-                <View style={ss.stateBlock} accessibilityLiveRegion="polite">
-                  <Icon name="search" color={V2T.text3} size={22} />
-                  <Text {...DYNAMIC_TYPE} style={[ss.stateText, { fontFamily: fam(lang, "reg") }]}>
-                    {t("noPlaceFound", lang)}
-                  </Text>
+                <View accessibilityLiveRegion="polite">
+                  <Quiet glyph="search" title={t("noPlaceFound", lang)} lang={lang} />
                 </View>
               )}
             </>

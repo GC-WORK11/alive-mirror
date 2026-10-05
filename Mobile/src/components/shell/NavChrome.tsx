@@ -11,7 +11,7 @@
  * Material Symbols turn/merge/ramp geometry). */
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { NUM, V2Radius, V2T, V2Type, cigOf, fam, famMono } from "../../theme";
+import { NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { approx, t, type Lang } from "../../i18n/strings";
@@ -376,6 +376,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.glass, borderRadius: V2Radius.card,
     paddingVertical: 10, paddingHorizontal: 12,
+    ...V2Elev.float,
     borderWidth: 1, borderColor: V2T.glassLine,
   },
   tile: {
@@ -398,6 +399,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
     paddingHorizontal: 14, paddingVertical: 8,
+    ...V2Elev.card,
     borderWidth: 1, borderColor: V2T.glassLine,
   },
   pillDot: {
@@ -409,6 +411,7 @@ const s = StyleSheet.create({
   cluster: {
     position: "absolute", left: 14, right: 14,
     backgroundColor: V2T.glass, borderRadius: V2Radius.card,
+    ...V2Elev.float,
     borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
   },
   progTrack: { height: 3, backgroundColor: V2T.glassSoft },

@@ -21,7 +21,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
-import { V2Radius, V2T, V2Type, fam } from "../theme";
+import { V2Elev, V2Radius, V2T, V2Type, fam } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { Icon, type Glyph } from "../icons";
 import { t, type Lang, type StringKey } from "../i18n/strings";
@@ -513,6 +513,7 @@ const s = StyleSheet.create({
      compare sheet and at 0.84 alpha the sheet below bleeds through. */
   sheet: { position: "absolute", bottom: 0, left: 0, right: 0,
            maxHeight: Math.round(Dimensions.get("window").height * 0.72),
+           ...V2Elev.sheet,
            backgroundColor: V2T.glassDeep },
   headRow: { flexDirection: "row", alignItems: "center", paddingRight: 20 },
   q: { flex: 1, fontSize: V2Type.body, color: V2T.text, paddingLeft: 20, paddingRight: 8, paddingTop: 4, paddingBottom: 10 },
@@ -537,6 +538,7 @@ const s = StyleSheet.create({
        (Pixel_7 verify flag); glass keeps the milk while stopping the
        double-translucency text ghost behind the tiles */
     backgroundColor: V2T.glass, borderRadius: V2Radius.row,
+    ...V2Elev.card,
     borderWidth: 1, borderColor: V2T.glassLine,
     paddingHorizontal: 12, paddingVertical: 10, minHeight: 56,
   },

@@ -44,16 +44,22 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 import {
   NUM,
+  V2Elev,
   V2Radius,
   V2T,
   V2Type,
   bandColor,
   bandColorIdx,
+  bandEdgeIdx,
+  bandIdx,
+  bandInkIdx,
+  bandWashIdx,
   fam,
   famMono,
   famSerif,
 } from "../theme";
 import { approx, t, type Lang, type StringKey } from "../i18n/strings";
+import { FadeIn, Quiet, pressFx } from "../ui";
 import { Icon } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
@@ -265,9 +271,7 @@ function MorningCard({ curve, outside, lang }: {
         <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
           {t("dayMorningTitle", lang)}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.emptyLine, { fontFamily: fam(lang, "reg") }]}>
-          {t("dayOutsideDelhi", lang)}
-        </Text>
+        <Quiet glyph="pin" title={t("dayOutsideDelhi", lang)} lang={lang} />
       </View>
     );
   }
@@ -278,9 +282,7 @@ function MorningCard({ curve, outside, lang }: {
         <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
           {t("dayMorningTitle", lang)}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.emptyLine, { fontFamily: fam(lang, "reg") }]}>
-          {t("dayMorningNoCell", lang)}
-        </Text>
+        <Quiet glyph="pin" title={t("dayMorningNoCell", lang)} lang={lang} />
       </View>
     );
   }
@@ -305,7 +307,7 @@ function MorningCard({ curve, outside, lang }: {
       </Text>
       <Sparkline series={curve.series} lang={lang} />
       {flat ? (
-        <Text {...DYNAMIC_TYPE} style={[ss.moveLine, { fontFamily: fam(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.noteLine, { fontFamily: fam(lang, "med") }]}>
           {decision ?? t("dayMorningFlat", lang)}
         </Text>
       ) : (
@@ -335,18 +337,24 @@ function MorningCard({ curve, outside, lang }: {
             </View>
           )}
           {decision ? (
-            <Text {...DYNAMIC_TYPE} style={[ss.moveLine, NUM, { fontFamily: fam(lang, "med") }]}>
-              {decision}
-            </Text>
+            <View style={ss.decisionWrap}>
+              <View style={ss.decisionBar} />
+              <Text {...DYNAMIC_TYPE} style={[ss.decisionLine, NUM, { fontFamily: fam(lang, "med") }]}>
+                {decision}
+              </Text>
+            </View>
           ) : (
             clean && heavy && a.ratio != null && a.ratio >= 1.2 && (
-              <Text {...DYNAMIC_TYPE} style={[ss.moveLine, NUM, { fontFamily: fam(lang, "med") }]}>
-                {t("dayMorningMove", lang, {
-                  f: cleanF,
-                  g: heavyF,
-                  x: a.ratio.toFixed(1),
-                })}
-              </Text>
+              <View style={ss.decisionWrap}>
+                <View style={ss.decisionBar} />
+                <Text {...DYNAMIC_TYPE} style={[ss.decisionLine, NUM, { fontFamily: fam(lang, "med") }]}>
+                  {t("dayMorningMove", lang, {
+                    f: cleanF,
+                    g: heavyF,
+                    x: a.ratio.toFixed(1),
+                  })}
+                </Text>
+              </View>
             )
           )}
         </>
@@ -458,6 +466,10 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
           const best = outlook.best_day?.date_ist === d.date_ist;
           const sel = openKey === d.date_ist;
           const dot = bandColorIdx(bandIdxForName(d.band)) ?? bandColor(d.pm25_mid);
+          const bi = bandIdxForName(d.band) ?? bandIdx(d.pm25_mid);
+          const cellBg = bi != null ? bandWashIdx(bi) : V2T.surface;
+          const cellEdge = bi != null ? bandEdgeIdx(bi) : V2T.hairline;
+          const midCol = bi != null ? bandInkIdx(bi) : V2T.text;
           return (
             <Pressable key={d.date_ist}
               onPress={() => {
@@ -472,9 +484,10 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
               accessibilityLabel={`${dayLabel(d.label, lang)} ${Math.round(d.pm25_mid)}`}
               style={({ pressed }) => [
                 ss.oaCell,
+                { backgroundColor: cellBg, borderColor: cellEdge },
                 d.confidence === "lo" && { opacity: 0.45 }, // ghosted — past the live anchor's reach
                 sel && ss.oaCellSel,
-                pressed && { backgroundColor: V2T.surface2 },
+                pressed && { transform: [{ scale: 0.96 }] },
               ]}>
               <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
                 style={[ss.oaDay, { fontFamily: mono(lang) }]}>
@@ -482,7 +495,7 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
               </Text>
               <View style={ss.oaMidRow}>
                 <BandDot conc={null} color={dot} />
-                <Text {...DYNAMIC_TYPE} style={[ss.oaMid, NUM, { fontFamily: mono(lang, "med") }]}>
+                <Text {...DYNAMIC_TYPE} style={[ss.oaMid, NUM, { fontFamily: mono(lang, "med"), color: midCol }]}>
                   {Math.round(d.pm25_mid)}
                 </Text>
               </View>
@@ -542,7 +555,7 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
         </View>
       )}
       {!!caption && (
-        <Text {...DYNAMIC_TYPE} style={[ss.moveLine, { fontFamily: fam(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.noteLine, { fontFamily: fam(lang, "med") }]}>
           {caption}
         </Text>
       )}
@@ -604,9 +617,7 @@ function DayCard({ rec, budgetUg, lang }: {
         {t("dayTitle", lang)}
       </Text>
       {rec.thin ? (
-        <Text {...DYNAMIC_TYPE} style={[ss.emptyLine, { fontFamily: fam(lang, "reg") }]}>
-          {t("dayThin", lang)}
-        </Text>
+        <Quiet glyph="dust" title={t("dayThin", lang)} lang={lang} />
       ) : (
         <>
           <View style={ss.heroRow}>
@@ -684,7 +695,7 @@ function LensCard({ checkin, lens, lang, onCheckin }: {
                   onPress={() => { tap(); onCheckin({ breath: val.breath, eyes: val.eyes, energy: val.energy, [f.key]: v }); }}
                   accessibilityRole="button"
                   accessibilityLabel={`${t(f.labelKey, lang)}: ${t(ok, lang)}`}
-                  style={[ss.opt, sel && ss.optSel]}>
+                  style={({ pressed }) => [ss.opt, sel && ss.optSel, pressFx(pressed)]}>
                   <Text {...DYNAMIC_TYPE}
                     style={[ss.optTxt, { fontFamily: fam(lang, "reg") }, sel && ss.optTxtSel]}>
                     {t(ok, lang)}
@@ -795,7 +806,7 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
           return (
             <Pressable key={p.k} onPress={() => { tap(); onProfile(p.k); }}
               accessibilityRole="button" accessibilityLabel={t(p.labelKey, lang)}
-              style={[ss.opt, sel && ss.optSel]}>
+              style={({ pressed }) => [ss.opt, sel && ss.optSel, pressFx(pressed)]}>
               <Text {...DYNAMIC_TYPE}
                 style={[ss.optTxt, { fontFamily: fam(lang, "reg") }, sel && ss.optTxtSel]}>
                 {t(p.labelKey, lang)}
@@ -816,19 +827,42 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
 /** The idle-map card — one glance: today µg, the week's dots, the budget
  *  bar. Tap opens the stack. An empty day says so in one line and still
  *  opens — the morning card + check-in are useful before the arc fills. */
-export function DayPeek({ data, lang, onOpen }: {
+export function DayPeek({ data, lang, onOpen, ambientUg }: {
   data: DayData | null; lang: Lang; onOpen: () => void;
+  /** latest ambient PM2.5 read — the "outside right now" line; the aqi
+      poll hands it over so the peek feels the air, not just states it */
+  ambientUg?: number | null;
 }) {
   if (!data) return null;
+  /* the card breathes the band it reports: band-washed fill + band-edge
+     hairline + inked number — a severe day feels severe before any tap */
+  const ambIdx = bandIdx(ambientUg ?? null);
+  const doseCol = doseDotColor(data.rec.totalUg, 216);
   return (
     <Pressable onPress={() => { tap(); onOpen(); }}
       accessibilityRole="button" accessibilityLabel={t("peekTitle", lang)}
-      style={({ pressed }) => [ss.peek, pressed && { backgroundColor: V2T.surface2 }]}>
+      style={({ pressed }) => [
+        ss.peek,
+        ambIdx != null && {
+          backgroundColor: bandWashIdx(ambIdx),
+          borderColor: bandEdgeIdx(ambIdx),
+        },
+        pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+      ]}>
       <View style={ss.peekTop}>
         <Text {...DYNAMIC_TYPE} style={[ss.peekEyebrow, { fontFamily: mono(lang, "med") }]}>
           {t("peekTitle", lang)}
         </Text>
-        <Icon name="chevron" color={V2T.text3} size={14} />
+        <View style={ss.peekTopRight}>
+          {ambIdx != null && ambientUg != null && (
+            <Text {...DYNAMIC_TYPE} style={[ss.peekAmb, NUM, {
+              fontFamily: mono(lang, "med"), color: bandInkIdx(ambIdx),
+            }]}>
+              {t("peekAmbient", lang, { n: Math.round(ambientUg) })}
+            </Text>
+          )}
+          <Icon name="chevron" color={V2T.text3} size={14} />
+        </View>
       </View>
       {data.rec.thin ? (
         <Text {...DYNAMIC_TYPE} style={[ss.peekEmpty, { fontFamily: fam(lang, "reg") }]}>
@@ -836,7 +870,9 @@ export function DayPeek({ data, lang, onOpen }: {
         </Text>
       ) : (
         <View style={ss.peekRow}>
-          <Text {...DYNAMIC_TYPE} style={[ss.peekNum, NUM, { fontFamily: famSerif(lang, "semi") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.peekNum, NUM, {
+            fontFamily: famSerif(lang, "semi"), color: doseCol,
+          }]}>
             ≈{Math.round(data.rec.totalUg)}
           </Text>
           <Text {...DYNAMIC_TYPE} style={[ss.peekUnit, { fontFamily: mono(lang) }]}>µg</Text>
@@ -881,22 +917,28 @@ function DaySheet({ data, lang, settings, onClose, onGo, onProfile, onCheckin }:
       </View>
       <ScrollView style={ss.flex}
         contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 24 }]}>
-        <MorningCard curve={data.curve} outside={data.outside} lang={lang} />
-        <DaysAheadCard outlook={data.outlook} lang={lang} />
-        <DayCard rec={data.rec} budgetUg={budget} lang={lang} />
-        <LensCard checkin={data.checkin} lens={data.lens} lang={lang} onCheckin={onCheckin} />
-        <TileRow data={data} budgetUg={budget} lang={lang} />
-        <BudgetCard totalUg={data.rec.totalUg} profile={settings.profile} lang={lang} onProfile={onProfile} />
+        {/* cards arrive in a staggered rise — the sheet settles top-down
+            instead of popping every panel on the same frame */}
+        <FadeIn delay={0}><MorningCard curve={data.curve} outside={data.outside} lang={lang} /></FadeIn>
+        <FadeIn delay={40}><DaysAheadCard outlook={data.outlook} lang={lang} /></FadeIn>
+        <FadeIn delay={80}><DayCard rec={data.rec} budgetUg={budget} lang={lang} /></FadeIn>
+        <FadeIn delay={120}><LensCard checkin={data.checkin} lens={data.lens} lang={lang} onCheckin={onCheckin} /></FadeIn>
+        <FadeIn delay={160}><TileRow data={data} budgetUg={budget} lang={lang} /></FadeIn>
+        <FadeIn delay={200}>
+          <BudgetCard totalUg={data.rec.totalUg} profile={settings.profile} lang={lang} onProfile={onProfile} />
+        </FadeIn>
         {/* the journey stays one tap away — routing is a tool inside the day */}
-        <Pressable onPress={() => { tap(); onGo(); }}
-          accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
-          style={({ pressed }) => [ss.goRow, pressed && { backgroundColor: V2T.surface2 }]}>
-          <Icon name="navigate" color={V2T.accent} size={16} />
-          <Text {...DYNAMIC_TYPE} style={[ss.goTxt, { fontFamily: fam(lang, "med") }]}>
-            {t("goLabel", lang)}
-          </Text>
-          <Icon name="chevron" color={V2T.text3} size={14} />
-        </Pressable>
+        <FadeIn delay={240}>
+          <Pressable onPress={() => { tap(); onGo(); }}
+            accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
+            style={({ pressed }) => [ss.goRow, pressFx(pressed)]}>
+            <Icon name="navigate" color={V2T.accent} size={16} />
+            <Text {...DYNAMIC_TYPE} style={[ss.goTxt, { fontFamily: fam(lang, "med") }]}>
+              {t("goLabel", lang)}
+            </Text>
+            <Icon name="chevron" color={V2T.text3} size={14} />
+          </Pressable>
+        </FadeIn>
       </ScrollView>
     </View>
   );
@@ -942,9 +984,7 @@ export function DayScreen({ visible, data, lang, settings, onClose, onGo, onProf
             onClose={onClose} onGo={onGo} onProfile={onProfile} onCheckin={onCheckin} />
         ) : (
           <View style={[ss.root, { paddingTop: 60 }]}>
-            <Text {...DYNAMIC_TYPE} style={[ss.emptyLine, { fontFamily: fam(lang, "reg"), marginHorizontal: 18 }]}>
-              {t("cityLoading", lang)}
-            </Text>
+            <Quiet glyph="clock" title={t("cityLoading", lang)} lang={lang} />
           </View>
         )}
       </Animated.View>
@@ -978,6 +1018,7 @@ const ss = StyleSheet.create({
   content: { paddingHorizontal: 14, paddingTop: 12, gap: 12 },
 
   card: {
+    ...V2Elev.card,
     backgroundColor: V2T.surface,
     borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.card,
@@ -995,7 +1036,14 @@ const ss = StyleSheet.create({
   sparkHr: { color: V2T.text4, fontSize: 9, flex: 1, textAlign: "center" },
   mRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
   mLine: { color: V2T.text2, fontSize: V2Type.secondary },
-  moveLine: { color: V2T.accentInk, fontSize: V2Type.secondary, marginTop: 8 },
+  /* the decision line earns the accent — but as a left bar + inked
+     copy, not a full-width olive slab (that was the vomit colour) */
+  decisionWrap: { flexDirection: "row", alignItems: "stretch", marginTop: 8 },
+  decisionBar: {
+    width: 3, borderRadius: 2, backgroundColor: V2T.accent, marginRight: 9,
+  },
+  decisionLine: { flex: 1, color: V2T.accentInk, fontSize: V2Type.secondary, lineHeight: 21 },
+  noteLine: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
 
   /* the days ahead — compact cells, same card language as the tiles */
   oaHead: {
@@ -1005,12 +1053,14 @@ const ss = StyleSheet.create({
   oaUnit: { color: V2T.text4, fontSize: V2Type.micro },
   oaRow: { flexDirection: "row", gap: 6 },
   oaCell: {
+    /* fill/edge arrive per-day from the cell's own band — the row reads
+       as the week's weather, not seven identical tiles */
     flex: 1, borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.row, backgroundColor: V2T.surface,
     paddingHorizontal: 6, paddingTop: 7, paddingBottom: 7,
     alignItems: "center",
   },
-  oaCellSel: { backgroundColor: V2T.accentWash, borderColor: V2T.accent },
+  oaCellSel: { borderColor: V2T.accent, borderWidth: 1.5 },
   oaDay: { color: V2T.text3, fontSize: 9 },
   oaMidRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
   oaMid: { color: V2T.text, fontSize: V2Type.label },
@@ -1025,7 +1075,9 @@ const ss = StyleSheet.create({
 
   /* day arc */
   heroRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
-  heroNum: { fontSize: V2Type.display, lineHeight: 34 },
+  /* the dose owns the card — heroXL; colour stays dose-vs-budget via
+     doseDotColor */
+  heroNum: { fontSize: V2Type.heroXL, lineHeight: 70 },
   heroMeta: { flex: 1, paddingBottom: 2 },
   heroUnit: { color: V2T.text2, fontSize: V2Type.label },
   heroSub: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 2 },
@@ -1069,6 +1121,7 @@ const ss = StyleSheet.create({
   /* tiles — the admin tile language: mono micro label + serif number */
   tiles: { flexDirection: "row", gap: 10 },
   tile: {
+    ...V2Elev.card,
     flex: 1, backgroundColor: V2T.surface,
     borderWidth: 1, borderColor: V2T.hairline, borderRadius: V2Radius.card,
     paddingHorizontal: 12, paddingTop: 12, paddingBottom: 10,
@@ -1093,6 +1146,7 @@ const ss = StyleSheet.create({
 
   /* go row */
   goRow: {
+    ...V2Elev.card,
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.card, paddingHorizontal: 16, paddingVertical: 14,
@@ -1101,6 +1155,7 @@ const ss = StyleSheet.create({
 
   /* the peek card on the idle map — the parent wrapper positions it */
   peek: {
+    ...V2Elev.float,
     marginHorizontal: 16,
     backgroundColor: V2T.glassDeep,
     borderWidth: 1, borderColor: V2T.hairline,
@@ -1108,13 +1163,15 @@ const ss = StyleSheet.create({
     paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12,
   },
   peekTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  peekTopRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  peekAmb: { fontSize: V2Type.micro },
   peekEyebrow: {
     color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.8,
     textTransform: "uppercase",
   },
   peekEmpty: { color: V2T.text3, fontSize: V2Type.label, marginTop: 6 },
   peekRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginTop: 4 },
-  peekNum: { color: V2T.text, fontSize: V2Type.display, lineHeight: 32 },
+  peekNum: { color: V2T.text, fontSize: 38, lineHeight: 42 },
   peekUnit: { color: V2T.text3, fontSize: V2Type.micro, paddingBottom: 4 },
   peekDots: { flexDirection: "row", gap: 4, flex: 1, justifyContent: "flex-end", paddingBottom: 8 },
 });

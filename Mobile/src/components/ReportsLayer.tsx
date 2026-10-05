@@ -62,7 +62,7 @@ export function reconcileReportSlots(
  * ONCE at the map's first paint and never unmount: an assignment only
  * mutates a slot's lngLat + child, computed by reconcileReportSlots where
  * the poll lands. Dead slots render an empty child parked at Delhi. */
-export function ReportsLayer({ slots }: { slots: (ReportSlot | null)[] }) {
+function ReportsLayerFn({ slots }: { slots: (ReportSlot | null)[] }) {
   return (
     <>
       {slots.map((s, i) => (
@@ -88,3 +88,7 @@ const st = StyleSheet.create({
   },
   wrapSevere: { borderColor: V2T.breath3 },
 });
+
+/** memoized: the parent re-renders every poll tick; these
+ *  map children only earn a commit when their own props move */
+export const ReportsLayer = React.memo(ReportsLayerFn);

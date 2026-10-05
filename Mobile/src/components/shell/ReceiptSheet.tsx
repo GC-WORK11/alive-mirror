@@ -32,7 +32,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { CIG_UG, NUM, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
+import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
 import { approx, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
@@ -399,6 +399,7 @@ const s = StyleSheet.create({
   sheet: {
     position: "absolute", left: 12, right: 12,
     backgroundColor: V2T.glass, borderRadius: V2Radius.sheet,
+    ...V2Elev.pop,
     borderWidth: 1, borderColor: V2T.glassEdge, padding: 18, paddingBottom: 14,
   },
 

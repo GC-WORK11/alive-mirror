@@ -25,10 +25,10 @@
  * SEAM(compare): the screens lane may replace this with src/screens S4. */
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { NUM, V2Radius, V2T, V2Type, doseColor, fam, famMono } from "../../theme";
+import { NUM, V2Elev, V2Radius, V2T, V2Type, doseColor, fam, famMono } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { Sheet } from "../../ui";
+import { CountUp, Sheet, pressFx } from "../../ui";
 import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
@@ -320,9 +320,11 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
 
 /** One ranked option — solid card. Tap selects; the ⓘ beside the bars
  *  (or a long-press anywhere on the card) opens the details panel. */
-function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
+function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, open,
   fieldAgeS, showCig, safest, veh, lang, onSelect, onToggleDetail }: {
   o: V2Option; i: number; selected: boolean; worstIn: number; worstOut: number;
+  /** the lightest dose in the set — the gap line is computed against it */
+  minDose: number;
   showYours: boolean; open: boolean; fieldAgeS?: number | null;
   showCig: boolean; safest: boolean; veh: VehicleProfile | null; lang: Lang;
   onSelect: (i: number) => void; onToggleDetail: (i: number) => void;
@@ -332,6 +334,11 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
     ? `${d.lo != null ? Math.round(d.lo) : "?"}–${d.hi != null ? Math.round(d.hi) : "?"}`
     : null;
   const doseCol = d?.avg_conc_ugm3 != null ? doseColor(d.avg_conc_ugm3) : V2T.text;
+  /* the dose-gap line — the sheet's emotional payload. "+6 vs lightest"
+     is the number that makes a person pick the metro. µg-gap against the
+     set's minimum; invisible on the lightest card itself. */
+  const doseGap = d?.mid != null && minDose < Infinity && d.mid - minDose >= 0.5
+    ? Math.round(d.mid - minDose) : null;
   const meta = `${o.distance_km ?? "?"} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: arrivalLabel(o.duration_min) })}`
     + `${o.stations ? ` · ${o.stations.board}→${o.stations.alight}` : ""}`;
   const tag = o.tag ? (TAG_KEY[o.tag.toLowerCase()] ? t(TAG_KEY[o.tag.toLowerCase()], lang) : o.tag) : null;
@@ -343,7 +350,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
         delayLongPress={400}
         accessibilityRole="button"
         accessibilityState={{ selected }}
-        style={({ pressed }) => [s.cardRow, pressed && { opacity: 0.72 }]}>
+        style={({ pressed }) => [s.cardRow, pressFx(pressed)]}>
         <Icon name={vehicleGlyph(o.mode)} color={selected ? V2T.accent : V2T.text2} size={28} filled={selected} />
         <View style={s.cardMid}>
           <View style={s.cardTop}>
@@ -376,19 +383,33 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
           ) : null}
         </View>
         <View style={s.cardRight}>
-          <Text {...DYNAMIC_TYPE} style={[s.optEta, NUM, { fontFamily: famMono(lang, "semi") }]}>
-            {Math.round(o.duration_min)}<Text {...DYNAMIC_TYPE} style={s.optEtaUnit}> {t("minUnit", lang)}</Text>
-          </Text>
+          {/* hierarchy flip: the dose owns the right column now (the
+              number this app exists for), ETA recedes to a muted
+              sub-line — a traveller reads "≈34µg · 47 min", not the
+              reverse */}
           {d?.mid != null ? (
-            <Text {...DYNAMIC_TYPE} style={[s.optDose, NUM, { fontFamily: famMono(lang, "semi"), color: doseCol }]}>
-              ≈{Math.round(d.mid)}<Text {...DYNAMIC_TYPE} style={s.optDoseUnit}> µg</Text>
-              {band ? <Text {...DYNAMIC_TYPE} style={[s.optBand, { fontFamily: fam(lang, "reg") }]}>  {band}</Text> : null}
-            </Text>
+            <>
+              <CountUp value={d.mid} duration={520}
+                style={[s.optDose, NUM, { fontFamily: famMono(lang, "semi"), color: doseCol }]}
+                format={(n) => `≈${Math.round(n)}`} />
+              <Text {...DYNAMIC_TYPE} style={[s.optDoseSub, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
+                <Text {...DYNAMIC_TYPE} style={s.optDoseUnit}>µg</Text>
+                {band ? ` ${band}` : ""}
+                {doseGap != null ? (
+                  <Text {...DYNAMIC_TYPE} style={[s.optGap, { fontFamily: fam(lang, "med") }]}>
+                    {"  "}{t("compare_vsLightest", lang, { n: doseGap })}
+                  </Text>
+                ) : null}
+              </Text>
+            </>
           ) : (
             /* TODO(strings): `compare_doseNA` — short "no estimate" marker
                for the dose column; bare dash until the key lands. */
             <Text {...DYNAMIC_TYPE} style={[s.optDose, s.optDoseNA, { fontFamily: fam(lang, "med") }]}>—</Text>
           )}
+          <Text {...DYNAMIC_TYPE} style={[s.optEta, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
+            {Math.round(o.duration_min)}<Text {...DYNAMIC_TYPE} style={s.optEtaUnit}> {t("minUnit", lang)}</Text>
+          </Text>
           <View style={s.barsRow}>
             <PairBars o={o} worstIn={worstIn} worstOut={worstOut} lang={lang} />
             <Pressable
@@ -467,7 +488,7 @@ export function CompareSheet({
     <Pressable
       onPress={() => { tick(); if (onVehiclePress) onVehiclePress(); else setVehOpen(true); }}
       hitSlop={8}
-      style={({ pressed }) => [s.vehChip, pressed && { opacity: 0.6 }]}
+      style={({ pressed }) => [s.vehChip, pressFx(pressed)]}
       accessibilityRole="button" accessibilityLabel={t("sidebarMyVehicle", lang)}>
       <Icon name={vehicleGlyph(veh?.cls ?? "car")} color={V2T.text2} size={15} />
       <Text {...DYNAMIC_TYPE} style={[s.vehChipTxt, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
@@ -562,7 +583,7 @@ export function CompareSheet({
                 </View>
               )}
               {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 8 && (
-                <Pressable onPress={() => { tap(); onRemind(); }} style={({ pressed }) => [s.departRow, pressed && { opacity: 0.7 }]}
+                <Pressable onPress={() => { tap(); onRemind(); }} style={({ pressed }) => [s.departRow, pressFx(pressed)]}
                   accessibilityRole="button">
                   <Icon name={notified ? "bell" : "clock"} color={V2T.accent} size={16} filled={notified} />
                   <Text {...DYNAMIC_TYPE} style={[s.departTxt, { fontFamily: fam(lang, "med") }]}>
@@ -602,6 +623,7 @@ export function CompareSheet({
                   o={o} i={i}
                   selected={i === selected}
                   worstIn={worstIn} worstOut={worstOut}
+                  minDose={minDose}
                   showYours={!!o.your_vehicle && veh != null}
                   open={detailIdx === i}
                   fieldAgeS={fieldAgeS}
@@ -653,14 +675,14 @@ export function CompareSheet({
             {sel && (
               <View style={s.footer}>
                 <Pressable onPress={() => { tick(); onToggleSteps(); }}
-                  style={({ pressed }) => [s.ghostBtn, stepsOpen && s.ghostBtnOn, pressed && { opacity: 0.65 }]}
+                  style={({ pressed }) => [s.ghostBtn, stepsOpen && s.ghostBtnOn, pressFx(pressed)]}
                   accessibilityRole="button">
                   <Text {...DYNAMIC_TYPE} style={[s.ghostTxt, stepsOpen && s.ghostTxtOn, { fontFamily: fam(lang, "med") }]}>
                     {stepsOpen ? t("hideTurns", lang) : t("turnByTurn", lang)}
                   </Text>
                 </Pressable>
                 <Pressable onPress={() => { confirm(); onStart(); }}
-                  style={({ pressed }) => [s.goBtn, pressed && { opacity: 0.8 }]}
+                  style={({ pressed }) => [s.goBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
                   accessibilityRole="button">
                   <Text {...DYNAMIC_TYPE} style={[s.goBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("start", lang)}</Text>
                 </Pressable>
@@ -741,13 +763,15 @@ const s = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendTxt: { fontSize: V2Type.label, color: V2T.text3 },
 
-  /* ---- option card — inner frost tile on the milk pane ---- */
+  /* ---- option card — solid tile resting on the milk pane (the frost
+     dissolved the row edges into noise; real cards carry a shadow) ---- */
   card: {
-    marginHorizontal: 14, marginTop: 7, borderRadius: V2Radius.row,
-    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
+    ...V2Elev.card,
+    marginHorizontal: 14, marginTop: 7, borderRadius: V2Radius.card,
+    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.glassLine,
     overflow: "hidden",
   },
-  cardSel: { borderColor: V2T.accent, backgroundColor: V2T.glassSel },
+  cardSel: { borderColor: V2T.accent, borderWidth: 1.5, backgroundColor: V2T.accentWash },
   cardRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 12, paddingHorizontal: 14, minHeight: 64,
@@ -768,12 +792,16 @@ const s = StyleSheet.create({
   optReason: { fontSize: V2Type.label, color: V2T.text3, marginTop: 3 },
   optCoverage: { fontSize: V2Type.label, color: V2T.breath2, marginTop: 3 },
   cardRight: { alignItems: "flex-end" },
-  optEta: { fontSize: V2Type.body, color: V2T.text },
-  optEtaUnit: { fontSize: V2Type.label, color: V2T.text2 },
-  optDose: { fontSize: V2Type.secondary, marginTop: 3 },
-  optDoseUnit: { fontSize: V2Type.label, color: V2T.text3 },
+  /* dose hero — larger than everything else on the row; ETA is the
+     muted sub under it (was the other way around: "7 min" outsized the
+     number the whole app exists to report) */
+  optEta: { fontSize: V2Type.label, color: V2T.text2, marginTop: 4 },
+  optEtaUnit: { fontSize: V2Type.micro, color: V2T.text3 },
+  optDose: { fontSize: 26, marginTop: 1, includeFontPadding: false },
+  optDoseSub: { fontSize: V2Type.micro, color: V2T.text3, marginTop: 1 },
+  optDoseUnit: { fontSize: V2Type.micro, color: V2T.text3 },
   optDoseNA: { color: V2T.text3 },
-  optBand: { fontSize: V2Type.label, color: V2T.text3 },
+  optGap: { fontSize: V2Type.micro, color: V2T.breath2 },
   barsRow: { flexDirection: "row", alignItems: "center", marginTop: 6, gap: 10 },
   bars: { flexDirection: "row", alignItems: "center", gap: 8 },
   barGroup: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -826,6 +854,7 @@ const s = StyleSheet.create({
   ghostTxt: { fontSize: V2Type.secondary, color: V2T.text2 },
   ghostTxtOn: { color: V2T.accent },
   goBtn: {
+    ...V2Elev.float,
     minHeight: 44, justifyContent: "center", alignItems: "center",
     backgroundColor: V2T.accent, borderRadius: V2Radius.card, paddingHorizontal: 34,
   },
@@ -834,8 +863,8 @@ const s = StyleSheet.create({
   /* ---- states ---- */
   stateWrap: { paddingVertical: 24, paddingHorizontal: 24, alignItems: "center" },
   stateIcon: {
-    width: 42, height: 42, borderRadius: 21, marginBottom: 10,
-    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
+    width: 52, height: 52, borderRadius: 26, marginBottom: 10,
+    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.glassLine,
     alignItems: "center", justifyContent: "center",
   },
   stateTitle: { fontSize: V2Type.secondary, color: V2T.text, textAlign: "center" },

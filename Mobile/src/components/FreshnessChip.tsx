@@ -57,7 +57,7 @@
  */
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { fam, NUM, V2Radius, V2T, V2Type } from "../theme";
+import { fam, NUM, V2Elev, V2Radius, V2T, V2Type } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 
@@ -170,6 +170,7 @@ export function FreshnessChip({
 
 const cs = StyleSheet.create({
   chip: {
+    ...V2Elev.card,
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
