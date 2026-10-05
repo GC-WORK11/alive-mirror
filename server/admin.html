@@ -216,6 +216,11 @@
   .dtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .dtile.na{background:transparent;border-color:var(--ink4);
             border-style:dashed}
+  .dt-head{display:flex;align-items:flex-start;gap:8px}
+  .dt-head>div{min-width:0;flex:1}
+  .dt-cut{flex:none;width:52px;height:52px;display:block}
+  .dtile.na .dt-cut{opacity:.7}
+  .p-cut{width:44px;height:44px;float:right;margin-left:8px}
   .dt-name{font-size:11.5px;font-weight:600;color:var(--ink);
            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dt-state{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
@@ -291,11 +296,11 @@
 
   <div class="grid" id="stats"></div>
 
-  <h2>ncr districts <em>unweighted mean of covered field cells · cpcb bands · click a tile</em></h2>
+  <h2>ncr districts <em>each boundary cut and filled by its live cpcb band · mean of covered cells · click for the card</em></h2>
   <div class="panel distwrap" style="padding:12px"><div class="dist" id="districts">connecting…</div>
     <div class="fmpop" id="dtpop" hidden></div></div>
 
-  <h2>the field <em>the surface routes price on · hover reads a cell · click pins it</em></h2>
+  <h2>the field <em>the surface the router prices · hover reads a cell · click pins it</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="fmsel"></div>
     <div class="fmscrub" id="fmscrub">
@@ -419,34 +424,11 @@ async function tick(){
   const dn=donations||{},S=status||{};
   const rows=(corridors&&corridors.rows)||[];
   const failedN=res.filter(r=>r.status==='rejected').length;
-  /* --- ncr district roster: one cpcb-spined tile per district on a
-     uniform grid — holds ~20+ rows; honest-empty tile when a district
-     has no field data yet --- */
+  /* --- ncr district roster: each tile carries the district's own
+     boundary silhouette (the "map cutout") inked in its live cpcb band —
+     geography first, numbers under it; honest-empty when no field data --- */
   try{
-    const dr=(districts&&districts.districts)||[];
-    DIST_ROWS=dr;
-    $('districts').innerHTML=dr.length?dr.map(d=>{
-      const c=d.color||'#888',na=d.pm25==null&&d.aqi==null;
-      const ink=na?'#14181F':chipInk(c);
-      return `<div class="dtile${na?' na':''}" data-name="${esc(d.name)}" role="button" tabindex="0" aria-pressed="false" style="--dc:${na?'var(--hair)':c};--dink:${ink}">
-        <div class="dt-name">${esc(d.name)}</div>
-        <div class="dt-state">${d.level==='osm_admin_5'?`sub-area · ${esc(d.parent||'delhi')}`:esc(d.state||'')}</div>
-        <div class="dt-v">${na
-          ?'<span class="dt-pm">no field data</span>'
-          :`${d.pm25==null?'':`<span class="dt-pm">${fmt1(d.pm25)}<i> µg/m³</i></span>`}
-             ${d.aqi==null?'':`<span class="dt-aqi">aqi ${d.aqi}</span>`}`}
-        </div>
-        <div class="dt-cat">${na
-          ?(d.confidence==='sparse'?'sparse — centroid read':'outside the field')
-          :esc(d.category||'')}${d.cells_covered?` · ${d.cells_covered} cells`:''}${d.partial_field_coverage?' · partial':''}</div>
-      </div>`;
-    }).join(''):emptyMsg('district feed not answering — tiles fill when /v2/districts returns.');
-    /* a pinned district card refreshes in place — same rule as the cell
-       inspector: the card keeps its spot, its numbers stay live */
-    if(DT_PIN){
-      const t=$('districts').querySelector(`[data-name="${DT_PIN.name}"]`);
-      if(t)dtShow(t);else dtHide();
-    }
+    paintDTiles((districts&&districts.districts)||[]);
   }catch(e){ /* roster stays decorative-optional; never break the board */ }
 
   LAST_OK=new Date();
@@ -897,6 +879,58 @@ function chipInk(hex){
   const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
   return (0.299*r+0.587*g+0.114*b)/255>0.6?'#14181F':'#fff';
 }
+/* district boundary silhouettes — each feature normalised into a
+   64×64 svg box (true aspect: lon° ×0.879 vs lat°). built once FM_GJ
+   arrives; a district with no polygon yet simply gets no cutout */
+const CUT={};
+function cutPath(feat){
+  const g=feat&&feat.geometry;if(!g)return null;
+  const rings=g.type==='Polygon'?[g.coordinates[0]]
+    :g.type==='MultiPolygon'?g.coordinates.map(p=>p[0]):[];
+  if(!rings.length)return null;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const r of rings)for(const c of r){
+    x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);
+    y0=Math.min(y0,c[1]);y1=Math.max(y1,c[1])}
+  const w=(x1-x0)*0.879,h=(y1-y0);
+  if(w<=0||h<=0)return null;
+  const pad=3,S=(64-2*pad)/Math.max(w,h);
+  const mx=x=>((x-x0)*0.879*S+pad).toFixed(1);
+  const my=y=>((y1-y)*S+pad).toFixed(1);
+  return rings.map(r=>
+    'M'+r.map(c=>mx(c[0])+','+my(c[1])).join('L')+'Z').join(' ');
+}
+function paintDTiles(dr){
+  DIST_ROWS=dr;
+  $('districts').innerHTML=dr.length?dr.map(d=>{
+    const c=d.color||'#888',na=d.pm25==null&&d.aqi==null;
+    const ink=na?'#14181F':chipInk(c);
+    const cut=CUT[d.name];
+    const cutSvg=cut
+      ?`<svg class="dt-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${cut}" fill="${na?'var(--ink4)':c}" fill-opacity="${na?'0.10':'0.88'}" stroke="${na?'var(--ink4)':'var(--ink)'}" stroke-width="1.4" stroke-linejoin="round"/></svg>`
+      :'';
+    return `<div class="dtile${na?' na':''}" data-name="${esc(d.name)}" role="button" tabindex="0" aria-pressed="false" style="--dc:${na?'var(--hair)':c};--dink:${ink}">
+      <div class="dt-head"><div>
+        <div class="dt-name">${esc(d.name)}</div>
+        <div class="dt-state">${d.level==='osm_admin_5'?`sub-area · ${esc(d.parent||'delhi')}`:esc(d.state||'')}</div>
+      </div>${cutSvg}</div>
+      <div class="dt-v">${na
+        ?'<span class="dt-pm">no field data</span>'
+        :`${d.pm25==null?'':`<span class="dt-pm">${fmt1(d.pm25)}<i> µg/m³</i></span>`}
+           ${d.aqi==null?'':`<span class="dt-aqi">aqi ${d.aqi}</span>`}`}
+      </div>
+      <div class="dt-cat">${na
+        ?(d.confidence==='sparse'?'sparse — centroid read':'outside the field')
+        :esc(d.category||'')}${d.cells_covered?` · ${d.cells_covered} cells`:''}${d.partial_field_coverage?' · partial':''}</div>
+    </div>`;
+  }).join(''):emptyMsg('district feed not answering — tiles fill when /v2/districts returns.');
+  /* a pinned district card refreshes in place — same rule as the cell
+     inspector: the card keeps its spot, its numbers stay live */
+  if(DT_PIN){
+    const t=$('districts').querySelector(`[data-name="${DT_PIN.name}"]`);
+    if(t)dtShow(t);else dtHide();
+  }
+}
 function dtHide(){const p=$('dtpop');if(p)p.hidden=true;
   if(DT_PIN){const t=$('districts')&&$('districts').querySelector(
     `[data-name="${DT_PIN.name}"]`);if(t)t.setAttribute('aria-pressed','false')}
@@ -968,7 +1002,9 @@ function dtShow(tile){
   const basis=d.confidence==='sparse'
     ?`centroid read — ${d.cells_covered||0} covered cell${(d.cells_covered||0)===1?'':'s'}`
     :d.cells_covered?`mean of ${d.cells_covered} covered cells`:'no covered cells';
-  pop.innerHTML=`<div class="p-name">${esc(d.name)}</div>
+  const pcut=CUT[name];
+  pop.innerHTML=`${pcut?`<svg class="p-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${pcut}" fill="${c}" fill-opacity="${na?0.10:0.85}" stroke="var(--ink)" stroke-width="1.6" stroke-linejoin="round"/></svg>`:''}
+    <div class="p-name">${esc(d.name)}</div>
     <div class="p-sub">${esc(level)}</div>
     <div class="p-v">${na
       ?'<b>—</b> no field data'
@@ -1092,7 +1128,15 @@ function bindScrub(){
     fetch('/ncr.geojson').then(r=>r.ok?r.json():null).catch(()=>null),
     fetch('/delhi_subdistricts.geojson').then(r=>r.ok?r.json():null).catch(()=>null)
   ]).then(([a,b])=>{FM_GJ={features:[
-    ...((a&&a.features)||[]),...((b&&b.features)||[])]}});
+    ...((a&&a.features)||[]),...((b&&b.features)||[])]};
+    /* cut the boundary silhouettes once both sets are in, then repaint
+       the roster so the geography lands on the tiles it belongs to */
+    for(const f of FM_GJ.features||[]){
+      const n=f.properties&&f.properties.name;
+      if(n&&!CUT[n]){const p=cutPath(f);if(p)CUT[n]=p}
+    }
+    if(DIST_ROWS&&DIST_ROWS.length)paintDTiles(DIST_ROWS);
+  });
 }
 
 async function paintFieldMap(param){

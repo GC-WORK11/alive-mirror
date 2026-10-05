@@ -15,8 +15,11 @@
 source "$(dirname "$0")/common.sh"
 
 TILEMAKER_IMAGE="${TILEMAKER_IMAGE:-ghcr.io/systemed/tilemaker:master}"
-CFG="$REPO_ROOT/scripts/geo/config-openmaptiles.json"
-LUA="$REPO_ROOT/scripts/geo/process-openmaptiles.lua"
+# config/lua live next to THIS script — resolves in both layouts: the repo
+# (scripts/geo/) and the CodeBuild source zip (git archive flat root).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CFG="$SCRIPT_DIR/config-openmaptiles.json"
+LUA="$SCRIPT_DIR/process-openmaptiles.lua"
 
 [[ -s "$BBOX_PBF" ]] || die "missing $BBOX_PBF — run fetch_extract.sh first"
 [[ -s "$CFG" && -s "$LUA" ]] || die "missing $CFG / $LUA"

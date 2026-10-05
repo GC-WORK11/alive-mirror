@@ -76,4 +76,4 @@ until st="$(aws codebuild batch-get-builds --ids "$bid" \
   || die "codebuild $bid status=$st — see CloudWatch logs (/aws/codebuild/$PROJECT)"
 
 log "published artifact:"
-aws s3 ls "s3://$AIR_BUCKET/$S3_KEY"
+aws s3api head-object --bucket "$AIR_BUCKET" --key "$S3_KEY"

@@ -9,6 +9,10 @@ field; re-check on the day. Nothing in the product is seeded or faked.
 Release APK: sideload build, universal arm64+x86_64, debug-signed —
 built with `EXPO_PUBLIC_API_URL=http://alive108-…elb.ap-south-1.
 amazonaws.com` (NLB serves :80 only; never `:8000` or `https://`).
+For the self-hosted Delhi basemap (street names/POIs to z14 from our
+own pmtiles), also pass `EXPO_PUBLIC_TILES_URL=http://65.2.28.40/
+tiles/tilejson.json` at bundle time; omitted → hosted OpenFreeMap
+fallback, still fine but not ours (docs/plan/handoff.md cont.15).
 
 ## The pitches (one breath each)
 
@@ -329,7 +333,11 @@ commits the judges will actually read.
   replacement boots cold (~2 min to priced engine even with warm-up)
 - [ ] T-45: `curl $NLB/health` — `build_sha` is the build you mean to
   demo; `field_stale: false`; `engine: "alive_core"`
-- [ ] T-40: `python3 tools/warm_task.py` exits 0 (engine rows flowing)
+- [ ] T-40: `python3 tools/warm_task.py` exits 0 (engine rows flowing;
+  its last line should read `/tiles/health ok — 22.7 MB` — that means
+  the self-hosted Delhi vector basemap is live; a 503 means the S3
+  artifact is absent and the app falls back to hosted OpenFreeMap
+  tiles, which still renders but isn't ours)
 - [ ] T-30: phone on the venue's network (NLB is HTTP :80 only — hotel
   Wi-Fi "captive portal" pages break it; a phone hotspot is the safest
   path, verified: the APK hits the NLB direct)
