@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALIVE·108 — donated commutes, aggregates only</title>
-<meta name="description" content="Your day stays on your phone. Opted-in trips appear only as k≥3 aggregates on a street grid — the first and last 300 m never leave, the anonymous id rotates every 30 days.">
+<meta name="description" content="Your day stays on your phone. Opted-in trips appear only as k≥3 aggregates on a street grid — the first and last 300 m are dropped before storage, the anonymous id is never linked to you.">
 <meta name="theme-color" content="#fafaf7">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%234d7c0f'/%3E%3C/svg%3E">
 <style>
@@ -149,8 +149,9 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
   <p class="sub rise" style="--d:140ms">Your day stays on your phone —
   the app's own receipt says it: kept on this phone only. If you choose
   to share, a trip leaves as a few rough dots on a street grid — the
-  first and last 300 m never leave, the anonymous id rotates every 30
-  days — and a street cell publishes only after <b>≥3 different
+  first and last 300 m are dropped before anything is stored, the
+  anonymous id is never linked to you — and a street cell publishes
+  only after <b>≥3 different
   devices</b> have crossed it. A corridor cell is the smallest unit
   this page can show.</p>
   <div class="links rise" style="--d:210ms">
@@ -187,8 +188,8 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
   </div>
   <div class="scrollx"><table id="corridors"></table></div>
   <p class="tnote">k≥3 — a cell publishes only after ≥3 distinct
-    devices cross it within 72h. below that, its traversals still feed
-    the krige but never appear here — aggregates exist precisely so no
+    devices cross it within 72h. below that, a cell does not exist in
+    the data at all — aggregates exist precisely so no
     single commute can be traced.</p>
 </div></section>
 
@@ -232,7 +233,7 @@ async function load(){
     $('status').innerHTML=
       `<span><b>${IN(c.contributors)}</b> contributors</span>`+
       `<span><b>${IN(c.obs_24h)}</b> commutes in 24h</span>`+
-      `<span><b>${F1(c.km_24h)}</b> km donated today</span>`+
+      `<span><b>${F1(c.km_24h)}</b> km donated · 24h</span>`+
       `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 avoided, all-time</span>`+
       (last!=null?`<span>last commute <b>${Math.round(last)}m</b> ago</span>`:'');
   }else if(h){

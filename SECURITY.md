@@ -27,11 +27,14 @@ What we defend against, in order:
 ## Identity & tokens
 
 - No accounts, names, phone numbers, or emails — none are collected.
-- Devices send a random **UUIDv4 token**, generated on-device and rotated
-  every 30 days. It is never linked to anything.
-- Tokens are **SHA-256 truncated-hashed before they touch any store or
-  bucket map** — including the rate limiter, so raw tokens never sit in
-  server memory structures either.
+- Devices send a random anonymous token (`"anon-"` + 8 base36 chars),
+  generated once on-device; a new one is created only if app data is
+  deleted. It is never linked to anything.
+- On the `/v2/trip` path tokens are **SHA-256 truncated-hashed before
+  they touch any store or bucket map** — including the rate limiter, so
+  raw tokens never sit in server memory structures either. The dormant
+  `/observe` endpoint predates this and still stores the raw token per
+  row (`server/community.py`) — no shipped client posts to it today.
 
 ## What is stored
 

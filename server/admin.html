@@ -1011,7 +1011,7 @@ function paintMeth(){
   const f=(G_STATUS&&G_STATUS.field)||{};
   const nSt=f.station_readings??'—',nSamp=f.samples??'—';
   const METH={
-    pm2_5:`<b>${fmt(nSt)} waqi station instruments</b> report a us-epa aqi sub-index → inverted through the epa breakpoints into real µg/m³ → kalman-smoothed per station → blended with ${fmt(nSamp)} open-meteo/cams model samples → spatial de-bias (model pulled toward instruments) → ordinary krige → the ${fmt(FM_FEATS.length)} cells above.<br>the honest band: krige σ ×3.2 — measured 95.2% coverage at ±2σ on 7,240 held-out station hours. donated trips re-weight the cells they cross.`,
+    pm2_5:`<b>${fmt(nSt)} waqi station instruments</b> report a us-epa aqi sub-index → inverted through the epa breakpoints into real µg/m³ → kalman-smoothed per station → blended with ${fmt(nSamp)} open-meteo/cams model samples → spatial de-bias (model pulled toward instruments) → ordinary krige → the ${fmt(FM_FEATS.length)} cells above.<br>the honest band: krige σ ×3.2 — measured 95.2% coverage at ±2σ on 3,550 held-out station-hours. donated trips re-weight the cells they cross.`,
     pm10:`cams model layer + the pm2.5 instrument de-bias applied additively — pm10 = pm2.5 + coarse residue; instrument evidence lives in the fine fraction, the coarse part stays modelled.`,
     nitrogen_dioxide:`cams model layer — the instruments we ingest carry pm2.5 evidence only; a cell's confidence fades with distance to the nearest model point.`,
     ozone:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,

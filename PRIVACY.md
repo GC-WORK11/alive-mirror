@@ -142,18 +142,19 @@ we don't claim no infrastructure ever sees them.
 We publish this list instead of overclaiming — `docs/privacy/verify.md`
 shows how to confirm each item:
 
-1. **The app donates to `/observe`, not `/v2/trip`** — the hardened
-   300 m/100 m/4 dp/H3 pipeline is implemented server-side but the client
-   still posts to the older endpoint (no client calls `/v2/trip` yet).
-2. `/observe` does **not** trim 300 m or thin by distance, rounds to
-   **5 dp** (not 4), and **persists** donated points — the "no raw
-   trajectories at rest" rule is only true of the `/v2/trip` path today.
-3. The contributor id is random but **never rotates** (spec says 30 days)
-   and is stored per-row, so a per-device donation history is
-   reconstructible from the `/observe` store; it is also surfaced on
-   `/admin/api`.
-4. The **k≥3 distinct-device** corridor rule exists only on the `/v2/trip`
-   path (`store.py:106-107`); the `/observe` corridor read-out has no
-   per-device threshold.
-5. `/admin` and `/admin/api` are served **without the basic-auth** the
-   spec calls for, and they expose contributor ids.
+1. **`/observe` is still served and still unsafe** — it does not trim
+   300 m or thin by distance, rounds to **5 dp** (not 4), and persists
+   donated points. No shipped client posts to it today (the app's
+   donation path is `/v2/trip`, `Mobile/src/nav/engine.ts`), but the
+   write surface exists until it is retired.
+2. The contributor id is random but **never rotates** (spec says 30
+   days). On `/v2/trip` it is sha256-hashed before any store sees it; on
+   the dormant `/observe` store it is kept per-row in the clear, so a
+   per-device donation history would be reconstructible from that file
+   if it filled. It is also returned by `/admin/api` behind the admin
+   token.
+Closed since this list was first written: the app now donates to
+`/v2/trip` (not `/observe`), both corridor stores enforce the ≥3
+distinct-device rule (`store.py` and `community.py`), and `/admin/api*`
+requires `Authorization: Bearer <ALIVE_ADMIN_TOKEN>` — 401 without it,
+verified live; `/admin` itself is a public shell carrying no data.
