@@ -141,6 +141,19 @@ def main():
     print(f"[{time.time()-t0:6.1f}s] /reports {'ok' if not e3 else e3} · "
           f"/v2/city {'ok' if not e4 else e4}")
 
+    # 5. vector-tiles lane — the geo mirror pulls delhi.pmtiles at boot,
+    # so /tiles/health should already report the archive; a 503 here
+    # means the S3 artifact is missing (basemap falls back to hosted
+    # tiles — the map still renders, just not ours).
+    tj, e5 = _get("/tiles/health")
+    if tj and tj.get("ok"):
+        print(f"[{time.time()-t0:6.1f}s] /tiles/health ok — "
+              f"{tj.get('size_mb')} MB z{tj.get('zoom')} "
+              f"{tj.get('tile_entries')} entries")
+    else:
+        print(f"[{time.time()-t0:6.1f}s] /tiles/health {e5 or tj} "
+              f"(app falls back to hosted OpenFreeMap tiles)")
+
     if engine_at is not None:
         print(f"WARM: priced engine serving after {engine_at:.0f}s")
         return 0
