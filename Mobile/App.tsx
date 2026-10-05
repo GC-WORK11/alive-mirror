@@ -311,13 +311,18 @@ function AppInner() {
     if ("share" in p) {
       saveConsent({ sharing: p.share ? "on" : "off", ts: Date.now() }).catch(() => {});
     }
-    // drawer chip -> profile: a coarse pick that changes class starts a
-    // fresh profile (fuel/year are class-specific, honestly unknown)
+    // drawer chip -> profile: a coarse pick that changes BUCKET starts a
+    // fresh profile (fuel/year are class-specific, honestly unknown).
+    // A profile already inside the same bucket is left alone — otherwise
+    // applyVehicle's own mirror (metro -> "transit") round-trips through
+    // DRAWER2CLS as "bus" and clobbers the wizard's finer pick.
     if (p.vehicle != null) {
       const cls = DRAWER2CLS[p.vehicle];
       if (cls) {
         getVehicle().then((cur) => {
-          if (cur?.cls !== cls) flow.setVehicleProfile({ cls, fuel: null, year: null });
+          if (cur == null || CLS2DRAWER[cur.cls] !== p.vehicle) {
+            flow.setVehicleProfile({ cls, fuel: null, year: null });
+          }
         }).catch(() => {});
       }
     }
