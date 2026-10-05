@@ -137,6 +137,9 @@ export const bandWashIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i
 export const bandWash = (v: number | null | undefined) => {
   const i = bandIdx(v); return i == null ? null : bandWashIdx(i);
 };
+/** ~26% band — tile fills where the band itself must scan at a glance
+ *  (the days-ahead row: five 10% washes read identical on paper) */
+export const bandWashDeepIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.74);
 /** ~38% band — a hairline that carries the day's colour */
 export const bandEdgeIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.60);
 export const bandEdge = (v: number | null | undefined) => {

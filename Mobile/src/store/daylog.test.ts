@@ -172,6 +172,30 @@ describe("reconstructDay — honesty edges", () => {
     assert.equal(rec.totalUg, 0); // pair gap is ~48h ≫ 45min
     assert.equal(rec.coveredMin, 0);
   });
+
+  /* the sparse hero's progress meter (docs/lanes/hero-sparse): the count
+     a fresh install can honestly show — today's own reads, toward the
+     same 3-sample gate that lifts `thin` */
+  it("samplesToday is the sparse meter — thin lifts at THIN_SAMPLE_MIN", () => {
+    const s = (m: number) => samp(at(8, m), CP.lat, CP.lon, CP.amb, CP.bz);
+    const r0 = reconstructDay(DAY, [], [], NOW);
+    assert.equal(r0.samplesToday, 0);
+    assert.equal(r0.thin, true);
+    const r2 = reconstructDay(DAY, [s(0), s(10)], [], NOW);
+    assert.equal(r2.samplesToday, 2);
+    assert.equal(r2.thin, true);
+    const r3 = reconstructDay(DAY, [s(0), s(10), s(20)], [], NOW);
+    assert.equal(r3.samplesToday, 3);
+    assert.equal(r3.thin, false);
+    /* a day already over counts its own reads — yesterday's samples
+       never pad today's meter */
+    const prev = new Date(at(0, 0)); prev.setDate(prev.getDate() - 1);
+    const sPrev = samp(prev.getTime() + 8 * 3600 * 1000, CP.lat, CP.lon, CP.amb, CP.bz);
+    const rp = reconstructDay(dayKey(prev.getTime()), [sPrev], [], NOW);
+    assert.equal(rp.samplesToday, 1);
+    const rt = reconstructDay(DAY, [sPrev], [], NOW);
+    assert.equal(rt.samplesToday, 0);
+  });
 });
 
 describe("recordSample — the dedupe the file depends on", () => {

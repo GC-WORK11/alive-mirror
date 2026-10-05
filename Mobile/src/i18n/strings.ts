@@ -71,7 +71,7 @@ const en = {
   howWeGotThis: "How we got this",
   howWe_in: "smoke you breathe — ≈ {mid} µg this trip (est. {lo}–{hi})",
   howWe_out: "smoke your ride puts out — {v}",
-  howWe_conf: "how sure the smoke number is: {c}",
+  howWe_conf: "confidence: {c}",
   howWe_cigs: "{n} cigarettes",
   howWe_none: "no estimate for this option",
   howWe_fieldAge: "air reading: {n} min old",
@@ -477,7 +477,13 @@ const en = {
   // "don't go out" — always the cheaper-for-lungs version of the same plan.
   dayTitle: "your day",
   dayNow: "now",
-  dayThin: "still sparse — the phone has sampled today's air too little to count it yet",
+  /* the sparse hero — ambient truth labelled, never a fake personal
+     number (docs/lanes/hero-sparse): the field at the device's cell is
+     shown as the designed empty, the count line names what's missing */
+  daySparseAir: "today's air where you are: ~{n} µg/m³",
+  daySparseWait: "waiting for the first air reading today",
+  daySparseCount: "your count starts once the phone logs its first hours",
+  daySparseSamples: "{n} of {m} samples",
   dayBreathed: "breathed so far",
   dayCovered: "{h}h{m}m accounted",
   dayArcY: "µg inhaled",
@@ -571,6 +577,11 @@ const en = {
   homeOutsideNow: "outside now ~{n} µg/m³",
   homeOfBudget: "of ~{b}µg daily",
   homeWeek: "{n}µg this week",
+  /* the sparse week strip — the city's forecast days stand in (dimmed)
+     until the personal arc has a day counted; 'Delhi's next days' names
+     whose days they are so they never read as the user's own */
+  homeWeekCity: "Delhi's next days",
+  homeWeekSparse: "your week starts counting today",
   moveTitle: "the move",
   homeLinkMap: "the air map",
   homeLinkCity: "Delhi today",
@@ -656,7 +667,7 @@ const hi: Record<StringKey, string> = {
   howWeGotThis: "यह नंबर कैसे निकला",
   howWe_in: "साँस का धुआँ — इस यात्रा में ≈ {mid} µg (अंदाज़ {lo}–{hi})",
   howWe_out: "गाड़ी से निकला धुआँ — {v}",
-  howWe_conf: "धुएँ के नंबर का भरोसा: {c}",
+  howWe_conf: "भरोसा: {c}",
   howWe_cigs: "{n} सिगरेट",
   howWe_none: "इस विकल्प के लिए कोई अनुमान नहीं",
   howWe_fieldAge: "हवा की रीडिंग: {n} मिनट पुरानी",
@@ -1018,7 +1029,10 @@ const hi: Record<StringKey, string> = {
   a11yClearSaved: "सहेजी जगह हटाएँ",
   dayTitle: "आज का दिन",
   dayNow: "अभी",
-  dayThin: "अभी कुछ ही रीडिंग — आज की हवा गिनने के लिए फ़ोन ने थोड़ा ही नमूना लिया है",
+  daySparseAir: "आज की हवा आपके यहाँ: ~{n} µg/m³",
+  daySparseWait: "आज की पहली हवा रीडिंग का इंतज़ार",
+  daySparseCount: "आपकी गिनती तब शुरू होगी जब फ़ोन अपने पहले घंटे लिख लेगा",
+  daySparseSamples: "{m} में से {n} नमूने",
   dayBreathed: "अब तक साँस में गया",
   dayCovered: "{h}घं{m}मि गिने",
   dayArcY: "साँस में गया µg",
@@ -1106,6 +1120,8 @@ const hi: Record<StringKey, string> = {
   homeOutsideNow: "बाहर अभी ~{n} µg/m³",
   homeOfBudget: "~{b}µg दैनिक में से",
   homeWeek: "इस हफ़्ते {n}µg",
+  homeWeekCity: "दिल्ली के अगले दिन",
+  homeWeekSparse: "आपका हफ़्ता आज से गिना जाएगा",
   moveTitle: "आज का फ़ैसला",
   homeLinkMap: "हवा का नक्शा",
   homeLinkCity: "आज की दिल्ली",

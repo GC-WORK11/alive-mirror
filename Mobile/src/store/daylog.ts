@@ -40,6 +40,10 @@ type DayLogFile = { samples: AmbientSample[]; checkins: Record<string, Checkin> 
  *  short enough that the file stays a timeline, not an archive. */
 const SAMPLE_KEEP_MS = 21 * 24 * 3600 * 1000;
 const MAX_SAMPLES = 4000;
+/** The count needs this many of today's reads before the hero calls
+ *  the day counted (one trip also counts it) — the sparse hero's
+ *  "N of M samples" meter reads the same constant the gate does. */
+export const THIN_SAMPLE_MIN = 3;
 /** A sample can stand for a gap this long between reads — past it the
  *  timeline honestly stops claiming coverage. */
 const GAP_INTERP_MS = 45 * 60 * 1000;
@@ -176,6 +180,10 @@ export type DayReconstruction = {
   parts: { label: string; ug: number }[];
   /** concentration samples still sparse enough to call the day thin */
   thin: boolean;
+  /** ambient reads inside this day — the sparse hero's progress meter
+   *  (N of THIN_SAMPLE_MIN) and the only honest 'how far along' it can
+   *  show; named *Today because the hero's rec is always today */
+  samplesToday: number;
 };
 
 /** Reconstruct one local day from samples + trips. Now bounds it —
@@ -292,7 +300,8 @@ export function reconstructDay(
     totalUg: Math.round(totalUg * 10) / 10,
     coveredMin,
     parts: parts.slice(0, 4),
-    thin: daySamples < 3 && dayTrips === 0,
+    thin: daySamples < THIN_SAMPLE_MIN && dayTrips === 0,
+    samplesToday: daySamples,
   };
 }
 

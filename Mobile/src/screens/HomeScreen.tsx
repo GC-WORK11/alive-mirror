@@ -54,6 +54,7 @@ import {
   bandEdgeIdx,
   bandIdx,
   bandInkIdx,
+  bandWashDeepIdx,
   bandWashIdx,
   fam,
   famMono,
@@ -73,6 +74,7 @@ import {
   getCheckins,
   reconstructDay,
   symptomLens,
+  THIN_SAMPLE_MIN,
   type Checkin,
   type DayReconstruction,
   type LensVerdict,
@@ -271,6 +273,46 @@ function SparklineInner({ series, lang }: { series: (number | null)[]; lang: Lan
 }
 
 const Sparkline = React.memo(SparklineInner);
+
+/** The sparse hero's ambient arc — the day's served pm2.5 curve at the
+ *  device's cell, drawn faint where the personal number can't stand yet:
+ *  the truth we HAVE (the field) labelled, never a fake personal count
+ *  (docs/lanes/hero-sparse). Same hole-not-a-guess rule as the move
+ *  sparkline — a failed hour is a gap in the stroke. */
+function SparseAirArcInner({ series }: { series: (number | null)[] }) {
+  bump("home.SparseAirArc");
+  const [w, setW] = useState(0);
+  const H = 46, PAD = 10;
+  const vals = series.filter((v): v is number => v != null);
+  const max = Math.max(...vals, 1), min = Math.min(...vals, 0);
+  const span = Math.max(1, max - min);
+  const x = (i: number) => PAD + (w - 2 * PAD) * (series.length <= 1 ? 0 : i / (series.length - 1));
+  const y = (v: number) => H - 8 - (H - 18) * ((v - min) / span);
+  const runs: string[] = [];
+  let cur = "";
+  series.forEach((v, i) => {
+    if (v == null) { if (cur) runs.push(cur); cur = ""; return; }
+    cur += `${cur ? " L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+  });
+  if (cur) runs.push(cur);
+  return (
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={ss.sparseArc}>
+      {w > 0 && (
+        <Svg width={w} height={H}>
+          {runs.map((d, i) => (
+            <Path key={i} d={d} stroke={V2T.text3} strokeWidth={1} fill="none" opacity={0.5} />
+          ))}
+          {series.map((v, i) => (
+            <Circle key={i} cx={x(i)} cy={y(v ?? min)} r={3}
+              fill={bandColor(v) ?? V2T.hairline} opacity={v == null ? 0.3 : 0.85} />
+          ))}
+        </Svg>
+      )}
+    </View>
+  );
+}
+
+const SparseAirArc = React.memo(SparseAirArcInner);
 
 /** the 'as of' line the forecast cards share: the served field's own
  *  age in the freshness chip's tone language — stale says stale, fresh
@@ -560,9 +602,13 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
           const sel = openKey === d.date_ist;
           const dot = bandColorIdx(bandIdxForName(d.band)) ?? bandColor(d.pm25_mid);
           const bi = bandIdxForName(d.band) ?? bandIdx(d.pm25_mid);
-          const cellBg = bi != null ? bandWashIdx(bi) : V2T.surface;
+          /* the band IS the scan cue — a deeper wash + band-inked day
+             label so worst/best reads at a glance (five 10% washes were
+             indistinguishable paper) */
+          const cellBg = bi != null ? bandWashDeepIdx(bi) : V2T.surface;
           const cellEdge = bi != null ? bandEdgeIdx(bi) : V2T.hairline;
           const midCol = bi != null ? bandInkIdx(bi) : V2T.text;
+          const dayCol = bi != null ? bandInkIdx(bi) ?? V2T.text3 : V2T.text3;
           return (
             <Pressable key={d.date_ist}
               onPress={() => {
@@ -583,7 +629,7 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
                 pressed && { transform: [{ scale: 0.96 }] },
               ]}>
               <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
-                style={[ss.oaDay, { fontFamily: mtext(lang) }]}>
+                style={[ss.oaDay, { fontFamily: mtext(lang), color: dayCol }]}>
                 {dayLabel(d.label, lang)}
               </Text>
               <View style={ss.oaMidRow}>
@@ -1026,29 +1072,65 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   const ambIdx = bandIdx(ambientUg ?? null);
   const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
   const maxW = Math.max(...data.week.map((w) => w.ug), 1);
+  /* the sparse hero's ambient truth: the poll's own read first, then the
+     curve's now-slot — whichever the device actually has (never a guess) */
+  const airNow = ambientUg ?? data.curve?.series.find((v) => v != null) ?? null;
+  const airNowIdx = bandIdx(airNow);
+  const weekCounted = data.week.some((w) => w.ug > 0);
+  const cityDays = data.outlook?.days.slice(0, 7) ?? [];
   return (
     <View>
       <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: mono(lang, "med") }]}>
         {t("homeBreathed", lang)}
       </Text>
       {rec.thin ? (
-        /* honest empty — the instrument has sampled too little to count;
-           the dash sits in the dose slot with its unit so it reads as an
-           uncounted dose, not a stray skeleton block */
+        /* designed sparse (docs/lanes/hero-sparse) — the field at the
+           device's cell IS known, so show it labelled and faint inside
+           the hero zone; what's missing is only the personal count, and
+           the meter says how far the phone is from its first counted
+           day. Never a fake personal number. */
         <>
-          <View style={ss.heroNumRow}>
-            <Text {...DYNAMIC_TYPE} style={[ss.heroNum, {
-              fontFamily: famSerif(lang, "semi"), color: V2T.text4,
-            }]}>
-              —
+          {airNow != null && (
+            <>
+              {!!data.curve?.series.some((v) => v != null) && (
+                <SparseAirArc series={data.curve.series} />
+              )}
+              <View style={ss.sparseAmbRow}>
+                <BandDot conc={null} color={bandColor(airNow)} />
+                <Text {...DYNAMIC_TYPE} style={[ss.sparseAmb, NUM, {
+                  fontFamily: mtext(lang, "med"),
+                  color: airNowIdx != null ? bandInkIdx(airNowIdx) ?? V2T.text3 : V2T.text3,
+                }]}>
+                  {t("daySparseAir", lang, { n: Math.round(airNow) })}
+                </Text>
+              </View>
+            </>
+          )}
+          {airNow == null && (
+            <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
+              {t("daySparseWait", lang)}
             </Text>
-            <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}>
-              µg
+          )}
+          <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
+            {t("daySparseCount", lang)}
+          </Text>
+          {/* progress to the first counted day — the same 3-sample gate
+              the hero number answers to, shown as it fills */}
+          <View style={ss.sparseProgRow}>
+            {Array.from({ length: THIN_SAMPLE_MIN }).map((_, i) => (
+              <View key={i} style={[ss.weekDot, {
+                backgroundColor: i < rec.samplesToday ? V2T.text3 : "transparent",
+                borderWidth: i < rec.samplesToday ? 0 : 1,
+                borderColor: V2T.hairline,
+              }]} />
+            ))}
+            <Text {...DYNAMIC_TYPE} style={[ss.sparseProgLbl, NUM, { fontFamily: mtext(lang) }]}>
+              {t("daySparseSamples", lang, {
+                n: Math.min(rec.samplesToday, THIN_SAMPLE_MIN),
+                m: THIN_SAMPLE_MIN,
+              })}
             </Text>
           </View>
-          <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
-            {t("dayThin", lang)}
-          </Text>
         </>
       ) : (
         <View style={ss.heroMainRow}>
@@ -1068,38 +1150,73 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
           </View>
         </View>
       )}
-      <View style={ss.heroStatRow}>
-        {!rec.thin && (
+      {/* the stat row carries the covered-hours read in the counted
+          state; in the sparse state the ambient read lives inside the
+          hero zone itself (labelled as the field, not as your dose) */}
+      {!rec.thin && (
+        <View style={ss.heroStatRow}>
           <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: mtext(lang) }]}>
             {t("dayCovered", lang, { h, m })}
           </Text>
-        )}
-        {ambientUg != null && ambIdx != null && (
-          <View style={ss.heroAmb}>
-            <BandDot conc={null} color={bandColorIdx(ambIdx)} />
-            <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, {
-              fontFamily: mtext(lang), color: bandInkIdx(ambIdx) ?? V2T.text3,
-            }]}>
-              {t("homeOutsideNow", lang, { n: Math.round(ambientUg) })}
-            </Text>
-          </View>
-        )}
-      </View>
+          {ambientUg != null && ambIdx != null && (
+            <View style={ss.heroAmb}>
+              <BandDot conc={null} color={bandColorIdx(ambIdx)} />
+              <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, {
+                fontFamily: mtext(lang), color: bandInkIdx(ambIdx) ?? V2T.text3,
+              }]}>
+                {t("homeOutsideNow", lang, { n: Math.round(ambientUg) })}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
       {/* the week — last 7 local days as dose dots (reconstruction, not
-          ambition); a quiet trend under the hero, not a chart */}
+          ambition); a quiet trend under the hero, not a chart. With no
+          day counted yet the personal arc can't stand — the city's own
+          forecast days stand in, dimmed and named as Delhi's, never
+          read as yours ('0µg' + empty dots reads broken, not honest). */}
       <View style={ss.heroWeekRow}>
-        {data.week.map((w) => (
-          <View key={w.day} style={[ss.weekDot, {
-            backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : "transparent",
-            borderWidth: w.ug > 0 ? 0 : 1, borderColor: V2T.hairline,
-            opacity: w.ug > 0 ? 0.5 + 0.5 * (w.ug / maxW) : 1,
-          }]} />
-        ))}
-        <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mtext(lang) }]}>
-          {t("homeWeek", lang, {
-            n: approx(doseUgRound(data.week.reduce((s, w) => s + w.ug, 0))),
-          })}
-        </Text>
+        {weekCounted ? (
+          <>
+            {data.week.map((w) => (
+              <View key={w.day} style={[ss.weekDot, {
+                backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : "transparent",
+                borderWidth: w.ug > 0 ? 0 : 1, borderColor: V2T.hairline,
+                opacity: w.ug > 0 ? 0.5 + 0.5 * (w.ug / maxW) : 1,
+              }]} />
+            ))}
+            <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mtext(lang) }]}>
+              {t("homeWeek", lang, {
+                n: approx(doseUgRound(data.week.reduce((s, w) => s + w.ug, 0))),
+              })}
+            </Text>
+          </>
+        ) : (
+          <>
+            {cityDays.length > 0
+              ? cityDays.map((d) => {
+                  const bi = bandIdxForName(d.band) ?? bandIdx(d.pm25_mid);
+                  return (
+                    <View key={d.date_ist} style={[ss.weekDot, {
+                      backgroundColor: bi != null ? bandColorIdx(bi) ?? "transparent" : "transparent",
+                      borderWidth: bi != null ? 0 : 1, borderColor: V2T.hairline,
+                      opacity: 0.4,
+                    }]} />
+                  );
+                })
+              : data.week.map((w) => (
+                  <View key={w.day} style={[ss.weekDot, {
+                    backgroundColor: "transparent",
+                    borderWidth: 1, borderColor: V2T.hairline,
+                  }]} />
+                ))}
+            <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, { fontFamily: mtext(lang) }]}>
+              {cityDays.length > 0
+                ? `${t("homeWeekCity", lang)} · ${t("homeWeekSparse", lang)}`
+                : t("homeWeekSparse", lang)}
+            </Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -1321,6 +1438,13 @@ const ss = StyleSheet.create({
   gaugePct: { fontSize: 11, color: V2T.text2 },
   heroOfBudget: { color: V2T.text4, fontSize: 9, marginTop: 5, letterSpacing: 0.4 },
   heroThin: { color: V2T.text3, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
+  /* the sparse hero — the ambient truth where the personal number can't
+     stand yet: faint field arc, labelled read, count progress */
+  sparseArc: { opacity: 0.62, marginTop: 4, marginBottom: 6 },
+  sparseAmbRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
+  sparseAmb: { color: V2T.text3, fontSize: V2Type.label },
+  sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10 },
+  sparseProgLbl: { color: V2T.text4, fontSize: 9, marginLeft: 6, letterSpacing: 0.4 },
   heroStatRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 10 },
   heroStat: { color: V2T.text3, fontSize: V2Type.micro },
   heroAmb: { flexDirection: "row", alignItems: "center", gap: 6 },
