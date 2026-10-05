@@ -344,3 +344,13 @@ Flat keys, not nested: `areas:[{area,trips,devices}]`, `od_pairs:[...]`,
 `co2_avoided:{co2_kg,puc_calibrated_trips}`, `reviews:{count,avg,hist,notes,notes_withheld}`,
 `areas_tracked`,`od_pairs_tracked`. Live state ~19:50Z: New Delhi 3/3 minted,
 od 2 suppressed, dose 303.7µg/4 trips, co2 1.55kg/1 PUC trip, reviews 2 avg 4.0 withheld.
+
+## cont.14 — landing v5 + admin pixel tiles + depart stub-fix + lanes (lead, ~03:55Z Oct 5)
+- Owner verdicts: hated landing v4 (capsule buttons, cringe wording, stuffed), admin "vibecoded slop" tiles, wanted map-cutouts back + pixel borders + click→mini card. Spawned UI lane 89a999d1 (landing craft + admin tiles) — shipped `cdff756`, deployed live: editorial landing (eyebrow, statusline, DPR raster, legend, buildTag) + 28 stepped-pixel district tiles, click→mini card w/ real +12h trend from forecast surface.
+- depart cache: suite caught stub-unsafe `FORECAST._fetched_at` (test_honesty_polish 500) → getattr guard, cache bypassed when epoch missing. `c3a1fbb` + suite 917 green → main `f18e07c`. Live verified: cold 3.9s→warm 0.49s served_from_cache:true.
+- Probe hygiene: my /v2/feedback probe pushed reviews to k=3 (bodies published). Fix: patched s3://alive108-build-185708268748/community/state.json (removed probe), scaled service 1→2, killed dirty task, desired back to 1. Live: count2 avg4.0 notes_withheld (k-anonymity demonstrably working).
+- Admin mini-card VERIFIED live via DevTools: click Old Delhi tile → "61.1µg/m³ · aqi 105 moderate · mean of 6 covered cells · trend computing +12h". Cell inspector + pipeline live. favicon 404 harmless (no favicon shipped).
+- Owner round-3 UI asks → relayed verbatim to UI lane: district map-cutout viz (geo boundary per tile), CPCB color correctness check, admin copy polish, Android advanced icons/colors, deepest map detail + smooth live route journey.
+- Spawned maps-depth lane 88b6f2c4: build delhi.pmtiles (scripts/geo/ pipeline exists — fetch_extract→tilemaker OMT z0-14; needs CodeBuild or native toolchain since no docker on macOS) → S3→task-boot delivery (rollup mirror pattern) → app/admin basemap wiring → /tiles/* live 200s instead of honest 503.
+- Lane housekeeping: terminated suspended deadweight (29adb480 backend, ebe5ed90 combined-UI, 4890a49f APK, 4a3551bc OSRM). Running: me + 89a999d1 (UI) + 88b6f2c4 (maps).
+- admin token via `authorization: Bearer` header (x-admin-token 401s — header name matters).
