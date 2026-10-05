@@ -984,10 +984,13 @@ async def aqi(lat: float, lon: float):
     # serves (station-grounded where instruments measure them) — not
     # CAMS's own us_aqi cell, which runs on raw model pm10 and reported
     # ~230 tonight vs every public source's ~160. us_aqi_model keeps the
-    # raw model value for provenance.
+    # raw model value for provenance. pm25 enters at AMBIENT v — us_aqi is
+    # a public-facing ambient index; the smoke-breathing multiplier would
+    # put ~180 where public instruments read ~160.
     subs = {}
     for k, val in species.items():
-        s = ingest_waqi.us_aqi_sub_index(k, val) if val is not None else None
+        ambient = v if k == "pm25" else val
+        s = ingest_waqi.us_aqi_sub_index(k, ambient) if ambient is not None else None
         if s is not None:
             subs[k] = s
     us_aqi_v = round(max(subs.values())) if subs else None
