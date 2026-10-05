@@ -2,7 +2,9 @@
 
 Verified against live AWS build `a0e74abe` (ECS ap-south-1, task-def 39,
 FARGATE_SPOT); re-verified 2026-10-04 on `6a067ca4` (task-def ~110,
-osrm-local sidecar live). Newer commits on `base/v2` ride the next image. Every
+osrm-local sidecar live); re-verified 2026-10-05 on `951eeb3c`
+(task-def :141, post dose re-anchor). Newer commits on `base/v2` ride
+the next image. Every
 number below was read off the running service — they drift with the
 field; re-check on the day. Nothing in the product is seeded or faked.
 
@@ -32,17 +34,18 @@ fallback, still fine but not ours (docs/plan/handoff.md cont.15).
 Google gives travel time; an AQI site gives one city number. We compute
 the µg you actually inhale per route option — dose = concentration field
 sampled every ~250 m of the polyline × mode ventilation × time, plus a
-micro-environment factor (Car AC vs bike is a 30× difference on the same
-road). Then emissions per option on real fleet factors (BS-class, fuel,
+micro-environment factor (a sealed AC car vs walking the same trip
+measures ~33× today — CP→Gurugram 5.7 vs 189.8 µg). Then emissions per option on real fleet factors (BS-class, fuel,
 vintage, occupancy, idle+cold-start).
 
 **"Is the air data real-time? Where from?"**
 Yes — keyless, honest provenance, verbatim labels on screen:
 - CAMS satellite model + open-meteo, 10 species (PM2.5, PM10, NO₂, O₃,
   CO, SO₂, NH₃, dust, AOD, US/EU AQI), refreshed every 15 min — a
-  countdown (`refresh_in_s`) is on the wire
-- NASA FIRMS VIIRS/MODIS fire detections (~57 over the belt right now)
-  feeding a smoke modifier
+  countdown (`refresh_in_s`) is on the wire. Params a feed doesn't
+  serve stay honestly empty (NH₃ is empty today, not zero-filled)
+- NASA FIRMS VIIRS/MODIS fire detections (~70 over the belt right now —
+  drifts daily) feeding a smoke modifier (×1.27 at CP today)
 - WAQI measured stations LIVE: 24 instruments across NCR feed the
   krige directly (the raw feed is a US-EPA sub-index, not µg/m³ —
   inverted via the EPA breakpoint table, Kalman-smoothed, de-biased
@@ -58,16 +61,18 @@ Yes — keyless, honest provenance, verbatim labels on screen:
 15-min ingest worker builds a snapshot → mirrors to S3 (last-good field
 survives restarts) → C++ `KrigeField` serves point queries with a real σ
 band → dose sampling along route geometry → per-mode physics. Edge of
-the field reports `coverage < 1` instead of clamping silently. The 10
-other species ride the same lattice; nothing is zero-filled when a feed
+the field reports `coverage < 1` instead of clamping silently. The other
+species ride the same lattice; nothing is zero-filled when a feed
 doesn't serve it.
 
 **"Why these roads — is it really not the fastest path?"**
-The plan engine is an exposure-weighted A* over 1,070,452 real road
-edges (2-zone OSM merge, Delhi+Haryana+UP side): each edge's cost is
+The plan engine is an exposure-weighted A* over 1,070,459 real road
+edges (903,058 priced; 2-zone OSM merge, Delhi+Haryana+UP side): each
+edge's cost is
 the inhaled dose for the queried mode (field concentration × microenv
 × road uplift × ventilation × dwell), re-priced off a raster of the
-live kriged field. Queries answer in ~70ms and return real street
+live kriged field. A rehearsed query answers in ~0.6 s server-side
+(fresh unseen ODs 2–7 s) and returns real street
 sequences (`via_names`, snap distances) — and every option row's dose
 is integrated on the SAME raster the pathfinder minimized over, so
 the number shown is the exact criterion the path won on. Routes within
@@ -86,13 +91,15 @@ on the wire (~0.5 s end-to-end from India).
 
 **"Street-wise how deep does the data go?"**
 The search index is built from the real OSM northern+central zone
-merge — 120k server rows, ~97.5k corpus entries including **16,952
+merge — 120k server rows, ~97.5k corpus entries including **16,949
 address-level rows** (real `addr:*` house numbers plus expanded street
 interpolations): metro gates, market lanes, mall stores, police
 stations, hospitals, house numbers. `559 udyog vihar` returns a real
 house-number address; `rajiv chowk gate 5` returns "Rajiv Chowk Metro
 Gate No 5" top-hit (all eight gates resolve individually). The C++
-index answers in ~1ms p50 (~3ms live over the NLB); the app bundles a
+index itself answers in ~1ms p50 — the full endpoint measures
+p50 ~470 ms over the NLB (172/174 top-1 in a 174-query live battery);
+the app bundles a
 124k-entry gazetteer so landmark-level search works fully offline —
 no network, no key.
 
@@ -200,15 +207,15 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
 
 ## Demo surface: the landing page
 
-`/` itself is a demo surface — open with it: the ASCII aether IS the
-live field (one glyph per interpolated cell, thin-coverage cells as
-faint dots, drifting on the real met wind from /health). Every ~14 s
-it re-prices a real OD and traces the least-dose path out of the
-lattice — the OD rotates (connaught place→gurugram, india gate→noida,
-kashmere gate→faridabad) so it plainly is not a canned animation.
-Hover any cell for its locality readout (same /v2/reverse answer as
-admin's inspector); the dose card below renders the SAME API call
-the trace draws — they cannot disagree.
+`/` itself is a demo surface — open with it: the hero canvas IS the
+live field — real `/grid` cells drawn on true NCR geography (thin-
+coverage cells honestly dimmer), a wind arrow from `/health`'s live
+met vector, and a "watch the day" scrubber that walks real `/grid?h=N`
+forecast surfaces. Click any cell for its inspector readout (live
+`/aqi` numbers + district + sector — the same APIs admin uses); pick
+**a→b** and the line prices a REAL `/v2/plan` call and draws the
+least-dose route over the raster — every number on the page is a
+served number, never a canned animation.
 
 ## Honest limitations (say them first — it lands harder)
 

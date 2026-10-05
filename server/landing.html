@@ -986,9 +986,17 @@ async function planAB(){
     const opts=d.options||[];
     if(d.code==='outside_service_area'||!opts.length){
       ROUTE=null;drawScene();
-      $('routeline').innerHTML=d.code==='outside_service_area'
-        ?`<b>a→b</b> — ${esc(d.error||'outside the service area')} — the engine only prices inside the NCR field window`
-        :`<b>a→b</b> — ${esc(d.error||'no route')} — try another pair of points`;
+      /* honest empty has three shapes — outside the field window, inside
+         but the arms didn't answer in budget (degraded names them), and
+         inside with no road path between the points. Only the first is a
+         coverage statement; don't claim coverage for a timed-out arm. */
+      const tail=d.code==='outside_service_area'
+        ?'the engine only prices inside the NCR field window'
+        :(d.degraded||[]).length
+          ?`the ${d.degraded.map(esc).join(' · ')} arm${d.degraded.length>1?'s':''} didn't answer inside the plan budget — try again`
+          :'inside the field window, but no road path connects those points';
+      $('routeline').innerHTML=
+        `<b>a→b</b> — ${esc(d.error||'no route')} — ${tail}`;
       return;
     }
     const o=opts.find(x=>x.recommended)||opts[0];
