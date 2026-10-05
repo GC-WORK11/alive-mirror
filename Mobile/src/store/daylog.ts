@@ -225,12 +225,18 @@ export function reconstructDay(
       const h = new Date(t).getHours();
       const hourEnd = Math.min(sg.t1, new Date(new Date(t).setMinutes(60, 0, 0)).getTime());
       const span = Math.max(1, hourEnd - t);
-      const frac = (t - sg.t0) / (sg.t1 - sg.t0);
-      const c = sg.c0 + (sg.c1 - sg.c0) * frac;
+      /* trapezoid per sub-span — the same integral `parts` and `totalUg`
+         apply to the whole segment, so the arc's hour bars always sum to
+         the hero number (the ledger-audit lane caught left-edge sampling
+         disagreeing with the total on every ramping pair) */
+      const f0 = (t - sg.t0) / (sg.t1 - sg.t0);
+      const f1 = (hourEnd - sg.t0) / (sg.t1 - sg.t0);
+      const cMean =
+        (sg.c0 + (sg.c1 - sg.c0) * f0 + sg.c0 + (sg.c1 - sg.c0) * f1) / 2;
       const hh = hours[h];
       acc[h].wMin += span / 60000;
-      acc[h].concW += c * span;
-      hh.dose_ug += c * VE_REST_M3H * (span / 3600000);
+      acc[h].concW += cMean * span;
+      hh.dose_ug += cMean * VE_REST_M3H * (span / 3600000);
       hh.covered = true;
       t = hourEnd;
     }
@@ -268,9 +274,11 @@ export function reconstructDay(
   }
   parts.sort((a, b) => b.ug - a.ug);
 
-  // future hours are not claimed — the arc only ever covers the past
-  const nowHour = new Date(now).getHours();
-  for (let h = nowHour + 1; h < 24; h++) hours[h].covered = false;
+  // the arc ends at the last hour the day could possibly cover — today's
+  // current hour, or 23 for a day already over (a past day's evening used
+  // to be dropped by slicing at *now's* clock hour)
+  const endHour = Math.max(-1, Math.min(23, Math.floor((dayEnd - dayStart) / 3600000)));
+  for (let h = endHour + 1; h < 24; h++) hours[h].covered = false;
 
   const stayOnlyUg = segs.reduce((s, sg) =>
     s + ((sg.c0 + sg.c1) / 2) * VE_REST_M3H * ((sg.t1 - sg.t0) / 3600000), 0);
@@ -280,7 +288,7 @@ export function reconstructDay(
   const dayTrips = trips.filter((t) => dayKey(t.ts) === day).length;
   return {
     day,
-    arc: hours.slice(0, nowHour + 1),
+    arc: hours.slice(0, endHour + 1),
     totalUg: Math.round(totalUg * 10) / 10,
     coveredMin,
     parts: parts.slice(0, 4),
