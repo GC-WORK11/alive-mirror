@@ -514,6 +514,15 @@ const en = {
   /* compare sheet — the gap line under a heavier option's dose */
   compare_vsLightest: "+{n} vs lightest",
   goLabel: "go somewhere",
+  /* the dosimeter home — the resting surface (docs/plan/design-refs) */
+  homeBreathed: "you've breathed today",
+  homeOutsideNow: "outside now ~{n} µg/m³",
+  homeOfBudget: "of ~{b}µg daily",
+  homeWeek: "{n}µg this week",
+  moveTitle: "the move",
+  homeLinkMap: "the air map",
+  homeLinkCity: "Delhi today",
+  homeLinkTrips: "your trips",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -978,6 +987,15 @@ const hi: Record<StringKey, string> = {
   /* compare sheet — the gap line under a heavier option's dose */
   compare_vsLightest: "सबसे हल्के से +{n}",
   goLabel: "कहीं जाएँ",
+  /* the dosimeter home — the resting surface (docs/plan/design-refs) */
+  homeBreathed: "आज आपने साँस में लिया",
+  homeOutsideNow: "बाहर अभी ~{n} µg/m³",
+  homeOfBudget: "~{b}µg दैनिक में से",
+  homeWeek: "इस हफ़्ते {n}µg",
+  moveTitle: "आज का फ़ैसला",
+  homeLinkMap: "हवा का नक्शा",
+  homeLinkCity: "आज की दिल्ली",
+  homeLinkTrips: "आपकी यात्राएँ",
 };
 
 export type Lang = "en" | "hi";

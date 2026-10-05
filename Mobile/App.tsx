@@ -37,7 +37,7 @@ import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
-import { DayScreen, DayPeek, useDayData } from "./src/screens/DayScreen";
+import { HomeScreen, DayPeek, useDayData } from "./src/screens/HomeScreen";
 import { recordSample, setCheckin } from "./src/store/daylog";
 import { loadConsent, saveConsent } from "./src/store/consent";
 import { contributorId } from "./src/community";
@@ -152,9 +152,13 @@ function AppInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [placePickSlot, setPlacePickSlot] = useState<"home" | "work" | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
-  /* dosimeter: the peek card opens the day stack; dayNonce re-assembles
-     the local reconstruction each time a fresh ambient read lands */
-  const [dayOpen, setDayOpen] = useState(false);
+  /* home IS the dosimeter: the app rests on the day surface; the map +
+     journey is a destination reached through the "where to?" bar. homeOpen
+     = the day covers the idle map; false = the user is browsing the map
+     surface itself (the peek card + BACK are the doors home). dayNonce
+     re-assembles the local reconstruction each time a fresh ambient read
+     lands. */
+  const [homeOpen, setHomeOpen] = useState(true);
   const [dayNonce, setDayNonce] = useState(0);
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null);
   const [hasLoc, setHasLoc] = useState(false);
@@ -282,17 +286,18 @@ function AppInner() {
       if (delhiOpen) { setDelhiOpen(false); return true; }
       if (layersOpen) { setLayersOpen(false); return true; }
       if (sidebarOpen) { setSidebarOpen(false); return true; }
-      if (dayOpen) { setDayOpen(false); return true; }
       if (mapPickArmed) { setMapPickArmed(false); return true; }
       /* phases: BACK on compare = its X (clearRoute); BACK inside nav
          must never kill the app mid-trip — the explicit end-early
-         button is the honest exit. Search handles its own press. */
-      if (phase === "compare") { flow.clearRoute(); return true; }
+         button is the honest exit. Search handles its own press.
+         BACK on the idle map returns home — the day surface is root. */
+      if (phase === "compare") { setHomeOpen(true); flow.clearRoute(); return true; }
       if (phase === "nav") return true;
+      if (phase === "idle" && !homeOpen) { setHomeOpen(true); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, dayOpen, phase, flow]);
+  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, homeOpen, phase, flow]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
@@ -368,7 +373,7 @@ function AppInner() {
   const dayPos = userPos ?? { lat: DELHI[1], lon: DELHI[0] };
   /* withCurve only once the stack is open — the peek never needs the
      12-payload forecast, so it isn't fetched on cold start */
-  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce, dayOpen);
+  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce, homeOpen);
   if (!fontsLoaded) return null;
   const sel = flow.options[flow.selected];
   const mapField = flow.planField ?? aqiField;
@@ -457,7 +462,7 @@ function AppInner() {
             lang={lang}
             onMenu={() => setSidebarOpen(true)}
             onPress={() => { flow.setEditWhich("to"); flow.setPhase("search"); }}
-            onClear={phase === "compare" ? flow.clearRoute : undefined} />
+            onClear={phase === "compare" ? () => { setHomeOpen(true); flow.clearRoute(); } : undefined} />
         </View>
       )}
       <SearchScreen
@@ -481,11 +486,13 @@ function AppInner() {
               return;
             }
             setMapPickArmed(false);
+            setHomeOpen(false);        // the journey lives on the map surface
             flow.pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
               lat: sel.place.lat, lon: sel.place.lon }, "to");
             return;
           }
           if (sel.type === "choose_on_map") {
+            setHomeOpen(false);        // the map surface itself
             flow.setPhase("idle");
             setMapPickArmed(true);       // next map tap picks — for the slot
                                          // when placePickSlot is armed
@@ -519,11 +526,12 @@ function AppInner() {
           <View style={[s.layersWrap, { bottom: insets.bottom + 16 }]}>
             <LayersButton anyOn={Object.values(layers).some(Boolean)} onPress={() => setLayersOpen(true)} lang={lang} />
           </View>
-          {/* the dosimeter's peek — floats above the corner FABs, opens
-              the day stack on tap. Hides itself before disk is read. */}
-          {dayData && (
+          {/* the peek card is the door home — floats above the corner
+              FABs while the user browses the map surface. Hides itself
+              before disk is read. */}
+          {dayData && !homeOpen && (
             <View style={[s.peekWrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
-              <DayPeek data={dayData} lang={lang} onOpen={() => setDayOpen(true)}
+              <DayPeek data={dayData} lang={lang} onOpen={() => setHomeOpen(true)}
                 ambientUg={ambientUg} />
             </View>
           )}
@@ -579,7 +587,7 @@ function AppInner() {
           depart={flow.depart} departCurve={flow.departCurve} notified={flow.notified}
           onRemind={flow.remind} loading={flow.loadingRoute} refining={flow.refining}
           steps={flow.steps} stepsOpen={flow.stepsOpen} onToggleSteps={() => flow.setStepsOpen(!flow.stepsOpen)}
-          onStart={flow.startNav} onClose={flow.clearRoute} lang={lang}
+          onStart={flow.startNav} onClose={() => { setHomeOpen(true); flow.clearRoute(); }} lang={lang}
           vehicle={flow.vehicle} onVehiclePress={() => setVehicleOpen(true)}
           onVehicleChange={applyVehicle}
           planError={flow.planError} onRetry={flow.retryPlan} degraded={flow.planDegraded}
@@ -588,10 +596,23 @@ function AppInner() {
       )}
       {phase === "nav" && sel && (
         <NavSession option={sel} options={flow.options} from={flow.from} to={flow.to} steps={flow.steps}
-          camRef={camRef} lang={lang} share={settings.share} voice={settings.voice} onExit={flow.exitNav}
+          camRef={camRef} lang={lang} share={settings.share} voice={settings.voice}
+          onExit={() => { setHomeOpen(true); flow.exitNav(); }}
           vehicle={flow.vehicle} showCig={settings.show_cig} onTripDone={flow.recordTrip} />
       )}
 
+      {/* the dosimeter home — resting surface; covers the idle map and
+          yields for the journey phases (search/compare/nav) */}
+      <HomeScreen
+        visible={homeOpen && phase === "idle" && !mapPickArmed}
+        data={dayData} lang={lang} settings={settings} ambientUg={ambientUg}
+        onMenu={() => setSidebarOpen(true)}
+        onGo={() => { flow.setEditWhich("to"); flow.setPhase("search"); }}
+        onMap={() => setHomeOpen(false)}
+        onCity={() => setDelhiOpen(true)}
+        onTrips={() => setLedgerOpen(true)}
+        onProfile={(p) => patchSettings({ profile: p })}
+        onCheckin={(c) => { void setCheckin(Date.now(), c).then(() => setDayNonce((n) => n + 1)); }} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} trips={flow.trips} lang={lang}
         settings={settings} onSettings={patchSettings} onDeleteData={deleteAll}
         onPickPlace={(slot) => {
@@ -621,11 +642,6 @@ function AppInner() {
         onClose={() => setLayersOpen(false)} lang={lang} />
       <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} showCig={settings.show_cig} />
       <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} showCig={settings.show_cig} onTripsChanged={flow.reloadTrips} />
-      <DayScreen visible={dayOpen} data={dayData} lang={lang} settings={settings}
-        onClose={() => setDayOpen(false)}
-        onGo={() => { setDayOpen(false); flow.setEditWhich("to"); flow.setPhase("search"); }}
-        onProfile={(p) => patchSettings({ profile: p })}
-        onCheckin={(c) => { void setCheckin(Date.now(), c).then(() => setDayNonce((n) => n + 1)); }} />
       <SettingsScreen visible={settingsOpen} onClose={() => setSettingsOpen(false)}
         lang={lang} current={settings} onArmBrief={flow.armDailyBrief}
         onDeleteData={deleteAll}

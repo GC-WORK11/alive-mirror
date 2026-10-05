@@ -1,37 +1,38 @@
-/** "Your day" — the dosimeter surface (docs/plan/alive-depth L1–L4).
- *  One additive card stack, never a new IA: the existing journey stays
- *  where it was; this screen is a peek card on the idle map + one
- *  full-screen stack behind it.
+/** HOME — the lifestyle dosimeter's resting surface (docs/plan/design-refs).
+ *
+ *  The app opens on "your day" — what Delhi has done to your lungs so far
+ *  and the one decision that changes the rest of it. The map+journey is a
+ *  feature reached through the "where to?" bar; on the idle map the DayPeek
+ *  card is the door back here.
  *
  *  What's on it, top to bottom:
- *   1. the morning card — the field's own h-series at the user's cell
- *      (GET /grid?cells=8&param=pm2_5&h=0..11), a hairline sparkline with
- *      CPCB band-dots, the heaviest + lightest ~3h windows, and the ONE
- *      decision the swing changes ("same plan at X breathes ~N× lighter").
- *      Never "don't go out" — always the cheaper-for-lungs version of the
- *      same plan; a flat day says it's flat.
- *   2. the days ahead — the endpoint's own per-day fold of the real 120h
- *      horizon (GET /v2/outlook): ≤5 day cells, a tap expands cleanest/
- *      heavy hours, days past the live anchor's reach are ghosted, and
- *      the verdict line is verbatim. A dead endpoint hides the card.
- *   3. your day — the on-device reconstruction (daylog.ts): ≈µg breathed,
- *      a 24-slot hour arc (covered spans only — the arc leaves uncovered
- *      hours blank instead of inventing exposure), top accumulators.
- *   4. the symptom lens — breath/eyes/energy single-tap check-in, stored
- *      on this phone only; the correlation line earns itself after ~7 days.
- *   5. personal tiles — today µg / week arc / budget left, in the admin
- *      tile language (mono micro label + serif number).
- *   6. your budget — quiet profile ceiling, honest over/under flag.
+ *   0. the header — wordmark + IST clock line + menu (sidebar).
+ *   1. the hero — ≈N µg breathed (Fraunces display, dose-coloured) + the
+ *      dose gauge ring filling toward the day's budget (Oura/Apple ring
+ *      pattern — WHOOP's one-score compression, design-refs §3). Skeleton
+ *      blocks morph to content once the disk read lands.
+ *   2. "where to?" — the travel verb: one search-shaped bar that opens the
+ *      journey (Uber homescreen pattern, design-refs §2).
+ *   3. the move — the day's decision at felt scale (serif), with the
+ *      field's own h-series sparkline + heavy/clean windows as evidence
+ *      (GET /v2/day, grid fallback). A flat day says it's flat.
+ *   4. your day — the on-device reconstruction (daylog.ts): the 24-slot
+ *      hour arc, top accumulators. Covered spans only.
+ *   5. the days ahead — /v2/outlook's own fold, ≤5 cells, ghosted past the
+ *      live anchor's reach; a dead endpoint hides the card.
+ *   6. the symptom lens — breath/eyes/energy single-tap check-in, stored
+ *      on this phone only.
+ *   7. quiet links — the air map, Delhi today, your trips.
+ *   8. your budget — quiet profile ceiling, honest over/under flag.
  *
- *  Copy rule for the whole stack: "same life, cheaper for lungs" — a card
- *  that can't name a cheaper window/mode shows the number plainly, never
- *  a restriction.
+ *  Copy rule for the whole surface: "same life, cheaper for lungs" — a card
+ *  that can't name a cheaper window/mode shows the number plainly, never a
+ *  restriction.
  */
 
 import React, { useEffect, useState } from "react";
 import {
   Animated,
-  BackHandler,
   LayoutAnimation,
   Pressable,
   ScrollView,
@@ -59,7 +60,7 @@ import {
   famSerif,
 } from "../theme";
 import { approx, t, type Lang, type StringKey } from "../i18n/strings";
-import { FadeIn, Quiet, pressFx } from "../ui";
+import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
@@ -201,7 +202,7 @@ function doseDotColor(ug: number, budgetUg: number): string {
 
 const fmtHr = (h: number) => `${((h + 11) % 12) + 1}${h % 24 < 12 ? "am" : "pm"}`;
 
-/* ---------------- the morning card ---------------- */
+/* ---------------- the move (the morning card, promoted) ---------------- */
 
 function Sparkline({ series, lang }: { series: (number | null)[]; lang: Lang }) {
   const [w, setW] = useState(0);
@@ -262,14 +263,14 @@ function fieldAgeLine(
     : t("howWe_fieldAge", lang, { n });
 }
 
-function MorningCard({ curve, outside, lang }: {
+function MoveCard({ curve, outside, lang }: {
   curve: DayCurve | null; outside: boolean; lang: Lang;
 }) {
   if (outside) {
     return (
       <View style={ss.card}>
         <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
-          {t("dayMorningTitle", lang)}
+          {t("moveTitle", lang)}
         </Text>
         <Quiet glyph="pin" title={t("dayOutsideDelhi", lang)} lang={lang} />
       </View>
@@ -280,7 +281,7 @@ function MorningCard({ curve, outside, lang }: {
     return (
       <View style={ss.card}>
         <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
-          {t("dayMorningTitle", lang)}
+          {t("moveTitle", lang)}
         </Text>
         <Quiet glyph="pin" title={t("dayMorningNoCell", lang)} lang={lang} />
       </View>
@@ -299,18 +300,31 @@ function MorningCard({ curve, outside, lang }: {
   const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour()) : "");
   const cleanT = srv?.cleanEndLabel ?? (clean ? fmtHr(clean.to + nowHour()) : "");
   const decision = srv?.decisions?.[0]?.line ?? null;
+  /* the felt decision — derived from the swing when the server didn't
+     name one ("same plan at X breathes ~N× lighter than at Y") */
+  const felt = decision
+    ?? (!flat && clean && heavy && a.ratio != null && a.ratio >= 1.2
+      ? t("dayMorningMove", lang, { f: cleanF, g: heavyF, x: a.ratio.toFixed(1) })
+      : null);
   const ageLine = fieldAgeLine(curve.fieldAgeS, curve.fieldStale, lang);
   return (
     <View style={ss.card}>
       <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
-        {t("dayMorningTitle", lang)}
+        {t("moveTitle", lang)}
       </Text>
-      <Sparkline series={curve.series} lang={lang} />
-      {flat ? (
-        <Text {...DYNAMIC_TYPE} style={[ss.noteLine, { fontFamily: fam(lang, "med") }]}>
-          {decision ?? t("dayMorningFlat", lang)}
+      {/* the decision is the hero of this card — serif at title scale so
+          the multiplier is felt, not read (design-refs §5) */}
+      {felt ? (
+        <Text {...DYNAMIC_TYPE} style={[ss.moveLine, { fontFamily: famSerif(lang, "med") }]}>
+          {felt}
         </Text>
-      ) : (
+      ) : flat ? (
+        <Text {...DYNAMIC_TYPE} style={[ss.moveLine, { fontFamily: famSerif(lang, "med") }]}>
+          {t("dayMorningFlat", lang)}
+        </Text>
+      ) : null}
+      <Sparkline series={curve.series} lang={lang} />
+      {!flat && (
         <>
           {heavy && (
             <View style={ss.mRow}>
@@ -335,27 +349,6 @@ function MorningCard({ curve, outside, lang }: {
                 })}
               </Text>
             </View>
-          )}
-          {decision ? (
-            <View style={ss.decisionWrap}>
-              <View style={ss.decisionBar} />
-              <Text {...DYNAMIC_TYPE} style={[ss.decisionLine, NUM, { fontFamily: fam(lang, "med") }]}>
-                {decision}
-              </Text>
-            </View>
-          ) : (
-            clean && heavy && a.ratio != null && a.ratio >= 1.2 && (
-              <View style={ss.decisionWrap}>
-                <View style={ss.decisionBar} />
-                <Text {...DYNAMIC_TYPE} style={[ss.decisionLine, NUM, { fontFamily: fam(lang, "med") }]}>
-                  {t("dayMorningMove", lang, {
-                    f: cleanF,
-                    g: heavyF,
-                    x: a.ratio.toFixed(1),
-                  })}
-                </Text>
-              </View>
-            )
           )}
         </>
       )}
@@ -611,49 +604,30 @@ function HourArc({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
 function DayCard({ rec, budgetUg, lang }: {
   rec: DayReconstruction; budgetUg: number; lang: Lang;
 }) {
+  if (rec.thin) return null; // the hero already carries the honest-empty line
   return (
     <View style={ss.card}>
       <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
         {t("dayTitle", lang)}
       </Text>
-      {rec.thin ? (
-        <Quiet glyph="dust" title={t("dayThin", lang)} lang={lang} />
-      ) : (
+      <HourArc rec={rec} lang={lang} />
+      {rec.parts.length > 0 && (
         <>
-          <View style={ss.heroRow}>
-            <Text {...DYNAMIC_TYPE}
-              style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "semi"), color: doseDotColor(rec.totalUg, budgetUg) }]}>
-              ≈{Math.round(rec.totalUg)}
-            </Text>
-            <View style={ss.heroMeta}>
-              <Text {...DYNAMIC_TYPE} style={[ss.heroUnit, { fontFamily: fam(lang, "reg") }]}>
-                {t("dayBreathed", lang)}
+          <Text {...DYNAMIC_TYPE} style={[ss.partsEyebrow, { fontFamily: mono(lang, "med") }]}>
+            {t("dayPartsTitle", lang)}
+          </Text>
+          {rec.parts.map((p, i) => (
+            <View key={i} style={ss.partRow}>
+              <View style={[ss.partDot, { backgroundColor: doseDotColor(p.ug, budgetUg) }]} />
+              <Text {...DYNAMIC_TYPE} style={[ss.partLabel, { fontFamily: fam(lang, "reg") }]}
+                numberOfLines={1}>
+                {p.label}
               </Text>
-              <Text {...DYNAMIC_TYPE} style={[ss.heroSub, NUM, { fontFamily: mono(lang) }]}>
-                µg pm2.5 · {t("dayCovered", lang, { h: Math.floor(rec.coveredMin / 60), m: rec.coveredMin % 60 })}
+              <Text {...DYNAMIC_TYPE} style={[ss.partUg, NUM, { fontFamily: mono(lang) }]}>
+                {approx(Math.round(p.ug))}µg
               </Text>
             </View>
-          </View>
-          <HourArc rec={rec} lang={lang} />
-          {rec.parts.length > 0 && (
-            <>
-              <Text {...DYNAMIC_TYPE} style={[ss.partsEyebrow, { fontFamily: mono(lang, "med") }]}>
-                {t("dayPartsTitle", lang)}
-              </Text>
-              {rec.parts.map((p, i) => (
-                <View key={i} style={ss.partRow}>
-                  <View style={[ss.partDot, { backgroundColor: doseDotColor(p.ug, budgetUg) }]} />
-                  <Text {...DYNAMIC_TYPE} style={[ss.partLabel, { fontFamily: fam(lang, "reg") }]}
-                    numberOfLines={1}>
-                    {p.label}
-                  </Text>
-                  <Text {...DYNAMIC_TYPE} style={[ss.partUg, NUM, { fontFamily: mono(lang) }]}>
-                    {approx(Math.round(p.ug))}µg
-                  </Text>
-                </View>
-              ))}
-            </>
-          )}
+          ))}
         </>
       )}
     </View>
@@ -722,54 +696,7 @@ function LensCard({ checkin, lens, lang, onCheckin }: {
   );
 }
 
-/* ---------------- personal tiles + budget ---------------- */
-
-function TileRow({ data, budgetUg, lang }: { data: DayData; budgetUg: number; lang: Lang }) {
-  const left = budgetUg - data.rec.totalUg;
-  const maxW = Math.max(...data.week.map((w) => w.ug), 1);
-  return (
-    <View style={ss.tiles}>
-      <View style={ss.tile}>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileLbl, { fontFamily: mono(lang, "med") }]}>
-          {t("tileToday", lang)}
-        </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileNum, NUM, { fontFamily: famSerif(lang, "reg") }]}>
-          {data.rec.thin ? "—" : approx(Math.round(data.rec.totalUg))}
-        </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileSub, { fontFamily: mono(lang) }]}>µg</Text>
-      </View>
-      <View style={ss.tile}>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileLbl, { fontFamily: mono(lang, "med") }]}>
-          {t("tileWeek", lang)}
-        </Text>
-        <View style={ss.weekRow}>
-          {data.week.map((w, i) => (
-            <View key={w.day} style={[ss.weekDot, {
-              backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : "transparent",
-              borderWidth: w.ug > 0 ? 0 : 1, borderColor: V2T.hairline,
-              opacity: 0.5 + 0.5 * (w.ug / maxW),
-            }]} />
-          ))}
-        </View>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileSub, NUM, { fontFamily: mono(lang) }]}>
-          {approx(Math.round(data.week.reduce((s, w) => s + w.ug, 0)))}µg
-        </Text>
-      </View>
-      <View style={ss.tile}>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileLbl, { fontFamily: mono(lang, "med") }]}>
-          {t("tileBudget", lang)}
-        </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileNum, NUM, {
-          fontFamily: famSerif(lang, "reg"),
-          color: left < 0 ? V2T.breath2 : V2T.text,
-        }]}>
-          {data.rec.thin ? "—" : `${left < 0 ? "−" : ""}${Math.abs(Math.round(left))}`}
-        </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.tileSub, NUM, { fontFamily: mono(lang) }]}>µg</Text>
-      </View>
-    </View>
-  );
-}
+/* ---------------- the budget ---------------- */
 
 const PROFILES = [
   { k: "general", labelKey: "profileGeneral" },
@@ -822,11 +749,12 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
   );
 }
 
-/* ---------------- the peek card (idle map) ---------------- */
+/* ---------------- the peek card (idle map — the door back home) ------- */
 
-/** The idle-map card — one glance: today µg, the week's dots, the budget
- *  bar. Tap opens the stack. An empty day says so in one line and still
- *  opens — the morning card + check-in are useful before the arc fills. */
+/** The idle-map card — one glance: today µg, the week's dots, the ambient
+ *  read. Tap returns home (the dosimeter surface). An empty day says so in
+ *  one line and still opens home — the move + check-in are useful before
+ *  the arc fills. */
 export function DayPeek({ data, lang, onOpen, ambientUg }: {
   data: DayData | null; lang: Lang; onOpen: () => void;
   /** latest ambient PM2.5 read — the "outside right now" line; the aqi
@@ -890,132 +818,383 @@ export function DayPeek({ data, lang, onOpen, ambientUg }: {
   );
 }
 
-/* ---------------- the screen ---------------- */
+/* ---------------- the home surface ---------------- */
 
-function DaySheet({ data, lang, settings, onClose, onGo, onProfile, onCheckin }: {
-  data: DayData; lang: Lang; settings: ShellSettings;
-  onClose: () => void; onGo: () => void;
+const WEEKDAY_EN = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+function HomeHeader({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
+  const now = new Date();
+  const hh = `${now.getHours()}`.padStart(2, "0");
+  const mm = `${now.getMinutes()}`.padStart(2, "0");
+  return (
+    <View style={ss.homeHead}>
+      <View>
+        <Text {...DYNAMIC_TYPE} style={[ss.brand, { fontFamily: famSerif(lang, "semi") }]}>
+          ALive-108
+        </Text>
+        <Text {...DYNAMIC_TYPE} style={[ss.brandSub, { fontFamily: mono(lang) }]}>
+          {dayLabel(WEEKDAY_EN[now.getDay()], lang)} · {hh}:{mm} · DELHI
+        </Text>
+      </View>
+      <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}
+        accessibilityRole="button" accessibilityLabel={t("a11yMenu", lang)}
+        style={({ pressed }) => [ss.homeMenuBtn, pressed && { opacity: 0.55 }]}>
+        <Icon name="menu" color={V2T.text2} size={20} />
+      </Pressable>
+    </View>
+  );
+}
+
+/** The dose gauge — one ring filling toward the day's budget. Oura/Apple
+ *  ring grammar: fraction filled + colour does the work, no axes. Over
+ *  budget keeps a full ring and turns the percent line honest. */
+function DoseGauge({ frac, color, lang }: { frac: number; color: string; lang: Lang }) {
+  const R = 30, S = 76, SW = 7;
+  const f = Math.max(0, Math.min(1, frac));
+  const cx = S / 2, cy = S / 2;
+  const a0 = -Math.PI / 2;
+  const a1 = a0 + 2 * Math.PI * Math.min(f, 0.9999);
+  const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0);
+  const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+  return (
+    <View style={ss.gaugeWrap}>
+      <Svg width={S} height={S}>
+        <Circle cx={cx} cy={cy} r={R} stroke={V2T.line} strokeWidth={SW} fill="none" />
+        {f > 0.004 && (
+          <Path
+            d={`M${x0.toFixed(2)} ${y0.toFixed(2)} A${R} ${R} 0 ${f > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`}
+            stroke={color} strokeWidth={SW} fill="none" strokeLinecap="round" />
+        )}
+      </Svg>
+      <View style={ss.gaugeCenter}>
+        <Text {...DYNAMIC_TYPE} style={[ss.gaugePct, NUM, { fontFamily: mono(lang, "med"), color }]}>
+          {Math.round(f * 100)}%
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
+ *  breathed at display scale, coloured by the day's fraction of budget,
+ *  with the covered-hours and outside-now reads as tier-2 evidence. */
+function HeroBlock({ data, budgetUg, ambientUg, lang }: {
+  data: DayData | null; budgetUg: number; ambientUg: number | null; lang: Lang;
+}) {
+  if (!data) {
+    /* skeleton — blocks morph to content when the disk read lands */
+    return (
+      <View>
+        <View style={ss.skelEyebrow} />
+        <View style={ss.skelHero} />
+        <View style={ss.skelLine} />
+      </View>
+    );
+  }
+  const rec = data.rec;
+  const ug = Math.round(rec.totalUg);
+  const col = doseDotColor(rec.totalUg, budgetUg);
+  const ambIdx = bandIdx(ambientUg ?? null);
+  const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
+  const maxW = Math.max(...data.week.map((w) => w.ug), 1);
+  return (
+    <View>
+      <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: mono(lang, "med") }]}>
+        {t("homeBreathed", lang)}
+      </Text>
+      {rec.thin ? (
+        /* honest empty — the instrument has sampled too little to count */
+        <>
+          <Text {...DYNAMIC_TYPE} style={[ss.heroNum, {
+            fontFamily: famSerif(lang, "semi"), color: V2T.text4,
+          }]}>
+            —
+          </Text>
+          <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
+            {t("dayThin", lang)}
+          </Text>
+        </>
+      ) : (
+        <View style={ss.heroMainRow}>
+          <View style={ss.heroNumRow}>
+            <CountUp value={ug} duration={620}
+              style={[ss.heroNum, { fontFamily: famSerif(lang, "semi"), color: col }]}
+              format={(n) => `≈${Math.round(n)}`} />
+            <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}>
+              µg
+            </Text>
+          </View>
+          <View style={ss.heroGaugeCol}>
+            <DoseGauge frac={budgetUg > 0 ? rec.totalUg / budgetUg : 0} color={col} lang={lang} />
+            <Text {...DYNAMIC_TYPE} style={[ss.heroOfBudget, NUM, { fontFamily: mono(lang) }]}>
+              {t("homeOfBudget", lang, { b: budgetUg })}
+            </Text>
+          </View>
+        </View>
+      )}
+      <View style={ss.heroStatRow}>
+        {!rec.thin && (
+          <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: mono(lang) }]}>
+            {t("dayCovered", lang, { h, m })}
+          </Text>
+        )}
+        {ambientUg != null && ambIdx != null && (
+          <View style={ss.heroAmb}>
+            <BandDot conc={null} color={bandColorIdx(ambIdx)} />
+            <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, {
+              fontFamily: mono(lang), color: bandInkIdx(ambIdx) ?? V2T.text3,
+            }]}>
+              {t("homeOutsideNow", lang, { n: Math.round(ambientUg) })}
+            </Text>
+          </View>
+        )}
+      </View>
+      {/* the week — last 7 local days as dose dots (reconstruction, not
+          ambition); a quiet trend under the hero, not a chart */}
+      <View style={ss.heroWeekRow}>
+        {data.week.map((w) => (
+          <View key={w.day} style={[ss.weekDot, {
+            backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : "transparent",
+            borderWidth: w.ug > 0 ? 0 : 1, borderColor: V2T.hairline,
+            opacity: w.ug > 0 ? 0.5 + 0.5 * (w.ug / maxW) : 1,
+          }]} />
+        ))}
+        <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mono(lang) }]}>
+          {t("homeWeek", lang, {
+            n: approx(Math.round(data.week.reduce((s, w) => s + w.ug, 0))),
+          })}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** The travel verb — the Uber-homescreen affordance: one search-shaped
+ *  bar that opens the journey. The map lives behind it, never resident. */
+function TravelCta({ lang, onGo }: { lang: Lang; onGo: () => void }) {
+  return (
+    <Pressable onPress={() => { tick(); onGo(); }}
+      accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
+      style={({ pressed }) => [ss.cta, pressFx(pressed)]}>
+      <Icon name="search" color={V2T.text3} size={18} />
+      <Text {...DYNAMIC_TYPE} style={[ss.ctaTxt, { fontFamily: fam(lang, "med") }]}>
+        {t("searchPlaceholder", lang)}
+      </Text>
+      <Icon name="navigate" color={V2T.accent} size={16} />
+    </Pressable>
+  );
+}
+
+/** Quiet links — text-only, hairline-separated: the secondary rooms
+ *  (the map surface, the city view, the trips ledger). */
+function QuietLinks({ lang, onMap, onCity, onTrips }: {
+  lang: Lang;
+  onMap: () => void; onCity: () => void; onTrips: () => void;
+}) {
+  const links: { key: StringKey; fn: () => void }[] = [
+    { key: "homeLinkMap", fn: onMap },
+    { key: "homeLinkCity", fn: onCity },
+    { key: "homeLinkTrips", fn: onTrips },
+  ];
+  return (
+    <View style={ss.linksRow}>
+      {links.map((l, i) => (
+        <React.Fragment key={l.key}>
+          {i > 0 && <View style={ss.linkSep} />}
+          <Pressable onPress={() => { tap(); l.fn(); }} hitSlop={6}
+            accessibilityRole="button" accessibilityLabel={t(l.key, lang)}
+            style={({ pressed }) => [pressed && { opacity: 0.55 }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.linkTxt, { fontFamily: mono(lang, "med") }]}>
+              {t(l.key, lang)}
+            </Text>
+          </Pressable>
+        </React.Fragment>
+      ))}
+    </View>
+  );
+}
+
+function HomeSheet({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
+  data: DayData | null; lang: Lang; settings: ShellSettings;
+  ambientUg: number | null;
+  onGo: () => void; onMenu: () => void;
+  onMap: () => void; onCity: () => void; onTrips: () => void;
   onProfile: (p: ShellSettings["profile"]) => void;
   onCheckin: (c: Omit<Checkin, "ts">) => void;
 }) {
   const insets = useSafeAreaInsets();
   const budget = PROFILE_BUDGET_UG[settings.profile];
   return (
-    <View style={[ss.root, { marginTop: insets.top + 8 }]}>
-      <View style={ss.bar}>
-        <Pressable onPress={() => { tick(); onClose(); }} hitSlop={10}
-          accessibilityRole="button" accessibilityLabel={t("a11yBack", lang)}
-          style={ss.barBtn}>
-          <Svg width={22} height={22} viewBox="0 0 24 24">
-            <Path d="M14.5 5.5 8 12l6.5 6.5" stroke={V2T.text2} strokeWidth={2}
-              fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        </Pressable>
-        <Text {...DYNAMIC_TYPE} style={[ss.title, { fontFamily: famSerif(lang, "semi") }]}>
-          {t("dayTitle", lang)}
-        </Text>
-      </View>
+    <View style={ss.home}>
+      <HomeHeader lang={lang} onMenu={onMenu} />
       <ScrollView style={ss.flex}
-        contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 24 }]}>
-        {/* cards arrive in a staggered rise — the sheet settles top-down
-            instead of popping every panel on the same frame */}
-        <FadeIn delay={0}><MorningCard curve={data.curve} outside={data.outside} lang={lang} /></FadeIn>
-        <FadeIn delay={40}><DaysAheadCard outlook={data.outlook} lang={lang} /></FadeIn>
-        <FadeIn delay={80}><DayCard rec={data.rec} budgetUg={budget} lang={lang} /></FadeIn>
-        <FadeIn delay={120}><LensCard checkin={data.checkin} lens={data.lens} lang={lang} onCheckin={onCheckin} /></FadeIn>
-        <FadeIn delay={160}><TileRow data={data} budgetUg={budget} lang={lang} /></FadeIn>
-        <FadeIn delay={200}>
-          <BudgetCard totalUg={data.rec.totalUg} profile={settings.profile} lang={lang} onProfile={onProfile} />
+        contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 32 }]}
+        showsVerticalScrollIndicator={false}>
+        {/* the hero lands first; content blocks arrive staggered under it */}
+        <FadeIn delay={0}>
+          <View style={ss.heroBlock}>
+            <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg} lang={lang} />
+          </View>
         </FadeIn>
-        {/* the journey stays one tap away — routing is a tool inside the day */}
-        <FadeIn delay={240}>
-          <Pressable onPress={() => { tap(); onGo(); }}
-            accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
-            style={({ pressed }) => [ss.goRow, pressFx(pressed)]}>
-            <Icon name="navigate" color={V2T.accent} size={16} />
-            <Text {...DYNAMIC_TYPE} style={[ss.goTxt, { fontFamily: fam(lang, "med") }]}>
-              {t("goLabel", lang)}
-            </Text>
-            <Icon name="chevron" color={V2T.text3} size={14} />
-          </Pressable>
+        <FadeIn delay={50}>
+          <TravelCta lang={lang} onGo={onGo} />
+        </FadeIn>
+        <FadeIn delay={100}>
+          <MoveCard curve={data?.curve ?? null} outside={data?.outside ?? false} lang={lang} />
+        </FadeIn>
+        {data && !data.rec.thin && (
+          <FadeIn delay={150}>
+            <DayCard rec={data.rec} budgetUg={budget} lang={lang} />
+          </FadeIn>
+        )}
+        <FadeIn delay={200}>
+          <DaysAheadCard outlook={data?.outlook ?? null} lang={lang} />
+        </FadeIn>
+        <FadeIn delay={250}>
+          <LensCard checkin={data?.checkin ?? null}
+            lens={data?.lens ?? { kind: "early", days: 0, need: 7 }} lang={lang} onCheckin={onCheckin} />
+        </FadeIn>
+        <FadeIn delay={300}>
+          <QuietLinks lang={lang} onMap={onMap} onCity={onCity} onTrips={onTrips} />
+        </FadeIn>
+        <FadeIn delay={340}>
+          <BudgetCard totalUg={data?.rec.totalUg ?? 0} profile={settings.profile}
+            lang={lang} onProfile={onProfile} />
         </FadeIn>
       </ScrollView>
     </View>
   );
 }
 
-export function DayScreen({ visible, data, lang, settings, onClose, onGo, onProfile, onCheckin }: {
+/** The home surface — the app's resting state. Mounts as a paper sheet
+ *  over the always-live map; `visible` false slides it back down and
+ *  unmounts after the exit timing (the same JS-driver pattern as the
+ *  old day sheet — RN Modal's native present/dismiss segfaults this stack). */
+export function HomeScreen({ visible, data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
   visible: boolean;
   data: DayData | null;
   lang: Lang;
   settings: ShellSettings;
-  onClose: () => void;
+  ambientUg: number | null;
   onGo: () => void;
+  onMenu: () => void;
+  onMap: () => void;
+  onCity: () => void;
+  onTrips: () => void;
   onProfile: (p: ShellSettings["profile"]) => void;
   onCheckin: (c: Omit<Checkin, "ts">) => void;
 }) {
-  /* hardware back closes the sheet — no Modal, no onRequestClose */
-  useEffect(() => {
-    if (!visible) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => { onClose(); return true; });
-    return () => sub.remove();
-  }, [visible, onClose]);
-
-  /* plain absolute overlay + JS-driver enter spring — the proven-safe
-     pattern (RN Modal's native present/dismiss segfaults this stack) */
-  const [enter] = useState(() => new Animated.Value(0));
-  const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
   const reduceMotion = useReduceMotion();
+  const [show, setShow] = useState(visible);
+  const [enter] = useState(() => new Animated.Value(visible ? 1 : 0));
+  const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [44, 0] }));
+  /* mount is render-phase derived state (React's sanctioned adjust-during-
+     render): the exit unmount happens inside the timing callback, async. */
+  if (visible && !show) setShow(true);
   useEffect(() => {
-    if (!visible) return;
-    enter.setValue(reduceMotion ? 1 : 0);
-    if (!reduceMotion) {
-      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+    if (visible) {
+      enter.setValue(reduceMotion ? 1 : 0);
+      if (!reduceMotion) {
+        Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+      }
+      return;
     }
+    /* exit: a short settle-down, then unmount — the sheet pattern inverted */
+    const anim = Animated.timing(enter, {
+      toValue: 0, duration: reduceMotion ? 0 : 150, useNativeDriver: false,
+    });
+    anim.start(({ finished }) => { if (finished) setShow(false); });
+    return () => anim.stop();
   }, [visible, enter, reduceMotion]);
 
-  if (!visible) return null;
+  if (!show) return null;
   return (
     <View style={ss.backdrop}>
       <StatusBar style="dark" />
       <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
-        {data ? (
-          <DaySheet data={data} lang={lang} settings={settings}
-            onClose={onClose} onGo={onGo} onProfile={onProfile} onCheckin={onCheckin} />
-        ) : (
-          <View style={[ss.root, { paddingTop: 60 }]}>
-            <Quiet glyph="clock" title={t("cityLoading", lang)} lang={lang} />
-          </View>
-        )}
+        <HomeSheet data={data} lang={lang} settings={settings} ambientUg={ambientUg}
+          onGo={onGo} onMenu={onMenu} onMap={onMap} onCity={onCity} onTrips={onTrips}
+          onProfile={onProfile} onCheckin={onCheckin} />
       </Animated.View>
     </View>
   );
 }
 
-export default DayScreen;
-
-export { BandDot, doseDotColor, fmtHr };
+export default HomeScreen;
 
 const ss = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.scrim },
-  root: {
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "transparent" },
+  home: {
     flex: 1,
-    backgroundColor: V2T.glassDeep,
-    borderTopLeftRadius: V2Radius.sheet,
-    borderTopRightRadius: V2Radius.sheet,
-    borderTopWidth: 1,
-    borderColor: V2T.glassEdge,
-    overflow: "hidden",
+    backgroundColor: V2T.bg,
   },
-  bar: {
-    flexDirection: "row", alignItems: "center", height: 52,
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.glassLine,
+  homeHead: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6,
   },
-  barBtn: { padding: 6, marginRight: 8 },
-  title: { color: V2T.text, fontSize: V2Type.title },
+  brand: { color: V2T.text, fontSize: 21, letterSpacing: 0.2 },
+  brandSub: {
+    color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.4,
+    textTransform: "uppercase", marginTop: 3,
+  },
+  homeMenuBtn: {
+    width: 40, height: 40, borderRadius: V2Radius.row,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
+  },
   flex: { flex: 1 },
-  content: { paddingHorizontal: 14, paddingTop: 12, gap: 12 },
+  content: { paddingHorizontal: 16, paddingTop: 6, gap: 12 },
+
+  /* the hero block — an editorial block on paper, not a card */
+  heroBlock: {
+    paddingHorizontal: 6, paddingTop: 14, paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
+    marginBottom: 2,
+  },
+  heroEyebrow: {
+    color: V2T.text3, fontSize: V2Type.micro,
+    letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 6,
+  },
+  heroNum: { fontSize: 88, lineHeight: 92, letterSpacing: -2 },
+  heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, flex: 1 },
+  heroUg: { color: V2T.text3, fontSize: V2Type.title, paddingBottom: 14 },
+  heroMainRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+  heroGaugeCol: { alignItems: "center", paddingBottom: 8 },
+  gaugeWrap: { width: 76, height: 76 },
+  gaugeCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
+  gaugePct: { fontSize: 11, color: V2T.text2 },
+  heroOfBudget: { color: V2T.text4, fontSize: 9, marginTop: 5, letterSpacing: 0.4 },
+  heroThin: { color: V2T.text3, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
+  heroStatRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 10 },
+  heroStat: { color: V2T.text3, fontSize: V2Type.micro },
+  heroAmb: { flexDirection: "row", alignItems: "center", gap: 6 },
+  heroWeekRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 12 },
+  heroWeekLbl: { color: V2T.text4, fontSize: 9, marginLeft: 6, letterSpacing: 0.4 },
+
+  /* skeleton → content morph */
+  skelEyebrow: { width: 150, height: 11, borderRadius: 3, backgroundColor: V2T.surface2, marginBottom: 12 },
+  skelHero: { width: 230, height: 88, borderRadius: 6, backgroundColor: V2T.surface2 },
+  skelLine: { width: "70%", height: 11, borderRadius: 3, backgroundColor: V2T.surface2, marginTop: 14 },
+
+  /* the travel verb — a search-shaped bar on paper */
+  cta: {
+    ...V2Elev.card,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
+    borderRadius: V2Radius.card, height: 52, paddingHorizontal: 16,
+  },
+  ctaTxt: { flex: 1, color: V2T.text3, fontSize: V2Type.body },
+
+  /* quiet links row */
+  linksRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 6, gap: 14,
+  },
+  linkSep: { width: StyleSheet.hairlineWidth, height: 12, backgroundColor: V2T.hairline },
+  linkTxt: {
+    color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
 
   card: {
     ...V2Elev.card,
@@ -1028,21 +1207,14 @@ const ss = StyleSheet.create({
     color: V2T.text3, fontSize: V2Type.micro,
     letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 10,
   },
-  emptyLine: { color: V2T.text4, fontSize: V2Type.secondary, lineHeight: 21 },
   finePrint: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 10 },
 
-  /* morning card */
+  /* the move — decision felt at serif scale, evidence stays mono */
+  moveLine: { color: V2T.text, fontSize: 20, lineHeight: 27, marginBottom: 10 },
   sparkLabels: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
   sparkHr: { color: V2T.text4, fontSize: 9, flex: 1, textAlign: "center" },
   mRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
   mLine: { color: V2T.text2, fontSize: V2Type.secondary },
-  /* the decision line earns the accent — but as a left bar + inked
-     copy, not a full-width olive slab (that was the vomit colour) */
-  decisionWrap: { flexDirection: "row", alignItems: "stretch", marginTop: 8 },
-  decisionBar: {
-    width: 3, borderRadius: 2, backgroundColor: V2T.accent, marginRight: 9,
-  },
-  decisionLine: { flex: 1, color: V2T.accentInk, fontSize: V2Type.secondary, lineHeight: 21 },
   noteLine: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
 
   /* the days ahead — compact cells, same card language as the tiles */
@@ -1053,8 +1225,6 @@ const ss = StyleSheet.create({
   oaUnit: { color: V2T.text4, fontSize: V2Type.micro },
   oaRow: { flexDirection: "row", gap: 6 },
   oaCell: {
-    /* fill/edge arrive per-day from the cell's own band — the row reads
-       as the week's weather, not seven identical tiles */
     flex: 1, borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.row, backgroundColor: V2T.surface,
     paddingHorizontal: 6, paddingTop: 7, paddingBottom: 7,
@@ -1074,13 +1244,6 @@ const ss = StyleSheet.create({
   oaDetailNote: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 6 },
 
   /* day arc */
-  heroRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
-  /* the dose owns the card — heroXL; colour stays dose-vs-budget via
-     doseDotColor */
-  heroNum: { fontSize: V2Type.heroXL, lineHeight: 70 },
-  heroMeta: { flex: 1, paddingBottom: 2 },
-  heroUnit: { color: V2T.text2, fontSize: V2Type.label },
-  heroSub: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 2 },
   arcWrap: { flexDirection: "row", alignItems: "flex-end", marginTop: 12 },
   arcCol: { flex: 1, alignItems: "center" },
   arcBarCol: { height: 52, alignItems: "center", justifyContent: "flex-end" },
@@ -1118,21 +1281,6 @@ const ss = StyleSheet.create({
   optTxtSel: { color: V2T.accentInk },
   verdict: { color: V2T.text2, fontSize: V2Type.label, marginTop: 12 },
 
-  /* tiles — the admin tile language: mono micro label + serif number */
-  tiles: { flexDirection: "row", gap: 10 },
-  tile: {
-    ...V2Elev.card,
-    flex: 1, backgroundColor: V2T.surface,
-    borderWidth: 1, borderColor: V2T.hairline, borderRadius: V2Radius.card,
-    paddingHorizontal: 12, paddingTop: 12, paddingBottom: 10,
-  },
-  tileLbl: {
-    color: V2T.text3, fontSize: 9, letterSpacing: 1.6,
-    textTransform: "uppercase", marginBottom: 6,
-  },
-  tileNum: { color: V2T.text, fontSize: V2Type.display, lineHeight: 32 },
-  tileSub: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 2 },
-  weekRow: { flexDirection: "row", gap: 5, alignItems: "center", height: 32 },
   weekDot: { width: 8, height: 8, borderRadius: 4 },
 
   /* budget */
@@ -1144,16 +1292,7 @@ const ss = StyleSheet.create({
   budgetLine: { color: V2T.text2, fontSize: V2Type.secondary },
   profileRow: { flexDirection: "row", gap: 6, marginTop: 12 },
 
-  /* go row */
-  goRow: {
-    ...V2Elev.card,
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
-    borderRadius: V2Radius.card, paddingHorizontal: 16, paddingVertical: 14,
-  },
-  goTxt: { color: V2T.accentInk, fontSize: V2Type.secondary, flex: 1 },
-
-  /* the peek card on the idle map — the parent wrapper positions it */
+  /* the peek card on the idle map — the door back home */
   peek: {
     ...V2Elev.float,
     marginHorizontal: 16,
@@ -1175,4 +1314,3 @@ const ss = StyleSheet.create({
   peekUnit: { color: V2T.text3, fontSize: V2Type.micro, paddingBottom: 4 },
   peekDots: { flexDirection: "row", gap: 4, flex: 1, justifyContent: "flex-end", paddingBottom: 8 },
 });
-

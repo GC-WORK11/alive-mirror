@@ -398,6 +398,10 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
                 {doseGap != null ? (
                   <Text {...DYNAMIC_TYPE} style={[s.optGap, { fontFamily: fam(lang, "med") }]}>
                     {"  "}{t("compare_vsLightest", lang, { n: doseGap })}
+                    {/* the felt multiple — "2.4×" lands harder than "+82"
+                        when the gap is big; under 2× the µg reads truer */}
+                    {minDose > 0 && d?.mid != null && d.mid / minDose >= 2
+                      ? ` · ${(d.mid / minDose).toFixed(1)}×` : ""}
                   </Text>
                 ) : null}
               </Text>
