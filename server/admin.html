@@ -76,7 +76,8 @@
 
   h2{font-family:var(--mono);font-size:10px;text-transform:uppercase;
      letter-spacing:.22em;color:var(--ink3);margin:30px 0 10px;font-weight:400;
-     display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+     display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+     flex-wrap:wrap}
   h2 em{font-style:normal;color:var(--ink4);letter-spacing:.08em}
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;
          overflow:hidden}
@@ -129,6 +130,8 @@
 
   .share{padding:6px 16px 14px}
   .feedlist{padding:2px 16px 10px}
+  @media(max-width:480px){.feed-row{grid-template-columns:36px 1fr auto auto}
+    .feed-row .f-c{display:none}}
   .feed-h{font-size:10px;letter-spacing:.08em;text-transform:uppercase;
     color:var(--ink4);padding:6px 0 4px}
   .feed-row{display:grid;grid-template-columns:44px 1fr auto auto auto;
@@ -148,13 +151,13 @@
   /* reserve true map aspect before first paint — async fill must not
      shift the page ((X1-X0)*ASP : (Y1-Y0) = 1.1*0.879 : 0.75) */
   canvas#fieldmap{width:100%;display:block;aspect-ratio:1.2892;
-                  background:var(--surface2,#f2f4f7)}
+                  background:var(--surface2,#efede7)}
   .fmsel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .fmsel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
     text-transform:uppercase;padding:4px 10px;cursor:pointer;
     border:1px solid var(--hair);background:transparent;color:var(--ink3)}
   .fmsel button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .fmsel button.on{border-color:var(--ink);color:var(--ink);background:var(--surface2,#f2f4f7)}
+  .fmsel button.on{border-color:var(--ink);color:var(--ink);background:var(--surface2,#efede7)}
   .fmscrub{display:flex;align-items:center;gap:10px;margin-bottom:10px;
     font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em}
   .fmscrub input{flex:1;accent-color:var(--ink);height:3px}
@@ -253,7 +256,7 @@
          filter:drop-shadow(0 10px 22px rgba(20,24,31,.22))}
   /* methodology card — the 'how is this number made' truth under the map */
   .meth{margin-top:10px;padding:11px 13px 10px;border:1px solid var(--line);
-        border-radius:12px;background:var(--surface2,#f2f4f7);
+        border-radius:12px;background:var(--surface2,#efede7);
         font-size:12px;line-height:1.65;color:var(--ink2)}
   .meth .mt{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
             text-transform:uppercase;color:var(--ink4);margin-bottom:6px}
@@ -264,7 +267,8 @@
   .gtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
 
   /* day-by-day trips strip — muted bars, day labels in mono */
-  .daybars{display:flex;align-items:flex-end;gap:5px;padding:10px 16px 12px}
+  .daybars{display:flex;align-items:flex-end;gap:5px;padding:10px 16px 12px;
+           overflow-x:auto}
   .dbar{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto}
   .dbar i{width:14px;background:rgba(101,112,127,.5);border-radius:3px 3px 0 0}
   .dbar span{font-family:var(--mono);font-size:8px;color:var(--ink4)}
@@ -286,6 +290,13 @@
 </header>
 
 <div class="wrap">
+  <noscript>
+    <style>#stamp,#stats,#distmap,#fieldmap{display:none}
+      h2,#field,#validation,#timing,#sources,#donations,#feedlist,#pipe,#corridors,#sharedpic{display:none}</style>
+    <p style="margin:18px 0;font-family:var(--mono);font-size:10.5px;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);line-height:1.9">
+      this console is javascript-only — the token prompt and every panel on it are live renders.</p>
+  </noscript>
   <div class="statusline" id="stamp">connecting…</div>
 
   <div class="grid" id="stats"></div>
@@ -459,12 +470,20 @@ async function tick(){
   G_STATUS=S;   /* methodology cards read live counts from the status feed */
   const f=S.field||{};
   const sv=f.serving||'none';
-  $('stamp').innerHTML=
-    `uptime <b>${ago(S.uptime_s)}</b> · build <b>${esc(S.build_sha||'?')}</b> · `+
-    `v<b>${esc(S.version||'?')}</b> · store <b>${esc(S.trips_backend||'?')}</b> · `+
-    `field <b>${esc(sv)}</b> · ${f.samples??'—'} samples · `+
-    `${f.station_readings??'—'} stations · ${esc(f.source||'—')} · `+
-    `age <b>${ago(f.age_s)}</b>`;
+  if(S.field){
+    $('stamp').innerHTML=
+      `uptime <b>${ago(S.uptime_s)}</b> · build <b>${esc(S.build_sha||'?')}</b> · `+
+      `v<b>${esc(S.version||'?')}</b> · store <b>${esc(S.trips_backend||'?')}</b> · `+
+      `field <b>${esc(sv)}</b> · ${f.samples??'—'} samples · `+
+      `${f.station_readings??'—'} stations · ${esc(f.source||'—')} · `+
+      `age <b>${ago(f.age_s)}</b>`;
+  }else{
+    /* the one honest line for the token need — the pill above the
+       stamp says 'token declined', this says what the token unlocks */
+    $('stamp').innerHTML=gated
+      ?'<span class="err">no admin token</span> — status · sources · timing · validation · corridors are gated on ALIVE_ADMIN_TOKEN; reopen this page in a new tab to re-authenticate. public feeds keep rendering.'
+      :'<span class="err">status feed unavailable — retrying every 30s</span>';
+  }
 
   /* --- headline cards --- */
   const t=dn.totals||{};
@@ -505,7 +524,7 @@ async function tick(){
   const svBadge=sv==='live'?'<span class="badge live">live</span>'
     :sv==='snapshot'?'<span class="badge">snapshot</span>'
     :'<span class="badge crit">no field</span>';
-  $('field').innerHTML=[
+  $('field').innerHTML=S.field?[
     ['serving',svBadge,true],
     ['source',esc(f.source||'—'),true],
     ['age',`${ago(f.age_s)} ${freshBadge(f.stale)}`,true],
@@ -527,7 +546,8 @@ async function tick(){
     ['disk free',disk.free_pct!=null?`${disk.free_pct}%${disk.low?' · <span class="badge crit">low</span>':''}`:'—',true],
     ['provenance',esc(p.field||'—'),false],
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
-    ||emptyMsg('field module unavailable on this box');
+    ||emptyMsg('field module unavailable on this box')
+    :emptyMsg(gated?'gated — admin token required':'status feed unavailable');
 
   /* --- api speed, measured — the server's own stopwatch, bucketed --- */
   try{
@@ -544,10 +564,14 @@ async function tick(){
         `${fmtMs(r.mean_ms)} avg · p90 ${p90} · n ${fmt(r.n)}`,true];
     });
     if(other>0)trows.push(['api · other routes',`${other} more tracked`,false]);
-    trows.unshift(['api timing · measured',`server stopwatch · window ${esc((timing&&timing.window)||'since boot')} · p90 is the covering bucket edge`,false]);
-    $('timing').innerHTML=trows.length
-      ?trows.map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
-      :emptyMsg('no requests measured yet');
+    if(!trs.length){
+      $('timing').innerHTML=emptyMsg(gated
+        ?'gated — admin token required':'no requests measured yet');
+    }else{
+      trows.unshift(['api timing · measured',`server stopwatch · window ${esc(timing.window||'since boot')} · p90 is the covering bucket edge`,false]);
+      $('timing').innerHTML=trows.map(([k,v,main])=>
+        `<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('');
+    }
   }catch(e){$('timing').innerHTML=emptyMsg('timing feed unavailable');}
 
   /* --- validation --- */
@@ -563,15 +587,18 @@ async function tick(){
         ?`mae ${arch.mae_ugm3} · rmse ${arch.rmse_ugm3} · bias +${arch.bias_ugm3} µg/m³ (${fmt(arch.pairs)} pairs)`
         :esc(arch.status||'—'),true]);
   }
-  if(daily){
+  if(daily&&daily.date){
     vrows.push(['daily rollup',`${esc(daily.date)} · ${fmt(daily.n_cells)} cells · ${fmt(daily.n_snapshots)} snapshots`,true],
       ['above who 24h',daily.pct_cells_gt15_who!=null?`${daily.pct_cells_gt15_who}% of cells`:'—',true],
       ['above cpcb 24h',daily.pct_cells_gt60_cpcb!=null?`${daily.pct_cells_gt60_cpcb}% of cells`:'—',true]);
   }
-  vrows.push(['full report',validation&&validation.report_md?'data/field_validation.md on disk':'not generated yet',false]);
-  $('validation').innerHTML=vrows.map(([k,v,main])=>
-    `<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
-    ||emptyMsg('no validation outputs on disk yet — weekly rollup has not run');
+  if(validation)vrows.push(['full report',
+    validation.report_md?'data/field_validation.md on disk':'not generated yet',false]);
+  $('validation').innerHTML=vrows.length
+    ?vrows.map(([k,v,main])=>
+      `<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
+    :emptyMsg(gated?'gated — admin token required'
+      :'no validation outputs on disk yet — weekly rollup has not run');
 
   /* --- ingest sources: model / met / stations / fires / location ---
      the pill follows OBSERVED service first: explicit probe up/down when
@@ -610,13 +637,17 @@ async function tick(){
       <td class="muted">${esc(s.detail||'')}${extra.length?` · ${extra.map(esc).join(' · ')}`:''}</td>
       <td class="num mono">${ago(s.age_s??s.field_age_s)}</td>
       <td>${freshBadge(s.stale)}</td></tr>`;
-  }).join('')||`<tr><td colspan="6">${emptyMsg('source probe unavailable')}</td></tr>`;
+  }).join('')||`<tr><td colspan="6">${emptyMsg(
+    gated?'management feeds gated — admin token required'
+      :'source probe returned nothing')}</td></tr>`;
 
   /* --- trip aggregates: donations + mode share + k≥3 corridors --- */
   const days=dn.days||{};
   const dayKeys=Object.keys(days).sort();
   const share=dn.mode_share||[];
-  $('donations').innerHTML=t.trips?`
+  $('donations').innerHTML=donations==null
+    ?emptyMsg(gated?'gated — admin token required':'donations feed unavailable')
+    :(t.trips?`
       <dt>trips</dt><dd>${fmt(t.trips)} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}</dd>
       <dt>distance</dt><dd>${fmt1(t.km)} km · ${t.avg_km_per_trip??'—'} km/trip</dd>
       <dt>dose</dt><dd>${fmt(t.dose_ug)} µg inhaled · aggregates only</dd>
@@ -627,7 +658,7 @@ async function tick(){
       <dt>window</dt><dd class="sub">${Math.round((dn.window_s||0)/3600)}h corridor freshness · ${esc(dn.devices_note||'')}</dd>
       <dt>days</dt><dd class="sub">${dayKeys.slice(-7).map(d=>{
         const v=days[d];return `${esc(d)}: ${fmt(v.trips)} trips / ${fmt1(v.km)} km`}).join('<br>')}</dd>`
-    :'';
+    :emptyMsg('no donations yet — totals appear when the first anonymized trip summary lands. nothing is zero-filled.'));
   /* day-by-day bar strip — every recorded day, bars = shared trips,
      hover carries the day's dose+co2 (aggregate day counters only) */
   if(t.trips){
@@ -638,13 +669,13 @@ async function tick(){
         <i style="height:${h}px"></i><span>${esc(d.slice(5))}</span></div>`;
     }).join('');
   }
-  if(!t.trips)$('donations').innerHTML=emptyMsg(
-    'no donations yet — totals appear when the first anonymized trip summary lands. nothing is zero-filled.');
   /* the live feed — UTC-hour aggregates only (mode/dose/km/co2 sums);
      a row exists only where >=3 distinct devices donated in that hour,
      so nothing shown can collapse to one person's journey */
   const feed=dn.recent||[];
-  $('feedlist').innerHTML=feed.length?
+  $('feedlist').innerHTML=donations==null
+    ?emptyMsg(gated?'gated — admin token required':'donations feed unavailable')
+    :feed.length?
     `<div class="feed-h">live feed · busiest k≥3 hours</div>`+feed.map(e=>{
       const s=Math.max(0,Math.round(((dn.ts||Date.now()/1000)-(e.ts||0))));
       return `<div class="feed-row">
@@ -694,8 +725,10 @@ async function tick(){
     ['05','emit',`BS-bucket × speed curve × idling × cold-start${csP?`<br>donated so far: moving ${csP.moving}% · idling ${csP.idle}% · cold ${csP.cold}%`:''}`],
     ['06','aggregate',`k≥3 anonymized · ${fmt(dn.cells_tracked)} cells tracked · ${fmt(dn.corridors_publishable)} publishable · ${fmt(t.trips)} trips`],
   ];
-  $('pipe').innerHTML=steps.map(([n,t0,v])=>
-    `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div><div class="v">${v}</div></div>`).join('');
+  $('pipe').innerHTML=S.field
+    ?steps.map(([n,t0,v])=>
+      `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div><div class="v">${v}</div></div>`).join('')
+    :`<div class="empty-state" style="grid-column:1/-1"><b>insufficient data</b>${gated?'pipeline gated — admin token required':'status feed unavailable'}</div>`;
 
   /* --- corridors (aggregate rows only; the k≥3 set comes from the store) --- */
   const maxDose=Math.max(1,...rows.map(r=>r.avg_dose_ug||0));
@@ -711,7 +744,9 @@ async function tick(){
       <td class="num muted">${r.co2_g_per_100m==null?'—':fmt1(r.co2_g_per_100m)+' g'}</td>
       <td class="num" title="live pm2.5 over this corridor — the air those trips breathe">${r.field_pm25==null?'<span class="muted">—</span>':`<span class="mono" style="color:${doseInk(r.field_pm25*3.2)}">${fmt1(r.field_pm25)} µg/m³</span>`}</td></tr>`;
   }).join(''):`<tr><td colspan="7">${emptyMsg(
-    'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
+    corridors==null
+      ?(gated?'gated — admin token required':'corridor feed unavailable')
+      :'no publishable corridors — a cell appears here only after ≥3 distinct devices cross it inside 72h. suppressed cells are never shown.')}</td></tr>`;
 }
 
 /* ---------- live field map ----------
