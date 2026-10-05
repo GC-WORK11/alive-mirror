@@ -10,8 +10,9 @@
 
 import React, { useEffect, useState } from "react";
 import {
+  Animated,
+  BackHandler,
   LayoutAnimation,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -534,26 +535,42 @@ export function DelhiToday({
   /** cigarette-equivalence framing — off by default (settings.show_cig) */
   showCig?: boolean;
 }) {
+  /* hardware back closes the sheet — the Modal's onRequestClose used to
+     provide this; the overlay needs BackHandler explicitly. */
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { onClose(); return true; });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  /* plain absolute overlay — RN Modal's native present/dismiss segfaults
+     this stack (reproduced on the search sheet three times) — no Modal,
+     no crash class. The slide-up the Modal provided is kept as a JS-driver
+     enter spring (the proven-safe pattern from Sheet/SearchScreen). */
+  const [enter] = useState(() => new Animated.Value(0));
+  const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
+  useEffect(() => {
+    if (visible) {
+      enter.setValue(0);
+      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+    }
+  }, [visible, enter]);
+
+  if (!visible) return null;
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={ss.backdrop}>
-        <StatusBar style="dark" />
-        {visible ? <DelhiSheet onClose={onClose} lang={lang} showCig={showCig} /> : null}
-      </View>
-    </Modal>
+    <View style={ss.backdrop}>
+      <StatusBar style="dark" />
+      <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
+        <DelhiSheet onClose={onClose} lang={lang} showCig={showCig} />
+      </Animated.View>
+    </View>
   );
 }
 
 export default DelhiToday;
 
 const ss = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: V2T.scrim },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: V2T.scrim },
   root: {
     flex: 1,
 

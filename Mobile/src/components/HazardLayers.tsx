@@ -2,13 +2,20 @@ import React from "react";
 import { GeoJSONSource, Layer } from "@maplibre/maplibre-react-native";
 import { V2T } from "../theme";
 
+/* Sources + layers stay mounted for the app's whole life: unmounting a
+   GeoJSONSource issues removeSource/removeLayer on the native style, and
+   when that lands mid-draw on the iOS-sim render thread it segfaults
+   (same upstream MapLibre class as RouteTint and the markers). The layer
+   switch and empty data alike swap in an empty FeatureCollection — one
+   no-op native call, draws nothing, removes nothing. */
+const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
 /** Real fire pixels (NASA FIRMS VIIRS/MODIS, NCR + 150km ring, 6h cache).
- * Optional layer — renders only when switched on in the layers sheet.
+ * Optional layer — `on` from the layers sheet decides visibility.
  * Radius follows fire-radiative-power; alpha follows confidence. */
-export function FiresLayer({ fires }: { fires: GeoJSON.FeatureCollection | null }) {
-  if (!fires?.features?.length) return null;
+export function FiresLayer({ fires, on = true }: { fires: GeoJSON.FeatureCollection | null; on?: boolean }) {
   return (
-    <GeoJSONSource id="fires" data={fires}>
+    <GeoJSONSource id="fires" data={on && fires ? fires : EMPTY}>
       <Layer
         id="firesHalo"
         type="circle"
@@ -42,12 +49,11 @@ export function FiresLayer({ fires }: { fires: GeoJSON.FeatureCollection | null 
 }
 
 /** Delhi Traffic Police crash-prone zones (official Crash Report zones,
- * geo'd from public lists). Optional layer — renders only when switched
- * on in the layers sheet; fades in at street level where the risk applies. */
-export function BlackspotsLayer({ spots }: { spots: GeoJSON.FeatureCollection | null }) {
-  if (!spots?.features?.length) return null;
+ * geo'd from public lists). Optional layer — `on` from the layers sheet;
+ * fades in at street level where the risk applies. */
+export function BlackspotsLayer({ spots, on = true }: { spots: GeoJSON.FeatureCollection | null; on?: boolean }) {
   return (
-    <GeoJSONSource id="blackspots" data={spots}>
+    <GeoJSONSource id="blackspots" data={on && spots ? spots : EMPTY}>
       <Layer
         id="blackspotsDot"
         type="circle"

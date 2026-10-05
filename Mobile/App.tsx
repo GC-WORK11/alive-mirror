@@ -17,7 +17,8 @@ import { EndpointPin } from "./src/ui";
 import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { v2StyleUrl } from "./src/map/style";
-import { ReportsLayer } from "./src/components/ReportsLayer";
+import { camDur } from "./src/map/cam";
+import { ReportsLayer, reconcileReportSlots, REPORT_POOL, type ReportSlot } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
 import { RouteTintSource } from "./src/components/RouteTint";
 import { fieldSources, type FieldStatus } from "./src/api/plan";
@@ -109,6 +110,8 @@ function AppInner() {
   }, [phase]);
 
   const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [reportSlots, setReportSlots] = useState<(ReportSlot | null)[]>(
+    () => Array<ReportSlot | null>(REPORT_POOL).fill(null));
   const [fires, setFires] = useState<GeoJSON.FeatureCollection | null>(null);
   const [spots, setSpots] = useState<GeoJSON.FeatureCollection | null>(null);
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ fires: false, spots: false, corridors: false });
@@ -116,6 +119,17 @@ function AppInner() {
   const [layersOpen, setLayersOpen] = useState(false);
   const [mapPickArmed, setMapPickArmed] = useState(false);
   const [vehicleOpen, setVehicleOpen] = useState(false);
+  /* needsVehicle flips inside the same commit as the first option rows —
+     mounting the wizard there makes its enter-spring share a frame with
+     RouteTint + the camera fit (the sim's documented render-thread
+     SIGSEGV window). Arm it once the one camera move per plan has run
+     out (options+500 ms start + 700 ms anim + margin). */
+  const [wizArmed, setWizArmed] = useState(false);
+  useEffect(() => {
+    if (!flow.needsVehicle) { setWizArmed(false); return; }
+    const t = setTimeout(() => setWizArmed(true), 1350);
+    return () => clearTimeout(t);
+  }, [flow.needsVehicle]);
   const [delhiOpen, setDelhiOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [placePickSlot, setPlacePickSlot] = useState<"home" | "work" | null>(null);
@@ -143,7 +157,13 @@ function AppInner() {
       .catch(() => { misses += 1; if (misses >= 2) setApiOk(false); });
     ping();
     const healthIv = setInterval(ping, 15000);
-    const poll = () => fetchJson(`${API}/reports`).then(setReports).catch(() => {});
+    /* slot assignment happens in the poll handler (event context), so the
+       Marker pool only ever mutates lngLat+child — never mounts/unmounts
+       mid-draw (the upstream iOS-sim SIGSEGV class). */
+    const poll = () => fetchJson(`${API}/reports`).then((r) => {
+      setReports(r);
+      setReportSlots((prev) => reconcileReportSlots(prev, r));
+    }).catch(() => {});
     poll();
     const iv = setInterval(poll, 60000);
     /* the map-screen freshness chip reads the served field's own status
@@ -161,7 +181,7 @@ function AppInner() {
         setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
         // wait for the initial style/tile load to settle before animating —
         // flyTo during first-load is a render-thread spike on the iOS sim
-        setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: 900 }), 600);
+        setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: camDur(900) }), 600);
       }
     })();
     const aqiPoll = () =>
@@ -325,10 +345,13 @@ function AppInner() {
             cost beats a remove-during-render race; always-on dot matches
             normal map UX anyway. */}
         {hasLoc && <UserLocation animated accuracy />}
-        {layers.corridors && <CorridorLayer corridors={flow.community?.top_corridors ?? null} />}
-        <ReportsLayer reports={reports} />
-        {layers.fires && <FiresLayer fires={fires} />}
-        {layers.spots && <BlackspotsLayer spots={spots} />}
+        {/* all map children stay mounted for the app's life — a mid-draw
+            removeSource/removeAnnotation is the upstream sim SIGSEGV;
+            the toggles only swap data in and out (see each component) */}
+        <CorridorLayer corridors={flow.community?.top_corridors ?? null} on={layers.corridors} />
+        <ReportsLayer slots={reportSlots} />
+        <FiresLayer fires={fires} on={layers.fires} />
+        <BlackspotsLayer spots={spots} on={layers.spots} />
         {/* route-wise AQI gradient on the real /v2/plan polylines — per
             ~250 m chunk from the fetched strips, flat dose-mean until they
             land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
@@ -522,7 +545,7 @@ function AppInner() {
           if (k === "editVehicle") { setSettingsOpen(false); setVehicleOpen(true); return; }
           patchSettings({ [k]: v } as Partial<ShellSettings>);
         }} />
-      <VehicleSheet visible={vehicleOpen || flow.needsVehicle} lang={lang}
+      <VehicleSheet visible={vehicleOpen || wizArmed} lang={lang}
         current={flow.vehicle}
         onDone={(p) => {
           setVehicleOpen(false);
