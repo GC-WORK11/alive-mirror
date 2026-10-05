@@ -17,8 +17,13 @@ Privacy (docs/plan/07 §3 — the product promise, enforced here):
 observations carry no identity. The client-sent anonymous id is hashed
 like v2/trip.py's device_token before it can touch any store, and raw
 coordinates are folded into ~500 m cell traversals at ingest — no raw
-trajectories at rest. Anything this module publishes is an aggregate;
-a corridor cell is revealed only with >=_K_MIN_DEVICES distinct hashed
+trajectories at rest. And there are no per-trip rows at rest either:
+observe() folds each traversal straight into per-cell / per-hour /
+per-day / lifetime AGGREGATES — the only structures that exist in
+memory, on disk, or in S3 (the old per-trip _obs rows were the leak —
+ordered cell chains a reader could walk endpoint-to-end, linked by the
+same hashed id). Anything this module publishes is an aggregate; a
+corridor cell is revealed only with >=_K_MIN_DEVICES distinct hashed
 devices inside the 72 h window (same rule v2/store.py TripAggregates
 implements). Per-device rows are never returned — that was the leak.
 """
@@ -26,6 +31,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -43,7 +49,26 @@ _S3_MIN_GAP_S = 60
 _s3_client = None
 _last_s3_put = 0.0
 
-_obs: list[dict] = []
+# ---------------------------------------------------------------- aggregates
+# What persists — every structure is an aggregate; no per-trip row can
+# exist here (the privacy audit's fix: the retired _obs list held one
+# row per donation — ordered cell chains + a stable hashed id + an
+# exact timestamp — i.e. per-device path histories at rest. A reader of
+# the file or S3 snapshot could walk a donor's trip corridor to
+# corridor. The aggregate shapes below keep every published answer
+# identical while making a per-person record structurally impossible.)
+
+_CELLS: dict = {}   # (lon,lat) -> per-cell totals + k-gate state
+_CELLS_CAP = 60_000          # evict stalest cells beyond this
+_CELL_VAL_CAP = 400          # implied-C ring per cell (freshness pairs)
+_DAYS: dict = {}    # "YYYY-MM-DD" -> day rollup
+_DAYS_CAP = 400
+_HOURS: dict = {}   # int utc-hour -> hour rollup
+_HOUR_KEEP_S = 7 * 86400   # hour buckets evaporate after a week
+_LIFE: dict = {"trips": 0, "km": 0.0, "dose_ug": 0.0,
+               "avoided_ug": 0.0, "last_ts": 0.0}
+_DEVICES: set = set()      # hashed tokens ever seen — distinct COUNT only
+
 _reports: list[dict] = []
 _reviews: list[dict] = []
 _REVIEW_CAP = 400
@@ -77,11 +102,245 @@ def _s3():
     return _s3_client or None
 
 
-def _apply(d: dict) -> None:
-    global _obs, _reports, _reviews
-    _obs = d.get("obs", [])[-20000:]
+_HEX16 = re.compile(r"[0-9a-f]{16}")
+
+
+def _fold(ts: float, vehicle: str, duration_s: float, dose_ug,
+          avoided_ug, co2_kg, km: float, cells: set, tok_hash: str) -> None:
+    """Fold ONE traversal into the aggregates — the only write path.
+
+    Called by observe() on ingest and by _migrate() when an old-format
+    snapshot is loaded. After this call the trip's coordinates and its
+    ordered cell chain no longer exist anywhere: cells are a set, so the
+    store can't even tell which cell was first or last. tok_hash is the
+    already-hashed contributor id; it lands only inside per-cell /
+    per-bucket device SETS — the k>=3 distinct-device gate cannot count
+    without them, but they never link back to a row, a route, or a
+    time-ordered trace.
+    """
+    global _OBS_VERSION
+    day = time.strftime("%Y-%m-%d", time.gmtime(ts))
+    d = _DAYS.setdefault(day, {"trips": 0, "dose_sum": 0.0,
+                               "avoided_sum": 0.0, "km": 0.0,
+                               "last_ts": 0.0, "modes": set(),
+                               "devices": set()})
+    d["trips"] += 1
+    d["dose_sum"] += dose_ug or 0.0
+    d["avoided_sum"] += avoided_ug or 0.0
+    d["km"] += km
+    d["last_ts"] = max(d["last_ts"], ts)
+    d["modes"].add(vehicle)
+    if tok_hash:
+        d["devices"].add(tok_hash)
+    h = int(ts // 3600)
+    hr = _HOURS.setdefault(h, {"trips": 0, "devices": set(),
+                               "duration_s": 0.0, "dose_ug": 0.0,
+                               "avoided_ug": 0.0, "km": 0.0,
+                               "last_ts": 0.0, "modes": {}})
+    hr["trips"] += 1
+    if tok_hash:
+        hr["devices"].add(tok_hash)
+    hr["duration_s"] += duration_s
+    hr["dose_ug"] += dose_ug or 0.0
+    hr["avoided_ug"] += avoided_ug or 0.0
+    hr["km"] += km
+    hr["last_ts"] = max(hr["last_ts"], ts)
+    hr["modes"][vehicle] = hr["modes"].get(vehicle, 0) + 1
+    _LIFE["trips"] += 1
+    _LIFE["km"] += km
+    _LIFE["dose_ug"] += dose_ug or 0.0
+    _LIFE["avoided_ug"] += avoided_ug or 0.0
+    _LIFE["last_ts"] = max(_LIFE.get("last_ts") or 0.0, ts)
+    if tok_hash:
+        _DEVICES.add(tok_hash)
+    # implied ambient concentration — only traversals that survive the
+    # same validity gates corridor_field_samples() applies count as
+    # measurements (dose + >=30 s duration + sane implied value)
+    implied = None
+    dur_min = duration_s / 60.0
+    if dose_ug and dur_min >= 0.5:
+        ve = VENTILATION_LPM.get(vehicle, 10.0) / 1000.0
+        me = MICROENV.get(vehicle, 1.0)
+        c = dose_ug / (ve * dur_min * me)
+        if 10 <= c <= 900:
+            implied = round(c, 1)
+    km_cell = km / len(cells) if cells else 0.0
+    for cell in cells:
+        v = _CELLS.setdefault(cell, {"trips": 0, "dose_sum": 0.0,
+                                     "avoided_sum": 0.0, "km_sum": 0.0,
+                                     "co2_kg_sum": 0.0, "co2_trips": 0,
+                                     "modes": {}, "dev_all": set(),
+                                     "dev_ts": {}, "vals": [],
+                                     "last_ts": 0.0})
+        v["trips"] += 1
+        v["dose_sum"] += dose_ug or 0.0
+        v["avoided_sum"] += avoided_ug or 0.0
+        v["modes"][vehicle] = v["modes"].get(vehicle, 0) + 1
+        if tok_hash:
+            v["dev_all"].add(tok_hash)
+        v["last_ts"] = max(v["last_ts"], ts)
+        v["km_sum"] += km_cell
+        if co2_kg:
+            v["co2_kg_sum"] += co2_kg
+            v["co2_trips"] += 1
+        if implied is not None:
+            # dev_ts is the *fresh-window* device set — field samples
+            # require >=k devices among traversals inside 72 h, not all-
+            # time; dev_ts entries self-prune past the window
+            if tok_hash:
+                tl = v["dev_ts"].setdefault(tok_hash, [])
+                tl.append(ts)
+                if len(tl) > 64:
+                    del tl[:len(tl) - 64]
+            v["vals"].append([ts, implied])
+            if len(v["vals"]) > _CELL_VAL_CAP:
+                del v["vals"][:len(v["vals"]) - _CELL_VAL_CAP]
+    _OBS_VERSION += 1
+
+
+def _migrate_obs(o: dict) -> None:
+    """Fold a pre-aggregate snapshot row into the new stores, once.
+
+    Rows carrying 'cells' fold straight in. Rows carrying only 'points'
+    — snapshots written before any trim existed — are DROPPED: their
+    coordinates were never privacy-trimmed, so folding their endpoints
+    into cells would preserve exactly what the trim exists to erase.
+    Plaintext-era contributor ids are hashed on the way in.
+    """
+    cells_raw = o.get("cells")
+    if not isinstance(cells_raw, list):
+        return                      # legacy 'points' rows die here
+    cells = set()
+    for c in cells_raw:
+        if isinstance(c, (list, tuple)) and len(c) >= 2:
+            try:
+                cells.add((float(c[0]), float(c[1])))
+            except (TypeError, ValueError):
+                continue
+    if not cells:
+        return
+    tok = o.get("contributor") or ""
+    if tok and not _HEX16.fullmatch(str(tok)):
+        tok = _token(tok)
+    _fold(ts=float(o.get("ts") or time.time()),
+          vehicle=str(o.get("vehicle") or "unknown"),
+          duration_s=float(o.get("duration_s") or 0.0),
+          dose_ug=o.get("dose_ug"), avoided_ug=o.get("avoided_ug"),
+          co2_kg=o.get("co2_kg"), km=float(o.get("km") or 0.0),
+          cells=cells, tok_hash=str(tok or ""))
+
+
+def _apply(d: dict) -> bool:
+    """Hydrate a snapshot. Returns True when a legacy v1 file was
+    migrated — the caller re-saves so the per-trip rows die on disk
+    the moment they're read, not at the next write."""
+    global _reports, _reviews
     _reports = d.get("reports", [])[-2000:]
     _reviews = d.get("reviews", [])[-_REVIEW_CAP:]
+    if d.get("v") == 2:
+        _hydrate(d)
+        return False
+    migrated = bool(d.get("obs"))
+    for o in d.get("obs", []):      # v1 snapshot: fold rows, then they
+        _migrate_obs(o)             # never exist at rest again
+    return migrated
+
+
+def _hydrate(d: dict) -> None:
+    """v2 payload → in-memory aggregates (lists back to sets)."""
+    for key, v in (d.get("cells") or {}).items():
+        try:
+            lon, lat = (float(x) for x in str(key).split(",", 1))
+        except (TypeError, ValueError):
+            continue
+        _CELLS[(lon, lat)] = {
+            "trips": int(v.get("trips") or 0),
+            "dose_sum": float(v.get("dose_sum") or 0.0),
+            "avoided_sum": float(v.get("avoided_sum") or 0.0),
+            "km_sum": float(v.get("km_sum") or 0.0),
+            "co2_kg_sum": float(v.get("co2_kg_sum") or 0.0),
+            "co2_trips": int(v.get("co2_trips") or 0),
+            "modes": dict(v.get("modes") or {}),
+            "dev_all": set(v.get("dev_all") or []),
+            "dev_ts": {str(k): [float(x) for x in
+                              (t if isinstance(t, list) else [t])]
+                       for k, t in (v.get("dev_ts") or {}).items()},
+            "vals": [[float(p[0]), float(p[1])]
+                     for p in (v.get("vals") or [])
+                     if isinstance(p, (list, tuple)) and len(p) >= 2],
+            "last_ts": float(v.get("last_ts") or 0.0),
+        }
+    for day, v in (d.get("days") or {}).items():
+        _DAYS[str(day)] = {
+            "trips": int(v.get("trips") or 0),
+            "dose_sum": float(v.get("dose_sum") or 0.0),
+            "avoided_sum": float(v.get("avoided_sum") or 0.0),
+            "km": float(v.get("km") or 0.0),
+            "last_ts": float(v.get("last_ts") or 0.0),
+            "modes": set(v.get("modes") or []),
+            "devices": set(v.get("devices") or [])}
+    for h, v in (d.get("hours") or {}).items():
+        _HOURS[int(h)] = {
+            "trips": int(v.get("trips") or 0),
+            "devices": set(v.get("devices") or []),
+            "duration_s": float(v.get("duration_s") or 0.0),
+            "dose_ug": float(v.get("dose_ug") or 0.0),
+            "avoided_ug": float(v.get("avoided_ug") or 0.0),
+            "km": float(v.get("km") or 0.0),
+            "last_ts": float(v.get("last_ts") or 0.0),
+            "modes": dict(v.get("modes") or {})}
+    _LIFE.update({k: float(v) for k, v in (d.get("life") or {}).items()
+                  if k in _LIFE})
+    _LIFE["trips"] = int(_LIFE["trips"])
+    _DEVICES.update(d.get("devices") or [])
+
+
+def _snapshot() -> dict:
+    """The persisted shape — aggregates only, by construction there is
+    no per-trip row to serialize."""
+    return {
+        "v": 2,
+        "cells": {f"{lon},{lat}": {k: (sorted(v[k]) if isinstance(
+                       v[k], set) else v[k]) for k in (
+                       "trips", "dose_sum", "avoided_sum", "km_sum",
+                       "co2_kg_sum", "co2_trips", "modes", "dev_all",
+                       "dev_ts", "vals", "last_ts")}
+                  for (lon, lat), v in _CELLS.items()},
+        "days": {day: {**v, "modes": sorted(v["modes"]),
+                       "devices": sorted(v["devices"])}
+                 for day, v in _DAYS.items()},
+        "hours": {str(h): {**v, "devices": sorted(v["devices"])}
+                  for h, v in _HOURS.items()},
+        "life": dict(_LIFE),
+        "devices": sorted(_DEVICES),
+        "reports": _reports[-2000:],
+        "reviews": _reviews[-_REVIEW_CAP:],
+    }
+
+
+def _prune_agg() -> None:
+    """Bound the aggregates on save: stale hour buckets evaporate, stale
+    implied-C pairs die, oversized stores evict their stalest cells/days.
+    Deleting is honest here — everything past the windows is dead weight
+    the publish paths already ignore."""
+    now = time.time()
+    for h in [k for k in _HOURS if now - k * 3600 > _HOUR_KEEP_S]:
+        del _HOURS[h]
+    for cell, v in _CELLS.items():
+        fresh = [p for p in v["vals"] if now - p[0] <= _OBS_FRESH_S]
+        if len(fresh) != len(v["vals"]):
+            v["vals"] = fresh
+        v["dev_ts"] = {k: [t for t in ts
+                           if now - t <= _CELL_WINDOW_S]
+                       for k, ts in v["dev_ts"].items()}
+        v["dev_ts"] = {k: ts for k, ts in v["dev_ts"].items() if ts}
+    if len(_CELLS) > _CELLS_CAP:
+        stale = sorted(_CELLS.items(), key=lambda kv: kv[1]["last_ts"])
+        for k, _v in stale[:len(_CELLS) - _CELLS_CAP]:
+            del _CELLS[k]
+    if len(_DAYS) > _DAYS_CAP:
+        for k in sorted(_DAYS)[:len(_DAYS) - _DAYS_CAP]:
+            del _DAYS[k]
 
 
 def _load() -> None:
@@ -93,14 +352,16 @@ def _load() -> None:
     if s3:
         try:
             body = s3.get_object(Bucket=_BUCKET, Key=_S3_KEY)["Body"].read()
-            _apply(json.loads(body))
+            if _apply(json.loads(body)):
+                _save()             # rewrite as aggregates immediately
             _prune_reports()
             return
         except Exception:
             pass
     if _FILE.exists():
         try:
-            _apply(json.loads(_FILE.read_text()))
+            if _apply(json.loads(_FILE.read_text())):
+                _save()
         except Exception:
             pass
     _prune_reports()
@@ -108,8 +369,8 @@ def _load() -> None:
 
 def _save() -> None:
     global _last_s3_put
-    payload = {"obs": _obs[-20000:], "reports": _reports[-2000:],
-               "reviews": _reviews[-_REVIEW_CAP:]}
+    _prune_agg()
+    payload = _snapshot()
     try:
         _FILE.parent.mkdir(parents=True, exist_ok=True)
         _FILE.write_text(json.dumps(payload))
@@ -143,12 +404,12 @@ def observe(vehicle: str, coords: list, duration_s: float,
     persists per trip is exactly what every aggregate needs and nothing
     more: cells touched, path km, mode, dose sums, a hashed token.
 
-    Untrimmed callers (the legacy /observe endpoint, which the app hits
-    with its full planned polyline incl. home/destination) get the same
-    privacy pipeline /v2/trip runs: drop first+last 300 m, thin ~100 m,
-    round 4 dp — so endpoints can never persist even client-side-forgot.
-    v2/trip already trims and passes privacy_trimmed=True; re-running
-    would double-trim its `kept` set."""
+    Untrimmed callers (anything that posts raw geometry — the retired
+    /observe endpoint used to) get the same privacy pipeline /v2/trip
+    runs: drop first+last 300 m, thin ~100 m, round 4 dp — so endpoints
+    can never persist even client-side-forgot. v2/trip already trims
+    and passes privacy_trimmed=True; re-running would double-trim its
+    `kept` set."""
     _load()
     if not isinstance(coords, (list, tuple)):
         coords = []
@@ -191,28 +452,30 @@ def observe(vehicle: str, coords: list, duration_s: float,
             return None
         return f if math.isfinite(f) and f >= 0 else None
 
-    obs = {
-        "ts": time.time(),
-        "vehicle": vehicle,
-        "duration_s": round(_nn(duration_s) or 0.0, 1),
-        "dose_ug": _nn(dose_ug),
-        "avoided_ug": _nn(avoided_ug),
-        "contributor": _token(contributor),
-        "km": round(_hav_km(pts), 3),
-        "co2_kg": _nn(co2_kg),
-        "cells": cells,
-    }
-    _obs.append(obs)
+    # Fold straight into the aggregates — after this line nothing that
+    # could single out one traversal exists anywhere in the process.
+    # `cells` is deliberately a SET: trip order dies at ingest, so no
+    # store, snapshot, or S3 object can ever carry a walkable chain.
+    _fold(ts=time.time(),
+          vehicle=str(vehicle or "unknown")[:24],
+          duration_s=round(_nn(duration_s) or 0.0, 1),
+          dose_ug=_nn(dose_ug), avoided_ug=_nn(avoided_ug),
+          co2_kg=_nn(co2_kg), km=round(_hav_km(pts), 3),
+          cells={tuple(c) for c in cells},
+          tok_hash=_token(contributor))
     _save()
-    return {"stored": True, "total_obs": len(_obs)}
+    return {"stored": True, "total_obs": _LIFE["trips"]}
 
 
 def report(kind: str, lat: float, lon: float, contributor: Optional[str]) -> dict:
     if kind not in _REPORT_KINDS:
         return {"stored": False, "error": f"kind must be one of {sorted(_REPORT_KINDS)}"}
     _load()
+    # 3 dp ≈ 110 m — a hazard pin needs street accuracy, not doorstep.
+    # 5 dp (~1 m) pointed at a reporter's home; the pin's job is to warn
+    # the next traveler, and no legitimate reader needs finer than this.
     r = {"ts": time.time(), "kind": kind,
-         "lat": round(float(lat), 5), "lon": round(float(lon), 5)}
+         "lat": round(float(lat), 3), "lon": round(float(lon), 3)}
     _reports.append(r)
     _save()
     return {"stored": True, "active_reports": len(_reports)}
@@ -240,29 +503,15 @@ def contributors_detail() -> list[dict]:
     `last_seen_min_ago` is kept so /admin/api's live-activity check
     still computes."""
     _load()
-    by: dict = {}
-    for o in _obs:
-        day = time.strftime("%Y-%m-%d", time.gmtime(o["ts"]))
-        c = by.setdefault(day, {
-            "trips": 0, "dose_ug": 0.0, "avoided_ug": 0.0,
-            "km": 0.0, "last_ts": 0.0, "modes": set(), "devices": set(),
-        })
-        c["trips"] += 1
-        c["dose_ug"] += o["dose_ug"] or 0
-        c["avoided_ug"] += o["avoided_ug"] or 0
-        c["km"] += _obs_km(o)
-        c["last_ts"] = max(c["last_ts"], o["ts"])
-        c["modes"].add(o["vehicle"])
-        if o["contributor"]:
-            c["devices"].add(o["contributor"])
     out = [{
         "day": k,
         "trips": v["trips"], "km": round(v["km"], 1),
-        "dose_ug": round(v["dose_ug"], 1), "avoided_ug": round(v["avoided_ug"], 1),
+        "dose_ug": round(v["dose_sum"], 1),
+        "avoided_ug": round(v["avoided_sum"], 1),
         "contributors": len(v["devices"]),
         "last_seen_min_ago": round((time.time() - v["last_ts"]) / 60),
         "modes": sorted(v["modes"]),
-    } for k, v in by.items()]
+    } for k, v in _DAYS.items()]
     out.sort(key=lambda x: x["last_seen_min_ago"])
     return out
 
@@ -279,23 +528,6 @@ def recent_obs(limit: int = 20) -> list[dict]:
     a trips:1 or trips:2 bucket still collapses to someone's exact
     hour/mode/duration/km/dose, which is per-person data."""
     _load()
-    by: dict = {}
-    for o in _obs:
-        h = int(o["ts"] // 3600)
-        r = by.setdefault(h, {
-            "trips": 0, "devices": set(), "duration_s": 0.0,
-            "dose_ug": 0.0, "avoided_ug": 0.0, "km": 0.0,
-            "last_ts": 0.0, "modes": {},
-        })
-        r["trips"] += 1
-        if o.get("contributor"):
-            r["devices"].add(o["contributor"])
-        r["duration_s"] += o["duration_s"] or 0
-        r["dose_ug"] += o["dose_ug"] or 0
-        r["avoided_ug"] += o["avoided_ug"] or 0
-        r["km"] += _obs_km(o)
-        r["last_ts"] = max(r["last_ts"], o["ts"])
-        r["modes"][o["vehicle"]] = r["modes"].get(o["vehicle"], 0) + 1
     out = [{
         "hour": time.strftime("%Y-%m-%d %H:00Z", time.gmtime(h * 3600)),
         "age_min": round((time.time() - r["last_ts"]) / 60, 1),
@@ -306,7 +538,7 @@ def recent_obs(limit: int = 20) -> list[dict]:
         "dose_ug": round(r["dose_ug"], 1),
         "avoided_ug": round(r["avoided_ug"], 1),
         "km": round(r["km"], 1),
-    } for h, r in by.items() if len(r["devices"]) >= _K_MIN_DEVICES]
+    } for h, r in _HOURS.items() if len(r["devices"]) >= _K_MIN_DEVICES]
     out.sort(key=lambda x: x["age_min"])
     return out[:limit]
 
@@ -321,15 +553,12 @@ def live_reports() -> list[dict]:
 
 
 def journeys_per_hour(hours: int = 24) -> list[int]:
-    """Observations bucketed per hour, oldest→newest — the ops sparkline."""
+    """Traversals bucketed per UTC hour, oldest→newest — the ops
+    sparkline. Read straight from the hour aggregates."""
     _load()
-    now = time.time()
-    out = [0] * hours
-    for o in _obs:
-        i = hours - 1 - int((now - o["ts"]) // 3600)
-        if 0 <= i < hours:
-            out[i] += 1
-    return out
+    cur = int(time.time() // 3600)
+    return [_HOURS.get(cur - hours + 1 + i, {}).get("trips", 0)
+            for i in range(hours)]
 
 
 def _cell(lon: float, lat: float) -> tuple[float, float]:
@@ -346,21 +575,6 @@ def _hav_km(pts) -> float:
             math.cos(math.radians(a[1])) * math.cos(math.radians(b[1])) *
             math.sin(math.radians(b[0] - a[0]) / 2) ** 2)))
     return d
-
-
-def _obs_cells(o: dict) -> list:
-    """~500m cells a traversal touched. Current obs store them
-    directly; snapshots written before raw points stopped being
-    persisted carry 'points' — fold those on the fly."""
-    if o.get("cells") is not None:
-        return [tuple(c) for c in o["cells"]]
-    return [_cell(p[0], p[1]) for p in o.get("points", [])]
-
-
-def _obs_km(o: dict) -> float:
-    if o.get("km") is not None:
-        return float(o["km"])
-    return _hav_km(o.get("points", []))
 
 
 # mode microenv + ventilation lookups for backing ambient concentration
@@ -395,33 +609,17 @@ def corridor_field_samples() -> list:
     if cached and ver == _OBS_VERSION and time.time() - built < _CELLS_CACHE_TTL:
         return cached
     now = time.time()
-    cells: dict = {}
-    for o in _obs:
-        if now - o["ts"] > _OBS_FRESH_S or not o.get("dose_ug") or not o.get("duration_s"):
-            continue
-        ve = VENTILATION_LPM.get(o["vehicle"], 10.0) / 1000.0  # canonical
-        # seated-tier fallback — was 8.0 pre-audit (understated seated VE)
-        me = MICROENV.get(o["vehicle"], 1.0)
-        dur_min = o["duration_s"] / 60.0
-        if dur_min < 0.5:
-            continue
-        c = o["dose_ug"] / (ve * dur_min * me)
-        if not (10 <= c <= 900):
-            continue
-        for cell in dict.fromkeys(_obs_cells(o)):
-            v = cells.setdefault(cell, {"vals": [], "devices": set()})
-            v["vals"].append(c)
-            if o["contributor"]:
-                v["devices"].add(o["contributor"])
     out = []
-    for (lon, lat), v in cells.items():
-        vals = v["vals"]
+    for (lon, lat), v in _CELLS.items():
+        vals = sorted(c for ts, c in v["vals"]
+                      if now - ts <= _OBS_FRESH_S)
         # median needs >=3 fresh traversals AND >=_K_MIN_DEVICES distinct
         # hashed devices — otherwise one device looping a block could
         # write a 'measurement' into the city field
-        if len(vals) < 3 or len(v["devices"]) < _K_MIN_DEVICES:
+        fresh_dev = sum(1 for ts in v["dev_ts"].values()
+                        if any(now - t <= _CELL_WINDOW_S for t in ts))
+        if len(vals) < 3 or fresh_dev < _K_MIN_DEVICES:
             continue
-        vals.sort()
         med = vals[len(vals) // 2]
         out.append((lat, lon, None, {"pm2_5": round(med, 1)}))
     return out
@@ -471,35 +669,15 @@ def corridors(limit: int = 10) -> list[dict]:
     draw its own commute onto the map."""
     _load()
     now = time.time()
-    cells: dict = {}
-    for o in _obs:
-        for c in dict.fromkeys(_obs_cells(o)):
-            v = cells.setdefault(c, {"trips": 0, "dose_sum": 0.0,
-                                     "modes": {}, "devices": set(),
-                                     "last_ts": 0.0,
-                                     "co2_kg_sum": 0.0, "km_sum": 0.0,
-                                     "co2_trips": 0})
-            v["trips"] += 1
-            v["dose_sum"] += o["dose_ug"] or 0
-            v["modes"][o["vehicle"]] = v["modes"].get(o["vehicle"], 0) + 1
-            if o["contributor"]:
-                v["devices"].add(o["contributor"])
-            v["last_ts"] = max(v["last_ts"], o["ts"])
-            # same even-attribution as v2/store: trip km spreads over
-            # its distinct cells; co2 counts only where reported
-            v["km_sum"] += _obs_km(o) / max(len(set(_obs_cells(o))), 1)
-            if o.get("co2_kg"):
-                v["co2_kg_sum"] += o["co2_kg"]
-                v["co2_trips"] += 1
     out = []
-    for (lon, lat), v in cells.items():
-        if len(v["devices"]) < _K_MIN_DEVICES:
+    for (lon, lat), v in _CELLS.items():
+        if len(v["dev_all"]) < _K_MIN_DEVICES:
             continue  # below-k suppression — never publishable
         if now - v["last_ts"] > _CELL_WINDOW_S:
             continue  # stale corridor — doc 07 shows only live corridors
         out.append({
             "lon": lon, "lat": lat, "samples": v["trips"],
-            "devices": len(v["devices"]),
+            "devices": len(v["dev_all"]),
             "avg_dose_ug": round(v["dose_sum"] / max(v["trips"], 1), 1),
             # traversal-implied average, not an instrument read — the
             # claims audit wants the estimate basis on the wire, not
@@ -523,25 +701,32 @@ def totals() -> dict:
     recomputeable from aggregate-only data (doc 07 §3), never per
     device. `basis` states the provenance plainly for the client."""
     _load()
-    day = time.time() - 86400
-    recent = [o for o in _obs if o["ts"] > day]
-    contrib = {o["contributor"] for o in _obs if o["contributor"]}
+    cutoff = time.time() - 86400
+    # 24 h fields are sums over the UTC-hour buckets overlapping the
+    # window — the store holds nothing finer than an hour, so these can
+    # count a boundary bucket's whole hour (bounded, documented bias).
+    hrs = [r for h, r in _HOURS.items() if (h + 1) * 3600 > cutoff]
+    modes: dict = {}
+    for r in hrs:
+        for m, n in r["modes"].items():
+            modes[m] = modes.get(m, 0) + n
     return {
-        "obs_total": len(_obs),
-        "obs_24h": len(recent),
-        "contributors": len(contrib),
-        "km_24h": round(sum(_obs_km(o) for o in recent), 1),
-        "dose_ug_24h": round(sum(o["dose_ug"] or 0 for o in recent), 1),
-        "avoided_ug_24h": round(sum(o["avoided_ug"] or 0 for o in recent), 1),
-        "avoided_ug_all": round(sum(o["avoided_ug"] or 0 for o in _obs), 1),
+        "obs_total": _LIFE["trips"],
+        "obs_24h": sum(r["trips"] for r in hrs),
+        "contributors": len(_DEVICES),
+        "km_24h": round(sum(r["km"] for r in hrs), 1),
+        "dose_ug_24h": round(sum(r["dose_ug"] for r in hrs), 1),
+        "avoided_ug_24h": round(sum(r["avoided_ug"] for r in hrs), 1),
+        "avoided_ug_all": round(_LIFE["avoided_ug"], 1),
         "active_reports": len(_reports),
-        "modes_24h": {v: sum(1 for o in recent if o["vehicle"] == v)
-                      for v in {o["vehicle"] for o in recent}},
-        "latest_obs_age_min": round((time.time() - max((o["ts"] for o in _obs), default=0)) / 60) if _obs else None,
+        "modes_24h": modes,
+        "latest_obs_age_min": (round((time.time() - _LIFE["last_ts"]) / 60)
+                               if _LIFE.get("last_ts") else None),
         "top_corridors": corridors(5),
         "source": "donated_trip_aggregates",
         "basis": ("aggregate of donated trips, anonymized — corridor "
-                  "cells published only with >=3 distinct devices in 72 h"),
+                  "cells published only with >=3 distinct devices in 72 h; "
+                  "no per-trip records exist at rest"),
     }
 
 
@@ -565,13 +750,29 @@ def add_review(stars, note: Optional[str], build: Optional[str]) -> dict:
         return {"stored": False, "error": "note must be text"}
     if build is not None and not isinstance(build, str):
         return {"stored": False, "error": "build must be text"}
-    n = (note or "").strip()[:_NOTE_CAP]
+    n = _redact_note((note or "").strip()[:_NOTE_CAP])
     r = {"ts": time.time(), "stars": s, "note": n,
          "build": (build or "")[:16]}
     _reviews.append(r)
     del _reviews[:-_REVIEW_CAP]
     _save()
     return {"stored": True, "total_reviews": len(_reviews)}
+
+
+_COORD_RE = re.compile(
+    r"(-?\d{1,3}\.\d{2,7})\s*[,/ ]\s*(-?\d{1,3}\.\d{2,7})")
+
+
+def _redact_note(note: str) -> str:
+    """Strip coordinate patterns from free text before it can persist.
+
+    A review note is the one place a user can type raw lat/lon that we'd
+    otherwise store and re-serve verbatim ('my stop at 28.6315,77.2167
+    is dusty'). Anything shaped like a lat/lon pair degrades to ~1 km —
+    enough for a reader to place it, not enough to pin a doorstep.
+    """
+    return _COORD_RE.sub(lambda m: f"{float(m.group(1)):.2f},"
+                                   f"{float(m.group(2)):.2f}", note)
 
 
 def reviews_summary(notes_limit: int = 8) -> dict:

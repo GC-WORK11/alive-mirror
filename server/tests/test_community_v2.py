@@ -4,7 +4,9 @@
 totals and ~500 m corridor cells that clear the k>=3 distinct-device
 threshold inside a 72 h window — the same rule v2/store.py's
 TripAggregates implements. Raw coordinates, raw device ids and
-per-trip/per-device rows must appear NOWHERE in the output or at rest.
+per-trip/per-device rows must appear NOWHERE in the output or at rest —
+and since the aggregate-at-ingest rewrite, no per-trip row can even
+EXIST in the module's stores (the retired _obs list was the leak).
 Run from server/:
     .venv/bin/python -m pytest tests/test_community_v2.py -v
 """
@@ -40,27 +42,34 @@ def _donate(contributor, coords=CELL_A, vehicle="bus",
                              privacy_trimmed=True)
 
 
-def _mk_obs(ts, contributor, cells=None, vehicle="bus",
-            duration_s=600.0, dose_ug=30.0, avoided_ug=0.0):
-    """Stored-form observation (cells, hashed token) at a chosen time."""
-    return {
-        "ts": ts, "vehicle": vehicle, "duration_s": duration_s,
-        "dose_ug": dose_ug, "avoided_ug": avoided_ug,
-        "contributor": _tok(contributor), "km": 0.4,
-        "cells": cells or [[77.2090, 28.6300]],
-    }
+def _mk_fold(ts, contributor, cells=None, vehicle="bus",
+             duration_s=600.0, dose_ug=30.0, avoided_ug=0.0):
+    """Aggregate-fold a traversal at a chosen time — the aggregate-era
+    replacement for poking _obs rows (which no longer exist)."""
+    community._fold(
+        ts=ts, vehicle=vehicle, duration_s=duration_s, dose_ug=dose_ug,
+        avoided_ug=avoided_ug, co2_kg=None, km=0.4,
+        cells={tuple(c) for c in (cells or [[77.2090, 28.6300]])},
+        tok_hash=_tok(contributor))
 
 
 @pytest.fixture(autouse=True)
 def clean(monkeypatch):
     """Empty in-memory stores; never touch disk or S3."""
-    community._obs.clear()
-    community._reports.clear()
+    for d in (community._CELLS, community._DAYS, community._HOURS,
+              community._reports, community._DEVICES):
+        d.clear()
+    community._LIFE.update(trips=0, km=0.0, dose_ug=0.0,
+                           avoided_ug=0.0, last_ts=0.0)
     community._loaded = True
+    community._CELLS_CACHE = (0.0, -1, [])
     monkeypatch.setattr(community, "_save", lambda: None)
     yield
-    community._obs.clear()
-    community._reports.clear()
+    for d in (community._CELLS, community._DAYS, community._HOURS,
+              community._reports, community._DEVICES):
+        d.clear()
+    community._LIFE.update(trips=0, km=0.0, dose_ug=0.0,
+                           avoided_ug=0.0, last_ts=0.0)
     community._loaded = False
 
 
@@ -88,20 +97,84 @@ ALL_OUTPUTS = lambda: [  # noqa: E731 — every public read surface
 
 
 # --- at-rest privacy ----------------------------------------------------------
-def test_observe_hashes_token_and_drops_raw_points():
+def test_observe_hashes_token_and_folds_to_aggregates():
     _donate("raw-device-42")
-    obs = community._obs[-1]
-    assert obs["contributor"] == _tok("raw-device-42")
-    assert "points" not in obs, "raw trajectory must not persist"
-    assert obs["cells"], "traversal must fold into ~500m cells at ingest"
-    blob = json.dumps(community._obs)
+    # hashed id lands ONLY inside the device-count sets
+    assert _tok("raw-device-42") in community._DEVICES
+    blob = json.dumps(community._snapshot())
     assert "raw-device-42" not in blob
     assert "77.209" not in blob, "raw 5dp coordinates must not persist"
+
+
+def test_no_per_trip_rows_can_exist_at_rest():
+    """The whole point of the refactor: after donations, every persisted
+    structure is a counter/bucket — there is no list a reader could walk
+    trip-by-trip or chain cell-by-cell."""
+    for dev in ("a", "b", "c"):
+        _donate(dev, coords=[[77.20, 28.60], [77.21, 28.61], [77.22, 28.62]])
+    assert not hasattr(community, "_obs"), "per-trip store must not exist"
+    snap = community._snapshot()
+    assert set(snap) == {"v", "cells", "days", "hours", "life",
+                       "devices", "reports", "reviews"}
+    # the snapshot cannot carry an ordered trip: cell aggregates store
+    # unordered sets and scalar counters only
+    for cell, v in snap["cells"].items():
+        assert isinstance(v["trips"], int)
+        assert isinstance(v["dev_all"], list)  # a device SET, serialized
+        assert "coords" not in v and "chain" not in v and "order" not in v
+
+
+def test_snapshot_round_trip_preserves_aggregates(tmp_path, monkeypatch):
+    import pathlib
+    monkeypatch.setattr(community, "_FILE",
+                        pathlib.Path(tmp_path) / "community.json")
+    monkeypatch.undo()          # let the real _save write the file
+    for dev in ("a", "b", "c"):
+        _donate(dev)
+    community._save()
+    before = (community.totals()["obs_total"],
+              len(community.corridors()), len(community._DEVICES))
+    for d in (community._CELLS, community._DAYS, community._HOURS,
+              community._DEVICES):
+        d.clear()
+    community._LIFE.update(trips=0, km=0.0, dose_ug=0.0,
+                           avoided_ug=0.0, last_ts=0.0)
+    community._loaded = False
+    community._load()
+    after = (community.totals()["obs_total"],
+             len(community.corridors()), len(community._DEVICES))
+    assert before == after and before[0] == 3
+
+
+def test_v1_snapshot_migrates_cells_rows_and_drops_points_rows():
+    """Legacy snapshots fold once, then the rows are gone: 'cells' rows
+    fold into aggregates; 'points' rows (pre-trim era) are dropped —
+    folding endpoints that were never trimmed would preserve exactly
+    what the trim exists to erase."""
+    now = time.time()
+    migrated = community._apply({"obs": [
+        {"ts": now, "vehicle": "bus", "duration_s": 600.0,
+         "dose_ug": 30.0, "avoided_ug": 0.0, "contributor": "dev-a",
+         "km": 0.4, "cells": [[77.2090, 28.6300]]},
+        {"ts": now, "vehicle": "bus", "duration_s": 600.0,
+         "dose_ug": 30.0, "avoided_ug": 0.0, "contributor": "dev-b",
+         "points": [[77.2090, 28.6300], [77.2091, 28.6301]]},
+    ]})
+    assert migrated is True
+    assert community._LIFE["trips"] == 1      # only the cells row folded
+    assert _tok("dev-a") in community._DEVICES  # plaintext id hashed in
 
 
 def test_report_stores_no_contributor():
     community.report("dust", 28.63, 77.21, contributor="raw-device-9")
     assert "contributor" not in json.dumps(community._reports)
+
+
+def test_report_snaps_to_street_granularity():
+    """5 dp (~1 m) is a doorstep — 3 dp (~110 m) is a street warning."""
+    community.report("dust", 28.63154, 77.21679, contributor=None)
+    r = community._reports[-1]
+    assert r["lat"] == 28.632 and r["lon"] == 77.217
 
 
 # --- k>=3 suppression ---------------------------------------------------------
@@ -129,10 +202,10 @@ def test_corridor_publishes_at_k3_counts_trip_once():
 def test_corridor_stale_beyond_72h_suppressed():
     old = time.time() - 73 * 3600
     for dev in ("device-a", "device-b", "device-c"):
-        community._obs.append(_mk_obs(old, dev))
+        _mk_fold(old, dev)
     assert community.corridors() == []
     # a single fresh traversal refreshes the window but k still decides
-    community._obs.append(_mk_obs(time.time(), "device-d"))
+    _mk_fold(time.time(), "device-d")
     out = community.corridors()
     assert len(out) == 1 and out[0]["devices"] == 4
 
@@ -147,6 +220,16 @@ def test_field_samples_need_k_distinct_devices():
     out = community.corridor_field_samples()
     assert out, ">=3 distinct devices should publish a field sample"
     assert all(s[3]["pm2_5"] > 0 for s in out)
+
+
+def test_field_samples_stale_traversals_dont_publish():
+    """fresh-window semantics: >=3 devices each with a fresh traversal —
+    devices that only ever donated >72 h ago don't count."""
+    old = time.time() - 73 * 3600
+    for dev in ("dev-old-a", "dev-old-b"):
+        _mk_fold(old, dev)
+    _donate("dev-fresh")
+    assert community.corridor_field_samples() == []
 
 
 # --- response shape (mobile client compat) ------------------------------------
@@ -251,9 +334,9 @@ def test_recent_obs_suppresses_sub_k_hours():
     distinct-device rule as corridor cells applies to recent_journeys."""
     now = time.time()
     for dev in ("dev-a", "dev-b"):                 # this hour: k=2 -> dark
-        community._obs.append(_mk_obs(now, dev))
+        _mk_fold(now, dev)
     for dev in ("dev-c", "dev-d", "dev-e"):        # prev hour: k=3 -> shown
-        community._obs.append(_mk_obs(now - 3700, dev))
+        _mk_fold(now - 3700, dev)
     rows = community.recent_obs(20)
     assert len(rows) == 1
     assert rows[0]["trips"] == 3 and rows[0]["devices"] == 3
@@ -264,27 +347,26 @@ def test_recent_obs_counts_devices_not_trips():
     k=3 — trips count alone must never publish the bucket."""
     now = time.time()
     for _ in range(3):
-        community._obs.append(_mk_obs(now, "same-dev"))
+        _mk_fold(now, "same-dev")
     assert community.recent_obs(20) == []
 
 
-# --- endpoint-hiding trim (doc 07 §3, enforced server-side for /observe) ---
+# --- endpoint-hiding trim (doc 07 §3, enforced server-side) -------------------
 def test_observe_untrimmed_caller_gets_endpoint_trim():
-    """The legacy /observe endpoint posts the full planned polyline —
-    including home and destination. observe() must run the same privacy
-    pipeline /v2/trip does before folding to cells, so the first and
-    last ~300 m can never persist even at cell granularity."""
+    """An untrimmed caller (e.g. a client posting its full planned
+    polyline incl. home and destination) gets the same privacy pipeline
+    /v2/trip runs: first+last ~300 m can never persist even at cell
+    granularity."""
     # 2.0 km straight north, ~51 m spacing, through exact cell centers
     path = [[77.2100, 28.6300 + i * 0.00046] for i in range(40)]
     community.observe(vehicle="auto", coords=path, duration_s=480.0,
                       dose_ug=40.0, avoided_ug=None,
                       contributor="untrimmed-caller")
-    obs = community._obs[-1]
-    lats = {round(c[1], 3) for c in obs["cells"]}
+    lats = {round(c[1], 3) for c in community._CELLS}
     assert 28.630 not in lats, "origin cell persisted — trim missing"
     assert 28.650 not in lats, "destination cell persisted — trim missing"
     assert lats == {28.635, 28.640, 28.645}, lats
-    assert 1.0 < obs["km"] < 1.6, obs["km"]  # ~1.4 km kept, not the 2.0 sent
+    assert 1.0 < community._LIFE["km"] < 1.6, community._LIFE["km"]
 
 
 def test_observe_privacy_trimmed_skips_second_trim():
@@ -292,9 +374,8 @@ def test_observe_privacy_trimmed_skips_second_trim():
     shave another 300 m off them (would silently shorten every real
     donation's stored km by ~0.6 km)."""
     _donate("pre-trimmed")  # helper passes privacy_trimmed=True
-    obs = community._obs[-1]
-    assert obs["cells"], "pre-trimmed payload must keep its cells"
-    assert obs["km"] > 0
+    assert community._CELLS, "pre-trimmed payload must keep its cells"
+    assert community._LIFE["km"] > 0
 
 
 def test_corridor_rows_carry_est_basis():
@@ -306,20 +387,19 @@ def test_corridor_rows_carry_est_basis():
     assert out and out[0]["avg_dose_basis"] == "est. from donated trips"
 
 
-def test_corridors_tolerate_pre_km_snapshots():
-    """Prod regression: snapshots written before obs carried km/cells
-    (raw points only) crashed corridors() with KeyError 'km' -> /admin/api
-    500. They must fold through _obs_km/_obs_cells like every other path."""
+def test_journeys_per_hour_reads_hour_buckets():
     now = time.time()
-    for dev in ("a", "b", "c"):
-        community._obs.append({
-            "ts": now, "vehicle": "bus", "duration_s": 600.0,
-            "dose_ug": 30.0, "avoided_ug": 0.0, "contributor": _tok(dev),
-            "points": [[77.2090, 28.6300], [77.2091, 28.6301]],
-        })
-    out = community.corridors()
-    assert len(out) == 1 and out[0]["devices"] == 3
-    assert community.totals()["obs_total"] == 3
+    for dev in ("a", "b"):
+        _mk_fold(now, dev)
+    _mk_fold(now - 3700, "c")
+    out = community.journeys_per_hour(3)
+    cur, prev = int(now // 3600), int((now - 3700) // 3600)
+    expect = [0] * 3
+    expect[2] = 2
+    i = 2 - (cur - prev)
+    if 0 <= i < 3:
+        expect[i] += 1
+    assert out == expect
 
 
 # ---------------------------------------------------------------- reviews
@@ -348,6 +428,19 @@ def test_review_validates_and_caps():
     assert len(r["note"]) <= 240
     assert len(r["build"]) <= 16
     assert "contributor" not in r and "token" not in r  # nothing linkable at rest
+    community._reviews.clear(); community._loaded = False
+
+
+def test_review_note_coords_redacted_at_ingest():
+    """The one free-text write surface must not persist raw lat/lon a
+    user types in ('my stop at 28.6315,77.2167 is dusty')."""
+    community._reviews.clear(); community._loaded = True
+    community.add_review(stars=5,
+                         note="my stop at 28.6315,77.2167 is dusty",
+                         build="a")
+    r = community._reviews[-1]
+    assert "28.6315" not in r["note"] and "77.2167" not in r["note"]
+    assert "28.63" in r["note"] and "77.22" in r["note"]  # ~1 km survives
     community._reviews.clear(); community._loaded = False
 
 
@@ -401,22 +494,24 @@ def test_feedback_rate_map_stays_bounded_under_flood():
 # --- junk donations never enter the ledger -------------------------------------
 def test_observe_empty_or_garbage_coords_rejected():
     """A donation folding to zero usable cells is not a donation."""
-    before = len(community._obs)
+    before = community._LIFE["trips"]
     for bad in ([], None, ["x"], [["x", "y"]]):
         out = community.observe(vehicle="car", coords=bad,
                                 duration_s=600, dose_ug=10,
                                 avoided_ug=None, contributor="junk",
                                 privacy_trimmed=True)
         assert out["stored"] is False
-    assert len(community._obs) == before
+    assert community._LIFE["trips"] == before
 
 
 def test_observe_negative_metrics_dropped_not_stored():
     _donate("neg-check", dose_ug=-5.0, avoided_ug=-1.0)
-    obs = community._obs[-1]
-    # negative doses are physically impossible — stored as unknown,
+    # negative doses are physically impossible — they fold as unknown,
     # never as numbers that would drag the aggregates down
-    assert obs["dose_ug"] is None and obs["avoided_ug"] is None
+    assert community._LIFE["dose_ug"] == 0
+    assert community._LIFE["avoided_ug"] == 0
+    assert community._LIFE["trips"] == 1
+    assert all(v["vals"] == [] for v in community._CELLS.values())
 
 
 def test_report_bad_kind_rejected():

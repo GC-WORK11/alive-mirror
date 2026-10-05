@@ -1,9 +1,11 @@
 # Data flow — what a donated trip becomes
 
-Two donation paths exist in the tree. **Path A** (`/v2/trip`) is the
-hardened pipeline the privacy spec (docs/plan/07 §3) describes.
-**Path B** (`/observe`) is the older community layer the app calls today.
-Both are drawn so the gap is visible, not hidden.
+One donation path exists: **`POST /v2/trip`**, the hardened pipeline the
+privacy spec (docs/plan/07 §3) describes. (`POST /observe`, the older
+raw-coords endpoint, is retired — it answers 410 Gone. Its store,
+`community.observe()`, lives on as the citizen-corridor layer that
+`/v2/trip` feeds *after* the pipeline — and since the privacy audit it
+folds every donation straight into aggregates at ingest.)
 
 ## Path A — POST /v2/trip (the spec pipeline)
 
@@ -55,54 +57,60 @@ Invariant: after step 7 there is no coordinate and no raw token anywhere
 in the process. `_cells` holds H3 keys and hashed-token sets; `_days`
 holds sums. In-memory → cleared on restart (no TTL coded).
 
-## Path B — POST /observe (what the app calls today)
+## Path B — community.observe() (the citizen-corridor store, post-audit)
+
+Fed **only** by /v2/trip's `kept` points — already trimmed, thinned,
+rounded. `observe()` re-snaps them to ~500 m cells and folds them into
+AGGREGATES at ingest; no per-trip row is ever created.
 
 ```
- phone                                                  server
- ─────                                                  ──────
- compare screen, option selected
- gate: shareEnabled (settings.share, default ON)
-   Mobile/src/components/shell/useShellFlow.ts:168
-   │                                    POST /observe   server/main.py:704
-   │  geometry of the CHOSEN OPTION      community.observe()
-   │  (planned route — NOT a GNSS trace,  server/community.py:107
-   │   index-thinned to ~60 pts,           • points rounded 5 dp (~1 m) :119
-   │   endpoints included —               • ≤400 points                 :120
-   │   NO 300 m trim)                     • contributor stored raw ≤16c  :118
-   │  + contributor "anon-XXXXXXXX"              │
-   │  (generated once, never rotates,            ▼
-   │   Mobile/src/community.ts:16)        _obs list (≤20 000 rows)      :39,57
-   │                                        + _reports (6 h TTL)        :27,40
-   │                                             │
-   │                          _save() writes BOTH:                      :83-99
-   │                            • server/data/community.json
-   │                            • s3://$COMMUNITY_BUCKET/community/state.json
-   │                              (≥60 s apart, when bucket set)
-   │                                             │
-   │        GET /community (public)             ▼
-   │   totals: obs_total, obs_24h,        community.totals()            :318-346
-   │   contributors, km_24h, dose_ug_24h,
-   │   avoided_*, modes_24h,
-   │   top_corridors ◄── corridors()      community.corridors()         :294-315
-   │     ⚠ ~500 m snap cells ranked by
-   │       sample count — NO k≥3 device threshold
-   │
-   │        citizen field (feeds the model)      ▼
-   │   corridor_field_samples()           community.py:224-260
-   │     per ~500 m cell: median implied  • needs ≥3 FRESH traversals    :255
-   │     PM2.5, traversals ≤72 h only       (not ≥3 distinct devices)
-   │     (_OBS_FRESH_S, :221)
-   │
-   │        GET /admin/api (NO AUTH)             ▼                      main.py:885
-   │   contributors_detail()              per-id trips/km/dose/last_seen :149-177
-   │   recent_obs(20)                     rows incl. contributor id      :180-187
-   │   live_reports()                     kind+point+contributor         :190-197
-   │   corridors(10)                      same unthresholded cells       :294
-   │
+ /v2/trip `kept` pts  ──►  community.observe()        community.py
+   (privacy_trimmed)        • pts → ~500 m cell SET (order dies)  _cell
+                            • contributor → sha256[:16]           _token
+                            • _fold():                            _fold
+                                  _CELLS[cell] += {trips, dose_sum,
+                                    km_sum, modes{}, dev_all{hash},
+                                    dev_ts{hash:[ts]}, vals[[ts,C]]}
+                                  _HOURS[utc-hour] += {trips, devices{},
+                                    dose_ug, km, modes{}, last_ts}
+                                  _DAYS[YYYY-MM-DD] += {trips, dose_sum,
+                                    km, modes{}, devices{}, last_ts}
+                                  _LIFE += {trips, km, dose_ug,
+                                    avoided_ug, last_ts}
+                                  _DEVICES.add(hash)   (count only)
+                                   │
+                _save() writes BOTH (aggregates only — _snapshot()):
+                  • server/data/community.json
+                  • s3://$COMMUNITY_BUCKET/community/state.json
+                    (≥60 s apart, when bucket set)
+                  • legacy v1 files fold once at load, then re-save
+                    (points-era rows are DROPPED — never re-persisted)
+                                   │
+        GET /community (public)    ▼
+   totals: obs_total, obs_24h,  totals() — _LIFE + _HOURS window sums
+   contributors, km_24h, dose_ug_24h,
+   avoided_*, modes_24h,
+   top_corridors ◄── corridors() — _CELLS rows where
+     ~500 m cells, k≥3:            len(dev_all)>=3 AND last_ts ≤72 h
+                                   (below-k cells do not appear at all)
+                                   │
+        citizen field (feeds the model)     ▼
+   corridor_field_samples() — per cell, median implied PM2.5 over
+     fresh vals; publishes only with ≥3 fresh traversals AND
+     ≥3 devices with a fresh traversal (dev_ts, 72 h windows)
+                                   │
+        GET /admin/api (Bearer token / loopback)   ▼
+   contributors_detail() — UTC-DAY rollups + distinct-device count
+   recent_obs(20)        — HOUR buckets, each published only at k≥3
+                           distinct devices
+   live_reports()        — hazard pins (no contributor field exists)
+   corridors(10)         — same gated cells as /community
+                                   │
    └─► device-side delete: clearAllData() wipes settings.json,
        ledger.json, contributor.txt, intro_seen.txt
-       Mobile/src/components/shell/settings.ts:45-52
-       (server rows are NOT touched — no delete-by-id endpoint exists)
+       + DELETE /v2/ledger (X-Device-Token header) wipes the
+       per-device ledger rows. Corridor aggregates are anonymous
+       counters — not retractable, by design.
 ```
 
 ## Side stores (not trip data)
@@ -113,15 +121,20 @@ holds sums. In-memory → cleared on restart (no TTL coded).
               consumed by GET /v2/strip             server/v2/strip.py:42-82
               ⚠ holds the requested origin→destination geometry in memory
 
- Hazard report: POST /report → _reports, 6 h TTL   main.py:717, community.py:127-135
-                served publicly as GeoJSON points   GET /reports, main.py:728
-                (client wrapper exists; check current UI wiring —
-                 Mobile/src/community.ts:44)
+ Hazard report: POST /report → _reports, snapped 3 dp (~110 m),
+                6 h TTL, no contributor at rest     main.py, community.report()
+                served publicly as GeoJSON points   GET /reports
+                (no shipped client posts to it today)
+
+ Reviews: POST /v2/feedback → _reviews {ts, stars, note, build} —
+          no token/device id; note coord-patterns redacted to ~1 km
+          at ingest; note bodies publish only at ≥3 reviews
+          (main.py, community.add_review/_redact_note)
 ```
 
 ## What is never in this diagram
 
 - no login, no account table, no PII fields anywhere in the payloads;
 - `/v2/trip`: no raw trajectory at rest, no raw token at rest;
-- `/observe` rows carry a pseudonymous contributor id — linkable within
-  that store until it rolls off the 20 k cap or the file/bucket is wiped.
+- the community store: no per-trip row exists — only cell/hour/day
+  aggregates and the hashed-device sets the k≥3 gate needs.

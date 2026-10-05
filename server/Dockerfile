@@ -113,4 +113,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # ingest) running rollup_lambda's job dispatch, not the API — without the
 # branch, EventBridge RunTask would boot a duplicate web server that
 # never does the job.
-CMD ["sh", "-c", "if [ -n \"$ALIVE_JOB\" ]; then exec python rollup_lambda.py \"$ALIVE_JOB\"; else exec python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}; fi"]
+# --no-access-log is a privacy fix, not noise control: the default
+# access log writes the full request line (?lat=..&lon=..&token=..)
+# plus client IP to stdout -> CloudWatch, permanently. Request logging
+# stays on via observability.py, which logs path templates only with a
+# coord/token denylist.
+CMD ["sh", "-c", "if [ -n \"$ALIVE_JOB\" ]; then exec python rollup_lambda.py \"$ALIVE_JOB\"; else exec python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --no-access-log; fi"]

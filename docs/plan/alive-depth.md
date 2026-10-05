@@ -74,5 +74,8 @@ mono provenance, hairline, CPCB-muted color only where color means data.
 - No behavioral nagging ("leave at 6am" fails people with jobs)
 - No personal data leaving the phone unconsented — the checkable line
   is on the receipt: "kept on this phone only"
+- No per-trip records at rest — donations fold into cell/hour/day
+  aggregates at ingest; the server can't leak a journey it never kept
+  (PRIVACY.md, `community.py`)
 - No feature slop: every card must answer a question a Delhiite actually
   asks today

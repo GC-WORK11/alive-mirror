@@ -1,53 +1,47 @@
 import { File, Paths } from "expo-file-system";
+import * as Crypto from "expo-crypto";
 
 const ID_FILE = new File(Paths.document, "contributor.txt");
-let cached: string | null = null;
+const ID_TTL_MS = 30 * 24 * 3600 * 1000;   // the spec's id rotation
+let cached: { id: string; ts: number } | null = null;
 
-/** Anonymous 12-char device id — lets the server count contributors
- * without ever knowing who they are. */
+async function newId(): Promise<string> {
+  const b = await Crypto.getRandomBytesAsync(8);
+  return "anon-" + Array.from(b, (x) =>
+    x.toString(16).padStart(2, "0")).join("");
+}
+
+/** Anonymous device id — 64-bit CSPRNG (expo-crypto, not Math.random),
+ * rotated every 30 days so donation history can never key to one id
+ * forever. File stores {id, ts}; a bare-string id written by an older
+ * build is adopted and rotates on the same schedule. */
 export async function contributorId(): Promise<string> {
-  if (cached) return cached;
-  try {
-    if (ID_FILE.exists) {
-      const t = (await ID_FILE.text()).trim();
-      if (t) { cached = t; return t; }
-    }
-  } catch {}
-  cached = "anon-" + Math.random().toString(36).slice(2, 10);
+  const now = Date.now();
+  if (!cached) {
+    try {
+      if (ID_FILE.exists) {
+        const raw = (await ID_FILE.text()).trim();
+        let id = "", ts = now;
+        try {
+          const j = JSON.parse(raw);
+          id = typeof j.id === "string" ? j.id : "";
+          ts = Number(j.ts) || now;
+        } catch {
+          id = raw;                         // legacy bare id — adopt it
+        }
+        if (id) cached = { id, ts };
+      }
+    } catch {}
+  }
+  if (cached && now - cached.ts < ID_TTL_MS) return cached.id;
+  const id = await newId().catch(
+    () => "anon-" + Math.random().toString(36).slice(2, 18));
+  cached = { id, ts: now };
   try {
     if (!ID_FILE.exists) ID_FILE.create();
-    ID_FILE.write(cached);
+    ID_FILE.write(JSON.stringify(cached));
   } catch {}
-  return cached;
-}
-
-export type ObservePayload = {
-  vehicle: string;
-  coords: number[][];
-  duration_s: number;
-  dose_ug: number | null;
-  avoided_ug: number | null;
-};
-
-/** Donate a completed traversal to the collective field. */
-export async function observeTrip(api: string, p: ObservePayload): Promise<void> {
-  const contributor = await contributorId();
-  await fetch(`${api}/observe`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ...p, contributor }),
-  });
-}
-
-export type ReportKind = "dust" | "smoke" | "burning" | "clean";
-
-export async function postReport(api: string, kind: ReportKind, lat: number, lon: number): Promise<void> {
-  const contributor = await contributorId();
-  await fetch(`${api}/report`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ kind, lat, lon, contributor }),
-  });
+  return id;
 }
 
 export type CorridorCell = {

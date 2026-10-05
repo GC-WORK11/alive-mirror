@@ -133,12 +133,15 @@ async def main():
               True, "cells may legitimately match when flat")
 
         # --- community --------------------------------------------------
-        j = (await c.post("/observe", json={
+        # /observe is retired (410 Gone) — raw-coordinate posts are no
+        # longer accepted; donations go through /v2/trip's pipeline.
+        r = await c.post("/observe", json={
             "vehicle": "car",
             "coords": [[KB[1], KB[0]], [IG[1], IG[0]]],
             "duration_s": 600, "dose_ug": 3.1, "avoided_ug": 40.0,
-            "contributor": "test-harness"})).json()
-        check("observe stored", j.get("stored") is True, j)
+            "contributor": "test-harness"})
+        check("observe retired (410)", r.status_code == 410,
+              r.status_code)
 
         j = (await c.post("/report", json={
             "kind": "dust", "lat": KB[0], "lon": KB[1],

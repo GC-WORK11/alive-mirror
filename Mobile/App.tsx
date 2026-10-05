@@ -335,10 +335,12 @@ function AppInner() {
         new Promise<string | null>((r) => setTimeout(() => r(null), 800)),
       ]);
       if (tok) {
-        void fetch(
-          `${API}/v2/ledger?token=${encodeURIComponent(tok)}`,
-          { method: "DELETE" },
-        ).catch(() => {});
+        // header, not ?token= — a query-string token lands in access
+        // logs and any future Referer; headers don't
+        void fetch(`${API}/v2/ledger`, {
+          method: "DELETE",
+          headers: { "X-Device-Token": tok },
+        }).catch(() => {});
       }
       clearAllData();
       flow.setTrips([]); flow.setVehicleProfile(null);

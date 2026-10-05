@@ -114,7 +114,7 @@ async def _lifespan(_app: FastAPI):
     asyncio.create_task(_warm_transit())
     # Same request-driven gap for the community layer: _load() reads
     # the donated-trips state (S3 get_object, or the local file) on the
-    # first /reports, /observe or /v2/city call — that request pays the
+    # first /reports, /v2/trip or /v2/city call — that request pays the
     # fetch+parse inside its own budget. Warm it off-loop at boot.
     async def _warm_community():
         try:
@@ -1208,16 +1208,17 @@ async def field_grid(cells: int = Query(default=22, ge=1, le=40),
 
 @app.post("/observe")
 async def observe_trip(body: dict):
-    """Donate an anonymized traversal — commuters as the sensor network."""
-    return community.observe(
-        vehicle=str(body.get("vehicle", "unknown")),
-        coords=body.get("coords") or [],
-        duration_s=body.get("duration_s") or 0,
-        dose_ug=body.get("dose_ug"),
-        avoided_ug=body.get("avoided_ug"),
-        contributor=body.get("contributor"),
-        co2_kg=body.get("co2_kg"),
-    )
+    """Retired donation path — 410 Gone.
+
+    /v2/trip is the only trip-donation surface (it runs the privacy
+    pipeline server-side: trim ends, thin, round, fold to cells). This
+    endpoint predated that pipeline and no shipped client calls it —
+    leaving a second raw-coords write surface open was a hole the
+    privacy audit closed rather than patched."""
+    raise HTTPException(
+        410,
+        "retired: donate via POST /v2/trip — it trims and aggregates "
+        "server-side; raw observation posts are no longer accepted")
 
 
 @app.post("/report")

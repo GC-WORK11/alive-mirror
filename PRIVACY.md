@@ -15,21 +15,25 @@ check both claims yourself (`docs/privacy/verify.md`).
 
 **Nothing, until you use it.** The only user-originated uploads are:
 
-1. **A donated trip** (`POST /observe`), sent once when you pick an option
-   on the compare screen — and only while sharing is enabled
-   (`Mobile/src/components/shell/useShellFlow.ts:168`). The payload is:
+1. **A donated trip** (`POST /v2/trip`), sent once when a guided trip
+   completes — and only while sharing is enabled (the `shareEnabled`
+   gate sits on the only code path that calls it,
+   `Mobile/src/nav/engine.ts:309`). The payload is:
 
    | field | what it is |
    |---|---|
-   | `vehicle` | mode you chose (`car`, `bike`, `metro`, …) |
-   | `coords` | the **planned route geometry** for that option, index-thinned to ~60 points — *not* a live GPS trace, and currently **not** endpoint-trimmed |
-   | `duration_s`, `dose_ug`, `avoided_ug` | trip summary numbers (dose = estimated inhaled PM2.5 in µg) |
-   | `contributor` | a random id the phone made up: `"anon-"` + 8 random characters, generated once and stored in `contributor.txt` (`Mobile/src/community.ts:8-22`) |
+   | `summary` | trip numbers: mode, distance_km, duration_s, dose_ug (estimated inhaled PM2.5 in µg), co2/pm25 mids, optional CO2 phase split — no location fields |
+   | `trajectory` | the route geometry (the client pre-trims 300 m at both ends too, `Mobile/src/nav/engine.ts` TRAJ_TRIM_M) — the server re-trims and folds it into cells immediately, see below |
+   | `device_token` | a random id the phone made up: `"anon-"` + 16 hex chars from a CSPRNG (`expo-crypto`), stored in `contributor.txt` as `{id, ts}` and **rotated every 30 days** (`Mobile/src/community.ts`) |
 
-2. **A hazard report** (`POST /report`) — a tap on dust/smoke/burning/clean
-   at a point, with the same contributor id. Reports expire after 6 hours.
-   (The client defines this call; verify current UI wiring in
-   `Mobile/src/community.ts:44`.)
+   (`POST /observe`, the pre-pipeline raw-coords endpoint, is retired —
+   it answers **410 Gone**.)
+
+2. **A hazard report** (`POST /report`) — a dust/smoke/burning/clean pin
+   at a point. The server stores it snapped to ~110 m (3 decimals) with
+   no contributor id at rest; reports expire after 6 hours. (No shipped
+   UI posts to it today — the endpoint exists, the pin flow is
+   unwired.)
 
 Everything else the app fetches is **read-only**: search suggestions,
 routes, AQI at a point, reports, city totals. Those requests carry the
@@ -63,15 +67,35 @@ server**, treating the client as hostile or buggy:
 - per-H3-cell: traversal `count`, summed `dose_ug`, the **set of hashed
   tokens** (for the k≥3 threshold), `last_ts` (`store.py:89-97`).
 
-**On the /observe path — what the app uses today** (`server/community.py`):
+**The community layer — aggregates only at rest** (`server/community.py`):
 
-- one row per donation: `{ts, vehicle, duration_s, dose_ug, avoided_ug,
-  contributor, points[]}` — points are the donated coordinates rounded to
-  5 decimals (~1 m), capped at 400 (`community.py:112-121`);
-- kept in memory, snapshotted to `server/data/community.json`, and — when
-  `COMMUNITY_BUCKET` is set — pushed to our own S3 bucket at most once a
-  minute (`community.py:33-37,83-99`). The store keeps the last 20,000
-  observations and 2,000 reports (`community.py:57-58`).
+- `observe()` folds each donation **at ingest** into per-cell, per-hour,
+  per-day and lifetime counters. There is no per-trip row anywhere in
+  the store, the snapshot file, or the S3 object — a reader of any of
+  them sees `{"trips": n, "dose_sum": …, "dev_all": [hashes], …}` per
+  ~500 m cell, never an ordered chain or a journey (`community.py:52-58,
+  _fold`).
+- per-cell k-gate state: a set of hashed device ids (for the k≥3
+  distinct-device rule) plus freshest-traversal timestamps — the
+  minimum the publish contract needs;
+- hazard reports `{ts, kind, lat, lon}` — snapped to **3 decimals ≈
+  110 m** at ingest (`community.py` `report()`);
+- reviews `{ts, stars, note, build}` — no token, no device id; note
+  text passes a coordinate-pattern redactor before it can persist
+  (`community.py` `add_review`/`_redact_note`);
+- kept in memory, snapshotted to `server/data/community.json`, and —
+  when `COMMUNITY_BUCKET` is set — pushed to our own S3 bucket at most
+  once a minute (`community.py` `_save`). Legacy snapshots written
+  before this layout fold once at load and are re-written as
+  aggregates the moment they're read (`_apply`/`_migrate_obs`).
+
+**Your own history, keyed by a token only you hold:** `DeviceLedger`
+(`server/v2/store.py:355`) keeps the sanitized per-trip summary rows
+*your* device donated (km, dose, mode, ts — never cells, never
+coordinates) so `/v2/ledger` can answer "what did I breathe". Reading
+or deleting it requires the raw `device_token`, sent in the
+`X-Device-Token` **header** — never the query string, so it cannot land
+in access logs or browser history (`server/v2/ledger.py`).
 
 **Plan-time cache:** `RouteStore` (`server/v2/store.py:22-57`) holds route
 geometries your `/v2/plan` request produced — origin→destination included —
@@ -82,22 +106,31 @@ state, in memory only, never linked to a token.
 ## What the server never stores
 
 - Accounts, names, phone numbers, contacts — none are collected anywhere.
-- On the `/v2/trip` path: raw trajectories and raw device tokens — both
-  are unreachable to the store (enforced by test, see verify doc).
-- Any per-person history on the `/v2/trip` path: `TripAggregates` has no
-  per-token row; a hashed token can only ever be *one member of a cell's
-  token set*.
+- Raw trajectories and raw device tokens — both are unreachable to any
+  store (enforced by test, see verify doc).
+- Any per-trip donation record at rest: the community store holds
+  cell/hour/day/lifetime aggregates only — after `observe()` returns,
+  nothing that could single out one traversal exists in the process.
+- Request coordinates in logs: uvicorn's access log is disabled
+  (`--no-access-log` in `server/Dockerfile`); the app's own request log
+  (`server/observability.py`) writes path **templates** only, with
+  `lat`, `lon`, `token`, `query_string` on a denylist and a scrubber
+  that rounds any >2-decimal number out of the line.
 
 ## Retention
 
 - `/v2/trip` aggregates: held in process memory — no TTL is coded; a
   restart or redeploy clears them. The 72 h constant (`_cell_window_s`,
   `store.py:68`) is a **display** filter for corridors, not deletion.
-- `/observe` observations: no expiry — they persist (rolling 20k cap)
-  until the file/bucket is cleared; their *influence* on the citizen field
-  stops after 72 h (`_OBS_FRESH_S`, `community.py:221`).
-- Hazard reports: **6 h TTL** (`_REPORT_TTL_S`, `community.py:27`).
+- Community-layer aggregates: cell/hour/day buckets persist across
+  restarts via the snapshot; hour buckets evaporate after **7 days**
+  and stale implied-concentration samples die at **72 h**
+  (`_HOUR_KEEP_S`, `_OBS_FRESH_S`, `_prune_agg`, `community.py`).
+- Hazard reports: **6 h TTL** (`_REPORT_TTL_S`, `community.py`).
 - RouteStore records: **1 h TTL** (`store.py:23`).
+- The device-side contributor id itself rotates every **30 days**
+  (`Mobile/src/community.ts` ID_TTL_MS), capping how long any donation
+  chain can key to one id.
 
 ## Deletion — said plainly
 
@@ -105,14 +138,15 @@ state, in memory only, never linked to a token.
   settings, contributor id and intro flag — real files, really deleted
   (`Mobile/src/components/shell/settings.ts:45-52`, wired at
   `Mobile/App.tsx:95-98`).
-- **On the server (`/v2/trip`):** aggregates cannot be un-donated — after
-  hashing + aggregation there is no record that maps back to you. That is
-  the point of the design, and we say it plainly instead of pretending a
-  delete endpoint exists.
-- **On the server (`/observe`):** rows carry the contributor id, so a
-  delete-by-id would be technically possible — **but no such endpoint
-  exists today.** Deleting the app's `contributor.txt` orphans your id;
-  the donated rows stay in the aggregate store.
+- **On the server — your per-device ledger:** `DELETE /v2/ledger` with
+  your `X-Device-Token` header wipes every trip row keyed to your
+  hashed id. The app calls exactly this on "Delete my data"
+  (`Mobile/App.tsx`).
+- **On the server — corridor/city aggregates:** cannot be un-donated —
+  after hashing + aggregation there is no record that maps back to
+  you, and retracting a cell's counters would let fresh identities
+  game the k≥3 threshold. That is the point of the design, and we say
+  it plainly.
 
 ## Third parties
 
@@ -128,33 +162,46 @@ what each one can see is listed:
 | OpenAQ | reference station readings | station queries, no user data (`server/airfield.py:21`) |
 | IITM EWS (`ews.tropmet.res.in`) | the SAFAR/WRF model bulletin | fetch only, no user data (`server/iitm_probe.py:46`) |
 | NASA FIRMS | satellite fire detections | public CSV / keyed area fetch, no user data (`server/fires.py:47`) |
-| AWS S3 (`COMMUNITY_BUCKET`) | our own snapshot of the `/observe` store | the donated rows described above (`server/community.py:33-37`) |
+| AWS S3 (`COMMUNITY_BUCKET`) | our own snapshot of the community store | the aggregate counters described above (`server/community.py` `_save`) |
 | OpenFreeMap tiles (`tiles.openfreemap.org`) | map style/tiles, fetched **by the app** | your IP and the map viewport you browse — inherent to any tile host (`Mobile/App.tsx:37`) |
 
-Honest note on logs: the app code writes no access log tying you to
-coordinates, but like any web service, request lines (e.g. `GET
-/aqi?lat=…&lon=…`, asked during active navigation) pass through the
-server's HTTP stack and TLS terminator. We don't retain or mine them;
-we don't claim no infrastructure ever sees them.
+Honest note on logs: the container runs uvicorn with
+`--no-access-log` — request lines carrying `?lat=…&lon=…` (asked
+during live navigation) are **not** written to stdout/CloudWatch. The
+only request logging is `server/observability.py`: path template +
+status + ms, with coordinates and tokens on an explicit denylist. The
+TLS terminator/NLB still sees request lines in transit — we don't
+claim no infrastructure ever sees them; we claim we never write them
+down.
 
 ## Known gaps vs the design spec
 
 We publish this list instead of overclaiming — `docs/privacy/verify.md`
 shows how to confirm each item:
 
-1. **`/observe` is still served and still unsafe** — it does not trim
-   300 m or thin by distance, rounds to **5 dp** (not 4), and persists
-   donated points. No shipped client posts to it today (the app's
-   donation path is `/v2/trip`, `Mobile/src/nav/engine.ts`), but the
-   write surface exists until it is retired.
-2. The contributor id is random but **never rotates** (spec says 30
-   days). On `/v2/trip` it is sha256-hashed before any store sees it; on
-   the dormant `/observe` store it is kept per-row in the clear, so a
-   per-device donation history would be reconstructible from that file
-   if it filled. It is also returned by `/admin/api` behind the admin
-   token.
-Closed since this list was first written: the app now donates to
-`/v2/trip` (not `/observe`), both corridor stores enforce the ≥3
-distinct-device rule (`store.py` and `community.py`), and `/admin/api*`
-requires `Authorization: Bearer <ALIVE_ADMIN_TOKEN>` — 401 without it,
-verified live; `/admin` itself is a public shell carrying no data.
+1. **Sybil resistance is honest, not strong.** Donations are
+   unauthenticated — three fresh device tokens can mint a corridor
+   cell, and an attacker who *joins* a 2-device cell forces it to
+   publish. k≥3 is a real gate (verified by count-difference probing
+   on a local instance) but it is not differential privacy; a
+   motivated adversary with free identity minting sits outside what a
+   hackathon build can close.
+2. **The device token is a bearer key.** Whoever holds a raw
+   `device_token` reads that device's `/v2/ledger`. Headers keep it
+   out of URLs and logs, but it is not authenticated beyond
+   possession — same model as a private photo-share URL.
+3. **Aggregates are still aggregates.** A corridor cell's hashed-
+   device set exists at rest (the k≥3 gate needs it); the sets are
+   never published, but they exist — the honest statement is "no
+   per-trip records", not "no device-keyed state".
+
+Closed since this list was first written: the app donates to `/v2/trip`
+(`/observe` returns 410), the contributor id is CSPRNG-random and
+rotates every 30 days, the community store holds aggregates only (no
+per-trip rows exist at rest), hazard pins snap to ~110 m, review notes
+are coordinate-redacted at ingest, the uvicorn access log is off, the
+device token travels in a header not the URL, both corridor stores
+enforce the ≥3 distinct-device rule (`store.py` and `community.py`),
+and `/admin/api*` requires `Authorization: Bearer <ALIVE_ADMIN_TOKEN>`
+— 401 without it, verified live; `/admin` itself is a public shell
+carrying no data.
