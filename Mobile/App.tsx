@@ -163,7 +163,10 @@ function AppInner() {
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
-  const [aqiField, setAqiField] = useState<FieldStatus | null>(null);
+  /* the polled field block carries its own age — stamp it so the chip
+     can keep counting after the polls start failing (frozen age_s on a
+     dead network lies "9 min" forever) */
+  const [aqiField, setAqiField] = useState<{ data: FieldStatus; at: number } | null>(null);
   /* the day's ambient read — feeds the peek card's "now ~N µg/m³" so the
      idle map feels the air, not just the sampled totals */
   const [ambientUg, setAmbientUg] = useState<number | null>(null);
@@ -239,7 +242,9 @@ function AppInner() {
           const nf = j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null;
           /* the field ticks at ~140 s but we poll at 60 — skip the whole-app
              re-render when the block is verbatim the same */
-          setAqiField((prev) => JSON.stringify(prev) === JSON.stringify(nf) ? prev : nf);
+          setAqiField((prev) =>
+            JSON.stringify(prev?.data) === JSON.stringify(nf) ? prev
+              : nf == null ? null : { data: nf, at: Date.now() });
           const bz = typeof j?.pm25 === "number" ? j.pm25 : null;
           const amb = typeof j?.pm25_ambient === "number" ? j.pm25_ambient : bz;
           /* same value → no re-render — the 60 s poll usually repeats
@@ -376,7 +381,16 @@ function AppInner() {
   const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce, homeOpen);
   if (!fontsLoaded) return null;
   const sel = flow.options[flow.selected];
-  const mapField = flow.planField ?? aqiField;
+  const mapField: FieldStatus | null = flow.planField ?? (aqiField
+    ? { ...aqiField.data,
+        age_s: aqiField.data.age_s == null
+          ? null
+          : aqiField.data.age_s + (Date.now() - aqiField.at) / 1000,
+        stale: aqiField.data.stale === true ? true
+          : aqiField.data.age_s == null ? aqiField.data.stale ?? null
+          : (aqiField.data.age_s + (Date.now() - aqiField.at) / 1000)
+            > (aqiField.data.stale_after_s ?? 2700) }
+    : null);
 
   return (
     <View style={s.root}>
@@ -549,6 +563,9 @@ function AppInner() {
           accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
           <Text {...DYNAMIC_TYPE} style={[s.offlineTxt, { fontFamily: fam(lang, "med") }]}>
             {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
+            {net.state === "stale" && net.staleAgeS != null
+              ? ` · ${t("updatedMinAgo", lang, { n: Math.max(1, Math.round(net.staleAgeS / 60)) })}`
+              : ""}
             {net.pending > 0 ? ` · ${t("offlinePending", lang, { n: net.pending })}` : ""}
           </Text>
         </Pressable>

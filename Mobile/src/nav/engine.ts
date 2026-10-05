@@ -77,7 +77,10 @@ export type NavSummary = {
   doseUg: Band;
   co2Kg: Band;
   pm25G: Band;
-  donated: boolean;
+  /** "sent" = the server took it; "queued" = sitting in the outbox
+   *  until the network comes back — the receipt must not claim either
+   *  is the other. */
+  donated: "sent" | "queued" | false;
   /** false when the rider ended the trip manually ("End") before the
       proximity detector fired — the receipt must not claim arrival */
   endedEarly: boolean;
@@ -237,7 +240,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     runningRef.current = false;
   }, []);
 
-  const donate = useCallback(async (s: NavSummary) => {
+  const donate = useCallback(async (s: NavSummary): Promise<"sent" | "queued" | false> => {
     const donation = {
       device_token: await contributorId(), // stable anonymous id (src/store)
       trajectory: privacyTrimTrajectory(trajRef.current),
@@ -283,11 +286,12 @@ export function useNavEngine(opts: NavEngineOpts) {
     };
     try {
       await postJson(`${api}/v2/trip`, donation, 9000);
-      return true;
+      return "sent";
     } catch {
       /* offline → outbox, not loss: flushes itself when the network
-         comes back (pill counts it until then) */
-      try { await enqueueTripDonation(api, donation); return true; }
+         comes back (pill counts it until then). It is SAVED, not sent —
+         the receipt must say exactly that. */
+      try { await enqueueTripDonation(api, donation); return "queued"; }
       catch { return false; }
     }
   }, [api]);

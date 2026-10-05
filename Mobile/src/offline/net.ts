@@ -63,6 +63,20 @@ function emit(e: NetEvent): void {
 
 const inflight = new Map<string, Promise<NetResult<unknown>>>();
 
+/** Two abort signals fused into one: the request dies on EITHER — the
+ * caller's unmount/cancel AND fetchCached's timeout. (AbortSignal.any
+ * isn't in every Hermes build.) Use wherever a fetcher overrides the
+ * signal it was handed — the timeout must never be silently dropped. */
+export function linkSignals(caller: AbortSignal | undefined | null, inner: AbortSignal): AbortSignal {
+  if (!caller) return inner;
+  if (caller.aborted) return caller;
+  const c = new AbortController();
+  const fire = () => c.abort();
+  caller.addEventListener("abort", fire, { once: true });
+  inner.addEventListener("abort", fire, { once: true });
+  return c.signal;
+}
+
 async function defaultFetcher<T>(url: string, signal: AbortSignal): Promise<T> {
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`http ${res.status}`);

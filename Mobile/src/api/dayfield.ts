@@ -192,9 +192,27 @@ export async function fetchDayCurve(lat: number, lon: number): Promise<DayCurve 
   const r = await fetchCached<DayCurve>(`${API}/grid`, {
     ttlMs: 15 * 60 * 1000,
     key: `v2:daycurve:${lat.toFixed(2)},${lon.toFixed(2)}`,
-    fetcher: async () => (await fetchDayServer(lat, lon)) ?? fetchSeries(lat, lon),
+    fetcher: async () => {
+      const c = (await fetchDayServer(lat, lon)) ?? (await fetchSeries(lat, lon));
+      /* an uncovered/all-hole curve is an honest "no data", but it is
+         NOT cache material: letting it through here would overwrite a
+         good last-good copy with emptiness and blank the card offline.
+         Throw so fetchCached falls back to the previous curve. */
+      if (!c.covered || !c.series.some((v) => v != null)) throw new Error("no usable day curve");
+      return c;
+    },
   });
   if (!r.ok) return null;
+  /* last-good ages honestly: the field's stamped age plus the time the
+     copy sat in cache — "air reading 3 min old" on a stale serve is a
+     lie without the cache half. */
+  if (r.stale) {
+    return {
+      ...r.data,
+      fieldAgeS: r.data.fieldAgeS == null ? null : r.data.fieldAgeS + r.ageS,
+      fieldStale: true,
+    };
+  }
   return r.data;
 }
 

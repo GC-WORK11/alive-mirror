@@ -192,6 +192,19 @@ export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<
     },
   });
   if (!r.ok) throw new Error("plan failed");
+  /* last-good: the field block's stamped age froze at write time — add
+     the cache sit so the map chip doesn't call a stale serve "9 min". */
+  if (r.stale && r.data.field) {
+    const f = r.data.field;
+    return {
+      ...r.data,
+      field: {
+        ...f,
+        age_s: f.age_s == null ? null : f.age_s + r.ageS,
+        stale: true,
+      },
+    };
+  }
   return r.data;
 }
 

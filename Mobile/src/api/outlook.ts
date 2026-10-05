@@ -142,7 +142,18 @@ export async function fetchOutlook(lat: number, lon: number): Promise<Outlook | 
      last-good — gets the same pass on the way out; a totally broken blob
      hides the card rather than crashing it. */
   try {
-    return normalizeOutlook(r.data);
+    const o = normalizeOutlook(r.data);
+    /* last-good: the stamped field age plus the cache sit — the card's
+       "air reading N min old" counts both halves, never just the
+       frozen server stamp. */
+    if (r.stale) {
+      return {
+        ...o,
+        fieldAgeS: o.fieldAgeS == null ? null : o.fieldAgeS + r.ageS,
+        fieldStale: true,
+      };
+    }
+    return o;
   } catch {
     return null;
   }

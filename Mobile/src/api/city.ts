@@ -7,7 +7,7 @@
 // here would let this screen drift from the shell's backend.
 import { API_BASE } from "../search/client";
 import { cacheKeys } from "./cache";
-import { fetchCached } from "../offline/net";
+import { fetchCached, linkSignals } from "../offline/net";
 
 export type CityBand = { lo: number; mid: number; hi: number };
 
@@ -111,12 +111,32 @@ export async function fetchCity(signal?: AbortSignal): Promise<CityPayload> {
     ttlMs: 15 * 60 * 1000,
     key: cacheKeys.city(),
     fetcher: async (sig) => {
-      const res = await fetch(`${API_BASE}/v2/city`, { signal: signal ?? sig });
+      /* caller cancel AND the cache timeout must both reach the wire —
+         signal ?? sig dropped the timeout and hung the skeleton
+         forever on a dead-but-up server. */
+      const res = await fetch(`${API_BASE}/v2/city`, { signal: linkSignals(signal, sig) });
       if (!res.ok) throw new Error(`v2/city http ${res.status}`);
       return (await res.json()) as CityPayload;
     },
   });
   if (!r.ok) throw new Error("v2/city unreachable");
+  /* last-good: the payload's own "updated N min ago" was stamped when
+     the server built it — add the time it sat in cache so the chip
+     doesn't claim a 40-minute-old read is "10 min old". */
+  if (r.stale) {
+    const d = { ...r.data };
+    if (d.freshness) {
+      d.freshness = {
+        ...d.freshness,
+        field_age_s: d.freshness.field_age_s == null ? null : d.freshness.field_age_s + r.ageS,
+        age_min: d.freshness.age_min == null ? null : Math.round(d.freshness.age_min + r.ageS / 60),
+        label: "stale",
+      };
+    } else if (d.field_age_s != null) {
+      d.field_age_s = d.field_age_s + r.ageS;
+    }
+    return d;
+  }
   return r.data;
 }
 
@@ -189,7 +209,7 @@ export async function fetchCityMoves(
     key: MOVES_CACHE_KEY,
     fetcher: async (sig) => {
       const res = await fetch(`${API_BASE}/v2/city/moves`, {
-        signal: signal ?? sig,
+        signal: linkSignals(signal, sig),
       });
       if (!res.ok) throw new Error(`v2/city/moves http ${res.status}`);
       return (await res.json()) as CityMovesPayload;

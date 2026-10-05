@@ -63,8 +63,9 @@ export type ReceiptData = {
   alt?: ReceiptAlt | null;
   /** field freshness, minutes (claims: always visible when known) */
   fieldAgeMin?: number | null;
-  /** whether the trip was actually donated to /v2/trip */
-  donated?: boolean;
+  /** donation result: "sent" = server took it; "queued" = in the outbox,
+   *  honest pending state; false = kept private (or share off) */
+  donated?: "sent" | "queued" | false;
   /** true when the rider ended the trip manually before reaching the
       destination — the header must not claim "You're here" */
   endedEarly?: boolean;
@@ -344,7 +345,11 @@ export function ReceiptSheet({
             data.fieldAgeMin != null
               ? t("updatedMinAgo", lang, { n: Math.max(0, Math.round(data.fieldAgeMin)) })
               : null,
-            data.donated ? t("receipt_donated", lang) : t("receipt_private", lang),
+            data.donated === "sent"
+              ? t("receipt_donated", lang)
+              : data.donated === "queued"
+                ? t("receipt_queued", lang)
+                : t("receipt_private", lang),
           ].filter(Boolean).join("  ·  ")}
         </Text>
       </View>

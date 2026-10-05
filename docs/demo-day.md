@@ -195,6 +195,45 @@ we'd rather show a missing arm than a fabricated answer.
    back-trajectory), "running ±X% vs the decade norm for this hour"
    (9M station-hours)
 
+## Connectivity plan (venue wifi)
+
+Verified on the release APK emulator gauntlet (airplane cold-start,
+edge/gprs throttle, mid-request airplane toggle, dead-server-but-network-up).
+The one rule: nothing on screen pretends — every number is either live,
+last-good with an honest age mark ("updated N min ago" / "older data —
+reconnecting"), or absent.
+
+**Works with zero network (safe on stage no matter what):**
+
+| Surface | Offline behaviour |
+|---|---|
+| Search | Bundled on-device gazetteer answers instantly (T0). Server tiers degrade silently. |
+| Ledger / sidebar | Fully local daylog — trips, week arc, saved places all render. |
+| Trip logging | Local-first. A nav leg completes and logs with no uplink. |
+| Receipt | Real numbers from the planned route + measured leg. Donations queue: "saved — will send when back online"; the pill counts them ("N saved to send") and they flush on recovery. |
+| Nav on a planned route | Directions + route geometry ride from cache; GNSS keeps working with radios off. Counters honestly freeze rather than fabricate. |
+| Your day / check-ins | Daylog on-device — breathed-so-far, segments, lens check-ins all work. |
+
+**Needs network (plan around these):**
+
+| Surface | Degrade |
+|---|---|
+| Plan a NEW O/D | Honest-empty: "couldn't load the ways there — check the connection" + try again (~30 s bound — the krige path legitimately takes >25 s on far routes). |
+| Plan a route fetched before | Last-good options; the field chip counts real staleness, never a frozen minute. Start/nav work from it. |
+| Delhi today | Last-good payload labelled "older data — reconnecting"; skeletons resolve ≤6 s, never hang. |
+| THE DAY AHEAD / DAYS AHEAD | Last-good curve + "last air reading N min ago"; unusable fetch results are refused so they can't overwrite the good cache. |
+| Community corridors layer | Fails silent — doesn't draw. |
+
+**Stage plan:** (1) before doors, on any working uplink, touch the demo
+route once — search the destination, let compare load, open Delhi today and
+the day screen — that seeds every last-good cache; (2) keep a hotspot in
+your pocket — if venue wifi dies, join it; the app probes recovery and every
+"try again" is one tap; (3) if even the hotspot fails, the demo still
+stands — search, a pre-planned route, a full nav leg, the receipt, the
+ledger and the day log all work air-gapped; (4) avoid planning a brand-new
+route live on stage while the network is down — it will honestly say it
+can't (correct, but anticlimactic). Prefer the pre-seeded route.
+
 ## Demo flow (admin)
 
 Open `/admin` (token in Secrets Manager `alive108/admin-token`):

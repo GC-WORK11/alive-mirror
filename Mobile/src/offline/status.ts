@@ -74,7 +74,10 @@ function ensureWired(): void {
 function labelFor(s: Snapshot): string {
   if (s.state === "online") return "";
   const pendingBit = s.pending > 0 ? ` · ${s.pending} saved to send` : "";
-  if (s.state === "stale") return `offline — showing last known air${pendingBit}`;
+  if (s.state === "stale") {
+    const age = s.staleAgeS != null ? ` · updated ${Math.max(1, Math.round(s.staleAgeS / 60))} min ago` : "";
+    return `offline — showing last known air${age}${pendingBit}`;
+  }
   return `offline${pendingBit}`;
 }
 

@@ -31,5 +31,13 @@ export async function fetchStrip(routeId: string, api: string = API): Promise<Ro
     },
   });
   if (!r.ok) throw new Error("strip unreachable");
+  /* last-good: the strip's stamped field age is frozen inside the cache —
+     add the sit so the receipt's "updated N min ago" counts both. */
+  if (r.stale && r.data.field && typeof r.data.field.age_min === "number") {
+    return {
+      ...r.data,
+      field: { ...r.data.field, age_min: r.data.field.age_min + Math.round(r.ageS / 60) },
+    };
+  }
   return r.data;
 }
