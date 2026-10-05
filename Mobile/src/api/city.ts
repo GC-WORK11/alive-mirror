@@ -88,6 +88,12 @@ export type CityPayload = {
     };
   };
   corridors?: CityCorridor[];
+  /** "Why tonight" — the causal read line (Bridge contract: null when the
+      explainer can't run — the number stands alone before it guesses). */
+  why?: { line: string | null;
+          drivers: { kind: string; weight: string; score: number;
+                     evidence: string }[];
+          why_url: string } | null;
   /** False until k>=3 corridors exist — the honest empty state. */
   enough_data?: boolean;
   wind?: { speed_kmh?: number | null; from_deg?: number | null };

@@ -297,6 +297,14 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
               </Text>
             )}
 
+            {/* why tonight — the field's own causal read, shown only when
+                the explainer had enough to say (never a guessed cause) */}
+            {data.why?.line ? (
+              <Text {...DYNAMIC_TYPE} style={[ss.whyHero, { fontFamily: famSerif(lang, "reg") }]}>
+                {data.why.line}
+              </Text>
+            ) : null}
+
             {/* freshness — the age chip always tells the truth */}
             <View style={ss.chips}>
               {ageMin != null && !stale ? (
@@ -758,4 +766,13 @@ const ss = StyleSheet.create({
   whyLabel: { color: V2T.text2, fontSize: V2Type.secondary, flex: 1 },
   whyBody: { marginHorizontal: 20, marginTop: 10, gap: 8 },
   whyLine: { color: V2T.text3, fontSize: V2Type.label, lineHeight: 19 },
+  whyHero: {
+    color: V2T.text2,
+    fontSize: V2Type.body,
+    lineHeight: 22,
+    marginHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 6,
+    fontStyle: "italic",
+  },
 });
