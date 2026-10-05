@@ -479,3 +479,43 @@ def test_ledger_delete_second_call_idempotent():
     r2 = client.delete("/v2/ledger", params={"token": tok})
     assert r1.status_code == 200 and r2.status_code == 200
     assert r2.json()["deleted"] == 0
+
+
+# --- service-area guard on point-read endpoints ------------------------------
+# Found in the malformed-input sweep: /aqi?lat=51.5&lon=-0.12 (London) and
+# lat=999 both returned a Delhi edge value (field clamps to nearest cell) —
+# Delhi air presented as someone else's. Every field-backed point read now
+# refuses outside the service margin the same way routing does.
+
+@pytest.mark.parametrize("path,key", [
+    ("/aqi", "pm25"),
+    ("/today", "hours_ist"),
+    ("/escape", "best"),
+    ("/shift", "dose_ug"),
+])
+def test_point_reads_refuse_outside_service_area(path, key):
+    r = client.get(path, params={"lat": 51.5, "lon": -0.12})
+    assert r.status_code == 200
+    body = r.json()
+    assert "outside service area" in (body.get("error") or "")
+    assert body.get(key) in (None, [])
+
+
+@pytest.mark.parametrize("path", ["/aqi", "/today", "/escape", "/shift"])
+def test_point_reads_refuse_impossible_coordinates(path):
+    """lat=999 is float-valid but geo-garbage — honest refusal, not the
+    clamped field edge."""
+    r = client.get(path, params={"lat": 999.0, "lon": 77.2})
+    assert r.status_code in (200, 422)
+    body = r.json()
+    if r.status_code == 200:
+        assert body.get("error")
+
+
+def test_aqi_inside_service_area_still_serves():
+    """The guard must not tighten the real surface — an NCR point still
+    returns field data (or the honest 'field unavailable' early-boot)."""
+    r = client.get("/aqi", params={"lat": 28.6315, "lon": 77.2167})
+    assert r.status_code == 200
+    body = r.json()
+    assert "outside service area" not in (body.get("error") or "")
