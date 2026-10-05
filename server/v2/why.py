@@ -71,6 +71,16 @@ WIND_GONE_S = 3600.0       # a wind read older than this can't gate smoke
 
 _REFRESH_BUDGET_S = 6.0    # never hold a 'why' answer hostage upstream
 
+# The ingest worker stores 15-min builds S3-only (ingest_worker.store_blob:
+# "15-min snapshots stay S3-only") so a healthy task's local snapshot dir
+# is near-empty — the trend series must read the bucket too. Keys are
+# field/YYYY/MM/DD/HHmm.json.gz in UTC. The series is rebuilt per call,
+# so cache it briefly: builds land on a 15-min cadence anyway.
+_SNAP_S3_MAX_KEYS = 30     # ~7.5 h at 15-min — covers the 6 h window
+_SNAP_S3_GET_BUDGET_S = 4.0
+_SERIES_TTL_S = 300.0      # snaps land every ~15 min; 5-min cache is safe
+_SERIES_CACHE: dict = {"at": 0.0, "key": None, "rows": []}
+
 _CARRY_WORDS = ((337.5, "N"), (292.5, "NW"), (247.5, "W"), (202.5, "SW"),
                 (157.5, "S"), (112.5, "SE"), (67.5, "E"), (22.5, "NE"))
 
@@ -218,10 +228,39 @@ def _newest_prov() -> dict:
         return {}
 
 
-def _snapshot_series(window_s: float = TREND_WINDOW_S) -> list:
-    """Newest->oldest recorded builds inside `window_s`, each reduced to
-    {t, pm25, vc_m2s, belt_fires, modifier} — one honest row per build.
-    Reads newest ~40 files then stops at the window edge."""
+def _row_from_build(f: dict) -> Optional[dict]:
+    """One snapshot doc -> {t, pm25, vc_m2s, blh_m, belt_fires, modifier}
+    or None when it carries no build time."""
+    t = f.get("built_epoch")
+    if not isinstance(t, (int, float)):
+        try:
+            t = datetime.fromisoformat(
+                str(f.get("built_at")).replace("Z", "+00:00")
+            ).timestamp()
+        except Exception:
+            return None
+    prov = f.get("provenance") or {}
+    met = f.get("met") or (prov.get("met") or {})
+    fr = prov.get("fires") or {}
+    stats = f.get("stats") or {}
+    pm = stats.get("mean_pm25")
+    if pm is None:
+        cells = f.get("cells") or {}
+        vals = [c.get("pm25") for c in cells.values()
+                if isinstance(c, dict) and isinstance(
+                    c.get("pm25"), (int, float))]
+        pm = statistics.fmean(vals) if vals else None
+    return {"t": float(t),
+            "pm25": round(float(pm), 1) if pm is not None else None,
+            "vc_m2s": met.get("vc_m2s"),
+            "blh_m": met.get("blh_m"),
+            "belt_fires": fr.get("belt_fires"),
+            "modifier": fr.get("modifier")}
+
+
+def _local_series(window_s: float) -> list:
+    """Newest->oldest recorded builds on this task's disk — the dev
+    path; production writes are S3-only so this is usually thin."""
     root = _snap_root()
     try:
         paths = sorted(
@@ -236,40 +275,82 @@ def _snapshot_series(window_s: float = TREND_WINDOW_S) -> list:
     for p in paths[:40]:
         try:
             with open(p, "rb") as fh:
-                f = airindex.deserialize(fh.read())
+                row = _row_from_build(airindex.deserialize(fh.read()))
         except Exception:
             continue
-        t = f.get("built_epoch")
-        if not isinstance(t, (int, float)):
-            try:
-                t = datetime.fromisoformat(
-                    str(f.get("built_at")).replace("Z", "+00:00")
-                ).timestamp()
-            except Exception:
-                t = os.path.getmtime(p)
-        t = float(t)
-        if now - t > window_s:
+        if row is None:
+            continue
+        if now - row["t"] > window_s:
             break  # sorted newest-first: past the window, stop
-        prov = f.get("provenance") or {}
-        met = f.get("met") or (prov.get("met") or {})
-        fr = prov.get("fires") or {}
-        stats = f.get("stats") or {}
-        pm = stats.get("mean_pm25")
-        if pm is None:
-            cells = f.get("cells") or {}
-            vals = [c.get("pm25") for c in cells.values()
-                    if isinstance(c, dict) and isinstance(
-                        c.get("pm25"), (int, float))]
-            pm = statistics.fmean(vals) if vals else None
-        rows.append({
-            "t": t,
-            "pm25": round(float(pm), 1) if pm is not None else None,
-            "vc_m2s": met.get("vc_m2s"),
-            "blh_m": met.get("blh_m"),
-            "belt_fires": fr.get("belt_fires"),
-            "modifier": fr.get("modifier"),
-        })
+        rows.append(row)
     rows.reverse()  # oldest -> newest
+    return rows
+
+
+def _s3_series(window_s: float) -> list:
+    """Newest->oldest recorded builds out of the bucket — the
+    production path. Lists at most two UTC day-prefixes, fetches only
+    as many keys as the window needs, bounded and fully optional: any
+    failure yields the local view."""
+    bucket = os.environ.get("ALIVE_AIR_BUCKET")
+    if not bucket:
+        return []
+    try:
+        import boto3
+        s3 = boto3.client("s3")
+    except Exception:
+        return []
+    now = time.time()
+    days = sorted({datetime.fromtimestamp(now, tz=timezone.utc),
+                   datetime.fromtimestamp(now - window_s,
+                                          tz=timezone.utc)},
+                  reverse=True)
+    keys: list = []
+    try:
+        for d in days:
+            pref = f"field/{d:%Y/%m/%d}/"
+            r = s3.list_objects_v2(Bucket=bucket, Prefix=pref)
+            for o in r.get("Contents", []):
+                keys.append((o["LastModified"].timestamp(), o["Key"]))
+    except Exception:
+        return []
+    keys.sort(reverse=True)
+    import airindex
+    rows = []
+    seen_t: set = set()
+    deadline = now + _SNAP_S3_GET_BUDGET_S
+    for _, key in keys[:_SNAP_S3_MAX_KEYS]:
+        if time.time() > deadline:
+            break
+        try:
+            body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+            row = _row_from_build(airindex.deserialize(body))
+        except Exception:
+            continue
+        if row is None or row["t"] in seen_t:
+            continue  # the same build can persist under two keys
+        if now - row["t"] > window_s:
+            continue
+        seen_t.add(row["t"])
+        rows.append(row)
+    rows.sort(key=lambda r: r["t"])  # oldest -> newest
+    return rows
+
+
+def _snapshot_series(window_s: float = TREND_WINDOW_S) -> list:
+    """Recorded builds inside `window_s` — local disk first (dev), the
+    bucket when local is thin (production), merged and deduped by build
+    time, cached for _SERIES_TTL_S."""
+    key = _snap_root()  # tests swap the root — cache is per-root
+    if _SERIES_CACHE["key"] == key and _SERIES_CACHE["at"] and \
+            time.time() - _SERIES_CACHE["at"] < _SERIES_TTL_S:
+        return _SERIES_CACHE["rows"]
+    rows = _local_series(window_s)
+    if len(rows) < TREND_MIN_SNAPS:
+        seen = {r["t"] for r in rows}
+        rows += [r for r in _s3_series(window_s) if r["t"] not in seen]
+        rows.sort(key=lambda r: r["t"])
+    _SERIES_CACHE.update({"at": time.time(), "key": key, "rows": rows})
     return rows
 
 

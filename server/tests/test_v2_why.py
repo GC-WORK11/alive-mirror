@@ -288,6 +288,23 @@ def test_trend_stale_newest_cannot_tell(snap_root):
     assert d is None and ct and "old" in ct["reason"]
 
 
+def test_series_s3_fallback_merges_and_dedupes(snap_root, monkeypatch):
+    """Production path: local dir thin -> bucket rows fill the window,
+    deduped by build time. The bucket is stubbed, not contacted."""
+    _write_series(snap_root, [(1.0, 70, 3000, 5, 1.0)])
+    s3_rows = [{"t": NOW - 5.0 * 3600, "pm25": 60, "vc_m2s": 3000,
+                "blh_m": None, "belt_fires": 5, "modifier": 1.0},
+               {"t": NOW - 4.0 * 3600, "pm25": 62, "vc_m2s": 3000,
+                "blh_m": None, "belt_fires": 5, "modifier": 1.0},
+               {"t": NOW - 1.0 * 3600, "pm25": 999, "vc_m2s": 3000,
+                "blh_m": None, "belt_fires": 5, "modifier": 1.0}]  # dup
+    monkeypatch.setattr(v2why, "_s3_series", lambda w: s3_rows)
+    v2why._SERIES_CACHE.update({"at": 0.0, "key": None, "rows": []})
+    rows = v2why._snapshot_series()
+    assert len(rows) == 3            # local row + 2 unique bucket rows
+    assert rows[-1]["pm25"] == 70    # local newest wins over the dup key
+
+
 # ---------------------------------------------------------------- endpoint
 
 def test_endpoint_honest_empty(snap_root, wind_se, cold_forecast,
