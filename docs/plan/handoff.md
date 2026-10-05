@@ -526,3 +526,13 @@ All 10 findings closed + deployed + verified live:
 - **Admin chrome off landing (8385500)**: "admin is personal" — nav/hero/how-head admin links removed; /admin still serves directly. Verified live admin has "8 FEEDS DOWN"+"insufficient data" tiles without token (honest-but-ugly when the real problem is missing token → handed to admin lane: label "feeds need ?token=").
 - Owner asks routed: admin district-cards→single-core-map + param switcher (CPCB bands are honest — pm25 35µg="satisfactory" green while US-AQI-pm10 ~130="moderate"; same air, different index → param switcher is the right fix) + corridors basis line + Android health-app → lane 1a07f67c (Max). Internals → 63bd2eb9 (Max). SWE-2 promo cap=5 org-wide discovered (owner's other project holds 2-3 slots).
 - New lanes pinned: POST /v2/feedback|observe|trip to live = forbidden (k≥3 pollution incident); platforms linux/macos/windows only; devin_mode batch-level only.
+
+## cont.25 — deploy 1900bd2e verified + merge main d5bb64e (suite 958 green)
+
+- Deploy 1900bd2e live-verified: /app-hero.png 200 (704KB), hero = real app shot in phone frame; /health wind {known:true, age_s} 7.6km/h matching Open-Meteo exactly; plan CP→Gurugram 15 options 8.6s zero degraded; tiles archive survived (tilejson + z14 @CP 200 53KB); /aqi fully labeled (pm25_ambient 72.3 vs breathing 89.7, smoke_modifier 1.24 exposed, FIRMS provenance live, us_aqi 160 basis pm25); /v2/city h=0 72.3 → 264.2 evening peak (real diurnal).
+- Full landing exercise on prod: a→b draw → 93.3km route arcing around the hot cell (dose wins over distance, the thesis visible) → routeline 10.5µg/3.6–17.4/72min/5.5s → depart "now is the light slot — climbs to 50.9µg by 16:00" → ladder Car 10.5 / Bike 36.9 / Auto 41.1 / Bicycle 237 / Foot 438.7µg (~42× mode gap).
+- 12-way burst on fresh task: all 12 succeed, 8-15 options each, ~15s serialized wall, zero errors/rl (single-worker regime holds).
+- /community aggregate honest: 20 obs total / 10 in 24h / 12 contributors; corridors k-anonymized (devices≥3, "avg_dose_basis: est. from donated trips", co2_trips provenance); latest_obs_age_min 213.
+- test_landing_serve updated: REQUIRED gains /app-hero.png + hero-grid; /admin moves to LANDING_FORBIDDEN (community nav legitimately links /admin — the ban is landing-scoped). Suite: 958 passed + 5 skipped on 9675c4b (382s); main merged d5bb64e.
+- Epoch watcher restarted at /Users/devin/watch/epoch.sh — now logs build_sha + wind.known + age_s (catches fabrication regressions live).
+- Chrome quirk noted: omnibox autocompletes to /admin — bare-domain nav needs a landing-open tab or explicit trailing path.
