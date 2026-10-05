@@ -639,3 +639,13 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **APK `a2b36fe` delivered + verified on emulator** (dosimeter home, consent-off silent, 83µg app vs 82.9 live). Owed to owner: D1 injected-drag dead-on-DelhiToday verdict needs his real phone (emulator can't reproduce; taps work).
 - Board: me + hi-locale `3b4a70ca` + first-open `45c0e578` + demo-proof `8beb3b31` + vibe-polish `0270f1a2` = 5.
 - Next deploy batch: `508fd1c` µ→Μ + whatever vibe-polish/server-side lands.
+
+### cont.34 — epoch batch: hi-locale done + first-open + demo-proof + vibe-polish + verify fix (Oct 6 ~00:30 UTC)
+
+- **hi-locale COMPLETE `c41570a`** — wire-English killed client-side (decisions[].line + why.line rebuilt in hi mirroring server grammar exactly); ~60 keys; famMonoText() fixes Plex-Mono-no-Devanagari tofu (~45 mono slots → Noto Sans Devanagari in hi); verified both locales on iOS sim. Deliberate-English list correct (µg/m³, AQI, place names, "0h26m").
+- **first-open COMPLETE `33112f4`+harness** — cold-install first real number +10-15s → **~+2.8-3.0s** (iOS sim): location ask moved post-consent, onboarding sheet gated ~+6.2s after ambient paints, /aqi no longer waits on GPS (centroid→positioned upgrade, verified real: 75.8 vs 66.1). Same at ~1Mbps. Residual: sim SIGSEGV class + real-hardware cold check owed.
+- **demo-proof COMPLETE `9a66130`** — runbook re-verified on `6e82f290`: dose pair 11.1/363.5µg (32.7×), skill 11 pairs/MAE 26.2, 29 districts, reach walk@25 ~92.5km, archive 6 snaps, why-beat placed in arc + video beat 4. Found verify_numbers crashes.
+- **vibe-polish COMPLETE `a38d7fc`** — 7 craft defects fixed (sparkline mid-value wrap, mono-micro eyebrows unified, forecast bars band-colored, hero lineHeight, pair-wrap, 4 press states, 4/8pt rhythm). Unfixables honestly reported: sim SIGSEGV class + glassFaint sheet ghosting (theme-token call).
+- **`1ce7678` verify_numbers hardened**: mid(None) guard + auto-pick ≥3.12 python (venv312 → 3.14/13/12 → python3 + clear error). Both demo-morning crashes dead.
+- Suite 1110+5 on `a38d7fc`; main `64c1590`; deploy `033aa866` live+verified (µg fix served, field 122s, transit compiled).
+- Spawned: apk-drive-v2 `ad8393f1` (+emulator child `c701489f`), cold-path `dd95d95b`, red-team `65440f43`. Perf lane brief `docs/lanes/perf-fps.md` QUEUED — spawns on next free slot (nativeDriver flip + HomeScreen memo + D1 gesture).
