@@ -92,7 +92,7 @@ def test_community_serves_page_to_browsers():
     html = client.get("/community", headers={"accept": "text/html"})
     assert html.status_code == 200
     assert "text/html" in html.headers.get("content-type", "")
-    for marker in ("/community", "lgrid", "corridors", "k≥3", "top_corridors"):
+    for marker in ("/community", "lgrid", "corridors", "enough phones", "top_corridors"):
         assert marker in html.text, f"community page lost marker {marker!r}"
     for bad in FORBIDDEN:
         assert bad not in html.text

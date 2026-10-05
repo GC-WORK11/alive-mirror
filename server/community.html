@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ALIVE·108 — donated commutes, aggregates only</title>
-<meta name="description" content="Your day stays on your phone. Opted-in trips appear only as k≥3 aggregates on a street grid — the first and last 300 m are dropped before storage, the anonymous id is never linked to you.">
+<title>ALIVE·108 — everyone's trips, merged</title>
+<meta name="description" content="Delhi riders share their trips; this page adds them up street by street. No sign-up, no names — a ride's first and last 300 m are cut on the phone before it sends anything, and a street appears only after 3 different phones cross it. We can't leak what we never take.">
 <meta name="theme-color" content="#fafaf7">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%234d7c0f'/%3E%3C/svg%3E">
 <style>
@@ -84,7 +84,13 @@ h1 em{font-style:italic;color:var(--ink2)}
 .lrow{display:flex;align-items:baseline;justify-content:space-between;gap:18px;
   padding:20px 0;border-top:1px solid var(--line)}
 .lrow .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
-  text-transform:uppercase;color:var(--ink3);line-height:1.7;max-width:24ch}
+  text-transform:uppercase;color:var(--ink3);line-height:1.7;max-width:30ch}
+.lrow .k .w{display:block;margin-top:6px;font-family:var(--sans);
+  font-size:11.5px;letter-spacing:.01em;text-transform:none;
+  color:var(--ink2);line-height:1.55;font-weight:400;max-width:36ch}
+.sintro{margin:-24px 0 32px;max-width:62ch;font-size:13.5px;
+  line-height:1.75;color:var(--ink2)}
+.sub+.sub{margin-top:16px}
 .lrow .v{font-family:var(--serif);font-size:34px;font-weight:400;
   letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;
   white-space:nowrap}
@@ -106,6 +112,10 @@ td.rank{font-family:var(--mono);font-size:10px;color:var(--ink3);width:30px}
 td.cell{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
 td.num{color:var(--ink);font-variant-numeric:tabular-nums}
 td .empty{color:var(--ink3);font-size:13px}
+td.cell .st{display:block;font-family:var(--sans);font-size:13px;
+  color:var(--ink)}
+td.cell .co{display:block;margin-top:3px;font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.06em;color:var(--ink3)}
 td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
   color:var(--ink3);text-transform:uppercase}
 .scrollx{overflow-x:auto}
@@ -144,21 +154,27 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 </div></header>
 
 <section class="hero"><div class="col">
-  <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — donated commutes</div>
-  <h1 class="rise" style="--d:70ms">Commutes fill the gaps <em>between stations.</em></h1>
-  <p class="sub rise" style="--d:140ms">Your day stays on your phone —
-  the app's own receipt says it: kept on this phone only. If you choose
-  to share, a trip leaves as a few rough dots on a street grid — the
-  first and last 300 m are dropped before anything is stored, the
-  anonymous id is never linked to you — and a street cell publishes
-  only after <b>≥3 different
-  devices</b> have crossed it. A corridor cell is the smallest unit
-  this page can show.</p>
-  <div class="links rise" style="--d:210ms">
-    <a class="tlink" href="/city">The live field →</a>
+  <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — shared commutes</div>
+  <h1 class="rise" style="--d:70ms">Everyone's trips, merged. <em>The map the stations can't make.</em></h1>
+  <p class="sub rise" style="--d:140ms">Government air stations watch
+  only part of Delhi — most streets have no sensor on them at all.
+  Riders who share their trips (the app calls it <b>donating</b>) fill
+  in those gaps: a ride joins everyone else's as totals on this page —
+  never as you.</p>
+  <p class="sub rise" style="--d:190ms"><b>We can't leak what we never
+  take.</b> There is no sign-up — no name, no number, no email. A
+  ride's first and last 300 m are cut on your phone before it sends
+  anything, and no record of any single trip is ever written down —
+  only merged counts exist. A street stretch appears below only after
+  <b>3 different phones</b> have crossed it, so no one commute can be
+  traced back to a person.</p>
+  <p class="sub rise" style="--d:240ms">Just shared a trip? It's already
+  inside the numbers below — <b>counted, merged, anonymous</b>.</p>
+  <div class="links rise" style="--d:300ms">
+    <a class="tlink" href="/city">Delhi's air right now →</a>
     <a class="tlink dim" href="/admin">Admin →</a>
   </div>
-  <div class="statusline rise" id="status" style="--d:280ms">reading the ledger…</div>
+  <div class="statusline rise" id="status" style="--d:360ms">reading the count…</div>
   <noscript>
     <style>
       #status,#lgrid,#corridors,#reports{display:none}
@@ -166,7 +182,7 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     <p style="margin-top:26px;font-family:var(--mono);font-size:10.5px;
       letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
       line-height:1.9">
-      the ledger, corridors and live reports need javascript —
+      the count, the streets and the live flags need javascript —
       the explainer above does not.</p>
   </noscript>
 </div></section>
@@ -176,6 +192,8 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     <h2>The ledger.</h2>
     <span class="lbl" id="age">—</span>
   </div>
+  <p class="sintro">The running total of every trip riders have shared
+  — all added together, never per person.</p>
   <div class="lgrid" id="lgrid">
     <div class="lrow"><span class="k">contributors</span><span class="v na">connecting…</span></div>
   </div>
@@ -183,21 +201,29 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 
 <section class="corridors"><div class="col">
   <div class="sec-head">
-    <h2>Where the gaps are filled.</h2>
-    <span class="lbl">k≥3 devices · est. from donated trips</span>
+    <h2>The streets <em>enough phones have crossed.</em></h2>
+    <span class="lbl">est. from shared trips</span>
   </div>
+  <p class="sintro">Each row is a stretch of about 500 m of street that
+  at least 3 different phones have crossed in the last 3 days —
+  everyone's trips merged into totals, never anyone's own.</p>
   <div class="scrollx"><table id="corridors"></table></div>
-  <p class="tnote">k≥3 — a cell publishes only after ≥3 distinct
-    devices cross it within 72h. below that, a cell does not exist in
-    the data at all — aggregates exist precisely so no
-    single commute can be traced.</p>
+  <p class="tnote">a stretch shows up only after 3 different phones
+    have crossed it inside 3 days — below that it isn't in the data
+    at all. that's the whole trick: everyone's trips merged means no
+    single commute can ever be traced back to a person. pm2.5/trip =
+    fine dust inhaled, averaged over shared trips through the stretch
+    (estimated, not a sensor). co₂ = exhaust per 100 m, averaged.</p>
 </div></section>
 
 <section class="reports"><div class="col">
   <div class="sec-head">
-    <h2>Live reports.</h2>
-    <span class="lbl">rider-pinned · expire fast</span>
+    <h2>What riders are flagging.</h2>
+    <span class="lbl">pinned by riders · gone within 6 h</span>
   </div>
+  <p class="sintro">Dust, smoke, a burning smell, a stretch of clean
+  air — flagged by riders where they stand. Each flag fades after six
+  hours.</p>
   <div id="reports"><div class="rline"><span class="rk">reports</span>
     <span class="empty">connecting…</span></div></div>
 </div></section>
@@ -205,7 +231,7 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 <footer class="foot"><div class="foot-in">
   <span>alive·108 — delhi ncr</span>
   <span id="buildTag">—</span>
-  <span>aggregates only · k≥3 · no profiles</span>
+  <span>merged totals only · a street needs 3 phones · no profiles</span>
 </div></footer>
 
 <script>
@@ -223,9 +249,15 @@ const agoMin=m=>m==null?'—':m<90?Math.round(m)+' min'
   :m<60*48?(m/60).toFixed(m<600?1:0)+' h':Math.round(m/1440)+' d';
 
 /* one ledger row per honest number — an absent feed renders '—'
-   with its label, never an invented figure */
-const lrow=(k,v,unit,na)=>`<div class="lrow"><span class="k">${k}</span>
-  <span class="v${na?' na':''}">${na?'—':v}${unit&&!na?` <small>${unit}</small>`:''}</span></div>`;
+   with its label, never an invented figure. every stat carries its
+   own 'what this is' line, same pattern the admin gtiles use. */
+const lrow=(k,v,unit,na,w)=>`<div class="lrow"><span class="k">${k}`+
+  `${w?`<span class="w">${w}</span>`:''}</span>`+
+  `<span class="v${na?' na':''}">${na?'—':v}${unit&&!na?` <small>${unit}</small>`:''}</span></div>`;
+/* the report kinds the app can send, in the words a reader would use */
+const KIND={dust:'dust',smoke:'smoke',burning:'burning smell',
+  clean:'clean air'};
+const kindTxt=k=>KIND[k]||k||'report';
 
 async function load(){
   let c=null,rp=null,h=null;
@@ -236,38 +268,52 @@ async function load(){
   if(c){
     const last=c.latest_obs_age_min;
     $('status').innerHTML=
-      `<span><b>${IN(c.contributors)}</b> contributors</span>`+
-      `<span><b>${IN(c.obs_24h)}</b> commutes in 24h</span>`+
-      `<span><b>${F1(c.km_24h)}</b> km donated · 24h</span>`+
-      `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 avoided, all-time</span>`+
-      (last!=null?`<span>last commute <b>${agoMin(last)}</b> ago</span>`:'');
+      `<span><b>${IN(c.contributors)}</b> phones sharing</span>`+
+      `<span><b>${IN(c.obs_24h)}</b> trips shared · 24h</span>`+
+      `<span><b>${F1(c.km_24h)}</b> km of trips · 24h</span>`+
+      `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 dodged · all-time</span>`+
+      (last!=null?`<span>last shared trip <b>${agoMin(last)}</b> ago</span>`:'');
   }else if(h){
-    $('status').innerHTML='<span>ledger resting — field still live</span>';
+    $('status').innerHTML='<span>the count is resting — the live air map is up</span>';
   }else{
-    $('status').innerHTML='<span>community feed resting — retrying</span>';
+    $('status').innerHTML='<span>the shared-trips feed is unreachable — retrying</span>';
   }
   if(h&&h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
   $('age').textContent=c?(c.latest_obs_age_min!=null
-    ?`latest donation ${agoMin(c.latest_obs_age_min)} ago`:'—'):'—';
+    ?`latest shared trip ${agoMin(c.latest_obs_age_min)} ago`:'—'):'—';
 
   /* ---- ledger rows ---- */
   const modes=c&&c.modes_24h?Object.entries(c.modes_24h).sort((a,b)=>b[1]-a[1])
     .map(([m,n])=>`${esc(m)} ×${n}`).join(' · '):'';
   $('lgrid').innerHTML=
-    lrow('contributors · all-time',IN(c&&c.contributors),'',!c)+
-    lrow('commutes donated · all-time',IN(c&&c.obs_total),'',!c)+
-    lrow('commutes · last 24h',IN(c&&c.obs_24h),'',!c)+
-    lrow('km travelled · 24h',F1(c&&c.km_24h),'km',!c)+
-    lrow('inhaled across donated trips · 24h',F1(c&&c.dose_ug_24h),'µg',!c)+
-    lrow('dose avoided vs worst option · 24h',IN(c&&c.avoided_ug_24h),'µg',!c)+
-    lrow('dose avoided · all-time',IN(c&&c.avoided_ug_all),'µg',!c)+
-    lrow('live reports pinned',IN(c&&c.active_reports),'',!c)+
-    (modes?lrow('modes · 24h',modes,'',false):lrow('modes · 24h','','',true));
+    lrow('phones sharing · all-time',IN(c&&c.contributors),'',!c,
+      'every phone that has ever shared a trip — counted once, never named')+
+    lrow('trips shared · all-time',IN(c&&c.obs_total),'',!c,
+      'rides donated since the beginning — yours included if you share')+
+    lrow('trips shared · last 24 h',IN(c&&c.obs_24h),'',!c,
+      'shared rides counted over the past day')+
+    lrow('distance travelled · 24 h',F1(c&&c.km_24h),'km',!c,
+      'how far the shared trips went, added up')+
+    lrow('pm2.5 breathed on trips · 24 h',F1(c&&c.dose_ug_24h),'µg',!c,
+      'the fine dust riders actually inhaled — µg is micrograms; one cigarette is roughly 316 µg')+
+    lrow('pm2.5 dodged · 24 h',IN(c&&c.avoided_ug_24h),'µg',!c,
+      'dust riders did not breathe because the app steered them off the smokiest option')+
+    lrow('pm2.5 dodged · all-time',IN(c&&c.avoided_ug_all),'µg',!c,
+      'the same dodged total since the beginning')+
+    lrow('live rider flags',IN(c&&c.active_reports),'',!c,
+      'dust, smoke, burning-smell and clean-air pins — each fades after 6 hours')+
+    (modes
+      ?lrow('how trips travelled · 24 h',modes,'',false,
+        'the mix of wheels the shared trips ran on')
+      :lrow('how trips travelled · 24 h','','',true,
+        'the mix of wheels the shared trips ran on'));
 
   /* ---- corridors ---- */
   const rows=(c&&c.top_corridors||[]).map((r,i)=>
     `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>
-     <td class="cell">${(+r.lat).toFixed(3)}°N · ${(+r.lon).toFixed(3)}°E</td>
+     <td class="cell">${r.name
+       ?`<span class="st">${esc(r.name)}</span><span class="co">${(+r.lat).toFixed(3)}°N · ${(+r.lon).toFixed(3)}°E</span>`
+       :`${(+r.lat).toFixed(3)}°N · ${(+r.lon).toFixed(3)}°E`}</td>
      <td class="num">${IN(r.samples)}</td>
      <td class="num">${IN(r.devices)}</td>
      <td class="num">${r.avg_dose_ug!=null?F1(r.avg_dose_ug)+' µg':'—'}</td>
@@ -275,24 +321,24 @@ async function load(){
      <td class="num">${r.co2_g_per_100m!=null?F1(r.co2_g_per_100m)+' g':'—'}</td>
     </tr>`).join('');
   $('corridors').innerHTML=
-    '<tr><th></th><th>corridor cell</th><th class="num">traversals</th>'+
-    '<th class="num">devices</th><th class="num">avg inhaled</th>'+
-    '<th>top mode</th><th class="num">co₂/100m</th></tr>'+
+    '<tr><th></th><th>street stretch</th><th class="num">trips</th>'+
+    '<th class="num">phones</th><th class="num">pm2.5 / trip</th>'+
+    '<th>main mode</th><th class="num">co₂ per 100 m</th></tr>'+
     (rows||(c
-      ?'<tr><td colspan="7"><span class="empty">no corridor has 3 distinct devices yet — the board fills as delhi moves</span></td></tr>'
-      :'<tr><td colspan="7"><span class="empty">corridor feed unreachable — retrying</span></td></tr>'));
+      ?'<tr><td colspan="7"><span class="empty">no street has enough phones yet — your shared trip still counts in the totals above; this board fills in as delhi moves</span></td></tr>'
+      :'<tr><td colspan="7"><span class="empty">street feed unreachable — retrying</span></td></tr>'));
 
   /* ---- reports ---- */
   const feats=(rp&&rp.features)||[];
   $('reports').innerHTML=feats.length?feats.slice(0,8).map(f=>{
     const p=f.properties||{};
-    return `<div class="rline"><span class="rk">${esc(p.kind||p.type||'report')}</span>
-      <span>${esc(p.note||p.label||'rider report')}</span>
+    return `<div class="rline"><span class="rk">${esc(kindTxt(p.kind||p.type))}</span>
+      <span>${esc(p.note||p.label||'a rider flagged this')}</span>
       <span class="rn">${p.age_min!=null?agoMin(p.age_min)+' ago':(p.n!=null?p.n+' pins':'')}</span></div>`;
-  }).join(''):'<div class="rline"><span class="rk">reports</span>'+
+  }).join(''):'<div class="rline"><span class="rk">flags</span>'+
     (rp
-      ?'<span class="empty">nothing pinned right now — reports expire after their window</span>'
-      :'<span class="empty">report feed unreachable — retrying</span>')+
+      ?'<span class="empty">no flags right now — a flag only lives six hours</span>'
+      :'<span class="empty">flag feed unreachable — retrying</span>')+
     '</div>';
 }
 load();setInterval(load,60000);

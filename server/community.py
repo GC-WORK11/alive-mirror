@@ -578,6 +578,101 @@ def _cell(lon: float, lat: float) -> tuple[float, float]:
     return (round(lon / 0.005) * 0.005, round(lat / 0.005) * 0.005)
 
 
+# Offline gazetteer naming for published cells — the same offline rule
+# v2/city applies, tiered for what a ~500 m street stretch should read
+# as: the street it lies on when a road row is close, else the locality
+# it sits inside, else "near <the closest place>". None when nothing
+# honest is found — a name is never invented. Cells sit on a fixed
+# grid, so each scan runs once per cell ever and the result is cached.
+_CELL_NAME_RADIUS_M = 1200.0
+_NAME_AREA_KINDS = {
+    "locality", "neighborhood", "neighbourhood", "suburb", "district",
+    "subdistrict", "sector", "quarter", "village", "hamlet", "town",
+    "city", "place", "tehsil", "macrohood", "area", "block", "colony",
+    "administrative", "place:locality", "place:neighbourhood",
+    "place:suburb", "place:village", "place:hamlet", "place:quarter",
+}
+_NAME_STREET_KINDS = {
+    "residential", "primary", "secondary", "tertiary", "trunk",
+    "motorway", "unclassified", "living_street", "pedestrian",
+    "service", "track", "street", "main", "highway", "footway",
+    "cycleway", "primary_link", "secondary_link", "tertiary_link",
+    "trunk_link", "motorway_link",
+}
+_NAME_ANCHOR_KINDS = {
+    "station", "train_station", "railway:station", "metro", "subway",
+    "bus_station", "park", "market", "marketplace", "square", "fort",
+    "monument", "airport", "shopping_mall", "stadium",
+}
+_CELL_NAMES: dict = {}
+_NAME_BUCKET_DEG = 0.05   # ~5.5 km buckets — a name scan touches
+_NAME_BUCKETS: dict = {}  # 3×3 buckets around the cell, not 124k rows
+
+
+def _name_rows():
+    """Gazetteer rows that can name a street stretch, bucketed by
+    ~5.5 km cells. Built once — GAZ._load() caches its own rows."""
+    global _NAME_BUCKETS
+    if _NAME_BUCKETS:
+        return _NAME_BUCKETS
+    from v2.gazetteer import GAZ
+    kinds = _NAME_AREA_KINDS | _NAME_STREET_KINDS | _NAME_ANCHOR_KINDS
+    for r in GAZ._load():
+        if r["kind"] not in kinds or r["lat"] is None or r["lon"] is None:
+            continue
+        key = (int(r["lat"] / _NAME_BUCKET_DEG),
+               int(r["lon"] / _NAME_BUCKET_DEG))
+        _NAME_BUCKETS.setdefault(key, []).append(r)
+    return _NAME_BUCKETS
+
+
+def _cell_name(lat: float, lon: float):
+    """A readable place name for a corridor cell — or None (the page
+    falls back to coordinates; a name is never invented)."""
+    key = (round(lat, 5), round(lon, 5))
+    if key in _CELL_NAMES:
+        return _CELL_NAMES[key]
+    name = None
+    try:
+        from v2.gazetteer import _haversine_m
+        buckets = _name_rows()
+        blat, blon = (int(lat / _NAME_BUCKET_DEG),
+                      int(lon / _NAME_BUCKET_DEG))
+        span = int(math.ceil(_CELL_NAME_RADIUS_M / 111_000.0
+                             / _NAME_BUCKET_DEG))  # ≥ radius, in buckets
+        street = area = anchor = None
+        for bi in range(blat - span, blat + span + 1):
+            for bj in range(blon - span, blon + span + 1):
+                for r in buckets.get((bi, bj), ()):
+                    d = _haversine_m(lat, lon, r["lat"], r["lon"])
+                    if d > _CELL_NAME_RADIUS_M:
+                        continue
+                    k = r["kind"]
+                    if k in _NAME_STREET_KINDS:
+                        if street is None or d < street[1]:
+                            street = (r["name"], d)
+                    elif k in _NAME_AREA_KINDS:
+                        if area is None or d < area[1]:
+                            area = (r["name"], d)
+                    elif k in _NAME_ANCHOR_KINDS:
+                        if anchor is None or d < anchor[1]:
+                            anchor = (r["name"], d)
+        if street and street[1] <= 250:
+            name = street[0]
+        elif area and area[1] <= 600:
+            name = area[0]
+        elif area:
+            name = f"near {area[0]}"
+        elif street:
+            name = f"near {street[0]}"
+        elif anchor:
+            name = f"near {anchor[0]}"
+    except Exception:
+        name = None
+    _CELL_NAMES[key] = name
+    return name
+
+
 def _hav_km(pts) -> float:
     """Path distance over [[lon, lat], ...] points."""
     d = 0.0
@@ -690,6 +785,7 @@ def corridors(limit: int = 10) -> list[dict]:
         out.append({
             "lon": lon, "lat": lat, "samples": v["trips"],
             "devices": len(v["dev_all"]),
+            "name": _cell_name(lat, lon),
             "avg_dose_ug": round(v["dose_sum"] / max(v["trips"], 1), 1),
             # traversal-implied average, not an instrument read — the
             # claims audit wants the estimate basis on the wire, not

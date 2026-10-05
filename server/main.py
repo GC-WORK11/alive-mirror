@@ -133,6 +133,7 @@ async def _lifespan(_app: FastAPI):
             import history
             await asyncio.to_thread(GAZ._load)
             await asyncio.to_thread(history._load)
+            await asyncio.to_thread(community._name_rows)
         except Exception:
             pass
     asyncio.create_task(_warm_static())
