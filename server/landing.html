@@ -56,13 +56,14 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 
 /* hero — supaste/devin grammar: headline + copy + real product shot,
    nothing else. two cols on wide screens, figure stacks on phones. */
-.hero{padding:118px 0 78px}
-.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 264px;
+.hero{padding:96px 0 64px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 288px;
   gap:64px;align-items:start}
 @media(max-width:840px){.hero-grid{grid-template-columns:1fr;gap:48px}}
-@media(max-width:640px){.hero{padding:64px 0 48px}
-  .eyebrow{font-size:10px;letter-spacing:.18em}}
-.shot{margin:6px 0 0;max-width:264px;width:100%;
+@media(max-width:640px){.hero{padding:60px 0 44px}
+  .eyebrow{font-size:10px;letter-spacing:.18em;flex-wrap:wrap;row-gap:4px}}
+@media(max-width:480px){.eyebrow{letter-spacing:.14em}}
+.shot{margin:6px 0 0;max-width:288px;width:100%;
   border:1px solid var(--line2);border-radius:34px;overflow:hidden;
   background:#fff;box-shadow:0 24px 56px -32px rgba(22,24,29,.28),
     0 4px 14px -6px rgba(22,24,29,.10);
@@ -83,11 +84,23 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   text-transform:uppercase;color:var(--ink3)}
 .eyebrow .sq{width:5px;height:5px;background:var(--sage);flex:none}
 h1{font-family:var(--serif);font-weight:400;font-size:clamp(44px,7.2vw,88px);
-  line-height:1.03;letter-spacing:-.028em;margin-top:30px;max-width:15ch}
+  line-height:1.03;letter-spacing:-.028em;margin-top:30px;max-width:12ch}
 h1 em{font-style:italic;color:var(--ink2)}
-.sub{margin-top:34px;max-width:540px;font-size:17px;line-height:1.72;
+/* the hero number — the one live figure a cold reader remembers.
+   serif numeral + mono basis, same register as the field ops line. */
+.hnum{margin-top:38px;display:flex;align-items:baseline;gap:18px;
+  max-width:560px;flex-wrap:wrap}
+.hnum-v{font-family:var(--serif);font-weight:400;
+  font-size:clamp(40px,5.4vw,64px);line-height:1;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;color:var(--ink)}
+.hnum-t{font-size:15px;line-height:1.6;color:var(--ink)}
+.hnum-t i{display:block;margin-top:5px;font-style:normal;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3)}
+.sub{margin-top:30px;max-width:540px;font-size:16.5px;line-height:1.72;
   color:var(--ink2)}
-.links{margin-top:42px;display:flex;gap:36px;flex-wrap:wrap}
+.sub b{color:var(--ink);font-weight:600}
+.links{margin-top:38px;display:flex;gap:36px;flex-wrap:wrap}
 .tlink{font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;
   border-bottom:1px solid var(--ink);padding-bottom:3px}
 .tlink:hover{border-bottom-color:transparent}
@@ -171,6 +184,25 @@ h1 em{font-style:italic;color:var(--ink2)}
   font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--ink3)}
 .legend .conf{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
   color:var(--ink3);text-transform:uppercase}
+/* the day, recorded — a 24-hour hairline strip from the decade archive,
+   current hour inked. sits between the live field and the districts:
+   this hour → the day it sits inside. */
+.day-sec{padding:30px 0 10px}
+.day-head{display:flex;justify-content:space-between;align-items:baseline;
+  gap:12px 24px;flex-wrap:wrap;margin-bottom:14px}
+.day-head .lbl{font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
+.day-head .lbl b{color:var(--ink);font-weight:600}
+.daybars{display:flex;align-items:flex-end;gap:2px;height:46px}
+.daybars .db{flex:1;background:var(--line2);min-height:2px}
+.daybars .db.now{background:var(--ink)}
+.daybars .db:hover{outline:1px solid var(--ink);outline-offset:1px}
+.dayticks{display:flex;justify-content:space-between;margin-top:6px;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;
+  color:var(--ink4)}
+.day-note{margin-top:9px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
+.day-note b{color:var(--ink2);font-weight:600}
 /* watch the day — forecast scrubber under the field; same register as
    /city's: text-link play, hairline scrubber with ink progress, mono */
 .trow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
@@ -274,11 +306,15 @@ h1 em{font-style:italic;color:var(--ink2)}
 @media(max-width:640px){.dchip{padding:10px 14px 10px 10px}
   .dchip svg{width:34px;height:34px}}
 
-/* how — three terse rows */
+/* how — the never-existed thesis, then three terse rows */
 .how{border-top:1px solid var(--line)}
 .how .col{padding-top:72px;padding-bottom:84px}
+.why{font-family:var(--serif);font-weight:400;font-size:21px;
+  line-height:1.55;letter-spacing:-.008em;color:var(--ink);
+  max-width:44ch;margin:0 0 56px}
+.why b{font-weight:600;white-space:nowrap}
 .how-head{display:flex;justify-content:space-between;align-items:baseline;
-  margin-bottom:44px;gap:16px}
+  margin-bottom:40px;gap:16px}
 .how h2{font-family:var(--serif);font-weight:400;font-size:29px;
   letter-spacing:-.01em}
 .how-head a{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
@@ -322,25 +358,30 @@ h1 em{font-style:italic;color:var(--ink2)}
 <section class="hero"><div class="col"><div class="hero-grid">
   <div class="hero-copy">
     <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — a dosimeter without hardware</div>
-    <h1 class="rise" style="--d:70ms">The field knows what Delhi breathed. <em>The app knows what you breathed.</em></h1>
-    <p class="sub rise" style="--d:140ms">A personal PM2.5 dosimeter that
-    needs no hardware — the live field below is the sensor, the app on your
-    phone is the rest, on Android today. It totals what your trips inhaled,
-    in µg — and your day stays on your phone. Routing is one proof of it:
-    flip the map to a→b, pick two points,
-    and the engine returns the corridor your lungs pay least for —
-    <span id="edgecount">1.07 million</span> road edges indexed,
-    <span id="pricedcount">0.90 million</span> priced under this hour's
-    field.</p>
-    <div class="links rise" style="--d:210ms">
+    <h1 class="rise" style="--d:70ms">A ledger for <em>your lungs.</em></h1>
+    <div class="hnum rise" style="--d:140ms" id="hnum" role="status">
+      <b class="hnum-v" id="hnumV">—</b>
+      <span class="hnum-t"><span id="hnumT">cigarettes a day — what
+      breathing today's field adds up to.</span><i id="hnumS">reading the
+      live field…</i></span>
+    </div>
+    <p class="sub rise" style="--d:200ms">A personal dosimeter, no hardware:
+    the field below — rebuilt hourly from <b id="stnHero">24</b> live
+    stations — is the sensor, and the app knows what you breathed. It
+    totals your trips in µg, on your phone, where the ledger stays.
+    a→b routing is one proof — the engine priced
+    <b><span id="pricedcount">0.90</span>&nbsp;million</b> of Delhi's
+    <b><span id="edgecount">1.07</span>&nbsp;million</b> road edges under
+    this hour's field.</p>
+    <div class="links rise" style="--d:260ms">
       <a class="tlink" href="/city">Open the live field →</a>
       <a class="tlink dim" href="/community">Community →</a>
     </div>
   </div>
-  <figure class="shot rise" style="--d:280ms">
+  <figure class="shot rise" style="--d:320ms">
     <img src="/app-hero.png" width="552" height="1200"
       alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
-    <figcaption>the app, live — real route, real field<br>
+    <figcaption>the app on android, live — real route, real field<br>
     only k≥3 aggregates ever leave it</figcaption>
   </figure>
 </div></div></section>
@@ -373,16 +414,16 @@ h1 em{font-style:italic;color:var(--ink2)}
   <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
   <noscript>
     <style>
-      #status,.field-head,.fwrap,.field-cap,.trow,.kbhint,.dist-head,.distwrap{display:none}
+      #status,.field-head,.fwrap,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum{display:none}
     </style>
     <p style="margin-top:14px;font-family:var(--mono);font-size:10.5px;
       letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
       line-height:1.9">
-      the live field and the district map need javascript —
-      everything else on this page does not.</p>
+      the live field, the district map, and today's dose figure need
+      javascript — everything else on this page does not.</p>
   </noscript>
   <div class="field-cap">
-    <span class="left" id="capLeft">The field the dosimeter reads —
+    <span class="left" id="capLeft">This is the sensor —
     every cell interpolated from live instruments, confidence carried with
     it; the same surface the router prices on. It records Delhi hourly —
     history, not just forecast. Click a cell.</span>
@@ -397,9 +438,20 @@ h1 em{font-style:italic;color:var(--ink2)}
   <div class="ladder" id="ladder"></div>
 </div></section>
 
+<section class="day-sec" id="daySec" hidden><div class="col">
+  <div class="day-head">
+    <span class="lbl">the day, recorded — <b>a typical october, hour by hour</b></span>
+    <span class="lbl" id="dayNote">—</span>
+  </div>
+  <div class="daybars" id="daybars"
+    role="img" aria-label="typical october day at connaught place, hour by hour — decade of records"></div>
+  <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
+  <div class="day-note" id="dayWhy"></div>
+</div></section>
+
 <section class="dist-sec"><div class="col">
   <div class="dist-head">
-    <span class="lbl">the districts — <b>each boundary cut, filled by its live cpcb band</b></span>
+    <span class="lbl">the districts — <b><span id="distN">29</span> real boundaries, each filled live</b></span>
     <span class="hint">tap a boundary · worst first</span>
   </div>
   <div class="distwrap">
@@ -409,6 +461,10 @@ h1 em{font-style:italic;color:var(--ink2)}
 </div></section>
 
 <section class="how"><div class="col">
+  <p class="why">Nothing else can add up your day in Delhi — nobody
+  else rebuilds a calibrated field hourly, prices
+  <b><span id="pricedcount2">0.90</span>&nbsp;million</b> road edges
+  against it, and totals the dose on your phone, where it stays.</p>
   <div class="how-head">
     <h2>Measure, interpolate, dose.</h2>
   </div>
@@ -1204,6 +1260,60 @@ function drawOption(i,seq){
     r.classList.toggle('drawn',j===i&&geo.length>0)});
 }
 
+/* --- the hero number + the recorded day ---------------------------------
+   hero number = the server's own breath figure (/v2/city .breath): a day
+   of breathing today's field, field-weighted over the NCR lattice, in
+   cigarettes (the page's only unit a cold reader already feels). the day
+   strip = /today's climatology curve — recorded history, not forecast.
+   every state has an honest shape: unreachable says so, never fakes. */
+async function heroCity(){
+  try{
+    const d=await api('/v2/city');
+    const b=d.breath||{};
+    const cig=(b.cigarettes||{}).mid, ug=(b.day_inhaled_ug||{}).mid;
+    if(cig!=null&&cig>0){
+      $('hnumV').textContent=F1(cig);
+      $('hnumT').innerHTML=`cigarettes a day — a day of breathing today's
+        field${ug!=null?`, ≈<b>${fmt(ug)} µg</b> inhaled`:''}.`;
+      /* the basis line uppercases — µ must opt out or µg becomes "mg" */
+      const noT='<span style="text-transform:none">µg/m³</span>';
+      $('hnumS').innerHTML=`live · field-weighted over the ncr lattice`
+        +` · ~14.4 m³ breathed a day · 22 ${noT}-day ≈ 1 cigarette`
+        +`${(b.cigarettes||{}).hi!=null?` · worst pockets ${F1(b.cigarettes.hi)}` :''}`;
+    }else{
+      $('hnumV').textContent='—';
+      $('hnumT').textContent='the breath figure came back empty — no fake number shown';
+      $('hnumS').textContent='the field below still reads live';
+    }
+    const t=d.typical||{};
+    if(t.vs_now_pct!=null){
+      const pc=Math.round(t.vs_now_pct);
+      $('dayNote').textContent=
+        `now — live field ${pc>0?'+':''}${pc}% vs the typical hour`;
+    }
+  }catch(e){
+    $('hnumV').textContent='—';
+    $('hnumT').textContent='the breath figure is unreachable — the page retries it';
+    $('hnumS').textContent='the field below still reads live';
+  }
+}
+async function dayStrip(){
+  try{
+    /* connaught place — the city's own coordinate anchor */
+    const d=await api('/today?lat=28.6139&lon=77.2090');
+    const hrs=(d.hours_ist||[]).filter(v=>v!=null);
+    if(hrs.length<2)return;
+    const mx=Math.max(...hrs),now=d.hour_now_ist;
+    $('daybars').innerHTML=hrs.map((v,i)=>
+      `<span class="db${i===now?' now':''}" style="height:${Math.max(2,v/mx*100)}%"
+        title="${String(i).padStart(2,'0')}:00 ist — typical ~${Math.round(v)} µg/m³"></span>`).join('');
+    $('dayWhy').innerHTML=
+      `typical = the archive's median for this hour — october · ist ·
+      connaught place · <b>recorded history</b>, not a forecast`;
+    $('daySec').hidden=false;
+  }catch(e){/* the strip stays hidden — honest absence, no fake curve */}
+}
+
 /* --- district chips ------------------------------------------------------ */
 let DIST=[],DT_PIN=null,DT_GRID12=null,DT_GRID12_OK=null;
 function distMean(feats,feat){
@@ -1330,7 +1440,7 @@ Promise.all([
 });
 async function loadDistricts(){
   try{const d=await api('/v2/districts');DIST=(d.districts||d)||[];
-    if(Array.isArray(DIST))paintDChips()}
+    if(Array.isArray(DIST)){$('distN').textContent=DIST.length;paintDChips()}}
   catch(e){/* the strip keeps its honest-empty text */}
 }
 async function status(){
@@ -1343,12 +1453,14 @@ async function status(){
     const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+' min':'—';
     const edges=h.routing&&h.routing.edges?h.routing.edges:null;
     const priced=h.routing&&h.routing.edges_priced?h.routing.edges_priced:null;
-    if(edges)$('edgecount').textContent=(edges/1e6).toFixed(2)+' million';
+    if(edges)$('edgecount').textContent=(edges/1e6).toFixed(2);
     const ptxt=priced!=null
       ?(priced>=1e6?(priced/1e6).toFixed(2)+'m':Math.round(priced/1e3)+'k')
       :'—';
-    if(priced!=null)$('pricedcount').textContent=
-      (priced/1e6).toFixed(2)+' million';
+    if(priced!=null){$('pricedcount').textContent=
+      (priced/1e6).toFixed(2);$('pricedcount2').textContent=
+      (priced/1e6).toFixed(2)}
+    if(stn>0)$('stnHero').textContent=stn;
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
       `<span>field <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
@@ -1361,7 +1473,7 @@ async function status(){
   }
 }
 
-renderPills();paint();status();loadDistricts();tlInit();
+renderPills();paint();status();loadDistricts();tlInit();heroCity();dayStrip();
 let rsz=null;window.addEventListener('resize',()=>{
   clearTimeout(rsz);rsz=setTimeout(()=>{
     const cv=$('raster'),w=cv.parentElement.clientWidth||896,
@@ -1371,7 +1483,7 @@ let rsz=null;window.addEventListener('resize',()=>{
     cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
     CELLS_DIRTY=true;MID_DIRTY=true;drawScene();
   },160)});
-setInterval(()=>{paint();status();loadDistricts()},120000);
+setInterval(()=>{paint();status();loadDistricts();heroCity()},120000);
 </script>
 <div id="srlive" class="sr-only" aria-live="polite"></div>
 </body></html>
