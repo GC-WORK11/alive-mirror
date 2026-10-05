@@ -76,7 +76,7 @@ _REFRESH_BUDGET_S = 6.0    # never hold a 'why' answer hostage upstream
 # is near-empty — the trend series must read the bucket too. Keys are
 # field/YYYY/MM/DD/HHmm.json.gz in UTC. The series is rebuilt per call,
 # so cache it briefly: builds land on a 15-min cadence anyway.
-_SNAP_S3_MAX_KEYS = 30     # ~7.5 h at 15-min — covers the 6 h window
+_SNAP_S3_MAX_KEYS = 40     # ~10 h at 15-min — dup-key pairs eat a few
 _SNAP_S3_GET_BUDGET_S = 4.0
 _SERIES_TTL_S = 300.0      # snaps land every ~15 min; 5-min cache is safe
 _SERIES_CACHE: dict = {"at": 0.0, "key": None, "rows": []}
@@ -316,23 +316,32 @@ def _s3_series(window_s: float) -> list:
         return []
     keys.sort(reverse=True)
     import airindex
-    rows = []
-    seen_t: set = set()
     deadline = now + _SNAP_S3_GET_BUDGET_S
-    for _, key in keys[:_SNAP_S3_MAX_KEYS]:
-        if time.time() > deadline:
-            break
+
+    def _fetch(key):
         try:
             body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
-            row = _row_from_build(airindex.deserialize(body))
+            return _row_from_build(airindex.deserialize(body))
         except Exception:
-            continue
-        if row is None or row["t"] in seen_t:
-            continue  # the same build can persist under two keys
-        if now - row["t"] > window_s:
-            continue
-        seen_t.add(row["t"])
-        rows.append(row)
+            return None
+
+    # Serial get+deserialize of ~14k-cell builds costs ~0.3 s each and the
+    # 4 s budget starved the series at ~15 rows — newest only, hiding the
+    # older half of the window. Bounded parallel fetch keeps the budget.
+    from concurrent.futures import ThreadPoolExecutor
+    rows = []
+    seen_t: set = set()
+    want = [k for _, k in keys[:_SNAP_S3_MAX_KEYS]]
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for row in ex.map(_fetch, want):
+            if time.time() > deadline:
+                break
+            if row is None or row["t"] in seen_t:
+                continue  # the same build can persist under two keys
+            if now - row["t"] > window_s:
+                continue
+            seen_t.add(row["t"])
+            rows.append(row)
     rows.sort(key=lambda r: r["t"])  # oldest -> newest
     return rows
 
