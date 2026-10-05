@@ -361,6 +361,35 @@ def test_debias_station_without_pm25_does_not_count_as_instrument():
     assert out[-1][3]["pm10"] == 80.0
 
 
+def test_debias_pm10_scales_multiplicatively_when_instruments_carry_it():
+    """With ≥8 pm10 instruments the coarse fraction gets its own bias
+    pass — tonight's real divergence: stations ~60-136µg vs CAMS
+    300-600, the additive fine-fraction transfer could never fix the
+    coarse residue."""
+    f = airfield.AirField()
+    model = [(28.55 + 0.01 * i, 77.15 + 0.01 * i, f"m{i}",
+              {"pm2_5": 50.0, "pm10": 340.0, "ozone": 190.0})
+             for i in range(10)]
+    inst = [(28.551 + 0.01 * i, 77.151 + 0.01 * i, f"st{i}",
+             {"pm2_5": 150.0, "pm10": 120.0}) for i in range(9)]
+    out = f._debias(model, inst)
+    adj = out[0][3]
+    assert adj["pm2_5"] == pytest.approx(150.0, rel=0.02)      # ×3
+    # pm10: instrument/model ≈ 120/340 ≈ 0.35 — multiplicative, NOT
+    # 340 + 50·(3-1) = 440 from the additive fallback
+    assert adj["pm10"] == pytest.approx(120.0, rel=0.05)
+    assert adj["ozone"] == pytest.approx(190.0, rel=1e-6)      # untouched
+
+
+def test_debias_pm10_additive_fallback_when_instruments_lack_it():
+    """Fixture stations carry pm2_5 only → pm10 keeps the fine-fraction
+    increment rather than going unscaled or fabricating a bias."""
+    f = airfield.AirField()
+    model, inst = _debias_samples()
+    out = f._debias(model, inst)
+    assert out[0][3]["pm10"] == pytest.approx(270.0, rel=0.02)
+
+
 def test_debias_missing_pm10_or_pm25_never_fabricates():
     """A model point without pm2_5 must not invent a pm10 increment."""
     model = [(28.55 + 0.01 * i, 77.15 + 0.01 * i, f"m{i}",

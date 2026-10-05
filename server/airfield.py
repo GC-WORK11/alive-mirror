@@ -264,12 +264,15 @@ class AirField:
         is too thin to trust (<8 instruments or <10 model points).
 
         b is measured on PM2.5 only, so it scales only pm2_5. pm10 gets
-        the same fine-fraction increment additively (pm10 = pm2_5 +
-        coarse; the instrument evidence lives in the fine fraction, the
-        coarse residue stays modelled). Every other field — gases, dust,
-        aod, and the aqi indices — has no instrument evidence and stays
-        raw; scaling a dimensionless index by a µg/m³ ratio is just
-        wrong."""
+        its own multiplicative pass whenever ≥8 instruments carry pm10
+        (WAQI feeds report it — public stations read ~120µg while raw
+        CAMS ran ~300-600: the coarse residue was the wrong part, and
+        only a direct pm10 bias can fix it). With too few pm10
+        instruments it falls back to the fine-fraction increment
+        additively (pm10 = pm2_5 + coarse; the instrument evidence lives
+        in the fine fraction). Every other field — gases, dust, aod, and
+        the aqi indices — has no instrument evidence and stays raw;
+        scaling a dimensionless index by a µg/m³ ratio is just wrong."""
         samples = results + stations
         inst = [s for s in stations
                 if isinstance(s[3].get("pm2_5"), (int, float))]
@@ -302,6 +305,23 @@ class AirField:
         if len(ratios) < 8:
             return samples
 
+        # same pass on pm10 when the instrument network carries it —
+        # multiplicative on the whole column (fine + coarse), since the
+        # coarse residue is exactly what stations contradict.
+        inst10 = [s for s in stations
+                  if isinstance(s[3].get("pm10"), (int, float))]
+        ratios10 = []
+        if len(inst10) >= 8:
+            for ilat, ilon, _n, vals in inst10:
+                m10 = idw(ilat, ilon, model, "pm10")
+                v10 = float(vals["pm10"])
+                if m10 and m10 > 30 and v10 > 0:
+                    b10 = v10 / m10
+                    if 0.2 < b10 < 10:
+                        ratios10.append((ilat, ilon, b10))
+            if len(ratios10) < 8:
+                ratios10 = []
+
         out = []
         for i, (slat, slon, name, vals) in enumerate(samples):
             if i >= len(results):   # instrument row — untouched,
@@ -317,6 +337,18 @@ class AirField:
                 num += w * b
                 den += w
             b = min(6.0, max(0.5, num / den)) if den else 1.0
+            b10 = None
+            if ratios10:
+                num = den = 0.0
+                for ilat, ilon, rb in ratios10:
+                    d = math.hypot(ilat - slat, ilon - slon)
+                    if d < 1e-6:
+                        num, den = rb, 1.0
+                        break
+                    w = 1.0 / (d * d)
+                    num += w * rb
+                    den += w
+                b10 = min(4.0, max(0.3, num / den)) if den else None
             adj = dict(vals)
             pm25_raw = adj.get("pm2_5")
             for k in adj:
@@ -324,8 +356,11 @@ class AirField:
                     continue
                 if k == "pm2_5":
                     adj[k] = float(adj[k]) * b
-                elif k == "pm10" and isinstance(pm25_raw, (int, float)):
-                    adj[k] = float(adj[k]) + float(pm25_raw) * (b - 1.0)
+                elif k == "pm10":
+                    if b10 is not None:
+                        adj[k] = float(adj[k]) * b10
+                    elif isinstance(pm25_raw, (int, float)):
+                        adj[k] = float(adj[k]) + float(pm25_raw) * (b - 1.0)
                 # everything else stays raw CAMS — no instrument evidence
             out.append((slat, slon, name, adj))
         return out
