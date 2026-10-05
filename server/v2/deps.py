@@ -6,6 +6,7 @@ Keeps coupling lazy and injectable so tests run fully offline:
 """
 import os
 import sys
+import time
 from typing import Optional
 
 import httpx
@@ -85,6 +86,70 @@ async def field_refresh() -> None:
         await field().refresh(http())
     except Exception:
         pass
+
+
+def data_epoch() -> float:
+    """Wall-clock stamp of the freshest field/forecast data a /v2
+    payload would read right now. Fold it into response-cache keys: a
+    mid-TTL refresh moves the epoch, so stale payloads invalidate on
+    the refresh itself rather than outliving the cache TTL. 0.0 when
+    no data has landed yet."""
+    epoch = 0.0
+    try:
+        F = field()
+        for attr in ("_fetched_at", "_snap_epoch"):
+            v = float(getattr(F, attr, 0.0) or 0.0)
+            if v > epoch:
+                epoch = v
+    except Exception:
+        pass
+    try:
+        from forecast import FORECAST
+        v = float(getattr(FORECAST, "_fetched_at", 0.0) or 0.0)
+        if v > epoch:
+            epoch = v
+    except Exception:
+        pass
+    return epoch
+
+
+class TTLCache:
+    """Tiny expiring dict for /v2 response payloads.
+
+    Every caller touches it from inside an async handler — plain dict
+    ops on the event-loop thread, so no locking. Staleness is bounded
+    by the TTL; callers that must invalidate sooner fold a data epoch
+    into the key (see data_epoch()). Eviction: expired entries first,
+    then insertion order — a cache that never grows past max_entries.
+    """
+    __slots__ = ("ttl_s", "max_entries", "_d")
+
+    def __init__(self, ttl_s: float, max_entries: int = 64):
+        self.ttl_s = float(ttl_s)
+        self.max_entries = int(max_entries)
+        self._d = {}
+
+    def get(self, key):
+        e = self._d.get(key)
+        if e is None:
+            return None
+        exp, val = e
+        if time.monotonic() > exp:
+            self._d.pop(key, None)
+            return None
+        return val
+
+    def put(self, key, val) -> None:
+        if len(self._d) >= self.max_entries:
+            now = time.monotonic()
+            for k in [k for k, (x, _) in self._d.items() if now > x]:
+                self._d.pop(k, None)
+            while len(self._d) >= self.max_entries:
+                self._d.pop(next(iter(self._d)))
+        self._d[key] = (time.monotonic() + self.ttl_s, val)
+
+    def clear(self) -> None:
+        self._d.clear()
 
 
 # --- routing (same upstream main.py uses) --------------------------------------

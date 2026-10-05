@@ -12,15 +12,26 @@ shared executor as the engine option arm — and is hard-bounded by
 REACH_BUDGET_S.
 """
 import asyncio
+import json
 import math
 import struct
 import time
 
 from fastapi import APIRouter
+from fastapi.responses import Response
 
 from . import deps, plan
 
 router = APIRouter()
+
+# 60 s veil cache — same anchor cell + budget + mode inside a minute
+# serves the SAME serialized body, no re-solve, no re-encode. The veil
+# is deterministic over the priced raster, so a hit is identical work;
+# the field epoch in the key makes a mid-TTL raster refresh invalidate
+# honestly instead of outliving the TTL. Storing BYTES is the point: a
+# hit costs zero event-loop JSON encode (the ~1-3 s loop-block the
+# starve probe showed on car<=100 bodies).
+_REACH_CACHE = deps.TTLCache(60.0, max_entries=12)
 
 REACH_MAX_STATES = 2_000_000    # directed edge states the Dijkstra may pop
 EDGE_SERVE_MAX = 90_000         # beyond this the veil payload outweighs
@@ -97,6 +108,33 @@ def _field_age_s():
         return st.get("age_s") if isinstance(st, dict) else None
     except Exception:
         return None
+
+
+def _json_bytes(payload: dict) -> bytes:
+    """The exact bytes Starlette's JSONResponse would render — the
+    encode runs OFF the event loop (run_in_executor) so a 3.5 MB veil
+    doesn't park every other request behind jsonable_encoder +
+    json.dumps on the single request thread."""
+    return json.dumps(payload, ensure_ascii=False, allow_nan=False,
+                      separators=(",", ":")).encode("utf-8")
+
+
+def _cache_hit(body: bytes, t0: float) -> Response:
+    """Serve stored veil bytes with took_ms spliced to the real (cache)
+    serve time — took_ms is the last JSON member by construction, so
+    the splice rewrites only the tail; x-alive-cache marks the hit."""
+    ms = (time.perf_counter() - t0) * 1000.0
+    i = body.rfind(b'"took_ms":')
+    if i != -1 and body.endswith(b"}"):
+        try:
+            float(body[i + len(b'"took_ms":'):-1])   # tail is exactly
+        except ValueError:                            # "took_ms":<num>}
+            i = -1                                    # else don't touch
+    if i != -1:
+        body = (body[:i] + b'"took_ms":' +
+                f"{ms:.1f}".encode() + b"}")
+    return Response(content=body, media_type="application/json",
+                    headers={"x-alive-cache": "hit"})
 
 
 def _mode_or_car(mode) -> str:
@@ -176,6 +214,15 @@ async def reach(lat: float, lon: float, mode: str = "walk",
         from airfield import OUT_OF_AREA
         return _done(error=OUT_OF_AREA, code="outside_service_area")
 
+    # ~11 m anchor cells — a veil solved 11 m away settles the same
+    # region at city scale; the echoed `from` is the first requester's
+    # coords (drift <= cell size, immaterial next to a km-scale veil)
+    cache_key = (mode, round(budget, 1), round(lat, 4), round(lon, 4),
+                 deps.data_epoch())
+    hit = _REACH_CACHE.get(cache_key)
+    if hit is not None:
+        return _cache_hit(hit, t0)
+
     eng = plan._engine()
     if eng is None or not hasattr(eng, "reach"):
         return _done(error="routing engine unavailable",
@@ -199,4 +246,14 @@ async def reach(lat: float, lon: float, mode: str = "walk",
     if res.get("error"):
         return _done(error=res["error"], code="no_snap")
     resp.update(res)
-    return _done()
+    resp["took_ms"] = round((time.perf_counter() - t0) * 1000.0, 1)
+    try:
+        # encode on the default executor — off _ENG_EXEC so a multi-MB
+        # veil's serialization never occupies an engine worker slot
+        body = await asyncio.get_running_loop().run_in_executor(
+            None, _json_bytes, resp)
+    except Exception:
+        return resp          # exotic value — fall back to the dict path
+    _REACH_CACHE.put(cache_key, body)
+    return Response(content=body, media_type="application/json",
+                    headers={"x-alive-cache": "miss"})

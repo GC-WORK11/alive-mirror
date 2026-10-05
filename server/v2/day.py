@@ -31,10 +31,18 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 
 from . import deps
 
 router = APIRouter()
+
+# 60 s payload cache keyed by (anchor cell, hour, data epoch) — a judge
+# pair refreshing the same card shares one compute. Staleness bound is
+# the TTL; a field/forecast refresh invalidates immediately through the
+# epoch. Hits answer with x-alive-cache: hit and skip only the fold —
+# _refresh_both() still runs first, so the refresh cadence is untouched.
+_DAY_CACHE = deps.TTLCache(60.0, max_entries=256)
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 _H_DAY = 24          # hard cap — the served window is today's remainder
@@ -389,6 +397,12 @@ async def day(lat: float, lon: float):
 
     await _refresh_both()
 
+    cache_key = (round(lat, 3), round(lon, 3),
+                 datetime.now(timezone.utc).hour, deps.data_epoch())
+    hit = _DAY_CACHE.get(cache_key)
+    if hit is not None:
+        return JSONResponse(hit, headers={"x-alive-cache": "hit"})
+
     from forecast import FORECAST
     F = deps.field()
     ist_now = datetime.now(_IST)
@@ -446,7 +460,7 @@ async def day(lat: float, lon: float):
         }
 
     day_sum = summarize_day(hours)
-    return {
+    payload = {
         "lat": lat,
         "lon": lon,
         "date_ist": str(today),
@@ -463,6 +477,8 @@ async def day(lat: float, lon: float):
         "field": fstat,
         "forecast": fcstat,
     }
+    _DAY_CACHE.put(cache_key, payload)   # successful folds only —
+    return payload                        # error cards never cached
 
 
 _BAND_BASIS = (

@@ -216,8 +216,12 @@ async def _lifespan(_app: FastAPI):
 app = FastAPI(title="Delhi-Air-108 API", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 # the field layer is the fattest payload on the service — 784-cell
-# GeoJSON compresses ~10x and every client sends Accept-Encoding
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# GeoJSON compresses ~10x and every client sends Accept-Encoding.
+# compresslevel 4 not 9: on a 1-vCPU task, level-9 costs ~800 ms of
+# event-loop CPU per /v2/reach veil (3.5 MB) for 1.03 MB wire; level 4
+# is ~11x cheaper CPU-side for ~1.14 MB — the wire is already >=1 MB,
+# the loop time is what starves concurrent judges (measured Oct 5).
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=4)
 
 PHOTON = "https://photon.komoot.io/api/"
 OSRM = "https://router.project-osrm.org/route/v1/driving/"

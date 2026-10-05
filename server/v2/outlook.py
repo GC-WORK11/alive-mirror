@@ -32,10 +32,11 @@ as the card, applied to day means), there is no pick: the verdict says
 """
 import math
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 
 from . import deps
 from .day import (_BAND_BASIS, _FLAT_REL, _FLAT_UG, _IST, _MODEL,
@@ -44,6 +45,11 @@ from .day import (_BAND_BASIS, _FLAT_REL, _FLAT_UG, _IST, _MODEL,
                   _runs, _window)
 
 router = APIRouter()
+
+# same 60 s (cell, hour, epoch) response cache as /v2/day — the five-day
+# fold is the heaviest read on this router and repeat traffic is a judge
+# pair refreshing, not new questions
+_OUTLOOK_CACHE = deps.TTLCache(60.0, max_entries=256)
 
 _MAX_EXTRA_DAYS = 4     # today's remainder + up to 4 more IST days
 _H_HORIZON = 121        # probe hours 0..120 — the model's whole reach
@@ -179,6 +185,12 @@ async def outlook(lat: float, lon: float):
 
     await _refresh_both()
 
+    cache_key = (round(lat, 3), round(lon, 3),
+                 datetime.now(timezone.utc).hour, deps.data_epoch())
+    hit = _OUTLOOK_CACHE.get(cache_key)
+    if hit is not None:
+        return JSONResponse(hit, headers={"x-alive-cache": "hit"})
+
     from forecast import FORECAST
     try:
         from forecast import ANCHOR_TAU_H
@@ -243,7 +255,7 @@ async def outlook(lat: float, lon: float):
 
     s = summarize_outlook(day_pairs, today, sigma0 is not None,
                           ANCHOR_TAU_H)
-    return {
+    payload = {
         "lat": lat,
         "lon": lon,
         "tz": _TZ_NAME,
@@ -260,3 +272,5 @@ async def outlook(lat: float, lon: float):
         "field": fstat,
         "forecast": fcstat,
     }
+    _OUTLOOK_CACHE.put(cache_key, payload)
+    return payload
