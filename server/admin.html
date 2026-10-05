@@ -145,7 +145,10 @@
   .split i{display:block;height:100%}
   .split-l{font-family:var(--mono);font-size:9.5px;color:var(--ink3);
            margin-top:6px;letter-spacing:.06em;line-height:1.5}
-  canvas#fieldmap{width:100%;display:block;background:var(--surface2,#f2f4f7)}
+  /* reserve true map aspect before first paint — async fill must not
+     shift the page ((X1-X0)*ASP : (Y1-Y0) = 1.1*0.879 : 0.75) */
+  canvas#fieldmap{width:100%;display:block;aspect-ratio:1.2892;
+                  background:var(--surface2,#f2f4f7)}
   .fmsel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .fmsel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
     text-transform:uppercase;padding:4px 10px;cursor:pointer;
@@ -604,7 +607,7 @@ async function tick(){
       <dt>distance</dt><dd>${fmt1(t.km)} km · ${t.avg_km_per_trip??'—'} km/trip</dd>
       <dt>dose</dt><dd>${fmt(t.dose_ug)} µg inhaled · aggregates only</dd>
       <dt>per trip / per km</dt><dd>${t.avg_dose_per_trip_ug??'—'} µg/trip · ${t.dose_ug_per_km??'—'} µg/km</dd>
-      <dt>emissions (mid)</dt><dd>${fmt1(t.co2_kg_mid)} kg CO₂ · ${t.pm25_g_mid} g PM2.5</dd>
+      <dt>emissions (mid)</dt><dd>${fmt1(t.co2_kg_mid)} kg CO₂${t.pm25_g_mid!=null?` · ${fmt1(t.pm25_g_mid)} g PM2.5`:''}</dd>
       <dt>switched lighter</dt><dd>${fmt(t.switched)} trips</dd>
       <dt>cells tracked</dt><dd>${fmt(dn.cells_tracked)} · ${fmt(dn.corridors_publishable)} publishable (k≥3)</dd>
       <dt>window</dt><dd class="sub">${Math.round((dn.window_s||0)/3600)}h corridor freshness · ${esc(dn.devices_note||'')}</dd>
