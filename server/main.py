@@ -1053,6 +1053,41 @@ async def field_grid(cells: int = Query(default=22, le=40),
                 "properties": {"param": param,
                                "served": species,
                                "empty": "unknown pollutant param"}}
+    if param == "us_aqi":
+        # the index is a projection of our own pm2.5 surface, not a
+        # second model layer — the model's native index field read
+        # ~3× our station-grounded pm2.5 and the two maps told
+        # different stories. Delhi's index is pm2.5-driven (public
+        # PM2.5-AQI ≈ city AQI; other species' sub-indices stay <25),
+        # so EPA-projecting our real field is both consistent and
+        # honest. conf inherits the pm2.5 surface's — stronger than
+        # the model layer's ever was.
+        import districts as _d
+
+        def _aqi_gj(field, cells):
+            base = grid.as_geojson(field, cells, "pm2_5")
+            feats = []
+            for f in base.get("features", []):
+                p = dict(f["properties"])
+                p["us_aqi"] = _d.us_aqi(p.pop("pm25", None))
+                p["param"] = "us_aqi"
+                p["derived"] = "pm2_5 via US-EPA breakpoints"
+                feats.append({**f, "properties": p})
+            return {**base, "features": feats}
+
+        if h is not None:
+            await _forecast_refresh_bounded()
+            ep = (FORECAST._fetched_at, FIELD._fetched_at,
+                  community._OBS_VERSION)
+            return _grid_cached(
+                ("f", cells, param, h), ep,
+                lambda: _epoch_tagged(_aqi_gj(_ForecastSurface(h), cells),
+                                      ep))
+        await _field_refresh_bounded()
+        ep = (FIELD._fetched_at, community._OBS_VERSION)
+        return _grid_cached(
+            ("l", cells, param), ep,
+            lambda: _epoch_tagged(_aqi_gj(FIELD, cells), ep))
     if h is not None:
         await _forecast_refresh_bounded()
         # the horizon anchors to the live field too — all three epochs

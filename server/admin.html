@@ -731,7 +731,7 @@ function paintMeth(){
     ozone:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
     carbon_monoxide:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
     sulphur_dioxide:`cams model layer — no instrument evidence for this species; confidence fades by distance to a model point.`,
-    us_aqi:`the cams model's own us-scale index field — no instrument evidence for the index itself; pm2.5 dominates it through delhi's winter.`
+    us_aqi:`our own pm2.5 field projected through US EPA breakpoints — delhi's index is pm2.5-driven; same cells, one story. conf rides the pm2.5 surface's.`
   };
   let hi=0,med=0,lo=0;
   for(const ft of FM_FEATS){const c=(ft.properties||{}).conf;

@@ -540,3 +540,20 @@ def test_drift_summary_print(capsys):
           f"{'optional-not-emitted':<30} {'undeclared-emitted'}")
     for r in rows:
         print(f"{r[0]:<22} {r[1]:<22} {r[2]:<30} {r[3]}")
+
+
+def test_us_aqi_grid_is_pm25_projection():
+    """param=us_aqi serves the same cells as pm2_5, each projected
+    through the EPA breakpoints — one story across the toggles, conf
+    inherited. (The model-native index read ~3× our station field.)"""
+    import districts
+    pm = client.get("/grid", params={"param": "pm2_5", "cells": 8}).json()
+    aq = client.get("/grid", params={"param": "us_aqi", "cells": 8}).json()
+    assert len(aq["features"]) == len(pm["features"]) > 0
+    for fa, fp in zip(aq["features"], pm["features"]):
+        pa, pp = fa["properties"], fp["properties"]
+        assert pa["param"] == "us_aqi"
+        assert pa["derived"]
+        assert fa["geometry"] == fp["geometry"]
+        assert pa["us_aqi"] == districts.us_aqi(pp["pm25"])
+        assert pa["conf"] == pp["conf"]
