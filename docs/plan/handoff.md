@@ -462,3 +462,40 @@ future divergence is one probe away.
 - **#4 us_aqi −17% vs public (defensible)** — our field is a spatial mean + station-grounded debias vs point instruments (Pusa 196 driven by its own pm10). Noted, not a fake.
 - Lane fixing frontend: #2 city strip→ambient-field basis (decision: strip must quote the same field the choropleth shades; breathing-zone only if explicitly labeled), #5 edges_priced real number, #6 hold stale frame on param switch, #7 token-check before API calls, #8 clip+plural, #9 legend overlap, #10 95.2% methodology link.
 - Verified live `8d417cf1`: depart 1.15s cold→0.47s warm; truncated repro flags correctly; hours=0 honest label; single deployment.
+
+## cont.20 — hostile-audit batch fully live (build 2ffff50a, main merged 411abe7)
+
+All 10 findings closed + deployed + verified live:
+
+- #2 /city strip re-based on ambient field aggregate (/v2/city district means + pm25_stats + live grid range) — same basis as choropleth; GRAP row labeled 'incl. smoke'; breaths divides by ambient mean.
+- #5 "EDGES PRICED" now serves the live routing.edges_priced (903,058) via /health — was frozen copy.
+- #6 param switch holds stale frame until new cells arrive — no blank canvas.
+- #7 admin token-check precedes authed fetches — zero 401 console noise unauthenticated; public feeds still render.
+- #8 admin tile names wrap (2-line clamp) — no 'Gautam Buddha N…'; '1 CELLS' pluralizes.
+- #9 /city legend moved in-flow under map — no swatch over geography.
+- #10 95.2% coverage claim gets methodology citation.
+- Landing renders truncation honestly: 'stops ~210 km short of b — dose covers the mapped segment only' + lo-conf flag + degraded arms named (verified in served HTML + source).
+- Bonus found while probing: /escape photon hits with no name→street returned `name:null` → now 'unnamed area' (d759578).
+- Malformed-input sweep on live: empty/bad-json/no-ctype→422; null fields→'from: need {lat,lon}'; string lat→conversion error; NaN→'non-finite coordinate'; 1MB body→parses fine (22 options). No 500s anywhere.
+- /v2/strip verified beautiful: per-road dose attribution — 'Delhi-Gurugram Expressway 4.6km · 52.5µg · 31.7% of dose' + honest emissions bands (105-265 g/km, BS-III–VI, cold 4km×1.3).
+- /v2/districts: 28 real districts worst-first (New Delhi 53µg/89aqi). /today: 24-hr IST curve openaq-s3-climatology. /escape: 5 real cleaner spots (vertical park 30.7µg @11.6km). /shift: auto 8h→279.9µg±[196,416]·0.9cig·+272% vs desk.
+- /directions: re-routes coords→12 OSRM steps w/ street names (route_id is receipt-token only, not a directions key — by design).
+- /admin/api/* all serve w/ token; 401 without (verified: status, sources, corridors, donations, validation, model, timing, global, reviews).
+- Deploy: single deployment 2ffff50a; suite 955 green; main merged 411abe7.
+
+## cont.21 — exhaustive live API verification + craft lane batch-1 live
+
+**Full-surface probe pass on `2ffff50a` — every endpoint contract re-verified, nothing fake found:**
+
+- `/grid` edge honesty: cells outside 1..40 → 422; h outside 0..120 → 422; unknown param → honest empty FeatureCollection + the 11 served species + `empty:"unknown pollutant param"` (a misspelling can never silently serve wrong-species data). Field conf split verified live: 161 hi / 301 med / 22 lo — matches landing's public honesty strip exactly. us_aqi range 74–155 (mid-band oranges/reds on tiles, no greens).
+- `/v2/ledger`: no token → 422; unknown token → empty trips + zero totals + privacy note "no coordinates or cells". Per-device, sanitized.
+- `/community` JSON (Accept-negotiated): 20 obs · 12 contributors · corridors k≥3 (5/3 devices) · `avg_dose_basis:"est. from donated trips"` — honest provenance on every aggregate.
+- `/v2/place/{gaz:...}` gazetteer resolve verified (India Gate → real coords).
+- `location.up:false` in /health is HONEST — Amazon Location optional fallback has no key; /v2/search + /v2/reverse run on the bundled gazetteer (8/8 typo-tolerant). Correct down-flag, not a bug.
+- `/v2/reroute` chain re-verified: POST {from:{lat,lon},to:{lat,lon}} → 13 options, links `rerouted_from`, car 5.7µg/27min from Dhaula Kuan.
+- Mobile truncation: `reaches_destination` optional in contract; app degrades to dose `confidence:"low"` + basis note via CompareSheet (geofence makes truncation rare in-app) — acceptable, no crash path.
+- Craft lane batch landed: `01d316e` (deployed in `2ffff50a` — interactive landing surfaces: param switcher, inspect mode, a→b real-route draw, district strip), `e9c6414` (city µg fix + param-switch clears route), `39eb928` (city mast wrap ≤560px). All verified by lane on real Chrome at 390/768/1440 — zero h-overflow, no layout shift, Esc/outside-click works, :focus-visible on controls.
+- Retasked lane on 4 issues: us_aqi tile ramp (field serves 74–155 → expect mid-band reds not greens), conf-label staleness after param switch, low-count community tiles empty-state, field-map async paint layout-shift.
+- Epoch watch restarted on persistent path (/Users/devin/watch/epoch.log, 40×7min): field 105s fresh, 24 stations, wind 10.9km/h NW, stale:false, 903,058 edges priced.
+
+**State**: live `2ffff50a` · HEAD `39eb928` (undeployed = docs + 3-line CSS) · main `411abe7` · suite 955 green.

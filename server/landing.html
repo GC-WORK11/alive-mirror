@@ -141,6 +141,12 @@ h1 em{font-style:italic;color:var(--ink2)}
 .routeline b{color:var(--ink);font-weight:600}
 .routeline .rdose{font-family:var(--serif);font-size:15px;
   letter-spacing:-.01em}
+.depart{display:flex;align-items:center;gap:14px;margin-top:8px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;
+  color:var(--ink3)}
+.depart:empty{display:none}
+.depart svg{flex:none;display:block}
+.depart b{color:var(--ink);font-weight:600}
 
 /* the districts — every boundary cut, filled by its live cpcb band */
 .dist-sec{padding:34px 0 88px}
@@ -266,6 +272,7 @@ h1 em{font-style:italic;color:var(--ink2)}
     </span>
   </div>
   <div class="routeline" id="routeline"></div>
+  <div class="depart" id="departline"></div>
 </div></section>
 
 <section class="dist-sec"><div class="col">
@@ -573,14 +580,14 @@ $('psel').addEventListener('click',e=>{
   INS=null;$('fpop').hidden=true;
   /* a drawn route stays valid geographically, but the surface + dose basis
      are pm2.5-specific — repaint fresh rather than recolor stale cells */
-  PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';
+  PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';
   paint();
 });
 $('msel').addEventListener('click',e=>{
   const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===MODE)return;
   MODE=b.dataset.m;renderPills();
   INS=null;$('fpop').hidden=true;
-  if(MODE==='inspect'){PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';drawScene()}
+  if(MODE==='inspect'){PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';drawScene()}
   else $('capLeft').innerHTML='Pick two points on the field — the engine prices the corridor between them live.';
 });
 
@@ -661,7 +668,7 @@ $('raster').addEventListener('click',e=>{
   /* a→b — two real points, then the engine answers */
   if(!PT_A||(PT_A&&PT_B)){
     PT_A={lon:toLon(x),lat:toLat(y)};PT_B=null;ROUTE=null;
-    $('routeline').innerHTML='<b>a</b> set — pick the second point';
+    $('routeline').innerHTML='<b>a</b> set — pick the second point';$('departline').textContent='';
     drawScene();return;
   }
   PT_B={lon:toLon(x),lat:toLat(y)};
@@ -670,7 +677,7 @@ $('raster').addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     $('fpop').hidden=true;INS=null;
-    PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';
+    PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';
     drawScene();dtHide();
   }
 });
@@ -684,6 +691,7 @@ async function planAB(){
   const seq=++PLANSEQ;
   const a={...PT_A},b={...PT_B};
   $('routeline').innerHTML='pricing the corridor — <b>live engine call</b>…';
+  $('departline').textContent='';
   try{
     const d=await api('/v2/plan',{method:'POST',
       headers:{'content-type':'application/json'},
@@ -719,11 +727,49 @@ async function planAB(){
         :'')+
       ` · ${o.tag?esc(o.tag)+' · ':''}${opts.length} option${opts.length===1?'':'s'} priced in ${d.took_ms!=null?(d.took_ms/1000).toFixed(1)+' s':'—'}`+
       deg;
+    departAB(a,b,seq);
   }catch(e){
     if(seq!==PLANSEQ)return;
     ROUTE=null;drawScene();
     $('routeline').innerHTML='<b>a→b</b> — the engine call failed; try again';
   }
+}
+
+/* "when to leave" — earned surface: only after a route exists, it asks
+   /depart for the real dose-by-hour curve on the same corridor. hairline
+   polyline + one cpcb-tinted dot per slot (tint = the concentration you'd
+   breathe that hour, same field basis as the raster), best slot ringed.
+   one line of text, honest in every shape the data can take. */
+async function departAB(a,b,seq){
+  try{
+    const d=await api(`/depart?from_lat=${a.lat}&from_lon=${a.lon}`+
+      `&to_lat=${b.lat}&to_lon=${b.lon}&vehicle=car&hours=12`);
+    if(seq!==PLANSEQ)return;
+    const slots=(d.slots||[]).filter(s=>s.dose_ug!=null);
+    if(slots.length<2)return;                     /* nothing to curve — stay silent */
+    const lo=Math.min(...slots.map(s=>s.dose_ug)),hi=Math.max(...slots.map(s=>s.dose_ug));
+    const W=168,H=30,pad=4;
+    const sx=i=>pad+i*(W-2*pad)/(slots.length-1);
+    const sy=v=>hi>lo?H-pad-(v-lo)/(hi-lo)*(H-2*pad):H/2;
+    const bi=d.best&&d.best.hours_ahead!=null?d.best.hours_ahead:-1;
+    const dots=slots.map((s,i)=>{
+      const c=bandCol(s.avg_conc_ugm3!=null?s.avg_conc_ugm3:0,SPECS.pm2_5.breaks);
+      const col=`rgb(${c[0]},${c[1]},${c[2]})`;
+      return i===bi
+        ?`<circle cx="${sx(i)}" cy="${sy(s.dose_ug)}" r="3" fill="${col}" stroke="var(--ink)" stroke-width="1"/>`
+        :`<circle cx="${sx(i)}" cy="${sy(s.dose_ug)}" r="1.7" fill="${col}"/>`;
+    }).join('');
+    const line=`<polyline points="${slots.map((s,i)=>sx(i).toFixed(1)+','+sy(s.dose_ug).toFixed(1)).join(' ')}"`+
+      ` fill="none" stroke="var(--ink3)" stroke-width=".75"/>`;
+    const hh=s=>String(s.start||'').slice(11,16)||'—';
+    const pct=d.pct_less_vs_now;
+    const txt=bi<=0||!(pct>0)
+      ?`<b>now</b> is the light slot — dose climbs to <b>${F1(d.worst&&d.worst.dose_ug)} µg</b> by ${hh(d.worst||{})}`
+      :`leave ~<b>${hh(d.best)}</b> — <b>${Math.round(pct)}%</b> less dose than now`;
+    $('departline').innerHTML=
+      `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="dose by departure hour">${line}${dots}</svg>`+
+      `<span>${txt} · next 12h, same corridor</span>`;
+  }catch(e){if(seq===PLANSEQ)$('departline').textContent='';}
 }
 
 /* --- district chips ------------------------------------------------------ */
