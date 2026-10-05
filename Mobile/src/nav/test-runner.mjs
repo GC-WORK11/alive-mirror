@@ -21,6 +21,14 @@ import { registerHooks } from "node:module";
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+/* `__DEV__` is a compile-time global Metro/babel injects into RN bundles;
+   several modules (shell/net, search/client, a11y) read it bare. Node has
+   no such global — async callbacks that reach it (debounce timers, a11y
+   pass) died with ReferenceError AFTER the suite finished, turning the
+   runner's exit code red despite every test passing. Metro defines it
+   true in dev bundles; mirror that here. */
+globalThis.__DEV__ = true;
+
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "react-native") {

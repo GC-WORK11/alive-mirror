@@ -93,6 +93,35 @@ export type V2Option = {
  *  exactly "metro", so `mode === "metro"` checks were dead before this. */
 export const isTransit = (o: { stations?: unknown }): boolean => o.stations != null;
 
+/** Two rows are the same logical option across /v2/plan responses.
+ *  route_id can never carry a pick across calls — the server mints a
+ *  fresh UUID per response (server/v2/store.py ROUTES.put), so matching
+ *  on it reset every selection to the recommended card each time a plan
+ *  payload landed (the nav-start-pick flag). Identity is the fields
+ *  that make a row a distinct choice: mode, corridor-diverse index,
+ *  the transit leg, and the corridor names. ETA/dose move between calls
+ *  and must not participate; `label`/`engine`/`tag` are recomputed per
+ *  call and only tighten the match without adding identity. */
+export const sameOption = (a: V2Option, b: V2Option): boolean =>
+  a.mode === b.mode &&
+  (a.alternative_index ?? 0) === (b.alternative_index ?? 0) &&
+  (a.stations?.board ?? "") === (b.stations?.board ?? "") &&
+  (a.stations?.alight ?? "") === (b.stations?.alight ?? "") &&
+  JSON.stringify(a.via_names ?? null) === JSON.stringify(b.via_names ?? null);
+
+/** Where the user's pick sits in a NEW option set after a payload swap:
+ *  the same logical option's new index, else 0 — the ranked first card
+ *  is the recommended one, and the recommendation IS the default
+ *  selection (a pick whose option is genuinely gone can't follow it). */
+export const preserveIdx = (
+  prev: V2Option | null | undefined,
+  opts: V2Option[],
+): number => {
+  if (!prev) return 0;
+  const j = opts.findIndex((o) => sameOption(o, prev));
+  return j >= 0 ? j : 0;
+};
+
 /** Legacy name kept for files outside this lane (NavChrome.tsx). */
 export type CompareOption = V2Option;
 

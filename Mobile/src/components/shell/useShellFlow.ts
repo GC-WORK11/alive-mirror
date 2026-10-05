@@ -5,7 +5,7 @@
  * /v2 migration: options come from POST /v2/plan (dose + emissions bands,
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
  * /directions remain — /v2/plan carries no turn steps yet. */
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject, type SetStateAction } from "react";
 import { Keyboard, Platform, UIManager } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
@@ -22,7 +22,7 @@ import { departCurveResult, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
-import { isTransit } from "./types";
+import { isTransit, preserveIdx } from "./types";
 import type { Depart, Place, Step, V2Option } from "./types";
 import { tap } from "../../haptics";
 
@@ -55,8 +55,25 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
   const [editWhich, setEditWhich] = useState<Which>("to");
-  const [options, setOptions] = useState<V2Option[]>([]);
-  const [selected, setSelected] = useState(0);
+  const [options, setOptionsState] = useState<V2Option[]>([]);
+  const [selected, setSelectedState] = useState(0);
+  /* The pick lives in refs written synchronously at the call site —
+     mirroring them in an effect loses any tap that lands between the
+     state commit and the effect run, and a /v2/plan payload can land in
+     exactly that window (the nav-start-pick flag: the pick was reset to
+     the recommended card, which Start then launched). */
+  const pickRef = useRef<{ opts: V2Option[]; sel: number }>({ opts: [], sel: 0 });
+  const setOptions = useCallback((opts: V2Option[]) => {
+    pickRef.current = { ...pickRef.current, opts };
+    setOptionsState(opts);
+  }, []);
+  const setSelected = useCallback((i: SetStateAction<number>) => {
+    pickRef.current = {
+      ...pickRef.current,
+      sel: typeof i === "function" ? i(pickRef.current.sel) : i,
+    };
+    setSelectedState(i);
+  }, []);
   const [depart, setDepart] = useState<Depart>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [community, setCommunity] = useState<CommunityTotals | null>(null);
@@ -70,8 +87,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [planDegraded, setPlanDegraded] = useState<string[]>([]);
   const [planNonce, setPlanNonce] = useState(0);
   const [planField, setPlanField] = useState<FieldStatus | null>(null);
-  const pickRef = useRef<{ opts: V2Option[]; sel: number }>({ opts: [], sel: 0 });
-  useEffect(() => { pickRef.current = { opts: options, sel: selected }; }, [options, selected]);
   const [strips, setStrips] = useState<Record<string, RouteStrip>>({});
   const [departCurve, setDepartCurve] = useState<DepartCurve | null>(null);
   const [vehicle, setVehicle] = useState<VehicleProfile | null>(null);
@@ -166,10 +181,13 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         let fullDone = false;
         let fitDone = false;
         const show = (opts: V2Option[], field: FieldStatus | null | undefined) => {
-          // keep the user's pick across the swap when the same route survives
-          const rid = pickRef.current.opts[pickRef.current.sel]?.route_id;
-          const j = rid ? opts.findIndex((o) => o.route_id === rid) : -1;
-          setOptions(opts); setSelected(j >= 0 ? j : 0);
+          /* keep the user's pick across the swap — by option identity,
+             never route_id (the server mints a fresh UUID per /v2/plan
+             response, so id-matching reset every pick to the recommended
+             card the moment the full plan landed). preserveIdx falls
+             back to 0 = ranked first = the recommended default. */
+          const j = preserveIdx(pickRef.current.opts[pickRef.current.sel], opts);
+          setOptions(opts); setSelected(j);
           setPlanField(field ?? null);
           // per-route PM2.5 strips → the gradient tint resolves from flat
           // dose-mean into real along-route colour as each lands (cached
@@ -250,7 +268,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
       } finally { if (!cancelled) setLoadingRoute(false); }
     })();
     return () => { cancelled = true; setRefining(false); };
-  }, [phase, from, to, vehicle, vehicleLoaded, planNonce, camRef]);
+  }, [phase, from, to, vehicle, vehicleLoaded, planNonce, camRef, setOptions, setSelected]);
 
   /** Error retry — re-runs the compare effect. */
   const retryPlan = useCallback(() => setPlanNonce((n) => n + 1), []);
@@ -308,7 +326,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     setSteps(null); setStepsOpen(false); setStrips({});
     setPlanError(null); setPlanField(null); setPlanDegraded([]);
     setPhase("idle"); setFollow(false);
-  }, []);
+  }, [setOptions]);
 
   /* ---- navigation phase transitions; the live engine (src/nav) owns
      the watcher, strip, counters, off-route + arrival — nothing here
