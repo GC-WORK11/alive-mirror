@@ -587,3 +587,14 @@ Truth anchors first: **`docs/plan/NUMBERS.md` is the canonical numbers ledger** 
 - **Suite**: 1077 passed + 5 skipped on ec51c88; affected tests green on 5a9503e/e80a956. **Live `e80a9568`** (16 districts incl. Noida verified), main `6763b37` no-ff.
 - **Board (5/5 Max)**: lead + app-rebuild `dc8eda93` (lifestyle-dosimeter home, Mobbin mandate — travel is a feature not the app) + offline `fff9863f` + rehearsal2 `b43dce85` + squash `b9d337e8` (public-repo.sh dry-run for demo morning).
 - Owner's updated product direction: app = lifestyle dosimeter (living/going-out/staying/travelling), travel = feature inside it; admin keeps the look but must explain itself; FOMO felt not stated; Mobbin/Dribbble is the bar.
+
+## cont.31 — 2026-10-05 ~17:20 UTC (lead session 93b8804d)
+
+Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in flight):
+- `cfbd455` landing ledger-hero: h1 "A ledger for your lungs", live 3.5-cig/day breath figure, recorded-day strip (/today climatology, now-hour inked), never-existed beat ≤2 lines w/ live numbers, MG/M³ casing bug fixed (1000× wrong on live claim).
+- `8bc8e37` community plain-English: "We can't leak what we never take" legible, k≥3→"3 different phones", corridors→street stretches, donation-after warmth, 416 test updates.
+- `a26fb4e` offline honesty (venue-wifi gauntlet, all verified on device): receipt "added anonymously" LIE fixed → "saved — will send when back online"; DAY AHEAD cache-poison refusal; Delhi-today skeleton hang fixed via linkSignals; stale serves carry real accumulated age; demo-day.md connectivity plan (works-zero-net vs needs-net tables).
+- `14bb17b0` deploy verified live: /v2/day decisions fallback speaks ("no meaningful window today — moderate air all day").
+- Lanes settled+terminated: landing 953f70c9, community 847a46b2, offline fff9863f.
+- Spawned: apk-drive 5b7bc306 (new-home device smoke + fresh owner APK), city-legible 3152b130, self-grade 6ffe2f2a (/v2/skill — product publishes its own accuracy, never-done artifact).
+- Running: app-rebuild dc8eda93 (lifestyle dosimeter home — Mobbin mandate, THE priority).
