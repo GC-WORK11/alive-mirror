@@ -546,3 +546,12 @@ All 10 findings closed + deployed + verified live:
 - Deploy note: `6e4a26a` (admin-chrome-off-landing + tilt) verified first — landing now carries ZERO /admin references, /admin still serves 200 directly.
 - Suite: 958 passed + 5 skipped on 04a9395 (382s); main merged 85132e9.
 - Loop state: internals lane (63bd2eb9) still mid-run on dose-math-vs-published + load + fuzz. Admin lane follow-ups sent (null-param legend guard + per-species trend honesty naming).
+
+## cont.27 — internals lane batch 1: dose math re-anchored to Delhi literature
+
+- **Real math bug found + fixed (d3f48d7)**: published-source audit showed every open/shared mode below the measured band → dose understated 12–40%. MICROENV re-anchored: walk 1.00→1.30 (Goel et al. 2015 Atmos Environ 123:129-138 fixed-arterial exceedances, discounted ~7% for CAAQMS roadside blend), open car/cab 0.80→1.00, bus 0.70→0.90, 2W 1.10→1.20, auto 1.15→1.30 (Apte et al. 2011 in-rickshaw 1.46). VENTILATION seated tier 7.5–9.0→10.0–10.5 L/min (Zuurbier 2009 measured ~10-11; EPA EFH 9–16); cycle/car ratio now 2.2× = measured 2.1×. Synced ALL copies: exposure.py, routegraph.MODE_ME/VE, core/src/path.cpp kModeVE/kModeME, Mobile counters.ts ME_VE, transit.py provenance, admin_agg citations, plan.py/segments.py/alive_core_ref.py fallbacks.
+- **Demo impact**: mode gaps WIDEN — walk dose ~+30% on the same corridor; car-AC unchanged → "car vs walk" goes from ~34–42× toward ~45×. demo-script.md numbers MUST be re-verified after this deploys (they were measured pre-fix).
+- **Contract drift fix (067daae)**: served-but-undeclared wire keys now declared in Bridge/contract.ts (DoseBand.peak_conc etc.) — Mobile can't drift into keys the contract doesn't promise.
+- **Atomic writes (a38ade7)**: store_blob local path + S3 mirror_local + sync_rollup_outputs were open(lp,'wb') — mid-write crash could leave a torn newest .json.gz silently forcing an older field. Shared _atomic_write helper (tmp+os.replace); torn-write test proves no partial + cleanup.
+- Touched-area tests: 190 green on the batch (exposure_v2, priced_displayed, parity_dose, admin_agg, contract_sync, emissions, rollup_lambda, ingest×3, 63s).
+- Lane still mid-run: sustained 12-way load table, endpoint fuzz, envelopes/hygiene, freshness/TTL audit remain.
