@@ -337,6 +337,17 @@ def _decisions(hours: list, day: dict, mean: float) -> list:
             "label": "windows open",
             "line": "open %s; shut from ~%s IST"
                     % (_fmt_window(clean), heavy["start_label"])})
+
+    if not ds:
+        # a non-flat day can still fail to grow a >=2 h run on either
+        # side (a rising evening remainder, a jagged afternoon) — the
+        # card still owes the extrema in plain words; it never goes
+        # silent while hours remain
+        ds.append({
+            "label": "today",
+            "line": ("no sustained window today — lightest reads "
+                     "%.0f µg/m³, heaviest %.0f"
+                     % (day["day_min"], day["day_max"]))})
     return ds
 
 

@@ -24,7 +24,14 @@ cold-start wart. Verified on the fresh task: `/health` now carries a
 ~4 min in. The wart is FIXED on builds ≥ c3d9c11 — it can still regress
 on older images. Also observed during the deploy window: a `/v2/strip`
 call on a route_id minted pre-swap 404s (route store is per-task,
-in-memory) — re-mint plan→strip pairs after any task replacement.]*
+in-memory) — re-mint plan→strip pairs after any task replacement.
+~16:20 UTC refresh pass: `/health` `build_sha` is `cb862533` (matches the
+deployed image tag) while `/admin/api/status` still stamps `ec51c882` —
+the BUILD_SHA wart is live again on this revision. The field archive
+began recording 2026-10-05 20:00 IST (`/v2/archive` → 2 snapshots so far,
+hours 0–19 honestly absent); the /city 'what happened' recorded-vs-
+forecast flip is committed (`4ad9e0c`) but NOT deployed — it rides the
+next image; verify it exists before narrating it.]*
 Newer commits on `base/v2` ride
 the next image. Every
 number below was read off the running service — they drift with the
@@ -70,7 +77,7 @@ Google gives travel time; an AQI site gives one city number — both answer
 the µg you actually inhale per route option — dose = concentration field
 sampled every ~250 m of the polyline × mode ventilation × time, plus a
 micro-environment factor (a sealed AC car vs walking the same trip
-measures ~33× today — CP→Gurugram 7.8 vs ~259 µg; re-check T-45,
+measures ~33× today — CP→Gurugram ~10 vs ~335 µg; re-check T-45,
 `scripts/verify_numbers.sh`). Your trips receipt
 into an on-device ledger; `GET /v2/day` names today's heavy stretch and
 least-bad hours as decisions; `GET /v2/reach` draws where a 25 µg walk
@@ -112,8 +119,9 @@ edges (903,058 priced; 2-zone OSM merge, Delhi+Haryana+UP side): each
 edge's cost is
 the inhaled dose for the queried mode (field concentration × microenv
 × road uplift × ventilation × dwell), re-priced off a raster of the
-live kriged field. A rehearsed query answers in ~0.6 s server-side
-(fresh unseen ODs 2–7 s) and returns real street
+live kriged field. A rehearsed query answers in ~1–2 s server-side
+(fresh unseen ODs ~6 s; a cold reprice can wall-clock ~9.5 s) and returns
+real street
 sequences (`via_names`, snap distances) — and every option row's dose
 is integrated on the SAME raster the pathfinder minimized over, so
 the number shown is the exact criterion the path won on. Routes within
@@ -127,8 +135,8 @@ one blessed path.
 `/grid` answers are pure functions of the data's own epochs (field
 fetch time, forecast fetch time, community obs version) — repeated
 paints replay in ~12 ms and can never serve stale data because the
-cache key IS the data version; gzip takes the 235 KB layer to ~11 KB
-on the wire (~0.5 s end-to-end from India).
+cache key IS the data version; gzip takes the ~126 KB layer to ~9–11 KB
+on the wire (~0.5–0.9 s end-to-end from India).
 
 **"Street-wise how deep does the data go?"**
 The search index is built from the real OSM northern+central zone
@@ -231,6 +239,11 @@ Open `/admin` (token in Secrets Manager `alive108/admin-token`):
   reads "breathed X µg · rides put out Y g per 100 m"
 - **day-by-day trips strip**: every recorded day as a bar (trips),
   hover carries that day's km/dose/CO₂ — aggregate day counters only
+- **the field archive**: `/v2/archive` replays the recorded field hour
+  by hour — snapshots land hourly to S3 (`/admin/api/status` shows
+  `archive.snapshots_total` + `since_ist`); hours with no snapshot are
+  honest gaps, never back-filled. The /city 'what happened' flip paints
+  recorded hours over the forecast — committed but rides the next image
 - **live feed**: the newest donations ticking in (ago · mode · dose ·
   km · co₂) — donate a trip on stage and watch it land in the next
   30 s refresh. Aggregate-level events only: the feed can say a trip
@@ -442,19 +455,30 @@ command; read the FLAGS block; canonical ledger: `docs/plan/NUMBERS.md`.
   31–45× this week). Say the range, not a bare "35×": if a judge hits
   `/v2/plan` during a quiet field hour it may read 28× and we'd be
   caught in a fake-constant.
-- [ ] **The ladder** — car-AC vs walk mids move with the field (today
-  7.8 / ~259 µg). Read the verifier's dose table; narrate "about 8 vs
-  about 260" unless the morning reads differently.
+- [ ] **The ladder** — car-AC vs walk mids move with the field (tonight
+  ~10 / ~335 µg). Read the verifier's dose table; narrate "about ten vs
+  about three hundred thirty-five" unless the morning reads differently.
 - [ ] **Day windows** — `heavy_window`/`cleanest_window` can be `null`
   while `decisions[]` still carry the story ("no clean slot left today
-  — lightest is 68"). If null on stage, read the decisions strings —
-  that's the designed fallback, not a bug.
+  — lightest is 68"). On build `cb862533` a non-flat no-window evening
+  can return `decisions: []` outright (a rising remainder grows no ≥2 h
+  run on either side) — the plain-words fallback is fixed in code and
+  rides the next image. If `decisions` is empty on stage, read `hours[]`
+  + `day_mean_pm25` out loud: "lightest ~78 now, heaviest ~105 by
+  23:30, day mean ~90 — no sustained window left."
 - [ ] **Fires/modifier** — `fires` swings daily (33 → 70 → 79 this
-  week); `smoke_modifier` can be absent (`null`) at CP — if so, say
-  "fires feed the field" without a multiplier.
-- [ ] **Options count** — drifts 16–20 as GTFS transit rows come and
-  go. If `metro+walk`/`bus` rows are absent at T-45 (`degraded`
-  present), the road-mode rows alone still carry the spread line.
+  week; still 79/17 tonight); `smoke_modifier` can be absent (`null`) at
+  CP — if so, say "fires feed the field" without a multiplier.
+- [ ] **The archive** — `/v2/archive` has been recording hourly since
+  Oct 5 20:00 IST (2 snapshots at last check; dozens by demo morning).
+  `?day=` takes `YYYY-MM-DD` only — bare `/v2/archive` serves today. If
+  the 'what happened' flip shipped before stage, /city paints recorded
+  hours over forecast and unrecorded hours say "no snapshot" — the
+  honest-gap story is the beat.
+- [ ] **Options count** — drifts 16–22 as GTFS transit rows come and
+  go (22 tonight). If `metro+walk`/`bus` rows are absent at T-45
+  (`degraded` present), the road-mode rows alone still carry the spread
+  line.
 - [ ] **build_sha** — `/health` and `/admin/api/status` can disagree
   (BUILD_SHA lag wart). Say the ECR image tag or "the build from this
   afternoon", never the stamp.
@@ -462,8 +486,8 @@ command; read the FLAGS block; canonical ledger: `docs/plan/NUMBERS.md`.
   today; both thin out after a cold task (~16 / ~41) and recover over
   ~60 min. If you redeployed inside the window, say "recovering to".
 - [ ] Reach km figures (`distance_km`) drift hour to hour — if quoted,
-  stamp them: "a 25 µg walk budget reached ~131 km of street at
-  nine this morning".
+  stamp them: "a 25 µg walk budget reached ~98 km of street this
+  evening".
 
 ## iOS sim specifics (only if showing iOS on stage)
 

@@ -259,7 +259,15 @@ export function useNavEngine(opts: NavEngineOpts) {
            private-motor trips (it's a property of the emissions
            estimate — meaningless on metro/walk/cycle). */
         ...(routeRef.current.worstDoseUg != null
-          ? { avoided_ug: Math.max(0, Math.round((routeRef.current.worstDoseUg - s.doseUg.mid) * 10) / 10) }
+          ? {
+              avoided_ug: Math.max(0, Math.round((routeRef.current.worstDoseUg - s.doseUg.mid) * 10) / 10),
+              /* "switched to a lighter option" — this trip's measured
+                 dose landed under the heaviest option the plan offered.
+                 Sent only when a real alternative existed; the
+                 donations/admin "switched" counters stay honest-0 when
+                 there was nothing to switch from. */
+              switched: routeRef.current.worstDoseUg - s.doseUg.mid > 0,
+            }
           : {}),
         ...(routeRef.current.worstCo2Kg != null
           ? { co2_avoided_kg: Math.max(0, Math.round((routeRef.current.worstCo2Kg - s.co2Kg.mid) * 1000) / 1000) }

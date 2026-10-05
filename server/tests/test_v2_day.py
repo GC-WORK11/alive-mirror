@@ -213,3 +213,14 @@ def test_short_day_honest():
     s = v2day.summarize_day(_mk_hours([150.0, 160.0]))
     assert s["heavy_window"] is None and s["cleanest_window"] is None
     assert "left on the card" in s["decisions"][0]["line"]
+
+
+def test_no_window_still_speaks():
+    """A non-flat remainder where neither side grows a >=2 h run (a
+    steadily rising evening) used to return decisions:[] — the card
+    must never go silent while hours remain."""
+    s = v2day.summarize_day(_mk_hours([78.1, 87.1, 105.5]))
+    assert s["heavy_window"] is None and s["cleanest_window"] is None
+    assert s["decisions"], "no-window day went silent"
+    assert "lightest" in s["decisions"][0]["line"]
+    assert "78" in s["decisions"][0]["line"]

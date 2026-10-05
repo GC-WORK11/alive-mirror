@@ -103,9 +103,12 @@ _BOUNDS = {
     "co2_avoided_kg": (0.0, 200.0),
 }
 CO2_SPLIT_KEYS = ("co2_moving_g", "co2_idle_g", "co2_cold_g")
-# A mode is a vehicle-class token — word characters and spaces only.
+# A mode is a vehicle-class token — word characters, spaces and '+'.
 # Anything carrying markup or punctuation can never reach mode_share.
-_MODE_RE = re.compile(r"^[a-z][a-z0-9_\- ]{0,23}$")
+# '+' is in the class because the planner itself emits multimodal modes
+# ("metro+walk" in plan.py) — the server's own vocabulary must not be
+# dropped on the way back in.
+_MODE_RE = re.compile(r"^[a-z][a-z0-9_\- +]{0,23}$")
 
 try:
     import h3 as _h3

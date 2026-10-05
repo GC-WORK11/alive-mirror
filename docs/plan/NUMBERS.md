@@ -6,9 +6,10 @@ Run `scripts/verify_numbers.sh` to re-derive all of it live. It GETs the
 endpoints (plus the one allowed `POST /v2/plan`), prints each figure's current
 value beside the surfaces quoting it, and flags contradictions. Every number
 below was re-derived from a live response or a committed artifact on
-**2026-10-05 ~15:00 UTC** (`/health` `build_sha: 07cadfdd`; a deploy landed
-mid-audit — previous reads an hour earlier were `ad9367d5`, which is exactly
-why this file exists).
+**2026-10-05 ~16:20 UTC** (`/health` `build_sha: cb862533` — matching the
+deployed image tag; `/admin/api/status` still stamps `ec51c882`, so the
+BUILD_SHA wart is live again. Earlier same-day audit: `07cadfdd`, with
+`ad9367d5` an hour before it — the churn is exactly why this file exists).
 
 Baseline for the demo OD: **Connaught Place (28.6315, 77.2167) → Gurugram
 (28.495, 77.089)** — same OD as `scripts/smoke_live.sh`.
@@ -71,38 +72,40 @@ Baseline for the demo OD: **Connaught Place (28.6315, 77.2167) → Gurugram
 
 ## 2 · Drift-prone (re-check T-45; never pin)
 
-Live reads **2026-10-05 ~15:00 UTC**, build `07cadfdd`. Ranges observed across
+Live reads **2026-10-05 ~16:20 UTC**, build `cb862533`. Ranges observed across
 the week are in the notes column — quote the range, not the point.
 
 | figure | now | observed swing | surfaces quoting it |
 |---|---|---|---|
 | stations live (WAQI) | **24** | 16 (cold task) → 24 | README, demo-day, writeup |
 | model samples | **71** | ~41 cold → ~72 | demo-day, video-shotlist, writeup |
-| field age | **~8 min** (458 s) | 3–11 min | demo-script, writeup |
+| field age | **~14 min** (825–831 s) | 3–14 min | demo-script, writeup |
 | fires total / in-belt | **79 / 17** | 33 → 70 → 79 (daily) | demo-day, video-shotlist, HANDOFF |
 | smoke modifier @CP | **×1.09** | absent ↔ ×1.27 | demo-day, video-shotlist |
-| PM2.5 @CP breathing / ambient | **74.7 / 68.5 µg/m³** | 59–75 breathing | demo-script |
-| US AQI @CP | **158** | ~150–160 | demo-script |
-| wind | **0.6 km/h from 108°** | 0.6–7.3 km/h | demo-script |
-| plan options (demo OD) | **18** | 16 → 20 → 18 (transit rows drop on cold GTFS) | writeup, repo-readme, demo-script |
-| plan `took_ms` | **760 warm / ~6,300 cold** | 0.5–0.8 s warm; 2–8 s unseen OD; one 60 km call hit the 20 s budget | demo-day, demo-script |
-| **dose ladder, demo OD (mid µg)** | car-AC **7.8** · car-open **14.2** · bike **17.9** · bus **20.4** · auto **23.1** · metro+walk **33.0** · bus-GTFS **80.3** · cycle **114.7** · walk **258.8** | walk has run 190–296; car 2.9–8.6 | every surface |
-| **spread walk÷car** | **33.2×** (slowest/best **36.7×**) | **31–45×** across ODs all week | demo-day, writeup, judges-faq, shotlist, pitch |
-| annualized (landing, live-rendered) | **129 mg walk vs 3.9 mg car** | 129–148 mg vs 3.9–4.3 mg | landing.html (`mid × 2 legs × 250 days ÷ 1000`), pitch |
-| `/v2/day` heavy window | **22:30 IST → day end, ~122 µg/m³** | onset 21:30–22:30; peak 122–247 | writeup, repo-readme, shotlist |
-| `/v2/day` cleanest window | **none today** ("no clean slot left — lightest is 68") | some days 17:30–19:30 ~94 | writeup, repo-readme |
-| `/v2/day` day mean | **103.3 µg/m³** | 103–177 | writeup, repo-readme |
-| `/depart` now → worst | **22.9 → 94.0 µg (4.1×)** | 4.1–8.3× | writeup |
-| `/v2/city` next_hours pm25 | **68.5 → 205.1** | ~76 → 231 evening peak | writeup |
-| `/v2/reach` walk @25 µg | **3,020 edges / 131.5 km** | 2,473–4,200 edges | writeup, repo-readme, shotlist |
-| `/v2/reach` walk @50 µg | **10,756 / 576.1 km** | 9,524–15,100 | same |
-| `/v2/reach` car @25 µg | **958,267 / 86,879 km** (partial — hit 2M cap; paints nearest 90,000) | 86,879–94,000 km | same |
-| `/v2/reach` car @50 µg | 1,029,263 / 99,503 km (partial) | — "90,503 km" and "706 km" were earlier reads of this family | pitch, shotlist |
+| PM2.5 @CP breathing / ambient | **85.2 / 78.1 µg/m³** | 59–85 breathing | demo-script |
+| US AQI @CP | **163** | ~150–163 | demo-script |
+| wind | **3.1 km/h from 126°** | 0.6–7.3 km/h | demo-script |
+| plan options (demo OD) | **22** | 16 → 20 → 22 (transit rows drop on cold GTFS) | writeup, repo-readme, demo-script |
+| plan `took_ms` | **~1,700 warm / ~6,100 cold** | 0.5–1.7 s warm; 2–8 s unseen OD; one 60 km call hit the 20 s budget | demo-day, demo-script |
+| **dose ladder, demo OD (mid µg)** | car-AC **10.1** · car-open **18.3** · bike **23.2** · bus **26.4** · auto **29.9** · metro+walk **38.7** · bus-GTFS **60.8** · cycle **148.3** · walk **334.6** | walk has run 190–360; car 2.9–11.7 | every surface |
+| **spread walk÷car** | **33.1×** (slowest/best **35.6×**) | **31–45×** across ODs all week | demo-day, writeup, judges-faq, shotlist, pitch |
+| annualized (landing, live-rendered) | **167 mg walk vs 5.0 mg car** | 129–167 mg vs 3.9–5.0 mg | landing.html (`mid × 2 legs × 250 days ÷ 1000`), pitch |
+| `/v2/day` heavy window | **null tonight** — rising evening remainder, no ≥2 h run either side | null ↔ onset 21:30–22:30; peak 105–247 | writeup, repo-readme, shotlist |
+| `/v2/day` cleanest window | **null tonight** | null ↔ 17:30–19:30 ~94 | writeup, repo-readme |
+| `/v2/day` decisions | **`[]` on build cb862533** when both windows are null (plain-words extrema fallback fixed in code, rides next image) | — | writeup, shotlist |
+| `/v2/day` day mean | **90.2 µg/m³** | 90–177 | writeup, repo-readme |
+| `/depart` now → worst | **29.8 → 92.1 µg (3.1×)** | 3.1–8.3× | writeup |
+| `/v2/city` next_hours pm25 | **79.0 → 195.4** | ~76 → 231 evening peak | writeup |
+| `/v2/reach` walk @25 µg | **2,293 edges / 98.1 km** | 2,293–4,200 edges | writeup, repo-readme, shotlist |
+| `/v2/reach` walk @50 µg | **8,927 / 448.8 km** | 8,927–15,100 | same |
+| `/v2/reach` car @25 µg | **835,831 / 69,527 km** (partial — hit 2M cap; paints nearest 90,000) | 69,527–94,000 km | same |
+| `/v2/reach` car @100 µg | 1,029,263 / 99,503 km (partial) | the 2M-state cap binds before budget does — @50/@100 converge to the same frontier | pitch, shotlist |
 | corridors publishable / tracked | **10 / 54** | grows with donations | writeup, shotlist, demo-day |
-| community ledger | 24 h: **5 obs / 14.3 km / 234.3 µg avoided** · all-time: **19 obs / 12 contributors / 333.5 µg avoided** | drifts with donations | writeup, demo-script, admin |
-| breath a day (mid) | **735 µg (≈2.33 cig)** | ~550–735 | shotlist |
-| `/v2/outlook` today | **103.3 µg/m³ mid, Poor** | — | — |
-| build_sha | **`07cadfdd`** on `/health`; `/admin/api/status` may lag/lead it | wart — see below | go-nogo, demo-day |
+| community ledger | 24 h: **4 obs / 12.9 km / 137.3 µg avoided** · all-time: **19 obs / 12 contributors / 333.5 µg avoided** | drifts with donations | writeup, demo-script, admin |
+| breath a day (mid) | **944 µg (≈2.99 cig)** | ~550–944 | shotlist |
+| `/v2/outlook` today | **90.2 µg/m³ mid, Moderate** (heavy hour ~23:30 IST) | band flips Moderate↔Poor | — |
+| field archive | **2 snapshots** since 2026-10-05 20:00 IST (hours 20,21 recorded; 0–19 honest gaps) — grows hourly | — | shotlist, admin |
+| build_sha | **`cb862533`** on `/health`; `/admin/api/status` reads `ec51c882` — wart is live | wart — see below | go-nogo, demo-day |
 
 ### the build_sha wart
 
@@ -117,19 +120,20 @@ knowing which is which.
 ## 3 · The derived claims, verified
 
 ### "35×" — the dose gap
-`POST /v2/plan` demo OD today: best walk 258.8 µg ÷ best car-AC 7.8 µg =
-**33.2×**; slowest-vs-best = 36.7×. Earlier reads on this OD: 31× (Oct 1),
-~33–35× (Oct 5 am), 32.7× and 38.5× on two other ODs. **Honest phrasing:
-"~35× on a Delhi commute" / "about thirty-five times"** — the range brackets
-it and it's what the claims-ledger allows. Never say a bare "35×" as if fixed.
+`POST /v2/plan` demo OD tonight: best walk 334.6 µg ÷ best car-AC 10.1 µg =
+**33.1×**; slowest-vs-best = 359.9 ÷ 10.1 = 35.6×. Earlier reads on this OD:
+33.2× (Oct 5 afternoon), 31× (Oct 1), ~33–35× (Oct 5 am), 32.7× and 38.5× on
+two other ODs. **Honest phrasing: "~35× on a Delhi commute" / "about
+thirty-five times"** — the range brackets it and it's what the claims-ledger
+allows. Never say a bare "35×" as if fixed.
 
 ### "148 mg vs 4.3 mg a year"
 `landing.html` computes `mid × 2 × 250 ÷ 1000` mg from the live plan response
-— "five round-trips a week for a year". With today's ladder that renders
-**129 mg vs 3.9 mg** (walk 258.8, car 7.8). The 148/4.3 figure was a read when
-walk ≈296 / car ≈8.6. The copy is **live-rendered so it never lies** — but
-note the math reads 250 days ≈ 50 weeks, a ~4% conservative understatement of
-"5 round-trips/week × 52"; fine as-is (conservative direction), just know it.
+— "five round-trips a week for a year". With tonight's ladder that renders
+**167 mg vs 5.0 mg** (walk 334.6, car 10.1). The 129/3.9 figure was a read
+when walk ≈259 / car ≈7.8. The copy is **live-rendered so it never lies** —
+but note the math reads 250 days ≈ 50 weeks, a ~4% conservative understatement
+of "5 round-trips/week × 52"; fine as-is (conservative direction), just know it.
 
 ### "3,550 station-hours"
 Real: `field_validation.md` headline — 3,550 station-hour pairs over 85
@@ -137,16 +141,16 @@ stations on the clean post-monsoon window. Not a live number; cite the file.
 
 ### "90,503 km reachable" / corridor "706 km"
 Neither string appears in the repo — they were earlier `/v2/reach`
-`distance_km` reads (auto@100 read 90,406 km; car@50 today 99,503 km partial).
-Today's reads: walk@25 → **131.5 km**, walk@50 → **576.1 km**, car@25 →
-**86,879 km** (partial). Rule: never quote a reach km figure without its
-mode+budget+timestamp — it breathes with the field.
+`distance_km` reads (auto@100 read 90,406 km; car@100 tonight 99,503 km
+partial). Tonight's reads: walk@25 → **98.1 km**, walk@50 → **448.8 km**,
+car@25 → **69,527 km** (partial). Rule: never quote a reach km figure without
+its mode+budget+timestamp — it breathes with the field.
 
 ### "~N options priced in N s"
 `landing.html` line ~1086 renders `opts.length` and `took_ms` from the live
-response — honest by construction. Today: 18 options, 0.76 s warm (6.3 s cold
-after the fresh deploy). Cold-start fragility is real for GTFS transit rows —
-verify the count T-45.
+response — honest by construction. Tonight: 22 options, ~1.7 s warm (~6.1 s
+server-side right after a reprice, ~9.5 s wall over the NLB). Cold-start
+fragility is real for GTFS transit rows — verify the count T-45.
 
 ---
 
@@ -165,6 +169,10 @@ verify the count T-45.
 | master-plan L15 | "16,952 address rows", "124,334-row gazetteer" | **16,949** / **124,311** | corrected |
 | judges-faq L32 | "walk ~190–212 µg / car ~6 (~33×)" | **~259 / ~8 (~33× today)** | refreshed |
 | HANDOFF.md / plan/handoff.md | dated session logs ("33 fires", "101.2 µg median") | point-in-time records | left — dated logs are snapshots, not claims |
+| demo-day L73 + shotlist beats 3–4 (refresh pass 2026-10-05 ~16:20 UTC, build `cb862533`) | "7.8 vs ~259 µg", options "16–20", reach "~131 / ~576 / ~86,879 km", breath "~735 µg", day windows "~22:30→end ~122, lightest 68, mean 103" | ~10.1 vs ~334.6 µg (33.1×), **22** options, reach 98.1 / 448.8 / 69,527 (car@100 → 99,503) km, breath **944 µg**, both windows **null** (rising evening — no ≥2 h run), mean 90.2 | refreshed to live + stamped |
+| `/v2/day` on `cb862533` | docs said `decisions[]` carries the story when windows are null | live returns `decisions: []` on a non-flat no-window remainder — the fallback didn't exist | **code fix**: `server/v2/day.py` `_decisions` gains a plain-words extrema line (`test_no_window_still_speaks`); rides the next image |
+| `/v2/trip` mode sanitizer | `_MODE_RE` allowed `a-z0-9_\- ` only | planner emits `metro+walk` — its own token got dropped (live donations show `"unknown": 2`) | **code fix**: `+` added to the class (`test_trip_mode_metro_plus_walk_survives`) |
+| `/v2/trip` `switched` wire | ledger/admin count "trips switched lighter" | app sent `avoided_ug` but never `switched` — stat dead at 0 forever | **code fix**: `Mobile/src/nav/engine.ts` sends `switched` when the plan offered a real worst-dose alternative |
 
 ---
 

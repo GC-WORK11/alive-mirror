@@ -450,6 +450,21 @@ def test_trip_then_city_shows_aggregates_only():
     assert day["trips"] == 3 and day["modes"] == {"cycle": 3}
 
 
+def test_trip_mode_metro_plus_walk_survives():
+    """The planner itself emits 'metro+walk' as an option mode — a
+    donation carrying the server's own token must not have its mode
+    silently dropped by the summary regex."""
+    client.post("/v2/trip", json={
+        "device_token": "mmw1",
+        "summary": {"mode": "metro+walk", "distance_km": 9.0,
+                    "dose_ug": 38.7},
+        "trajectory": [[77.20 + i * 0.0011, 28.63]
+                       for i in range(50)]})
+    trips = client.get("/v2/city").json()["trips"]
+    day = trips["days"][time.strftime("%Y-%m-%d", time.gmtime())]
+    assert day["modes"].get("metro+walk") == 1, day["modes"]
+
+
 # --- DELETE /v2/ledger ---------------------------------------------------------
 def test_ledger_delete_requires_token():
     """'Delete my data' takes a device token — no token, no scoped wipe,
