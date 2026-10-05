@@ -41,6 +41,7 @@ variant — same stations, shaped (lat, lon, name, {"pm2_5": v}) to slot
 into AirField._debias exactly like _grab_stations' rows.
 """
 import asyncio
+import concurrent.futures
 import math
 import os
 import time
@@ -61,6 +62,7 @@ MAX_ATTEMPTS = 3           # initial try + 2 retries on 429/over-quota
 BACKOFF_BASE_S = 5.0
 BACKOFF_CAP_S = 60.0
 FEED_SEM = 12              # concurrent feeds in grab_async
+FEED_PARALLEL = 8          # concurrent feeds in fetch() — under FEED_SEM
 
 # Pollutants we keep — WAQI iaqi names. `iaqi.<p>.v` is NOT µg/m³: it is
 # each pollutant's Individual AQI sub-index on the US-EPA scale
@@ -336,17 +338,46 @@ def fetch(api_key=None, client=None, bbox=BBOX, sleep=time.sleep) -> dict:
                     "fetched_at": time.time(), "stations": [], "obs": [],
                     "skipped": skipped, "requests": stats["requests"]}
         obs, errs = [], []
-        for meta in sorted(metas, key=lambda m: m["uid"])[:MAX_FEED]:
+        feed_metas = sorted(metas, key=lambda m: m["uid"])[:MAX_FEED]
+
+        def _one_feed(meta):
+            """One /feed/@uid leg -> (obs, err, per-call stats, skipped).
+            Per-call stat/skipped dicts merge deterministically after the
+            map — integer sums don't care about completion order."""
+            st = {"requests": 0, "responses": 0, "retries_429": 0}
+            sk = {"no_pm25": 0, "bad_value": 0, "bad_ts": 0,
+                  "http_error": 0}
             try:
                 r = _get(c, f"{WAQI}/feed/@{meta['uid']}/",
-                         {"token": key}, sleep, stats)
+                         {"token": key}, sleep, st)
                 j = r.json()
                 _check_status(j)
-                obs.extend(_obs_from_feed(meta["uid"], meta, j, skipped))
+                return _obs_from_feed(meta["uid"], meta, j, sk), \
+                    None, st, sk
             except (_SourceDown, httpx.HTTPError, ValueError) as e:
-                skipped["http_error"] += 1
-                errs.append(str(e)[:120])
-                continue
+                sk["http_error"] += 1
+                return [], str(e)[:120], st, sk
+
+        # ~40-64 serial feed calls were the ingest loop's biggest
+        # wall-time leg (~1s+ per call healthy, ~15s+ each under 429
+        # backoff). Bounded parallel map — same concurrency class as
+        # grab_async's FEED_SEM=12, and map order == uid order so obs
+        # ordering is identical to the serial version.
+        workers = min(FEED_PARALLEL, len(feed_metas))
+        if workers > 1:
+            with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=workers) as ex:
+                feed_results = list(ex.map(_one_feed, feed_metas))
+        else:
+            feed_results = [_one_feed(m) for m in feed_metas]
+        for o, err, st, sk in feed_results:
+            obs.extend(o)
+            if err is not None:
+                errs.append(err)
+            for k in stats:
+                stats[k] += st[k]
+            for k in skipped:
+                skipped[k] += sk[k]
         if metas and not obs and errs:
             return {"status": f"unavailable: {errs[0]} "
                     f"(all {len(errs)} station feeds failed)",

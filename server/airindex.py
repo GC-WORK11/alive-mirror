@@ -52,8 +52,10 @@ with an empty list. Every bundle + provenance entry carries fetched_at,
 n (observations contributed) and age so /health can render
 "model: 48 pts, 42s old" per source.
 """
+import concurrent.futures
 import gzip
 import json
+import logging
 import math
 import os
 import random
@@ -71,6 +73,17 @@ import httpx  # noqa: E402
 import airfield          # noqa: E402  sample grid, station coords, endpoints, Kalman
 import fires as fires_mod  # noqa: E402  FIRMS CSV parsing + smoke_modifier
 from core_engine import KrigeField  # noqa: E402  C++ where it loads (core_engine), krige.py otherwise
+
+log = logging.getLogger("alive.airindex")
+
+# Bounded fetch fan-out. The four sources are independent pulls and the
+# per-station/per-satellite legs inside them are independent too — they
+# ran strictly serial (the observed source of multi-minute build tails).
+# executor.map preserves submission order, so bundles keep the exact row
+# order the serial loops produced; concurrency stays under ingest_waqi's
+# already-shipped FEED_SEM=12 burst precedent.
+FETCH_WORKERS = 4   # source-level parallelism inside fetch_inputs
+LEG_WORKERS = 8     # per-station (OpenAQ /latest) and per-CSV legs
 
 try:
     import h3  # h3>=4 wanted; see report — requirements.txt owned elsewhere
@@ -518,15 +531,28 @@ def _fetch_fires_once(client, wind_deg) -> dict:
     FireField.smoke_modifier on a detached instance — no async needed and
     the modifier math stays single-sourced. One missing satellite CSV is
     fine; ALL of them failing raises UpstreamError (retried upstream)."""
-    rows, ok = [], 0
-    for path, instrument in fires_mod.PUBLIC_CSVS:
+    def _one(path, instrument):
         try:
             r = client.get(fires_mod.CSV_BASE + path, timeout=45)
             r.raise_for_status()
-            rows += fires_mod._parse_rows(r.text, instrument)
-            ok += 1
+            return fires_mod._parse_rows(r.text, instrument), True
         except httpx.HTTPError:
-            continue  # one missing snapshot must not kill the layer
+            # one missing snapshot must not kill the layer
+            return [], False
+    # The four satellite CSVs are independent multi-MB pulls — fetched in
+    # parallel via map (order preserved -> same rows in the same order).
+    workers = min(4, len(fires_mod.PUBLIC_CSVS))
+    if workers > 1:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=workers) as ex:
+            results = list(ex.map(lambda pi: _one(*pi),
+                                  fires_mod.PUBLIC_CSVS))
+    else:
+        results = [_one(*pi) for pi in fires_mod.PUBLIC_CSVS]
+    rows, ok = [], 0
+    for parsed, good in results:
+        rows += parsed
+        ok += int(good)
     if not ok:
         raise UpstreamError("all FIRMS CSVs failed")
     ff = fires_mod.FireField()
@@ -583,7 +609,9 @@ def _fetch_stations_once(client) -> dict:
     # stations bundle that is really a quota error must never say "ok".
     stations, loc_errs = [], []
     loc_ids = sorted({v["loc_id"] for v in sensors.values()})
-    for loc_id in loc_ids:
+
+    def _one_loc(loc_id):
+        """-> (station_row_or_None, error_or_None)."""
         try:
             r = client.get(f"{OPENAQ_V3}/locations/{loc_id}/latest",
                            headers=headers,
@@ -597,19 +625,35 @@ def _fetch_stations_once(client) -> dict:
                     ts = (m.get("datetime") or {}).get("utc") or ""
                     if not best or ts > best["ts"]:
                         best = {"ts": ts, "meta": meta, "v": float(v)}
-            if best:
-                try:
-                    ts = datetime.fromisoformat(
-                        best["ts"].replace("Z", "+00:00")).timestamp()
-                except ValueError:
-                    ts = None
-                meta = best["meta"]
-                stations.append({"lat": meta["lat"], "lon": meta["lon"],
-                                 "name": meta["name"], "pm25": best["v"],
-                                 "ts": ts})
+            if not best:
+                return None, None
+            try:
+                ts = datetime.fromisoformat(
+                    best["ts"].replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                ts = None
+            meta = best["meta"]
+            return {"lat": meta["lat"], "lon": meta["lon"],
+                    "name": meta["name"], "pm25": best["v"],
+                    "ts": ts}, None
         except (httpx.HTTPError, ValueError) as e:
-            loc_errs.append(_describe_error(e))
-            continue
+            return None, _describe_error(e)
+
+    # Per-location reads were serial (up to ~50 x 30s-timeout calls — the
+    # dominant tail on a slow upstream); map over them with a bounded pool.
+    # map preserves loc_ids order -> same station + error ordering.
+    workers = min(LEG_WORKERS, len(loc_ids))
+    if workers > 1:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=workers) as ex:
+            loc_results = list(ex.map(_one_loc, loc_ids))
+    else:
+        loc_results = [_one_loc(l) for l in loc_ids]
+    for st_row, err in loc_results:
+        if st_row is not None:
+            stations.append(st_row)
+        if err is not None:
+            loc_errs.append(err)
     if loc_errs and len(loc_errs) == len(loc_ids):
         raise _SourceDown(
             f"{loc_errs[0]} (all {len(loc_ids)} location reads failed)")
@@ -709,15 +753,37 @@ def fetch_inputs(now=None, client=None) -> dict:
     c = client or httpx.Client(
         timeout=httpx.Timeout(30.0, connect=8.0),
         headers={"User-Agent": "alive108-airindex/0.1"})
+    t_fetch = time.time()
+    # Per-source wall time — every bundle is returned, never raised, so a
+    # slow leg used to hide inside one opaque multi-minute fetch block.
+    src_ms = {}
+
+    def _timed(name, call):
+        t = time.time()
+        out = _safe_source(name, call)
+        src_ms[name] = round((time.time() - t) * 1000)
+        return out
+    # The four sources are independent network pulls — run them in a
+    # bounded pool so wall time is the SLOWEST source, not their sum
+    # (serial legs were the multi-minute tail). fires still waits for met
+    # because its smoke_modifier needs the real wind direction; only the
+    # fires worker idles on met_f, met itself is a single cheap call.
     try:
-        met = _safe_source("met", lambda: _fetch_met(c))
-        model = _safe_source("model", lambda: _fetch_model(c))
-        fires = _safe_source(
-            "fires", lambda: _fetch_fires(c, met.get("wind_deg")))
-        stations = _safe_source("stations", lambda: _fetch_stations(c))
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=FETCH_WORKERS) as ex:
+            met_f = ex.submit(_timed, "met", lambda: _fetch_met(c))
+            model_f = ex.submit(_timed, "model", lambda: _fetch_model(c))
+            stations_f = ex.submit(_timed, "stations",
+                                   lambda: _fetch_stations(c))
+            fires_f = ex.submit(
+                _timed, "fires",
+                lambda: _fetch_fires(c, met_f.result().get("wind_deg")))
+            met, model = met_f.result(), model_f.result()
+            fires, stations = fires_f.result(), stations_f.result()
     finally:
         if own:
             c.close()
+    fetch_ms = round((time.time() - t_fetch) * 1000)
     for b in (model, met, fires, stations):
         fa = b.get("fetched_at")
         try:
@@ -728,6 +794,18 @@ def fetch_inputs(now=None, client=None) -> dict:
                 if fa is not None else None
         except (TypeError, ValueError):
             b["age_s"] = None
+    # Stage visibility (log.warning — the app's CloudWatch-visible level;
+    # INFO never reaches the log group): one line per fetch wall-clock
+    # with each source's ms + status + contribution. A degraded source
+    # names itself here instead of only on the next /health render.
+    log.warning(
+        "ingest fetch wall=%dms met=%dms[%s] model=%dms[%s] "
+        "fires=%dms[%s] stations=%dms[%s]",
+        fetch_ms,
+        src_ms.get("met", -1), met.get("status"),
+        src_ms.get("model", -1), model.get("status"),
+        src_ms.get("fires", -1), fires.get("status"),
+        src_ms.get("stations", -1), stations.get("status"))
     return {"model": model, "met": met, "fires": fires,
             "stations": stations}
 
@@ -745,6 +823,7 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
         inputs = fetch_inputs(now, client=client)
     if not isinstance(inputs, dict):
         inputs = {}
+    t_inputs = time.time()  # live fetch wall time ends here
 
     def _bundle(key):
         b = inputs.get(key)
@@ -779,6 +858,7 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
     def model_est(lat, lon):
         return _idw(model_pts, lat, lon) if model_pts else None
 
+    t_prior = time.time()
     # --- station QC + Kalman smoothing ----------------------------------
     raw_st = st_in.get("stations")
     if not isinstance(raw_st, list):
@@ -804,6 +884,7 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
         resids.append((s["lat"], s["lon"], s.get("name"), s["residual"]))
     rk = KrigeField().fit(
         [(la, lo, nm, {"pm2_5": r}) for la, lo, nm, r in resids])
+    t_qc = time.time()
 
     # --- grid -----------------------------------------------------------
     system, cells = grid_cells()
@@ -910,6 +991,7 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
         }
         sig_sum += sd
         pm_sum += pm
+    t_cells = time.time()
 
     n_cells = len(out_cells)
     stats = {"mean_sigma": round(sig_sum / n_cells, 3) if n_cells else None,
@@ -965,6 +1047,20 @@ def build_field(now=None, *, inputs: Optional[dict] = None,
         "sources_used": sources_used,
         "sources_degraded": sources_degraded,
     }
+    # Stage attribution for the cold-build hole (docs/lanes/
+    # ingest-coldbuild): inputs+model-prior, station QC+Kalman+krige fit,
+    # grid+cell loop. Fetch internals are broken out in the 'ingest
+    # fetch' line emitted by fetch_inputs. log.warning = the level that
+    # reaches /ecs/alive108 today (INFO is dropped).
+    log.warning(
+        "ingest build: fetch=%dms prior=%dms qc_kalman_krige=%dms "
+        "cells=%dms total=%dms n_cells=%d stations=%d grid=%s",
+        round((t_inputs - t0) * 1000),
+        round((t_prior - t_inputs) * 1000),
+        round((t_qc - t_prior) * 1000),
+        round((t_cells - t_qc) * 1000),
+        round((time.time() - t0) * 1000),
+        n_cells, len(survivors), system)
 
     grid_note = None
     if system != "h3":

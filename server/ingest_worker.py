@@ -349,19 +349,41 @@ def rotate_snapshots(snapshot_root: str = None, *, keep: int = None,
 def run_index_once(now=None, *, inputs=None, snapshot_root: str = None,
                    keep: int = None) -> dict:
     """One 15-min index build. -> summary dict (also the handler body)."""
+    t0 = time.time()
     field = airindex.build_field(now=now, inputs=inputs)
+    t_build = time.time()
     blob = airindex.serialize(field)
+    t_ser = time.time()
     ts = datetime.fromtimestamp(field["built_epoch"], tz=timezone.utc)
     rel = os.path.join(f"{ts:%Y/%m/%d}", f"{ts:%H%M}.json.gz")
     local_path = os.path.join(snapshot_root or SNAPSHOT_DIR, rel)
     uri, backend, note = store_blob(f"field/{ts:%Y/%m/%d/%H%M}.json.gz",
                                     blob, local_path)
+    t_store = time.time()
     try:
         gc = rotate_snapshots(snapshot_root, keep=keep,
                               protect=[local_path])
     except Exception as e:  # noqa: BLE001 - GC must never sink a build
         gc = {"skipped": f"{type(e).__name__}: {e}"}
     metrics = _emit_metrics(field)
+    t_done = time.time()
+    # One line per iteration for the cold-build lane (docs/lanes/
+    # ingest-coldbuild): build internals come from airindex's 'ingest
+    # build' line; this adds serialize/store/gc/metrics so the gap
+    # between loop start and S3 landing is fully attributed. warning =
+    # the level that reaches /ecs/alive108 today (INFO is dropped).
+    log.warning(
+        "ingest run: build=%dms serialize=%dms store=%dms[%s] "
+        "gc_metrics=%dms total=%dms -> %s",
+        round((t_build - t0) * 1000), round((t_ser - t_build) * 1000),
+        round((t_store - t_ser) * 1000), backend,
+        round((t_done - t_store) * 1000), round((t_done - t0) * 1000),
+        uri)
+    if note:
+        # an S3 put that fell back to local disk used to be invisible
+        # except inside the return dict — a silent hole in the durable
+        # record. Name it in the log.
+        log.warning("ingest store note: %s", note)
     return {
         "ok": True,
         "snapshot": uri,
