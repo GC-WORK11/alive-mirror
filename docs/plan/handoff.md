@@ -724,3 +724,12 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **Design audit (mine, on shipped home shots)**: the owner's "still a little odd" = the sparse hero — fresh-install home shows an empty gray bar + "µg" (reads as failed skeleton). Lane spawned: designed sparse state (ambient arc + counting affordance, never fake dose) + DAYS-AHEAD band differentiation + confidence copy. Found+fixed myself: open-ended window mixed 24h/12h ("22:30–7pm") — `bf7c35d` (srv end_label:null → 12h fmtHr fallback; now open-ended convention).
 - Verified live: warm_task covers all /v2 surfaces; archive strip 4 recorded IST hours on schedule; depart 24 slots; store harness 13/13 post-contract.
 - Board: me + app-stress `d36d68cd`+child `10b4b376` + nav-start-pick `9f50446e` + hero-sparse `52e4d094`.
+
+### cont.44 — hero-sparse landed + ingest-coldbuild + apk-v4 (Oct 6 ~06:45 UTC)
+
+- **hero-sparse `dbbc76a`** — the owner's #1 "looks broken" complaint dead: fresh-install hero now shows a faint band-colored ambient arc + "● today's air where you are: ~116 µg/m³" + "your count starts once the phone logs its first hours" + "1 of 3 samples" meter (real THIN_SAMPLE gate). Week strip: dimmed city arc + "your week starts counting today". DAYS AHEAD tiles band-differentiated. "confidence: low" copy en+hi. iOS-sim verified both states + both locales; tsc+lint clean, harness 14/14 (new sparse-meter test).
+- **False-alarm discipline**: hypothesized a desc-order bug in `_snapshot_series` — empirically disproved (`_local_series` ends `rows.reverse()`, `_s3_series` sorts; producers already asc). Reverted the no-op edit rather than commit a wrong-justified diff.
+- **why-history live math**: n=15 real builds, span 2.5h — series cache is 300s TTL (repeated curls <5min apart look frozen — that's the cache, not a stall). history lights when span crosses 3h on real builds, ~when the ~23:2x build lands.
+- **demo-day fix `ecf4fa1`**: the T-60-flip caveat was stale — history/trend now survive rollouts (S3); residual is just the ~25min cold first-build gap.
+- **Lanes**: ingest-coldbuild `22d86b26` (profile the ~25min first-build — stage timings, safe speedup only), apk-drive-v4 `15047bf3` (demo APK carrying hero-sparse + nav-pick + format fix + drive), app-stress `d36d68cd`+child `10b4b376`.
+- Merge checkpoint queued: suite green → main (Mobile-side only since strip-bz: nav-pick `59a7da8`, format `bf7c35d`, hero-sparse `dbbc76a` + docs).
