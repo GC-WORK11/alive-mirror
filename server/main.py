@@ -1355,7 +1355,8 @@ async def community_totals(request: Request):
 
 
 @app.get("/escape")
-async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
+async def escape(lat: float, lon: float,
+                 limit: int = Query(default=5, ge=0, le=10)):
     """'Where is the air best near me right now' — scan the live field over
     NCR, drop cells within 3km of the user (that's still 'here'), rank the
     rest by PM2.5, reverse-name the best. Each answer carries its own
@@ -1724,6 +1725,9 @@ async def directions(from_lat: float, from_lon: float, to_lat: float, to_lon: fl
     instructions — the Google-Maps directions list, for any mode.
     vehicle scales the OSRM duration the same way /route does."""
     prof = profile if profile in ("driving", "cycling", "walking") else "driving"
+    if not (in_service_area(from_lat, from_lon)
+            and in_service_area(to_lat, to_lon)):
+        return {"steps": [], "error": OUT_OF_AREA}
     t0 = time.monotonic()
     routes, backend = await _osrm_get(
         prof, f"{from_lon},{from_lat};{to_lon},{to_lat}",
