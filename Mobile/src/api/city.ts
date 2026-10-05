@@ -92,7 +92,7 @@ export type CityPayload = {
       explainer can't run — the number stands alone before it guesses). */
   why?: { line: string | null;
           drivers: { kind: string; weight: string; score: number;
-                     evidence: string }[];
+                     evidence: string; direction?: string }[];
           why_url: string } | null;
   /** False until k>=3 corridors exist — the honest empty state. */
   enough_data?: boolean;

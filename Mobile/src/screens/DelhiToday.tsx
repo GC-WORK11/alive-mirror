@@ -34,7 +34,7 @@ import {
   V2T,
   V2Type,
 } from "../theme";
-import { approx, doseUgRound, t, type Lang } from "../i18n/strings";
+import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
@@ -140,6 +140,44 @@ function WhyLine({ text, lang }: { text: string; lang: Lang }) {
   return (
     <Text {...DYNAMIC_TYPE} style={[ss.whyLine, { fontFamily: fam(lang, "reg") }]}>{text}</Text>
   );
+}
+
+/* The "why tonight" hero — server composes it in English
+   (v2/why.py:_line). en keeps the wire line; hi rebuilds the same
+   grammar from drivers[].kind (+ trend direction) and wind.from_deg,
+   so wire English never reaches the hi UI. */
+const WHY_CARRY: [number, StringKey][] = [
+  [337.5, "whyDir_N"], [292.5, "whyDir_NW"], [247.5, "whyDir_W"],
+  [202.5, "whyDir_SW"], [157.5, "whyDir_S"], [112.5, "whyDir_SE"],
+  [67.5, "whyDir_E"], [22.5, "whyDir_NE"],
+];
+const whyCompass = (deg: number | null | undefined): StringKey => {
+  if (deg == null) return "whyDir_NW"; // server's fallback expands NW
+  const d = ((deg % 360) + 360) % 360;
+  for (const [top, k] of WHY_CARRY) if (d >= top) return k;
+  return "whyDir_N";
+};
+const whyBitKey = (d: { kind: string; direction?: string }): StringKey | null => {
+  if (d.kind === "trend")
+    return d.direction === "falling" ? "whyBit_trendFalling" : "whyBit_trendRising";
+  if (d.kind === "stubble_smoke") return "whyBit_stubble";
+  if (d.kind === "stagnation") return "whyBit_stagnation";
+  return null; // unknown kinds pass through raw, as the server does
+};
+function whyLine(
+  why: NonNullable<CityPayload["why"]>,
+  wind: CityPayload["wind"],
+  lang: Lang,
+): string {
+  if (lang === "en" || !why.line) return why.line ?? "";
+  const drivers = why.drivers ?? [];
+  if (!drivers.length) return t("whyNoDriver", lang);
+  const dir = t(whyCompass(wind?.from_deg), lang);
+  const parts = drivers.slice(0, 2).map((d) => {
+    const k = whyBitKey(d);
+    return k ? (k === "whyBit_stubble" ? t(k, lang, { dir }) : t(k, lang)) : d.kind;
+  });
+  return parts.join(" + ");
 }
 
 /* ---------- sheet (mounted only while visible → fresh state each open) --- */
@@ -302,7 +340,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                 the explainer had enough to say (never a guessed cause) */}
             {data.why?.line ? (
               <Text {...DYNAMIC_TYPE} style={[ss.whyHero, { fontFamily: famSerif(lang, "reg") }]}>
-                {data.why.line}
+                {whyLine(data.why, data.wind, lang)}
               </Text>
             ) : null}
 

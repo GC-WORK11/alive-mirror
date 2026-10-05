@@ -205,6 +205,23 @@ const en = {
   cityHeavier: "heavier",
   cityLighter: "lighter",
   cityTrips: "{n} trips",
+  /* "why tonight" — /v2/why composes the hero line in English; hi
+     rebuilds it from drivers[].kind + wind.from_deg, mirroring
+     server/v2/why.py:_line (top-2 drivers joined " + "-style) */
+  whyNoDriver: "local background — no single driver stands out",
+  whyBit_stubble: "stubble smoke drifting in on the {dir} wind",
+  whyBit_stagnation: "the air is barely moving — the day's pollution is sitting over the city",
+  whyBit_trendRising: "levels still climbing",
+  whyBit_trendFalling: "easing off the earlier high",
+  /* compass words for {dir} — server's expanded forms, not initials */
+  whyDir_N: "northerly",
+  whyDir_NE: "north-east",
+  whyDir_E: "easterly",
+  whyDir_SE: "south-east",
+  whyDir_S: "southerly",
+  whyDir_SW: "south-west",
+  whyDir_W: "westerly",
+  whyDir_NW: "north-west",
   /** CityMoves pooled under-k bucket — the pool is the publishable unit,
       no member mode's name may surface (server token is "other"). */
   movesModeOther: "other ways",
@@ -732,6 +749,21 @@ const hi: Record<StringKey, string> = {
   cityHeavier: "ज़्यादा धुआँ",
   cityLighter: "कम धुआँ",
   cityTrips: "{n} यात्राएँ",
+  /* "why tonight" — drivers[].kind से rebuild (server/v2/why.py:_line) */
+  whyNoDriver: "स्थानीय धुआँ — कोई एक वजह सामने नहीं",
+  whyBit_stubble: "पराली का धुआँ {dir} की हवा से बहता आ रहा है",
+  whyBit_stagnation: "हवा ज़रा भी नहीं चल रही — दिन का धुआँ शहर के ऊपर ठहरा है",
+  whyBit_trendRising: "धुआँ बढ़ता ही जा रहा है",
+  whyBit_trendFalling: "पहले के बुरे से अब थोड़ा हल्का",
+  /* हवा की दिशा — {dir} के लिए दिशा-शब्द */
+  whyDir_N: "उत्तर",
+  whyDir_NE: "उत्तर-पूर्व",
+  whyDir_E: "पूर्व",
+  whyDir_SE: "दक्षिण-पूर्व",
+  whyDir_S: "दक्षिण",
+  whyDir_SW: "दक्षिण-पश्चिम",
+  whyDir_W: "पश्चिम",
+  whyDir_NW: "उत्तर-पश्चिम",
   movesModeOther: "बाक़ी तरीक़े",
   movesTitle: "दिल्ली कैसे चलती है",
   movesWindowDays: "पिछले {d} दिन",
