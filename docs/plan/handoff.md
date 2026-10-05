@@ -462,3 +462,23 @@ future divergence is one probe away.
 - **#4 us_aqi −17% vs public (defensible)** — our field is a spatial mean + station-grounded debias vs point instruments (Pusa 196 driven by its own pm10). Noted, not a fake.
 - Lane fixing frontend: #2 city strip→ambient-field basis (decision: strip must quote the same field the choropleth shades; breathing-zone only if explicitly labeled), #5 edges_priced real number, #6 hold stale frame on param switch, #7 token-check before API calls, #8 clip+plural, #9 legend overlap, #10 95.2% methodology link.
 - Verified live `8d417cf1`: depart 1.15s cold→0.47s warm; truncated repro flags correctly; hours=0 honest label; single deployment.
+
+## cont.20 — hostile-audit batch fully live (build 2ffff50a, main merged 411abe7)
+
+All 10 findings closed + deployed + verified live:
+
+- #2 /city strip re-based on ambient field aggregate (/v2/city district means + pm25_stats + live grid range) — same basis as choropleth; GRAP row labeled 'incl. smoke'; breaths divides by ambient mean.
+- #5 "EDGES PRICED" now serves the live routing.edges_priced (903,058) via /health — was frozen copy.
+- #6 param switch holds stale frame until new cells arrive — no blank canvas.
+- #7 admin token-check precedes authed fetches — zero 401 console noise unauthenticated; public feeds still render.
+- #8 admin tile names wrap (2-line clamp) — no 'Gautam Buddha N…'; '1 CELLS' pluralizes.
+- #9 /city legend moved in-flow under map — no swatch over geography.
+- #10 95.2% coverage claim gets methodology citation.
+- Landing renders truncation honestly: 'stops ~210 km short of b — dose covers the mapped segment only' + lo-conf flag + degraded arms named (verified in served HTML + source).
+- Bonus found while probing: /escape photon hits with no name→street returned `name:null` → now 'unnamed area' (d759578).
+- Malformed-input sweep on live: empty/bad-json/no-ctype→422; null fields→'from: need {lat,lon}'; string lat→conversion error; NaN→'non-finite coordinate'; 1MB body→parses fine (22 options). No 500s anywhere.
+- /v2/strip verified beautiful: per-road dose attribution — 'Delhi-Gurugram Expressway 4.6km · 52.5µg · 31.7% of dose' + honest emissions bands (105-265 g/km, BS-III–VI, cold 4km×1.3).
+- /v2/districts: 28 real districts worst-first (New Delhi 53µg/89aqi). /today: 24-hr IST curve openaq-s3-climatology. /escape: 5 real cleaner spots (vertical park 30.7µg @11.6km). /shift: auto 8h→279.9µg±[196,416]·0.9cig·+272% vs desk.
+- /directions: re-routes coords→12 OSRM steps w/ street names (route_id is receipt-token only, not a directions key — by design).
+- /admin/api/* all serve w/ token; 401 without (verified: status, sources, corridors, donations, validation, model, timing, global, reviews).
+- Deploy: single deployment 2ffff50a; suite 955 green; main merged 411abe7.
