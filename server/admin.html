@@ -367,13 +367,13 @@
 
   <div class="grid" id="stats"></div>
 
-  <h2>01 · the field pipeline <em>stations → interpolated map (σ = honest error band) → priced roads — every stage stamps its own freshness</em></h2>
+  <h2>01 · the field pipeline <em>how raw station readings become the air map the router prices — stations measure, we fill the gaps between them (σ says how unsure each fill is), then every road in NCR gets a smoke price</em></h2>
   <div class="panel">
     <div class="prov" id="prov"></div>
     <div class="pipe" id="pipe"></div>
   </div>
 
-  <h2>02 · fires over the field <em>nasa firms detections · size = fire radiative power · the upwind belt drives the smoke modifier</em></h2>
+  <h2>02 · fires over the field <em>real satellite fire detections around Delhi — bigger dot = more heat energy; fires upwind in the NW belt are what actually push the city's smoke up</em></h2>
   <div class="panel" style="padding:14px">
     <div class="firebar" id="firebar"><span class="muted">connecting…</span></div>
     <div class="fmwrap"><canvas id="firemap" role="img"
@@ -381,19 +381,19 @@
     <div class="sub" id="firemap-sub" style="margin-top:8px">connecting…</div>
   </div>
 
-  <h2>03 · sources <em>the trust table — count · age · up/dormant/down per feed</em></h2>
+  <h2>03 · sources <em>every data feed the engine trusts, honestly labelled — how many readings, how old, and whether it's live, idle, or down right now</em></h2>
   <div class="panel scrollx"><table>
     <thead><tr><th>feed</th><th>state</th><th class="num">count</th><th class="num">age</th><th>detail</th><th>freshness</th></tr></thead>
     <tbody id="sources"></tbody></table></div>
-  <div class="sub" style="margin:8px 2px 0">station chain order: waqi → cpcb → openaq — the first feed with rows wins and later adapters stay dormant (airfield.py); a dormant row is honestly reported, never green-washed.</div>
+  <div class="sub" style="margin:8px 2px 0">how stations feed the map: waqi is tried first, then cpcb, then openaq — whichever answers first wins and the rest honestly report as idle. no feed is ever shown green when it isn't.</div>
 
-  <h2>04 · corridors <em>k≥3 community cells · click a row for its full wire record</em></h2>
+  <h2>04 · corridors <em>streets that ≥3 different phones crossed in 72h — the only level where community data can be shown without exposing a single person</em></h2>
   <div class="panel"><div class="scrollx"><table>
     <thead><tr><th></th><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num" title="avg donated dose per traversal">avg dose</th><th class="num" title="co₂ emitted per 100 m of corridor">co₂/100m</th><th class="num" title="live pm2.5 sampled over this corridor's cells">air pm2.5</th></tr></thead>
     <tbody id="corridors"></tbody></table></div>
-    <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">each row = one street cell ≥3 devices crossed in 72h · donated trips, k≥3 anonymized aggregates — never a single person · avg dose = mean donated µg per traversal · air pm2.5 = the live field under the cell right now</div></div>
+    <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">each row = one street cell that ≥3 different phones crossed in 72h — shared trips, anonymized so no single person can be picked out · avg dose = the mean PM2.5 each traversal inhaled · air pm2.5 = what the air reads over that street right now</div></div>
 
-  <h2>05 · the engine <em>dose math · routing internals · measured latency · model scorecard</em></h2>
+  <h2>05 · the engine <em>the guts, honestly exposed — how much each vehicle mode inhales per minute, what the router is doing, how fast the api answers, how accurate the model is</em></h2>
   <div class="cols cols3">
     <div class="panel"><div class="panel-h">dose math — what one minute of each mode breathes</div><div class="scrollx"><table>
       <thead><tr><th>mode</th><th class="num">in-cabin ×</th><th class="num">ve l/min</th></tr></thead>
@@ -407,7 +407,7 @@
     <div class="panel"><div class="panel-h">model scorecard — error vs held-out stations</div><dl class="kv" id="scorecard"></dl></div>
   </div>
 
-  <h2>06 · ncr districts <em>real boundaries filled by the live band of the selected parameter · click a district for its card</em></h2>
+  <h2>06 · ncr districts <em>each district boundary filled by its live air level right now — darker means worse; click one for its full card</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="dtsel"></div>
     <div class="dmwrap"><canvas id="distmap" role="img"
@@ -417,7 +417,7 @@
     <div class="sub" id="distmap-sub" style="margin-top:8px">connecting…</div>
   </div>
 
-  <h2>07 · the field <em>the surface the router prices · hover reads a cell · click pins it · fires sized by frp (heat power)</em></h2>
+  <h2>07 · the field <em>the actual air map the router reads — every coloured cell is a real interpolated PM2.5 value; hover any point for its reading, scrub the bar for the next 12 hours</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="fmsel"></div>
     <div class="fmscrub" id="fmscrub">
@@ -430,7 +430,7 @@
     <div class="meth" id="meth" hidden></div>
   </div>
 
-  <h2>08 · the community picture <em>anonymized donations · global rollups · k≥3 only — a tile fills only when the k≥3 aggregate feed ships it</em></h2>
+  <h2>08 · the community picture <em>what all the shared trips add up to — anonymized city-level totals only; a tile stays empty until enough people share that no one can be picked out</em></h2>
   <div class="cols">
     <div class="panel">
       <dl class="kv" id="donations"></dl>
@@ -442,7 +442,7 @@
     <div class="gtiles" id="sharedpic"></div>
   </div>
 
-  <h2>09 · the archive <em>the served field, recorded hourly into durable storage — delhi breathes is history now, not just forecast · basis:recorded · /v2/archive</em></h2>
+  <h2>09 · the archive <em>the same air map you saw live, snapshotted every hour into permanent storage — Delhi's air is a recorded history now, not just a forecast</em></h2>
   <div class="gtiles" id="archive"></div>
 
   <footer>
@@ -642,22 +642,33 @@ async function tick(){
   const ageTxt=f.age_s!=null?ago(f.age_s):null;
   const cards=[
     [f.age_s!=null?`${ageTxt}${freshBadge(f.stale)}`:null,
-     `field age · the live map's freshness · serving ${esc(sv)}`,'',f.age_s!=null],
+     `field age · the live map's freshness · serving ${esc(sv)}`,'',f.age_s!=null,
+     'minutes since the air map was last rebuilt from station readings — the fresher, the more every route trusts it'],
     [f.samples!=null?`${fmt(f.samples)} <small>pts</small>`:null,
-     `field samples · grid pts fitted to ${fmt(f.station_readings)} station readings`,'',f.samples!=null],
-    [t.trips?fmt(t.trips):null,'donated trips · all time','',!!t.trips],
-    [dn.corridors_publishable||null,'publishable corridors · street cells ≥3 devices crossed','accent',dn.corridors_publishable>0],
-    [t.switched?fmt(t.switched):null,'trips switched lighter · all time','accent',t.switched>0],
+     `field samples · grid pts fitted to ${fmt(f.station_readings)} station readings`,'',f.samples!=null,
+     'how many map-points the air surface has — the engine reads air at ~500m granularity, not city-average'],
+    [t.trips?fmt(t.trips):null,'donated trips · all time','',!!t.trips,
+     'real journeys users chose to share — anonymized aggregates only, never a person'],
+    [dn.corridors_publishable||null,'publishable corridors · street cells ≥3 devices crossed','accent',dn.corridors_publishable>0,
+     'streets where ≥3 different phones crossed in 72h — safe to publish without exposing anyone'],
+    [t.switched?fmt(t.switched):null,'trips switched lighter · all time','accent',t.switched>0,
+     'journeys where someone picked the lower-smoke option the app showed'],
     [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
-     `daily median pm2.5 · mid of live cells${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
+     `daily median pm2.5 · mid of live cells${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null,
+     'the middle reading across every live cell — half of Delhi breathes worse than this right now'],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
-     `cumulative dose · inhaled over all donated trips · ~${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'brick',t.dose_ug>0],
+     `cumulative dose · inhaled over all donated trips · ~${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'brick',t.dose_ug>0,
+     'total PM2.5 mass actually inhaled across every shared trip — the number nobody else measures'],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
-     `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
+     `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0,
+     'what the shared rides emitted — midpoint between the low and high emission factors'],
     [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
-     `model error · ${maeL} (mae — vs held-out stations)${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null]];
-  $('stats').innerHTML=cards.map(([v,l,cl,ok])=>
-    `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div></div>`).join('');
+     `model error · ${maeL} (mae — vs held-out stations)${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null,
+     'the honesty score: how far the interpolated map misses a real station it was never shown — lower is truer']];
+  $('stats').innerHTML=cards.map(([v,l,cl,ok,what])=>
+    `<div class="card"><div class="num ${ok?cl||'':'na'}">${ok?v:'insufficient data'}</div><div class="lbl">${l}</div>`+
+    (what?`<div class="lbl" style="text-transform:none;letter-spacing:.02em;margin-top:5px;line-height:1.5">${what}</div>`:'')+
+    `</div>`).join('');
 
   /* --- source health: what is serving, and how fresh it is --- */
   const p=S.provenance||{};
@@ -889,22 +900,30 @@ async function tick(){
         cov0=f.coverage||{},csP=(t.co2_split&&t.co2_split.pct)||null;
   const meVals=Object.values(me),veVals=Object.values(ve);
   const steps=[
-    ['01','measure',`${fmt(f.station_readings)} instruments · ${fmt(f.samples)} model pts · ${esc(f.source||'—')}`,ago(f.age_s)],
-    ['02','blend','instruments enter at 3× weight · kalman-smoothed · model de-biased toward readings',ago(f.age_s)],
-    ['03','krige',`ordinary krige · ${esc(f.engine||'—')} · σ ${esc(f.sigma_coverage||'—')} · ${cov0.cells!=null?fmt(cov0.cells)+' cells':'—'} in coverage`,esc(f.serving||'—')],
+    ['01','measure',`${fmt(f.station_readings)} instruments · ${fmt(f.samples)} model pts · ${esc(f.source||'—')}`,ago(f.age_s),
+      'government monitors measure the air right now'],
+    ['02','blend','instruments enter at 3× weight · kalman-smoothed · model de-biased toward readings',ago(f.age_s),
+      'station readings are folded into the forecast grid — real readings outweigh the model'],
+    ['03','krige',`ordinary krige · ${esc(f.engine||'—')} · σ ${esc(f.sigma_coverage||'—')} · ${cov0.cells!=null?fmt(cov0.cells)+' cells':'—'} in coverage`,esc(f.serving||'—'),
+      'the gaps between stations are filled by interpolation — σ shows how honest each fill is'],
     ['04','price',(S.routing&&S.routing.loaded)
       ?`${esc(S.routing.engine||'engine')} · ${fmt(S.routing.edges)} edges · ${fmt(S.routing.edges_priced)} priced`
       :'engine cold — builds at boot / first plan',
-      (S.routing&&S.routing.reweight_age_s!=null)?`repriced ${ago(S.routing.reweight_age_s)} ago`:'—'],
+      (S.routing&&S.routing.reweight_age_s!=null)?`repriced ${ago(S.routing.reweight_age_s)} ago`:'—',
+      'every road in NCR gets a smoke cost from the map above it'],
     ['05','dose',(model&&model.available)
       ?`in-cabin ×${Math.min(...meVals)}–×${Math.max(...meVals)} · ve ${Math.min(...veVals)}–${Math.max(...veVals)} L/min · every ~${model.sample_every_m} m along-path`
       :'field-C × microenv(mode) × ventilation × minutes — internals gated',
-      'constants'],
-    ['06','aggregate',`k≥3 anonymized · ${fmt(dn.cells_tracked)} cells tracked · ${fmt(dn.corridors_publishable)} publishable · ${fmt(t.trips)} trips`,'72h window'],
+      'constants',
+      'what a body actually inhales — air outside × how shielded the vehicle is × how hard you breathe'],
+    ['06','aggregate',`k≥3 anonymized · ${fmt(dn.cells_tracked)} cells tracked · ${fmt(dn.corridors_publishable)} publishable · ${fmt(t.trips)} trips`,'72h window',
+      'shared trips merge into street-level counts — a street appears only when ≥3 different phones crossed it'],
   ];
   $('pipe').innerHTML=(S.field||S.routing)
-    ?steps.map(([n,t0,v,fr])=>
-      `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div><div class="v">${v}</div><div class="fr">${esc(fr||'')}</div></div>`).join('')
+    ?steps.map(([n,t0,v,fr,plain])=>
+      `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div>`+
+      (plain?`<div class="v" style="color:var(--ink);margin-bottom:5px">${plain}</div>`:'')+
+      `<div class="v">${v}</div><div class="fr">${esc(fr||'')}</div></div>`).join('')
     :`<div class="empty-state" style="grid-column:1/-1"><b>insufficient data</b>${gated?'pipeline gated — operator token required':'status feed unavailable'}</div>`;
 
   /* --- live field map --- */
@@ -970,7 +989,9 @@ async function tick(){
        <td class="num mono">${ve[m]!=null?fmt1(ve[m]):'—'}</td></tr>`).join('')
       ||`<tr><td colspan="3">${emptyMsg('no canonical modes served')}</td></tr>`;
     const ru=model.road_uplift||{},cit=model.citations||{};
-    $('doseformula').innerHTML=esc(model.dose_formula||'')
+    $('doseformula').innerHTML=
+      'how to read this: each row is one vehicle mode — in-cabin × is how many times dirtier the air inside is than the street outside, ve l/min is how hard a person breathes riding it. a walk dose = street air × minutes; a car-ac dose shrinks it by the cabin factor.<br>'
+      +esc(model.dose_formula||'')
       +(Object.keys(ru).length?`<br>road uplift — ${Object.entries(ru).map(([k,v])=>`${esc(k)} ×${v}`).join(' · ')}`:'')
       +(model.plausible_max_kmh!=null?`<br>plausible ceiling ${model.plausible_max_kmh} km/h — faster 'trips' are flagged, never silently clamped`:'')
       +(cit.microenv?`<br><span style="color:var(--ink4)">${esc(cit.microenv)}${cit.ventilation?' · '+esc(cit.ventilation):''}</span>`:'');
