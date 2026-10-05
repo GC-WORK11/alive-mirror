@@ -649,3 +649,12 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **`1ce7678` verify_numbers hardened**: mid(None) guard + auto-pick ≥3.12 python (venv312 → 3.14/13/12 → python3 + clear error). Both demo-morning crashes dead.
 - Suite 1110+5 on `a38d7fc`; main `64c1590`; deploy `033aa866` live+verified (µg fix served, field 122s, transit compiled).
 - Spawned: apk-drive-v2 `ad8393f1` (+emulator child `c701489f`), cold-path `dd95d95b`, red-team `65440f43`. Perf lane brief `docs/lanes/perf-fps.md` QUEUED — spawns on next free slot (nativeDriver flip + HomeScreen memo + D1 gesture).
+
+### cont.35 — cold-path landed + deployed `efa9790d`; perf lane spawned (Oct 6 ~01:00 UTC)
+
+- **cold-path COMPLETE `efa9790`** — every live surface measured; report `docs/plan/cold-path.md`. Real fix: **reach veil painted only the cheapest ~10% core** (`ids[:90k]` dose-ascending) → uniform stride across settle order: car@25 served bbox went 24×22km blob → **76.745–77.942 × 28.031–29.119 (full NCR frontier), verified live**. Plus `_engine_field_view` time.sleep(0) yields every 64 cells (cold plan during reprice isn't starved on 1 vCPU) + warm_task now covers reach walk@50/car@25, why, skill, archive. Cold /v2/plan 6650ms decomposed: boot raster sweep + busy-join + cold transit scan — T-40 warm_task run is THE mitigation (documented in demo-day).
+- **Deployed `efa9790d`** — build_sha verified, field 138s fresh, transit compiled at boot, reach walk@25 0.1ms cached solve (2205 edges / 94.3km).
+- **main `78a3327`** (merge cold-path + T-60 caveat).
+- **perf-fps lane `e4be6a1e` SPAWNED** — nativeDriver A/B (respecting ui.tsx:159 documented crash + ReceiptSheet width%), memoization hunt, D1 gesture, startup residual.
+- Board: me + red-team `65440f43` + apk-drive-v2 `ad8393f1` (+emulator `c701489f`) + perf `e4be6a1e` = 5.
+- app-hero.png swap queued: waiting apk-drive-v2's HEAD home shot (lane's composited rows pre-date vibe-polish).
