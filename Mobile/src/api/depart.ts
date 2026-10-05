@@ -52,6 +52,7 @@ export type DepartCurve = {
   ug_saved_vs_now: number | null;
   slots: DepartSlot[];             // the 24h curve, in hours_ahead order
   forecast_age_s: number | null;   // forecast field age, for "data N min old"
+  fieldAgeS: number | null;        // live field the horizon anchors to — its age
   error?: string;                  // server-side failure ("forecast unavailable"…)
 };
 
@@ -91,6 +92,9 @@ function mapDepart(j: Record<string, unknown>): DepartCurve {
   const fc = j.forecast && typeof j.forecast === "object"
     ? (j.forecast as Record<string, unknown>)
     : null;
+  const fld = j.field && typeof j.field === "object"
+    ? (j.field as Record<string, unknown>)
+    : null;
   return {
     vehicle: str(j.vehicle),
     mode: str(j.mode),
@@ -102,6 +106,7 @@ function mapDepart(j: Record<string, unknown>): DepartCurve {
     ug_saved_vs_now: num(j.ug_saved_vs_now),
     slots,
     forecast_age_s: fc ? num(fc.age_s) : null,
+    fieldAgeS: num(j.field_age_s) ?? (fld ? num(fld.age_s) : null),
     error: str(j.error) ?? undefined,
   };
 }

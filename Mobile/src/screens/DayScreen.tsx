@@ -55,6 +55,7 @@ import {
 } from "../theme";
 import { approx, t, type Lang, type StringKey } from "../i18n/strings";
 import { Icon } from "../icons";
+import { freshnessTone } from "../components/FreshnessChip";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tap, tick } from "../haptics";
 import { inNcr } from "../components/shell/net";
@@ -238,6 +239,23 @@ function Sparkline({ series, lang }: { series: (number | null)[]; lang: Lang }) 
   );
 }
 
+/** the 'as of' line the forecast cards share: the served field's own
+ *  age in the freshness chip's tone language — stale says stale, fresh
+ *  states the age, unknown says nothing (a card must not imply
+ *  freshness it can't show). */
+function fieldAgeLine(
+  ageS: number | null | undefined,
+  stale: boolean | null | undefined,
+  lang: Lang,
+): string | null {
+  const tone = freshnessTone(ageS, stale);
+  if (tone === "unknown") return null;
+  const n = Math.max(0, Math.floor((ageS ?? 0) / 60));
+  return tone === "stale"
+    ? t("dayMorningStale", lang, { n })
+    : t("howWe_fieldAge", lang, { n });
+}
+
 function MorningCard({ curve, outside, lang }: {
   curve: DayCurve | null; outside: boolean; lang: Lang;
 }) {
@@ -279,6 +297,7 @@ function MorningCard({ curve, outside, lang }: {
   const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour()) : "");
   const cleanT = srv?.cleanEndLabel ?? (clean ? fmtHr(clean.to + nowHour()) : "");
   const decision = srv?.decisions?.[0]?.line ?? null;
+  const ageLine = fieldAgeLine(curve.fieldAgeS, curve.fieldStale, lang);
   return (
     <View style={ss.card}>
       <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
@@ -337,6 +356,12 @@ function MorningCard({ curve, outside, lang }: {
           {t("howWe_conf", lang, { c: t("conf_low", lang) })}
         </Text>
       )}
+      {/* the card's 'as of' — the served field's own build age */}
+      {ageLine ? (
+        <Text {...DYNAMIC_TYPE} style={[ss.finePrint, { fontFamily: fam(lang, "reg") }]}>
+          {ageLine}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -419,6 +444,7 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
   const open = days.find((d) => d.date_ist === openKey) ?? null;
   const anyLo = days.some((d) => d.confidence === "lo");
   const caption = outlookCaption(outlook, lang);
+  const ageLine = fieldAgeLine(outlook.fieldAgeS, outlook.fieldStale, lang);
   return (
     <View style={ss.card}>
       <View style={ss.oaHead}>
@@ -525,6 +551,12 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
           {t("dayOutlookLoNote", lang)}
         </Text>
       )}
+      {/* today's basis 'as of' — the live field behind the fold */}
+      {ageLine ? (
+        <Text {...DYNAMIC_TYPE} style={[ss.finePrint, { fontFamily: fam(lang, "reg") }]}>
+          {ageLine}
+        </Text>
+      ) : null}
     </View>
   );
 }

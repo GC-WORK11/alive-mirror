@@ -32,6 +32,12 @@ export type DayCurve = {
   covered: boolean;
   /** server epoch-ish: the field's own refresh tag when present */
   epoch?: string;
+  /** seconds since the served field was built — /v2/day's field_age_s
+   *  (or the grid's cell_epoch on the fallback path). null = the card
+   *  can't say how fresh its basis is, and must not imply one. */
+  fieldAgeS?: number | null;
+  /** the server's own stale verdict on that field, when it said one */
+  fieldStale?: boolean | null;
   /** when /v2/day served the point: its windows + decision lines.
    *  Present means "the server answered" — windows may still be null
    *  on an honest flat/short day. */
@@ -70,10 +76,24 @@ function pickCell(fc: GeoJSON.FeatureCollection, lat: number, lon: number) {
 
 const confRank = (c: unknown): number => (c === "hi" ? 2 : c === "med" ? 1 : c === "lo" ? 0 : -1);
 
+/** /grid?h= stamps cell_epoch [forecast_fetch, field_fetch, obs_ver] —
+ *  index 1 is the live field's own build epoch (plain /grid stores it
+ *  at 0). Epoch seconds, not ms. */
+const fieldAgeFromEpoch = (fc: GeoJSON.FeatureCollection): number | null => {
+  const ep = (fc as { properties?: { cell_epoch?: unknown[] } })
+    .properties?.cell_epoch;
+  if (!Array.isArray(ep)) return null;
+  const fieldEp = ep.length >= 2 ? ep[1] : ep[0];
+  return typeof fieldEp === "number" && Number.isFinite(fieldEp)
+    ? Math.max(0, Date.now() / 1000 - fieldEp)
+    : null;
+};
+
 async function fetchSeries(lat: number, lon: number): Promise<DayCurve> {
   const series: (number | null)[] = new Array(DAY_HOURS).fill(null);
   let conf: DayCurve["conf"] = null;
   let covered = false;
+  let fieldAgeS: number | null = null;
   // parallel — the waterfall version costs ~12× a round-trip
   await Promise.all(
     Array.from({ length: DAY_HOURS }, (_, h) =>
@@ -87,11 +107,12 @@ async function fetchSeries(lat: number, lon: number): Promise<DayCurve> {
           const c = (cell.properties as Record<string, unknown> | undefined)?.conf;
           const cr = confRank(c);
           if (cr >= 0 && (conf === null || confRank(conf) > cr)) conf = c as DayCurve["conf"];
+          if (fieldAgeS == null) fieldAgeS = fieldAgeFromEpoch(fc);
         })
         .catch(() => {}) /* a dead hour is a hole — the sparkline skips it */,
     ),
   );
-  return { series, conf, covered };
+  return { series, conf, covered, fieldAgeS };
 }
 
 /* ---- /v2/day: the server's day-at-a-point -------------------------------
@@ -113,6 +134,9 @@ type V2DayResponse = {
   heavy_window?: V2DayWindow | null;
   cleanest_window?: V2DayWindow | null;
   decisions?: { label: string; line: string }[];
+  /** the served field's own age + verdict — the card's 'as of' */
+  field_age_s?: number | null;
+  field?: { age_s?: number | null; stale?: boolean | null } | null;
   error?: string;
 };
 
@@ -142,6 +166,9 @@ async function fetchDayServer(lat: number, lon: number): Promise<DayCurve | null
       series,
       conf,
       covered: true,
+      fieldAgeS:
+        typeof d.field_age_s === "number" ? d.field_age_s : d.field?.age_s ?? null,
+      fieldStale: d.field?.stale === true,
       server: {
         heavy: mapWin(d.heavy_window, series),
         clean: mapWin(d.cleanest_window, series),

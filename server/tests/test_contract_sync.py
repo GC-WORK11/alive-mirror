@@ -328,6 +328,8 @@ NESTED_OBJ = [
     ("CompareResponse", "field", "FieldStatus"),
     ("DecideResponse", "field", "FieldStatus"),
     ("RouteResponse", "field", "FieldStatus"),
+    ("DepartResponse", "field", "FieldStatus"),
+    ("DepartResponse", "forecast", "V2ForecastStatus"),
     ("V2CityMovesResponse", "window", "V2MovesWindow"),
     ("V2CityMovesResponse", "corridors", "V2MovesCorridors"),
     ("V2CityMovesResponse", "per_trip", "V2MovesPerTrip"),
@@ -483,7 +485,7 @@ def test_field_status_serving_honesty_block():
     ships: serving mode, field age, staleness verdict, source, and both
     sample/station counts — the FreshnessChip depends on all of them."""
     want = {"serving", "age_s", "stale", "source", "samples",
-            "station_readings"}
+            "station_readings", "built_at", "built_epoch"}
     missing_contract = want - _declared("FieldStatus")
     assert not missing_contract, (
         f"FieldStatus contract missing {sorted(missing_contract)}")

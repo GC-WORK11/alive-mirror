@@ -94,6 +94,10 @@ export interface FieldStatus {
   source: string;
   samples?: number;                // model lattice samples in the blend
   age_s?: number | null;           // seconds since served field fetched/built
+  // the served field's own build instant — 'as of' without back-computing
+  // age_s against the client's clock (snapshot stamp or live-fetch epoch)
+  built_epoch?: number | null;     // unix seconds of the served build
+  built_at?: string | null;        // the same instant, ISO UTC
   station_readings?: number;       // live station readings blended — 0 = dark
   stations_src?: string | null;    // "waqi" | "cpcb" | "openaq" — winning feed
   stations_status?: Record<string, string> | null; // per-feed verbatim verdicts
@@ -265,8 +269,10 @@ export interface DepartResponse {
   // kept alongside until every client reads this one (claims-audit §4)
   pct_less_vs_now?: number | null;
   slots?: DepartSlot[];
-  forecast?: { aq_points: number; met_points: number; hours: number;
-               age_s: number | null };
+  // forecast.FORECAST.status() verbatim — same block /v2/day carries
+  forecast?: V2ForecastStatus;
+  field?: FieldStatus;             // the live field the horizon anchors to
+  field_age_s?: number | null;     // its age — the 'as of' for the curve
   // present only when the epoch-keyed cache answered — lets clients/tests
   // prove warm hits without timing the request
   served_from_cache?: boolean;
@@ -847,6 +853,8 @@ export interface V2ForecastStatus {
   met_points: number;             // met grid points (may be 0)
   hours: number;                  // hourly slots in the horizon
   age_s: number | null;           // seconds since the forecast fetch
+  fetched_at: string | null;      // the fetch instant itself, ISO UTC —
+                                  // 'as of' for days-ahead cards
   live_anchor: { enabled: boolean; source: string | null;
                  tau_h: number; max_age_s: number };
 }

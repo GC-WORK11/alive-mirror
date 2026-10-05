@@ -88,3 +88,23 @@ def test_depart_cache_key_covers_od_vehicle_hours(monkeypatch):
     assert "served_from_cache" not in r            # different OD
     r = _run(main.depart(**OD))
     assert r["served_from_cache"] is True          # original still warm
+
+
+def test_depart_serves_field_freshness_on_hit_and_miss(monkeypatch):
+    """The horizon anchors to the live field — its 'as of' rides the
+    payload like /v2/day and /v2/outlook carry. A cache hit must still
+    serve CURRENT stamps: a frozen age would lie."""
+    calls = {"refresh": 0, "osrm": 0, "dose": 0}
+    _fake_env(monkeypatch, calls)
+    main._DEPART_CACHE.clear()
+
+    r1 = _run(main.depart(**OD))
+    assert "field" in r1 and "field_age_s" in r1
+
+    # same forecast epoch -> cache hit; mutate the status surface and
+    # the recomputed stamps must come through, not the cached body's
+    main.FORECAST.status = lambda: {"hours": 24, "age_s": 4242}
+    r2 = _run(main.depart(**OD))
+    assert r2["served_from_cache"] is True
+    assert r2["forecast"]["age_s"] == 4242       # recomputed at serve time
+    assert "field" in r2 and "field_age_s" in r2

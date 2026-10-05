@@ -957,6 +957,11 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if ent and ent[0] == epoch:
         body = dict(ent[1])
         body["served_from_cache"] = True
+        # freshness stamps are served live, not cached — a hit must not
+        # freeze 'as of' at cache-write time
+        body["forecast"] = FORECAST.status()
+        body["field"] = FIELD.status()
+        body["field_age_s"] = (body["field"] or {}).get("age_s")
         return body
 
     rt = await _osrm(profile, from_lon, from_lat, to_lon, to_lat)
@@ -985,6 +990,7 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     now_slot = slots[0]
     best = ordered[0]
     saved = round(100 * (1 - best["dose_ug"] / now_slot["dose_ug"])) if now_slot["dose_ug"] else None
+    fstat = FIELD.status() or {}
     body = {
         "vehicle": vehicle, "mode": exposure_mode,
         "duration_min": round(dur_s / 60),
@@ -999,6 +1005,10 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
         "ug_saved_vs_now": saved,
         "slots": slots,
         "forecast": FORECAST.status(),
+        # the live field the horizon anchors to — same block /v2/day
+        # and /v2/outlook carry, so 'as of' reads one way everywhere
+        "field": fstat,
+        "field_age_s": fstat.get("age_s"),
     }
     if epoch is not None:
         if len(_DEPART_CACHE) >= _DEPART_CACHE_MAX:

@@ -19,6 +19,7 @@ import csv
 import io
 import os
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -227,7 +228,13 @@ class FireField:
                 "belt_fires": len([f for f in (self._fires or []) if f.get("belt")]),
                 "wind_deg": self._wind_deg,
                 "modifier": self.smoke_modifier(),
-                "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None}
+                "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
+                # the feed's own fetch instant — 'as of' without
+                # back-computing from age_s
+                "fetched_at": (datetime.fromtimestamp(
+                    self._fetched_at, tz=timezone.utc)
+                    .isoformat(timespec="seconds")
+                    if self._fetched_at else None)}
 
 
 FIRES = FireField()

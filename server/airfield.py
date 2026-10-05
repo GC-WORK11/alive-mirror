@@ -22,7 +22,7 @@ import json
 import math
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -262,10 +262,13 @@ class AirField:
                 self._station_count = sum(
                     1 for _a, _b, _c, v in stations
                     if v.get("pm2_5") is not None)
-                if stations:
-                    self._source = (
-                        f"{self._stations_src or 'unknown'}-stations"
-                        "+open-meteo/cams")
+                # a fetched build IS fresh — stations dark must not freeze
+                # the stamp on the last blend (that read 'stale' while
+                # serving minutes-old model data), and _source must name
+                # what actually entered, not the blend it once had
+                self._source = (
+                    f"{self._stations_src or 'unknown'}-stations"
+                    "+open-meteo/cams" if stations else "open-meteo/cams")
                 self._fetched_at = time.time()
                 self._lru.clear()  # live layer may take over serving now
 
@@ -1021,6 +1024,13 @@ class AirField:
             "stations_src": self._stations_src,
             "stations_status": dict(self._stations_status) or None,
             "age_s": age,
+            # the served field's own build instant — snapshot stamp or the
+            # live-fetch epoch — so clients can render 'as of' without
+            # back-computing from age_s
+            "built_epoch": epoch if epoch else None,
+            "built_at": (datetime.fromtimestamp(
+                epoch, tz=timezone.utc).isoformat(timespec="seconds")
+                if epoch else None),
             "refresh_in_s": refresh_in,
             "refresh_ttl_s": CACHE_TTL,
             "wind": self.wind(),

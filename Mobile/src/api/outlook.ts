@@ -47,6 +47,11 @@ export type Outlook = {
   } | null;
   flat: boolean;
   verdict: string;                   // the one honest sentence, verbatim
+  /** the served field's own age — today's anchor basis 'as of'.
+   *  null = the card can't say how fresh today's basis is. */
+  fieldAgeS?: number | null;
+  /** the server's own stale verdict on that field */
+  fieldStale?: boolean | null;
 };
 
 type V2OutlookResponse = {
@@ -54,6 +59,8 @@ type V2OutlookResponse = {
   best_day?: Outlook["best_day"];
   flat?: boolean;
   verdict?: string;
+  field_age_s?: number | null;
+  field?: { age_s?: number | null; stale?: boolean | null } | null;
   error?: string;                    // OUT_OF_AREA / "forecast unavailable"
 };
 
@@ -97,11 +104,22 @@ export function normalizeOutlook(d: V2OutlookResponse | Outlook): Outlook {
           line: typeof b.line === "string" ? b.line : "",
         }
       : null;
+  /* 'as of' survives normalization — accept the wire shape
+     (field_age_s / field.stale) and an already-normalized Outlook
+     read back from cache. */
+  const wire = d as V2OutlookResponse;
+  const fs = (d as Outlook).fieldAgeS;
+  const fst = (d as Outlook).fieldStale;
   return {
     days,
     best_day,
     flat: !!d.flat,
     verdict: typeof d.verdict === "string" ? d.verdict : "",
+    fieldAgeS:
+      typeof fs === "number" ? fs
+        : typeof wire.field_age_s === "number" ? wire.field_age_s
+          : wire.field?.age_s ?? null,
+    fieldStale: wire.field?.stale === true || fst === true,
   };
 }
 

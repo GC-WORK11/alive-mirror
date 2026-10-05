@@ -20,6 +20,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 
 import pytest
 
@@ -273,6 +274,7 @@ def test_empty_field_contract():
     assert f.nearest_sample_km(28.6, 77.2) == float("inf")
     st = f.status()
     assert st["serving"] == "none" and st["stale"] is None
+    assert st["built_at"] is None and st["built_epoch"] is None
     for k in ("source", "samples", "station_readings", "age_s", "wind",
               "kriging"):  # pre-existing keys still present
         assert k in st
@@ -458,3 +460,70 @@ def test_wind_known_until_two_cycles_then_expired():
     assert f.wind()["known"] is True and not f._wind_expired()
     f._wind_at = time.time() - (2 * airfield.CACHE_TTL + 61)
     assert f.wind()["known"] is False and f._wind_expired()
+
+
+# ------------------------------------------------- serving honesty (freshness)
+
+def test_stations_dark_refresh_stamps_fresh_model_only(monkeypatch):
+    """Every station feed dark but the model grid fetched: the refresh is
+    a FRESH model-only build — fetched_at must move (it used to sit inside
+    `if stations:`, so a dark cycle kept the last blend's stamp and read
+    'stale' on minutes-old data), and _source must stop claiming the
+    station blend it no longer has."""
+    f = airfield.AirField()
+    f._source = "waqi-stations+open-meteo/cams"   # the last blend's claim
+    f._fetched_at = time.time() - 3600            # an hour stale
+    f._next_snap_scan = time.time() + 3600        # isolate from disk
+
+    class _R:
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return {"current": {"pm2_5": 42.0}}
+
+    class _C:
+        async def get(self, *a, **k):
+            return _R()
+
+    async def _no_stations(client):
+        f._stations_status["waqi"] = "unavailable"
+        return []
+    async def _no_wind(client):
+        f._wind_try_at = time.time()
+    monkeypatch.setattr(f, "_grab_stations", _no_stations)
+    monkeypatch.setattr(f, "_grab_wind", _no_wind)
+
+    asyncio.run(f.refresh(_C()))
+
+    assert f._fetched_at > time.time() - 60      # the build IS fresh
+    assert f._source == "open-meteo/cams"        # blend claim dropped
+    assert f._station_count == 0
+    assert f._stations_status["waqi"] == "unavailable"  # degrade still visible
+    st = f.status()
+    assert st["serving"] == "live"
+    assert st["stale"] is False                  # fresh model, not 'stale'
+    assert st["built_at"] is not None
+
+
+def test_status_built_at_names_the_served_build(tmp_path):
+    """built_at/built_epoch = the served field's own build instant in
+    every serving mode — the 'as of' cards render, computed server-side
+    so no client back-computes from age_s."""
+    f = airfield.AirField()
+    f._samples = [(28.61, 77.21, None, {"pm2_5": 50.0})]
+    f._fetched_at = NOW - 120
+    st = f.status()
+    assert st["serving"] == "live"
+    assert st["built_epoch"] == NOW - 120
+    assert st["built_at"] == datetime.fromtimestamp(
+        NOW - 120, tz=timezone.utc).isoformat(timespec="seconds")
+
+    _write_snap(tmp_path, "p/p.json.gz", _cells(),
+                built_epoch=NOW - 60, mtime=NOW - 50)
+    f2, res = _field(tmp_path)
+    assert res["loaded"]
+    st2 = f2.status()
+    assert st2["serving"] == "snapshot"
+    assert st2["built_epoch"] == NOW - 60       # the snapshot's own stamp
+    assert st2["built_at"] == datetime.fromtimestamp(
+        NOW - 60, tz=timezone.utc).isoformat(timespec="seconds")

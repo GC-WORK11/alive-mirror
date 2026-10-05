@@ -437,6 +437,11 @@ class ForecastField:
             "met_points": len(self._met),
             "hours": self._n_hours(),
             "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
+            # the horizon fetch instant — 'as of' for days-ahead cards
+            "fetched_at": (datetime.fromtimestamp(
+                self._fetched_at, tz=timezone.utc)
+                .isoformat(timespec="seconds")
+                if self._fetched_at else None),
             # whether pm25 reads are anchored to the live field, and by
             # what — honest about which truth the horizon starts from
             "live_anchor": {
