@@ -92,6 +92,11 @@
          line-height:1.9;background:rgba(250,250,247,.88);
          border:1px solid var(--line);padding:4px 8px}
   .m-src b{color:var(--ink2);font-weight:400}
+  /* the one-line gloss that makes the band numbers legible — same
+     register as the control-row notes */
+  .leg-note{flex-basis:100%;font-family:var(--mono);font-size:9.5px;
+            letter-spacing:.12em;text-transform:uppercase;
+            color:var(--ink4);line-height:1.9}
 
   /* watch the day — forecast scrubber. in-flow inside the same hairline
      as the legend so it can never cover geography; text-link play, a
@@ -216,8 +221,9 @@
                 color:var(--ink2);line-height:1.8}
   .detail .d-conf{margin-top:4px;font-size:10px;color:var(--ink4);line-height:1.5}
   /* ≤640: chips become one scrollable row + provenance wraps under it so the
-     docked detail card clears the whole legend stack (bottom:112px) */
-  @media(max-width:640px){.detail{top:auto;bottom:150px;left:12px;right:12px;
+     docked detail card clears the whole legend stack (bottom:170px —
+     taller since the band-gloss line joined it) */
+  @media(max-width:640px){.detail{top:auto;bottom:170px;left:12px;right:12px;
     min-width:0;max-width:none}
     .chips{flex:0 0 100%;max-width:none;flex-wrap:nowrap;overflow-x:auto;
            scrollbar-width:none}
@@ -325,33 +331,40 @@
 
 <div class="wrap">
   <div class="hero">
-    <div class="eyebrow">the instrument's evidence · delhi ncr</div>
+    <div class="eyebrow">what delhi is breathing · delhi ncr</div>
     <h1>Delhi NCR air, <em>right now.</em></h1>
-    <div class="dek"><p>Every district shaded by the official CPCB AQI
-      scale — a live field interpolated between government stations,
-      satellite models and the commutes people chose to share. This is
-      the surface the app reads your day against.</p></div>
+    <div class="dek"><p>Every district is coloured by the government's
+      air-quality score (<b>AQI</b> — 0 is clean, 500 is hazardous),
+      driven by <b>pm2.5</b>: the fine dust that settles deep in lungs,
+      measured in <b>µg/m³</b> (micrograms in a cubic metre of air).
+      Live government monitors anchor it; the satellite model and the
+      trips riders choose to share fill in the rest. This is the air
+      the app plans your day around.</p></div>
   </div>
 
   <noscript>
-    <style>.map-card,.ticker,.minimap{display:none}</style>
+    <style>.map-card,.ticker,.minimap,#corridors{display:none}
+      .rv{opacity:1;transform:none}</style>
     <p style="margin-top:20px;font-family:var(--mono);font-size:10.5px;
-      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)">
-      the live map and ledger need javascript — the ledger reads '—'
-      because nothing has run yet, not because the city is empty.</p>
+      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+      line-height:1.9">
+      the live map, the hour-by-hour replay and the numbers need
+      javascript — the ledger reads '—' because nothing has run yet,
+      not because the city is empty. the explainer sections below
+      still read.</p>
   </noscript>
 
   <div class="map-card">
-    <svg id="ncr" role="img" aria-label="Delhi NCR districts shaded by live AQI"></svg>
-    <div class="m-tag"><b>pm2.5 → aqi</b> · district mean of live field cells<br>
+    <svg id="ncr" role="img" aria-label="Delhi districts coloured by live air quality — tap one for its reading"></svg>
+    <div class="m-tag"><b>districts coloured by the govt air score</b> · each district averages the map squares inside it<br>
       tap a district for its number</div>
     <div class="m-wind" id="windtag">wind —</div>
     <div class="detail" id="detail"></div>
     <div class="tl" id="tl" hidden>
-      <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
+      <button id="tlPlay" type="button" aria-pressed="false">▶ the hours ahead</button>
       <input class="tl-range" id="tlRange" type="range" min="0" max="11"
-             step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
-      <span class="tl-h" id="tlHour">h+0 now</span>
+             step="1" value="0" aria-label="forecast — drag to see the next twelve hours">
+      <span class="tl-h" id="tlHour">now</span>
       <span class="tl-load" id="tlLoad" hidden></span>
       <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
       <span class="tl-note" id="tlNote"></span>
@@ -365,9 +378,9 @@
       <span class="tl-note" id="rchNote"></span>
     </div>
     <div class="tl" id="rc" hidden>
-      <button id="rcPlay" type="button" aria-pressed="false">▶ what happened</button>
+      <button id="rcPlay" type="button" aria-pressed="false">▶ the day so far</button>
       <span class="rc-strip" id="rcStrip" role="group"
-            aria-label="the recorded field — pick an ist hour"></span>
+            aria-label="saved air maps — pick an hour to replay"></span>
       <span class="rch-pills" id="rcBasis" hidden></span>
       <span class="tl-h" id="rcHour"></span>
       <span class="tl-load" id="rcLoad" hidden></span>
@@ -377,9 +390,10 @@
     <div class="m-legend">
       <div class="chips" id="chips"></div>
       <div class="m-src" id="src">connecting…</div>
+      <span class="leg-note">india's official bands — under 100 is fine for most people · 200+ sensitive lungs feel it · 300+ everyone does</span>
     </div>
     <div class="days" id="days" hidden>
-      <span class="days-lbl">the days ahead · daily mean pm2.5, <span class="u">µg/m³</span></span>
+      <span class="days-lbl">the days ahead · average fine dust per day, <span class="u">µg/m³</span></span>
       <div class="dayrow" id="dayRow" role="group" aria-label="five-day outlook"></div>
       <span class="days-cap" id="daysCap"></span>
       <span class="days-note" id="daysNote"></span>
@@ -392,33 +406,33 @@
     <div class="sec-h">
       <span class="sec-n">01</span>
       <span class="sec-t">the ledger, <em>today</em></span>
-      <span class="sec-sub">donated commutes · utc midnight → now</span>
+      <span class="sec-sub">shared trips · counted since utc midnight — 05:30 ist</span>
     </div>
     <div class="ledger">
       <div class="stat">
-        <div class="k">breaths through shared commutes</div>
+        <div class="k">breaths taken on shared trips</div>
         <div class="v"><span id="breaths">—</span></div>
-        <div class="d">estimated from today's donated trips — dose ÷ ambient pm2.5 ÷ 0.5&nbsp;L a breath · <b>updates each refresh</b></div>
+        <div class="d">how many breaths today's shared trips add up to — dust inhaled ÷ dust in the air ÷ half a litre a breath · <b>an estimate, updates each refresh</b></div>
       </div>
       <div class="stat">
-        <div class="k">inhaled across donated trips</div>
+        <div class="k">fine dust inhaled on shared trips</div>
         <div class="v"><span id="doseug">—</span><small> µg pm2.5</small></div>
-        <div class="d">collective inhaled dose today — <b>aggregates only; raw numbers, no per-person data exists server-side</b></div>
+        <div class="d">all the dust riders breathed today, added together — a cigarette is roughly 316 µg · <b>totals only; no per-person data exists</b></div>
       </div>
       <div class="stat">
-        <div class="k">commutes shared today</div>
-        <div class="v"><span id="obs">—</span><small> commutes</small></div>
-        <div class="d"><b><span id="km">—</span> km</b> travelled — <b><span id="contrib">—</span></b> commutes donated in 72 h</div>
+        <div class="k">trips shared today</div>
+        <div class="v"><span id="obs">—</span><small> trips</small></div>
+        <div class="d"><b><span id="km">—</span> km</b> travelled · <b><span id="contrib">—</span></b> trips shared in the last 3 days</div>
       </div>
       <div class="stat">
-        <div class="k">emitted on shared commutes today</div>
+        <div class="k">exhaust from shared trips, today</div>
         <div class="v"><span id="co2">—</span><small> kg co₂</small></div>
-        <div class="d" id="co2d">tailpipe co₂ + pm2.5 from donated commutes — the emission half of every receipt</div>
+        <div class="d" id="co2d">tailpipe co₂ + pm2.5 the shared trips put out today</div>
       </div>
       <div class="stat">
-        <div class="k">street cells publishable</div>
-        <div class="v"><span id="corr">—</span><small> k≥3</small></div>
-        <div class="d">a corridor cell publishes only with ≥3 distinct devices in 72 h · <b><span id="cellstr">—</span> cells tracked</b></div>
+        <div class="k">streets we can show</div>
+        <div class="v"><span id="corr">—</span><small> ≥3 phones</small></div>
+        <div class="d">a street stretch is shown only after 3 different phones cross it in 3 days · <b><span id="cellstr">—</span> stretches seen so far</b></div>
       </div>
     </div>
   </section>
@@ -426,19 +440,20 @@
   <section class="rv">
     <div class="sec-h">
       <span class="sec-n">02</span>
-      <span class="sec-t">provenance — <em>where the field is anchored</em></span>
-      <span class="sec-sub">cpcb / dpcc / hspcb + cams</span>
+      <span class="sec-t">where the numbers <em>come from</em></span>
+      <span class="sec-sub">govt monitors + satellite model</span>
     </div>
     <div class="prov">
       <canvas class="minimap" id="minimap"></canvas>
       <div class="prov-txt">
-        <p>Delhi's official monitors were built to regulate, not to tell a
-        commuter what they inhaled. <b><span id="nstations">—</span> named
-        instruments</b> anchor today's field — dots on the map — blended at
-        triple weight with the CAMS grid and every citizen traversal.</p>
-        <p>Where instruments thin out, the error band widens and the surface
-        goes quiet. District means follow the same rule — <b>sparse-edge
-        districts read from their centroid and say so.</b></p>
+        <p>Delhi's government monitors were built to regulate the city,
+        not to tell one commuter what they breathed. <b><span
+        id="nstations">—</span> live instruments</b> feed this map — the
+        green squares on it — and each live reading counts triple next
+        to the European satellite model (CAMS) and every shared trip.</p>
+        <p>Where monitors are far apart, the estimate is less sure and
+        the colours go quiet. <b>A district near the edge of coverage
+        says so on its card instead of pretending precision.</b></p>
         <p class="mono" id="fieldmeta">field —</p>
       </div>
     </div>
@@ -447,29 +462,29 @@
   <section class="rv">
     <div class="sec-h">
       <span class="sec-n">03</span>
-      <span class="sec-t">the corridors <em>the city actually travels</em></span>
-      <span class="sec-sub">~500m street cells · donated traversals · ≥3 devices to publish</span>
+      <span class="sec-t">the streets <em>the city actually travels</em></span>
+      <span class="sec-sub">~500 m street stretches · shared trips · needs ≥3 phones to appear</span>
     </div>
     <div class="card2 scrollx">
       <table id="corridors">
-        <tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>vs median</th></tr>
+        <tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>
       </table>
     </div>
   </section>
 
   <footer>
     <div class="foot-l">
-      <b>Alive-108</b> — donated commutes help fill the gaps between
-      stations. Field kriged over station feeds when reachable +
-      CAMS/Open-Meteo models, Kalman-smoothed, Bayesian-updated by
-      traversal-implied concentration. Estimates carry bands —
-      uncertainty is rendered, not hidden. District boundaries from
-      OpenStreetMap admin relations (ODbL), simplified. Refreshes on the
-      field's own cadence.
+      <b>Alive-108</b> — shared trips help fill the gaps between
+      government stations. The map is estimated between live station
+      readings and the CAMS/Open-Meteo satellite model, then corrected
+      by what shared trips actually measure. Every estimate carries an
+      uncertainty band — we show it rather than hide it. District
+      boundaries from OpenStreetMap (ODbL). The map refreshes on its
+      own cadence.
     </div>
     <div class="foot-r">
       <a href="/admin">ops ↗</a><br>
-      <a href="/docs">api ↗</a><br>
+      <a href="/docs">api docs ↗</a><br>
       <span id="stamp">—</span>
     </div>
   </footer>
@@ -595,10 +610,10 @@ function showDetail(f){
   const band=bandOf(d.aqi);
   DETAIL.innerHTML=
     `<div class="d-name">${esc(f.properties.name)}</div>`+
-    `<div class="d-state">${esc(f.properties.state||'')}${d.cells_covered!=null?` · ${d.cells_covered} field cells`:''}</div>`+
+    `<div class="d-state">${esc(f.properties.state||'')}${d.cells_covered!=null?` · ${d.cells_covered} map squares`:''}</div>`+
     `<div class="d-aqi">${d.aqi!=null?d.aqi:'—'}<small>aqi · pm2.5 ${d.pm25!=null?d.pm25+' <span style="text-transform:none">µg/m³</span>':'—'}</small></div>`+
     `<div class="d-cat" style="background:${band[2]};${band[1]==='Moderate'||band[1]==='Satisfactory'?'color:#14181F':''}">${band[1]}</div>`+
-    `<div class="d-conf">${d.confidence==='sparse'?'district edge — centroid estimate, few field cells':(d.confidence==='none'?'no live read over this district':'mean of live field cells inside the boundary')}</div>`;
+    `<div class="d-conf">${d.confidence==='sparse'?'edge of coverage — estimated from the district centre; few readings inside':(d.confidence==='none'?'no live reading over this district':'average of the map squares inside the boundary')}</div>`;
   DETAIL.classList.add('on');
 }
 
@@ -657,15 +672,15 @@ const tlClock=h=>new Date(Date.now()+h*36e5)
     hour:'2-digit',minute:'2-digit',hour12:false});
 function tlSetHour(h){TL.seq++;TL.h=h;tlUI.range.value=h;
   tlUI.range.style.setProperty('--tp',(h/TL_MAX*100)+'%');
-  tlUI.hour.textContent=h===0?'h+0 now':`h+${h} ${tlClock(h)}`;
+  tlUI.hour.textContent=h===0?'now':`+${h} h · ${tlClock(h)}`;
   if(TL.active)tlTag()}
 function tlTick(t){const e=tlUI.load;
   if(t==null){e.hidden=true;return}e.hidden=false;e.textContent=t}
 function tlTag(){
-  MTAG.innerHTML=`<b>pm2.5 → aqi</b> · cells = forecast h+${TL.h} · district fills = now<br>`+
-    `tap a district for its number`}
-const TL_NOTE_ON=`cells = forecast hour · district fills = now · forecast surface — CAMS + stagnation model; confidence fades with horizon`;
-const TL_NOTE_OFF=`the next twelve hours — forecast surface — CAMS + stagnation model; confidence fades with horizon`;
+  MTAG.innerHTML=`<b>forecast — ${TL.h===0?'now':'+'+TL.h+' h from now'}</b> · squares = the model's guess<br>`+
+    `district fills still show now · tap for its number`}
+const TL_NOTE_ON=`squares = the forecast for that hour · district fills still show now · from the satellite model — further out means less certain`;
+const TL_NOTE_OFF=`the next twelve hours, from the satellite model — further out means less certain`;
 
 async function tlFetch(h){
   if(h in TL.cache)return TL.cache[h];
@@ -687,12 +702,12 @@ async function tlShow(h){
   TL.active=true;tlUI.now.hidden=false;
   tlUI.note.textContent=TL_NOTE_ON;tlTag();
   if(TL.cache[h]){paintCells(TL.cache[h]);tlTick(null);return}
-  tlTick(`loading h+${h}`);
+  tlTick(`loading +${h} h`);
   const f=await tlFetch(h);
   if(seq!==TL.seq)return;                    // a newer scrub owns the map
   if(f){paintCells(f);tlTick(null)}
   else if(TL.playing){tlTick(null);tlAdvance()}
-  else tlTick(`h+${h} — no surface served`);
+  else tlTick(`+${h} h — no forecast for that hour`);
 }
 function tlAdvance(){                        // next cached frame, or hold
   for(let h=TL.h+1;h<=TL_MAX;h++){
@@ -700,7 +715,7 @@ function tlAdvance(){                        // next cached frame, or hold
   let left=false;
   for(let h=TL.h+1;h<=TL_MAX;h++)if(TL.cache[h]!==null)left=true;
   if(!left){tlStop();return}                 // only failed hours remain
-  tlTick(`loading h+${TL.h+1}`);
+  tlTick(`loading +${TL.h+1} h`);
 }
 function tlDeep(){                           // lazy chain, one at a time
   let h=0;const next=()=>{while(h<=TL_MAX&&h in TL.cache)h++;
@@ -719,7 +734,7 @@ function tlPlay(){
 function tlPause(){TL.playing=false;clearInterval(TL.timer);
   tlUI.play.textContent='▶ resume';tlUI.play.setAttribute('aria-pressed','false')}
 function tlStop(){TL.playing=false;clearInterval(TL.timer);
-  tlUI.play.textContent='▶ watch the day';   // honest stop at h+11
+  tlUI.play.textContent='▶ the hours ahead'; // honest stop at h+11
   tlUI.play.setAttribute('aria-pressed','false')}
 function tlReset(){                          // back to the live field
   tlStop();TL.active=false;tlSetHour(0);tlTick(null);
@@ -769,7 +784,7 @@ const RC={active:false,playing:false,h:null,timer:null,seq:0,
           data:null,basis:'rec'};
 const RC_MS=1800;
 const rcUI={};
-const RC_BASIS=[['rec','recorded'],['model','model'],['delta','δ']];
+const RC_BASIS=[['rec','what happened'],['model','what the model called'],['delta','the gap']];
 
 const rcEntry=h=>((RC.data&&RC.data.hours)||[])
   .find(e=>e.hour_ist===h);
@@ -782,11 +797,11 @@ function rcIdleNote(){
   const since=((d.archive&&d.archive.since_ist)||'').slice(11,16);
   const wm=(cov.with_model||[]).length;
   rcUI.note.textContent=!n
-    ?`the field records delhi hourly — recording since ${since||'—'} ist · today's first snapshot lands on the next ist boundary`
+    ?`the air map is saved every hour (delhi time) — recording since ${since||'—'} · today's first saved hour lands on the next hour mark`
     :n<3
-      ?`the field, recorded hourly — ${n} hour${n>1?'s':''} on record today · recording since ${since||'—'} ist`
-      :`the field, recorded hourly — ${n} hours on record today`+
-       `${wm?` · ${wm} carry the forecast that covered them — flip with the pills`:''}`;
+      ?`the air map, saved every hour — ${n} hour${n>1?'s':''} on record today · recording since ${since||'—'} · a square is one hour`
+      :`the air map, saved every hour — ${n} hours saved today · tap a square to see it`+
+       `${wm?` · ${wm} also carry what the model called for them — flip with the pills`:''}`;
 }
 function rcRender(){
   const d=RC.data,hours=(d&&d.hours)||[];
@@ -795,9 +810,9 @@ function rcRender(){
   rcUI.row.hidden=false;
   rcUI.strip.innerHTML=hours.map(e=>{
     const h=e.hour_ist,st=e.status,rec=st==='recorded';
-    const tt=`${e.ist_label} ist — ${rec?'recorded · click to replay'
-      :st==='gap'?'no record':st==='unreadable'?'snapshot unreadable'
-      :'not due yet'}`;
+    const tt=`${e.ist_label} ist — ${rec?'the saved air map · click to replay it'
+      :st==='gap'?'nothing was saved this hour':st==='unreadable'?'the saved hour can’t be read'
+      :'hasn’t happened yet'}`;
     return `<button type="button" data-h="${h}" ${rec?'':'disabled'}
       class="rc-h ${rec?'rec':st==='gap'?'gap':st==='unreadable'?'bad':'pend'}${RC.active&&RC.h===h?' on':''}"
       ${rec?`style="background:${rcMeanBand(e)}"`:''}
@@ -853,30 +868,33 @@ function rcPaint(e){
     for(const c of e.cells||[]){
       if(c[2]==null)continue;
       rcMk(X(c[0]),Y(c[1]),w,h,bandOf(cpcbOf(c[2]))[2],.5,'#14181F',.5,
-        `${e.ist_label} ist · pm2.5 ${c[2]} µg/m³ · recorded`);
+        `${e.ist_label} ist · pm2.5 ${c[2]} µg/m³ · what was served then`);
     }
-    MTAG.innerHTML=`<b>recorded ${e.ist_label} ist</b> · basis:recorded`+
-      ` · cells = what the api served<br>districts = now`;
-    const cap=(e.captured_at||'').slice(11,16);
+    MTAG.innerHTML=`<b>the map as it was · ${e.ist_label} ist</b><br>`+
+      `squares = the saved hour · districts still show now`;
+    const cap=e.captured_at
+      ?new Date(e.captured_at).toLocaleTimeString('en-IN',
+          {timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})
+      :'—';
     rcUI.note.textContent=
-      `recorded ${e.ist_label} ist · captured ${cap} utc`+
-      ` · ${e.samples??'?'} samples · ${e.station_readings??'?'} stations`+
-      ` · ${e.source||'—'} · ${e.n_cells??'?'} cells stored`+
-      `${e.field_age_s!=null?` · field was ${Math.round(e.field_age_s/60)} min old`:''}`;
+      `what delhi actually breathed at ${e.ist_label} · saved ${cap}`+
+      ` · built from ${e.station_readings??'?'} live stations · ${e.samples??'?'} readings`+
+      ` · ${e.source||'—'} · ${e.n_cells??'?'} map squares`+
+      `${e.field_age_s!=null?` · the map was ${Math.round(e.field_age_s/60)} min old`:''}`;
   }else if(b==='model'){
     const m=e.model;
     for(const c of m.cells||[]){
       if(c[2]==null)continue;
       const col=bandOf(cpcbOf(c[2]))[2];
       rcMk(X(c[0]),Y(c[1]),w,h,col,.16,col,.85,
-        `model · ${c[2]} µg/m³`);
+        `the model called it ${c[2]} µg/m³`);
     }
-    MTAG.innerHTML=`<b>model for ${e.ist_label} ist</b>`+
-      ` · ${m.source==='archive'?'the surface the api served':'the run’s own slot — raw model'}`+
-      `<br>districts = now`;
+    MTAG.innerHTML=`<b>what the model called · ${e.ist_label} ist</b>`+
+      ` · ${m.source==='archive'?'the forecast the map served back then':'the raw model run'}`+
+      `<br>districts still show now`;
     rcUI.note.textContent=
-      `${m.note} · issued ${m.issued_ist?m.issued_ist.slice(11,16)+' ist':'—'}`+
-      `${m.lead_hours!=null?` · ${m.lead_hours}h lead`:''}`;
+      `${m.note} · forecast made ${m.issued_ist?m.issued_ist.slice(11,16)+' ist':'—'}`+
+      `${m.lead_hours!=null?` · ${m.lead_hours} h ahead`:''}`;
   }else{
     const m=e.model,rec=new Map();
     for(const c of e.cells||[])rec.set(c[0]+'|'+c[1],c[2]);
@@ -889,15 +907,16 @@ function rcPaint(e){
          served (reality was dirtier): brick. over-called: sage */
       const col=d>tol?'#A14440':d<-tol?'#77804F':'#4A4E57';
       rcMk(X(c[0]),Y(c[1]),w,h,col,miss?.5:.18,col,miss?.85:.3,
-        `${d>0?'+':''}${d.toFixed(1)} µg/m³ — recorded ${v} vs model ${c[2]}`);
+        `${d>0?'+':''}${d.toFixed(1)} µg/m³ — what happened ${v} vs the model called ${c[2]}`);
     }
-    MTAG.innerHTML=`<b>recorded − model</b> · ${e.ist_label} ist`+
-      `<br>districts = now`;
+    MTAG.innerHTML=`<b>what happened − what the model called</b>`+
+      ` · ${e.ist_label} ist<br>`+
+      `brick = model called it cleaner · green = called it worse · grey = about right`;
     const d=e.model.delta;
     rcUI.note.textContent=d
-      ?`model under-called ${d.under_called} cells · about right ${d.about_right} · over-called ${d.over_called}`+
-       ` · |δ|≤${d.tol_ug}µg counts as right · mean signed ${d.mean_signed_ug>0?'+':''}${d.mean_signed_ug} µg/m³`
-      :'no shared lattice points — nothing to compare';
+      ?`the model called it lower in ${d.under_called} squares · about right in ${d.about_right} · higher in ${d.over_called}`+
+       ` · within ±${d.tol_ug} µg counts as right · average gap ${d.mean_signed_ug>0?'+':''}${d.mean_signed_ug} µg/m³`
+      :'the saved hour and the model don’t share points — nothing to compare';
   }
 }
 
@@ -916,7 +935,7 @@ function rcPause(){RC.playing=false;clearInterval(RC.timer);
   rcUI.play.textContent='▶ resume';
   rcUI.play.setAttribute('aria-pressed','false')}
 function rcStopPlay(){RC.playing=false;clearInterval(RC.timer);
-  rcUI.play.textContent='▶ what happened';
+  rcUI.play.textContent='▶ the day so far';
   rcUI.play.setAttribute('aria-pressed','false')}
 function rcPlay(){
   const rec=(RC.data&&RC.data.coverage&&RC.data.coverage.recorded)||[];
@@ -988,13 +1007,13 @@ function rchLoad(t){const e=rchUI.load;
   if(t==null){e.hidden=true;return}e.hidden=false;e.textContent=t}
 
 function rchArm(){RCH.armed=true;
-  rchUI.arm.textContent='◉ lungs mode — tap the map';
+  rchUI.arm.textContent='◉ tap the map';
   rchUI.arm.setAttribute('aria-pressed','true');
   svg.style.cursor='crosshair';
   /* district/cell hit-testing would swallow the tap — yield the whole
      svg while armed (the veil itself is pointer-events:none) */
   for(const g of [gCells,gDist,gLab])if(g)g.style.pointerEvents='none';
-  rchNote('tap anywhere — the veil paints the roads reachable inside the budget')}
+  rchNote('tap anywhere on the map — every road reachable inside the picked dust budget gets drawn in ink')}
 function rchDisarm(){RCH.armed=false;RCH.origin=null;RCH.seq++;rchClear();
   rchUI.arm.innerHTML='◎ where can your lungs go?';
   rchUI.arm.setAttribute('aria-pressed','false');
@@ -1016,7 +1035,7 @@ function rchClick(e){
 
 async function rchSolve(){
   const seq=++RCH.seq,o=RCH.origin;if(!o)return;
-  rchLoad('settling the frontier…');rchCap('');
+  rchLoad('drawing your reach…');rchCap('');
   let b=null,bad=false;
   try{
     const r=await fetch(`/v2/reach?lat=${o.lat.toFixed(6)}&lon=${o.lon.toFixed(6)}&mode=${RCH.mode}&budget_ug=${RCH.budget}`,
@@ -1029,9 +1048,9 @@ async function rchSolve(){
   if(b.error){
     rchClear();
     if(b.code==='outside_service_area')
-      rchCap('outside the dose field — tap inside ncr');
+      rchCap('outside the air map — tap inside delhi ncr');
     else if(b.code==='engine_unavailable'||b.code==='timeout')
-      rchCap('the field is still warming — tap again in a few seconds');
+      rchCap('the map is still warming up — tap again in a few seconds');
     else rchCap('reach — '+String(b.error).slice(0,80));
     return;
   }
@@ -1046,9 +1065,9 @@ function rchPaint(b){
   const seq=++RCH.paintSeq;
   const edges=b.edges_e6||[];
   const km=(b.distance_km||0).toLocaleString('en-IN',{maximumFractionDigits:1});
-  let cap=`${RCH.mode} ≤${RCH.budget}µg — ${km} km reachable · ${(b.edge_count||0).toLocaleString('en-IN')} road edges settled`;
-  if(b.truncated)cap+=' · frontier cut at the state cap';
-  if(b.edge_partial)cap+=` · veil shows the nearest ${(b.edges_e6.length||0).toLocaleString('en-IN')}`;
+  let cap=`${RCH.mode} · ≤${RCH.budget} µg dust — ${km} km of roads reachable · ${(b.edge_count||0).toLocaleString('en-IN')} road segments drawn`;
+  if(b.truncated)cap+=' · reach stopped early — the engine hit its limit';
+  if(b.edge_partial)cap+=` · the map shows the nearest ${(b.edges_e6.length||0).toLocaleString('en-IN')} of them`;
   /* the decode+paint is chunked across frames — a 90k-edge payload was a
      ~150 ms main-thread block as one path; now each frame decodes only
      what it can paint inside its budget. the caption counts honestly
@@ -1072,13 +1091,13 @@ function rchPaint(b){
       g.appendChild(c);
     }
     rchCap(cap);
-    let n='the veil is computed, not painted — every ink line a real road your lungs can afford';
-    if(b.field_age_s!=null)n+=` · field ${Math.floor(b.field_age_s/60)} min old`;
+    let n='every ink line is a real road — solved by the engine, never smoothed';
+    if(b.field_age_s!=null)n+=` · the map was ${Math.floor(b.field_age_s/60)} min old`;
     rchNote(n);
     if(window.__m&&__m.paint)__m.paint.done=true;
   };
   if(!edges.length){mkPath('M0 0');finish();return}
-  rchCap(cap+` · painting 0/${edges.length.toLocaleString('en-IN')}`);
+  rchCap(cap+` · drawing 0/${edges.length.toLocaleString('en-IN')}`);
   let i=0;
   const step=()=>{
     if(seq!==RCH.paintSeq||!g.isConnected)return;
@@ -1091,7 +1110,7 @@ function rchPaint(b){
     }while(i<edges.length&&(i%1500||performance.now()-t0<12));
     mkPath(d);
     if(i<edges.length){
-      rchCap(cap+` · painting ${i.toLocaleString('en-IN')}/${edges.length.toLocaleString('en-IN')}`);
+      rchCap(cap+` · drawing ${i.toLocaleString('en-IN')}/${edges.length.toLocaleString('en-IN')}`);
       requestAnimationFrame(step);
     }else finish();
   };
@@ -1120,7 +1139,7 @@ async function rchInit(){
   rchUI.modes.innerHTML=RCH_MODES.map(m=>
     `<button type="button" data-m="${m}"${m===RCH.mode?' class="on"':''}>${m}</button>`).join('');
   rchUI.budgets.innerHTML=RCH_BUDGETS.map(v=>
-    `<button type="button" data-b="${v}"${v===RCH.budget?' class="on"':''}>≤${v}µg</button>`).join('');
+    `<button type="button" data-b="${v}"${v===RCH.budget?' class="on"':''}>≤${v} µg</button>`).join('');
   rchUI.modes.addEventListener('click',e=>{const b=e.target.closest('button[data-m]');
     if(!b)return;RCH.mode=b.dataset.m;
     rchUI.modes.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
@@ -1131,7 +1150,7 @@ async function rchInit(){
     if(RCH.origin)rchSolve()});
   rchUI.arm.addEventListener('click',()=>RCH.armed?rchDisarm():rchArm());
   svg.addEventListener('pointerdown',rchClick,true);
-  rchNote('arm it, tap the map — the veil draws the roads your lungs can afford');
+  rchNote('pick a mode and a dust budget — a cigarette is ≈316 µg — then press the button and tap the map')
   row.hidden=false;
 }
 
@@ -1156,16 +1175,16 @@ function outHour(dy){
   const h=Math.max(0,Math.ceil((t0-OUT.gen)/36e5));
   return h<=TL_MAX?h:null}
 function outDetail(dy){
-  const bits=[`${dy.label} — day-avg ~${Math.round(dy.pm25_mid)} µg/m³`];
+  const bits=[`${dy.label} — avg fine dust ~${Math.round(dy.pm25_mid)} µg/m³`];
   if(dy.pm25_lo!=null&&dy.pm25_hi!=null)
-    bits[0]+=` (${Math.round(dy.pm25_lo)}–${Math.round(dy.pm25_hi)})`;
+    bits[0]+=` (somewhere between ${Math.round(dy.pm25_lo)}–${Math.round(dy.pm25_hi)})`;
   const cw=dy.cleanest_window;
   if(cw&&cw.start_label)
     bits.push(`cleanest ${cw.start_label}–${cw.end_label} ~${Math.round(cw.pm25_mid)}`);
   const hh=dy.heavy_hours_ist||[];
-  if(hh.length)bits.push(`heaviest ${hh.length}h, ${hh[0]}–${hh[hh.length-1]}`);
-  if(dy.partial&&dy.n_hours!=null)bits.push(`only ~${dy.n_hours}h inside the horizon`);
-  if(dy.confidence==='lo')bits.push('model only');
+  if(hh.length)bits.push(`worst ${hh.length} h: ${hh[0]}–${hh[hh.length-1]}`);
+  if(dy.partial&&dy.n_hours!=null)bits.push(`only the first ~${dy.n_hours} h are forecast`);
+  if(dy.confidence==='lo')bits.push('model estimate only');
   return bits.join(' · ')}
 async function outLoad(){
   if(!outUI.row)return;
@@ -1185,7 +1204,7 @@ async function outLoad(){
     const meta=[dy.band,
       dy.partial&&dy.n_hours!=null?`first ~${dy.n_hours}h only`:null,
       OUT.best===dy.date_ist?'least-bad':null,
-      lo?'model only':null].filter(Boolean).join(' · ');
+      lo?'model estimate':null].filter(Boolean).join(' · ');
     const on=OUT.sel===dy.date_ist;
     return `<button type="button" class="day${lo?' lo':''}${on?' on':''}"
       data-d="${esc(dy.date_ist)}" aria-pressed="${on}">
@@ -1248,25 +1267,37 @@ function paintTicker(a,cy,t,ad,nd){
       if(v==null)continue;n++;if(v<lo)lo=v;if(v>hi)hi=v}
     return n?`${f1(lo)}–${f1(hi)}`:'—'})();
   const items=[
-    [`pm2.5 · ncr mean`,`${f1(pm.mean)} µg/m³`],
-    [`pm10 · ncr mean`,`${f1(sp.pm10&&sp.pm10.mean)} µg/m³`],
-    [`no₂ · mean`,`${f1(sp.nitrogen_dioxide&&sp.nitrogen_dioxide.mean)} µg/m³`],
-    [`o₃ · mean`,`${f1(sp.ozone&&sp.ozone.mean)} µg/m³`],
-    [`co · mean`,`${f1(sp.carbon_monoxide&&sp.carbon_monoxide.mean)} µg/m³`],
-    [`so₂ · mean`,`${f1(sp.sulphur_dioxide&&sp.sulphur_dioxide.mean)} µg/m³`],
-    [`us aqi · mean`,`${sp.us_aqi&&sp.us_aqi.mean!=null?Math.round(+sp.us_aqi.mean):'—'}`],
-    [`field pm2.5 range`,`${rng}`],
-    [`wind`,windNow?`${Math.round(windNow.speed_kmh)} km/h from ${compass(windNow.from_deg)}`:'—'],
-    [`instruments`,`${a.field?.station_readings??'—'} live`],
-    [`grap · incl. smoke`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`,
-      'graded response action plan — the official smog-alert stage, smoke folded in'],
-    [`districts`,`${nd} live`],
-    [`commutes today`,`${IN(t.obs_24h)}`],
-    [`km donated`,`${IN(t.km_24h)}`],
-    [`cells tracked`,`${IN(t.cells_tracked)}`],
-    [`corridors ≥3 devices`,`${IN(t.corridors_publishable)}`],
-    [`field age`,`${ad.field_age_s!=null?Math.floor(ad.field_age_s/60)+' min':'—'}`],
-    [`next refresh`,`${ad.refresh_in_s!=null?Math.floor(ad.refresh_in_s/60)+' min':'—'}`]];
+    [`fine dust (pm2.5) · ncr avg`,`${f1(pm.mean)} µg/m³`,
+      'the main pollutant delhi breathes — the same number the map is coloured by'],
+    [`coarse dust (pm10) · ncr avg`,`${f1(sp.pm10&&sp.pm10.mean)} µg/m³`,
+      'bigger particles — road dust and construction'],
+    [`no₂ · ncr avg`,`${f1(sp.nitrogen_dioxide&&sp.nitrogen_dioxide.mean)} µg/m³`,
+      'nitrogen dioxide — the traffic-exhaust gas'],
+    [`o₃ · ncr avg`,`${f1(sp.ozone&&sp.ozone.mean)} µg/m³`,
+      'ozone — formed in sunlight from exhaust and fumes'],
+    [`co · ncr avg`,`${f1(sp.carbon_monoxide&&sp.carbon_monoxide.mean)} µg/m³`,
+      'carbon monoxide — from exhaust and burning'],
+    [`so₂ · ncr avg`,`${f1(sp.sulphur_dioxide&&sp.sulphur_dioxide.mean)} µg/m³`,
+      'sulphur dioxide — from industry and coal'],
+    [`us aqi · ncr avg`,`${sp.us_aqi&&sp.us_aqi.mean!=null?Math.round(+sp.us_aqi.mean):'—'}`,
+      'the same air on the american 0–500 scale'],
+    [`fine dust · lowest–highest`,`${rng}`,
+      'the spread of the estimate across the whole map'],
+    [`wind`,windNow?`${Math.round(windNow.speed_kmh)} km/h from the ${compass(windNow.from_deg)}`:'—',
+      'the direction the dust is blowing from'],
+    [`govt monitors`,`${a.field?.station_readings??'—'} live`,
+      'official station readings feeding this map right now'],
+    [`smog alert`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`,
+      'grap — the official smog-emergency stage, fire smoke folded in'],
+    [`districts`,`${nd} live`,'districts with a live reading right now'],
+    [`shared trips today`,`${IN(t.obs_24h)}`],
+    [`km shared today`,`${IN(t.km_24h)}`],
+    [`street stretches seen`,`${IN(t.cells_tracked)}`,
+      'street stretches crossed by shared trips in the last 3 days'],
+    [`streets ≥3 phones`,`${IN(t.corridors_publishable)}`,
+      'a stretch is shown publicly only after 3 different phones cross it'],
+    [`map rebuilt`,`${ad.field_age_s!=null?Math.floor(ad.field_age_s/60)+' min ago':'—'}`],
+    [`next rebuild`,`${ad.refresh_in_s!=null?'in '+Math.floor(ad.refresh_in_s/60)+' min':'—'}`]];
   /* static strip — the same live numbers, standing still; nothing on
      this page loops */
   document.getElementById('ticker').innerHTML=
@@ -1346,16 +1377,16 @@ async function load(){
     /* 'connecting…' resolves to whichever feed actually answered —
        never left hanging when a sibling endpoint came through */
     setTxt('src',a.field
-      ?`${a.field.source||'—'} · ${a.field.samples??'?'} samples · ${a.field.station_readings??'?'} stations · krige ${a.field.kriging||'—'}`
-      :(cy?'city ledger live · station feed unreachable — retrying'
+      ?`${a.field.source||'—'} · ${a.field.samples??'?'} points fitted · ${a.field.station_readings??'?'} live stations · gap-filling ${a.field.kriging==='on'?'on':'off'}`
+      :(cy?'shared-trips numbers live · station feed unreachable — retrying'
         :'station feed unreachable — retrying'));
     setTxt('windtag',windNow
-      ?`wind ${Math.round(windNow.speed_kmh)} km/h · from ${Math.round(windNow.from_deg)}° ${compass(windNow.from_deg)}`
+      ?`wind ${Math.round(windNow.speed_kmh)} km/h · blowing from the ${compass(windNow.from_deg)}`
       :'wind —');
     if(!cy){   /* the ledger/corridor numbers all ride /v2/city */
       document.getElementById('corridors').innerHTML=
-        '<tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>top mode</th></tr>'+
-        '<tr><td colspan="5" style="color:var(--ink3)">city ledger unreachable — retrying</td></tr>';
+        '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>'+
+        '<tr><td colspan="5" style="color:var(--ink3)">the street feed is unreachable — retrying</td></tr>';
       return;
     }
     const days=(cy.trips&&cy.trips.days)||{};
@@ -1387,14 +1418,14 @@ async function load(){
       const md=latest.modes?Object.entries(latest.modes).sort((a,b)=>b[1]-a[1])
         .map(([m,n])=>`${m} ${n}`).join(' · '):'';
       document.getElementById('co2d').innerHTML=
-        `tailpipe pm2.5 <b>${pmv!=null?(+pmv).toFixed(pmv<1?3:1)+' g':'—'}</b> · mid estimate`+
+        `tailpipe pm2.5 <b>${pmv!=null?(+pmv).toFixed(pmv<1?3:1)+' g':'—'}</b> · central estimate`+
         `${md?` · by mode: ${md}`:''}`;
     }else{
       setTxt('co2','—');
-      setTxt('co2d','no donated commutes today — the app fills this as delhi moves');
+      setTxt('co2d','no shared trips today — this fills in as delhi moves');
     }
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
-    setTxt('fieldmeta',`field age ${Math.round((a.field?.age_s||0)/60)} min · nearest sample ${a.nearest_sample_km??'—'} km · ${a.calibration?.mae_ug?`calibrated mae ${a.calibration.mae_ug} µg`:'uncalibrated'}`);
+    setTxt('fieldmeta',`map rebuilt ${Math.round((a.field?.age_s||0)/60)} min ago · nearest map square ${a.nearest_sample_km??'—'} km away · ${a.calibration?.mae_ug?`typical error ±${a.calibration.mae_ug} µg/m³`:'not yet calibrated'}`);
     paintTicker(a,cy,t,ad,(dd&&dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
     const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
@@ -1402,10 +1433,10 @@ async function load(){
        <td class="cell">${esc(c.name||`${(+c.lat).toFixed(3)}°N · ${(+c.lon).toFixed(3)}°E`)}</td>
        <td class="num">${IN(c.trips)}</td>
        <td class="num"><span class="dose-chip">${IN(Math.round(c.avg_dose_ug))} µg</span></td>
-       <td><span class="modep">${c.relative?c.relative+' than median':'—'}</span></td></tr>`).join('');
+       <td><span class="modep">${c.relative?c.relative+' than typical':'—'}</span></td></tr>`).join('');
     document.getElementById('corridors').innerHTML=
-      '<tr><th></th><th>corridor</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>vs median</th></tr>'+
-      (rows||'<tr><td colspan="5" style="color:var(--ink3)">no donated traversals yet — the app fills this as delhi moves</td></tr>');
+      '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>'+
+      (rows||'<tr><td colspan="5" style="color:var(--ink3)">no street has enough phones yet — this fills in as delhi moves</td></tr>');
     setTxt('stamp','updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' ist');
     /* cadence from the field itself — refresh_in_s rides /v2/city */
     const rs=(ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000;
