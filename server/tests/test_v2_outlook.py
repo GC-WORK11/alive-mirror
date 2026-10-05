@@ -147,7 +147,7 @@ def test_declining_horizon_picks_least_bad_day():
     assert abs(bd["pm25_mid"] - min(means)) < 0.2
     assert bd["delta_vs_mean"] < 0
     assert bd["label"] in b["verdict"]
-    assert "ug/m3" in b["verdict"]
+    assert "µg/m³" in b["verdict"]
 
 
 def test_confidence_fades_monotonic_over_days():

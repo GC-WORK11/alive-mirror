@@ -218,7 +218,7 @@ def _window(run, mean, mids, hours, open_end: bool) -> dict:
         "start_label": hours[a]["ist_label"],
         "end_label": None if end_open else _end_label(hours[b]),
         "pm25_mid": round(mean, 1),
-        "basis": ("pm25 %.0f vs day mean %.0f ug/m3 — %s" % (
+        "basis": ("pm25 %.0f vs day mean %.0f µg/m³ — %s" % (
             mean, sum(mids) / len(mids),
             "runs to day end" if end_open else "contiguous run")),
     }
@@ -265,7 +265,7 @@ def summarize_day(hours: list) -> dict:
         out["decisions"].append({
             "label": "today",
             "line": ("no meaningful window today — %s air all day "
-                     "(%.0f-%.0f ug/m3)"
+                     "(%.0f-%.0f µg/m³)"
                      % (_day_band_word(hours), lo_d, hi_d))})
         return out
 
@@ -305,12 +305,12 @@ def _decisions(hours: list, day: dict, mean: float) -> list:
         word = ("least-bad" if clean["pm25_mid"] > 60.0 else "cleanest")
         ds.append({
             "label": "outdoor exercise",
-            "line": "%s window %s IST (avg %.0f ug/m3 vs day %.0f)"
+            "line": "%s window %s IST (avg %.0f µg/m³ vs day %.0f)"
                     % (word, _fmt_window(clean), clean["pm25_mid"], mean)})
     elif heavy is not None:
         ds.append({
             "label": "outdoor exercise",
-            "line": "no clean slot left today — lightest is %.0f ug/m3"
+            "line": "no clean slot left today — lightest is %.0f µg/m³"
                     % day["day_min"]})
 
     if heavy is not None:
@@ -318,7 +318,7 @@ def _decisions(hours: list, day: dict, mean: float) -> list:
             ds.append({
                 "label": "kids outdoors",
                 "line": ("indoors today — heavy all day "
-                         "(~%.0f ug/m3 avg)" % mean)})
+                         "(~%.0f µg/m³ avg)" % mean)})
         else:
             ds.append({
                 "label": "kids outdoors",
@@ -329,7 +329,7 @@ def _decisions(hours: list, day: dict, mean: float) -> list:
     elif clean is not None:
         ds.append({
             "label": "kids outdoors",
-            "line": ("no heavy window today — worst is %.0f ug/m3; "
+            "line": ("no heavy window today — worst is %.0f µg/m³; "
                      "easiest %s" % (day["day_max"], _fmt_window(clean)))})
 
     if clean is not None and heavy is not None:

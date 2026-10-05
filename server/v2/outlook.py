@@ -148,17 +148,17 @@ def summarize_outlook(day_pairs, today, has_krige: bool,
            "horizon_hours": horizon_hours, "verdict": ""}
     if flat:
         out["verdict"] = (
-            "no meaningful difference between days — ~%.0f ug/m3 "
-            "throughout the %d-day horizon" % (mean_of_days, len(days)))
+            "no meaningful difference between days — ~%.0f µg/m³ "
+            "throughout the %d-day forecast" % (mean_of_days, len(days)))
         return out
 
     grand = sum(all_mids) / len(all_mids)
     best = min(days, key=lambda dd: dd["pm25_mid"])
     word = "least-bad" if best["pm25_mid"] > _CLEAN_UG else "cleanest"
-    line = ("%s looks %s — avg ~%.0f vs ~%.0f ug/m3 across the horizon"
-            % (best["label"], word, best["pm25_mid"], grand))
+    line = ("%s looks %s — avg ~%.0f vs ~%.0f µg/m³ across the %d-day forecast"
+            % (best["label"], word, best["pm25_mid"], grand, len(days)))
     if best["n_hours"] < 12:
-        line += (" (only its first ~%dh fall inside the horizon)"
+        line += (" (only its first ~%dh fall inside the forecast)"
                  % best["n_hours"])
     out["best_day"] = {
         "date_ist": best["date_ist"],
@@ -246,7 +246,7 @@ async def outlook(lat: float, lon: float):
             "generated_ist": ist_now.isoformat(),
             "horizon_days": 0, "horizon_hours": 0,
             "days": [], "best_day": None, "flat": False,
-            "verdict": "forecast unavailable — no honest horizon",
+            "verdict": "forecast unavailable — nothing honest to show",
             "model": _MODEL, "band_basis": _OUTLOOK_BAND_BASIS,
             "field_age_s": fstat.get("age_s"),
             "field": fstat, "forecast": fcstat,
