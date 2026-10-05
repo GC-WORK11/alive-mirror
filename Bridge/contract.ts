@@ -356,11 +356,16 @@ export interface V2SearchResponse {
   took_ms: { t1: number; t2: number | null; total: number };
 }
 
+/** Every dose on the v2 wire prices the breathing-zone field —
+    ambient × FIRES smoke_modifier — the same basis /aqi's pm25
+    and the stays ledger count (strip-bz lane): a trip over a
+    street and a stand on it must agree. `smoke_modifier` on the
+    plan/strip/reroute responses is the multiplier applied. */
 export interface DoseBand {
   lo: number | null;
   mid: number | null;
   hi: number | null;
-  avg_conc_ugm3?: number | null;
+  avg_conc_ugm3?: number | null;  // breathing-zone average (ambient × smoke_modifier)
   confidence?: "high" | "medium" | "low" | "none" | null;
   basis?: string | null;
   note?: string;
@@ -450,7 +455,9 @@ export interface V2PlanOption {
   engine_dose_ug?: number | null;     // engine rows: inhaled µg summed over the
                                       // priced edges — the exact objective the
                                       // path minimized; server ranking keys on
-                                      // it. Display dose stays `dose` (the
+                                      // it. Breathing-zone basis (ambient ×
+                                      // smoke_modifier — uniform scalar, same
+                                      // argmin). Display dose stays `dose` (the
                                       // raster band, one surface per response)
   reason_line: string;
   your_vehicle: boolean;
@@ -494,6 +501,9 @@ export interface V2PlanResponse {
   depart_at: string | null;
   options: V2PlanOption[];      // recommended first when scored
   ranking: string;
+  /** FIRES breathing-zone multiplier applied to every dose block —
+      same number /aqi reports (1.0 = fires feed down or no burn) */
+  smoke_modifier?: number;
   field: FieldStatus;
   took_ms: number;
   error?: string;               // malformed from/to path
@@ -512,6 +522,9 @@ export interface V2StripSample {
   lat: number;                  // 5-dp rounded
   lon: number;
   dist_m: number;
+  /** breathing-zone µg/m³ (ambient × smoke_modifier) — same basis
+      /aqi's pm25 serves, so the live counter and the stays ledger
+      read one field */
   pm25: number | null;
   lo: number | null;
   hi: number | null;
@@ -534,6 +547,8 @@ export interface V2StripResponse {
   samples: V2StripSample[];
   roads?: V2StripRoad[];        // [] when the route record carried no steps
   emissions_curve: Record<string, unknown>;
+  /** breathing-zone multiplier baked into every sample's pm25 */
+  smoke_modifier?: number;
   field: FieldStatus;
   // 404 path emits {error, detail}:
   error?: string;
@@ -567,6 +582,7 @@ export interface V2RerouteResponse {
   // the "park and finish on foot" honesty check
   finish_on_foot?: { distance_km: number; eta_s: number;
                      dose: DoseBand | null; route_id: string };
+  smoke_modifier?: number;      // same bz basis as /v2/plan
   field?: FieldStatus;
   took_ms?: number;
   error?: string;

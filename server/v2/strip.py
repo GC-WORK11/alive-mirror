@@ -231,9 +231,13 @@ async def strip(route_id: str = Query(min_length=1)):
             "error": "unknown route_id",
             "detail": "route_ids come from /v2/plan and expire after 1 h"})
 
-    from .plan import _field_refresh_bounded
+    from .plan import _field_refresh_bounded, _smoke_mod
     await _field_refresh_bounded()
     F = deps.field()
+    # breathing-zone basis — the same FIRES multiplier /aqi's pm25 and
+    # the stays ledger count, so a trip over a street prices the same
+    # air a stand on it does (strip-bz lane, ledger-audit finding)
+    mod = _smoke_mod()
     try:
         import exposure
         samples = exposure.segment_samples(
@@ -252,9 +256,11 @@ async def strip(route_id: str = Query(min_length=1)):
         strip_pts.append({
             "lat": round(s["lat"], 5), "lon": round(s["lon"], 5),
             "dist_m": round(s["dist_m"]),
-            "pm25": round(c, 1) if c is not None else None,
-            "lo": round(max(0.0, c - sd), 1) if (c is not None and sd) else None,
-            "hi": round(c + sd, 1) if (c is not None and sd) else None,
+            "pm25": round(c * mod, 1) if c is not None else None,
+            "lo": round(max(0.0, (c - sd) * mod), 1)
+                  if (c is not None and sd) else None,
+            "hi": round((c + sd) * mod, 1)
+                  if (c is not None and sd) else None,
         })
 
     return {
@@ -267,5 +273,6 @@ async def strip(route_id: str = Query(min_length=1)):
         "roads": _roads_for(strip_pts, rec.get("steps") or []),
         "emissions_curve": _emission_curve(
             rec.get("mode") or "", rec.get("emissions_vehicle")),
+        "smoke_modifier": mod,
         "field": F.status() if hasattr(F, "status") else {},
     }

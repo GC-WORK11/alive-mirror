@@ -4,12 +4,15 @@
  * Pure math + types — no RN imports, unit-testable.
  *
  * Server shape: GET /v2/strip?route_id=… →
- *   { route_id, mode, step_m,
+ *   { route_id, mode, step_m, smoke_modifier,
  *     samples: [{lat, lon, dist_m, pm25, lo, hi}],
  *     emissions_curve: { mode, co2_g_km|co2_g_pkm:{lo,hi},
  *                        pm25_g_km|pm25_g_pkm:{lo,hi},
  *                        idle_g_s, occupancy, cold_start_km, basis },
  *     field: {...} }
+ * samples[].pm25 is the breathing-zone basis — ambient × smoke_modifier,
+ * the same field /aqi's pm25 and the stays ledger read — so a trip over
+ * a street and a stand on it price the same air (strip-bz lane).
  * Note: server `dist_m` is the length of the ~250 m chunk ENDING at the
  * sample (exposure.segment_samples), not a cumulative odometer — so the
  * sample's position along the route is the running sum.

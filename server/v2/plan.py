@@ -264,6 +264,57 @@ def _microenv_ve(microenv: str) -> tuple:
     return me, ve
 
 
+def _smoke_mod() -> float:
+    """fires.smoke_modifier() — the breathing-zone multiplier shared
+    with /aqi's pm25 and the app's stays ledger. 1.0 when the fires
+    feed is down or returns garbage (ambient basis = bz basis, and
+    stays degrade to the same ambient — still consistent)."""
+    try:
+        from fires import FIRES     # lazy: tests monkeypatch fires.FIRES
+        m = FIRES.smoke_modifier()
+        if isinstance(m, (int, float)) and math.isfinite(m) and m > 0:
+            return float(m)
+    except Exception:
+        pass
+    return 1.0
+
+
+def _bz_field(v_fn, s_fn):
+    """Re-base a (value, sigma) field pair onto the breathing-zone
+    basis — ambient × FIRES smoke_modifier.
+
+    WHY (strip-bz lane, ledger-audit finding): /aqi serves
+    pm25 = ambient × mod as the product's public 'what you breathe'
+    number and the stays ledger counts it, while plan/strip priced
+    raw ambient — same street, same hour, ~+9 % dose mismatch on
+    burn nights. The modifier is physically real (FIRMS belt
+    detections vs seasonal baseline, wind-gated 270–360 °), so the
+    honest fix is applying it here, not stripping it from stays.
+
+    mod is a city-wide scalar, so it commutes exactly through
+    exposure.dose's Σc·ME·VE·t and leaves the priced argmin untouched
+    (a uniform factor can't change which route is cheapest) — one
+    basis, no re-rastering. sigma scales with the values so the
+    reported band stays the band around the served concentration.
+    None stays None — an uncovered read is uncovered, never scaled
+    into existence."""
+    mod = _smoke_mod()
+
+    def _wrap(f):
+        # None stays None — callers' `field_fn or dval or F.value`
+        # fallback chain must still see a missing surface as missing
+        if f is None or mod == 1.0:
+            return f
+
+        def _g(lat, lon):
+            c = f(lat, lon)
+            return c * mod if c is not None else None
+
+        return _g
+
+    return _wrap(v_fn), _wrap(s_fn)
+
+
 def _dose_via_core(coords: list, microenv: str):
     """alive_core.integrate_dose seam — deliberately dormant.
 
@@ -290,9 +341,29 @@ def _dose_via_core(coords: list, microenv: str):
     except Exception:
         return None
     fval = getattr(F, "value", None)
+    fval, _ = _bz_field(fval, None)          # same bz basis as _dose_band
+    Fbz = F
+    mod = _smoke_mod()
+    if mod != 1.0:
+        class _Fbz:
+            """field-object form of _bz_field's wrap — forwards every
+            attribute, serving .value scaled onto the bz basis."""
+            __slots__ = ("_f",)
+
+            def __init__(s, f):
+                s._f = f
+
+            def value(s, lat, lon, *a, **k):
+                c = s._f.value(lat, lon, *a, **k)
+                return c * mod if c is not None else None
+
+            def __getattr__(s, name):
+                return getattr(s._f, name)
+
+        Fbz = _Fbz(F)
     latlons = [(c[1], c[0]) for c in coords if isinstance(c, (list, tuple))
                and len(c) >= 2]
-    attempts = ((coords, fval), (latlons, fval), (coords, F))
+    attempts = ((coords, fval), (latlons, fval), (coords, Fbz))
     for c_arg, f_arg in attempts:
         if not c_arg or f_arg is None:
             continue
@@ -351,9 +422,12 @@ def _dose_band(geometry: dict, duration_s: float, microenv: str,
     dval, dsig = _dose_surface(F)
     fval = field_fn or dval or F.value
     try:
+        # bz re-base inside the try: a sigma-less field must hit the same
+        # "dose engine error" swallow the ambient-only chain had
+        fval, fsig = _bz_field(fval, sigma_fn or dsig or F.sigma)
         e = exposure.dose(geometry, duration_s, microenv, fval,
                           F.nearest_sample_km,
-                          field_sigma=sigma_fn or dsig or F.sigma)
+                          field_sigma=fsig)
     except Exception:
         return {"lo": None, "mid": None, "hi": None,
                 "note": "dose engine error"}
@@ -387,8 +461,10 @@ def _leg_dose(legs: list) -> dict:
         return {"lo": None, "mid": None, "hi": None,
                 "note": "field unavailable"}
     # same surface the road-mode rows dose on — a transit row ranked
-    # against car/bike must not ride a different estimator
+    # against car/bike must not ride a different estimator — and the
+    # same breathing-zone basis every row prices (strip-bz lane)
     dval, dsig = _dose_surface(F)
+    bv, bs = _bz_field(dval, dsig)
     lo = mid = hi = 0.0
     have_mid = have_band = False
     cov_min = None
@@ -405,9 +481,9 @@ def _leg_dose(legs: list) -> dict:
         if leg.get("type") != "walk":
             dur += float(leg.get("wait_s") or 0.0)
         try:
-            e = exposure.dose(geom, dur, me, dval or F.value,
+            e = exposure.dose(geom, dur, me, bv or F.value,
                               F.nearest_sample_km,
-                              field_sigma=dsig or F.sigma)
+                              field_sigma=bs or F.sigma)
         except Exception:
             continue
         if e.get("dose_ug") is None:
@@ -910,7 +986,10 @@ def _transit_options(flat, flon, tlat, tlon, vehicle, profile,
     try:
         import transit
         F = deps.field()
-        m = transit.metro_option(flat, flon, tlat, tlon, F.value)
+        # bz basis for whatever the station model doses internally —
+        # the row's shown dose comes from _leg_dose on the same basis
+        m = transit.metro_option(flat, flon, tlat, tlon,
+                                 _bz_field(F.value, None)[0])
     except Exception:
         return opts
     if not m or not m.get("geometry"):
@@ -1773,8 +1852,12 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile,
                     "alternative_index": alt_i or None,
                     # the priced objective the path minimized — the
                     # wire field ranking keys on; display dose stays
-                    # the raster band in `dose`
-                    "engine_dose_ug": (round(r["dose_ug"], 1)
+                    # the raster band in `dose`. Scaled onto the
+                    # breathing-zone basis (× smoke_modifier): the mod
+                    # is spatially uniform so the A* argmin over priced
+                    # edges is unchanged — the reported objective must
+                    # sit on the same basis as dose.mid (strip-bz lane)
+                    "engine_dose_ug": (round(r["dose_ug"] * _smoke_mod(), 1)
                                        if isinstance(r.get("dose_ug"),
                                                      (int, float))
                                        else None),
@@ -1878,6 +1961,9 @@ async def plan(body: dict):
         "depart_at": depart_at,
         "options": options,
         "ranking": "doc 06 §4: dose_lo within 10% ties, lowest emission wins",
+        # the breathing-zone multiplier every dose block priced — same
+        # number /aqi reports, so a client can prove basis parity
+        "smoke_modifier": _smoke_mod(),
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
@@ -2005,6 +2091,7 @@ async def reroute(body: dict):
         "mode": best["mode"],
         "option": best,
         "options": options,
+        "smoke_modifier": _smoke_mod(),
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
