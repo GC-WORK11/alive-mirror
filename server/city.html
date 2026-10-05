@@ -129,7 +129,7 @@
 
   /* district detail — top-left under m-tag on desktop, docks bottom on mobile;
      hairline popover, same language as /admin's cell inspector */
-  .detail{position:absolute;left:18px;top:52px;min-width:210px;max-width:250px;
+  .detail{position:absolute;left:18px;top:66px;min-width:210px;max-width:250px;
           background:rgba(250,250,247,.96);border:1px solid var(--line2);
           padding:12px 14px;pointer-events:none;
           opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s}
@@ -264,6 +264,14 @@
       scale — a live field kriged from government stations, satellite
       models and the commutes people chose to share.</p></div>
   </div>
+
+  <noscript>
+    <style>.map-card,.ticker,.minimap{display:none}</style>
+    <p style="margin-top:20px;font-family:var(--mono);font-size:10.5px;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)">
+      the live map and ledger need javascript — the ledger reads '—'
+      because nothing has run yet, not because the city is empty.</p>
+  </noscript>
 
   <div class="map-card">
     <svg id="ncr" role="img" aria-label="Delhi NCR districts shaded by live AQI"></svg>
@@ -442,9 +450,16 @@ function buildMap(){
     p.style.transition='fill-opacity .9s ease';
     p.style.cursor='pointer';
     const show=f.properties.name;
-    p.addEventListener('pointerenter',()=>highlight(show));
-    p.addEventListener('pointerdown',()=>highlight(show));      // tap = same card
-    p.addEventListener('pointerleave',()=>unhighlight(show));
+    /* hover = transient (mouse only); tap = pinned so the card survives
+       pointerleave on touch — same district tapped again unpins it */
+    p.addEventListener('pointerenter',e=>{
+      if(e.pointerType==='mouse'&&!selPinned)highlight(show)});
+    p.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse'){highlight(show);return}
+      if(selPinned===show){selPinned=null;unhighlight(show);return}
+      selPinned=show;highlight(show)});
+    p.addEventListener('pointerleave',e=>{
+      if(e.pointerType==='mouse'&&selPinned!==show)unhighlight(show)});
     gDist.appendChild(p);f._path=p;
     const c=f.properties.centroid;
     if(c){
@@ -473,6 +488,7 @@ function highlight(name){
   const f=FEATS.find(f=>f.properties.name===name);
   if(f)showDetail(f);
 }
+let selPinned=null;
 function unhighlight(name){selName=null;DETAIL.classList.remove('on');
   for(const f of FEATS){f._path.setAttribute('stroke','#FFFFFF');
     f._path.setAttribute('stroke-width','0.5');
@@ -668,7 +684,7 @@ function paintTicker(a,cy,t,ad,nd){
     [`so₂ · mean`,`${f1(sp.sulphur_dioxide&&sp.sulphur_dioxide.mean)} µg/m³`],
     [`us aqi · mean`,`${sp.us_aqi&&sp.us_aqi.mean!=null?Math.round(+sp.us_aqi.mean):'—'}`],
     [`field pm2.5 range`,`${rng}`],
-    [`wind`,`${Math.round(windNow.speed_kmh)} km/h from ${compass(windNow.from_deg)}`],
+    [`wind`,windNow?`${Math.round(windNow.speed_kmh)} km/h from ${compass(windNow.from_deg)}`:'—'],
     [`instruments`,`${a.field?.station_readings??'—'} live`],
     [`grap · incl. smoke`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`],
     [`districts`,`${nd} live`],
@@ -716,7 +732,9 @@ function paintMini(){
 }
 
 /* ---------- data ---------- */
-let windNow={speed_kmh:10,from_deg:300};
+/* null until /aqi answers — the ticker would rather show '—' than a
+   made-up wind vector */
+let windNow=null;
 let refreshMs=60000;
 
 async function loadGeo(){
@@ -743,9 +761,23 @@ async function load(){
       if(!TL.active)paintCells(g.features)}   /* a forecast frame stays put
         through live refreshes — the 'now' link hands the layer back */
     if(dd)paintDistricts(dd.districts||[]);
-    if(!cy)return;   /* the ledger/corridor numbers all ride /v2/city */
     a=a||{};
     if(a.wind&&a.wind.speed_kmh!=null)windNow=a.wind;  /* null wind = unknown, keep last */
+    /* 'connecting…' resolves to whichever feed actually answered —
+       never left hanging when a sibling endpoint came through */
+    setTxt('src',a.field
+      ?`${a.field.source||'—'} · ${a.field.samples??'?'} samples · ${a.field.station_readings??'?'} stations · krige ${a.field.kriging||'—'}`
+      :(cy?'city ledger live · station feed unreachable — retrying'
+        :'station feed unreachable — retrying'));
+    setTxt('windtag',windNow
+      ?`wind ${Math.round(windNow.speed_kmh)} km/h · from ${Math.round(windNow.from_deg)}° ${compass(windNow.from_deg)}`
+      :'wind —');
+    if(!cy){   /* the ledger/corridor numbers all ride /v2/city */
+      document.getElementById('corridors').innerHTML=
+        '<tr><th></th><th>corridor cell</th><th style="text-align:right">traversals</th><th style="text-align:right">avg inhaled</th><th>top mode</th></tr>'+
+        '<tr><td colspan="5" style="color:var(--ink3)">city ledger unreachable — retrying</td></tr>';
+      return;
+    }
     const days=(cy.trips&&cy.trips.days)||{};
     const dayKeys=Object.keys(days).sort();
     const latest=dayKeys.length?days[dayKeys[dayKeys.length-1]]:{};
@@ -765,8 +797,6 @@ async function load(){
     document.getElementById('breaths').textContent=
       pm>0?Math.floor((t.dose_ug_24h||0)/pm*2000).toLocaleString('en-IN'):'—';
     setTxt('doseug',IN(t.dose_ug_24h));
-    setTxt('src',`${a.field?.source||'—'} · ${a.field?.samples??'?'} samples · ${a.field?.station_readings??'?'} stations · krige ${a.field?.kriging||'—'}`);
-    setTxt('windtag',`wind ${Math.round(windNow.speed_kmh)} km/h · from ${Math.round(windNow.from_deg)}° ${compass(windNow.from_deg)}`);
     setTxt('obs',IN(t.obs_24h??t.obs_total));
     setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_total));
     setTxt('corr',IN(t.corridors_publishable));
@@ -800,7 +830,8 @@ async function load(){
     /* cadence from the field itself — refresh_in_s rides /v2/city */
     const rs=(ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000;
     if(rs!==refreshMs){refreshMs=rs;schedule()}
-  }catch(e){setTxt('stamp','reconnecting…');console.error('city load',e)}
+  }catch(e){setTxt('stamp','reconnecting…');setTxt('src','feeds unreachable — retrying');
+    console.error('city load',e)}
 }
 
 function setTxt(id,v){const e=document.getElementById(id);if(e)e.textContent=v}
@@ -815,7 +846,10 @@ const io=new IntersectionObserver(es=>es.forEach(e=>
   e.isIntersecting&&e.target.classList.add('in')),{threshold:0.12});
 document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 
-loadGeo().then(load).catch(()=>{load()});
+loadGeo().then(load).catch(()=>{
+  const t=document.querySelector('.m-tag');
+  if(t)t.innerHTML='<b>district boundaries unreachable</b><br>the numbers below still load';
+  load()});
 tlInit();
 clock();schedule();
 setInterval(clock,30000);
