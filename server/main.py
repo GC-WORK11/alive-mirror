@@ -837,6 +837,12 @@ def _scaled_duration_s(vehicle: str, profile: str, rt: dict) -> float:
     return rt["duration"] * VEHICLE_TIME_FACTOR.get(vehicle, 1.0)
 
 
+# /depart horizon answers per (OD, vehicle, hours) — keyed on the forecast
+# fetch timestamp so a forecast refresh invalidates them all.
+_DEPART_CACHE: dict = {}
+_DEPART_CACHE_MAX = 64
+
+
 @app.get("/depart")
 @app.get("/v2/depart")
 async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
@@ -856,11 +862,22 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
             and in_service_area(to_lat, to_lon)):
         return {"options": [], "error": OUT_OF_AREA}
 
+    await _forecast_refresh_bounded()
+    # horizon re-solve is ~24 dose evaluations — cache per OD+vehicle for
+    # the life of one forecast fetch. Numbers inside an epoch are
+    # identical to a recompute; the marker keeps the honesty explicit.
+    ck = (round(from_lat, 3), round(from_lon, 3),
+          round(to_lat, 3), round(to_lon, 3), vehicle.lower(), hours)
+    ent = _DEPART_CACHE.get(ck)
+    if ent and ent[0] == FORECAST._fetched_at:
+        body = dict(ent[1])
+        body["served_from_cache"] = True
+        return body
+
     rt = await _osrm(profile, from_lon, from_lat, to_lon, to_lat)
     if rt is None or isinstance(rt, BaseException):
         return {"options": [], "error": "router unavailable"}
 
-    await _forecast_refresh_bounded()
     dur_s = _scaled_duration_s(vehicle, profile, rt)
 
     slots = []
@@ -883,7 +900,7 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     now_slot = slots[0]
     best = ordered[0]
     saved = round(100 * (1 - best["dose_ug"] / now_slot["dose_ug"])) if now_slot["dose_ug"] else None
-    return {
+    body = {
         "vehicle": vehicle, "mode": exposure_mode,
         "duration_min": round(dur_s / 60),
         "distance_km": round(rt["distance"] / 1000, 1),
@@ -898,6 +915,10 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
         "slots": slots,
         "forecast": FORECAST.status(),
     }
+    if len(_DEPART_CACHE) >= _DEPART_CACHE_MAX:
+        _DEPART_CACHE.pop(next(iter(_DEPART_CACHE)))
+    _DEPART_CACHE[ck] = (FORECAST._fetched_at, body)
+    return body
 
 
 @app.get("/aqi")
