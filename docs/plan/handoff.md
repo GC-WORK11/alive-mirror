@@ -699,3 +699,13 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **apk-drive-v3**: final APK built `alive108-b4a96d2.apk` (137MB universal, live ELB + self-hosted tiles + cleartext, zero loopback) — https://app.devin.ai/attachments/670fb515-3b24-4119-b40c-46c94a045950/alive108-b4a96d2.apk — emulator drive spawning now (slot freed by video-v4 terminate). THIS is the demo-phone build.
 - Live sanity: why.line fresh (389s), breath mid 905µg≈2.86 cig, dose pair 10.1 vs 335µg (33.2×), 23 options incl bus+metro, /v2/skill grading (h+1 MAE 16.3/+15.8 bias, thin horizons honest), field_age 428s.
 - Board: me + mobile-web `89918813` + strip-bz `fc3b1e30` + apk-v3 `46407448` (+emu child incoming).
+
+### cont.41 — why-trend was DEAD in production; fixed + deploying (Oct 6 ~04:05 UTC)
+
+- **Found a dead surface**: `/v2/why` trend + history scanned the LOCAL snapshot dir only — but ingest_worker stores 15-min builds S3-only ("stay S3-only", line 121) → empty dir on every healthy task → trend permanently "can't tell", history never shipped, on every deploy ever.
+- **Fix `268ed54`**: `_s3_series` lists the ≤2 UTC day-prefixes covering the 6h window, fetches ≤30 keys bounded 4s, merges+dedupes with local by build epoch, 5-min TTL cache (keyed on snap root — test isolation held). Verified vs live bucket: 5 builds in-window spanning 1h where endpoint said 0. 46/46 why tests + new s3-fallback merge/dedupe test.
+- **Kills a demo-day fragility**: the "why-history dies ~3h post-deploy" constraint — history sparkline now fills INSTANTLY (recorded builds are task-agnostic). The T-60 on-demand flip no longer blanks it.
+- **mobile-web `c2ab11f`**: phone viewports fixed — /city svg letterbox→full extent, tap targets 13-14px→~40px, replay strip scrolls, admin masthead unpinned, scroll-shadow hints; desktop byte-identical at 1280px. 4 pages × 2 widths, scrollW=innerW, 0 console errors.
+- **apk-v3**: `alive108-b4a96d2.apk` built (137MB, live ELB baked); emulator drive mid-run on child `609ee73d`.
+- Deploying `268ed54` now.
+- Board: me + strip-bz `fc3b1e30` + apk-v3 `46407448`+child.
