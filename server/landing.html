@@ -52,7 +52,9 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .top nav a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px;text-decoration-thickness:1px}
 @media(max-width:640px){.top nav{gap:16px}
-  .top nav a{font-size:9px;letter-spacing:.12em}}
+  .top nav a{font-size:9px;letter-spacing:.12em;padding:14px 0}
+  .links{gap:12px 36px}
+  .links .tlink{padding-top:12px;padding-bottom:12px}}
 
 /* hero — supaste/devin grammar: headline + copy + real product shot,
    nothing else. two cols on wide screens, figure stacks on phones. */
@@ -231,6 +233,14 @@ h1 em{font-style:italic;color:var(--ink2)}
 .tl-load{color:var(--ink4,#a6acb8);white-space:nowrap}
 .tl-note{flex-basis:100%;font-size:9.5px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ink4,#a6acb8)}
+/* phones: thumb-sized hits — text buttons keep their look, the box grows;
+   the hairline scrubber gets a taller grab strip and a bigger thumb */
+@media(max-width:640px){
+  .trow button{padding-top:14px;padding-bottom:13px}
+  .psel button{padding-top:14px;padding-bottom:13px}
+  .tl-range{height:28px;min-width:140px}
+  .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7.5px}
+  .tl-range::-moz-range-thumb{width:16px;height:16px}}
 .routeline{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
   color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0}
 .routeline:empty{display:none}
@@ -281,6 +291,17 @@ h1 em{font-style:italic;color:var(--ink2)}
   border-top:1px solid var(--line);border-bottom:1px solid var(--line);
   -webkit-overflow-scrolling:touch}
 .dscroll::-webkit-scrollbar{display:none}
+/* phones: chips clip mid-name with no hint they scroll — local cover +
+   scroll shadow peeks only while more districts sit past that edge */
+@media(max-width:700px){.dscroll{
+  background-image:linear-gradient(to right,#fafaf7 30%,rgba(250,250,247,0)),
+    linear-gradient(to right,rgba(250,250,247,0),#fafaf7 30%),
+    linear-gradient(to right,rgba(22,24,29,.13),rgba(22,24,29,0)),
+    linear-gradient(to left,rgba(22,24,29,.13),rgba(22,24,29,0));
+  background-position:0 0,100% 0,0 0,100% 0;
+  background-repeat:no-repeat;
+  background-size:22px 100%,22px 100%,8px 100%,8px 100%;
+  background-attachment:local,local,scroll,scroll}}
 .dchip{flex:0 0 auto;display:flex;align-items:center;gap:10px;
   padding:12px 18px 12px 14px;border:none;border-right:1px solid var(--line);
   background:transparent;cursor:pointer;text-align:left;

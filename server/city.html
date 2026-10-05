@@ -72,6 +72,9 @@
             overflow:hidden;background:var(--surface)}
   svg#ncr{display:block;width:100%;height:clamp(420px,64vh,680px);
           touch-action:manipulation;cursor:default}
+  /* phones: let the svg take its viewBox aspect — the 64vh clamp letterboxes
+     the whole NCR extent inside ~270px of dead canvas at phone widths */
+  @media(max-width:640px){svg#ncr{height:auto}}
   .m-tag{position:absolute;top:16px;left:18px;font-family:var(--mono);
          font-size:10px;letter-spacing:.18em;text-transform:uppercase;
          color:var(--ink3);pointer-events:none;line-height:1.9}
@@ -79,7 +82,18 @@
   .m-wind{position:absolute;top:16px;right:18px;font-family:var(--mono);
           font-size:10px;letter-spacing:.14em;text-transform:uppercase;
           color:var(--ink3);pointer-events:none;text-align:right;line-height:1.9}
-  @media(max-width:640px){.m-wind{display:none}.m-tag{max-width:60%}}
+  @media(max-width:640px){.m-wind{display:none}.m-tag{max-width:60%}
+    /* scroll shadows — local cover + scroll shadow: the edge shade only
+       peeks when there is more strip/table in that direction */
+    .chips,.dayrow{
+      background-image:linear-gradient(to right,#fff 30%,rgba(255,255,255,0)),
+        linear-gradient(to right,rgba(255,255,255,0),#fff 30%),
+        linear-gradient(to right,rgba(20,24,31,.13),rgba(20,24,31,0)),
+        linear-gradient(to left,rgba(20,24,31,.13),rgba(20,24,31,0));
+      background-position:0 0,100% 0,0 0,100% 0;
+      background-repeat:no-repeat;
+      background-size:22px 100%,22px 100%,8px 100%,8px 100%;
+      background-attachment:local,local,scroll,scroll}}
   /* legend sits in-flow under the map — absolute positioning painted it
      over the southern districts' shapes; the frame keeps it inside the
      same hairline without ever covering geography */
@@ -320,6 +334,19 @@
   .foot-r a{color:var(--ink2);text-decoration:none}
   .foot-r a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
   @media(max-width:700px){footer{grid-template-columns:1fr}.foot-r{text-align:left}}
+
+  /* phones: thumb-sized hits — text pills keep their look, the box grows;
+     the hairline scrubber gets a taller grab strip and a bigger thumb.
+     sits at the end of the sheet so it beats the desktop rules it widens */
+  @media(max-width:640px){
+    .tl button,.rch-pills button,.tl-now{padding-top:14px;padding-bottom:13px}
+    .rc-strip{min-width:0;max-width:100%;overflow-x:auto;
+              scrollbar-width:none}
+    .rc-strip::-webkit-scrollbar{display:none}
+    .rc-strip .rc-h{width:14px;height:14px;flex:none}
+    .tl-range{height:28px;min-width:140px}
+    .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7.5px}
+    .tl-range::-moz-range-thumb{width:16px;height:16px}}
 </style>
 </head>
 <body>

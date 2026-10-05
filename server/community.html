@@ -42,7 +42,9 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .top nav a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px;text-decoration-thickness:1px}
 @media(max-width:640px){.top nav{gap:16px}
-  .top nav a{font-size:9px;letter-spacing:.12em}}
+  .top nav a{font-size:9px;letter-spacing:.12em;padding:14px 0}
+  .links{gap:12px 36px}
+  .links .tlink{padding-top:12px;padding-bottom:12px}}
 
 .hero{padding:96px 0 64px}
 @media(max-width:640px){.hero{padding:64px 0 40px}
@@ -119,6 +121,17 @@ td.cell .co{display:block;margin-top:3px;font-family:var(--mono);
 td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
   color:var(--ink3);text-transform:uppercase}
 .scrollx{overflow-x:auto}
+/* phones: wide tables clip mid-word with no hint they scroll — local cover
+   + scroll shadow peeks only while more columns sit past that edge */
+@media(max-width:700px){.scrollx{
+  background-image:linear-gradient(to right,#fafaf7 30%,rgba(250,250,247,0)),
+    linear-gradient(to right,rgba(250,250,247,0),#fafaf7 30%),
+    linear-gradient(to right,rgba(22,24,29,.13),rgba(22,24,29,0)),
+    linear-gradient(to left,rgba(22,24,29,.13),rgba(22,24,29,0));
+  background-position:0 0,100% 0,0 0,100% 0;
+  background-repeat:no-repeat;
+  background-size:22px 100%,22px 100%,8px 100%,8px 100%;
+  background-attachment:local,local,scroll,scroll}}
 
 /* reports — terse mono lines */
 .reports{padding:64px 0 90px}

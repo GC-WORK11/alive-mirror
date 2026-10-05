@@ -32,6 +32,9 @@
         position:sticky;top:0;background:rgba(245,244,240,.88);flex-wrap:wrap;
         -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:10}
   @media(max-width:480px){.mast-r{width:100%;justify-content:flex-start}}
+  /* phones: the wrapped mast runs ~166px — a fifth of the viewport pinned
+     forever. let it scroll away; the ticker/statusline still carry LIVE */
+  @media(max-width:560px){.mast{position:static}}
   .mast-l{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
   .mast-sub{font-family:var(--mono);font-size:10px;letter-spacing:.12em;
             color:var(--ink4);text-transform:lowercase}
@@ -82,6 +85,17 @@
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;
          overflow:hidden}
   .scrollx{overflow-x:auto}
+  /* phones: wide tables clip mid-word with no hint they scroll — local cover
+     + scroll shadow peeks only while more columns sit past that edge */
+  @media(max-width:700px){.scrollx{
+    background-image:linear-gradient(to right,#fff 30%,rgba(255,255,255,0)),
+      linear-gradient(to right,rgba(255,255,255,0),#fff 30%),
+      linear-gradient(to right,rgba(20,24,31,.13),rgba(20,24,31,0)),
+      linear-gradient(to left,rgba(20,24,31,.13),rgba(20,24,31,0));
+    background-position:0 0,100% 0,0 0,100% 0;
+    background-repeat:no-repeat;
+    background-size:22px 100%,22px 100%,8px 100%,8px 100%;
+    background-attachment:local,local,scroll,scroll}}
   .scrollx td{padding:9px 10px}
   .scrollx th{padding:9px 10px 7px}
   table{width:100%;border-collapse:collapse}
