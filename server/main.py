@@ -1500,6 +1500,7 @@ async def landing_page():
 
 
 @app.get("/admin")
+@app.get("/admin.html")
 async def admin_page():
     from fastapi.responses import FileResponse
     import os

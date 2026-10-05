@@ -127,7 +127,7 @@ function DoseScale({ dose, worstUg, showCig, a11yLabel }: {
           <View style={[s.scaleWorst, { left: pct(worstUg) }]} />
         )}
       </View>
-      <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={13} />
+      <Icon name="dust" color={V2T.text3} size={13} />
     </View>
   );
 }
@@ -178,16 +178,19 @@ export function ReceiptSheet({
   const co2 = data.co2Kg;
   const co2Zero = co2 != null && co2.hi <= 0;
   const breathedTxt = dose != null
-    ? (showCig && cigs != null
-      ? t("receipt_breathed", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
-      : `${t("youBreathed", lang)} ${t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}`)
+    ? `${t("youBreathed", lang)} ${t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}`
+    : null;
+  /* show_cig demotes the metaphor to a secondary line — the equivalence
+     stays available under the µg hero, never as the headline number */
+  const cigTxt = showCig && cigs != null
+    ? t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
     : null;
   const ratioTxt = ratio != null && ratio > 1.05
     ? (data.worstLabel
         ? t("receipt_lessVs", lang, { n: ratio, m: data.worstLabel })
         : t("receipt_lessVsWorst", lang, { n: ratio }))
     : null;
-  const scaleA11y = [breathedTxt, ratioTxt].filter(Boolean).join(". ");
+  const scaleA11y = [breathedTxt, ratioTxt, cigTxt].filter(Boolean).join(". ");
 
   return (
     <Animated.View style={[s.sheet, {
@@ -215,7 +218,7 @@ export function ReceiptSheet({
 
       {/* ── hero: what you breathed ── */}
       <View style={s.eyebrowRow}>
-        <Icon name={showCig ? "cigarette" : "dust"} color={V2T.breath1} size={15} />
+        <Icon name="dust" color={V2T.breath1} size={15} />
         <Text style={[s.eyebrow, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
           {t("youBreathed", lang)}
         </Text>
@@ -227,9 +230,7 @@ export function ReceiptSheet({
       ) : (
         <>
           <Text style={[s.heroNum, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-            {showCig && cigs != null
-              ? t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
-              : t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}
+            {t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}
             <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose.hi - dose.lo >= 1 && (
@@ -239,23 +240,27 @@ export function ReceiptSheet({
               })}
             </Text>
           )}
+          {/* cigarette equivalence — secondary line under the hero when
+              the user opted in; never the headline (owner rule) */}
+          {cigTxt != null && (
+            <Text style={[s.bandTxt, NUM]} {...DYNAMIC_TYPE}>
+              {cigTxt}
+            </Text>
+          )}
           <DoseScale dose={dose} worstUg={worst} showCig={showCig} a11yLabel={scaleA11y} />
           {ratioTxt ? (
             <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
               {ratioTxt}
             </Text>
           ) : null}
-          {showCig
-            ? (savedCigs != null && savedCigs >= 0.02 && (
-                <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
-                  {t("receiptSaved", lang, { n: approx(savedCigs) })}
-                </Text>
-              ))
-            : (savedUg != null && savedUg >= 6 && (
-                <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
-                  {t("receiptSavedUg", lang, { n: approx(Math.round(savedUg)) })}
-                </Text>
-              ))}
+          {savedUg != null && savedUg >= 6 && (
+            <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
+              {t("receiptSavedUg", lang, { n: approx(Math.round(savedUg)) })}
+              {showCig && savedCigs != null && savedCigs >= 0.02
+                ? `  ·  ${t("nav_cigs", lang, { n: approx(savedCigs) })}`
+                : ""}
+            </Text>
+          )}
         </>
       )}
 

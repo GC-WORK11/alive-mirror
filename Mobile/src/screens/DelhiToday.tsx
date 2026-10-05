@@ -234,10 +234,10 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
           </Text>
         ) : (
           <>
-            {/* hero — one number: a day of Delhi air. Cigarettes only with
-                showCig on; the default surface is µg inhaled + the plain
-                species/percentile context below (owner mandate). */}
-            {data.breath && pm && (showCig ? cig : inhaled) ? (
+            {/* hero — one number: a day of Delhi air in µg. With showCig
+                on the cigarette equivalence sits as a secondary line
+                under the µg — never the hero (owner mandate). */}
+            {data.breath && pm && inhaled ? (
               <View style={ss.hero}>
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
@@ -255,10 +255,10 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                       },
                     ]}
                   >
-                    ≈ {showCig ? fmtCig(cig!.mid) : Math.round(inhaled!.mid)}
+                    ≈ {Math.round(inhaled.mid)}
                   </Text>
                   <Icon
-                    name={showCig ? "cigarette" : "dust"}
+                    name="dust"
                     color={doseColor(pm.mid)}
                     size={30}
                   />
@@ -266,21 +266,23 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroUnit, { fontFamily: fam(lang, "reg") }]}
                 >
-                  {t(showCig ? "cityHeroUnit" : "cityHeroUnitUg", lang)}
+                  {t("cityHeroUnitUg", lang)}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroRange, NUM, { fontFamily: fam(lang, "reg") }]}
                 >
-                  {showCig
-                    ? t("cityHeroRange", lang, {
-                        lo: fmtCig(cig!.lo),
-                        hi: fmtCig(cig!.hi),
-                      })
-                    : t("cityHeroRange", lang, {
-                        lo: Math.round(inhaled!.lo),
-                        hi: Math.round(inhaled!.hi),
-                      })}
+                  {t("cityHeroRange", lang, {
+                    lo: Math.round(inhaled.lo),
+                    hi: Math.round(inhaled.hi),
+                  })}
                 </Text>
+                {showCig && cig != null && (
+                  <Text {...DYNAMIC_TYPE}
+                    style={[ss.heroRange, NUM, { fontFamily: fam(lang, "reg") }]}
+                  >
+                    {`${fmtCig(cig.mid)} ${t("cityHeroUnit", lang)}`}
+                  </Text>
+                )}
               </View>
             ) : (
               <Text {...DYNAMIC_TYPE}
@@ -497,7 +499,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                 />
                 {pm ? (
                   <WhyLine
-                    text={t(showCig ? "cityBasisPm25" : "cityBasisPm25Ug", lang, {
+                    text={t("cityBasisPm25Ug", lang, {
                       lo: pm.lo,
                       hi: pm.hi,
                     })}

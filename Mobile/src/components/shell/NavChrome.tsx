@@ -249,8 +249,16 @@ export function NavChrome({
     ? {
       ...nav.dose,
       // a band that rounds to the same integer prints as one number —
-      // "0–0 µg" reads like a formatting bug to anyone glancing at it
-      text: (() => { const lo = Math.round(Math.max(0, nav.dose.lo)); const hi = Math.round(Math.max(0, nav.dose.hi)); return lo === hi ? `${lo} µg` : `${lo}–${hi} µg`; })(),
+      // "0–0 µg" reads like a formatting bug to anyone glancing at it.
+      // show_cig appends the equivalence to this sub-line — secondary,
+      // never the counter's own number
+      text: (() => {
+        const lo = Math.round(Math.max(0, nav.dose.lo)); const hi = Math.round(Math.max(0, nav.dose.hi));
+        const base = lo === hi ? `${lo} µg` : `${lo}–${hi} µg`;
+        return showCig && cigs != null
+          ? `${base} · ${t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })}`
+          : base;
+      })(),
     }
     : null;
   const co2Band: BandViz | null = showOut
@@ -329,16 +337,13 @@ export function NavChrome({
         <View style={s.cells}>
           <CounterCell
             lang={lang}
-            icon={showCig ? "cigarette" : "dust"}
+            icon="dust"
             tint={V2T.breath1}
             label={t("nav_breathe", lang)}
             dim={frozen}
             band={doseBand}
-            value={showCig
-              ? (cigs == null ? t("nav_noSignal", lang)
-                : t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) }))
-              : (ugMid == null ? t("nav_noSignal", lang)
-                : t("doseUg", lang, { n: approx(Math.round(ugMid)) }))} />
+            value={ugMid == null ? t("nav_noSignal", lang)
+              : t("doseUg", lang, { n: approx(Math.round(ugMid)) })} />
           {showOut && outKg != null && (
             <>
               <View style={s.cellDiv} />

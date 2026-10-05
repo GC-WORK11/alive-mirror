@@ -200,53 +200,30 @@
          display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
   a{color:var(--accent-ink);text-decoration:none}
 
-  /* ncr district tiles — a uniform grid over ~28 rows; each tile draws
-     its own stepped pixel frame (clipped corners, 2px border in that
-     district's live cpcb band, zero radius) and the same band in the
-     aqi chip — the frame colour is data, not decoration.
-     click pins a mini card — same language as the cell inspector */
-  .dist{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));
-        gap:10px}
-  .distwrap{position:relative}
-  .dtile{position:relative;background:var(--surface);
-         border:2px solid var(--dc,var(--ink));
-         padding:10px 12px 10px;cursor:pointer;
-         clip-path:polygon(0 6px,3px 6px,3px 3px,6px 3px,6px 0,
-           calc(100% - 6px) 0,calc(100% - 6px) 3px,calc(100% - 3px) 3px,
-           calc(100% - 3px) 6px,100% 6px,100% calc(100% - 6px),
-           calc(100% - 3px) calc(100% - 6px),calc(100% - 3px) calc(100% - 3px),
-           calc(100% - 6px) calc(100% - 3px),calc(100% - 6px) 100%,
-           6px 100%,6px calc(100% - 3px),3px calc(100% - 3px),
-           3px calc(100% - 6px),0 calc(100% - 6px))}
-  .dtile:hover{background:var(--surface2);
-         background:color-mix(in srgb,var(--dc,#000) 7%,var(--surface))}
-  .dtile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .dtile.na{background:transparent;border-color:var(--ink4);
-            border-style:dashed}
-  .dt-head{display:flex;align-items:flex-start;gap:8px}
-  .dt-head>div{min-width:0;flex:1}
-  .dt-cut{flex:none;width:52px;height:52px;display:block}
-  .dtile.na .dt-cut{opacity:.7}
+  /* ncr district choropleth — ONE map surface carrying the real boundary
+     geojson, each polygon filled by its live band for the selected
+     parameter. same console chrome as the field map: fmsel pills above,
+     mono caption + band legend below, click pins an fmpop card */
+  .dmwrap{position:relative}
+  canvas#distmap{width:100%;display:block;aspect-ratio:1.347;
+                 background:var(--surface2);cursor:crosshair}
+  .dlegend{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;
+           margin-top:10px}
+  .dlegend .sw{display:inline-block;width:10px;height:10px;
+               border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .dlegend span{font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+                text-transform:uppercase;color:var(--ink3)}
+  .dlegend .na-sw{border:1px dashed var(--ink4);background:transparent}
+  /* mono caption language — the line under each map that says exactly
+     what is painted (basis, unit, horizon) */
+  .sub{font-family:var(--mono);font-size:10px;color:var(--ink3);
+       letter-spacing:.06em;line-height:1.7}
+  /* mini-card silhouette + band chip — the stepped popover keeps the
+     district outline it was opened from */
   .p-cut{width:44px;height:44px;float:right;margin-left:8px}
-  .dt-name{font-size:11.5px;font-weight:600;color:var(--ink);
-           line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;
-           -webkit-box-orient:vertical;overflow:hidden;min-height:15px}
-  .dt-state{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
-            text-transform:uppercase;color:var(--ink4);margin-top:2px;min-height:11px}
-  .dt-v{display:flex;align-items:baseline;gap:5px;margin-top:8px}
-  .dt-pm{font-family:var(--serif);font-size:21px;letter-spacing:-.02em;
-         color:var(--ink);font-variant-numeric:tabular-nums}
-  .dt-pm i{font-style:normal;font-family:var(--sans);font-size:9px;
-           color:var(--ink3)}
   .dt-aqi{margin-left:auto;font-family:var(--mono);font-size:9.5px;
           letter-spacing:.04em;white-space:nowrap;padding:2px 6px;
           background:var(--dc,var(--hair));color:var(--dink,#14181F)}
-  .dt-cat{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
-          text-transform:uppercase;color:var(--ink3);margin-top:4px;
-          line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;
-          -webkit-box-orient:vertical;overflow:hidden;min-height:24px}
-  .dtile.na .dt-pm{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
-                   color:var(--ink4);text-transform:uppercase}
 
   /* field-map cell inspector — click a painted cell → the cell centre is
      reverse-geocoded via /v2/reverse and the popover lists its live values */
@@ -313,9 +290,15 @@
 
   <div class="grid" id="stats"></div>
 
-  <h2>ncr districts <em>each boundary cut and filled by its live cpcb band · mean of covered cells · click for the card</em></h2>
-  <div class="panel distwrap" style="padding:12px"><div class="dist" id="districts">connecting…</div>
-    <div class="fmpop" id="dtpop" hidden></div></div>
+  <h2>ncr districts <em>real boundaries filled by the live band of the selected parameter · click a district for its card</em></h2>
+  <div class="panel" style="padding:14px">
+    <div class="fmsel" id="dtsel"></div>
+    <div class="dmwrap"><canvas id="distmap" role="img"
+      aria-label="ncr district choropleth — each boundary filled by its live band for the selected parameter; click opens a card"></canvas>
+      <div class="fmpop" id="dtpop" hidden></div></div>
+    <div class="dlegend" id="dlegend"></div>
+    <div class="sub" id="distmap-sub" style="margin-top:8px">connecting…</div>
+  </div>
 
   <h2>the field <em>the surface the router prices · hover reads a cell · click pins it</em></h2>
   <div class="panel" style="padding:14px">
@@ -352,9 +335,10 @@
       <div class="share" id="modeshare"></div>
       <div class="daybars" id="daybars"></div>
     </div>
-    <div class="panel scrollx"><table>
+    <div class="panel"><div class="scrollx"><table>
       <thead><tr><th>cell</th><th>near</th><th class="num">trips</th><th class="num">devices</th><th class="num" title="avg donated dose per traversal">avg dose</th><th class="num" title="co₂ emitted per 100 m of corridor">co₂/100m</th><th class="num" title="live pm2.5 sampled over this corridor's cells">air pm2.5</th></tr></thead>
       <tbody id="corridors"></tbody></table></div>
+      <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">donated trips · k≥3 anonymized aggregates — never a single person</div></div>
   </div>
 
   <h2>global rollups <em>tiles fill only when the aggregate api ships the field</em></h2>
@@ -454,12 +438,16 @@ async function tick(){
   const dn=donations||{},S=status||{};
   const rows=(corridors&&corridors.rows)||[];
   const failedN=res.filter(r=>r.status==='rejected').length;
-  /* --- ncr district roster: each tile carries the district's own
-     boundary silhouette (the "map cutout") inked in its live cpcb band —
-     geography first, numbers under it; honest-empty when no field data --- */
+  /* --- ncr district choropleth: one map, each boundary filled by its
+     live band for the selected parameter; a pinned card refreshes in
+     place with the new feed --- */
   try{
-    paintDTiles((districts&&districts.districts)||[]);
-  }catch(e){ /* roster stays decorative-optional; never break the board */ }
+    DIST_ROWS=(districts&&districts.districts)||[];
+    paintDMap().then(()=>{
+      if(DT_PIN){const r=DM_ROWS.find(r=>r.name===DT_PIN.name);
+        if(r)dmShow(r,DT_PIN.x,DT_PIN.y);else dtHide()}
+    }).catch(()=>{});
+  }catch(e){ /* the map stays honest-empty; never break the board */ }
 
   LAST_OK=new Date();
   $('feed').className='feed live';
@@ -895,12 +883,63 @@ function fmLeave(){
   if(!(FM_INS&&FM_INS.pinned)){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null}
 }
 
-/* --- district mini cards — a tile click pins the same card language
-   the cell inspector uses: name, live pm2.5 + band chip, the covered-
-   cell basis, and a +12h direction read over the district's own
-   polygon (the same forward difference the forecast scrub shows) --- */
-let DIST_ROWS=[],DT_PIN=null;
-let DT_GRID12=null,DT_GRID12_OK=null;   /* cached +12h field, fetched once */
+/* --- ncr district choropleth — ONE map surface carrying the real
+   boundary geojson, each polygon filled by its live band for the
+   selected parameter. pm2.5 + us aqi read the server's own district
+   rows (sparse areas keep their centroid read); every other species =
+   the mean of the /grid cells inside the polygon — the same
+   cells-inside rule the server publishes. banding is the real cpcb
+   national aqi table; the us aqi surface uses the epa scale. click
+   pins the same mini card the field map uses --- */
+let DIST_ROWS=[],DT_PIN=null,DM_PARAM='pm2_5',DM_HOV=null,DM_ROWS=[];
+let DT_GRID12=null,DT_GRID12_OK=null;   /* cached +12h pm2.5 field */
+const DM_GRID={};                       /* param → /grid features */
+let DM_BBOX=null;                       /* union extent of both boundary sets */
+
+/* cpcb national aqi six-band palette (mirror of server/districts.py
+   CPCB_BANDS) + the us epa scale for the us_aqi surface */
+const CPCB_BANDS=[[0,50,'good','#00B050'],[51,100,'satisfactory','#92D050'],
+  [101,200,'moderate','#FFFF00'],[201,300,'poor','#FF6500'],
+  [301,400,'very poor','#FF0000'],[401,500,'severe','#C00000']];
+const EPA_BANDS=[[0,50,'good','#00E400'],[51,100,'moderate','#FFFF00'],
+  [101,150,'unhealthy · sensitive','#FF7E00'],[151,200,'unhealthy','#FF0000'],
+  [201,300,'very unhealthy','#8F3F97'],[301,500,'hazardous','#7E0023']];
+/* cpcb sub-index breakpoints per species — Table 3.1 of the national
+   aqi doc districts.py cites. co rows are mg/m³ (the grid serves µg/m³
+   — ÷1000 at read). species with no official table (dust, aod) stay
+   off this switcher; the field map still renders their real range */
+const CPCB_SUB={
+  pm2_5:[[0,30,0,50],[30,60,51,100],[60,90,101,200],[90,120,201,300],[120,250,301,400],[250,500,401,500]],
+  pm10:[[0,50,0,50],[50,100,51,100],[100,250,101,200],[250,350,201,300],[350,430,301,400],[430,600,401,500]],
+  nitrogen_dioxide:[[0,40,0,50],[40,80,51,100],[80,180,101,200],[180,280,201,300],[280,400,301,400],[400,800,401,500]],
+  ozone:[[0,50,0,50],[50,100,51,100],[100,168,101,200],[168,208,201,300],[208,748,301,400],[748,1000,401,500]],
+  carbon_monoxide:[[0,1,0,50],[1,2,51,100],[2,10,101,200],[10,17,201,300],[17,34,301,400],[34,50,401,500]],
+  sulphur_dioxide:[[0,40,0,50],[40,80,51,100],[80,380,101,200],[380,800,201,300],[800,1600,301,400],[1600,2000,401,500]],
+  ammonia:[[0,200,0,50],[200,400,51,100],[400,800,101,200],[800,1200,201,300],[1200,1800,301,400],[1800,2400,401,500]],
+};
+const DM_SPECIES=[['pm2_5','pm2.5'],['us_aqi','us aqi'],['pm10','pm10'],
+  ['nitrogen_dioxide','no₂'],['ozone','o₃'],['carbon_monoxide','co'],
+  ['sulphur_dioxide','so₂'],['ammonia','nh₃']];
+const DM_UNIT={pm2_5:'µg/m³',pm10:'µg/m³',nitrogen_dioxide:'µg/m³',
+  ozone:'µg/m³',carbon_monoxide:'µg/m³',sulphur_dioxide:'µg/m³',
+  ammonia:'µg/m³',us_aqi:'aqi'};
+const DM_VK=p=>p==='pm2_5'?'pm25':p;    /* /grid cell property name */
+/* us-epa pm2.5 breakpoints for the +12h aqi read (districts.py _US_PM25) */
+const US_PM25=[[0,9,0,50],[9,35.4,51,100],[35.4,55.4,101,150],
+  [55.4,125.4,151,200],[125.4,225.4,201,300],[225.4,325.4,301,400],
+  [325.4,500.4,401,500]];
+
+function dmSubIdx(v,tab){   /* districts.py _sub_index mirror — linear in-band */
+  for(const[lo,hi,il,ih]of tab){if(v<=hi)return hi<=lo?ih:(ih-il)/(hi-lo)*(v-lo)+il}
+  const[lo,hi,il,ih]=tab[tab.length-1];return(ih-il)/(hi-lo)*(v-lo)+il}
+function dmAqi(p,v){        /* aqi for a raw concentration via the cpcb table */
+  if(p==='carbon_monoxide')v=v/1000;
+  const tab=CPCB_SUB[p];return tab==null?null:Math.round(dmSubIdx(Math.max(0,v),tab))}
+function dmBand(aqi,p){     /* [lo,hi,cat,color] — epa scale for us_aqi, cpcb else */
+  if(aqi==null)return null;
+  const bands=p==='us_aqi'?EPA_BANDS:CPCB_BANDS;
+  for(const b of bands)if(aqi<=b[1])return b;
+  return bands[bands.length-1]}
 
 /* chip text contrast — a 'satisfactory' light chip takes ink, a dark
    wine chip takes paper */
@@ -910,8 +949,8 @@ function chipInk(hex){
   return (0.299*r+0.587*g+0.114*b)/255>0.6?'#14181F':'#fff';
 }
 /* district boundary silhouettes — each feature normalised into a
-   64×64 svg box (true aspect: lon° ×0.879 vs lat°). built once FM_GJ
-   arrives; a district with no polygon yet simply gets no cutout */
+   64×64 svg box (true aspect: lon° ×0.879 vs lat°); the mini card keeps
+   the outline it was opened from */
 const CUT={};
 function cutPath(feat){
   const g=feat&&feat.geometry;if(!g)return null;
@@ -930,41 +969,8 @@ function cutPath(feat){
   return rings.map(r=>
     'M'+r.map(c=>mx(c[0])+','+my(c[1])).join('L')+'Z').join(' ');
 }
-function paintDTiles(dr){
-  DIST_ROWS=dr;
-  $('districts').innerHTML=dr.length?dr.map(d=>{
-    const c=d.color||'#888',na=d.pm25==null&&d.aqi==null;
-    const ink=na?'#14181F':chipInk(c);
-    const cut=CUT[d.name];
-    const cutSvg=cut
-      ?`<svg class="dt-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${cut}" fill="${na?'var(--ink4)':c}" fill-opacity="${na?'0.10':'0.88'}" stroke="${na?'var(--ink4)':'var(--ink)'}" stroke-width="1.4" stroke-linejoin="round"/></svg>`
-      :'';
-    return `<div class="dtile${na?' na':''}" data-name="${esc(d.name)}" role="button" tabindex="0" aria-pressed="false" style="--dc:${na?'var(--hair)':c};--dink:${ink}">
-      <div class="dt-head"><div>
-        <div class="dt-name">${esc(d.name)}</div>
-        <div class="dt-state">${d.level==='osm_admin_5'?`sub-area · ${esc(d.parent||'delhi')}`:esc(d.state||'')}</div>
-      </div>${cutSvg}</div>
-      <div class="dt-v">${na
-        ?'<span class="dt-pm">no field data</span>'
-        :`${d.pm25==null?'':`<span class="dt-pm">${fmt1(d.pm25)}<i> µg/m³</i></span>`}
-           ${d.aqi==null?'':`<span class="dt-aqi">aqi ${d.aqi}</span>`}`}
-      </div>
-      <div class="dt-cat">${na
-        ?(d.confidence==='sparse'?'sparse — centroid read':'outside the field')
-        :esc(d.category||'')}${d.cells_covered?` · ${d.cells_covered} cell${d.cells_covered===1?'':'s'}`:''}${d.partial_field_coverage?' · partial':''}</div>
-    </div>`;
-  }).join(''):emptyMsg('district feed not answering — tiles fill when /v2/districts returns.');
-  /* a pinned district card refreshes in place — same rule as the cell
-     inspector: the card keeps its spot, its numbers stay live */
-  if(DT_PIN){
-    const t=$('districts').querySelector(`[data-name="${DT_PIN.name}"]`);
-    if(t)dtShow(t);else dtHide();
-  }
-}
-function dtHide(){const p=$('dtpop');if(p)p.hidden=true;
-  if(DT_PIN){const t=$('districts')&&$('districts').querySelector(
-    `[data-name="${DT_PIN.name}"]`);if(t)t.setAttribute('aria-pressed','false')}
-  DT_PIN=null}
+function dtHide(){const p=$('dtpop');if(p)p.hidden=true;DT_PIN=null;
+  paintDMap().catch(()=>{})}
 function fmFindDistrict(name){
   for(const f of (FM_GJ&&FM_GJ.features)||[])
     if(f.properties&&f.properties.name===name)return f;
@@ -972,7 +978,7 @@ function fmFindDistrict(name){
 }
 /* unweighted mean of a cell set over a boundary feature — the same
    read the server publishes (cells whose centres land inside) */
-function distMean(feats,feat){
+function distMeanV(feats,feat,vk){
   const g=feat&&feat.geometry;if(!g)return null;
   const polys=g.type==='Polygon'?[g.coordinates]
     :g.type==='MultiPolygon'?g.coordinates:[];
@@ -980,7 +986,7 @@ function distMean(feats,feat){
   for(const ft of feats){
     const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
     if(!ring||ring.length<3)continue;
-    const v=(ft.properties||{}).pm25;if(v==null)continue;
+    const v=(ft.properties||{})[vk];if(v==null)continue;
     const clon=ring.reduce((a,c)=>a+c[0],0)/ring.length;
     const clat=ring.reduce((a,c)=>a+c[1],0)/ring.length;
     for(const poly of polys){
@@ -991,69 +997,264 @@ function distMean(feats,feat){
       break;
     }
   }
-  return n?s/n:null;
+  return n?{mean:s/n,n}:null;
 }
 /* trend = the +12h cams-anchored field mean over the same polygon —
-   a real forward difference, 'n/a' when the horizon doesn't answer */
-async function dtTrend(d){
+   a real forward difference, 'n/a' when the horizon doesn't answer.
+   us aqi projects the pm2.5 horizon through the epa table (the same
+   thing the server serves at /grid?param=us_aqi&h=N); other species
+   have no forecast surface — the card says so honestly */
+async function dmTrend(row){
+  const p=DM_PARAM;
+  if(p!=='pm2_5'&&p!=='us_aqi')
+    return '+12h — forecast surface serves pm2.5 only';
   if(DT_GRID12_OK===null){
     try{const g=await getJSON('/grid?cells=40&param=pm2_5&h=12');
       DT_GRID12=(g&&g.features)||[];DT_GRID12_OK=DT_GRID12.length>0}
     catch(e){DT_GRID12=[];DT_GRID12_OK=false}
   }
   if(!DT_GRID12_OK)return '+12h — forecast n/a';
-  const feat=fmFindDistrict(d.name);
-  const m=feat&&distMean(DT_GRID12,feat);
+  const m=row.feat&&distMeanV(DT_GRID12,row.feat,'pm25');
   if(m==null)return '+12h — outside forecast coverage';
-  const base=d.pm25;
-  if(base==null||base<1e-9)return `+12h → ${fmt1(m)} µg/m³`;
-  const pc=Math.round((m-base)/base*100);
+  if(p==='us_aqi'){
+    const ea=Math.round(dmSubIdx(m.mean,US_PM25));
+    const base=row.v;
+    if(base==null)return `+12h → aqi ${ea}`;
+    const d=Math.round(ea-base);
+    return Math.abs(d)<2
+      ?`+12h → aqi ${ea} · flat`
+      :`+12h → aqi ${ea} · ${d>0?'+':''}${d}`;
+  }
+  const base=row.v;
+  if(base==null||base<1e-9)return `+12h → ${fmt1(m.mean)} µg/m³`;
+  const pc=Math.round((m.mean-base)/base*100);
   return Math.abs(pc)<3
-    ?`+12h → ${fmt1(m)} µg/m³ · flat`
-    :`+12h → ${fmt1(m)} µg/m³ · ${pc>0?'+':''}${pc}%`;
+    ?`+12h → ${fmt1(m.mean)} µg/m³ · flat`
+    :`+12h → ${fmt1(m.mean)} µg/m³ · ${pc>0?'+':''}${pc}%`;
 }
-function dtShow(tile){
-  const name=tile.dataset.name;
-  const d=DIST_ROWS.find(r=>r.name===name);
-  const wrap=tile.closest('.distwrap'),pop=$('dtpop');
-  if(!d||!wrap||!pop)return;
-  DT_PIN={name};
-  /* exactly one tile is pressed at a time */
-  const grid=$('districts');
-  if(grid)grid.querySelectorAll('.dtile[aria-pressed="true"]').forEach(t=>
-    t.setAttribute('aria-pressed','false'));
-  tile.setAttribute('aria-pressed','true');
-  const r=tile.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
-  pop.style.left=Math.min(Math.max(8,r.left-wr.left),Math.max(8,wr.width-264))+'px';
-  const c=d.color||'#888';
-  const na=d.pm25==null&&d.aqi==null;
-  const level=d.level==='osm_admin_5'
-    ?`sub-area · ${d.parent||'delhi nct'}`:`district · ${d.state||'—'}`;
-  const basis=d.confidence==='sparse'
-    ?`centroid read — ${d.cells_covered||0} covered cell${(d.cells_covered||0)===1?'':'s'}`
-    :d.cells_covered?`mean of ${d.cells_covered} covered cells`:'no covered cells';
-  const pcut=CUT[name];
+/* the card a district click pins — same stepped popover as the cell
+   inspector: name, live value + band chip, covered-cell basis, +12h */
+function dmShow(row,x,y){
+  const cv=$('distmap'),pop=$('dtpop');if(!cv||!pop||!row)return;
+  const wr=cv.parentElement.getBoundingClientRect();
+  const p=DM_PARAM,c=(row.band&&row.band[3])||'#A6ACB8';
+  const na=row.v==null;
+  DT_PIN={name:row.name,x,y};
+  const pcut=CUT[row.name];
+  const level=row.level==='osm_admin_5'
+    ?`sub-area · ${row.parent||'delhi nct'}`:`district · ${row.state||'—'}`;
+  const label=(DM_SPECIES.find(s=>s[0]===p)||[p,p])[1];
+  const basis=na?'outside the measured field'
+    :row.conf==='sparse'&&(p==='pm2_5'||p==='us_aqi')
+      ?`centroid read — ${row.cells||0} covered cell${(row.cells||0)===1?'':'s'}`
+      :`mean of ${row.cells||0} covered cell${(row.cells||0)===1?'':'s'}`+
+        (row.conf==='sparse'?' — thin coverage':'');
+  const partial=(row.raw&&row.raw.partial_field_coverage)?' · partial coverage':'';
+  const vTxt=na?'<b>—</b> no field data'
+    :p==='us_aqi'?`<b>${Math.round(row.v)}</b> us aqi`
+    :`<b>${fmt1(row.v)}</b> ${DM_UNIT[p]||''}`;
+  const chip=na||row.aqi==null||!row.band?''
+    :` <span class="dt-aqi" style="--dc:${c};--dink:${chipInk(c)}">aqi ${row.aqi} · ${esc(row.band[2])}</span>`;
   pop.innerHTML=`${pcut?`<svg class="p-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${pcut}" fill="${c}" fill-opacity="${na?0.10:0.85}" stroke="var(--ink)" stroke-width="1.6" stroke-linejoin="round"/></svg>`:''}
-    <div class="p-name">${esc(d.name)}</div>
-    <div class="p-sub">${esc(level)}</div>
-    <div class="p-v">${na
-      ?'<b>—</b> no field data'
-      :`<b>${d.pm25==null?'—':fmt1(d.pm25)}</b> µg/m³ <span class="dt-aqi" style="--dc:${c};--dink:${chipInk(c)}">aqi ${d.aqi} · ${esc((d.category||'').toLowerCase())}</span>`}
-    </div>
-    <div class="p-conf">${na
-      ?'outside the measured field'
-      :esc(basis)+(d.partial_field_coverage?' · partial coverage':'')}
-      ${na?'':'<br><span id="dttrend">trend — computing +12h field…</span>'}</div>`;
+    <div class="p-name">${esc(row.name)}</div>
+    <div class="p-sub">${esc(level)} · ${esc(label)}</div>
+    <div class="p-v">${vTxt}${chip}</div>
+    <div class="p-conf">${esc(basis)}${partial}${na?'':'<br><span id="dttrend">trend — computing +12h field…</span>'}</div>`;
   pop.hidden=false;pop.classList.add('pin');
-  /* opens below the tile, above it when the bottom row would overflow */
-  pop.style.top=Math.max(8,r.top-wr.top+r.height+8)+'px';
-  if(pop.offsetTop+pop.offsetHeight>wrap.clientHeight-6)
-    pop.style.top=Math.max(8,r.top-wr.top-pop.offsetHeight-8)+'px';
-  if(!na){const nm=name;dtTrend(d).then(t=>{
+  pop.style.left=Math.min(Math.max(8,x+12),Math.max(8,wr.width-272))+'px';
+  pop.style.top=Math.min(Math.max(8,y+12),Math.max(8,wr.height-160))+'px';
+  /* flips above the cursor when the bottom edge would overflow */
+  if(pop.offsetTop+pop.offsetHeight>wr.height-6)
+    pop.style.top=Math.max(8,y-14-pop.offsetHeight)+'px';
+  if(!na){const nm=row.name,pm=p;dmTrend(row).then(t=>{
     const el=$('dttrend');
-    if(el&&!pop.hidden&&DT_PIN&&DT_PIN.name===nm)el.textContent=t;
+    if(el&&!pop.hidden&&DT_PIN&&DT_PIN.name===nm&&DM_PARAM===pm)el.textContent=t;
   })}
 }
+/* one read per boundary for the active parameter */
+function distRows(){
+  const p=DM_PARAM,out=[];
+  const byName={};for(const d of DIST_ROWS)byName[d.name]=d;
+  const feats=(FM_GJ&&FM_GJ.features)||[];
+  const grid=(p==='pm2_5'||p==='us_aqi')?null:(DM_GRID[p]||[]);
+  for(const f of feats){
+    const pr=f.properties||{},name=pr.name;
+    if(!name)continue;
+    let v=null,aqi=null,cells=null,conf=null,raw=null;
+    if(p==='pm2_5'||p==='us_aqi'){
+      const d=byName[name];if(!d)continue;
+      raw=d;
+      v=p==='pm2_5'?d.pm25:d.aqi_us;
+      aqi=p==='pm2_5'?d.aqi:d.aqi_us;
+      cells=d.cells_covered!=null?d.cells_covered:null;
+      conf=d.confidence||null;
+    }else if(grid.length){
+      const m=distMeanV(grid,f,DM_VK(p));
+      if(m){v=m.mean;cells=m.n;conf=m.n>=3?'field':'sparse';aqi=dmAqi(p,v)}
+      else conf='none';
+    }else conf='none';
+    out.push({feat:f,name,level:pr.level||'district',parent:pr.parent||'',
+      state:pr.state||'',v,aqi,cells,conf,band:dmBand(aqi,p),raw});
+  }
+  return out;
+}
+function renderDmSel(){
+  const el=$('dtsel');if(!el)return;
+  el.innerHTML=DM_SPECIES.map(([p,l])=>
+    `<button class="${p===DM_PARAM?'on':''}" onclick="dmPick('${p}')">${l}</button>`).join('');
+}
+async function dmPick(p){
+  if(p===DM_PARAM)return;
+  DM_PARAM=p;renderDmSel();paintDLegend();await paintDMap();
+  /* a pinned card follows the switch — same spot, new parameter */
+  if(DT_PIN){const r=DM_ROWS.find(r=>r.name===DT_PIN.name);
+    if(r)dmShow(r,DT_PIN.x,DT_PIN.y);else dtHide()}
+}
+function paintDLegend(){
+  const el=$('dlegend');if(!el)return;
+  const scale=DM_PARAM==='us_aqi'?EPA_BANDS:CPCB_BANDS;
+  el.innerHTML=scale.map(([lo,hi,cat,col])=>
+    `<span><i class="sw" style="background:${col}"></i>${cat} ${lo}–${hi}</span>`).join('')+
+    `<span style="margin-left:auto"><i class="sw na-sw"></i>no cells inside</span>`;
+}
+async function paintDMap(){
+  const cv=$('distmap'),cap=$('distmap-sub');if(!cv)return;
+  if($('dtsel')&&!$('dtsel').children.length){renderDmSel();paintDLegend()}
+  const p=DM_PARAM;
+  const feats=(FM_GJ&&FM_GJ.features)||[];
+  if(!feats.length){if(cap)cap.textContent='boundary geojson still loading…';return}
+  /* the grid behind a computed param — fetched once per species; the
+     epoch-cached endpoint makes re-reads cheap on every tick */
+  if(p!=='pm2_5'&&p!=='us_aqi'&&DM_GRID[p]==null){
+    if(cap)cap.textContent=`loading the ${p} field…`;
+    try{const g=await getJSON(`/grid?cells=${FM_CELLS}&param=${p}`);
+        DM_GRID[p]=(g&&g.features)||[]}
+    catch(e){DM_GRID[p]=[]}
+  }
+  if(!DM_BBOX){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(const f of feats){
+      const g=f.geometry;if(!g)continue;
+      const polys=g.type==='Polygon'?[g.coordinates]
+        :g.type==='MultiPolygon'?g.coordinates:[];
+      for(const poly of polys)for(const c of poly[0]||[]){
+        x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);
+        y0=Math.min(y0,c[1]);y1=Math.max(y1,c[1])}
+    }
+    if(x0>x1)return;
+    const px=(x1-x0)*0.035,py=(y1-y0)*0.05;
+    DM_BBOX={x0:x0-px,x1:x1+px,y0:y0-py,y1:y1+py};
+  }
+  const B=DM_BBOX,ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
+  const w=cv.parentElement.clientWidth;
+  const W=w,H=Math.round(w*(B.y1-B.y0)/((B.x1-B.x0)*0.879));
+  cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const px=v=>(v-B.x0)/(B.x1-B.x0)*W,py=v=>(1-(v-B.y0)/(B.y1-B.y0))*H;
+  const pathOf=f=>{
+    const g=f.geometry,P=new Path2D();
+    const polys=g.type==='Polygon'?[g.coordinates]
+      :g.type==='MultiPolygon'?g.coordinates:[];
+    for(const poly of polys)for(const ring of poly){
+      (ring||[]).forEach(([lo,la],i)=>{const x=px(lo),y=py(la);
+        i?P.lineTo(x,y):P.moveTo(x,y)});
+      P.closePath()}
+    return P;
+  };
+  DM_ROWS=distRows();
+  /* outer districts paint first, the 13 nct sub-areas on top — the
+     inner boundaries stay readable, order is the geojson's own */
+  const ALPHA={field:.85,sparse:.42,none:0};
+  const ord=[...DM_ROWS].sort((a,b)=>
+    (a.level==='osm_admin_5'?1:0)-(b.level==='osm_admin_5'?1:0));
+  for(const r of ord){
+    const path=pathOf(r.feat),na=r.v==null;
+    if(na){ctx.fillStyle='rgba(166,172,184,.10)';ctx.fill(path,'evenodd')}
+    else{ctx.globalAlpha=ALPHA[r.conf]??.5;ctx.fillStyle=r.band?r.band[3]:'#A6ACB8';
+      ctx.fill(path,'evenodd');ctx.globalAlpha=1}
+  }
+  /* boundaries second — a shared edge never hides under a neighbour's fill */
+  ctx.lineJoin='round';
+  for(const r of ord){
+    const path=pathOf(r.feat),na=r.v==null;
+    const pinned=DT_PIN&&DT_PIN.name===r.name,hovered=DM_HOV===r.name;
+    ctx.setLineDash(na?[3,3]:[]);
+    ctx.strokeStyle=pinned?'#14181F':hovered?'rgba(20,24,31,.9)':'rgba(20,24,31,.55)';
+    ctx.lineWidth=pinned?2:hovered?1.6:0.9;
+    ctx.stroke(path);
+  }
+  ctx.setLineDash([]);
+  /* names where the shape has room — the card names everything on
+     click. sub-areas need a bigger shape before they earn a label:
+     NCT's centre would otherwise read as overlapping captions */
+  ctx.font='8.5px ui-monospace,"SF Mono",Menlo,monospace';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const r of ord){
+    const c=(r.feat.properties||{}).centroid;
+    if(!c)continue;
+    const g=r.feat.geometry;
+    const polys=g.type==='Polygon'?[g.coordinates]
+      :g.type==='MultiPolygon'?g.coordinates:[];
+    let bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;
+    for(const poly of polys)for(const pt of poly[0]||[]){
+      bx0=Math.min(bx0,px(pt[0]));bx1=Math.max(bx1,px(pt[0]));
+      by0=Math.min(by0,py(pt[1]));by1=Math.max(by1,py(pt[1]))}
+    const needW=r.level==='osm_admin_5'?92:64;
+    const needH=r.level==='osm_admin_5'?26:18;
+    if(bx1-bx0<needW||by1-by0<needH)continue;
+    const nm=String(r.name).toUpperCase();
+    const lx=px(c[0]),ly=py(c[1]);
+    ctx.strokeStyle='rgba(245,244,240,.8)';ctx.lineWidth=3;
+    ctx.strokeText(nm,lx,ly);
+    ctx.fillStyle=r.level==='osm_admin_5'
+      ?'rgba(20,24,31,.62)':'rgba(20,24,31,.85)';
+    ctx.fillText(nm,lx,ly);
+  }
+  /* caption — what is painted, in the console's own words */
+  const liveN=DM_ROWS.filter(r=>r.v!=null).length;
+  const thinN=DM_ROWS.filter(r=>r.v!=null&&r.conf==='sparse').length;
+  const label=(DM_SPECIES.find(s=>s[0]===p)||[p,p])[1];
+  const gridless=p!=='pm2_5'&&p!=='us_aqi'&&!(DM_GRID[p]&&DM_GRID[p].length);
+  if(cap)cap.innerHTML=gridless
+    ?`${label} — the field serves no ${label} cells right now`
+    :`${fmt(feats.length)} boundaries · ${fmt(liveN)} live${thinN?` · ${fmt(thinN)} thin (centroid read)` :''} · fills = ${p==='us_aqi'?'us epa':'cpcb national'} aqi bands for ${esc(label)} · value = mean of the covered cells inside each border · click pins a card`;
+}
+function dmHit(e){
+  const cv=$('distmap');if(!cv||!DM_BBOX)return{row:null,x:0,y:0};
+  const r=cv.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  const B=DM_BBOX;
+  const lon=B.x0+x/r.width*(B.x1-B.x0),lat=B.y0+(1-y/r.height)*(B.y1-B.y0);
+  /* innermost wins — the 13 nct sub-areas ride last in FM_GJ, so a
+     reverse walk picks the small shape over its parent district */
+  const feats=(FM_GJ&&FM_GJ.features)||[];
+  for(let i=feats.length-1;i>=0;i--){
+    const f=feats[i],g=f.geometry;if(!g)continue;
+    const polys=g.type==='Polygon'?[g.coordinates]
+      :g.type==='MultiPolygon'?g.coordinates:[];
+    let inside=false;
+    for(const poly of polys){
+      if(!(poly[0]&&pip(lon,lat,poly[0])))continue;
+      let hole=false;
+      for(let h=1;h<poly.length;h++)if(pip(lon,lat,poly[h])){hole=true;break}
+      if(!hole){inside=true;break}
+    }
+    if(inside)return{row:DM_ROWS.find(rr=>rr.feat===f)||null,x,y};
+  }
+  return{row:null,x,y};
+}
+function dmClick(e){
+  const{row,x,y}=dmHit(e);
+  if(!row){dtHide();return}
+  e.stopPropagation();
+  /* re-click on the pinned district un-pins; any other takes over */
+  if(DT_PIN&&DT_PIN.name===row.name)dtHide();else dmShow(row,x,y);
+}
+function dmMove(e){
+  const{row}=dmHit(e),n=row?row.name:null;
+  if(n!==DM_HOV){DM_HOV=n;paintDMap()}
+}
+function dmLeave(){if(DM_HOV){DM_HOV=null;paintDMap()}}
 function fmClick(e){
   const{ft,x,y}=fmHit(e),pop=$('fmpop');if(!pop)return;
   if(!ft){pop.hidden=true;FM_INS=null;return}
@@ -1136,22 +1337,13 @@ function bindScrub(){
   $('fieldmap').addEventListener('mousemove',fmMove);
   $('fieldmap').addEventListener('mouseleave',fmLeave);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null;dtHide()}});
-  /* district tiles pin a card on click; enter works from keyboard;
-     a click anywhere off the tile/card dismisses it */
-  $('districts').addEventListener('click',e=>{
-    const t=e.target.closest('.dtile');
-    if(t){e.stopPropagation();
-      /* re-click on the pinned tile un-pins; any other tile takes over */
-      if(DT_PIN&&DT_PIN.name===t.dataset.name)dtHide();else dtShow(t)}
-  });
-  /* role=button contract: Enter and Space both pin/un-pin */
-  $('districts').addEventListener('keydown',e=>{
-    if(e.key==='Enter'||e.key===' '){const t=e.target.closest('.dtile');
-      if(t){e.preventDefault();
-        if(DT_PIN&&DT_PIN.name===t.dataset.name)dtHide();else dtShow(t)}}
-  });
+  /* district map: click pins a card, hover raises the boundary —
+     a click anywhere off the canvas/card dismisses it */
+  $('distmap').addEventListener('click',dmClick);
+  $('distmap').addEventListener('mousemove',dmMove);
+  $('distmap').addEventListener('mouseleave',dmLeave);
   document.addEventListener('click',e=>{
-    if(!e.target.closest('.dtile')&&!e.target.closest('#dtpop'))dtHide()});
+    if(!e.target.closest('#distmap')&&!e.target.closest('#dtpop'))dtHide()});
   /* both baked boundary sets — districts + the 13 delhi sub-areas —
      name cells honestly and give the district card its polygon */
   Promise.all([
@@ -1159,13 +1351,13 @@ function bindScrub(){
     fetch('/delhi_subdistricts.geojson').then(r=>r.ok?r.json():null).catch(()=>null)
   ]).then(([a,b])=>{FM_GJ={features:[
     ...((a&&a.features)||[]),...((b&&b.features)||[])]};
-    /* cut the boundary silhouettes once both sets are in, then repaint
-       the roster so the geography lands on the tiles it belongs to */
+    /* cut the mini-card silhouettes once both sets are in, then paint
+       the choropleth — the boundaries are its whole surface */
     for(const f of FM_GJ.features||[]){
       const n=f.properties&&f.properties.name;
       if(n&&!CUT[n]){const p=cutPath(f);if(p)CUT[n]=p}
     }
-    if(DIST_ROWS&&DIST_ROWS.length)paintDTiles(DIST_ROWS);
+    paintDMap();
   });
 }
 

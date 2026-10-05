@@ -127,14 +127,14 @@ function TripDetail({
         </Text>
         <View style={ss.dRight}>
           <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
-            {showCig
-              ? t("tripsCigs", lang, { n: fmtCig(tr.dose_ug) })
-              : t("doseUg", lang, { n: fmtDoseUg(tr.dose_ug) })}
+            {t("doseUg", lang, { n: fmtDoseUg(tr.dose_ug) })}
           </Text>
           <Text {...DYNAMIC_TYPE} style={[ss.dSub, NUM, { fontFamily: fam(lang, "reg") }]}>
             {lo != null && hi != null
               ? t("tripsDoseBand", lang, { lo: fmtUg(lo), hi: fmtUg(hi) })
               : t("tripsDoseDetail", lang, { n: fmtUg(tr.dose_ug) })}
+            {/* cigarette equivalence stays opt-in and secondary */}
+            {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(tr.dose_ug) })}` : ""}
           </Text>
         </View>
       </View>
@@ -152,9 +152,8 @@ function TripDetail({
 
       {tr.avoided_ug > 0 && (
         <Text {...DYNAMIC_TYPE} style={[ss.dSaved, { fontFamily: fam(lang, "reg") }]}>
-          {showCig
-            ? t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })
-            : t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
+          {t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
+          {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(tr.avoided_ug) })}` : ""}
         </Text>
       )}
 
@@ -239,15 +238,14 @@ const TripCard = React.memo(function TripCard({
               style={[ss.tripSaved, { fontFamily: fam(lang, "reg") }]}
               numberOfLines={2}
             >
-              {showCig
-                ? t("tripsSavedVs", lang, { n: fmtCig(tr.avoided_ug) })
-                : t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
+              {t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
+              {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(tr.avoided_ug) })}` : ""}
             </Text>
           )}
         </View>
         <View style={ss.tripNums}>
           <View style={ss.cigRow}>
-            <Icon name={showCig ? "cigarette" : "dust"} color={cigTone(tr.dose_ug)} size={13} />
+            <Icon name="dust" color={cigTone(tr.dose_ug)} size={13} />
             <Text {...DYNAMIC_TYPE}
               style={[
                 ss.cigNum,
@@ -255,7 +253,7 @@ const TripCard = React.memo(function TripCard({
                 { fontFamily: fam(lang, "semi"), color: cigTone(tr.dose_ug) },
               ]}
             >
-              {showCig ? fmtCig(tr.dose_ug) : `${fmtDoseUg(tr.dose_ug)} µg`}
+              {`${fmtDoseUg(tr.dose_ug)} µg`}
             </Text>
           </View>
           {tr.emit_kg != null && (
@@ -500,11 +498,11 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                 </View>
                 <View style={ss.sumCol}>
                   <View style={ss.sumHead}>
-                    <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={15} />
+                    <Icon name="dust" color={V2T.text3} size={15} />
                     <Text {...DYNAMIC_TYPE}
                       style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
                     >
-                      {showCig ? fmtCig(allUg) : `${fmtDoseUg(allUg)} µg`}
+                      {`${fmtDoseUg(allUg)} µg`}
                     </Text>
                   </View>
                   <Text {...DYNAMIC_TYPE} style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
@@ -531,6 +529,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                 style={[ss.sumFoot, { fontFamily: fam(lang, "reg") }]}
               >
                 {t("ledgerAllTime", lang)} · {t("ledgerEstNote", lang)}
+              {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(allUg) })}` : ""}
               </Text>
               {weekTrips > 0 && (
                 <View style={ss.weekRow}>
@@ -547,9 +546,10 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                       n: weekTrips,
                     })}
                     {" · "}
+                    {t("doseUg", lang, { n: fmtDoseUg(week.weekUg) })}
                     {showCig
-                      ? t("tripsCigs", lang, { n: fmtCig(week.weekUg) })
-                      : t("doseUg", lang, { n: fmtDoseUg(week.weekUg) })}
+                      ? ` · ${t("tripsCigs", lang, { n: fmtCig(week.weekUg) })}`
+                      : ""}
                     {weekEmitKg > 0
                       ? ` · ${t("tripsOutDetail", lang, { n: fmtKg(weekEmitKg) })}`
                       : ""}

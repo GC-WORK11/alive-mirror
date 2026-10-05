@@ -161,16 +161,17 @@ function Track({ frac, tone }: { frac: number | null; tone: "in" | "out" }) {
 
 /** The pair of bars on every card — breathe-in (dust/cigarette glyph) over
  *  the dose band, exhaust (plume) over CO2, both relative to the worst
- *  option. The cigarette glyph only renders with showCig on. */
-function PairBars({ o, worstIn, worstOut, showCig, lang }: {
-  o: V2Option; worstIn: number; worstOut: number; showCig: boolean; lang: Lang;
+ *  option. The cigarette equivalence lives in the detail block below —
+ *  never as a primary glyph on the bars. */
+function PairBars({ o, worstIn, worstOut, lang }: {
+  o: V2Option; worstIn: number; worstOut: number; lang: Lang;
 }) {
   const inFrac = o.dose?.mid != null && worstIn > 0 ? o.dose.mid / worstIn : null;
   const outFrac = o.emissions?.co2_kg?.mid != null && worstOut > 0 ? o.emissions.co2_kg.mid / worstOut : null;
   return (
     <View style={s.bars}>
       <View style={s.barGroup} accessible accessibilityLabel={t("compare_smokeIn", lang)}>
-        <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={11} />
+        <Icon name="dust" color={V2T.text3} size={11} />
         <Track frac={inFrac} tone="in" />
       </View>
       <View style={s.barGroup} accessible accessibilityLabel={t("compare_smokeOut", lang)}>
@@ -273,7 +274,7 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
     <View style={s.detail}>
       <Text {...DYNAMIC_TYPE} style={[s.dTitle, { fontFamily: fam(lang, "med") }]}>{t("howWeGotThis", lang)}</Text>
       <View style={s.dRow}>
-        <Icon name={showCig ? "cigarette" : "dust"} color={V2T.breath2} size={13} />
+        <Icon name="dust" color={V2T.breath2} size={13} />
         {d.mid != null ? (
           <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>
             {t("howWe_in", lang, { mid: Math.round(d.mid), lo: Math.round(d.lo ?? d.mid), hi: Math.round(d.hi ?? d.mid) })}
@@ -389,7 +390,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
             <Text {...DYNAMIC_TYPE} style={[s.optDose, s.optDoseNA, { fontFamily: fam(lang, "med") }]}>—</Text>
           )}
           <View style={s.barsRow}>
-            <PairBars o={o} worstIn={worstIn} worstOut={worstOut} showCig={showCig} lang={lang} />
+            <PairBars o={o} worstIn={worstIn} worstOut={worstOut} lang={lang} />
             <Pressable
               onPress={() => { tick(); onToggleDetail(i); }}
               hitSlop={16}
@@ -586,7 +587,7 @@ export function CompareSheet({
               {anyBars && (
                 <View style={s.legend}>
                   <View style={s.legendItem}>
-                    <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={11} />
+                    <Icon name="dust" color={V2T.text3} size={11} />
                     <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeIn", lang)}</Text>
                   </View>
                   <View style={s.legendItem}>

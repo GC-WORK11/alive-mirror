@@ -323,9 +323,9 @@ export function Sidebar({
         </Text>
         <Text {...DYNAMIC_TYPE} style={[s.tripMeta, { fontFamily: fam(lang, "reg") }]}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts)}</Text>
       </View>
-      <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={13} />
+      <Icon name="dust" color={V2T.text3} size={13} />
       <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM]}>
-        {showCig ? (cigOf(tr.dose_ug) ?? 0) : t("doseUg", lang, { n: approx(Math.round(tr.dose_ug)) })}
+        {t("doseUg", lang, { n: approx(Math.round(tr.dose_ug)) })}
       </Text>
       {onShareTrip && (
         <Pressable hitSlop={8} onPress={() => onShareTrip(tr)}
@@ -374,19 +374,24 @@ export function Sidebar({
               <View style={s.tileRow}>
                 <View style={s.statTile}>
                   <View style={s.statHead}>
-                    <Icon name={showCig ? "cigarette" : "dust"} color={V2T.text3} size={15} />
+                    <Icon name="dust" color={V2T.text3} size={15} />
                     <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("breathed", lang)}</Text>
                   </View>
                   <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>
-                    {showCig
-                      ? todayCig
-                      : t("doseUg", lang, { n: approx(Math.round(st.todayUg)) })}
+                    {t("doseUg", lang, { n: approx(Math.round(st.todayUg)) })}
                   </Text>
+                  {/* yesterday delta + opt-in cigarette equivalence sit in
+                      the caption row — µg keeps the tile number */}
                   {yesterdayUg > 0 && (
                     <Text {...DYNAMIC_TYPE} style={[s.statCmp, { fontFamily: fam(lang, "reg") }]}>
                       {t(st.todayUg <= yesterdayUg ? "lessThanYesterday" : "moreThanYesterday", lang, {
                         p: Math.abs(Math.round((1 - st.todayUg / yesterdayUg) * 100)),
                       })}
+                    </Text>
+                  )}
+                  {showCig && todayCig > 0 && (
+                    <Text {...DYNAMIC_TYPE} style={[s.statCmp, { fontFamily: fam(lang, "reg") }]}>
+                      {t("tripsCigs", lang, { n: approx(todayCig > 0 && todayCig < 0.01 ? 0.01 : todayCig) })}
                     </Text>
                   )}
                 </View>
@@ -425,9 +430,10 @@ export function Sidebar({
                 <Text {...DYNAMIC_TYPE} style={[s.weekCap, { fontFamily: fam(lang, "reg") }]}>
                   {t(week.totalTrips === 1 ? "tripsCountOne" : "tripsCount", lang, { n: week.totalTrips })}
                   {" · "}
+                  {t("doseUg", lang, { n: approx(Math.round(week.weekUg)) })}
                   {showCig
-                    ? t("tripsCigs", lang, { n: approx(week.weekCigEq > 0 && week.weekCigEq < 0.01 ? 0.01 : week.weekCigEq) })
-                    : t("doseUg", lang, { n: approx(Math.round(week.weekUg)) })}
+                    ? ` · ${t("tripsCigs", lang, { n: approx(week.weekCigEq > 0 && week.weekCigEq < 0.01 ? 0.01 : week.weekCigEq) })}`
+                    : ""}
                 </Text>
               </View>
             </Rise>
