@@ -132,6 +132,48 @@
   .rch-pills button.on,
   #rchArm[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
 
+  /* the days ahead — /v2/outlook folded into the frame's bottom row.
+     hairline-separated cells; ghosted while only the raw model still
+     speaks (the served note says why); the verdict reads as caption */
+  .days{border-top:1px solid var(--line);padding:11px 18px 13px}
+  .days[hidden]{display:none}
+  .days-lbl{display:block;font-family:var(--mono);font-size:9px;
+            letter-spacing:.18em;text-transform:uppercase;color:var(--ink4)}
+  .days-lbl .u{text-transform:none;letter-spacing:.04em}
+  .dayrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+          margin-top:6px}
+  .day{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+       padding:7px 10px 6px 14px;background:none;border:none;border-radius:0;
+       border-left:1px solid var(--line);font-family:var(--mono);
+       font-size:10px;text-align:left;cursor:pointer;color:var(--ink3)}
+  .day:first-child{border-left:none;padding-left:0}
+  .day .dl{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+           color:var(--ink2);padding-bottom:1px;
+           border-bottom:1px solid transparent}
+  .day .dl small{color:var(--ink4);letter-spacing:.08em;margin-left:5px;
+                 text-transform:none}
+  .day .dv{margin-top:1px;font-size:17px;line-height:1.4;color:var(--ink);
+           font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:7px}
+  .day .dv i{width:7px;height:7px;flex:none}
+  .day .dr{font-size:9px;letter-spacing:.08em;color:var(--ink4)}
+  .day .dm{margin-top:1px;font-size:9px;letter-spacing:.1em;
+           text-transform:uppercase;color:var(--ink3);line-height:1.65}
+  .day:hover .dl{color:var(--ink)}
+  .day.on .dl{color:var(--ink);border-bottom-color:var(--ink)}
+  .day.lo{opacity:.55}
+  .day.lo:hover,.day.lo.on{opacity:.8}
+  .day:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+  .days-cap{display:block;margin-top:10px;font-family:var(--serif);
+            font-style:italic;font-size:15px;letter-spacing:-.01em;
+            color:var(--ink2)}
+  .days-note{display:block;margin-top:6px;font-family:var(--mono);
+             font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+             color:var(--ink4);line-height:1.9}
+  @media(max-width:640px){.dayrow{display:flex;overflow-x:auto;
+      scrollbar-width:none}.dayrow::-webkit-scrollbar{display:none}
+    .day{flex:none;min-width:104px;padding-left:10px}
+    .day:first-child{padding-left:0}}
+
   /* district detail — top-left under m-tag on desktop, docks bottom on mobile;
      hairline popover, same language as /admin's cell inspector */
   .detail{position:absolute;left:18px;top:66px;min-width:210px;max-width:250px;
@@ -305,6 +347,12 @@
     <div class="m-legend">
       <div class="chips" id="chips"></div>
       <div class="m-src" id="src">connecting…</div>
+    </div>
+    <div class="days" id="days" hidden>
+      <span class="days-lbl">the days ahead · daily mean pm2.5, <span class="u">µg/m³</span></span>
+      <div class="dayrow" id="dayRow" role="group" aria-label="five-day outlook"></div>
+      <span class="days-cap" id="daysCap"></span>
+      <span class="days-note" id="daysNote"></span>
     </div>
   </div>
 
@@ -836,6 +884,87 @@ async function rchInit(){
   row.hidden=false;
 }
 
+/* ---------- the days ahead — /v2/outlook under the same field ----------
+   one row of served days, painted as served: the mid is the day-mean,
+   the range is the served band, ghosted cells are where the live anchor
+   no longer reaches and only the raw model still speaks. a day whose
+   first ist hour sits inside the scrubber's 12 h reach jumps the frame
+   to it; anything further only writes its detail line — nothing here
+   invents a surface the horizon doesn't carry. an unreachable endpoint
+   keeps the row hidden, like the other controls. */
+const OUT={days:null,gen:0,best:null,sel:null,model:''};
+const outUI={};
+const OUT_MON=['jan','feb','mar','apr','may','jun',
+               'jul','aug','sep','oct','nov','dec'];
+const bandCol=n=>{const b=BANDS.find(b=>b[2]===n);return b?b[3]:NODATA};
+const outDate=s=>{const p=String(s||'').split('-');
+  return p.length===3?OUT_MON[+p[1]-1]+' '+(+p[2]):s};
+/* the day's first ist hour inside the scrubber's reach, else null */
+function outHour(dy){
+  const t0=Date.parse(dy.date_ist+'T00:00:00+05:30');if(isNaN(t0))return null;
+  const h=Math.max(0,Math.ceil((t0-OUT.gen)/36e5));
+  return h<=TL_MAX?h:null}
+function outDetail(dy){
+  const bits=[`${dy.label} — day-avg ~${Math.round(dy.pm25_mid)} ug/m3`];
+  if(dy.pm25_lo!=null&&dy.pm25_hi!=null)
+    bits[0]+=` (${Math.round(dy.pm25_lo)}–${Math.round(dy.pm25_hi)})`;
+  const cw=dy.cleanest_window;
+  if(cw&&cw.start_label)
+    bits.push(`cleanest ${cw.start_label}–${cw.end_label} ~${Math.round(cw.pm25_mid)}`);
+  const hh=dy.heavy_hours_ist||[];
+  if(hh.length)bits.push(`heaviest ${hh.length}h, ${hh[0]}–${hh[hh.length-1]}`);
+  if(dy.partial&&dy.n_hours!=null)bits.push(`only ~${dy.n_hours}h inside the horizon`);
+  if(dy.confidence==='lo')bits.push('model only');
+  return bits.join(' · ')}
+async function outLoad(){
+  if(!outUI.row)return;
+  let d=null;
+  try{const r=await fetch('/v2/outlook?lat=28.63&lon=77.22',
+      {signal:AbortSignal.timeout(15000)});                    /* the page's own bias point */
+      if(r.ok)d=await r.json()}catch(_){}
+  if(!d||!Array.isArray(d.days)||!d.days.length)return;         /* keep last paint / stay hidden */
+  OUT.days=d.days.slice(0,5);
+  OUT.gen=Date.parse(d.generated_ist)||Date.now();
+  OUT.best=d.best_day&&d.best_day.date_ist;
+  OUT.model=(d.model||'').toLowerCase();
+  if(OUT.sel&&!OUT.days.some(x=>x.date_ist===OUT.sel))OUT.sel=null;
+  outUI.row.hidden=false;
+  outUI.row_.innerHTML=OUT.days.map(dy=>{
+    const lo=dy.confidence==='lo';
+    const meta=[dy.band,
+      dy.partial&&dy.n_hours!=null?`first ~${dy.n_hours}h only`:null,
+      OUT.best===dy.date_ist?'least-bad':null,
+      lo?'model only':null].filter(Boolean).join(' · ');
+    const on=OUT.sel===dy.date_ist;
+    return `<button type="button" class="day${lo?' lo':''}${on?' on':''}"
+      data-d="${esc(dy.date_ist)}" aria-pressed="${on}">
+      <span class="dl">${esc(dy.label)}<small>${esc(outDate(dy.date_ist))}</small></span>
+      <span class="dv">${dy.pm25_mid!=null?Math.round(dy.pm25_mid):'—'}<i style="background:${bandCol(dy.band)}"></i></span>
+      <span class="dr">${dy.pm25_lo!=null&&dy.pm25_hi!=null?Math.round(dy.pm25_lo)+'–'+Math.round(dy.pm25_hi):'no band'}</span>
+      <span class="dm">${esc(meta)}</span></button>`}).join('');
+  outUI.cap.textContent=d.verdict||'';
+  const sel=OUT.days.find(x=>x.date_ist===OUT.sel);
+  outUI.note.textContent=sel?outDetail(sel):OUT.model}
+function outInit(){
+  const row=document.getElementById('days');if(!row)return;
+  outUI.row=row;outUI.row_=document.getElementById('dayRow');
+  outUI.cap=document.getElementById('daysCap');
+  outUI.note=document.getElementById('daysNote');
+  outUI.row_.addEventListener('click',e=>{
+    const b=e.target.closest('button.day');if(!b)return;
+    const dy=(OUT.days||[]).find(x=>x.date_ist===b.dataset.d);if(!dy)return;
+    OUT.sel=OUT.sel===dy.date_ist?null:dy.date_ist;   /* same day again releases */
+    outUI.row_.querySelectorAll('.day').forEach(x=>{
+      const on=x.dataset.d===OUT.sel;
+      x.classList.toggle('on',on);
+      x.setAttribute('aria-pressed',on?'true':'false')});
+    outUI.note.textContent=OUT.sel?outDetail(dy):OUT.model;
+    const h=OUT.sel?outHour(dy):null;
+    /* inside the scrubber's 12 h reach, jump its frame to that day's
+       first hour; further out the detail line is the whole answer */
+    if(h!=null&&tlUI.row&&!tlUI.row.hidden){tlSetHour(h);tlShow(h)}});
+}
+
 /* ---------- CPCB legend ---------- */
 function paintChips(){
   document.getElementById('chips').innerHTML=
@@ -949,6 +1078,8 @@ async function load(){
     let [g,a,cy,dd]=await Promise.all([
       jget('/grid?cells=34'),jget('/aqi?lat=28.63&lon=77.22'),
       jget('/v2/city'),jget('/v2/districts')]);
+    outLoad();   /* the days-ahead strip — an independent feed with its
+                    own honesty; it never takes this page's feeds down */
     if(!g&&!a&&!cy&&!dd)throw new Error('all feeds down');
     if(g&&g.features){FEAT_CELLS=g.features;
       if(!TL.active)paintCells(g.features)}   /* a forecast frame stays put
@@ -1045,6 +1176,7 @@ loadGeo().then(load).catch(()=>{
   load()});
 tlInit();
 rchInit();
+outInit();
 clock();schedule();
 setInterval(clock,30000);
 window.addEventListener('resize',()=>{paintMini()});
