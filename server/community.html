@@ -45,6 +45,8 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   .top nav a{font-size:9px;letter-spacing:.12em}}
 
 .hero{padding:96px 0 64px}
+@media(max-width:640px){.hero{padding:64px 0 40px}
+  .eyebrow{font-size:10px;letter-spacing:.18em}}
 .eyebrow{display:flex;align-items:center;gap:10px;
   font-family:var(--mono);font-size:11px;letter-spacing:.3em;
   text-transform:uppercase;color:var(--ink3)}
@@ -118,6 +120,9 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 .rline .rn{font-family:var(--mono);font-size:10px;color:var(--ink3);
   margin-left:auto;white-space:nowrap}
 .rline .empty{color:var(--ink3)}
+.tnote{margin-top:16px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.1em;line-height:1.9;text-transform:uppercase;
+  color:var(--ink3);max-width:74ch}
 
 .foot{border-top:1px solid var(--line)}
 .foot-in{max-width:960px;margin:0 auto;padding:24px 32px 42px;
@@ -150,6 +155,16 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     <a class="tlink dim" href="/admin">Admin →</a>
   </div>
   <div class="statusline rise" id="status" style="--d:280ms">reading the ledger…</div>
+  <noscript>
+    <style>
+      #status,#lgrid,#corridors,#reports{display:none}
+    </style>
+    <p style="margin-top:26px;font-family:var(--mono);font-size:10.5px;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+      line-height:1.9">
+      the ledger, corridors and live reports need javascript —
+      the explainer above does not.</p>
+  </noscript>
 </div></section>
 
 <section class="ledger"><div class="col">
@@ -168,6 +183,10 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     <span class="lbl">k≥3 devices · est. from donated trips</span>
   </div>
   <div class="scrollx"><table id="corridors"></table></div>
+  <p class="tnote">k≥3 — a cell publishes only after ≥3 distinct
+    devices cross it within 72h. below that, its traversals still feed
+    the krige but never appear here — aggregates exist precisely so no
+    single commute can be traced.</p>
 </div></section>
 
 <section class="reports"><div class="col">
@@ -204,9 +223,6 @@ async function load(){
   try{c=await api('/community')}catch(e){}
   try{rp=await api('/reports')}catch(e){}
   try{h=await api('/health')}catch(e){}
-  if(!c&&!h){$('status').innerHTML='<span>community feed resting — retrying</span>';
-    $('lgrid').innerHTML=lrow('ledger','', '', true);return}
-
   /* ---- statusline ---- */
   if(c){
     const last=c.latest_obs_age_min;
@@ -216,8 +232,10 @@ async function load(){
       `<span><b>${F1(c.km_24h)}</b> km donated today</span>`+
       `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 avoided, all-time</span>`+
       (last!=null?`<span>last commute <b>${Math.round(last)}m</b> ago</span>`:'');
-  }else{
+  }else if(h){
     $('status').innerHTML='<span>ledger resting — field still live</span>';
+  }else{
+    $('status').innerHTML='<span>community feed resting — retrying</span>';
   }
   if(h&&h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
   $('age').textContent=c?`latest donation ${c.latest_obs_age_min!=null?Math.round(c.latest_obs_age_min)+'m ago':'—'}`:'—';
@@ -250,7 +268,9 @@ async function load(){
     '<tr><th></th><th>corridor cell</th><th class="num">traversals</th>'+
     '<th class="num">devices</th><th class="num">avg inhaled</th>'+
     '<th>top mode</th><th class="num">co₂/100m</th></tr>'+
-    (rows||'<tr><td colspan="7"><span class="empty">no corridor has 3 distinct devices yet — the board fills as delhi moves</span></td></tr>');
+    (rows||(c
+      ?'<tr><td colspan="7"><span class="empty">no corridor has 3 distinct devices yet — the board fills as delhi moves</span></td></tr>'
+      :'<tr><td colspan="7"><span class="empty">corridor feed unreachable — retrying</span></td></tr>'));
 
   /* ---- reports ---- */
   const feats=(rp&&rp.features)||[];
@@ -260,7 +280,10 @@ async function load(){
       <span>${esc(p.note||p.label||'rider report')}</span>
       <span class="rn">${p.age_min!=null?Math.round(p.age_min)+'m ago':(p.n!=null?p.n+' pins':'')}</span></div>`;
   }).join(''):'<div class="rline"><span class="rk">reports</span>'+
-    '<span class="empty">nothing pinned right now — reports expire after their window</span></div>';
+    (rp
+      ?'<span class="empty">nothing pinned right now — reports expire after their window</span>'
+      :'<span class="empty">report feed unreachable — retrying</span>')+
+    '</div>';
 }
 load();setInterval(load,60000);
 </script>
