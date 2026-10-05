@@ -216,20 +216,31 @@ function AppInner() {
        Delhi centroid is the fallback the chip has always used. */
     const aqiPoll = () => {
       void (async () => {
-        const pos = await Location.getCurrentPositionAsync(
-          { accuracy: Location.Accuracy.Balanced }).catch(() => null);
+        /* position for the sample: last-known fix is free — only burn a
+           real GPS request when there's no fix or it's >15 min old (the
+           dedupe windows are ~450 m / 8 min, so a cached fix loses nothing) */
+        let pos = await Location.getLastKnownPositionAsync().catch(() => null);
+        if (!pos || Date.now() - pos.timestamp > 15 * 60 * 1000) {
+          pos = await Location.getCurrentPositionAsync(
+            { accuracy: Location.Accuracy.Balanced }).catch(() => null);
+        }
         const lat = pos?.coords.latitude ?? DELHI[1];
         const lon = pos?.coords.longitude ?? DELHI[0];
         if (pos) setUserPos({ lat, lon });
         try {
           const j = await fetchJson(`${API}/aqi?lat=${lat}&lon=${lon}`, 8000);
-          setAqiField(
-            j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null);
+          const nf = j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null;
+          /* the field ticks at ~140 s but we poll at 60 — skip the whole-app
+             re-render when the block is verbatim the same */
+          setAqiField((prev) => JSON.stringify(prev) === JSON.stringify(nf) ? prev : nf);
           const bz = typeof j?.pm25 === "number" ? j.pm25 : null;
           const amb = typeof j?.pm25_ambient === "number" ? j.pm25_ambient : bz;
           if (amb != null || bz != null) {
-            await recordSample({ ts: Date.now(), lat, lon, amb: amb ?? bz!, bz });
-            setDayNonce((n) => n + 1);
+            /* only re-render the dosimeter surfaces when a sample actually
+               lands — the dedupe drops most 60 s polls (~8 min cadence) */
+            if (await recordSample({ ts: Date.now(), lat, lon, amb: amb ?? bz!, bz })) {
+              setDayNonce((n) => n + 1);
+            }
           }
         } catch {}
       })();
@@ -347,7 +358,9 @@ function AppInner() {
   /* hooks before any early return — the dosimeter hook must run on the
      font-gate frame too or the hook order flips when fonts land */
   const dayPos = userPos ?? { lat: DELHI[1], lon: DELHI[0] };
-  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce);
+  /* withCurve only once the stack is open — the peek never needs the
+     12-payload forecast, so it isn't fetched on cold start */
+  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce, dayOpen);
   if (!fontsLoaded) return null;
   const sel = flow.options[flow.selected];
   const mapField = flow.planField ?? aqiField;

@@ -93,6 +93,9 @@ export type DayData = {
  *  the same fallback the freshness chip has always used. */
 export function useDayData(
   lat: number, lon: number, trips: Trip[], nonce: number,
+  /** fetch the 12-payload forecast curve — the peek card doesn't need it,
+      so cold-start doesn't pay 12 /grid requests for a card it may never open */
+  withCurve = true,
 ): DayData | null {
   const [data, setData] = useState<DayData | null>(null);
   // ~500 m rounding — the grid cell is ~10 km wide; drifting by a street
@@ -131,7 +134,7 @@ export function useDayData(
       }
 
       const outside = !inNcr(lat, lon);
-      const curve = outside ? null : await fetchDayCurve(lat, lon);
+      const curve = outside || !withCurve ? null : await fetchDayCurve(lat, lon);
       if (!live) return;
       setData({
         rec, week, curve, outside,
@@ -141,7 +144,7 @@ export function useDayData(
       });
     })();
     return () => { live = false; };
-  }, [rl, nonce, trips]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rl, nonce, trips, withCurve]); // eslint-disable-line react-hooks/exhaustive-deps
   return data;
 }
 
