@@ -868,8 +868,9 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     # identical to a recompute; the marker keeps the honesty explicit.
     ck = (round(from_lat, 3), round(from_lon, 3),
           round(to_lat, 3), round(to_lon, 3), vehicle.lower(), hours)
-    ent = _DEPART_CACHE.get(ck)
-    if ent and ent[0] == FORECAST._fetched_at:
+    epoch = getattr(FORECAST, "_fetched_at", None)
+    ent = _DEPART_CACHE.get(ck) if epoch is not None else None
+    if ent and ent[0] == epoch:
         body = dict(ent[1])
         body["served_from_cache"] = True
         return body
@@ -915,9 +916,10 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
         "slots": slots,
         "forecast": FORECAST.status(),
     }
-    if len(_DEPART_CACHE) >= _DEPART_CACHE_MAX:
-        _DEPART_CACHE.pop(next(iter(_DEPART_CACHE)))
-    _DEPART_CACHE[ck] = (FORECAST._fetched_at, body)
+    if epoch is not None:
+        if len(_DEPART_CACHE) >= _DEPART_CACHE_MAX:
+            _DEPART_CACHE.pop(next(iter(_DEPART_CACHE)))
+        _DEPART_CACHE[ck] = (epoch, body)
     return body
 
 
