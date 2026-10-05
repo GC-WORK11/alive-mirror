@@ -65,6 +65,46 @@ const CPCB_BAND_IDX: Record<string, number> = {
 export const bandIdxForName = (band: string | null | undefined): number | null =>
   band ? CPCB_BAND_IDX[band.trim().toLowerCase()] ?? null : null;
 
+/** Shape the wire payload into a render-safe Outlook. Days keep every field
+ *  the card dereferences safe — `heavy_hours_ist` is coerced to a string list
+ *  (the detail reads `.length` unconditionally) — and `best_day` only
+ *  survives when its caption fields are actually present, since the Hindi
+ *  caption calls `label.trim()`. Runs inside the fetcher AND on cached data
+ *  read back, so a malformed payload — live or stale — degrades to a
+ *  hidden card/marker instead of a render-time TypeError. */
+export function normalizeOutlook(d: V2OutlookResponse | Outlook): Outlook {
+  const days = (Array.isArray(d.days) ? d.days : [])
+    .filter((x): x is OutlookDay => !!x && typeof x.pm25_mid === "number" && typeof x.label === "string")
+    .map((x) => ({
+      ...x,
+      heavy_hours_ist: Array.isArray(x.heavy_hours_ist)
+        ? x.heavy_hours_ist.filter((h): h is string => typeof h === "string")
+        : [],
+      cleanest_window:
+        x.cleanest_window && typeof x.cleanest_window === "object" ? x.cleanest_window : null,
+    }));
+  if (!days.length) throw new Error("no usable days");
+  const b = d.best_day;
+  const best_day =
+    b && typeof b === "object" && typeof b.label === "string" && typeof b.pm25_mid === "number"
+      ? {
+          date_ist: typeof b.date_ist === "string" ? b.date_ist : "",
+          label: b.label,
+          pm25_mid: b.pm25_mid,
+          n_hours: typeof b.n_hours === "number" ? b.n_hours : 0,
+          partial: !!b.partial,
+          delta_vs_mean: typeof b.delta_vs_mean === "number" ? b.delta_vs_mean : 0,
+          line: typeof b.line === "string" ? b.line : "",
+        }
+      : null;
+  return {
+    days,
+    best_day,
+    flat: !!d.flat,
+    verdict: typeof d.verdict === "string" ? d.verdict : "",
+  };
+}
+
 /** Fetch the folded outlook at a point — the same anchor the morning card
  *  uses. Anything that isn't a real outlook (error field, empty days)
  *  throws inside the fetcher so a wobble serves last-good instead of
@@ -76,16 +116,16 @@ export async function fetchOutlook(lat: number, lon: number): Promise<Outlook | 
     fetcher: async () => {
       const d = (await fetchJson(`${API}/v2/outlook?lat=${lat}&lon=${lon}`, 8000)) as V2OutlookResponse;
       if (!d || d.error || !Array.isArray(d.days) || d.days.length === 0) throw new Error("no outlook");
-      const days = d.days.filter((x) => x && typeof x.pm25_mid === "number" && typeof x.label === "string");
-      if (!days.length) throw new Error("no usable days");
-      return {
-        days,
-        best_day: d.best_day ?? null,
-        flat: !!d.flat,
-        verdict: typeof d.verdict === "string" ? d.verdict : "",
-      };
+      return normalizeOutlook(d);
     },
   });
   if (!r.ok) return null;
-  return r.data;
+  /* A cache entry written before normalization existed — or a corrupted
+     last-good — gets the same pass on the way out; a totally broken blob
+     hides the card rather than crashing it. */
+  try {
+    return normalizeOutlook(r.data);
+  } catch {
+    return null;
+  }
 }
