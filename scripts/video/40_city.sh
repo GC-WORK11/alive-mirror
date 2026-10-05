@@ -41,7 +41,7 @@ cat > /tmp/act_city.json <<'JSON'
 ]
 JSON
 
-"$PY" "$VIDEO_DIR/cdp_rec.py" \
+"$PY" "$VIDEO_DIR/cdp_rec.py" --rec "${REC:-auto}" \
   --url "$NLB/city" \
   --out "$OUT_DIR/40_city.mp4" \
   --pre 5 --dur 38 \

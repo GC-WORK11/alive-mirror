@@ -8,8 +8,8 @@ prep_window
 
 cat > /tmp/act_hero_pre.json <<'JSON'
 [
- {"scroll_el":"#raster"},
- {"wait":1.5},
+ {"eval":"window.scrollTo(0,0);'top'"},
+ {"wait":1.0},
  {"eval":"(typeof tlDeep==='function')?(tlDeep(),'warming'):'tl-missing'"},
  {"wait":13},
  {"eval":"JSON.stringify(Object.keys(TL.cache||{}).map(Number).sort((a,b)=>a-b))"}
@@ -18,7 +18,9 @@ JSON
 
 cat > /tmp/act_hero.json <<'JSON'
 [
- {"wait":2.5},
+ {"wait":4.5},
+ {"scroll_el":"#raster"},
+ {"wait":1.2},
  {"eval":"tlSetHour(2);tlShow(2);'h2'"},
  {"wait":1.4},
  {"eval":"tlSetHour(4);tlShow(4);'h4'"},
@@ -34,7 +36,7 @@ cat > /tmp/act_hero.json <<'JSON'
 ]
 JSON
 
-"$PY" "$VIDEO_DIR/cdp_rec.py" \
+"$PY" "$VIDEO_DIR/cdp_rec.py" --rec "${REC:-auto}" \
   --url "$NLB/" \
   --out "$OUT_DIR/10_hero.mp4" \
   --pre 6 --dur 15 \

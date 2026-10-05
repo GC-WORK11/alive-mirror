@@ -24,7 +24,7 @@ cat > /tmp/act_ab.json <<'JSON'
 ]
 JSON
 
-"$PY" "$VIDEO_DIR/cdp_rec.py" \
+"$PY" "$VIDEO_DIR/cdp_rec.py" --rec "${REC:-auto}" \
   --url "$NLB/" \
   --out "$OUT_DIR/30_dosegap.mp4" \
   --pre 6 --dur 31 \

@@ -9,7 +9,7 @@ cat > /tmp/act_close.json <<'JSON'
  {"wait":9}
 ]
 JSON
-"$PY" "$VIDEO_DIR/cdp_rec.py" \
+"$PY" "$VIDEO_DIR/cdp_rec.py" --rec "${REC:-auto}" \
   --url "$NLB/" \
   --out "$OUT_DIR/90_close.mp4" \
   --pre 6 --dur 10 \

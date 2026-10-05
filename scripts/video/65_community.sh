@@ -13,7 +13,7 @@ cat > /tmp/act_comm.json <<'JSON'
  {"wait":5}
 ]
 JSON
-"$PY" "$VIDEO_DIR/cdp_rec.py" \
+"$PY" "$VIDEO_DIR/cdp_rec.py" --rec "${REC:-auto}" \
   --url "$NLB/community" \
   --out "$OUT_DIR/65_community.mp4" \
   --pre 5 --dur 14 \

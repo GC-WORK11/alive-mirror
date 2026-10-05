@@ -38,7 +38,7 @@ cat > /tmp/act_admin.json <<'JSON'
 ]
 JSON
 
-"$PY" "$VIDEO_DIR/cdp_rec.py" \
+"$PY" "$VIDEO_DIR/cdp_rec.py" --rec "${REC:-auto}" \
   --url "$NLB/admin" \
   --out "$OUT_DIR/50_admin.mp4" \
   --pre 4 --dur 30 \
