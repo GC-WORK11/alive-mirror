@@ -10,6 +10,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import transit  # noqa: E402
+import exposure  # noqa: E402
 
 FIELD150 = lambda lat, lon: 150.0  # noqa: E731 — constant test field
 
@@ -66,11 +67,13 @@ class TestMetroOption(unittest.TestCase):
         self.assertAlmostEqual(opt["distance_km"],
                                sum(l["distance_km"] for l in legs), places=1)
 
-        # dose: constant field -> closed-form check of the math
+        # dose: constant field -> closed-form check of the math —
+        # me/ve read the canonical tables so a re-anchor can't drift them
         exp = 0.0
         for l in legs:
-            microenv = 1.0 if l["type"] == "walk" else 0.45
-            ve_lpm = 14.0 if l["type"] == "walk" else 7.5
+            mk = "walking" if l["type"] == "walk" else "metro"
+            microenv = exposure.MICROENV[mk]
+            ve_lpm = exposure.VENTILATION_LPM[mk]
             exp += 150.0 * microenv * (ve_lpm / 1000.0) * (l["duration_s"] / 60.0)
         # per-leg dose_ug is rounded to 0.1 upstream, so allow slack
         self.assertAlmostEqual(opt["exposure"]["dose_ug"], exp, delta=0.3)
@@ -83,7 +86,9 @@ class TestMetroOption(unittest.TestCase):
         opt = transit.metro_option(*KAROL_BAGH, *NOIDA_SEC_18, FIELD150)
         km = sum(l["distance_km"] for l in legs) if False else opt["distance_km"]
         walk_all_s = km / 5.0 * 3600
-        walk_all_dose = 150.0 * 1.0 * 0.014 * (walk_all_s / 60.0)
+        walk_all_dose = (150.0 * exposure.MICROENV["walking"]
+                         * (exposure.VENTILATION_LPM["walking"] / 1000.0)
+                         * (walk_all_s / 60.0))
         self.assertLess(opt["exposure"]["dose_ug"], walk_all_dose)
 
     def test_far_endpoint_returns_none(self):

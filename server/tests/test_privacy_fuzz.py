@@ -310,6 +310,28 @@ def test_repeat_trip_same_token_counts_once_per_cell_per_trip():
     assert store.TRIPS.corridors() == []  # still suppressed
 
 
+def test_dedupe_flood_never_wipes_live_windows():
+    """_DEDUPE at capacity must evict the OLDEST keys, not clear() —
+    clearing let an attacker flush every live dedupe window with fresh
+    keys and then replay a real donation for a double-count."""
+    import v2.trip as _t
+    _t._DEDUPE.clear()
+    victim = "victim-key"
+    assert _t._seen_dupe(victim) is False          # first sight — new
+    assert _t._seen_dupe(victim) is True           # replay — deduped
+    # flood the window to the cap with fresh keys
+    for i in range(_t._DEDUPE_MAX + 64):
+        _t._seen_dupe(f"flood-{i}")
+    # oldest slice evicted (victim among them); mid-flood keys SURVIVE —
+    # under the old clear() every key inserted before the sweep was
+    # wiped, so "flood-600" replayed as new
+    assert _t._seen_dupe("flood-600") is True
+    assert _t._seen_dupe(victim) is False          # oldest got evicted
+    # and nothing detonated — the map stayed bounded
+    assert len(_t._DEDUPE) <= _t._DEDUPE_MAX
+    _t._DEDUPE.clear()
+
+
 # --- hostile bodies ---------------------------------------------------------------
 def test_malformed_summary_values_do_not_crash():
     """summary fields are floats-summed into day counters — garbage must

@@ -380,6 +380,24 @@ def test_feedback_endpoint_round_trip():
     community._reviews.clear(); community._loaded = False
 
 
+def test_feedback_rate_map_stays_bounded_under_flood():
+    """_review_rate must evict least-recent hosts past the cap — a flood
+    of distinct fresh IPs would otherwise grow it unboundedly (hostile
+    read §7: the stale-only sweep removed nothing fresh)."""
+    import time as _t
+    from fastapi.testclient import TestClient
+    from main import app, _review_rate
+    _review_rate.clear()
+    now = _t.time()
+    for i in range(5050):                        # all fresh — none stale
+        _review_rate[f"10.0.{i // 255}.{i % 255}"] = [now - i]
+    c = TestClient(app)
+    r = c.post("/v2/feedback", json={"stars": 4})
+    assert r.status_code in (200, 429)
+    assert len(_review_rate) <= 5000 + 1         # bounded, not cleared
+    _review_rate.clear()
+
+
 # --- junk donations never enter the ledger -------------------------------------
 def test_observe_empty_or_garbage_coords_rejected():
     """A donation folding to zero usable cells is not a donation."""

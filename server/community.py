@@ -399,7 +399,8 @@ def corridor_field_samples() -> list:
     for o in _obs:
         if now - o["ts"] > _OBS_FRESH_S or not o.get("dose_ug") or not o.get("duration_s"):
             continue
-        ve = VENTILATION_LPM.get(o["vehicle"], 8.0) / 1000.0
+        ve = VENTILATION_LPM.get(o["vehicle"], 10.0) / 1000.0  # canonical
+        # seated-tier fallback — was 8.0 pre-audit (understated seated VE)
         me = MICROENV.get(o["vehicle"], 1.0)
         dur_min = o["duration_s"] / 60.0
         if dur_min < 0.5:

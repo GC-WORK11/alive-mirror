@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "core", "build"))
 
 import routegraph  # noqa: E402
+import exposure    # noqa: E402
 
 BLOB_PATH = os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "data", "route_graph.bin.gz")
@@ -435,7 +436,10 @@ def test_priced_objective_matches_display_integrand():
         r = eng.query(28.0, 77.0, 28.0, 77.01, "car")
         assert r["edge_ids"] == [0], r["edge_ids"]
         t_min = 1000.0 / (60 * 1000 / 60)          # 1 km at 60 km/h
-        want = 42.0 * 0.55 * (7.5 / 1000.0) * t_min
+        # me/ve come from the canonical tables — the same constants the
+        # display integrand uses (car alias: AC car 0.55, seated 10 L/min)
+        want = (42.0 * exposure.MICROENV["car"]
+                * (exposure.VENTILATION_LPM["car"] / 1000.0) * t_min)
         assert math.isclose(r["dose_ug"], want, rel_tol=1e-9), \
             f"{r['dose_ug']} != {want}"
         expected[type(eng).__name__] = r["dose_ug"]

@@ -68,7 +68,12 @@ def _seen_dupe(key: str) -> bool:
             if now - t > _DEDUPE_TTL_S:
                 _DEDUPE.pop(k, None)
         if len(_DEDUPE) >= _DEDUPE_MAX:
-            _DEDUPE.clear()
+            # evict the oldest slice — never clear(): a flood of fresh
+            # keys must not wipe every live dedupe window and let a
+            # replay double-count (hostile-read §7)
+            for k, _t in sorted(_DEDUPE.items(),
+                                key=lambda kv: kv[1])[:_DEDUPE_MAX // 8]:
+                _DEDUPE.pop(k, None)
     if key in _DEDUPE and now - _DEDUPE[key] <= _DEDUPE_TTL_S:
         return True
     _DEDUPE[key] = now

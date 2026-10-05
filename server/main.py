@@ -1231,6 +1231,13 @@ async def leave_feedback(body: dict, request: Request):
                  if now - ts[-1] > 3600]
         for h in stale:
             del _review_rate[h]
+        # still over the cap → evict the least-recently-active hosts;
+        # never let a flood of fresh IPs grow the map unboundedly
+        if len(_review_rate) > 5000:
+            for h, _ts in sorted(
+                    _review_rate.items(),
+                    key=lambda kv: kv[1][-1])[:len(_review_rate) - 5000]:
+                del _review_rate[h]
     out = community.add_review(
         stars=body.get("stars"),
         note=body.get("note"),
@@ -1373,8 +1380,12 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     adj = (live / typ0) if (live and typ0) else 1.0
 
     micro = exposure.MICROENV.get(vehicle, 1.0)
-    ve_m3h = exposure.VENTILATION_LPM.get(vehicle, 9.0) / 1000.0 * 60.0
-    # desk baseline: indoor office ~35% of ambient, resting ventilation
+    # unknown-vehicle fallback matches the canonical table's seated
+    # tier (10.0 L/min) — the audits' one fallback, never a quieter one
+    ve_m3h = exposure.VENTILATION_LPM.get(vehicle, 10.0) / 1000.0 * 60.0
+    # desk baseline: indoor office ~35% of ambient; 7.5 L/min is resting
+    # minute ventilation (EPA EFH sedentary) — deliberately below every
+    # transit-tier VE since the alternative is staying indoors
     desk_ve = 7.5 / 1000.0 * 60.0
 
     per_hour = []
