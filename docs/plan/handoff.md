@@ -610,3 +610,10 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - `321e3c1` home disk-first hero paint + peek honours profile budget (apk-drive lane in-flight push).
 - Spawned video-v3 `b89b314c` (cut3: dosimeter home footage + re-verified web beats).
 - Owner asleep: 5-slot mandate holds; polish direction = "one more level" on surface register pending his morning verdict.
+
+## cont.31d — 2026-10-05 ~19:10 UTC
+- Deploy `a5ab92d8` LIVE + verified: `/v2/skill` self-grading endpoint serving honest `thin` (3 pairs at deploy; h1 n=2, h2 n=1 — fills hourly), admin "the model grades itself" card live, landing score line correctly self-hidden until status=ok. Contract: recorded IST hour × served-target hour, earliest-non-self dedupe, n≥5 floor per horizon, overall needs 3+ graded hours. Archive delta schema: `archive` source = actual served surface w/ live anchor (MAE ~19-29µg tonight); `held-run` source = raw unanchored model (bias ~-233µg — proof the anchor earns its place).
+- Main `dc1a984`. Suite: 1090+5 green per lane; skill slice 11/11 verified locally.
+- Spawned why-tonight `5299bd5e` (/v2/why causal explainer — fires×wind bearing, stagnation, trend → one honest line).
+- Board: apk-drive 5b7bc306 + child e7ffc6ca + video-v3 b89b314c + why 5299bd5e + me.
+- Deploy shell quirk: named shell_ids don't inherit AWS env — run deploys in plain shells.
