@@ -24,13 +24,23 @@ export type ShellSettings = {
   vehicle: string | null;  // S8 choice, e.g. "bike" | "car" | "auto"
   home: SavedPlace | null;
   work: SavedPlace | null;
+  /** L4 exposure ceiling profile — a ceiling the user sets, not a medical
+   *  line. Drives the day card's budget flag + the tiles' remaining µg. */
+  profile: "general" | "sensitive" | "child";
 };
 
 export const DEFAULT_SETTINGS: ShellSettings = {
   lang: "en", voice: true, share: true, brief: false, remind: true,
   show_cig: false,
   vehicle: null, home: null, work: null,
+  profile: "general",
 };
+
+/** Daily inhaled-µg ceilings per profile — the honest basis lives in the
+ *  UI label (WHO 24-h 15µg/m³ guide × resting-day volume is the anchor;
+ *  sensitive takes the WHO annual guide as a daily ceiling; child scales
+ *  the volume down ~60%). A user-set ceiling, never a medical claim. */
+export const PROFILE_BUDGET_UG = { general: 216, sensitive: 72, child: 130 } as const;
 
 const FILE = new File(Paths.document, "settings.json");
 
@@ -89,7 +99,7 @@ export function clearAllData(): void {
   clearPlaces();    // places.json — recents + home/work, the location history
   clearOutbox();    // outbox.json — queued donations carry token + trajectory
   void cacheClear(); // alive-cache/ — last-good plan/strip payloads carry route GPS coords
-  for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt"]) {
+  for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt", "daylog.json"]) {
     try {
       const f = new File(Paths.document, name);
       if (f.exists) f.delete();

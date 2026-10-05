@@ -4,6 +4,12 @@ import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
 import {
+  Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_500Medium, Fraunces_600SemiBold,
+} from "@expo-google-fonts/fraunces";
+import {
+  IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold,
+} from "@expo-google-fonts/ibm-plex-mono";
+import {
   NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium, NotoSansDevanagari_600SemiBold,
 } from "@expo-google-fonts/noto-sans-devanagari";
 import * as Location from "expo-location";
@@ -31,6 +37,8 @@ import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { DayScreen, DayPeek, useDayData } from "./src/screens/DayScreen";
+import { recordSample, setCheckin } from "./src/store/daylog";
 import { loadConsent, saveConsent } from "./src/store/consent";
 import { contributorId } from "./src/community";
 import { CompareSheet } from "./src/components/shell/CompareSheet";
@@ -85,14 +93,25 @@ export default function App() {
 function AppInner() {
   const camRef = useRef<CameraRef>(null);
   /* last real endpoint coords — the always-mounted markers park here when
-     hidden (see the Marker block below) */
-  const fromPin = useRef<[number, number]>(DELHI);
-  const toPin = useRef<[number, number]>(DELHI);
+     hidden (see the Marker block below). State not a ref: lint bans
+     refs-in-render, and the marker needs the value at render anyway. */
+  const [fromPin, setFromPin] = useState<[number, number]>(DELHI);
+  const [toPin, setToPin] = useState<[number, number]>(DELHI);
   const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<ShellSettings>(DEFAULT_SETTINGS);
   const flow = useShellFlow(camRef, settings.share, settings.lang);
-  if (flow.from) fromPin.current = [flow.from.lon, flow.from.lat];
-  if (flow.to) toPin.current = [flow.to.lon, flow.to.lat];
+  useEffect(() => {
+    if (!flow.from) return;
+    const c: [number, number] = [flow.from.lon, flow.from.lat];
+    const t = setTimeout(() => setFromPin(c), 0);
+    return () => clearTimeout(t);
+  }, [flow.from]);
+  useEffect(() => {
+    if (!flow.to) return;
+    const c: [number, number] = [flow.to.lon, flow.to.lat];
+    const t = setTimeout(() => setToPin(c), 0);
+    return () => clearTimeout(t);
+  }, [flow.to]);
   const { phase } = flow;
   // route-tint shape sources mount at lower priority — keeps the compare
   // sheet's entrance animation from sharing a frame with the chunk build
@@ -109,7 +128,6 @@ function AppInner() {
     return () => clearTimeout(t);
   }, [phase]);
 
-  const [reports, setReports] = useState<GeoJSON.FeatureCollection | null>(null);
   const [reportSlots, setReportSlots] = useState<(ReportSlot | null)[]>(
     () => Array<ReportSlot | null>(REPORT_POOL).fill(null));
   const [fires, setFires] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -126,14 +144,19 @@ function AppInner() {
      out (options+500 ms start + 700 ms anim + margin). */
   const [wizArmed, setWizArmed] = useState(false);
   useEffect(() => {
-    if (!flow.needsVehicle) { setWizArmed(false); return; }
+    if (!flow.needsVehicle) return;
     const t = setTimeout(() => setWizArmed(true), 1350);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); setWizArmed(false); };
   }, [flow.needsVehicle]);
   const [delhiOpen, setDelhiOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [placePickSlot, setPlacePickSlot] = useState<"home" | "work" | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
+  /* dosimeter: the peek card opens the day stack; dayNonce re-assembles
+     the local reconstruction each time a fresh ambient read lands */
+  const [dayOpen, setDayOpen] = useState(false);
+  const [dayNonce, setDayNonce] = useState(0);
+  const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null);
   const [hasLoc, setHasLoc] = useState(false);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [aqiField, setAqiField] = useState<FieldStatus | null>(null);
@@ -143,6 +166,8 @@ function AppInner() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
     NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium, NotoSansDevanagari_600SemiBold,
+    Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_500Medium, Fraunces_600SemiBold,
+    IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold,
   });
   useEffect(() => { if (fontsLoaded) SplashScreen.hideAsync().catch(() => {}); }, [fontsLoaded]);
 
@@ -161,7 +186,6 @@ function AppInner() {
        Marker pool only ever mutates lngLat+child — never mounts/unmounts
        mid-draw (the upstream iOS-sim SIGSEGV class). */
     const poll = () => fetchJson(`${API}/reports`).then((r) => {
-      setReports(r);
       setReportSlots((prev) => reconcileReportSlots(prev, r));
     }).catch(() => {});
     poll();
@@ -178,17 +202,38 @@ function AppInner() {
       setHasLoc(!!r?.granted);
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       if (pos) {
+        setUserPos({ lat: pos.coords.latitude, lon: pos.coords.longitude });
         setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
         // wait for the initial style/tile load to settle before animating —
         // flyTo during first-load is a render-thread spike on the iOS sim
         setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: camDur(900) }), 600);
       }
     })();
-    const aqiPoll = () =>
-      fetchJson(`${API}/aqi?lat=${DELHI[1]}&lon=${DELHI[0]}`, 8000)
-        .then((j) => setAqiField(
-          j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null))
-        .catch(() => {});
+    /* the /aqi poll does two jobs now: the freshness chip's field block,
+       AND the dosimeter's foreground ambient sample — each read lands in
+       daylog.json (on-device only; the dedupe keeps the file sparse). The
+       read happens at the user's own position when the OS has one; the
+       Delhi centroid is the fallback the chip has always used. */
+    const aqiPoll = () => {
+      void (async () => {
+        const pos = await Location.getCurrentPositionAsync(
+          { accuracy: Location.Accuracy.Balanced }).catch(() => null);
+        const lat = pos?.coords.latitude ?? DELHI[1];
+        const lon = pos?.coords.longitude ?? DELHI[0];
+        if (pos) setUserPos({ lat, lon });
+        try {
+          const j = await fetchJson(`${API}/aqi?lat=${lat}&lon=${lon}`, 8000);
+          setAqiField(
+            j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null);
+          const bz = typeof j?.pm25 === "number" ? j.pm25 : null;
+          const amb = typeof j?.pm25_ambient === "number" ? j.pm25_ambient : bz;
+          if (amb != null || bz != null) {
+            await recordSample({ ts: Date.now(), lat, lon, amb: amb ?? bz!, bz });
+            setDayNonce((n) => n + 1);
+          }
+        } catch {}
+      })();
+    };
     aqiPoll();
     const aqiIv = setInterval(aqiPoll, 60000);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
@@ -199,7 +244,11 @@ function AppInner() {
   /* the layers sheet is idle-phase chrome — leaving idle (search, compare,
      nav) must close it or it bleeds through stacked behind the next surface
      (reproduced: its toggles rendered under the compare sheet) */
-  useEffect(() => { if (phase !== "idle") setLayersOpen(false); }, [phase]);
+  useEffect(() => {
+    if (phase === "idle") return;
+    const t = setTimeout(() => setLayersOpen(false), 0);
+    return () => clearTimeout(t);
+  }, [phase]);
 
   /* Android hardware BACK closes the topmost open surface — every overlay
      here is a plain View (no Modal onRequestClose), so without a dispatcher
@@ -216,6 +265,7 @@ function AppInner() {
       if (delhiOpen) { setDelhiOpen(false); return true; }
       if (layersOpen) { setLayersOpen(false); return true; }
       if (sidebarOpen) { setSidebarOpen(false); return true; }
+      if (dayOpen) { setDayOpen(false); return true; }
       if (mapPickArmed) { setMapPickArmed(false); return true; }
       /* phases: BACK on compare = its X (clearRoute); BACK inside nav
          must never kill the app mid-trip — the explicit end-early
@@ -225,7 +275,7 @@ function AppInner() {
       return false;
     });
     return () => sub.remove();
-  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, phase, flow]);
+  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, dayOpen, phase, flow]);
 
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
@@ -294,6 +344,10 @@ function AppInner() {
     if (k === "spots" && !spots) fetchJson(`${API}/blackspots`).then(setSpots).catch(() => {});
     if (k === "corridors" && !flow.community) fetchJson(`${API}/community`).then(flow.setCommunity).catch(() => {});
   }, [fires, spots, flow]);
+  /* hooks before any early return — the dosimeter hook must run on the
+     font-gate frame too or the hook order flips when fonts land */
+  const dayPos = userPos ?? { lat: DELHI[1], lon: DELHI[0] };
+  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce);
   if (!fontsLoaded) return null;
   const sel = flow.options[flow.selected];
   const mapField = flow.planField ?? aqiField;
@@ -366,10 +420,10 @@ function AppInner() {
             remove-during-render class as the route sources. Hidden is an
             empty child; the pin never teleports because the ref holds the
             last real coordinate. */}
-        <Marker lngLat={fromPin.current} anchor="center">
+        <Marker lngLat={fromPin} anchor="center">
           {flow.from && pinReady ? <EndpointPin kind="origin" /> : <View />}
         </Marker>
-        <Marker lngLat={toPin.current} anchor="bottom">
+        <Marker lngLat={toPin} anchor="bottom">
           {flow.to && pinReady ? <EndpointPin kind="dest" /> : <View />}
         </Marker>
       </Map>
@@ -444,6 +498,13 @@ function AppInner() {
           <View style={[s.layersWrap, { bottom: insets.bottom + 16 }]}>
             <LayersButton anyOn={Object.values(layers).some(Boolean)} onPress={() => setLayersOpen(true)} lang={lang} />
           </View>
+          {/* the dosimeter's peek — floats above the corner FABs, opens
+              the day stack on tap. Hides itself before disk is read. */}
+          {dayData && (
+            <View style={[s.peekWrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
+              <DayPeek data={dayData} lang={lang} onOpen={() => setDayOpen(true)} />
+            </View>
+          )}
         </>
       )}
       {/* SEAM(breath-chip): optional "breathing heavier/lighter" chip while moving
@@ -538,6 +599,11 @@ function AppInner() {
         onClose={() => setLayersOpen(false)} lang={lang} />
       <DelhiToday visible={delhiOpen} onClose={() => setDelhiOpen(false)} lang={lang} showCig={settings.show_cig} />
       <LedgerScreen visible={ledgerOpen} onClose={() => setLedgerOpen(false)} lang={lang} showCig={settings.show_cig} onTripsChanged={flow.reloadTrips} />
+      <DayScreen visible={dayOpen} data={dayData} lang={lang} settings={settings}
+        onClose={() => setDayOpen(false)}
+        onGo={() => { setDayOpen(false); flow.setEditWhich("to"); flow.setPhase("search"); }}
+        onProfile={(p) => patchSettings({ profile: p })}
+        onCheckin={(c) => { void setCheckin(Date.now(), c).then(() => setDayNonce((n) => n + 1)); }} />
       <SettingsScreen visible={settingsOpen} onClose={() => setSettingsOpen(false)}
         lang={lang} current={settings} onArmBrief={flow.armDailyBrief}
         onDeleteData={deleteAll}
@@ -726,12 +792,11 @@ const s = StyleSheet.create({
   pickHintWrap: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
     paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: V2T.accent,
-    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 5,
   },
   pickHintTxt: { fontSize: V2Type.label, color: V2T.text },
   freshWrap: { position: "absolute", left: 16 },
+  peekWrap: { position: "absolute", left: 0, right: 0 },
 });
