@@ -2,7 +2,7 @@
   "version": 8,
   "name": "alive-v2-google-light",
   "metadata": {
-    "alive:doc": "docs/plan/map-style-r5.md — detail pass (icons, housenumbers, paths, hillshade)",
+    "alive:doc": "docs/plan/map-style-r5.md \u2014 detail pass (icons, housenumbers, paths, hillshade)",
     "alive:tokens": "Mobile/src/theme.ts V2T",
     "maplibre:schema": "OpenMapTiles v3 (source 'openmaptiles')",
     "openmaptiles:version": "3.x"
@@ -19,16 +19,6 @@
     "openmaptiles": {
       "type": "vector",
       "url": "https://tiles.openfreemap.org/planet"
-    },
-    "terrain-dem": {
-      "type": "raster-dem",
-      "tiles": [
-        "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
-      ],
-      "encoding": "terrarium",
-      "tileSize": 256,
-      "maxzoom": 15,
-      "attribution": "© Terrain: AWS Open Data / Mapzen Terrarium"
     }
   },
   "transition": {
@@ -301,17 +291,6 @@
       "paint": {
         "fill-color": "#F4EFE0",
         "fill-opacity": 0.75
-      }
-    },
-    {
-      "id": "v2-hillshade",
-      "type": "hillshade",
-      "source": "terrain-dem",
-      "paint": {
-        "hillshade-exaggeration": 0.3,
-        "hillshade-shadow-color": "#8892A0",
-        "hillshade-highlight-color": "#FFFFFF",
-        "hillshade-accent-color": "#6B7686"
       }
     },
     {
