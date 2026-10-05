@@ -1046,7 +1046,7 @@ def _grid_cached(key: tuple, epoch: float, build) -> dict:
 
 
 @app.get("/grid")
-async def field_grid(cells: int = Query(default=22, le=40),
+async def field_grid(cells: int = Query(default=22, ge=1, le=40),
                      h: Optional[int] = Query(default=None, ge=0, le=120),
                      param: str = Query(default="pm2_5")):
     """The live surface as GeoJSON cells — the map's colour layer.

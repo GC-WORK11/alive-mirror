@@ -586,3 +586,13 @@ def test_non_finite_coords_never_500():
             assert r.json()["error"]
         else:
             assert r.status_code == 422
+
+
+def test_malformed_values_never_500():
+    """Bad types/bounds in non-coord params must also fail honestly."""
+    r = client.post("/v2/feedback", json={"stars": 3, "note": {"a": 1}})
+    assert r.status_code == 422 and "note" in r.json()["detail"]
+    r = client.post("/v2/feedback", json={"stars": 3, "build": {"a": 1}})
+    assert r.status_code == 422 and "build" in r.json()["detail"]
+    assert client.get("/grid", params={"cells": 0}).status_code == 422
+    assert client.get("/grid", params={"cells": 999}).status_code == 422

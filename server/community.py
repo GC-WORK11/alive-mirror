@@ -531,6 +531,10 @@ def add_review(stars, note: Optional[str], build: Optional[str]) -> dict:
         return {"stored": False, "error": "stars must be 1..5"}
     if s < 1 or s > 5:
         return {"stored": False, "error": "stars must be 1..5"}
+    if note is not None and not isinstance(note, str):
+        return {"stored": False, "error": "note must be text"}
+    if build is not None and not isinstance(build, str):
+        return {"stored": False, "error": "build must be text"}
     n = (note or "").strip()[:_NOTE_CAP]
     r = {"ts": time.time(), "stars": s, "note": n,
          "build": (build or "")[:16]}
