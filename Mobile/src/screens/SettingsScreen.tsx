@@ -699,7 +699,7 @@ const ss = StyleSheet.create({
 
   segWrap: {
     flexDirection: "row",
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.row,
     borderWidth: 1,
     borderColor: V2T.glassLine,
     overflow: "hidden",
@@ -728,7 +728,7 @@ const ss = StyleSheet.create({
   rateErrTxt: { color: V2T.breath3, flex: 1 },
   rateSendBtn: {
     backgroundColor: V2T.glassSel,
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.row,
     borderWidth: 1,
     borderColor: V2T.glassLine,
     paddingHorizontal: 16,

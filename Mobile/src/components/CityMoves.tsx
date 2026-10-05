@@ -25,6 +25,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import {
   fam,
+  famMono,
   NUM,
   V2Radius,
   V2T,
@@ -89,10 +90,10 @@ function ModeRow({ row, lang }: { row: CityMovesModeRow; lang: Lang }) {
       >
         {modeLabel(row.mode, lang)}
       </Text>
-      <Text {...DYNAMIC_TYPE} style={[ss.mPct, NUM, { fontFamily: fam(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.mPct, NUM, { fontFamily: famMono(lang, "med") }]}>
         {fmtPct(row.share)}
       </Text>
-      <Text {...DYNAMIC_TYPE} style={[ss.mTrips, NUM, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.mTrips, NUM, { fontFamily: famMono(lang, "reg") }]}>
         {t("cityTrips", lang, { n: row.trips })}
       </Text>
     </View>
@@ -121,10 +122,10 @@ function BandRow({
         {label}
       </Text>
       <View style={ss.bVals}>
-        <Text {...DYNAMIC_TYPE} style={[ss.bMid, NUM, { fontFamily: fam(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.bMid, NUM, { fontFamily: famMono(lang, "med") }]}>
           ≈{fmt(band.p50)} {unit}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.bBand, NUM, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.bBand, NUM, { fontFamily: famMono(lang, "reg") }]}>
           {fmt(band.p25)}–{fmt(band.p75)}
         </Text>
       </View>
@@ -165,7 +166,7 @@ export function CityMoves({
       </Text>
       {/* context: window + real trip count. ledgerLast7 is exact while
           window.days === 7; another value → proposed movesWindowDays. */}
-      <Text {...DYNAMIC_TYPE} style={[ss.sub, NUM, { fontFamily: fam(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.sub, NUM, { fontFamily: famMono(lang, "reg") }]}>
         {windowDays === 7 ? t("ledgerLast7", lang) : `${windowDays}d`}
         {"  ·  "}
         {t("cityTrips", lang, { n: data.n_trips })}
@@ -213,7 +214,7 @@ export function CityMoves({
           {suppressed > 0 ? (
             /* a count, not a row — proposed: movesSuppressed */
             <Text {...DYNAMIC_TYPE}
-              style={[ss.note, NUM, { fontFamily: fam(lang, "reg") }]}
+              style={[ss.note, NUM, { fontFamily: famMono(lang, "reg") }]}
             >
               +{t("cityTrips", lang, { n: suppressed })}
             </Text>
@@ -232,7 +233,7 @@ export function CityMoves({
                   style={[
                     ss.bMid,
                     NUM,
-                    { fontFamily: fam(lang, "med") },
+                    { fontFamily: famMono(lang, "med") },
                   ]}
                 >
                   {corridors.active ?? 0}
@@ -242,7 +243,7 @@ export function CityMoves({
                     style={[
                       ss.bBand,
                       NUM,
-                      { fontFamily: fam(lang, "reg") },
+                      { fontFamily: famMono(lang, "reg") },
                     ]}
                   >
                     {t("tripsDoseBand", lang, {
@@ -279,7 +280,7 @@ export function CityMoves({
                   style={[
                     ss.note,
                     NUM,
-                    { fontFamily: fam(lang, "reg") },
+                    { fontFamily: famMono(lang, "reg") },
                   ]}
                 >
                   {(() => {

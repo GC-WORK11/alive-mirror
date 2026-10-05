@@ -25,7 +25,7 @@
  * SEAM(compare): the screens lane may replace this with src/screens S4. */
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { NUM, V2Radius, V2T, V2Type, doseColor, fam } from "../../theme";
+import { NUM, V2Radius, V2T, V2Type, doseColor, fam, famMono } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { Sheet } from "../../ui";
@@ -276,7 +276,7 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
       <View style={s.dRow}>
         <Icon name="dust" color={V2T.breath2} size={13} />
         {d.mid != null ? (
-          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: famMono(lang, "reg") }]}>
             {t("howWe_in", lang, { mid: Math.round(d.mid), lo: Math.round(d.lo ?? d.mid), hi: Math.round(d.hi ?? d.mid) })}
             {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: approx(cig) })}` : ""}
           </Text>
@@ -288,7 +288,7 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
       {emit ? (
         <View style={s.dRow}>
           <Icon name="smoke" color={V2T.out1} size={13} />
-          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: fam(lang, "reg") }]}>{t("howWe_out", lang, { v: emit })}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: famMono(lang, "reg") }]}>{t("howWe_out", lang, { v: emit })}</Text>
         </View>
       ) : null}
       {d.coverage != null && d.coverage < 0.999 ? (
@@ -376,11 +376,11 @@ function OptionCard({ o, i, selected, worstIn, worstOut, showYours, open,
           ) : null}
         </View>
         <View style={s.cardRight}>
-          <Text {...DYNAMIC_TYPE} style={[s.optEta, NUM, { fontFamily: fam(lang, "semi") }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.optEta, NUM, { fontFamily: famMono(lang, "semi") }]}>
             {Math.round(o.duration_min)}<Text {...DYNAMIC_TYPE} style={s.optEtaUnit}> {t("minUnit", lang)}</Text>
           </Text>
           {d?.mid != null ? (
-            <Text {...DYNAMIC_TYPE} style={[s.optDose, NUM, { fontFamily: fam(lang, "semi"), color: doseCol }]}>
+            <Text {...DYNAMIC_TYPE} style={[s.optDose, NUM, { fontFamily: famMono(lang, "semi"), color: doseCol }]}>
               ≈{Math.round(d.mid)}<Text {...DYNAMIC_TYPE} style={s.optDoseUnit}> µg</Text>
               {band ? <Text {...DYNAMIC_TYPE} style={[s.optBand, { fontFamily: fam(lang, "reg") }]}>  {band}</Text> : null}
             </Text>
@@ -637,7 +637,7 @@ export function CompareSheet({
                       <Text {...DYNAMIC_TYPE} style={[s.stepTxt, { fontFamily: fam(lang, "reg") }]}>
                         {localizeStep(st, lang)}
                       </Text>
-                      <Text {...DYNAMIC_TYPE} style={[s.stepDist, NUM, { fontFamily: fam(lang, "reg") }]}>
+                      <Text {...DYNAMIC_TYPE} style={[s.stepDist, NUM, { fontFamily: famMono(lang, "reg") }]}>
                         {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} km` : `${Math.round(st.distance_m)} m`}
                       </Text>
                     </View>
@@ -712,13 +712,13 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginHorizontal: 14, marginTop: 4, marginBottom: 2, minHeight: 34,
     paddingHorizontal: 11, paddingVertical: 6,
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
     borderWidth: 1, borderColor: V2T.glassLine,
   },
   vehChipTxt: { fontSize: V2Type.label, color: V2T.text2, maxWidth: 220 },
   /* "PUC" badge — marks a profile carrying the pollution certificate */
   pucBadge: {
-    borderRadius: V2Radius.pill, paddingHorizontal: 5, paddingVertical: 1,
+    borderRadius: V2Radius.row, paddingHorizontal: 5, paddingVertical: 1,
     backgroundColor: V2T.glassSel,
   },
   pucBadgeTxt: { fontSize: 9, color: V2T.accent, letterSpacing: 0.4 },
@@ -756,7 +756,7 @@ const s = StyleSheet.create({
   cardTop: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   optLabel: { fontSize: V2Type.secondary, color: V2T.text, flexShrink: 1 },
   chip: {
-    borderRadius: V2Radius.pill, paddingHorizontal: 7, paddingVertical: 2,
+    borderRadius: V2Radius.row, paddingHorizontal: 7, paddingVertical: 2,
     marginLeft: 8,
   },
   chipAccent: { backgroundColor: V2T.glassSel },
@@ -818,7 +818,7 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
   },
   ghostBtn: {
-    minHeight: 44, justifyContent: "center", borderRadius: V2Radius.pill,
+    minHeight: 44, justifyContent: "center", borderRadius: V2Radius.card,
     paddingHorizontal: 16, borderWidth: 1, borderColor: V2T.glassLine,
     backgroundColor: V2T.glassSoft,
   },
@@ -827,9 +827,9 @@ const s = StyleSheet.create({
   ghostTxtOn: { color: V2T.accent },
   goBtn: {
     minHeight: 44, justifyContent: "center", alignItems: "center",
-    backgroundColor: V2T.accent, borderRadius: V2Radius.pill, paddingHorizontal: 34,
+    backgroundColor: V2T.accent, borderRadius: V2Radius.card, paddingHorizontal: 34,
   },
-  goBtnTxt: { fontSize: V2Type.body, color: V2T.bg },   // light on accent pill (V2T.bg ≈7:1 on accent)
+  goBtnTxt: { fontSize: V2Type.body, color: V2T.bg },   // light on the accent fill (V2T.bg ≈7:1 on accent)
 
   /* ---- states ---- */
   stateWrap: { paddingVertical: 24, paddingHorizontal: 24, alignItems: "center" },
@@ -842,8 +842,8 @@ const s = StyleSheet.create({
   stateSub: { fontSize: V2Type.label, color: V2T.text3, textAlign: "center", marginTop: 6 },
   retryBtn: {
     marginTop: 14, minHeight: 44, justifyContent: "center",
-    backgroundColor: V2T.accent, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.accent, borderRadius: V2Radius.card,
     paddingHorizontal: 26, paddingVertical: 12,
   },
-  retryTxt: { fontSize: V2Type.secondary, color: V2T.bg }, // accent pill → light text
+  retryTxt: { fontSize: V2Type.secondary, color: V2T.bg }, // accent fill → light text
 });

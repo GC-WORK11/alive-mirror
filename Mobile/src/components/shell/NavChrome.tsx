@@ -11,7 +11,7 @@
  * Material Symbols turn/merge/ramp geometry). */
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
+import { NUM, V2Radius, V2T, V2Type, cigOf, fam, famMono } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { approx, t, type Lang } from "../../i18n/strings";
@@ -162,7 +162,7 @@ function CounterCell({
           {label}
         </Text>
       </View>
-      <Text {...DYNAMIC_TYPE} style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+      <Text {...DYNAMIC_TYPE} style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]} numberOfLines={1}>
         {value}
       </Text>
       {band && span > 0 && (
@@ -176,7 +176,7 @@ function CounterCell({
         </View>
       )}
       {band && (
-        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
           {band.text}
         </Text>
       )}
@@ -275,7 +275,7 @@ export function NavChrome({
         </Animated.View>
         <Animated.View style={[s.bannerTxt, { opacity: swap, transform: [{ translateY: swapTy }] }]}>
           {next && (
-            <Text {...DYNAMIC_TYPE} style={[s.dist, NUM, { fontFamily: fam(lang, "semi") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[s.dist, NUM, { fontFamily: famMono(lang, "semi") }]} numberOfLines={1}>
               {distToStr(next.distM, lang)}
             </Text>
           )}
@@ -360,7 +360,7 @@ export function NavChrome({
         </View>
         <View style={s.metaRow}>
           <Text {...DYNAMIC_TYPE}
-            style={[s.metaTxt, NUM, { fontFamily: fam(lang, "reg") }]}
+            style={[s.metaTxt, NUM, { fontFamily: famMono(lang, "reg") }]}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {meta}
           </Text>
@@ -374,11 +374,9 @@ const s = StyleSheet.create({
   banner: {
     position: "absolute", left: 12, right: 12,
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.glass, borderRadius: V2Radius.row + 4,
+    backgroundColor: V2T.glass, borderRadius: V2Radius.card,
     paddingVertical: 10, paddingHorizontal: 12,
     borderWidth: 1, borderColor: V2T.glassLine,
-    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
   },
   tile: {
     width: 52, height: 52, borderRadius: V2Radius.row + 2,
@@ -398,7 +396,7 @@ const s = StyleSheet.create({
   pill: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
     paddingHorizontal: 14, paddingVertical: 8,
     borderWidth: 1, borderColor: V2T.glassLine,
   },
@@ -410,10 +408,8 @@ const s = StyleSheet.create({
 
   cluster: {
     position: "absolute", left: 14, right: 14,
-    backgroundColor: V2T.glass, borderRadius: V2Radius.row + 4,
+    backgroundColor: V2T.glass, borderRadius: V2Radius.card,
     borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
-    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
   },
   progTrack: { height: 3, backgroundColor: V2T.glassSoft },
   progFill: {
@@ -439,7 +435,7 @@ const s = StyleSheet.create({
     position: "absolute", top: -1, width: 3, height: 5,
     marginLeft: -1.5, borderRadius: 1.5,
   },
-  cellBand: { fontFamily: F.reg, fontSize: 10, color: V2T.text3, marginTop: 5 },
+  cellBand: { fontSize: 10, color: V2T.text3, marginTop: 5 },
   metaRow: {
     borderTopWidth: 1, borderTopColor: V2T.line,
     paddingVertical: 8, paddingHorizontal: 14,

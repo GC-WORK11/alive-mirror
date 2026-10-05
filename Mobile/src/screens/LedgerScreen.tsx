@@ -36,7 +36,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam } from "../theme";
+import { CIG_UG, NUM, V2Radius, V2T, V2Type, fam, famMono, famSerif } from "../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import { modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
@@ -126,10 +126,10 @@ function TripDetail({
           {t("tripsBreathed", lang)}
         </Text>
         <View style={ss.dRight}>
-          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: famMono(lang, "semi") }]}>
             {t("doseUg", lang, { n: fmtDoseUg(tr.dose_ug) })}
           </Text>
-          <Text {...DYNAMIC_TYPE} style={[ss.dSub, NUM, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dSub, NUM, { fontFamily: famMono(lang, "reg") }]}>
             {lo != null && hi != null
               ? t("tripsDoseBand", lang, { lo: fmtUg(lo), hi: fmtUg(hi) })
               : t("tripsDoseDetail", lang, { n: fmtUg(tr.dose_ug) })}
@@ -144,7 +144,7 @@ function TripDetail({
           <Text {...DYNAMIC_TYPE} style={[ss.dLabel, { fontFamily: fam(lang, "reg") }]}>
             {t("tripsPutOut", lang)}
           </Text>
-          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: fam(lang, "semi") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: famMono(lang, "semi") }]}>
             {t("tripsOutDetail", lang, { n: fmtKg(tr.emit_kg) })}
           </Text>
         </View>
@@ -250,14 +250,14 @@ const TripCard = React.memo(function TripCard({
               style={[
                 ss.cigNum,
                 NUM,
-                { fontFamily: fam(lang, "semi"), color: cigTone(tr.dose_ug) },
+                { fontFamily: famMono(lang, "semi"), color: cigTone(tr.dose_ug) },
               ]}
             >
               {`${fmtDoseUg(tr.dose_ug)} µg`}
             </Text>
           </View>
           {tr.emit_kg != null && (
-            <Text {...DYNAMIC_TYPE} style={[ss.outNum, NUM, { fontFamily: fam(lang, "reg") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.outNum, NUM, { fontFamily: famMono(lang, "reg") }]}>
               ≈{fmtKg(tr.emit_kg)} kg
             </Text>
           )}
@@ -279,7 +279,7 @@ function EmptyState({ lang }: { lang: Lang }) {
       <View style={ss.emptyBadge}>
         <Icon name="clock" color={V2T.text3} size={26} />
       </View>
-      <Text {...DYNAMIC_TYPE} style={[ss.emptyTitle, { fontFamily: fam(lang, "semi") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.emptyTitle, { fontFamily: famSerif(lang, "semi") }]}>
         {t("tripsEmpty", lang)}
       </Text>
       <Text {...DYNAMIC_TYPE} style={[ss.emptyHint, { fontFamily: fam(lang, "reg") }]}>
@@ -459,7 +459,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
-        <Text {...DYNAMIC_TYPE} style={[ss.barTitle, { fontFamily: fam(lang, "semi") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.barTitle, { fontFamily: famSerif(lang, "semi") }]}>
           {t("sidebarTrips", lang)}
         </Text>
         <View style={ss.barBtn} />
@@ -484,7 +484,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
               <View style={ss.sumRow}>
                 <View style={ss.sumCol}>
                   <Text {...DYNAMIC_TYPE}
-                    style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
+                    style={[ss.sumNum, NUM, { fontFamily: famSerif(lang, "semi") }]}
                   >
                     {sorted.length}
                   </Text>
@@ -500,7 +500,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                   <View style={ss.sumHead}>
                     <Icon name="dust" color={V2T.text3} size={15} />
                     <Text {...DYNAMIC_TYPE}
-                      style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
+                      style={[ss.sumNum, NUM, { fontFamily: famSerif(lang, "semi") }]}
                     >
                       {`${fmtDoseUg(allUg)} µg`}
                     </Text>
@@ -512,7 +512,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                 {allEmitKg > 0 && (
                   <View style={ss.sumCol}>
                     <Text {...DYNAMIC_TYPE}
-                      style={[ss.sumNum, NUM, { fontFamily: fam(lang, "semi") }]}
+                      style={[ss.sumNum, NUM, { fontFamily: famSerif(lang, "semi") }]}
                     >
                       ≈{fmtKg(allEmitKg)}
                       <Text {...DYNAMIC_TYPE} style={ss.sumUnit}> kg</Text>
@@ -539,7 +539,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                     {t("ledgerLast7", lang)}
                   </Text>
                   <Text {...DYNAMIC_TYPE}
-                    style={[ss.weekLine, NUM, { fontFamily: fam(lang, "reg") }]}
+                    style={[ss.weekLine, NUM, { fontFamily: famMono(lang, "reg") }]}
                     numberOfLines={2}
                   >
                     {t(weekTrips === 1 ? "tripsCountOne" : "tripsCount", lang, {
@@ -796,7 +796,7 @@ const ss = StyleSheet.create({
   dSaved: { color: V2T.text2, fontSize: V2Type.label, paddingVertical: 6 },
   badgeRow: { flexDirection: "row", paddingVertical: 4 },
   badge: {
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.row,
     borderWidth: 1,
     borderColor: V2T.glassLine,
     paddingHorizontal: 10,

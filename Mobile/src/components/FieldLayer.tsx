@@ -157,11 +157,6 @@ const pin = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1.5,
     borderColor: "#ffffff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
   },
   // square rotated into a diamond, tucked behind the head → teardrop tail
   tail: {

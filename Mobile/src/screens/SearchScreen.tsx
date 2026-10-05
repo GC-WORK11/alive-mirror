@@ -24,7 +24,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { NUM, V2Radius, V2T, V2Type, fam } from "../theme";
+import { NUM, V2Radius, V2T, V2Type, fam, famMono } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 import { Icon } from "../icons";
@@ -140,7 +140,7 @@ function PlaceRow({
           <Text {...DYNAMIC_TYPE} style={[ss.rowSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{subtitle}</Text>
         ) : null}
       </View>
-      {distLabel ? <Text {...DYNAMIC_TYPE} style={[ss.rowDist, NUM, { fontFamily: fam(lang, "reg") }]}>{distLabel}</Text> : null}
+      {distLabel ? <Text {...DYNAMIC_TYPE} style={[ss.rowDist, NUM, { fontFamily: famMono(lang, "reg") }]}>{distLabel}</Text> : null}
     </Pressable>
   );
 }
@@ -631,7 +631,7 @@ const ss = StyleSheet.create({
     marginBottom: 6,
     paddingHorizontal: 10,
     backgroundColor: V2T.glassSoft,
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.card,
     borderWidth: 1,
     borderColor: V2T.glassLine,
   },
@@ -741,7 +741,7 @@ const ss = StyleSheet.create({
     gap: 6,
     minHeight: 36,
     paddingHorizontal: 12,
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.row,
     backgroundColor: V2T.glassFaint,
     borderWidth: 1,
     borderColor: V2T.glassLine,

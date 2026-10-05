@@ -26,6 +26,8 @@ import {
   cigOf,
   doseColor,
   fam,
+  famMono,
+  famSerif,
   NUM,
   V2Radius,
   V2T,
@@ -112,7 +114,7 @@ function CorridorRow({ c, lang }: { c: CityCorridor; lang: Lang }) {
         >
           {c.name ?? t("cityUnnamed", lang)}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.cSub, NUM, { fontFamily: fam(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cSub, NUM, { fontFamily: famMono(lang, "reg") }]}>
           {t("cityTrips", lang, { n: c.trips })}
         </Text>
       </View>
@@ -196,7 +198,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
         >
           <BackGlyph color={V2T.text2} />
         </Pressable>
-        <Text {...DYNAMIC_TYPE} style={[ss.title, { fontFamily: fam(lang, "semi") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.title, { fontFamily: famSerif(lang, "semi") }]}>
           {t("delhiTitle", lang)}
         </Text>
       </View>
@@ -250,7 +252,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                       ss.heroNum,
                       NUM,
                       {
-                        fontFamily: fam(lang, "semi"),
+                        fontFamily: famSerif(lang, "semi"),
                         color: doseColor(pm.mid),
                       },
                     ]}
@@ -269,7 +271,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                   {t("cityHeroUnitUg", lang)}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
-                  style={[ss.heroRange, NUM, { fontFamily: fam(lang, "reg") }]}
+                  style={[ss.heroRange, NUM, { fontFamily: famMono(lang, "reg") }]}
                 >
                   {t("cityHeroRange", lang, {
                     lo: Math.round(inhaled.lo),
@@ -278,7 +280,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                 </Text>
                 {showCig && cig != null && (
                   <Text {...DYNAMIC_TYPE}
-                    style={[ss.heroRange, NUM, { fontFamily: fam(lang, "reg") }]}
+                    style={[ss.heroRange, NUM, { fontFamily: famMono(lang, "reg") }]}
                   >
                     {`${fmtCig(cig.mid)} ${t("cityHeroUnit", lang)}`}
                   </Text>
@@ -344,7 +346,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                     {t("citySpeciesTitle", lang)}
                   </Text>
                   <Text {...DYNAMIC_TYPE} style={[ss.speciesLine, NUM,
-                               { fontFamily: fam(lang, "reg") }]}>
+                               { fontFamily: famMono(lang, "reg") }]}>
                     {items.join(" · ")}
                   </Text>
                   <Text {...DYNAMIC_TYPE} style={[ss.speciesNote,
@@ -381,13 +383,13 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                     {hrs.map((x) => (
                       <View key={x.h} style={ss.fcCol}>
                         <Text {...DYNAMIC_TYPE} style={[ss.fcVal,
-                                     { fontFamily: fam(lang, "reg") }]}>
+                                     { fontFamily: famMono(lang, "reg") }]}>
                           {x.h % 3 === 0 ? `${Math.round(x.pm25)}` : ""}
                         </Text>
                         <View style={[ss.fcBar,
                               { height: 4 + Math.round(28 * x.pm25 / max) }]} />
                         <Text {...DYNAMIC_TYPE} style={[ss.fcHr,
-                                     { fontFamily: fam(lang, "reg") }]}>
+                                     { fontFamily: famMono(lang, "reg") }]}>
                           {x.h === 0 ? t("cityForecastNow", lang)
                                     : x.h % 3 === 0 ? `+${x.h}h` : ""}
                         </Text>
@@ -606,7 +608,7 @@ const ss = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 22,
     paddingVertical: 10,
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.card,
     backgroundColor: V2T.glassSoft,
     borderWidth: 1,
     borderColor: V2T.glassLine,
@@ -638,7 +640,7 @@ const ss = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.row,
     backgroundColor: V2T.glassSoft,
     borderWidth: 1,
     borderColor: V2T.glassLine,

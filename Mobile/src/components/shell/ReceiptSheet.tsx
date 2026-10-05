@@ -32,7 +32,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { CIG_UG, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
+import { CIG_UG, NUM, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
 import { approx, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
@@ -200,7 +200,7 @@ export function ReceiptSheet({
     }]}>
       {/* ── header: arrival + mode chip ── */}
       <View style={s.head}>
-        <Text style={[s.title, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
+        <Text style={[s.title, { fontFamily: famSerif(lang, "semi") }]} {...DYNAMIC_TYPE}>
           {t(data?.endedEarly ? "tripEnded" : "youreHere", lang)}
         </Text>
         {data.modeLabel ? (
@@ -229,12 +229,12 @@ export function ReceiptSheet({
         </Text>
       ) : (
         <>
-          <Text style={[s.heroNum, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
+          <Text style={[s.heroNum, NUM, { fontFamily: famSerif(lang, "semi") }]} {...DYNAMIC_TYPE}>
             {t("doseUg", lang, { n: approx(Math.round(dose.mid)) })}
             <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose.hi - dose.lo >= 1 && (
-            <Text style={[s.bandTxt, NUM]} {...DYNAMIC_TYPE}>
+            <Text style={[s.bandTxt, NUM, { fontFamily: famMono(lang) }]} {...DYNAMIC_TYPE}>
               {t("receipt_doseUgBand", lang, {
                 lo: Math.round(dose.lo), hi: Math.round(dose.hi),
               })}
@@ -243,7 +243,7 @@ export function ReceiptSheet({
           {/* cigarette equivalence — secondary line under the hero when
               the user opted in; never the headline (owner rule) */}
           {cigTxt != null && (
-            <Text style={[s.bandTxt, NUM]} {...DYNAMIC_TYPE}>
+            <Text style={[s.bandTxt, NUM, { fontFamily: famMono(lang) }]} {...DYNAMIC_TYPE}>
               {cigTxt}
             </Text>
           )}
@@ -267,7 +267,7 @@ export function ReceiptSheet({
       {/* ── stats grid: put out · distance · time ── */}
       <View style={s.grid}>
         <View style={s.cell}>
-          <Text style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]}
+          <Text style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {co2 == null ? "—" : t("nav_kg", lang, { n: approx(r1(Math.max(0, co2.mid))) })}
           </Text>
@@ -278,7 +278,7 @@ export function ReceiptSheet({
         </View>
         {data.distanceKm != null && (
           <View style={s.cell}>
-            <Text style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]}
+            <Text style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]}
               numberOfLines={1} {...DYNAMIC_TYPE}>
               {`${r1(Math.max(0, data.distanceKm))} ${t("unitsKm", lang)}`}
             </Text>
@@ -289,7 +289,7 @@ export function ReceiptSheet({
           </View>
         )}
         <View style={s.cell}>
-          <Text style={[s.cellVal, NUM, { fontFamily: fam(lang, "med") }]}
+          <Text style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {`${mins} ${t("minUnit", lang)}`}
           </Text>
@@ -309,7 +309,7 @@ export function ReceiptSheet({
             </Text>
           ) : (
             <>
-              <Text style={[s.detailTxt, NUM]} {...DYNAMIC_TYPE}>
+              <Text style={[s.detailTxt, NUM, { fontFamily: famMono(lang, "reg") }]} {...DYNAMIC_TYPE}>
                 {t("receipt_estLike", lang)}
                 {co2.hi - co2.lo > 0.05
                   ? `  ·  ${r1(co2.lo)}–${r1(co2.hi)} kg`
@@ -323,7 +323,7 @@ export function ReceiptSheet({
                 const txt = lo === hi
                   ? (hi === 0 ? t("receipt_pmBandTiny", lang) : t("receipt_pmBandOne", lang, { x: hi }))
                   : t("receipt_pmBand", lang, { lo, hi });
-                return <Text style={[s.detailTxt, NUM]} {...DYNAMIC_TYPE}>{txt}</Text>;
+                return <Text style={[s.detailTxt, NUM, { fontFamily: famMono(lang, "reg") }]} {...DYNAMIC_TYPE}>{txt}</Text>;
               })()}
               {data.alt && data.alt.co2KgMid != null && (
                 <Text style={[s.detailTxt, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
@@ -400,8 +400,6 @@ const s = StyleSheet.create({
     position: "absolute", left: 12, right: 12,
     backgroundColor: V2T.glass, borderRadius: V2Radius.sheet,
     borderWidth: 1, borderColor: V2T.glassEdge, padding: 18, paddingBottom: 14,
-    shadowColor: "#000", shadowOpacity: 0.13, shadowRadius: 20,
-    shadowOffset: { width: 0, height: 4 }, elevation: 12,
   },
 
   /* header */
@@ -409,7 +407,7 @@ const s = StyleSheet.create({
   title: { flex: 1, fontSize: V2Type.title, color: V2T.text },
   modeChip: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
     borderWidth: 1, borderColor: V2T.glassLine,
     paddingHorizontal: 10, paddingVertical: 5, maxWidth: "55%",
   },
@@ -471,13 +469,13 @@ const s = StyleSheet.create({
   btns: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
   done: {
     flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center",
-    backgroundColor: V2T.accent, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.accent, borderRadius: V2Radius.card,
     paddingHorizontal: 22, paddingVertical: 11,
   },
   doneTxt: { fontSize: V2Type.secondary, color: V2T.bg },
   share: {
     minHeight: 44, flexDirection: "row", alignItems: "center", gap: 7,
-    borderRadius: V2Radius.pill, borderWidth: 1, borderColor: V2T.glassLine,
+    borderRadius: V2Radius.card, borderWidth: 1, borderColor: V2T.glassLine,
     /* glassFaint keeps the accent label ≥4.5:1 while staying milky */
     backgroundColor: V2T.glassFaint, paddingHorizontal: 18, paddingVertical: 11,
   },

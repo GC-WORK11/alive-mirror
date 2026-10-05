@@ -48,17 +48,15 @@ export function SearchBar({
 const s = StyleSheet.create({
   bar: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.pill, height: 52,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.card, height: 52,
     paddingHorizontal: 8, paddingRight: 16,
     borderWidth: 1, borderColor: V2T.glassLine,
-    shadowColor: "#000", shadowOpacity: 0.11, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
   },
   menuBtn: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 38, height: 38, borderRadius: V2Radius.row,
     alignItems: "center", justifyContent: "center", marginRight: 2,
   },
   field: { flex: 1, justifyContent: "center", alignSelf: "stretch", paddingHorizontal: 6 },
   input: { fontSize: V2Type.body, color: V2T.text },
-  clearBtn: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  clearBtn: { width: 30, height: 30, borderRadius: V2Radius.row, alignItems: "center", justifyContent: "center" },
 });

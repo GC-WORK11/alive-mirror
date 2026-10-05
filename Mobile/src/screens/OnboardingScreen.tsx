@@ -42,7 +42,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fam, NUM, V2Radius, V2T, V2Type } from "../theme";
+import { fam, famSerif, NUM, V2Radius, V2T, V2Type } from "../theme";
 import { t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import { saveConsent, type SharingChoice } from "../store/consent";
@@ -117,7 +117,7 @@ function JourneyRow({
             {kicker}
           </Text>
         ) : null}
-        <Text {...DYNAMIC_TYPE} style={[ss.jTitle, { fontFamily: fam(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.jTitle, { fontFamily: famSerif(lang, "med") }]}>
           {title}
         </Text>
         {subs?.map((s) => (
@@ -197,7 +197,7 @@ function OnboardingSheet({
       {/* brand mark + persistent skip — same spots on every page */}
       <View style={ss.topRow}>
         {/* brand logotype — proper noun, same in en+hi; not a t() key */}
-        <Text {...DYNAMIC_TYPE} style={[ss.wordmark, { fontFamily: fam(lang, "semi") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.wordmark, { fontFamily: famSerif(lang, "semi") }]}>
           ALIVE
         </Text>
         <View style={{ flex: 1 }} />
@@ -228,7 +228,7 @@ function OnboardingSheet({
               <Text
                 {...DYNAMIC_TYPE}
                 accessibilityRole="header"
-                style={[ss.hero, { fontFamily: fam(lang, "semi") }]}
+                style={[ss.hero, { fontFamily: famSerif(lang, "semi") }]}
               >
                 {t("onb_whatTitle", lang)}
               </Text>
@@ -284,7 +284,7 @@ function OnboardingSheet({
               <Text
                 {...DYNAMIC_TYPE}
                 accessibilityRole="header"
-                style={[ss.hero, { fontFamily: fam(lang, "semi") }]}
+                style={[ss.hero, { fontFamily: famSerif(lang, "semi") }]}
               >
                 {t("onb_privacyTitle", lang)}
               </Text>
@@ -297,7 +297,7 @@ function OnboardingSheet({
               <View style={ss.kCard}>
                 <Text
                   {...DYNAMIC_TYPE}
-                  style={[ss.kNum, NUM, { fontFamily: fam(lang, "semi") }]}
+                  style={[ss.kNum, NUM, { fontFamily: famSerif(lang, "semi") }]}
                 >
                   3+
                 </Text>
@@ -319,7 +319,7 @@ function OnboardingSheet({
               <Text
                 {...DYNAMIC_TYPE}
                 accessibilityRole="header"
-                style={[ss.hero, { fontFamily: fam(lang, "semi") }]}
+                style={[ss.hero, { fontFamily: famSerif(lang, "semi") }]}
               >
                 {t("consent_title", lang)}
               </Text>
@@ -592,7 +592,7 @@ const ss = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     backgroundColor: V2T.accent,
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.card,
     paddingHorizontal: 26,
     height: 52,
     justifyContent: "center",

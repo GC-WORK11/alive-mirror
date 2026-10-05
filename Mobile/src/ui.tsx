@@ -7,7 +7,7 @@ import {
   type StyleProp, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CIG_UG, F, NUM, V2Radius, V2T, V2Type, fam } from "./theme";
+import { CIG_UG, F, FMONO, NUM, V2Radius, V2T, V2Type, fam, famMono } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
 import { DYNAMIC_TYPE } from "./a11y";
@@ -18,11 +18,13 @@ const WIN_H = () => Dimensions.get("window").height;
 /** Selected-row tint — accent-tint glass (milky morphism, Oct '26). */
 const SEL_TINT = V2T.glassSel;
 
-/** AlertBanner severities — solid light fills + muted borders. */
+/** AlertBanner severities — flat washes keyed to the register (sage for
+ *  plain info; the CPCB ramp where the tone carries data weight). Borders
+ *  stay hairline; colour is the only signal. */
 const ALERT_SEV = {
-  info:   { glyph: "info" as Glyph, color: V2T.accent,  bg: V2T.accentWash, border: "#A9BEF2" },
-  warn:   { glyph: "warn" as Glyph, color: V2T.breath1, bg: "#FBF0DA", border: "#D9B468" },
-  danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "#FBEAEA", border: "#DFA0A2" },
+  info:   { glyph: "info" as Glyph, color: V2T.accentInk, bg: V2T.accentWash, border: V2T.hairline },
+  warn:   { glyph: "warn" as Glyph, color: V2T.breath1,  bg: "rgba(213,140,74,0.10)", border: V2T.hairline },
+  danger: { glyph: "warn" as Glyph, color: V2T.pinDest, bg: "rgba(184,84,66,0.10)", border: V2T.hairline },
 } as const;
 
 /** Bottom sheet — grabber + optional X. Milk pane: translucent white +
@@ -145,8 +147,8 @@ export function ModeRow({
         {reasonLine ? <Text style={[us.modeReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2} {...DYNAMIC_TYPE}>{reasonLine}</Text> : null}
       </View>
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={[us.modeEta, NUM, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-          {etaMin}<Text style={[us.modeEtaUnit, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}> {t("minUnit", lang)}</Text>
+        <Text style={[us.modeEta, NUM, { fontFamily: famMono(lang, "semi") }]} {...DYNAMIC_TYPE}>
+          {etaMin}<Text style={[us.modeEtaUnit, { fontFamily: famMono(lang, "reg") }]} {...DYNAMIC_TYPE}> {t("minUnit", lang)}</Text>
         </Text>
         {inFrac != null && (
           <SmokeBar frac={inFrac} tone="breath" label={t("compare_smokeIn", lang)} />
@@ -253,8 +255,9 @@ const us = StyleSheet.create({
     backgroundColor: V2T.glass, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
     borderCurve: "continuous",
     borderTopWidth: 1, borderTopColor: V2T.glassEdge,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: -4 },
-    elevation: 10, overflow: "hidden",
+    // the register's edge is the hairline itself — no shadow elevation
+    borderWidth: 1, borderColor: V2T.glassLine,
+    overflow: "hidden",
   },
   grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 6 },
   grabber: { width: 40, height: 5, borderRadius: 2.5, backgroundColor: V2T.out3 },
@@ -273,8 +276,8 @@ const us = StyleSheet.create({
   bestTag: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.accent, marginLeft: 8 },
   modeMeta: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 1 },
   modeReason: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 3 },
-  modeEta: { fontFamily: F.semi, fontSize: V2Type.body, color: V2T.text },
-  modeEtaUnit: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text2 },
+  modeEta: { fontFamily: FMONO.semi, fontSize: V2Type.body, color: V2T.text },
+  modeEtaUnit: { fontFamily: FMONO.reg, fontSize: V2Type.micro, color: V2T.text2 },
   segRow: { flexDirection: "row", gap: 3, marginTop: 5 },
   seg: { width: 10, height: 4, borderRadius: 2 },
 
@@ -285,7 +288,6 @@ const us = StyleSheet.create({
   originPin: {
     width: 20, height: 20, borderRadius: 10, backgroundColor: V2T.bg,
     borderWidth: 2.5, borderColor: V2T.text, alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
   },
   originDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: V2T.accent },
 
@@ -293,8 +295,6 @@ const us = StyleSheet.create({
     width: 46, height: 46, borderRadius: 23, backgroundColor: V2T.glassFaint,
     alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: V2T.glassLine,
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
   },
   mapBtnOn: { backgroundColor: V2T.accent, borderColor: V2T.accent },
 

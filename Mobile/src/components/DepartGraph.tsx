@@ -24,7 +24,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
-import { NUM, V2T, V2Type, fam } from "../theme";
+import { NUM, V2T, V2Type, fam, famMono } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 
@@ -147,7 +147,7 @@ export function DepartGraph({
               <Text {...DYNAMIC_TYPE} style={[s.tickOffset, { fontFamily: fam(lang, "reg") }, d.hour === bestHour && { color: V2T.accent }]} numberOfLines={1}>
                 {d.hour === nowHour ? t("departNow", lang) : `+${d.hour}h`}
               </Text>
-              <Text {...DYNAMIC_TYPE} style={[s.tickClock, NUM, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+              <Text {...DYNAMIC_TYPE} style={[s.tickClock, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
                 {clockOf(d.start) ?? " "}
               </Text>
             </View>
@@ -161,7 +161,7 @@ export function DepartGraph({
           {t("receipt_estShort", lang)}
         </Text>
         {detail && (
-          <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM, { fontFamily: fam(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM, { fontFamily: famMono(lang, "reg") }]}>
             {`${detail.hour === nowHour ? t("departNow", lang) : `+${detail.hour}h`}` +
               `${clockOf(detail.start) ? ` · ${clockOf(detail.start)}` : ""} ≈ ${Math.round(detail.dose_mid)} µg`}
           </Text>

@@ -13,7 +13,7 @@ import {
   Alert, Animated, BackHandler, Dimensions, LayoutAnimation, Pressable,
   ScrollView, StyleSheet, Switch, Text, View,
 } from "react-native";
-import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam } from "../../theme";
+import { F, NUM, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { tick } from "../../haptics";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
@@ -324,7 +324,7 @@ export function Sidebar({
         <Text {...DYNAMIC_TYPE} style={[s.tripMeta, { fontFamily: fam(lang, "reg") }]}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts)}</Text>
       </View>
       <Icon name="dust" color={V2T.text3} size={13} />
-      <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM]}>
+      <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM, { fontFamily: famMono(lang, "med") }]}>
         {t("doseUg", lang, { n: approx(Math.round(tr.dose_ug)) })}
       </Text>
       {onShareTrip && (
@@ -377,7 +377,7 @@ export function Sidebar({
                     <Icon name="dust" color={V2T.text3} size={15} />
                     <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("breathed", lang)}</Text>
                   </View>
-                  <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>
+                  <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM, { fontFamily: famSerif(lang, "semi") }]}>
                     {t("doseUg", lang, { n: approx(Math.round(st.todayUg)) })}
                   </Text>
                   {/* yesterday delta + opt-in cigarette equivalence sit in
@@ -401,7 +401,7 @@ export function Sidebar({
                       <Icon name="smoke" color={V2T.text3} size={15} />
                       <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("putOut", lang)}</Text>
                     </View>
-                    <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM]}>{t("nav_kg", lang, { n: approx(todayKg) })}</Text>
+                    <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM, { fontFamily: famSerif(lang, "semi") }]}>{t("nav_kg", lang, { n: approx(todayKg) })}</Text>
                   </View>
                 )}
               </View>
@@ -618,8 +618,6 @@ const s = StyleSheet.create({
   drawer: {
     position: "absolute", left: 0, top: 0, bottom: 0, width: DRAWER_W,
     backgroundColor: V2T.glassDeep, borderRightWidth: 1, borderRightColor: V2T.glassEdge,
-    shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 26, shadowOffset: { width: 4, height: 0 },
-    elevation: 12,
   },
 
   header: {
@@ -723,7 +721,7 @@ const s = StyleSheet.create({
   },
   statHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   statCap: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text2 },
-  statNum: { fontFamily: F.semi, fontSize: 30, color: V2T.text, lineHeight: 36, marginTop: 8 },
+  statNum: { fontSize: 30, color: V2T.text, lineHeight: 36, marginTop: 8 },
   statCmp: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 6 },
 
   weekRow: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 12, paddingTop: 14 },
@@ -743,7 +741,7 @@ const s = StyleSheet.create({
   },
   allBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: V2Radius.pill,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: V2Radius.row,
     backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
   },
   allBtnTxt: { fontSize: V2Type.label, color: V2T.accent },
@@ -759,11 +757,11 @@ const s = StyleSheet.create({
   },
   tripMid: { flex: 1 },
   tripTxt: { fontSize: V2Type.secondary, color: V2T.text },
-  tripMeta: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 2 },
-  tripNum: { fontFamily: F.semi, fontSize: V2Type.secondary, color: V2T.text2 },
+  tripMeta: { fontSize: V2Type.label, color: V2T.text3, marginTop: 2 },
+  tripNum: { fontSize: V2Type.secondary, color: V2T.text2 },
 
   segWrap: {
-    flexDirection: "row", borderRadius: V2Radius.pill,
+    flexDirection: "row", borderRadius: V2Radius.row,
     borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
     backgroundColor: V2T.glassSoft,
   },

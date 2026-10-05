@@ -174,7 +174,7 @@ const cs = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
     backgroundColor: V2T.glassFaint,
-    borderRadius: V2Radius.pill,
+    borderRadius: V2Radius.row,
     borderWidth: 1,
     borderColor: V2T.glassLine,
     paddingHorizontal: 10,
