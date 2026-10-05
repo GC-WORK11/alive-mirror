@@ -169,7 +169,11 @@ outside demo windows.
 ## Validation (the part most projects skip)
 
 - **95.2 % measured coverage** of the served ±2σ bands over 3,550 held-out
-  station-hours across 85 stations (`server/data/field_validation.md`).
+  station-hours across 85 stations (`server/data/field_validation.md`) —
+  the temporal validation σ was fitted on. The live admin tile shows a
+  different, deliberately harder number: a weekly leave-one-station-out
+  **spatial** holdout on this week's field (n=24, ~79%) — predicting a
+  station the model never saw.
 - LOO calibration vs live instruments: MAE 46.1 µg/m³, bias +0.3, n=94 —
   served on the wire at `/aqi → calibration`.
 - Archive replay on clean air: MAE 22.0, bias +51.6 % — we publish that we
