@@ -448,6 +448,7 @@ function buildMap(){
   computeView();
   svg.setAttribute('viewBox',`0 0 ${VW.toFixed(2)} ${VH.toFixed(2)}`);
   svg.innerHTML='';
+  CELL_RECTS.clear();
   gCells=document.createElementNS(SVGNS,'g');
   gDist=document.createElementNS(SVGNS,'g');
   gLab=document.createElementNS(SVGNS,'g');
@@ -521,10 +522,13 @@ function showDetail(f){
   DETAIL.classList.add('on');
 }
 
-/* ---------- live-cell underlayer (the pixel field, tinted subtle) --- */
+/* ---------- live-cell underlayer (the pixel field, tinted subtle) ---
+   the grid layout is fixed, so rects persist across repaints — a
+   forecast frame only re-tints the fill attribute instead of tearing
+   down and rebuilding ~1.1k DOM nodes per hour */
+const CELL_RECTS=new Map();
 function paintCells(features){
-  gCells.innerHTML='';
-  const seen={};
+  const seen=new Set();
   for(const ft of features){
     const g=ft.geometry;if(!g||g.type!=='Polygon')continue;
     const r=g.coordinates[0];if(!r)continue;
@@ -533,14 +537,21 @@ function paintCells(features){
     const x=X(Math.min(a[0],b[0])),y=Y(Math.max(a[1],b[1]));
     const w=Math.abs(X(Math.max(a[0],b[0]))-x),h=Math.abs(Y(Math.min(a[1],b[1]))-y);
     const key=`${x.toFixed(1)}|${y.toFixed(1)}`;
-    const el=document.createElementNS(SVGNS,'rect');
-    el.setAttribute('x',x-w*0.48);el.setAttribute('y',y-h*0.48);
-    el.setAttribute('width',w*0.96);el.setAttribute('height',h*0.96);
+    seen.add(key);
+    let el=CELL_RECTS.get(key);
+    if(!el){
+      el=document.createElementNS(SVGNS,'rect');
+      el.setAttribute('x',x-w*0.48);el.setAttribute('y',y-h*0.48);
+      el.setAttribute('width',w*0.96);el.setAttribute('height',h*0.96);
+      el.setAttribute('fill-opacity','0.22');
+      gCells.appendChild(el);
+      CELL_RECTS.set(key,el);
+    }
     // each pixel tinted by its own CPCB band — subtle under the fills
     el.setAttribute('fill',bandOf(cpcbOf(pm))[2]);
-    el.setAttribute('fill-opacity','0.22');
-    gCells.appendChild(el);
   }
+  for(const [key,el] of CELL_RECTS)
+    if(!seen.has(key)){el.remove();CELL_RECTS.delete(key)}
 }
 /* the page re-derives the CPCB sub-index per pixel so the underlayer
    speaks the same scale the district fills do */
@@ -579,7 +590,8 @@ const TL_NOTE_OFF=`the next twelve hours — forecast surface — CAMS + stagnat
 async function tlFetch(h){
   if(h in TL.cache)return TL.cache[h];
   if(TL.pending[h])return TL.pending[h];
-  TL.pending[h]=fetch(`/grid?cells=34&param=pm2_5&h=${h}`)
+  TL.pending[h]=fetch(`/grid?cells=34&param=pm2_5&h=${h}`,
+    {signal:AbortSignal.timeout(12000)})
     .then(r=>{if(!r.ok)throw r.status;return r.json()})
     .then(g=>{const f=(g&&g.features)||[];
       TL.cache[h]=f.length?f:null;return TL.cache[h]})
@@ -664,12 +676,13 @@ async function tlInit(){
    geometry, never a smoothed blob. mode/budget pills re-solve the same
    origin; the caption carries the honest counts. when the endpoint
    can't answer, the row hides instead of hanging a dead control. */
-const RCH={armed:false,mode:'walk',budget:50,origin:null,layer:null,seq:0};
+const RCH={armed:false,mode:'walk',budget:50,origin:null,layer:null,seq:0,paintSeq:0};
 const RCH_MODES=['walk','cycle','auto','car'];
 const RCH_BUDGETS=[25,50,100];
 const rchUI={};
 
-function rchClear(){if(RCH.layer){RCH.layer.remove();RCH.layer=null}}
+function rchClear(){RCH.paintSeq++;   /* any in-flight chunked paint dies here */
+  if(RCH.layer){RCH.layer.remove();RCH.layer=null}}
 function rchCap(t){rchUI.cap.textContent=t||''}
 function rchNote(t){rchUI.note.textContent=t||''}
 function rchLoad(t){const e=rchUI.load;
@@ -707,7 +720,8 @@ async function rchSolve(){
   rchLoad('settling the frontier…');rchCap('');
   let b=null,bad=false;
   try{
-    const r=await fetch(`/v2/reach?lat=${o.lat.toFixed(6)}&lon=${o.lon.toFixed(6)}&mode=${RCH.mode}&budget_ug=${RCH.budget}`);
+    const r=await fetch(`/v2/reach?lat=${o.lat.toFixed(6)}&lon=${o.lon.toFixed(6)}&mode=${RCH.mode}&budget_ug=${RCH.budget}`,
+      {signal:AbortSignal.timeout(20000)});  /* server-bound ~8s + multi-MB payload */
     if(r&&r.ok)b=await r.json();else bad=true;
   }catch(_){bad=true}
   if(seq!==RCH.seq)return;
@@ -729,35 +743,60 @@ function rchPaint(b){
   rchClear();
   const g=document.createElementNS(SVGNS,'g');
   g.setAttribute('pointer-events','none');
-  let d='';
-  for(const e of b.edges_e6||[]){
-    for(let i=0;i+1<e.length;i+=2)
-      d+=(i?'L':'M')+X(e[i]/1e6).toFixed(2)+' '+Y(e[i+1]/1e6).toFixed(2);
-  }
-  const p=document.createElementNS(SVGNS,'path');
-  p.setAttribute('d',d||'M0 0');
-  p.setAttribute('fill','none');
-  p.setAttribute('stroke','rgba(22,24,29,.5)');
-  p.setAttribute('stroke-width','0.04');    /* ~40 m — ink hairlines */
-  p.setAttribute('stroke-linejoin','round');
-  p.setAttribute('stroke-linecap','round');
-  g.appendChild(p);
-  if(RCH.origin){
-    const c=document.createElementNS(SVGNS,'circle');
-    c.setAttribute('cx',X(RCH.origin.lon));
-    c.setAttribute('cy',Y(RCH.origin.lat));
-    c.setAttribute('r','0.22');c.setAttribute('fill','var(--ink)');
-    g.appendChild(c);
-  }
   svg.appendChild(g);RCH.layer=g;
+  const seq=++RCH.paintSeq;
+  const edges=b.edges_e6||[];
   const km=(b.distance_km||0).toLocaleString('en-IN',{maximumFractionDigits:1});
   let cap=`${RCH.mode} ≤${RCH.budget}µg — ${km} km reachable · ${(b.edge_count||0).toLocaleString('en-IN')} edges settled`;
   if(b.truncated)cap+=' · frontier cut at the state cap';
   if(b.edge_partial)cap+=` · veil shows the nearest ${(b.edges_e6.length||0).toLocaleString('en-IN')}`;
-  rchCap(cap);
-  let n='the veil is the actual dijkstra frontier — every line a road your lungs can afford';
-  if(b.field_age_s!=null)n+=` · field ${Math.floor(b.field_age_s/60)} min old`;
-  rchNote(n);
+  /* the decode+paint is chunked across frames — a 90k-edge payload was a
+     ~150 ms main-thread block as one path; now each frame decodes only
+     what it can paint inside its budget. the caption counts honestly
+     while it flies; a newer solve/clear aborts mid-way. */
+  const mkPath=d=>{
+    const p=document.createElementNS(SVGNS,'path');
+    p.setAttribute('d',d);
+    p.setAttribute('fill','none');
+    p.setAttribute('stroke','rgba(22,24,29,.5)');
+    p.setAttribute('stroke-width','0.04');  /* ~40 m — ink hairlines */
+    p.setAttribute('stroke-linejoin','round');
+    p.setAttribute('stroke-linecap','round');
+    g.appendChild(p);
+  };
+  const finish=()=>{
+    if(RCH.origin){
+      const c=document.createElementNS(SVGNS,'circle');
+      c.setAttribute('cx',X(RCH.origin.lon));
+      c.setAttribute('cy',Y(RCH.origin.lat));
+      c.setAttribute('r','0.22');c.setAttribute('fill','var(--ink)');
+      g.appendChild(c);
+    }
+    rchCap(cap);
+    let n='the veil is the actual dijkstra frontier — every line a road your lungs can afford';
+    if(b.field_age_s!=null)n+=` · field ${Math.floor(b.field_age_s/60)} min old`;
+    rchNote(n);
+    if(window.__m&&__m.paint)__m.paint.done=true;
+  };
+  if(!edges.length){mkPath('M0 0');finish();return}
+  rchCap(cap+` · painting 0/${edges.length.toLocaleString('en-IN')}`);
+  let i=0;
+  const step=()=>{
+    if(seq!==RCH.paintSeq||!g.isConnected)return;
+    const t0=performance.now();
+    let d='';
+    do{
+      const e=edges[i++];
+      for(let j=0;j+1<e.length;j+=2)
+        d+=(j?'L':'M')+X(e[j]/1e6).toFixed(2)+' '+Y(e[j+1]/1e6).toFixed(2);
+    }while(i<edges.length&&(i%1500||performance.now()-t0<12));
+    mkPath(d);
+    if(i<edges.length){
+      rchCap(cap+` · painting ${i.toLocaleString('en-IN')}/${edges.length.toLocaleString('en-IN')}`);
+      requestAnimationFrame(step);
+    }else finish();
+  };
+  requestAnimationFrame(step);
 }
 
 async function rchInit(){
@@ -773,7 +812,8 @@ async function rchInit(){
      availability check — a 404/network failure keeps the row hidden;
      a typed engine_unavailable still means the endpoint exists */
   try{
-    const r=await fetch('/v2/reach?lat=28.6139&lon=77.2090&mode=walk&budget_ug=0');
+    const r=await fetch('/v2/reach?lat=28.6139&lon=77.2090&mode=walk&budget_ug=0',
+      {signal:AbortSignal.timeout(10000)});
     if(!r.ok)return;
     const b=await r.json();
     if(!b||typeof b.edge_count!=='number'||typeof b.mode!=='string')return;
@@ -890,7 +930,8 @@ let windNow=null;
 let refreshMs=60000;
 
 async function loadGeo(){
-  const g=await fetch('/ncr.geojson').then(r=>r.json());
+  const g=await fetch('/ncr.geojson',{signal:AbortSignal.timeout(15000)})
+    .then(r=>r.json());
   FEATS=(g.features||[]).map(f=>{
     const t=f.geometry&&f.geometry.type,c=f.geometry&&f.geometry.coordinates||[];
     f._rings=(t==='Polygon'?[c[0]]:t==='MultiPolygon'?c.map(p=>p[0]):[]).filter(Boolean);
@@ -903,11 +944,11 @@ async function load(){
     /* per-feed settle — during a deploy one endpoint can die while the
        others serve; every section keeps what it can honestly paint
        rather than the whole page falling back to placeholders */
+    const jget=u=>fetch(u,{signal:AbortSignal.timeout(15000)})
+      .then(r=>r.ok?r.json():null).catch(()=>null);   /* per-feed honest null */
     let [g,a,cy,dd]=await Promise.all([
-      fetch('/grid?cells=34').then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch('/aqi?lat=28.63&lon=77.22').then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch('/v2/city').then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch('/v2/districts').then(r=>r.ok?r.json():null).catch(()=>null)]);
+      jget('/grid?cells=34'),jget('/aqi?lat=28.63&lon=77.22'),
+      jget('/v2/city'),jget('/v2/districts')]);
     if(!g&&!a&&!cy&&!dd)throw new Error('all feeds down');
     if(g&&g.features){FEAT_CELLS=g.features;
       if(!TL.active)paintCells(g.features)}   /* a forecast frame stays put

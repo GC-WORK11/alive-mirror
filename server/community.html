@@ -212,7 +212,8 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 const $=id=>document.getElementById(id);
 /* no-store: this document's own URL is /community — without it the fetch
    can be served the cached HTML page instead of the JSON totals */
-const api=async p=>{const r=await fetch(p,{cache:'no-store'});if(!r.ok)throw 0;return r.json()};
+const api=async p=>{const r=await fetch(p,{cache:'no-store',
+  signal:AbortSignal.timeout(15000)});if(!r.ok)throw 0;return r.json()};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const IN=n=>n==null?'—':Math.round(+n).toLocaleString('en-IN');
 const F1=n=>n==null?'—':(+n).toFixed(1);

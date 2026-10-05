@@ -120,16 +120,22 @@ h1 em{font-style:italic;color:var(--ink2)}
 .psel button:hover{color:var(--ink)}
 .psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px;
   z-index:2;position:relative}
-.fwrap{position:relative}
+.fwrap{position:relative;opacity:0;transition:opacity .5s ease}
+.fwrap.ready{opacity:1}
 /* reserve the true map aspect before first paint — no layout jump
    ((e-w)*ASP lon-km : (n-s) lat-km = 1.1*0.879 : 0.75) */
-#raster{display:block;width:100%;height:auto;aspect-ratio:1.2892;
-  border:1px solid var(--line);
-  opacity:0;transition:opacity .5s ease;touch-action:manipulation}
-#raster.ready{opacity:1}
+#raster{position:relative;z-index:2;display:block;width:100%;
+  height:auto;aspect-ratio:1.2892;
+  border:1px solid var(--line);touch-action:manipulation}
+/* the field is three stacked canvases — cells, boundaries+wind, and the
+   dynamic ink — so a hover, a pick, or a forecast hour repaints only the
+   layer that changed instead of the whole scene. positioned layers would
+   otherwise paint above the in-flow #raster and hide pins/route/errors */
+.lay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
+  border:1px solid transparent;z-index:1}
 #raster.pick{cursor:crosshair}
 #raster:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
-@media(prefers-reduced-motion:reduce){#raster{transition:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.fwrap{transition:none;opacity:1}}
 .kbhint{margin-top:6px;font-family:var(--mono);font-size:9px;
   letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
 .fpop{position:absolute;z-index:5;min-width:196px;max-width:250px;
@@ -347,6 +353,8 @@ h1 em{font-style:italic;color:var(--ink2)}
     <span class="lbl" id="fieldAge">—</span>
   </div>
   <div class="fwrap">
+    <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
+    <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
     <canvas id="raster" tabindex="0"
       aria-label="live interpolated field over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
       aria-describedby="kbhint"></canvas>
@@ -428,7 +436,11 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <script>
 const $=id=>document.getElementById(id);
-const api=async(p,o)=>{const r=await fetch(p,o);if(!r.ok)throw new Error(p+' '+r.status);return r.json()};
+/* every fetch carries a deadline — a stalled endpoint must land in the
+   caller's honest-degrade path, not hang the surface forever */
+const api=async(p,o,ms=15000)=>{const r=await fetch(p,
+  {...(o||{}),signal:AbortSignal.timeout(ms)});
+  if(!r.ok)throw new Error(p+' '+r.status);return r.json()};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const F1=n=>n==null?'—':(+n).toFixed(1);
 const fmt=n=>n==null?'—':Math.round(n).toLocaleString('en-IN');
@@ -531,12 +543,25 @@ function chipInk(hex){
   return (0.299*r+0.587*g+0.114*b)/255>0.6?'#16181d':'#fff';
 }
 
-/* --- the canvas -------------------------------------------------------- */
+/* --- the canvas --------------------------------------------------------
+   three stacked canvases — repaint only the layer whose inputs changed.
+   raster-base: paper + cell tint (dirty on a new field or forecast hour).
+   raster-mid: district boundaries + wind arrow (dirty on new geojson,
+   wind tick, or resize). raster (top): pins, route, crosshair — cleared
+   and redrawn per frame for ~free. no drawImage blits: the compositor
+   stacks the layers, which stays cheap under software rasterisation. */
 const CONF_A={hi:.92,med:.6,lo:.34};
-function drawScene(){
-  if(!W||!H)return;
-  const cv=$('raster'),ctx=cv.getContext('2d');
-  const spec=SPECS[PARAM];
+let CELLS_DIRTY=true,MID_DIRTY=true;
+function laySize(cv){
+  const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){
+    cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+  cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+}
+function paintCells(){
+  const cv=$('raster-base');if(!W||!H)return;
+  laySize(cv);
+  const ctx=cv.getContext('2d'),spec=SPECS[PARAM];
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
   for(const ft of viewFeats()){
@@ -552,6 +577,13 @@ function drawScene(){
     ring.forEach(([lo,la],i)=>{i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
     ctx.closePath();ctx.fill();
   }
+  CELLS_DIRTY=false;
+}
+function paintMid(){
+  const cv=$('raster-mid');if(!W||!H)return;
+  laySize(cv);
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
   /* the real district borders — the same geometry that fills the chips
      below, inked thin over the field so the map reads as a map */
   if(GJ.length){
@@ -590,6 +622,14 @@ function drawScene(){
     ctx.fillText('N',bx,10);
     ctx.fillText(`${Math.round(WIND.from_deg)}°`,bx,by+20);
   }
+  MID_DIRTY=false;
+}
+function drawScene(){
+  if(!W||!H)return;
+  if(CELLS_DIRTY)paintCells();
+  if(MID_DIRTY)paintMid();
+  const cv=$('raster'),ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
   /* a/b markers + the priced route — drawn over cells, never under */
   if(PT_A)drawPin(ctx,PT_A,'a');
   if(PT_B)drawPin(ctx,PT_B,'b');
@@ -680,18 +720,18 @@ function tlCap(){                        /* caption owns the frame shown */
 async function tlShow(h){
   const seq=++TL.seq;
   $('tlNow').hidden=false;$('tlNote').textContent=TL_NOTE_ON;
-  if(TL.cache[h]){TL.frame=TL.cache[h];drawScene();tlCap();tlTick(null);return}
+  if(TL.cache[h]){TL.frame=TL.cache[h];CELLS_DIRTY=true;drawScene();tlCap();tlTick(null);return}
   tlTick(`loading h+${h}`);
   const f=await tlFetch(h);
   if(seq!==TL.seq)return;                  /* a newer scrub owns the map */
-  if(f){TL.frame=f;drawScene();tlCap();tlTick(null)}
+  if(f){TL.frame=f;CELLS_DIRTY=true;drawScene();tlCap();tlTick(null)}
   else if(TL.playing){tlTick(null);tlAdvance()}
   else tlTick(`h+${h} — no surface served`);
 }
 function tlAdvance(){                      /* next cached frame, or hold */
   for(let h=TL.h+1;h<=TL_MAX;h++){
     if(TL.cache[h]){tlSetHour(h);TL.frame=TL.cache[h];
-      drawScene();tlCap();tlTick(null);return}}
+      CELLS_DIRTY=true;drawScene();tlCap();tlTick(null);return}}
   let left=false;
   for(let h=TL.h+1;h<=TL_MAX;h++)if(TL.cache[h]!==null)left=true;
   if(!left){tlStop();return}               /* only failed hours remain */
@@ -719,7 +759,7 @@ function tlStop(){TL.playing=false;clearInterval(TL.timer);
 function tlReset(){                        /* back to the live field */
   tlStop();TL.frame=null;tlSetHour(0);tlTick(null);
   $('tlNow').hidden=true;$('tlNote').textContent=TL_NOTE_OFF;
-  drawScene();capLive()}
+  CELLS_DIRTY=true;drawScene();capLive()}
 function tlGate(){                         /* pm2.5-only control */
   if(!(TL.ok&&PARAM==='pm2_5')){
     if(TL.frame||TL.playing)tlReset();
@@ -775,14 +815,14 @@ async function paint(){
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='#a6acb8';ctx.font='11px '+monoFont();ctx.textAlign='center';
     ctx.fillText('reading the live field…',W/2,H/2);
-    cv.classList.add('ready');
+    cv.parentElement.classList.add('ready');
   }
   $('capLeft').innerHTML=`reading the ${spec.title} field — <b>live fetch</b>…`;
   try{
     const g=await api(`/grid?cells=${CELLS}&param=${PARAM}`);
     if(seq!==PAINTSEQ)return;   /* a later click owns the canvas now */
     FEATS=g.features||[];
-    drawScene();
+    CELLS_DIRTY=true;drawScene();
     let hi=0,med=0,lo=0;const vals=[];
     for(const ft of FEATS){
       const p=ft.properties||{};
@@ -805,7 +845,7 @@ async function paint(){
     LIVE_CAP={n:vals.length,lo:vals.length?vals[0]:null,
               hi:vals.length?vals[vals.length-1]:null,derived};
     if(TL.frame)tlCap();else if(vals.length)capLive();
-    cv.classList.add('ready');
+    cv.parentElement.classList.add('ready');
     /* the boot statusline may already have rendered before MEDIAN
        landed — refresh it so 'median' isn't absent for 120s */
     if(MEDIAN!=null)status();
@@ -819,7 +859,7 @@ async function paint(){
     $('confSplit').textContent='';
     $('capLeft').innerHTML=
       'The live field is unreachable right now — this page retries every 2 minutes.';
-    cv.classList.add('ready');
+    cv.parentElement.classList.add('ready');
   }
 }
 
@@ -1000,7 +1040,7 @@ async function planAB(){
     const d=await api('/v2/plan',{method:'POST',
       headers:{'content-type':'application/json'},
       body:JSON.stringify({from:{lat:a.lat,lon:a.lon},
-        to:{lat:b.lat,lon:b.lon},fast:true})});
+        to:{lat:b.lat,lon:b.lon},fast:true})},30000);
     if(seq!==PLANSEQ)return;
     const opts=d.options||[];
     if(d.code==='outside_service_area'||!opts.length){
@@ -1273,8 +1313,10 @@ document.addEventListener('click',e=>{
 
 /* --- geo + status -------------------------------------------------------- */
 Promise.all([
-  fetch('/ncr.geojson').then(r=>r.ok?r.json():null).catch(()=>null),
-  fetch('/delhi_subdistricts.geojson').then(r=>r.ok?r.json():null).catch(()=>null)
+  fetch('/ncr.geojson',{signal:AbortSignal.timeout(12000)})
+    .then(r=>r.ok?r.json():null).catch(()=>null),
+  fetch('/delhi_subdistricts.geojson',{signal:AbortSignal.timeout(12000)})
+    .then(r=>r.ok?r.json():null).catch(()=>null)
 ]).then(([a,b])=>{
   GJ=[...((a&&a.features)||[]),...((b&&b.features)||[])];
   for(const f of GJ){
@@ -1282,7 +1324,7 @@ Promise.all([
     if(n&&!CUT[n]){const p=cutPath(f);if(p)CUT[n]=p}
   }
   if(DIST.length)paintDChips();
-  drawScene();
+  MID_DIRTY=true;drawScene();
 });
 async function loadDistricts(){
   try{const d=await api('/v2/districts');DIST=(d.districts||d)||[];
@@ -1295,6 +1337,7 @@ async function status(){
     const s=h.sources||{};
     const stn=(s.stations||{}).count||0;
     const wind=h.wind||{};WIND=wind.speed_kmh?wind:null;
+    MID_DIRTY=true;    /* the wind arrow lives in the mid layer */
     const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+'m':'—';
     const edges=h.routing&&h.routing.edges?h.routing.edges:null;
     const priced=h.routing&&h.routing.edges_priced?h.routing.edges_priced:null;
@@ -1324,7 +1367,7 @@ let rsz=null;window.addEventListener('resize',()=>{
     W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
     cv.width=W*dpr;cv.height=H*dpr;
     cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
-    drawScene();
+    CELLS_DIRTY=true;MID_DIRTY=true;drawScene();
   },160)});
 setInterval(()=>{paint();status();loadDistricts()},120000);
 </script>

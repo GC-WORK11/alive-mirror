@@ -458,7 +458,10 @@ const freshBadge=(flag)=>flag===true?'<span class="badge stale">stale</span>'
    behind the first prompt wake up to the stored token and just retry. */
 async function getJSON(u,retried){
   const tok=sessionStorage.getItem('alive_admin_tok');
-  const r=await fetch(u,tok?{headers:{authorization:'Bearer '+tok}}:{});
+  /* a stalled feed must land in its honest-empty state, not pin the
+     Promise.allSettled forever — every call carries a 15s deadline */
+  const r=await fetch(u,{...(tok?{headers:{authorization:'Bearer '+tok}}:{}),
+    signal:AbortSignal.timeout(15000)});
   if(r.status===401||r.status===403){
     /* re-read: another caller may have stored a token while this
        fetch/prompt was in flight — retry with it before asking */
@@ -512,8 +515,17 @@ async function tick(){
     $('feedtxt').textContent='offline';
     const why=res[0]&&res[0].reason&&(res[0].reason.message||res[0].reason);
     $('stamp').innerHTML=
-      `<span class="err">admin api unreachable — ${esc(why||'all endpoints failed')}</span>`+
+      `<span class='err'>admin api unreachable — ${esc(why||'all endpoints failed')}</span>`+
       (LAST_OK?` · showing last good data from <b>${timeIST(LAST_OK)}</b>`:'');
+    /* panels that never got a first render must not sit on the
+       'connecting…' placeholder forever — say what is actually wrong */
+    for(const [id,what] of [['firebar','fire feed'],['firemap-sub','fire feed'],
+                            ['distmap-sub','district field'],
+                            ['fieldmap-sub','field grid']]){
+      const el=$(id);
+      if(el&&el.textContent.trim()==='connecting…')
+        el.textContent=`${what} unreachable — retrying every 30s`;
+    }
     return;
   }
   const val=r=>r.status==='fulfilled'?r.value:null;
@@ -1616,8 +1628,10 @@ function bindScrub(){
   /* both baked boundary sets — districts + the 13 delhi sub-areas —
      name cells honestly and give the district card its polygon */
   Promise.all([
-    fetch('/ncr.geojson').then(r=>r.ok?r.json():null).catch(()=>null),
-    fetch('/delhi_subdistricts.geojson').then(r=>r.ok?r.json():null).catch(()=>null)
+    fetch('/ncr.geojson',{signal:AbortSignal.timeout(12000)})
+      .then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch('/delhi_subdistricts.geojson',{signal:AbortSignal.timeout(12000)})
+      .then(r=>r.ok?r.json():null).catch(()=>null)
   ]).then(([a,b])=>{FM_GJ={features:[
     ...((a&&a.features)||[]),...((b&&b.features)||[])]};
     /* cut the mini-card silhouettes once both sets are in, then paint
