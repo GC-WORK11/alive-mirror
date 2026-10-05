@@ -57,6 +57,7 @@ import {
   bandWashIdx,
   fam,
   famMono,
+  famMonoText,
   famSerif,
 } from "../theme";
 import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
@@ -118,6 +119,9 @@ export function useDayData(
   /** fetch the 12-payload forecast curve — the peek card doesn't need it,
       so cold-start doesn't pay 12 /grid requests for a card it may never open */
   withCurve = true,
+  /** parts labels re-render in this language (stored labels are
+      save-time English by design) */
+  lang: Lang = "en",
 ): DayData | null {
   const [data, setData] = useState<DayData | null>(null);
   // ~500 m rounding — the grid cell is ~10 km wide; drifting by a street
@@ -129,7 +133,7 @@ export function useDayData(
       const [samples, checkins] = await Promise.all([allSamples(), getCheckins()]);
       const now = Date.now();
       const today = dayKey(now);
-      const rec = reconstructDay(today, samples, trips, now);
+      const rec = reconstructDay(today, samples, trips, now, lang);
 
       // week: one reconstruction per day — cheap at this volume, and
       // honest (a day with no samples reads 0, not an invented number)
@@ -138,7 +142,7 @@ export function useDayData(
         const d = new Date(now);
         d.setDate(d.getDate() - i);
         const k = dayKey(d.getTime());
-        week.push({ day: k, ug: i === 0 ? rec.totalUg : reconstructDay(k, samples, trips, d.getTime()).totalUg });
+        week.push({ day: k, ug: i === 0 ? rec.totalUg : reconstructDay(k, samples, trips, d.getTime(), lang).totalUg });
       }
 
       // the lens needs a dose per checkin's *previous* day, counted only
@@ -151,7 +155,7 @@ export function useDayData(
         keys.add(dayKey(d.getTime()));
       }
       for (const k of keys) {
-        const r = reconstructDay(k, samples, trips, new Date(`${k}T23:59:59`).getTime());
+        const r = reconstructDay(k, samples, trips, new Date(`${k}T23:59:59`).getTime(), lang);
         if (r.coveredMin >= 30 || r.parts.length > 0) doseByDay[k] = r.totalUg;
       }
 
@@ -174,13 +178,16 @@ export function useDayData(
       setData((prev) => (prev ? { ...prev, curve, outlook } : prev));
     })();
     return () => { live = false; };
-  }, [rl, nonce, trips, withCurve]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rl, nonce, trips, withCurve, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   return data;
 }
 
 /* ---------------- shared atoms ---------------- */
 
 const mono = (lang: Lang, w: "reg" | "med" | "semi" = "reg") => famMono(lang, w);
+/* mono-styled slots that carry localized text — Plex Mono has no
+   Devanagari, so hi falls back to Noto; pure-number cells keep mono() */
+const mtext = (lang: Lang, w: "reg" | "med" | "semi" = "reg") => famMonoText(lang, w);
 
 /** A CPCB band dot — the only colour that means data. null → empty ring.
  *  `color` overrides for payloads that carry the band itself. */
@@ -243,7 +250,7 @@ function Sparkline({ series, lang }: { series: (number | null)[]; lang: Lang }) 
       <View style={ss.sparkLabels}>
         {series.map((v, i) => (
           <Text key={i} {...DYNAMIC_TYPE}
-            style={[ss.sparkHr, { fontFamily: mono(lang) }]}>
+            style={[ss.sparkHr, { fontFamily: mtext(lang) }]}>
             {i === 0 ? t("dayNow", lang) : i % 3 === 0 ? `+${i}h` : ""}
           </Text>
         ))}
@@ -269,13 +276,79 @@ function fieldAgeLine(
     : t("howWe_fieldAge", lang, { n });
 }
 
+/* The CPCB band words live in strings.ts (band_*); index = the band the
+ *  client already computes on a mid (theme.bandIdx — same CPCB breaks
+ *  the server's districts.cpcb_band applies). */
+const MOVE_BAND_KEYS: StringKey[] = [
+  "band_good", "band_satisfactory", "band_moderate",
+  "band_poor", "band_veryPoor", "band_severe",
+];
+
+/** The served decision line, localized. English keeps the wire text —
+ *  it is already the card's own voice. Hindi rebuilds the sentence from
+ *  the label + served windows + the hour series, mirroring
+ *  server/v2/day.py:_decisions (its mids ARE our series' non-null
+ *  cells, so means/extrema line up exactly); an unexpected label or a
+ *  shape we can't rebuild falls back to the served line untouched. */
+function decisionLine(
+  d: { label: string; line: string },
+  srv: NonNullable<DayCurve["server"]>,
+  series: (number | null)[],
+  lang: Lang,
+): string {
+  if (lang === "en") return d.line;
+  const mids = series.filter((v): v is number => v != null);
+  if (!mids.length) return d.line;
+  const lo = Math.min(...mids), hi = Math.max(...mids);
+  const mean = mids.reduce((s, x) => s + x, 0) / mids.length;
+  const modalBand = (): string => {
+    const counts = [0, 0, 0, 0, 0, 0];
+    for (const m of mids) { const i = bandIdx(m); if (i != null) counts[i]++; }
+    let best = 0;
+    for (let i = 1; i < 6; i++) if (counts[i] > counts[best]) best = i;
+    return t(MOVE_BAND_KEYS[best], lang);
+  };
+  if (d.label === "outdoor exercise") {
+    if (srv.clean) {
+      /* the server's 'cleanest'/'least-bad' word — same 60 µg/m³ cut the
+         outlook caption already applies */
+      const w = t(srv.clean.conc > CLEAN_UG ? "dayOutlookLeastBad" : "dayOutlookCleanest", lang);
+      const win = `~${srv.cleanLabel ?? ""}-${srv.cleanEndLabel ?? ""}`;
+      return t("moveDec_cleanWindow", lang, {
+        w, win, c: Math.round(srv.clean.conc), m: Math.round(mean),
+      });
+    }
+    /* served label "outdoor exercise" with no clean window =
+       the no-clean-slot line; day_min is the series' own minimum */
+    return t("moveDec_noClean", lang, { n: Math.round(lo) });
+  }
+  if (d.label === "today") {
+    /* three 'today' sentences exist — re-derive which one the server's
+       same thresholds picked (<3h card, flat day, jagged remainder) */
+    if (mids.length < 3) {
+      const last = bandIdx(mids[mids.length - 1]);
+      return t("moveDec_short", lang, {
+        n: mids.length,
+        b: last == null ? "" : t(MOVE_BAND_KEYS[last], lang),
+      });
+    }
+    if (hi - lo <= Math.max(15, 0.15 * mean)) {
+      return t("moveDec_flat", lang, {
+        b: modalBand(), lo: Math.round(lo), hi: Math.round(hi),
+      });
+    }
+    return t("moveDec_jagged", lang, { lo: Math.round(lo), hi: Math.round(hi) });
+  }
+  return d.line;
+}
+
 function MoveCard({ curve, outside, lang }: {
   curve: DayCurve | null; outside: boolean; lang: Lang;
 }) {
   if (outside) {
     return (
       <View style={ss.card}>
-        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
           {t("moveTitle", lang)}
         </Text>
         <Quiet glyph="pin" title={t("dayOutsideDelhi", lang)} lang={lang} />
@@ -286,7 +359,7 @@ function MoveCard({ curve, outside, lang }: {
   if (!curve.covered) {
     return (
       <View style={ss.card}>
-        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
           {t("moveTitle", lang)}
         </Text>
         <Quiet glyph="pin" title={t("dayMorningNoCell", lang)} lang={lang} />
@@ -305,17 +378,19 @@ function MoveCard({ curve, outside, lang }: {
   const heavyT = srv?.heavyEndLabel ?? (heavy ? fmtHr(heavy.to + nowHour()) : "");
   const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour()) : "");
   const cleanT = srv?.cleanEndLabel ?? (clean ? fmtHr(clean.to + nowHour()) : "");
-  const decision = srv?.decisions?.[0]?.line ?? null;
-  /* the felt decision — derived from the swing when the server didn't
-     name one ("same plan at X breathes ~N× lighter than at Y") */
-  const felt = decision
-    ?? (!flat && clean && heavy && a.ratio != null && a.ratio >= 1.2
+  const dec = srv?.decisions?.[0] ?? null;
+  /* the felt decision — the served line localized (wire English must not
+     leak into the hi UI); when the server named none, derive from the
+     swing ("same plan at X breathes ~N× lighter than at Y") */
+  const felt = dec && srv
+    ? decisionLine(dec, srv, curve.series, lang)
+    : (!flat && clean && heavy && a.ratio != null && a.ratio >= 1.2
       ? t("dayMorningMove", lang, { f: cleanF, g: heavyF, x: a.ratio.toFixed(1) })
       : null);
   const ageLine = fieldAgeLine(curve.fieldAgeS, curve.fieldStale, lang);
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
         {t("moveTitle", lang)}
       </Text>
       {/* the decision is the hero of this card — serif at title scale so
@@ -335,7 +410,7 @@ function MoveCard({ curve, outside, lang }: {
           {heavy && (
             <View style={ss.mRow}>
               <BandDot conc={heavy.conc} />
-              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mono(lang) }]}>
+              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mtext(lang) }]}>
                 {t("dayMorningHeavy", lang, {
                   f: heavyF,
                   t: heavyT,
@@ -347,7 +422,7 @@ function MoveCard({ curve, outside, lang }: {
           {clean && (
             <View style={ss.mRow}>
               <BandDot conc={clean.conc} />
-              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mono(lang) }]}>
+              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mtext(lang) }]}>
                 {t("dayMorningClean", lang, {
                   f: cleanF,
                   t: cleanT,
@@ -455,7 +530,7 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
   return (
     <View style={ss.card}>
       <View style={ss.oaHead}>
-        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med"), marginBottom: 0 }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med"), marginBottom: 0 }]}>
           {t("dayOutlookTitle", lang)}
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.oaUnit, { fontFamily: mono(lang) }]}>µg/m³</Text>
@@ -489,7 +564,7 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
                 pressed && { transform: [{ scale: 0.96 }] },
               ]}>
               <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
-                style={[ss.oaDay, { fontFamily: mono(lang) }]}>
+                style={[ss.oaDay, { fontFamily: mtext(lang) }]}>
                 {dayLabel(d.label, lang)}
               </Text>
               <View style={ss.oaMidRow}>
@@ -512,7 +587,7 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
       </View>
       {open && (
         <View style={ss.oaDetail}>
-          <Text {...DYNAMIC_TYPE} style={[ss.oaDetailHead, { fontFamily: mono(lang, "med") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.oaDetailHead, { fontFamily: mtext(lang, "med") }]}>
             {dayLabel(open.label, lang)} · {open.date_ist}
           </Text>
           {open.partial && (
@@ -525,7 +600,7 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
           {open.cleanest_window ? (
             <View style={ss.mRow}>
               <BandDot conc={open.cleanest_window.pm25_mid ?? null} />
-              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mono(lang) }]}>
+              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mtext(lang) }]}>
                 {t("dayMorningClean", lang, {
                   f: open.cleanest_window.start_label ?? "",
                   t: open.cleanest_window.end_label ?? "—",
@@ -542,12 +617,12 @@ function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang 
             </Text>
           )}
           {open.cleanest_window && open.heavy_hours_ist.length > 0 && (
-            <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, NUM, { fontFamily: mono(lang) }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, NUM, { fontFamily: mtext(lang) }]}>
               {t("dayOutlookHeavyHours", lang, { h: compactHours(open.heavy_hours_ist) })}
             </Text>
           )}
           {open.pm25_lo != null && open.pm25_hi != null && (
-            <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, NUM, { fontFamily: mono(lang) }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, NUM, { fontFamily: mtext(lang) }]}>
               {t("dayOutlookRange", lang, { lo: Math.round(open.pm25_lo), hi: Math.round(open.pm25_hi) })}
             </Text>
           )}
@@ -613,13 +688,13 @@ function DayCard({ rec, budgetUg, lang }: {
   if (rec.thin) return null; // the hero already carries the honest-empty line
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
         {t("dayTitle", lang)}
       </Text>
       <HourArc rec={rec} lang={lang} />
       {rec.parts.length > 0 && (
         <>
-          <Text {...DYNAMIC_TYPE} style={[ss.partsEyebrow, { fontFamily: mono(lang, "med") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.partsEyebrow, { fontFamily: mtext(lang, "med") }]}>
             {t("dayPartsTitle", lang)}
           </Text>
           {rec.parts.map((p, i) => (
@@ -656,7 +731,7 @@ function LensCard({ checkin, lens, lang, onCheckin }: {
   const val = { breath: checkin?.breath ?? -1, eyes: checkin?.eyes ?? -1, energy: checkin?.energy ?? -1 };
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
         {t("lensTitle", lang)}
       </Text>
       <Text {...DYNAMIC_TYPE} style={[ss.lensSub, { fontFamily: fam(lang, "reg") }]}>
@@ -719,7 +794,7 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
   const frac = Math.max(0, Math.min(1, totalUg / budget));
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
         {t("budgetTitle", lang)}
       </Text>
       <View style={ss.budgetBar}>
@@ -728,7 +803,7 @@ function BudgetCard({ totalUg, profile, lang, onProfile }: {
           backgroundColor: over > 0 ? V2T.breath2 : V2T.accent,
         }]} />
       </View>
-      <Text {...DYNAMIC_TYPE} style={[ss.budgetLine, NUM, { fontFamily: mono(lang) }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.budgetLine, NUM, { fontFamily: mtext(lang) }]}>
         {over > 0
           ? t("budgetOver", lang, { o: doseUgRound(over), p: t(`profile${profile[0].toUpperCase()}${profile.slice(1)}` as never, lang) })
           : t("budgetWithin", lang, { r: doseUgRound(-over), b: budget })}
@@ -787,13 +862,13 @@ export function DayPeek({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
         pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
       ]}>
       <View style={ss.peekTop}>
-        <Text {...DYNAMIC_TYPE} style={[ss.peekEyebrow, { fontFamily: mono(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.peekEyebrow, { fontFamily: mtext(lang, "med") }]}>
           {t("peekTitle", lang)}
         </Text>
         <View style={ss.peekTopRight}>
           {ambIdx != null && ambientUg != null && (
             <Text {...DYNAMIC_TYPE} style={[ss.peekAmb, NUM, {
-              fontFamily: mono(lang, "med"), color: bandInkIdx(ambIdx),
+              fontFamily: mtext(lang, "med"), color: bandInkIdx(ambIdx),
             }]}>
               {t("peekAmbient", lang, { n: Math.round(ambientUg) })}
             </Text>
@@ -842,7 +917,7 @@ function HomeHeader({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
         <Text {...DYNAMIC_TYPE} style={[ss.brand, { fontFamily: famSerif(lang, "semi") }]}>
           ALive-108
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.brandSub, { fontFamily: mono(lang) }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.brandSub, { fontFamily: mtext(lang) }]}>
           {dayLabel(WEEKDAY_EN[now.getDay()], lang)} · {hh}:{mm} · DELHI
         </Text>
       </View>
@@ -945,7 +1020,7 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
           </View>
           <View style={ss.heroGaugeCol}>
             <DoseGauge frac={budgetUg > 0 ? rec.totalUg / budgetUg : 0} color={col} lang={lang} />
-            <Text {...DYNAMIC_TYPE} style={[ss.heroOfBudget, NUM, { fontFamily: mono(lang) }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.heroOfBudget, NUM, { fontFamily: mtext(lang) }]}>
               {t("homeOfBudget", lang, { b: budgetUg })}
             </Text>
           </View>
@@ -953,7 +1028,7 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
       )}
       <View style={ss.heroStatRow}>
         {!rec.thin && (
-          <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: mono(lang) }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: mtext(lang) }]}>
             {t("dayCovered", lang, { h, m })}
           </Text>
         )}
@@ -961,7 +1036,7 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
           <View style={ss.heroAmb}>
             <BandDot conc={null} color={bandColorIdx(ambIdx)} />
             <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, {
-              fontFamily: mono(lang), color: bandInkIdx(ambIdx) ?? V2T.text3,
+              fontFamily: mtext(lang), color: bandInkIdx(ambIdx) ?? V2T.text3,
             }]}>
               {t("homeOutsideNow", lang, { n: Math.round(ambientUg) })}
             </Text>
@@ -978,7 +1053,7 @@ function HeroBlock({ data, budgetUg, ambientUg, lang }: {
             opacity: w.ug > 0 ? 0.5 + 0.5 * (w.ug / maxW) : 1,
           }]} />
         ))}
-        <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mono(lang) }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mtext(lang) }]}>
           {t("homeWeek", lang, {
             n: approx(doseUgRound(data.week.reduce((s, w) => s + w.ug, 0))),
           })}
@@ -1023,7 +1098,7 @@ function QuietLinks({ lang, onMap, onCity, onTrips }: {
           <Pressable onPress={() => { tap(); l.fn(); }} hitSlop={6}
             accessibilityRole="button" accessibilityLabel={t(l.key, lang)}
             style={({ pressed }) => [pressed && { opacity: 0.55 }]}>
-            <Text {...DYNAMIC_TYPE} style={[ss.linkTxt, { fontFamily: mono(lang, "med") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.linkTxt, { fontFamily: mtext(lang, "med") }]}>
               {t(l.key, lang)}
             </Text>
           </Pressable>

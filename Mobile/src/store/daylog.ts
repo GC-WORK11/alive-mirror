@@ -14,6 +14,7 @@
 import { File, Paths } from "expo-file-system";
 import { afterFirstFrame } from "../startup/idle";
 import type { Trip } from "./ledger";
+import { modeLabel, placeNameLabel, type Lang } from "../i18n/strings";
 
 const FILE = new File(Paths.document, "daylog.json");
 
@@ -181,6 +182,9 @@ export type DayReconstruction = {
  *  hours in the future are never claimed. */
 export function reconstructDay(
   day: string, samples: AmbientSample[], trips: Trip[], now = Date.now(),
+  /** parts labels re-render in the UI language — stored mode labels and
+   *  sentinel place names are save-time English by design */
+  lang: Lang = "en",
 ): DayReconstruction {
   const hours: ArcHour[] = Array.from({ length: 24 }, (_, h) => ({
     hour: h, conc: null, dose_ug: 0, covered: false, trip_marks: 0,
@@ -245,7 +249,10 @@ export function reconstructDay(
     hours[h].trip_marks += 1;
     hours[h].covered = true;
     tripUg += tr.dose_ug;
-    parts.push({ label: `${tr.label} · ${tr.from} → ${tr.to}`, ug: tr.dose_ug });
+    parts.push({
+      label: `${modeLabel(tr.vehicle, tr.label, lang)} · ${placeNameLabel(tr.from, lang)} → ${placeNameLabel(tr.to, lang)}`,
+      ug: tr.dose_ug,
+    });
   }
 
   // stay spans as parts — labelled by their clock window (no invented

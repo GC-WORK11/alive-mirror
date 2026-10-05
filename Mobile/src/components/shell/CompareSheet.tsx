@@ -25,7 +25,7 @@
  * SEAM(compare): the screens lane may replace this with src/screens S4. */
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { NUM, V2Elev, V2Radius, V2T, V2Type, doseColor, fam, famMono } from "../../theme";
+import { NUM, V2Elev, V2Radius, V2T, V2Type, doseColor, fam, famMono, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { CountUp, Sheet, pressFx } from "../../ui";
@@ -276,7 +276,7 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
       <View style={s.dRow}>
         <Icon name="dust" color={V2T.breath2} size={13} />
         {d.mid != null ? (
-          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: famMono(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
             {t("howWe_in", lang, { mid: Math.round(d.mid), lo: Math.round(d.lo ?? d.mid), hi: Math.round(d.hi ?? d.mid) })}
             {cig != null ? `  ·  ${t("howWe_cigs", lang, { n: approx(cig) })}` : ""}
           </Text>
@@ -288,7 +288,7 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
       {emit ? (
         <View style={s.dRow}>
           <Icon name="smoke" color={V2T.out1} size={13} />
-          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: famMono(lang, "reg") }]}>{t("howWe_out", lang, { v: emit })}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.dLine, NUM, { fontFamily: famMonoText(lang, "reg") }]}>{t("howWe_out", lang, { v: emit })}</Text>
         </View>
       ) : null}
       {d.coverage != null && d.coverage < 0.999 ? (
@@ -407,11 +407,9 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
               </Text>
             </>
           ) : (
-            /* TODO(strings): `compare_doseNA` — short "no estimate" marker
-               for the dose column; bare dash until the key lands. */
-            <Text {...DYNAMIC_TYPE} style={[s.optDose, s.optDoseNA, { fontFamily: fam(lang, "med") }]}>—</Text>
+            <Text {...DYNAMIC_TYPE} style={[s.optDose, s.optDoseNA, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>{t("compare_doseNA", lang)}</Text>
           )}
-          <Text {...DYNAMIC_TYPE} style={[s.optEta, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
+          <Text {...DYNAMIC_TYPE} style={[s.optEta, NUM, { fontFamily: famMonoText(lang, "reg") }]} numberOfLines={1}>
             {Math.round(o.duration_min)}<Text {...DYNAMIC_TYPE} style={s.optEtaUnit}> {t("minUnit", lang)}</Text>
           </Text>
           <View style={s.barsRow}>

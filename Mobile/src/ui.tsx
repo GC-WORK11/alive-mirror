@@ -7,7 +7,7 @@ import {
   type StyleProp, type TextStyle, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CIG_UG, F, FMONO, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono, famSerif } from "./theme";
+import { CIG_UG, F, FMONO, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMonoText, famSerif } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
 import { DYNAMIC_TYPE, useReduceMotion } from "./a11y";
@@ -230,8 +230,8 @@ export function ModeRow({
         {reasonLine ? <Text style={[us.modeReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2} {...DYNAMIC_TYPE}>{reasonLine}</Text> : null}
       </View>
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={[us.modeEta, NUM, { fontFamily: famMono(lang, "semi") }]} {...DYNAMIC_TYPE}>
-          {etaMin}<Text style={[us.modeEtaUnit, { fontFamily: famMono(lang, "reg") }]} {...DYNAMIC_TYPE}> {t("minUnit", lang)}</Text>
+        <Text style={[us.modeEta, NUM, { fontFamily: famMonoText(lang, "semi") }]} {...DYNAMIC_TYPE}>
+          {etaMin}<Text style={[us.modeEtaUnit, { fontFamily: famMonoText(lang, "reg") }]} {...DYNAMIC_TYPE}> {t("minUnit", lang)}</Text>
         </Text>
         {inFrac != null && (
           <SmokeBar frac={inFrac} tone="breath" label={t("compare_smokeIn", lang)} />

@@ -24,7 +24,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
-import { NUM, V2T, V2Type, fam, famMono } from "../theme";
+import { NUM, V2T, V2Type, fam, famMono, famMonoText } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 
@@ -166,7 +166,7 @@ export function DepartGraph({
           {t("receipt_estShort", lang)}
         </Text>
         {detail && (
-          <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM, { fontFamily: famMono(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
             {`${detail.hour === nowHour ? t("departNow", lang) : `+${detail.hour}h`}` +
               `${clockOf(detail.start) ? ` · ${clockOf(detail.start)}` : ""} ≈ ${Math.round(detail.dose_mid)} µg`}
           </Text>

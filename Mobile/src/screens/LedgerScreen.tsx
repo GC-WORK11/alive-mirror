@@ -36,7 +36,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono, famSerif } from "../theme";
+import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono, famMonoText, famSerif } from "../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import { doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
@@ -128,7 +128,7 @@ function TripDetail({
           <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: famMono(lang, "semi") }]}>
             {t("doseUg", lang, { n: fmtDoseUg(tr.dose_ug) })}
           </Text>
-          <Text {...DYNAMIC_TYPE} style={[ss.dSub, NUM, { fontFamily: famMono(lang, "reg") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dSub, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
             {lo != null && hi != null
               ? t("tripsDoseBand", lang, { lo: fmtUg(lo), hi: fmtUg(hi) })
               : t("tripsDoseDetail", lang, { n: fmtUg(tr.dose_ug) })}
@@ -143,7 +143,7 @@ function TripDetail({
           <Text {...DYNAMIC_TYPE} style={[ss.dLabel, { fontFamily: fam(lang, "reg") }]}>
             {t("tripsPutOut", lang)}
           </Text>
-          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: famMono(lang, "semi") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.dValue, NUM, { fontFamily: famMonoText(lang, "semi") }]}>
             {t("tripsOutDetail", lang, { n: fmtKg(tr.emit_kg) })}
           </Text>
         </View>
@@ -538,7 +538,7 @@ function LedgerSheet({ onClose, lang, showCig, onTripsChanged }: {
                     {t("ledgerLast7", lang)}
                   </Text>
                   <Text {...DYNAMIC_TYPE}
-                    style={[ss.weekLine, NUM, { fontFamily: famMono(lang, "reg") }]}
+                    style={[ss.weekLine, NUM, { fontFamily: famMonoText(lang, "reg") }]}
                     numberOfLines={2}
                   >
                     {t(weekTrips === 1 ? "tripsCountOne" : "tripsCount", lang, {

@@ -383,7 +383,7 @@ function AppInner() {
   const dayPos = userPos ?? { lat: DELHI[1], lon: DELHI[0] };
   /* withCurve only once the stack is open — the peek never needs the
      12-payload forecast, so it isn't fetched on cold start */
-  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce, homeOpen);
+  const dayData = useDayData(dayPos.lat, dayPos.lon, flow.trips, dayNonce, homeOpen, lang);
   if (!fontsLoaded) return null;
   const sel = flow.options[flow.selected];
   const mapField: FieldStatus | null = flow.planField ?? (aqiField

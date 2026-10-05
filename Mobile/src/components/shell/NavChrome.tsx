@@ -11,7 +11,7 @@
  * Material Symbols turn/merge/ramp geometry). */
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono } from "../../theme";
+import { NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
@@ -162,7 +162,7 @@ function CounterCell({
           {label}
         </Text>
       </View>
-      <Text {...DYNAMIC_TYPE} style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]} numberOfLines={1}>
+      <Text {...DYNAMIC_TYPE} style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]} numberOfLines={1}>
         {value}
       </Text>
       {band && span > 0 && (
@@ -176,7 +176,7 @@ function CounterCell({
         </View>
       )}
       {band && (
-        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
+        <Text {...DYNAMIC_TYPE} style={[s.cellBand, NUM, { fontFamily: famMonoText(lang, "reg") }]} numberOfLines={1}>
           {band.text}
         </Text>
       )}
@@ -275,7 +275,7 @@ export function NavChrome({
         </Animated.View>
         <Animated.View style={[s.bannerTxt, { opacity: swap, transform: [{ translateY: swapTy }] }]}>
           {next && (
-            <Text {...DYNAMIC_TYPE} style={[s.dist, NUM, { fontFamily: famMono(lang, "semi") }]} numberOfLines={1}>
+            <Text {...DYNAMIC_TYPE} style={[s.dist, NUM, { fontFamily: famMonoText(lang, "semi") }]} numberOfLines={1}>
               {distToStr(next.distM, lang)}
             </Text>
           )}
@@ -360,7 +360,7 @@ export function NavChrome({
         </View>
         <View style={s.metaRow}>
           <Text {...DYNAMIC_TYPE}
-            style={[s.metaTxt, NUM, { fontFamily: famMono(lang, "reg") }]}
+            style={[s.metaTxt, NUM, { fontFamily: famMonoText(lang, "reg") }]}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {meta}
           </Text>

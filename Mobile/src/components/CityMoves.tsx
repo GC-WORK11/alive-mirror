@@ -10,22 +10,16 @@
 // `insufficient_data` = the honest "not enough shared trips yet" card —
 // real counts still show, no distribution is drawn from < min_k trips.
 //
-// Proposed i18n keys (add to strings.ts en+hi when this mounts):
-//   movesTitle        "how Delhi moves"                    (en) "दिल्ली कैसे चलती है" (hi)
-//   movesNotEnough    "not enough shared trips yet — Delhi's movement shows after {k} trips in {d} days"
-//   movesModeOther    "other ways"                         (the pooled k>=3 bucket)
-//   movesTypical      "typical trip"                       (p50 label on band rows)
-//   movesCorridorN    "{n} streets measured in {h} h"
-//   movesSuppressed   "+{n} more trips under the {k}-trip rule"
-//   movesWindowDays   "last {d} days"                      (when window.days ≠ 7)
-// Until those land the card uses the closest existing keys — every
-// substitution is noted inline.
+// i18n keys landed (strings.ts): movesTitle, movesWindowDays,
+// movesNotEnough, movesSuppressed, movesCorridorN, movesTypical,
+// movesModeOther.
 
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import {
   fam,
   famMono,
+  famMonoText,
   NUM,
   V2Radius,
   V2T,
@@ -93,7 +87,7 @@ function ModeRow({ row, lang }: { row: CityMovesModeRow; lang: Lang }) {
       <Text {...DYNAMIC_TYPE} style={[ss.mPct, NUM, { fontFamily: famMono(lang, "med") }]}>
         {fmtPct(row.share)}
       </Text>
-      <Text {...DYNAMIC_TYPE} style={[ss.mTrips, NUM, { fontFamily: famMono(lang, "reg") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.mTrips, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
         {t("cityTrips", lang, { n: row.trips })}
       </Text>
     </View>
@@ -122,8 +116,8 @@ function BandRow({
         {label}
       </Text>
       <View style={ss.bVals}>
-        <Text {...DYNAMIC_TYPE} style={[ss.bMid, NUM, { fontFamily: famMono(lang, "med") }]}>
-          ≈{fmt(band.p50)} {unit}
+        <Text {...DYNAMIC_TYPE} style={[ss.bMid, NUM, { fontFamily: famMonoText(lang, "med") }]}>
+          {t("movesTypical", lang)} ≈{fmt(band.p50)} {unit}
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.bBand, NUM, { fontFamily: famMono(lang, "reg") }]}>
           {fmt(band.p25)}–{fmt(band.p75)}
@@ -159,25 +153,20 @@ export function CityMoves({
 
   return (
     <View style={ss.card}>
-      {/* title — proposed key: movesTitle "how Delhi moves".
-          delhiTitle ("Delhi today") carries the section meanwhile. */}
       <Text {...DYNAMIC_TYPE} style={[ss.title, { fontFamily: fam(lang, "semi") }]}>
-        {t("delhiTitle", lang)}
+        {t("movesTitle", lang)}
       </Text>
-      {/* context: window + real trip count. ledgerLast7 is exact while
-          window.days === 7; another value → proposed movesWindowDays. */}
-      <Text {...DYNAMIC_TYPE} style={[ss.sub, NUM, { fontFamily: famMono(lang, "reg") }]}>
-        {windowDays === 7 ? t("ledgerLast7", lang) : `${windowDays}d`}
+      {/* context: window + real trip count */}
+      <Text {...DYNAMIC_TYPE} style={[ss.sub, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
+        {windowDays === 7 ? t("ledgerLast7", lang) : t("movesWindowDays", lang, { d: windowDays })}
         {"  ·  "}
         {t("cityTrips", lang, { n: data.n_trips })}
       </Text>
 
       {data.insufficient_data ? (
-        /* honest empty state — counts above stay real; the "not enough
-           shared trips yet" line borrows cityEmptyStreets until
-           movesNotEnough lands in strings.ts */
+        /* honest empty state — counts above stay real */
         <Text {...DYNAMIC_TYPE} style={[ss.note, { fontFamily: fam(lang, "reg") }]}>
-          {t("cityEmptyStreets", lang)}
+          {t("movesNotEnough", lang, { k: minK, d: windowDays })}
         </Text>
       ) : (
         <>
@@ -212,38 +201,33 @@ export function CityMoves({
             <ModeRow key={r.mode} row={r} lang={lang} />
           ))}
           {suppressed > 0 ? (
-            /* a count, not a row — proposed: movesSuppressed */
+            /* a count, not a row — the under-k footnote stays stated */
             <Text {...DYNAMIC_TYPE}
-              style={[ss.note, NUM, { fontFamily: famMono(lang, "reg") }]}
+              style={[ss.note, NUM, { fontFamily: famMonoText(lang, "reg") }]}
             >
-              +{t("cityTrips", lang, { n: suppressed })}
+              {t("movesSuppressed", lang, { n: suppressed, k: minK })}
             </Text>
           ) : null}
 
-          {/* measured streets — count + the streets' own dose band */}
+          {/* measured streets — "{n} streets measured in {h} h" + the
+              streets' own dose band */}
           {corridors ? (
             <View style={ss.bRow}>
               <Text {...DYNAMIC_TYPE}
                 style={[ss.bLabel, { fontFamily: fam(lang, "reg") }]}
               >
-                {t("layerCorridors", lang)}
+                {t("movesCorridorN", lang, {
+                  n: corridors.active ?? 0,
+                  h: corridors.window_h ?? 72,
+                })}
               </Text>
               <View style={ss.bVals}>
-                <Text {...DYNAMIC_TYPE}
-                  style={[
-                    ss.bMid,
-                    NUM,
-                    { fontFamily: famMono(lang, "med") },
-                  ]}
-                >
-                  {corridors.active ?? 0}
-                </Text>
                 {corridors.avg_dose_ug ? (
                   <Text {...DYNAMIC_TYPE}
                     style={[
                       ss.bBand,
                       NUM,
-                      { fontFamily: famMono(lang, "reg") },
+                      { fontFamily: famMonoText(lang, "reg") },
                     ]}
                   >
                     {t("tripsDoseBand", lang, {
@@ -280,7 +264,7 @@ export function CityMoves({
                   style={[
                     ss.note,
                     NUM,
-                    { fontFamily: famMono(lang, "reg") },
+                    { fontFamily: famMonoText(lang, "reg") },
                   ]}
                 >
                   {(() => {

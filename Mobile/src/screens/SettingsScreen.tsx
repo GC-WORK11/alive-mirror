@@ -13,13 +13,8 @@
 // privacy & sharing → notifications → about. Cards are the grouping; text
 // headers render only where string keys exist today.
 //
-// PROPOSED string keys (strings.ts is owned by the strings lane — these are
-// comments only; no code references them):
-//   settingsGeneral/settingsPrivacy — DONE: headers over the
-//                       language/voice/units card and the sharing card
-//   settingsVoiceHint — e.g. "spoken turn-by-turn guidance" (row currently
-//                       reuses the existing "turnByTurn" key as its hint)
-//   settingsUnitsHint — e.g. "metric only" (row currently shows a bare "km")
+// String keys landed in strings.ts: settingsGeneral/settingsPrivacy
+// (section headers), settingsVoiceHint, settingsUnitsHint.
 
 import React, { useEffect, useState } from "react";
 import {
@@ -322,8 +317,7 @@ function SettingsSheet({
             "settingsVoice",
             current.voice,
             (v) => onChange("voice", v),
-            // PROPOSED settingsVoiceHint — "turnByTurn" covers it today
-            "turnByTurn",
+            "settingsVoiceHint",
           )}
           <View style={ss.hairline} />
           {/* cigarette-equivalence — opt-in (owner: "absolutely wrong and

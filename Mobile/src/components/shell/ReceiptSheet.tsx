@@ -32,7 +32,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
+import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMonoText, famSerif } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
 import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
@@ -235,7 +235,7 @@ export function ReceiptSheet({
             <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose.hi - dose.lo >= 1 && (
-            <Text style={[s.bandTxt, NUM, { fontFamily: famMono(lang) }]} {...DYNAMIC_TYPE}>
+            <Text style={[s.bandTxt, NUM, { fontFamily: famMonoText(lang) }]} {...DYNAMIC_TYPE}>
               {t("receipt_doseUgBand", lang, {
                 lo: doseUgRound(dose.lo), hi: doseUgRound(dose.hi),
               })}
@@ -244,7 +244,7 @@ export function ReceiptSheet({
           {/* cigarette equivalence — secondary line under the hero when
               the user opted in; never the headline (owner rule) */}
           {cigTxt != null && (
-            <Text style={[s.bandTxt, NUM, { fontFamily: famMono(lang) }]} {...DYNAMIC_TYPE}>
+            <Text style={[s.bandTxt, NUM, { fontFamily: famMonoText(lang) }]} {...DYNAMIC_TYPE}>
               {cigTxt}
             </Text>
           )}
@@ -268,7 +268,7 @@ export function ReceiptSheet({
       {/* ── stats grid: put out · distance · time ── */}
       <View style={s.grid}>
         <View style={s.cell}>
-          <Text style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]}
+          <Text style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {co2 == null ? "—" : t("nav_kg", lang, { n: approx(r1(Math.max(0, co2.mid))) })}
           </Text>
@@ -279,7 +279,7 @@ export function ReceiptSheet({
         </View>
         {data.distanceKm != null && (
           <View style={s.cell}>
-            <Text style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]}
+            <Text style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]}
               numberOfLines={1} {...DYNAMIC_TYPE}>
               {`${r1(Math.max(0, data.distanceKm))} ${t("unitsKm", lang)}`}
             </Text>
@@ -290,7 +290,7 @@ export function ReceiptSheet({
           </View>
         )}
         <View style={s.cell}>
-          <Text style={[s.cellVal, NUM, { fontFamily: famMono(lang, "med") }]}
+          <Text style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {`${mins} ${t("minUnit", lang)}`}
           </Text>
@@ -310,7 +310,7 @@ export function ReceiptSheet({
             </Text>
           ) : (
             <>
-              <Text style={[s.detailTxt, NUM, { fontFamily: famMono(lang, "reg") }]} {...DYNAMIC_TYPE}>
+              <Text style={[s.detailTxt, NUM, { fontFamily: famMonoText(lang, "reg") }]} {...DYNAMIC_TYPE}>
                 {t("receipt_estLike", lang)}
                 {co2.hi - co2.lo > 0.05
                   ? `  ·  ${r1(co2.lo)}–${r1(co2.hi)} kg`
@@ -324,7 +324,7 @@ export function ReceiptSheet({
                 const txt = lo === hi
                   ? (hi === 0 ? t("receipt_pmBandTiny", lang) : t("receipt_pmBandOne", lang, { x: hi }))
                   : t("receipt_pmBand", lang, { lo, hi });
-                return <Text style={[s.detailTxt, NUM, { fontFamily: famMono(lang, "reg") }]} {...DYNAMIC_TYPE}>{txt}</Text>;
+                return <Text style={[s.detailTxt, NUM, { fontFamily: famMonoText(lang, "reg") }]} {...DYNAMIC_TYPE}>{txt}</Text>;
               })()}
               {data.alt && data.alt.co2KgMid != null && (
                 <Text style={[s.detailTxt, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>

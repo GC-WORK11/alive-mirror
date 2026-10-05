@@ -208,6 +208,14 @@ const en = {
   /** CityMoves pooled under-k bucket — the pool is the publishable unit,
       no member mode's name may surface (server token is "other"). */
   movesModeOther: "other ways",
+  /* "how Delhi moves" card — its own title (not "Delhi today"), the
+     window tag when it isn't 7 days, and the honest under-k footnotes */
+  movesTitle: "how Delhi moves",
+  movesWindowDays: "last {d} days",
+  movesNotEnough: "not enough shared trips yet — Delhi's movement shows after {k}+ travellers cross a street in {d} days",
+  movesSuppressed: "+{n} more trips under the {k}-trip rule",
+  movesCorridorN: "{n} streets measured in {h} h",
+  movesTypical: "typical trip",
   cityUnnamed: "a street we can't name yet",
   cityTravellersTitle: "what ALive travellers did today",
   cityTravellersLine: "{trips} trips · {km} km · ≈{cigs} cigarettes breathed · ≈{kg} kg put out",
@@ -306,6 +314,7 @@ const en = {
   departTomorrow: "tomorrow",
   wellPing: "we'll ping you",
   turnByTurn: "turn-by-turn",
+  settingsVoiceHint: "spoken turn-by-turn guidance",
   hideTurns: "hide turns",
   roadModesOnly: "step-by-step directions show for road rides",
   followRoute: "follow the route line",
@@ -330,6 +339,10 @@ const en = {
   onb_privacyNoAccount: "No name, no phone number, no account — ever.",
   onb_privacyTrimmed: "Shared trips are cut at both ends and become a few rough dots on a map grid — a street shows only when at least 3 people have crossed it.",
   onb_privacyLocation: "Your location stays on this phone — it only steers the map and turn-by-turn guidance.",
+  /* the k-card label — the big "3+" numeral sits beside it, so the
+     sentence itself stays numeral-free (settingsStoreK carries both) */
+  onb_kLabel: "a street appears only after this many different devices cross it",
+  onb_pageOf: "page {n} of {m}",
   tripDone: "trip done",
   receiptSaved: "the smokiest way would have added {n} cigarettes",
   receiptSavedUg: "the smokiest way would have added {n} µg",
@@ -461,6 +474,24 @@ const en = {
   dayMorningStale: "last air reading {n} min ago",
   dayMorningNoCell: "outside the air map — no hour curve here",
   dayOutsideDelhi: "outside Delhi — the smoke map doesn't reach here",
+  /* the move card's first decision line — /v2/day serves it pre-built
+     in English; hi rebuilds the same sentences from the served windows
+     + series (decisions[].label tells us which grammar the server
+     picked). Mirrors server/v2/day.py:_decisions so wire English never
+     reaches the hi UI. */
+  moveDec_cleanWindow: "{w} window {win} IST (avg {c} µg/m³ vs day {m})",
+  moveDec_noClean: "no clean slot left today — lightest is {n} µg/m³",
+  moveDec_short: "only ~{n}h of today left on the card — {b} throughout",
+  moveDec_flat: "no meaningful window today — {b} air all day ({lo}–{hi} µg/m³)",
+  moveDec_jagged: "no sustained window today — lightest reads {lo} µg/m³, heaviest {hi}",
+  /* CPCB band words (districts.cpcb_band) — only ever used inside
+     "…{b} air / …{b} हवा" sentences, so hi forms agree with हवा */
+  band_good: "good",
+  band_satisfactory: "satisfactory",
+  band_moderate: "moderate",
+  band_poor: "poor",
+  band_veryPoor: "very poor",
+  band_severe: "severe",
   // the days ahead — /v2/outlook's own fold, rendered as served
   dayOutlookTitle: "the days ahead",
   dayLbl_today: "today",
@@ -514,6 +545,9 @@ const en = {
   peekAmbient: "now ~{n} µg/m³",
   /* compare sheet — the gap line under a heavier option's dose */
   compare_vsLightest: "+{n} vs lightest",
+  /* the dose column when an option carries no estimate — a bare dash
+     says nothing; two short words say why */
+  compare_doseNA: "no estimate",
   goLabel: "go somewhere",
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "you've breathed today",
@@ -524,6 +558,28 @@ const en = {
   homeLinkMap: "the air map",
   homeLinkCity: "Delhi today",
   homeLinkTrips: "your trips",
+  /* vehicle sheet — class-group titles, spec captions, the honest
+     caption (landed from VehicleSheet's LOCAL table) */
+  veh_grp_own: "your own",
+  veh_grp_shared: "shared",
+  veh_grp_noengine: "no engine",
+  veh_why: "your pick sharpens the “your ride puts out” numbers — saved on this phone only",
+  veh_cap_car: "petrol · diesel · CNG · EV",
+  veh_cap_auto: "3-wheeler · mostly CNG",
+  veh_cap_bike: "scooter · motorcycle",
+  veh_cap_bus: "shared ride",
+  veh_cap_metro: "electric · shared",
+  veh_cap_cycle: "no exhaust",
+  veh_cap_walk: "no exhaust",
+  veh_cap_petrol: "cars · scooters · bikes",
+  veh_cap_diesel: "more fine particles",
+  veh_cap_cng: "lighter exhaust",
+  veh_cap_ev: "no exhaust",
+  veh_cap_y_pre2010: "BS-III or older",
+  veh_cap_y_2010_2016: "mostly BS III–IV",
+  veh_cap_y_2017_2020: "mostly BS-IV",
+  veh_cap_y_2021plus: "BS-VI era",
+  veh_cap_y_notsure: "we’ll use the Delhi average",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -677,6 +733,12 @@ const hi: Record<StringKey, string> = {
   cityLighter: "कम धुआँ",
   cityTrips: "{n} यात्राएँ",
   movesModeOther: "बाक़ी तरीक़े",
+  movesTitle: "दिल्ली कैसे चलती है",
+  movesWindowDays: "पिछले {d} दिन",
+  movesNotEnough: "अभी साझा यात्राएँ कम हैं — {d} दिन में {k}+ यात्री एक सड़क से गुज़रें तो दिल्ली की चाल दिखती है",
+  movesSuppressed: "+{n} यात्राएँ — {k} यात्रियों की सीमा से नीचे",
+  movesCorridorN: "{h} घंटे में {n} सड़कें नापी गईं",
+  movesTypical: "आम यात्रा",
   cityUnnamed: "एक सड़क जिसका नाम नहीं जानते",
   cityTravellersTitle: "ALive यात्रियों ने आज क्या किया",
   cityTravellersLine: "{trips} यात्राएँ · {km} किमी · ≈{cigs} सिगरेट साँस में · ≈{kg} किग्रा छोड़ा",
@@ -795,6 +857,7 @@ const hi: Record<StringKey, string> = {
   departTomorrow: "कल",
   wellPing: "हम याद दिला देंगे",
   turnByTurn: "मोड़-दर-मोड़",
+  settingsVoiceHint: "मोड़-दर-मोड़ निर्देश आवाज़ में",
   hideTurns: "मोड़ छिपाएँ",
   roadModesOnly: "मोड़-दर-मोड़ रास्ता सड़क वाली गाड़ियों के लिए दिखता है",
   followRoute: "नक्शे की लकीर के साथ चलें",
@@ -818,6 +881,8 @@ const hi: Record<StringKey, string> = {
   onb_privacyNoAccount: "ना नाम, ना फ़ोन नंबर, ना खाता — कभी नहीं।",
   onb_privacyTrimmed: "साझा यात्राओं के दोनों सिरे कट जाते हैं और बची चीज़ नक्शे पर कुछ धुंधले बिंदु बनती है — कोई सड़क तभी दिखती है जब कम से कम 3 लोग उससे गुज़रे हों।",
   onb_privacyLocation: "आपकी लोकेशन इसी फ़ोन पर रहती है — वो सिर्फ़ नक्शा और मोड़-दर-मोड़ का रास्ता चलाती है।",
+  onb_kLabel: "सड़क तभी दिखती है जब इतने अलग डिवाइस उससे गुज़रें",
+  onb_pageOf: "पेज {n}, कुल {m}",
   tripDone: "यात्रा पूरी",
   receiptSaved: "सबसे धुआँदार रास्ता {n} सिगरेट ज़्यादा देता",
   receiptSavedUg: "सबसे धुआँदार रास्ता {n} µg ज़्यादा देता",
@@ -935,6 +1000,20 @@ const hi: Record<StringKey, string> = {
   dayMorningStale: "आख़िरी हवा रीडिंग {n} मिनट पहले",
   dayMorningNoCell: "धुएँ-नक्शे की सीमा से बाहर — यहाँ कोई कर्व नहीं",
   dayOutsideDelhi: "दिल्ली से बाहर — यहाँ धुएँ का नक्शा नहीं पहुँचता",
+  /* move कार्ड की पहली फ़ैसला-पंक्ति — server/v2/day.py:_decisions की
+     वही व्याकरण, served windows + series से rebuild */
+  moveDec_cleanWindow: "{w} घड़ी {win} IST (औसत {c} बनाम दिन {m} µg/m³)",
+  moveDec_noClean: "आज साफ़ घड़ी नहीं बची — सबसे हल्की हवा {n} µg/m³",
+  moveDec_short: "कार्ड पर आज सिर्फ़ ~{n} घंटे बचे — हर घड़ी {b} हवा",
+  moveDec_flat: "आज कोई खास घड़ी नहीं — दिनभर {b} हवा ({lo}–{hi} µg/m³)",
+  moveDec_jagged: "आज कोई घड़ी टिकी नहीं — सबसे हल्की {lo} µg/m³, सबसे भारी {hi}",
+  /* CPCB बैंड-शब्द — हमेशा "…{b} हवा" के अंदर, इसलिए हवा के लिंग पर */
+  band_good: "अच्छी",
+  band_satisfactory: "ठीक-ठाक",
+  band_moderate: "मध्यम",
+  band_poor: "ख़राब",
+  band_veryPoor: "बहुत ख़राब",
+  band_severe: "गंभीर",
   // the days ahead — /v2/outlook का अपना मोड़, जैसा मिला वैसा
   dayOutlookTitle: "आने वाले दिन",
   dayLbl_today: "आज",
@@ -988,6 +1067,7 @@ const hi: Record<StringKey, string> = {
   peekAmbient: "अभी ~{n} µg/m³",
   /* compare sheet — the gap line under a heavier option's dose */
   compare_vsLightest: "सबसे हल्के से +{n}",
+  compare_doseNA: "अनुमान नहीं",
   goLabel: "कहीं जाएँ",
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "आज आपने साँस में लिया",
@@ -998,6 +1078,26 @@ const hi: Record<StringKey, string> = {
   homeLinkMap: "हवा का नक्शा",
   homeLinkCity: "आज की दिल्ली",
   homeLinkTrips: "आपकी यात्राएँ",
+  veh_grp_own: "अपनी गाड़ी",
+  veh_grp_shared: "साझा सवारी",
+  veh_grp_noengine: "बिना इंजन",
+  veh_why: "आपकी पसंद से ‘गाड़ी का धुआँ’ अनुमान सटीक होता है — सिर्फ़ इस फ़ोन पर सेव",
+  veh_cap_car: "पेट्रोल · डीज़ल · CNG · EV",
+  veh_cap_auto: "3-व्हीलर · ज़्यादातर CNG",
+  veh_cap_bike: "स्कूटर · मोटरसाइकिल",
+  veh_cap_bus: "साझा सवारी",
+  veh_cap_metro: "इलेक्ट्रिक · साझा",
+  veh_cap_cycle: "धुआँ नहीं",
+  veh_cap_walk: "धुआँ नहीं",
+  veh_cap_petrol: "कार · स्कूटर · बाइक",
+  veh_cap_diesel: "ज़्यादा बारीक कण",
+  veh_cap_cng: "हल्का एग्ज़ॉस्ट",
+  veh_cap_ev: "धुआँ नहीं",
+  veh_cap_y_pre2010: "BS-III या पुरानी",
+  veh_cap_y_2010_2016: "ज़्यादातर BS III–IV",
+  veh_cap_y_2017_2020: "ज़्यादातर BS-IV",
+  veh_cap_y_2021plus: "BS-VI दौर",
+  veh_cap_y_notsure: "दिल्ली का औसत लेंगे",
 };
 
 export type Lang = "en" | "hi";

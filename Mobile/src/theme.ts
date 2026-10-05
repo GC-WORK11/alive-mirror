@@ -214,6 +214,13 @@ type MW = keyof typeof FMONO;
  *  still ships (digits are Latin glyphs in Plex Mono). */
 export const famMono = (_lang: Lang, w: MW = "reg") => FMONO[w];
 
+/** A mono-styled slot that carries LOCALIZED text — eyebrows, note lines,
+ *  number+word readouts. Plex Mono ships no Devanagari, so hi takes FH
+ *  (the mono look simply doesn't exist for Hindi); en keeps Plex Mono.
+ *  Slots that can only ever show digits/units keep famMono. */
+export const famMonoText = (lang: Lang, w: MW = "reg") =>
+  lang === "hi" ? FH[w] : FMONO[w];
+
 /** tabular numerals — belt under the mono face on every number */
 export const NUM = { fontVariant: ["tabular-nums" as const] };
 

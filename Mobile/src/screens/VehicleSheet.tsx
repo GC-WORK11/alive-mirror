@@ -33,58 +33,10 @@ import {
 
 type Step = "cls" | "fuel" | "year" | "puc" | "done";
 
-/* ── i18n hand-off ────────────────────────────────────────────────────────
- * The caption/group strings below are queued for src/i18n/strings.ts as
- * the `veh_*` keys listed in the lane report. Until the table lands them
- * `tl()` renders LOCAL; once a key exists there, t() wins automatically. */
-const LOCAL = {
-  en: {
-    veh_grp_own: "your own",
-    veh_grp_shared: "shared",
-    veh_grp_noengine: "no engine",
-    veh_why: "your pick sharpens the “your ride puts out” numbers — saved on this phone only",
-    veh_cap_car: "petrol · diesel · CNG · EV",
-    veh_cap_auto: "3-wheeler · mostly CNG",
-    veh_cap_bike: "scooter · motorcycle",
-    veh_cap_bus: "shared ride",
-    veh_cap_metro: "electric · shared",
-    veh_cap_cycle: "no exhaust",
-    veh_cap_walk: "no exhaust",
-    veh_cap_petrol: "cars · scooters · bikes",
-    veh_cap_diesel: "more fine particles",
-    veh_cap_cng: "lighter exhaust",
-    veh_cap_ev: "no exhaust",
-    veh_cap_y_pre2010: "BS-III or older",
-    veh_cap_y_2010_2016: "mostly BS III–IV",
-    veh_cap_y_2017_2020: "mostly BS-IV",
-    veh_cap_y_2021plus: "BS-VI era",
-    veh_cap_y_notsure: "we’ll use the Delhi average",
-  },
-  hi: {
-    veh_grp_own: "अपनी गाड़ी",
-    veh_grp_shared: "साझा सवारी",
-    veh_grp_noengine: "बिना इंजन",
-    veh_why: "आपकी पसंद से ‘गाड़ी का धुआँ’ अनुमान सटीक होता है — सिर्फ़ इस फ़ोन पर सेव",
-    veh_cap_car: "पेट्रोल · डीज़ल · CNG · EV",
-    veh_cap_auto: "3-व्हीलर · ज़्यादातर CNG",
-    veh_cap_bike: "स्कूटर · मोटरसाइकिल",
-    veh_cap_bus: "साझा सवारी",
-    veh_cap_metro: "इलेक्ट्रिक · साझा",
-    veh_cap_cycle: "धुआँ नहीं",
-    veh_cap_walk: "धुआँ नहीं",
-    veh_cap_petrol: "कार · स्कूटर · बाइक",
-    veh_cap_diesel: "ज़्यादा बारीक कण",
-    veh_cap_cng: "हल्का एग्ज़ॉस्ट",
-    veh_cap_ev: "धुआँ नहीं",
-    veh_cap_y_pre2010: "BS-III या पुरानी",
-    veh_cap_y_2010_2016: "ज़्यादातर BS III–IV",
-    veh_cap_y_2017_2020: "ज़्यादातर BS-IV",
-    veh_cap_y_2021plus: "BS-VI दौर",
-    veh_cap_y_notsure: "दिल्ली का औसत लेंगे",
-  },
-} as const;
-type VehKey = keyof (typeof LOCAL)["en"];
-const tr = t as (k: string, l?: Lang) => string;
+/* ── i18n ────────────────────────────────────────────────────────────────
+ * The caption/group strings live in src/i18n/strings.ts as the veh_*
+ * keys (migrated out of this file's old LOCAL table). */
+type VehKey = StringKey;
 
 /* ── option model ─────────────────────────────────────────────────────────
  * Seven classes > six → grouped (doc-brief rule). Order inside a group is
@@ -225,8 +177,7 @@ function Wizard({ lang, current, onDone, onClose }: {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  /** i18n hand-off: real table key wins, LOCAL until it lands (see top). */
-  const tl = (k: VehKey) => tr(k, lang) || LOCAL[lang][k] || LOCAL.en[k];
+  const tl = (k: VehKey) => t(k, lang);
 
   const finish = (p: VehicleProfile) => {
     /* dismiss while the PUC field still holds focus — otherwise it

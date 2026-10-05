@@ -27,6 +27,7 @@ import {
   doseColor,
   fam,
   famMono,
+  famMonoText,
   famSerif,
   NUM,
   V2Radius,
@@ -114,7 +115,7 @@ function CorridorRow({ c, lang }: { c: CityCorridor; lang: Lang }) {
         >
           {c.name ?? t("cityUnnamed", lang)}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.cSub, NUM, { fontFamily: famMono(lang, "reg") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cSub, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
           {t("cityTrips", lang, { n: c.trips })}
         </Text>
       </View>
@@ -271,7 +272,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                   {t("cityHeroUnitUg", lang)}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
-                  style={[ss.heroRange, NUM, { fontFamily: famMono(lang, "reg") }]}
+                  style={[ss.heroRange, NUM, { fontFamily: famMonoText(lang, "reg") }]}
                 >
                   {t("cityHeroRange", lang, {
                     lo: Math.round(inhaled.lo),
@@ -280,7 +281,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                 </Text>
                 {showCig && cig != null && (
                   <Text {...DYNAMIC_TYPE}
-                    style={[ss.heroRange, NUM, { fontFamily: famMono(lang, "reg") }]}
+                    style={[ss.heroRange, NUM, { fontFamily: famMonoText(lang, "reg") }]}
                   >
                     {`${fmtCig(cig.mid)} ${t("cityHeroUnit", lang)}`}
                   </Text>
@@ -397,7 +398,7 @@ function DelhiSheet({ onClose, lang, showCig }: { onClose: () => void; lang: Lan
                         <View style={[ss.fcBar,
                               { height: 4 + Math.round(28 * x.pm25 / max) }]} />
                         <Text {...DYNAMIC_TYPE} style={[ss.fcHr,
-                                     { fontFamily: famMono(lang, "reg") }]}>
+                                     { fontFamily: famMonoText(lang, "reg") }]}>
                           {x.h === 0 ? t("cityForecastNow", lang)
                                     : x.h % 3 === 0 ? `+${x.h}h` : ""}
                         </Text>

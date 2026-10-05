@@ -13,21 +13,11 @@
 //
 // Mount only while `visible` so each open starts at page 1 fresh.
 //
-// ── strings seam — proposed NEW keys for src/i18n/strings.ts ─────────
-// All rendered copy below is existing t() keys; page 1 deliberately
-// re-uses real product strings (the search bar, the live counter, the
-// receipt) instead of paraphrasing. When adopting, add each to BOTH the
-// `en` and `hi` tables:
-//   onb_arcBefore/onb_arcDuring/onb_arcAfter  — DONE: kickers over
-//                  journey rows 1-3 land the before/during/after beat
-//   onb_whyTitle   e.g. "shared trips build Delhi's air map" — optional
-//                  harder-leading p2 heading (current title keeps the
-//                  privacy promise, which is also honest)
-//   onb_kLabel     "different travellers must cross a street before it
-//                  can appear on the map" — k-card label without the
-//                  inline "3+" the big numeral already carries
-//   onb_pageOf     "page {n} of {m}"   — a11y label for the dots (they're
-//                  hidden from the reader until this key exists)
+// ── strings — all copy is real t() keys; page 1 deliberately re-uses
+// product strings (the search bar, the live counter, the receipt)
+// instead of paraphrasing. onb_kLabel carries the k-card sentence minus
+// the big "3+" numeral beside it; onb_pageOf is the reader's label for
+// the otherwise-decorative dots.
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -59,13 +49,15 @@ const MODE_STRIP: Glyph[] = ["walk", "bike", "auto", "car", "bus", "metro"];
 
 /* ---------- small pieces ---------- */
 
-/** Progress dots — decorative; the page titles carry position. */
-function Dots({ active }: { active: number }) {
+/** Progress dots — visual dots stay decorative; the reader gets the
+ *  "page {n} of {m}" line as the group's label instead. */
+function Dots({ active, lang }: { active: number; lang: Lang }) {
   return (
     <View
       style={ss.dots}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={t("onb_pageOf", lang, { n: active + 1, m: PAGE_COUNT })}
     >
       {Array.from({ length: PAGE_COUNT }).map((_, i) => (
         <View key={i} style={[ss.dot, i === active && ss.dotOn]} />
@@ -292,8 +284,8 @@ function OnboardingSheet({
                 {t("settingsShareExplain", lang)}
               </Text>
               {/* the k-threshold — the mechanism that keeps any one person
-                  invisible. Big numeral carries the claim, label explains it.
-                  PROPOSED onb_kLabel without the repeated "3+" (see header). */}
+                  invisible. Big numeral carries the claim, label explains it
+                  (onb_kLabel: the settingsStoreK sentence minus its inline 3+). */}
               <View style={ss.kCard}>
                 <Text
                   {...DYNAMIC_TYPE}
@@ -302,7 +294,7 @@ function OnboardingSheet({
                   3+
                 </Text>
                 <Text {...DYNAMIC_TYPE} style={[ss.kLabel, { fontFamily: fam(lang, "reg") }]}>
-                  {t("settingsStoreK", lang)}
+                  {t("onb_kLabel", lang)}
                 </Text>
               </View>
               <View style={ss.facts}>
@@ -384,7 +376,7 @@ function OnboardingSheet({
 
       {/* footer: dots + next (the choice page answers via its own buttons) */}
       <View style={ss.footer}>
-        <Dots active={step} />
+        <Dots active={step} lang={lang} />
         {step < PAGE_COUNT - 1 ? (
           <Pressable
             onPress={() => { tick(); setStep(step + 1); }}
