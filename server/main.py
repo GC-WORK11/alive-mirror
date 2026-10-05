@@ -1318,7 +1318,8 @@ async def escape(lat: float, lon: float, limit: int = Query(default=5, le=10)):
             feats = r.json().get("features", [])
             if feats:
                 p = feats[0]["properties"]
-                c["name"] = p.get("name") or p.get("district") or p.get("street")
+                c["name"] = (p.get("name") or p.get("district")
+                             or p.get("street") or "unnamed area")
         except httpx.HTTPError:
             pass
         conf = c.pop("confidence", None)
