@@ -338,7 +338,7 @@
 <div class="wrap">
   <noscript>
     <style>#stamp,#stats,#distmap,#fieldmap,#firemap{display:none}
-      h2,#field,#scorecard,#timing,#sources,#donations,#feedlist,#pipe,#corridors,#sharedpic,#prov,#firebar,#firemap-sub,#dosemath,#doseformula,#routingcard{display:none}</style>
+      h2,#field,#scorecard,#timing,#sources,#donations,#feedlist,#pipe,#corridors,#sharedpic,#archive,#prov,#firebar,#firemap-sub,#dosemath,#doseformula,#routingcard{display:none}</style>
     <p style="margin:18px 0;font-family:var(--mono);font-size:10.5px;
       letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);line-height:1.9">
       this console is javascript-only — the token prompt and every panel on it are live renders.</p>
@@ -421,6 +421,9 @@
     </div>
     <div class="gtiles" id="sharedpic"></div>
   </div>
+
+  <h2>09 · the archive <em>the served field, recorded hourly into durable storage — delhi breathes is history now, not just forecast · basis:recorded · /v2/archive</em></h2>
+  <div class="gtiles" id="archive"></div>
 
   <footer>
     <span>alive·108 engine room · refresh 30s · aggregates only · k≥3</span>
@@ -885,6 +888,7 @@ async function tick(){
   /* --- the shared picture: global rollups over the feeds this page
      already trusts — honest-empty for fields the api has not shipped --- */
   paintShared(dn,S,rows,globalAgg);
+  paintArchive(S);
 
   /* --- corridors (aggregate rows only; the k≥3 set comes from the
      store). click unfolds the full wire record — every served field,
@@ -1599,6 +1603,40 @@ function paintShared(dn,S,rows,G){
     `<div class="card"><div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'insufficient data'}</div>
      <div class="lbl">${l}</div>
      <div class="lbl" style="text-transform:none;letter-spacing:.02em;margin-top:5px">${sub}</div></div>`).join('');
+}
+/* --- the archive: the served field recorded hourly (archive.py →
+   s3://{bucket}/archive/ + the local mirror). every number on this
+   strip comes from archive.status() — counts of real snapshot files,
+   never an estimate --- */
+function paintArchive(S){
+  const el=$('archive');if(!el)return;
+  const a=(S&&S.archive)||{};
+  const td=a.today||{};
+  const last=a.last||{};
+  const tiles=[
+    ['hours recorded today',
+      td.hours_recorded!=null
+        ?`${fmt(td.hours_recorded)} <small>/ ${td.hours_elapsed!=null?td.hours_elapsed:24} ist</small>`:null,
+      td.gaps&&td.gaps.length
+        ?`gap hours: ${td.gaps.map(h=>String(h).padStart(2,'0')+':00').join(' · ')}`
+        :(td.hours_recorded!=null?'every elapsed hour has a real snapshot':'waiting on the first snapshot')],
+    ['recording since',
+      a.since_ist?`${a.since_ist.slice(0,10)} · ${a.since_ist.slice(11,16)} ist`:null,
+      'the field has been recording delhi hourly since then'],
+    ['snapshots · all time',
+      a.snapshots_total!=null?fmt(a.snapshots_total):null,
+      a.storage&&a.storage.bucket
+        ?`s3://${a.storage.bucket}/archive/ · mirrored locally`
+        :'local mirror only — bucket unset'],
+    ['last capture',
+      last.captured_ist?`${last.captured_ist.slice(11,16)} ist · ${last.cells!=null?fmt(last.cells)+' cells':''}`
+        :(last.ok===false?(last.skipped?'skipped — field served no cells':(last.error?'failed':null)):null),
+      last.backend?`backend: ${last.backend}${last.uri?' · '+last.uri:''}`:(last.note||'')],
+  ];
+  el.innerHTML=tiles.map(([l,v,sub])=>
+    `<div class="card"><div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'insufficient data'}</div>
+     <div class="lbl">${l}</div>
+     <div class="lbl" style="text-transform:none;letter-spacing:.02em;margin-top:5px">${sub||''}</div></div>`).join('');
 }
 /* forecast scrub — /grid?h=N re-serves the cams horizon anchored to the
    live field; pm2.5 only (other species have no forecast surface) */

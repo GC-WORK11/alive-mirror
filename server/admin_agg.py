@@ -29,6 +29,7 @@ Everything degrades honestly: an empty store or a missing rollup file
 returns a shaped "empty"/"unavailable" payload, never a fabricated zero
 presented as measured truth.
 """
+import asyncio
 import glob
 import json
 import os
@@ -315,6 +316,12 @@ async def status():
         forecast = FORECAST.status() or {}
     except Exception:
         forecast = {}
+    archive_block = {}
+    try:
+        import archive as _archive
+        archive_block = await asyncio.to_thread(_archive.status)
+    except Exception:
+        archive_block = {}
     routing = {"loaded": False}
     try:
         import routegraph
@@ -381,6 +388,9 @@ async def status():
         # are priced off the live field right now, and reprice age.
         # loaded:false until the boot-warm or first plan builds it.
         "routing": routing,
+        # the archive: hourly recordings of the served field — total
+        # snapshots, since when, today's coverage. Real counts only.
+        "archive": archive_block,
         "trips_backend": h.get("trips_backend"),
         "ledger": {
             "backend": getattr(LEDGER, "backend", "memory"),

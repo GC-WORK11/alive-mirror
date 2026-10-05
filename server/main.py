@@ -193,6 +193,23 @@ async def _lifespan(_app: FastAPI):
                 pass
             await asyncio.sleep(60)
     asyncio.create_task(_warm_grid())
+    # The archive: the served field, recorded once per IST hour into
+    # durable storage (archive.py — s3://{ALIVE_AIR_BUCKET}/archive/ +
+    # data/archive/ mirror). 'Delhi breathes' becomes history, not just
+    # forecast — /v2/archive replays it, basis:recorded. Each tick runs
+    # the same request-driven FIELD.refresh a visitor would trigger, so
+    # the snapshot stays aligned to the field's own 15-min cadence.
+    # ALIVE_ARCHIVE=0 disables (tests; a box that archives elsewhere).
+    async def _archive_loop():
+        if os.environ.get("ALIVE_ARCHIVE", "1").strip() in \
+                ("0", "false", "no"):
+            return
+        try:
+            import archive as _archive
+            await _archive.run_forever(FIELD, http)
+        except Exception:
+            pass
+    asyncio.create_task(_archive_loop())
     yield
 
 
@@ -1114,11 +1131,16 @@ class _ForecastSurface:
 _GRID_CACHE: dict = {}
 
 
-def _epoch_tagged(gj: dict, epoch) -> dict:
+def _epoch_tagged(gj: dict, epoch, basis: str = "recorded") -> dict:
     """Stamp the freshness tuple onto the collection so a client can
-    skip re-painting an identical epoch — honest replay detection."""
+    skip re-painting an identical epoch — honest replay detection.
+    `basis` separates the archive replay (recorded) from the timelapse
+    (forecast): /grid?h=N scrubs the FORECAST surface, /grid serves the
+    recorded-now field."""
     if isinstance(gj, dict):
-        gj.setdefault("properties", {})["cell_epoch"] = list(epoch)
+        props = gj.setdefault("properties", {})
+        props["cell_epoch"] = list(epoch)
+        props["basis"] = basis
     return gj
 
 
@@ -1181,7 +1203,7 @@ async def field_grid(cells: int = Query(default=22, ge=1, le=40),
             return _grid_cached(
                 ("f", cells, param, h), ep,
                 lambda: _epoch_tagged(_aqi_gj(_ForecastSurface(h), cells),
-                                      ep))
+                                      ep, "forecast"))
         await _field_refresh_bounded()
         ep = (FIELD._fetched_at, community._OBS_VERSION)
         return _grid_cached(
@@ -1195,7 +1217,8 @@ async def field_grid(cells: int = Query(default=22, ge=1, le=40),
         return _grid_cached(
             ("f", cells, param, h), ep,
             lambda: _epoch_tagged(
-                grid.as_geojson(_ForecastSurface(h), cells, param), ep))
+                grid.as_geojson(_ForecastSurface(h), cells, param), ep,
+                "forecast"))
     await _field_refresh_bounded()
     # the served surface is field×corridor-posterior — a donated trip
     # shifts cells between refreshes, so the obs version rides the epoch

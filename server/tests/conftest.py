@@ -13,6 +13,8 @@ for _p in (_SERVER, os.path.join(_SERVER, "core", "build")):
 os.environ.setdefault("ALIVE_RATE_LIMIT", "0")
 # tests never spawn the 15-min ingest thread (real network builds)
 os.environ.setdefault("ALIVE_INGEST_IN_APP", "0")
+# ...nor the hourly field archiver (writes data/archive/ + S3)
+os.environ.setdefault("ALIVE_ARCHIVE", "0")
 
 
 def pytest_configure(config):
