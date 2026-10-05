@@ -108,7 +108,15 @@ _SPECIES = ("pm10", "nitrogen_dioxide", "ozone", "carbon_monoxide",
 def _species(F) -> dict:
     """Field-mean of every other real species over the same 15-pt lattice.
     Snapshot-serving fields carry pm25 only — a species that returns None
-    everywhere is honestly omitted, never interpolated into fiction."""
+    everywhere is honestly omitted, never interpolated into fiction.
+
+    us_aqi is computed per lattice point (max EPA sub-index over the
+    species actually served — same definition /aqi uses) rather than
+    reading the raw CAMS layer, which ran ~239 tonight vs ~154 projected
+    and ~160 on the public instruments. One us_aqi definition API-wide."""
+    import ingest_waqi
+    _AQI_PARAMS = ("pm2_5", "pm10", "nitrogen_dioxide", "ozone",
+                   "carbon_monoxide", "sulphur_dioxide")
     out = {}
     for sp in _SPECIES:
         vals = []
@@ -127,6 +135,32 @@ def _species(F) -> dict:
                 "max": round(max(vals), 1),
                 "n": len(vals),
             }
+    # replace the raw CAMS us_aqi read with the computed sub-index
+    subs = []
+    for la in _LATS:
+        for lo in _LONS:
+            pt = []
+            for sp in _AQI_PARAMS:
+                try:
+                    v = F.value(la, lo, sp)
+                except Exception:
+                    v = None
+                if v is not None:
+                    s = ingest_waqi.us_aqi_sub_index(sp, float(v))
+                    if s is not None:
+                        pt.append(s)
+            if pt:
+                subs.append(max(pt))
+    if subs:
+        out["us_aqi"] = {
+            "mean": round(statistics.fmean(subs), 1),
+            "median": round(statistics.median(subs), 1),
+            "max": round(max(subs), 1),
+            "n": len(subs),
+            "basis": "computed — max EPA sub-index over served species "
+                     "per lattice point (same as /aqi); raw CAMS layer "
+                     "kept only on the field, not served here",
+        }
     return out
 
 
