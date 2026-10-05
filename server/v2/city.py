@@ -418,8 +418,25 @@ async def city():
     corridors = await _corridors(loc)
     now = time.time()
 
+    why_block = None
+    try:
+        from .why import build_why
+        # the field refresh already ran above; drivers reuse it warm
+        full = await build_why(28.6139, 77.2090)
+        why_block = {
+            "line": full.get("line"),
+            "drivers": [{"kind": d.get("kind"), "weight": d.get("weight"),
+                         "score": d.get("score"),
+                         "evidence": d.get("evidence")}
+                        for d in full.get("drivers") or []],
+            "why_url": "/v2/why",
+        }
+    except Exception:
+        why_block = None  # the number stands alone before it guesses
+
     return {
         "ts": now,
+        "why": why_block,
         "generated_at": datetime.fromtimestamp(
             now, tz=timezone.utc).isoformat(timespec="seconds"),
         "pm25_stats": stats,

@@ -678,6 +678,15 @@ export interface V2CityCorridor {
 export interface V2CityResponse {
   ts: number;
   generated_at?: string;
+  /** "Why tonight" — the one-line causal read of the city's air plus
+      the drivers that cleared the bar (fires only when the wind
+      carries them in; stagnation/trend from the field's own record).
+      Null when the explainer can't run — the hero figure stands alone
+      before it guesses. Full detail: GET /v2/why. */
+  why?: { line: string | null;
+          drivers: { kind: string; weight: string; score: number;
+                     evidence: string }[];
+          why_url: string } | null;
   pm25_stats: Record<string, unknown>;
   /** Field-mean stats per extra species over the same NCR lattice —
       a species is omitted (not nulled) when the serving field has

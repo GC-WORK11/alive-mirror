@@ -60,6 +60,12 @@
   .dek{margin-top:26px;max-width:560px}
   .dek p{color:var(--ink2);font-size:16px;line-height:1.72;font-weight:400}
   .dek p b{color:var(--ink);font-weight:500}
+  .whyline{margin-top:18px;font-size:15px;line-height:1.6;color:var(--ink2);
+           display:flex;gap:10px;align-items:baseline;max-width:600px}
+  .whyline .wtag{font-family:var(--mono);font-size:10px;letter-spacing:.22em;
+                 text-transform:uppercase;color:var(--ink3);flex:none;
+                 border:1px solid var(--line);padding:3px 8px;border-radius:99px}
+  .whyline .wtxt em{font-style:normal;color:var(--ink);font-weight:500}
 
   /* ---------- map frame — a hairline, not a card ---------- */
   .map-card{position:relative;margin-top:34px;border:1px solid var(--line);
@@ -340,6 +346,8 @@
       Live government monitors anchor it; the satellite model and the
       trips riders choose to share fill in the rest. This is the air
       the app plans your day around.</p></div>
+    <div class="whyline" id="whyline" hidden><span class="wtag">why tonight</span>
+      <span class="wtxt" id="whytxt"></span></div>
   </div>
 
   <noscript>
@@ -1373,6 +1381,11 @@ async function load(){
         '← live' link hands the layer back */
     if(dd)paintDistricts(dd.districts||[]);
     a=a||{};
+    /* the causal read — one honest line under the hero, straight from
+       /v2/why via the city payload; absent line = nothing claimed */
+    const whyLn=(cy.why&&cy.why.line)||'';
+    const wl=document.getElementById('whyline');
+    if(wl){if(whyLn){setTxt('whytxt',whyLn);wl.hidden=false}else{wl.hidden=true}}
     if(a.wind&&a.wind.speed_kmh!=null)windNow=a.wind;  /* null wind = unknown, keep last */
     /* 'connecting…' resolves to whichever feed actually answered —
        never left hanging when a sibling endpoint came through */

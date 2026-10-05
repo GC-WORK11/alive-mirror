@@ -127,6 +127,12 @@
          letter-spacing:.14em;text-transform:uppercase;padding-top:2px}
   .kv dd{color:var(--ink)}
   .kv dd.sub{color:var(--ink2)}
+  .whybig{font-family:var(--serif);font-size:clamp(18px,2.4vw,24px);
+          line-height:1.4;color:var(--ink);letter-spacing:-0.01em}
+  .chip2{display:inline-block;margin:1px 3px 1px 0;padding:1px 7px;
+         font-family:var(--mono);font-size:9px;letter-spacing:.06em;
+         color:var(--ink3);border:1px solid var(--hair);border-radius:99px;
+         white-space:nowrap}
 
   .share{padding:6px 16px 14px}
   .feedlist{padding:2px 16px 10px}
@@ -407,6 +413,23 @@
     <div class="panel"><div class="panel-h">model scorecard — error vs held-out stations</div><dl class="kv" id="scorecard"></dl></div>
   </div>
 
+  <h2>why tonight <em>the causal read · /v2/why · a driver that can't be observed isn't claimed</em></h2>
+  <div class="panel" style="padding:14px">
+    <div id="whyline2" class="whybig">connecting…</div>
+    <div class="sub" id="whysub" style="margin-top:6px"></div>
+  </div>
+  <div class="cols">
+    <div class="panel scrollx"><table>
+      <thead><tr><th>driver</th><th>weight</th><th class="num">score</th><th>evidence</th><th>detail</th></tr></thead>
+      <tbody id="whydrivers"></tbody></table></div>
+    <div class="panel" style="padding:14px">
+      <div class="k" style="font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)">evaluated — the raw reads behind the call</div>
+      <dl class="kv" id="whyeval"></dl>
+      <div id="whycant"></div>
+      <canvas id="whyhist" width="560" height="120" style="width:100%;height:120px;margin-top:10px" role="img" aria-label="recorded driver history — fires, ventilation and field mean per build"></canvas>
+    </div>
+  </div>
+
   <h2>06 · ncr districts <em>each district boundary filled by its live air level right now — darker means worse; click one for its full card</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="dtsel"></div>
@@ -520,7 +543,8 @@ async function tick(){
        /health carries the public-safe status block (samples, stations,
        edges priced, engine), /aqi the live read + fire status + σ band,
        /fires the raw firms detections */
-    '/health','/aqi?lat=28.6315&lon=77.2167','/fires'];
+    '/health','/aqi?lat=28.6315&lon=77.2167','/fires',
+    '/v2/why?lat=28.63&lon=77.22'];
   if(!sessionStorage.getItem('alive_admin_tok')&&
      !sessionStorage.getItem('alive_admin_tok_no')){
     const t=prompt('alive·108 engine room — paste the operator token, or cancel to read the public feeds:');
@@ -553,7 +577,57 @@ async function tick(){
   }
   const val=r=>r.status==='fulfilled'?r.value:null;
   const [status,sources,corridors,donations,validation,model,districts,
-    timing,globalAgg,health,aqiPt,firesDoc]=res.map(val);
+    timing,globalAgg,health,aqiPt,firesDoc,why]=res.map(val);
+  /* --- why tonight: driver attribution over the same live ingredients --- */
+  try{
+    const wv=why||{};
+    $('whyline2').textContent=wv.line||'—';
+    const wts=wv.generated_at?('as of '+timeIST(new Date(wv.generated_at))):'';
+    $('whysub').textContent=(wts?wts+' · ':'')+'every claim below carries its evidence; checks that couldn\'t run are named, not hidden';
+    const drs=wv.drivers||[];
+    $('whydrivers').innerHTML=drs.length?drs.map(d=>{
+      const det=d.detail||{};
+      const chips=Object.entries(det).filter(([k,v])=>v!=null&&k!=='vc_ref_m2s')
+        .map(([k,v])=>`<span class="chip2">${esc(k)} ${esc(typeof v==='number'?+v.toFixed(2):v)}</span>`).join(' ');
+      return `<tr><td><b>${esc(d.kind)}</b>${d.direction?' · '+esc(d.direction):''}</td>
+        <td><span class="badge ${d.weight==='primary'?'stale':''}">${esc(d.weight||'—')}</span></td>
+        <td class="num">${d.score!=null?d.score.toFixed(2):'—'}</td>
+        <td>${esc(d.evidence||'—')}</td><td>${chips}</td></tr>`;
+    }).join(''):`<tr><td colspan="5" class="sub">${esc((wv.line)||'no driver clears the bar')} — drivers stay empty rather than inventing a cause</td></tr>`;
+    const evv=wv.evaluated||{};
+    const wnd=wv.wind||{};
+    const evRows=[
+      ['wind',wnd.known?`${Math.round(wnd.speed_kmh)} km/h from ${Math.round(wnd.from_deg??0)}° · ${esc(wnd.source||'')}${wnd.age_s!=null?' · '+ago(wnd.age_s):''}`:'unknown — cannot gate smoke',true],
+      ['fires',evv.fires?(evv.fires.seen?`${evv.fires.belt_fires??'—'} belt fires · modifier ×${evv.fires.modifier??'—'} · carrying ${evv.fires.carrying===null?'unknown':evv.fires.carrying}`:'feed cold'):'—',true],
+      ['ventilation',evv.ventilation&&evv.ventilation.vc_m2s!=null?`vc ${fmt(evv.ventilation.vc_m2s)} m²/s · factor ×${evv.ventilation.factor??'—'} · ${esc(evv.ventilation.source||'')}`:'no read',true],
+      ['trend',evv.trend&&evv.trend.delta_ug!=null?`${evv.trend.delta_ug>0?'+':''}${evv.trend.delta_ug} µg/m³ over ${evv.trend.span_h}h · ${evv.trend.n_snapshots} builds`:(evv.trend?`${evv.trend.n_snapshots} recorded builds in 6h`:'—'),true],
+    ];
+    $('whyeval').innerHTML=evRows.map(([k,v,m])=>`<dt>${k}</dt><dd class="${m?'':'sub'}">${v}</dd>`).join('');
+    const cts=wv.cannot_tell||[];
+    $('whycant').innerHTML=cts.length?cts.map(c=>`<div class="sub" style="margin-top:6px">⚠ ${esc(c.kind)}: ${esc(c.reason)}</div>`).join(''):'';
+    /* sparkline: the recorded builds — pm25 solid + vc dashed + fires dotted */
+    const hp=(wv.history&&wv.history.points)||[];
+    const cv=$('whyhist');
+    if(cv&&hp.length>=2){
+      const ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+      const W=cv.width,H=cv.height,pad=8;
+      const xs=i=>pad+i*(W-2*pad)/(hp.length-1);
+      const rng=arr=>{const a=arr.filter(x=>x!=null);
+        return a.length?{lo:Math.min(...a),hi:Math.max(...a)}:null};
+      const draw=(key,color,dash)=>{
+        const r=rng(hp.map(p=>p[key]));if(!r)return;
+        ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash);
+        ctx.beginPath();let started=false;
+        hp.forEach((p,i)=>{const v=p[key];if(v==null)return;
+          const x=xs(i),y=H-pad-(((v-r.lo)/((r.hi-r.lo)||1))*(H-2*pad));
+          started?ctx.lineTo(x,y):ctx.moveTo(x,y);started=true});
+        ctx.stroke();ctx.setLineDash([])};
+      draw('belt_fires','rgba(161,102,47,.9)',[2,2]);
+      draw('vc_m2s','rgba(101,112,127,.9)',[4,3]);
+      draw('pm25','rgba(163,68,70,1)',[]);
+      $('whysub').textContent+=` · ${hp.length} recorded builds over ${wv.history.window_h}h — solid pm25 · dashed vc · dotted belt fires`;
+    }else if(cv){cv.hidden=true;}
+  }catch(e){$('whydrivers').innerHTML='<tr><td colspan="5" class="sub">why feed unavailable</td></tr>';}
   const dn=donations||{},S=status||{},H=health||{},A=aqiPt||{};
   const fireSt=A.fire||{};   /* served fire status — belt/modifier/wind live */
   /* public fill — /health + /aqi are public-safe: when the token is

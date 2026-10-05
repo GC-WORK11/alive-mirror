@@ -222,10 +222,16 @@ class FireField:
         }
 
     def status(self) -> dict:
+        belt_rows = [f for f in (self._fires or []) if f.get("belt")]
         return {"status": self._status,
                 "source": self._source,
                 "fires": len(self._fires or []),
-                "belt_fires": len([f for f in (self._fires or []) if f.get("belt")]),
+                "belt_fires": len(belt_rows),
+                # summed radiative power of the belt detections — the
+                # same real FRP the rows carry, just added up
+                "belt_frp_mw": round(sum(float(f.get("frp") or 0)
+                                         for f in belt_rows), 1)
+                if belt_rows else 0.0,
                 "wind_deg": self._wind_deg,
                 "modifier": self.smoke_modifier(),
                 "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
