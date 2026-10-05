@@ -97,27 +97,27 @@ function DoseScale({ dose, worstUg, showCig, a11yLabel }: {
   const pct = (v: number): `${number}%` =>
     `${Math.max(0, Math.min(100, (v / scaleMax) * 100))}%`;
   /* the ruler fills to its real value on mount — the dose "lands" the
-     way a gauge settles, honest motion for an earned number. JS driver
-     (RN 0.86 native-detach class); reduce-motion jumps to done. */
+     way a gauge settles, honest motion for an earned number. Native
+     driver: scaleX is a transform (the only safe native-driver flip in
+     this file — no mixed animated graph, unlike Sheet), transformOrigin
+     pins the left edge; reduce-motion jumps to done. */
   const [fillAnim] = useState(() => new Animated.Value(0));
-  const [fillWidth] = useState(() =>
-    fillAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: ["0%", pct(dose.mid)],
-      extrapolate: "clamp",
-    }));
   useEffect(() => {
     if (reduceMotion) { fillAnim.setValue(1); return; }
     jank("receipt.fill");
     Animated.timing(fillAnim, {
-      toValue: 1, duration: 480, delay: 180, useNativeDriver: false,
+      toValue: 1, duration: 480, delay: 180, useNativeDriver: true,
     }).start();
   }, [fillAnim, reduceMotion]);
   return (
     <View style={s.scaleRow} accessible accessibilityRole="image"
       accessibilityLabel={a11yLabel}>
       <View style={s.scaleTrack}>
-        <Animated.View style={[s.scaleFill, { width: fillWidth }]} />
+        <Animated.View style={[s.scaleFill, {
+          width: pct(dose.mid),
+          transform: [{ scaleX: fillAnim }],
+          transformOrigin: "0% 50%",
+        }]} />
         {dose.hi - dose.lo >= 1 && (
           <>
             <View style={[s.scaleWhisker, { left: pct(dose.lo) }]} />
@@ -153,8 +153,10 @@ function ReceiptSheetInner({
   bump("shell.Receipt");
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
-  /* enter spring — the receipt rises + fades like a real earned card;
-     stable animated node (see ui.tsx Sheet for the detach class). */
+  /* enter spring — the receipt rises + fades like a real earned card.
+     Native driver: enter feeds only opacity + translateY through one
+     interpolate — no Animated.add mixing JS + native nodes, so the
+     ui.tsx:159 detach class does not apply here. */
   const [enter] = useState(() => new Animated.Value(0));
   const [enterTy] = useState(() =>
     enter.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }));
@@ -162,7 +164,7 @@ function ReceiptSheetInner({
     if (reduceMotion) { enter.setValue(1); return; }
     jank("enter.receipt");
     Animated.spring(enter, {
-      toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false,
+      toValue: 1, damping: 24, stiffness: 240, useNativeDriver: true,
     }).start();
   }, [enter, reduceMotion]);
   if (!data) return null;

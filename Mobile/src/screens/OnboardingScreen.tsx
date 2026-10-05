@@ -155,7 +155,7 @@ function OnboardingSheet({
       toValue: 1,
       duration: 200,
       // JS driver — same RN 0.86 native-detach guard as ui.tsx Sheet
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [step, reduceMotion, anim]);
   // stable node — inline interpolation re-created per render trips RN 0.86's

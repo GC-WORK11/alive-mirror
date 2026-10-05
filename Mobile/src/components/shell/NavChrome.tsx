@@ -245,7 +245,7 @@ function NavChromeInner({
     lastCue.current = cueKey;
     swap.setValue(0);
     jank("nav.swap");
-    Animated.timing(swap, { toValue: 1, duration: 160, useNativeDriver: false }).start();
+    Animated.timing(swap, { toValue: 1, duration: 160, useNativeDriver: true }).start();
   }, [cueKey, swap, reduceMotion]);
 
   const doseBand: BandViz | null = nav != null && nav.dose.hi > 0

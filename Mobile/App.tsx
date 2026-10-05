@@ -59,7 +59,7 @@ import { loadTrips, type Trip } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
 import { modeLabel, placeNameLabel, t } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
-import { bump, mark, report } from "./src/perf";
+import { PERF_ON, bump, mark, report } from "./src/perf";
 
 mark("app.eval");
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -134,6 +134,13 @@ const MapTree = React.memo(function MapTree({
   bump("app.MapTree");
   return (
     <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
+      /* PERF-gated milestones in the cold-open path: style load is the
+         bundled-light parse, rendered-full is first frame incl. tiles
+         (hosted OpenFreeMap = network; bundled pmtiles = local) */
+      {...(PERF_ON ? {
+        onDidFinishLoadingStyle: () => mark("map.style"),
+        onDidFinishRenderingMapFully: () => mark("map.rendered"),
+      } : {})}
       /* the compass clears the chrome: search bar at rest, the taller
          maneuver banner in nav (was clipped behind it at top-right) */
       compassPosition={compassPosition}
@@ -289,6 +296,8 @@ function AppInner() {
     Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_500Medium, Fraunces_600SemiBold,
     IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold,
   });
+
+  useEffect(() => { mark("app.mounted"); }, []);
 
   useEffect(() => {
     if (fontsLoaded) { mark("fonts.ready"); SplashScreen.hideAsync().catch(() => {}); }
@@ -695,29 +704,39 @@ function AppInner() {
     setIntroSeen(true);
   }, [patchSettings]);
 
-  if (!fontsLoaded) return null;
+  const mapTree = (
+    /* key pins the instance across the fontsLoaded tree-shape flip —
+       without it the map unmounts/remounts and the tile load restarts */
+    <MapTree key="map"
+      compassPosition={compassPosition}
+      logoPosition={logoPosition}
+      attributionPosition={attributionPosition}
+      onPress={onMapPress}
+      onLongPress={onMapLongPress}
+      camRef={camRef}
+      trackUserLocation={follow ? "default" : undefined}
+      onTrackUserLocationChange={onTrackUserLocationChange}
+      hasLoc={hasLoc}
+      corridors={community?.top_corridors ?? null}
+      reportSlots={reportSlots}
+      fires={fires} spots={spots} layers={layers}
+      options={deferredOptions}
+      selected={selected}
+      strips={strips}
+      fromPin={fromPin} toPin={toPin}
+      fromSet={!!from} toSet={!!to}
+      pinReady={pinReady} />
+  );
+
+  /* mount the map under the splash: the native style parse + tile fetch
+     (hosted OpenFreeMap — nothing bundled) used to start only AFTER the
+     ~220 ms font gate; now it overlaps it. Splash still covers the tree —
+     nothing about the visible order changes. */
+  if (!fontsLoaded) return <View style={s.root}>{mapTree}</View>;
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
-      <MapTree
-        compassPosition={compassPosition}
-        logoPosition={logoPosition}
-        attributionPosition={attributionPosition}
-        onPress={onMapPress}
-        onLongPress={onMapLongPress}
-        camRef={camRef}
-        trackUserLocation={follow ? "default" : undefined}
-        onTrackUserLocationChange={onTrackUserLocationChange}
-        hasLoc={hasLoc}
-        corridors={community?.top_corridors ?? null}
-        reportSlots={reportSlots}
-        fires={fires} spots={spots} layers={layers}
-        options={deferredOptions}
-        selected={selected}
-        strips={strips}
-        fromPin={fromPin} toPin={toPin}
-        fromSet={!!from} toSet={!!to}
-        pinReady={pinReady} />
+      {mapTree}
 
       {/* rest state chrome: search bar + locate + layers (doc 02 §S1) */}
       {phase !== "nav" && (

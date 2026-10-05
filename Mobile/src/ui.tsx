@@ -35,8 +35,10 @@ export const pressFx = (pressed: boolean): ViewStyle | null =>
   pressed ? { opacity: 0.78, transform: [{ scale: 0.985 }] } : null;
 
 /** Mount-in motion — a short fade + 10px rise. `delay` staggers card
- *  stacks so a sheet's children arrive, not pop (JS driver — the RN 0.86
- *  native-detach class the Sheet comment documents). */
+ *  stacks so a sheet's children arrive, not pop. Native driver: a single
+ *  value feeding opacity + translateY through one interpolate — the RN 0.86
+ *  native-detach class needs a mixed graph (Sheet's Animated.add), absent
+ *  here. */
 export function FadeIn({ delay = 0, children, style }: {
   delay?: number; children: React.ReactNode; style?: StyleProp<ViewStyle>;
 }) {
@@ -47,7 +49,7 @@ export function FadeIn({ delay = 0, children, style }: {
     if (reduceMotion) { v.setValue(1); return; }
     Animated.timing(v, {
       toValue: 1, duration: 260, delay, easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [v, delay, reduceMotion]);
   return (

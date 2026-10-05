@@ -589,7 +589,7 @@ function SettingsScreenInner({
     if (visible) {
       enter.setValue(0);
       jank("enter.settings");
-      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: true }).start();
     }
   }, [visible, enter]);
 

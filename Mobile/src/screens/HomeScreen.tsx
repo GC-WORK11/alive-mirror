@@ -1242,13 +1242,13 @@ function HomeScreenInner({ visible, data, lang, settings, ambientUg, onGo, onMen
       enter.setValue(reduceMotion ? 1 : 0);
       if (!reduceMotion) {
         jank("enter.home");
-        Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+        Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: true }).start();
       }
       return;
     }
     /* exit: a short settle-down, then unmount — the sheet pattern inverted */
     const anim = Animated.timing(enter, {
-      toValue: 0, duration: reduceMotion ? 0 : 150, useNativeDriver: false,
+      toValue: 0, duration: reduceMotion ? 0 : 150, useNativeDriver: true,
     });
     anim.start(({ finished }) => { if (finished) setShow(false); });
     return () => anim.stop();

@@ -60,7 +60,7 @@ function Rise({ i, open, children }: { i: number; open: boolean; children: React
     if (open) {
       v.setValue(0);
       Animated.timing(v, {
-        toValue: 1, duration: 260, delay: 60 + i * 55, useNativeDriver: false,
+        toValue: 1, duration: 260, delay: 60 + i * 55, useNativeDriver: true,
       }).start();
     }
   }, [open, i, reduce, v]);
@@ -133,7 +133,7 @@ function SidebarInner({
   useEffect(() => {
     jank(open ? "drawer.open" : "drawer.close");
     Animated.spring(slide, {
-      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: false,
+      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished && open) setOpenSettled(true);
     });
