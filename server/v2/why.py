@@ -484,11 +484,7 @@ def _line(drivers: list, wind: dict) -> str:
                 "NE": "north-east", "SW": "south-west", "S": "southerly",
                 "SE": "south-east", "E": "easterly"}.get(compass, "NW"))
         parts.append(bit)
-    line = " + ".join(parts)
-    if drivers[0]["kind"] == "trend" and \
-            drivers[0].get("direction") == "falling" and len(drivers) == 1:
-        return line
-    return f"{line} — the build you see"
+    return " + ".join(parts)
 
 
 def _history(series: list) -> Optional[dict]:
