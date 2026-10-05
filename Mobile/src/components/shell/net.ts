@@ -2,9 +2,16 @@
 import { Platform } from "react-native";
 import { nearestPlace } from "../../search/t0";
 
+// EXPO_PUBLIC_API_URL, else the emulator loopback aliases (dev only —
+// release bundles must not ship loopback strings; missing env in a
+// release build fails requests fast instead of silently aiming at a dev
+// machine).
 export const API =
   process.env.EXPO_PUBLIC_API_URL ??
-  Platform.select({ android: "http://10.0.2.2:8000", default: "http://localhost:8000" });
+  (__DEV__
+    ? Platform.select({ android: "http://10.0.2.2:8000", default: "http://localhost:8000" }) ??
+      "http://localhost:8000"
+    : "");
 
 export const DELHI: [number, number] = [77.209, 28.6139];
 export const NCR = { minLon: 76.75, maxLon: 77.95, minLat: 28.15, maxLat: 28.98 };

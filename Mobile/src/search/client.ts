@@ -9,11 +9,15 @@ import { DELHI_CENTER, inNcr, normalize, type LatLon, type PlaceResult } from ".
 
 // Same resolution as App.tsx — EXPO_PUBLIC_API_URL, else the emulator
 // loopback aliases. Do not diverge: the shell and the search tiers must
-// hit the same backend.
+// hit the same backend. Release builds bake EXPO_PUBLIC_API_URL and must
+// not ship loopback strings — the fallback is dev-only so Hermes folds
+// it out of the production bundle.
 export const API_BASE: string =
   process.env.EXPO_PUBLIC_API_URL ??
-  Platform.select({ android: "http://10.0.2.2:8000", default: "http://localhost:8000" }) ??
-  "http://localhost:8000";
+  (__DEV__
+    ? Platform.select({ android: "http://10.0.2.2:8000", default: "http://localhost:8000" }) ??
+      "http://localhost:8000"
+    : "");
 
 export type ServerTiers = {
   t1: PlaceResult[];
