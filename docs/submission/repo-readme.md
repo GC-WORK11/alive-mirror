@@ -40,31 +40,33 @@ Three questions, three shipped surfaces:
 
 And the feature judges will poke — **dose-priced routing**. Same city, same
 minutes; the vehicle decides what you inhale. Measured live today
-(Connaught Place → Gurugram, 23.7 km, 16 options):
+(Connaught Place → Gurugram, 23.7 km, 18 options — the count drifts
+16–20 as GTFS transit rows come and go):
 
 | mode | dose (µg, mid) | | mode | dose (µg, mid) |
 |---|---|---|---|---|
-| car AC | **5.7** | | metro+walk | 26.4 |
-| car open | 10.4 | | cycle | 84.1 |
-| bike | 13.1 | | walk | **189.7** |
-| bus | 15.0 | | auto | 16.9 |
+| car AC | **7.8** | | metro+walk | 33.0 |
+| car open | 14.2 | | cycle | 114.7 |
+| bike | 17.9 | | walk | **258.8** |
+| bus | 20.4 | | auto | 23.1 |
 
 A **~33× spread the map you use today never shows you** — and it matches
 published Delhi measurements (walk ≈28× metro per km; Sci. Total Environ.
-2021). `GET /v2/day` at the same point today: heavy stretch **21:30–23:30
-IST ~247 µg/m³**, cleanest **17:30–19:30 ~94**, day mean ~177 — the card
-says when the doors should be open.
+2021). `GET /v2/day` at the same point today: heavy stretch **22:30 IST →
+day end ~122 µg/m³**, honestly **no clean slot left** (lightest ~68), day
+mean ~103 — the card says when the doors should be open.
 
 <!-- SCREENSHOT 2 — PENDING CAPTURE: `/city` lung-reach veil — "where can
      your lungs go?" frontier over streets + the district ledger.
      File: docs/assets/readme/city-reach.png -->
-![/city — a 25 µg walking budget from Connaught Place: ~107 km of street](docs/assets/readme/city-reach.png)
+![/city — a 25 µg walking budget from Connaught Place: ~131 km of street](docs/assets/readme/city-reach.png)
 
 *(reach edge-lengths are over directed edges — a two-way street counts in
-both directions; 2,473 edges ≈ 107 km at 25 µg, 9,524 ≈ 490 km at 50 µg)*
+both directions; 3,020 edges ≈ 131 km at 25 µg, 10,756 ≈ 576 km at 50 µg —
+today's read; it drifts with the field)*
 
-Underneath: a live field rebuilt every 15 min from ~23–24 WAQI instruments +
-~60–70 CAMS/open-meteo model samples + NASA FIRMS fires, kriged with a real
+Underneath: a live field rebuilt every 15 min from 24 WAQI instruments +
+~71 CAMS/open-meteo model samples + NASA FIRMS fires, kriged with a real
 σ band by our own C++ engine — that re-prices all **1.07M road edges** so
 dose is a routing criterion, not an annotation. Plus a 120-hour forecast,
 per-mode emissions bands (CO₂ + tailpipe PM on Delhi fleet factors), and a

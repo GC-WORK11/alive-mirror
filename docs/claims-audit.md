@@ -120,7 +120,7 @@ BS / emission-factor tokens in strings.ts. ✓ clean. (One breach lives in
 | README:17 | "walking ≈ 28×, auto-rickshaw ≈ 5× the metro" — matches exposure.py [1] (28.2×/5.3× measured) & ledger | ✓ | — |
 | README:25–37 | "live, verified" public endpoints on AWS IP — unverifiable from repo | ⚠ | Re-hit each URL at integration; drop any dead |
 | README:46–47 | "8-hr two-wheeler shift ≈ 1.1–1.5 cigarette-equivalents on heavy days" — static figure; endpoint returns a point value | ⚠ | Verify against /shift on a heavy day; keep band |
-| README:50–51 | "MAE 46 µg/m³, bias +0.3, n=94" — real (`field_calibration.json`), **but that's the LOO-over-live-stations run; the independent archive replay (field_validation.md) shows MAE 47.1, bias +45.1 (+150%)** — serving the flattering variant next to "honest error" | ⚠ | Name the method ("leave-one-out") or cite both numbers — doc 26 claim #2 sanctions the honest version including bias |
+| README:50–51 | "MAE 46 µg/m³, bias +0.3, n=94" — real (`field_calibration.json`), **but that's the LOO-over-live-stations run; the independent archive replay (field_validation.md) shows MAE 22.0, bias +15.5 (+51.6%)** — serving the flattering variant next to "honest error" | ⚠ | Name the method ("leave-one-out") or cite both numbers — doc 26 claim #2 sanctions the honest version including bias |
 | README:63 | "~105 in NCR" instruments vs calibration n=94 / live `station_readings` count | ⚠ | Use the live count or "~94–105" |
 | README:70 | "CAMS under-reads Delhi 2–8× at hotspots; LOO proved it" — field_validation + calibrate support the direction ✓ | ✓ | — |
 | README:72–79 feature list | "Lung Ledger, budget %, avoided total, sparkline, journeys drawer, streak, Ambient Mode, horizon scrubber, hazard reporting, dose-colored route" — **most no longer exist** in the v2 shell (delete-list applied; receipt/sidebar/week-bars/search do) | ✗ | Rewrite to shipped reality (the README lane owns this — flagged) |
@@ -191,7 +191,7 @@ BS / emission-factor tokens in strings.ts. ✓ clean. (One breach lives in
 7. Pass selected mode to `/depart` (or label "for auto"); rename `ug_saved_vs_now` → `pct_less_vs_now`.
 8. Point donations at `/v2/trip` privacy pipeline (or port its trim/thin/round to `observeTrip`).
 9. Localize server-driven labels/reasons/kind-subtitles (fixed vocab, both languages).
-10. README lane: rewrite feature list to shipped reality; label MAE "leave-one-out" or cite both 46.1/+0.3 (LOO) and 47.1/+45.1 (archive replay).
+10. README lane: rewrite feature list to shipped reality; label MAE "leave-one-out" or cite both 46.1/+0.3 (LOO) and 22.0/+51.6% (archive replay).
 11. `v2/search.py`: dedupe the `"t2"` response key (rows unreachable).
 12. Add lo/hi to `/shift` before surfacing it; "the safest way to travel" → "the safest pick of these".
 

@@ -13,7 +13,7 @@ Built: 2026-10-04 04:40 UTC  |  OSM source: `cached:northern-zone-latest.osm.pbf
 
 **Total entries: 97,447**  (previous build: 97,447)
 
-T0/T1 ceiling check: corpus 97,447 + bundled 123,957 -> gazetteer 124,334 vs ~150k ambition. The gap to 150k is real, not padded -- OSM Delhi named features + GeoNames + Wikidata + attested sector/block canonicals exhaust the legitimate sources; the rest must come from Amazon T2 cache-back or licensed data.
+T0/T1 ceiling check: corpus 97,447 + bundled 123,957 -> gazetteer 124,311 vs ~150k ambition (post-`2c4cab4` purge of 23 fabricated landmark geocodes). The gap to 150k is real, not padded -- OSM Delhi named features + GeoNames + Wikidata + attested sector/block canonicals exhaust the legitimate sources; the rest must come from Amazon T2 cache-back or licensed data.
 
 | per-source membership | entries |
 |---|---|

@@ -23,7 +23,7 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 | 2 | "maps ditto google maps", light theme | **partial** — MapLibre light theme, live field tint, field+nav layers; POI richness below Google's vector set. Asymptotic goal, honestly ~80% | POI density, 3D buildings absent |
 | 3 | Android is the release; iOS = demo | **live** — release APK built & verified on emulator (14/14 surfaces); iOS sim demo recorded (sheet crash proven sim-only GPU kill, zero .ips) | physical-device run is owner-side |
 | 4 | exposure AND emission (theme is both) | **live** — dose (exposure) + co₂ trip/corridor split moving/idling/cold-start | — |
-| 5 | "google maps fetch my street to my home in ms — millions of houses" | **live** — 124,334-row gazetteer inlined in APK, 172/174 top-1 (98.9%), p50 ~1ms engine | panipat-class outside-coverage = honest ceiling |
+| 5 | "google maps fetch my street to my home in ms — millions of houses" | **live** — 124,311-row gazetteer inlined in APK, 172/174 top-1 (98.9%), p50 ~1ms engine | panipat-class outside-coverage = honest ceiling |
 | 6 | no hardcoded locations | **live** — zero hardcoded ODs; gazetteer+reverse everywhere | — |
 | 7 | decision engine, not hardcoded, milliseconds, "not fastest but safest" | **live** — C++ A* priced objective = displayed integrand; fast paint 77–258ms; engine solve ms-scale | full 15-option plan = 0.8–6.9s (seconds, not ms — engine is ms, pipeline is s) |
 | 8 | cigarettes data ok but not default/cringe | **live** — equivalent exists behind Settings toggle, OFF by default | — |

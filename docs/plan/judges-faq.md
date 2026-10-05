@@ -29,7 +29,8 @@ compute **inhaled micrograms = concentration (µg/m³) × ventilation rate
 actual route geometry, then corrected for the mode's micro-environment
 — a sealed AC car filters; a bike rider sits inside the exhaust stream.
 Same street, same minutes: walking Connaught Place→Gurugram inhales
-~190–212 µg while a sealed car inhales ~6 (measured live, ~33×). AQI
+~259 µg while a sealed car inhales ~8 (measured live 2026-10-05, ~33×).
+AQI
 can't express that: it has no route, no breathing rate, no duration, no
 vehicle. A judge breathing harder than the person next to them is
 already living the difference — we just put a number on it.

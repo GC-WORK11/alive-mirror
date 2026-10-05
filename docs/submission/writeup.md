@@ -41,11 +41,11 @@ the dose math are real enough to decide with.
 
 ## The architecture: field → engine → dose → ledger
 
-- **Field.** A concentration surface rebuilt every 15 minutes from **~23–24
-  live WAQI ground instruments** + **~60–70 CAMS/open-meteo model samples** +
-  **NASA FIRMS fire detections** (71 today, 16 inside the smoke belt → ×1.27
-  modifier), kriged with a real σ band per cell. Age on the wire today: ~4 min
-  [`GET /health`, `GET /aqi` — live].
+- **Field.** A concentration surface rebuilt every 15 minutes from **24
+  live WAQI ground instruments** + **~71 CAMS/open-meteo model samples** +
+  **NASA FIRMS fire detections** (79 today, 17 inside the smoke belt → ×1.09
+  modifier at CP — sometimes absent), kriged with a real σ band per cell.
+  Age on the wire today: ~8 min [`GET /health`, `GET /aqi` — live].
 - **Engine.** Our own C++ engine (`alive_core`, pybind) with a bit-exact Python
   twin — kriging, dose integration, and path search. The A* twin and the new
   bounded-Dijkstra reach are asserted to settle the *identical* edge set on
@@ -72,49 +72,50 @@ Three questions, three shipped surfaces:
 
 - **"What did today cost me?"** — the ledger: every trip's inhaled µg, on the
   phone, with the receipt (µg + CO₂ band + where it accumulated). The city side
-  of the same ledger is public: 12 contributors, 18.1 km donated in the last
-  24 h, 333.5 µg of smoke counted as *avoided* [`GET /community` — live].
+  of the same ledger is public: 12 contributors, 14.3 km donated in the last
+  24 h, 333.5 µg of smoke counted as *avoided* all-time
+  [`GET /community` — live].
 - **"When is tomorrow's air worth going out in?"** — `GET /v2/day`: the
   morning card for a point — today's heavy window and cleanest slot with a
   real band each, plus the decisions they change. Live at Connaught Place
-  today: heavy stretch **21:30–23:30 IST at ~247 µg/m³**, cleanest slot
-  **17:30–19:30 at ~94**, against a ~177 day mean — "outdoor exercise:
-  least-bad window ~17:30–19:30", "kids outdoors: before ~21:30", "windows
-  open ~17:30–19:30, shut from ~21:30" [`GET /v2/day?lat&lon` — live].
+  today: heavy stretch **22:30 IST → day end at ~122 µg/m³**, and honestly
+  **no clean slot left** — the lightest hour reads ~68 against a ~103 day
+  mean ("no clean slot left today", "kids outdoors: before ~22:30")
+  [`GET /v2/day?lat&lon` — live].
 - **"Where can my lungs go inside my budget?"** — `GET /v2/reach`: a bounded
   Dijkstra over the same directed-edge-state search as the router — no
   heuristic, no destination — settling every edge whose inhaled dose stays
   under `budget_ug`. The returned set is the real Dijkstra frontier as
   polylines, never a smoothed circle. Live today: a **25 µg walking budget
-  from Connaught Place settles 2,473 road segments (~107 km of street —
+  from Connaught Place settles 3,020 road segments (~131 km of street —
   directed edges, so a two-way street counts in both directions)**;
-  ≤50 µg walks 9,524 segments (~490 km); a sealed car on a **10 µg**
-  budget settles ~580k edges, ~39,500 km [`GET /v2/reach` — live;
+  ≤50 µg walks 10,756 segments (~576 km); a sealed car on a **25 µg**
+  budget settles ~958k edges, ~86,900 km [`GET /v2/reach` — live;
   `server/v2/reach.py`; painted as the "where can your lungs go?" veil on
   `/city`].
 
 ## The feature the judges will poke: dose-priced routing
 
 Same city, same minutes — the mode you pick decides what you inhale. Measured
-live on the demo trip (Connaught Place → Gurugram, 23.7 km) today, 16 options
-[`POST /v2/plan` — live]:
+live on the demo trip (Connaught Place → Gurugram, 23.7 km) today, 18 options
+[`POST /v2/plan` — live; the count drifts 16–20 as transit rows come and go]:
 
 | mode | inhaled dose (µg PM2.5, mid) | ≈µg/km |
 |---|---|---|
-| sealed AC car | **5.7** | ~0.2 |
-| car, windows open | 10.4 | ~0.4 |
-| bike / scooter | 13.1 | ~0.6 |
-| bus | 15.0 | ~0.6 |
-| auto-rickshaw | 16.9 | ~0.7 |
-| metro + walk | 26.4 | ~1.0 |
-| cycle | 84.1 | ~3.5 |
-| **walk** | **189.7** | ~8 |
+| sealed AC car | **7.8** | ~0.3 |
+| car, windows open | 14.2 | ~0.6 |
+| bike / scooter | 17.9 | ~0.8 |
+| bus | 20.4 | ~0.9 |
+| auto-rickshaw | 23.1 | ~1.0 |
+| metro + walk | 33.0 | ~1.4 |
+| cycle | 114.7 | ~4.8 |
+| **walk** | **258.8** | ~11 |
 
-**~33× spread on one trip** (32.7× and 38.5× measured on two other ODs) — and
+**~33× spread on one trip** (33.2× today; 31–45× across ODs this week) — and
 it matches published Delhi measurements: walking inhales ≈28× the metro per
 km, an auto-rickshaw ≈5× (Sci. Total Environ. 2021; Discover Atmosphere 2025 —
 `server/exposure.py` header, `docs/03-models.md`). The honest surprise the
-table shows: **metro+walk doses ~4.6× a sealed car** — the coach is clean,
+table shows: **metro+walk doses ~4× a sealed car** — the coach is clean,
 the road-level walks at both ends are not. The engine also returns least-dose
 corridor alternates that must diverge ≥15% of length to count (measured
 19–96% divergent) — "via Outer Circle vs via Vivekanand Marg", not one blessed
@@ -123,11 +124,11 @@ path [`docs/plan/demo-script.md` numbers sheet].
 ## What nobody else does
 
 - **A field that moves.** `/v2/city` serves the next 12 hours hour-by-hour —
-  today the lattice runs ~76 → ~231 µg/m³ into the evening peak, driven by a
+  today the lattice runs ~69 → ~205 µg/m³ into the evening peak, driven by a
   120-hour CAMS forecast anchored to the live field (τ=9 h)
   [`GET /v2/city → next_hours`; `GET /depart` — live]. `/depart` answers
-  "leave now or tonight?" in micrograms: same trip, ~17 µg now vs ~104 µg at
-  the evening peak (**~6×** today — it has run ~8× this week).
+  "leave now or tonight?" in micrograms: same trip, ~23 µg now vs ~94 µg at
+  the evening peak (**~4×** today — it has run ~8× this week).
 - **Privacy as math, not policy.** k≥3 everywhere: 10 of 54 tracked corridor
   cells are publishable today; the other 44 are honestly suppressed, and the
   suppression field (`mode_share_suppressed_trips`) ships on the wire
@@ -144,13 +145,13 @@ path [`docs/plan/demo-script.md` numbers sheet].
 | claim | value | source |
 |---|---|---|
 | Held-out uncertainty-band coverage | **95.2 %** at ±2σ over **3,550 station-hours / 85 stations** (nominal 95.4 %) — σ is measured, not tuned | `server/data/field_validation.md` |
-| Live instruments feeding the field | **~23–24 WAQI stations** + ~60–70 model samples, field age ~4 min, 15-min refresh visible on the wire | `GET /aqi`, `GET /health` |
+| Live instruments feeding the field | **24 WAQI stations** + ~71 model samples, field age ~8 min, 15-min refresh visible on the wire | `GET /aqi`, `GET /health` |
 | LOO calibration vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 | `GET /aqi → calibration` |
 | Archive replay (clean-air window) | MAE 22.0 µg/m³, bias +51.6 % — we publish that we over-read in clean air | `server/data/field_validation.md` |
-| Plan latency | ~0.9 s warm measured today; fresh unseen ODs 2–8 s | `POST /v2/plan → took_ms` |
-| Reach latency | 15–31 ms warm on walk budgets ≤50 µg; ~1.2 s for a ~580k-edge car reach | `GET /v2/reach → took_ms` |
-| Mode dose gap, CP→Gurugram | **~33×** walk vs sealed car (live today); 32.7× and 38.5× on two other ODs | live probe + `docs/plan/demo-script.md` |
-| Search | 97,447 corpus entries (16,949 real address rows); 172/174 top-1 in a live battery (98.9 %), p50 ~470 ms over the NLB; bundled on-device gazetteer 123,934 rows | `server/data/corpus/STATS.md`, `docs/plan/demo-script.md` |
+| Plan latency | ~0.8 s warm measured today; fresh unseen ODs ~2–7 s | `POST /v2/plan → took_ms` |
+| Reach latency | ~1–2 s wire on walk budgets ≤50 µg; ~5–10 s for a ~958k-edge car reach (partial — 2M-state cap) | `GET /v2/reach` |
+| Mode dose gap, CP→Gurugram | **~33×** walk vs sealed car (33.2× live today); 31–45× across ODs this week | live probe + `docs/plan/demo-script.md` |
+| Search | 97,447 corpus entries (16,949 real address rows); 172/174 top-1 in a live battery (98.9 %), p50 ~470 ms over the NLB; bundled on-device gazetteer 124,311 rows | `server/data/corpus/STATS.md`, `docs/plan/demo-script.md` |
 | Engine speed | C++ search index p50 0.189 ms — ~88× the Python twin, asserted bit-identical | `docs/plan/bench-results.md` |
 | Self-hosted basemap | 22.7 MB pmtiles built from Geofabrik OSM, z0–14, live at `/tiles/health` | `GET /tiles/health` |
 | Landmark-truth sweep | 23 fabricated landmark geocodes purged; top-3 of every flagship query must land within 1.5 km of truth — pinned by `test_search_quality.py` | commit `2c4cab4` |

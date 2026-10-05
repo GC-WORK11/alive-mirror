@@ -14,7 +14,7 @@ You type FROM → TO. The server returns real options — road modes via a route
 
 ```
 ┌─ Android / iOS app (Expo, MapLibre) ─────────────────────────────┐
-│ T0 search — bundled Delhi gazetteer (124,334 rows), on-device    │
+│ T0 search — bundled Delhi gazetteer (124,311 rows), on-device    │
 │ light bilingual map — 62-layer hi/en basemap, housenumbers/POIs  │
 │ live trip — dose + emission counters tick locally at 1 Hz off    │
 │             the route strip; no per-second network               │
@@ -71,11 +71,11 @@ Everything below traces to a file in this repo. Where a row says "bench", the pr
 | Search index (T1), C++ vs Python | p50 0.189 ms vs 16.623 ms → **~88× p50** (~100× p95), build 45 ms vs 142 ms | `docs/plan/bench-results.md` |
 | Field lookups + dose integration | ~6.8× lookups (174,618 vs 25,849/s); **~13× dose p50** (46.0 µs vs 607.3 µs) | `docs/plan/bench-results.md` |
 | Emission integrator | ~3.3× p50 (11.2 µs vs 37.3 µs) | `docs/plan/bench-results.md` |
-| Search corpus | 124,334 bundled gazetteer rows; 97,447 OSM-NCR corpus entries (incl. 16,949 real address rows — housenumbers + street interpolations) | `server/data/corpus/STATS.md` |
+| Search corpus | 124,311 bundled gazetteer rows; 97,447 OSM-NCR corpus entries (incl. 16,949 real address rows — housenumbers + street interpolations) | `server/data/corpus/STATS.md` |
 | Search acceptance | 67/67 fixed queries in top-3 (name, typo, compound, sector, alias) | `server/data/corpus/STATS.md`, `tests/search_queries.txt`, `server/tests/test_query_tolerance.py` |
 | Search latency | C++ index p50 0.86 ms / p95 2.51 ms on 120k rows; live HTTP p50 ~3–7 ms | `docs/plan/bench-results.md`, live bench |
 | Field leave-one-out vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 stations | `server/data/field_calibration.json` |
-| Field vs station archive (3,550 pairs, 85 stations) | MAE 47.1 µg/m³, bias +45.1 — **over-reads in clean post-monsoon air** | `server/data/field_validation.md` |
+| Field vs station archive (3,550 pairs, 85 stations) | MAE 22.0 µg/m³, bias +15.5 µg (+51.6%) — **over-reads in clean post-monsoon air** | `server/data/field_validation.md` |
 | Served field size | 14,628 grid cells in the benched snapshot | `docs/plan/bench-results.md` |
 | Mode exposure ratios | walking ≈28×, rickshaw ≈5× the metro per km inhaled PM2.5 — measured on Delhi roads (published studies) | `docs/plan/10-claims-ledger.md`, `server/exposure.py` header |
 | Cigarette equivalence | 316 µg PM2.5 ≈ 1 cigarette (Berkeley Earth) — OFF by default; opt-in toggle in app settings, always "≈" | `docs/plan/10-claims-ledger.md` |
@@ -89,9 +89,9 @@ This section is a feature, not a disclaimer.
 
 - **Phones measure nothing.** The app traverses a model field; it never says "your phone measured the air." User traversals adjust *dose estimates*, never the underlying field.
 - **Emissions are class-level estimates.** "Vehicles like yours (2016 petrol car, BS-IV): ~1.1–1.6 kg CO₂" — a band from published factors, never "your car emitted 42.0 g." Per-vehicle truth is unknowable; PUC doesn't measure PM.
-- **Stations are offline until the key lands.** OpenAQ v3 needs `OPENAQ_API_KEY`; without it the field is model + public S3 archive (1–2 days lagged) and the provenance block says so. No CPCB public JSON endpoint is reachable from the deployment network (documented in `server/data/field_validation.md`).
+- **Stations: WAQI is live; OpenAQ/CPCB still pending.** The field ingests 24 live WAQI instruments across NCR today (count on `/health.sources.stations`). OpenAQ v3 needs `OPENAQ_API_KEY` — without it those feeds stay dark and the provenance block says so; no CPCB public JSON endpoint is reachable from the deployment network (documented in `server/data/field_validation.md`).
 - **Amazon Location is optional.** With `ALIVE_LOCATION_KEY` you get T2 suggestions, traffic-aware routes, and Amazon reverse-geocode as a middle tier. Without it the app still works: bundled gazetteer + C++ search, public OSRM demo routing, gazetteer-first reverse.
-- **The field is honest about its own error.** It over-reads in clean air (+150.6% bias on the validated window); the LOO calibration and σ bands are served next to the data, not hidden.
+- **The field is honest about its own error.** It over-reads in clean air (+51.6% bias on the validated window); the LOO calibration and σ bands are served next to the data, not hidden.
 - **No outcome claims.** We can count "N trips switched to a lower-smoke option" — a countable behaviour — but not "Delhi got cleaner because of ALive."
 
 ## Quickstart

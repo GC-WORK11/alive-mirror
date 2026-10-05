@@ -70,7 +70,8 @@ Google gives travel time; an AQI site gives one city number — both answer
 the µg you actually inhale per route option — dose = concentration field
 sampled every ~250 m of the polyline × mode ventilation × time, plus a
 micro-environment factor (a sealed AC car vs walking the same trip
-measures ~33× today — CP→Gurugram 5.7 vs 189.7 µg). Your trips receipt
+measures ~33× today — CP→Gurugram 7.8 vs ~259 µg; re-check T-45,
+`scripts/verify_numbers.sh`). Your trips receipt
 into an on-device ledger; `GET /v2/day` names today's heavy stretch and
 least-bad hours as decisions; `GET /v2/reach` draws where a 25 µg walk
 budget can actually take you — bounded Dijkstra on the same engine. Then
@@ -83,8 +84,9 @@ Yes — keyless, honest provenance, verbatim labels on screen:
   CO, SO₂, NH₃, dust, AOD, US/EU AQI), refreshed every 15 min — a
   countdown (`refresh_in_s`) is on the wire. Params a feed doesn't
   serve stay honestly empty (NH₃ is empty today, not zero-filled)
-- NASA FIRMS VIIRS/MODIS fire detections (~70 over the belt right now —
-  drifts daily) feeding a smoke modifier (×1.27 at CP today)
+- NASA FIRMS VIIRS/MODIS fire detections (79 today, 17 in the smoke
+  belt — drifts daily) feeding a smoke modifier (×1.09 at CP right
+  now — sometimes absent; say what `/aqi.smoke_modifier` shows)
 - WAQI measured stations LIVE: 24 instruments across NCR feed the
   krige directly (the raw feed is a US-EPA sub-index, not µg/m³ —
   inverted via the EPA breakpoint table, Kalman-smoothed, de-biased
@@ -139,7 +141,7 @@ Gate No 5" top-hit (all eight gates resolve individually). The C++
 index itself answers in ~1ms p50 — the full endpoint measures
 p50 ~470 ms over the NLB (172/174 top-1 in a 174-query live battery);
 the app bundles a
-123,934-entry gazetteer so landmark-level search works fully offline —
+124,311-entry gazetteer so landmark-level search works fully offline —
 no network, no key (23 fabricated landmark geocodes were purged in
 `2c4cab4`; the flagship-truth regression pins top-3 within 1.5 km).
 
@@ -426,6 +428,42 @@ commits the judges will actually read.
   warm_task.py before stepping on stage
 - [ ] Backups queued: recorded ride video, iOS-sim capture, localhost
   backend path (see below) — pick whichever survives the hall's network
+
+### Numbers morning-of (the integrity pass — T-45)
+
+`scripts/verify_numbers.sh` re-derives every figure below from the live
+service and prints it next to what our docs/script/shotlist quote. One
+command; read the FLAGS block; canonical ledger: `docs/plan/NUMBERS.md`.
+
+- [ ] `bash scripts/verify_numbers.sh` — read the FLAGS block end to
+  end. Any flag = a stale doc line or a field read that moved; fix the
+  prose or say the live value, never the other way around.
+- [ ] **The spread** — the line is "~35× on a Delhi commute" (range
+  31–45× this week). Say the range, not a bare "35×": if a judge hits
+  `/v2/plan` during a quiet field hour it may read 28× and we'd be
+  caught in a fake-constant.
+- [ ] **The ladder** — car-AC vs walk mids move with the field (today
+  7.8 / ~259 µg). Read the verifier's dose table; narrate "about 8 vs
+  about 260" unless the morning reads differently.
+- [ ] **Day windows** — `heavy_window`/`cleanest_window` can be `null`
+  while `decisions[]` still carry the story ("no clean slot left today
+  — lightest is 68"). If null on stage, read the decisions strings —
+  that's the designed fallback, not a bug.
+- [ ] **Fires/modifier** — `fires` swings daily (33 → 70 → 79 this
+  week); `smoke_modifier` can be absent (`null`) at CP — if so, say
+  "fires feed the field" without a multiplier.
+- [ ] **Options count** — drifts 16–20 as GTFS transit rows come and
+  go. If `metro+walk`/`bus` rows are absent at T-45 (`degraded`
+  present), the road-mode rows alone still carry the spread line.
+- [ ] **build_sha** — `/health` and `/admin/api/status` can disagree
+  (BUILD_SHA lag wart). Say the ECR image tag or "the build from this
+  afternoon", never the stamp.
+- [ ] **Stations/samples** — 24 WAQI instruments, ~71 model samples
+  today; both thin out after a cold task (~16 / ~41) and recover over
+  ~60 min. If you redeployed inside the window, say "recovering to".
+- [ ] Reach km figures (`distance_km`) drift hour to hour — if quoted,
+  stamp them: "a 25 µg walk budget reached ~131 km of street at
+  nine this morning".
 
 ## iOS sim specifics (only if showing iOS on stage)
 

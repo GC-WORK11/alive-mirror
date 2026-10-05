@@ -4,7 +4,7 @@ The video is judged — most importantly on **console proof + real product**.
 This document lists what must appear, in what order, and how long each beat
 gets. Target: **2:45–2:55** so a beat can overrun without breaching 3:00.
 The arc now sells the **dosimeter** — the numbers every beat leans on were
-re-verified live 2026-10-05 (~19:00 IST, build `a382cdeb`) unless marked otherwise.
+re-verified live 2026-10-05 (~20:30 IST, build `07cadfdd`) unless marked otherwise. Re-run `scripts/verify_numbers.sh` before filming — the live column is the truth.
 
 ## Recording setup
 
@@ -35,22 +35,24 @@ re-verified live 2026-10-05 (~19:00 IST, build `a382cdeb`) unless marked otherwi
      card: today's heavy window, cleanest slot, and the decisions they
      change.
    - Numbers to say verbatim (from today's probe): *"tonight's heavy
-     stretch runs ~21:30 to day end at roughly 190; the least-bad slot is
-     the next hour or two at roughly 60–100."* The endpoint also returns
-     the decisions strings — "least-bad window ~18:30–20:30 (avg ~74 vs
-     the day's ~137)", "kids outdoors before ~21:30". Re-read them T-45;
-     the evening peak moves with the smoke.
+     stretch runs ~22:30 to day end at roughly 120; there's no clean slot
+     left — the lightest hour is around 68 against a ~103 day mean."*
+     The endpoint returns the decisions strings — "no clean slot left
+     today — lightest is 68", "kids outdoors before ~22:30". Re-read
+     them T-45; the evening peak moves with the smoke.
    - One line: "the card is your forecast as a decision — outdoor exercise
      in the least-bad window, kids indoors before the stretch." Mention
      honestly: the card data ships on the API today; the app day-view is
      the on-device ledger.
 
 3. **The dose gap — /v2/plan** (0:35–1:05)
-   - Connaught Place → Gurugram, ~31 km. Ranked ladder: **car AC ~7 µg,
-     auto ~24, cycle ~110, walk ~260 — a ~35× spread on one trip.**
+   - Connaught Place → Gurugram, ~31 km. Ranked ladder: **car AC ~8 µg,
+     auto ~23, cycle ~115, walk ~260 — a ~33× spread on one trip** (has
+     run 31–45× — "about thirty-five times" is the honest line).
    - One line: *"your dose is not the city's AQI — it's decided by the
      vehicle and the route."* When metro+walk appears (~26 µg GTFS row):
-     it doses ~3–4× a sealed car — the walk at both ends costs it.
+     it doses ~4× a sealed car (~33 µg vs ~8 today) — the walk at both
+     ends costs it.
    - Click the least-smoke corridor alternate if it appears (engine-only
      rows) — current route names: via Sardar Patel Marg / Benito Juarez
      Marg / Rao Tula Ram Marg.
@@ -66,27 +68,28 @@ re-verified live 2026-10-05 (~19:00 IST, build `a382cdeb`) unless marked otherwi
 4. **Lung reach + the city ledger — /city** (1:05–1:35)
    - `/city` district choropleth for ~8 s (Delhi's public ledger face).
    - Then the **"where can your lungs go?"** veil — a **25 µg walking
-     budget from Connaught Place settles ~4,200 road segments (~187 km of
-     street)** — the real Dijkstra frontier painted over streets, not a
-     smoothed circle. Push the budget: ≤50 µg walks ~15,000 segments
-     (~880 km, engine ~46 ms — paints in ~2 s). Contrast: a sealed car on
-     a 25 µg budget settles ~1 M directed edges (~94,000 km — both
-     directions count) — but it takes ~5–10 s and the veil paints only
-     the nearest 90,000 (the caption says so; `edge_partial` is honest).
+     budget from Connaught Place settles ~3,000 road segments (~131 km of
+     street — drifted; re-check T-45)** — the real Dijkstra frontier
+     painted over streets, not a smoothed circle. Push the budget: ≤50 µg
+     walks ~10,800 segments (~576 km — paints in ~2 s). Contrast: a
+     sealed car on a 25 µg budget settles ~1 M directed edges (~87,000 km
+     — both directions count) — but it takes ~5–10 s and the veil paints
+     only the nearest 90,000 (the caption says so; `edge_partial` is
+     honest).
      **Show the walk presets live; narrate the car number, don't wait for
      it on camera.**
    - One line: *"that's bounded Dijkstra on the same engine that routed
      your commute — a lung-budget, drawn on the map."*
    - The corridor ledger (10 publishable today — k≥3, so "honest
-     sparsity is the point" if asked) + the day-in-dose ticker (~550 µg
-     mid for a typical day of moving around) sell the "the city's day
+     sparsity is the point" if asked) + the day-in-dose ticker (~735 µg
+     mid today — drifts with the field) sell the "the city's day
      kept as a ledger" line.
 
 5. **The engine room — /admin** (1:35–2:05)
    - "Every number so far has a source." Field pipeline: **~24 live
-     WAQI instruments + ~41 model samples, ~10-min-old field** (the model
+     WAQI instruments + ~71 model samples, ~8-min-old field** (the model
      sample count is thinner after a cold task — it thickens through the
-     hour); FIRMS fires (79 today); the sources trust table names every
+     hour); FIRMS fires (79 today, 17 belt); the sources trust table names every
      feed's age and why it's trusted. If `wind.known` is still `false`,
      the trust table showing wind *unknown* is itself the honesty story.
    - The field map with real detections; the engine tile (1,070,459
@@ -124,13 +127,13 @@ re-verified live 2026-10-05 (~19:00 IST, build `a382cdeb`) unless marked otherwi
 
 | number | last verified | check |
 |---|---|---|
-| dose ladder CP→Gurugram | car 7.1–7.5 / auto 23–26 / bus ~20–73 / cycle ~110–116 / walk ~261 µg — ~35× | `POST /v2/plan` (no `fast`) today; has run 33–45× this week as smoke swings. Transit rows are cold-start fragile post-deploy — verify `metro`/`bus` present + `degraded` absent |
-| /v2/day windows | heavy ~21:30→day end ~178–194; least-bad ~18:30–19:30 ~64–99 (avg ~74 vs day ~137) | `GET /v2/day` — new shape: `hours[]` + `decisions[]` strings; `heavy`/`clean` keys may be null while windows live in the decision lines |
-| /v2/reach | 25 µg walk → ~4,200 edges / ~187 km (~16 ms); 50 µg → ~15,100 / ~877 km (~46 ms); car ≤25 → ~1 M edges / ~94,000 km partial (90k paint) | `GET /v2/reach` — budget settles differently hour to hour; wire time ~1–2 s walk, ~5–10 s car |
-| field age / station count | ~9–10 min / 24 WAQI + ~41 model samples | `GET /aqi`, `GET /health` — model samples thin to ~40 after a cold task, climb through the hour |
-| fires / modifier | 79 fires; belt modifier may be absent at CP (smoke block `{}` at last probe) | `GET /aqi → smoke` — fires swing daily; say "fires feed live" not a pinned modifier |
+| dose ladder CP→Gurugram | car-AC 7.8 / car-open 14.2 / bike 17.9 / bus 20.4 / auto 23.1 / metro+walk 33.0 / bus-GTFS 80.3 / cycle 114.7 / walk 258.8 µg — **33.2×** (max 36.7×) | `POST /v2/plan` (no `fast`) today; has run 31–45× this week as smoke swings. Options count drifts 16–20 — transit rows are cold-start fragile post-deploy; verify `metro`/`bus` present + `degraded` absent |
+| /v2/day windows | heavy ~22:30→day end ~122 µg/m³; **no clean slot today** (lightest ~68; day mean ~103) | `GET /v2/day` — `hours[]` + `decisions[]` strings; `heavy`/`clean` keys may be null while windows live in the decision lines |
+| /v2/reach | 25 µg walk → ~3,020 edges / ~131 km; 50 µg → ~10,756 / ~576 km; car ≤25 → ~958k edges / ~86,879 km partial (90k paint); car ≤50 → ~1.03 M / ~99,500 km partial | `GET /v2/reach` — budget settles differently hour to hour; wire time ~1–2 s walk, ~5–10 s car |
+| field age / station count | ~8 min / 24 WAQI + ~71 model samples | `GET /aqi`, `GET /health` — model samples thin to ~40 after a cold task, climb through the hour |
+| fires / modifier | 79 fires, 17 belt; modifier ×1.09 at CP at last probe (sometimes null) | `GET /aqi → smoke_modifier` — fires swing daily; say "fires feed live" not a pinned modifier |
 | corridors publishable | 10 | `GET /v2/city` — grows with donations |
-| `/health` build_sha | `a382cdeb` — matches the deployed image tag `alive108-api:a382cdeb` | stamp and tag currently agree — say the revision freely. If a later deploy re-introduces lag, show the ECR tag and say the deploy revision, not the stamp |
+| `/health` build_sha | `07cadfdd` — an afternoon deploy landed; `/admin/api/status` can disagree (BUILD_SHA lag wart) | say the ECR image tag / "the afternoon deploy", not the stamp — two surfaces can legitimately disagree |
 
 Don't say numbers you didn't just verify. "About" and "roughly" are the
 honest words.
