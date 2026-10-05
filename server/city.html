@@ -126,6 +126,11 @@
   .tl-now{white-space:nowrap}
   .tl-note{flex-basis:100%;font-size:9.5px;letter-spacing:.12em;
       text-transform:uppercase;color:var(--ink4)}
+  /* where can your lungs go? — same control row, text-link pills for
+     mode/budget presets; the caption carries the honest counts */
+  .rch-pills{display:inline-flex;gap:12px}
+  .rch-pills button.on,
+  #rchArm[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
 
   /* district detail — top-left under m-tag on desktop, docks bottom on mobile;
      hairline popover, same language as /admin's cell inspector */
@@ -288,6 +293,14 @@
       <span class="tl-load" id="tlLoad" hidden></span>
       <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
       <span class="tl-note" id="tlNote"></span>
+    </div>
+    <div class="tl" id="rch" hidden>
+      <button id="rchArm" type="button" aria-pressed="false">◎ where can your lungs go?</button>
+      <span class="rch-pills" id="rchModes"></span>
+      <span class="rch-pills" id="rchBudgets"></span>
+      <span class="tl-h" id="rchCap"></span>
+      <span class="tl-load" id="rchLoad" hidden></span>
+      <span class="tl-note" id="rchNote"></span>
     </div>
     <div class="m-legend">
       <div class="chips" id="chips"></div>
@@ -645,6 +658,144 @@ async function tlInit(){
   idle(()=>{tlFetch(1).then(()=>tlFetch(2)).then(()=>tlFetch(3))});
 }
 
+/* ---------- where can your lungs go? — dose-budget reach ---------------
+   a tap solves /v2/reach's bounded dijkstra on the server and paints
+   exactly the edge set it settled — thin ink lines on real road
+   geometry, never a smoothed blob. mode/budget pills re-solve the same
+   origin; the caption carries the honest counts. when the endpoint
+   can't answer, the row hides instead of hanging a dead control. */
+const RCH={armed:false,mode:'walk',budget:50,origin:null,layer:null,seq:0};
+const RCH_MODES=['walk','cycle','auto','car'];
+const RCH_BUDGETS=[25,50,100];
+const rchUI={};
+
+function rchClear(){if(RCH.layer){RCH.layer.remove();RCH.layer=null}}
+function rchCap(t){rchUI.cap.textContent=t||''}
+function rchNote(t){rchUI.note.textContent=t||''}
+function rchLoad(t){const e=rchUI.load;
+  if(t==null){e.hidden=true;return}e.hidden=false;e.textContent=t}
+
+function rchArm(){RCH.armed=true;
+  rchUI.arm.textContent='◉ lungs mode — tap the map';
+  rchUI.arm.setAttribute('aria-pressed','true');
+  svg.style.cursor='crosshair';
+  /* district/cell hit-testing would swallow the tap — yield the whole
+     svg while armed (the veil itself is pointer-events:none) */
+  for(const g of [gCells,gDist,gLab])if(g)g.style.pointerEvents='none';
+  rchNote('tap anywhere — the veil paints the real settled road edges')}
+function rchDisarm(){RCH.armed=false;RCH.origin=null;RCH.seq++;rchClear();
+  rchUI.arm.innerHTML='◎ where can your lungs go?';
+  rchUI.arm.setAttribute('aria-pressed','false');
+  svg.style.cursor='';
+  for(const g of [gCells,gDist,gLab])if(g)g.style.pointerEvents='';
+  rchCap('');rchNote('')}
+function rchHide(){rchDisarm();rchUI.row.hidden=true}
+
+function rchClick(e){
+  if(!RCH.armed)return;
+  e.stopPropagation();e.preventDefault();
+  const ctm=svg.getScreenCTM();if(!ctm)return;
+  const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+  const p=pt.matrixTransform(ctm.inverse());
+  RCH.origin={lon:(p.x+PX0)/KM_PER_DEG_LON,
+              lat:(VH-p.y+PY0)/KM_PER_DEG_LAT};
+  rchSolve();
+}
+
+async function rchSolve(){
+  const seq=++RCH.seq,o=RCH.origin;if(!o)return;
+  rchLoad('settling the frontier…');rchCap('');
+  let b=null,bad=false;
+  try{
+    const r=await fetch(`/v2/reach?lat=${o.lat.toFixed(6)}&lon=${o.lon.toFixed(6)}&mode=${RCH.mode}&budget_ug=${RCH.budget}`);
+    if(r&&r.ok)b=await r.json();else bad=true;
+  }catch(_){bad=true}
+  if(seq!==RCH.seq)return;
+  rchLoad(null);
+  if(bad||!b||typeof b.edge_count!=='number'){rchHide();return}
+  if(b.error){
+    rchClear();
+    if(b.code==='outside_service_area')
+      rchCap('outside the dose field — tap inside ncr');
+    else if(b.code==='engine_unavailable'||b.code==='timeout')
+      rchCap('the field is still warming — tap again in a few seconds');
+    else rchCap('reach — '+String(b.error).slice(0,80));
+    return;
+  }
+  rchPaint(b);
+}
+
+function rchPaint(b){
+  rchClear();
+  const g=document.createElementNS(SVGNS,'g');
+  g.setAttribute('pointer-events','none');
+  let d='';
+  for(const e of b.edges_e6||[]){
+    for(let i=0;i+1<e.length;i+=2)
+      d+=(i?'L':'M')+X(e[i]/1e6).toFixed(2)+' '+Y(e[i+1]/1e6).toFixed(2);
+  }
+  const p=document.createElementNS(SVGNS,'path');
+  p.setAttribute('d',d||'M0 0');
+  p.setAttribute('fill','none');
+  p.setAttribute('stroke','rgba(22,24,29,.5)');
+  p.setAttribute('stroke-width','0.04');    /* ~40 m — ink hairlines */
+  p.setAttribute('stroke-linejoin','round');
+  p.setAttribute('stroke-linecap','round');
+  g.appendChild(p);
+  if(RCH.origin){
+    const c=document.createElementNS(SVGNS,'circle');
+    c.setAttribute('cx',X(RCH.origin.lon));
+    c.setAttribute('cy',Y(RCH.origin.lat));
+    c.setAttribute('r','0.22');c.setAttribute('fill','var(--ink)');
+    g.appendChild(c);
+  }
+  svg.appendChild(g);RCH.layer=g;
+  const km=(b.distance_km||0).toLocaleString('en-IN',{maximumFractionDigits:1});
+  let cap=`${RCH.mode} ≤${RCH.budget}µg — ${km} km reachable · ${(b.edge_count||0).toLocaleString('en-IN')} edges settled`;
+  if(b.truncated)cap+=' · frontier cut at the state cap';
+  if(b.edge_partial)cap+=` · veil shows the nearest ${(b.edges_e6.length||0).toLocaleString('en-IN')}`;
+  rchCap(cap);
+  let n='the veil is the actual dijkstra frontier — every line a road your lungs can afford';
+  if(b.field_age_s!=null)n+=` · field ${Math.floor(b.field_age_s/60)} min old`;
+  rchNote(n);
+}
+
+async function rchInit(){
+  const row=document.getElementById('rch');if(!row)return;
+  rchUI.row=row;
+  rchUI.arm=document.getElementById('rchArm');
+  rchUI.modes=document.getElementById('rchModes');
+  rchUI.budgets=document.getElementById('rchBudgets');
+  rchUI.cap=document.getElementById('rchCap');
+  rchUI.load=document.getElementById('rchLoad');
+  rchUI.note=document.getElementById('rchNote');
+  /* a zero-budget probe costs nothing on the server and doubles as the
+     availability check — a 404/network failure keeps the row hidden;
+     a typed engine_unavailable still means the endpoint exists */
+  try{
+    const r=await fetch('/v2/reach?lat=28.6139&lon=77.2090&mode=walk&budget_ug=0');
+    if(!r.ok)return;
+    const b=await r.json();
+    if(!b||typeof b.edge_count!=='number'||typeof b.mode!=='string')return;
+  }catch(_){return}
+  rchUI.modes.innerHTML=RCH_MODES.map(m=>
+    `<button type="button" data-m="${m}"${m===RCH.mode?' class="on"':''}>${m}</button>`).join('');
+  rchUI.budgets.innerHTML=RCH_BUDGETS.map(v=>
+    `<button type="button" data-b="${v}"${v===RCH.budget?' class="on"':''}>≤${v}µg</button>`).join('');
+  rchUI.modes.addEventListener('click',e=>{const b=e.target.closest('button[data-m]');
+    if(!b)return;RCH.mode=b.dataset.m;
+    rchUI.modes.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    if(RCH.origin)rchSolve()});
+  rchUI.budgets.addEventListener('click',e=>{const b=e.target.closest('button[data-b]');
+    if(!b)return;RCH.budget=+b.dataset.b;
+    rchUI.budgets.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    if(RCH.origin)rchSolve()});
+  rchUI.arm.addEventListener('click',()=>RCH.armed?rchDisarm():rchArm());
+  svg.addEventListener('pointerdown',rchClick,true);
+  rchNote('arm it, tap the map — dose-budget reachability on the real frontier');
+  row.hidden=false;
+}
+
 /* ---------- CPCB legend ---------- */
 function paintChips(){
   document.getElementById('chips').innerHTML=
@@ -852,6 +1003,7 @@ loadGeo().then(load).catch(()=>{
   if(t)t.innerHTML='<b>district boundaries unreachable</b><br>the numbers below still load';
   load()});
 tlInit();
+rchInit();
 clock();schedule();
 setInterval(clock,30000);
 window.addEventListener('resize',()=>{paintMini()});
