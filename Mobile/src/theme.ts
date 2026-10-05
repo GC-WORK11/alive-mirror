@@ -96,6 +96,13 @@ export function bandColor(v: number | null | undefined): string | null {
   return i == null ? null : BANDS[i];
 }
 
+/** Colour for a CPCB band INDEX (0–5) — for payloads that carry the
+ *  category itself rather than a concentration. */
+export function bandColorIdx(i: number | null | undefined): string | null {
+  if (i == null) return null;
+  return BANDS[Math.max(0, Math.min(5, i))];
+}
+
 // ── type ──────────────────────────────────────────────────────────────────
 // The register's ramp: 11/13/17/22/30/44 — eyebrow micro → hero display.
 // `secondary` stays as a 15px between-step legacy callers already use for

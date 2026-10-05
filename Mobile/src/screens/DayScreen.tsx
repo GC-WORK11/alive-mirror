@@ -10,14 +10,18 @@
  *      decision the swing changes ("same plan at X breathes ~N× lighter").
  *      Never "don't go out" — always the cheaper-for-lungs version of the
  *      same plan; a flat day says it's flat.
- *   2. your day — the on-device reconstruction (daylog.ts): ≈µg breathed,
+ *   2. the days ahead — the endpoint's own per-day fold of the real 120h
+ *      horizon (GET /v2/outlook): ≤5 day cells, a tap expands cleanest/
+ *      heavy hours, days past the live anchor's reach are ghosted, and
+ *      the verdict line is verbatim. A dead endpoint hides the card.
+ *   3. your day — the on-device reconstruction (daylog.ts): ≈µg breathed,
  *      a 24-slot hour arc (covered spans only — the arc leaves uncovered
  *      hours blank instead of inventing exposure), top accumulators.
- *   3. the symptom lens — breath/eyes/energy single-tap check-in, stored
+ *   4. the symptom lens — breath/eyes/energy single-tap check-in, stored
  *      on this phone only; the correlation line earns itself after ~7 days.
- *   4. personal tiles — today µg / week arc / budget left, in the admin
+ *   5. personal tiles — today µg / week arc / budget left, in the admin
  *      tile language (mono micro label + serif number).
- *   5. your budget — quiet profile ceiling, honest over/under flag.
+ *   6. your budget — quiet profile ceiling, honest over/under flag.
  *
  *  Copy rule for the whole stack: "same life, cheaper for lungs" — a card
  *  that can't name a cheaper window/mode shows the number plainly, never
@@ -28,6 +32,7 @@ import React, { useEffect, useState } from "react";
 import {
   Animated,
   BackHandler,
+  LayoutAnimation,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -43,11 +48,12 @@ import {
   V2T,
   V2Type,
   bandColor,
+  bandColorIdx,
   fam,
   famMono,
   famSerif,
 } from "../theme";
-import { approx, t, type Lang } from "../i18n/strings";
+import { approx, t, type Lang, type StringKey } from "../i18n/strings";
 import { Icon } from "../icons";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tap, tick } from "../haptics";
@@ -68,6 +74,12 @@ import {
   morningAnswers,
   type DayCurve,
 } from "../api/dayfield";
+import {
+  CLEAN_UG,
+  bandIdxForName,
+  fetchOutlook,
+  type Outlook,
+} from "../api/outlook";
 import { PROFILE_BUDGET_UG, type ShellSettings } from "../components/shell/settings";
 
 /* ---------------- the hook: one assemble of the day's data --------------- */
@@ -85,6 +97,8 @@ export type DayData = {
   checkin: Checkin | null;
   /** seconds since the curve was last fetched fresh — for the stale line */
   curveAgeS: number | null;
+  /** the folded days ahead — null hides the card (dead endpoint, outside) */
+  outlook: Outlook | null;
 };
 
 /** Assemble everything the stack needs. `nonce` is a cheap re-render
@@ -134,10 +148,12 @@ export function useDayData(
       }
 
       const outside = !inNcr(lat, lon);
-      const curve = outside || !withCurve ? null : await fetchDayCurve(lat, lon);
+      const [curve, outlook] = outside || !withCurve
+        ? [null, null]
+        : await Promise.all([fetchDayCurve(lat, lon), fetchOutlook(lat, lon)]);
       if (!live) return;
       setData({
-        rec, week, curve, outside,
+        rec, week, curve, outside, outlook,
         lens: symptomLens(checkins, doseByDay),
         checkin: checkins[today] ?? null,
         curveAgeS: null,
@@ -152,9 +168,10 @@ export function useDayData(
 
 const mono = (lang: Lang, w: "reg" | "med" | "semi" = "reg") => famMono(lang, w);
 
-/** A CPCB band dot — the only colour that means data. null → empty ring. */
-function BandDot({ conc, size = 7 }: { conc: number | null; size?: number }) {
-  const c = bandColor(conc);
+/** A CPCB band dot — the only colour that means data. null → empty ring.
+ *  `color` overrides for payloads that carry the band itself. */
+function BandDot({ conc, color, size = 7 }: { conc: number | null; color?: string | null; size?: number }) {
+  const c = color !== undefined ? color : bandColor(conc);
   return (
     <View style={{
       width: size, height: size, borderRadius: size / 2,
@@ -325,6 +342,192 @@ function MorningCard({ curve, outside, lang }: {
 }
 
 const nowHour = () => new Date().getHours();
+
+/* ---------------- the days ahead ---------------- */
+
+/** Served day label ("today" | "tomorrow" | weekday) → localized key.
+ *  Unknown labels pass through — a name is honest even untranslated. */
+const DAY_LABEL_KEYS: Record<string, StringKey> = {
+  today: "dayLbl_today",
+  tomorrow: "dayLbl_tomorrow",
+  monday: "dayLbl_monday",
+  tuesday: "dayLbl_tuesday",
+  wednesday: "dayLbl_wednesday",
+  thursday: "dayLbl_thursday",
+  friday: "dayLbl_friday",
+  saturday: "dayLbl_saturday",
+  sunday: "dayLbl_sunday",
+};
+const dayLabel = (label: string, lang: Lang): string => {
+  const k = DAY_LABEL_KEYS[label.trim().toLowerCase()];
+  return k ? t(k, lang) : label;
+};
+
+/** Compact the served heavy-hour labels ("21:30" hourly starts) into
+ *  ranges: ["21:30","22:30","23:30"] → "21:30–00:30"; singles stay raw.
+ *  A day's hours never wrap midnight, so h+1 always means the next slot. */
+function compactHours(labels: string[]): string {
+  const hrs = labels
+    .map((l) => (/^\d{1,2}:\d{2}/.test(l) ? { h: parseInt(l, 10), raw: l } : null))
+    .filter((x): x is { h: number; raw: string } => x !== null);
+  if (!hrs.length) return "";
+  const out: string[] = [];
+  let i = 0;
+  while (i < hrs.length) {
+    let j = i;
+    while (j + 1 < hrs.length && hrs[j + 1].h === hrs[j].h + 1) j++;
+    if (j > i) {
+      const endH = `${(hrs[j].h + 1) % 24}`.padStart(2, "0");
+      out.push(`${hrs[i].raw}–${endH}:${hrs[j].raw.slice(3)}`);
+    } else {
+      out.push(hrs[i].raw);
+    }
+    i = j + 1;
+  }
+  return out.join(", ");
+}
+
+/** The card's caption. English gets the wire line verbatim — it is already
+ *  honest about partial days and flat weeks. Hindi rebuilds the same
+ *  sentence from the served fields so wire English doesn't leak; anything
+ *  unexpected falls back to the served text untouched. */
+function outlookCaption(o: Outlook, lang: Lang): string {
+  if (!o.verdict) return "";
+  if (lang === "en") return o.verdict;
+  if (o.best_day) {
+    const b = o.best_day;
+    const w = t(b.pm25_mid > CLEAN_UG ? "dayOutlookLeastBad" : "dayOutlookCleanest", lang);
+    const s = t("dayOutlookVerdict", lang, {
+      d: dayLabel(b.label, lang), w,
+      c: Math.round(b.pm25_mid),
+      g: Math.round(b.pm25_mid - b.delta_vs_mean),
+    });
+    return b.n_hours < 12 ? s + t("dayOutlookVerdictPartial", lang, { n: b.n_hours }) : s;
+  }
+  if (o.flat && o.days.length) {
+    const mean = Math.round(o.days.reduce((s, d) => s + d.pm25_mid, 0) / o.days.length);
+    return t("dayOutlookFlatVerdict", lang, { c: mean, n: o.days.length });
+  }
+  return o.verdict;
+}
+
+function DaysAheadCard({ outlook, lang }: { outlook: Outlook | null; lang: Lang }) {
+  const reduceMotion = useReduceMotion();
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  if (!outlook || outlook.days.length === 0) return null;
+  const days = outlook.days.slice(0, 5);
+  const open = days.find((d) => d.date_ist === openKey) ?? null;
+  const anyLo = days.some((d) => d.confidence === "lo");
+  const caption = outlookCaption(outlook, lang);
+  return (
+    <View style={ss.card}>
+      <View style={ss.oaHead}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mono(lang, "med"), marginBottom: 0 }]}>
+          {t("dayOutlookTitle", lang)}
+        </Text>
+        <Text {...DYNAMIC_TYPE} style={[ss.oaUnit, { fontFamily: mono(lang) }]}>µg/m³</Text>
+      </View>
+      <View style={ss.oaRow}>
+        {days.map((d) => {
+          const best = outlook.best_day?.date_ist === d.date_ist;
+          const sel = openKey === d.date_ist;
+          const dot = bandColorIdx(bandIdxForName(d.band)) ?? bandColor(d.pm25_mid);
+          return (
+            <Pressable key={d.date_ist}
+              onPress={() => {
+                tick();
+                /* the detail mounts under the row — ease it like the
+                   settings/ledger expanders (native path) */
+                if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setOpenKey(sel ? null : d.date_ist);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: sel }}
+              accessibilityLabel={`${dayLabel(d.label, lang)} ${Math.round(d.pm25_mid)}`}
+              style={({ pressed }) => [
+                ss.oaCell,
+                d.confidence === "lo" && { opacity: 0.45 }, // ghosted — past the live anchor's reach
+                sel && ss.oaCellSel,
+                pressed && { backgroundColor: V2T.surface2 },
+              ]}>
+              <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
+                style={[ss.oaDay, { fontFamily: mono(lang) }]}>
+                {dayLabel(d.label, lang)}
+              </Text>
+              <View style={ss.oaMidRow}>
+                <BandDot conc={null} color={dot} />
+                <Text {...DYNAMIC_TYPE} style={[ss.oaMid, NUM, { fontFamily: mono(lang, "med") }]}>
+                  {Math.round(d.pm25_mid)}
+                </Text>
+              </View>
+              <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
+                style={[ss.oaSub, { fontFamily: mono(lang) }]}>
+                {d.partial ? `~${d.n_hours}h` : " "}
+              </Text>
+              <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
+                style={[ss.oaMark, { fontFamily: fam(lang, "med") }]}>
+                {best ? t(d.pm25_mid > CLEAN_UG ? "dayOutlookLeastBad" : "dayOutlookCleanest", lang) : " "}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {open && (
+        <View style={ss.oaDetail}>
+          <Text {...DYNAMIC_TYPE} style={[ss.oaDetailHead, { fontFamily: mono(lang, "med") }]}>
+            {dayLabel(open.label, lang)} · {open.date_ist}
+          </Text>
+          {open.partial && (
+            <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, { fontFamily: fam(lang, "reg") }]}>
+              {open.label === "today"
+                ? t("dayOutlookTodayPartial", lang, { n: open.n_hours })
+                : t("dayOutlookPartial", lang, { n: open.n_hours })}
+            </Text>
+          )}
+          {open.cleanest_window ? (
+            <View style={ss.mRow}>
+              <BandDot conc={open.cleanest_window.pm25_mid ?? null} />
+              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mono(lang) }]}>
+                {t("dayMorningClean", lang, {
+                  f: open.cleanest_window.start_label ?? "",
+                  t: open.cleanest_window.end_label ?? "—",
+                  c: Math.round(open.cleanest_window.pm25_mid ?? 0),
+                })}
+              </Text>
+            </View>
+          ) : (
+            <Text {...DYNAMIC_TYPE}
+              style={[ss.mLine, { fontFamily: fam(lang, "reg"), marginTop: 6 }]}>
+              {open.heavy_hours_ist.length > 0
+                ? t("dayOutlookAllDayHeavy", lang)
+                : t("dayMorningFlat", lang)}
+            </Text>
+          )}
+          {open.cleanest_window && open.heavy_hours_ist.length > 0 && (
+            <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, NUM, { fontFamily: mono(lang) }]}>
+              {t("dayOutlookHeavyHours", lang, { h: compactHours(open.heavy_hours_ist) })}
+            </Text>
+          )}
+          {open.pm25_lo != null && open.pm25_hi != null && (
+            <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, NUM, { fontFamily: mono(lang) }]}>
+              {t("dayOutlookRange", lang, { lo: Math.round(open.pm25_lo), hi: Math.round(open.pm25_hi) })}
+            </Text>
+          )}
+        </View>
+      )}
+      {!!caption && (
+        <Text {...DYNAMIC_TYPE} style={[ss.moveLine, { fontFamily: fam(lang, "med") }]}>
+          {caption}
+        </Text>
+      )}
+      {anyLo && (
+        <Text {...DYNAMIC_TYPE} style={[ss.finePrint, { fontFamily: fam(lang, "reg") }]}>
+          {t("dayOutlookLoNote", lang)}
+        </Text>
+      )}
+    </View>
+  );
+}
 
 /* ---------------- your day: the arc ---------------- */
 
@@ -647,6 +850,7 @@ function DaySheet({ data, lang, settings, onClose, onGo, onProfile, onCheckin }:
       <ScrollView style={ss.flex}
         contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 24 }]}>
         <MorningCard curve={data.curve} outside={data.outside} lang={lang} />
+        <DaysAheadCard outlook={data.outlook} lang={lang} />
         <DayCard rec={data.rec} budgetUg={budget} lang={lang} />
         <LensCard checkin={data.checkin} lens={data.lens} lang={lang} onCheckin={onCheckin} />
         <TileRow data={data} budgetUg={budget} lang={lang} />
@@ -760,6 +964,32 @@ const ss = StyleSheet.create({
   mRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
   mLine: { color: V2T.text2, fontSize: V2Type.secondary },
   moveLine: { color: V2T.accentInk, fontSize: V2Type.secondary, marginTop: 8 },
+
+  /* the days ahead — compact cells, same card language as the tiles */
+  oaHead: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  oaUnit: { color: V2T.text4, fontSize: V2Type.micro },
+  oaRow: { flexDirection: "row", gap: 6 },
+  oaCell: {
+    flex: 1, borderWidth: 1, borderColor: V2T.hairline,
+    borderRadius: V2Radius.row, backgroundColor: V2T.surface,
+    paddingHorizontal: 6, paddingTop: 7, paddingBottom: 7,
+    alignItems: "center",
+  },
+  oaCellSel: { backgroundColor: V2T.accentWash, borderColor: V2T.accent },
+  oaDay: { color: V2T.text3, fontSize: 9 },
+  oaMidRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  oaMid: { color: V2T.text, fontSize: V2Type.label },
+  oaSub: { color: V2T.text4, fontSize: 9, marginTop: 2, minHeight: 12 },
+  oaMark: { color: V2T.accentInk, fontSize: 9, marginTop: 2, minHeight: 12 },
+  oaDetail: {
+    marginTop: 10, paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
+  },
+  oaDetailHead: { color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.0 },
+  oaDetailNote: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 6 },
 
   /* day arc */
   heroRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
