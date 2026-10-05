@@ -20,7 +20,7 @@ import { postJson, postReroute } from "../api/reroute";
 import { enqueueTripDonation } from "../offline/queue";
 import { LiveCounters } from "./counters";
 import {
-  ARRIVE_M, ArrivalTracker, flattenCoords, havM, OffRouteTracker,
+  ARRIVE_M, ArrivalTracker, flattenCoords, havM, OFF_ROUTE_M, OffRouteTracker,
   polylineLengthM, snapToPolyline, type LonLat,
 } from "./offroute";
 import { fieldAtAlongM, stripCumM, type Band, type RouteStrip } from "./strip";
@@ -374,12 +374,18 @@ export function useNavEngine(opts: NavEngineOpts) {
       // (distanceInterval filters stationary updates on both platforms),
       // so the 2-fix proximity check below can strand the end state.
       // alongM only grows, so one snapped fix within ARRIVE_M of the
-      // route end is an honest arrival. Guard: longer routes only, else
-      // a sub-90 m trip would arrive on its first fix.
+      // route end is an honest arrival. Guards: longer routes only, else
+      // a sub-90 m trip would arrive on its first fix; and the fix must
+      // be on the route corridor — snapToPolyline clamps the projection
+      // to the end vertex, so an off-route fix whose nearest route point
+      // is the destination would otherwise read remaining=0 and complete
+      // instantly (a bypass/parallel-road fix, or bad GPS, killing the
+      // trip before the off-route check below can even run).
       // NB: deferred — arrive() tears down the location subscription,
       // which must not happen inside its own callback (native SIGSEGV).
       if (routeLenRef.current > ARRIVE_M * 1.5 &&
-          routeLenRef.current - alongRef.current <= ARRIVE_M) {
+          routeLenRef.current - alongRef.current <= ARRIVE_M &&
+          snap.offsetM <= OFF_ROUTE_M) {
         setTimeout(arrive, 0);
         return;
       }
