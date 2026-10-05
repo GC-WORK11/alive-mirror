@@ -275,6 +275,20 @@
   .dbar i{width:14px;background:rgba(101,112,127,.5);border-radius:3px 3px 0 0}
   .dbar span{font-family:var(--mono);font-size:8px;color:var(--ink4)}
 
+  /* recorded-today strip — one square per ist hour inside the archive
+     card: recorded = that hour's mean cpcb band, gap = dashed hollow,
+     pending = faint, unreadable = hatched */
+  .hstrip{display:flex;gap:3px;align-items:center;flex-wrap:wrap;
+          margin-top:9px}
+  .hstrip .ah{width:11px;height:11px;border:1px solid var(--hair);
+              border-radius:0;background:transparent}
+  .hstrip .ah.gap{border-style:dashed;opacity:.55}
+  .hstrip .ah.pend{opacity:.3}
+  .hstrip .ah.bad{background:repeating-linear-gradient(45deg,
+                  transparent 0 2px,var(--hair) 2px 3px)}
+  .hstrip .ahm{font-family:var(--mono);font-size:8.5px;color:var(--ink4);
+               margin-left:9px;letter-spacing:.1em;text-transform:uppercase}
+
   /* 01 · the provenance strip — the one line a judge reads first:
      "24 instruments → krige σ → 903,058 priced edges", each segment
      serif-numbered, mono-captioned, hairline-separated */
@@ -1648,7 +1662,51 @@ function paintArchive(S){
   el.innerHTML=tiles.map(([l,v,sub])=>
     `<div class="card"><div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'insufficient data'}</div>
      <div class="lbl">${l}</div>
-     <div class="lbl" style="text-transform:none;letter-spacing:.02em;margin-top:5px">${sub||''}</div></div>`).join('');
+     <div class="lbl" style="text-transform:none;letter-spacing:.02em;margin-top:5px">${sub||''}</div></div>`).join('')+
+    /* recorded today — one square per ist hour, coloured by that
+       hour's mean band; filled lazily from /v2/archive (public read) */
+    `<div class="card" style="grid-column:1/-1">
+     <div class="lbl">recorded today — hourly · ist</div>
+     <div class="hstrip" id="archstrip"></div>
+     <div class="lbl" id="archstripcap" style="text-transform:none;letter-spacing:.02em;margin-top:6px">reading /v2/archive…</div></div>`;
+  archStrip();
+}
+/* the hourly strip — every square a real snapshot or an honest gap,
+   colours from the day's own payload (never status() estimates) */
+async function archStrip(){
+  const el=$('archstrip'),cap=$('archstripcap');if(!el)return;
+  let d=null;
+  try{const r=await fetch('/v2/archive',{signal:AbortSignal.timeout(12000)});
+      if(r.ok)d=await r.json()}catch(_){}
+  if(!el.isConnected)return;
+  if(!d||d.basis!=='recorded'||!(d.archive&&d.archive.total_snapshots)){
+    el.innerHTML='';
+    cap.textContent=d&&d.basis==='recorded'
+      ?'archive empty — no snapshots on record yet'
+      :'/v2/archive unreachable — retrying next tick';
+    return;
+  }
+  const cov=d.coverage||{},wm=cov.with_model||[];
+  const meanOf=e=>{let s=0,n=0;
+    for(const c of e.cells||[])if(c[2]!=null){s+=c[2];n++}
+    return n?s/n:null};
+  el.innerHTML=(d.hours||[]).map(e=>{
+    const st=e.status,rec=st==='recorded';
+    const m=rec?meanOf(e):null;
+    const col=m==null?null:(dmBand(dmAqi('pm2_5',m),'pm2_5')||[])[3];
+    const tt=`${e.ist_label} ist — ${rec
+      ?`recorded · mean pm2.5 ${fmt1(m)} µg/m³`+(e.model?' · model on record':'')
+      :st==='gap'?'no record':st==='unreadable'?'snapshot unreadable':'not due yet'}`;
+    return `<span class="ah ${rec?'':st==='gap'?'gap':st==='unreadable'?'bad':'pend'}"
+      ${col?`style="background:${col};border-color:rgba(20,24,31,.45)"`:''}
+      title="${esc(tt)}"></span>`;
+  }).join('')+
+  `<span class="ahm">${(cov.recorded||[]).length} recorded`+
+    `${(cov.gaps||[]).length?` · ${cov.gaps.length} gaps`:''}`+
+    `${wm.length?` · ${wm.length} with model (${wm.map(h=>String(h).padStart(2,'0')).join('·')}h)`  :''}`+
+    ` · 00 → 23 ist</span>`;
+  cap.textContent=`${d.day} · ${cov.recorded_count||0} of ${24-(cov.pending||[]).length} elapsed hours recorded`+
+    `${d.archive.since_ist?` · recording since ${d.archive.since_ist.slice(0,10)} ${d.archive.since_ist.slice(11,16)} ist`:''}`;
 }
 /* forecast scrub — /grid?h=N re-serves the cams horizon anchored to the
    live field; pm2.5 only (other species have no forecast surface) */

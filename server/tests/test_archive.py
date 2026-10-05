@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -73,6 +73,44 @@ class FakeS3:
     def put_object(self, Bucket, Key, Body, **kw):
         self.objects[Key] = Body
         return {}
+
+
+def _utc(y, m, d, h, minute=0):
+    return datetime(y, m, d, h, minute, tzinfo=timezone.utc)
+
+
+class FakeForecast:
+    """A forecast run issued at `t0` covering `n` hourly slots; every
+    point reads `mid + drift*idx` so comparisons are deterministic.
+    Mirrors the ForecastField surface archive.py uses: hour_index /
+    time_at / pm25 (served surface) + slot_index_at / model_pm25_at
+    (raw stored slot). `now` is frozen so hour_index stays stable."""
+
+    def __init__(self, t0, now, n=120, mid=80.0, drift=2.0):
+        self.t0 = t0
+        self.now = now
+        self.n, self.mid, self.drift = n, mid, drift
+
+    def hour_index(self, h):
+        idx = int((self.now + timedelta(hours=h) - self.t0)
+                  .total_seconds() // 3600)
+        return idx if 0 <= idx < self.n else None
+
+    def time_at(self, idx):
+        if not (0 <= idx < self.n):
+            return None
+        return (self.t0 + timedelta(hours=idx)).strftime("%Y-%m-%dT%H:%M")
+
+    def slot_index_at(self, when):
+        idx = int((when - self.t0).total_seconds() // 3600)
+        return idx if 0 <= idx < self.n else None
+
+    def pm25(self, lat, lon, h):
+        idx = self.hour_index(h)
+        return None if idx is None else self.mid + self.drift * idx
+
+    def model_pm25_at(self, lat, lon, idx):
+        return self.mid + self.drift * idx if 0 <= idx < self.n else None
 
 
 @pytest.fixture(autouse=True)
@@ -262,3 +300,137 @@ def test_endpoint_defaults_to_today_and_validates(tmp_path):
 def test_endpoint_empty_archive_is_honest(tmp_path):
     b = client.get("/v2/archive", params={"day": "2026-10-04"}).json()
     assert b["hours"] == [] and b["archive"]["total_snapshots"] == 0
+
+
+# ------------------------------------------------- forecast horizons
+
+def _doc_at(root, day_key, h):
+    p = os.path.join(str(root), f"field-{day_key}{h:02d}.json.gz")
+    return json.loads(gzip.decompress(open(p, "rb").read()))
+
+
+def test_capture_stores_served_forecast_horizons(tmp_path):
+    now = _ts_ist(2026, 10, 5, 14)          # 14:02 IST = 08:32 UTC
+    fc = FakeForecast(t0=_utc(2026, 10, 5, 0),
+                      now=_utc(2026, 10, 5, 8, 32), mid=80.0, drift=2.0)
+    r = _arch.capture(FakeField(), now=now, root=str(tmp_path),
+                      forecast=fc)
+    assert r["ok"]
+    doc = _doc_at(tmp_path, "20261005", 14)
+    assert doc["v"] == 2
+    fh = doc["forecast"]
+    assert fh["basis"] == "forecast"
+    assert fh["issued_ist"].startswith("2026-10-05T14")
+    hz = fh["horizons"]
+    assert len(hz) == _arch.FORECAST_HORIZON_H
+    # idx0 at capture = the slot containing 08:32 UTC → 08:00 UTC,
+    # which begins 13:30 IST → the hour-bucket floor rule gives 13
+    assert hz[0]["h"] == 0 and hz[0]["slot_utc"] == "2026-10-05T08:00"
+    assert hz[0]["ist_day"] == "20261005" and hz[0]["ist_hour"] == 13
+    assert hz[7]["ist_hour"] == 20            # 15:00 UTC = 20:30 IST
+    assert hz[0]["n"] == 121 and len(hz[0]["cells"]) == 121
+    # model slot 8 → mid + drift*8 = 96.0 on every emit point
+    assert all(c[2] == 96.0 for c in hz[0]["cells"])
+
+
+def test_capture_without_forecast_omits_block(tmp_path):
+    r = _arch.capture(FakeField(), now=_ts_ist(2026, 10, 5, 14),
+                      root=str(tmp_path), forecast=None)
+    assert r["ok"]
+    assert "forecast" not in _doc_at(tmp_path, "20261005", 14)
+
+
+def test_broken_forecast_never_sinks_a_capture(tmp_path):
+    class Bomb:
+        def hour_index(self, h):
+            raise RuntimeError("forecast fetch exploded")
+    r = _arch.capture(FakeField(), now=_ts_ist(2026, 10, 5, 14),
+                      root=str(tmp_path), forecast=Bomb())
+    assert r["ok"]
+    assert "forecast" not in _doc_at(tmp_path, "20261005", 14)
+
+
+def test_model_block_from_stored_horizon(tmp_path):
+    day = date(2026, 10, 5)
+    # 14:02 IST capture stores the horizon it was serving — h=7 covers
+    # the UTC slot that starts inside IST bucket 20
+    fc14 = FakeForecast(t0=_utc(2026, 10, 5, 0),
+                        now=_utc(2026, 10, 5, 8, 32), mid=80.0,
+                        drift=2.0)
+    _arch.capture(FakeField(mid=100.0), now=_ts_ist(2026, 10, 5, 14),
+                  root=str(tmp_path), forecast=fc14)
+    _arch.capture(FakeField(mid=140.0), now=_ts_ist(2026, 10, 5, 20),
+                  root=str(tmp_path), forecast=None)
+    p = _arch.day_payload(day, root=str(tmp_path),
+                          now=_ts_ist(2026, 10, 5, 22), forecast=None)
+    e20 = p["hours"][20]
+    assert e20["status"] == "recorded"
+    mb = e20["model"]
+    assert mb["basis"] == "forecast" and mb["source"] == "archive"
+    assert mb["issued_ist"].startswith("2026-10-05T14")
+    assert 6 <= mb["lead_hours"] <= 7
+    # slot 15 UTC → mid + 2*15 = 110 under the recorded 140
+    assert all(c[2] == 110.0 for c in mb["cells"] if c[2] is not None)
+    d = mb["delta"]
+    assert d["pairs"] == 121 and d["under_called"] == 121
+    assert d["mean_signed_ug"] == 30.0 and d["mean_abs_ug"] == 30.0
+    assert p["coverage"]["with_model"] == [20]
+    # the capturing hour itself is never its own comparison
+    assert "model" not in p["hours"][14]
+
+
+def test_model_block_held_run_fallback(tmp_path):
+    day = date(2026, 10, 5)
+    _seed(str(tmp_path), day, [9], mid=200.0)     # v1-style: field only
+    # a run issued 00:00 UTC is still held; its slot for the 09 IST
+    # bucket's midpoint (04:00 UTC) is idx 4 → 80 + 2*4 = 88
+    fc = FakeForecast(t0=_utc(2026, 10, 5, 0), now=_utc(2026, 10, 5, 6, 32),
+                      mid=80.0, drift=2.0)
+    p = _arch.day_payload(day, root=str(tmp_path),
+                          now=_ts_ist(2026, 10, 5, 12), forecast=fc)
+    mb = p["hours"][9]["model"]
+    assert mb["source"] == "held-run"
+    assert mb["issued_utc"] == "2026-10-05T00:00:00+00:00"
+    assert mb["slot_utc"] == "2026-10-05T04:00"
+    assert mb["lead_hours"] == 4.0
+    assert all(c[2] == 88.0 for c in mb["cells"] if c[2] is not None)
+    assert "not replayable" in mb["note"] or "isn't replayable" \
+        in mb["note"]
+    d = mb["delta"]
+    assert d["pairs"] == 121 and d["under_called"] == 121  # 200 − 88
+
+
+def test_no_model_when_nothing_covers(tmp_path):
+    day = date(2026, 10, 4)
+    _seed(str(tmp_path), day, [9], mid=120.0)
+    # a run issued Oct-5 UTC holds no Oct-4 slots — honest absence
+    fc = FakeForecast(t0=_utc(2026, 10, 5, 0), now=_utc(2026, 10, 6, 6, 32))
+    p = _arch.day_payload(day, root=str(tmp_path),
+                          now=_ts_ist(2026, 10, 6, 12), forecast=fc)
+    assert "model" not in p["hours"][9]
+    assert p["coverage"]["with_model"] == []
+
+
+def test_held_run_waits_for_the_slot_to_begin():
+    # the archived 'model' compares finished history — never a slot
+    # that hasn't started (that's still the forecast, not a record)
+    fc = FakeForecast(t0=_utc(2026, 10, 5, 0), now=_utc(2026, 10, 5, 8, 32))
+    # IST bucket 14's covering slot begins 09:00 UTC (14:30 IST)
+    mb = _arch._held_run_model("20261005", 14, forecast=fc,
+                               now=_utc(2026, 10, 5, 8, 45).timestamp())
+    assert mb is None
+    mb = _arch._held_run_model("20261005", 14, forecast=fc,
+                               now=_utc(2026, 10, 5, 9, 1).timestamp())
+    assert mb and mb["slot_utc"] == "2026-10-05T09:00"
+
+
+def test_delta_counts_misses_honestly():
+    rec = [[76.9, 28.3, 100.0], [77.0, 28.4, 50.0], [77.1, 28.5, 200.0]]
+    mod = [[76.9, 28.3, 92.0], [77.0, 28.4, 80.0], [77.1, 28.5, None]]
+    d = _arch._delta(rec, mod)
+    assert d["pairs"] == 2                    # the null never pairs
+    assert d["under_called"] == 0 and d["over_called"] == 1
+    assert d["about_right"] == 1              # |100−92| ≤ tol
+    assert d["mean_signed_ug"] == -11.0 and d["mean_abs_ug"] == 19.0
+    assert d["max_abs_ug"] == 30.0
+    assert _arch._delta(rec, []) is None      # no pairs → no delta

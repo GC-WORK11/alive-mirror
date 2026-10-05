@@ -30,6 +30,22 @@ Honesty contract — same rule as every other layer in this server:
   * every blob and every wire payload carries basis:"recorded" — it can
     never be confused with the forecast timelapse.
 
+Each snapshot (v2) also stores the forecast the api was serving at
+capture time — FORECAST.pm25 (the /grid?h= surface, live anchor
+included) at the emit lattice for horizons h=0..FORECAST_HORIZON_H-1.
+That is what powers the recorded-vs-forecast 'flip' on /v2/archive:
+
+  * per recorded hour, a "model" block carries the earliest stored
+    horizon that still covers the hour (source:"archive" — what we
+    served, at the longest lead on record) or, when no stored horizon
+    reaches it, the forecast run still held in memory evaluating its
+    own slot (source:"held-run" — raw model x stagnation; the live
+    anchor layered at serve time is not replayable, and the payload
+    says so). Hours with neither carry no model — the flip simply
+    doesn't light, it never fabricates one.
+  * "model.delta" counts the model's misses per shared lattice cell:
+    recorded − predicted, with a tol band for 'about right'.
+
 The recorder is an asyncio task started in main._lifespan
 (ALIVE_ARCHIVE=0 disables). Each tick runs the same request-driven
 FIELD.refresh a visitor would trigger — the snapshot stays aligned to
@@ -57,6 +73,13 @@ CELL_FIELDS = ["lon", "lat", "pm25", "lo", "hi", "conf", "band"]
 BAND_SIGMA = 1.96          # lo/hi convention — matches airindex cells
 TZ_NAME = "ist"
 IST = timezone(timedelta(hours=5, minutes=30), "IST")
+# each snapshot also stores the forecast the api was serving at capture
+# time — h=0..11, the same span the timelapse scrubs — so a later
+# recorded hour can be compared to what we predicted for it (the flip).
+FORECAST_HORIZON_H = 12
+# recorded-vs-model call tolerance: |Δ| inside this band is 'about right'
+DELTA_TOL_UG = 10.0
+_FORECAST_SENTINEL = object()   # 'use the live FORECAST singleton'
 
 # cadence: one snapshot per IST hour-bucket, taken just past its start
 INITIAL_DELAY_S = float(os.environ.get("ALIVE_ARCHIVE_DELAY_S", "45"))
@@ -152,7 +175,7 @@ def _field_meta(field) -> dict:
 # ------------------------------------------------------------------ capture
 
 def capture(field=None, *, now: Optional[float] = None, root=None,
-            store=None) -> dict:
+            store=None, forecast=_FORECAST_SENTINEL) -> dict:
     """Render the CURRENT served field and append it to the archive.
 
     `field` defaults to airfield.FIELD — the object /grid, /aqi and the
@@ -160,6 +183,8 @@ def capture(field=None, *, now: Optional[float] = None, root=None,
     is ingest_worker.store_blob (S3 when ALIVE_AIR_BUCKET + credentials
     resolve, always mirrored locally — the local file is how this task
     serves the endpoint back; on a failed put, local is the only copy).
+    `forecast` defaults to the live FORECAST singleton — pass None to
+    capture field-only, or a stub for tests.
 
     Nothing is fabricated: a field that serves no cells writes no
     snapshot — the hour stays an honest gap.
@@ -168,6 +193,12 @@ def capture(field=None, *, now: Optional[float] = None, root=None,
     if field is None:
         from airfield import FIELD
         field = FIELD
+    if forecast is _FORECAST_SENTINEL:
+        try:
+            from forecast import FORECAST
+            forecast = FORECAST
+        except Exception:  # noqa: BLE001 - horizon is optional side-data
+            forecast = None
     now = time.time() if now is None else now
     ist = datetime.fromtimestamp(now, IST)
     cells = _render_cells(field)
@@ -181,7 +212,7 @@ def capture(field=None, *, now: Optional[float] = None, root=None,
         _LAST.update(dict(res, at=now))
         return res
     doc = {
-        "v": 1,
+        "v": 2,
         "basis": "recorded",
         "captured_at": datetime.fromtimestamp(
             now, timezone.utc).isoformat(),
@@ -196,6 +227,9 @@ def capture(field=None, *, now: Optional[float] = None, root=None,
         "n_cells": len(cells),
         "cells": cells,
     }
+    fc = _render_forecast(forecast, now=now)
+    if fc:
+        doc["forecast"] = fc
     blob = _serialize(doc)
     if store is None:
         import ingest_worker
@@ -217,6 +251,66 @@ def capture(field=None, *, now: Optional[float] = None, root=None,
 def _bbox():
     import grid as _grid
     return _grid.BBOX
+
+
+def _emit_lattice(cells: int = GRID_CELLS) -> list:
+    """The fixed (lon, lat) points the wire emits — every WIRE_STRIDE-th
+    lattice point in the stored row-major order. Positions are constant
+    whether or not the field values a given cell, so recorded and model
+    surfaces join 1:1 on coordinates."""
+    x0, y0, x1, y1 = _bbox()
+    dx, dy = (x1 - x0) / cells, (y1 - y0) / cells
+    pts = [(x0 + (ix + 0.5) * dx, y0 + (iy + 0.5) * dy)
+           for ix in range(cells) for iy in range(cells)]
+    return pts[::WIRE_STRIDE]
+
+
+# ------------------------------------------------------------- forecast
+
+def _render_forecast(forecast, *, now: float) -> Optional[dict]:
+    """The forecast surface as served at capture time — FORECAST.pm25,
+    the same call /grid?h= makes (live anchor included), at the emit
+    lattice for horizons h=0..FORECAST_HORIZON_H-1.
+
+    Stored inside the snapshot: when a later recorded hour lands, the
+    payload can flip it against what the api was actually showing for
+    that hour — durable 'what we predicted' evidence that survives the
+    run's own 30-min refetch. None when the run serves nothing, and a
+    render failure must never sink a capture."""
+    if forecast is None:
+        return None
+    try:
+        horizons = []
+        for h in range(FORECAST_HORIZON_H):
+            idx = forecast.hour_index(h)
+            if idx is None:
+                break               # horizon exhausted — keep what exists
+            slot_utc = forecast.time_at(idx)
+            if slot_utc is None:
+                break
+            slot_ist = datetime.fromisoformat(slot_utc).replace(
+                tzinfo=timezone.utc).astimezone(IST)
+            vals = []
+            n_ok = 0
+            for cx, cy in _emit_lattice():
+                v = forecast.pm25(cy, cx, h)
+                ok = v is not None and math.isfinite(v)
+                vals.append([round(cx, 4), round(cy, 4),
+                             round(v, 1) if ok else None])
+                n_ok += 1 if ok else 0
+            horizons.append({
+                "h": h, "slot_utc": slot_utc,
+                "ist_day": slot_ist.strftime("%Y%m%d"),
+                "ist_hour": slot_ist.hour, "n": n_ok, "cells": vals})
+        if not horizons:
+            return None
+        return {"basis": "forecast",
+                "issued_utc": datetime.fromtimestamp(
+                    now, timezone.utc).isoformat(),
+                "issued_ist": datetime.fromtimestamp(now, IST).isoformat(),
+                "horizons": horizons}
+    except Exception:  # noqa: BLE001 - forecast side-data never sinks a write
+        return None
 
 
 def _prune_local(root=None, keep_days: float = None) -> int:
@@ -354,6 +448,7 @@ def _hour_entry(h: int, doc: dict) -> dict:
         "sigma_coverage": meta.get("sigma_coverage"),
         "n_cells": len(cells),
         "cell_fields": CELL_FIELDS,
+        "grid": doc.get("grid"),
         "band_convention": doc.get("band_convention"),
         "downsample": {"stride": WIRE_STRIDE, "emitted": len(wire),
                        "of": len(cells)},
@@ -361,8 +456,140 @@ def _hour_entry(h: int, doc: dict) -> dict:
     }
 
 
+def _ist_dt(day_key: str, h: int) -> datetime:
+    return datetime.strptime(f"{day_key}{h:02d}", "%Y%m%d%H") \
+        .replace(tzinfo=IST)
+
+
+def _live_forecast():
+    try:
+        from forecast import FORECAST
+        return FORECAST
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _delta(rec_cells: list, mod_cells: list) -> Optional[dict]:
+    """recorded − model per shared lattice point — the model's misses
+    counted honestly: under-called = it read cleaner than what was
+    actually served; over-called = dirtier. |Δ| ≤ tol is 'about
+    right'."""
+    rec = {(c[0], c[1]): c[2] for c in rec_cells or []}
+    diffs = []
+    for c in mod_cells or []:
+        v = rec.get((c[0], c[1]))
+        if v is not None and c[2] is not None:
+            diffs.append(v - c[2])
+    if not diffs:
+        return None
+    under = sum(1 for d in diffs if d > DELTA_TOL_UG)
+    over = sum(1 for d in diffs if d < -DELTA_TOL_UG)
+    return {"pairs": len(diffs), "tol_ug": DELTA_TOL_UG,
+            "mean_signed_ug": round(sum(diffs) / len(diffs), 1),
+            "mean_abs_ug": round(sum(map(abs, diffs)) / len(diffs), 1),
+            "max_abs_ug": round(max(map(abs, diffs)), 1),
+            "under_called": under, "over_called": over,
+            "about_right": len(diffs) - under - over}
+
+
+def _find_stored_horizon(day_key, h, *, avail, docs, s3=None,
+                         bucket=None) -> Optional[dict]:
+    """The earliest snapshot whose forecast horizon still covers this
+    hour — 'what the api actually served', at the longest lead still on
+    record. Horizons span FORECAST_HORIZON_H, so only captures in the
+    previous ≤FORECAST_HORIZON_H hours can qualify. Snapshots from
+    before horizon capture began simply carry no forecast block."""
+    slot_ist = _ist_dt(day_key, h)
+    for (d, hh), info in sorted(avail.items()):
+        try:
+            cap_ist = _ist_dt(d, hh)
+        except ValueError:
+            continue
+        lead_h = (slot_ist - cap_ist).total_seconds() / 3600.0
+        if lead_h <= 0 or lead_h > FORECAST_HORIZON_H:
+            continue
+        if (d, hh) not in docs:
+            docs[(d, hh)] = _load_doc(info, s3=s3, bucket=bucket)[0]
+        doc = docs[(d, hh)]
+        for hz in ((doc or {}).get("forecast") or {}).get("horizons") or []:
+            if hz.get("ist_day") != day_key or hz.get("ist_hour") != h:
+                continue
+            fc = doc["forecast"]
+            issued_utc = fc.get("issued_utc")
+            try:
+                lead = (slot_ist.astimezone(timezone.utc)
+                        - datetime.fromisoformat(issued_utc)
+                        ).total_seconds() / 3600.0
+            except (TypeError, ValueError):
+                lead = None
+            return {"basis": "forecast", "source": "archive",
+                    "cells": hz.get("cells") or [], "n": hz.get("n"),
+                    "issued_ist": fc.get("issued_ist"),
+                    "issued_utc": issued_utc,
+                    "slot_utc": hz.get("slot_utc"),
+                    "lead_hours": round(lead, 1) if lead is not None
+                    else None,
+                    "note": ("the forecast surface the api actually "
+                             "served — /grid?h=, live anchor included — "
+                             "stored at capture time")}
+    return None
+
+
+def _held_run_model(day_key, h, *, forecast, now) -> Optional[dict]:
+    """The run the api still holds in memory covers this hour's slot
+    while the slot sits inside the fetched issue — effectively the
+    same UTC day. A grace path for hours no stored horizon reaches
+    (e.g. hours recorded before horizons existed).
+
+    RAW model only — base × stagnation via model_pm25_at; the live
+    anchor the served surface layered at the time is not replayable,
+    and the payload says so."""
+    if forecast is None:
+        return None
+    slot_ist = _ist_dt(day_key, h)
+    # IST buckets straddle UTC slots (:30 offset) — the run's slot for
+    # this hour is the one containing its midpoint, the same rule a
+    # stored horizon's ist_day/ist_hour encodes (floor of the slot's
+    # IST start, which always lands inside the bucket's second half)
+    mid_utc = (slot_ist + timedelta(minutes=30)) \
+        .astimezone(timezone.utc)
+    if mid_utc.timestamp() > now:
+        return None            # the slot hasn't even finished
+    try:
+        idx = forecast.slot_index_at(mid_utc)
+        if idx is None:
+            return None
+        cells = []
+        n = 0
+        for cx, cy in _emit_lattice():
+            v = forecast.model_pm25_at(cy, cx, idx)
+            ok = v is not None and math.isfinite(v)
+            cells.append([round(cx, 4), round(cy, 4),
+                          round(v, 1) if ok else None])
+            n += 1 if ok else 0
+        if not n:
+            return None
+        issued_utc = forecast.time_at(0)
+        issued_dt = (datetime.fromisoformat(issued_utc)
+                     .replace(tzinfo=timezone.utc)) if issued_utc else None
+        lead = (mid_utc - issued_dt).total_seconds() / 3600.0 \
+            if issued_dt else None
+        return {"basis": "forecast", "source": "held-run",
+                "cells": cells, "n": n,
+                "issued_ist": issued_dt.astimezone(IST).isoformat()
+                if issued_dt else None,
+                "issued_utc": issued_dt.isoformat() if issued_dt else None,
+                "slot_utc": forecast.time_at(idx),
+                "lead_hours": round(lead, 1) if lead is not None else None,
+                "note": ("the run's own slot for this hour — raw model × "
+                         "stagnation; the live anchor layered at serve "
+                         "time isn't replayable")}
+    except Exception:  # noqa: BLE001 - a model block is bonus data,
+        return None              # never a reason to fail the day
+
+
 def day_payload(day=None, *, root=None, s3=None, bucket=None,
-                now=None) -> dict:
+                now=None, forecast=_FORECAST_SENTINEL) -> dict:
     """GET /v2/archive body — one IST day's recorded hours + honest
     coverage. `day` is a date; None = today (IST). The archive being
     wholly empty (no snapshot anywhere) yields hours:[] — the honest
@@ -382,6 +609,9 @@ def day_payload(day=None, *, root=None, s3=None, bucket=None,
         else os.environ.get("ALIVE_AIR_BUCKET")
 
     hours = []
+    docs = {}   # {(d,h): doc|None} — today's loads cached so the
+                # horizon scan doesn't re-read them; earlier days load
+                # lazily into the same cache
     for h in range(24):
         label = f"{h:02d}:00"
         info = today_map.get(h)
@@ -396,6 +626,7 @@ def day_payload(day=None, *, root=None, s3=None, bucket=None,
                           "status": st, "note": note})
             continue
         doc, err = _load_doc(info, s3=s3, bucket=bucket)
+        docs[(day_key, h)] = doc
         if doc is None:
             hours.append({"hour_ist": h, "ist_label": label,
                           "status": "unreadable",
@@ -403,6 +634,24 @@ def day_payload(day=None, *, root=None, s3=None, bucket=None,
                                   f"{err}"})
             continue
         hours.append(_hour_entry(h, doc))
+
+    if forecast is _FORECAST_SENTINEL:
+        forecast = _live_forecast()
+    # each recorded hour gets its 'model' block when one honestly
+    # exists: the earliest stored horizon that covered it (source
+    # 'archive' — what we served), else the run still held in memory
+    # (source 'held-run' — raw model). Neither invents coverage.
+    for e in hours:
+        if e.get("status") != "recorded":
+            continue
+        mb = _find_stored_horizon(day_key, e["hour_ist"], avail=avail,
+                                  docs=docs, s3=s3, bucket=bucket)
+        if mb is None:
+            mb = _held_run_model(day_key, e["hour_ist"],
+                                 forecast=forecast, now=now)
+        if mb is not None:
+            mb["delta"] = _delta(e.get("cells"), mb.get("cells"))
+            e["model"] = mb
 
     recorded = [e["hour_ist"] for e in hours if e["status"] == "recorded"]
     gaps = [e["hour_ist"] for e in hours if e["status"] == "gap"]
@@ -435,6 +684,10 @@ def day_payload(day=None, *, root=None, s3=None, bucket=None,
             "unreadable": unread,
             "recorded_count": len(recorded),
             "gap_count": len(gaps),
+            # hours carrying a 'model' block — the recorded-vs-forecast
+            # flip lights up on exactly these
+            "with_model": [e["hour_ist"] for e in hours
+                           if e.get("model") is not None],
         },
         "archive": {
             "total_snapshots": total_all,

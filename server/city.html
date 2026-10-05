@@ -132,6 +132,26 @@
   .rch-pills button.on,
   #rchArm[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
 
+  /* what happened — the recorded archive strip. one square per ist
+     hour: recorded = its mean band tile (clickable, replays the stored
+     field), gap = dashed hollow (no record exists), pending = faint
+     (hour hasn't started), unreadable = hatched. squares, not a
+     scrubber — history is discrete */
+  .rc-strip{display:inline-flex;gap:3px;align-items:center}
+  .rc-strip .rc-h{width:10px;height:10px;padding:0;border-radius:0;
+        background:transparent;border:1px solid var(--line2)}
+  .rc-strip .rc-h.rec{border-color:rgba(20,24,31,.55);cursor:pointer}
+  .rc-strip .rc-h:hover{border-bottom-color:var(--line2)}
+  .rc-strip .rc-h.rec:hover{outline:1px solid var(--ink);
+        border-color:rgba(20,24,31,.55)}
+  .rc-strip .rc-h.on{outline:1.5px solid var(--ink);outline-offset:1px}
+  .rc-strip .rc-h.gap{border-style:dashed;opacity:.55}
+  .rc-strip .rc-h.pend{opacity:.3}
+  .rc-strip .rc-h.bad{background:repeating-linear-gradient(45deg,
+        transparent 0 2px,var(--line2) 2px 3px)}
+  .rc-strip .rc-h:focus-visible{outline:1px solid var(--ink)}
+  .rc-strip .rc-h[disabled]{cursor:default}
+
   /* the days ahead — /v2/outlook folded into the frame's bottom row.
      hairline-separated cells; ghosted while only the raw model still
      speaks (the served note says why); the verdict reads as caption */
@@ -344,6 +364,16 @@
       <span class="tl-load" id="rchLoad" hidden></span>
       <span class="tl-note" id="rchNote"></span>
     </div>
+    <div class="tl" id="rc" hidden>
+      <button id="rcPlay" type="button" aria-pressed="false">▶ what happened</button>
+      <span class="rc-strip" id="rcStrip" role="group"
+            aria-label="the recorded field — pick an ist hour"></span>
+      <span class="rch-pills" id="rcBasis" hidden></span>
+      <span class="tl-h" id="rcHour"></span>
+      <span class="tl-load" id="rcLoad" hidden></span>
+      <button class="tl-now" id="rcNow" type="button" hidden>← live</button>
+      <span class="tl-note" id="rcNote"></span>
+    </div>
     <div class="m-legend">
       <div class="chips" id="chips"></div>
       <div class="m-src" id="src">connecting…</div>
@@ -488,7 +518,7 @@ function featPath(f){return f._rings.map(ringPath).join(' ')}
 
 const SVGNS='http://www.w3.org/2000/svg';
 const svg=document.getElementById('ncr');
-let gCells,gDist,gLab;                      // svg layers
+let gCells,gRec,gDist,gLab;                 // svg layers
 const DETAIL=document.getElementById('detail');
 let selName=null;
 
@@ -498,9 +528,11 @@ function buildMap(){
   svg.innerHTML='';
   CELL_RECTS.clear();
   gCells=document.createElementNS(SVGNS,'g');
+  gRec=document.createElementNS(SVGNS,'g');
+  gRec.setAttribute('pointer-events','none');
   gDist=document.createElementNS(SVGNS,'g');
   gLab=document.createElementNS(SVGNS,'g');
-  svg.append(gCells,gDist,gLab);
+  svg.append(gCells,gRec,gDist,gLab);
   for(const f of FEATS){
     const p=document.createElementNS(SVGNS,'path');
     p.setAttribute('d',featPath(f));
@@ -651,6 +683,7 @@ async function tlFetch(h){
    missing or failed frame never produces an interpolated stand-in */
 async function tlShow(h){
   const seq=++TL.seq;
+  if(RC.active)rcReset();         /* the forecast takes the map back */
   TL.active=true;tlUI.now.hidden=false;
   tlUI.note.textContent=TL_NOTE_ON;tlTag();
   if(TL.cache[h]){paintCells(TL.cache[h]);tlTick(null);return}
@@ -716,6 +749,224 @@ async function tlInit(){
   /* h+1…h+3 drift in on idle; deeper hours wait for first play */
   const idle=window.requestIdleCallback||(f=>setTimeout(f,400));
   idle(()=>{tlFetch(1).then(()=>tlFetch(2)).then(()=>tlFetch(3))});
+}
+
+/* ---------- what happened — the recorded archive, replayed ----------
+   the timelapse above plays FORECAST slots (basis:forecast); this row
+   plays what the api actually served — hourly snapshots archive.py
+   writes to durable storage (basis:recorded). only recorded hours are
+   playable: a dashed square is a gap — no record exists — a faint one
+   hasn't started. recorded cells paint as a discrete hairline-edged
+   mosaic on their own layer (never the forecast's borderless wash) and
+   the captions say 'recorded', never 'forecast'.
+
+   the flip — recorded vs model: when an hour's payload carries a
+   'model' block (source 'archive' = the /grid horizon the api served,
+   stored at capture; 'held-run' = the run still in memory, raw model)
+   the recorded·model·δ pills appear for it. coverage.with_model on the
+   wire is exactly the trigger — the row lights up as snapshots land. */
+const RC={active:false,playing:false,h:null,timer:null,seq:0,
+          data:null,basis:'rec'};
+const RC_MS=1800;
+const rcUI={};
+const RC_BASIS=[['rec','recorded'],['model','model'],['delta','δ']];
+
+const rcEntry=h=>((RC.data&&RC.data.hours)||[])
+  .find(e=>e.hour_ist===h);
+function rcMeanBand(e){           /* the strip square's honest colour */
+  let s=0,n=0;for(const c of e.cells||[])if(c[2]!=null){s+=c[2];n++}
+  return n?bandOf(cpcbOf(s/n))[2]:'var(--line2)';
+}
+function rcIdleNote(){
+  const d=RC.data||{},cov=d.coverage||{},n=(cov.recorded||[]).length;
+  const since=((d.archive&&d.archive.since_ist)||'').slice(11,16);
+  const wm=(cov.with_model||[]).length;
+  rcUI.note.textContent=!n
+    ?`the field records delhi hourly — recording since ${since||'—'} ist · today's first snapshot lands on the next ist boundary`
+    :n<3
+      ?`the field, recorded hourly — ${n} hour${n>1?'s':''} on record today · recording since ${since||'—'} ist`
+      :`the field, recorded hourly — ${n} hours on record today`+
+       `${wm?` · ${wm} carry the forecast that covered them — flip with the pills`:''}`;
+}
+function rcRender(){
+  const d=RC.data,hours=(d&&d.hours)||[];
+  const total=(d&&d.archive&&d.archive.total_snapshots)||0;
+  if(!total){rcReset(true);rcUI.row.hidden=true;return}
+  rcUI.row.hidden=false;
+  rcUI.strip.innerHTML=hours.map(e=>{
+    const h=e.hour_ist,st=e.status,rec=st==='recorded';
+    const tt=`${e.ist_label} ist — ${rec?'recorded · click to replay'
+      :st==='gap'?'no record':st==='unreadable'?'snapshot unreadable'
+      :'not due yet'}`;
+    return `<button type="button" data-h="${h}" ${rec?'':'disabled'}
+      class="rc-h ${rec?'rec':st==='gap'?'gap':st==='unreadable'?'bad':'pend'}${RC.active&&RC.h===h?' on':''}"
+      ${rec?`style="background:${rcMeanBand(e)}"`:''}
+      title="${esc(tt)}" aria-label="${esc(tt)}"></button>`;
+  }).join('');
+  if(!RC.active)rcIdleNote();
+}
+async function rcLoad(){
+  try{const r=await fetch('/v2/archive',
+        {signal:AbortSignal.timeout(15000)});
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d&&d.basis==='recorded'){RC.data=d;rcRender()}
+  }catch(_){}                     /* the archive row is optional chrome */
+}
+
+/* the mosaic — one hairline-edged tile per stored emit cell. cell pitch
+   comes from the snapshot's own grid block (grid.BBOX, cells=22) with
+   the bbox literal as fallback for pre-grid docs */
+function rcGeom(e){
+  const g=(e&&e.grid)||{};
+  const n=g.cells||22,
+        b=g.bbox||[76.80,28.20,77.90,28.95];
+  return [(b[2]-b[0])/n*KM_PER_DEG_LON,(b[3]-b[1])/n*KM_PER_DEG_LAT];
+}
+function rcMk(x,y,w,h,fill,fOp,stroke,sOp,title){
+  const r=document.createElementNS(SVGNS,'rect');
+  r.setAttribute('x',(x-w/2).toFixed(2));
+  r.setAttribute('y',(y-h/2).toFixed(2));
+  r.setAttribute('width',w.toFixed(2));
+  r.setAttribute('height',h.toFixed(2));
+  r.setAttribute('fill',fill);r.setAttribute('fill-opacity',fOp);
+  r.setAttribute('stroke',stroke);r.setAttribute('stroke-opacity',sOp);
+  r.setAttribute('stroke-width','0.05');
+  if(title){const t=document.createElementNS(SVGNS,'title');
+    t.textContent=title;r.appendChild(t)}
+  gRec.appendChild(r);
+}
+function rcBasisPills(e){
+  const el=rcUI.basis;
+  if(!e||!e.model){el.hidden=true;el.innerHTML='';return}
+  el.hidden=false;
+  el.innerHTML=RC_BASIS.map(([k,l])=>
+    `<button type="button" data-b="${k}"`+
+    ` class="${RC.basis===k?'on':''}">${l}</button>`).join('');
+}
+function rcPaint(e){
+  if(!gRec)return;
+  gRec.innerHTML='';
+  const [dx,dy]=rcGeom(e),w=dx*.94,h=dy*.94;
+  const b=e.model?RC.basis:'rec';
+  if(b==='rec'){
+    for(const c of e.cells||[]){
+      if(c[2]==null)continue;
+      rcMk(X(c[0]),Y(c[1]),w,h,bandOf(cpcbOf(c[2]))[2],.5,'#14181F',.5,
+        `${e.ist_label} ist · pm2.5 ${c[2]} µg/m³ · recorded`);
+    }
+    MTAG.innerHTML=`<b>recorded ${e.ist_label} ist</b> · basis:recorded`+
+      ` · cells = what the api served<br>districts = now`;
+    const cap=(e.captured_at||'').slice(11,16);
+    rcUI.note.textContent=
+      `recorded ${e.ist_label} ist · captured ${cap} utc`+
+      ` · ${e.samples??'?'} samples · ${e.station_readings??'?'} stations`+
+      ` · ${e.source||'—'} · ${e.n_cells??'?'} cells stored`+
+      `${e.field_age_s!=null?` · field was ${Math.round(e.field_age_s/60)} min old`:''}`;
+  }else if(b==='model'){
+    const m=e.model;
+    for(const c of m.cells||[]){
+      if(c[2]==null)continue;
+      const col=bandOf(cpcbOf(c[2]))[2];
+      rcMk(X(c[0]),Y(c[1]),w,h,col,.16,col,.85,
+        `model · ${c[2]} µg/m³`);
+    }
+    MTAG.innerHTML=`<b>model for ${e.ist_label} ist</b>`+
+      ` · ${m.source==='archive'?'the surface the api served':'the run’s own slot — raw model'}`+
+      `<br>districts = now`;
+    rcUI.note.textContent=
+      `${m.note} · issued ${m.issued_ist?m.issued_ist.slice(11,16)+' ist':'—'}`+
+      `${m.lead_hours!=null?` · ${m.lead_hours}h lead`:''}`;
+  }else{
+    const m=e.model,rec=new Map();
+    for(const c of e.cells||[])rec.set(c[0]+'|'+c[1],c[2]);
+    const tol=(m.delta&&m.delta.tol_ug)||10;
+    for(const c of m.cells||[]){
+      const v=rec.get(c[0]+'|'+c[1]);
+      if(v==null||c[2]==null)continue;
+      const d=v-c[2],miss=Math.abs(d)>tol;
+      /* under-called = the model read cleaner than what was actually
+         served (reality was dirtier): brick. over-called: sage */
+      const col=d>tol?'#A14440':d<-tol?'#77804F':'#4A4E57';
+      rcMk(X(c[0]),Y(c[1]),w,h,col,miss?.5:.18,col,miss?.85:.3,
+        `${d>0?'+':''}${d.toFixed(1)} µg/m³ — recorded ${v} vs model ${c[2]}`);
+    }
+    MTAG.innerHTML=`<b>recorded − model</b> · ${e.ist_label} ist`+
+      `<br>districts = now`;
+    const d=e.model.delta;
+    rcUI.note.textContent=d
+      ?`model under-called ${d.under_called} cells · about right ${d.about_right} · over-called ${d.over_called}`+
+       ` · |δ|≤${d.tol_ug}µg counts as right · mean signed ${d.mean_signed_ug>0?'+':''}${d.mean_signed_ug} µg/m³`
+      :'no shared lattice points — nothing to compare';
+  }
+}
+
+function rcShow(h){
+  const e=rcEntry(h);
+  if(!e||e.status!=='recorded')return;
+  RC.seq++;RC.active=true;RC.h=h;
+  if(TL.active||TL.playing)tlReset();   /* forecast scrubber hands over */
+  if(gCells)gCells.style.display='none';/* the live wash yields — the
+        record stands alone, never blended with forecast or live cells */
+  rcUI.now.hidden=false;
+  rcUI.hour.textContent=`${e.ist_label} ist`;
+  rcBasisPills(e);rcPaint(e);rcRender();
+}
+function rcPause(){RC.playing=false;clearInterval(RC.timer);
+  rcUI.play.textContent='▶ resume';
+  rcUI.play.setAttribute('aria-pressed','false')}
+function rcStopPlay(){RC.playing=false;clearInterval(RC.timer);
+  rcUI.play.textContent='▶ what happened';
+  rcUI.play.setAttribute('aria-pressed','false')}
+function rcPlay(){
+  const rec=(RC.data&&RC.data.coverage&&RC.data.coverage.recorded)||[];
+  if(!rec.length)return;
+  RC.playing=true;rcUI.play.textContent='‖ pause';
+  rcUI.play.setAttribute('aria-pressed','true');
+  let i=RC.h!=null?rec.indexOf(RC.h):-1;
+  RC.timer=setInterval(()=>{i++;
+    if(i>=rec.length){rcStopPlay();return}
+    rcShow(rec[i])},RC_MS);
+  rcShow(i>=0?rec[i]:rec[0]);
+}
+function rcReset(silent){               /* back to the live field */
+  RC.seq++;RC.playing=false;clearInterval(RC.timer);
+  RC.active=false;RC.h=null;
+  if(gRec)gRec.innerHTML='';
+  if(gCells)gCells.style.display='';
+  if(silent)return;
+  if(RC.data){
+    rcUI.now.hidden=true;rcUI.hour.textContent='';
+    rcUI.basis.hidden=true;rcUI.basis.innerHTML='';
+    rcStopPlay();MTAG.innerHTML=MTAG0;
+    rcUI.strip.querySelectorAll('.rc-h.on')
+      .forEach(el=>el.classList.remove('on'));
+    if(FEAT_CELLS.length)paintCells(FEAT_CELLS);
+    rcIdleNote();
+  }
+}
+function rcInit(){
+  rcUI.row=document.getElementById('rc');if(!rcUI.row)return;
+  rcUI.play=document.getElementById('rcPlay');
+  rcUI.strip=document.getElementById('rcStrip');
+  rcUI.basis=document.getElementById('rcBasis');
+  rcUI.hour=document.getElementById('rcHour');
+  rcUI.load=document.getElementById('rcLoad');
+  rcUI.now=document.getElementById('rcNow');
+  rcUI.note=document.getElementById('rcNote');
+  rcUI.play.addEventListener('click',()=>RC.playing?rcPause():rcPlay());
+  rcUI.now.addEventListener('click',()=>rcReset());
+  rcUI.strip.addEventListener('click',ev=>{
+    const b=ev.target.closest('.rc-h');
+    if(!b||b.disabled)return;
+    rcPause();rcShow(+b.dataset.h)});
+  rcUI.basis.addEventListener('click',ev=>{
+    const b=ev.target.closest('button[data-b]');if(!b)return;
+    RC.basis=b.dataset.b;const e=rcEntry(RC.h);
+    if(e){rcBasisPills(e);rcPaint(e)}});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&RC.playing)rcPause()});
+  rcLoad();
 }
 
 /* ---------- where can your lungs go? — dose-budget reach ---------------
@@ -1083,10 +1334,12 @@ async function load(){
       jget('/v2/city'),jget('/v2/districts')]);
     outLoad();   /* the days-ahead strip — an independent feed with its
                     own honesty; it never takes this page's feeds down */
+    rcLoad();    /* the recorded archive strip — same rule */
     if(!g&&!a&&!cy&&!dd)throw new Error('all feeds down');
     if(g&&g.features){FEAT_CELLS=g.features;
-      if(!TL.active)paintCells(g.features)}   /* a forecast frame stays put
-        through live refreshes — the 'now' link hands the layer back */
+      if(!TL.active&&!RC.active)paintCells(g.features)}   /* a forecast or
+        recorded frame stays put through live refreshes — the '← now' /
+        '← live' link hands the layer back */
     if(dd)paintDistricts(dd.districts||[]);
     a=a||{};
     if(a.wind&&a.wind.speed_kmh!=null)windNow=a.wind;  /* null wind = unknown, keep last */
@@ -1179,6 +1432,7 @@ loadGeo().then(load).catch(()=>{
   load()});
 tlInit();
 rchInit();
+rcInit();
 outInit();
 clock();schedule();
 setInterval(clock,30000);

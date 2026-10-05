@@ -278,6 +278,40 @@ class ForecastField:
         idx = int((target - t0).total_seconds() // 3600)
         return idx if 0 <= idx < self._n_hours() else None
 
+    def slot_index_at(self, when: datetime) -> Optional[int]:
+        """Index of the hourly slot covering absolute `when` — past OR
+        future — while the fetched run still holds it.
+
+        hour_index() is the forecast-serving contract and refuses the
+        past; this one exists for the archive's recorded-vs-model
+        comparison, which reads the run's own stored slots for hours
+        that already happened. Same array bounds, no forward gate."""
+        t0 = self._t0()
+        if t0 is None:
+            return None
+        target = when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+        idx = int((target - t0).total_seconds() // 3600)
+        return idx if 0 <= idx < self._n_hours() else None
+
+    def model_pm25_at(self, lat: float, lon: float,
+                      hour_idx: int) -> Optional[float]:
+        """The run's raw pm2.5 at slot `hour_idx` — base IDW x stagnation
+        factor, NO live anchor, NO advection.
+
+        Both of those are nowcast moves that only make sense pointing
+        forward from 'now': the anchor needs a live field to bend toward,
+        and _advected_origin degrades to the undisplaced point for any
+        slot at or before the current hour anyway. What remains is the
+        model's own stored value for that hour — the honest object to
+        compare a recorded field against."""
+        if not (0 <= hour_idx < self._n_hours()):
+            return None
+        base = self._idw(self._aq, lat, lon, "pm2_5", hour_idx)
+        if base is None:
+            return None
+        factor = self.stagnation_factor(lat, lon, hour_idx)
+        return base * (factor if factor is not None else 1.0)
+
     # ---------- public API ----------
 
     def stagnation_factor(self, lat: float, lon: float, hour_idx: int) -> Optional[float]:
