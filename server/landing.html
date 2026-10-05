@@ -198,6 +198,10 @@ h1 em{font-style:italic;color:var(--ink2)}
   letter-spacing:.14em}
 .row .t{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .row .d{font-size:14px;line-height:1.68;color:var(--ink2);max-width:600px}
+.row .calib{display:block;margin-top:7px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.06em;line-height:1.7;color:var(--ink3);text-transform:none}
+.row .calib a{color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--line2)}
+.row .calib a:hover{border-bottom-color:var(--ink)}
 @media(max-width:640px){.row{grid-template-columns:40px 1fr}
   .row .d{grid-column:2;margin-top:6px}}
 
@@ -287,7 +291,10 @@ h1 em{font-style:italic;color:var(--ink2)}
   <div class="row"><span class="n">02</span><span class="t">interpolate</span>
     <p class="d">Ordinary kriging turns point readings into a continuous
     field with a real variance per cell. The band is calibrated — 95.2%
-    coverage at 2σ over 7,240 held-out hours.</p></div>
+    coverage at ±2σ, measured on 3,550 held-out station-hours.
+    <span class="calib">method: σ = √(krige_sd² + (0.12·µ)²) × 3.2 total-error
+    inflation, leave-one-out over CAAQMS station hours vs the OpenAQ archive
+    — <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">field_validation.md</a></span></p></div>
   <div class="row"><span class="n">03</span><span class="t">price</span>
     <p class="d">A C++ A* prices every edge by dose — concentration ×
     ventilation × minutes — under legality constraints. The number the
@@ -493,15 +500,25 @@ function drawPin(ctx,pt,ch){
 }
 
 /* --- fetch + paint ------------------------------------------------------ */
+let PAINTSEQ=0;
 async function paint(){
+  const seq=++PAINTSEQ;
   const cv=$('raster'),ctx=cv.getContext('2d');
-  const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
-  W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
-  cv.width=W*dpr;cv.height=H*dpr;
-  ctx.setTransform(dpr,0,0,dpr,0,0);
   const spec=SPECS[PARAM];
+  /* hold the last painted frame while the new param fetches — assigning
+     cv.width clears the bitmap, so it happens only after the grid lands
+     (and only when the size actually changed). caption says 'loading',
+     the canvas never blanks. */
+  $('capLeft').innerHTML=`reading the ${spec.title} field — <b>live fetch</b>…`;
   try{
     const g=await api(`/grid?cells=${CELLS}&param=${PARAM}`);
+    if(seq!==PAINTSEQ)return;   /* a later click owns the canvas now */
+    const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
+    W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
+    if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){
+      cv.width=W*dpr;cv.height=H*dpr;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
     FEATS=g.features||[];
     drawScene();
     let hi=0,med=0,lo=0;const vals=[];
@@ -684,13 +701,24 @@ async function planAB(){
     ROUTE={coords:((o.route_geojson||{}).coordinates)||[]};
     drawScene();
     const ds=o.dose||{},km=o.distance_km,min=o.eta_s!=null?Math.round(o.eta_s/60):null;
+    /* honest truncation: reaches_destination===false means the geometry
+       stops short of b — say the gap, and that dose covers the mapped
+       segment only. degraded engines are named, never swallowed. */
+    const trunc=o.reaches_destination===false;
+    const gap=o.truncated_gap_km!=null?Math.round(o.truncated_gap_km):null;
+    const deg=(d.degraded||[]).length?` · degraded: ${d.degraded.map(esc).join(', ')}`:'';
     $('routeline').innerHTML=
       `<b>a→b</b> ${esc(o.label||o.mode||'route')} — `+
       `<span class="rdose">${ds.mid!=null?F1(ds.mid)+' µg':'—'}</span>`+
       `${ds.lo!=null?` inhaled <b>${F1(ds.lo)}–${F1(ds.hi)}</b>`:''}`+
+      `${ds.confidence==='low'?' · <b>lo conf</b>':''}`+
       `${km!=null?` · <b>${F1(km)} km</b>`:''}`+
       `${min!=null?` · ~${min} min`:` —`}`+
-      ` · ${o.tag?esc(o.tag)+' · ':''}${opts.length} option${opts.length===1?'':'s'} priced in ${d.took_ms!=null?(d.took_ms/1000).toFixed(1)+' s':'—'}`;
+      (trunc
+        ?` · <b>stops${gap!=null?' ~'+gap+' km':''} short of b</b> — dose covers the mapped segment only`
+        :'')+
+      ` · ${o.tag?esc(o.tag)+' · ':''}${opts.length} option${opts.length===1?'':'s'} priced in ${d.took_ms!=null?(d.took_ms/1000).toFixed(1)+' s':'—'}`+
+      deg;
   }catch(e){
     if(seq!==PLANSEQ)return;
     ROUTE=null;drawScene();
@@ -833,13 +861,17 @@ async function status(){
     const wind=h.wind||{};WIND=wind.speed_kmh?wind:null;
     const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+'m':'—';
     const edges=h.routing&&h.routing.edges?h.routing.edges:null;
+    const priced=h.routing&&h.routing.edges_priced?h.routing.edges_priced:null;
     if(edges)$('edgecount').textContent=(edges/1e6).toFixed(2)+' million';
+    const ptxt=priced!=null
+      ?(priced>=1e6?(priced/1e6).toFixed(2)+'m':Math.round(priced/1e3)+'k')
+      :'—';
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
       `<span>field <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
       (MEDIAN!=null?`<span>${PARAM==='pm2_5'?'median':SPECS[PARAM].title+' median'} <b>${Math.round(MEDIAN)}</b> <span style="text-transform:none">${SPECS[PARAM].unit}</span></span>`:'')+
       (wind.speed_kmh?`<span>wind <b>${Math.round(wind.speed_kmh)} km/h</b></span>`:'')+
-      `<span><b>${edges?(edges/1e6).toFixed(2)+'m':'1.07m'}</b> edges priced</span>`;
+      `<span><b>${ptxt}</b> edges priced</span>`;
     if(h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
   }catch(e){
     $('status').innerHTML='<span>field unreachable — retrying</span>';
