@@ -15,10 +15,14 @@ items are sequenced so nothing disqualifying or irreversible happens early.*
 - [ ] Claim the **$200 AWS credits** code → Billing → Credits.
 - [ ] **$5 Budgets alarm** → Billing → Budgets → your email (stack is
       ~$46/mo worst case; alarm fires before any surprise).
-- [ ] Record the ≤3:00 video per `docs/plan/demo-script.md` (v2) —
-      AWS-console beat inside (`docs/submission/video-shotlist.md` has the
-      trim order if a take runs long). Grab the separate ~10 s ECS-console
-      screen-record too (needed footage per rules).
+- [ ] Record the ≤3:00 video per `docs/submission/video-shotlist.md`
+      (dosimeter arc — your-day card → dose gap → lung reach → engine
+      room → console; `docs/plan/demo-script.md` is the older route-first
+      stage script, still valid as a stage runbook but its numbers sheet
+      predates the pivot). AWS-console beat inside —
+      `docs/plan/aws-console-shotlist.md` is the owner's self-filmed 25 s
+      window. Grab the separate ~10 s ECS-console screen-record too
+      (needed footage per rules).
 - [ ] Upload video to YouTube **unlisted or public — verify it opens
       signed-out** (incognito). This is the only demo judges see.
 
@@ -69,8 +73,13 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       The flip REPLACES the task → re-warm after.
 - [ ] T-45: `curl $NLB/health` → `stale:false`, `engine:alive_core`,
       edges 1,070,459, `build_sha` = the build you rehearsed on
-      (**drifted once already: :141→:142 / 951eeb3c→d08d9f74** — re-verify
-      against demo-script's header).
+      (**drifted again: task-def now `alive108:147`, image
+      `alive108-api:1e93b9f2` — but `/health` still stamps `c7df5db5`;
+      the BUILD_SHA env lag is a known wart — the ECR/task image tag is
+      the truth** — re-verify both on the morning).
+- [ ] T-45: `wind.known` can flip `false` for a refresh or two
+      (upstream Open-Meteo reachability — transient, self-heals; if it's
+      still false at T-30, re-probe once, don't panic).
 - [ ] T-45: WAQI `ok` + ≥20 stations; `field.age_s` < 900.
 - [ ] T-40: `python3 tools/warm_task.py` → exit 0 ("WARM: priced engine
       serving after Ns"); last line `/tiles/health ok — 22.7 MB`.
@@ -82,10 +91,19 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       `alive108:NNN · FARGATE`. The video must show the console.
 - [ ] T-30: admin token check (go-nogo #8) — `/admin/api` 200 with
       Bearer; public `/admin` renders regardless.
-- [ ] T-20: APK on the demo phone — **caveat:** sideload `e849bf6f`
-      predates the Modal→overlay crash fix + dose re-anchor; rebuild on
-      demo HEAD if showing Settings/Ledger/nav sheets or app-side dose.
-      Check bundle strings: NLB host present, no `10.0.2.2`.
+- [ ] T-30: warm the two new beats `warm_task.py` doesn't cover —
+      `curl "$NLB/v2/day?lat=28.6315&lon=77.2167"` (expect heavy/cleanest
+      windows + decisions[]) and
+      `curl "$NLB/v2/reach?lat=28.6315&lon=77.2167&mode=walk&budget_ug=25"`
+      (expect settled edges + `took_ms` < 2000; a cold field returns the
+      honest `engine_unavailable` — warm_task first).
+- [ ] T-20: APK on the demo phone — **caveat:** the sideloaded build is
+      `6ca0ef7`. It post-dates the crash fix but predates `2c4cab4` (23
+      fabricated landmark geocodes purged — the purge touched the
+      bundled `delhi-gazetteer.json`, so the on-device gazetteer still
+      carries the phantoms). **If the demo shows on-device flagship
+      search, rebuild on HEAD; if it's map/plan/ledger only, `6ca0ef7`
+      is honest.** Check bundle strings: NLB host present, no `10.0.2.2`.
 - [ ] T-20: backup videos on the playing device + play once with
       **Wi-Fi OFF** (airplane-mode proof).
 - [ ] T-15: `curl $NLB/health` → 200 on hall Wi-Fi AND phone hotspot.

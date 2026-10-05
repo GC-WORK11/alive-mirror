@@ -3,7 +3,7 @@
 **Risk flag:** the hackathon demo video *must show the AWS console* — a video
 without it is disqualified. This is the only beat Devin cannot film (it needs
 the owner's AWS login), so the owner records this 25 s slot himself on demo
-morning. It is beat 6 in `docs/plan/demo-script.md` (1:55–2:20).
+morning. It is beat 6 (2:05–2:30) in `docs/submission/video-shotlist.md`.
 
 Save the clip as **`~/video/beats/80_aws.mov`** (or `.mp4`) — `scripts/video/assemble.sh`
 slots it into the timeline automatically. Any screen recorder works; QuickTime
@@ -12,8 +12,12 @@ slots it into the timeline automatically. Any screen recorder works; QuickTime
 
 Before filming, open a terminal and run
 `curl -s http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/health | grep build_sha`
-— the image tag you show must equal this `build_sha` (it was `d08d9f74` at last
-check; it bumps on every deploy).
+— ideally the image tag you show equals this `build_sha`. **Known wart
+(2026-10-05):** `/health` currently stamps `c7df5db5` while the live task
+definition's image URI is `…/alive108-api:1e93b9f2` — the BUILD_SHA stamp
+lags the real image by at least one deploy. The console tag is the truth;
+if `/health` disagrees, show the ECR/task image URI and say the deploy
+revision, not the stamp. It bumps on every deploy.
 
 ## What each frame must show to score
 

@@ -3,13 +3,23 @@
 Verified against live AWS build `a0e74abe` (ECS ap-south-1, task-def 39,
 FARGATE_SPOT); re-verified 2026-10-04 on `6a067ca4` (task-def ~110,
 osrm-local sidecar live); re-verified 2026-10-05 on `951eeb3c`
-(task-def :141, post dose re-anchor). *[drift note added 2026-10-05
-~16:30 IST: live now reports build `d08d9f74`, task-def `:142` — a newer
-deploy landed after the :141 verification pass; numbers below were true
-when read, re-check on the day per §Ops.]* Newer commits on `base/v2` ride
+(task-def :141, post dose re-anchor). *[drift notes 2026-10-05: live
+later stamped `d08d9f74` task-def `:142`, then `c7df5db5` — and at
+~18:00 IST the deployed image URI is `alive108-api:1e93b9f2` on
+task-def `:147` while `/health` still stamps `c7df5db5`; the BUILD_SHA
+env lag is a known wart — the ECR/task image tag is the truth.]*
+Newer commits on `base/v2` ride
 the next image. Every
 number below was read off the running service — they drift with the
 field; re-check on the day. Nothing in the product is seeded or faked.
+
+*Product framing (the pivot — `docs/plan/alive-depth.md`): ALive-108 is a
+**personal PM2.5 dosimeter without hardware** — timeline × concentration
+field → your dose, reconstructed on-device; only consented k≥3 aggregates
+ever leave the phone. Routing is one feature inside it — the proof the
+field is real enough to decide with. The ≤3 min video arc lives in
+`docs/submission/video-shotlist.md` (your-day card → dose gap → lung
+reach → engine room → console).*
 
 Release APK: sideload build, universal arm64+x86_64, debug-signed —
 built with `EXPO_PUBLIC_API_URL=http://alive108-…elb.ap-south-1.
@@ -21,24 +31,33 @@ fallback, still fine but not ours (docs/plan/handoff.md cont.15).
 
 ## The pitches (one breath each)
 
-- **Consumer:** "Delhi gives you three ways to get there. We tell you what
-  each one puts in your lungs — before you leave, while you ride, after
-  you arrive."
-- **Admin:** "Every shared trip becomes a live sensor over Delhi — this
-  screen is the aggregate."
-- **Track (Air):** "Exposure and emissions, both measured end-to-end:
-  per-250-metre inhaled dose for the rider, per-mode fleet emissions for
-  the city, and a privacy-clean community air map that only shows a
-  street after three different riders cross it."
+- **Consumer (the dosimeter):** "Your lungs' ledger for Delhi — what you
+  breathed today, where it cost you, and when tomorrow's air is worth
+  going out in. No device, no uploads — your phone's own timeline times
+  our field, reconstructed on the phone itself."
+- **Admin:** "Every consented trip becomes part of Delhi's public ledger —
+  this screen is the engine room behind it, and the only thing that ever
+  leaves a phone is an anonymized aggregate."
+- **Track (Air):** "Personal exposure without hardware: a kriged field,
+  per-250-metre inhaled dose on real routes, a morning card that names
+  your cleanest hours, a lung-budget reach map — and a privacy-clean
+  community layer that publishes a street only after three different
+  riders cross it."
 
 ## The questions they will ask
 
 **"Why not Google Maps + search the AQI?"**
-Google gives travel time; an AQI site gives one city number. We compute
+Google gives travel time; an AQI site gives one city number — both answer
+"how bad is it," which is why the dosimeter category is a graveyard
+(Plume's $200 device died in 2023). We answer "what did it cost ME":
 the µg you actually inhale per route option — dose = concentration field
 sampled every ~250 m of the polyline × mode ventilation × time, plus a
 micro-environment factor (a sealed AC car vs walking the same trip
-measures ~33× today — CP→Gurugram 5.7 vs 189.8 µg). Then emissions per option on real fleet factors (BS-class, fuel,
+measures ~33× today — CP→Gurugram 5.7 vs 189.7 µg). Your trips receipt
+into an on-device ledger; `GET /v2/day` names today's heavy stretch and
+least-bad hours as decisions; `GET /v2/reach` draws where a 25 µg walk
+budget can actually take you — bounded Dijkstra on the same engine. Then
+emissions per option on real fleet factors (BS-class, fuel,
 vintage, occupancy, idle+cold-start).
 
 **"Is the air data real-time? Where from?"**
@@ -103,8 +122,9 @@ Gate No 5" top-hit (all eight gates resolve individually). The C++
 index itself answers in ~1ms p50 — the full endpoint measures
 p50 ~470 ms over the NLB (172/174 top-1 in a 174-query live battery);
 the app bundles a
-124k-entry gazetteer so landmark-level search works fully offline —
-no network, no key.
+123,934-entry gazetteer so landmark-level search works fully offline —
+no network, no key (23 fabricated landmark geocodes were purged in
+`2c4cab4`; the flagship-truth regression pins top-3 within 1.5 km).
 
 **"Privacy?"**
 Aggregate-only by construction: no accounts, tokens are hashed
@@ -139,7 +159,9 @@ we'd rather show a missing arm than a fabricated answer.
 4. Ride it → nav: snapped puck, live dose counter ticking, off-route
    reroute
 5. Arrive / End → receipt: dose µg + CO₂ kg + cigarette-equivalent +
-   donate toggle
+   donate toggle → lands in the on-device ledger (the dosimeter's face:
+   what today cost, where it accumulated — it never leaves the phone
+   unless donated, and donation is aggregate-only)
 6. Delhi Today (sidebar): breath hero, the other 8 species, the 12 h
    forecast strip (CAMS horizon anchored to the live field — hourly
    smoke translates with the real met wind, a semi-Lagrangian
@@ -268,7 +290,7 @@ new one boots cold, so warm it before judging.
 
 ### Task-size bump for the demo window (optional, pairs with the above)
 
-The service runs 1 vCPU / 2 GB — one uvicorn worker. A burst of
+The service runs 1 vCPU / 3 GB (task-def `:147`) — one uvicorn worker. A burst of
 concurrent heavy calls (plans + city + admin on several devices at
 once) queues: seen live 2026-10-04, CPU pinned ~100% for 30 min while
 an emulator sweep + probes ran together — /v2/reroute hit 24 s waiting
@@ -314,7 +336,7 @@ aws ecs update-service --cluster alive108 --service alive108 \
   --force-new-deployment
 ```
 
-Cost note: one FARGATE task (1 vCPU / 2 GB) ≈ ₹3–4/hr in ap-south-1 —
+Cost note: one FARGATE task (1 vCPU / 3 GB) ≈ ₹4–5/hr in ap-south-1 —
 single-digit rupees for the whole demo window. Worth it for zero
 reclaim risk. Revert to SPOT after the event.
 
