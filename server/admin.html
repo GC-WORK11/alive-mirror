@@ -472,7 +472,7 @@ async function tick(){
     [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
      `daily median pm2.5${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
-     `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} µg/trip`,'brick',t.dose_ug>0],
+     `cumulative dose · ${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'brick',t.dose_ug>0],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0],
     [maeV!=null?`${maeV} <small>µg/m³</small>`:null,

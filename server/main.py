@@ -261,11 +261,30 @@ async def health():
             loc_up = bool(_loc is not None and getattr(_loc, "enabled", False))
         except Exception:
             pass
+    # public-safe engine size — the landing's "edges priced" claim reads
+    # the real graph instead of a frozen number (admin_agg does the same
+    # read, this one ships no internals beyond counts)
+    routing = {}
+    try:
+        import routegraph as _rg
+        _eng = getattr(_rg, "_ENGINE", None)
+        if _eng is not None:
+            def _en(name):
+                v = getattr(_eng, name, None)
+                if v is None:
+                    v = getattr(getattr(_eng, "g", None), name, None)
+                return v() if callable(v) else v
+            routing = {"loaded": True,
+                       "edges": _en("n_edges"),
+                       "edges_priced": _en("edges_priced")}
+    except Exception:
+        routing = {}
     return {
         "ok": True,
         "ts": time.time(),
         "version": "v2",
         "build_sha": _build_sha(),
+        "routing": routing,
         "field_age_s": fstat.get("age_s"),
         "field_refresh_in_s": fstat.get("refresh_in_s"),
         "field_stale": fstat.get("stale"),
