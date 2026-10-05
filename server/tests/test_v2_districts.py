@@ -94,12 +94,12 @@ def test_districts_shape():
     rows = b["districts"]
     dist_rows = [r for r in rows if r["level"] == "district"]
     sub_rows = [r for r in rows if r["level"] == "osm_admin_5"]
-    assert len(dist_rows) == 15          # NCR incl. Rohtak + Rewari
+    assert len(dist_rows) == 16          # NCR incl. Rohtak + Rewari + Noida city
     assert len(sub_rows) == 13           # Delhi NCT's OSM sub-areas
     names = {r["name"] for r in dist_rows}
     assert {"Delhi NCT", "Ghaziabad", "Gautam Buddha Nagar", "Gurugram",
             "Faridabad", "Sonipat", "Jhajjar", "Nuh", "Palwal", "Meerut",
-            "Baghpat", "Hapur", "Bulandshahr", "Rohtak",
+            "Baghpat", "Hapur", "Bulandshahr", "Rohtak", "Noida",
             "Rewari"} == names
     for r in sub_rows:
         assert r["parent"] == "Delhi NCT"
@@ -143,7 +143,7 @@ def test_geojson_serves_and_centroids_are_inside():
     assert r.status_code == 200
     fc = r.json()
     assert fc["type"] == "FeatureCollection"
-    assert len(fc["features"]) == 15
+    assert len(fc["features"]) == 16   # 15 NCR districts + Noida city (OSM's Gautam Buddha Nagar polygon excludes it)
     # baked centroid sits inside its own outer ring (the sparse read
     # must land inside the district it represents)
     for ft in fc["features"]:
