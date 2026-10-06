@@ -51,12 +51,12 @@ export type { PlaceResult } from "../search/t0";
 const T0_LIMIT = 6;
 const ROW_H = 54; // ≥44 pt touch target; fixed so results never shift under a finger
 
-const fmtDist = (km: number): string =>
+const fmtDist = (km: number, lang: Lang): string =>
   km < 1
-    ? `${Math.max(50, Math.round((km * 1000) / 50) * 50)} m`
+    ? `${Math.max(50, Math.round((km * 1000) / 50) * 50)} ${t("unitsM", lang)}`
     : km < 10
-      ? `${(Math.round(km * 10) / 10).toFixed(1)} km`
-      : `${Math.round(km)} km`;
+      ? `${(Math.round(km * 10) / 10).toFixed(1)} ${t("unitsKm", lang)}`
+      : `${Math.round(km)} ${t("unitsKm", lang)}`;
 
 const samePlace = (a: PlaceResult, b: PlaceResult) =>
   normalize(a.name) === normalize(b.name) &&
@@ -330,9 +330,9 @@ function SearchSheetInner({
          cold launch (metro inline-require flake — bundler internals are
          the perf lane's, 8d505e0): the distance hint is cosmetic, so a
          broken binding degrades to no label instead of a render crash. */
-      return loc && typeof distKm === "function" ? fmtDist(distKm(p, loc)) : undefined;
+      return loc && typeof distKm === "function" ? fmtDist(distKm(p, loc), lang) : undefined;
     },
-    [loc],
+    [loc, lang],
   );
 
   const saveSlot = useCallback((slot: SavedSlot, p: PlaceResult | null) => {

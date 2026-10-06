@@ -704,7 +704,7 @@ function CompareSheetInner({
                         {localizeStep(st, lang)}
                       </Text>
                       <Text {...DYNAMIC_TYPE} style={[s.stepDist, NUM, { fontFamily: famMono(lang, "reg") }]}>
-                        {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} km` : `${Math.round(st.distance_m)} m`}
+                        {st.distance_m >= 1000 ? `${(st.distance_m / 1000).toFixed(1)} ${t("unitsKm", lang)}` : `${Math.round(st.distance_m)} ${t("unitsM", lang)}`}
                       </Text>
                     </View>
                   ))}
