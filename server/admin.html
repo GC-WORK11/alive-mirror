@@ -1880,7 +1880,7 @@ async function archStrip(){
       title="${esc(tt)}"></span>`;
   }).join('')+
   `<span class="ahm">${(cov.recorded||[]).length} recorded`+
-    `${(cov.gaps||[]).length?` · ${cov.gaps.length} gaps`:''}`+
+    `${(cov.gaps||[]).length?` · ${cov.gaps.length} gap${cov.gaps.length===1?'':'s'}`:''}`+
     `${wm.length?` · ${wm.length} with model (${wm.map(h=>String(h).padStart(2,'0')).join('·')}h)`  :''}`+
     ` · 00 → 23 ist</span>`;
   cap.textContent=`${d.day} · ${cov.recorded_count||0} of ${24-(cov.pending||[]).length} elapsed hours recorded`+
