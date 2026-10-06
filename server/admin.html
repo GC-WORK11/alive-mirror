@@ -434,7 +434,7 @@
   letter-spacing:.26em;text-transform:uppercase;
   opacity:0;transition:opacity .26s ease}
 #boot.banded .bt-word{opacity:1}
-#boot .bt-line{position:absolute;left:0;right:0;bottom:26%;
+#boot .bt-line{position:absolute;left:0;right:0;bottom:26%;text-align:center;
   font-family:var(--mono);font-size:10px;letter-spacing:.18em;
   text-transform:uppercase;color:rgba(242,240,233,.42)}
 #boot .bt-line .cur{display:inline-block;width:.55em;height:.9em;
@@ -2270,9 +2270,11 @@ function bootStrip(){
       unit.textContent=' µg/m³';
       setTimeout(()=>{if(done)return;
         b.classList.add('banded');
-        const c=CPCB_BANDS[i];
-        numV.style.color=word.style.color=c[3];
-        word.textContent='pm2.5 · '+c[2];
+        /* muted band hues (the product ramp), not the raw CPCB hexes —
+           on the near-black canvas pure #FFFF00 reads neon */
+        const MUTED=['#7AAB59','#C8B25A','#D58C4A','#B85442','#8F3C49','#6E3C54'];
+        numV.style.color=word.style.color=MUTED[i];
+        word.textContent='pm2.5 · '+CPCB_BANDS[i][2];
         line.textContent='live · field mean over the ncr lattice';
         foot.textContent='the same field, watched';
       },rm?0:500);
