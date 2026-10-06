@@ -20,6 +20,14 @@ OUT="${2:-$HOME/video/cut7.mp4}"
 NLB="http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com"
 W="$HOME/video/work"; mkdir -p "$W"
 
+# cut8 beats arrive prefixed (c8_20_home.mp4 …) — link them onto the
+# canonical slot names the concat list below expects. No-op for
+# already-canonical names.
+for f in "$D"/c8_*.mp4; do
+  [ -f "$f" ] || continue
+  ln -sf "$f" "$D/$(basename "$f" | sed 's/^c8_//')"
+done
+
 # live build sha -> title card
 SHA=$(curl -s "$NLB/health" | "$PY" -c 'import json,sys;print(json.load(sys.stdin)["build_sha"])')
 sed "s/@@BUILD@@/$SHA/" cards/title.html > "$W/title.html"
