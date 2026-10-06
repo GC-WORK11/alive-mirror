@@ -2,6 +2,11 @@
 
 Paste-ready for the hackathon submission form: problem, build, where AWS fits.
 
+> **Status note (2026-10-06):** the canonical submission text now lives in
+> `docs/submission/writeup.md` — use that. This draft is kept for its
+> framing; several figures below were corrected in place (stations, IAM,
+> secrets, deploy path) but the polished prose moved on.
+
 ## Problem
 
 Delhi is the most polluted megacity on earth — winter PM2.5 regularly
@@ -21,8 +26,10 @@ to MoRTH fatality shares + 20% time). Underneath is a real physics
 stack, not an AQI lookup: live station/CAMS field interpolated with
 wind-advected IDW, breathing-zone microenvironment factors measured on
 Delhi roads, per-segment dose colouring, a 120-hour forecast with a
-"leave later" optimizer, and a 9-million-measurement climatology from a
-decade of NCR stations. The Lung Ledger turns every trip into
+"leave later" optimizer, and a climatology built from 125 NCR stations
+× ~10 years of public archive data (`/history.source` — the honest
+description; "9.04M measurements" was the raw-row count, never
+independently re-verified). The Lung Ledger turns every trip into
 cigarette-equivalents and avoided-µg. And every journey donates an
 anonymous traversal to a shared community layer — commuters become the
 sensor grid covering streets no station can see, plus live hazard flags
@@ -32,15 +39,25 @@ breathing in real time.
 ## Where AWS fits (deployed, not claimed)
 
 - **ECS Fargate** (serverless containers) runs the FastAPI decision
-  engine in `ap-south-1` — `server/Dockerfile` + `server/deploy-aws.sh`.
+  engine in `ap-south-1` — `server/Dockerfile` + `scripts/deploy.sh`
+  (`server/deploy-aws.sh` is a deprecated shim that execs it). One task
+  carries the API plus a self-hosted `osrm-routed` sidecar
+  (`OSRM_URL=127.0.0.1:5000`).
 - **Network Load Balancer + Elastic IP** give a stable public URL that
   survives redeploys: `http://65.2.28.40` (live now).
-- **Secrets Manager** holds the OpenAQ key, injected into the task —
-  no credentials in the repo.
+- **Secrets Manager** holds `alive108/openaq`, `alive108/waqi` and
+  `alive108/admin-token`, injected into the task — no credentials in
+  the repo (`scripts/deploy.sh` secrets block).
 - **ECR** hosts the container image; **CodeBuild** builds it in-cloud
   (the video can literally watch the build run).
-- **S3** stores the 9M-measurement climatology the decade-typical
-  numbers come from (OpenAQ's archive is itself S3).
+- **S3** stores the climatology the decade-typical numbers come from
+  (125 NCR stations × ~10 years; OpenAQ's archive is itself S3).
+- **DynamoDB** (`alive108-agg`) holds the community aggregates — trips,
+  corridor cells, per-device ledger (30-day TTL on cells).
+- **EventBridge** runs the daily rollup + field-validation jobs on
+  one-off Fargate tasks (`infra/schedules/`, enabled live per
+  `docs/plan/handoff.md`; the 15-min ingest schedule stays disabled —
+  the in-app `ALIVE_INGEST_IN_APP` loop owns that cadence).
 
 ## Validation — the part most projects skip
 
@@ -51,7 +68,8 @@ residual is co-located instruments disagreeing (one site reads 72 and
 the server de-biases every model sample against nearby instruments
 before interpolating. Numbers served live at `/aqi` → `calibration`.
 
-41-assertion suite (`server/test_api.py`) hits every endpoint against
+53-check live suite (`server/test_api.py` — 53 `check(` calls) plus a
+981-test pytest suite (`server/tests/`) hit every endpoint against
 live upstreams — no mocks.
 
 ## Impact

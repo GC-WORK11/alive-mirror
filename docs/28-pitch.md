@@ -169,7 +169,7 @@ Against docs/11 (script) and docs/20 §C.2 (beat map). Features stay in the repo
 | `/decide` (safety-first ranking) | README | second ranking engine = explanation tax; keep as judge-clickable URL |
 | FIRMS fires + DTP blackspots layers | new commits | map furniture that doesn't advance the one commute — off video, in repo + writeup |
 | `/admin` ops board as a section | docs/20 beat 1:55–2:20 | internal-console vibes, unexplained numbers (§d); compress to a 3-s insert inside the moat beat |
-| "9M station-hours" / "125-station climatology" stats | README/health | meaningful to a technical reader, noise on camera — writeup only |
+| "125-station × decade climatology" stats | README/health | meaningful to a technical reader, noise on camera — writeup only |
 | OTP2/GTFS transit depth | docs/20 beat | metro already shows station-to-station names; the routing-engine war story is writeup material |
 | Endpoint alphabet (`/compare?from_lat=…`) | README table | never show query strings on video — reads as API demo, not product |
 | The IST-vs-UTC climatology gotcha + NLB target-group race | internal | perfect "what fought back" writeup stories; wrong register for the 3:00 |

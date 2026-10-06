@@ -316,7 +316,7 @@ A separate surface (entered from the profile sheet or a map-layer toggle), full-
 3. **Unified timeline.** Dark Sky grammar: one column anchored at **now**, 24h back faint / 120h forecast dashed — the diurnal double-peak reads as shape, not data. One x-axis, hairline ticks, no grid.
 4. **Small multiples.** PM2.5 · wind · boundary-layer height · FIRMS fire count — four same-width strips sharing the time axis (Tufte). Each strip: sparkline + current value + one-word label. No boxes.
 5. **Station veil.** The 125 CAAQMS instruments as dots on the mono map, median-colored through the dose ramp; tap → sparkline + station name + last-updated. Provenance visible, not narrated.
-6. **Provenance as design.** A Swiss spec-table: instruments blended (105 live @ 3×), interpolation (IDW p=2.0 + debias), MAE 46.1µg vs stations, coverage % — numbers in a ruled list, tabular, hairlines only. This is the section that makes judges trust the app — the math *is* the aesthetic.
+6. **Provenance as design.** A Swiss spec-table: instruments blended (54 live — 24 WAQI + 30 DPCC @ 3×), interpolation (IDW p=2.0 + debias), MAE 46.1µg vs stations, coverage % — numbers in a ruled list, tabular, hairlines only. This is the section that makes judges trust the app — the math *is* the aesthetic.
 7. **Your week vs Delhi.** Cigarette-glyph bars: your ledger vs city average, per day. The personal/city contrast is the emotional payload (Strava-YIS lesson: data as identity).
 8. **Share card.** Generated image in this exact system: `This week, Delhi smoked N cigarettes.` + glyph strip + tiny provenance line — Wrapped-style identity object, wordless enough to post.
 

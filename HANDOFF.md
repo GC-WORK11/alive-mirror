@@ -8,7 +8,11 @@ verified in-tree, not aspirational. **`main` is the trunk** — PR #4 merged
 ## Live deployment (AWS, ap-south-1)
 
 - NLB `alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com` → ALB TG → ECS
-  Fargate SPOT service `alive108` (1 task, 1 vCPU/2 GB). Task-def ~`:63`,
+  Fargate SPOT service `alive108` (1 task, 1 vCPU/3 GB — the task runs the
+  API container plus a self-hosted `osrm-routed` sidecar,
+  `OSRM_URL=127.0.0.1:5000`; see `scripts/deploy.sh` task-def). Task-def
+  was ~`:63` at first write — it rides every deploy (read it off the
+  console),
   October actuals $0.00. C++ `alive_core` serves kriging, field views, dose
   sampling, emission integration, `/v2/search` (compound/fuzzy/alias index),
   and `PathEngine` — the least-inhalation A* over a 1.07M-edge 2-zone
@@ -26,9 +30,13 @@ verified in-tree, not aspirational. **`main` is the trunk** — PR #4 merged
 - Admin token: Secrets Manager `alive108/admin-token`
   (`Authorization: Bearer` on `/admin/api*`).
 - Zero required third-party keys: CAMS/open-meteo (10 species, 15-min refresh)
-  + NASA FIRMS + OSRM demo are all keyless. `OPENAQ_API_KEY` secret exists but
-  the stored key is dead (401) — stations honestly read 0; WAQI adapter
-  (`ingest_waqi.py`) activates if a free aqicn.org token is ever provided.
+  + NASA FIRMS + self-hosted OSRM sidecar are all keyless (the public demo
+  endpoint remains the flagged fallback). `OPENAQ_API_KEY` secret exists but
+  the stored key is dead (401). **Update 2026-10-06:** stations are LIVE —
+  24 WAQI + 30 DPCC instruments, `/health.sources.stations.count=54`
+  (`source:"waqi+dpcc"`; `WAQI_API_KEY` is set via Secrets Manager
+  `alive108/waqi`). OpenAQ would widen coverage further; it is no longer
+  the gate for a live stations feed.
 - Aggregates + device ledger are DURABLE — DynamoDB `alive108-agg`
   (`AGG_TABLE` set on the task; 30-day cell TTL). Donations survive deploys.
 - `/v2/plan` error payloads carry stable `code:"outside_service_area"`;
@@ -136,8 +144,10 @@ Delhi breathes. Expo/React Native app + FastAPI backend + optional C++ `alive_co
   surfaces; `/v2/reverse` gazetteer-first ≤150 m → Amazon → 404
   `dropped_pin:true`.
 - `server/v2/city.py` — `/v2/city` public aggregates (field lattice stats,
-  decade-norm typical, next_hours forecast), `/v2/districts` 13-district
-  NCR choropleth with field-keyed 120 s cache (`cached_s` emitted).
+  decade-norm typical, next_hours forecast), `/v2/districts` NCR choropleth
+  (29 rows today: 16 district cells incl Delhi NCT + 13 Delhi sub-areas —
+  `GET /v2/districts`, 2026-10-06) with field-keyed 120 s cache
+  (`cached_s` emitted).
 - `server/forecast.py` — CAMS horizon + semi-Lagrangian advection (parcels
   translate with real met wind, capped 45 km, calm→undisplaced); the
   live-anchor delta evaluates at the advected origin (2b1eb3e fix — a
@@ -155,7 +165,8 @@ Delhi breathes. Expo/React Native app + FastAPI backend + optional C++ `alive_co
 ## Remaining work (in priority order)
 
 1. **Owner keys** (`server/.env`, not chat): `OPENAQ_API_KEY` (explore.openaq.org
-   → API Keys) flips stations 0→N and the field label modelled→measured;
+   → API Keys) would widen the stations feed beyond today's 54 WAQI+DPCC
+   instruments (`WAQI_API_KEY` is already set via SM `alive108/waqi`);
    `CPCB_API_KEY` (data.gov.in, India-egress only); `FIRMS_MAP_KEY` optional;
    `ALIVE_OTD_API_KEY` for GTFS-RT buses; `ALIVE_ADMIN_TOKEN` for /admin.
 2. **Release signing** — the shipped APK is debug-signed (sideloads fine);

@@ -14,16 +14,16 @@ hour to leave. Not an AQI map. A dose engine.
 
 | Shown as | Source | Honesty |
 |---|---|---|
-| Live PM2.5 field at any NCR point | Open-Meteo CAMS grid + **105 live CPCB/DPCC/HSPCB instruments** (OpenAQ v3) at 3× weight, IDW p=2, wind-advected, model samples de-biased per-instrument | `field` block: sample count + age; `calibration` block: measured LOO error (MAE 46 µg, bias +0.3, n=94) |
+| Live PM2.5 field at any NCR point | Open-Meteo CAMS grid + **54 live instruments** (24 WAQI + 30 DPCC — `/health.sources.stations`, `source:"waqi+dpcc"`, live 2026-10-06; the OpenAQ v3 path is dormant) at 3× weight, IDW p=2, wind-advected, model samples de-biased per-instrument | `field` block: sample count + age; `calibration` block: measured LOO error (MAE 46 µg, bias +0.3, n=94 — artifact predates the DPCC feed; its `n_stations` counts OpenAQ-era instruments) |
 | Inhaled dose per mode (µg) | dose = breathing-zone conc × ventilation × time; breathing-zone = field × microenv | microenv/ventilation ratios are published measurements (Delhi commuter studies); shown under "why?" |
-| Car/road durations | OSRM road network | `osrm` |
-| Walk/cycle/bus durations | distance ÷ typical Delhi urban speed (walk 5, cycle 15 km/h; bus/auto/bike scale car time) | flagged `estimated` — the public OSRM demo only has the driving graph |
-| Metro option | real DMRC network: 62 stations with OSM coords (Overpass), walk→metro→walk legs scored per-leg; metro leg at 0.45 breathing-zone | skipped (`null`, not faked) when either endpoint sits >2.5 km from a station — the honest answer is "metro isn't for this trip" |
+| Car/road durations | OSRM road network — self-hosted `osrm-routed` sidecar in the Fargate task (`OSRM_URL=127.0.0.1:5000`) | `osrm` |
+| Walk/cycle/bus durations | distance ÷ typical Delhi urban speed (walk 5, cycle 15 km/h; bus/auto/bike scale car time) | flagged `estimated` when they fall back to the public OSRM demo (driving graph only) |
+| Metro option | real DMRC GTFS: 263 stations / 37 route directions / ~128k stop_times (`server/transit_real.py`), walk→metro→walk legs scored per-leg; metro leg at 0.45 breathing-zone | skipped (`null`, not faked) when either endpoint sits >2.5 km from a station — the honest answer is "metro isn't for this trip" |
 | Forecast (leave-later) | Open-Meteo hourly CAMS 120 h + boundary-layer-height/wind stagnation factor (ventilation-coefficient proxy, IMD/IITM convention) | raw model × clamped factor [0.6, 2.5]; factor=1.0 when met data missing |
-| Fire-season modifier | NASA FIRMS VIIRS active fires over the NW-India fire belt, gated by wind quadrant | needs `FIRMS_MAP_KEY`; without it modifier=1.0 and `fire.status` says `no-key` — never invented detections |
+| Fire-season modifier | NASA FIRMS VIIRS active fires over the NW-India fire belt, gated by wind quadrant | served from the firms-public-csv feed (keyless today — `fire` block on `/aqi`; 67 fires / 15 in-belt on the 2026-10-06 evening read); a `FIRMS_MAP_KEY` would swap to the keyed API |
 | Safety layer | MoRTH-anchored mode crash-risk tiers + live rain/visibility/night penalties on open modes (`is_day`) | class-level, not street-level — Delhi has no public lat/lon black-spot feed |
 | Driver shift dose | 8-hr occupational route dose → cigarette-equivalents, vs desk-worker | `/shift` — the gig-driver number |
-| Community layer | donated anonymized traversals + hazard flags (6h TTL), corridor density | persisted to S3 (Fargate is ephemeral); no identity stored |
+| Community layer | donated anonymized traversals + hazard flags (6h TTL), corridor density | persisted to DynamoDB `alive108-agg` + S3 mirror (Fargate is ephemeral); no identity stored |
 | Where to breathe | `/escape`: cleanest cells >3km, reverse-named, per-cell data_km | every answer carries its confidence |
 | Station history (decade) | OpenAQ public S3 archive, Delhi stations 2016→ | merged separately |
 

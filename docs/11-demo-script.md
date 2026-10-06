@@ -38,7 +38,7 @@ segment (slate→crimson→dark-red): the trip as a hot-zone map.
 | On foot | 89.7 µg — 31× the car |
 
 Voiceover: "Breathing-zone ratios measured on Delhi roads, your
-ventilation by exertion, live field from CPCB anchors + CAMS grid. Tap
+ventilation by exertion, live field from WAQI+DPCC anchors + CAMS grid. Tap
 'why?' — the physics is on screen." Open why-expander. Then tap Auto —
 the whole polyline repaints crimson.
 
@@ -65,7 +65,7 @@ less — then keeps it on the glass where you glance."
 Screen-record the AWS console, ~10 s: ECS cluster `alive108` (service
 RUNNING) → Elastic IP `65.2.28.40` → NLB listener → phone browser on
 `http://65.2.28.40/health` returning JSON (125-station climatology) →
-Secrets Manager `alive108/openaq` (where the key lives). Voiceover:
+Secrets Manager `alive108/openaq` + `alive108/waqi` + `alive108/admin-token` (where the keys live). Voiceover:
 "CodeBuild builds the image inside AWS, ECR stores it, Fargate runs it
 serverless, a Network Load Balancer fronts it — the same engine the app
 on this phone is talking to."

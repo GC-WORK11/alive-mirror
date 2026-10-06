@@ -18,7 +18,7 @@ Non-user: someone looking for a general air-quality report. That product exists 
 
 A generic product can interpolate a handful of global feeds. Delhi specialization lets us win where global products can't:
 
-- **46 CAAQMS stations** (30 DPCC + 10 IMD/IITM + 6 CPCB) — the densest government monitoring network in India, published free via CPCB/data.gov.in and OpenAQ.
+- **46 CAAQMS stations** (30 DPCC + 10 IMD/IITM + 6 CPCB) — the densest government monitoring network in India, published free via CPCB/OpenAQ paths. (Shipped reality Oct-6: 54 instruments live — 24 WAQI + 30 DPCC; data.gov.in is TCP-refused from ap-south-1, OpenAQ key dormant — `docs/plan/handoff.md`.)
 - **Official open transit data**: Delhi Govt + IIIT-D publish GTFS for **543 bus routes / 3,464 stops** and **DMRC metro (262 stations, 36 routes)** at otd.delhi.gov.in — including real-time vehicle positions. Almost nobody builds on this.
 - **Seasonally predictable physics**: Oct–Nov stubble burning in Punjab/Haryana contributes ~20% avg PM2.5, up to 50–75% on event days (peer-reviewed). NASA FIRMS gives us the fire detections that drive those events — a Delhi-specific forecasting edge.
 - **Published Delhi exposure studies** for every transport mode (metro, AC car, rickshaw, bus, cycle, walk) — defensible dose factors specific to this city's fleet and street geometry.
@@ -40,7 +40,7 @@ Secondary, one-glance surfaces:
 Three things nobody shipping today combines:
 
 1. **Mode-aware dose routing.** Metro and AC-car legs score orders of magnitude lower per km than rickshaw/walk legs. The optimizer therefore produces mixed-mode itineraries that pure road routers never find ("auto to Azadpur → Yellow line to Nehru Place → short walk" beats "drive the whole way" on exposure by ~4–6×, for +9 min).
-2. **A Delhi-calibrated concentration field**, not an API echo: 46 stations hourly + land-use + near-road traffic increments + meteorology (wind, boundary-layer height) + stubble-fire transport signal — fused into a gridded surface *with uncertainty*.
+2. **A Delhi-calibrated concentration field**, not an API echo: the NCR instrument network (54 live today) + land-use + near-road traffic increments + meteorology (wind, boundary-layer height) + stubble-fire transport signal — fused into a gridded surface *with uncertainty*.
 3. **Honest numbers.** Every figure labeled measured/modeled/estimated with a confidence band. Judges see a system that knows what it doesn't know — more credible than fake precision.
 
 ## 6. What it is not
@@ -55,6 +55,6 @@ A judge opens the demo URL, types "Kashmere Gate → Hauz Khas", and sees:
 - 3 itineraries: drive vs metro+walk vs 2W — with dose µg, % difference, minutes, rupees, confidence
 - a map showing the pollution field the routes pass through
 - one honest recommendation and why
-- live Delhi data underneath (CPCB stations timestamped ≤ 60 min old)
+- live Delhi data underneath (real instruments timestamped on the wire — `/health.sources.stations`)
 
 That demo is undeniable because every number traces to a real station, a published factor, or a labeled model.

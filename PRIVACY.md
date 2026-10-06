@@ -155,11 +155,12 @@ what each one can see is listed:
 
 | service | used for | what it receives |
 |---|---|---|
-| OSRM public demo (`router.project-osrm.org`) | route geometries | the from/to coordinates you asked to route between (`server/main.py:39`, `server/v2/deps.py:84`) |
+| OSRM — self-hosted `osrm-routed` sidecar inside the same Fargate task (`OSRM_URL=127.0.0.1:5000`); public demo (`router.project-osrm.org`) only as flagged fallback | route geometries | the from/to coordinates you asked to route between — they stay inside the AWS task on the primary path (`server/v2/deps.py`) |
 | Photon (komoot, EU) | place autocomplete / reverse geocode fallback | your search text + a Delhi-biased position (`server/main.py:38,250-275,935`) |
 | Amazon Location Service (`geo-places`/`geo-routes`, ap-south-1) | search, reverse-geocode, traffic-aware routes — when `ALIVE_LOCATION_KEY` is set | search text, positions, route endpoints — inside our AWS account (`server/location_client.py:25-26`) |
 | Open-Meteo | air-quality model + wind field | a fixed NCR grid — never your location (`server/airfield.py:19-20`) |
-| OpenAQ | reference station readings | station queries, no user data (`server/airfield.py:21`) |
+| OpenAQ v3 | dormant — stored key returns 401; only the public S3 archive (climatology) is read | none |
+| WAQI (aqicn.org) + DPCC | the live station feeds — 24 + 30 instruments | station queries, no user data (`server/ingest_waqi.py`, `server/ingest_dpcc.py`) |
 | IITM EWS (`ews.tropmet.res.in`) | the SAFAR/WRF model bulletin | fetch only, no user data (`server/iitm_probe.py:46`) |
 | NASA FIRMS | satellite fire detections | public CSV / keyed area fetch, no user data (`server/fires.py:47`) |
 | AWS S3 (`COMMUNITY_BUCKET`) | our own snapshot of the community store | the aggregate counters described above (`server/community.py` `_save`) |

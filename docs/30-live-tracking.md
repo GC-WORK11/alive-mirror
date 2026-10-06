@@ -70,7 +70,7 @@ Read of the current code, so the delta is priced correctly:
   propagated to `dose_lo/hi`. Mode tables `MICROENV`/`VENTILATION_LPM`
   are all measured Delhi values. **[V]**
 - `server/airfield.py` + `krige.py`: field = de-biased IDW over
-  ~150 samples (48-pt Open-Meteo grid + ~105 live CAAQMS instruments
+  ~100 samples (48-pt Open-Meteo grid + 54 live instruments — 24 WAQI + 30 DPCC
   at 3× weight) with ordinary kriging when ≥20 samples fit a
   variogram. Cost: one ~145×145 solve per 15-min refresh, then O(n)
   per query — **a field lookup is tens of microseconds**. **[V]** (the

@@ -13,7 +13,7 @@ checked against code and **live AWS** (NLB :80, build `879d291f`, td:67).
 | 3 | Legal, sane roads — no unsafe/wrong paths | ✔ | 230 OSM turn bans + 3,428 access overrides in A*; connectivity-screened snap; bike speed cap (b548bdc) |
 | 4 | "Decision LLM or API" | ◐ (deliberate) | Decision is physics (dose × time × safety tier) in `decide.rank` + engine, explainable per row. No LLM: a keyless free LLM can't beat a priced objective and would add latency/cost. Pitch answer, not a gap |
 | 5 | Every house / landmark, home-to-home, ms | ◐ | 97,447-entry corpus (16,949 address rows), 124,311-row bundled gazetteer (instant offline T0 <5 ms), server p50 ~1 ms engine. Probe battery 174 real queries: live 92.5% → 98.3% after leg-4. Remaining: platform rows outrank landmarks (`aiims`, `lodhi garden`); house-numbers only where OSM has them |
-| 6 | What is Delhi — NCT + Haryana/UP borders, Ghaziabad | ✔ | Field bbox 76.8–77.9°E × 28.2–28.95°N; graph merges northern+central zones (Ghaziabad band 514 → 700k nodes); 13-district NCR choropleth; Gurugram→Ghaziabad plans live |
+| 6 | What is Delhi — NCT + Haryana/UP borders, Ghaziabad | ✔ | Field bbox 76.8–77.9°E × 28.2–28.95°N; graph merges northern+central zones (Ghaziabad band 514 → 700k nodes); NCR choropleth now serves 29 rows (16 district cells + 13 Delhi sub-areas — `/v2/districts`, 2026-10-06); Gurugram→Ghaziabad plans live |
 | 7 | Cigarettes OFF by default, settings toggle | ✔ | `settings.show_cig=false`; µg surfaces default; admin never shows per-user cigarettes |
 | 8 | PUC-certificate emissions, not fleet guesses | ✔ | VehicleSheet `puc` step (BS + CO%/HC/λ by fuel) → `emissions._puc_calib` → `puc_calibrated:true` on the wire |
 | 9 | Admin = Delhi's emission + exposure overview, light theme, official CPCB colours | ✔ | Board: districts strip, engine row, timing panel, corridors w/ CO₂/100m, day bars, species, sources. Dark landing replaced by light `/city` |
@@ -43,7 +43,7 @@ checked against code and **live AWS** (NLB :80, build `879d291f`, td:67).
 | 2 | Platform/stop rows outrank landmarks | "AIIMS" → a platform | demote transit-platform kinds when a same-name landmark/POI exists (location agent, in flight) | $0 |
 | 3 | TTS + jank unmeasured | user-mode nav | needs a KVM Linux box; physical Android phone on demo day covers it | $0 |
 | 4 | `/decide` 10 s (legacy v1) | unused by app | leave or route through v2 planner | $0 |
-| 5 | Public OSRM dependency | demo-day risk | self-hosted OSRM ~$10–15/mo — owner decision; engine rows already cover car/bike/walk without it | $ |
+| 5 | ~~Public OSRM dependency~~ CLOSED | shipped | self-hosted `osrm-routed` sidecar lives in the task today (`OSRM_URL=127.0.0.1:5000`, MLD over 4.4M NCR edges); public demo is the flagged fallback | done |
 | 6 | Release signing | Play upload | keystore on owner | $0 |
 
 ## 4 · One-line breakthrough (for the pitch)

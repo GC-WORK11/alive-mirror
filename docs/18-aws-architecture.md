@@ -12,23 +12,31 @@ Mobile app (Android/iOS, EXPO_PUBLIC_API_URL=http://65.2.28.40)
 Elastic IP 65.2.28.40 + NLB alive108 :80
    |
    v
-ECS Fargate service "alive108"  (1 vCPU / 2 GB, ap-south-1)
+ECS Fargate service "alive108"  (1 vCPU / 3 GB, ap-south-1 — task runs
+   |  the FastAPI engine + a self-hosted `osrm-routed` sidecar,
+   |  `OSRM_URL=127.0.0.1:5000`, OSRM MLD over 4.4M NCR edges)
    |  FastAPI decision engine (server/Dockerfile image)
    +--> ECR repo "alive108-api"          (container image)
    +--> S3 "alive108-build-<acct>/src.zip" -> CodeBuild "alive108-build"
    |      (image is built INSIDE AWS — no local docker needed)
-   +--> data/delhi_climatology.json.gz   (9M-measurement decade product,
-   |      built from OpenAQ's public S3 archive, baked into image)
-   +--> S3 "alive108-build-<acct>/community/state.json"
-   |      (donated traversals + hazard reports persist across redeploys —
-   |      Fargate's filesystem is ephemeral, the community layer is not)
-   +--> Secrets Manager "alive108/openaq" (OpenAQ key, never in repo)
-   +--> Open-Meteo / OSRM / Photon / OpenAQ-v3 (external, free)
+   +--> data/delhi_climatology.json.gz   (decade climatology built from
+   |      OpenAQ's public S3 archive — 125 NCR stations × ~10 years;
+   |      "9.04M measurements" was the raw-row count, unverified)
+   +--> DynamoDB "alive108-agg"          (community aggregates, corridor
+   |      cells, per-device ledger — 30-day cell TTL; durable across
+   |      redeploys — Fargate's filesystem is ephemeral, the layer is not)
+   +--> Secrets Manager "alive108/openaq" + "alive108/waqi" +
+   |      "alive108/admin-token"         (never in repo — scripts/deploy.sh)
+   +--> EventBridge rollup-daily + validate (one-off Fargate tasks;
+   |      infra/schedules/ — ingest-15min DISABLED, in-app loop owns it)
+   +--> Open-Meteo / FIRMS-public-csv / Photon / aqicn WAQI (external, free)
 ```
 
 IAM: `ecsTaskExecutionRole` (image pull / logs) vs `alive108-task` (the
 app's own identity — scoped to `s3:GetObject/PutObject` on the
-`community/*` prefix only).
+`alive108-air` bucket incl `community/*`, DynamoDB `alive108-agg` R/W,
+`geo-maps/places/routes:*`, `cloudwatch:PutMetricData` —
+`scripts/deploy.sh` L155-162).
 
 ## Why ECS Fargate, not App Runner
 
@@ -37,7 +45,8 @@ app's own identity — scoped to `s3:GetObject/PutObject` on the
 subscription that only a root console can grant. Fargate needs no
 subscription, is also serverless, and shows the same skill depth.
 
-## What runs `deploy-aws.sh` (server/deploy-aws.sh — one command)
+## What runs `scripts/deploy.sh` (one command — `server/deploy-aws.sh`
+is now a deprecated shim that execs it)
 
 1. zip `server/` → S3 bucket `alive108-build-<acct>`
 2. IAM `alive108-codebuild` role (logs + s3:get + ecr) → CodeBuild project
@@ -55,6 +64,7 @@ ECS cluster page (service RUNNING) → task's public IP → phone browser on
 
 ## Cost (inside the $200 event credits)
 
-Fargate 1vCPU/2GB ≈ $0.05/hr while running (~$36 for the whole event
-window), CodeBuild runs inside the always-free 100 build-min/month,
-ECR/S3 storage cents. Tell the user: set a $5 Budgets alarm anyway.
+Fargate 1vCPU/3GB ≈ $0.06/hr while running (~$46–50/mo run-rate, ~$36
+for the whole event window at Spot pricing), CodeBuild runs inside the
+always-free 100 build-min/month, ECR/S3/DynamoDB storage cents. Tell the
+user: set a $5 Budgets alarm anyway.

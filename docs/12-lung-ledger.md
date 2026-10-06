@@ -22,7 +22,7 @@ no account, no cloud, private by construction).
 - **streak** — consecutive calendar days under budget.
 - **trip rows** — today's logged trips, each with its µg.
 - **24h curve** — decade-typical diurnal medians at the destination
-  (GET /today → station×month×hour IST medians over 9.04M measurements),
+  (GET /today → station×month×hour IST medians over the decade archive (125 stations × ~10 years)),
   current IST hour highlighted. Answers "is now unusually bad?" at a
   glance.
 

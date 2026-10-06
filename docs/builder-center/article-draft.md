@@ -9,7 +9,7 @@
 
 ## Submission-form abstract (~120 words)
 
-ALive-108 is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 54 ground instruments, ~70 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rebuilds. We validated the field against 30 government DPCC stations it never ingests, published the misses, then closed the blind spots with a second ingest adapter — measured on prod: error at the formerly blind sites fell 22.8 → 10.5 µg/m³, all-30 agreement 27.1 → 6.2.
+ALive-108 is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 54 ground instruments, ~70 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rollup/validation jobs. We validated the field against 30 government DPCC stations it never ingests, published the misses, then closed the blind spots with a second ingest adapter — measured on prod: error at the formerly blind sites fell 22.8 → 10.5 µg/m³, all-30 agreement 27.1 → 6.2.
 
 ---
 
@@ -58,7 +58,7 @@ The dose ledger lives in a file on the phone — 500-trip cap, delete-all, no ac
 - **S3** — the last-good field snapshot (the field survives task restarts), community aggregate state, the hour-bucketed field archive (`archive/field-*.json.gz` — Delhi's air as replayable history), and the pmtiles basemap artifact. OpenAQ's public S3 archive supplied the decade climatology baked into the image.
 - **DynamoDB** (`alive108-agg`) — aggregate trip counters only; no user rows exist anywhere by design.
 - **Secrets Manager** — upstream API keys and the admin token; nothing in the repo.
-- **EventBridge Scheduler** (`alive108` group) — the 15-minute field-rebuild cadence, a daily rollup, and a weekly validation schedule.
+- **EventBridge Scheduler** (`alive108` group) — a daily rollup and a validation schedule (00:30 / 20:30 IST; the 15-minute field-rebuild cadence runs as an in-app ingest loop, `ALIVE_INGEST_IN_APP=1`).
 - **CloudWatch + Budgets** — a field-age alarm (missing data breaches, not just errors) and a cost alarm; worst case ~$46/month, inside the event credits.
 
 ### What we don't claim

@@ -123,6 +123,10 @@ curl -s "http://65.2.28.40/aqi?lat=28.6315&lon=77.2167" | python3 -c \
 #  "median_abs_pct":56.0, "mean_bias_ug":0.3,
 #  "note":"error between stations — at a station the field reads the
 #          instrument itself"}
+# (wire-accurate 2026-10-06 — this artifact predates the DPCC feed:
+#  its `method` label and n_stations=94 describe the OpenAQ-era audit,
+#  not today's 54-instrument waqi+dpcc feed. Flagged for the code lane
+#  — don't quote the label, quote the number as the pre-DPCC audit.)
 ```
 
 - `server/data/field_validation.md` — 3,550 station-hours across 85
@@ -185,9 +189,10 @@ like at 14 users: mostly empty."
 morning card's 12-hour line is the *forecast* surface — 12 parallel
 `GET /grid?h=0..11` reads, pulled live when the card opens; a failed
 hour renders as a literal hole in the stroke. The "vs typical" curve
-behind it is the decade climatology — 125 stations, 9.04M OpenAQ
-measurements, pulled from a public S3 archive (the source string is on
-`/health.history`). The phone-side day arc and week dots are built
+behind it is the decade climatology — 125 stations × ~10 years of
+hourly readings from the public OpenAQ S3 archive (the "9.04M
+measurements" raw-row count was never independently re-verified; the
+source string is on `/health.history`). The phone-side day arc and week dots are built
 only from real foreground samples and real completed trips (see Q1).
 
 **Live proof:**
@@ -319,14 +324,16 @@ hour out from a live observation.")
 
 ## 8. "What breaks when WAQI dies?"
 
-**Honest answer:** Layered degradation, no fabrication — and a real
-caveat: **WAQI is the only live stations feed**. Every keyless
-alternative was probed from inside the prod VPC and found dead or fake
-(`docs/plan/handoff.md` line ~54: OpenAQ key 401, data.gov.in refused
-even on India egress, CPCB dashboard timeout, SAFAR TLS-hangs, the
-`demo` token silently serves *Shanghai* — rejected). So when WAQI
-goes, stations go; what remains is the model prior and the honesty
-markers.
+**Honest answer:** Layered degradation, no fabrication — and the
+picture has improved since this note was drafted: **DPCC now feeds 30
+instruments alongside WAQI's 24** (`source:"waqi+dpcc"`, live
+2026-10-06), so a single-feed failure degrades, it doesn't empty.
+Other keyless alternatives were probed from inside the prod VPC and
+found dead or fake (`docs/plan/handoff.md` line ~54: OpenAQ key 401,
+data.gov.in refused even on India egress, CPCB dashboard timeout,
+SAFAR TLS-hangs, the `demo` token silently serves *Shanghai* —
+rejected). If both feeds go, what remains is the model prior and the
+honesty markers.
 
 **What happens, in order** (all in code):
 
