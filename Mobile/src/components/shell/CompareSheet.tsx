@@ -24,11 +24,12 @@
  *   re-plans with the new vehicle when onVehicleChange is wired.
  * SEAM(compare): the screens lane may replace this with src/screens S4. */
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Elev, V2Radius, V2T, V2Type, doseColor, fam, famMono, famMonoText } from "../../theme";
-import { DYNAMIC_TYPE } from "../../a11y";
+import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { CountUp, Sheet, pressFx } from "../../ui";
+import { CountUp, Sheet } from "../../ui";
+import { PressSpring } from "../PressSpring";
 import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
 import type { DepartCurve } from "../../api/depart";
@@ -330,6 +331,20 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
   showCig: boolean; safest: boolean; veh: VehicleProfile | null; lang: Lang;
   onSelect: (i: number) => void; onToggleDetail: (i: number) => void;
 }) {
+  /* selection crossfades in — the card never snaps accent-on. The overlay
+     carries the old cardSel paint (accentWash wash + accent edge); with
+     borders now reserved for selection, the accent edge fades IN instead
+     of swapping widths — deselecting can't jump a border out either.
+     spring on opacity: the pick "arrives" rather than flipping (doc 20 §6) */
+  const reduce = useReduceMotion();
+  const [selV] = useState(() => new Animated.Value(selected ? 1 : 0));
+  useEffect(() => {
+    if (reduce) { selV.setValue(selected ? 1 : 0); return; }
+    Animated.spring(selV, {
+      toValue: selected ? 1 : 0, damping: 18, stiffness: 260, mass: 0.7,
+      useNativeDriver: true,
+    }).start();
+  }, [selected, selV, reduce]);
   const d = o.dose;
   const band = d && (d.lo != null || d.hi != null) && (d.lo !== d.mid || d.hi !== d.mid)
     ? `${d.lo != null ? Math.round(d.lo) : "?"}–${d.hi != null ? Math.round(d.hi) : "?"}`
@@ -353,14 +368,16 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
   const lblQual = (lblCut > 0 ? lbl.slice(lblCut) : "")
     + (showYours ? ` · ${t("compare_yours", lang)}` : "");
   return (
-    <View style={[s.card, selected && s.cardSel]}>
+    <PressSpring style={s.card}>
+      <Animated.View pointerEvents="none"
+        style={[StyleSheet.absoluteFill, s.selFill, { opacity: selV }]} />
       <Pressable
         onPress={() => { tick(); onSelect(i); }}
         onLongPress={() => { tick(); onToggleDetail(i); }}
         delayLongPress={400}
         accessibilityRole="button"
         accessibilityState={{ selected }}
-        style={({ pressed }) => [s.cardRow, pressFx(pressed)]}>
+        style={s.cardRow}>
         {/* the mode tile — the option's identity in its own colour;
             selection re-inks it, never re-fills the card */}
         <View style={[s.modeWell, {
@@ -448,7 +465,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
         </View>
       </Pressable>
       {open && <DetailBlock o={o} fieldAgeS={fieldAgeS} showCig={showCig} veh={veh} lang={lang} />}
-    </View>
+    </PressSpring>
   );
 }
 
@@ -510,10 +527,11 @@ function CompareSheetInner({
     (!flaggedSafest && o.dose?.mid != null && o.dose.mid === minDose && minDose < Infinity);
 
   const chip = (
+    <PressSpring style={{ alignSelf: "flex-start" }}>
     <Pressable
       onPress={() => { tick(); if (onVehiclePress) onVehiclePress(); else setVehOpen(true); }}
       hitSlop={8}
-      style={({ pressed }) => [s.vehChip, pressFx(pressed)]}
+      style={s.vehChip}
       accessibilityRole="button" accessibilityLabel={t("sidebarMyVehicle", lang)}>
       <Icon name={vehicleGlyph(veh?.cls ?? "car")} color={V2T.text2} size={15} />
       <Text {...DYNAMIC_TYPE} style={[s.vehChipTxt, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
@@ -528,6 +546,7 @@ function CompareSheetInner({
       ) : null}
       <Icon name="chevron" color={V2T.text3} size={11} />
     </Pressable>
+    </PressSpring>
   );
 
   return (
@@ -554,10 +573,10 @@ function CompareSheetInner({
               <Text {...DYNAMIC_TYPE} style={[s.stateSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={4}>
                 {t("plan_outside_body", lang)}
               </Text>
-              <Pressable onPress={onClose} style={s.retryBtn} accessibilityRole="button"
+              <PressSpring><Pressable onPress={onClose} style={s.retryBtn} accessibilityRole="button"
                 accessibilityLabel={t("plan_outside_cta", lang)}>
                 <Text {...DYNAMIC_TYPE} style={[s.retryTxt, { fontFamily: fam(lang, "med") }]}>{t("plan_outside_cta", lang)}</Text>
-              </Pressable>
+              </Pressable></PressSpring>
             </View>
           ) : (
           <View style={s.stateWrap}>
@@ -573,10 +592,10 @@ function CompareSheetInner({
               </Text>
             ) : null}
             {onRetry && (
-              <Pressable onPress={onRetry} style={s.retryBtn} accessibilityRole="button"
+              <PressSpring><Pressable onPress={onRetry} style={s.retryBtn} accessibilityRole="button"
                 accessibilityLabel={t("plan_retry", lang)}>
                 <Text {...DYNAMIC_TYPE} style={[s.retryTxt, { fontFamily: fam(lang, "med") }]}>{t("plan_retry", lang)}</Text>
-              </Pressable>
+              </Pressable></PressSpring>
             )}
           </View>
           )
@@ -608,7 +627,7 @@ function CompareSheetInner({
                 </View>
               )}
               {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 8 && (
-                <Pressable onPress={() => { tap(); onRemind(); }} style={({ pressed }) => [s.departRow, pressFx(pressed)]}
+                <PressSpring><Pressable onPress={() => { tap(); onRemind(); }} style={s.departRow}
                   accessibilityRole="button">
                   <Icon name={notified ? "bell" : "clock"} color={V2T.accent} size={16} filled={notified} />
                   <Text {...DYNAMIC_TYPE} style={[s.departTxt, { fontFamily: fam(lang, "med") }]}>
@@ -619,7 +638,7 @@ function CompareSheetInner({
                           n: Math.round(depart.ug_saved_vs_now),
                         })}
                   </Text>
-                </Pressable>
+                </Pressable></PressSpring>
               )}
               {departCurve?.slots?.length ? (
                 <View style={{ marginTop: 10, marginBottom: 4 }}>
@@ -699,18 +718,18 @@ function CompareSheetInner({
             </ScrollView>
             {sel && (
               <View style={s.footer}>
-                <Pressable onPress={() => { tick(); onToggleSteps(); }}
-                  style={({ pressed }) => [s.ghostBtn, stepsOpen && s.ghostBtnOn, pressFx(pressed)]}
+                <PressSpring><Pressable onPress={() => { tick(); onToggleSteps(); }}
+                  style={[s.ghostBtn, stepsOpen && s.ghostBtnOn]}
                   accessibilityRole="button">
                   <Text {...DYNAMIC_TYPE} style={[s.ghostTxt, stepsOpen && s.ghostTxtOn, { fontFamily: fam(lang, "med") }]}>
                     {stepsOpen ? t("hideTurns", lang) : t("turnByTurn", lang)}
                   </Text>
-                </Pressable>
-                <Pressable onPress={() => { confirm(); onStart(); }}
-                  style={({ pressed }) => [s.goBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                </Pressable></PressSpring>
+                <PressSpring><Pressable onPress={() => { confirm(); onStart(); }}
+                  style={s.goBtn}
                   accessibilityRole="button">
                   <Text {...DYNAMIC_TYPE} style={[s.goBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("start", lang)}</Text>
-                </Pressable>
+                </Pressable></PressSpring>
               </View>
             )}
           </>
@@ -797,7 +816,12 @@ const s = StyleSheet.create({
     backgroundColor: V2T.surface,
     overflow: "hidden",
   },
-  cardSel: { borderColor: V2T.accent, borderWidth: 1.5, backgroundColor: V2T.accentWash },
+  /* the animated selected paint (was `cardSel` — same colours, now a
+     crossfading overlay so picking a card lands instead of snapping) */
+  selFill: {
+    borderRadius: V2Radius.card - 1,
+    backgroundColor: V2T.accentWash, borderWidth: 1.5, borderColor: V2T.accent,
+  },
   cardRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 13, paddingHorizontal: 14, minHeight: 68,

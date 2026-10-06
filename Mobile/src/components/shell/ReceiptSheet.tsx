@@ -36,6 +36,7 @@ import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMonoText, fa
 import { Icon, vehicleGlyph } from "../../icons";
 import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
+import { PressSpring } from "../PressSpring";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
 import { bump, jank } from "../../perf";
@@ -74,6 +75,30 @@ export type ReceiptData = {
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/** A stat tile that lands with the sheet — spring up + fade, ~80 ms
+ *  behind the tile before it (doc 20 §6: the receipt is earned, so its
+ *  numbers arrive instead of popping; ~250 ms settle, no overshoot).
+ *  Reduce-motion → the tile is simply there. */
+function StatTile({ index, reduce, children }: {
+  index: number; reduce: boolean; children: React.ReactNode;
+}) {
+  const [v] = useState(() => new Animated.Value(reduce ? 1 : 0));
+  const [ty] = useState(() =>
+    v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }));
+  useEffect(() => {
+    if (reduce) { v.setValue(1); return; }
+    Animated.spring(v, {
+      toValue: 1, delay: 220 + index * 80,
+      damping: 15, stiffness: 210, mass: 0.9, useNativeDriver: true,
+    }).start();
+  }, [v, index, reduce]);
+  return (
+    <Animated.View style={[s.cell, { opacity: v, transform: [{ translateY: ty }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
 
 /** Dose ruler — this trip's band on the 0 → 1 cigarette scale
  *  (`CIG_UG` = 316 µg inhaled PM2.5, the Berkeley Earth rule —
@@ -272,9 +297,10 @@ function ReceiptSheetInner({
         </>
       )}
 
-      {/* ── stats grid: put out · distance · time ── */}
+      {/* ── stats grid: put out · distance · time — tiles land in a
+          short cascade on open (spring up+fade ~80 ms apart) ── */}
       <View style={s.grid}>
-        <View style={s.cell}>
+        <StatTile index={0} reduce={reduceMotion}>
           <Text style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {co2 == null ? "—" : t("nav_kg", lang, { n: approx(r1(Math.max(0, co2.mid))) })}
@@ -283,9 +309,9 @@ function ReceiptSheetInner({
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {t("putOut", lang)}
           </Text>
-        </View>
+        </StatTile>
         {data.distanceKm != null && (
-          <View style={s.cell}>
+          <StatTile index={1} reduce={reduceMotion}>
             <Text style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]}
               numberOfLines={1} {...DYNAMIC_TYPE}>
               {`${r1(Math.max(0, data.distanceKm))} ${t("unitsKm", lang)}`}
@@ -294,9 +320,9 @@ function ReceiptSheetInner({
               numberOfLines={1} {...DYNAMIC_TYPE}>
               {t("receipt_distance", lang)}
             </Text>
-          </View>
+          </StatTile>
         )}
-        <View style={s.cell}>
+        <StatTile index={data.distanceKm != null ? 2 : 1} reduce={reduceMotion}>
           <Text style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {`${mins} ${t("minUnit", lang)}`}
@@ -305,7 +331,7 @@ function ReceiptSheetInner({
             numberOfLines={1} {...DYNAMIC_TYPE}>
             {t("receipt_duration", lang)}
           </Text>
-        </View>
+        </StatTile>
       </View>
 
       {/* ── emissions footnotes: band, particles, the alternative ── */}
@@ -369,43 +395,51 @@ function ReceiptSheetInner({
 
       {/* ── actions: primary done · secondary share · tertiary info/save ── */}
       <View style={s.btns}>
-        <Pressable onPress={onDone}
-          style={({ pressed }) => [s.done, pressed && s.pressed]}
-          {...a11y(t("done", lang), undefined, "button", { lang })}>
-          <Text style={[s.doneTxt, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
-            {t("done", lang)}
-          </Text>
-        </Pressable>
-        {onShare ? (
-          <Pressable onPress={onShare}
-            style={({ pressed }) => [s.share, pressed && s.pressed]}
-            {...a11y(t("share", lang), undefined, "button", { lang })}>
-            <Icon name="share" color={V2T.accent} size={16} />
-            <Text style={[s.shareTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
-              {t("share", lang)}
+        <PressSpring style={{ flex: 1 }}>
+          <Pressable onPress={onDone}
+            style={s.done}
+            {...a11y(t("done", lang), undefined, "button", { lang })}>
+            <Text style={[s.doneTxt, { fontFamily: fam(lang, "semi") }]} {...DYNAMIC_TYPE}>
+              {t("done", lang)}
             </Text>
           </Pressable>
+        </PressSpring>
+        {onShare ? (
+          <PressSpring>
+            <Pressable onPress={onShare}
+              style={s.share}
+              {...a11y(t("share", lang), undefined, "button", { lang })}>
+              <Icon name="share" color={V2T.accent} size={16} />
+              <Text style={[s.shareTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
+                {t("share", lang)}
+              </Text>
+            </Pressable>
+          </PressSpring>
         ) : null}
       </View>
       {(onHowWeGotThis || onSave) && (
         <View style={s.tertiaryRow}>
           {onHowWeGotThis ? (
-            <Pressable onPress={onHowWeGotThis} hitSlop={slop(10)}
-              style={({ pressed }) => [s.tertiary, pressed && s.pressed]}
-              {...a11y(t("howWeGotThis", lang), undefined, "button", { lang })}>
-              <Text style={[s.tertiaryTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
-                {t("howWeGotThis", lang)}
-              </Text>
-            </Pressable>
+            <PressSpring>
+              <Pressable onPress={onHowWeGotThis} hitSlop={slop(10)}
+                style={s.tertiary}
+                {...a11y(t("howWeGotThis", lang), undefined, "button", { lang })}>
+                <Text style={[s.tertiaryTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
+                  {t("howWeGotThis", lang)}
+                </Text>
+              </Pressable>
+            </PressSpring>
           ) : null}
           {onSave ? (
-            <Pressable onPress={onSave} hitSlop={slop(10)}
-              style={({ pressed }) => [s.tertiary, pressed && s.pressed]}
-              {...a11y(t("receipt_save", lang), undefined, "button", { lang })}>
-              <Text style={[s.tertiaryTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
-                {t("receipt_save", lang)}
-              </Text>
-            </Pressable>
+            <PressSpring>
+              <Pressable onPress={onSave} hitSlop={slop(10)}
+                style={s.tertiary}
+                {...a11y(t("receipt_save", lang), undefined, "button", { lang })}>
+                <Text style={[s.tertiaryTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
+                  {t("receipt_save", lang)}
+                </Text>
+              </Pressable>
+            </PressSpring>
           ) : null}
         </View>
       )}
@@ -509,5 +543,4 @@ const s = StyleSheet.create({
   },
   tertiary: { minHeight: 44, justifyContent: "center", paddingHorizontal: 8 },
   tertiaryTxt: { fontSize: V2Type.label, color: V2T.accent },
-  pressed: { opacity: 0.65 },
 });

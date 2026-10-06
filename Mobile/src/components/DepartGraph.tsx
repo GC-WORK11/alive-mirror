@@ -9,6 +9,13 @@
  *  the solid bar marks dose_mid. Best hour = accent; the "now" hour is
  *  the brighter baseline; a tapped column brightens and reports back.
  *
+ *  The strip is finger-scrubbable (lane motion-v3): a horizontal drag
+ *  anywhere across the bars claims the move responder and live-tracks
+ *  the touched hour into `sel` — the caption's "leave HH:MM ≈ N µg"
+ *  follows the finger and stays on the hour the lift lands. Vertical
+ *  gestures pass through to the sheet's ScrollView untouched; taps
+ *  still hit the per-cell Pressables (TalkBack keeps them too).
+ *
  *  Mount (CompareSheet/Sidebar integration):
  *    const c = await fetchDepartCurve({ from, to, vehicle: option.mode });
  *    <DepartGraph
@@ -22,7 +29,7 @@
  *  into i18n/strings.ts at integration (strings.ts is shared; this lane
  *  is constrained to new files only). "est." reuses receipt_estShort.
  */
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { NUM, V2T, V2Type, fam, famMono, famMonoText } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
@@ -69,6 +76,12 @@ export function DepartGraph({
   const [innerSel, setInnerSel] = useState<number | null>(null);
   const [axisW, setAxisW] = useState(0);
   const sel = selectedHour ?? innerSel;
+  /* scrub state — gesture origin for the horizontal gate, strip width
+     for the x→hour map, last reported hour so onSelectHour (a haptic
+     tick in CompareSheet) fires once per hour, not per pixel */
+  const barsW = useRef(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const lastHour = useRef<number | null>(null);
 
   const rows = useMemo(
     () => [...data].filter((d) => Number.isFinite(d.dose_mid)).sort((a, b) => a.hour - b.hour),
@@ -97,6 +110,20 @@ export function DepartGraph({
 
   const onAxis = (e: LayoutChangeEvent) => setAxisW(e.nativeEvent.layout.width);
 
+  /* x within the strip → the hour under the finger. Live-selects while
+     scrubbing; on release the selection simply persists — the caption
+     "settles" on the landed hour (no extra commit step). */
+  const scrubTo = (x: number) => {
+    if (!onSelectHour || n === 0 || barsW.current <= 0) return;
+    const idx = Math.max(0, Math.min(n - 1, Math.floor(x / (barsW.current / n))));
+    const d = rows[idx];
+    if (d && d.hour !== lastHour.current) {
+      lastHour.current = d.hour;
+      setInnerSel(d.hour);
+      onSelectHour(d.hour, d);
+    }
+  };
+
   /* bars carry the dose they plot — the same warm in-ramp the option
      bars use (heavier hour = warmer bar); best hour stays accent, a
      tapped column still wins in ink */
@@ -108,8 +135,37 @@ export function DepartGraph({
 
   return (
     <View style={s.wrap}>
-      {/* ── bars ── */}
-      <View style={[s.bars, { height }]}>
+      {/* ── bars ── the whole strip is the scrub surface: the container
+          captures the move responder once a drag reads horizontal (>8px,
+          dx>dy), then every move maps locationX (container-relative) to
+          the hour under the finger. Taps never reach the gate — cells'
+          Pressables keep them; a vertical first move loses the race to
+          the ScrollView, so the sheet still scrolls from the graph. */}
+      <View style={[s.bars, { height }]}
+        onLayout={(e) => { barsW.current = e.nativeEvent.layout.width; }}
+        onTouchStart={onSelectHour
+          ? (e) => {
+              touchStart.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+              lastHour.current = null;
+            }
+          : undefined}
+        onMoveShouldSetResponder={onSelectHour
+          ? (e) => {
+              const st = touchStart.current;
+              if (!st) return false;
+              const dx = Math.abs(e.nativeEvent.pageX - st.x);
+              const dy = Math.abs(e.nativeEvent.pageY - st.y);
+              return dx > 8 && dx > dy;
+            }
+          : undefined}
+        onResponderGrant={onSelectHour ? (e) => scrubTo(e.nativeEvent.locationX) : undefined}
+        onResponderMove={onSelectHour ? (e) => scrubTo(e.nativeEvent.locationX) : undefined}
+        onResponderRelease={onSelectHour
+          ? () => { touchStart.current = null; lastHour.current = null; }
+          : undefined}
+        onResponderTerminate={onSelectHour
+          ? () => { touchStart.current = null; lastHour.current = null; }
+          : undefined}>
         {rows.map((d) => {
           const c = barColor(d);
           const lo = d.dose_lo ?? d.dose_mid;

@@ -94,6 +94,7 @@ import {
   type Outlook,
 } from "../api/outlook";
 import { PROFILE_BUDGET_UG, type ShellSettings } from "../components/shell/settings";
+import { CheckinSheet } from "../components/shell/CheckinSheet";
 import { bump, jank } from "../perf";
 
 /* ---------------- the hook: one assemble of the day's data --------------- */
@@ -829,68 +830,8 @@ const DayCard = React.memo(DayCardInner);
 
 /* ---------------- the symptom lens ---------------- */
 
-const FACETS = [
-  { key: "breath", labelKey: "lensBreath" },
-  { key: "eyes", labelKey: "lensEyes" },
-  { key: "energy", labelKey: "lensEnergy" },
-] as const;
-const OPTS = ["lensGood", "lensMeh", "lensRough"] as const;
-
-function LensCardInner({ checkin, lens, lang, onCheckin }: {
-  checkin: Checkin | null; lens: LensVerdict; lang: Lang;
-  onCheckin: (c: Omit<Checkin, "ts">) => void;
-}) {
-  bump("home.LensCard");
-  const val = { breath: checkin?.breath ?? -1, eyes: checkin?.eyes ?? -1, energy: checkin?.energy ?? -1 };
-  return (
-    <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
-        {t("lensTitle", lang)}
-      </Text>
-      <Text {...DYNAMIC_TYPE} style={[ss.lensSub, { fontFamily: fam(lang, "reg") }]}>
-        {t("lensSub", lang)}
-      </Text>
-      {FACETS.map((f) => (
-        <View key={f.key} style={ss.facetRow}>
-          <Text {...DYNAMIC_TYPE} style={[ss.facetLabel, { fontFamily: fam(lang, "med") }]}>
-            {t(f.labelKey, lang)}
-          </Text>
-          <View style={ss.facetOpts}>
-            {OPTS.map((ok, v) => {
-              const sel = val[f.key] === v;
-              return (
-                <Pressable key={ok}
-                  onPress={() => { tap(); onCheckin({ breath: val.breath, eyes: val.eyes, energy: val.energy, [f.key]: v }); }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t(f.labelKey, lang)}: ${t(ok, lang)}`}
-                  style={({ pressed }) => [ss.opt, sel && ss.optSel, pressFx(pressed)]}>
-                  <Text {...DYNAMIC_TYPE}
-                    style={[ss.optTxt, { fontFamily: fam(lang, "reg") }, sel && ss.optTxtSel]}>
-                    {t(ok, lang)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      ))}
-      <Text {...DYNAMIC_TYPE} style={[ss.finePrint, { fontFamily: fam(lang, "reg") }]}>
-        {t("lensPrivacy", lang)}
-      </Text>
-      {/* the verdict earns its line honestly */}
-      <Text {...DYNAMIC_TYPE} style={[ss.verdict, { fontFamily: fam(lang, "med") }]}>
-        {lens.kind === "early" ? t("lensEarly", lang)
-          : lens.kind === "flat" ? t("lensFlat", lang, { n: lens.days })
-          : t("lensLink", lang, {
-              f: t(lens.facet === "eyes" ? "lensFacetEyes"
-                    : lens.facet === "energy" ? "lensFacetEnergy" : "lensFacetBreath", lang),
-            })}
-      </Text>
-    </View>
-  );
-}
-
-const LensCard = React.memo(LensCardInner);
+/* the check-in card lives in shell/CheckinSheet.tsx (motion-v3 moved it
+   out so the sheet components own the pill springs) */
 
 /* ---------------- the budget ---------------- */
 
@@ -1445,7 +1386,7 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
           <DaysAheadCard outlook={data?.outlook ?? null} lang={lang} />
         </FadeIn>
         <FadeIn delay={250}>
-          <LensCard checkin={data?.checkin ?? null}
+          <CheckinSheet checkin={data?.checkin ?? null}
             lens={data?.lens ?? { kind: "early", days: 0, need: 7 }} lang={lang} onCheckin={onCheckin} />
         </FadeIn>
         <FadeIn delay={300}>
@@ -1699,24 +1640,6 @@ const ss = StyleSheet.create({
   partSpine: { width: 4, height: 18, borderRadius: 2 },
   partLabel: { color: V2T.text, fontSize: V2Type.secondary, flex: 1 },
   partUg: { color: V2T.text, fontSize: V2Type.label },
-
-  /* lens — facets answer in chunky pills */
-  lensSub: { color: V2T.text2, fontSize: V2Type.label, marginBottom: 10, lineHeight: 19 },
-  facetRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 7,
-  },
-  facetLabel: { color: V2T.text, fontSize: V2Type.secondary },
-  facetOpts: { flexDirection: "row", gap: 6 },
-  opt: {
-    paddingHorizontal: 12, paddingVertical: 9,
-    borderRadius: V2Radius.row,
-    backgroundColor: V2T.surface2,
-  },
-  optSel: { backgroundColor: V2T.accentWash, borderColor: V2T.accent, borderWidth: 1.5 },
-  optTxt: { color: V2T.text2, fontSize: V2Type.label },
-  optTxtSel: { color: V2T.accentInk },
-  verdict: { color: V2T.text2, fontSize: V2Type.label, marginTop: 12 },
 
   weekDot: { width: 9, height: 9, borderRadius: 4.5 },
   weekBar: { width: 7, height: 16, borderRadius: 3.5 },
