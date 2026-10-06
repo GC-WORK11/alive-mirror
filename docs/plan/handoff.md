@@ -833,3 +833,30 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - main merged (this commit); live = f4139b24.
 - RUNNING: field-drift-watch 87711066 (~3h loop), apk-final 34623675
   + drive child 28d29d6d.
+
+## cont.50 — ingest-edges + demo-day-final + cut6 + owner overhaul mandate (2026-10-06 ~07:15 UTC)
+- deploy 1ea333f7 live: (a) FIRMS stale_after_s 22500 (declared
+  contract, was 2700 → honest flap gone); (b) /v2/why snapshot
+  dedupe BUG (datetime-set halved key space) + explicit
+  n_snapshots_available disclosure — live-verified 29/29 builds,
+  span 5.8h, trend −52.8µg morning fall.
+- demo-day-final 3c70e26: every quoted figure re-derived vs live;
+  judge-qa §7 wording fixed ("blended onto live field", never flat
+  "beats persistence"); judge's-first-90s checklist for 0b11123.
+- cut6.mp4 2:48 (new copy on tape, frame-verified); day-in-life
+  video lane running on owner request.
+- drift-watch d14815f: CLEAN watch through overnight peak+morning
+  ventilation transition (city mean 90.3→52.9, vc 533→922+ m²/s).
+- OWNER ESCALATION ~05:50Z: full component-level overhaul across
+  app+web — "cheap, too complex, operating system, too dull, mini
+  words cringe, without removing a single feature, colorful
+  components + little liquid glassmorphism, daily driver".
+  Reference study done from his Safari tabs (~30 prod screens):
+  DECODED REGISTER + HARD ANTI-LIST (no neon/3D/cheap-green) in
+  docs/lanes/app-overhaul-v2.md + web-overhaul-v2.md.
+- LANES: app-overhaul-v2 00c120c8 (Mobile component redesign),
+  web-overhaul-v2 e6a987eb (landing/city/admin), search-crash
+  5cde4064 (stage-risk: SearchScreen segfaulted 6× in cut6 shoot —
+  residual RN/keyboard-map race), day-in-life 1d092590.
+- APK 0b11123 ships vibe+coldread BUT predates overhaul; rebuild
+  after overhaul+search-crash land.
