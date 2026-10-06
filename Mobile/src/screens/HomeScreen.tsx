@@ -1291,7 +1291,10 @@ const HeroBlock = React.memo(HeroBlockInner);
 function TravelCtaInner({ lang, onGo }: { lang: Lang; onGo: () => void }) {
   bump("home.TravelCta");
   return (
-    <Pressable onPress={() => { tick(); onGo(); }}
+    /* collapsable={false}: Android can flatten a Pressable's parent chain
+       and drop it from the touch map — the pill read as visible-but-dead
+       on device (apk-verify-v8). Cheap insurance on the primary action. */
+    <Pressable collapsable={false} onPress={() => { tick(); onGo(); }}
       accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
       style={({ pressed }) => [ss.cta, pressFx(pressed)]}>
       <Icon name="search" color={V2T.bg} size={19} />
@@ -1370,15 +1373,16 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
     <View style={ss.home}>
       <HomeHeader lang={lang} onMenu={onMenu} />
       <ScrollView style={ss.flex}
-        contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[ss.content, { paddingBottom: 12 }]}
         showsVerticalScrollIndicator={false}>
-        {/* the hero lands first; the verb and the doors sit under it;
-            content cards arrive staggered below */}
+        {/* the hero lands first; the doors sit under it; content cards
+            arrive staggered below. The ONE primary CTA is NOT in the
+            scroll — it lives pinned in the footer bar below (the
+            daily-driver grammar: the verb never scrolls away), which
+            also takes it out of the scroll/elevation touch-dispatch
+            path that ate taps on Android (apk-verify-v8). */}
         <FadeIn delay={0}>
           <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg} lang={lang} />
-        </FadeIn>
-        <FadeIn delay={50}>
-          <TravelCta lang={lang} onGo={onGo} />
         </FadeIn>
         <FadeIn delay={90}>
           <DoorRow lang={lang} ambientUg={ambientUg} onMap={onMap} onCity={onCity} onTrips={onTrips} />
@@ -1403,6 +1407,11 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
             lang={lang} onProfile={onProfile} />
         </FadeIn>
       </ScrollView>
+      {/* the pinned verb — the dosimeter's one outbound action, always
+          reachable (rides the sheet's own slide, not the map's space) */}
+      <View style={[ss.ctaBar, { paddingBottom: insets.bottom + 10 }]}>
+        <TravelCta lang={lang} onGo={onGo} />
+      </View>
     </View>
   );
 }
@@ -1544,6 +1553,13 @@ const ss = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: V2T.text,
     borderRadius: V2Radius.pill, height: 56, paddingHorizontal: 20,
+  },
+  /* its pinned footer bar — outside the scroll so the verb is always
+     reachable; a whisper of a divider, not a rail */
+  ctaBar: {
+    paddingHorizontal: 20, paddingTop: 10,
+    backgroundColor: V2T.bg,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
   },
   ctaTxt: { flex: 1, color: V2T.bg, fontSize: V2Type.body },
   ctaArrow: {
