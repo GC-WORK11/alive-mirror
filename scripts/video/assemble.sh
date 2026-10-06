@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Assemble the dosimeter-arc cut: cards + beats -> 1920x1080/30fps/h264.
-# Cut order follows docs/submission/video-shotlist.md:
-#   title -> hero -> your-day (app) -> journey (app) -> dose gap (a→b)
-#   -> city (reach + days + corridors) -> community corridors
-#   -> admin engine room -> AWS console -> close -> end card.
-# Target <=2:50; trim order if long: city reach line (-15s), admin
-# field-map pan (-10s), your-day decision strings (-8s).
+# cut7 order (the overhaul pass): title -> landing top fold (hero stat
+# tile + door tiles + band-washed districts) -> field watch-the-day ->
+# app home (paper doors) -> app door taps -> app journey -> receipt ->
+# ledger -> DelhiToday -> dose gap (a->b) -> city (why-line + reach +
+# day tiles + corridors) -> community -> admin engine room -> AWS
+# console -> close -> end card.
+# Target <=2:55; trim order if long: city reach line (-15s), admin
+# field-map pan (-10s), app journey (-5s).
 # Skips missing beats cleanly. The AWS slot takes 80_aws.mov|mp4 when
 # the owner drops his console footage in; otherwise a marked 25s
 # placeholder card holds the timeline.
@@ -14,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 . "$(dirname "$0")/lib.sh"
 D="${1:-$HOME/video/beats}"
-OUT="${2:-$HOME/video/cut5.mp4}"
+OUT="${2:-$HOME/video/cut7.mp4}"
 NLB="http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com"
 W="$HOME/video/work"; mkdir -p "$W"
 
@@ -83,15 +85,18 @@ LIST="$W/concat.txt"; : > "$LIST"
 add(){ [ -f "$1" ] && { norm "$1" "$W/$2.mp4" "$3"; echo "file '$W/$2.mp4'" >> "$LIST"; } || echo "skip missing $1"; }
 
 echo "file '$W/00_title.mp4'" >> "$LIST"
-add "$D/10_hero.mp4"        10_hero        11   # shotlist 1 — hero
-add "$D/20_yourday.mp4"     20_yourday     10   # shotlist 2 — DayScreen
-add "$D/25_journey.mp4"     25_journey     14   # compare→pick→Start→nav (pick persists)
-add "$D/26_receipt.mp4"     26_receipt      8   # arrival receipt + ledger (dedupe gone)
-add "$D/28_today.mp4"       28_today        8   # DelhiToday why-line (beat 4)
-add "$D/30_dosegap.mp4"     30_dosegap     24   # shotlist 3 — a→b
-add "$D/40_city.mp4"        40_city        24   # shotlist 4 — reach/days
-add "$D/65_community.mp4"   65_community    8   # corridor cells
-add "$D/50_admin.mp4"       50_admin       22   # shotlist 5 — engine room
+add "$D/05_landing.mp4"     05_landing      7   # overhauled top fold: hero stat + doors + districts
+add "$D/10_hero.mp4"        10_hero        10   # live field + watch-the-day scrub
+add "$D/20_home.mp4"        20_home        13   # app dosimeter home — paper doors + tinted chips
+add "$D/22_doors.mp4"       22_doors        7   # door taps (the air map / Delhi today / your trips)
+add "$D/25_journey.mp4"     25_journey     15   # search→compare→pick→Start→nav (pick persists)
+add "$D/26_receipt.mp4"     26_receipt      7   # arrival receipt + ledger (dedupe gone)
+add "$D/27_ledger.mp4"      27_ledger       5   # ledger dose hero
+add "$D/28_today.mp4"       28_today        7   # DelhiToday clay hero + why-line
+add "$D/30_dosegap.mp4"     30_dosegap     18   # a→b priced corridor + dose ladder
+add "$D/40_city.mp4"        40_city        20   # why-line + reach + day tiles + corridors
+add "$D/65_community.mp4"   65_community    7   # ledger stats + corridor cells
+add "$D/50_admin.mp4"       50_admin       19   # engine room — kchips/caps + field map
 AWS_SRC=""; [ -f "$D/80_aws.mov" ] && AWS_SRC="$D/80_aws.mov"; [ -f "$D/80_aws.mp4" ] && AWS_SRC="$D/80_aws.mp4"
 if [ -n "$AWS_SRC" ]; then
   add "$AWS_SRC"            80_aws         25   # shotlist 6 — owner film
