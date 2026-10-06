@@ -33,6 +33,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Animated,
+  Easing,
   LayoutAnimation,
   Pressable,
   ScrollView,
@@ -1031,6 +1032,14 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
   const now = new Date();
   const hh = `${now.getHours()}`.padStart(2, "0");
   const mm = `${now.getMinutes()}`.padStart(2, "0");
+  /* the surface meets you at your hour — a greeting first, the stamp
+     after: "good evening · tuesday · 16:38 · delhi" */
+  const hr = now.getHours();
+  const greetKey: StringKey =
+    hr < 5 || hr >= 21 ? "homeGreetNight"
+    : hr < 12 ? "homeGreetMorning"
+    : hr < 17 ? "homeGreetAfternoon"
+    : "homeGreetEvening";
   return (
     <View style={[ss.homeHead, { paddingTop: insets.top + 8 }]}>
       <View>
@@ -1038,7 +1047,7 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
           ALive-108
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.brandSub, { fontFamily: mtext(lang) }]}>
-          {dayLabel(WEEKDAY_EN[now.getDay()], lang)} · {hh}:{mm} · {t("cityTag", lang)}
+          {t(greetKey, lang)} · {dayLabel(WEEKDAY_EN[now.getDay()], lang)} · {hh}:{mm} · {t("cityTag", lang)}
         </Text>
       </View>
       <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}
@@ -1086,6 +1095,32 @@ function DoseGaugeInner({ frac, color, lang }: { frac: number; color: string; la
 
 const DoseGauge = React.memo(DoseGaugeInner);
 
+/** The hero's edge-breath — the product's one literal metaphor: the
+ *  card's band-ink border glows a slow 4.4s inhale/exhale (0.12→0.32
+ *  opacity, sine). Subtle enough to be felt not watched; the only
+ *  ambient motion on the whole surface, and it means something — the
+ *  dosimeter is a breathing thing. Skipped under Reduce Motion. */
+function BreathEdge({ color }: { color: string }) {
+  const reduce = useReduceMotion();
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (reduce) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]));
+    loop.start();
+    return () => loop.stop();
+  }, [v, reduce]);
+  if (reduce) return null;
+  return (
+    <Animated.View pointerEvents="none"
+      style={[ss.breathEdge, { borderColor: color,
+              opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.32] }) }]} />
+  );
+}
+
 /** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
  *  breathed at display scale, coloured by the day's fraction of budget,
  *  with the covered-hours and outside-now reads as tier-2 evidence. */
@@ -1122,10 +1157,14 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   const tier = doseTierIdx(rec.totalUg, budgetUg);
   const ambHeroIdx = bandIdx(ambientUg ?? null);
   const sparseWash = ambHeroIdx != null ? bandWashMidIdx(ambHeroIdx) : null;
-  const heroBg = tier != null ? bandWashMidIdx(tier) : (sparseWash ?? V2T.surface);
+  /* the day's mood saturates the hero — deep wash (26% band), not the
+     18% whisper: the card IS the day's felt state, not a pastel hint */
+  const heroBg = tier != null ? bandWashDeepIdx(tier) : (sparseWash ?? V2T.surface);
   const heroEdge = tier != null
-    ? `${bandInkIdx(tier)}38`
+    ? `${bandInkIdx(tier)}4D`
     : (sparseWash != null ? `${bandInkIdx(ambHeroIdx!)}33` : V2T.hairline);
+  const breathTint = tier != null ? bandInkIdx(tier)
+    : (ambHeroIdx != null ? bandInkIdx(ambHeroIdx) : null);
   const col = tier != null ? (bandInkIdx(tier) ?? V2T.text) : doseDotColor(rec.totalUg, budgetUg);
   const ambIdx = bandIdx(ambientUg ?? null);
   const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
@@ -1138,6 +1177,9 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   const cityDays = data.outlook?.days.slice(0, 7) ?? [];
   return (
     <View style={[ss.heroCard, { backgroundColor: heroBg, borderColor: heroEdge }]}>
+      {/* the card breathes — the product's one literal metaphor, a
+          4.4s edge-glow loop; skipped under Reduce Motion */}
+      {breathTint != null && <BreathEdge color={breathTint} />}
       <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "semi") }]}>
         {t("homeBreathed", lang)}
       </Text>
@@ -1506,9 +1548,12 @@ const ss = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 6, gap: 14 },
 
-  /* the hero — a chunky tinted card that owns the screen. The surface
-     itself carries the day's dose severity at 18% (quiet days stay paper);
-     everything inside is components, not lines. */
+  /* the hero's living edge — the slow border-glow loop renders inside
+     the card's bounds (1.5px band-ink ring, opacity-breathed) */
+  breathEdge: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 24, borderWidth: 1.5,
+  },
   heroCard: {
     ...V2Elev.card,
     backgroundColor: V2T.surface,

@@ -358,6 +358,12 @@ const en = {
      "am"/"pm", so hi time labels are composed manually from these keys */
   daypart_am: "am",
   daypart_pm: "pm",
+  /* the header greeting — the surface meets you at your hour, not a bare
+     timestamp: "good evening · tuesday · 16:38 · delhi" */
+  homeGreetMorning: "good morning",
+  homeGreetAfternoon: "good afternoon",
+  homeGreetEvening: "good evening",
+  homeGreetNight: "up late",
   breathedSoFar: "breathed {n} so far",
   offline: "can't reach the server — trying again",
   offlineStale: "offline — showing last known air",
@@ -945,6 +951,10 @@ const hi: Record<StringKey, string> = {
   arriveAt: "{t} तक पहुँचें",
   daypart_am: "पूर्वाह्न",
   daypart_pm: "अपराह्न",
+  homeGreetMorning: "सुप्रभात",
+  homeGreetAfternoon: "नमस्कार",
+  homeGreetEvening: "शुभ संध्या",
+  homeGreetNight: "देर रात",
   breathedSoFar: "अब तक {n} साँस में लिया",
   offline: "सर्वर से संपर्क नहीं — फिर कोशिश हो रही है",
   offlineStale: "ऑफ़लाइन — पिछली ज्ञात हवा दिख रही है",
