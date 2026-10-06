@@ -698,7 +698,14 @@ function AppInner() {
        residual-SIGSEGV trigger on the virtualized-GPU sim */
     setTimeout(() => applyVehicle(p), 80);
   }, [applyVehicle]);
-  const onVehicleClose = useCallback(() => setVehicleOpen(false), []);
+  /* the sheet's own skip/✕ must honour the armed path too — clearing only
+     vehicleOpen left the wizard-mounted sheet undismissable (dead row,
+     Android audit #1). needsVehicle stays true so the plan keeps its
+     estimate; the effect won't re-arm since its dep never changed. */
+  const onVehicleClose = useCallback(() => {
+    setVehicleOpen(false);
+    setWizArmed(false);
+  }, []);
   const onOnboardDone = useCallback(({ sharing }: { sharing: SharingChoice }) => {
     patchSettings({ share: sharing === "on" });
     setIntroSeen(true);
