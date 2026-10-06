@@ -761,16 +761,26 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
   const arcW = useRef(0);
   const originX = useRef(0);
   const arcRef = useRef<View>(null);
+  const hideT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (hideT.current) clearTimeout(hideT.current); }, []);
   /* locationX is relative to the touched child column (14pt wide), not
      the strip — it would map every touch to hour 0. pageX is absolute,
      so the strip's window origin is measured once and subtracted. */
   const scrubTo = useCallback((pageX: number) => {
+    if (hideT.current) { clearTimeout(hideT.current); hideT.current = null; }
     if (arcW.current <= 0) return;
     const x = pageX - originX.current;
     const h = Math.max(0, Math.min(23, Math.floor((x / arcW.current) * 24)));
     if (h !== lastH.current) { lastH.current = h; setScrubH(h); tick(); }
   }, []);
-  const clearScrub = useCallback(() => { anchor.current = null; lastH.current = null; setScrubH(null); }, []);
+  /* the readout lingers after the finger lifts — the ScrollView may
+     terminate the responder instantly on a tap, and clearing there
+     would hide the line before it ever renders. It fades on its own. */
+  const scheduleHide = useCallback(() => {
+    anchor.current = null;
+    if (hideT.current) clearTimeout(hideT.current);
+    hideT.current = setTimeout(() => { lastH.current = null; setScrubH(null); }, 4000);
+  }, []);
   const scrub = scrubH != null ? rec.arc.find((h) => h.hour === scrubH) : null;
   const scrubLine = scrub == null ? " "
     : scrub.covered && scrub.dose_ug > 0
@@ -788,6 +798,7 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
         onTouchStart={(e) => {
           anchor.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
           scrubTo(e.nativeEvent.pageX);
+          scheduleHide();
         }}
         onMoveShouldSetResponder={(e) => {
           const st = anchor.current;
@@ -798,8 +809,8 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
         }}
         onResponderGrant={(e) => scrubTo(e.nativeEvent.pageX)}
         onResponderMove={(e) => scrubTo(e.nativeEvent.pageX)}
-        onResponderRelease={clearScrub}
-        onResponderTerminate={clearScrub}>
+        onResponderRelease={scheduleHide}
+        onResponderTerminate={scheduleHide}>
         {rec.arc.map((h) => {
           const isNow = h.hour === nh;
           /* the arc is a heat strip: the bar's height is the dose that hour
