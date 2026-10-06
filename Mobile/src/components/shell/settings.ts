@@ -6,6 +6,7 @@ import { File, Paths } from "expo-file-system";
 import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
 import { clearConsent } from "../../store/consent";
+import { clearWelcomeSeen } from "../../store/welcome";
 import { clearVehicle } from "../../store/vehicle";
 import { clearPlaces } from "../../search/recents";
 import { clearOutbox } from "../../offline/queue";
@@ -95,6 +96,7 @@ export function clearAllData(): void {
   inflight = null;
   resetLedgerCache();
   clearConsent();   // re-arms the onboarding gate on next launch
+  clearWelcomeSeen(); // welcome_seen_v1 — the first-breath moment re-arms too
   clearVehicle();   // vehicle.json — the S8 profile
   clearPlaces();    // places.json — recents + home/work, the location history
   clearOutbox();    // outbox.json — queued donations carry token + trajectory

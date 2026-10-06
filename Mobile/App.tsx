@@ -37,6 +37,8 @@ import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen, type SharingChoice } from "./src/screens/OnboardingScreen";
+import { WelcomeScreen } from "./src/screens/WelcomeScreen";
+import { loadWelcomeSeen, markWelcomeSeen } from "./src/store/welcome";
 import { HomeScreen, DayPeek, useDayData } from "./src/screens/HomeScreen";
 import { recordSample, setCheckin } from "./src/store/daylog";
 import { loadConsent, saveConsent } from "./src/store/consent";
@@ -288,6 +290,9 @@ function AppInner() {
      idle map feels the air, not just the sampled totals */
   const [ambientUg, setAmbientUg] = useState<number | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
+  /* welcome_seen_v1 — the first-breath cinematic; null until the flag
+     reads so a returning user never flashes the overlay for a frame */
+  const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
   const net = useNetStatus();
 
   const [fontsLoaded] = useFonts({
@@ -388,6 +393,7 @@ function AppInner() {
     aqiPollRef.current = () => aqiPoll(true);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
+    loadWelcomeSeen().then(setWelcomeSeen).catch(() => setWelcomeSeen(true));
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); };
   }, [setFrom, setTrips, settings.lang]);
 
@@ -901,6 +907,17 @@ function AppInner() {
 
       <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
         onDone={onOnboardDone} />
+
+      {/* the first-breath cinematic — once per install (welcome_seen_v1),
+          mounted last so it sits above every sheet incl. the consent
+          gate; on a fresh install it exits INTO the armed onboarding
+          sheet. It fetches /v2/city itself and falls back to the boot
+          ambient read — a real number or honestly nothing. */}
+      <WelcomeScreen
+        visible={welcomeSeen === false}
+        lang={lang}
+        ambientUg={ambientUg}
+        onDone={() => { markWelcomeSeen().catch(() => {}); setWelcomeSeen(true); }} />
     </View>
   );
 }
