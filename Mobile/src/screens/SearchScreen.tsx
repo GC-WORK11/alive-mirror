@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Animated,
   BackHandler,
+  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -248,7 +249,20 @@ function SearchSheetInner({
     warm();
     getPlaces().then(setStore).catch(() => {});
     const raf = requestAnimationFrame(() => setBodyReady(true));
-    const foc = setTimeout(() => { if (!closingRef.current) inputRef.current?.focus(); }, 350);
+    /* autofocus must not run inside the mount-commit window: on this
+       stack a focus()/becomeFirstResponder that lands while Fabric is
+       still committing the sheet — or while the previous close's
+       responder/keyboard teardown is live — segfaults as a Hermes GC
+       heap stomp (reproduced live: reopening the sheet over a running
+       map/compare transition dies mid-dispatch; disabling focus made
+       the same loop 20/20 clean). runAfterInteractions defers the
+       responder handoff until the enter spring + commit queue drain. */
+    const focusField = () => {
+      InteractionManager.runAfterInteractions(() => {
+        if (!closingRef.current) inputRef.current?.focus();
+      });
+    };
+    const foc = setTimeout(focusField, 350);
     /* cold-start race: the 350 ms focus() can fire before the window token
        accepts IME — field ends focused with mInputShown=false and the
        first keystrokes drop (seen on first-ever open post-install). If
@@ -257,7 +271,7 @@ function SearchSheetInner({
     let kbShown = false;
     const ks = Keyboard.addListener("keyboardDidShow", () => { kbShown = true; });
     const refoc = setTimeout(() => {
-      if (!closingRef.current && !kbShown) inputRef.current?.focus();
+      if (!closingRef.current && !kbShown) focusField();
     }, 1400);
     return () => { cancelAnimationFrame(raf); clearTimeout(foc); clearTimeout(refoc); ks.remove(); search.dispose(); };
   }, [search]);
@@ -582,14 +596,18 @@ function SearchScreenInner({
 
   /* the Modal used to slide the sheet up — keep that enter on the overlay:
      stable animated nodes + JS driver (the proven-safe pattern from Sheet;
-     native-driven springs are what segfault this RN/iOS stack) */
+     native-driven springs are what segfault this RN/iOS stack — confirmed
+     live again post-a85517f: reopening this sheet over a running map/
+     camera transition SIGSEGVs as a Hermes GC heap stomp; the native
+     anim-driver node graph mutates JS-managed state from the render
+     thread. JS driver keeps the graph off the native animation system.) */
   const [enter] = useState(() => new Animated.Value(0));
   const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
       jank("enter.search");
-      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: true }).start();
+      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
     }
   }, [visible, enter]);
 
