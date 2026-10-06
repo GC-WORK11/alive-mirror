@@ -1,18 +1,19 @@
-# Lane report: apk-v10 — design-v3 demo binary @ 419680f
+# Lane report: apk-v10 — design-v3 demo binary @ 3d3df49
 
 **Date:** 2026-10-06 · **Verdict: BUILT + statically verified** ·
 Build host: this macOS box (compile lane runs natively — no KVM child needed;
 emulator runtime explicitly not required this round).
 
-## Binary
+## Binary — FINAL
 
-- **URL:** https://app.devin.ai/attachments/af468ab8-e317-45c9-be02-22bf8c1cca03/alive108-419680f.apk
-- **SHA:** `419680f` — base/v2 HEAD ("meaning layer — live provenance line").
-  Carries welcome cinematic (`16b9c2e`), week card (`de01a11`), arc-scrub
-  pressables, footer-CTA fix (`4f60b28`), full design-v3/soul/one-accent
-  chain, dead-code sweep (`64c122b` + `b7ce48f` + `3569a2e` + `f1454fa`).
-- **Size:** 137,054,272 B (130.7 MiB)
-- **sha256:** `b44041aee75217daca02893c195e2b6bf56b9e5e1c14efc8eb52f08dc411fa49`
+- **URL:** https://app.devin.ai/attachments/2a56eff3-41ae-4e3d-a44b-730b25f0d821/alive108-3d3df49.apk
+- **SHA:** `3d3df49` — base/v2 product tip at build time. Carries everything in
+  the 419680f build PLUS `3d3df49` "search verb pinned top" (HomeScreen CTA
+  moved from pinned footer to pinned top header — landed mid-first-build).
+- **Size:** 137,054,172 B (130.7 MiB)
+- **sha256:** `22e18738090482c086b0efb13678586bf4baf591a69f9f60e2a6e70d7c9a3248`
+- **Superseded:** `alive108-419680f.apk` (`b44041ae…1fa49`) — built when HEAD
+  was 419680f; obsolete within ~4 min when 3d3df49 landed. Do not install.
 - **aapt badging:** `com.anonymous.app` · versionCode 1 · versionName 1.0.0 ·
   targetSdk 36 · `usesCleartextTraffic=true` (required — prod endpoint is http).
 
