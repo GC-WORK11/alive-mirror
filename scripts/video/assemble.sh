@@ -14,7 +14,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 . "$(dirname "$0")/lib.sh"
 D="${1:-$HOME/video/beats}"
-OUT="${2:-$HOME/video/cut4.mp4}"
+OUT="${2:-$HOME/video/cut5.mp4}"
 NLB="http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com"
 W="$HOME/video/work"; mkdir -p "$W"
 
@@ -85,12 +85,13 @@ add(){ [ -f "$1" ] && { norm "$1" "$W/$2.mp4" "$3"; echo "file '$W/$2.mp4'" >> "
 echo "file '$W/00_title.mp4'" >> "$LIST"
 add "$D/10_hero.mp4"        10_hero        11   # shotlist 1 — hero
 add "$D/20_yourday.mp4"     20_yourday     10   # shotlist 2 — DayScreen
-add "$D/25_journey.mp4"     25_journey     13   # journey proof (in beat 2)
+add "$D/25_journey.mp4"     25_journey     14   # compare→pick→Start→nav (pick persists)
+add "$D/26_receipt.mp4"     26_receipt      8   # arrival receipt + ledger (dedupe gone)
 add "$D/28_today.mp4"       28_today        8   # DelhiToday why-line (beat 4)
-add "$D/30_dosegap.mp4"     30_dosegap     26   # shotlist 3 — a→b
-add "$D/40_city.mp4"        40_city        26   # shotlist 4 — reach/days
+add "$D/30_dosegap.mp4"     30_dosegap     24   # shotlist 3 — a→b
+add "$D/40_city.mp4"        40_city        24   # shotlist 4 — reach/days
 add "$D/65_community.mp4"   65_community    8   # corridor cells
-add "$D/50_admin.mp4"       50_admin       24   # shotlist 5 — engine room
+add "$D/50_admin.mp4"       50_admin       22   # shotlist 5 — engine room
 AWS_SRC=""; [ -f "$D/80_aws.mov" ] && AWS_SRC="$D/80_aws.mov"; [ -f "$D/80_aws.mp4" ] && AWS_SRC="$D/80_aws.mp4"
 if [ -n "$AWS_SRC" ]; then
   add "$AWS_SRC"            80_aws         25   # shotlist 6 — owner film
