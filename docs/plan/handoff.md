@@ -742,3 +742,26 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **apk-v4 verdict: SHIP** — `alive108-609a6ef.apk` 9/9 PASS: designed sparse hero on Android, metro-pick→metro-nav, "heaviest ~22:30–" open-ended label, **cold-open 1023ms**, consent-OFF pcap zero POSTs, hi zero tofu, D1 holds. APK: attachments/d6f7b8ca... NEW DEMO-PHONE BUILD (predates only dedupe-removal — next rebuild when batch lands).
 - Deploys: `3711ccd0` → `37e55668` live; main `844884b` → `fc45d42`. Suite 1118+10.
 - Board: me + video-v5 `0774aba2` (cut5 on the new build) + demo-rehearse-v2 `5ea400a4` (beats+numbers re-verified).
+
+## cont.46 — transit first-plan + deploy fa08e96 (2026-10-06 ~01:00 UTC)
+- transit-firstplan `fa08e96`: transit scan rode the shared default executor
+  behind the boot-warm fleet → 12s cap elapsed → degraded:[transit] on the
+  FIRST plan after every deploy. Private _TRANSIT_EXEC pool + _warm_static
+  pre-pays first CSA scan (India Gate→Huda City Centre). VERIFIED LIVE on
+  fresh task 175: first plan 21 options incl metro+walk 53.2µg, degraded:None.
+- warm_task.py now reports transit_rows per OD (4 ODs honestly have no metro
+  within 2.5km — Gurugram point re-anchored to Huda City Centre).
+- demo-rehearse-v2 `382c45f`: beats re-verified on live. Drift rewrites:
+  dose ladder 429walk/13car ~33× (40.1× slowest-best), metro+walk 79.5,
+  options count SWINGS 19→24 (never quote exact), depart 34.4→100.6 2.9×
+  109 slots, breath 1165µg/3.7cig, skill 34 pairs h+1-4. Schema drift:
+  /v2/day 422s without lat/lon; /v2/city trips.days; /v2/skill horizon
+  keys renamed; /v2/reach dropped n_edges. Strip caveat documented: mint
+  strip on recommended row — rd rows say 'unnamed road'.
+- demo-day T-60 caveat corrected `27331d9`: cold builds <1min; why-history
+  survives rollouts (verified 34 builds/5.8h across 37e55668).
+- Suite 1126/5 green; live fa08e968 task 175; main 4f98309.
+- Flagged for a later lane: _slow_mode_options + motorized OSRM-fallback
+  _rows ride the same starved executor (smaller blast radius).
+- RUNNING: video-v5 0774aba2, apk-populated b4d86dd0 (child a3cac0aa
+  driving 609a6ef populated-state).
