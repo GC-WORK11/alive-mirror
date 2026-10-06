@@ -949,3 +949,43 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - Merged to main `e49af4b` (design batch). Suite still 1151/5sk —
   app-only changes since.
 - Slots: me + apk-v9 + KVM child + web-soul + field-watch-2 = 5/5.
+
+## cont.57 — design v3: "the air is the canvas" (Oct 7)
+Owner's mandate: "different, not colorful; smoother; kill the AI-slop
+tells (borders, element placement, icons — not just color)". Deepest-
+research pass first → docs/20-design-research.md (057cbbc): the slop
+literature names Fraunces as THE template signature; our literal tells
+were icon-in-tile, hairlines on every card, uniform radii, and a layout
+that never made a creative decision. THE decision: the air is the
+canvas — the day's condition IS the environment (iOS-Weather grammar).
+
+Shipped on base/v2 (verified on iOS sim, tsc+lint clean):
+- Typography: Fraunces → Satoshi (ITF, Indian Type Foundry — a Delhi
+  product wearing an Indian foundry's type), 5 cuts embedded as assets;
+  famSerif resolves it across 26 sites; hi falls back to Devanagari fam.
+  Hero numerals = Satoshi Light 96/-3.5 (the Carrot move); brand = Black.
+- Sky-field hero (home + city): graded band field — deep wash at top
+  falling to paper at base, squircle 28, overflow hidden, no border.
+- Canvas wash: the WHOLE home screen whispers the ambient band at top,
+  settling to paper by mid-scroll — environment itself is the data.
+- Doors: icon-tile catalogue → grouped-list card (iOS grammar: bare
+  accent glyph + label + chevron; hairlines only INSIDE lists).
+- Borders: professional grammar — cards float on ambient shadow
+  (V2Elev); hairlines now mark ONLY selection (optSel/optTileOn),
+  division (row separators), and emptiness (hollow dose/week dots).
+  Sheet panes lost top borders → V2Elev.sheet. Ghost buttons, chips,
+  search field, corridor rows, vehChip, quiet ring → surface2 tonal.
+  42+ borderColor sites → ~10, all meaning-carrying.
+- Meaning layer v1 (owner: "the app must speak for itself", minimal,
+  never cringe): felt words — band idx → one word (easy/fine/fair/
+  heavy/rough/harsh; hi हल्की/ठीक/मामूली/भारी/कड़ी/कठोर). Home
+  outside-now reads "outside ~97 · heavy"; city lead "a fair day of
+  Delhi air". Colour + one word, no glossary.
+- Color-per-number verified: numeral band-ink, ring band-ink, outside
+  band-ink, canvas ambient band — every value's hue means something.
+
+Lanes: motion-v3 (3bb38470) owns CompareSheet/Receipt/Checkin/
+DepartGraph springs+scrub; apk-v9 (+drive child); field-watch-2; me.
+Next: integrate motion commits → new APK → verify → ship to phone.
+Oct 7 = all-5-agent testing day (owner-mandated): live-number
+consistency, real-time updates, profile behavior, both platforms.
