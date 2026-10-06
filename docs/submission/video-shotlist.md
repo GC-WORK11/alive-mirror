@@ -99,16 +99,19 @@ APK lane covers the release build), web beats re-verified same-day.
    - One line: *"that's bounded Dijkstra on the same engine that routed
      your commute — a lung-budget, drawn on the map."*
    - The corridor ledger (12 publishable tonight — k≥3, so "honest
-     sparsity is the point" if asked) + the day-in-dose ticker (~885 µg
-     mid tonight — drifts with the field) sell the "the city's day
+     sparsity is the point" if asked) + the day-in-dose ticker (~576 µg
+     mid this afternoon — drifts with the field) sell the "the city's day
      kept as a ledger" line.
    - **New ~6 s, spoken — the "why tonight" beat**: the /city chip under
-     the hero reads the day's causal driver from `/v2/why` — tonight:
-     *"the air is barely moving — the day's pollution is sitting over
-     the city"* (stagnation: boundary layer ~87 m + ~1.1 m/s wind →
-     ventilation ~100 m²/s vs ~3,000). One line: *"it says why — and what
-     it can't tell: the fires were checked and refused (the wind is
-     from the south), the trend honestly says 'not enough history yet'."*
+     the hero reads the day's causal driver from `/v2/why` — tonight's
+     read (`4eb9e1e8`, ~11:20 UTC): *"stubble smoke drifting in on the
+     north-west wind"* — fires **claimed**: 60 on the wire, 14 in the NW
+     belt (34.0 MW), `carrying:true` on a 315° NW wind → uplift ×1.24;
+     trend evaluated, history lit (+5.4 µg/5.9 h, 28 snapshots),
+     `cannot_tell` empty. One line: *"it says why — and what it
+     can't tell — tonight the smoke claim is earned, not refused."*
+     (If the wind swings southerly by demo day it flips back to
+     refused — check `curl $NLB/v2/why` before rolling.)
    - **The "what happened" flip is live** (`4ad9e0c` deployed on
      `0908d9ad`+): /city toggles recorded hours from `/v2/archive` over
      the forecast field; pending hours stay unpainted. ~10 s if shown:
@@ -116,9 +119,10 @@ APK lane covers the release build), web beats re-verified same-day.
 
 5. **The engine room — /admin** (1:35–2:05)
    - "Every number so far has a source." Field pipeline: **~24 live
-     WAQI instruments + ~70 model samples, ~2-min-old field** (the model
+     WAQI instruments (13–24 as feeds stale/recover) + ~61–72 model
+     samples, ~4–11-min-old field** (the model
      sample count is thinner after a cold task — it thickens through the
-     hour); FIRMS fires (79 today, 17 belt); the sources trust table names every
+     hour); FIRMS fires (60 today, 14 belt); the sources trust table names every
      feed's age and why it's trusted. If `wind.known` is still `false`,
      the trust table showing wind *unknown` is itself the honesty story.
    - Point at the **"why tonight · the causal read"** tile (between the
@@ -130,16 +134,16 @@ APK lane covers the release build), web beats re-verified same-day.
      MAE 11.31 µg, 24 folds, week 41 — both live on the wire).
    - The **archive tile** — one line: *"the field has recorded Delhi
      hourly since Oct 5 20:00 IST — history, not just forecast;
-     `/v2/archive` replays the day, gaps admitted."* (6 snapshots at
-     this pass — Oct-5 hours 20–23 + Oct-6 0–1; ~60+ by demo morning —
+     `/v2/archive` replays the day, gaps admitted."* (21 snapshots at
+     this pass — Oct-5 20:00 → Oct-6 16:00 IST, today 17/17, 0 gaps; ~60+ by demo morning —
      the count is itself the proof.)
    - The **model-grades-itself card** (`/v2/skill`, live since the
      `a5ab92d8` deploy) — *"the forecast we served vs the hour we
-     recorded": 21 pairs now — h+1 is graded (MAE 16.3 µg/m³, bias
-     +15.8, 71.4% cell / 80.0% hour band-hit), h+2 too (29.9/+29.6,
-     13.9%/20.0%), and every horizon with under 5 pairs still says
-     `thin` instead of pretending."* The honest thin
-     state is the story: a scorecard that refuses to bluff.
+     recorded": 131 pairs now — and every horizon h+0..h+11 is graded
+     (h+0 MAE 2.2 µg/m³ bias +1.0, 93.4% cell band-hit; h+1 9.4/+6.6;
+     error widening honestly to h+11 54.5) — none left `thin`."* The
+     error-widens-with-horizon shape is the story: a scorecard that
+     grades itself on receipts.
    - Point at `coverage < 1` / `confidence:"low"` honesty: "where we can't
      support a claim, the field says so itself."
 
@@ -162,8 +166,8 @@ APK lane covers the release build), web beats re-verified same-day.
 
 ## If a beat overruns (the trim plan, in order)
 
-- Beat 4: say reach in one line ("25 µg walks ~141 km of street; a sealed
-  car on the same budget settles ~540× more road — the veil admits it
+- Beat 4: say reach in one line ("25 µg walks ~136 km of street; a sealed
+  car on the same budget settles ~690× more road — the veil admits it
   paints only the nearest 90,000 edges") and skip the budget sweep —
   saves ~15 s.
 - Beat 5: drop the field map pan; keep pipeline + trust table — saves ~10 s.
@@ -173,17 +177,17 @@ APK lane covers the release build), web beats re-verified same-day.
 
 | number | last verified | check |
 |---|---|---|
-| dose ladder CP→Gurugram (bz basis — `smoke_modifier` echoes on the wire since `80a15258`) | car-AC 10.8 / car-open 19.6 / bike 24.8 / bus 28.3 / auto 32.0 / metro+walk absent tonight / bus-GTFS 69.3 / cycle 158.8 / walk 358.3 µg — **33.2×** (slowest-vs-best 38.7× tonight) | `POST /v2/plan` (no `fast`) today; has run 31–45× this week as smoke swings. Options count drifts 16–23 (23 now; `metro+walk` absent after service hours — honest, not `degraded`) — GTFS is baked into the image since `c3d9c11`, but verify `metro`/`bus` present + `degraded` absent |
-| /v2/day windows | **both present tonight** — heavy 22:30 IST → day end @ ~159.2, cleanest 12:30–18:30 @ ~44.7, day mean ~105.3; `decisions` carried 3 rows | `GET /v2/day` — `hours[]` + `decisions[]` strings; the `decisions: []` fallback is deployed on `6e82f290` (`88e37d5`); a flat/no-window day can still return both windows null — read the extrema out loud |
-| /v2/reach | 25 µg walk → ~3,211 edges / ~141 km; 50 µg → ~10,510 / ~554 km; car ≤25 → ~891k edges / ~75,822 km partial (90k paint); car ≤100 → ~1.03 M / ~99,503 km partial (2M-state cap binds) | `GET /v2/reach` — budget settles differently hour to hour; wire time ~1–1.5 s walk, ~4–6 s car |
-| field age / station count | ~2 min / 24 WAQI + ~70 model samples | `GET /aqi`, `GET /health` — model samples thin to ~40 after a cold task, climb through the hour |
-| fires / modifier | 79 fires, 17 belt; modifier ×1.09 at CP at last probe (sometimes null) | `GET /aqi → smoke_modifier` — fires swing daily; say "fires feed live" not a pinned modifier |
+| dose ladder CP→Gurugram (bz basis — `smoke_modifier` echoes on the wire since `80a15258`) | car-AC 8.8 / car-open 16.1 / bike 20.3 / bus 23.1 / auto 26.2 / metro+walk 37.5 / bus-GTFS absent this read / cycle 130.0 / walk 293.2 µg — **33.3×** (slowest-vs-best 37.4×; IG→Huda demo OD 9.9/355.0 → 35.9×) | `POST /v2/plan` (no `fast`) today; has run 31–45× this week as smoke swings. Options count drifts 16–24 (20–21 now; `metro+walk` absent after service hours — honest, not `degraded`) — GTFS is baked into the image since `c3d9c11`, but verify `metro`/`bus` present + `degraded` absent |
+| /v2/day windows | **both null this afternoon** — flat moderate all day (71–82), `decisions` carried 1 row ("no meaningful window today"), day mean ~75.6 | `GET /v2/day?lat&lon` (required) — `hours[]` + `decisions[]` strings; the `decisions: []` fallback is deployed on `6e82f290` (`88e37d5`); a flat/no-window day returns both windows null — read the extrema out loud |
+| /v2/reach | 25 µg walk → ~3,105 edges / ~136.1 km; 50 µg → ~10,436 / ~550.6 km; car ≤25 → ~996k edges / ~93,721 km partial (90k paint — 2M-state cap binds) | `GET /v2/reach` — budget settles differently hour to hour; wire time ~1–1.5 s walk, ~4–6 s car |
+| field age / station count | ~4–11 min / 13–24 WAQI (stale mid-day, recovers) + ~61–72 model samples | `GET /aqi`, `GET /health` — model samples thin to ~40 after a cold task, climb through the hour |
+| fires / modifier | 60 fires, 14 belt (34.0 MW); modifier ×1.24 at CP this pass — **NW wind carrying** (can still be null on a southerly) | `GET /aqi → smoke_modifier` — fires swing daily; say "fires feed live" not a pinned modifier |
 | corridors publishable | 12 | `GET /v2/city` — grows with donations |
-| breath/day + community | landing hero **2.8 cigarettes ≈885 µg** this pass (~3.5 ≈1,099 µg at cut3, ~997 / ≈3.16 at 19:30 — drifts with the field); 24 h donation strip donation-dependent (tonight: 6 obs / 14.1 km / 477.3 µg avoided; all-time 22 obs / 14 contributors / 725.9 µg) | landing `/` + `GET /v2/city`, `/community`, `/v2/city/moves` |
-| `/v2/why` | live since `0908d9ad`; renders on /city chip + landing day-note + DelhiToday on `6e82f290`. Tonight (`80a15258`): stagnation (VC ~100 m²/s vs ~3,000) — fires refused (S wind 182°), trend `cannot_tell` | `GET /v2/why` — line drifts with drivers; on stage say the live line + one `cannot_tell` item |
-| `/health` build_sha | **`80a15258`** on `/health` — the strip-bz deploy, matching the image (wart resolved on this revision; `/admin/api/status` unprobeable without token — check T-45) | if they disagree again on stage, say the ECR image tag / "the afternoon deploy", not the stamp |
-| `/v2/skill` | 21 pairs · h+1 graded: MAE 16.3 µg/m³ / bias +15.8 / cell band-hit 71.4% / hour band-hit 80.0% · h+2: 29.9/+29.6/13.9%/20.0% · h=0 and h≥3 still `thin` (min_pairs 5 — says so rather than scoring) | `GET /v2/skill` — pairs grow with the archive; on stage say the live n + the honest-thin line |
-| field archive | 8 snapshots since 2026-10-05T20:00 IST (Oct-5 h20–23 + Oct-6 h0–3 recorded; gaps stay gaps) — grows hourly | `GET /v2/archive` → `archive.total_snapshots` + `since_ist` (`?day=` takes YYYY-MM-DD only; bare = today); `/admin` archive tile reads `archive.status()` |
+| breath/day + community | landing hero **≈1.82 cigarettes ≈576 µg** this afternoon (~2.5–3.7 cig reads this week — drifts with the field); 24 h donation strip donation-dependent (today: 3 obs / 4.6 km / 392.4 µg avoided; all-time 22 obs / 14 contributors / 725.9 µg) | landing `/` + `GET /v2/city`, `/community`, `/v2/city/moves` |
+| `/v2/why` | live since `0908d9ad`; renders on /city chip + landing day-note + DelhiToday on `6e82f290`. Tonight (`4eb9e1e8`): **stubble_smoke claimed** — *"stubble smoke drifting in on the north-west wind"* (14 belt fires / 34.0 MW, wind 315° NW → carrying:true, ×1.24); stagnation VC ~2,485; trend lit +5.4 µg/5.9 h/28 snaps; `cannot_tell` empty | `GET /v2/why` — line drifts with drivers; a southerly wind flips fires back to refused — re-check on the day; on stage say the live line + one `cannot_tell` item |
+| `/health` build_sha | **`4eb9e1e8`** on `/health` == image `alive108-api:4eb9e1e8` on task-def `:181` == `/admin/api/status` (token-probed this pass) | if they disagree again on stage, say the ECR image tag / "the afternoon deploy", not the stamp |
+| `/v2/skill` | **131 pairs · h+0..h+11 all graded** — h+0 MAE 2.2/+1.0 (93.4% cell / 100% hour band-hit), h+1 9.4/+6.6, h+2 18.5/+14.2, h+3 27.1 … h+11 54.5; no `thin` horizons left tonight | `GET /v2/skill` — pairs grow with the archive; on stage say the live n + the honest-grading line |
+| field archive | 21 snapshots since 2026-10-05T20:00 IST (Oct-5 20:00 → Oct-6 16:00 IST; today 17/17 hours, 0 gaps) — grows hourly | `GET /v2/archive` → `archive.total_snapshots` + `since_ist` (`?day=` takes YYYY-MM-DD only; bare = today); `/admin` archive tile reads `archive.status()` |
 
 Don't say numbers you didn't just verify. "About" and "roughly" are the
 honest words.

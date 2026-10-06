@@ -256,15 +256,18 @@ modifier     = 1 + 0.378×0.3 = 1.113 → rounds to 1.11 — the wire value.
   kriging: stations correct it where they exist.
 - `server/airindex.py:10-17` — the module header says it plainly:
   the modifier hits the prior; stations then re-fit residuals.
-- `/v2/why` tonight is honest about it: `fires…carrying:false` — 22
-  belt fires are seen but NOT claimed as a driver because wind (102°)
-  is outside the NW gate.
+- `/v2/why` tonight claims it: `fires…carrying:true` — `drivers[0]` is
+  `stubble_smoke` ("stubble smoke drifting in on the north-west
+  wind") because wind 315° is inside the NW gate. On a southerly day it
+  flips back to `carrying:false` — checked and refused, the gate is
+  real (re-verify on the day: `curl $NLB/v2/why`).
 
 **Stage:** "It's not a trust-me constant — it's a formula you can redo
-on stage: 22 belt fires out of a documented 160-fire seasonal window
-gives 1.38 raw, today's wind is out of the southeast so it downscales
-to 1.11, and it only touches the model prior — the 24 live instruments
-then overrule it where they measure. Yesterday it read 1.09. A
+on stage: 14 belt fires out of a documented 160-fire seasonal window
+gives 0.0875 index — `1 + 0.0875 × 2.75 = 1.24` — and tonight's wind is
+north-west so there's no downscale: 1.24 is on the wire. It only
+touches the model prior — the live instruments then overrule it where
+they measure. Yesterday it read 1.11 on a southerly. A
 hard-coded number doesn't drift."
 
 ## 7. "Show me the model beats persistence"

@@ -44,36 +44,41 @@ Three questions, three shipped surfaces:
    under `budget_ug` — the real search frontier, not a smoothed circle.
 
 And the feature judges will poke — **dose-priced routing**. Same city, same
-minutes; the vehicle decides what you inhale. Measured live tonight
-(Connaught Place → Gurugram, 23.7 km, 23 options — the count drifts
-16–23 as GTFS transit rows come and go; breathing-zone basis,
-`smoke_modifier: 1.09` on the wire — build `80a15258`):
+minutes; the vehicle decides what you inhale. Measured live today
+(Connaught Place → Gurugram, 23.7 km, 20–21 options — the count drifts
+16–24 as GTFS transit rows come and go; breathing-zone basis,
+`smoke_modifier: 1.24` on the wire — NW wind is carrying belt smoke
+today — build `4eb9e1e8`):
 
 | mode | dose (µg, mid) | | mode | dose (µg, mid) |
 |---|---|---|---|---|
-| car AC | **10.8** | | metro+walk | — *(out of service hours tonight)* |
-| car open | 19.6 | | cycle | 158.8 |
-| bike | 24.8 | | walk | **358.3** |
-| bus | 28.3 | | auto | 32.0 |
+| car AC | **8.8** | | metro+walk | 37.5 |
+| car open | 16.1 | | cycle | 130.0 |
+| bike | 20.3 | | walk | **293.2** |
+| bus | 23.1 | | auto | 26.2 |
 
 A **~35× spread on a Delhi commute the map you use today never shows you**
-— 33.2× measured tonight, 31–45× across ODs this week — and it matches
+— 33.3× measured today (35.9× on the India Gate→Huda City Centre demo OD),
+31–45× across ODs this week — and it matches
 published Delhi measurements (walk ≈28× metro per km; Sci. Total Environ.
-2021). `GET /v2/day` at the same point tonight: heavy stretch **22:30 IST →
-day end ~159 µg/m³**, cleanest slot **12:30–18:30 IST ~45** (day mean ~105)
+2021). `GET /v2/day` at the same point today: flat moderate all day — no
+meaningful heavy or clean window (`decisions` names it: "no meaningful
+window today", day mean ~76, hours 71→82)
 — the card says when the doors should be open.
 
 <!-- SCREENSHOT 2 — PENDING CAPTURE: `/city` lung-reach veil — "where can
      your lungs go?" frontier over streets + the district ledger.
      File: docs/assets/readme/city-reach.png -->
-![/city — a 25 µg walking budget from Connaught Place: ~141 km of street](docs/assets/readme/city-reach.png)
+![/city — a 25 µg walking budget from Connaught Place: ~136 km of street](docs/assets/readme/city-reach.png)
 
 *(reach edge-lengths are over directed edges — a two-way street counts in
-both directions; 3,211 edges ≈ 141 km at 25 µg, 10,510 ≈ 554 km at 50 µg —
-tonight's read; it drifts with the field)*
+both directions; 3,105 edges ≈ 136 km at 25 µg, 10,436 ≈ 551 km at 50 µg —
+today's read; it drifts with the field)*
 
-Underneath: a live field rebuilt every 15 min from 24 WAQI instruments +
-~70 CAMS/open-meteo model samples + NASA FIRMS fires, kriged with a real
+Underneath: a live field rebuilt every 15 min from 13–24 WAQI instruments
+(stations drift stale mid-day and recover) +
+~61–72 CAMS/open-meteo model samples + NASA FIRMS fires (60 today, 14 in
+the NW belt — tonight's smoke modifier ×1.24), kriged with a real
 σ band by our own C++ engine — that re-prices all **1.07M road edges** so
 dose is a routing criterion, not an annotation. Plus a 120-hour forecast,
 an hourly **archive** recording the served field itself — `GET /v2/archive`
@@ -208,7 +213,9 @@ outside demo windows.
   carries measured stations meanwhile); the OpenAQ live-key path is wired
   but dormant — documented in `server/data/field_validation.md`.
 - **`/health` `build_sha` can lag the deployed image** by a deploy — the
-  ECR task image tag is the truth (today: `alive108-api:cb862533`).
+  ECR task image tag is the truth (resolved on the last two revisions:
+  today `alive108-api:4eb9e1e8` == `/health` `build_sha` ==
+  `/admin/api/status`, task-def `:181`).
 
 ## Repo layout
 
