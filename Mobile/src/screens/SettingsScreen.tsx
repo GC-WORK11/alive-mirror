@@ -33,7 +33,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants"; // transitively installed via `expo` (SDK 57)
-import { F, V2Elev, V2Radius, V2T, V2Tint, V2Type, fam } from "../theme";
+import { F, V2Elev, V2Radius, V2T, V2Type, fam } from "../theme";
 import { Icon, vehicleGlyph, type Glyph } from "../icons";
 import { API, postJson } from "../components/shell/net";
 import { t, type Lang, type StringKey } from "../i18n/strings";

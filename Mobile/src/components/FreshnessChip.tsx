@@ -81,10 +81,10 @@ export function freshnessTone(
   return "fresh";
 }
 
-/** Status-hue dot per tone. Green lives only here — a freshness signal,
- *  not a dose colour (see header note). */
+/** Status-hue dot per tone. 'fresh' reuses the register's single green —
+ * a second green next to the accent would read as a palette bug. */
 const DOT: Record<FreshnessTone, string> = {
-  fresh: "#1E874B",   // live green — 4.7:1 on white surfaces
+  fresh: V2T.accent,  // live = the one green the register owns
   ok: V2T.breath1,    // amber — same hue as the mild smoke ramp
   stale: V2T.text3,   // muted — stale data is quiet, not alarming
   unknown: V2T.text3,
