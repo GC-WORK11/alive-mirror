@@ -94,7 +94,11 @@
   .m-wind{position:absolute;top:16px;right:18px;font-family:var(--mono);
           font-size:10px;letter-spacing:.14em;text-transform:uppercase;
           color:var(--ink3);pointer-events:none;text-align:right;line-height:1.9}
-  @media(max-width:640px){.m-wind{display:none}.m-tag{max-width:60%}
+  @media(max-width:640px){.m-wind{display:none}
+    /* phones: drop the tag off the map and into the hairline — at 60% of
+       390px it wraps ~6 lines of mono straight over the districts */
+    .m-tag{position:static;max-width:none;border-top:1px solid var(--line);
+      padding:9px 18px 10px}
     /* scroll shadows — local cover + scroll shadow: the edge shade only
        peeks when there is more strip/table in that direction */
     .chips,.dayrow{
