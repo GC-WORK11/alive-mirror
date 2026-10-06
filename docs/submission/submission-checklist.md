@@ -90,6 +90,11 @@ one baseline commit, run-date stamped, on a NEW public repo.*
 - [ ] Separately: publish the long-form on **AWS Builder Center** —
       draft ready at `docs/builder-center/article-draft.md` (pick a title,
       paste the body; it's a second judged prize — AirPods ×5).
+      Publish path (verified): needs a free **AWS Builder ID** (not the
+      AWS account) + Builder Center profile → top-nav **"+" → Create
+      article** → paste markdown (tables render natively) → Preview →
+      Publish → automated moderation scan → live. Gotchas: no API (hand
+      paste), every link is checked at publish, cover image 1200×675.
 
 ## 3 · Demo/judging morning — live stack (from go-nogo, gotchas baked in)
 
