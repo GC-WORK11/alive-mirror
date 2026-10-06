@@ -18,6 +18,7 @@ import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
 import { confirm, tap } from "../../haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
+import { localizeStep } from "../../nav/instructions";
 import { isTransit } from "./types";
 import type { CompareOption, Step } from "./types";
 import { bump, jank } from "../../perf";
@@ -206,8 +207,11 @@ function NavChromeInner({
   const next = nav?.nextStep ?? null;
   const step0 = steps?.[0] ?? null;
   const transit = isTransit(option);
+  /* step0 is the raw /directions step — the engine's nextStep is already
+     localized; localize the fallback the same way so hi never flashes
+     the server's English sentence while the engine arms */
   const banner = next?.instruction
-    ?? step0?.instruction
+    ?? (step0 ? localizeStep(step0, lang) : null)
     ?? (transit && option.stations
       ? t("boardMetro", lang, { a: option.stations.board, b: option.stations.alight })
           + (option.lines?.length ? `  ·  ${option.lines.join(", ")}` : "")
@@ -268,7 +272,7 @@ function NavChromeInner({
     }
     : null;
   const co2Band: BandViz | null = showOut
-    ? { ...nav.co2, text: nav.co2.lo.toFixed(1) === nav.co2.hi.toFixed(1) ? `${nav.co2.lo.toFixed(1)} kg` : `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)} kg` }
+    ? { ...nav.co2, text: nav.co2.lo.toFixed(1) === nav.co2.hi.toFixed(1) ? t("nav_kg", lang, { n: nav.co2.lo.toFixed(1) }) : t("nav_kg", lang, { n: `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)}` }) }
     : null;
 
   return (

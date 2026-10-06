@@ -225,7 +225,7 @@ const TripCard = React.memo(function TripCard({
         <View style={ss.tripMid}>
           <Text {...DYNAMIC_TYPE}
             style={[ss.tripRoute, { fontFamily: fam(lang, "med") }]}
-            numberOfLines={1}
+            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
           >
             {placeNameLabel(tr.from, lang)} → {placeNameLabel(tr.to, lang)}
           </Text>
@@ -259,8 +259,8 @@ const TripCard = React.memo(function TripCard({
             </Text>
           </View>
           {tr.emit_kg != null && (
-            <Text {...DYNAMIC_TYPE} style={[ss.outNum, NUM, { fontFamily: famMono(lang, "reg") }]}>
-              ≈{fmtKg(tr.emit_kg)} kg
+            <Text {...DYNAMIC_TYPE} style={[ss.outNum, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
+              {t("nav_kg", lang, { n: `≈${fmtKg(tr.emit_kg)}` })}
             </Text>
           )}
         </View>
@@ -515,7 +515,7 @@ function LedgerSheetInner({ onClose, lang, showCig, onTripsChanged }: {
                       style={[ss.sumNum, NUM, { fontFamily: famSerif(lang, "semi") }]}
                     >
                       ≈{fmtKg(allEmitKg)}
-                      <Text {...DYNAMIC_TYPE} style={ss.sumUnit}> kg</Text>
+                      <Text {...DYNAMIC_TYPE} style={ss.sumUnit}>{` ${t("unitsKg", lang)}`}</Text>
                     </Text>
                     <Text {...DYNAMIC_TYPE} style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
                       {t("putOut", lang)}

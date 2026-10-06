@@ -57,7 +57,7 @@ import {
 } from "./src/components/shell/settings";
 import { loadTrips, type Trip } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
-import { modeLabel, placeNameLabel, t } from "./src/i18n/strings";
+import { approx, modeLabel, placeNameLabel, t } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
 import { PERF_ON, bump, mark, report } from "./src/perf";
 
@@ -677,10 +677,10 @@ function AppInner() {
       from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
       // cigarette figure only with show_cig on; µg is the default
       dose: tr.dose_ug != null
-        ? (settings.show_cig ? `≈${cigOf(tr.dose_ug)} cigarettes` : `~${Math.round(tr.dose_ug)}µg`)
+        ? (settings.show_cig ? t("nav_cigs", lang, { n: approx(cigOf(tr.dose_ug) ?? 0) }) : `~${Math.round(tr.dose_ug)}µg`)
         : "—",
       // co2 was never passed — the template printed a literal "{co2}"
-      co2: tr.emit_kg != null ? `~${tr.emit_kg.toFixed(1)}kg CO₂` : "—",
+      co2: tr.emit_kg != null ? `${t("nav_kg", lang, { n: `~${tr.emit_kg.toFixed(1)}` })} CO₂` : "—",
     }),
   }).catch(() => {}), [lang, settings.show_cig]);
   const onLayersClose = useCallback(() => setLayersOpen(false), []);
@@ -1023,9 +1023,9 @@ const NavSession = React.memo(function NavSession({
             to: to ? placeNameLabel(to.name, lang) : "?",
             // cigarette figure only with show_cig on; µg is the default
             dose: summary.doseUg.mid != null
-              ? (showCig ? `≈${cigOf(summary.doseUg.mid)} cigarettes` : `~${Math.round(summary.doseUg.mid)}µg`)
+              ? (showCig ? t("nav_cigs", lang, { n: approx(cigOf(summary.doseUg.mid) ?? 0) }) : `~${Math.round(summary.doseUg.mid)}µg`)
               : "—",
-            co2: summary.co2Kg.mid != null ? `~${summary.co2Kg.mid.toFixed(1)}kg CO₂` : "—",
+            co2: summary.co2Kg.mid != null ? `${t("nav_kg", lang, { n: `~${summary.co2Kg.mid.toFixed(1)}` })} CO₂` : "—",
           }),
         }).catch(() => {})} />
     );

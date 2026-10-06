@@ -26,12 +26,12 @@ import { bump, jank } from "../../perf";
 const DRAWER_W = Math.min(340, Dimensions.get("window").width * 0.84);
 const dayKey = (ts: number) => new Date(ts).toDateString();
 
-const timeAgo = (ts: number) => {
+const timeAgo = (ts: number, lang: Lang) => {
   const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
-  if (m < 1) return "now";
-  if (m < 60) return `${m}m`;
+  if (m < 1) return t("agoNow", lang);
+  if (m < 60) return t("agoMin", lang, { n: m });
   const h = Math.floor(m / 60);
-  return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
+  return h < 24 ? t("agoHr", lang, { n: h }) : t("agoDay", lang, { n: Math.floor(h / 24) });
 };
 
 const VEHICLES: { key: string; labelKey: Parameters<typeof t>[0] }[] = [
@@ -337,7 +337,7 @@ function SidebarInner({
         <Text {...DYNAMIC_TYPE} style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
           {placeNameLabel(tr.from, lang)} → {placeNameLabel(tr.to, lang)}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[s.tripMeta, { fontFamily: fam(lang, "reg") }]}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts)}</Text>
+        <Text {...DYNAMIC_TYPE} style={[s.tripMeta, { fontFamily: fam(lang, "reg") }]}>{modeLabel(tr.vehicle, tr.label, lang)} · {timeAgo(tr.ts, lang)}</Text>
       </View>
       <Icon name="dust" color={V2T.text3} size={13} />
       <Text {...DYNAMIC_TYPE} style={[s.tripNum, NUM, { fontFamily: famMono(lang, "med") }]}>

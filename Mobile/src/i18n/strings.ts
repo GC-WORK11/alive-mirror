@@ -309,6 +309,7 @@ const en = {
   onLabel: "on",
   offLabel: "off",
   unitsKm: "km",
+  unitsKg: "kg",
   settingsUnitsHint: "metric only",
   morningAlert: "morning air alert",
   shareDataHint: "anonymous — it builds Delhi's air map; one tap to stop",
@@ -623,6 +624,13 @@ const en = {
   veh_cap_y_2017_2020: "mostly BS-IV",
   veh_cap_y_2021plus: "BS-VI era",
   veh_cap_y_notsure: "we’ll use the Delhi average",
+  /* sidebar trip-row recency — compact suffixes; hi keeps the same
+     Devanagari abbreviations the day counters use (घं/मि per hourTick,
+     dayCovered) so no Latin letters leak into a Hindi row */
+  agoNow: "now",
+  agoMin: "{n}m",
+  agoHr: "{n}h",
+  agoDay: "{n}d",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -880,7 +888,7 @@ const hi: Record<StringKey, string> = {
   tripsCountOne: "{n} यात्रा",
   tripsDoseBand: "अंदाज़न {lo}–{hi} µg",
   tripsDoseDetail: "अंदाज़न {n} µg धुआँ आपने साँस में लिया",
-  tripsOutDetail: "अंदाज़न {n} kg छोड़ा",
+  tripsOutDetail: "अंदाज़न {n} किग्रा छोड़ा",
   tripsPutOut: "आपकी गाड़ी ने छोड़ा धुआँ",
   tripsSavedVs: "सबसे धुआँदार रास्ते से {n} सिगरेट कम",
   tripsSavedVsUg: "सबसे धुआँदार रास्ते से {n} µg कम",
@@ -889,6 +897,7 @@ const hi: Record<StringKey, string> = {
   onLabel: "चालू",
   offLabel: "बंद",
   unitsKm: "किमी",
+  unitsKg: "किग्रा",
   settingsUnitsHint: "सिर्फ़ मीट्रिक",
   morningAlert: "सुबह का हवा-अलर्ट",
   shareDataHint: "गुमनाम — इससे दिल्ली का हवा-नक्शा बनता है; एक टैप से बंद",
@@ -1168,6 +1177,10 @@ const hi: Record<StringKey, string> = {
   veh_cap_y_2017_2020: "ज़्यादातर BS-IV",
   veh_cap_y_2021plus: "BS-VI दौर",
   veh_cap_y_notsure: "दिल्ली का औसत लेंगे",
+  agoNow: "अभी",
+  agoMin: "{n}मि",
+  agoHr: "{n}घं",
+  agoDay: "{n}दिन",
 };
 
 export type Lang = "en" | "hi";

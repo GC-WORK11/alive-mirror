@@ -131,7 +131,12 @@ export async function cancelDailyBrief(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(ID_BRIEF).catch(() => {});
 }
 
-const fmtHr = (h: number) => `${((h - 1) % 12) + 1}${h < 12 ? "am" : "pm"}`;
+/* same window-label rule as HomeScreen.fmtHr — en keeps am/pm, hi gets
+   "बजे" so a Hindi notification never carries Latin letters */
+const fmtHr = (h: number, lang: Lang) =>
+  lang === "hi"
+    ? `${((h + 11) % 12) + 1} बजे`
+    : `${((h + 11) % 12) + 1}${h % 24 < 12 ? "am" : "pm"}`;
 
 /** Daily morning briefing — "delhi's cleanest window today" — armed from the
     app's /today curve each time the toggle flips on; fires once next morning
@@ -155,7 +160,7 @@ export async function scheduleDailyBrief(opts: {
       content: {
         title: t("notify_brief_title", p.lang),
         body: t("notify_brief_body", p.lang, {
-          win: `${fmtHr(opts.startHour)}–${fmtHr(opts.endHour)}`,
+          win: `${fmtHr(opts.startHour, p.lang)}–${fmtHr(opts.endHour, p.lang)}`,
           p: Math.max(1, Math.round(opts.dropPct)),
         }),
       },

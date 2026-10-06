@@ -30,7 +30,7 @@ function SearchBarInner({
       <Pressable onPress={() => { tick(); onPress(); }} accessibilityRole="button"
         accessibilityLabel={label ?? t("searchPlaceholder", lang)}
         style={({ pressed }) => [s.field, pressed && { opacity: 0.65 }]}>
-        <Text {...DYNAMIC_TYPE} numberOfLines={1}
+        <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}
           style={[s.input, { fontFamily: fam(lang, "med") }, !label && { color: V2T.text3 }]}>
           {label ?? t("searchPlaceholder", lang)}
         </Text>
