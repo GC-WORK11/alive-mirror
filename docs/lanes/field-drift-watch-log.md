@@ -93,3 +93,93 @@ Lane: observe-only. Base: http://65.2.28.40. Times UTC unless noted. Started 202
 
 **FLAGS:**
 - ⚠ /v2/why n_snapshots shrank 32→30
+
+## Tick 2026-10-06 04:25:38 UTC
+
+| point | pm25 | amb | band | field_age_s | built_at | flags |
+|---|---|---|---|---|---|---|
+| CP | 89.3 | 80.4 | 70.1–108.5 | 818 | 04:12:00Z | live |
+| AnandVihar | 99.1 | 89.3 | 56.8–141.4 | 819 | 04:12:00Z | live |
+| Gurugram | 84.9 | 76.5 | 26.2–143.7 | 819 | 04:12:00Z | live |
+| Noida | 95.5 | 86.0 | 36.5–154.4 | 14 | 04:25:25Z | live |
+| Rohini | 80.2 | 72.2 | 34.2–126.1 | 15 | 04:25:25Z | live |
+| Dwarka | 75.7 | 68.2 | 25.3–126.0 | 821 | 04:12:00Z | live |
+
+- /v2/why: drivers=['stagnation:primary']; trend n=None span=Noneh Δ=Noneµg dir=None (None→None)
+  - line: “the air is barely moving — the day's pollution is sitting over the city”
+  - fires eval: n=89 belt=22 modifier=1.11 carrying=False feed=firms-public-csv/live age=3608s
+  - ventilation: vc=922.1 m²/s blh=536.1m wind=1.72m/s factor=3.25 age=1786s
+- /v2/city: breath mid=1089.0µg (pm25_mid=75.8) pm25 mean=75.8 max=99.9 field_age=18s fresh=live corridors=10
+- /v2/skill: pairs=71 (+0) h1_mae=12.5 (n=10) h3_mae=30.5 (n=9) gen_ist=2026-10-06T09:53:51.008780+05:30
+- /fires: count=89 belt=22 acq_dates=['2026-10-04', '2026-10-05'] 
+- /admin/api/sources: {"model": {"samples": 69, "field_age_s": 22}, "met": {}, "stations": {"readings": 24, "field_age_s": 22}, "fires": {"status": "live", "fires": 89, "belt_fires": 22, "age_s": 19, "stale": false}, "location": {"enabled": false}, "routing": {}}
+- S3 field builds: latest=field/2026/10/06/0425.json.gz @ 2026-10-06T04:25:26+00:00 UTC gap=0.4min
+- flags: none
+
+## Tick 2026-10-06 04:45:24 UTC
+
+| point | pm25 | amb | band | field_age_s | built_at | flags |
+|---|---|---|---|---|---|---|
+| CP | 85.7 | 77.2 | 67.4–104.0 | 280 | 04:40:44Z | live |
+| AnandVihar | 79.4 | 71.5 | 46.0–112.7 | 281 | 04:40:44Z | live |
+| Gurugram | 69.2 | 62.3 | 24.5–113.9 | 281 | 04:40:44Z | live |
+| Noida | 73.8 | 66.5 | 30.4–117.3 | 282 | 04:40:44Z | live |
+| Rohini | 68.3 | 61.5 | 32.6–104.0 | 282 | 04:40:44Z | live |
+| Dwarka | 72.1 | 65.0 | 31.1–113.1 | 283 | 04:40:44Z | live |
+
+- /v2/why: drivers=['stagnation:primary']; trend n=29 span=5.7h Δ=1.7µg dir=flat (not claimed) (85.6→87.4)
+  - line: “the air is barely moving — the day's pollution is sitting over the city”
+  - fires eval: n=89 belt=22 modifier=1.11 carrying=False feed=firms-public-csv/live age=1199s
+  - ventilation: vc=922.1 m²/s blh=536.1m wind=1.72m/s factor=3.25 age=1208s
+- /v2/city: breath mid=876.0µg (pm25_mid=61.0) pm25 mean=61.0 max=79.7 field_age=283s fresh=live corridors=10
+- /v2/skill: pairs=80 (+9) h1_mae=12.2 (n=11) h3_mae=31.7 (n=9) gen_ist=2026-10-06T10:15:28.518229+05:30
+- /fires: count=89 belt=22 acq_dates=['2026-10-04', '2026-10-05'] 
+- /admin/api/sources: {"model": {"samples": 70, "field_age_s": 286}, "met": {}, "stations": {"readings": 24, "field_age_s": 286}, "fires": {"status": "live", "fires": 89, "belt_fires": 22, "age_s": 1202, "stale": false}, "location": {"enabled": false}, "routing": {"up": true, "age_s": 108.1, "stale": false, "backend": "osrm-local", "ms": 79}}
+- S3 field builds: latest=field/2026/10/06/0440.json.gz @ 2026-10-06T04:40:32+00:00 UTC gap=5.0min
+- flags: none
+
+## Tick 2026-10-06 05:04:47 UTC
+
+| point | pm25 | amb | band | field_age_s | built_at | flags |
+|---|---|---|---|---|---|---|
+| CP | 83.3 | 75.1 | 65.5–101.2 | 534 | 04:55:54Z | live |
+| AnandVihar | 71.7 | 64.6 | 41.4–102.0 | 534 | 04:55:54Z | live |
+| Gurugram | 64.7 | 58.3 | 23.2–106.2 | 535 | 04:55:54Z | live |
+| Noida | 65.5 | 59.0 | 25.9–105.1 | 535 | 04:55:54Z | live |
+| Rohini | 64.4 | 58.0 | 30.9–97.8 | 536 | 04:55:54Z | live |
+| Dwarka | 75.0 | 67.6 | 36.3–113.7 | 536 | 04:55:54Z | live |
+
+- /v2/why: drivers=['stagnation:primary']; trend n=29 span=5.7h Δ=-6.0µg dir=flat (not claimed) (88.5→82.5)
+  - line: “the air is barely moving — the day's pollution is sitting over the city”
+  - fires eval: n=89 belt=22 modifier=1.11 carrying=False feed=firms-public-csv/live age=2362s
+  - ventilation: vc=1251.8 m²/s blh=845.8m wind=1.48m/s factor=2.4 age=566s
+- /v2/city: breath mid=795.0µg (pm25_mid=55.4) pm25 mean=55.4 max=72.2 field_age=537s fresh=live corridors=10
+- /v2/skill: pairs=80 (+0) h1_mae=12.2 (n=11) h3_mae=31.7 (n=9) gen_ist=2026-10-06T10:33:50.854945+05:30
+- /fires: count=89 belt=22 acq_dates=['2026-10-04', '2026-10-05'] 
+- /admin/api/sources: {"model": {"samples": 72, "field_age_s": 539}, "met": {}, "stations": {"readings": 24, "field_age_s": 539}, "fires": {"status": "live", "fires": 89, "belt_fires": 22, "age_s": 2365, "stale": false}, "location": {"enabled": false}, "routing": {"up": true, "age_s": 259.7, "stale": false, "backend": "osrm-local", "ms": 259}}
+- S3 field builds: latest=field/2026/10/06/0455.json.gz @ 2026-10-06T04:55:38+00:00 UTC gap=9.3min
+- flags: none
+
+## Tick 2026-10-06 05:19:27 UTC
+
+| point | pm25 | amb | band | field_age_s | built_at | flags |
+|---|---|---|---|---|---|---|
+| CP | 81.7 | 73.6 | 64.0–99.4 | 498 | 05:11:09Z | live |
+| AnandVihar | 68.0 | 61.3 | 39.3–96.7 | 498 | 05:11:09Z | live |
+| Gurugram | 60.4 | 54.4 | 21.4–99.4 | 499 | 05:11:09Z | live |
+| Noida | 61.1 | 55.0 | 23.9–98.3 | 499 | 05:11:09Z | live |
+| Rohini | 62.6 | 56.4 | 30.5–94.7 | 500 | 05:11:09Z | live |
+| Dwarka | 74.6 | 67.2 | 36.9–112.3 | 500 | 05:11:09Z | live |
+
+- /v2/why: drivers=['stagnation:primary']; trend n=29 span=5.7h Δ=-11.8µg dir=flat (not claimed) (90.3→78.5)
+  - line: “the air is barely moving — the day's pollution is sitting over the city”
+  - fires eval: n=89 belt=22 modifier=1.11 carrying=False feed=firms-public-csv/live age=3242s
+  - ventilation: vc=1251.8 m²/s blh=845.8m wind=1.48m/s factor=2.4 age=1446s
+- /v2/city: breath mid=759.0µg (pm25_mid=52.9) pm25 mean=52.9 max=68.8 field_age=503s fresh=live corridors=10
+- /v2/skill: pairs=80 (+0) h1_mae=12.2 (n=11) h3_mae=31.7 (n=9) gen_ist=2026-10-06T10:47:50.885790+05:30
+- /fires: count=89 belt=22 acq_dates=['2026-10-04', '2026-10-05'] 
+- /admin/api/sources: {"model": {"samples": 69, "field_age_s": 505}, "met": {}, "stations": {"readings": 24, "field_age_s": 505}, "fires": {"status": "live", "fires": 89, "belt_fires": 22, "age_s": 3246, "stale": true}, "location": {"enabled": false}, "routing": {"up": true, "age_s": 33.1, "stale": false, "backend": "osrm-local", "ms": 7}}
+- S3 field builds: latest=field/2026/10/06/0510.json.gz @ 2026-10-06T05:10:43+00:00 UTC gap=8.9min
+
+**FLAGS:**
+- ⚠ fires feed marked stale (age_s=3246)
