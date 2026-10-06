@@ -3,9 +3,10 @@
 *Draft for the AWS × WeMakeDevs Environmental Hacks (Track 01 · Air) submission
 form and the Builder Center long-form post. Every number below was read off the
 live service or traced to a repo file on 2026-10-05 — re-verified ~22:15 UTC on
-build `80a15258` (the strip-bz deploy: plan/strip/reroute dose on the
-breathing-zone basis, ambient × `smoke_modifier`, ×1.09 tonight and echoed on
-the `/v2/plan` + `/v2/reroute` wire). Grep-able sources in brackets.
+build `80a15258`, then extended 2026-10-06 on build `ce01ec5c` (the DPCC-ingest
+deploy: **54 ground instruments live** — `GET /health` reports
+`sources.stations.count=54`, `source:"waqi+dpcc"`; the independent-holdout
+section is new). Grep-able sources in brackets.
 `docs/plan/NUMBERS.md` is the canonical ledger;
 `scripts/verify_numbers.sh` re-derives every figure live. Nothing is invented.*
 
@@ -47,10 +48,14 @@ the dose math are real enough to decide with.
 
 ## The architecture: field → engine → dose → ledger
 
-- **Field.** A concentration surface rebuilt every 15 minutes from **24
-  live WAQI ground instruments** + **~70 CAMS/open-meteo model samples** +
-  **NASA FIRMS fire detections** (79 today, 17 inside the smoke belt → ×1.09
-  modifier at CP — sometimes absent), kriged with a real σ band per cell.
+- **Field.** A concentration surface rebuilt every 15 minutes from **54
+  live ground instruments — 24 WAQI + 30 DPCC** (the second adapter shipped
+  Oct 6 after our own holdout found the blind spots — see the holdout
+  section below) + **~70 CAMS/open-meteo model samples** +
+  **NASA FIRMS fire detections** (67 at last read, 15 in the NW belt; the
+  claim is wind-gated — ×1.24 while the NW fetch carried, downscaled to
+  ×1.08 and named-but-refused once the wind turned easterly), kriged with a
+  real σ band per cell.
   Age on the wire at this read: ~2 min [`GET /health`, `GET /aqi` — live
   2026-10-05 ~22:15 UTC]. And once
   an hour the served field itself is written to durable storage — the archive
@@ -182,7 +187,7 @@ path [`docs/plan/demo-script.md` numbers sheet].
 | claim | value | source |
 |---|---|---|
 | Held-out uncertainty-band coverage | **95.2 %** at ±2σ over **3,550 station-hours / 85 stations** (nominal 95.4 %) — σ is measured, not tuned | `server/data/field_validation.md` |
-| Live instruments feeding the field | **24 WAQI stations** + ~71 model samples, field age ~8 min, 15-min refresh visible on the wire | `GET /aqi`, `GET /health` |
+| Live instruments feeding the field | **54 stations** — 24 WAQI + 30 DPCC (`source:"waqi+dpcc"` on the wire since Oct 6) + ~70 model samples, field age ~8 min, 15-min refresh visible | `GET /aqi`, `GET /health` |
 | LOO calibration vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 | `GET /aqi → calibration` |
 | Archive replay (clean-air window) | MAE 22.0 µg/m³, bias +51.6 % — we publish that we over-read in clean air | `server/data/field_validation.md` |
 | Plan latency | ~0.8 s warm measured today; fresh unseen ODs ~2–8 s | `POST /v2/plan → took_ms` |
@@ -193,15 +198,54 @@ path [`docs/plan/demo-script.md` numbers sheet].
 | Self-hosted basemap | 22.7 MB pmtiles built from Geofabrik OSM, z0–14, live at `/tiles/health` | `GET /tiles/health` |
 | Landmark-truth sweep | 23 fabricated landmark geocodes purged; top-3 of every flagship query must land within 1.5 km of truth — pinned by `test_search_quality.py` | commit `2c4cab4` |
 
+## The holdout we ran on ourselves — and what we did about it
+
+On the evening of Oct 6 we audited the served field against **30 government
+DPCC stations** — a different instrument network than anything the field
+ingests — classifying each site by whether the field provably cannot see it
+(`nearest_sample_km ≥ 1.0` = blind). Three probe rounds, 81 observations,
+nothing tuned, nothing filtered [`docs/lanes/accuracy-holdout-report.md`]:
+
+| class | stations | obs | MAE µg/m³ | RMSE | bias |
+|---|---|---|---|---|---|
+| GAP — provably blind (1.5–5.8 km) | 7 | 16 | **22.8** | 26.5 | +3.2 (+6%) |
+| LIVE-ADJ — instrument in the blend | 6 | 16 | **16.4** | 19.3 | −9.2 |
+| ANCHOR — model point on-site | 17 | 49 | **31.9** | 39.8 | −24.6 |
+| **All 30 sites** | 30 | 81 | **27.1** | 34.2 | −16.0 |
+
+The blind sites were the *best-behaved* class (~23 MAE, ~zero bias) — but the
+misses were real at anchors: Jahangirpuri read 143 while we served 73 (−68),
+Sonia Vihar −63, Rohini −53. Local hotspots flare up to 2× past a blend built
+from instruments elsewhere; that's exactly why the API serves a band plus the
+distance to the nearest real reading, not a confident point.
+
+Then we closed them: `server/ingest_dpcc.py` ingests those same DPCC 5-min
+pages behind `ALIVE_DPCC_INGEST` — the site's nav bar hides a 30-station
+superset whose 6 unlisted stations were precisely our blind spots (IGNOU, JNU,
+CWG Akshardham, NSUT West, Talkatora, SBV Delhi Cantt). Unit tokens are
+asserted per row (µg/m³ refused if the site ever switches to indices); stale
+and physically impossible rows (PM2.5 > PM10) are dropped. **Live since Oct 6
+(build `ce01ec5c`): all 7 former blind spots now carry an instrument at ~0 km**
+[`docs/lanes/ingest-dpcc-report.md`].
+
+And a second live watch ran the same evening — 14 probes across ~8 h of the
+parali ramp, through three mid-watch deploys: the stubble-fire claim followed
+the wind *both* directions (claimed ×1.24 at 344°, refused ×1.07–1.08 at
+15°→139° easterly, math re-derived per probe), the trend recorder caught the
+regime flip live (−7.5 → +35.7 µg over ~6 h), and one dose-ratio flag
+decomposed to a verified spatial gradient, not a scaling bug
+[`docs/lanes/field-watch-2-report.md`].
+
 ## Where AWS fits (deployed, not claimed)
 
 - **ECS Fargate** (ap-south-1, FARGATE_SPOT, 1 vCPU / 3 GB) runs the FastAPI
   service + C++ pybind engine + osrm-local router sidecar — one service, one
-  task; the deploy tonight reports `build_sha 80a15258` (the strip-bz build)
-  on the open wire [`GET /health` — live; the ECR image tag is the commit
+  task; the deploy reports `build_sha ce01ec5c` (the DPCC-ingest build) on
+  the open wire [`GET /health` — live; the ECR image tag is the commit
   sha].
-- **Network Load Balancer + Elastic IP** (65.2.28.40) gives the stable public
-  URL above — it survives every redeploy.
+- **Network Load Balancer + Elastic IP** gives the stable public URL above
+  (`alive108-….elb.ap-south-1.amazonaws.com`, resolving to 65.2.28.40) — it
+  survives every redeploy; each deploy re-registers the live task's IP.
 - **CodeBuild → ECR → task definition**: every deploy builds the image in
   AWS (`buildspec.yml` → docker build → push → `update-service`).
 - **S3** keeps the last-good field snapshot (the field survives task
@@ -212,6 +256,11 @@ path [`docs/plan/demo-script.md` numbers sheet].
   rows exist anywhere.
 - **Secrets Manager** holds the admin token + upstream keys — nothing in the
   repo.
+- **EventBridge Scheduler** (`alive108` group) drives the 15-minute
+  field-rebuild cadence plus a daily rollup and a weekly validation schedule
+  [`infra/provision.sh`].
+- **CloudWatch + Budgets** — a field-age alarm (missing data breaches, not
+  just errors), the ops dashboard, and a $50/month budget alarm.
 - **OpenAQ's public S3 archive** is the decade climatology source
   (125 stations × a decade of hourly readings, medians by month×hour,
   baked into the image).
@@ -249,7 +298,7 @@ its basis ("est."), and the field's own age.
   app's ledger today; the endpoint is public JSON for the same answer.
 - One task, one region (NCR-only), HTTP :80 only — no custom domain yet.
 - CPCB live feeds are geo-blocked from our network (documented in
-  `field_validation.md`) — WAQI carries the measured-instrument role
+  `field_validation.md`) — WAQI + DPCC carry the measured-instrument role
   meanwhile; the CPCB adapter reports itself dormant rather than pretend.
 - The met-wind feed intermittently reports `known:false` for a refresh or two
   (upstream Open-Meteo reachability) — it says so on the wire instead of

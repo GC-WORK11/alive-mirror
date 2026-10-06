@@ -44,11 +44,12 @@ Three questions, three shipped surfaces:
    under `budget_ug` — the real search frontier, not a smoothed circle.
 
 And the feature judges will poke — **dose-priced routing**. Same city, same
-minutes; the vehicle decides what you inhale. Measured live today
+minutes; the vehicle decides what you inhale. Measured live
 (Connaught Place → Gurugram, 23.7 km, 20–21 options — the count drifts
 16–24 as GTFS transit rows come and go; breathing-zone basis,
-`smoke_modifier: 1.24` on the wire — NW wind is carrying belt smoke
-today — build `4eb9e1e8`):
+`smoke_modifier: 1.24` claimed while the NW wind carried belt smoke —
+it was downscaled to ×1.08 and named-but-refused once the wind turned
+easterly; build `4eb9e1e8`):
 
 | mode | dose (µg, mid) | | mode | dose (µg, mid) |
 |---|---|---|---|---|
@@ -75,10 +76,12 @@ window today", day mean ~76, hours 71→82)
 both directions; 3,105 edges ≈ 136 km at 25 µg, 10,436 ≈ 551 km at 50 µg —
 today's read; it drifts with the field)*
 
-Underneath: a live field rebuilt every 15 min from 13–24 WAQI instruments
-(stations drift stale mid-day and recover) +
-~61–72 CAMS/open-meteo model samples + NASA FIRMS fires (60 today, 14 in
-the NW belt — tonight's smoke modifier ×1.24), kriged with a real
+Underneath: a live field rebuilt every 15 min from **54 ground
+instruments — 24 WAQI + 30 DPCC** (the DPCC adapter shipped after our own
+independent holdout caught the blind spots — see Validation below) +
+~70 CAMS/open-meteo model samples + NASA FIRMS fires (67 at last read,
+15 in the NW belt — the smoke claim is gated by wind direction), kriged
+with a real
 σ band by our own C++ engine — that re-prices all **1.07M road edges** so
 dose is a routing criterion, not an annotation. Plus a 120-hour forecast,
 an hourly **archive** recording the served field itself — `GET /v2/archive`
@@ -135,15 +138,21 @@ Browser surfaces: `/` (dosimeter landing + field map + a→b), `/city`
 (districts, day-in-dose ticker, lung reach), `/community` (donation
 ledger), `/admin` (engine room) — all public, all live.
 
+The audit trail behind every claim is committed: independent validation
+against government instruments in `docs/lanes/accuracy-holdout-report.md`,
+the blind-spot closure in `docs/lanes/ingest-dpcc-report.md`, a live
+evening watch in `docs/lanes/field-watch-2-report.md`, and the statistical
+validation corpus in `server/data/field_validation.md`.
+
 ## Architecture
 
 ```
-Mobile app (Expo, Android+iOS) ──┐            ┌─ every 15 min ──────────┐
-  · dose ledger ON-DEVICE        │            │  WAQI stations + CAMS    │
-  · only k≥3 aggregates leave ───┤            │  + NASA FIRMS + met wind │
-Web surfaces / judges ──────────┤ HTTP :80   │  → krige field → S3      │
-                                ▼           │    snapshot (last-good)  │
-        NLB + Elastic IP 65.2.28.40         └──────────────────────────┘
+Mobile app (Expo, Android+iOS) ──┐         ┌─ EventBridge: every 15 min ─┐
+  · dose ledger ON-DEVICE        │         │  24 WAQI + 30 DPCC stations │
+  · only k≥3 aggregates leave ───┤ HTTP :80│  + CAMS + NASA FIRMS + wind │
+Web surfaces / judges ──────────┤         │  → krige field → S3 snapshot │
+                                ▼         └─────────────────────────────┘
+        NLB alive108-….elb.ap-south-1.amazonaws.com (Elastic IP 65.2.28.40)
                 │
                 ▼
    ECS Fargate (ap-south-1, 1 vCPU/3 GB)
@@ -174,6 +183,22 @@ outside demo windows.
 
 ## Validation (the part most projects skip)
 
+- **Independent holdout vs 30 government DPCC stations the field never
+  ingested** (Oct 6, three probe rounds, 81 observations): at the 7 sites
+  the field provably cannot see (1.5–5.8 km), **MAE 22.8 µg/m³, +6%
+  bias**; where a live instrument sits in the blend, MAE 16.4; all 30
+  sites, 27.1. The misses are published, not hidden — Jahangirpuri read
+  143 while we served 73 — then closed: `server/ingest_dpcc.py` now feeds
+  those same 30 instruments into the blend (all 7 blind spots sit at ~0 km
+  today). Full tables + per-station breakdown:
+  `docs/lanes/accuracy-holdout-report.md`,
+  `docs/lanes/ingest-dpcc-report.md`.
+- **A 14-probe live watch** across the parali evening ramp and three
+  mid-watch deploys: the stubble-smoke claim followed the wind in both
+  directions (claimed ×1.24 at 344°, refused ×1.07 once it turned), the
+  trend recorder caught the −7.5→+35.7 µg regime flip live, degrades are
+  named on the wire (`degraded:["engine"]`), never silent —
+  `docs/lanes/field-watch-2-report.md`.
 - **95.2 % measured coverage** of the served ±2σ bands over 3,550 held-out
   station-hours across 85 stations (`server/data/field_validation.md`) —
   the temporal validation σ was fitted on. The live admin tile shows a
@@ -209,13 +234,12 @@ outside demo windows.
   ledger; the card's own surface is still web-side.
 - **Community layer is young** — a corridor appears only after 3 distinct
   devices cross it; early on, that table is honestly sparse.
-- **CPCB live feeds are geo-blocked** from the deployment network (WAQI
-  carries measured stations meanwhile); the OpenAQ live-key path is wired
-  but dormant — documented in `server/data/field_validation.md`.
+- **CPCB live feeds are geo-blocked** from the deployment network (WAQI +
+  DPCC carry measured stations meanwhile); the OpenAQ live-key path is
+  wired but dormant — documented in `server/data/field_validation.md`.
 - **`/health` `build_sha` can lag the deployed image** by a deploy — the
-  ECR task image tag is the truth (resolved on the last two revisions:
-  today `alive108-api:4eb9e1e8` == `/health` `build_sha` ==
-  `/admin/api/status`, task-def `:181`).
+  ECR task image tag is the truth (today `alive108-api:ce01ec5c` ==
+  `/health` `build_sha`, `sources.stations` = `waqi+dpcc`, count 54).
 
 ## Repo layout
 

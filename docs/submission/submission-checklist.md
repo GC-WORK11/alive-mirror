@@ -4,6 +4,31 @@
 `docs/20-hackathon-playbook.md` and live state on 2026-10-05. Order matters —
 items are sequenced so nothing disqualifying or irreversible happens early.*
 
+## Status — as of Oct 6 late (prod verified `ce01ec5c`)
+
+**Done since this checklist was written:**
+- DPCC ingest live on prod — `/health` reads `sources.stations.count=54`,
+  `source:"waqi+dpcc"`, both feeds `ok` (24 WAQI + 30 DPCC).
+- Independent-holdout evidence committed — the differentiator:
+  `docs/lanes/accuracy-holdout-report.md` + `ingest-dpcc-report.md` +
+  `field-watch-2-report.md`; now front and center in `writeup.md` and
+  `repo-readme.md`.
+- Builder Center long-form draft committed at
+  `docs/builder-center/article-draft.md` (title options + 120-word abstract
+  inside).
+- App demo beats re-taped on the final APK — 7/7 PASS, 0 crashes
+  (`docs/lanes/video-v8-report.md`); final APK is `alive108-c3bb731.apk`
+  (built at `3d3df49` — *includes* the landmark-purge `2c4cab4`, verified
+  ancestor).
+
+**Still owner-action (nothing here can be done for you):**
+- WeMakeDevs registration + Builder Center profile + **SheerID** verification
+- Claim the **$200 AWS credits** code · set the **$5 Budgets alarm**
+- Film the ~10 s **AWS console** beat (`docs/plan/aws-console-shotlist.md`) +
+  upload the video to YouTube
+- The **Oct-8 public-repo squash** (§1) — then APK install on the demo phone
+- The demo-morning sequence (§3): Spot→on-demand flip, warm task, health reads
+
 ## 0 · Before Oct 8 (done any time)
 
 - [ ] Register: wemakedevs.org/aws/env → join "Environmental Hacks" →
@@ -19,10 +44,11 @@ items are sequenced so nothing disqualifying or irreversible happens early.*
       (dosimeter arc — your-day card → dose gap → lung reach → engine
       room → console; `docs/plan/demo-script.md` is the older route-first
       stage script, still valid as a stage runbook but its numbers sheet
-      predates the pivot). AWS-console beat inside —
-      `docs/plan/aws-console-shotlist.md` is the owner's self-filmed 25 s
-      window. Grab the separate ~10 s ECS-console screen-record too
-      (needed footage per rules).
+      predates the pivot). **App beats done** — 7/7 PASS on
+      `alive108-c3bb731.apk` (video-v8). Remaining: the **AWS-console
+      beat** — `docs/plan/aws-console-shotlist.md` is the owner's
+      self-filmed 25 s window; grab the separate ~10 s ECS-console
+      screen-record too (needed footage per rules).
 - [ ] Upload video to YouTube **unlisted or public — verify it opens
       signed-out** (incognito). This is the only demo judges see.
 
@@ -61,8 +87,9 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       (problem → build → where AWS fits) + the AI-tools line from
       `docs/submission/ai-disclosure.md` (Devin disclosure is a stated
       requirement).
-- [ ] Separately: publish the long-form on **AWS Builder Center**
-      (same content, it's a second judged prize — AirPods ×5).
+- [ ] Separately: publish the long-form on **AWS Builder Center** —
+      draft ready at `docs/builder-center/article-draft.md` (pick a title,
+      paste the body; it's a second judged prize — AirPods ×5).
 
 ## 3 · Demo/judging morning — live stack (from go-nogo, gotchas baked in)
 
@@ -73,14 +100,15 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       The flip REPLACES the task → re-warm after.
 - [ ] T-45: `curl $NLB/health` → `stale:false`, `engine:alive_core`,
       edges 1,070,459, `build_sha` = the build you rehearsed on
-      (**drifted again: task-def now `alive108:158`, image
-      `alive108-api:cb862533`; `/health` build_sha reads `26b674d6` —
-      a deploy behind the image tag, the wart NUMBERS.md §2 documents;
-      the ECR image tag is the truth** — re-verify both on the morning).
+      (**current truth: `ce01ec5c` — the DPCC-ingest deploy; the
+      `build_sha`-vs-image-tag wart from NUMBERS.md §2 can still lag a
+      deploy — the ECR image tag is the truth**, re-verify both on the
+      morning).
 - [ ] T-45: `wind.known` can flip `false` for a refresh or two
       (upstream Open-Meteo reachability — transient, self-heals; if it's
       still false at T-30, re-probe once, don't panic).
-- [ ] T-45: WAQI `ok` + ≥20 stations; `field.age_s` < 900.
+- [ ] T-45: stations `ok` — expect **54** (`waqi` + `dpcc` both `ok`,
+      `source:"waqi+dpcc"`); `field.age_s` < 900.
 - [ ] T-40: `python3 tools/warm_task.py` → exit 0 ("WARM: priced engine
       serving after Ns"); last line `/tiles/health ok — 22.7 MB`.
 - [ ] T-30: demo-OD plan armed (go-nogo #6) — `options ≥15` incl.
@@ -105,13 +133,11 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       `since_ist`; `GET /v2/archive` replays the day hour-by-hour). A
       `gap` hour is honest, not a bug — it's what the recorder wrote
       while a task was down. Whole-ledger sweep: `./scripts/verify_numbers.sh`.
-- [ ] T-20: APK on the demo phone — **caveat:** the sideloaded build is
-      `6ca0ef7`. It post-dates the crash fix but predates `2c4cab4` (23
-      fabricated landmark geocodes purged — the purge touched the
-      bundled `delhi-gazetteer.json`, so the on-device gazetteer still
-      carries the phantoms). **If the demo shows on-device flagship
-      search, rebuild on HEAD; if it's map/plan/ledger only, `6ca0ef7`
-      is honest.** Check bundle strings: NLB host present, no `10.0.2.2`.
+- [ ] T-20: APK on the demo phone — **final build is
+      `alive108-c3bb731.apk`** (built at `3d3df49`, launcher label
+      `ALive·108`; *includes* the landmark-purge `2c4cab4` — verified
+      ancestor, so the old `6ca0ef7` gazetteer caveat is resolved).
+      Check bundle strings: NLB host present, no `10.0.2.2`.
 - [ ] T-20: backup videos on the playing device + play once with
       **Wi-Fi OFF** (airplane-mode proof).
 - [ ] T-15: `curl $NLB/health` → 200 on hall Wi-Fi AND phone hotspot.
@@ -136,3 +162,4 @@ same numbers).
 | `repo-readme.md` | becomes `README.md` in the public repo |
 | `video-shotlist.md` | ≤3:00 audit + trim order + drift flags |
 | `submission-checklist.md` | this file |
+| `../builder-center/article-draft.md` | Builder Center long-form post (AirPods ×5) — title options + 120-word abstract inside |
