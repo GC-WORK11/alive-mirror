@@ -1277,10 +1277,12 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
         {weekCounted ? (
           <>
             {data.week.map((w) => (
-              <View key={w.day} style={[ss.weekDot, {
-                backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : "transparent",
-                borderWidth: w.ug > 0 ? 0 : 1, borderColor: V2T.hairline,
-                opacity: w.ug > 0 ? 0.5 + 0.5 * (w.ug / maxW) : 1,
+              /* the week as dose bars — height is the day's dose, hue
+                 its severity; a real trend you can read, not a dot row */
+              <View key={w.day} style={[ss.weekBar, {
+                backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : V2T.surface3,
+                height: w.ug > 0 ? 4 + 12 * (w.ug / maxW) : 4,
+                opacity: w.ug > 0 ? 0.55 + 0.45 * (w.ug / maxW) : 0.9,
               }]} />
             ))}
             <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mtext(lang) }]}>
@@ -1295,16 +1297,16 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
               ? cityDays.map((d) => {
                   const bi = bandIdxForName(d.band) ?? bandIdx(d.pm25_mid);
                   return (
-                    <View key={d.date_ist} style={[ss.weekDot, {
-                      backgroundColor: bi != null ? bandColorIdx(bi) ?? "transparent" : "transparent",
-                      borderWidth: bi != null ? 0 : 1, borderColor: V2T.hairline,
-                      opacity: 0.4,
+                    <View key={d.date_ist} style={[ss.weekBar, {
+                      backgroundColor: bi != null ? bandColorIdx(bi) ?? V2T.surface3 : V2T.surface3,
+                      height: 8, opacity: 0.35,
                     }]} />
                   );
                 })
               : data.week.map((w) => (
-                  <View key={w.day} style={[ss.weekDot, {
+                  <View key={w.day} style={[ss.weekBar, {
                     backgroundColor: V2T.surface3,
+                    height: 4,
                   }]} />
                 ))}
             <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, { fontFamily: mtext(lang) }]}>
@@ -1579,7 +1581,7 @@ const ss = StyleSheet.create({
   heroStatRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 12 },
   heroStat: { color: V2T.text2, fontSize: V2Type.label },
   heroAmb: { flexDirection: "row", alignItems: "center", gap: 6 },
-  heroWeekRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14 },
+  heroWeekRow: { flexDirection: "row", alignItems: "flex-end", gap: 5, marginTop: 14 },
   heroWeekLbl: { color: V2T.text2, fontSize: V2Type.micro, marginLeft: 6, letterSpacing: 0.3 },
 
   /* skeleton → content morph */
@@ -1717,6 +1719,7 @@ const ss = StyleSheet.create({
   verdict: { color: V2T.text2, fontSize: V2Type.label, marginTop: 12 },
 
   weekDot: { width: 9, height: 9, borderRadius: 4.5 },
+  weekBar: { width: 7, height: 16, borderRadius: 3.5 },
 
   /* budget — a real track, a segment row for the profile */
   budgetBar: {
