@@ -989,3 +989,32 @@ DepartGraph springs+scrub; apk-v9 (+drive child); field-watch-2; me.
 Next: integrate motion commits → new APK → verify → ship to phone.
 Oct 7 = all-5-agent testing day (owner-mandated): live-number
 consistency, real-time updates, profile behavior, both platforms.
+
+### Oct-6 night — DPCC ingest live + accuracy loop closed
+- **ALIVE_DPCC_INGEST=1 now live on prod** (deploy ce01ec5c): 30 DPCC
+  instruments blend alongside the 24 WAQI — stations.count=54, feeds
+  {waqi:ok, dpcc:ok}. The 6 holdout-proven blind spots (IGNOU, JNU,
+  Akshardham, NSUT/Jaffarpur, Talkatora, Delhi Cantt) now serve with
+  nearest_sample_km ~0.0 (was 1.5-5.8km). Blend verified smooth:
+  JNU site 69.7 → +3km neighbor 61.3; IGNOU 31.6 → +3km 43.9.
+- **Bug I found+fixed in the adapter** (`84a959b`): every inner get now
+  sends the browser _UA — the app's shared httpx client carries
+  `delhi-air-108/0.1` and ModSecurity 406s it (was: 0 stations via the
+  real wiring path). Test fakes now 406 any non-Mozilla UA.
+- **Test fixes**: grab_async fixture test must pass `now=NOW`
+  (`677f52b`); suite env-leak trap documented — OPENAQ_API_KEY/WAQI in
+  shell/.env makes `test_*_no_key_*` fail locally (env-noise, scrub to
+  reproduce).
+- **Engine budget** `ddf3c19`: ENGINE_BUDGET_S + REACH_BUDGET_S 8.0→9.0
+  — field-watch-2 measured post-build reprice ~0.2s over; erased.
+- **Evidence stack**: accuracy-holdout-report.md (30 stations, MAE
+  GAP 22.8/LIVE-ADJ 16.4, bias +6%), field-truth-prerun.md (5 epochs,
+  ambient +35% tracked live, NW under-read pattern documented —
+  roadside hot instruments vs spatial blend; now instrumented).
+- base/v2 → main merged `d1d8a4f` before DPCC; next merge at morning
+  checkpoint once overnight watch proves the blend.
+- Oct-7 test matrix: docs/lanes/oct7-test-plan.md — 5 lanes, Lane A
+  sampler already proven at scripts/testday/field_sampler.py.
+- Lanes overnight: field-watch-3 (2cc799a4) watching the ramp +
+  DPCC behavior; ios-journey-overnight (75a15af5) Lane-B early on
+  sim+prod; builder-center-writeup (46321b23) the AirPods article.
