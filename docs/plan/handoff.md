@@ -765,3 +765,23 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
   _rows ride the same starved executor (smaller blast radius).
 - RUNNING: video-v5 0774aba2, apk-populated b4d86dd0 (child a3cac0aa
   driving 609a6ef populated-state).
+
+## cont.47 — executor-audit + deploy 9af96710 (2026-10-06 ~01:40 UTC)
+- executor-audit `9af9671`: EVERY user-facing arm rode the shared default
+  executor behind boot-warm — plan motor/slow rows (starved→missing),
+  search _t1, skill, archive, reach encode, aws boto3, admin_agg; plus
+  two loop-blockers (AWS dose rows + build_why tail ran ON the event
+  loop). Private bounded pools per arm (_ROWS/_T1/_SKILL/_ARCHIVE/
+  _ENCODE/_ADMIN/_AWS/_WHY_EXEC); boot-warm stays shared. Repro after:
+  plan 6ms/9 options vs 4041ms+missing before. Suite 1134/5.
+- VERIFIED LIVE task 176: first plan 23 options incl metro+walk,
+  degraded:None, 6.8s; /v2/why 0.44s. Merge main 60e5a1d.
+- video-v5 cut5 delivered (2:48): re-recorded hero sparse→populated,
+  pick→Start selected option, dedupe-gone ledger (2 trip rows); kept
+  nav/reach/admin/community; 25s AWS placeholder intact. Receipt beat
+  caveat: uses bicycle trip (auto run's receipt GC-killed) — same
+  sim ledger proves the dedupe beat.
+- apk-populated 13/13 PASS @609a6ef (counted hero, gauge, dots, arc,
+  lens early-state, budget, ledger, receipt, pick→Start, pcap clean,
+  420dpi no overflow) — used-phone state proven on Android.
+- RUNNING: vibe-polish 0e6b4f43, apk-v5 9c5274ef (+KVM child pending).
