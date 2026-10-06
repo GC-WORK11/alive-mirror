@@ -1474,7 +1474,6 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
   onCheckin: (c: Omit<Checkin, "ts">) => void;
 }) {
   bump("home.HomeSheet");
-  const insets = useSafeAreaInsets();
   const budget = PROFILE_BUDGET_UG[settings.profile];
   /* the air is the canvas (docs/20): the whole screen breathes today's
      outside band as a whisper at the top, settling to paper — the
@@ -1496,15 +1495,20 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
         </Svg>
       </View>
       <HomeHeader lang={lang} onMenu={onMenu} />
+      {/* the travel verb pinned TOP — the maps-app grammar: the primary
+          action is a fixed header row, never the bottom of a component;
+          reachable the moment the sheet opens, on every scroll depth,
+          and off the scroll/elevation touch-dispatch path that ate
+          taps on Android (apk-verify-v8). */}
+      <View style={[ss.ctaBar, { paddingBottom: 10 }]}>
+        <TravelCta lang={lang} onGo={onGo} />
+      </View>
       <ScrollView style={ss.flex}
         contentContainerStyle={[ss.content, { paddingBottom: 12 }]}
         showsVerticalScrollIndicator={false}>
         {/* the hero lands first; the doors sit under it; content cards
-            arrive staggered below. The ONE primary CTA is NOT in the
-            scroll — it lives pinned in the footer bar below (the
-            daily-driver grammar: the verb never scrolls away), which
-            also takes it out of the scroll/elevation touch-dispatch
-            path that ate taps on Android (apk-verify-v8). */}
+            arrive staggered below. The ONE primary CTA stays out of
+            this scroll — it is the fixed header row above. */}
         <FadeIn delay={0}>
           <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg} lang={lang} />
         </FadeIn>
@@ -1536,11 +1540,6 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
             lang={lang} onProfile={onProfile} />
         </FadeIn>
       </ScrollView>
-      {/* the pinned verb — the dosimeter's one outbound action, always
-          reachable (rides the sheet's own slide, not the map's space) */}
-      <View style={[ss.ctaBar, { paddingBottom: insets.bottom + 10 }]}>
-        <TravelCta lang={lang} onGo={onGo} />
-      </View>
     </View>
   );
 }
@@ -1679,12 +1678,11 @@ const ss = StyleSheet.create({
     backgroundColor: V2T.text,
     borderRadius: V2Radius.pill, height: 56, paddingHorizontal: 20,
   },
-  /* its pinned footer bar — outside the scroll so the verb is always
-     reachable; a whisper of a divider, not a rail */
+  /* its pinned header row — outside the scroll so the verb is always
+     reachable, sitting on the canvas like the map's search pill */
   ctaBar: {
-    paddingHorizontal: 20, paddingTop: 10,
-    backgroundColor: V2T.bg,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
+    paddingHorizontal: 20, paddingTop: 2,
+    backgroundColor: "transparent",
   },
   ctaTxt: { flex: 1, color: V2T.bg, fontSize: V2Type.body },
   ctaArrow: {
