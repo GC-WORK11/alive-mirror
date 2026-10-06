@@ -498,6 +498,9 @@ const en = {
   // "don't go out" — always the cheaper-for-lungs version of the same plan.
   dayTitle: "your day",
   weekTitle: "your week",
+  /* the week strip's tap-a-day detail when the tapped day was never
+     counted — the honest empty, not a zero */
+  weekDayThin: "not counted — no covered hours on the phone that day",
   dayNow: "now",
   /* the sparse hero — ambient truth labelled, never a fake personal
      number (docs/lanes/hero-sparse): the field at the device's cell is
@@ -1079,6 +1082,7 @@ const hi: Record<StringKey, string> = {
   placeDroppedPin: "गिराई गई पिन",
   dayTitle: "आज का दिन",
   weekTitle: "आपका हफ़्ता",
+  weekDayThin: "नहीं गिना गया — उस दिन फ़ोन ने कोई घंटा कवर नहीं किया",
   dayNow: "अभी",
   daySparseAir: "आज की हवा आपके यहाँ: ~{n} µg/m³",
   daySparseWait: "आज की पहली हवा रीडिंग का इंतज़ार",

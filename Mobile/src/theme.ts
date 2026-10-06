@@ -259,6 +259,28 @@ export const doseColor = (avg: number | null | undefined) => {
   return BANDS[i];
 };
 
+/** A dose dot — colour comes from the day's fraction of the user's budget,
+ *  not ambient bands (µg inhaled isn't µg/m³ air). Lighter reads quieter. */
+export const doseDotColor = (ug: number, budgetUg: number): string => {
+  const r = budgetUg > 0 ? ug / budgetUg : 1;
+  if (ug <= 0) return "transparent";
+  if (r < 0.34) return V2T.text3;
+  if (r < 0.67) return V2T.band2;
+  if (r <= 1) return V2T.band3;
+  return V2T.band4;
+};
+
+/** Which CPCB band the day's dose-fraction whispers — the same thresholds
+ *  doseDotColor uses, returned as an index so a cell can take a pastel
+ *  wash + edge. null = a quiet day stays paper. */
+export const doseTierIdx = (ug: number, budgetUg: number): number | null => {
+  const r = budgetUg > 0 ? ug / budgetUg : 1;
+  if (ug <= 0 || r < 0.34) return null;
+  if (r < 0.67) return 2;
+  if (r <= 1) return 3;
+  return 4;
+};
+
 /** cigarette-equivalents: 1 cig = 316µg inhaled PM2.5 (Berkeley Earth,
  *  doc 10) — a quiet receipt footnote only, never a hero number. */
 export const CIG_UG = 316;

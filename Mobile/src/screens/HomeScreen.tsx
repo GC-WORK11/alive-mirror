@@ -18,19 +18,21 @@
  *      (GET /v2/day, grid fallback). A flat day says it's flat.
  *   4. your day — the on-device reconstruction (daylog.ts): the 24-slot
  *      hour arc, top accumulators. Covered spans only.
- *   5. the days ahead — /v2/outlook's own fold, ≤5 cells, ghosted past the
+ *   5. your week — the last 7 counted days as band-washed cells
+ *      (WeekStrip); a tap unfolds that day's own arc + accumulators.
+ *   6. the days ahead — /v2/outlook's own fold, ≤5 cells, ghosted past the
  *      live anchor's reach; a dead endpoint hides the card.
- *   6. the symptom lens — breath/eyes/energy single-tap check-in, stored
+ *   7. the symptom lens — breath/eyes/energy single-tap check-in, stored
  *      on this phone only.
- *   7. quiet links — the air map, Delhi today, your trips.
- *   8. your budget — quiet profile ceiling, honest over/under flag.
+ *   8. quiet links — the air map, Delhi today, your trips.
+ *   9. your budget — quiet profile ceiling, honest over/under flag.
  *
  *  Copy rule for the whole surface: "same life, cheaper for lungs" — a card
  *  that can't name a cheaper window/mode shows the number plainly, never a
  *  restriction.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Animated,
   LayoutAnimation,
@@ -58,6 +60,8 @@ import {
   bandWashDeepIdx,
   bandWashIdx,
   bandWashMidIdx,
+  doseDotColor,
+  doseTierIdx,
   fam,
   famMono,
   famMonoText,
@@ -95,6 +99,8 @@ import {
 } from "../api/outlook";
 import { PROFILE_BUDGET_UG, type ShellSettings } from "../components/shell/settings";
 import { CheckinSheet } from "../components/shell/CheckinSheet";
+import { HourArc } from "../components/shell/HourArc";
+import { WeekStrip, type WeekDay } from "../components/shell/WeekStrip";
 import { bump, jank } from "../perf";
 
 /* ---------------- the hook: one assemble of the day's data --------------- */
@@ -102,8 +108,9 @@ import { bump, jank } from "../perf";
 export type DayData = {
   /** today's reconstruction — never null once disk is read */
   rec: DayReconstruction;
-  /** last 7 local days' totals (oldest→today) for the week dots */
-  week: { day: string; ug: number }[];
+  /** last 7 local days (oldest→today) for the week strip: the flattened
+      dose for bars/dots, the day's reconstruction for the tap detail */
+  week: WeekDay[];
   /** the field's hourly curve at the user's cell (null = no fetch yet) */
   curve: DayCurve | null;
   /** true while position is outside the served window */
@@ -142,13 +149,18 @@ export function useDayData(
       const rec = reconstructDay(today, samples, trips, now, lang);
 
       // week: one reconstruction per day — cheap at this volume, and
-      // honest (a day with no samples reads 0, not an invented number)
+      // honest (a day with no samples reads 0, not an invented number).
+      // A day already over is bounded at its own 23:59, not at today's
+      // clock hour — its last hours were always counted, just dropped
+      // by the old same-clock-time bound.
       const week: DayData["week"] = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
         const k = dayKey(d.getTime());
-        week.push({ day: k, ug: i === 0 ? rec.totalUg : reconstructDay(k, samples, trips, d.getTime(), lang).totalUg });
+        const r = i === 0 ? rec
+          : reconstructDay(k, samples, trips, new Date(`${k}T23:59:59`).getTime(), lang);
+        week.push({ day: k, ug: r.totalUg, rec: r });
       }
 
       // the lens needs a dose per checkin's *previous* day, counted only
@@ -206,17 +218,6 @@ function BandDot({ conc, color, size = 7 }: { conc: number | null; color?: strin
       borderWidth: c ? 0 : 1, borderColor: V2T.hairline,
     }} />
   );
-}
-
-/** A dose dot — colour comes from the day's fraction of the user's budget,
- *  not ambient bands (µg inhaled isn't µg/m³ air). Lighter reads quieter. */
-function doseDotColor(ug: number, budgetUg: number): string {
-  const r = budgetUg > 0 ? ug / budgetUg : 1;
-  if (ug <= 0) return "transparent";
-  if (r < 0.34) return V2T.text3;
-  if (r < 0.67) return V2T.band2;
-  if (r <= 1) return V2T.band3;
-  return V2T.band4;
 }
 
 /* en keeps the am/pm Delhiites write; hi gets "बजे" so the move-card
@@ -535,7 +536,6 @@ function MoveCardInner({ curve, outside, lang }: {
 const MoveCard = React.memo(MoveCardInner);
 
 const nowHour = () => new Date().getHours();
-const todayKey = () => dayKey(Date.now());
 
 /* ---------------- the days ahead ---------------- */
 
@@ -747,122 +747,9 @@ const DaysAheadCard = React.memo(DaysAheadCardInner);
 
 /* ---------------- your day: the arc ---------------- */
 
-function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
-  bump("home.HourArc");
-  const max = Math.max(...rec.arc.map((h) => h.dose_ug), 0.5);
-  const nh = nowHour();
-  /* the arc is scrubbable — a horizontal drag lights the hour under the
-     finger and reads its number, honestly: counted dose where the day
-     was counted, the field's air where it wasn't, nothing where there
-     is nothing. Vertical scrolling is untouched — the gesture only
-     claims strongly-horizontal moves. */
-  const [scrubH, setScrubH] = useState<number | null>(null);
-  const lastH = useRef<number | null>(null);
-  const anchor = useRef<{ x: number; y: number } | null>(null);
-  const arcW = useRef(0);
-  const originX = useRef(0);
-  const arcRef = useRef<View>(null);
-  const hideT = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (hideT.current) clearTimeout(hideT.current); }, []);
-  /* locationX is relative to the touched child column (14pt wide), not
-     the strip — it would map every touch to hour 0. pageX is absolute,
-     so the strip's window origin is measured once and subtracted. */
-  const scrubTo = useCallback((pageX: number) => {
-    if (hideT.current) { clearTimeout(hideT.current); hideT.current = null; }
-    if (arcW.current <= 0) return;
-    const x = pageX - originX.current;
-    const h = Math.max(0, Math.min(23, Math.floor((x / arcW.current) * 24)));
-    if (h !== lastH.current) { lastH.current = h; setScrubH(h); tick(); }
-  }, []);
-  /* the readout lingers after the finger lifts, then fades on its own —
-     tap-to-inspect, not modal state. */
-  const scheduleHide = useCallback(() => {
-    anchor.current = null;
-    if (hideT.current) clearTimeout(hideT.current);
-    hideT.current = setTimeout(() => { lastH.current = null; setScrubH(null); }, 5000);
-  }, []);
-  const scrub = scrubH != null ? rec.arc.find((h) => h.hour === scrubH) : null;
-  const scrubLine = scrub == null ? " "
-    : scrub.covered && scrub.dose_ug > 0
-      ? t("dayArcDose", lang, { n: approx(doseUgRound(scrub.dose_ug)), h: scrub.hour })
-      : scrub.conc != null
-        ? t("dayArcAir", lang, { c: Math.round(scrub.conc), h: scrub.hour })
-        : t("dayArcFlat", lang, { h: scrub.hour });
-  return (
-    <View>
-      <View ref={arcRef} style={ss.arcWrap}
-        onLayout={(e) => {
-          arcW.current = e.nativeEvent.layout.width;
-          arcRef.current?.measureInWindow((x) => { originX.current = x; });
-        }}
-        onTouchStart={(e) => {
-          anchor.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
-          scrubTo(e.nativeEvent.pageX);
-          scheduleHide();
-        }}
-        onMoveShouldSetResponder={(e) => {
-          const st = anchor.current;
-          if (!st) return false;
-          const dx = Math.abs(e.nativeEvent.pageX - st.x);
-          const dy = Math.abs(e.nativeEvent.pageY - st.y);
-          return dx > 8 && dx > dy;
-        }}
-        onResponderGrant={(e) => scrubTo(e.nativeEvent.pageX)}
-        onResponderMove={(e) => scrubTo(e.nativeEvent.pageX)}
-        onResponderRelease={scheduleHide}
-        onResponderTerminate={scheduleHide}>
-        {rec.arc.map((h) => {
-          const isNow = h.hour === nh;
-          const press = () => {
-            if (hideT.current) { clearTimeout(hideT.current); hideT.current = null; }
-            lastH.current = h.hour;
-            setScrubH(h.hour);
-            tick();
-            scheduleHide();
-          };
-          /* the arc is a heat strip: the bar's height is the dose that hour
-             added, its colour is the band of the air breathed — the day
-             reads as weather before it reads as numbers */
-          const lit = scrubH === h.hour;
-          const barCol = lit ? V2T.text : isNow ? V2T.text : (bandColor(h.conc) ?? V2T.text3);
-          return (
-            <Pressable key={h.hour} style={ss.arcCol} onPress={press}
-              accessibilityRole="button" accessibilityLabel={`hour ${h.hour}`}>
-              <View style={ss.arcBarCol}>
-                {h.covered && h.dose_ug > 0 ? (
-                  <View style={[ss.arcBar, {
-                    height: 4 + 44 * (h.dose_ug / max),
-                    backgroundColor: barCol,
-                    opacity: scrubH == null || lit ? 1 : 0.45,
-                  }]} />
-                ) : h.conc != null ? (
-                  /* uncovered hour — the band dot keeps the field visible
-                     without claiming dose we didn't count */
-                  <View style={[ss.arcDot, {
-                    backgroundColor: bandColor(h.conc) ?? V2T.hairline,
-                    opacity: scrubH == null || lit ? 1 : 0.4,
-                  }]} />
-                ) : null}
-                {h.trip_marks > 0 && <View style={ss.arcTrip} />}
-              </View>
-              <Text {...DYNAMIC_TYPE}
-                style={[ss.arcHr, { fontFamily: mono(lang) },
-                  (isNow || lit) && { color: V2T.text }]}>
-                {h.hour % 3 === 0 || lit ? `${h.hour}` : ""}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text {...DYNAMIC_TYPE} numberOfLines={1}
-        style={[ss.arcScrub, NUM, { fontFamily: mono(lang, "med"), opacity: scrubH == null ? 0 : 1 }]}>
-        {scrubLine}
-      </Text>
-    </View>
-  );
-}
-
-const HourArc = React.memo(HourArcInner);
+/* the arc itself lives in components/shell/HourArc.tsx — extracted so the
+   week strip's tap-a-day detail renders the same day view this card owns
+   for today (weekview lane) */
 
 function DayCardInner({ rec, budgetUg, lang }: {
   rec: DayReconstruction; budgetUg: number; lang: Lang;
@@ -908,61 +795,10 @@ const DayCard = React.memo(DayCardInner);
 
 /* ---------------- your week ---------------- */
 
-/* the week read as a calendar strip — seven honest cells, weekday
-   letters over dose bars, today lit. Reuses the same per-day
-   reconstructions the hero's mini-bars compress; an uncounted day is a
-   bare stub, never a claimed zero. */
-function WeekCardInner({ data, budgetUg, lang }: {
-  data: DayData; budgetUg: number; lang: Lang;
-}) {
-  bump("home.WeekCard");
-  const counted = data.week.some((w) => w.ug > 0);
-  if (!counted) return null; // the hero's sparse fallback already says it
-  const maxW = Math.max(...data.week.map((w) => w.ug), 1);
-  const todayK = todayKey();
-  const total = data.week.reduce((s, w) => s + w.ug, 0);
-  return (
-    <View style={ss.card}>
-      <View style={ss.weekHead}>
-        <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
-          {t("weekTitle", lang)}
-        </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.weekTotal, NUM, { fontFamily: mono(lang, "med") }]}>
-          {t("homeWeek", lang, { n: approx(doseUgRound(total)) })}
-        </Text>
-      </View>
-      <View style={ss.weekGrid}>
-        {data.week.map((w) => {
-          const isToday = w.day === todayK;
-          /* midday anchor dodges DST/edge hours in the weekday read */
-          const letter = new Date(`${w.day}T12:00:00`)
-            .toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { weekday: "narrow" });
-          return (
-            <View key={w.day} style={[ss.weekCell, isToday && ss.weekCellToday]}>
-              <Text {...DYNAMIC_TYPE}
-                style={[ss.weekDay, { fontFamily: mono(lang) }, isToday && { color: V2T.text }]}>
-                {letter}
-              </Text>
-              <View style={ss.weekBarCol}>
-                <View style={[ss.weekBarTall, {
-                  height: w.ug > 0 ? 4 + 30 * (w.ug / maxW) : 4,
-                  backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : V2T.surface3,
-                  opacity: w.ug > 0 ? 0.55 + 0.45 * (w.ug / maxW) : 0.9,
-                }]} />
-              </View>
-              <Text {...DYNAMIC_TYPE}
-                style={[ss.weekUg, NUM, { fontFamily: mono(lang) }, isToday && { color: V2T.text }]}>
-                {w.ug > 0 ? `${approx(doseUgRound(w.ug))}` : " "}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-const WeekCard = React.memo(WeekCardInner);
+/* the week card lives in components/shell/WeekStrip.tsx — the
+   calendar-like day-strip the owner asked for: band-washed day cells,
+   tap-a-day detail; same truth rules as the inline card it replaced
+   (weekview lane) */
 
 /* ---------------- the symptom lens ---------------- */
 
@@ -1183,17 +1019,6 @@ const DoseGauge = React.memo(DoseGaugeInner);
 /** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
  *  breathed at display scale, coloured by the day's fraction of budget,
  *  with the covered-hours and outside-now reads as tier-2 evidence. */
-/** Which CPCB band the day's dose-fraction whispers on the hero card —
- *  the same thresholds doseDotColor uses, returned as an index so the
- *  card can take a pastel wash + edge. null = a quiet day stays paper. */
-function doseTierIdx(ug: number, budgetUg: number): number | null {
-  const r = budgetUg > 0 ? ug / budgetUg : 1;
-  if (ug <= 0 || r < 0.34) return null;
-  if (r < 0.67) return 2;
-  if (r <= 1) return 3;
-  return 4;
-}
-
 function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   data: DayData | null; budgetUg: number; ambientUg: number | null; lang: Lang;
 }) {
@@ -1525,7 +1350,7 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
         )}
         {data && (
           <FadeIn delay={190}>
-            <WeekCard data={data} budgetUg={budget} lang={lang} />
+            <WeekStrip week={data.week} budgetUg={budget} lang={lang} />
           </FadeIn>
         )}
         <FadeIn delay={210}>
@@ -1757,27 +1582,6 @@ const ss = StyleSheet.create({
   oaDetailHead: { color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.0 },
   oaDetailNote: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 6 },
 
-  /* day arc — a heat strip, bars wear the hour's band */
-  arcWrap: { flexDirection: "row", alignItems: "flex-end", marginTop: 12 },
-  arcCol: { flex: 1, alignItems: "center" },
-  arcBarCol: { height: 54, alignItems: "center", justifyContent: "flex-end" },
-  arcDot: { width: 5, height: 5, borderRadius: 2.5, marginBottom: 3 },
-  arcBar: { width: 6, borderRadius: 3 },
-  arcTrip: {
-    width: 5, height: 5, marginTop: 3, borderRadius: 1.5,
-    backgroundColor: V2T.accent,
-  },
-  arcHr: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 4, height: 14 },
-  arcScrub: { color: V2T.text, fontSize: V2Type.label, textAlign: "center", marginTop: 6, height: 17 },
-  weekHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
-  weekTotal: { color: V2T.text3, fontSize: V2Type.label },
-  weekGrid: { flexDirection: "row", marginTop: 10 },
-  weekCell: { flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 12 },
-  weekCellToday: { backgroundColor: V2T.accentWash },
-  weekDay: { color: V2T.text3, fontSize: V2Type.micro },
-  weekBarCol: { height: 34, justifyContent: "flex-end", marginTop: 4 },
-  weekBarTall: { width: 8, borderRadius: 4 },
-  weekUg: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 4, height: 13 },
   partsTitle: {
     color: V2T.text3, fontSize: V2Type.label,
     marginTop: 16, marginBottom: 6,
