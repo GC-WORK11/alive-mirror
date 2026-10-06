@@ -24,6 +24,8 @@ from typing import Optional
 
 import httpx
 
+from upstreams import OPEN_METEO_MET
+
 # Upwind fire belt NW of Delhi (Punjab/Haryana burns): W,S,E,N — drives the
 # smoke modifier only.
 FIRE_BELT_BBOX = (73.5, 28.5, 77.5, 31.5)
@@ -176,7 +178,7 @@ class FireField:
             if not ok:
                 self._status = "upstream-error"
                 return
-            w_r = await client.get("https://api.open-meteo.com/v1/forecast", params={
+            w_r = await client.get(OPEN_METEO_MET, params={
                 "latitude": DELHI[1], "longitude": DELHI[0],
                 "current": "wind_direction_10m",
             })

@@ -108,7 +108,7 @@ FLATLINE_MIN = 3            # QC: >=3 identical recent readings = dead sensor
 FLATLINE_EPS = 0.5          # µg/m³ spread below which a series is "flat"
 SPIKE_Z = 5.0               # QC: residual > 5 sigma vs neighbours is a spike
 SPIKE_SIGMA_FLOOR = 8.0     # µg/m³ — MAD can be ~0 on a uniform field
-OPENAQ_V3 = "https://api.openaq.org/v3"
+from upstreams import OPENAQ_V3
 
 # Per-source retry policy (doc 05 §2 ingest). A source that exhausts its
 # attempts degrades to status "unavailable: ..." — the field still builds

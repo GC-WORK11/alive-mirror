@@ -50,8 +50,7 @@ import httpx
 
 from airfield import _grid_points, FIELD  # same NCR grid + the live field
 
-AQ_API = "https://air-quality-api.open-meteo.com/v1/air-quality"
-MET_API = "https://api.open-meteo.com/v1/forecast"
+from upstreams import OPEN_METEO_AQ as AQ_API, OPEN_METEO_MET as MET_API
 AQ_VARS = "pm2_5,pm10,nitrogen_dioxide"
 MET_VARS = "boundary_layer_height,wind_speed_10m,wind_direction_10m"
 FORECAST_DAYS = 5  # API gives 120 hourly slots starting 00:00 UTC today

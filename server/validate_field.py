@@ -43,8 +43,7 @@ from openaq_archive import load_recent  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_MD = os.path.join(HERE, "data", "field_validation.md")
 
-AQ_API = "https://air-quality-api.open-meteo.com/v1/air-quality"
-MET_API = "https://api.open-meteo.com/v1/forecast"
+from upstreams import OPEN_METEO_AQ as AQ_API, OPEN_METEO_MET as MET_API
 
 
 def _model_surface(hours):

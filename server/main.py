@@ -238,7 +238,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # the loop time is what starves concurrent judges (measured Oct 5).
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=4)
 
-PHOTON = "https://photon.komoot.io/api/"
+from upstreams import (OSRM_PUBLIC, PHOTON_API as PHOTON,
+                       PHOTON_REVERSE)
 
 # Delhi NCR bounding box (lon/lat): covers Delhi + Noida + Gurugram + Ghaziabad + Faridabad
 DELHI_CENTER = {"lat": 28.6139, "lon": 77.2090}
@@ -635,7 +636,6 @@ def _annotate_segments(options: list) -> None:
         o["hotspots"] = segments.hotspots(segs)
 
 
-OSRM_PUBLIC = "https://router.project-osrm.org"
 OSRM_LOCAL = os.environ.get("OSRM_URL", "http://127.0.0.1:5001").rstrip("/")
 
 
@@ -1416,7 +1416,7 @@ async def escape(lat: float, lon: float,
     best = cand[:limit]
     async def _name(c):
         try:
-            r = await http().get("https://photon.komoot.io/reverse",
+            r = await http().get(PHOTON_REVERSE,
                                  params={"lat": c["lat"], "lon": c["lon"], "limit": 1},
                                  timeout=6.0)
             feats = r.json().get("features", [])
@@ -1684,7 +1684,7 @@ async def reverse(lat: float, lon: float):
         return {"name": name, "subtitle": sub}
 
     try:
-        r = await http().get("https://photon.komoot.io/reverse", params={
+        r = await http().get(PHOTON_REVERSE, params={
             "lat": lat, "lon": lon, "limit": 10, "lang": "en"})
         r.raise_for_status()
         feats = r.json().get("features", [])

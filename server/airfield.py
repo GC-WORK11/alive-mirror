@@ -27,9 +27,8 @@ from typing import Optional
 
 import httpx
 
-OPEN_METEO = "https://air-quality-api.open-meteo.com/v1/air-quality"
-METEO = "https://api.open-meteo.com/v1/forecast"
-OPENAQ = "https://api.openaq.org/v3"
+from upstreams import (OPEN_METEO_AQ as OPEN_METEO,
+                       OPEN_METEO_MET as METEO, OPENAQ_V3 as OPENAQ)
 POLLUTANTS = ("pm2_5,pm10,nitrogen_dioxide,ozone,carbon_monoxide,"
               "sulphur_dioxide,ammonia,us_aqi,european_aqi,dust,"
               "aerosol_optical_depth")

@@ -38,7 +38,7 @@ _SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SERVER_DIR not in sys.path:
     sys.path.insert(0, _SERVER_DIR)
 
-PUBLIC_OSRM = "https://router.project-osrm.org"
+from upstreams import OSRM_PUBLIC as PUBLIC_OSRM
 _PROFILES = ("driving", "cycling", "walking")
 
 

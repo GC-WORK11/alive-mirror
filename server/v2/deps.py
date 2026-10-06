@@ -15,6 +15,8 @@ _SERVER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _SERVER_DIR not in sys.path:
     sys.path.insert(0, _SERVER_DIR)
 
+import upstreams  # noqa: E402
+
 DELHI_CENTER = {"lat": 28.6139, "lon": 77.2090}
 NCR_BBOX = (76.80, 28.20, 77.90, 28.95)  # lon/lat, same as airfield.BBOX
 
@@ -241,7 +243,7 @@ async def osrm_route(profile: str, flon: float, flat: float,
         bases.append((_rl._default._url_for(profile), "osrm-local"))
     except Exception:
         pass
-    bases.append(("https://router.project-osrm.org", "osrm-public-demo"))
+    bases.append((upstreams.OSRM_PUBLIC, "osrm-public-demo"))
     import time as _t
     t0 = _t.monotonic()
     last_err = None

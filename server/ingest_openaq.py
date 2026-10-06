@@ -47,7 +47,7 @@ from typing import Optional
 
 import httpx
 
-OPENAQ_V3 = "https://api.openaq.org/v3"
+from upstreams import OPENAQ_V3
 ENV_KEY = "OPENAQ_API_KEY"
 
 # NCR bbox (lon_min, lat_min, lon_max, lat_max) — mirrors airindex.BBOX;

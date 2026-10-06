@@ -546,7 +546,7 @@ class DDBDeviceLedger:
             return
         ts = ts or time.time()
         item = {"pk": {"S": f"ledger#{token_hash}"},
-                "sk": {"S": f"trip#{ts:.3f}"},
+                "sk": {"S": f"{LEDGER_SK_PREFIX}{ts:.3f}"},
                 "ts": _n(round(ts, 3)),
                 "ttl": _n(int(ts) + LEDGER_TTL_S)}
         for k, v in (summary or {}).items():
