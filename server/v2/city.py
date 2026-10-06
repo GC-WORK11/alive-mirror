@@ -261,6 +261,30 @@ def _cell_center(cell: str):
         return None
 
 
+_GEO_BUCKET = 0.01   # ~1.1 km cells for the gazetteer spatial index
+_gaz_geo_idx: dict = {}
+_gaz_geo_rows = None
+
+
+def _gaz_geo(rows: list) -> dict:
+    """(ilat, ilon) bucket -> rows, built once per gazetteer load.
+    _gaz_nearest used to walk all ~120k rows per corridor cell — this
+    cuts each lookup to the few buckets touching the radius box. Keyed
+    on the rows-list identity: GAZ._load() hands back one stable list."""
+    global _gaz_geo_idx, _gaz_geo_rows
+    if _gaz_geo_rows is not rows:
+        idx: dict = {}
+        for r in rows:
+            la, lo = r.get("lat"), r.get("lon")
+            if la is None or lo is None:
+                continue
+            idx.setdefault(
+                (math.floor(la / _GEO_BUCKET), math.floor(lo / _GEO_BUCKET)),
+                []).append(r)
+        _gaz_geo_idx, _gaz_geo_rows = idx, rows
+    return _gaz_geo_idx
+
+
 def _gaz_nearest(lat: float, lon: float, radius_m: float = NAME_RADIUS_M):
     """Closest gazetteer entry within radius_m — the offline corridor
     namer. -> (name, distance_m) or None."""
@@ -270,16 +294,18 @@ def _gaz_nearest(lat: float, lon: float, radius_m: float = NAME_RADIUS_M):
         return None
     dlat = radius_m / 111_000.0
     dlon = radius_m / (111_000.0 * max(0.2, math.cos(math.radians(lat))))
+    idx = _gaz_geo(rows)
+    i0 = math.floor((lat - dlat) / _GEO_BUCKET)
+    i1 = math.floor((lat + dlat) / _GEO_BUCKET)
+    j0 = math.floor((lon - dlon) / _GEO_BUCKET)
+    j1 = math.floor((lon + dlon) / _GEO_BUCKET)
     best = None
-    for r in rows:
-        rlat, rlon = r.get("lat"), r.get("lon")
-        if rlat is None or rlon is None:
-            continue
-        if abs(rlat - lat) > dlat or abs(rlon - lon) > dlon:
-            continue
-        d = _haversine_m(lat, lon, rlat, rlon)
-        if d <= radius_m and (best is None or d < best[1]):
-            best = (r["name"], d)
+    for i in range(i0, i1 + 1):
+        for j in range(j0, j1 + 1):
+            for r in idx.get((i, j), ()):
+                d = _haversine_m(lat, lon, r["lat"], r["lon"])
+                if d <= radius_m and (best is None or d < best[1]):
+                    best = (r["name"], d)
     return best
 
 
