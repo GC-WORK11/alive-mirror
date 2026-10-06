@@ -15,8 +15,8 @@
     --paper:#fafaf7; --surface:#FFFFFF; --surface2:#F2F1EA; --surface3:#E8E5DB;
     --ink:#16181D; --ink2:#4A4E57; --ink3:#8A8D94; --ink4:#A6ACB8;
     --line:#E4E1D8; --line2:#D8D5C9; --hair:#D8D5C9;
-    --sage:#4D7C0F; --accent:#4D7C0F; --accent-ink:#3D610A; --accent-wash:#EEF2E2;
-    --acc-tint:#E3E9D3;
+    --sage:#3A6844; --accent:#3A6844; --accent-ink:#2B4E32; --accent-wash:#EAF0E4;
+    --acc-tint:#DCE7D1;
     --bronze:#A1662F; --brick:#A34446; --wine:#8A2D3E;
     --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
     --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",Inter,system-ui,sans-serif;
@@ -82,6 +82,7 @@
   .map-card{position:relative;margin-top:34px;border:1px solid var(--line);
             border-radius:16px;overflow:hidden;background:var(--surface);
             box-shadow:0 1px 3px -1px rgba(22,24,29,.07)}
+  .map-view{position:relative}
   svg#ncr{display:block;width:100%;height:clamp(420px,64vh,680px);
           touch-action:manipulation;cursor:default}
   /* phones: let the svg take its viewBox aspect — the 64vh clamp letterboxes
@@ -260,10 +261,11 @@
   .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:10.5px;
                 color:var(--ink2);line-height:1.8}
   .detail .d-conf{margin-top:4px;font-size:10px;color:var(--ink4);line-height:1.5}
-  /* ≤640: chips become one scrollable row + provenance wraps under it so the
-     docked detail card clears the whole legend stack (bottom:170px —
-     taller since the band-gloss line joined it) */
-  @media(max-width:640px){.detail{top:auto;bottom:170px;left:12px;right:12px;
+  /* ≤640: chips become one scrollable row + provenance wraps under it.
+     The detail card docks to the bottom of .map-view (the svg box) —
+     anchoring to .map-card put it over the legend/days stack once the
+     in-flow rows grew past 170px */
+  @media(max-width:640px){.detail{top:auto;bottom:12px;left:12px;right:12px;
     min-width:0;max-width:none}
     .chips{flex:0 0 100%;max-width:none;flex-wrap:nowrap;overflow-x:auto;
            scrollbar-width:none}
@@ -425,11 +427,13 @@
   </noscript>
 
   <div class="map-card">
-    <svg id="ncr" role="img" aria-label="Delhi districts coloured by live air quality — tap one for its reading"></svg>
+    <div class="map-view">
+      <svg id="ncr" role="img" aria-label="Delhi districts coloured by live air quality — tap one for its reading"></svg>
+      <div class="m-wind" id="windtag">wind —</div>
+      <div class="detail" id="detail"></div>
+    </div>
     <div class="m-tag"><b>districts coloured by the govt air score</b> · each district averages the map squares inside it<br>
       tap a district for its number</div>
-    <div class="m-wind" id="windtag">wind —</div>
-    <div class="detail" id="detail"></div>
     <div class="tl" id="tl" hidden>
       <button id="tlPlay" type="button" aria-pressed="false">▶ the hours ahead</button>
       <input class="tl-range" id="tlRange" type="range" min="0" max="11"
@@ -1418,7 +1422,7 @@ function paintMini(){
   for(const [lo,la] of STATIONS){
     const x=px(lo),y=py(la);
     if(x<0||x>mW||y<0||y>mH)continue;
-    mx.fillStyle='rgba(77,124,15,.8)';mx.fillRect(x-1.5,y-1.5,3,3)}
+    mx.fillStyle='rgba(58,104,68,.8)';mx.fillRect(x-1.5,y-1.5,3,3)}
 }
 
 /* ---------- data ---------- */

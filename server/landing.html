@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#fafaf7">
 <meta property="og:title" content="ALive·108 — a personal dosimeter for Delhi air">
 <meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and only k≥3 aggregates ever leave your phone.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%234d7c0f'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
 <style>
 :root{
   /* shared register — docs/lanes/register-card.md (web grammar) */
@@ -14,8 +14,8 @@
   --ink:#16181d; --ink2:#4a4e57; --ink3:#8a8d94;
   --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
-  --acc:#4d7c0f; --accInk:#3d610a; --accWash:#eef2e2; --accTint:#e3e9d3;
-  --sage:#4d7c0f;
+  --acc:#3a6844; --accInk:#2b4e32; --accWash:#eaf0e4; --accTint:#dce7d1;
+  --sage:#3a6844;
   /* muted CPCB band — tile surfaces are its pastel washes (90% / 74%
      white), never the raw hue; band ink = the hue darkened for text */
   --b0:#7aab59; --b1:#c8b25a; --b2:#d58c4a;
@@ -151,7 +151,7 @@ h1 em{font-style:italic;color:var(--ink2)}
   text-transform:uppercase;color:var(--accInk)}
 .door .darr{margin-left:auto;color:var(--accInk);font-size:15px}
 .door:hover{transform:translateY(-2px);
-  box-shadow:0 12px 24px -12px rgba(61,97,10,.35)}
+  box-shadow:0 12px 24px -12px rgba(43,78,50,.35)}
 .door.alt{background:var(--bd2);border-color:#e6cbae}
 .door.alt .dic{background:var(--b2)}
 .door.alt .dl i,.door.alt .darr{color:var(--bi2)}
@@ -404,6 +404,11 @@ h1 em{font-style:italic;color:var(--ink2)}
   vertical-align:middle}
 @media(max-width:640px){.dchip{padding:10px 14px 10px 10px}
   .dchip svg{width:34px;height:34px}}
+/* the label qualifier flows as one run at phone width — inline-flex
+   turns the <b> into a second squeezed column otherwise. must sit
+   below the .lbl definitions or equal specificity loses */
+@media(max-width:640px){
+  .day-head .lbl,.dist-head .lbl{display:block;line-height:1.9}}
 
 /* how — the never-existed thesis, then three pastel step tiles
    (mint / apricot / sand — the KakaoBank stack, register-washed) */

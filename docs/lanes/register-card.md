@@ -73,6 +73,13 @@ as a rendering bug, not frost.
   discipline (deep, saturated, classy). The only non-data hue; fills the
   primary CTA ink is reserved for (`Where to?`, `Start`, `Done` are ink,
   not accent — accent is identity, not action).
+  Every web surface (`landing`, `city`, `community`) carries this same
+  forest canon. **The one documented exception is `admin.html`:
+  `--accent #2456D6` / `--accent-ink #1E47B0` / `--accent-wash #E8EDFB`
+  — a deliberate "engine room" backstage hue, kept because the
+  backstage dialect reads as a different room, not a sibling store.
+  Everything else about admin still tracks this card; its accent is
+  canon-by-exception, not drift.**
 - **`V2Tint` component wells** — pastel identity colours that are NOT
   the CPCB ramp: `forest` (map/go doors), `sky` (city surfaces), `clay`
   (trips/ledger), `sand`, `plum`. Each well = `{wash, ink}`: a deep hue
@@ -141,6 +148,7 @@ never removals. (Landing's test also forbids the literal `border-radius:999px`
 
 | component | shape | rule |
 |---|---|---|
+| accent canon | one accent per surface family | web surfaces run forest `#3A6844` + canon ink/wash/tint; **only `admin.html` keeps blue `#2456D6` as the documented backstage exception** |
 | `chip` | tinted label block, radius 6–8, mono 9–10px | carries a state word (`LIVE`, `FRESH`, `GRAP`) — solid `--accWash`+`--accInk` for accent state, `surface2`+`ink2` neutral, band-washed for severity |
 | `stat` | tile = chip header + huge numeral + unit + label-under | numeral serif ~40–80px full ink; provenance becomes a `.cap` caption (mono 9px ink4) or hover — never a paragraph; the chip MAY carry the severity tint (`.accent`/`.brick`/`.wine` on admin's `.kchip`) |
 | `door` | feature doorway tile | icon block (36px solid accent or band-deep square) + name + ≤3-word caption + arrow; one row of 2–3, never a nav list |
