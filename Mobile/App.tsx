@@ -293,7 +293,13 @@ function AppInner() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
     NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium, NotoSansDevanagari_600SemiBold,
-    Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_500Medium, Fraunces_600SemiBold,
+    // display voice — Satoshi (ITF Free Font License, embedded as assets);
+    // Fraunces retired per docs/20 (the AI-template signature font)
+    "Satoshi-Light": require("./assets/fonts/Satoshi-Light.ttf"),
+    "Satoshi-Regular": require("./assets/fonts/Satoshi-Regular.ttf"),
+    "Satoshi-Medium": require("./assets/fonts/Satoshi-Medium.ttf"),
+    "Satoshi-Bold": require("./assets/fonts/Satoshi-Bold.ttf"),
+    "Satoshi-Black": require("./assets/fonts/Satoshi-Black.ttf"),
     IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold,
   });
 

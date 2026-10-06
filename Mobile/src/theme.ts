@@ -197,10 +197,12 @@ export const V2Tint = {
 } as const;
 
 // ── fonts ─────────────────────────────────────────────────────────────────
-// Three voices like the web pages: serif display (Fraunces — the "New York"
-// stand-in), sans body (Inter), ui-monospace for EVERY number and every
-// eyebrow/label. Hindi keeps Noto Sans Devanagari in all three slots —
-// Fraunces and Plex Mono carry no Devanagari glyphs.
+// Three voices: a geometric grotesque display (Satoshi — Indian Type
+// Foundry; Fraunces was retired after design research flagged it as the
+// literal AI-template signature, docs/20), sans body (Inter), ui-monospace
+// for EVERY number and every eyebrow/label. Hindi keeps Noto Sans
+// Devanagari in all three slots — Satoshi and Plex Mono carry no
+// Devanagari glyphs.
 export const F = {
   light: "Inter_400Regular",
   reg: "Inter_400Regular",
@@ -216,10 +218,16 @@ export const FH = {
 };
 
 export const FSERIF = {
-  reg: "Fraunces_400Regular",
-  med: "Fraunces_500Medium",
-  semi: "Fraunces_600SemiBold",
-  italic: "Fraunces_400Regular_Italic",
+  /* display voice — Satoshi. "light" is the hero-numeral cut (the
+     Carrot Weather move: ultra-light, huge, tight tracking); "black"
+     exists for brand moments. no real italic — Satoshi ships upright
+     only, italic slots fall back to reg. */
+  light: "Satoshi-Light",
+  reg: "Satoshi-Regular",
+  med: "Satoshi-Medium",
+  semi: "Satoshi-Bold",
+  black: "Satoshi-Black",
+  italic: "Satoshi-Regular",
 };
 
 export const FMONO = {
@@ -233,9 +241,12 @@ type W = keyof typeof FH;
 export const fam = (lang: Lang, w: W = "reg") => (lang === "hi" ? FH[w] : F[w]);
 
 type SW = keyof typeof FSERIF;
-/** Serif display voice — falls back to Noto in Hindi (no Devanagari serif). */
+/** Display voice — falls back to Noto in Hindi (no Devanagari cut).
+ *  light/black collapse onto the nearest Devanagari weight. */
 export const famSerif = (lang: Lang, w: SW = "reg") =>
-  lang === "hi" ? FH[w === "italic" ? "reg" : w] : FSERIF[w];
+  lang === "hi"
+    ? FH[w === "semi" || w === "black" ? "semi" : w === "med" ? "med" : "reg"]
+    : FSERIF[w];
 
 type MW = keyof typeof FMONO;
 /** The numbers voice — use only on pure-numeric/Latin text; in Hindi it

@@ -42,7 +42,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import {
   NUM,
   V2Elev,
@@ -1051,7 +1051,7 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
   return (
     <View style={[ss.homeHead, { paddingTop: insets.top + 8 }]}>
       <View>
-        <Text {...DYNAMIC_TYPE} style={[ss.brand, { fontFamily: famSerif(lang, "semi") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.brand, { fontFamily: famSerif(lang, "black") }]}>
           ALive-108
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.brandSub, { fontFamily: mtext(lang) }]}>
@@ -1141,10 +1141,11 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   const sparseWash = ambHeroIdx != null ? bandWashMidIdx(ambHeroIdx) : null;
   /* the day's mood saturates the hero — deep wash (26% band), not the
      18% whisper: the card IS the day's felt state, not a pastel hint */
-  const heroBg = tier != null ? bandWashDeepIdx(tier) : (sparseWash ?? V2T.surface);
-  const heroEdge = tier != null
-    ? `${bandInkIdx(tier)}4D`
-    : (sparseWash != null ? `${bandInkIdx(ambHeroIdx!)}33` : V2T.hairline);
+  /* the air is the canvas (docs/20): the hero is a window into today's
+     sky — a graded field, deep band wash at the top falling toward
+     paper at the base. no flat fill, no border. */
+  const skyTop = tier != null ? bandWashDeepIdx(tier) : (sparseWash ?? V2T.surface);
+  const skyBottom = tier != null ? bandWashIdx(tier) : V2T.surface;
   const breathTint = tier != null ? bandInkIdx(tier)
     : (ambHeroIdx != null ? bandInkIdx(ambHeroIdx) : null);
   const col = tier != null ? (bandInkIdx(tier) ?? V2T.text) : doseDotColor(rec.totalUg, budgetUg);
@@ -1158,8 +1159,20 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   const weekCounted = data.week.some((w) => w.ug > 0);
   const cityDays = data.outlook?.days.slice(0, 7) ?? [];
   return (
-    <View style={[ss.heroCard, { backgroundColor: heroBg, borderColor: heroEdge }]}>
-      {/* the card breathes — the product's one literal metaphor, a
+    <View style={ss.heroCard}>
+      {/* the sky field — the day's live band rendered as sky light */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={skyTop} />
+              <Stop offset="1" stopColor={skyBottom} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#sky)" />
+        </Svg>
+      </View>
+      {/* the field breathes — the product's one literal metaphor, a
           4.4s edge-glow loop; skipped under Reduce Motion */}
       {breathTint != null && <BreathEdge color={breathTint} />}
       <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "semi") }]}>
@@ -1218,7 +1231,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
         <View style={ss.heroMainRow}>
           <View style={ss.heroNumRow}>
             <CountUp value={ug} duration={620}
-              style={[ss.heroNum, { fontFamily: famSerif(lang, "semi"), color: col }]}
+              style={[ss.heroNum, { fontFamily: famSerif(lang, "light"), color: col }]}
               format={(n) => `≈${doseUgRound(n)}`} />
             {/* bare "µg" — the register's number+unit pair; the
                 "(micrograms)" gloss lives on the peek card, not here */}
@@ -1334,43 +1347,37 @@ function TravelCtaInner({ lang, onGo }: { lang: Lang; onGo: () => void }) {
 
 const TravelCta = React.memo(TravelCtaInner);
 
-/** Feature doors — the secondary rooms as chunky icon tiles (the
- *  register's Swiggy-pattern feature doors). Paper tiles: identity
- *  colour lives INSIDE the glyph chip — a row of different pastel
- *  floods reads as a cheap hue parade (owner callout, Oct 6). The
- *  city chip still wears the live ambient band so the tile carries
- *  today's read, just not as a flood. */
+/** Feature doors — the secondary rooms as a grouped list card (docs/20:
+ *  iOS grammar beats the icon-in-tile catalogue). One white card,
+ *  three rows: bare accent-ink glyph, label, chevron; hairlines only
+ *  INSIDE the list. Colour rules unchanged — accent for function,
+ *  band hues stay on surfaces that mean air. */
 function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
   lang: Lang; ambientUg: number | null;
   onMap: () => void; onCity: () => void; onTrips: () => void;
 }) {
   bump("home.DoorRow");
-  /* ONE accent family for every door — the register's colour discipline:
-     hues are not component jewellery, so all chips wear the same forest
-     wash + ink. Band colour stays reserved for surfaces that mean air
-     quality (the hero, the move card's verdict). */
   const doors: { key: StringKey; glyph: Glyph; fn: () => void }[] = [
     { key: "homeLinkMap", glyph: "explore", fn: onMap },
     { key: "homeLinkCity", glyph: "city", fn: onCity },
     { key: "homeLinkTrips", glyph: "history", fn: onTrips },
   ];
   return (
-    <View style={ss.doorRow}>
-      {doors.map((d) => (
+    <View style={ss.doorCard}>
+      {doors.map((d, i) => (
         <Pressable key={d.key} onPress={() => { tap(); d.fn(); }}
           accessibilityRole="button" accessibilityLabel={t(d.key, lang)}
           style={({ pressed }) => [
-            ss.door,
-            { backgroundColor: V2T.surface, borderColor: V2T.hairline },
-            pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+            ss.doorListRow,
+            i > 0 && ss.doorListSep,
+            pressed && { backgroundColor: V2T.surface2 },
           ]}>
-          <View style={[ss.doorWell, { backgroundColor: V2T.accentWash }]}>
-            <Icon name={d.glyph} color={V2T.accentInk} size={24} filled />
-          </View>
+          <Icon name={d.glyph} color={V2T.accentInk} size={26} filled />
           <Text {...DYNAMIC_TYPE} numberOfLines={1}
-            style={[ss.doorLabel, { fontFamily: fam(lang, "semi"), color: V2T.text }]}>
+            style={[ss.doorListLabel, { fontFamily: fam(lang, "semi") }]}>
             {t(d.key, lang)}
           </Text>
+          <Icon name="chevron" color={V2T.text3} size={18} />
         </Pressable>
       ))}
     </View>
@@ -1518,9 +1525,10 @@ const ss = StyleSheet.create({
     textTransform: "uppercase", marginTop: 3,
   },
   homeMenuBtn: {
+    ...V2Elev.card,
     width: 40, height: 40, borderRadius: V2Radius.row,
     alignItems: "center", justifyContent: "center",
-    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
+    backgroundColor: V2T.surface,
   },
   menuBars: { gap: 4 },
   menuBar: { width: 18, height: 2, borderRadius: 1, backgroundColor: V2T.text2 },
@@ -1529,15 +1537,13 @@ const ss = StyleSheet.create({
 
   heroCard: {
     ...V2Elev.card,
-    backgroundColor: V2T.surface,
-    borderWidth: 1, borderColor: V2T.hairline,
-    borderRadius: 24,
+    borderRadius: 28, overflow: "hidden",
     paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16,
   },
   heroEyebrow: {
     color: V2T.text2, fontSize: V2Type.label, marginBottom: 6,
   },
-  heroNum: { fontSize: 88, lineHeight: 92, letterSpacing: -2 },
+  heroNum: { fontSize: 96, lineHeight: 98, letterSpacing: -3.5 },
   heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, flex: 1 },
   heroUg: { color: V2T.text2, fontSize: V2Type.title, paddingBottom: 18 },
   heroMainRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
@@ -1586,23 +1592,23 @@ const ss = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  /* feature doors — the icon-tile row into the other rooms */
-  doorRow: { flexDirection: "row", gap: 10 },
-  door: {
-    flex: 1, borderRadius: 18, borderWidth: 1,
-    paddingHorizontal: 12, paddingVertical: 12, gap: 9,
-    minHeight: 84, justifyContent: "space-between",
+  /* feature doors — one grouped list card (iOS grammar): icon, label,
+     chevron per row; hairlines live INSIDE the list, never on cards */
+  doorCard: {
+    ...V2Elev.card,
+    backgroundColor: V2T.surface,
+    borderRadius: 20, overflow: "hidden",
   },
-  doorWell: {
-    width: 38, height: 38, borderRadius: 13,
-    alignItems: "center", justifyContent: "center",
+  doorListRow: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingHorizontal: 16, paddingVertical: 15,
   },
-  doorLabel: { fontSize: V2Type.label, letterSpacing: 0.1 },
+  doorListSep: { borderTopWidth: 1, borderTopColor: V2T.hairline },
+  doorListLabel: { flex: 1, fontSize: V2Type.body, color: V2T.text },
 
   card: {
     ...V2Elev.card,
     backgroundColor: V2T.surface,
-    borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.card,
     paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16,
   },
