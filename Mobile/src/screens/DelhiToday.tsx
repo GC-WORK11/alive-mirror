@@ -656,11 +656,14 @@ const ss = StyleSheet.create({
   root: {
     flex: 1,
 
-    backgroundColor: V2T.glassDeep,
+    /* solid paper, not glass: a full-screen sheet over a populated home
+       must not let the hero/cards ghost through (95% glass read as a
+       rendering bug, not frost) — the scrim dims, the pane is opaque */
+    backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
     borderTopWidth: 1,
-    borderColor: V2T.glassEdge,
+    borderColor: V2T.hairline,
     overflow: "hidden",
   },
   bar: {

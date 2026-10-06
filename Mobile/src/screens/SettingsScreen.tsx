@@ -623,11 +623,13 @@ const ss = StyleSheet.create({
   root: {
     flex: 1,
 
-    backgroundColor: V2T.glassDeep,
+    /* solid paper pane — settings covers the whole home, and at 95% glass
+       the surface below ghosted through; scrim dims, pane is opaque */
+    backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
     borderTopWidth: 1,
-    borderColor: V2T.glassEdge,
+    borderColor: V2T.hairline,
     overflow: "hidden",
   },
   header: {

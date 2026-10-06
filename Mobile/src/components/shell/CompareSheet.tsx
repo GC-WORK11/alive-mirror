@@ -343,6 +343,15 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
   const meta = `${o.distance_km ?? "?"} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: arrivalLabel(o.duration_min) })}`
     + `${o.stations ? ` · ${o.stations.board}→${o.stations.alight}` : ""}`;
   const tag = o.tag ? (TAG_KEY[o.tag.toLowerCase()] ? t(TAG_KEY[o.tag.toLowerCase()], lang) : o.tag) : null;
+  /* the mode label carries a wire suffix (" · least-smoke alt 2",
+     " · your usual") that a single-line flexShrink truncated mid-word to
+     "· y…" — split it into a dimmed qualifier run and let the line wrap
+     to two: full qualifier, never a meaningless fragment */
+  const lbl = modeLabel(o.mode, o.label, lang);
+  const lblCut = lbl.lastIndexOf(" · ");
+  const lblBase = lblCut > 0 ? lbl.slice(0, lblCut) : lbl;
+  const lblQual = (lblCut > 0 ? lbl.slice(lblCut) : "")
+    + (showYours ? ` · ${t("compare_yours", lang)}` : "");
   return (
     <View style={[s.card, selected && s.cardSel]}>
       <Pressable
@@ -355,10 +364,11 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
         <Icon name={vehicleGlyph(o.mode)} color={selected ? V2T.accent : V2T.text2} size={28} filled={selected} />
         <View style={s.cardMid}>
           <View style={s.cardTop}>
-            <Text {...DYNAMIC_TYPE} style={[s.optLabel, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
-              {showYours
-                ? `${modeLabel(o.mode, o.label, lang)} · ${t("compare_yours", lang)}`
-                : modeLabel(o.mode, o.label, lang)}
+            <Text {...DYNAMIC_TYPE} style={[s.optLabel, { fontFamily: fam(lang, "med") }]} numberOfLines={2}>
+              {lblBase}
+              {lblQual ? (
+                <Text {...DYNAMIC_TYPE} style={[s.optQual, { fontFamily: fam(lang, "reg") }]}>{lblQual}</Text>
+              ) : null}
             </Text>
             {/* the least-inhalation route leads: "safest route" (the
                 server's safest_path flag, or the dose-min option when
@@ -785,6 +795,7 @@ const s = StyleSheet.create({
   cardMid: { flex: 1 },
   cardTop: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   optLabel: { fontSize: V2Type.secondary, color: V2T.text, flexShrink: 1 },
+  optQual: { fontSize: V2Type.label, color: V2T.text3 },
   chip: {
     borderRadius: V2Radius.row, paddingHorizontal: 7, paddingVertical: 2,
     marginLeft: 8,

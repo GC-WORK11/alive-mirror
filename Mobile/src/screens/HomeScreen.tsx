@@ -607,7 +607,10 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
              indistinguishable paper) */
           const cellBg = bi != null ? bandWashDeepIdx(bi) : V2T.surface;
           const cellEdge = bi != null ? bandEdgeIdx(bi) : V2T.hairline;
-          const midCol = bi != null ? bandInkIdx(bi) : V2T.text;
+          /* the numeral owns the cell in full ink — band-ink at 85%
+             washed the figure into the tinted fill; the band lives on
+             the wash, the dot and the day label instead */
+          const midCol = V2T.text;
           const dayCol = bi != null ? bandInkIdx(bi) ?? V2T.text3 : V2T.text3;
           return (
             <Pressable key={d.date_ist}
@@ -1513,7 +1516,7 @@ const ss = StyleSheet.create({
   oaCellSel: { borderColor: V2T.accent, borderWidth: 1.5 },
   oaDay: { color: V2T.text3, fontSize: 9 },
   oaMidRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
-  oaMid: { color: V2T.text, fontSize: V2Type.label },
+  oaMid: { color: V2T.text, fontSize: V2Type.secondary, lineHeight: 20 },
   oaSub: { color: V2T.text4, fontSize: 9, marginTop: 2, minHeight: 12 },
   oaMark: { color: V2T.accentInk, fontSize: 9, marginTop: 2, minHeight: 12 },
   oaDetail: {

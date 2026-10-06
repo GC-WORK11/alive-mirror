@@ -623,11 +623,13 @@ const ss = StyleSheet.create({
     flex: 1,
     // marginTop comes from useSafeAreaInsets inline
 
-    backgroundColor: V2T.glassDeep,
+    /* solid paper pane — results must not ghost the map/surface beneath;
+       scrim dims, pane is opaque (was 95% glass — labels bled through) */
+    backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
     borderTopWidth: 1,
-    borderColor: V2T.glassEdge,
+    borderColor: V2T.hairline,
     overflow: "hidden",
   },
   bar: {

@@ -412,9 +412,12 @@ export const ReceiptSheet = React.memo(ReceiptSheetInner);
 const s = StyleSheet.create({
   sheet: {
     position: "absolute", left: 12, right: 12,
-    backgroundColor: V2T.glass, borderRadius: V2Radius.sheet,
+    /* solid paper pop — at 91% glass the destination's map labels and the
+       MapLibre attribution ghosted through the footnotes; the map still
+       frames the sheet's edges, the pane itself reads opaque */
+    backgroundColor: V2T.bg, borderRadius: V2Radius.sheet,
     ...V2Elev.pop,
-    borderWidth: 1, borderColor: V2T.glassEdge, padding: 18, paddingBottom: 14,
+    borderWidth: 1, borderColor: V2T.hairline, padding: 18, paddingBottom: 14,
   },
 
   /* header */
@@ -440,7 +443,7 @@ const s = StyleSheet.create({
   /* dose ruler */
   scaleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   scaleTrack: {
-    flex: 1, height: 5, borderRadius: 2.5, backgroundColor: V2T.line,
+    flex: 1, height: 6, borderRadius: 3, backgroundColor: V2T.hairline,
     overflow: "visible",
   },
   scaleFill: {
@@ -469,7 +472,7 @@ const s = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 4,
   },
   cell: { flex: 1, paddingHorizontal: 10, gap: 2 },
-  cellVal: { fontSize: V2Type.secondary, color: V2T.text },
+  cellVal: { fontSize: V2Type.body, color: V2T.text },
   cellCap: { fontSize: 11, color: V2T.text3 },
 
   /* emissions footnotes */

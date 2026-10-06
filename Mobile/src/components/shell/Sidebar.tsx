@@ -639,7 +639,10 @@ const s = StyleSheet.create({
   scrim: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: V2T.scrimDeep },
   drawer: {
     position: "absolute", left: 0, top: 0, bottom: 0, width: DRAWER_W,
-    backgroundColor: V2T.glassDeep, borderRightWidth: 1, borderRightColor: V2T.glassEdge,
+    /* solid paper drawer — at 95% glass the home's dose hero/eyebrows
+       ghosted through behind the trip rows; the deep scrim dims,
+       the pane is opaque */
+    backgroundColor: V2T.bg, borderRightWidth: 1, borderRightColor: V2T.hairline,
     ...V2Elev.pop,
   },
 

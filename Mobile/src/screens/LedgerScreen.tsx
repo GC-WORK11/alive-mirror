@@ -497,14 +497,12 @@ function LedgerSheetInner({ onClose, lang, showCig, onTripsChanged }: {
                   </Text>
                 </View>
                 <View style={ss.sumCol}>
-                  <View style={ss.sumHead}>
-                    <Icon name="dust" color={V2T.text3} size={15} />
-                    <Text {...DYNAMIC_TYPE}
-                      style={[ss.sumNum, NUM, { fontFamily: famSerif(lang, "semi") }]}
-                    >
-                      {`${fmtDoseUg(allUg)} µg`}
-                    </Text>
-                  </View>
+                  <Text {...DYNAMIC_TYPE}
+                    style={[ss.sumNumHero, NUM, { fontFamily: famSerif(lang, "semi") }]}
+                  >
+                    {fmtDoseUg(allUg)}
+                    <Text {...DYNAMIC_TYPE} style={[ss.sumUnitHero, { fontFamily: famSerif(lang, "med") }]}> µg</Text>
+                  </Text>
                   <Text {...DYNAMIC_TYPE} style={[ss.sumCap, { fontFamily: fam(lang, "reg") }]}>
                     {t("breathed", lang)}
                   </Text>
@@ -674,11 +672,13 @@ const ss = StyleSheet.create({
   root: {
     flex: 1,
 
-    backgroundColor: V2T.glassDeep,
+    /* solid paper pane — at 95% glass the home's cards/eyebrows ghosted
+       through the ledger; the scrim carries the dim, the pane is opaque */
+    backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
     borderTopWidth: 1,
-    borderColor: V2T.glassEdge,
+    borderColor: V2T.hairline,
     overflow: "hidden",
   },
   bar: {
@@ -719,8 +719,11 @@ const ss = StyleSheet.create({
   },
   sumRow: { flexDirection: "row" },
   sumCol: { flex: 1 },
-  sumHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   sumNum: { color: V2T.text, fontSize: V2Type.title, lineHeight: 30 },
+  /* breathed µg owns the summary — display-class vs the title-size
+     count/kg siblings (dose is the app's number, not a stat among stats) */
+  sumNumHero: { color: V2T.text, fontSize: V2Type.display, lineHeight: 36 },
+  sumUnitHero: { color: V2T.text2, fontSize: V2Type.secondary },
   sumUnit: { color: V2T.text2, fontSize: V2Type.secondary },
   sumCap: { color: V2T.text2, fontSize: V2Type.label, marginTop: 2 },
   sumFoot: { color: V2T.text3, fontSize: V2Type.label, marginTop: 10 },
