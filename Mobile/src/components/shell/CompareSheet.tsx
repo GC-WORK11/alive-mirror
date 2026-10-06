@@ -386,9 +386,12 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
             {tag ? <Chip text={tag} accent={!safest} lang={lang} />
               : o.recommended && !safest ? <Chip text={t("compare_pick", lang)} lang={lang} /> : null}
           </View>
-          <Text {...DYNAMIC_TYPE} style={[s.optMeta, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{meta}</Text>
+          <Text {...DYNAMIC_TYPE} style={[s.optMeta, { fontFamily: fam(lang, "reg") }]}
+            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{meta}</Text>
           {o.reason_line ? (
-            <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>{reasonTxt(o.reason_line, lang)}</Text>
+            /* Devanagari runs longer per sentence — 3 lines keeps the
+               benefit line whole instead of truncating "—…" (audit #5) */
+            <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={3}>{reasonTxt(o.reason_line, lang)}</Text>
           ) : null}
           {o.via_names && o.via_names.length ? (
             <Text {...DYNAMIC_TYPE} style={[s.optReason, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>

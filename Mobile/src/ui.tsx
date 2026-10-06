@@ -347,7 +347,10 @@ const us = StyleSheet.create({
     borderWidth: 1, borderColor: V2T.glassLine,
     overflow: "hidden",
   },
-  grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 6 },
+  /* the X must fit INSIDE the row — 24px control at top:4 overflows a
+     19px row and lands on the first card's dose numeral (android audit
+     #6). 8 + grabber 5 + 15 = 28px reserves it. */
+  grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 15 },
   grabber: { width: 40, height: 5, borderRadius: 2.5, backgroundColor: V2T.out3 },
   sheetX: { position: "absolute", right: 14, top: 4, padding: 4 },
 

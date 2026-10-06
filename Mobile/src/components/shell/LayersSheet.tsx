@@ -29,7 +29,12 @@ function LayersSheetInner({
   if (!visible) return null;
   return (
     <View style={s.wrap}>
-      <Sheet detent="half" onClose={onClose} lang={lang}>
+      {/* glass-on-glass: this sheet floats over the day card's own glass
+          pane, so two 91% whites stack and the card text ghosts through
+          (android audit #7) — a near-solid fill keeps rows legible while
+          other sheets keep the designed tint */}
+      <Sheet detent="half" onClose={onClose} lang={lang}
+        style={{ backgroundColor: "rgba(255,255,255,0.97)" }}>
         <Text {...DYNAMIC_TYPE} style={[s.title, { fontFamily: fam(lang, "semi") }]}>{t("layers", lang)}</Text>
         {ROWS.map((r) => (
           <View key={r.key} style={s.row}>

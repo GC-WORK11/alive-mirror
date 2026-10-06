@@ -231,7 +231,7 @@ const TripCard = React.memo(function TripCard({
           </Text>
           <Text {...DYNAMIC_TYPE}
             style={[ss.tripMeta, { fontFamily: fam(lang, "reg") }]}
-            numberOfLines={1}
+            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}
           >
             {modeLabel(tr.vehicle, tr.label, lang)} · {timeLabel(tr.ts, lang)}
           </Text>
