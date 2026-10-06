@@ -455,11 +455,11 @@ reclaim any time, including mid-demo). To pin the task on on-demand
 Fargate for the day — **T-60: run this verbatim**:
 
 *(the flip replaces the task — SAFE for the why-trend/history surfaces
-since `268ed54`: the series reads the S3 `field/` builds, which persist
-across rollouts, so the sparkline + trend keep their full recorded
-history. The only residual: the ingest worker's first cold build on a
-new task takes ~25 min, so the recorded trail gets one ~25-min gap;
-serving stays fresh the whole time.)*
+since `268ed54`+`3aea78f`: the series reads the S3 `field/` builds
+(bounded parallel fetch), which persist across rollouts — verified live:
+history kept 34 builds/5.8h through the `37e55668` rollout. Cold first
+builds land in <1min on a fresh task; the only residual is a rare
+pathological upstream stall (~2-3min bounded now, `5ec1f2f`).)*
 
 ```bash
 export AWS_DEFAULT_REGION=ap-south-1
