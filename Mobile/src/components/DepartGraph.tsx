@@ -127,7 +127,7 @@ export function DepartGraph({
               <View style={[s.bar, { height: y(d.dose_mid), backgroundColor: c }]} />
             </View>
           );
-          const a11y = `${d.hour === nowHour ? t("departNow", lang) : `+${d.hour}h`} ≈ ${Math.round(d.dose_mid)} µg`;
+          const a11y = `${d.hour === nowHour ? t("departNow", lang) : t("hourTick", lang, { n: d.hour })} ≈ ${Math.round(d.dose_mid)} µg`;
           return onSelectHour ? (
             <Pressable
               key={d.hour} style={s.cell} accessibilityRole="button" accessibilityLabel={a11y}
@@ -150,7 +150,7 @@ export function DepartGraph({
           return (
             <View key={d.hour} style={[s.tick, { left }]}>
               <Text {...DYNAMIC_TYPE} style={[s.tickOffset, { fontFamily: fam(lang, "reg") }, d.hour === bestHour && { color: V2T.accent }]} numberOfLines={1}>
-                {d.hour === nowHour ? t("departNow", lang) : `+${d.hour}h`}
+                {d.hour === nowHour ? t("departNow", lang) : t("hourTick", lang, { n: d.hour })}
               </Text>
               <Text {...DYNAMIC_TYPE} style={[s.tickClock, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
                 {clockOf(d.start) ?? " "}
@@ -167,7 +167,7 @@ export function DepartGraph({
         </Text>
         {detail && (
           <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
-            {`${detail.hour === nowHour ? t("departNow", lang) : `+${detail.hour}h`}` +
+            {`${detail.hour === nowHour ? t("departNow", lang) : t("hourTick", lang, { n: detail.hour })}` +
               `${clockOf(detail.start) ? ` · ${clockOf(detail.start)}` : ""} ≈ ${Math.round(detail.dose_mid)} µg`}
           </Text>
         )}

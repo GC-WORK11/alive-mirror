@@ -446,7 +446,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                         <Text {...DYNAMIC_TYPE} style={[ss.fcHr,
                                      { fontFamily: famMonoText(lang, "reg") }]}>
                           {x.h === 0 ? t("cityForecastNow", lang)
-                                    : x.h % 3 === 0 ? `+${x.h}h` : ""}
+                                    : x.h % 3 === 0 ? t("hourTick", lang, { n: x.h }) : ""}
                         </Text>
                       </View>
                     ))}

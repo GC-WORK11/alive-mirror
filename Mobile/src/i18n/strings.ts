@@ -21,7 +21,7 @@ const en = {
   shareAppBody: "checking the smoke on my Delhi trips before I go — ALive-108",
   /** share text carries BOTH numbers — breathed (exposure) + put out
       (emission) — the Air-track mission in one breath */
-  shareTripBody: "my trip {from} → {to}: I breathed est. {dose} of smoke and my ride put out {co2} — estimated on ALive-108",
+  shareTripBody: "my trip {from} → {to}: I breathed about {dose} of smoke and my ride put out {co2} — estimated on ALive-108",
   outsideDelhi: "outside Delhi — no smoke estimate here",
   start: "Start",
   end: "End",
@@ -53,10 +53,11 @@ const en = {
   mode_walk: "On foot",
   mode_approx: " (approx.)",
   /** least-inhalation engine row suffixes (server labels
-      "… · least-smoke rd" / "… · least-smoke alt N") — localized so the
-      Hindi UI never leaks the English wire text */
-  mode_leastSmoke: " · least-smoke rd",
-  mode_leastSmokeAlt: " · least-smoke alt {n}",
+      "… · least-smoke rd" / "… · least-smoke alt N" stay on the wire —
+      they localize to plain wording here so neither UI leaks the
+      engine's shorthand) */
+  mode_leastSmoke: " · least smoky way",
+  mode_leastSmokeAlt: " · least smoky option {n}",
   /** corridor names under an engine row — "via Outer Circle → …" */
   viaStreets: "via {streets}",
   findingNewWay: "Finding a new way…",
@@ -69,7 +70,7 @@ const en = {
   lessThanByAuto: "less than by auto",
   done: "Done",
   howWeGotThis: "How we got this",
-  howWe_in: "smoke you breathe — ≈ {mid} µg this trip (est. {lo}–{hi})",
+  howWe_in: "smoke you breathe — ≈ {mid} µg this trip (about {lo}–{hi})",
   howWe_out: "smoke your ride puts out — {v}",
   howWe_conf: "confidence: {c}",
   howWe_cigs: "{n} cigarettes",
@@ -166,6 +167,20 @@ const en = {
   settingsShowCigHint: "off by default — your dose stays in µg",
   /** dose readout in µg — every surface the cigarette number used to sit on */
   doseUg: "{n} µg",
+  /** the unit's own micro-gloss — sits where µg first carries the
+      payload (DayPeek + hero number) so a stranger learns the symbol
+      instead of guessing */
+  unitUg: "µg (micrograms)",
+  /** sparkline/depart hour ticks — "+3h" in en, "+3घं" in hi */
+  hourTick: "+{n}h",
+  hourTickTilde: "~{n}h",
+  /** header city tag — a proper noun per locale, never Latin in hi */
+  cityTag: "DELHI",
+  /** freshness-chip provenance words (a11y label) — the server's raw
+      source tokens ("open-meteo/cams") never reach the user */
+  srcStations: "live stations",
+  srcModel: "satellite estimate",
+  srcNone: "no source",
   settingsShareExplain: "share trips anonymously so Delhi sees its roads — nothing personal ever leaves this phone",
   settingsStoreCells: "kept only as counts on a street grid — the raw trail is thrown away",
   settingsStoreK: "a street appears only after 3+ different devices have crossed it",
@@ -189,16 +204,16 @@ const en = {
   cityHeroLead: "a day of Delhi air",
   cityHeroUnit: "cigarettes of smoke",
   /** hero unit when the cigarette metaphor is off — the same figure in µg */
-  cityHeroUnitUg: "µg of PM2.5 inhaled today",
+  cityHeroUnitUg: "µg of fine smoke (PM2.5) inhaled today",
   cityHeroRange: "likely between {lo} and {hi}",
   cityNoField: "no live air reading right now",
   cityStale: "older data — reconnecting",
   citySpeciesTitle: "the other things in the air",
-  citySpeciesNote: "city mean, µg/m³ — measured every 15 minutes",
+  citySpeciesNote: "city average, µg/m³ — measured every 15 minutes",
   cityTypicalLine:
-    "running {pct}% vs the decade norm of {med} µg/m³ for this hour",
+    "running {pct}% of the 10-year average of {med} µg/m³ for this hour",
   cityForecastTitle: "the next 12 hours",
-  cityForecastNote: "CAMS forecast anchored to the live field, µg/m³",
+  cityForecastNote: "satellite forecast matched to live readings, µg/m³",
   cityForecastNow: "now",
   cityStreetsTitle: "streets travellers crossed",
   cityEmptyStreets: "nothing to show yet — a street appears after 3+ travellers cross it in 3 days",
@@ -275,9 +290,9 @@ const en = {
   tripsCigs: "{n} cigarettes",
   tripsCount: "{n} trips",
   tripsCountOne: "{n} trip",
-  tripsDoseBand: "est. {lo}–{hi} µg",
-  tripsDoseDetail: "est. {n} µg of smoke you breathed",
-  tripsOutDetail: "est. {n} kg put out",
+  tripsDoseBand: "about {lo}–{hi} µg",
+  tripsDoseDetail: "about {n} µg of smoke you breathed",
+  tripsOutDetail: "about {n} kg put out",
   tripsPutOut: "smoke your ride put out",
   tripsSavedVs: "{n} cigarettes less than the smokiest way",
   tripsSavedVsUg: "{n} µg less than the smokiest way",
@@ -318,10 +333,10 @@ const en = {
   noResults: "nothing found — try a bigger name",
   searchingLabel: "searching",
   checkingRoutes: "checking every way there…",
-  compare_refining: "least-smoke roads first · adding metro, bus and more…",
+  compare_refining: "least smoky roads first · adding metro, bus and more…",
   /* planner arms lost to timeout — the option set is real but INCOMPLETE;
      the sheet says which kind of route is missing, never pretends all */
-  degradedEngine: "pollution-optimized picks unavailable right now — showing what's live",
+  degradedEngine: "least smoky picks unavailable right now — showing what's live",
   degradedTransit: "metro & bus options unavailable right now",
   degradedMotor: "car, auto & bike options unavailable right now",
   degradedSlow: "walk & cycle options unavailable right now",
@@ -378,7 +393,7 @@ const en = {
   plan_outside_body: "alive-108 only measures the air inside Delhi NCR — this trip leaves the field, so its dose can't be priced honestly.",
   plan_outside_cta: "change the trip",
   plan_coverage_note: "smoke counted for the NCR span only",
-  howWe_coverage: "the route leaves the field — only the covered {pct}% is counted, never clamped",
+  howWe_coverage: "the route leaves the smoke map — only the {pct}% inside it is counted, never stretched",
   // live nav + receipt (src/nav, S6/S7)
   nav_breathe: "smoke you breathe",
   nav_putOut: "smoke your ride puts out",
@@ -396,7 +411,7 @@ const en = {
   receipt_moreVs: "{n}× more than by {m}",
   receipt_putOutKg: "your ride put out {n} kg",
   receipt_altPutOut: "{m} would have put out {n} kg",
-  receipt_estLike: "est. — for vehicles like yours",
+  receipt_estLike: "estimated — for vehicles like yours",
   receipt_pmBand: "incl. {lo}–{hi} g of fine dust (PM2.5)",
   receipt_pmBandOne: "incl. {x} g of fine dust (PM2.5)",
   receipt_pmBandTiny: "incl. <0.01 g of fine dust (PM2.5)",
@@ -406,7 +421,7 @@ const en = {
   receipt_noDose: "no smoke estimate for this trip",
   receipt_lessVsWorst: "{n}× less than the smokiest option",
   receipt_putOutNone: "your ride put out nothing — no exhaust",
-  receipt_estShort: "est.",
+  receipt_estShort: "about",
   departNow: "now",
   receipt_distance: "distance",
   receipt_duration: "time",
@@ -446,10 +461,10 @@ const en = {
   emit_metroShort: "metro per passenger-km (incl. electricity)",
   emit_metroLong: "metro per passenger-km, incl. electricity (11–25 g CO2e/pkm — DMRC + CEA grid EF, docs/31 §3)",
   // dose-note fallbacks (server/v2/plan.py) — shown when dose can't estimate
-  doseNote_engineDown: "dose engine unavailable",
-  doseNote_engineError: "dose engine error",
-  doseNote_fieldDown: "field unavailable",
-  receipt_doseUgBand: "est. {lo}–{hi} µg",
+  doseNote_engineDown: "smoke estimate unavailable",
+  doseNote_engineError: "smoke estimate error",
+  doseNote_fieldDown: "air map unavailable",
+  receipt_doseUgBand: "about {lo}–{hi} µg",
   receipt_save: "save",
   resultsHeader: "Results",
   noPlaceFound: "no place found — try a landmark",
@@ -485,7 +500,7 @@ const en = {
   daySparseCount: "your count starts once the phone logs its first hours",
   daySparseSamples: "{n} of {m} samples",
   dayBreathed: "breathed so far",
-  dayCovered: "{h}h{m}m accounted",
+  dayCovered: "{h}h {m}m counted",
   dayArcY: "µg inhaled",
   dayPartsTitle: "where it accumulated",
   dayTripMark: "trip",
@@ -533,7 +548,7 @@ const en = {
   dayOutlookPartial: "first ~{n}h only",
   dayOutlookTodayPartial: "rest of today (~{n}h)",
   dayOutlookRange: "≈{lo}–{hi} µg/m³",
-  dayOutlookLoNote: "faded days are past the live anchor's reach — raw CAMS skill only",
+  dayOutlookLoNote: "faded days are past live readings — satellite estimate only",
   dayOutlookVerdict: "{d} looks {w} — avg ~{c} vs ~{g} µg/m³ across the forecast",
   dayOutlookVerdictPartial: " (only its first ~{n}h fall inside the forecast)",
   dayOutlookFlatVerdict: "no meaningful difference between days — ~{c} µg/m³ throughout the {n}-day forecast",
@@ -575,8 +590,8 @@ const en = {
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "you've breathed today",
   homeOutsideNow: "outside now ~{n} µg/m³",
-  homeOfBudget: "of ~{b}µg daily",
-  homeWeek: "{n}µg this week",
+  homeOfBudget: "of ~{b} µg daily",
+  homeWeek: "{n} µg this week",
   /* the sparse week strip — the city's forecast days stand in (dimmed)
      until the personal arc has a day counted; 'Delhi's next days' names
      whose days they are so they never read as the user's own */
@@ -744,16 +759,16 @@ const hi: Record<StringKey, string> = {
   cityLoading: "दिल्ली की हवा पढ़ रहे हैं…",
   cityHeroLead: "दिल्ली की हवा का एक दिन",
   cityHeroUnit: "सिगरेट के बराबर धुआँ",
-  cityHeroUnitUg: "आज साँस में लिया गया PM2.5 (µg)",
+  cityHeroUnitUg: "आज साँस में लिया बारीक धुआँ (PM2.5) — µg",
   cityHeroRange: "शायद {lo} से {hi} के बीच",
   cityNoField: "अभी हवा की लाइव रीडिंग नहीं",
   cityStale: "पुराना डेटा — फिर जुड़ रहा है",
   citySpeciesTitle: "हवा में और क्या-क्या है",
   citySpeciesNote: "शहर का औसत, µg/m³ — हर 15 मिनट ताज़ा",
   cityTypicalLine:
-    "इस समय के दशक-औसत {med} µg/m³ की तुलना में {pct}%",
+    "इस समय के 10-वर्ष औसत {med} µg/m³ की तुलना में {pct}%",
   cityForecastTitle: "अगले 12 घंटे",
-  cityForecastNote: "CAMS पूर्वानुमान, लाइव फ़ील्ड से जुड़ा, µg/m³",
+  cityForecastNote: "सैटेलाइट पूर्वानुमान, लाइव रीडिंग से जोड़ा, µg/m³",
   cityForecastNow: "अभी",
   cityStreetsTitle: "जिन सड़कों से यात्री गुज़रे",
   cityEmptyStreets: "अभी दिखाने को कुछ नहीं — 3+ यात्रियों के 3 दिन में गुज़रने पर सड़क दिखती है",
@@ -813,6 +828,13 @@ const hi: Record<StringKey, string> = {
   settingsShowCig: "सिगरेट-तुलना दिखाएँ",
   settingsShowCigHint: "डिफ़ॉल्ट से बंद — साँस का नंबर µg में ही दिखता है",
   doseUg: "{n} µg",
+  unitUg: "µg (माइक्रोग्राम)",
+  hourTick: "+{n}घं",
+  hourTickTilde: "~{n}घं",
+  cityTag: "दिल्ली",
+  srcStations: "लाइव स्टेशन",
+  srcModel: "सैटेलाइट अंदाज़ा",
+  srcNone: "कोई स्रोत नहीं",
   settingsShareExplain: "यात्राएँ गुमनाम साझा करें ताकि दिल्ली अपनी सड़कें देखे — निजी कुछ भी इस फ़ोन से कभी नहीं जाता",
   settingsStoreCells: "सिर्फ़ सड़क-ग्रिड की गिनती में रखा जाता है — कच्चा रास्ता फेंक दिया जाता है",
   settingsStoreK: "कोई सड़क तभी दिखती है जब 3+ अलग डिवाइस उससे गुज़र चुके हों",
@@ -890,7 +912,7 @@ const hi: Record<StringKey, string> = {
   searchingLabel: "खोज रहे हैं",
   checkingRoutes: "हर रास्ता जाँच रहे हैं…",
   compare_refining: "पहले सबसे कम धुएँ वाली सड़कें · मेट्रो, बस और जोड़ रहे हैं…",
-  degradedEngine: "प्रदूषण-अनुकूलित रास्ते अभी उपलब्ध नहीं — जो लाइव है वही दिखा रहे हैं",
+  degradedEngine: "सबसे कम धुएँ वाले रास्ते अभी उपलब्ध नहीं — जो लाइव है वही दिखा रहे हैं",
   degradedTransit: "मेट्रो और बस के विकल्प अभी उपलब्ध नहीं",
   degradedMotor: "कार, ऑटो और बाइक के विकल्प अभी उपलब्ध नहीं",
   degradedSlow: "पैदल और साइकिल के विकल्प अभी उपलब्ध नहीं",
@@ -942,7 +964,7 @@ const hi: Record<StringKey, string> = {
   plan_outside_body: "alive-108 सिर्फ़ दिल्ली NCR की हवा नापता है — यह यात्रा फ़ील्ड से बाहर जाती है, इसलिए धुएँ का ईमानदार हिसाब नहीं बन सकता.",
   plan_outside_cta: "यात्रा बदलें",
   plan_coverage_note: "धुएँ का हिसाब सिर्फ़ NCR वाले हिस्से का है",
-  howWe_coverage: "रास्ता फ़ील्ड से बाहर जाता है — सिर्फ़ ढके हुए {pct}% की गिनती हुई, अनुमान नहीं लगाया गया",
+  howWe_coverage: "रास्ता धुएँ-नक्शे से बाहर जाता है — सिर्फ़ ढके हुए {pct}% की गिनती हुई, अनुमान नहीं लगाया गया",
   nav_breathe: "आपके साँस का धुआँ",
   nav_putOut: "आपकी गाड़ी का धुआँ",
   nav_cigs: "{n} सिगरेट",
@@ -1003,9 +1025,9 @@ const hi: Record<StringKey, string> = {
   emit_basisPerPaxKm: "प्रति यात्री-किमी",
   emit_metroShort: "मेट्रो प्रति यात्री-किमी (बिजली सहित)",
   emit_metroLong: "मेट्रो प्रति यात्री-किमी, बिजली सहित (11–25 g CO2e/pkm — DMRC + CEA ग्रिड EF, docs/31 §3)",
-  doseNote_engineDown: "डोज़ इंजन उपलब्ध नहीं",
-  doseNote_engineError: "डोज़ इंजन में त्रुटि",
-  doseNote_fieldDown: "वायु फ़ील्ड उपलब्ध नहीं",
+  doseNote_engineDown: "धुएँ-अनुमान उपलब्ध नहीं",
+  doseNote_engineError: "धुएँ-अनुमान में त्रुटि",
+  doseNote_fieldDown: "हवा-नक्शा उपलब्ध नहीं",
   receipt_doseUgBand: "अनुमान {lo}–{hi} µg",
   receipt_save: "सहेजें",
   resultsHeader: "नतीजे",
@@ -1034,7 +1056,7 @@ const hi: Record<StringKey, string> = {
   daySparseCount: "आपकी गिनती तब शुरू होगी जब फ़ोन अपने पहले घंटे लिख लेगा",
   daySparseSamples: "{m} में से {n} नमूने",
   dayBreathed: "अब तक साँस में गया",
-  dayCovered: "{h}घं{m}मि गिने",
+  dayCovered: "{h}घं {m}मि गिने",
   dayArcY: "साँस में गया µg",
   dayPartsTitle: "कहाँ जुड़ा",
   dayTripMark: "यात्रा",
@@ -1048,7 +1070,7 @@ const hi: Record<StringKey, string> = {
   dayOutsideDelhi: "दिल्ली से बाहर — यहाँ धुएँ का नक्शा नहीं पहुँचता",
   /* move कार्ड की पहली फ़ैसला-पंक्ति — server/v2/day.py:_decisions की
      वही व्याकरण, served windows + series से rebuild */
-  moveDec_cleanWindow: "{w} घड़ी {win} IST (औसत {c} बनाम दिन {m} µg/m³)",
+  moveDec_cleanWindow: "{w} घड़ी {win} (औसत {c} बनाम दिन {m} µg/m³)",
   moveDec_noClean: "आज साफ़ घड़ी नहीं बची — सबसे हल्की हवा {n} µg/m³",
   moveDec_short: "कार्ड पर आज सिर्फ़ ~{n} घंटे बचे — हर घड़ी {b} हवा",
   moveDec_flat: "आज कोई खास घड़ी नहीं — दिनभर {b} हवा ({lo}–{hi} µg/m³)",
@@ -1075,12 +1097,12 @@ const hi: Record<StringKey, string> = {
   dayOutlookCleanest: "सबसे साफ़",
   dayOutlookAllDayHeavy: "पूरा दिन भारी — कोई हल्की घड़ी नहीं",
   dayOutlookHeavyHours: "सबसे भारी {h} बजे",
-  dayOutlookPartial: "सिर्फ़ पहले ~{n}h",
-  dayOutlookTodayPartial: "आज का बाक़ी दिन (~{n}h)",
+  dayOutlookPartial: "सिर्फ़ पहले ~{n}घं",
+  dayOutlookTodayPartial: "आज का बाक़ी दिन (~{n}घं)",
   dayOutlookRange: "≈{lo}–{hi} µg/m³",
-  dayOutlookLoNote: "फीके दिन लाइव ऐंकर की पहुँच से बाहर — सिर्फ़ कच्चा CAMS स्किल",
+  dayOutlookLoNote: "फीके दिन लाइव रीडिंग की पहुँच से बाहर — सिर्फ़ सैटेलाइट अंदाज़ा",
   dayOutlookVerdict: "{d} {w} लगता है — औसत ~{c} बनाम ~{g} µg/m³ पूरे पूर्वानुमान में",
-  dayOutlookVerdictPartial: " (सिर्फ़ इसके पहले ~{n}h पूर्वानुमान में)",
+  dayOutlookVerdictPartial: " (सिर्फ़ इसके पहले ~{n}घं पूर्वानुमान में)",
   dayOutlookFlatVerdict: "दिनों में कोई असली फ़र्क़ नहीं — {n}-दिन के पूर्वानुमान में ~{c} µg/m³",
   lensTitle: "कैसा महसूस हुआ",
   lensSub: "साँस · आँखें · ताक़त — 5-सेकंड चेक-इन, सिर्फ़ इसी फ़ोन पर",
@@ -1118,8 +1140,8 @@ const hi: Record<StringKey, string> = {
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "आज आपने साँस में लिया",
   homeOutsideNow: "बाहर अभी ~{n} µg/m³",
-  homeOfBudget: "~{b}µg दैनिक में से",
-  homeWeek: "इस हफ़्ते {n}µg",
+  homeOfBudget: "~{b} µg दैनिक में से",
+  homeWeek: "इस हफ़्ते {n} µg",
   homeWeekCity: "दिल्ली के अगले दिन",
   homeWeekSparse: "आपका हफ़्ता आज से गिना जाएगा",
   moveTitle: "आज का फ़ैसला",
@@ -1191,9 +1213,13 @@ export function modeLabel(mode: string, label: string, lang: Lang): string {
   let suffix = rest;
   if (rest.startsWith(" (approx")) suffix = t("mode_approx", lang);
   else {
-    const alt = rest.match(/^ · least-smoke alt (\d+)$/);
+    /* the wire form ("least-smoke rd/alt N") AND the stored display form
+       ("least smoky way/option N") — trips saved under either wording
+       re-localize instead of leaking stale English into the other UI */
+    const alt = rest.match(/^ · (?:least-smoke alt|least smoky option) (\d+)$/);
     if (alt) suffix = t("mode_leastSmokeAlt", lang, { n: alt[1] });
-    else if (rest === " · least-smoke rd") suffix = t("mode_leastSmoke", lang);
+    else if (rest === " · least-smoke rd" || rest === " · least smoky way")
+      suffix = t("mode_leastSmoke", lang);
   }
   return t(b.key, lang) + suffix;
 }

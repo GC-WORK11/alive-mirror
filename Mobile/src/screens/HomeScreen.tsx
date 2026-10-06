@@ -216,7 +216,12 @@ function doseDotColor(ug: number, budgetUg: number): string {
   return V2T.band4;
 }
 
-const fmtHr = (h: number) => `${((h + 11) % 12) + 1}${h % 24 < 12 ? "am" : "pm"}`;
+/* en keeps the am/pm Delhiites write; hi gets "बजे" so the move-card
+   window labels never leak Latin letters into a Devanagari card */
+const fmtHr = (h: number, lang: Lang) =>
+  lang === "hi"
+    ? `${((h + 11) % 12) + 1} बजे`
+    : `${((h + 11) % 12) + 1}${h % 24 < 12 ? "am" : "pm"}`;
 
 /* ---------------- the move (the morning card, promoted) ---------------- */
 
@@ -254,7 +259,7 @@ function SparklineInner({ series, lang }: { series: (number | null)[]; lang: Lan
       {w > 0 && (
         <View style={ss.sparkLabels}>
           {series.map((v, i) => {
-            const label = i === 0 ? t("dayNow", lang) : i % 3 === 0 ? `+${i}h` : "";
+            const label = i === 0 ? t("dayNow", lang) : i % 3 === 0 ? t("hourTick", lang, { n: i }) : "";
             if (!label) return null;
             /* one label per marked hour, centred on its dot — wide enough
                that "+21h" never wraps (it did, flexing 1/25 of the row) */
@@ -430,12 +435,12 @@ function MoveCardInner({ curve, outside, lang }: {
   const heavy = srv ? srv.heavy : a.heavy;
   const clean = srv ? srv.clean : a.clean;
   const flat = srv ? (!srv.heavy && !srv.clean) : a.flat;
-  const heavyF = srv?.heavyLabel ?? (heavy ? fmtHr(heavy.from + nowHour()) : "");
+  const heavyF = srv?.heavyLabel ?? (heavy ? fmtHr(heavy.from + nowHour(), lang) : "");
   const heavyT = srv?.heavyEndLabel ??
-    (srv?.heavyLabel ? "" : heavy ? fmtHr(heavy.to + nowHour()) : "");
-  const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour()) : "");
+    (srv?.heavyLabel ? "" : heavy ? fmtHr(heavy.to + nowHour(), lang) : "");
+  const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour(), lang) : "");
   const cleanT = srv?.cleanEndLabel ??
-    (srv?.cleanLabel ? "" : clean ? fmtHr(clean.to + nowHour()) : "");
+    (srv?.cleanLabel ? "" : clean ? fmtHr(clean.to + nowHour(), lang) : "");
   const dec = srv?.decisions?.[0] ?? null;
   /* the felt decision — the served line localized (wire English must not
      leak into the hi UI); when the server named none, derive from the
@@ -643,7 +648,7 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
               </View>
               <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
                 style={[ss.oaSub, { fontFamily: mono(lang) }]}>
-                {d.partial ? `~${d.n_hours}h` : " "}
+                {d.partial ? t("hourTickTilde", lang, { n: d.n_hours }) : " "}
               </Text>
               <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
                 style={[ss.oaMark, { fontFamily: fam(lang, "med") }]}>
@@ -779,7 +784,7 @@ function DayCardInner({ rec, budgetUg, lang }: {
                 {p.label}
               </Text>
               <Text {...DYNAMIC_TYPE} style={[ss.partUg, NUM, { fontFamily: mono(lang) }]}>
-                {approx(doseUgRound(p.ug))}µg
+                {approx(doseUgRound(p.ug))} µg
               </Text>
             </View>
           ))}
@@ -970,7 +975,7 @@ function DayPeekInner({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
           }]}>
             ≈{doseUgRound(data.rec.totalUg)}
           </Text>
-          <Text {...DYNAMIC_TYPE} style={[ss.peekUnit, { fontFamily: mono(lang) }]}>µg</Text>
+          <Text {...DYNAMIC_TYPE} style={[ss.peekUnit, { fontFamily: mono(lang) }]}>{t("unitUg", lang)}</Text>
           <View style={ss.peekDots}>
             {data.week.map((w) => (
               <View key={w.day} style={[ss.weekDot, {
@@ -1004,7 +1009,7 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
           ALive-108
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.brandSub, { fontFamily: mtext(lang) }]}>
-          {dayLabel(WEEKDAY_EN[now.getDay()], lang)} · {hh}:{mm} · DELHI
+          {dayLabel(WEEKDAY_EN[now.getDay()], lang)} · {hh}:{mm} · {t("cityTag", lang)}
         </Text>
       </View>
       <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}
@@ -1142,7 +1147,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
               style={[ss.heroNum, { fontFamily: famSerif(lang, "semi"), color: col }]}
               format={(n) => `≈${doseUgRound(n)}`} />
             <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}>
-              µg
+              {t("unitUg", lang)}
             </Text>
           </View>
           <View style={ss.heroGaugeCol}>

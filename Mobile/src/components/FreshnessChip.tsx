@@ -36,10 +36,8 @@
  *             going dark is stated, not hidden. Empty/absent → no
  *             provenance claim either way.
  *    lang     i18n Lang ("en" | "hi") — REQUIRED. All copy comes from
- *             i18n/strings.ts keys that already exist in both tables
- *             (howWe_fieldAge, cityStale, cityNoField, dataFromModelOnly,
- *             minUnit); strings.ts is another lane's file, so this
- *             component adds no keys.
+ *             i18n/strings.ts (howWe_fieldAge, cityStale, cityNoField,
+ *             dataFromModelOnly, minUnit, srcStations/srcModel/srcNone).
  *    compact  tight "{n} min" label for cramped surfaces (nav chrome,
  *             map overlays). Provenance drops off the face but the
  *             tone colour still tells the truth; the a11y label keeps it.
@@ -97,6 +95,19 @@ const DOT: Record<FreshnessTone, string> = {
  *  "open-meteo/cams", "unavailable", "+"-joined. */
 const STATION_TOKEN = /station|openaq|cpcb|aqi/i;
 
+/** The a11y label speaks the user's language — the raw wire tokens
+ *  ("open-meteo/cams") map to plain provenance words per locale, so a
+ *  screen reader never reads field jargon aloud. Serving-mode tokens
+ *  (live/snapshot/none) are HOW the field was served, not a source —
+ *  the age count already says that, so they drop out of the label. */
+const SERVING_TOKEN = /^(live|snapshot|none)$/i;
+
+function sourceLabel(s: string, lang: Lang): string {
+  if (STATION_TOKEN.test(s)) return t("srcStations", lang);
+  if (/unavail/i.test(s)) return t("srcNone", lang);
+  return t("srcModel", lang);
+}
+
 export function FreshnessChip({
   ageS,
   stale,
@@ -137,9 +148,11 @@ export function FreshnessChip({
   if (provenance) label += ` · ${provenance}`;
 
   /* the a11y label always carries the full provenance — compact faces
-     drop the suffix visually but a screen reader still hears it */
-  const a11y = sources?.length
-    ? `${label} — ${sources.join(" + ")}`
+     drop the suffix visually but a screen reader still hears it;
+     serving tokens are filtered and duplicate sources deduped */
+  const prov = (sources ?? []).filter((s) => !SERVING_TOKEN.test(s));
+  const a11y = prov.length
+    ? `${label} — ${[...new Set(prov.map((s) => sourceLabel(s, lang)))].join(" + ")}`
     : label;
 
   return (
