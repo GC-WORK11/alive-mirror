@@ -84,14 +84,6 @@ export async function setSaved(slot: SavedSlot, p: PlaceResult | null): Promise<
   return next;
 }
 
-/** Drop all recents (saved slots untouched). */
-export async function clearRecents(): Promise<PlaceStore> {
-  const s = await getPlaces();
-  const next = { ...s, recents: [] };
-  await persist(next);
-  return next;
-}
-
 /** "Delete my data" — recents + saved slots are location history, the
  *  most personal thing on the phone. Drop the mirror AND the file. */
 export async function clearPlaces(): Promise<void> {

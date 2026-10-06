@@ -111,14 +111,6 @@ export async function cacheSet<T>(key: string, value: T, ttlMs: number, since?: 
   }
 }
 
-/** Drop one key. Safe when absent. */
-export async function cacheInvalidate(key: string): Promise<void> {
-  try {
-    const f = fileFor(key);
-    if (f.exists) f.delete();
-  } catch {}
-}
-
 /** Age in whole seconds of the saved copy, or null when absent —
  * for pills that say "as of 40 min ago" without loading the payload. */
 export async function cacheAgeS(key: string): Promise<number | null> {

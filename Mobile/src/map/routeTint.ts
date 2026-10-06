@@ -82,18 +82,6 @@ export const pmColor = (pm25: number | null | undefined) =>
     : pm25 < PM25_BANDS.severe ? MAP_HEAVY
     : MAP_SEVERE;
 
-/** Data-driven alternative to the baked `color` property — a MapLibre step
- *  expression implementing the same stops for layers that prefer
- *  `["get","pm25"]` over `["get","color"]`. Null pm25 coalesces to -1 →
- *  the quiet grey, matching doseColor(null). */
-export const PM25_LINE_COLOR: unknown[] = [
-  "step",
-  ["coalesce", ["get", "pm25"], -1],
-  MAP_QUIET,
-  PM25_BANDS.quiet, MAP_WARN,
-  PM25_BANDS.warn, MAP_HEAVY,
-  PM25_BANDS.severe, MAP_SEVERE,
-];
 
 /** Anything a caller can hand us as "the strip": a full RouteStrip, a bare
  *  sample array, or nothing. */

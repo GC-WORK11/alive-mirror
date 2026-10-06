@@ -7,7 +7,7 @@ import {
   type StyleProp, type TextStyle, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CIG_UG, F, FMONO, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMonoText, famSerif } from "./theme";
+import { F, FMONO, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMonoText, famSerif } from "./theme";
 import { Icon, vehicleGlyph, type Glyph } from "./icons";
 import { t, type Lang } from "./i18n/strings";
 import { DYNAMIC_TYPE, useReduceMotion } from "./a11y";
@@ -277,43 +277,6 @@ export function ModeRow({
   );
 }
 
-/** Legacy dose bar — thin track, depth = dose vs cigarette budget. */
-export function DoseBar({ frac, color }: { frac: number; color?: string }) {
-  const c = color ?? V2T.text3;
-  return (
-    <View style={us.doseTrack}>
-      <View style={[us.doseFill, { flex: Math.max(0.02, Math.min(1, frac)), backgroundColor: c }]} />
-      <View style={{ flex: Math.max(0, 1 - frac) }} />
-    </View>
-  );
-}
-
-/** Cigarette strip: N glyphs, last one partially filled (receipt). */
-export function CigStrip({ ug, size = 16, color = V2T.text, max = 7 }: {
-  ug: number | null | undefined; size?: number; color?: string; max?: number;
-}) {
-  if (ug == null || ug <= 0) return null;
-  const cigs = ug / CIG_UG;
-  const full = Math.floor(cigs);
-  const partial = cigs - full;
-  const n = Math.min(max, Math.max(1, Math.ceil(cigs)));
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-      {Array.from({ length: n }).map((_, i) => (
-        <View key={i} style={{ width: size, height: size }}>
-          <Icon name="cigarette" color={i < full ? color : V2T.line} size={size} filled={i < full} />
-          {i === full && partial > 0.05 && (
-            <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: size * partial, overflow: "hidden" }}>
-              <Icon name="cigarette" color={color} size={size} filled />
-            </View>
-          )}
-        </View>
-      ))}
-      {cigs > max && <Text style={[us.cigMore, NUM, { color }]} {...DYNAMIC_TYPE}>+{Math.round(cigs - max)}</Text>}
-    </View>
-  );
-}
-
 /** Endpoint pins: origin = white ring, destination = red pinlet (doc 03). */
 export function EndpointPin({ kind }: { kind: "origin" | "dest" }) {
   if (kind === "origin") {
@@ -401,9 +364,7 @@ const us = StyleSheet.create({
   segRow: { flexDirection: "row", gap: 3, marginTop: 5 },
   seg: { width: 10, height: 4, borderRadius: 2 },
 
-  doseTrack: { width: 44, height: 5, borderRadius: 2.5, backgroundColor: "rgba(20,24,31,0.10)", flexDirection: "row", overflow: "hidden", marginTop: 4 },
-  doseFill: { borderRadius: 2.5 },
-  cigMore: { fontFamily: F.med, fontSize: 11 },
+
 
   originPin: {
     width: 20, height: 20, borderRadius: 10, backgroundColor: V2T.bg,

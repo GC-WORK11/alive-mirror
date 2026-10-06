@@ -115,12 +115,6 @@ export async function recordSample(s: AmbientSample): Promise<boolean> {
   return true;
 }
 
-/** Latest sample, or null. */
-export async function lastSample(): Promise<AmbientSample | null> {
-  const d = await ensureMem();
-  return d.samples.length ? d.samples[d.samples.length - 1] : null;
-}
-
 /** Write today's check-in (same-day overwrite is an edit, not a second
  *  entry — the day keeps one answer per facet). */
 export async function setCheckin(ts: number, c: Omit<Checkin, "ts">): Promise<void> {

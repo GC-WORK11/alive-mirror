@@ -138,28 +138,16 @@ const hexMix = (a: string, b: string, t: number): string => {
 };
 /** ~10% band on surface — cell/tile fills, selected whispers */
 export const bandWashIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.90);
-export const bandWash = (v: number | null | undefined) => {
-  const i = bandIdx(v); return i == null ? null : bandWashIdx(i);
-};
 /** ~18% band — pastel card surfaces that carry the day's colour
  *  (the overhaul's tinted-hero grammar: a card CAN wear its band) */
 export const bandWashMidIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.82);
-export const bandWashMid = (v: number | null | undefined) => {
-  const i = bandIdx(v); return i == null ? null : bandWashMidIdx(i);
-};
 /** ~26% band — tile fills where the band itself must scan at a glance
  *  (the days-ahead row: five 10% washes read identical on paper) */
 export const bandWashDeepIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.74);
 /** ~38% band — a hairline that carries the day's colour */
 export const bandEdgeIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.60);
-export const bandEdge = (v: number | null | undefined) => {
-  const i = bandIdx(v); return i == null ? null : bandEdgeIdx(i);
-};
 /** band deepened ~15% toward ink — band-coloured text that still reads */
 export const bandInkIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#16181D", 0.15);
-export const bandInk = (v: number | null | undefined) => {
-  const i = bandIdx(v); return i == null ? null : bandInkIdx(i);
-};
 
 // ── type ──────────────────────────────────────────────────────────────────
 // The register's ramp: 11/13/17/22/30/44 — eyebrow micro → hero display.

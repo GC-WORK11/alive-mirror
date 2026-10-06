@@ -80,13 +80,6 @@ export function saveConsent(patch: Partial<ConsentState>): Promise<ConsentState>
   return p;
 }
 
-/** True while the first-run flow must be shown: never completed, or
- *  completed without the sharing question being answered. */
-export async function needsOnboarding(): Promise<boolean> {
-  const s = await loadConsent();
-  return !s.seen || s.sharing == null;
-}
-
 /** "Delete my data" seam — call from settings.clearAllData() so wiping the
  *  phone also wipes this file and re-arms the gate on next launch. */
 export function clearConsent(): void {
