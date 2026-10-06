@@ -37,7 +37,7 @@ _REACH_CACHE = deps.TTLCache(60.0, max_entries=12)
 REACH_MAX_STATES = 2_000_000    # directed edge states the Dijkstra may pop
 EDGE_SERVE_MAX = 90_000         # beyond this the veil payload outweighs
                                 # the map — serve the settled core, flag it
-REACH_BUDGET_S = 8.0            # hard bound inside the single worker
+REACH_BUDGET_S = 9.0            # hard bound inside the single worker
                                 # (matches plan.ENGINE_BUDGET_S — a cold
                                 # first call may wait out the raster
                                 # reprice before solving)

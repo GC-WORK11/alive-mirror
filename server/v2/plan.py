@@ -1321,7 +1321,7 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
 # the live field on a lazy TTL (the field itself refreshes on its own
 # cadence; 10 min always lands inside freshness).
 ENGINE_REWEIGHT_TTL_S = 600.0
-ENGINE_BUDGET_S = 8.0        # sub-budget inside PLAN_BUDGET_S
+ENGINE_BUDGET_S = 9.0        # sub-budget inside PLAN_BUDGET_S
 ALT_OD_KM = 50.0             # buy corridor alts only at NCR scale
 ALT_ARM_SOFT_S = 6.0         # stop launching alt solves past this mark
 ALT_MAX_DETOUR = 1.6         # alt corridor must stay within 1.6x its
