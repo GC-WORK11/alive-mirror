@@ -236,7 +236,7 @@ function OnboardingSheet({
                 <JourneyRow
                   lang={lang}
                   icon="search"
-                  well={V2Tint.sky}
+                  well={V2Tint.forest}
                   kicker={t("onb_arcBefore", lang)}
                   title={t("searchPlaceholder", lang)}
                   subs={[t("checkingRoutes", lang)]}

@@ -27,7 +27,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Elev, V2Radius, V2T, V2Type, doseColor, fam, famMono, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
-import { Icon, modeTint, vehicleGlyph, type Glyph } from "../../icons";
+import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { CountUp, Sheet, pressFx } from "../../ui";
 import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
@@ -364,11 +364,11 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
         {/* the mode tile — the option's identity in its own colour;
             selection re-inks it, never re-fills the card */}
         <View style={[s.modeWell, {
-          backgroundColor: selected ? V2T.accentWash : modeTint(o.mode).wash,
+          backgroundColor: selected ? V2T.accentTint : V2T.accentWash,
         }]}>
           <Icon name={vehicleGlyph(o.mode)}
-            color={selected ? V2T.accentInk : modeTint(o.mode).ink}
-            size={24} filled={selected} />
+            color={V2T.accentInk}
+            size={24} filled />
         </View>
         <View style={s.cardMid}>
           <View style={s.cardTop}>
@@ -770,7 +770,7 @@ const s = StyleSheet.create({
     borderRadius: V2Radius.row, paddingHorizontal: 5, paddingVertical: 1,
     backgroundColor: V2T.glassSel,
   },
-  pucBadgeTxt: { fontSize: 9, color: V2T.accent, letterSpacing: 0.4 },
+  pucBadgeTxt: { fontSize: V2Type.micro, color: V2T.accent, letterSpacing: 0.4 },
   departRow: {
     flexDirection: "row", alignItems: "center", gap: 8,
     marginHorizontal: 14, marginTop: 8, marginBottom: 2, minHeight: 46,

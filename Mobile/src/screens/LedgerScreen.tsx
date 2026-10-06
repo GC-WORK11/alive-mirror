@@ -40,7 +40,7 @@ import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Tint, V2Type, fam, famMono, famMo
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import { doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
-import { Icon, modeTint, vehicleGlyph } from "../icons";
+import { Icon, vehicleGlyph } from "../icons";
 import {
   clearTrips,
   deleteTrip,
@@ -223,8 +223,8 @@ const TripCard = React.memo(function TripCard({
       >
         {/* the mode tile — a tinted square well carrying the mode's own
             colour; identity lives on the component, not on the pane */}
-        <View style={[ss.modeBox, { backgroundColor: modeTint(tr.vehicle).wash }]}>
-          <Icon name={vehicleGlyph(tr.vehicle)} color={modeTint(tr.vehicle).ink} size={21} />
+        <View style={[ss.modeBox, { backgroundColor: V2T.accentWash }]}>
+          <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.accentInk} size={22} filled />
         </View>
         <View style={ss.tripMid}>
           <Text {...DYNAMIC_TYPE}
@@ -756,7 +756,7 @@ const ss = StyleSheet.create({
   },
   barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end" },
   barFill: { width: 14, borderRadius: 7, minHeight: 4 },
-  barLbl: { color: V2T.text3, fontSize: 10, marginTop: 5 },
+  barLbl: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 5 },
 
   dayHead: {
     color: V2T.text2,

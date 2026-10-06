@@ -190,8 +190,8 @@ const s = StyleSheet.create({
   },
   axis: { position: "relative", height: 30, marginTop: 3 },
   tick: { position: "absolute", width: TICK_W, alignItems: "center" },
-  tickOffset: { fontSize: 10, color: V2T.text2, lineHeight: 13 },
-  tickClock: { fontSize: 9, color: V2T.text3, lineHeight: 12 },
+  tickOffset: { fontSize: 11, color: V2T.text2, lineHeight: 13 },
+  tickClock: { fontSize: 11, color: V2T.text3, lineHeight: 12 },
   caption: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "baseline",
     marginTop: 4, paddingHorizontal: 2,

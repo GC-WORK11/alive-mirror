@@ -261,7 +261,7 @@ function SettingsSheetInner({
             style={({ pressed }) => [ss.row, pressed && ss.rowPressed]}
           >
             <View style={ss.vehicleWell}>
-              <Icon name={vehicleGlyph(current.vehicle ?? "car")} color={V2Tint.clay.ink} size={22} />
+              <Icon name={vehicleGlyph(current.vehicle ?? "car")} color={V2T.accentInk} size={22} filled />
             </View>
             <View style={ss.rowMid}>
               <Text {...DYNAMIC_TYPE} style={[ss.rowLabel, { fontFamily: fam(lang, "med") }]}>
@@ -693,7 +693,7 @@ const ss = StyleSheet.create({
   hairline: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.hairline, marginHorizontal: 16 },
   vehicleWell: {
     width: 40, height: 40, borderRadius: 13,
-    backgroundColor: V2Tint.clay.wash,
+    backgroundColor: V2T.accentWash,
     alignItems: "center", justifyContent: "center",
   },
 

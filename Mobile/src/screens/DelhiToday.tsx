@@ -390,7 +390,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
               const tiles: { label: string; val: string; wash: string; ink: string }[] = [];
               const push = (key: string, label: string) => {
                 const v = sp[key];
-                if (v) tiles.push({ label, val: `${v.mean}`, wash: V2Tint.sky.wash, ink: V2Tint.sky.ink });
+                if (v) tiles.push({ label, val: `${v.mean}`, wash: V2T.surface2, ink: V2T.text2 });
               };
               push("pm10", "PM10");
               push("nitrogen_dioxide", "NO\u2082");

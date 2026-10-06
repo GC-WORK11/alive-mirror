@@ -452,7 +452,7 @@ const s = StyleSheet.create({
     position: "absolute", top: -1, width: 3, height: 5,
     marginLeft: -1.5, borderRadius: 1.5,
   },
-  cellBand: { fontSize: 10, color: V2T.text3, marginTop: 5 },
+  cellBand: { fontSize: V2Type.micro, color: V2T.text3, marginTop: 5 },
   metaRow: {
     borderTopWidth: 1, borderTopColor: V2T.line,
     paddingVertical: 8, paddingHorizontal: 14,

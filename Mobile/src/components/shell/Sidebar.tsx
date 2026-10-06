@@ -16,7 +16,7 @@ import {
 import { F, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { tick } from "../../haptics";
-import { Icon, modeTint, vehicleGlyph, type Glyph } from "../../icons";
+import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { approx, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
@@ -330,8 +330,8 @@ function SidebarInner({
       accessibilityState={{ disabled: !onTripReceipt }}
       accessibilityLabel={`${placeNameLabel(tr.from, lang)} — ${placeNameLabel(tr.to, lang)}`}
       style={({ pressed }) => [s.trip, pressed && !!onTripReceipt && s.rowPressed]}>
-      <View style={[s.tripIcon, { backgroundColor: modeTint(tr.vehicle).wash }]}>
-        <Icon name={vehicleGlyph(tr.vehicle)} color={modeTint(tr.vehicle).ink} size={18} />
+      <View style={[s.tripIcon, { backgroundColor: V2T.accentWash }]}>
+        <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.accentInk} size={20} filled />
       </View>
       <View style={s.tripMid}>
         <Text {...DYNAMIC_TYPE} style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
@@ -758,7 +758,7 @@ const s = StyleSheet.create({
   dayCol: { flex: 1, alignItems: "center" },
   dayBarWrap: { height: 46, justifyContent: "flex-end" },
   dayBar: { width: 12, borderRadius: 6 },
-  dayLabel: { fontFamily: F.reg, fontSize: 10, color: V2T.text3, marginTop: 6 },
+  dayLabel: { fontFamily: F.reg, fontSize: 11, color: V2T.text3, marginTop: 6 },
 
   tripsHead: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -796,7 +796,7 @@ const s = StyleSheet.create({
     width: 26, height: 26, borderRadius: 8, backgroundColor: V2T.accentWash,
     alignItems: "center", justifyContent: "center",
   },
-  langBadgeTxt: { fontFamily: F.semi, fontSize: 10, color: V2T.text2 },
+  langBadgeTxt: { fontFamily: F.semi, fontSize: 11, color: V2T.text2 },
 
   howBody: {
     fontSize: V2Type.secondary, color: V2T.text2, lineHeight: 22,
