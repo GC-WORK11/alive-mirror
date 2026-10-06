@@ -41,7 +41,7 @@ import {
   V2Tint,
   V2Type,
 } from "../theme";
-import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
+import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
 import { BreathEdge } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import {
@@ -307,7 +307,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
                 >
-                  {t("cityHeroLead", lang)}
+                  {t("cityHeroLead", lang, { w: t(feltKeyForBand(bandIdx(pm.mid)), lang) })}
                 </Text>
                 <View style={ss.heroRow}>
                   <Text {...DYNAMIC_TYPE}

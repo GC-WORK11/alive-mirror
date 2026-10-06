@@ -63,7 +63,7 @@ import {
   famMonoText,
   famSerif,
 } from "../theme";
-import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
+import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
 import { BreathEdge, CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
@@ -1262,7 +1262,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
               <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, {
                 fontFamily: mtext(lang), color: bandInkIdx(ambIdx) ?? V2T.text3,
               }]}>
-                {t("homeOutsideNow", lang, { n: Math.round(ambientUg) })}
+                {t("homeOutsideNow", lang, { n: Math.round(ambientUg), w: t(feltKeyForBand(ambIdx), lang) })}
               </Text>
             </View>
           )}

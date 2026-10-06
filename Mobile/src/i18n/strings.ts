@@ -201,7 +201,7 @@ const en = {
   // "Delhi today" — the consumer city view (docs/plan/07 §1)
   delhiTitle: "Delhi today",
   cityLoading: "reading Delhi's air…",
-  cityHeroLead: "a day of Delhi air",
+  cityHeroLead: "a {w} day of Delhi air",
   cityHeroUnit: "cigarettes of smoke",
   /** hero unit when the cigarette metaphor is off — the same figure in µg */
   cityHeroUnitUg: "µg of fine smoke (PM2.5) inhaled today",
@@ -543,6 +543,14 @@ const en = {
   band_poor: "poor",
   band_veryPoor: "very poor",
   band_severe: "severe",
+  /* felt words — the band spoken like a person, not a scale
+     (the minimal meaning layer: colour + one word, no glossary) */
+  felt_easy: "easy",
+  felt_fine: "fine",
+  felt_fair: "fair",
+  felt_heavy: "heavy",
+  felt_rough: "rough",
+  felt_harsh: "harsh",
   // the days ahead — /v2/outlook's own fold, rendered as served
   dayOutlookTitle: "the days ahead",
   dayLbl_today: "today",
@@ -602,7 +610,7 @@ const en = {
   goLabel: "go somewhere",
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "you've breathed today",
-  homeOutsideNow: "outside now ~{n} µg/m³",
+  homeOutsideNow: "outside ~{n} · {w}",
   homeOfBudget: "of ~{b} µg daily",
   homeWeek: "{n} µg this week",
   /* the sparse week strip — the city's forecast days stand in (dimmed)
@@ -646,6 +654,15 @@ const en = {
 } as const;
 
 export type StringKey = keyof typeof en;
+
+/** the felt-word for a band index — colour's name in one word
+    (the minimal meaning layer: colour + one word, no glossary) */
+const FELT_BY_BAND = [
+  "felt_easy", "felt_fine", "felt_fair",
+  "felt_heavy", "felt_rough", "felt_harsh",
+] as const;
+export const feltKeyForBand = (idx: number | null): StringKey =>
+  FELT_BY_BAND[Math.max(0, Math.min(5, idx ?? 1))] as StringKey;
 
 const hi: Record<StringKey, string> = {
   searchPlaceholder: "कहाँ जाना है?",
@@ -777,7 +794,7 @@ const hi: Record<StringKey, string> = {
   dataFromModelOnly: "सैटेलाइट से अंदाज़ा — लाइव स्टेशन फिर जुड़ रहे हैं",
   delhiTitle: "आज की दिल्ली",
   cityLoading: "दिल्ली की हवा पढ़ रहे हैं…",
-  cityHeroLead: "दिल्ली की हवा का एक दिन",
+  cityHeroLead: "दिल्ली की हवा का एक {w} दिन",
   cityHeroUnit: "सिगरेट के बराबर धुआँ",
   cityHeroUnitUg: "आज साँस में लिया बारीक धुआँ (PM2.5) — µg",
   cityHeroRange: "शायद {lo} से {hi} के बीच",
@@ -1110,6 +1127,12 @@ const hi: Record<StringKey, string> = {
   band_poor: "ख़राब",
   band_veryPoor: "बहुत ख़राब",
   band_severe: "गंभीर",
+  felt_easy: "हल्की",
+  felt_fine: "ठीक",
+  felt_fair: "मामूली",
+  felt_heavy: "भारी",
+  felt_rough: "कड़ी",
+  felt_harsh: "कठोर",
   // the days ahead — /v2/outlook का अपना मोड़, जैसा मिला वैसा
   dayOutlookTitle: "आने वाले दिन",
   dayLbl_today: "आज",
@@ -1167,7 +1190,7 @@ const hi: Record<StringKey, string> = {
   goLabel: "कहीं जाएँ",
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "आज आपने साँस में लिया",
-  homeOutsideNow: "बाहर अभी ~{n} µg/m³",
+  homeOutsideNow: "बाहर ~{n} · {w}",
   homeOfBudget: "~{b} µg दैनिक में से",
   homeWeek: "इस हफ़्ते {n} µg",
   homeWeekCity: "दिल्ली के अगले दिन",
