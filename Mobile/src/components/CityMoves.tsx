@@ -21,6 +21,7 @@ import {
   famMono,
   famMonoText,
   NUM,
+  V2Elev,
   V2Radius,
   V2T,
   V2Type,
@@ -296,14 +297,13 @@ export default CityMoves;
 
 const ss = StyleSheet.create({
   card: {
+    ...V2Elev.card,
     marginHorizontal: 16,
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderRadius: V2Radius.card,
     backgroundColor: V2T.surface,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
   },
   title: { color: V2T.text, fontSize: V2Type.body },
   sub: { color: V2T.text3, fontSize: V2Type.label, marginTop: 2 },

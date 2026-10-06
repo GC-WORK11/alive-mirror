@@ -761,8 +761,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginHorizontal: 14, marginTop: 4, marginBottom: 2, minHeight: 34,
     paddingHorizontal: 12, paddingVertical: 7,
-    backgroundColor: V2T.surface, borderRadius: V2Radius.pill,
-    borderWidth: 1, borderColor: V2T.hairline,
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.pill,
   },
   vehChipTxt: { fontSize: V2Type.label, color: V2T.text2, maxWidth: 220 },
   /* "PUC" badge — marks a profile carrying the pollution certificate */
@@ -782,7 +781,7 @@ const s = StyleSheet.create({
   refineRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2 },
   degradedRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2,
     paddingVertical: 5, paddingHorizontal: 10, borderRadius: V2Radius.row,
-    backgroundColor: V2T.accentWash, borderWidth: StyleSheet.hairlineWidth, borderColor: V2T.hairline },
+    backgroundColor: V2T.accentWash },
   legend: {
     flexDirection: "row", justifyContent: "flex-end", alignItems: "center",
     gap: 14, marginHorizontal: 28, marginTop: 7, marginBottom: 1,
