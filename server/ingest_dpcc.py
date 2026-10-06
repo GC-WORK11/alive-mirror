@@ -342,7 +342,7 @@ def _fetch_pages(client, links: list) -> dict:
         b64, label = b64_label
         for attempt in range(GET_ATTEMPTS):
             try:
-                r = client.get(PAGE.format(b64), timeout=25)
+                r = client.get(PAGE.format(b64), timeout=25, headers=_UA)
                 if r.status_code == 200:
                     return b64, label, r.text
                 if r.status_code < 500:
@@ -365,7 +365,7 @@ def _all_links(client) -> "tuple[list, str]":
     from the FIRST fetched page so nav-only stations are never missed.
     Index failure returns the verbatim reason."""
     try:
-        r = client.get(INDEX, timeout=25)
+        r = client.get(INDEX, timeout=25, headers=_UA)
         r.raise_for_status()
     except httpx.HTTPError as e:
         return [], f"{type(e).__name__}: {e}"[:160]
@@ -374,7 +374,7 @@ def _all_links(client) -> "tuple[list, str]":
         return [], "index fetched but no stName links (page churn?)"
     # one probe page for the nav superset (tree may be a subset of nav)
     try:
-        r = client.get(PAGE.format(links[0][0]), timeout=25)
+        r = client.get(PAGE.format(links[0][0]), timeout=25, headers=_UA)
         if r.status_code == 200:
             extra = [bl for bl in nav_links(r.text)
                      if bl[0] not in {b for b, _ in links}]
@@ -448,13 +448,13 @@ async def grab_async(client: httpx.AsyncClient,
         b = _cache["bundle"]
     else:
         try:
-            r = await client.get(INDEX, timeout=25.0)
+            r = await client.get(INDEX, timeout=25.0, headers=_UA)
             r.raise_for_status()
             links = station_links(r.text)
             if links:
                 try:
                     r2 = await client.get(PAGE.format(links[0][0]),
-                                          timeout=25.0)
+                                          timeout=25.0, headers=_UA)
                     if r2.status_code == 200:
                         have = {b for b, _ in links}
                         links += [bl for bl in nav_links(r2.text)
@@ -476,7 +476,7 @@ async def grab_async(client: httpx.AsyncClient,
                     for attempt in range(GET_ATTEMPTS):
                         try:
                             rr = await client.get(PAGE.format(b64),
-                                                  timeout=25.0)
+                                                  timeout=25.0, headers=_UA)
                             if rr.status_code == 200:
                                 pages[b64] = (label, rr.text)
                                 return

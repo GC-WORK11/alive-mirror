@@ -61,8 +61,10 @@ class FakeClient:
         self.routes = dict(routes)
         self.calls = []
 
-    def get(self, url, params=None, timeout=None):
+    def get(self, url, params=None, timeout=None, headers=None):
         self.calls.append(url)
+        if headers is not None and "Mozilla" not in str(headers.get("User-Agent", "")):
+            return FakeResp(406, "<html>406 ModSecurity</html>")
         v = self.routes.get(url, FakeResp(404, "<html>404</html>"))
         if isinstance(v, Exception):
             raise v
@@ -77,8 +79,10 @@ class FakeAsyncClient:
         self.routes = dict(routes)
         self.calls = []
 
-    async def get(self, url, params=None, timeout=None):
+    async def get(self, url, params=None, timeout=None, headers=None):
         self.calls.append(url)
+        if headers is not None and "Mozilla" not in str(headers.get("User-Agent", "")):
+            return FakeResp(406, "<html>406 ModSecurity</html>")
         v = self.routes.get(url, FakeResp(404, "<html>404</html>"))
         if isinstance(v, Exception):
             raise v
