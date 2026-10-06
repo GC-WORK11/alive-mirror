@@ -1000,7 +1000,11 @@ function DayPeekInner({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
           }]}>
             ≈{doseUgRound(data.rec.totalUg)}
           </Text>
-          <Text {...DYNAMIC_TYPE} style={[ss.peekUnit, { fontFamily: mono(lang) }]}>{t("unitUg", lang).split(" ")[0]}</Text>
+          {/* the FIRST-use gloss — "µg (micrograms)" whole; the strip
+             was supposed to live only on the dense hero slot below
+             (apk-rebuild-v7 fail: gloss rendered nowhere) */}
+          <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}
+            style={[ss.peekUnit, { fontFamily: mono(lang), flexShrink: 1 }]}>{t("unitUg", lang)}</Text>
           <View style={ss.peekDots}>
             {data.week.map((w) => (
               <View key={w.day} style={[ss.weekDot, {
