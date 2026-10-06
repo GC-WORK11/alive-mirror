@@ -55,6 +55,11 @@
   .feed.live i{background:var(--accent)}
   .feed.off{color:var(--wine);border-color:rgba(138,45,62,.35);background:var(--wine-wash)}
   .feed.off i{background:var(--wine)}
+  .tokbtn{font-family:inherit;font-size:inherit;letter-spacing:.16em;
+      text-transform:uppercase;padding:3px 10px;cursor:pointer;
+      border:1px solid rgba(36,86,214,.28);border-radius:6px;
+      color:var(--accent-ink);background:var(--accent-wash)}
+  .tokbtn:hover{border-color:var(--accent)}
 
   .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 70px}
   .statusline{padding:16px 0 4px;font-family:var(--mono);font-size:10.5px;
@@ -389,6 +394,7 @@
     <span class="mast-sub">the instrument's internals, honestly exposed · aggregates k≥3</span>
   </div>
   <div class="mast-r">
+    <button class="tokbtn" id="tokbtn" type="button">operator sign in</button>
     <span class="priv-badge">aggregates only · k≥3</span>
     <span id="updated">updated —</span>
     <span class="feed" id="feed"><i></i><span id="feedtxt">auto 30s</span></span>
@@ -535,9 +541,11 @@ const freshBadge=(flag)=>flag===true?'<span class="badge stale">stale</span>'
   :'<span class="badge">no data</span>';
 
 /* admin api is token-gated when ALIVE_ADMIN_TOKEN is set (loopback-only
-   otherwise). Page prompts once, keeps the bearer in sessionStorage.
-   prompt() blocks the event loop, so parallel 401s serialise — callers
-   behind the first prompt wake up to the stored token and just retry. */
+   otherwise). Nobody is asked for the token on load — the masthead's
+   'operator sign in' button is the only prompt trigger, so a phone
+   visitor lands straight on the public feeds. prompt() blocks the event
+   loop, so parallel 401s serialise — callers behind the first prompt
+   wake up to the stored token and just retry. */
 async function getJSON(u,retried){
   const tok=sessionStorage.getItem('alive_admin_tok');
   /* a stalled feed must land in its honest-empty state, not pin the
@@ -581,12 +589,6 @@ async function tick(){
        /fires the raw firms detections */
     '/health','/aqi?lat=28.6315&lon=77.2167','/fires',
     '/v2/why?lat=28.63&lon=77.22','/v2/city'];
-  if(!sessionStorage.getItem('alive_admin_tok')&&
-     !sessionStorage.getItem('alive_admin_tok_no')){
-    const t=prompt('alive·108 engine room — paste the operator token, or cancel to read the public feeds:');
-    if(t)sessionStorage.setItem('alive_admin_tok',t);
-    else sessionStorage.setItem('alive_admin_tok_no','1');
-  }
   const gated=!sessionStorage.getItem('alive_admin_tok');
   const res=await Promise.allSettled(urls.map(u=>
     (gated&&u.startsWith('/admin/api/'))
@@ -604,7 +606,8 @@ async function tick(){
        'connecting…' placeholder forever — say what is actually wrong */
     for(const [id,what] of [['firebar','fire feed'],['firemap-sub','fire feed'],
                             ['distmap-sub','district field'],
-                            ['fieldmap-sub','field grid']]){
+                            ['fieldmap-sub','field grid'],
+                            ['whyline2','driver feed']]){
       const el=$(id);
       if(el&&el.textContent.trim()==='connecting…')
         el.textContent=`${what} unreachable — retrying every 30s`;
@@ -2134,6 +2137,23 @@ async function paintFieldMap(param){
 
 function clock(){$('clock').textContent=
   new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST'}
+
+/* the token is an affordance, not a gate: first paint must be the public
+   board. the button asks on demand — prompt() is the operator's own
+   choice, so blocking their tap is honest */
+function tokBtnRefresh(){$('tokbtn').textContent=
+  sessionStorage.getItem('alive_admin_tok')?'sign out':'operator sign in'}
+$('tokbtn').addEventListener('click',()=>{
+  if(sessionStorage.getItem('alive_admin_tok')){
+    sessionStorage.removeItem('alive_admin_tok');
+    sessionStorage.removeItem('alive_admin_tok_no');
+    tokBtnRefresh();tick();return}
+  sessionStorage.removeItem('alive_admin_tok_no');
+  const t=prompt('alive·108 engine room — operator token (cancel keeps the public view):');
+  if(t)sessionStorage.setItem('alive_admin_tok',t);
+  else sessionStorage.setItem('alive_admin_tok_no','1');
+  tokBtnRefresh();tick()});
+tokBtnRefresh();
 tick();clock();setInterval(tick,30000);setInterval(clock,30000);
 </script>
 </body>
