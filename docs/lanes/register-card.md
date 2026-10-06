@@ -17,10 +17,13 @@ register in CSS vars — web siblings track this file, not a fork.
 2. **One-idea cards** — each card carries one thought (the move, the
    days ahead, how you felt, your budget). No dashboard grids.
 3. **Tinted surfaces** — a card CAN wear a wash: band wash for data,
-   `V2Tint` wells for identity. Colour lives ON components — the app
-   itself is never repainted.
+   clay/sand warm wash for breath/advice. Colour lives ON components —
+   the app itself is never repainted.
 4. **Icon-tile doors** — feature doors are tinted squares with a glyph +
-   label (map/forest, city/sky, trips/clay), not list rows.
+   label — and since cont.55 every door/option/ledger/sidebar icon well
+   wears the SAME forest `accentWash`/`accentInk`. The earlier
+   map/forest + city/sky + trips/clay trio read as a cheap pastel
+   parade; functional identity is ONE accent now.
 5. **Pill grammar** — selections are pills (ink fill for primary,
    tinted wash for selectable groups); tabs are segmented pills.
 6. **Mini-words** — `number + unit + ≤3-word label`; prose is rationed
@@ -31,9 +34,13 @@ register in CSS vars — web siblings track this file, not a fork.
    empty ledger, no-streets city) — never fake fills, never blank.
 9. **Component rows** — ledger rows / option cards / settings rows are
    designed objects: tinted icon tile + name + one stat + one qualifier.
-10. **Colour = identity or data, never decoration** — a band hue still
-    means pollution; a tint well means component identity; ink means
-    action. Nothing else.
+10. **Colour = meaning or data, never decoration** — the Apple-class
+    discipline the owner demanded: ONE accent (forest) for every
+    functional icon well; band hues ONLY where colour means air
+    quality; the clay/sand warm family survives ONLY as the
+    "breath/advice" semantic (ledger summary card, move-card verdict
+    fallback, AQI tile, checkin/onboarding breath rows). Two different
+    hues that don't MEAN two different things are a bug now.
 
 ## Surfaces — the ladder, and when translucency is allowed
 
@@ -80,11 +87,13 @@ as a rendering bug, not frost.
   backstage dialect reads as a different room, not a sibling store.
   Everything else about admin still tracks this card; its accent is
   canon-by-exception, not drift.**
-- **`V2Tint` component wells** — pastel identity colours that are NOT
-  the CPCB ramp: `forest` (map/go doors), `sky` (city surfaces), `clay`
-  (trips/ledger), `sand`, `plum`. Each well = `{wash, ink}`: a deep hue
-  pulled ~80% toward paper, plus its readable glyph ink. Colour here
-  means *component identity*.
+- **`V2Tint` wells** — `{wash, ink}` pairs pulled ~80% toward paper.
+  **Post-cont.55 usage is restricted**: `forest` = the accent family
+  (all functional wells); `clay`/`sand` = the warm "breath/advice"
+  family on its few semantic surfaces only; `sky`/`plum` are retired
+  from screens (kept in code for compat — do NOT reintroduce them as
+  component colours; a second cool hue beside forest reads as a
+  palette bug). Supporting-data tiles go neutral `surface2`+`text2`.
 - `band0..5` = `#7AAB59 #C8B25A #D58C4A #B85442 #8F3C49 #6E3C54` — the
   ONLY data colour (CPCB breaks `[30,60,90,120,250]`).
 - Washes blend solid toward white, never alpha: `bandWashIdx` 90%
@@ -118,8 +127,10 @@ as a rendering bug, not frost.
 - Motion: RN `Animated` only — `pressFx` (opacity .78 · scale .985) on
   every tappable card; sheet enter spring `damping 22 / stiffness 220`;
   drag-dismiss spring-back same tune; `FadeIn`/`CountUp` for mounts +
-  counters; `camDur` is 0 on sim (MapLibre SIGSEGV guard). Physics on
-  real interactions only — no decorative animation. No new libs.
+  counters; `camDur` is 0 on sim (MapLibre SIGSEGV guard); `BreathEdge`
+  (4.4s band-ink edge loop) is the ONE ambient motion — tinted hero
+  cards only, `useReduceMotion`-gated. Physics on real interactions
+  only — no decorative animation. No new libs.
 
 ## Do not
 
