@@ -320,7 +320,13 @@ function ReceiptSheetInner({
               <Text style={[s.detailTxt, NUM, { fontFamily: famMonoText(lang, "reg") }]} {...DYNAMIC_TYPE}>
                 {t("receipt_estLike", lang)}
                 {co2.hi - co2.lo > 0.05
-                  ? `  ·  ${r1(co2.lo)}–${r1(co2.hi)} kg`
+                  /* the raw band survives the >0.05 gate but rounds to the
+                     same 1dp value → "0.1–0.1 kg" read like a formatting bug;
+                     collapse to the single value (NavChrome co2 precedent).
+                     nav_kg also keeps the unit Devanagari in hi (किग्रा). */
+                  ? `  ·  ${r1(co2.lo) === r1(co2.hi)
+                    ? t("nav_kg", lang, { n: r1(co2.hi) })
+                    : t("nav_kg", lang, { n: `${r1(co2.lo)}–${r1(co2.hi)}` })}`
                   : ""}
               </Text>
               {data.pm25G != null && data.pm25G.hi > 0 && (() => {

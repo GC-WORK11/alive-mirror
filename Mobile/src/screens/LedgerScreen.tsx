@@ -72,12 +72,16 @@ const dayLabel = (ts: number, lang: Lang) =>
     day: "numeric",
     month: "short",
   });
-const timeLabel = (ts: number, lang: Lang) =>
-  new Date(ts).toLocaleTimeString(lang === "hi" ? "hi-IN" : "en-IN", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+/* "H:MM am" by hand — hi-IN's toLocaleTimeString leaks a Latin "am"/"pm"
+   on Android ICU (iOS renders Devanagari पूर्वाह्न/अपराह्न). Composing the
+   marker from daypart_* keeps both platforms in the same script. */
+const timeLabel = (ts: number, lang: Lang) => {
+  const d = new Date(ts);
+  const h24 = d.getHours();
+  const h12 = ((h24 + 11) % 12) + 1;
+  const mm = `${d.getMinutes()}`.padStart(2, "0");
+  return `${h12}:${mm} ${t(h24 < 12 ? "daypart_am" : "daypart_pm", lang)}`;
+};
 
 /** Stable row id — the same ts+route+mode tuple deleteTrip matches on. */
 const tripKey = (tr: Trip) => `${tr.ts}|${tr.from}|${tr.to}|${tr.vehicle}`;

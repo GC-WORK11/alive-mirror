@@ -353,6 +353,11 @@ const en = {
   followRoute: "follow the route line",
   boardMetro: "board {a} → {b}",
   arriveAt: "arrive {t}",
+  /* 12h clock markers — hi renders Devanagari पूर्वाह्न/अपराह्न (what iOS's
+     hi-IN ICU already shows); Android's toLocaleTimeString leaks Latin
+     "am"/"pm", so hi time labels are composed manually from these keys */
+  daypart_am: "am",
+  daypart_pm: "pm",
   breathedSoFar: "breathed {n} so far",
   offline: "can't reach the server — trying again",
   offlineStale: "offline — showing last known air",
@@ -938,6 +943,8 @@ const hi: Record<StringKey, string> = {
   followRoute: "नक्शे की लकीर के साथ चलें",
   boardMetro: "{a} पर चढ़ें → {b} पर उतरें",
   arriveAt: "{t} तक पहुँचें",
+  daypart_am: "पूर्वाह्न",
+  daypart_pm: "अपराह्न",
   breathedSoFar: "अब तक {n} साँस में लिया",
   offline: "सर्वर से संपर्क नहीं — फिर कोशिश हो रही है",
   offlineStale: "ऑफ़लाइन — पिछली ज्ञात हवा दिख रही है",
