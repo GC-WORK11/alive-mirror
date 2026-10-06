@@ -989,9 +989,11 @@ function rcPaint(e){
       ` · ${e.ist_label} ist<br>`+
       `brick = model called it cleaner · green = called it worse · grey = about right`;
     const d=e.model.delta;
-    rcUI.note.textContent=d
+    /* the note uppercases — µ opts out or µg reads "mg" (1000× off) */
+    const noT='<span style="text-transform:none">µg/m³</span>';
+    rcUI.note.innerHTML=d
       ?`the model called it lower in ${d.under_called} squares · about right in ${d.about_right} · higher in ${d.over_called}`+
-       ` · within ±${d.tol_ug} µg counts as right · average gap ${d.mean_signed_ug>0?'+':''}${d.mean_signed_ug} µg/m³`
+       ` · within ±${d.tol_ug} <span style="text-transform:none">µg</span> counts as right · average gap ${d.mean_signed_ug>0?'+':''}${d.mean_signed_ug} ${noT}`
       :'the saved hour and the model don’t share points — nothing to compare';
   }
 }
@@ -1078,7 +1080,7 @@ const rchUI={};
 function rchClear(){RCH.paintSeq++;   /* any in-flight chunked paint dies here */
   if(RCH.layer){RCH.layer.remove();RCH.layer=null}}
 function rchCap(t){rchUI.cap.textContent=t||''}
-function rchNote(t){rchUI.note.textContent=t||''}
+function rchNote(t){rchUI.note.innerHTML=t||''}
 function rchLoad(t){const e=rchUI.load;
   if(t==null){e.hidden=true;return}e.hidden=false;e.textContent=t}
 
@@ -1215,7 +1217,7 @@ async function rchInit(){
   rchUI.modes.innerHTML=RCH_MODES.map(m=>
     `<button type="button" data-m="${m}"${m===RCH.mode?' class="on"':''}>${m}</button>`).join('');
   rchUI.budgets.innerHTML=RCH_BUDGETS.map(v=>
-    `<button type="button" data-b="${v}"${v===RCH.budget?' class="on"':''}>≤${v} µg</button>`).join('');
+    `<button type="button" data-b="${v}"${v===RCH.budget?' class="on"':''}>≤${v} <span style="text-transform:none">µg</span></button>`).join('');
   rchUI.modes.addEventListener('click',e=>{const b=e.target.closest('button[data-m]');
     if(!b)return;RCH.mode=b.dataset.m;
     rchUI.modes.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
@@ -1226,7 +1228,7 @@ async function rchInit(){
     if(RCH.origin)rchSolve()});
   rchUI.arm.addEventListener('click',()=>RCH.armed?rchDisarm():rchArm());
   svg.addEventListener('pointerdown',rchClick,true);
-  rchNote('pick a mode and a dust budget — a cigarette is ≈316 µg — then press the button and tap the map')
+  rchNote('pick a mode and a dust budget — a cigarette is ≈316 <span style="text-transform:none">µg</span> — then press the button and tap the map')
   row.hidden=false;
 }
 
