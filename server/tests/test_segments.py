@@ -1,5 +1,4 @@
 """Offline tests for segments.py — synthetic field functions only."""
-import math
 
 from segments import (segment_doses, hotspots, summary, split_geometry,
                       conc_color)

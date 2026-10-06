@@ -21,7 +21,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi.testclient import TestClient  # noqa: E402
 
 import main  # noqa: E402
-import forecast  # noqa: E402
 from airfield import FIELD  # noqa: E402
 from forecast import FORECAST  # noqa: E402
 from v2 import day as v2day  # noqa: E402

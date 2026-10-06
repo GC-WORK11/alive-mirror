@@ -42,7 +42,7 @@ Contract — fetch(api_key=None, client=None, bbox=..., sleep=...) -> dict:
 """
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 import httpx

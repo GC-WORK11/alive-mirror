@@ -22,7 +22,6 @@ path.
 Run from server/:
     .venv/bin/python -m pytest tests/test_contract_sync.py -v
 """
-import math
 import os
 import re
 import sys

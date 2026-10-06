@@ -29,7 +29,6 @@ import heapq
 import math
 import os
 import struct
-from bisect import bisect_right
 from typing import Callable, Optional
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")

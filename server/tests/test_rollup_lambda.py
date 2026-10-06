@@ -6,7 +6,6 @@ AWS probe is forced offline, and validate_field is stubbed. Asserts the
 env-configured paths and the job dispatch too.
 Run from server/:  .venv/bin/python -m pytest tests/test_rollup_lambda.py -v
 """
-import gzip
 import json
 import os
 import sys

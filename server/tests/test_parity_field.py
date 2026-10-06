@@ -12,7 +12,6 @@ Tolerance convention matches test_core_parity.py: bit-exact for values
 import glob
 import gzip
 import json
-import math
 import os
 import random
 import sys

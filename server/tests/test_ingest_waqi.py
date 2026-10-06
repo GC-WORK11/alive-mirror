@@ -10,7 +10,6 @@ Run from server/:  python3 -m pytest tests/test_ingest_waqi.py
 """
 import os
 import sys
-import time
 
 import httpx
 import pytest

@@ -4,7 +4,6 @@ Reference values are computed from the doc's own formula
     dose_µg = Σ C·ME·VE·Δt      (doc 06 §1)
 on a constant field, so every assertion is the published math, not a fit.
 """
-import math
 
 import pytest
 

@@ -17,7 +17,6 @@ unbiasedness constraints F^T w = f0.
 
 import gzip
 import json
-import math
 import os
 import random
 import sys

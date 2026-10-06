@@ -23,7 +23,6 @@ router. Leg geometries are straight lines; the metro leg is inflated by
 METRO_DETOUR for network circuity. Walk legs follow the same
 straight-line convention the app already uses for OSRM fallbacks.
 """
-import math
 from typing import Callable, Optional
 
 import exposure

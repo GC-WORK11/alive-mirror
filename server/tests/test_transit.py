@@ -84,7 +84,7 @@ class TestMetroOption(unittest.TestCase):
 
     def test_metro_beats_walking_same_trip(self):
         opt = transit.metro_option(*KAROL_BAGH, *NOIDA_SEC_18, FIELD150)
-        km = sum(l["distance_km"] for l in legs) if False else opt["distance_km"]
+        km = opt["distance_km"]
         walk_all_s = km / 5.0 * 3600
         walk_all_dose = (150.0 * exposure.MICROENV["walking"]
                          * (exposure.VENTILATION_LPM["walking"] / 1000.0)

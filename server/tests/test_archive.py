@@ -11,7 +11,6 @@ import io
 import json
 import os
 import sys
-import time
 from datetime import date, datetime, timedelta, timezone
 
 import pytest

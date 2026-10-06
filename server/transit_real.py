@@ -29,7 +29,6 @@ import csv
 import heapq
 import io
 import json
-import math
 import os
 import pickle
 import statistics
@@ -39,7 +38,7 @@ import time
 import urllib.request
 import zipfile
 import re
-from typing import Callable, Optional
+from typing import Optional
 
 import exposure
 

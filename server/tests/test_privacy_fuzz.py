@@ -12,11 +12,9 @@ Run from server/:
     .venv/bin/python -m pytest tests/test_privacy_fuzz.py -v
 """
 import hashlib
-import math
 import os
 import re
 import sys
-import time
 
 import pytest
 

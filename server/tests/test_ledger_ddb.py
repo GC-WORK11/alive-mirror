@@ -8,7 +8,6 @@ surfacing via last_error, and the store selector's memory fallback.
 """
 import os
 import sys
-import time
 
 import pytest
 

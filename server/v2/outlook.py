@@ -31,10 +31,8 @@ out" day. When every day sits within noise of the rest (same flat rule
 as the card, applied to day means), there is no pick: the verdict says
 "no meaningful difference between days".
 """
-import math
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse

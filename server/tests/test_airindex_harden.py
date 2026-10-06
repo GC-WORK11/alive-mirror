@@ -538,7 +538,6 @@ class _FakeS3:
         return _Pager()
 
     def get_object(self, Bucket, Key):
-        import io
 
         class _Body:
             def __init__(self, data):

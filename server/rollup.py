@@ -33,7 +33,6 @@ Full field/unit/provenance contract: docs/plan/rollup-schema.md.
 Schedulable as plain functions or via `python rollup.py daily|weekly`.
 """
 import glob
-import gzip
 import json
 import math
 import os

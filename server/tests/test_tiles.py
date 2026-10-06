@@ -8,7 +8,6 @@ here it is: a hand-rolled v3 header + empty root directory is enough to
 exercise _PMTiles init and the 404 branch.
 """
 import importlib
-import json
 import os
 import struct
 import sys

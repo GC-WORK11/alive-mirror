@@ -55,8 +55,6 @@ still lands its first honest snapshot early.
 """
 import asyncio
 import glob
-import gzip
-import json
 import math
 import os
 import re

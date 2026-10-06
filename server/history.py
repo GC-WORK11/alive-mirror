@@ -23,7 +23,6 @@ import gzip
 import json
 import math
 import os
-import statistics
 from datetime import date as _date, datetime, timedelta, timezone
 from typing import Optional
 

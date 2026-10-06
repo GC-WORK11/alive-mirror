@@ -27,7 +27,6 @@ band at all.
 """
 import asyncio
 import math
-import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 

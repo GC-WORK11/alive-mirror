@@ -39,7 +39,7 @@ def split_geometry(geometry: dict, duration_s: float,
     if total <= 0:
         return []
     span_m = total * seg_seconds / duration_s
-    segs, cur, cur_m, carry_i = [], [coords[0]], 0.0, 0
+    segs, cur, cur_m = [], [coords[0]], 0.0
     acc = 0.0
     for i in range(1, len(coords)):
         a, b = coords[i - 1], coords[i]

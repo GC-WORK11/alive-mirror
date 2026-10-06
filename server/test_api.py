@@ -6,9 +6,7 @@ Run: .venv312/bin/python test_api.py        (server on :8000)
      .venv312/bin/python test_api.py --base http://host:port
 """
 import asyncio
-import json
 import sys
-import time
 
 import httpx
 

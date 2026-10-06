@@ -27,7 +27,7 @@ everywhere — parity-critical tests only need it on small systems.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Sequence
 
 try:

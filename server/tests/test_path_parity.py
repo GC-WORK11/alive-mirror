@@ -286,7 +286,6 @@ def test_reweight_releases_the_gil(blob):
     callable-field path re-acquires per edge so use a FieldView — the
     fully-released production fast path."""
     import threading
-    import time
 
     cpp = pytest.importorskip(
         "alive_core", reason="C++ module not built (server/core/build)")

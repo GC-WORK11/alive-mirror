@@ -42,7 +42,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from history_builder import (  # noqa: E402 - shared archive machinery
-    BASE, GOOD_UNITS, IST, LIST_PREFIX, _get, _list, _station_key,
+    BASE, GOOD_UNITS, IST, LIST_PREFIX, _get, _list,
 )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
