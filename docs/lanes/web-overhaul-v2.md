@@ -38,3 +38,15 @@ remove them but the understanding is so complex so many numbers".
   Report → docs/lanes/web-overhaul-v2-report.md.
 - Mobile has a sibling lane — coordinate via register-card.md,
   don't touch Mobile/.
+
+## DECODED REGISTER (from owner's two tabs — same study as app lane)
+Hero-per-viewport numeral/statement; chunky rounded one-idea cards
+with tinted pastel surfaces (KakaoBank mint/salmon/blue stack);
+feature doors as colorful icon tiles (Swiggy); pill grammar for
+interactive controls; accent color = component identity (band colors
+get saturated pastel tile surfaces); art/gradient-mesh for hero
+personality; honest designed empty states; words rationed to
+number+unit+≤3-word label — sentences only in CTAs/empty states.
+For web tiles specifically: stat tile = accent band-chip + huge
+numeral + unit + label-under — provenance becomes a caption line
+or hover, not a paragraph.
