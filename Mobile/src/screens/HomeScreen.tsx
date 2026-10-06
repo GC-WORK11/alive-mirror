@@ -1539,7 +1539,7 @@ const ss = StyleSheet.create({
   },
   heroNum: { fontSize: 88, lineHeight: 92, letterSpacing: -2 },
   heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, flex: 1 },
-  heroUg: { color: V2T.text2, fontSize: V2Type.title, paddingBottom: 14 },
+  heroUg: { color: V2T.text2, fontSize: V2Type.title, paddingBottom: 18 },
   heroMainRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
   heroGaugeCol: { alignItems: "center", paddingBottom: 8 },
   gaugeWrap: { width: 76, height: 76 },
