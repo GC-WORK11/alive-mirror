@@ -83,3 +83,27 @@ Safe-fix means mechanically removable with zero behavioral change.
 3. **commit `hygiene: single-source upstream URLs + ledger prefix`** — new `server/upstreams.py` (OPEN_METEO_MET, OPEN_METEO_AQ, OSRM_PUBLIC, OPENAQ_V3, PHOTON_API, PHOTON_REVERSE); 9 call sites switched; `trip#` inline → `LEDGER_SK_PREFIX`.
 
 Nothing touching Mobile/src, no route/feature/string removals, no reformatting.
+
+## Phase 2 — applied
+
+Commits on `base/v2` (each green under the full suite before landing):
+
+| commit | theme | delta |
+|---|---|---|
+| `8c2b483` | unused imports + dead locals (ruff F401/F841/F821, import-order clean) | 16 files, −30/+24: dropped `sys`/`time`/`Response`/`_id`/`_n`/`join`/`*` imports; fixed the real F821 bug (`day_of_week` ref → `resolved_weekday`, test-aware); kept protocol globals + lazy imports per plan |
+| `6d379b2` | zero-ref dead code (each symbol grep-verified across server/ Mobile/ Bridge/ web/) | 10 files, −66 lines: stations `mode` arg+branches, dead-arrival guard, 3 unused helpers, 3 stale locals, commented-out `_jvm.py` import, `showDistrictView` JS stub |
+| `3a41a63` | single-sourced constants | +`server/upstreams.py`; 9 call sites import `OPEN_METEO_MET/AQ`, `OSRM_PUBLIC`, `OPENAQ_V3`, `PHOTON_API/REVERSE` (module attrs preserved via `as`-aliases); `trip#` writes use `LEDGER_SK_PREFIX` |
+
+Except-narrowing batch (v2/deps, routegraph, airindex, main×4,
+fire_dose, future_data): **skipped at apply-time** — per-site try-bodies
+can still raise uncaught specific classes, but several sit inside
+startup/lifecycle paths where an incorrect exception type changes
+failure surfaces. The report's spec-level notes stay valid for a
+tightening pass with a running env; the only live change landed is
+`file_magic.py`'s pragma'd struct-contract pin.
+
+Not applied (by design, see Risk notes): `app/main.py`/`app/core/` slice
+still monkeypatched-but-present, AQI pipeline still triple-implemented,
+SQLite/DDB dual backends still runtime-selected, `scripts/rebuild` +
+`seeds.py` still reference missing inputs — all **review-needed**, none
+removed.
