@@ -83,6 +83,17 @@ def _engine_rows(resp):
     return n
 
 
+def _transit_rows(resp):
+    """Count plan rows backed by real GTFS legs. The first cold plan
+    could silently ship zero of these while road rows landed — a warm
+    report that never counts them can't notice transit is dead."""
+    n = 0
+    for o in (resp or {}).get("options", []):
+        if o.get("steps_source") == "gtfs":
+            n += 1
+    return n
+
+
 def main():
     global BASE
     args = [a for a in sys.argv[1:]]
@@ -115,15 +126,19 @@ def main():
 
     # 3. plan calls over real ODs until the engine contributes rows
     engine_at = None
+    transit_seen = 0
     for i, (label, a, b) in enumerate(WARM_ODS[:n_ods]):
         if time.time() - t0 > timeout:
             break
         ts = time.time()
         resp, err = _post_plan(a, b)
         n = _engine_rows(resp)
+        t = _transit_rows(resp)
+        transit_seen += 1 if t else 0
         opts = len((resp or {}).get("options", []))
         print(f"[{time.time()-t0:6.1f}s] /v2/plan {label:<22} "
               f"{time.time()-ts:5.1f}s rows={opts} engine_rows={n} "
+              f"transit_rows={t} "
               f"{err or ''}")
         if n > 0:
             engine_at = time.time() - t0
@@ -135,9 +150,10 @@ def main():
         time.sleep(10)
         resp, err = _post_plan(*WARM_ODS[0][1:3])
         n = _engine_rows(resp)
+        t = _transit_rows(resp)
         print(f"[{time.time()-t0:6.1f}s] retry {WARM_ODS[0][0]:<22} "
               f"rows={len((resp or {}).get('options', []))} "
-              f"engine_rows={n} {err or ''}")
+              f"engine_rows={n} transit_rows={t} {err or ''}")
         if n > 0:
             engine_at = time.time() - t0
 
@@ -190,8 +206,15 @@ def main():
         print(f"[{time.time()-t0:6.1f}s] /tiles/health {e5 or tj} "
               f"(app falls back to hosted OpenFreeMap tiles)")
 
+    if transit_seen == 0 and engine_at is not None:
+        # not fatal — honest geography means some ODs have no GTFS leg —
+        # but zero across the whole audit set reads exactly like the
+        # first-plan wart, so say it out loud.
+        print("NOTE: no GTFS transit rows on any plan OD — if these ODs "
+              "served transit before, the transit arm is likely starved")
     if engine_at is not None:
-        print(f"WARM: priced engine serving after {engine_at:.0f}s")
+        print(f"WARM: priced engine serving after {engine_at:.0f}s · "
+              f"transit rows on {transit_seen} plan OD(s)")
         return 0
     print(f"TIMEOUT: engine rows never appeared within {timeout}s — "
           f"check /ecs/alive108 logs for the reweight loop")

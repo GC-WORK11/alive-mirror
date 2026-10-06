@@ -1134,6 +1134,18 @@ FIELD_REFRESH_BUDGET_S = 10.0
 # first plan can race the boot-time feed compile; without this the
 # scan eats the whole 20 s and even motorized options are lost.
 TRANSIT_BUDGET_S = 12.0
+# Private pool, same fix shape as _ENG_EXEC below: asyncio.to_thread
+# lands on the shared default executor, which the boot-warm fleet
+# saturates for the first minutes of a cold task (graph load, reprice
+# sweeps, krige grids, static/community loads, archive+ingest work).
+# The first plan's transit callable queued behind that fleet and the
+# 12 s budget elapsed before it ever ran — the wart from the apk-v4
+# drive: 'Metro + walk' absent from the first cold plan while every
+# road row landed (AWS + _ENG_EXEC paths), present on re-plan once
+# the pool drained. Two workers so a plan and a reroute overlap
+# without queueing, but GTFS scans can never stack CPU storms.
+_TRANSIT_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="alive-transit")
 
 # Geometry ending more than this far from the requested destination is
 # a clipped route — the option must say so (see _option's truncation
@@ -1209,8 +1221,9 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
     # only after the gather resolved, so a far OD serialized motor+engine
     # (~8-10s) then transit's own 12s cap and overshot PLAN_BUDGET_S:
     # _options_bounded then returned 'planner timed out' with zero rows.
-    # Sync GTFS stays off-loop via to_thread (its 12 s cap still applies;
-    # a slow scan just drops the transit legs, never the whole plan).
+    # Sync GTFS stays off-loop on a private pool (its 12 s cap still
+    # applies; a slow scan just drops the transit legs, never the whole
+    # plan — see _TRANSIT_EXEC for why the shared executor can't serve).
     # asyncio.wait (not gather): when the plan budget lands mid-arm the
     # arms that ALREADY finished still contribute their real rows — a
     # cancelled cold arm no longer drags complete ones to zero.
@@ -1224,9 +1237,12 @@ async def _build_options(flat, flon, tlat, tlon, vehicle, profile,
                 _ENG_EXEC, _engine_options, flat, flon, tlat, tlon,
                 vehicle, profile),
             timeout=ENGINE_BUDGET_S)),
-        asyncio.ensure_future(asyncio.wait_for(asyncio.to_thread(
-            _transit_options, flat, flon, tlat, tlon, vehicle, profile,
-            depart_at), timeout=TRANSIT_BUDGET_S)),
+        asyncio.ensure_future(asyncio.wait_for(
+            asyncio.get_running_loop().run_in_executor(
+                _TRANSIT_EXEC, functools.partial(
+                    _transit_options, flat, flon, tlat, tlon, vehicle,
+                    profile, depart_at)),
+            timeout=TRANSIT_BUDGET_S)),
     ]
     done, pending = await asyncio.wait(
         arms, timeout=PLAN_BUDGET_S - 2.0)

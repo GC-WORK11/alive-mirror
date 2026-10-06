@@ -134,6 +134,18 @@ async def _lifespan(_app: FastAPI):
             await asyncio.to_thread(GAZ._load)
             await asyncio.to_thread(history._load)
             await asyncio.to_thread(community._name_rows)
+            # The first-plan transit wart: compiled feeds still left the
+            # very first CSA scan (+ lazy _Grid rebuild on pickled feeds)
+            # to whoever's request arrived first. Run the plan arm's real
+            # callable once on a canonical metro OD (India Gate→Gurugram)
+            # on the transit pool — same work, just earlier; it fabricates
+            # nothing a request wouldn't compute itself.
+            from v2 import plan as _v2plan
+            await asyncio.get_running_loop().run_in_executor(
+                _v2plan._TRANSIT_EXEC,
+                lambda: _v2plan._transit_options(
+                    28.6129, 77.2295, 28.4593, 77.0724,
+                    "car", None, None))
         except Exception:
             pass
     asyncio.create_task(_warm_static())
