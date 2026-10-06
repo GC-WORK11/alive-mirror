@@ -461,8 +461,78 @@ h1 em{font-style:italic;color:var(--ink2)}
 .foot a{color:var(--ink2);text-decoration:none}
 .foot a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px}
+
+/* ---- the boot strip (docs/lanes/welcome-loading.md) -------------------
+   once per session (sessionStorage alive_boot_v1), ≤2.5s, type+number
+   beats only — the projector-room register: near-black field, faint mono
+   digits resolving into the REAL live field mean, colour only where it
+   means air (the CPCB band). Click/scroll/key skips instantly; second
+   visit never paints (removed during parse — see the <script> head). */
+#boot{position:fixed;inset:0;z-index:999;background:#0e1013;
+  color:#f2f0e9;display:flex;cursor:pointer;
+  transition:opacity .34s ease}
+#boot.bye{opacity:0;pointer-events:none}
+#boot .bt-in{position:relative;width:100%;display:flex;
+  flex-direction:column;justify-content:center;align-items:center;
+  padding:0 28px;text-align:center}
+#boot .bt-top,#boot .bt-foot{position:absolute;left:30px;right:30px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:10px;letter-spacing:.22em;
+  text-transform:uppercase;color:rgba(242,240,233,.42)}
+#boot .bt-top{top:30px}
+#boot .bt-foot{bottom:30px;justify-content:center}
+#boot .bt-corner{position:absolute;width:14px;height:14px;
+  border-color:rgba(242,240,233,.16);border-style:solid;border-width:0}
+#boot .bt-tl{top:20px;left:20px;border-top-width:1px;border-left-width:1px}
+#boot .bt-tr{top:20px;right:20px;border-top-width:1px;border-right-width:1px}
+#boot .bt-bl{bottom:20px;left:20px;border-bottom-width:1px;border-left-width:1px}
+#boot .bt-br{bottom:20px;right:20px;border-bottom-width:1px;border-right-width:1px}
+#boot .bt-digits{position:absolute;inset:0;display:flex;
+  align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:11px;line-height:18px;
+  letter-spacing:.32em;white-space:pre;text-align:center;
+  color:rgba(242,240,233,.10);pointer-events:none;
+  transition:opacity .3s ease}
+#boot.resolved .bt-digits{opacity:.4}
+#boot .bt-num{font-family:var(--serif);font-weight:300;
+  font-size:clamp(64px,15vw,128px);letter-spacing:-.02em;
+  line-height:1;opacity:0;transform:translateY(8px);
+  transition:opacity .3s ease,transform .3s ease,color .12s linear}
+#boot .bt-num .u{font-family:var(--mono);font-size:11px;
+  letter-spacing:.18em}
+#boot.resolved .bt-num{opacity:1;transform:none}
+#boot .bt-word{margin-top:16px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.26em;text-transform:uppercase;
+  opacity:0;transition:opacity .26s ease}
+#boot.banded .bt-word{opacity:1}
+#boot .bt-line{position:absolute;left:0;right:0;bottom:26%;
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:rgba(242,240,233,.42)}
+#boot .bt-line .cur{display:inline-block;width:.55em;height:.9em;
+  background:rgba(242,240,233,.5);vertical-align:-.08em;
+  animation:btblink 1.1s steps(1) infinite}
+@keyframes btblink{50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){
+  #boot .bt-line .cur{animation:none}
+  #boot .bt-num{transition:opacity .01s linear}}
 </style>
 </head><body>
+
+<!-- the boot strip — once per session; type+number beats, the product's
+     own intro. The parse-time gate at the head of <script> removes this
+     node on repeat visits before first paint. -->
+<div id="boot" role="status" aria-label="alive·108 — intro">
+  <div class="bt-corner bt-tl"></div><div class="bt-corner bt-tr"></div>
+  <div class="bt-corner bt-bl"></div><div class="bt-corner bt-br"></div>
+  <div class="bt-top"><span>alive·108 — delhi ncr</span><span>skip</span></div>
+  <div class="bt-in">
+    <div class="bt-digits" id="btDigits" aria-hidden="true"></div>
+    <div class="bt-num"><b id="btNumV"></b><span class="u" id="btUnit"></span></div>
+    <div class="bt-word" id="btWord"></div>
+  </div>
+  <div class="bt-line"><span id="btLine">reading the field…</span><span class="cur"></span></div>
+  <div class="bt-foot" id="btFoot">the field knows what delhi breathed</div>
+</div>
 
 <header class="top"><div class="top-in">
   <a class="wm" href="/">ALIVE<i>·</i>108</a>
@@ -619,6 +689,12 @@ h1 em{font-style:italic;color:var(--ink2)}
 </div></footer>
 
 <script>
+/* the boot strip's parse-time gate — runs before first paint, so a
+   second visit this session never flashes the overlay (the strip body
+   itself mounts further down with the rest of the page machinery) */
+(()=>{const b=document.getElementById('boot');if(!b)return;
+  try{if(sessionStorage.getItem('alive_boot_v1'))b.remove()}
+  catch(e){b.remove()}})();
 const $=id=>document.getElementById(id);
 /* every fetch carries a deadline — a stalled endpoint must land in the
    caller's honest-degrade path, not hang the surface forever */
@@ -1672,6 +1748,64 @@ async function status(){
   }
 }
 
+/* --- the boot strip (lane: welcome-loading) -----------------------------
+   the projector-room grammar on our own register: faint mono digits
+   flipping like a film strip, resolving into the REAL live field mean —
+   band-coloured with the band's own word, provenance under it. once per
+   session (the parse-gate above), out inside ~2.5s, skipped on any
+   input, honest when the field can't answer — never a fake number. */
+function bootStrip(){
+  const b=$('boot');if(!b)return;
+  try{sessionStorage.setItem('alive_boot_v1','1')}catch(e){}
+  const dig=$('btDigits'),numV=$('btNumV'),unit=$('btUnit'),
+        word=$('btWord'),line=$('btLine'),foot=$('btFoot');
+  const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const drow=(n,seed)=>{let s='';for(let i=0;i<n;i++)
+    s+=(seed*31+i*17+i*i)%10;return s};
+  const frame=()=>Array.from({length:7},
+    (_,r)=>drow(30,r*7+Math.floor(Math.random()*9))).join('\n');
+  dig.textContent=frame();
+  const flip=rm?null:setInterval(()=>{dig.textContent=frame()},180);
+  let done=false,resolved=false,settled=false,pastMin=false,v=null;
+  const bye=()=>{if(done)return;done=true;
+    if(flip)clearInterval(flip);
+    b.classList.add('bye');setTimeout(()=>b.remove(),400)};
+  ['click','wheel','keydown','touchstart'].forEach(k=>
+    addEventListener(k,bye,{capture:true,once:true}));
+  api('/v2/city',{},1800).then(d=>{
+    const m=d&&d.pm25_stats&&d.pm25_stats.mean;
+    if(typeof m==='number')v=m;settled=true;tryResolve();
+  }).catch(()=>{settled=true;tryResolve()});
+  const resolve=()=>{
+    if(done)return;
+    b.classList.add('resolved');
+    if(v!=null){
+      const i=bandIdx(v,SPECS.pm2_5.breaks);
+      numV.textContent=v>=100?`${Math.round(v)}`:v.toFixed(1);
+      unit.textContent=' µg/m³';
+      setTimeout(()=>{if(done)return;
+        b.classList.add('banded');
+        const c=`rgb(${BAND[i].join(',')})`;
+        numV.style.color=c;word.style.color=c;
+        word.textContent='pm2.5 · '+BAND_NAME[i];
+        line.textContent='live · field mean over the ncr lattice';
+        foot.textContent='the app counts what you breathe';
+      },rm?0:500);
+    }else{
+      word.textContent='no live air reading right now';
+      b.classList.add('banded');
+      line.textContent='the field serves nothing yet — never faked';
+    }
+  };
+  const tryResolve=()=>{
+    if(!resolved&&settled&&(pastMin||rm)){resolved=true;resolve()}};
+  setTimeout(()=>{pastMin=true;tryResolve()},750);
+  /* the honesty deadline — an unanswered field commits the type-only
+     frame, not a longer wait */
+  setTimeout(()=>{if(!resolved){resolved=true;settled=true;resolve()}},1450);
+  setTimeout(bye,rm?1900:2350);
+}
+bootStrip();
 renderPills();paint();status();loadDistricts();tlInit();heroCity();dayStrip();skillLine();whyTonight();
 let rsz=null;window.addEventListener('resize',()=>{
   clearTimeout(rsz);rsz=setTimeout(()=>{
