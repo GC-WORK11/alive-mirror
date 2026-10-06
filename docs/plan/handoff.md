@@ -932,3 +932,20 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - Lanes running: apk-v9 (+KVM child 1c97d968), web-soul (breathing-
   card + same one-accent rule relayed for landing/city/admin),
   field-watch-2 (parali-ramp honesty). 4/5 + possible KVM child.
+
+## cont.56 — contrast AA + final canonical binary (Oct 6)
+- `518ff95` onboarding default journey well → forest (last sky gone).
+- `25bc92c` text3 #8A8D94 → #6E7278 (3.2:1 → 4.6:1 AA on paper) —
+  the owner's "contrast isn't sitting" complaint in a single token;
+  same bump relayed to web-soul for --ink3 on landing/city/community.
+- `5ce43c9` hero µg lifted (+4px) — its tail nearly touched the
+  "of ~216" budget caption under the gauge column.
+- Canonical binary NOW = alive108-25bc92c.apk (sha e1399ac3, attach
+  62395036) — carries contrast fix; 5ce43c9 padding rides the NEXT
+  build if cut (cosmetic only).
+- Web palette audit: landing/city/community/admin already disciplined —
+  CPCB band hues = data semantic only, forest accent = function;
+  web-soul lane owns ink3 bump + breath + accent sweep.
+- Merged to main `e49af4b` (design batch). Suite still 1151/5sk —
+  app-only changes since.
+- Slots: me + apk-v9 + KVM child + web-soul + field-watch-2 = 5/5.
