@@ -5,6 +5,7 @@ Run from server/:
 or directly:
     .venv312/bin/python tests/test_forecast.py
 """
+import math
 import os
 import sys
 import unittest
@@ -14,7 +15,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import httpx  # noqa: E402
 
-from forecast import ForecastField, FACTOR_MIN, FACTOR_MAX  # noqa: E402
+from forecast import (ForecastField, FACTOR_MIN, FACTOR_MAX, anchor_w,
+                      ANCHOR_BLEND_HOLD_H, ANCHOR_BLEND_END_H)  # noqa: E402
 
 LODHI_RD = (28.5918, 77.2277)  # central Delhi CPCB station
 
@@ -151,8 +153,11 @@ class TestAdvection(unittest.TestCase):
         self.assertGreater(v, 30.0)
 
     def test_overshooting_anchor_degrades_to_the_model(self):
-        """When the anchor's correction pushes below the physical floor,
-        pm25 serves the model's own number — never a clamped literal 0.0."""
+        """When the bias delta pushes below the physical floor, that
+        stage falls back to the model's own number — never a clamped
+        literal 0.0. The persistence blend (a separate, convex stage)
+        still applies on top — here it pulls the raw 30 base toward
+        the query cell's live read of 180 at w(+3h)~0.97."""
         f = _synthetic_field()
         # the west cell declines over the horizon so a displaced base
         # sits far below that cell's hour-0 model value
@@ -165,11 +170,12 @@ class TestAdvection(unittest.TestCase):
             return 0.5 if lon < 77.2 else 180.0
         # query EAST at +3h: westerly displaces the origin ~36 km west →
         # base ≈ 30 (the declined west cell); hour-0 bias there is
-        # (0.5 - ~199)·decay ≈ -142 → corrected << 0 → serve ~30 raw.
+        # (0.5 - ~199)·decay ≈ -142 → corrected << 0 → base stands raw;
+        # blend then gives 30 + w(3)·(180-30) ≈ 176.
         v = f.pm25(*self.EAST, 3, live=live)
         self.assertIsNotNone(v)
         self.assertGreater(v, 0.0)
-        self.assertAlmostEqual(v, 30.0, delta=10.0)
+        self.assertAlmostEqual(v, 30.0 + anchor_w(3) * 150.0, delta=8.0)
 
     def test_missing_met_degrades(self):
         """No met grid ⇒ undisplaced lookup — never None for a covered point."""
@@ -187,12 +193,12 @@ class TestAdvection(unittest.TestCase):
         self.assertIsNotNone(v)
         self.assertAlmostEqual(v, 137.0, places=6)
 
-    def test_anchor_decays_with_tau_never_overshoots_horizon(self):
-        """The correction is an e-folding persistence term, not a
-        permanent bias: at +9h ~37% of the hour-0 delta may remain, at
-        +24h ~7%, and by +48h the forecast is the model's own — the
-        anchor never overshoots the CAMS horizon it's anchored to."""
-        import math
+    def test_anchor_fitted_blend_never_overshoots_horizon(self):
+        """The fitted persistence weight — full hold to +2 h, linear to
+        0 by +40 h — bounds the live pull: inside the window the served
+        value sits between corrected-model and live (convex), and past
+        +40 h nothing but the ~9-h bias delta remains — the anchor can
+        never reach past the CAMS horizon it's anchored to."""
         f = _synthetic_field(wind_ms=0.1)
         live_v = 500.0                       # model says 20 at the cell
         def live(lat, lon):
@@ -200,8 +206,9 @@ class TestAdvection(unittest.TestCase):
         d0 = f.pm25(*self.EAST, 0, live=live) - f._idw(
             f._aq, *self.EAST, "pm2_5", f.hour_index(0))
         self.assertGreater(d0, 400)          # sanity: live >> model
-        idx0 = f.hour_index(0)
-        for h, max_ratio in ((9, 0.55), (24, 0.15), (48, 0.03), (96, 0.01)):
+        for h, lo_r, hi_r in ((3, 0.9, 1.01), (9, 0.75, 0.95),
+                              (24, 0.30, 0.55), (39, 0.02, 0.20),
+                              (48, 0.0, 0.03), (96, 0.0, 0.01)):
             idx = f.hour_index(h)
             if idx is None:
                 continue
@@ -210,12 +217,92 @@ class TestAdvection(unittest.TestCase):
             self.assertIsNotNone(corr)
             resid = abs(corr - model_h)
             self.assertLessEqual(
-                resid, max_ratio * abs(d0) + 1e-9,
+                resid, hi_r * abs(d0) + 1e-9,
                 f"h+{h}: residual {resid:.1f} not decayed vs {d0:.1f}")
-            # expected decay ~= exp(-h/TAU): also assert it's not
-            # pinned near zero (the anchor still carries signal early)
-            if h == 9:
-                self.assertGreater(resid, 0.2 * abs(d0))
+            # the blend still carries real signal deep in the window
+            self.assertGreaterEqual(
+                resid, lo_r * abs(d0) - 1e-9,
+                f"h+{h}: residual {resid:.1f} lost the anchor entirely")
+
+
+class TestPersistenceBlend(unittest.TestCase):
+    """The fitted nowcast blend — served = corrected + w·(live −
+    corrected) — on the synthetic two-cell field (calm ⇒ undisplaced,
+    so the query cell IS the parcel origin)."""
+
+    EAST = (28.6, 77.4)
+
+    def test_stationary_regime_serves_persistence_then_model(self):
+        """Steady state (live == the regime that persists): inside the
+        hold window the read IS the live value; through the fade it
+        sits strictly between corrected-model and live; past the end
+        it is the model's own (bias delta only)."""
+        f = _synthetic_field(wind_ms=0.1)
+        live = lambda lat, lon: 500.0        # east cell model = 20
+        # hold window: live verbatim
+        for h in (0, 1, 2):
+            self.assertAlmostEqual(
+                f.pm25(*self.EAST, h, live=live), 500.0, places=6)
+        # fade: strictly between the bias-corrected model and live
+        idx9 = f.hour_index(9)
+        m9 = f._idw(f._aq, *self.EAST, "pm2_5", idx9)
+        corr9 = m9 + (500.0 - m9) * math.exp(-(idx9 - f.hour_index(0)) / 9.0)
+        v9 = f.pm25(*self.EAST, 9, live=live)
+        self.assertLess(corr9, v9)
+        self.assertLess(v9, 500.0)
+        # past the end: the blend contributes exactly nothing — what
+        # remains is model + bias delta, identical to the step-change
+        # case below (not live=None: the delta is its own stage)
+        idx48 = f.hour_index(48)
+        m48 = f._idw(f._aq, *self.EAST, "pm2_5", idx48)
+        v48 = f.pm25(*self.EAST, 48, live=live)
+        self.assertAlmostEqual(
+            v48, m48 + (500.0 - m48) * math.exp(-(idx48 - f.hour_index(0)) / 9.0),
+            places=9)
+
+    def test_step_change_does_not_drag_past_window(self):
+        """A regime break: the live field steps to a level the model
+        never saw. Beyond +40 h the blend must contribute exactly
+        nothing — the served value is model + bias-delta only, never
+        dragged toward the stale step. Inside the window (control) it
+        must pull — proves the field is wired and the step is seen."""
+        f = _synthetic_field(wind_ms=0.1)
+        live = lambda lat, lon: 999.0        # east cell model = 20
+        idx0 = f.hour_index(0)
+        for h in (40, 41, 60, 96, 119):
+            idx = f.hour_index(h)
+            if idx is None:
+                continue
+            model_h = f._idw(f._aq, *self.EAST, "pm2_5", idx)
+            no_blend = model_h + (999.0 - model_h) * math.exp(
+                -(idx - idx0) / 9.0)
+            with_anchor = f.pm25(*self.EAST, h, live=live)
+            self.assertIsNotNone(with_anchor)
+            self.assertAlmostEqual(
+                with_anchor, no_blend, places=9,
+                msg=f"h+{h}: blend reached past its window")
+        # control: at +3 h the same step IS pulled toward live
+        v3 = f.pm25(*self.EAST, 3, live=live)
+        model3 = f._idw(f._aq, *self.EAST, "pm2_5", f.hour_index(3))
+        self.assertGreater(v3, model3 + 500.0)
+
+    def test_weight_shape_is_the_fitted_form(self):
+        """anchor_w is the fitted hold-then-linear-fade: flat 1.0
+        through HOLD_H, strictly decreasing to 0 at END_H, never
+        negative, never above 1."""
+        self.assertEqual(anchor_w(0.0), 1.0)
+        self.assertEqual(anchor_w(ANCHOR_BLEND_HOLD_H), 1.0)
+        prev = 1.0
+        h = ANCHOR_BLEND_HOLD_H + 1.0
+        while h < ANCHOR_BLEND_END_H:
+            w = anchor_w(h)
+            self.assertLess(w, prev)
+            self.assertGreater(w, 0.0)
+            prev = w
+            h += 1.0
+        self.assertEqual(anchor_w(ANCHOR_BLEND_END_H), 0.0)
+        self.assertEqual(anchor_w(ANCHOR_BLEND_END_H + 50), 0.0)
+        self.assertEqual(anchor_w(-3), 1.0)   # a past-hour slot is 'now'
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 import main  # noqa: E402
 from airfield import FIELD  # noqa: E402
-from forecast import FORECAST  # noqa: E402
+from forecast import FORECAST, anchor_w  # noqa: E402
 from v2 import deps  # noqa: E402
 from v2 import outlook as v2out  # noqa: E402
 
@@ -220,7 +220,8 @@ def _mk_outlook(day_mids):
 
 
 def test_fold_flat_day_no_windows():
-    d = v2out._fold_day(TODAY, _mk_pairs([100.0] * 24), TODAY, True, 9.0)
+    d = v2out._fold_day(TODAY, _mk_pairs([100.0] * 24), TODAY, True,
+                        anchor_w)
     assert d["heavy_hours_ist"] == []
     assert d["cleanest_window"] is None
     assert d["pm25_mid"] == 100.0
@@ -230,7 +231,7 @@ def test_fold_flat_day_no_windows():
 
 def test_fold_swinging_day_finds_windows():
     mids = [200.0] * 6 + [60.0] * 6 + [200.0] * 6 + [300.0] * 6
-    d = v2out._fold_day(TODAY, _mk_pairs(mids), TODAY, True, 9.0)
+    d = v2out._fold_day(TODAY, _mk_pairs(mids), TODAY, True, anchor_w)
     cw = d["cleanest_window"]
     assert cw is not None
     assert cw["pm25_mid"] == 60.0
@@ -248,7 +249,8 @@ def test_fold_swinging_day_finds_windows():
 def test_fold_short_sliver_is_honest():
     """A 5-6 h last-day sliver: folded, marked partial, and too short to
     claim a window."""
-    d = v2out._fold_day(TODAY, _mk_pairs([90.0, 95.0]), TODAY, True, 9.0)
+    d = v2out._fold_day(TODAY, _mk_pairs([90.0, 95.0]), TODAY, True,
+                        anchor_w)
     assert d["n_hours"] == 2 and d["partial"] is True
     assert d["cleanest_window"] is None
     assert d["pm25_mid"] == 92.5
@@ -256,7 +258,7 @@ def test_fold_short_sliver_is_honest():
 
 def test_outlook_flat_across_days():
     s = v2out.summarize_outlook(
-        _mk_outlook([[150.0] * 24] * 5), TODAY, True, 9.0)
+        _mk_outlook([[150.0] * 24] * 5), TODAY, True, anchor_w)
     assert s["flat"] is True
     assert s["best_day"] is None
     assert "no meaningful difference between days" in s["verdict"]
@@ -265,7 +267,8 @@ def test_outlook_flat_across_days():
 def test_outlook_picks_lowest_mean_day():
     days = [[200.0] * 24, [210.0] * 24, [120.0] * 24,
             [190.0] * 24, [180.0] * 24]
-    s = v2out.summarize_outlook(_mk_outlook(days), TODAY, True, 9.0)
+    s = v2out.summarize_outlook(_mk_outlook(days), TODAY, True,
+                                anchor_w)
     assert s["flat"] is False
     bd = s["best_day"]
     assert bd is not None
@@ -279,14 +282,16 @@ def test_outlook_picks_lowest_mean_day():
 def test_outlook_best_can_say_cleanest():
     """A genuinely low day (<60 mean) earns 'cleanest', not least-bad."""
     days = [[200.0] * 24, [50.0] * 24, [190.0] * 24]
-    s = v2out.summarize_outlook(_mk_outlook(days), TODAY, True, 9.0)
+    s = v2out.summarize_outlook(_mk_outlook(days), TODAY, True,
+                                anchor_w)
     assert "cleanest" in s["verdict"]
 
 
 def test_outlook_noise_spread_is_flat():
     """Day means within _FLAT_UG of each other = noise, not a pick."""
     days = [[150.0] * 24, [158.0] * 24, [146.0] * 24]
-    s = v2out.summarize_outlook(_mk_outlook(days), TODAY, True, 9.0)
+    s = v2out.summarize_outlook(_mk_outlook(days), TODAY, True,
+                                anchor_w)
     assert s["flat"] is True and s["best_day"] is None
 
 
@@ -294,10 +299,10 @@ def test_confidence_grade_follows_anchor_w():
     """h_mean drives the day grade: a day centred ~100h out is 'lo' and
     carries the raw-CAMS note."""
     far = v2out._fold_day(TODAY, _mk_pairs([100.0] * 24, h_start=96),
-                          TODAY, True, 9.0)
+                          TODAY, True, anchor_w)
     assert far["confidence"] == "lo"
     assert "note" in far
     near = v2out._fold_day(TODAY, _mk_pairs([100.0] * 6, h_start=0),
-                           TODAY, True, 9.0)
+                           TODAY, True, anchor_w)
     assert near["confidence"] in ("hi", "med")
     assert near["anchor_w"] > far["anchor_w"]

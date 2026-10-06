@@ -23,7 +23,8 @@ confidence machinery (imported from .day, not copied). Per-day numbers:
                 null on flat/short days
   confidence    the anchor-decay grade at the day's mid-horizon —
                 'lo' where raw CAMS leads (day-4 says so in `note`)
-  anchor_w      the day's anchor weight itself (exp(−h_mid/τ))
+  anchor_w      the day's anchor weight itself (forecast.anchor_w —
+                fitted: 1.0 to h+2, linear to 0 by h+40)
 
 The `best_day` pick is the lowest day-mean — the honest "worth going
 out" day. When every day sits within noise of the rest (same flat rule
@@ -72,7 +73,7 @@ def _day_label(d, today) -> str:
     return d.strftime("%A").lower()
 
 
-def _fold_day(d, pairs, today, has_krige: bool, anchor_tau_h: float) -> dict:
+def _fold_day(d, pairs, today, has_krige: bool, anchor_w_fn) -> dict:
     """Fold one IST day's served hours into its summary row.
 
     pairs: [(hour_row, band_half)] chronological — the same rows
@@ -102,7 +103,7 @@ def _fold_day(d, pairs, today, has_krige: bool, anchor_tau_h: float) -> dict:
                                 open_end=False)
 
     h_mean = sum(r["h"] for r in rows) / n
-    w = math.exp(-h_mean / anchor_tau_h)
+    w = anchor_w_fn(h_mean)
     conf = _conf(w, has_krige)
 
     out = {
@@ -130,11 +131,11 @@ def _fold_day(d, pairs, today, has_krige: bool, anchor_tau_h: float) -> dict:
 
 
 def summarize_outlook(day_pairs, today, has_krige: bool,
-                      anchor_tau_h: float) -> dict:
+                      anchor_w_fn) -> dict:
     """day_pairs: [(date, [(row, band_half), ...])] chronological.
     Returns {days, best_day, flat, verdict, horizon_hours} — pure, so
     tests can feed synthetic folds without the forecast field."""
-    days = [_fold_day(d, pairs, today, has_krige, anchor_tau_h)
+    days = [_fold_day(d, pairs, today, has_krige, anchor_w_fn)
             for d, pairs in day_pairs]
     all_mids = [p[0]["pm25_mid"] for _d, pairs in day_pairs for p in pairs]
     horizon_hours = len(all_mids)
@@ -193,9 +194,10 @@ async def outlook(lat: float, lon: float):
 
     from forecast import FORECAST
     try:
-        from forecast import ANCHOR_TAU_H
+        from forecast import anchor_w as _aw
     except Exception:
-        ANCHOR_TAU_H = 9.0
+        def _aw(h):
+            return max(0.0, 1.0 if h <= 2 else (40.0 - h) / 38.0)
     F = deps.field()
     ist_now = datetime.now(_IST)
     today = ist_now.date()
@@ -221,7 +223,7 @@ async def outlook(lat: float, lon: float):
             day_pairs.append((d, cur_rows))
             cur_date = d
         entry = _hour_entry(lat, lon, h, t_iso, dt_utc, sigma0, adj,
-                            ANCHOR_TAU_H)
+                            _aw)
         if entry is None:
             continue                    # a real model hole — skipped
         cur_rows.append(entry)
@@ -254,7 +256,7 @@ async def outlook(lat: float, lon: float):
         }
 
     s = summarize_outlook(day_pairs, today, sigma0 is not None,
-                          ANCHOR_TAU_H)
+                          _aw)
     payload = {
         "lat": lat,
         "lon": lon,

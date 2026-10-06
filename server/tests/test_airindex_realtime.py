@@ -150,12 +150,17 @@ def test_forecast_anchors_exactly_at_current_hour():
 
 def test_forecast_anchor_decays_toward_model():
     """Far-horizon slots converge on raw CAMS — the live correction is
-    persistence, not a permanent bias."""
+    persistence, not a permanent bias. Two stages: the bias delta
+    decays exp(-h/9); on top, the fitted blend pulls toward the live
+    read with anchor_w(h) = 1 to h+2, linear to 0 by h+40."""
     ff = _forecast_field(live=lambda la, lo: 100.0)
     v24 = ff.pm25(*LODHI, 24)
     v48 = ff.pm25(*LODHI, 48)
-    # delta 60: exp(-24/9)~7% -> ~44.2; exp(-48/9)~0.5% -> ~40.3
-    assert v24 == pytest.approx(44.2, abs=1.0)
+    # h=24: corrected = 40+60·e^(-24/9) ~= 44.2; w = 16/38 ~= 0.421 ->
+    # blend = 44.2 + 0.421·(100-44.2) ~= 67.7
+    assert v24 == pytest.approx(67.7, abs=1.0)
+    # h=48 is past the blend's reach: the bias delta alone remains,
+    # 40 + 60·e^(-48/9) ~= 40.3
     assert v48 == pytest.approx(40.3, abs=0.8)
     assert v48 < v24
 
@@ -192,8 +197,13 @@ def test_default_live_anchor_is_airfield_field():
     assert ff._live is forecast._live_field_pm25
     st = ff.status()["live_anchor"]
     assert st["enabled"] is True and st["source"] == "airfield.FIELD"
-    assert st["tau_h"] == forecast.ANCHOR_TAU_H
+    assert st["bias_tau_h"] == forecast.ANCHOR_TAU_H
     assert st["max_age_s"] == forecast.ANCHOR_MAX_AGE_S
+    # the fitted persistence blend reports its shape honestly
+    bl = st["blend"]
+    assert bl["hold_h"] == forecast.ANCHOR_BLEND_HOLD_H
+    assert bl["end_h"] == forecast.ANCHOR_BLEND_END_H
+    assert bl["w_h1"] == 1.0 and 0.0 < bl["w_h11"] < 1.0
 
 
 def test_field_anchor_gated_by_serving_freshness(monkeypatch):
@@ -222,12 +232,16 @@ def test_departure_window_scores_anchored_now():
     its 'worst' slot can honestly be *right now*."""
     ff = _forecast_field(live=lambda la, lo: 100.0)
     w = ff.best_departure_window(*LODHI, 0, 4)
-    assert w["worst"]["hours_ahead"] == 0
+    # the hold window (w=1 through h+2) serves the live read verbatim —
+    # "right now" is tied-worst, not artificially safe
+    assert w["worst"]["hours_ahead"] <= 2
     assert w["worst"]["pm25_ugm3"] == pytest.approx(100.0, abs=1.0)
-    # best = furthest-out slot in the window: 40 + 60*exp(-3/9) ~ 83.0
+    # best = furthest-out slot: h=3 sits just past the hold window, so
+    # w ~ 0.974 — corrected 40+60·e^(-3/9) ~ 83.0, blended ~ 99.6
     assert w["best"][0]["hours_ahead"] == 3
+    corr = 40.0 + 60.0 * math.exp(-3 / forecast.ANCHOR_TAU_H)
     assert w["best"][0]["pm25_ugm3"] == pytest.approx(
-        40.0 + 60.0 * math.exp(-3 / forecast.ANCHOR_TAU_H), abs=1.0)
+        corr + forecast.anchor_w(3) * (100.0 - corr), abs=1.0)
 
 
 def test_forecast_reads_live_field_not_snapshot_paths():

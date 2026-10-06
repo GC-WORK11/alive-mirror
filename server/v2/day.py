@@ -16,8 +16,9 @@ never zero-filled.
 Bands: pm25_lo/hi open at the krige sigma the live field carries at the
 point and widen toward this clock-hour's measured climatological spread
 (OpenAQ p25-p75, ~9M station-hours — /shift's band basis) as the live
-anchor decays. The blend weight is the horizon's own e-fold
-(forecast.ANCHOR_TAU_H, ~9 h): at h=0 the band is the krige band; past
+anchor decays. The blend weight is the fitted persistence weight
+(forecast.anchor_w — 1.0 through h+2, linear to 0 by h+40, fitted on
+the served-vs-recorded archive): at h=0 the band is the krige band; past
 the anchor's reach it is the measured variability of that hour. When
 neither band source exists the keys are null — no invented precision.
 `confidence` is the anchor-decay grade (hi while the nowcast dominates,
@@ -53,8 +54,9 @@ _WIN_FRAC = 0.25     # a window must sit >= 1/4 of the day spread off the mean
 
 _TZ_NAME = "Asia/Kolkata"
 _MODEL = ("CAMS hourly forecast x ventilation stagnation correction, "
-          "advected on 10 m wind, anchored to the live station field "
-          "(anchor decays ~9 h)")
+          "advected on 10 m wind, live-anchored by parcel-bias delta "
+          "(decays ~9 h) and a fitted persistence blend (w=1 to h+2, "
+          "linear to 0 by h+40)")
 
 
 def _finite(lat, lon) -> bool:
@@ -68,9 +70,10 @@ def _ist_label(dt_utc: datetime) -> str:
 
 def _conf(anchor_w: float, has_krige_sigma: bool) -> str:
     """Anchor-decay confidence grade: hi while the nowcast dominates
-    (w>=0.7 ~ h<=3), med through the e-fold (w>=0.35 ~ h<=9), lo where raw
-    CAMS leads. No krige band at the point caps at 'med' — the band there
-    is climatological spread, not a measured interpolation error."""
+    (w>=0.7 ~ h<=12), med through the blend's fade (w>=0.35 ~ h<=26), lo
+    where raw CAMS leads. No krige band at the point caps at 'med' — the
+    band there is climatological spread, not a measured interpolation
+    error."""
     g = "hi" if anchor_w >= 0.7 else "med" if anchor_w >= 0.35 else "lo"
     if g == "hi" and not has_krige_sigma:
         return "med"
@@ -130,7 +133,7 @@ def _point_anchor(F, lat: float, lon: float, ist_now: datetime) -> tuple:
 
 def _hour_entry(lat: float, lon: float, h: int, t_iso: str,
                 dt_utc: datetime, sigma0, adj: float,
-                anchor_tau_h: float) -> Optional[tuple]:
+                anchor_w_fn) -> Optional[tuple]:
     """(row, band_half) for one served slot — row is the wire hour dict
     ({h,start,ist_label,pm25_mid,pm25_lo,pm25_hi,us_aqi,band,
     confidence}); band_half is the blended ± behind lo/hi, returned
@@ -147,7 +150,7 @@ def _hour_entry(lat: float, lon: float, h: int, t_iso: str,
     if v is None:
         return None
     ist_dt = dt_utc.astimezone(_IST)
-    w = math.exp(-h / anchor_tau_h)
+    w = anchor_w_fn(h)
     half_iqr = _clim_half_iqr(lat, lon, ist_dt.month, ist_dt.hour, adj)
     if sigma0 is not None and half_iqr is not None:
         band_half = w * sigma0 + (1.0 - w) * half_iqr
@@ -426,9 +429,10 @@ async def day(lat: float, lon: float):
 
     hours = []
     try:
-        from forecast import ANCHOR_TAU_H
+        from forecast import anchor_w as _aw
     except Exception:
-        ANCHOR_TAU_H = 9.0
+        def _aw(h):
+            return max(0.0, 1.0 if h <= 2 else (40.0 - h) / 38.0)
     for h in range(_H_DAY):
         slot = _resolve_slot(h)
         if slot is None:
@@ -438,7 +442,7 @@ async def day(lat: float, lon: float):
         if dt_utc.astimezone(_IST).date() > today:
             break
         entry = _hour_entry(lat, lon, h, t_iso, dt_utc, sigma0, adj,
-                            ANCHOR_TAU_H)
+                            _aw)
         if entry is None:
             # the slot exists but the model has no value — a real hole,
             # not a zero (never fabricate the hour)
@@ -503,6 +507,7 @@ async def day(lat: float, lon: float):
 
 _BAND_BASIS = (
     "lo/hi = krige sigma at the point while the live anchor holds "
-    "(exp(-h/9h) weight), blended toward the clock-hour's measured "
-    "climatological interquartile spread (OpenAQ p25-p75) as the anchor "
-    "decays; null when neither band exists")
+    "(fitted persistence weight w=1 to h+2, linear to 0 by h+40), "
+    "blended toward the clock-hour's measured climatological "
+    "interquartile spread (OpenAQ p25-p75) as the anchor decays; null "
+    "when neither band exists")

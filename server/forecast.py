@@ -11,16 +11,31 @@ moved smoke (capped at ADV_MAX_M, degrades to undisplaced when met is
 missing). Query anywhere inside the NCR bbox via the same IDW scheme
 as AirField (p=2, named stations weighted 3x).
 
-Live-field anchor (r5): the forecast horizon is a model fetch — FIELD
-has no future data, so refresh() must pull its own grids — but every
-pm25() read is ANCHORED to the live field: delta = (live - corrected
-model now), applied with exp(-h/ANCHOR_TAU_H) decay, so the forecast
-starts at what the served field actually reports and relaxes toward raw
-CAMS over ~9 h. The live value comes from airfield.FIELD — the same
-freshness-honest serving layer the app reads (live pull or newest
-snapshot, never a stale file path this module manages). A stale (>3 h)
-or empty field contributes nothing — the raw model stands, honestly
-flagged in status().
+Live-field anchor (r5 + the 2026-10-06 persistence-blend pass): the
+forecast horizon is a model fetch — FIELD has no future data, so
+refresh() must pull its own grids — but every pm25() read is ANCHORED
+to the live field in two stages:
+
+  1. bias delta — (live - corrected model now) at the advected parcel
+     origin, applied with exp(-h/ANCHOR_TAU_H) decay: removes the
+     model's current bias from its own future, relaxing toward raw
+     CAMS over ~9 h.
+  2. persistence blend — the corrected value is then pulled toward
+     the last observed value AT THE QUERIED CELL with weight
+     anchor_w(h): 1.0 through h+2, linear to 0 by h+40. Fitted on the
+     served-vs-recorded archive (docs/lanes/forecast-skill-report.md) —
+     the standard nowcasting hand-off where an observation-led
+     extrapolation dominates short lead and yields to the model as
+     lead grows (Bowler, Pierce & Seed 2006 STEPS blends radar
+     extrapolation with NWP this way; Haiden et al. 2011 INCA
+     likewise). Here 'extrapolation' is same-cell persistence of the
+     served field — the baseline the forecast must beat.
+
+The live value comes from airfield.FIELD — the same freshness-honest
+serving layer the app reads (live pull or newest snapshot, never a
+stale file path this module manages). A stale (>3 h) or empty field
+contributes nothing — the raw model stands, honestly flagged in
+status().
 
 Real data only: every upstream failure degrades to None — nothing is
 invented.
@@ -52,6 +67,28 @@ CACHE_TTL = 1800  # 30 min — forecast cycles update ~hourly
 # decayed.
 ANCHOR_TAU_H = 9.0
 ANCHOR_MAX_AGE_S = 3 * 3600
+
+# Persistence-blend weight w(h), fitted on the archive's served-vs-
+# recorded pairs (field-*.json.gz forecast blocks vs the recorded
+# field they targeted, 2026-10-05 20:00 → 10-06 08:00 IST):
+# per-horizon MAE-optimal weights held ~0.8-0.95 through h+11 while
+# the model over-called +10 to +70 µg; the fitted line is
+# w = 1.0 for h <= 2 h, then (END - h)/(END - HOLD) to 0 at 40 h.
+# Convexity bounds the risk: |blend - truth| <= w·|persist - truth| +
+# (1-w)·|model - truth| pointwise, so inside the window the blend can
+# never do worse than the worse of the two, and past END_H the model
+# stands alone.
+ANCHOR_BLEND_HOLD_H = 2.0
+ANCHOR_BLEND_END_H = 40.0
+
+
+def anchor_w(h: float) -> float:
+    """Persistence weight at lead `h` hours — 1.0 through the hold
+    window, linear to 0 at ANCHOR_BLEND_END_H, never negative."""
+    if h <= ANCHOR_BLEND_HOLD_H:
+        return 1.0
+    return max(0.0, (ANCHOR_BLEND_END_H - h)
+               / (ANCHOR_BLEND_END_H - ANCHOR_BLEND_HOLD_H))
 
 # pm25(live=...) / ForecastField(live=...) sentinel: the default live
 # source is airfield.FIELD — pass None to disable, or a callable
@@ -408,15 +445,49 @@ class ForecastField:
                 #    live, and a near-zero instrument is the truth.
                 #  * idx > idx0: the anchor extrapolated a same-site
                 #    hour-0 bias onto a small future signal past the
-                #    physical floor — the correction lost skill, so
-                #    serve the model's own number for that hour (real
-                #    physics, stated basis), not a clamped literal 0.0.
+                #    physical floor — the bias term lost skill, so the
+                #    model's own number stands (the persistence blend
+                #    below still applies — same rule as every hour).
                 idx0 = self.hour_index(0) or 0
                 if idx <= idx0:
                     return 0.0
-                return v if v > 0.0 else None
-            v = corrected
-        return v
+                if v <= 0.0:
+                    return None
+            else:
+                v = corrected
+        return self._blend_live(lat, lon, v, idx, live)
+
+    def _blend_live(self, lat: float, lon: float, v: float, idx: int,
+                    live=_FIELD_ANCHOR) -> Optional[float]:
+        """The persistence blend: v + w·(live − v), w = anchor_w(lead).
+
+        Reads the live truth at the QUERY cell — same-cell persistence
+        is the baseline this nowcast is fitted on and must beat; the
+        parcel-origin live read inside _live_delta belongs to the bias
+        delta alone. Fires only inside the anchor window (w>0), only
+        when a live read exists; a nonphysical blend (possible only via
+        a bad read on one side) yields the model's own value — never a
+        clamped literal."""
+        fn = self._live if live is _FIELD_ANCHOR else live
+        if fn is None:
+            return v
+        idx0 = self.hour_index(0)
+        if idx0 is None:
+            return v
+        w = anchor_w(idx - idx0)
+        if w <= 0.0:
+            return v
+        try:
+            lv = fn(lat, lon)
+            lv = float(lv) if lv is not None else None
+        except Exception:  # noqa: BLE001 - a bad live fn loses the anchor
+            return v
+        if lv is None:
+            return v
+        out = v + w * (lv - v)
+        if out <= 0.0:
+            return v if v > 0.0 else None
+        return out
 
     def pollutant(self, lat: float, lon: float, when: Union[int, float, datetime],
                   key: str = "pm10") -> Optional[float]:
@@ -482,7 +553,19 @@ class ForecastField:
                 "enabled": self._live is not None,
                 "source": ("airfield.FIELD" if self._live is _live_field_pm25
                            else "custom" if self._live is not None else None),
-                "tau_h": ANCHOR_TAU_H,
+                # the bias delta's e-fold (stage 1)
+                "bias_tau_h": ANCHOR_TAU_H,
+                # the persistence blend (stage 2) — fitted on the
+                # archive, 2026-10-05/06 IST pairs
+                "blend": {
+                    "form": "w=1.0 for h<=hold_h, then linear to 0 at end_h",
+                    "hold_h": ANCHOR_BLEND_HOLD_H,
+                    "end_h": ANCHOR_BLEND_END_H,
+                    "w_h1": round(anchor_w(1), 3),
+                    "w_h11": round(anchor_w(11), 3),
+                    "fitted_on": "served-vs-recorded archive pairs, "
+                                 "2026-10-05/06 IST",
+                },
                 "max_age_s": ANCHOR_MAX_AGE_S,
             },
         }
