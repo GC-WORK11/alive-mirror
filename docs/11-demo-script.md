@@ -9,11 +9,15 @@ ledger 11.5 µg / 0.04 cig-eq / avoided 167.9 µg.
 ## Beats (≈180 s)
 
 **0:00–0:18 — the problem, in one breath**
-Voiceover over the app's live field (cells tint the map red where the
-air sits): "Every Delhi commuter does this twice a day. Nobody checks
-what the trip puts in their lungs — because nobody could."
-On screen: tap the map → chip "67 µg/m³ · PM2.5 here · nearest sample
-1.3 km".
+Cold-open is a FELT line (winner-video pattern — scenario before
+product, docs/15): "It's morning in Delhi. The air outside your door
+is four cigarettes today — and nobody told you." (≈1,386 µg day ÷ 316
+µg/cig — re-derive the count on recording day from /v2/day breath.)
+Then the pivot: "Every Delhi commuter does this twice a day. Nobody
+checks what the trip puts in their lungs — because nobody could."
+On screen: the home hero breathes its band edge — ≈N µg already
+breathed — then tap the map → chip "67 µg/m³ · PM2.5 here · nearest
+sample 1.3 km".
 
 **0:18–0:45 — a decision, not a dashboard**
 Type FROM: Karol Bagh → TO: India Gate. Real Photon suggestions down to
