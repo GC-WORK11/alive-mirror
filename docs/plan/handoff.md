@@ -785,3 +785,30 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
   lens early-state, budget, ledger, receipt, pick→Start, pcap clean,
   420dpi no overflow) — used-phone state proven on Android.
 - RUNNING: vibe-polish 0e6b4f43, apk-v5 9c5274ef (+KVM child pending).
+
+## cont.48 — GRAP + coldread + vibe + apk-v5 + deploy 913b002b (2026-10-06 ~03:15 UTC)
+- grap-stage `83d47de`: honest GRAP-EQUIVALENT on /v2/day + /v2/city
+  ({equivalent_stage, aqi, basis, note:"computed... not the official
+  CAQM declaration"}; CAQM I=201-300/II=301-400/III=401-450/IV=>450).
+  KILLED A REAL BUG: /aqi grap_indicative was a second PM2.5-band
+  formula — delegates to the one map now (no two surfaces can
+  disagree). /city hero + /admin lines "maps to ... rules", hidden
+  when cold. Suite 1143/5. LIVE VERIFIED: day→stage I (aqi287),
+  city→stage 0 (aqi196), bases labeled.
+- coldread `7facc34`: every unparseable token → Delhiite English —
+  µg→"µg (micrograms)" first-use gloss, "least-smoke rd"→"least smoky
+  way", accounted→counted, est.→about, "the field"→"smoke map"; hi
+  leaks killed (DELHI→दिल्ली, +Nh→+Nघं, am/pm→N बजे, wire tokens
+  localized). en+hi parity verified on-device.
+- vibe `9b3abe4`+report `2367679`: THE "looks odd" root cause — content
+  panes at 91-95% glass ghosted the map through text (read as render
+  bug). Rule codified: content panes solid V2T.bg+hairline; glass only
+  where map shows. Days-ahead numerals own cells, ledger dose hero,
+  compare suffix wrap fix. Flagged: sim SIGSEGV (MapLibre GPU class,
+  pre-existing, dev-bundle artifact — candidate lane later if wanted).
+- apk-v5 11/11 PASS @0a26f5a (jitter no-arrive, dedupe both-land,
+  offline lands-once, 0km 422, pcap clean, +390ms cold-open, hi no-tofu)
+  — binary superseded by apk-final (carries vibe+coldread).
+- Deploy 913b002b task 177 live+verified; main 60e5a1d→? (this merge).
+- RUNNING: judge-qa-v2 9c14f61a, field-drift-watch 87711066,
+  apk-final 34623675 (+KVM child pending).
