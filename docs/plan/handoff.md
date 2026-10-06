@@ -860,3 +860,37 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
   residual RN/keyboard-map race), day-in-life 1d092590.
 - APK 0b11123 ships vibe+coldread BUT predates overhaul; rebuild
   after overhaul+search-crash land.
+
+## cont.51 — overhaul epoch merged + owner door-palette rejection fixed (2026-10-06 ~08:05 UTC)
+- search-crash RESOLVED d791879: focus() inside mount-commit window
+  during live map transition → Hermes GC stomp SIGSEGV. All focus
+  calls gated on InteractionManager.runAfterInteractions; 36/36
+  clean opens on crash path; src/nav/searchSpring.test.ts locks it.
+- app-overhaul-v2 d210492 landed (V2Tint wells, DoorRow, band heroes).
+- OWNER REJECTED home door row ~07:30Z: three pastel hues clashing
+  (forest+salmon-band+clay), thin icons, weak contrast. LEAD FIX
+  d3c4c06 (not a lane): tiles → paper+hairline, identity colour moved
+  INTO the glyph chip, filled icon weight, labels full ink. Rule:
+  ONE colour family per screen; colour lives inside the chip, not
+  flooding the tile. KakaoBank rule confirmed.
+- web-overhaul-v2 c1fbfb8 landed + DEPLOYED (task def 180): landing
+  hero stat tile (LIVE chip + 80px serif + provenance), .door tiles,
+  .dchip band-washed districts, pastel .steps; city accent-chips +
+  band-washed .day tiles + whyline callouts; admin .kchip+.cap
+  comprehension layer (look untouched per owner). Suite 1136 green.
+- hi-parity-v2 ba99bd4: 534/534 keys, interpolated-literal leaks
+  fixed (share cigs/kg, nav banner server-English, timeAgo/fmtHr,
+  kg→किग्रा, place-name clipping). 23 captures, zero tofu.
+  FLAG: morning-brief "N बजे" notification code-only verified —
+  apk lane checking on device.
+- main merged 790672b; live c1fbfb88. Lead reverify table:
+  docs/lanes/demo-reverify-c1f-report.md — dose gap 10.2→365.0
+  (35.8×), 19 opts, why-history 29 builds/5.9h SURVIVES deploys
+  (S3 reader), day_mean 66.4 GRAP-eq-0, all inside published ranges.
+- RUNNING: apk-rebuild-v7 4ae64b00 + drive child d427683e (binary
+  carrying d3c4c06 door fix — released after GO msg), android-audit
+  32f32cb9 + KVM child 4e9dc61e. video-v7 brief committed — spawns
+  when a slot frees (cut6 predates overhaul + web-overhaul).
+- lane env note: stale server/core/build312/alive_core*.so still
+  bites fresh boxes (missing reach binding → 13 suite failures);
+  fix = bash core/build_ext.sh.
