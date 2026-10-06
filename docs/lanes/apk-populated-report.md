@@ -21,8 +21,8 @@
 
 | Surface | Verdict | Evidence |
 |---|---|---|
-| Counted hero + gauge | PASS | [hero.png](https://app.devin.ai/attachments/6e1803e9-5e0a-4700-9350-bfbdbcb3e9c7/hero.png) — "YOU'VE BREATHED TODAY ≈31 µg", gauge ring 14%, "of ~216µg daily", "0h52m accounted", "outside now ~84 µg/m³" band-dot. |
-| Week dots | PASS | same shot — 7 dots, today filled at dose fraction, 6 honest empty rings, "≈ 31µg this week". |
+| Counted hero + gauge | PASS | [hero-counted-frame.png](https://app.devin.ai/attachments/f68c47f9-4045-4007-8ba4-4770136ca520/hero-counted-frame.png) (recording @0:04) — "YOU'VE BREATHED TODAY ≈31 µg", gauge ring 14%, "of ~216µg daily", "0h52m accounted", "outside now ~84 µg/m³" band-dot. |
+| Week dots | PASS | same frame — 7 dots, today filled at dose fraction, 6 honest empty rings, "≈ 31µg this week". |
 | Day arc + trip mark | PASS | [home-scroll1.png](https://app.devin.ai/attachments/f037f80e-846a-4092-a5aa-2b09775f0505/home-scroll1.png) — covered-hour bars incl. trip-marked 01h, WHERE IT ACCUMULATED lists windows + "Car (AC) · least-smoke alt 1 · central Delh… ≈ 1.3µg". |
 | Days Ahead | PASS | same shot — 5-day chips (today 109 "least-bad"), "avg ~109 vs ~128 µg/m³", honest faded-days caveat line. |
 | Symptom check-in + lens | PASS | [bot2.png](https://app.devin.ai/attachments/380524bb-2a28-4869-85e2-e2aec4ae511c/bot2.png) — breath "meh" persisted-selected, "stays on this phone — never uploaded", early line "a few check-ins in — the pattern needs ~7 days" (the early state IS the pass). |
@@ -32,7 +32,7 @@
 | pick → Start (non-recommended) | PASS | [compare11.png](https://app.devin.ai/attachments/af3141aa-ee41-472a-a9ee-02d2b82f824e/compare11.png) picked "Car (AC) · least-smoke alt 1" (12.4km via Rajaji Marg; NOT the "lightest for you" recommended card); [nav1.png](https://app.devin.ai/attachments/a15e7732-da4b-4fc5-9b8a-0feeb06a7363/nav1.png) nav chrome "19 min · 12.4 km left" = the picked card's route, not the 12.07km recommendation. |
 | Live nav drive | PASS | [nav3.png](https://app.devin.ai/attachments/f48f2367-6045-4438-a19f-58d329a626b0/nav3.png) — position dot on-corridor, ≈1.1µg breathed / ≈0.4 kg put-out counters ticking, "2.3 km left", arrival landed with 2 distinct fixes ≤60m. |
 | DayPeek (map idle card) | PASS | [tour-map.png](https://app.devin.ai/attachments/92228f82-7e05-4b09-8244-2fdba969eb12/tour-map.png) — "YOUR DAY SO FAR ≈31 µg" + week dots + "now ~84 µg/m³" + freshness chip "11 min". |
-| "how sure" confidence | PASS | hero.png/bot2.png — THE MOVE card renders "confidence: low" (the compare cards carry dose bands; the confidence line lives on the move card in this build). |
+| "how sure" confidence | PASS | hero-counted-frame.png/home-scroll1.png — THE MOVE card renders "confidence: low" (the compare cards carry dose bands; the confidence line lives on the move card in this build). |
 | Consent-OFF silent | PASS | [plan-final.pcap](https://app.devin.ai/attachments/c9752e21-2556-4f8f-84c4-ac66f27c1b8b/plan-final.pcap) — full-session capture: GETs + POST /v2/plan only; donation gate never fired (`engine.ts` `shareEnabled` false). |
 | 420dpi overflow | PASS | every populated card above — no clipped text, no overlapping numbers, gauge/dots/strip render whole at `wm density 420`. |
 
