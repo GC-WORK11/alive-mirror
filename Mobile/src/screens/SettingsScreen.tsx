@@ -92,6 +92,7 @@ function SettingsSheetInner({
   onChange,
   onArmBrief,
   onDeleteData,
+  nearestKm,
 }: {
   onClose: () => void;
   lang: Lang;
@@ -99,6 +100,9 @@ function SettingsSheetInner({
   onChange: SettingsChangeFn;
   onArmBrief?: () => Promise<boolean>;
   onDeleteData?: () => void;
+  /** km to the nearest real instrument feeding the field at the user's
+      cell — rendered inside "how numbers are estimated" when known */
+  nearestKm?: number | null;
 }) {
   const [expand, setExpand] = useState<ExpandKey | null>(null);
   const reduceMotion = useReduceMotion();
@@ -454,11 +458,20 @@ function SettingsSheetInner({
           {expander(
             "settingsHowNumbers",
             "numbers",
-            <Text {...DYNAMIC_TYPE} style={[ss.bodyTxt, { fontFamily: fam(lang, "reg") }]}>
-              {/* the Berkeley-rule sentence only shows when the metaphor
-                  itself is enabled — same explainer, minus that clause */}
-              {t(current.show_cig ? "settingsHowNumbersBody" : "settingsHowNumbersBodyPlain", lang)}
-            </Text>,
+            <View>
+              <Text {...DYNAMIC_TYPE} style={[ss.bodyTxt, { fontFamily: fam(lang, "reg") }]}>
+                {/* the Berkeley-rule sentence only shows when the metaphor
+                    itself is enabled — same explainer, minus that clause */}
+                {t(current.show_cig ? "settingsHowNumbersBody" : "settingsHowNumbersBodyPlain", lang)}
+              </Text>
+              {nearestKm != null && (
+                /* the live answer to "how accurate at MY home" — the
+                   nearest real instrument feeding this cell's field */
+                <Text {...DYNAMIC_TYPE} style={[ss.bodyTxt, ss.nearestTxt, { fontFamily: fam(lang, "reg") }]}>
+                  {t("settingsNearestInstrument", lang, { n: nearestKm < 1 ? nearestKm.toFixed(1) : Math.round(nearestKm) })}
+                </Text>
+              )}
+            </View>,
           )}
           <View style={ss.hairline} />
           {expander(
@@ -558,6 +571,7 @@ function SettingsScreenInner({
   onChange,
   onArmBrief,
   onDeleteData,
+  nearestKm,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -571,6 +585,8 @@ function SettingsScreenInner({
   /** SEAM(delete-data): parent's confirmed wipe (App.tsx `deleteAll`). The
    *  destructive row renders only when this prop exists. */
   onDeleteData?: () => void;
+  /** forwarded to the sheet — see SettingsSheetInner */
+  nearestKm?: number | null;
 }) {
   bump("scr.Settings");
   /* hardware back closes the sheet — the Modal's onRequestClose used to
@@ -607,6 +623,7 @@ function SettingsScreenInner({
           onChange={onChange}
           onArmBrief={onArmBrief}
           onDeleteData={onDeleteData}
+          nearestKm={nearestKm}
         />
       </Animated.View>
     </View>
@@ -705,6 +722,9 @@ const ss = StyleSheet.create({
   },
   bulletTxt: { flex: 1, fontSize: V2Type.label, color: V2T.text2, lineHeight: 18 },
   bodyTxt: { fontSize: V2Type.label, color: V2T.text2, lineHeight: 19 },
+  /* the live provenance line inside "how numbers" — a breath family
+     tint whispers that this sentence is measured, not boilerplate */
+  nearestTxt: { marginTop: 8, color: V2T.accent },
   sourcesTxt: { fontSize: V2Type.label, color: V2T.text2, lineHeight: 18 },
 
   /* the language pick is a segment — picked segment fills ink */

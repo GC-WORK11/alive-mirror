@@ -289,6 +289,10 @@ function AppInner() {
   /* the day's ambient read — feeds the peek card's "now ~N µg/m³" so the
      idle map feels the air, not just the sampled totals */
   const [ambientUg, setAmbientUg] = useState<number | null>(null);
+  /* km to the nearest real instrument reading behind the field at the
+     user's cell — the "how accurate at my home" answer, surfaced once
+     in settings' numbers explainer (null when the field is model-only) */
+  const [nearestKm, setNearestKm] = useState<number | null>(null);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   /* welcome_seen_v1 — the first-breath cinematic; null until the flag
      reads so a returning user never flashes the overlay for a frame */
@@ -375,6 +379,9 @@ function AppInner() {
               : nf == null ? null : { data: nf, at: Date.now() });
           const bz = typeof j?.pm25 === "number" ? j.pm25 : null;
           const amb = typeof j?.pm25_ambient === "number" ? j.pm25_ambient : bz;
+          const nk = typeof j?.nearest_sample_km === "number" && isFinite(j.nearest_sample_km)
+            ? j.nearest_sample_km : null;
+          setNearestKm((prev) => (prev === nk ? prev : nk));
           /* same value → no re-render — the 60 s poll usually repeats
              the same ambient sample until the field ticks */
           setAmbientUg((prev) => (prev === amb ? prev : amb));
@@ -898,7 +905,7 @@ function AppInner() {
       <LedgerScreen visible={ledgerOpen} onClose={onLedgerClose} lang={lang} showCig={settings.show_cig} onTripsChanged={reloadTrips} />
       <SettingsScreen visible={settingsOpen} onClose={onSettingsClose}
         lang={lang} current={settings} onArmBrief={armDailyBrief}
-        onDeleteData={deleteAll}
+        onDeleteData={deleteAll} nearestKm={nearestKm}
         onChange={onSettingsChange} />
       <VehicleSheet visible={vehicleOpen || wizArmed} lang={lang}
         current={vehicle}

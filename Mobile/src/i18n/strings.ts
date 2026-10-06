@@ -159,6 +159,7 @@ const en = {
   /* same explainer minus the cigarette clause — the text when the
      metaphor is off (settingsShowCig toggle, off by default) */
   settingsHowNumbersBodyPlain: "your breath number comes from a street-level air map — Delhi's monitoring stations + satellite weather, refreshed about every 15 minutes. it's always a range, never a fake-exact number. · what your ride puts out comes from published tests of vehicles like yours (ARAI / ICCT road measurements) — a range like 1.1–1.6 kg CO2. · your phone doesn't sense the air — it just moves through the map.",
+  settingsNearestInstrument: "right now: a real monitoring instrument read ~{n} km from you — that's the map's honesty, not a model guess.",
   settingsNotifications: "Notifications",
   /** cigarette-equivalence framing — opt-in, off by default */
   settingsShowCig: "show cigarette comparison",
@@ -847,6 +848,7 @@ const hi: Record<StringKey, string> = {
   settingsHowNumbers: "संख्याएँ कैसे बनती हैं",
   settingsHowNumbersBody: "साँस का नंबर सड़क-स्तर के हवा-नक्शे से आता है — दिल्ली के मॉनिटरिंग स्टेशन + सैटेलाइट मौसम, हर ~15 मिनट में ताज़ा। यह हमेशा एक रेंज है, नकली-सटीक संख्या नहीं। · 1 सिगरेट ≈ 316 µg PM2.5 साँस में (बर्कले अर्थ नियम)। · आपकी गाड़ी का धुआँ आप जैसी गाड़ियों के प्रकाशित माप से (ARAI / ICCT सड़क माप) — जैसे 1.1–1.6 kg CO2। · आपका फ़ोन हवा नहीं नापता — वह बस उस नक्शे से गुज़रता है।",
   settingsHowNumbersBodyPlain: "साँस का नंबर सड़क-स्तर के हवा-नक्शे से आता है — दिल्ली के मॉनिटरिंग स्टेशन + सैटेलाइट मौसम, हर ~15 मिनट में ताज़ा। यह हमेशा एक रेंज है, नकली-सटीक संख्या नहीं। · आपकी गाड़ी का धुआँ आप जैसी गाड़ियों के प्रकाशित माप से (ARAI / ICCT सड़क माप) — जैसे 1.1–1.6 kg CO2। · आपका फ़ोन हवा नहीं नापता — वह बस उस नक्शे से गुज़रता है।",
+  settingsNearestInstrument: "अभी: एक असली मॉनिटरिंग यंत्र ने आपसे ~{n} किमी दूरी पर पढ़ा — यही नक्शे की ईमानदारी है, कोई अंदाज़ा नहीं।",
   settingsNotifications: "सूचनाएँ",
   settingsShowCig: "सिगरेट-तुलना दिखाएँ",
   settingsShowCigHint: "डिफ़ॉल्ट से बंद — साँस का नंबर µg में ही दिखता है",
