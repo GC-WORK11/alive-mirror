@@ -812,3 +812,24 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - Deploy 913b002b task 177 live+verified; main 60e5a1d→? (this merge).
 - RUNNING: judge-qa-v2 9c14f61a, field-drift-watch 87711066,
   apk-final 34623675 (+KVM child pending).
+
+## cont.49 — forecast-skill + deploy f4139b24 (2026-10-06 ~04:45 UTC)
+- judge-qa-v2 `b19e362`: 15 hostile Q×A×live-proof on the dosimeter —
+  TOP FINDING model lost to naive persistence every horizon
+  (h+1 12.8 vs 5.4). Also verified: 33.1× dose multiple decomposes
+  2.36×·10.0×·1.4×; modifier re-derived 1.11 (was 1.09); 12/54
+  corridors under k≥3; /v2/day requires lat/lon; /observe 410.
+- forecast-skill `f4139b2`: fitted persistence anchor — served =
+  corrected + w(h)·(live_cell − corrected), w=1.0 through h+2 → 0 by
+  h+40 (STEPS/INCA nowcast hand-off cited). On 7,381 archive pairs:
+  pooled MAE 39.21→11.21 vs persistence 13.07 — BEATS persistence
+  h+1-4, never worse than old model anywhere, strictly wins h+5-11.
+  CLAIM EARNED — judge-qa-v2's top risk is now a strength.
+- Suite 1146/5. Deploy f4139b24 task 178: verified blend live
+  (h+0..2 anchored ~72.5 near live 80.5, drifts to model by h+3).
+- drift-watch ticks: field fresh (~600s), builds ~10-15min, fires 89/
+  belt 22, breath 1155µg — one flag n_snapshots 32→30 = 6h window
+  slide (expected).
+- main merged (this commit); live = f4139b24.
+- RUNNING: field-drift-watch 87711066 (~3h loop), apk-final 34623675
+  + drive child 28d29d6d.
