@@ -4,12 +4,12 @@
 
 1. **We built a PM2.5 dosimeter with no hardware — then audited it against government instruments it can't see** *(recommended — the honest-engineering hook is the whole story)*
 2. Your lungs' ledger for Delhi: honest numbers from a no-hardware air-quality dosimeter on AWS
-3. We measured our pollution field against 30 government stations it never reads — here's what missed, and what we did about it
+3. We measured our pollution field against 30 government stations it never reads — here's what missed, and what the fix measured a day later
 4. A personal dosimeter for Delhi's air, built on ECS Fargate: the build, the misses, the fix
 
 ## Submission-form abstract (~120 words)
 
-ALive-108 is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 54 ground instruments, ~70 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rebuilds. We validated the field against 30 government DPCC stations it never ingests (~23 µg/m³ MAE at provably blind sites), published the misses, then closed the blind spots with a second ingest adapter.
+ALive-108 is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 54 ground instruments, ~70 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rebuilds. We validated the field against 30 government DPCC stations it never ingests, published the misses, then closed the blind spots with a second ingest adapter — measured on prod: error at the formerly blind sites fell 22.8 → 10.5 µg/m³, all-30 agreement 27.1 → 6.2.
 
 ---
 
@@ -38,7 +38,9 @@ The blind sites were the *best-behaved* class — ~23 µg/m³ MAE with near-zero
 
 ### Then we closed the blind spots
 
-Publishing the misses was half the story. The other half: the same DPCC 5-minute pages we used as truth became a second ingest adapter — `ingest_dpcc.py`, flag-gated behind `ALIVE_DPCC_INGEST`, appending to the WAQI backbone rather than competing with it. The interesting engineering: the site's index tree lists only 24 stations; the nav bar on each station page carries a 30-station superset — and the 6 hidden stations were exactly our verified blind spots (IGNOU, JNU, CWG Akshardham, NSUT West, Talkatora Garden, SBV Delhi Cantt). The adapter asserts the `µg/m³` unit token per row (if the site ever switches to indices, values are refused, never reinterpreted), drops stale rows and physically impossible ones (PM2.5 > PM10), and is now live: **54 ground instruments** feed the blend, and every former GAP site has an instrument at ~0 km. The residual risk is honestly smaller stuff — instrument-vs-blend disagreement at the ~16 MAE scale, not blind-gap error.
+Publishing the misses was half the story. The other half: the same DPCC 5-minute pages we used as truth became a second ingest adapter — `ingest_dpcc.py`, flag-gated behind `ALIVE_DPCC_INGEST`, appending to the WAQI backbone rather than competing with it. The interesting engineering: the site's index tree lists only 24 stations; the nav bar on each station page carries a 30-station superset — and the 6 hidden stations were exactly our verified blind spots (IGNOU, JNU, CWG Akshardham, NSUT West, Talkatora Garden, SBV Delhi Cantt). The adapter asserts the `µg/m³` unit token per row (if the site ever switches to indices, values are refused, never reinterpreted), drops stale rows and physically impossible ones (PM2.5 > PM10), and is now live: **54 ground instruments** feed the blend, and every former GAP site has an instrument at ~0 km.
+
+Then we re-ran the same holdout against prod, same method, a day later. The number we promised ourselves we'd publish: **error at the formerly blind sites collapsed 22.8 → 10.5 µg/m³** (bias +0.8), and agreement across all 30 stations went **27.1 → 6.2** — no observation missed by more than 19.1, every station reporting `nearest_sample_km = 0.0`. Honest residuals stay in the table: the two largest are instruments reading far off their own region (JNU 83.6 vs neighbors ~55–65; IGNOU 15.6 vs ~30–55 — carrying the same suspect pm25/pm10≈0.15 signature we flagged pre-ingest), so what remains there is instrument-vs-blend disagreement, not blindness. The blend hedges a possibly-glitchy sensor rather than echoing it — we'd rather show that residual than fake agreement.
 
 ### The parali-season stress test
 
@@ -65,7 +67,8 @@ Phones measure nothing — traversals adjust dose *estimates*, never the field. 
 
 ### What's next
 
-- **Re-run the holdout on prod with DPCC live** — the number to publish is GAP-class MAE recomputed against the same 30 instruments; expected to collapse toward the ~16 live-adjacent level. Same method, new table.
+- **The honesty frontier moved to the NCR fringe.** Inside the instrumented ring every cell is ≤~4 km from a real reading; outside it — Sonipat-side ~15.7 km, the Bahadurgarh/Ghaziabad/far-Noida rims 5.5–12.4 km — the field is extrapolation, and the API says so via `nearest_sample_km` instead of hiding it. Closing that rim is the next ingest problem.
+- **Survive upstream stalls visibly.** Mid-reverify, DPCC itself froze publishing (~02:00 IST); if a stall outlives the 90-min staleness guard the field reverts to WAQI-only — `stations_status.dpcc` on `/health` is the early tell, and we'd rather show the drop than hide it.
 - **Grow the aggregate layer honestly** — more donated trips means more corridor cells cross the k≥3 floor; the suppression counter on the wire is the scoreboard.
 - **Close the refresh gap** — field cycles ran 26–60 min against a 15-min TTL on a heavy night; tightening the rebuild path is the known fix.
 - **From detector to driver** — sharper FIRMS-belt resolution and wind-field transport, so the stubble claim gets earlier and more local during the November peak.

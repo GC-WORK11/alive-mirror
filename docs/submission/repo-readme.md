@@ -189,10 +189,16 @@ outside demo windows.
   bias**; where a live instrument sits in the blend, MAE 16.4; all 30
   sites, 27.1. The misses are published, not hidden — Jahangirpuri read
   143 while we served 73 — then closed: `server/ingest_dpcc.py` now feeds
-  those same 30 instruments into the blend (all 7 blind spots sit at ~0 km
-  today). Full tables + per-station breakdown:
+  those same 30 instruments into the blend. **Re-measured on prod a day
+  later, same method: blind-site MAE 22.8 → 10.5 (bias +0.8), all-30
+  agreement 27.1 → 6.2, worst single miss 19.1, every station at
+  `nearest_sample_km = 0.0`** — the honest residuals kept in the table
+  (JNU/IGNOU are instruments reading far off their own region, not
+  blindness). The frontier is now the unmonitored NCR fringe, 5.5–15.7 km
+  out. Full tables + per-station breakdown:
   `docs/lanes/accuracy-holdout-report.md`,
-  `docs/lanes/ingest-dpcc-report.md`.
+  `docs/lanes/ingest-dpcc-report.md`,
+  `docs/lanes/holdout-reverify-report.md`.
 - **A 14-probe live watch** across the parali evening ramp and three
   mid-watch deploys: the stubble-smoke claim followed the wind in both
   directions (claimed ×1.24 at 344°, refused ×1.07 once it turned), the
@@ -221,7 +227,10 @@ outside demo windows.
 ## Honest limitations
 
 - **NCR only.** Outside the service area you get a typed
-  `outside_service_area`, never a fabricated route.
+  `outside_service_area`, never a fabricated route. Inside NCR, the
+  unmonitored fringe (Sonipat-side ~15.7 km, Bahadurgarh/Ghaziabad rims
+  5.5–12.4 km) is extrapolation — `nearest_sample_km` reports the distance
+  to the nearest real reading instead of hiding it.
 - **One Fargate task, one region, HTTP :80.** Cold far-OD plans can hit a
   20 s budget and honestly return `options:[]`; degraded arms are named
   (`degraded:["engine","transit"]`), never faked.

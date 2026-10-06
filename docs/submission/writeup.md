@@ -187,6 +187,7 @@ path [`docs/plan/demo-script.md` numbers sheet].
 | claim | value | source |
 |---|---|---|
 | Held-out uncertainty-band coverage | **95.2 %** at ±2σ over **3,550 station-hours / 85 stations** (nominal 95.4 %) — σ is measured, not tuned | `server/data/field_validation.md` |
+| Independent holdout vs 30 govt DPCC stations | pre-ingest: MAE 27.1 (blind sites 22.8) → post-ingest **MAE 6.2** (blind sites 10.5), all 30 at `nearest_sample_km=0.0` | `docs/lanes/accuracy-holdout-report.md`, `holdout-reverify-report.md` |
 | Live instruments feeding the field | **54 stations** — 24 WAQI + 30 DPCC (`source:"waqi+dpcc"` on the wire since Oct 6) + ~70 model samples, field age ~8 min, 15-min refresh visible | `GET /aqi`, `GET /health` |
 | LOO calibration vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 | `GET /aqi → calibration` |
 | Archive replay (clean-air window) | MAE 22.0 µg/m³, bias +51.6 % — we publish that we over-read in clean air | `server/data/field_validation.md` |
@@ -227,6 +228,18 @@ asserted per row (µg/m³ refused if the site ever switches to indices); stale
 and physically impossible rows (PM2.5 > PM10) are dropped. **Live since Oct 6
 (build `ce01ec5c`): all 7 former blind spots now carry an instrument at ~0 km**
 [`docs/lanes/ingest-dpcc-report.md`].
+
+And the prediction is now a measurement — we re-ran the identical holdout on
+prod ~24 h later (Oct 7, two rounds, 60 obs, same method): **former-GAP MAE
+22.8 → 10.5 µg/m³** (bias +0.8), **all-30 agreement 27.1 → 6.2**, worst single
+miss 19.1, every station at `nearest_sample_km = 0.0`. Kept honest: the two
+largest residuals are instruments reading far off their own region (JNU 83.6
+vs neighbors ~55–65; IGNOU carries the same suspect pm25/pm10≈0.15 signature
+flagged pre-ingest) — instrument-vs-blend disagreement, not blindness, left in
+the table unexcluded. The honesty frontier moved out of the city: inside the
+instrumented ring every cell is ≤~4 km; the NCR rims run 5.5–15.7 km and the
+API says so on the wire via `nearest_sample_km`
+[`docs/lanes/holdout-reverify-report.md`].
 
 And a second live watch ran the same evening — 14 probes across ~8 h of the
 parali ramp, through three mid-watch deploys: the stubble-fire claim followed
