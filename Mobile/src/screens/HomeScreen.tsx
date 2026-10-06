@@ -1213,7 +1213,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
       {!rec.thin && (
         <View style={ss.heroStatRow}>
           <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: mtext(lang) }]}>
-            {t("dayCovered", lang, { h, m })}
+            {h > 0 ? t("dayCovered", lang, { h, m }) : t("dayCoveredMin", lang, { m })}
           </Text>
           {ambientUg != null && ambIdx != null && (
             <View style={ss.heroAmb}>
