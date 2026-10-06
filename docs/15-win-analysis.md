@@ -81,3 +81,52 @@ project's overall impression, not only the trophy.
 what each commute costs your lungs, cut it by up to 30x on the same
 trip, and turn every journey into a shared sensor the city doesn't
 have. That is ALive-108."
+
+## Intel from the organizer's own recap (builder.aws.com, Oct '26)
+
+Source: https://builder.aws.com/content/3G032f5pc3jkHYJgScu58vxrXsn/first-commit-hackathon-recap-and-whats-next
+plus wemakedevs.org/aws/env + /aws/first-commit pages and the three
+winner demo transcripts (pulled via yt-dlp).
+
+### The event shape
+- Bharat Builds = 6-city tour; Environmental Hacks is stop #2 (Oct 8–11,
+  online). Build day Oct 10 at DTU Delhi 8AM–8PM — in person, AWS
+  mentors + Kunal Kushwaha / Saiyam Pathak / Piyush Garg on the floor.
+  Going is free feedback + face time with the judges' own mentors.
+- ₹20 lakh pool; Air track ₹2L + $2K AWS credits; 4 runners-up $1K each;
+  5 AirPods for Builder Center blog write-ups (publish the build story
+  and link it in the submission — free extra entry).
+- Top-10 across ALL tracks get Amazon fast-track (6-mo internship + FTE)
+  — a win is not required; a strong project alone can carry it.
+- Prior stop scale: 13,667 participants → 1,180 submissions.
+
+### Published judging criteria (verbatim)
+1. Idea & Impact — "a small problem solved well beats a big one solved
+   vaguely" ← we are a small real problem solved deeply.
+2. Built on AWS — mandatory for prizes; "the architecture is part of
+   the score" for Ship It ← ECS/NLB/S3 deploy + the console film beat.
+3. Design & Usability — "a judge who has never seen your project should
+   be able to pick it up and use it... clean and obvious beats clever
+   and confusing" ← the scoring axis IS the cold-eye/soul work; the
+   judge is a stranger by design.
+
+### What actually won (transcripts of the embedded demo videos)
+- Suraksha (1st): opens "Parents want independence. Children want
+  peace of mind." — two emotional lines, then what it is, then live
+  demo. Pattern: felt framing first, features second.
+- Beacon (2nd): "It is 3:00 in the morning, payments are failing..."
+  — an in-the-moment scenario before the product appears.
+- CampusEvac (3rd + Best UI): straight into live footage — craft and
+  usable design count as their own axis.
+- Formula: emotional/scenario hook in the first ~20s, LIVE product,
+  zero slides until architecture at the end.
+
+### Delta for our cut (vs the arc above)
+- Our cold-open should be a FELT line, not a stat: e.g. "It's 7am in
+  Delhi. The air outside your door is 12 cigarettes today — and nobody
+  told you." Then the day-in-life arc we already taped.
+- The hero-in-3-seconds moment (open → breathing hero → the move) is
+  our "clean and obvious" proof — the judge-picks-it-up test.
+- Console film stays; add one architecture TALKING point on tape:
+  "the field builds every 15 minutes on ECS — the phone only pays for
+  consented aggregates" (architecture-as-score, spoken).
