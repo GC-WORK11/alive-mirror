@@ -55,6 +55,14 @@ stat values 15→17px (`body`).
 No new fonts, no new tokens consumed by name, no copy rewrites beyond the
 truncation defect, no layout changes.
 
+**Motion/press audit** — already consistent, no changes needed: `pressFx`
+(opacity .78 · scale .985) sits on every tappable card/row (option cards,
+mode rows, felt chips, budget profile, quiet links); sheet enter + drag
+spring-back share one tune (damping 22 / stiffness 220); `CountUp` covers
+counters; `FadeIn` covers mounts. Hairline/edge discipline: one edge per
+surface, elevation stays inside `V2Elev`'s ladder — no double-borders or
+orphan shadows found.
+
 ## Before / after
 
 Home (days-ahead numerals):
