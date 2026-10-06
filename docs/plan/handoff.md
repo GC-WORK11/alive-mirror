@@ -733,3 +733,12 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - **demo-day fix `ecf4fa1`**: the T-60-flip caveat was stale — history/trend now survive rollouts (S3); residual is just the ~25min cold first-build gap.
 - **Lanes**: ingest-coldbuild `22d86b26` (profile the ~25min first-build — stage timings, safe speedup only), apk-drive-v4 `15047bf3` (demo APK carrying hero-sparse + nav-pick + format fix + drive), app-stress `d36d68cd`+child `10b4b376`.
 - Merge checkpoint queued: suite green → main (Mobile-side only since strip-bz: nav-pick `59a7da8`, format `bf7c35d`, hero-sparse `dbbc76a` + docs).
+
+### cont.45 — history lit live + cold-build truth + ledger fixes (Oct 6 ~08:15 UTC)
+
+- **why-series starvation diagnosed+fixed `3aea78f`**: `n_snapshots:15` frozen across the night was never "15 recorded builds" — `_s3_series`' 4s serial budget starved after ~15 keys (~0.3s×225KB/14k-cell deserialize each), silently hiding the window's older half. Parallel bounded fetch (8 workers, same budget) → live verified: **n=34, span 5.8h, HISTORY LIT** (`history.points` 34, window_h 5.83). `_SNAP_S3_MAX_KEYS` 30→40 (dup-key pairs eat margin).
+- **ingest-coldbuild `5ec1f2f` honest finding**: cold builds are FAST (first key 13–54s post-boot — task 173's landed ~7min); the ~25min holes were mid-flight iterations stuck in a pathological serial-fetch path on degraded upstreams. Shipped: WARNING-level stage timings (log.info never reaches /ecs/alive108 — the invisibility root cause) + bounded parallel fetch legs (sources 4, WAQI 8, OpenAQ 8, FIRMS 4; order-preserving → bundles byte-identical). Pathological iterations collapse >20min → ~2-3min.
+- **ledger-batch `0fdd597`**: dedupe DELETED (only masked phantom-arrival noise; arrivedRef already dedupes — real trips can't be eaten), offline pill above nav turn card (D1 mount-order rule), /v2/trip floor (422 on distance_km==0 | <0.1km | speed>140km/h; outbox drops 4xx permanently).
+- **apk-v4 verdict: SHIP** — `alive108-609a6ef.apk` 9/9 PASS: designed sparse hero on Android, metro-pick→metro-nav, "heaviest ~22:30–" open-ended label, **cold-open 1023ms**, consent-OFF pcap zero POSTs, hi zero tofu, D1 holds. APK: attachments/d6f7b8ca... NEW DEMO-PHONE BUILD (predates only dedupe-removal — next rebuild when batch lands).
+- Deploys: `3711ccd0` → `37e55668` live; main `844884b` → `fc45d42`. Suite 1118+10.
+- Board: me + video-v5 `0774aba2` (cut5 on the new build) + demo-rehearse-v2 `5ea400a4` (beats+numbers re-verified).
