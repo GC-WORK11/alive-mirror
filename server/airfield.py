@@ -385,16 +385,19 @@ class AirField:
         return out
 
     async def _grab_stations(self, client: httpx.AsyncClient) -> list:
-        """Real government CAAQMS readings, chain WAQI → CPCB → OpenAQ.
+        """Real government CAAQMS readings, chain WAQI → CPCB → OpenAQ,
+        plus an opt-in additive DPCC scrape (ALIVE_DPCC_INGEST=1).
 
         WAQI (WAQI_API_KEY) is primary — api.waqi.info republishes the
         same CPCB/DPCC instruments and is the only live route from prod
         (Fargate probe 2026-10-04: api.data.gov.in is TCP-refused even
-        from ap-south-1). CPCB data.gov.in stays in the chain as a
-        keyed attempt for an India-reachable egress later (free key;
-        docs/plan/cpcb-source.md). OpenAQ v3 (OPENAQ_API_KEY) runs last
-        — the owner's key is revoked today but the path stays for
-        anyone else's key.
+        from ap-south-1). DPCC's own 5-min pages (ingest_dpcc, flag
+        gated) append rows for the stations WAQI doesn't carry — they
+        fill verified blind spots rather than replace the chain. CPCB
+        data.gov.in stays in the chain as a keyed attempt for an
+        India-reachable egress later (free key; docs/plan/cpcb-source.md).
+        OpenAQ v3 (OPENAQ_API_KEY) runs last — the owner's key is revoked
+        today but the path stays for anyone else's key.
 
         The model grid interpolates between ~40 synthetic points; these
         are actual instruments measuring actual Delhi air right now.
@@ -439,8 +442,43 @@ class AirField:
                 sm[k] = round(self._smooth(k, slat, slon, fv), 1)
             if sm:
                 out.append((slat, slon, sname, sm))
+        got_waqi = bool(out)
+
+        # --- 1b. DPCC 5-min pages — flag-gated opt-in (ALIVE_DPCC_INGEST
+        # =1). ADDITIVE, never preempts: the 7 nav-bar sites (IGNOU, JNU,
+        # CWG Akshardham, NSUT West, Talkatora, Delhi Cantt, Mundka) are
+        # instrument-verified blind spots (accuracy-holdout report), so
+        # these rows fill gaps the waqi+model blend cannot see. Pages are
+        # ~5-min cadence; the adapter caches 15 min and drops stale
+        # rows (>90 min) itself. No flag -> skipped, nothing fetched.
+        dpcc_rows: list = []
+        if os.environ.get("ALIVE_DPCC_INGEST") == "1":
+            try:
+                import ingest_dpcc
+                dpcc_rows = await asyncio.wait_for(
+                    ingest_dpcc.grab_async(client), timeout=60.0)
+            except Exception:  # noqa: BLE001 — adapter contract is []
+                dpcc_rows = []
+            self._stations_status["dpcc"] = (
+                "ok" if dpcc_rows else "unavailable")
+            for slat, slon, sname, vals in dpcc_rows:
+                sm = {}
+                for k, v in vals.items():
+                    try:
+                        fv = float(v)
+                    except (TypeError, ValueError):
+                        continue
+                    if not math.isfinite(fv) or fv < 0:
+                        continue
+                    sm[k] = round(self._smooth(k, slat, slon, fv), 1)
+                if sm:
+                    out.append((slat, slon, sname, sm))
+        else:
+            self._stations_status["dpcc"] = "skipped: flag off"
         if out:
-            self._stations_src = "waqi"
+            self._stations_src = "+".join(
+                s for s, ok in (("waqi", got_waqi),
+                                ("dpcc", bool(dpcc_rows))) if ok)
             return out
 
         # --- 2. data.gov.in CPCB — keyed attempt; refused egress -------
