@@ -269,7 +269,7 @@ def test_grab_async_rows(monkeypatch):
     import asyncio
     monkeypatch.setenv("ALIVE_DPCC_INGEST", "1")
     c = FakeAsyncClient(_routes())
-    rows = asyncio.run(dp.grab_async(c))
+    rows = asyncio.run(dp.grab_async(c, now=NOW))
     assert len(rows) == 1
     lat, lon, name, vals = rows[0]
     assert (lat, lon) == pytest.approx((28.6723, 77.3153), abs=1e-3)
