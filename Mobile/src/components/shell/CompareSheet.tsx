@@ -818,7 +818,7 @@ const s = StyleSheet.create({
   optDoseSub: { fontSize: V2Type.micro, color: V2T.text3, marginTop: 1 },
   optDoseUnit: { fontSize: V2Type.micro, color: V2T.text3 },
   optDoseNA: { color: V2T.text3 },
-  optGap: { fontSize: V2Type.micro, color: V2T.breath2 },
+  optGap: { fontSize: V2Type.label, color: V2T.breath2 },
   barsRow: { flexDirection: "row", alignItems: "center", marginTop: 6, gap: 10 },
   bars: { flexDirection: "row", alignItems: "center", gap: 8 },
   barGroup: { flexDirection: "row", alignItems: "center", gap: 4 },

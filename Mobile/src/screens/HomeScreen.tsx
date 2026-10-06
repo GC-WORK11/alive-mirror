@@ -1536,7 +1536,7 @@ const ss = StyleSheet.create({
   arcCol: { flex: 1, alignItems: "center" },
   arcBarCol: { height: 52, alignItems: "center", justifyContent: "flex-end" },
   arcDot: { width: 5, height: 5, borderRadius: 2.5, marginBottom: 3 },
-  arcBar: { width: 2 },
+  arcBar: { width: 3 },
   arcTrip: {
     width: 5, height: 5, marginTop: 3, borderRadius: 1,
     backgroundColor: V2T.accent,

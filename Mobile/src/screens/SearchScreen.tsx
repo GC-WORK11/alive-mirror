@@ -658,7 +658,7 @@ const ss = StyleSheet.create({
   sectionLabel: {
     color: V2T.text3,
     fontSize: V2Type.label,
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
     marginTop: 10,
     marginBottom: 2,

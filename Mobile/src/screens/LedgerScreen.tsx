@@ -739,7 +739,7 @@ const ss = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  weekLine: { color: V2T.text2, fontSize: V2Type.label, marginTop: 4 },
+  weekLine: { color: V2T.text2, fontSize: V2Type.micro, marginTop: 4 },
   barsRow: {
     flexDirection: "row",
     alignItems: "flex-end",
