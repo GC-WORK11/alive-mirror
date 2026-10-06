@@ -102,7 +102,7 @@ function JourneyRow({
   children?: React.ReactNode;
 }) {
   return (
-    <View style={[ss.jRow, { backgroundColor: well.wash, borderColor: `${well.ink}24` }]}>
+    <View style={[ss.jRow, { backgroundColor: well.wash }]}>
       <View style={[ss.jIcon, { backgroundColor: `${well.ink}1C` }]}>
         <Icon name={icon} color={iconColor === V2T.text2 ? well.ink : iconColor} size={19} />
       </View>
