@@ -127,3 +127,35 @@ as a rendering bug, not frost.
   alt N`) are nested dim runs that wrap whole — never `· y…`.
 - No system-font fallback: every `Text`/`TextInput` carries
   `fam*`/`famSerif`/`famMono*` explicitly.
+
+## Web component grammar (server templates — landing / city / admin)
+
+Same register, expressed in CSS vars inside each `server/*.html` (`--paper`,
+`--surface/--surf`, `--surf2/--surf3`, `--ink/--ink2/--ink3/--ink4`, `--line`,
+`--hairline`, `--acc/--accInk/--accWash/--accTint`, `--b0..5` + washed
+`--bw0..5`/deeper `--bd0..5`/band-ink `--bi0..5`). The DOM/JS contract is law:
+every `id` queried, every JS-emitted class, and every test-mandated string
+survives — redesign means wrapper markup + CSS rewrites + minimal emit tweaks,
+never removals. (Landing's test also forbids the literal `border-radius:999px`
+— it uses 7–18px radii instead of pills.)
+
+| component | shape | rule |
+|---|---|---|
+| `chip` | tinted label block, radius 6–8, mono 9–10px | carries a state word (`LIVE`, `FRESH`, `GRAP`) — solid `--accWash`+`--accInk` for accent state, `surface2`+`ink2` neutral, band-washed for severity |
+| `stat` | tile = chip header + huge numeral + unit + label-under | numeral serif ~40–80px full ink; provenance becomes a `.cap` caption (mono 9px ink4) or hover — never a paragraph; the chip MAY carry the severity tint (`.accent`/`.brick`/`.wine` on admin's `.kchip`) |
+| `door` | feature doorway tile | icon block (36px solid accent or band-deep square) + name + ≤3-word caption + arrow; one row of 2–3, never a nav list |
+| `sec-tick` | 6px accent/band square before a mono section label | `.t-acc`/`.t-b1..3` pick the hue; replaces underline/counter decorations |
+| `day` / `dchip` | band-washed tile | `background:var(--cw/--dw)` where `--cw`/`--dw` = `washHex(bandHex, .78–.82)` — pastel band surfaces on tiles, true hues kept for map fills + dots |
+| `pill` / segmented | surface2 track + white-card active | `psel`, `fmsel`, `tl`, reach arm — controls read as chips, active = accent-wash fill or white card + hairline |
+| `pipe` / step tile | surface2 radius-10 tile inside a gap-8/12 grid | numbered `.n` chip + serif title + one-line `.d` |
+
+- **Wash rule**: `washHex(hex, t)` blends toward white (never alpha) — landing
+  washes its muted `--b*` ramp at .82; city washes the OFFICIAL CPCB fills at
+  .78 (`--dw` on `.day` tiles) while the map keeps true CPCB hues.
+- **Words rationed**: number + unit + ≤3-word label; everything else is a
+  `.cap` caption or a `title=` hover. One hero numeral per viewport.
+- **Admin dialect** (owner likes the look — comprehension, not cosmetics):
+  `.kchip` moves the label ABOVE the numeral as a severity-tinted chip,
+  `.cap` replaces the lowercase what-it-is label, `h2::before` gives each
+  section an accent tick, `.st` tiles grid the pipe stages. Tables, `.prov`,
+  `.fmpop`, `.kv`, `.whybig` untouched.

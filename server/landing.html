@@ -9,15 +9,37 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%234d7c0f'/%3E%3C/svg%3E">
 <style>
 :root{
-  --paper:#fafaf7; --ink:#16181d; --ink2:#4a4e57; --ink3:#8a8d94;
+  /* shared register — docs/lanes/register-card.md (web grammar) */
+  --paper:#fafaf7; --surf:#fff; --surf2:#f3f2ec; --surf3:#ebe9e1;
+  --ink:#16181d; --ink2:#4a4e57; --ink3:#8a8d94;
   --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
+  --acc:#4d7c0f; --accInk:#3d610a; --accWash:#eef2e2; --accTint:#e3e9d3;
   --sage:#4d7c0f;
+  /* muted CPCB band — tile surfaces are its pastel washes (90% / 74%
+     white), never the raw hue; band ink = the hue darkened for text */
+  --b0:#7aab59; --b1:#c8b25a; --b2:#d58c4a;
+  --b3:#b85442; --b4:#8f3c49; --b5:#6e3c54;
+  --bw0:#f2f7ee; --bw1:#faf7ef; --bw2:#fbf4ed;
+  --bw3:#f8eeec; --bw4:#f4eced; --bw5:#f1ecee;
+  --bd0:#dce9d4; --bd1:#f1ebd4; --bd2:#f4e1d0;
+  --bd3:#edd3ce; --bd4:#e2ccd0; --bd5:#d9ccd3;
+  --bi0:#435e31; --bi1:#6e6232; --bi2:#754d29;
+  --bi3:#652e24; --bi4:#4f2128; --bi5:#3d212e;
   --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
          "Segoe UI",Inter,system-ui,sans-serif;
   --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
 }
+/* ---- web component grammar ---------------------------------------------
+   tile     one idea per card — pastel surface, hairline edge, r 12–16
+   stat     accent chip + huge numeral + unit + label-under + caption
+   chip     tinted label block — wash bg + band-ink text (never raw band)
+   door     feature door — pastel tile, solid icon block, name, arrow
+   pill     segmented control — surface2 track, options, white selection
+   sec-tick 7px colour square — a section's identity mark
+   words    number + unit + ≤3-word label; sentences only in CTAs/captions
+   ----------------------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);
@@ -53,18 +75,17 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   text-underline-offset:4px;text-decoration-thickness:1px}
 @media(max-width:640px){.top nav{gap:16px}
   .top nav a{font-size:9px;letter-spacing:.12em;padding:14px 0}
-  .links{gap:12px 36px}
-  .links .tlink{padding-top:12px;padding-bottom:12px}}
+  .links{gap:10px}.door{flex:1;min-width:0}}
 
-/* hero — supaste/devin grammar: headline + copy + real product shot,
-   nothing else. two cols on wide screens, figure stacks on phones. */
-.hero{padding:96px 0 64px}
+/* hero — headline + hero stat tile + doors + the real product shot.
+   one hero per viewport: the numeral owns this one. */
+.hero{padding:88px 0 56px}
 .hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 288px;
-  gap:64px;align-items:start}
+  gap:56px;align-items:start}
 @media(max-width:840px){.hero-grid{grid-template-columns:1fr;gap:48px}}
-@media(max-width:640px){.hero{padding:60px 0 44px}
-  .eyebrow{font-size:10px;letter-spacing:.18em;flex-wrap:wrap;row-gap:4px}}
-@media(max-width:480px){.eyebrow{letter-spacing:.14em}}
+@media(max-width:640px){.hero{padding:56px 0 40px}
+  .eyebrow{letter-spacing:.16em;flex-wrap:wrap;row-gap:4px}}
+@media(max-width:480px){.eyebrow{letter-spacing:.12em}}
 .shot{margin:6px 0 0;max-width:288px;width:100%;
   border:1px solid var(--line2);border-radius:34px;overflow:hidden;
   background:#fff;box-shadow:0 24px 56px -32px rgba(22,24,29,.28),
@@ -81,75 +102,117 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 @media(max-width:840px){.shot{margin-left:auto;margin-right:auto}}
 @media(prefers-reduced-motion:reduce){.shot{transition:none}
   .shot:hover{transform:none}}
-.eyebrow{display:flex;align-items:center;gap:10px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.3em;
-  text-transform:uppercase;color:var(--ink3)}
-.eyebrow .sq{width:5px;height:5px;background:var(--sage);flex:none}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--accInk);
+  background:var(--accWash);border:1px solid var(--accTint);
+  border-radius:8px;padding:5px 11px}
+.eyebrow .sq{width:6px;height:6px;background:var(--acc);flex:none;
+  border-radius:2px}
 h1{font-family:var(--serif);font-weight:400;font-size:clamp(44px,7.2vw,88px);
-  line-height:1.03;letter-spacing:-.028em;margin-top:30px;max-width:12ch}
+  line-height:1.03;letter-spacing:-.028em;margin-top:28px;max-width:12ch}
 h1 em{font-style:italic;color:var(--ink2)}
-/* the hero number — the one live figure a cold reader remembers.
-   serif numeral + mono basis, same register as the field ops line. */
-.hnum{margin-top:38px;display:flex;align-items:baseline;gap:18px;
-  max-width:560px;flex-wrap:wrap}
+/* the hero stat tile — the one live figure a cold reader remembers:
+   accent chip on top, huge serif numeral, label beside it, provenance
+   shrunk to a one-line caption. */
+.hnum{margin-top:30px;display:flex;align-items:center;gap:22px;
+  max-width:560px;flex-wrap:wrap;background:var(--accWash);
+  border:1px solid var(--accTint);border-radius:18px;
+  padding:20px 24px 18px}
 .hnum-v{font-family:var(--serif);font-weight:400;
-  font-size:clamp(40px,5.4vw,64px);line-height:1;letter-spacing:-.02em;
+  font-size:clamp(56px,6vw,80px);line-height:.95;letter-spacing:-.02em;
   font-variant-numeric:tabular-nums;color:var(--ink)}
-.hnum-t{font-size:15px;line-height:1.6;color:var(--ink)}
-.hnum-t i{display:block;margin-top:5px;font-style:normal;
+.hnum-t{font-size:15px;line-height:1.55;color:var(--ink);max-width:300px}
+.hnum-chip{display:inline-block;margin-bottom:8px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  text-transform:uppercase;background:var(--acc);color:#fff;
+  padding:3px 8px;border-radius:6px}
+.hnum-t i{display:block;margin-top:7px;font-style:normal;
   font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--ink3)}
-.sub{margin-top:30px;max-width:540px;font-size:16.5px;line-height:1.72;
+  text-transform:uppercase;color:var(--accInk)}
+.sub{margin-top:26px;max-width:540px;font-size:16px;line-height:1.7;
   color:var(--ink2)}
 .sub b{color:var(--ink);font-weight:600}
-.links{margin-top:38px;display:flex;gap:36px;flex-wrap:wrap}
-.tlink{font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;
-  border-bottom:1px solid var(--ink);padding-bottom:3px}
-.tlink:hover{border-bottom-color:transparent}
-.tlink.dim{color:var(--ink2);border-bottom-color:var(--line2);font-weight:400}
-.tlink.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
-.statusline{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
-  color:var(--ink3);text-transform:uppercase;display:flex;gap:8px 26px;
-  flex-wrap:wrap;font-variant-numeric:tabular-nums}
+/* feature doors — colourful pastel tiles with a solid icon block,
+   the Swiggy-door grammar: tile colour = where it goes */
+.links{margin-top:30px;display:flex;gap:12px;flex-wrap:wrap}
+.door{display:flex;align-items:center;gap:12px;min-width:218px;
+  padding:12px 18px 12px 12px;border-radius:15px;text-decoration:none;
+  color:var(--ink);background:var(--bd0);border:1px solid #c9dcb4;
+  transition:transform .3s cubic-bezier(.22,1,.36,1),
+    box-shadow .3s cubic-bezier(.22,1,.36,1)}
+.door .dic{width:36px;height:36px;flex:none;border-radius:10px;
+  background:var(--acc);display:flex;align-items:center;justify-content:center}
+.door .dic svg{display:block}
+.door .dl b{display:block;font-size:13.5px;font-weight:600;
+  letter-spacing:-.01em}
+.door .dl i{display:block;margin-top:3px;font-style:normal;
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--accInk)}
+.door .darr{margin-left:auto;color:var(--accInk);font-size:15px}
+.door:hover{transform:translateY(-2px);
+  box-shadow:0 12px 24px -12px rgba(61,97,10,.35)}
+.door.alt{background:var(--bd2);border-color:#e6cbae}
+.door.alt .dic{background:var(--b2)}
+.door.alt .dl i,.door.alt .darr{color:var(--bi2)}
+.door.alt:hover{box-shadow:0 12px 24px -12px rgba(117,77,41,.35)}
+@media(prefers-reduced-motion:reduce){.door{transition:none}
+  .door:hover{transform:none}}
+/* ops status — a chip row, not a sentence */
+.statusline{margin-top:46px;display:flex;gap:8px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  color:var(--ink3);text-transform:uppercase;
+  font-variant-numeric:tabular-nums}
+.statusline>span{background:var(--surf2);border:1px solid var(--line);
+  border-radius:7px;padding:5px 10px}
 .statusline b{color:var(--ink);font-weight:600}
-.statusline .ok{color:var(--sage)}
+.statusline .ok{color:var(--accInk)}
 
-/* the field — one honest raster, real geography, click through it */
-.field-sec{padding:16px 0 40px}
-.field-head{display:flex;align-items:baseline;
+/* the field — one honest raster, real geography, click through it.
+   the map is this viewport's hero: a card frame owns it. */
+.field-sec{padding:14px 0 40px}
+.field-head{display:flex;align-items:center;
   margin-bottom:12px;gap:10px 14px;flex-wrap:wrap}
 .field-head .psel{margin-right:2px}
 .field-head #fieldAge{margin-left:auto}
 .field-head .lbl{font-family:var(--mono);font-size:10.5px;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
+  display:inline-flex;align-items:center}
 .field-head .lbl b{color:var(--ink);font-weight:600}
-.psel{display:flex;gap:0}
-.psel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
-  text-transform:uppercase;padding:5px 11px 4px;cursor:pointer;
-  border:1px solid var(--line2);border-left-width:0;background:transparent;
+.sec-tick{display:inline-block;width:7px;height:7px;border-radius:2px;
+  margin-right:8px;flex:none}
+.sec-tick.t-acc{background:var(--acc)}
+.sec-tick.t-b1{background:var(--b1)}
+.sec-tick.t-b2{background:var(--b2)}
+.sec-tick.t-b3{background:var(--b3)}
+/* pill grammar — a segmented control, not a row of loose text.
+   surface2 track; the selected option lifts as a white card. */
+.psel{display:inline-flex;gap:2px;padding:3px;background:var(--surf2);
+  border:1px solid var(--line);border-radius:11px}
+.psel button{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;padding:6px 13px 5px;cursor:pointer;
+  border:none;border-radius:8px;background:transparent;
   color:var(--ink3);-webkit-appearance:none;appearance:none}
-.psel button:first-child{border-left-width:1px}
-.psel button.on{color:var(--ink);border-color:var(--ink);
-  box-shadow:inset 0 0 0 1px var(--ink);z-index:1;position:relative}
+.psel button.on{background:var(--surf);color:var(--ink);
+  box-shadow:0 1px 3px rgba(22,24,29,.12),inset 0 0 0 1px var(--line)}
 .psel button:hover{color:var(--ink)}
-.psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px;
-  z-index:2;position:relative}
-.fwrap{position:relative;opacity:0;transition:opacity .5s ease}
+.psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+.fwrap{position:relative;opacity:0;transition:opacity .5s ease;
+  background:var(--surf);border:1px solid var(--line);border-radius:16px;
+  overflow:hidden;box-shadow:0 3px 14px -6px rgba(22,24,29,.10)}
 .fwrap.ready{opacity:1}
 /* reserve the true map aspect before first paint — no layout jump
    ((e-w)*ASP lon-km : (n-s) lat-km = 1.1*0.879 : 0.75) */
 #raster{position:relative;z-index:2;display:block;width:100%;
-  height:auto;aspect-ratio:1.2892;
-  border:1px solid var(--line);touch-action:manipulation}
+  height:auto;aspect-ratio:1.2892;touch-action:manipulation}
 /* the field is three stacked canvases — cells, boundaries+wind, and the
    dynamic ink — so a hover, a pick, or a forecast hour repaints only the
    layer that changed instead of the whole scene. positioned layers would
    otherwise paint above the in-flow #raster and hide pins/route/errors */
 .lay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
-  border:1px solid transparent;z-index:1}
+  z-index:1}
 #raster.pick{cursor:crosshair}
-#raster:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+#raster:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
 @media(prefers-reduced-motion:reduce){.fwrap{transition:none;opacity:1}}
 .kbhint{margin-top:6px;font-family:var(--mono);font-size:9px;
   letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
@@ -186,17 +249,21 @@ h1 em{font-style:italic;color:var(--ink2)}
   font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--ink3)}
 .legend .conf{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
   color:var(--ink3);text-transform:uppercase}
-/* the day, recorded — a 24-hour hairline strip from the decade archive,
+/* the day, recorded — a 24-hour strip card from the decade archive,
    current hour inked. sits between the live field and the districts:
    this hour → the day it sits inside. */
-.day-sec{padding:30px 0 10px}
-.day-head{display:flex;justify-content:space-between;align-items:baseline;
-  gap:12px 24px;flex-wrap:wrap;margin-bottom:14px}
+.day-sec{padding:26px 0 10px}
+.day-head{display:flex;justify-content:space-between;align-items:center;
+  gap:12px 24px;flex-wrap:wrap;margin-bottom:12px}
 .day-head .lbl{font-family:var(--mono);font-size:10.5px;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
+  display:inline-flex;align-items:center}
 .day-head .lbl b{color:var(--ink);font-weight:600}
-.daybars{display:flex;align-items:flex-end;gap:2px;height:46px}
-.daybars .db{flex:1;background:var(--line2);min-height:2px}
+.daybars{display:flex;align-items:flex-end;gap:3px;height:64px;
+  background:var(--surf);border:1px solid var(--line);
+  border-radius:14px;padding:16px 16px 12px}
+.daybars .db{flex:1;background:var(--line2);min-height:3px;
+  border-radius:3px 3px 0 0}
 .daybars .db.now{background:var(--ink)}
 .daybars .db:hover{outline:1px solid var(--ink);outline-offset:1px}
 .dayticks{display:flex;justify-content:space-between;margin-top:6px;
@@ -205,16 +272,18 @@ h1 em{font-style:italic;color:var(--ink2)}
 .day-note{margin-top:9px;font-family:var(--mono);font-size:9.5px;
   letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
 .day-note b{color:var(--ink2);font-weight:600}
-/* watch the day — forecast scrubber under the field; same register as
-   /city's: text-link play, hairline scrubber with ink progress, mono */
-.trow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
-  margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+/* watch the day — forecast scrubber under the field card: a control
+   strip tile — chip play button, hairline scrubber with ink progress */
+.trow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin-top:12px;padding:10px 14px;background:var(--surf);
+  border:1px solid var(--line);border-radius:12px;
   font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink3)}
 .trow[hidden]{display:none}
-.trow button{font-family:inherit;font-size:inherit;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink2);background:none;border:none;
-  border-bottom:1px solid var(--line2);padding:0 0 1px;cursor:pointer}
-.trow button:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.trow button{font-family:inherit;font-size:inherit;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink);background:var(--surf2);
+  border:1px solid var(--line);border-radius:8px;
+  padding:6px 12px 5px;cursor:pointer}
+.trow button:hover{background:var(--surf3)}
 .trow button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
   appearance:none;background:transparent;height:14px;margin:0;cursor:pointer}
@@ -241,25 +310,31 @@ h1 em{font-style:italic;color:var(--ink2)}
   .tl-range{height:28px;min-width:140px}
   .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7.5px}
   .tl-range::-moz-range-thumb{width:16px;height:16px}}
+/* results surface as tiles — the priced corridor, the depart read,
+   the dose ladder: each a small card, not an inline hairline */
 .routeline{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
-  color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0}
+  color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0;
+  background:var(--accWash);border:1px solid var(--accTint);
+  border-radius:10px;padding:10px 14px}
 .routeline:empty{display:none}
 .routeline b{color:var(--ink);font-weight:600}
 .routeline .rdose{font-family:var(--serif);font-size:15px;
   letter-spacing:-.01em}
 .depart{display:flex;align-items:center;gap:14px;margin-top:8px;
   font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;
-  color:var(--ink3)}
+  color:var(--ink3);background:var(--surf2);border:1px solid var(--line);
+  border-radius:10px;padding:10px 14px}
 .depart:empty{display:none}
 .depart svg{flex:none;display:block}
 .depart b{color:var(--ink);font-weight:600}
-.ladder{margin-top:12px}
+.ladder{margin-top:10px}
 .ladder:empty{display:none}
-.lrow{display:flex;align-items:baseline;gap:12px;padding:6px 0;
-  border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;
+.lrow{display:flex;align-items:baseline;gap:12px;padding:9px 12px;
+  margin-top:6px;background:var(--surf);border:1px solid var(--line);
+  border-radius:10px;font-family:var(--mono);font-size:9.5px;
   letter-spacing:.06em;color:var(--ink3);cursor:pointer}
-.lrow:first-child{border-top:0}
-.lrow:hover{background:rgba(22,24,29,.03)}
+.lrow:hover{border-color:var(--line2);background:var(--surf2)}
+.lrow.rec{border-color:var(--acc);background:var(--accWash)}
 .lrow:focus-visible{outline:1px solid var(--ink);outline-offset:-2px}
 .lrow .lname{width:138px;flex:none;color:var(--ink2);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
@@ -278,20 +353,22 @@ h1 em{font-style:italic;color:var(--ink2)}
 .lmore{padding:6px 0 0;font-family:var(--mono);font-size:8.5px;
   letter-spacing:.08em;color:var(--ink4);text-transform:uppercase}
 
-/* the districts — every boundary cut, filled by its live cpcb band */
-.dist-sec{padding:34px 0 88px}
-.dist-head{display:flex;justify-content:space-between;align-items:baseline;
+/* the districts — every boundary cut, filled by its live cpcb band.
+   chips are band-tinted tiles: the tile surface is the district's own
+   band washed pastel (--cw set in JS), the silhouette keeps the hue. */
+.dist-sec{padding:30px 0 84px}
+.dist-head{display:flex;justify-content:space-between;align-items:center;
   margin-bottom:14px;gap:14px;flex-wrap:wrap}
 .dist-head .lbl{font-family:var(--mono);font-size:10.5px;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
+  display:inline-flex;align-items:center}
 .dist-head .hint{font-family:var(--mono);font-size:9.5px;
   letter-spacing:.12em;text-transform:uppercase;color:var(--ink4)}
 .distwrap{position:relative}
-.dscroll{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;
-  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  -webkit-overflow-scrolling:touch}
+.dscroll{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;
+  padding:2px 2px 10px;-webkit-overflow-scrolling:touch}
 .dscroll::-webkit-scrollbar{display:none}
-/* phones: chips clip mid-name with no hint they scroll — local cover +
+/* phones: tiles clip mid-name with no hint they scroll — local cover +
    scroll shadow peeks only while more districts sit past that edge */
 @media(max-width:700px){.dscroll{
   background-image:linear-gradient(to right,#fafaf7 30%,rgba(250,250,247,0)),
@@ -303,14 +380,15 @@ h1 em{font-style:italic;color:var(--ink2)}
   background-size:22px 100%,22px 100%,8px 100%,8px 100%;
   background-attachment:local,local,scroll,scroll}}
 .dchip{flex:0 0 auto;display:flex;align-items:center;gap:10px;
-  padding:12px 18px 12px 14px;border:none;border-right:1px solid var(--line);
-  background:transparent;cursor:pointer;text-align:left;
+  padding:11px 16px 11px 11px;border:1px solid var(--line);
+  border-radius:13px;background:var(--cw,var(--surf));
+  cursor:pointer;text-align:left;
+  box-shadow:0 1px 3px -1px rgba(22,24,29,.06);
+  transition:transform .25s cubic-bezier(.22,1,.36,1);
   -webkit-appearance:none;appearance:none;font-family:var(--sans)}
-.dchip:first-child{padding-left:4px}
-.dchip:hover{background:rgba(22,24,29,.03)}
-.dchip:focus-visible{outline:1px solid var(--ink);outline-offset:-2px}
-.dchip[aria-pressed="true"]{background:rgba(22,24,29,.05);
-  box-shadow:inset 0 0 0 1px var(--ink)}
+.dchip:hover{border-color:var(--line2);transform:translateY(-1px)}
+.dchip:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+.dchip[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--ink)}
 .dchip svg{width:40px;height:40px;flex:none;display:block}
 .dchip .dn{font-size:11px;font-weight:600;color:var(--ink);
   white-space:nowrap;letter-spacing:-.005em}
@@ -327,34 +405,40 @@ h1 em{font-style:italic;color:var(--ink2)}
 @media(max-width:640px){.dchip{padding:10px 14px 10px 10px}
   .dchip svg{width:34px;height:34px}}
 
-/* how — the never-existed thesis, then three terse rows */
+/* how — the never-existed thesis, then three pastel step tiles
+   (mint / apricot / sand — the KakaoBank stack, register-washed) */
 .how{border-top:1px solid var(--line)}
-.how .col{padding-top:72px;padding-bottom:84px}
+.how .col{padding-top:64px;padding-bottom:80px}
 .why{font-family:var(--serif);font-weight:400;font-size:21px;
   line-height:1.55;letter-spacing:-.008em;color:var(--ink);
-  max-width:44ch;margin:0 0 56px}
+  max-width:44ch;margin:0 0 48px}
 .why b{font-weight:600;white-space:nowrap}
 .how-head{display:flex;justify-content:space-between;align-items:baseline;
-  margin-bottom:40px;gap:16px}
+  margin-bottom:30px;gap:16px}
 .how h2{font-family:var(--serif);font-weight:400;font-size:29px;
   letter-spacing:-.01em}
 .how-head a{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink2);text-decoration:none;
   border-bottom:1px solid var(--line2);padding-bottom:2px;white-space:nowrap}
 .how-head a:hover{color:var(--ink);border-bottom-color:var(--ink)}
-.row{display:grid;grid-template-columns:56px 152px 1fr;gap:0 28px;
-  align-items:baseline;padding:22px 0;border-top:1px solid var(--line)}
-.row:last-child{border-bottom:1px solid var(--line)}
-.row .n{font-family:var(--mono);font-size:11px;color:var(--ink3);
-  letter-spacing:.14em}
-.row .t{font-size:15px;font-weight:600;letter-spacing:-.01em}
-.row .d{font-size:14px;line-height:1.68;color:var(--ink2);max-width:600px}
-.row .calib{display:block;margin-top:7px;font-family:var(--mono);font-size:9.5px;
-  letter-spacing:.06em;line-height:1.7;color:var(--ink3);text-transform:none}
-.row .calib a{color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--line2)}
-.row .calib a:hover{border-bottom-color:var(--ink)}
-@media(max-width:640px){.row{grid-template-columns:40px 1fr}
-  .row .d{grid-column:2;margin-top:6px}}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.step{border-radius:16px;padding:20px 20px 18px;
+  border:1px solid rgba(22,24,29,.07)}
+.step.s1{background:var(--bd0)}
+.step.s2{background:var(--bd2)}
+.step.s3{background:var(--bd1)}
+.step .n{display:inline-block;font-family:var(--mono);font-size:10px;
+  color:var(--ink2);letter-spacing:.14em;
+  background:rgba(255,255,255,.65);border-radius:6px;padding:3px 8px}
+.step .t{display:block;margin-top:14px;font-family:var(--serif);
+  font-size:19px;letter-spacing:-.01em;color:var(--ink)}
+.step .d{display:block;margin-top:8px;font-size:13px;line-height:1.62;
+  color:var(--ink2)}
+.step .calib{display:block;margin-top:9px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.05em;line-height:1.7;color:var(--ink3);text-transform:none}
+.step .calib a{color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--line2)}
+.step .calib a:hover{border-bottom-color:var(--ink)}
+@media(max-width:720px){.steps{grid-template-columns:1fr}}
 
 /* footer */
 .foot{border-top:1px solid var(--line)}
@@ -381,7 +465,8 @@ h1 em{font-style:italic;color:var(--ink2)}
     <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — a dosimeter without hardware</div>
     <h1 class="rise" style="--d:70ms">A ledger for <em>your lungs.</em></h1>
     <div class="hnum rise" style="--d:140ms" id="hnum" role="status">
-      <b class="hnum-v" id="hnumV">—</b>
+      <div><span class="hnum-chip">live</span><br>
+      <b class="hnum-v" id="hnumV">—</b></div>
       <span class="hnum-t"><span id="hnumT">cigarettes a day — what
       breathing today's field adds up to.</span><i id="hnumS">reading the
       live field…</i></span>
@@ -395,8 +480,12 @@ h1 em{font-style:italic;color:var(--ink2)}
     <b><span id="edgecount">1.07</span>&nbsp;million</b> road edges under
     this hour's field.</p>
     <div class="links rise" style="--d:260ms">
-      <a class="tlink" href="/city">Open the live field →</a>
-      <a class="tlink dim" href="/community">Community →</a>
+      <a class="door" href="/city"><span class="dic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.2c-2.9 0-5.2 2.3-5.2 5.1 0 3.7 4.3 7.5 5.2 8.2.9-.7 5.2-4.5 5.2-8.2 0-2.8-2.3-5.1-5.2-5.1z" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="9" cy="7.4" r="1.9" fill="#fff"/></svg></span>
+        <span class="dl"><b>Open the live field</b><i>the city, this hour</i></span>
+        <span class="darr">→</span></a>
+      <a class="door alt" href="/community"><span class="dic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff"/><rect x="10.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="2.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="10.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".38"/></svg></span>
+        <span class="dl"><b>Community</b><i>k≥3 aggregates only</i></span>
+        <span class="darr">→</span></a>
     </div>
   </div>
   <figure class="shot rise" style="--d:320ms">
@@ -410,7 +499,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 <section class="field-sec"><div class="col">
   <div class="statusline" id="status" aria-live="polite">reading the field…</div>
   <div class="field-head">
-    <span class="lbl" id="fieldLbl">pm2.5 — <b>the field, this hour</b></span>
+    <span class="lbl"><i class="sec-tick t-acc"></i><span id="fieldLbl">pm2.5 — <b>the field, this hour</b></span></span>
     <span class="psel" id="msel" role="group" aria-label="tool"></span>
     <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
     <span class="lbl" id="fieldAge">—</span>
@@ -463,7 +552,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="day-sec" id="daySec" hidden><div class="col">
   <div class="day-head">
-    <span class="lbl">the day, recorded — <b>a typical october, hour by hour</b></span>
+    <span class="lbl"><i class="sec-tick t-b2"></i>the day, recorded — <b>a typical october, hour by hour</b></span>
     <span class="lbl" id="dayNote">—</span>
   </div>
   <div class="daybars" id="daybars"
@@ -474,7 +563,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="dist-sec"><div class="col">
   <div class="dist-head">
-    <span class="lbl">the districts — <b><span id="distN">29</span> real boundaries, each filled live</b></span>
+    <span class="lbl"><i class="sec-tick t-b3"></i>the districts — <b><span id="distN">29</span> real boundaries, each filled live</b></span>
     <span class="hint">tap a boundary · worst first</span>
   </div>
   <div class="distwrap">
@@ -491,22 +580,24 @@ h1 em{font-style:italic;color:var(--ink2)}
   <div class="how-head">
     <h2>Measure, interpolate, dose.</h2>
   </div>
-  <div class="row"><span class="n">01</span><span class="t">measure</span>
-    <p class="d">WAQI and CPCB instruments across NCR report EPA
-    sub-indices — we invert the breakpoint table back to µg/m³ before
-    anything touches them.</p></div>
-  <div class="row"><span class="n">02</span><span class="t">interpolate</span>
-    <p class="d">Ordinary kriging turns point readings into a continuous
-    field with a real variance per cell. The band is calibrated — 95.2%
-    coverage at ±2σ, measured on 3,550 held-out station-hours.
-    <span class="calib">method: σ = √(krige_sd² + (0.12·µ)²) × 3.2 total-error
-    inflation, leave-one-out over CAAQMS station hours vs the OpenAQ archive
-    — <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">field_validation.md</a></span></p></div>
-  <div class="row"><span class="n">03</span><span class="t">dose</span>
-    <p class="d">The math is one integral — concentration × ventilation ×
-    minutes, summed along the path. A C++ engine runs it over every road
-    edge to price a route; the app runs it over your trips and receipts
-    the total. The number you see is the number the engine minimized.</p></div>
+  <div class="steps">
+    <div class="step s1"><span class="n">01</span><span class="t">measure</span>
+      <p class="d">WAQI and CPCB instruments across NCR report EPA
+      sub-indices — we invert the breakpoint table back to µg/m³ before
+      anything touches them.</p></div>
+    <div class="step s2"><span class="n">02</span><span class="t">interpolate</span>
+      <p class="d">Ordinary kriging turns point readings into a continuous
+      field with a real variance per cell. The band is calibrated — 95.2%
+      coverage at ±2σ, measured on 3,550 held-out station-hours.
+      <span class="calib">method: σ = √(krige_sd² + (0.12·µ)²) × 3.2 total-error
+      inflation, leave-one-out over CAAQMS station hours vs the OpenAQ archive
+      — <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">field_validation.md</a></span></p></div>
+    <div class="step s3"><span class="n">03</span><span class="t">dose</span>
+      <p class="d">The math is one integral — concentration × ventilation ×
+      minutes, summed along the path. A C++ engine runs it over every road
+      edge to price a route; the app runs it over your trips and receipts
+      the total. The number you see is the number the engine minimized.</p></div>
+  </div>
 </div></section>
 
 <footer class="foot"><div class="foot-in">
@@ -622,6 +713,14 @@ function chipInk(hex){
   const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#16181d';
   const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
   return (0.299*r+0.587*g+0.114*b)/255>0.6?'#16181d':'#fff';
+}
+/* band → pastel tile surface: wash the hue toward white (never alpha),
+   the same rule register-card's bandWashIdx applies */
+function washHex(hex,t){
+  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return null;
+  const n=parseInt(m[1],16);
+  const px=i=>Math.round(((n>>(16-8*i))&255)*(1-t)+255*t);
+  return `rgb(${px(0)},${px(1)},${px(2)})`;
 }
 
 /* --- the canvas --------------------------------------------------------
@@ -1415,7 +1514,9 @@ function paintDChips(){
   el.innerHTML=rows.map(d=>{
     const na=d.pm25==null&&d.aqi==null;
     const cut=CUT[d.name];
+    const cw=!na&&d.color?washHex(d.color,0.82):null;
     return `<button class="dchip" data-name="${esc(d.name)}"
+      ${cw?`style="--cw:${cw}"`:''}
       aria-pressed="${DT_PIN&&DT_PIN.name===d.name?'true':'false'}"
       aria-label="${esc(d.name)}${d.aqi!=null?', aqi '+d.aqi:''}">
       ${cut?`<svg viewBox="0 0 64 64" aria-hidden="true"><path d="${cut}" fill="${na?'#a6acb8':d.color}" fill-opacity="${na?'0.10':'0.85'}" stroke="#16181d" stroke-width="1.4" stroke-linejoin="round"/></svg>`:''}
