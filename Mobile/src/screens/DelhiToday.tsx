@@ -385,31 +385,43 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
             {(() => {
               const sp = data.species;
               if (!sp) return null;
-              const items: string[] = [];
+              const tiles: { label: string; val: string; wash: string; ink: string }[] = [];
               const push = (key: string, label: string) => {
                 const v = sp[key];
-                /* NBSP inside a pair — the wrap may break at "·", never
-                   between "CO" and its value */
-                if (v) items.push(`${label}\u00A0${v.mean}`);
+                if (v) tiles.push({ label, val: `${v.mean}`, wash: V2Tint.sky.wash, ink: V2Tint.sky.ink });
               };
               push("pm10", "PM10");
-              push("nitrogen_dioxide", "NO₂");
-              push("ozone", "O₃");
+              push("nitrogen_dioxide", "NO\u2082");
+              push("ozone", "O\u2083");
               push("carbon_monoxide", "CO");
-              push("sulphur_dioxide", "SO₂");
-              push("ammonia", "NH₃");
+              push("sulphur_dioxide", "SO\u2082");
+              push("ammonia", "NH\u2083");
               const aqi = sp.us_aqi;
-              if (aqi) items.push(`US\u00A0AQI\u00A0${Math.round(aqi.mean)}`);
-              if (!items.length) return null;
+              if (aqi) tiles.push({ label: "US AQI", val: `${Math.round(aqi.mean)}`,
+                                    wash: V2Tint.clay.wash, ink: V2Tint.clay.ink });
+              if (!tiles.length) return null;
               return (
                 <>
                   <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
                     {t("citySpeciesTitle", lang)}
                   </Text>
-                  <Text {...DYNAMIC_TYPE} style={[ss.speciesLine, NUM,
-                               { fontFamily: famMono(lang, "reg") }]}>
-                    {items.join(" · ")}
-                  </Text>
+                  <View style={ss.speciesGrid}>
+                    {tiles.map((tile) => (
+                      <View key={tile.label}
+                            style={[ss.speciesTile, { backgroundColor: tile.wash }]}>
+                        <Text {...DYNAMIC_TYPE} numberOfLines={1}
+                              style={[ss.speciesVal, NUM,
+                                      { fontFamily: famMono(lang, "reg"), color: tile.ink }]}>
+                          {tile.val}
+                        </Text>
+                        <Text {...DYNAMIC_TYPE} numberOfLines={1}
+                              style={[ss.speciesLab,
+                                      { fontFamily: fam(lang, "semi"), color: tile.ink }]}>
+                          {tile.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                   <Text {...DYNAMIC_TYPE} style={[ss.speciesNote,
                                { fontFamily: fam(lang, "reg") }]}>
                     {t("citySpeciesNote", lang)}
@@ -797,6 +809,25 @@ const ss = StyleSheet.create({
     marginTop: 4,
     lineHeight: 22,
   },
+  /* the species instruments as tinted stat tiles — a wrapping grid,
+     each tile number-over-symbol in its family well (sky instruments,
+     clay AQI summary) */
+  speciesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginHorizontal: 18,
+    marginTop: 8,
+  },
+  speciesTile: {
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minWidth: 78,
+    alignItems: "center",
+  },
+  speciesVal: { fontSize: V2Type.body, lineHeight: 20 },
+  speciesLab: { fontSize: V2Type.label, marginTop: 3, opacity: 0.72 },
   speciesNote: {
     color: V2T.text3,
     fontSize: V2Type.label,
