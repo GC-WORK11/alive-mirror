@@ -1446,7 +1446,7 @@ async function skillLine(){
     $('skillLine').innerHTML=
       `this field also grades itself — over <b>${fmt(cv.hours_graded)}</b>
        recorded hours the forecast we served missed the air delhi got by
-       <b>${F1(ov.mae_ug)} ug/m3</b> on average · ${fmt(ov.n)} pairs ·
+       <b>${F1(ov.mae_ug)} <span style="text-transform:none">µg/m³</span></b> on average · ${fmt(ov.n)} pairs ·
        <a href="/v2/skill">the raw numbers ↗</a>`;
     $('skillLine').hidden=false;
   }catch(e){/* hidden — no score without the pairs to back it */}
