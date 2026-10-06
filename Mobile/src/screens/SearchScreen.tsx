@@ -713,19 +713,6 @@ const ss = StyleSheet.create({
     marginHorizontal: 18,
     marginVertical: 10,
   },
-  stateBlock: {
-    minHeight: 120,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingHorizontal: 40,
-  },
-  stateText: {
-    color: V2T.text2,
-    fontSize: V2Type.secondary,
-    textAlign: "center",
-    lineHeight: 21,
-  },
   actionBar: {
     flexDirection: "row",
     alignItems: "stretch",

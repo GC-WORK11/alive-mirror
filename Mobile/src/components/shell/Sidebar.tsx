@@ -736,7 +736,6 @@ const s = StyleSheet.create({
   subLabel: { flex: 1, fontSize: V2Type.secondary, color: V2T.text },
   subValue: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3 },
   miniBtn: { padding: 6 },
-  miniAction: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.accent },
 
   /* today hero tiles */
   statTile: {

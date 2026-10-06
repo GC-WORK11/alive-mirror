@@ -111,13 +111,6 @@ export async function cacheSet<T>(key: string, value: T, ttlMs: number, since?: 
   }
 }
 
-/** Age in whole seconds of the saved copy, or null when absent —
- * for pills that say "as of 40 min ago" without loading the payload. */
-export async function cacheAgeS(key: string): Promise<number | null> {
-  const hit = await read<unknown>(key);
-  return hit ? hit.ageS : null;
-}
-
 /** Drop every cached entry. */
 export async function cacheClear(): Promise<number> {
   wipeGen++;
