@@ -205,6 +205,7 @@ TD_ARN="$(run aws ecs register-task-definition \
       {"name":"ALIVE_AIR_BUCKET","value":"alive108-air"},
       {"name":"ALIVE_PMTILES","value":"/app/data/geo/delhi.pmtiles"},
       {"name":"AGG_TABLE","value":"alive108-agg"},
+      {"name":"ALIVE_DPCC_INGEST","value":"1"},
       {"name":"BUILD_SHA","value":"'"$TAG"'"}],
     "secrets":[{"name":"OPENAQ_API_KEY",
       "valueFrom":"arn:aws:secretsmanager:'"$REGION"':'"$ACCOUNT"':secret:alive108/openaq"},
