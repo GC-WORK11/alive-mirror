@@ -1397,8 +1397,25 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
   bump("home.HomeSheet");
   const insets = useSafeAreaInsets();
   const budget = PROFILE_BUDGET_UG[settings.profile];
+  /* the air is the canvas (docs/20): the whole screen breathes today's
+     outside band as a whisper at the top, settling to paper — the
+     environment itself is the data, cards float in paper on it */
+  const canvasIdx = bandIdx(ambientUg ?? null)
+    ?? (data ? doseTierIdx(data.rec.totalUg, budget) : null);
+  const canvasTop = canvasIdx != null ? bandWashIdx(canvasIdx) : V2T.bg;
   return (
     <View style={ss.home}>
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id="canvas" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={canvasTop} />
+              <Stop offset="0.55" stopColor={V2T.bg} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#canvas)" />
+        </Svg>
+      </View>
       <HomeHeader lang={lang} onMenu={onMenu} />
       <ScrollView style={ss.flex}
         contentContainerStyle={[ss.content, { paddingBottom: 12 }]}
