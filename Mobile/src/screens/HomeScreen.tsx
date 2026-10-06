@@ -1345,17 +1345,14 @@ function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
   onMap: () => void; onCity: () => void; onTrips: () => void;
 }) {
   bump("home.DoorRow");
-  const ambIdx = bandIdx(ambientUg ?? null);
-  const doors: { key: StringKey; glyph: Glyph; fn: () => void; chip: string; ink: string }[] = [
-    { key: "homeLinkMap", glyph: "explore", fn: onMap, chip: V2Tint.forest.wash, ink: V2Tint.forest.ink },
-    /* the city chip breathes today's band — band wash + band ink when the
-       ambient read exists, the neutral slate well when it doesn't */
-    {
-      key: "homeLinkCity", glyph: "city", fn: onCity,
-      chip: ambIdx != null ? bandWashDeepIdx(ambIdx) : V2Tint.sky.wash,
-      ink: ambIdx != null ? (bandInkIdx(ambIdx) ?? V2Tint.sky.ink) : V2Tint.sky.ink,
-    },
-    { key: "homeLinkTrips", glyph: "history", fn: onTrips, chip: V2Tint.clay.wash, ink: V2Tint.clay.ink },
+  /* ONE accent family for every door — the register's colour discipline:
+     hues are not component jewellery, so all chips wear the same forest
+     wash + ink. Band colour stays reserved for surfaces that mean air
+     quality (the hero, the move card's verdict). */
+  const doors: { key: StringKey; glyph: Glyph; fn: () => void }[] = [
+    { key: "homeLinkMap", glyph: "explore", fn: onMap },
+    { key: "homeLinkCity", glyph: "city", fn: onCity },
+    { key: "homeLinkTrips", glyph: "history", fn: onTrips },
   ];
   return (
     <View style={ss.doorRow}>
@@ -1367,8 +1364,8 @@ function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
             { backgroundColor: V2T.surface, borderColor: V2T.hairline },
             pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
           ]}>
-          <View style={[ss.doorWell, { backgroundColor: d.chip }]}>
-            <Icon name={d.glyph} color={d.ink} size={22} filled />
+          <View style={[ss.doorWell, { backgroundColor: V2T.accentWash }]}>
+            <Icon name={d.glyph} color={V2T.accentInk} size={24} filled />
           </View>
           <Text {...DYNAMIC_TYPE} numberOfLines={1}
             style={[ss.doorLabel, { fontFamily: fam(lang, "semi"), color: V2T.text }]}>
@@ -1548,7 +1545,7 @@ const ss = StyleSheet.create({
   gaugeWrap: { width: 76, height: 76 },
   gaugeCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   gaugePct: { fontSize: 11, color: V2T.text2 },
-  heroOfBudget: { color: V2T.text2, fontSize: 10, marginTop: 6, letterSpacing: 0.3 },
+  heroOfBudget: { color: V2T.text2, fontSize: V2Type.micro, marginTop: 6, letterSpacing: 0.3 },
   heroThin: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
   /* the sparse hero — the ambient truth where the personal number can't
      stand yet: faint field arc, labelled read, count progress */
@@ -1556,12 +1553,12 @@ const ss = StyleSheet.create({
   sparseAmbRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
   sparseAmb: { color: V2T.text2, fontSize: V2Type.label },
   sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 12 },
-  sparseProgLbl: { color: V2T.text2, fontSize: 10, marginLeft: 6, letterSpacing: 0.3 },
+  sparseProgLbl: { color: V2T.text2, fontSize: V2Type.micro, marginLeft: 6, letterSpacing: 0.3 },
   heroStatRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 12 },
   heroStat: { color: V2T.text2, fontSize: V2Type.label },
   heroAmb: { flexDirection: "row", alignItems: "center", gap: 6 },
   heroWeekRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14 },
-  heroWeekLbl: { color: V2T.text2, fontSize: 10, marginLeft: 6, letterSpacing: 0.3 },
+  heroWeekLbl: { color: V2T.text2, fontSize: V2Type.micro, marginLeft: 6, letterSpacing: 0.3 },
 
   /* skeleton → content morph */
   skelEyebrow: { width: 150, height: 13, borderRadius: 6, backgroundColor: V2T.surface2, marginBottom: 12 },
@@ -1597,7 +1594,7 @@ const ss = StyleSheet.create({
     minHeight: 84, justifyContent: "space-between",
   },
   doorWell: {
-    width: 34, height: 34, borderRadius: 12,
+    width: 38, height: 38, borderRadius: 13,
     alignItems: "center", justifyContent: "center",
   },
   doorLabel: { fontSize: V2Type.label, letterSpacing: 0.1 },
@@ -1618,7 +1615,7 @@ const ss = StyleSheet.create({
   /* the move — decision felt at serif scale, evidence lives in chips */
   moveLine: { color: V2T.text, fontSize: 21, lineHeight: 28, marginBottom: 10 },
   sparkLabels: { position: "relative", height: 13, marginTop: 2 },
-  sparkHr: { position: "absolute", top: 0, width: 40, color: V2T.text3, fontSize: 9, textAlign: "center" },
+  sparkHr: { position: "absolute", top: 0, width: 44, color: V2T.text3, fontSize: V2Type.micro, textAlign: "center" },
   winChip: {
     flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8,
     borderRadius: V2Radius.row, borderWidth: 1,
@@ -1643,11 +1640,11 @@ const ss = StyleSheet.create({
     alignItems: "center",
   },
   oaCellSel: { borderColor: V2T.accent, borderWidth: 1.5 },
-  oaDay: { color: V2T.text3, fontSize: 10 },
+  oaDay: { color: V2T.text3, fontSize: V2Type.micro },
   oaMidRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
   oaMid: { color: V2T.text, fontSize: V2Type.body, lineHeight: 22 },
-  oaSub: { color: V2T.text3, fontSize: 9, marginTop: 2, minHeight: 12 },
-  oaMark: { color: V2T.accentInk, fontSize: 9, marginTop: 2, minHeight: 12 },
+  oaSub: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 2, minHeight: 14 },
+  oaMark: { color: V2T.accentInk, fontSize: V2Type.micro, marginTop: 2, minHeight: 14 },
   oaDetail: {
     marginTop: 12, paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
@@ -1665,7 +1662,7 @@ const ss = StyleSheet.create({
     width: 5, height: 5, marginTop: 3, borderRadius: 1.5,
     backgroundColor: V2T.accent,
   },
-  arcHr: { color: V2T.text3, fontSize: 9, marginTop: 4, height: 12 },
+  arcHr: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 4, height: 14 },
   partsTitle: {
     color: V2T.text3, fontSize: V2Type.label,
     marginTop: 16, marginBottom: 6,
