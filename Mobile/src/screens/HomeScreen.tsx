@@ -30,10 +30,11 @@
  *  restriction.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   LayoutAnimation,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -750,36 +751,86 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
   bump("home.HourArc");
   const max = Math.max(...rec.arc.map((h) => h.dose_ug), 0.5);
   const nh = nowHour();
+  /* the arc is scrubbable — a horizontal drag lights the hour under the
+     finger and reads its number, honestly: counted dose where the day
+     was counted, the field's air where it wasn't, nothing where there
+     is nothing. Vertical scrolling is untouched — the gesture only
+     claims strongly-horizontal moves. */
+  const [scrubH, setScrubH] = useState<number | null>(null);
+  const lastH = useRef<number | null>(null);
+  const originX = useRef(0);
+  const arcW = useRef(1);
+  const arcRef = useRef<View>(null);
+  const hourAt = useCallback((pageX: number) => {
+    const x = pageX - originX.current;
+    return Math.max(0, Math.min(23, Math.floor((x / arcW.current) * 24)));
+  }, []);
+  const pan = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_e, g) =>
+      Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onPanResponderGrant: (e) => {
+      const h = hourAt(e.nativeEvent.pageX);
+      lastH.current = h; setScrubH(h); tick();
+    },
+    onPanResponderMove: (e) => {
+      const h = hourAt(e.nativeEvent.pageX);
+      if (h !== lastH.current) { lastH.current = h; setScrubH(h); tick(); }
+    },
+    onPanResponderRelease: () => { lastH.current = null; setScrubH(null); },
+    onPanResponderTerminate: () => { lastH.current = null; setScrubH(null); },
+  })).current;
+  const scrub = scrubH != null ? rec.arc.find((h) => h.hour === scrubH) : null;
+  const scrubLine = scrub == null ? " "
+    : scrub.covered && scrub.dose_ug > 0
+      ? t("dayArcDose", lang, { n: approx(doseUgRound(scrub.dose_ug)), h: scrub.hour })
+      : scrub.conc != null
+        ? t("dayArcAir", lang, { c: Math.round(scrub.conc), h: scrub.hour })
+        : t("dayArcFlat", lang, { h: scrub.hour });
   return (
-    <View style={ss.arcWrap}>
-      {rec.arc.map((h) => {
-        const isNow = h.hour === nh;
-        /* the arc is a heat strip: the bar's height is the dose that hour
-           added, its colour is the band of the air breathed — the day
-           reads as weather before it reads as numbers */
-        const barCol = isNow ? V2T.text : (bandColor(h.conc) ?? V2T.text3);
-        return (
-          <View key={h.hour} style={ss.arcCol}>
-            <View style={ss.arcBarCol}>
-              {h.covered && h.dose_ug > 0 ? (
-                <View style={[ss.arcBar, {
-                  height: 4 + 44 * (h.dose_ug / max),
-                  backgroundColor: barCol,
-                }]} />
-              ) : h.conc != null ? (
-                /* uncovered hour — the band dot keeps the field visible
-                   without claiming dose we didn't count */
-                <View style={[ss.arcDot, { backgroundColor: bandColor(h.conc) ?? V2T.hairline }]} />
-              ) : null}
-              {h.trip_marks > 0 && <View style={ss.arcTrip} />}
+    <View>
+      <View ref={arcRef} style={ss.arcWrap} {...pan.panHandlers}
+        onLayout={() => arcRef.current?.measureInWindow((x, _y, w) => {
+          originX.current = x; arcW.current = Math.max(1, w);
+        })}>
+        {rec.arc.map((h) => {
+          const isNow = h.hour === nh;
+          /* the arc is a heat strip: the bar's height is the dose that hour
+             added, its colour is the band of the air breathed — the day
+             reads as weather before it reads as numbers */
+          const lit = scrubH === h.hour;
+          const barCol = lit ? V2T.text : isNow ? V2T.text : (bandColor(h.conc) ?? V2T.text3);
+          return (
+            <View key={h.hour} style={ss.arcCol}>
+              <View style={ss.arcBarCol}>
+                {h.covered && h.dose_ug > 0 ? (
+                  <View style={[ss.arcBar, {
+                    height: 4 + 44 * (h.dose_ug / max),
+                    backgroundColor: barCol,
+                    opacity: scrubH == null || lit ? 1 : 0.45,
+                  }]} />
+                ) : h.conc != null ? (
+                  /* uncovered hour — the band dot keeps the field visible
+                     without claiming dose we didn't count */
+                  <View style={[ss.arcDot, {
+                    backgroundColor: bandColor(h.conc) ?? V2T.hairline,
+                    opacity: scrubH == null || lit ? 1 : 0.4,
+                  }]} />
+                ) : null}
+                {h.trip_marks > 0 && <View style={ss.arcTrip} />}
+              </View>
+              <Text {...DYNAMIC_TYPE}
+                style={[ss.arcHr, { fontFamily: mono(lang) },
+                  (isNow || lit) && { color: V2T.text }]}>
+                {h.hour % 3 === 0 || lit ? `${h.hour}` : ""}
+              </Text>
             </View>
-            <Text {...DYNAMIC_TYPE}
-              style={[ss.arcHr, { fontFamily: mono(lang) }, isNow && { color: V2T.text }]}>
-              {h.hour % 3 === 0 ? `${h.hour}` : ""}
-            </Text>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
+      <Text {...DYNAMIC_TYPE} numberOfLines={1}
+        style={[ss.arcScrub, NUM, { fontFamily: mono(lang, "med"), opacity: scrubH == null ? 0 : 1 }]}>
+        {scrubLine}
+      </Text>
     </View>
   );
 }
@@ -1172,6 +1223,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
         <View style={ss.heroMainRow}>
           <View style={ss.heroNumRow}>
             <CountUp value={ug} duration={620}
+              numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
               style={[ss.heroNum, { fontFamily: famSerif(lang, "light"), color: col }]}
               format={(n) => `≈${doseUgRound(n)}`} />
             {/* bare "µg" — the register's number+unit pair; the
@@ -1628,6 +1680,7 @@ const ss = StyleSheet.create({
     backgroundColor: V2T.accent,
   },
   arcHr: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 4, height: 14 },
+  arcScrub: { color: V2T.text, fontSize: V2Type.label, textAlign: "center", marginTop: 6, height: 17 },
   partsTitle: {
     color: V2T.text3, fontSize: V2Type.label,
     marginTop: 16, marginBottom: 6,
