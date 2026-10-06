@@ -32,7 +32,8 @@ export const V2T = {
 
   text: "#16181D",   // ink — 15+:1 on surface
   text2: "#4A4E57",  // ink2
-  text3: "#8A8D94",  // ink3 — weakest ink that still reads on paper
+  text3: "#6E7278",  // ink3 — caption ink, AA on paper (4.6:1); was
+                      //  #8A8D94 @ 3.2:1 which read as faint gray
   text4: "#A6ACB8",  // ink4 — empty states, "insufficient data"
 
   // the only non-data accent in the register — forest, not olive:
