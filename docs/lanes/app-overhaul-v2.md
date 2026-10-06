@@ -95,3 +95,13 @@ trek/cycling map+stat, AI assistant glass set, sports/deals apps.
    layer on solid surfaces.
 10. **Words rationed**: number + unit + ≤3-word label. Sentences
     only in CTAs and empty states.
+
+## HARD ANTI-LIST (owner, second message — violations are regressions)
+- NO cyberpunk/neon/glow/retro/synthwave anything.
+- NO 3D renders, no decorative SVG art, no broken-image risk.
+- NO lime-slime/"chocolaty" greens, NO cheap yellowish tones.
+  Color discipline: muted-expensive — deep ink, forest, muted
+  CPCB band tones, saturated-but-classy accents. Think Origins'
+  restraint, not crypto-neon.
+- No over-frontend: no gratuitous animation, no parallax tricks —
+  smooth physics on real interactions only.

@@ -50,3 +50,8 @@ number+unit+≤3-word label — sentences only in CTAs/empty states.
 For web tiles specifically: stat tile = accent band-chip + huge
 numeral + unit + label-under — provenance becomes a caption line
 or hover, not a paragraph.
+
+## HARD ANTI-LIST (owner — same rules as app)
+No cyberpunk/neon/retro, no 3D, no decorative SVG noise, no lime/
+chocolaty-green/cheap-yellow tones — muted-expensive only; no
+over-frontend animation.
