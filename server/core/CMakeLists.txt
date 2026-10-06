@@ -52,15 +52,29 @@ endif()
 message(STATUS "${_ef_out}")
 
 if(ALIVE_CORE_WITH_EIGEN)
-  # Eigen (header-only) via FetchContent — same PEP-668 constraint as pybind11
-  FetchContent_Declare(
-    eigen
-    GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-    GIT_TAG 3.4.0
-    GIT_SHALLOW TRUE)
-  FetchContent_GetProperties(eigen)
-  if(NOT eigen_POPULATED)
-    FetchContent_Populate(eigen)
+  # Eigen (header-only): prefer the system package (libeigen3-dev, no
+  # network) — FetchContent from gitlab.com is a flaky single point of
+  # failure (CodeBuild died on "GitLab unable to handle this request
+  # due to load", Oct 6). Fall back to the archive tarball (not a git
+  # clone — CDN fetch survives the git-smart-http outages).
+  find_package(Eigen3 3.4 QUIET NO_MODULE)
+  if(Eigen3_FOUND)
+    # distro configs differ: debian sets EIGEN3_INCLUDE_DIR, others the
+    # plural; the imported target's interface includes cover either
+    get_target_property(eigen_INCLUDE_HINT Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+    if(NOT eigen_INCLUDE_HINT)
+      set(eigen_INCLUDE_HINT ${EIGEN3_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
+    endif()
+  else()
+    FetchContent_Declare(
+      eigen
+      URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+      URL_HASH SHA256=8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72)
+    FetchContent_GetProperties(eigen)
+    if(NOT eigen_POPULATED)
+      FetchContent_Populate(eigen)
+    endif()
+    set(eigen_INCLUDE_HINT ${eigen_SOURCE_DIR})
   endif()
 endif()
 
@@ -76,7 +90,7 @@ pybind11_add_module(alive_core
 target_include_directories(alive_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${GENERATED_DIR}
-  $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:${eigen_SOURCE_DIR}>)
+  $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:${eigen_INCLUDE_HINT}>)
 
 target_compile_definitions(alive_core PRIVATE
   $<$<BOOL:${ALIVE_CORE_WITH_EIGEN}>:ALIVE_CORE_WITH_EIGEN>)

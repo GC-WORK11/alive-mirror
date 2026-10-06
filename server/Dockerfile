@@ -21,6 +21,7 @@ RUN apt-get update \
         cmake \
         git \
         ca-certificates \
+        libeigen3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build/core
