@@ -30,6 +30,7 @@ returns a shaped "empty"/"unavailable" payload, never a fabricated zero
 presented as measured truth.
 """
 import asyncio
+import concurrent.futures
 import glob
 import json
 import os
@@ -37,6 +38,14 @@ import sys
 import time
 
 from fastapi import APIRouter
+
+# Archive status enumeration runs off the event loop, and off the
+# shared default executor too — that pool is squatted by the cold-boot
+# warm fleet and a status page hit in the first minutes would queue
+# behind it for the whole window (executor-audit lane). One worker is
+# enough for an ops read.
+_ADMIN_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=1, thread_name_prefix="alive-admin")
 
 # flat layout (uvicorn from server/) and package layout (repo root) both work
 _SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -319,7 +328,8 @@ async def status():
     archive_block = {}
     try:
         import archive as _archive
-        archive_block = await asyncio.to_thread(_archive.status)
+        archive_block = await asyncio.get_running_loop(
+            ).run_in_executor(_ADMIN_EXEC, _archive.status)
     except Exception:
         archive_block = {}
     routing = {"loaded": False}

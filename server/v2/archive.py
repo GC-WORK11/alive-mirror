@@ -11,12 +11,20 @@ does not exist. An archive with no snapshots at all answers
 {"hours": []} — the honest 'nothing recorded yet'.
 """
 import asyncio
+import concurrent.futures
 from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
+
+# Archive reads run off the event loop, and off the shared default
+# executor too — file/S3 enumeration would queue behind the cold-boot
+# warm fleet for the whole first-minutes window (executor-audit lane).
+# One worker is enough for a low-traffic read.
+_ARCHIVE_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=1, thread_name_prefix="alive-archive")
 
 
 def _parse_day(day: Optional[str]) -> "date":
@@ -40,5 +48,5 @@ async def get_archive(day: Optional[str] = Query(default=None),
             422, "tz=ist only — the archive is kept in IST")
     import archive as _archive
     # file/S3 enumeration off the event loop
-    return await asyncio.to_thread(_archive.day_payload,
-                                   _parse_day(day))
+    return await asyncio.get_running_loop().run_in_executor(
+        _ARCHIVE_EXEC, _archive.day_payload, _parse_day(day))

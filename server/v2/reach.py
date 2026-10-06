@@ -12,6 +12,7 @@ shared executor as the engine option arm — and is hard-bounded by
 REACH_BUDGET_S.
 """
 import asyncio
+import concurrent.futures
 import json
 import math
 import struct
@@ -40,6 +41,15 @@ REACH_BUDGET_S = 8.0            # hard bound inside the single worker
                                 # (matches plan.ENGINE_BUDGET_S — a cold
                                 # first call may wait out the raster
                                 # reprice before solving)
+
+# Veil encoding needs its own pool: _ENG_EXEC stays for engine work (a
+# multi-MB serialize must not hold an engine slot), and the shared
+# default executor is squatted by the boot-warm fleet on a cold task —
+# the encode would queue behind it and stretch the response by the
+# whole warm window (executor-audit lane). One worker; encodes are
+# short and the veil cache absorbs repeats.
+_ENCODE_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=1, thread_name_prefix="alive-encode")
 
 
 # --- slim ARG1/ARG2 geometry decoder --------------------------------------
@@ -259,10 +269,11 @@ async def reach(lat: float, lon: float, mode: str = "walk",
     resp.update(res)
     resp["took_ms"] = round((time.perf_counter() - t0) * 1000.0, 1)
     try:
-        # encode on the default executor — off _ENG_EXEC so a multi-MB
-        # veil's serialization never occupies an engine worker slot
+        # encode on its own pool — off _ENG_EXEC so a multi-MB veil's
+        # serialization never occupies an engine worker slot, and off
+        # the boot-warm-squatted shared default executor
         body = await asyncio.get_running_loop().run_in_executor(
-            None, _json_bytes, resp)
+            _ENCODE_EXEC, _json_bytes, resp)
     except Exception:
         return resp          # exotic value — fall back to the dict path
     _REACH_CACHE.put(cache_key, body)

@@ -813,60 +813,72 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                 aws_routes[aws_mode] = rs
 
     o, d = (flat, flon), (tlat, tlon)
+    loop = asyncio.get_running_loop()
     opts: list = []
     if aws_routes:
-        car_rts = aws_routes.get("Car") or []
-        sco_rts = aws_routes.get("Scooter") or car_rts
-        for i, rt in enumerate(car_rts[:3]):
-            dist_km = rt["distance_m"] / 1000.0
-            geom, dur, ff = rt["geometry"], rt["duration_s"], \
-                rt.get("freeflow_s")
-            steps = rt.get("steps") or None
-            src = "amazon-location" if steps else "endpoints"
-            label = "Car (AC)" + (f" · alt {i}" if i else "")
-            opts.append(_option("car", label, geom, dist_km, dur, ff,
-                                "amazon-location", vehicle, profile,
-                                steps=steps, steps_source=src,
-                                origin=o, dest=d))
-            if i == 0:
-                opts.append(_option("car_open", "Car (windows down)",
-                                    geom, dist_km, dur, ff,
-                                    "amazon-location", vehicle, profile,
-                                    steps=steps, steps_source=src,
-                                    origin=o, dest=d))
-                opts.append(_option("auto", "Auto-rickshaw", geom,
-                                    dist_km,
-                                    _mode_cap_duration_s(
-                                        "auto", dist_km, dur * 1.25),
-                                    _mode_cap_duration_s(
-                                        "auto", dist_km,
-                                        (ff or dur) * 1.25),
-                                    "amazon-location+est", vehicle,
-                                    profile, steps=steps,
-                                    steps_source=src, origin=o, dest=d))
-                opts.append(_option("bus", "Bus", geom, dist_km,
-                                    dur * 1.6, (ff or dur) * 1.6,
-                                    "amazon-location+est", vehicle,
-                                    profile, steps=steps,
-                                    steps_source=src, origin=o, dest=d))
-        if sco_rts:
-            rt = sco_rts[0]
-            steps = rt.get("steps") or None
-            dist_b = rt["distance_m"] / 1000.0
-            ff_b = rt.get("freeflow_s")
-            opts.append(_option("bike", "Bike / scooter", rt["geometry"],
-                                dist_b,
-                                _mode_cap_duration_s(
-                                    "bike", dist_b, rt["duration_s"]),
-                                _mode_cap_duration_s("bike", dist_b,
-                                                     ff_b) if ff_b
-                                else None,
-                                "amazon-location", vehicle, profile,
-                                steps=steps,
-                                steps_source="amazon-location"
-                                if steps else "endpoints",
-                                origin=o, dest=d))
-        return opts
+        # Same sync-CPU row dosing as _rows below — on _ROWS_EXEC so the
+        # shared default executor (squatted by the boot-warm fleet for
+        # a cold task's first minutes) can't queue this arm until the
+        # plan window cancels it, and so cold-krige dosing doesn't park
+        # the event loop itself.
+        def _aws_rows():
+            out = []
+            car_rts = aws_routes.get("Car") or []
+            sco_rts = aws_routes.get("Scooter") or car_rts
+            for i, rt in enumerate(car_rts[:3]):
+                dist_km = rt["distance_m"] / 1000.0
+                geom, dur, ff = rt["geometry"], rt["duration_s"], \
+                    rt.get("freeflow_s")
+                steps = rt.get("steps") or None
+                src = "amazon-location" if steps else "endpoints"
+                label = "Car (AC)" + (f" · alt {i}" if i else "")
+                out.append(_option("car", label, geom, dist_km, dur, ff,
+                                   "amazon-location", vehicle, profile,
+                                   steps=steps, steps_source=src,
+                                   origin=o, dest=d))
+                if i == 0:
+                    out.append(_option("car_open", "Car (windows down)",
+                                       geom, dist_km, dur, ff,
+                                       "amazon-location", vehicle,
+                                       profile,
+                                       steps=steps, steps_source=src,
+                                       origin=o, dest=d))
+                    out.append(_option("auto", "Auto-rickshaw", geom,
+                                       dist_km,
+                                       _mode_cap_duration_s(
+                                           "auto", dist_km, dur * 1.25),
+                                       _mode_cap_duration_s(
+                                           "auto", dist_km,
+                                           (ff or dur) * 1.25),
+                                       "amazon-location+est", vehicle,
+                                       profile, steps=steps,
+                                       steps_source=src, origin=o,
+                                       dest=d))
+                    out.append(_option("bus", "Bus", geom, dist_km,
+                                       dur * 1.6, (ff or dur) * 1.6,
+                                       "amazon-location+est", vehicle,
+                                       profile, steps=steps,
+                                       steps_source=src, origin=o,
+                                       dest=d))
+            if sco_rts:
+                rt = sco_rts[0]
+                steps = rt.get("steps") or None
+                dist_b = rt["distance_m"] / 1000.0
+                ff_b = rt.get("freeflow_s")
+                out.append(_option("bike", "Bike / scooter",
+                                   rt["geometry"], dist_b,
+                                   _mode_cap_duration_s(
+                                       "bike", dist_b, rt["duration_s"]),
+                                   _mode_cap_duration_s("bike", dist_b,
+                                                        ff_b) if ff_b
+                                   else None,
+                                   "amazon-location", vehicle, profile,
+                                   steps=steps,
+                                   steps_source="amazon-location"
+                                   if steps else "endpoints",
+                                   origin=o, dest=d))
+            return out
+        return await loop.run_in_executor(_ROWS_EXEC, _aws_rows)
 
     rt = await deps.osrm_route("driving", flon, flat, tlon, tlat)
     if not rt:
@@ -879,7 +891,10 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
     # row dosing is sync CPU (a cold task with no priced raster falls to
     # the live krige per segment, seconds per row): off the event loop,
     # or it blocks the plan's own budget timer (live: 34 s first plan
-    # against a 20 s budget on a fresh task)
+    # against a 20 s budget on a fresh task). And off the SHARED default
+    # executor — a to_thread here queues behind the boot-warm fleet
+    # until the plan window cancels the whole motorized arm (the wart
+    # the transit arm hit first — see _TRANSIT_EXEC).
     def _rows():
         out = []
         for mode, label in (("car", "Car (AC)"),
@@ -897,7 +912,7 @@ async def _motorized_options(flat, flon, tlat, tlon, vehicle, profile,
                                extra={"router_backend": rt.get("source")},
                                origin=o, dest=d))
         return out
-    return opts + await asyncio.to_thread(_rows)
+    return opts + await loop.run_in_executor(_ROWS_EXEC, _rows)
 
 
 async def _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
@@ -925,7 +940,8 @@ async def _slow_mode_options(flat, flon, tlat, tlon, vehicle, profile) -> list:
                                extra={"router_backend": rt.get("source")},
                                origin=(flat, flon), dest=(tlat, tlon)))
         return out
-    return opts + await asyncio.to_thread(_rows)
+    return opts + await asyncio.get_running_loop().run_in_executor(
+        _ROWS_EXEC, _rows)
 
 
 def _transit_option(j: dict, vehicle, profile, origin, dest) -> dict:
@@ -1146,6 +1162,17 @@ TRANSIT_BUDGET_S = 12.0
 # without queueing, but GTFS scans can never stack CPU storms.
 _TRANSIT_EXEC = concurrent.futures.ThreadPoolExecutor(
     max_workers=2, thread_name_prefix="alive-transit")
+
+# Private pool for the motorized/slow arms' row dosing, same fix shape:
+# both arms ended in asyncio.to_thread, i.e. the shared default
+# executor — under boot-warm squat the callables never started and the
+# plan window cancelled them whole, dropping every road row the arm
+# had already fetched (executor-audit repro: degraded ['motor','slow']
+# with only the private-pool arms' rows landing). Four workers cover a
+# plan + a reroute each dosing motor and slow rows at once without
+# queueing; still bounded, so cold-krige dosing can't stack CPU storms.
+_ROWS_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=4, thread_name_prefix="alive-rows")
 
 # Geometry ending more than this far from the requested destination is
 # a clipped route — the option must say so (see _option's truncation

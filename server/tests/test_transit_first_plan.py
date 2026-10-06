@@ -136,6 +136,8 @@ def test_first_plan_transit_survives_executor_starvation(monkeypatch):
     # transit arm still must land inside it.
     monkeypatch.setattr(v2plan, "PLAN_BUDGET_S", 6.0)
 
+    probe_ran = []
+
     async def starved_first_plan():
         loop = asyncio.get_running_loop()
         # Boot-warm fleet: both workers busy longer than the plan window.
@@ -143,6 +145,12 @@ def test_first_plan_transit_survives_executor_starvation(monkeypatch):
             max_workers=2, thread_name_prefix="bootwarm"))
         for _ in range(2):
             loop.run_in_executor(None, time.sleep, 5.0)
+
+        t0 = time.monotonic()
+
+        def probe():
+            probe_ran.append(round(time.monotonic() - t0, 2))
+        loop.run_in_executor(None, probe)
         return await v2plan._options_bounded(
             FROM_IG[0], FROM_IG[1], TO_HUDA[0], TO_HUDA[1],
             "car", None, None)
@@ -165,10 +173,19 @@ def test_first_plan_transit_survives_executor_starvation(monkeypatch):
     assert all(o["stations"]["board"] == "Patel Chowk"
                for o in transit_rows if o.get("stations"))
     assert "transit" not in missing
-    # The starvation was real — the to_thread arms genuinely couldn't
-    # get a worker (the wart's exact prod signature).
-    assert "slow" in missing
-    # ...while the on-loop AWS path still painted road rows.
+    # The starvation was real — a probe job queued on the shared
+    # executor couldn't get a worker while the sleepers held them
+    # (hits at ~5 s are asyncio.run's shutdown drain, after the 4 s
+    # plan window closed; any hit <4.5 s means the squat never held).
+    # The executor-audit lane fixed the other arms, so motor/slow rows
+    # land beside transit now — nothing may be left in `missing`
+    # except the stubbed engine arm.
+    assert not [t for t in probe_ran if t < 4.5], (
+        f"probe got a worker at {probe_ran} — the executor wasn't "
+        "actually starved during the plan window; the test isn't "
+        "proving anything")
+    assert "slow" not in missing and "motor" not in missing
+    # ...and the road rows still paint (motorized path included).
     assert any(o["mode"] == "car" for o in options)
 
 

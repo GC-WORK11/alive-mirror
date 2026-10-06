@@ -29,6 +29,7 @@ recorded builds span >=3 h — the per-build belt_fires / vc_m2s /
 mean_pm25 series IS each driver's recorded contribution.
 """
 import asyncio
+import concurrent.futures
 import glob
 import os
 import statistics
@@ -48,6 +49,15 @@ from . import deps  # noqa: E402
 router = APIRouter()
 
 DELHI = (28.6139, 77.2090)          # lat, lon — default query point
+
+# The reads+scoring tail of build_why is sync CPU + file/S3 enumeration
+# (snapshot series, met block, multi-MB build deserializes). It used to
+# run ON the event loop — a cold first call parked every concurrent
+# request behind it. Run it on a private pool: off the loop, and off
+# the shared default executor the boot-warm fleet squats (executor-
+# audit lane). Two workers — /v2/why and the /v2/city why-block overlap.
+_WHY_EXEC = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="alive-why")
 
 # --- admission bars (documented constants, not magic) ----------------------
 SMOKE_MIN_BELT = 10        # below this the belt isn't a headline claim
@@ -603,44 +613,52 @@ async def build_why(lat: float, lon: float) -> dict:
     from .plan import _field_refresh_bounded
     await _field_refresh_bounded()   # best-effort, budgeted (city pattern)
     await _refresh_fires_bounded()
-    wind = _wind_read()
-    fires = _fires_read()
-    vent = _ventilation_read(lat, lon)
-    series = _snapshot_series()
 
-    evaluated, cannot_tell, drivers = {}, [], []
-    for key, fn, arg in (("fires", _eval_fires, (fires, wind)),
-                         ("ventilation", _eval_stagnation, (vent,)),
-                         ("trend", _eval_trend, (series,))):
-        d, ev, ct = fn(*arg)
-        evaluated[key] = ev
-        if d:
-            drivers.append(d)
-        if ct:
-            cannot_tell.append(ct)
+    def _sync_tail():
+        wind = _wind_read()
+        fires = _fires_read()
+        vent = _ventilation_read(lat, lon)
+        series = _snapshot_series()
 
-    drivers.sort(key=lambda d: -d["score"])
-    for i, d in enumerate(drivers):
-        d["weight"] = "primary" if i == 0 else "secondary"
+        evaluated, cannot_tell, drivers = {}, [], []
+        for key, fn, arg in (("fires", _eval_fires, (fires, wind)),
+                             ("ventilation", _eval_stagnation, (vent,)),
+                             ("trend", _eval_trend, (series,))):
+            d, ev, ct = fn(*arg)
+            evaluated[key] = ev
+            if d:
+                drivers.append(d)
+            if ct:
+                cannot_tell.append(ct)
 
-    now = time.time()
-    return {
-        "generated_at": datetime.fromtimestamp(
-            now, tz=timezone.utc).isoformat(timespec="seconds"),
-        "lat": lat, "lon": lon,
-        "scope": "city — fires/stagnation/trend are city-scale drivers; "
-                 "lat/lon localizes the ventilation read",
-        "line": _line(drivers, wind),
-        "drivers": drivers,
-        "evaluated": evaluated,
-        "cannot_tell": cannot_tell,
-        "wind": wind,
-        "history": _history(series),
-        "honesty": ("a driver that can't be observed isn't claimed — "
-                    "checked-but-failed ingredients are under "
-                    "cannot_tell; 'local background' is the honest "
-                    "empty answer, not an error"),
-    }
+        drivers.sort(key=lambda d: -d["score"])
+        for i, d in enumerate(drivers):
+            d["weight"] = "primary" if i == 0 else "secondary"
+
+        now = time.time()
+        return {
+            "generated_at": datetime.fromtimestamp(
+                now, tz=timezone.utc).isoformat(timespec="seconds"),
+            "lat": lat, "lon": lon,
+            "scope": "city — fires/stagnation/trend are city-scale "
+                     "drivers; lat/lon localizes the ventilation read",
+            "line": _line(drivers, wind),
+            "drivers": drivers,
+            "evaluated": evaluated,
+            "cannot_tell": cannot_tell,
+            "wind": wind,
+            "history": _history(series),
+            "honesty": ("a driver that can't be observed isn't claimed — "
+                        "checked-but-failed ingredients are under "
+                        "cannot_tell; 'local background' is the honest "
+                        "empty answer, not an error"),
+        }
+
+    # sync reads + scoring off the event loop AND off the shared default
+    # executor (see _WHY_EXEC): a cold first call used to park the loop
+    # behind S3 enumeration + multi-MB build deserializes
+    return await asyncio.get_running_loop().run_in_executor(
+        _WHY_EXEC, _sync_tail)
 
 
 @router.get("/why")
