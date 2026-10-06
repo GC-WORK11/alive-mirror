@@ -471,6 +471,13 @@ async def day(lat: float, lon: float):
         }
 
     day_sum = summarize_day(hours)
+    # the legal frame over the served day: which CAQM stage today's air
+    # maps to under the GRAP rules — computed from day_mean_pm25 through
+    # the codebase's one PM2.5→CPCB-AQI formula. Absent on the cold/
+    # error path above (no stage is better than an invented one).
+    import districts
+    grap = districts.grap_block(day_sum["day_mean"],
+                                "cpcb aqi of day_mean_pm25")
     payload = {
         "lat": lat,
         "lon": lon,
@@ -488,6 +495,8 @@ async def day(lat: float, lon: float):
         "field": fstat,
         "forecast": fcstat,
     }
+    if grap is not None:
+        payload["grap"] = grap
     _DAY_CACHE.put(cache_key, payload)   # successful folds only —
     return payload                        # error cards never cached
 

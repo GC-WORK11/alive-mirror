@@ -337,6 +337,8 @@ NESTED_OBJ = [
     ("V2DayResponse", "forecast", "V2ForecastStatus"),
     ("V2DayResponse", "heavy_window", "V2DayWindow"),
     ("V2DayResponse", "cleanest_window", "V2DayWindow"),
+    ("V2DayResponse", "grap", "V2Grap"),
+    ("V2CityResponse", "grap", "V2Grap"),
     ("V2OutlookResponse", "field", "FieldStatus"),
     ("V2OutlookResponse", "forecast", "V2ForecastStatus"),
     ("V2OutlookResponse", "best_day", "V2OutlookBestDay"),

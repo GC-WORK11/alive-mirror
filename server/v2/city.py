@@ -434,7 +434,7 @@ async def city():
     except Exception:
         why_block = None  # the number stands alone before it guesses
 
-    return {
+    out = {
         "ts": now,
         "why": why_block,
         "generated_at": datetime.fromtimestamp(
@@ -463,6 +463,15 @@ async def city():
         },
         "trips": agg,
     }
+    # the legal frame over the same field summary — which CAQM stage
+    # Delhi's air maps to under the GRAP rules, from pm25_stats.mean
+    # through the codebase's one PM2.5→CPCB-AQI formula. Key absent on a
+    # cold field (stats.n == 0 → nothing honest to map).
+    import districts as _d
+    grap = _d.grap_block(stats.get("mean"), "cpcb aqi of pm25_stats.mean")
+    if grap is not None:
+        out["grap"] = grap
+    return out
 
 
 # ---------------------------------------------------------------- districts

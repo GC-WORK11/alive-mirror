@@ -558,7 +558,7 @@ async function tick(){
        edges priced, engine), /aqi the live read + fire status + σ band,
        /fires the raw firms detections */
     '/health','/aqi?lat=28.6315&lon=77.2167','/fires',
-    '/v2/why?lat=28.63&lon=77.22'];
+    '/v2/why?lat=28.63&lon=77.22','/v2/city'];
   if(!sessionStorage.getItem('alive_admin_tok')&&
      !sessionStorage.getItem('alive_admin_tok_no')){
     const t=prompt('alive·108 engine room — paste the operator token, or cancel to read the public feeds:');
@@ -591,7 +591,7 @@ async function tick(){
   }
   const val=r=>r.status==='fulfilled'?r.value:null;
   const [status,sources,corridors,donations,validation,model,districts,
-    timing,globalAgg,health,aqiPt,firesDoc,why]=res.map(val);
+    timing,globalAgg,health,aqiPt,firesDoc,why,cityDoc]=res.map(val);
   /* --- why tonight: driver attribution over the same live ingredients --- */
   try{
     const wv=why||{};
@@ -643,6 +643,7 @@ async function tick(){
     }else if(cv){cv.hidden=true;}
   }catch(e){$('whydrivers').innerHTML='<tr><td colspan="5" class="sub">why feed unavailable</td></tr>';}
   const dn=donations||{},S=status||{},H=health||{},A=aqiPt||{};
+  const CY=cityDoc||{};   /* /v2/city — the 'delhi today' summary (grap) */
   const fireSt=A.fire||{};   /* served fire status — belt/modifier/wind live */
   /* public fill — /health + /aqi are public-safe: when the token is
      declined the field/routing truth still paints, honestly labelled.
@@ -782,6 +783,13 @@ async function tick(){
     ['pollutants',(S.species&&Object.keys(S.species).length)
       ?`PM10 ${S.species.pm10?.mean??'—'} · NO₂ ${S.species.nitrogen_dioxide?.mean??'—'} · O₃ ${S.species.ozone?.mean??'—'} · CO ${S.species.carbon_monoxide?.mean??'—'} · SO₂ ${S.species.sulphur_dioxide?.mean??'—'} µg/m³${S.species.us_aqi?` · US AQI ${Math.round(S.species.us_aqi.mean)}`:''}`
       :'pm25 only — field serves no other species right now',true],
+    /* the legal frame — the same /v2/city block the public hero reads;
+       row absent on a cold field rather than claiming a stage */
+    ...(CY.grap&&CY.grap.equivalent_stage!=null?[['grap',
+      (CY.grap.equivalent_stage
+        ?`maps to GRAP stage ${['','I','II','III','IV'][CY.grap.equivalent_stage]} rules`
+        :`below GRAP stage I — no stage maps to this air`)
+      +` · aqi ${CY.grap.aqi} of the live field · computed here — caqm declares the official stage`,true]]:[]),
     ['forecast reach',(S.forecast&&S.forecast.hours)
       ?`${S.forecast.hours}h ahead · ${S.forecast.aq_points??'—'} grid pts · fetched ${ago(S.forecast.age_s)} ago${S.forecast.live_anchor&&S.forecast.live_anchor.enabled?' · anchored to the live field':''}`
       :'cold — warms on first /depart or /v2/city call',true],

@@ -740,6 +740,11 @@ export interface V2CityResponse {
   };
   corridors?: V2CityCorridor[];
   enough_data?: boolean;
+  /** GRAP-equivalent of the live field summary — the CAQM stage the
+      city's air maps to under the rules (computed from pm25_stats.mean,
+      never the official declaration). Absent when the field is cold —
+      no stage is claimed. */
+  grap?: V2Grap;
   wind: Record<string, unknown>;
   sources: Record<string, { up: boolean; [k: string]: unknown }>;
   trips: { days: Record<string, unknown>;
@@ -885,6 +890,22 @@ export interface V2ForecastStatus {
                  tau_h: number; max_age_s: number };
 }
 
+/* The GRAP-equivalent block emitted beside a served PM2.5 field mean —
+   which CAQM stage that air maps to under the legally binding rules
+   (CAQM 'Comprehensively revised GRAP Schedule' for NCR: stage triggers
+   are Delhi's CPCB national AQI — I 201-300, II 301-400, III 401-450,
+   IV >450). The stage is computed through districts.cpcb_aqi — the one
+   PM2.5→AQI formula the whole API shares — so surfaces can't disagree.
+   equivalent_stage 0 = below the Stage-I floor, a real answer; the key
+   itself is absent when no field value exists to map. */
+export interface V2Grap {
+  equivalent_stage: number;   // 0-4 — stage the served air maps to
+  aqi: number;                // CPCB national AQI of the served pm2.5 mean
+  basis: string;              // which mean the aqi was computed over
+  note: string;               // "computed from today's air, not the
+                              //  official CAQM declaration"
+}
+
 export interface V2DayResponse {
   lat: number;
   lon: number;
@@ -901,6 +922,9 @@ export interface V2DayResponse {
   field_age_s: number | null;   // live-field age (seconds)
   field: FieldStatus;
   forecast?: V2ForecastStatus;
+  /** GRAP-equivalent of the served day — computed from day_mean_pm25.
+      Absent on the cold/error path (hours: []), never a claimed stage. */
+  grap?: V2Grap;
   error?: string;               // "outside service area…" / "forecast
                                 //  unavailable" paths emit hours: []
 }

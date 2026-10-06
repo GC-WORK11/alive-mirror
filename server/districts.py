@@ -112,6 +112,45 @@ def cpcb_band(aqi: Optional[int]):
     return CPCB_BANDS[-1][2], CPCB_BANDS[-1][3]
 
 
+# ------------------------------------------------------------------- GRAP
+# Delhi's legally binding emergency stages, declared by CAQM on Delhi's
+# CPCB national AQI — CAQM 'Comprehensively revised GRAP Schedule' for
+# NCR (caqm.nic.in, Dec 2024; further revised 21-Nov-2025, which moved
+# measures between stages without touching the AQI thresholds):
+#   Stage I  'Poor'      AQI 201-300
+#   Stage II 'Very Poor' AQI 301-400
+#   Stage III 'Severe'   AQI 401-450
+#   Stage IV 'Severe+'   AQI >450
+def grap_stage(aqi: Optional[int]) -> Optional[int]:
+    """GRAP stage number (1-4) an AQI maps to; 0 below the Stage-I
+    floor — a real answer, not an absence. None when there is no AQI
+    at all: no honest stage exists to report."""
+    if aqi is None:
+        return None
+    return (4 if aqi > 450 else 3 if aqi > 400 else
+            2 if aqi > 300 else 1 if aqi > 200 else 0)
+
+
+def grap_block(mean_pm25, basis: str) -> Optional[dict]:
+    """The v2 GRAP-equivalent block served beside a field summary:
+    {equivalent_stage, aqi, basis, note}. The stage is computed from the
+    served PM2.5 mean through cpcb_aqi — the national index GRAP is
+    declared on — so every surface maps air to a stage the same way and
+    no second AQI formula exists. 'Equivalent', never 'in effect': the
+    legal stage is CAQM's declaration, which we don't receive. None on a
+    cold field — the caller omits the key rather than fake a stage."""
+    aqi = cpcb_aqi(mean_pm25)
+    if aqi is None:
+        return None
+    return {
+        "equivalent_stage": grap_stage(aqi),
+        "aqi": aqi,
+        "basis": basis,
+        "note": "computed from today's air, not the official "
+                "CAQM declaration",
+    }
+
+
 # ---------------------------------------------------------------- geometry
 
 def _rings(geom: dict):

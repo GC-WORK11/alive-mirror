@@ -375,6 +375,8 @@
       the app plans your day around.</p></div>
     <div class="whyline" id="whyline" hidden><span class="wtag">why tonight</span>
       <span class="wtxt" id="whytxt"></span></div>
+    <div class="whyline" id="grapline" hidden><span class="wtag">grap</span>
+      <span class="wtxt" id="graptxt"></span></div>
   </div>
 
   <noscript>
@@ -1322,8 +1324,12 @@ function paintTicker(a,cy,t,ad,nd){
       'the direction the dust is blowing from'],
     [`govt monitors`,`${a.field?.station_readings??'—'} live`,
       'official station readings feeding this map right now'],
-    [`smog alert`,`${['—','I','II','III','IV'][a.grap?.indicative_stage??0]||'—'}`,
-      'grap — the official smog-emergency stage, fire smoke folded in'],
+    [`smog alert`,(()=>{const g=cy&&cy.grap;
+        if(!g||g.equivalent_stage==null)return'—';
+        return g.equivalent_stage
+          ?['','I','II','III','IV'][g.equivalent_stage]
+          :'below stage i'})(),
+      'grap — the smog-emergency stage this air maps to (aqi of the live field, computed here — the official stage is caqm\'s call)'],
     [`districts`,`${nd} live`,'districts with a live reading right now'],
     [`shared trips today`,`${IN(t.obs_24h)}`],
     [`km shared today`,`${IN(t.km_24h)}`],
@@ -1413,6 +1419,23 @@ async function load(){
     const whyLn=(cy.why&&cy.why.line)||'';
     const wl=document.getElementById('whyline');
     if(wl){if(whyLn){setTxt('whytxt',whyLn);wl.hidden=false}else{wl.hidden=true}}
+    /* the legal frame, same honest-line register: which CAQM stage the
+       served field maps to under the GRAP rules — 'maps to', never
+       'in effect' (the official stage is CAQM's to declare). Absent
+       when /v2/city can't map the field — honest degrade */
+    const gl=document.getElementById('grapline');
+    if(gl){
+      const gp=(cy&&cy.grap)||null;
+      if(gp&&gp.equivalent_stage!=null){
+        const R=['','I','II','III','IV'][gp.equivalent_stage]||gp.equivalent_stage;
+        document.getElementById('graptxt').innerHTML=
+          (gp.equivalent_stage
+            ?`today's air maps to <em>GRAP stage ${R}</em> rules — aqi ${gp.aqi} on the city's live pm2.5`
+            :`today's air sits below <em>GRAP stage I</em> — aqi ${gp.aqi} on the city's live pm2.5`)
+          +` · computed here, not the official caqm call`;
+        gl.hidden=false;
+      }else{gl.hidden=true}
+    }
     if(a.wind&&a.wind.speed_kmh!=null)windNow=a.wind;  /* null wind = unknown, keep last */
     /* 'connecting…' resolves to whichever feed actually answered —
        never left hanging when a sibling endpoint came through */

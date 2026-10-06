@@ -1089,13 +1089,15 @@ class AirField:
 
 def grap_indicative(pm25: Optional[float]) -> dict:
     """Indicative GRAP stage from NCR PM2.5 (Delhi's emergency rules,
-    CAQM). GRAP triggers are declared on AQI; these map the PM2.5 bands
-    that correspond: I=poor air (~AQI 201-300), II=very poor (301-400),
-    III=severe (401-450), IV=severe+ (>450). Labeled 'indicative' — the
+    CAQM). GRAP stages trigger on Delhi's CPCB national AQI, so the
+    stage is computed the same way the /v2 surfaces compute it —
+    districts.grap_stage(districts.cpcb_aqi(pm25)); a second PM2.5-band
+    formula would let two surfaces disagree. Labeled 'indicative' — the
     legal stage is CAQM's call, not ours."""
     if pm25 is None:
         return {"indicative_stage": None, "basis_pm25": None}
-    stage = 4 if pm25 > 350 else 3 if pm25 > 250 else 2 if pm25 > 120 else 1 if pm25 > 90 else 0
+    import districts
+    stage = districts.grap_stage(districts.cpcb_aqi(pm25))
     return {"indicative_stage": stage, "basis_pm25": round(pm25, 1),
             "note": "indicative only — legal GRAP stage is declared by CAQM"}
 
