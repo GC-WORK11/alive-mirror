@@ -148,19 +148,6 @@ def _load_fields_verbose(date: str, snapshot_root: str = None):
     return fields, skipped
 
 
-def _load_fields(date: str, snapshot_root: str = None):
-    fields = []
-    for label, blob in _iter_snapshot_blobs(date, snapshot_root):
-        try:
-            f = airindex.deserialize(blob)
-        except Exception:  # noqa: BLE001 - one corrupt snapshot != day lost
-            continue
-        f["_snapshot"] = label
-        fields.append(f)
-    fields.sort(key=lambda f: f.get("built_epoch") or 0)
-    return fields
-
-
 def latest_snapshot(snapshot_root: str = None):
     """Newest snapshot anywhere under the root -> field dict or None."""
     root = snapshot_root or SNAPSHOT_DIR

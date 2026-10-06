@@ -1505,11 +1505,6 @@ function cutPath(feat){
 }
 function dtHide(){const p=$('dtpop');if(p)p.hidden=true;DT_PIN=null;
   paintDMap().catch(()=>{})}
-function fmFindDistrict(name){
-  for(const f of (FM_GJ&&FM_GJ.features)||[])
-    if(f.properties&&f.properties.name===name)return f;
-  return null;
-}
 /* unweighted mean of a cell set over a boundary feature — the same
    read the server publishes (cells whose centres land inside) */
 function distMeanV(feats,feat,vk){

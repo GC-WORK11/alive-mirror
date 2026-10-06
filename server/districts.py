@@ -234,11 +234,6 @@ def _districts() -> list:
         return out
 
 
-def districts_meta() -> dict:
-    with open(GEOJSON_PATH) as f:
-        return json.load(f).get("properties") or {}
-
-
 def area_for_point(lon: float, lat: float):
     """Finest named area containing (lon, lat): a Delhi sub-district when
     the point lands inside one of NCT's 13 OSM admin_level=5 sub-areas,

@@ -81,7 +81,6 @@ BBOX = (76.80, 28.20, 77.90, 28.95)
 # Requests whose OD leaves this box fail fast with a structured error
 # — before any upstream fetch, geometry decode, or sample walk.
 SERVICE_MARGIN_DEG = 2.0   # ~220 km past the grid: Jaipur/Chandigarh/Agra
-MAX_OD_KM = 700.0          # great-circle cap on the requested pair
 MAX_ROUTE_KM = 900.0       # cap on whatever a router returns for it
 
 

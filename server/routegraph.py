@@ -239,10 +239,6 @@ def _unpack_i16(packed: int):
     return lo, hi
 
 
-def _pack_i16(dl: int, dp: int) -> int:
-    return (dl & 0xFFFF) | ((dp & 0xFFFF) << 16)
-
-
 class PyPathEngine:
     """Reference pathfinder. Same semantics as alive_core.PathEngine;
     slower (pure-Python A*) but parity-checked bit-for-bit on fixtures."""

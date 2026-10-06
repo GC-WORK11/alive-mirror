@@ -163,8 +163,6 @@ ROAD_UPLIFT = {
     "arterial": 1.20,   # alias: doc 06 wording for primary corridors
 }
 
-APP_MODES = {"driving", "cycling", "walking"}
-
 # --- Consumer units ----------------------------------------------------------
 # Berkeley Earth equivalence (claims ledger, doc 10): 1 cigarette ≈ 316 µg
 # inhaled PM2.5. Same constant as the app ledger; main.py /shift uses /316.

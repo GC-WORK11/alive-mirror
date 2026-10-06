@@ -51,7 +51,6 @@ import httpx  # noqa: E402
 
 API_BASE = "https://api.data.gov.in"
 RESOURCE_ID = "3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69"   # real-time AQI
-CATALOG_UUID = "a3e7afc6-b799-4ede-b143-8e074b27e062"  # CPCB AQI catalog
 ENV_KEY = "CPCB_API_KEY"
 SOURCE = "data.gov.in-cpcb"
 

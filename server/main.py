@@ -239,7 +239,6 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=4)
 
 PHOTON = "https://photon.komoot.io/api/"
-OSRM = "https://router.project-osrm.org/route/v1/driving/"
 
 # Delhi NCR bounding box (lon/lat): covers Delhi + Noida + Gurugram + Ghaziabad + Faridabad
 DELHI_CENTER = {"lat": 28.6139, "lon": 77.2090}

@@ -24,8 +24,8 @@ Pipeline (each phase resumable; intermediates land in server/data/_cache/):
             dropped), plus a city-wide curve pooled across all stations.
 
 Stations: every OpenAQ location inside NCR is a climatology station. OpenAQ
-locations within CLUSTER_KM of an airfield.STATIONS point are merged into
-that canonical station (OpenAQ has issued several location ids per physical
+locations whose token set contains a canonical station's tokens AND sit
+within 10 km of an airfield.STATIONS point are merged into that station (OpenAQ has issued several location ids per physical
 site over the years — pooling them fills coverage gaps). Everything else
 stays as its own station under its OpenAQ id.
 
@@ -61,12 +61,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from airfield import STATIONS  # canonical NCR station registry (do not duplicate)
 
 BASE = "https://openaq-data-archive.s3.amazonaws.com/"
-KEY_FMT = "records/csv.gz/locationid={lid}/year={y}/month={m:02d}/location-{lid}-{y}{m:02d}{d:02d}.csv.gz"
 LIST_PREFIX = "records/csv.gz/locationid={lid}/"
 
 NCR_BBOX = (76.80, 28.20, 77.90, 28.95)   # lon_min, lat_min, lon_max, lat_max
 NEAR_KM = 30.0                            # station proximity radius for discovery
-CLUSTER_KM = 2.5                          # merge openaq locs into canonical station
 IST = timezone(timedelta(hours=5, minutes=30))
 POLLUTANTS = ("pm25", "pm10", "no2")      # archive names; pm25 = PM2.5
 GOOD_UNITS = {"µg/m³", "µg/m3", "ug/m3", "μg/m³", "µg/m%C2%B3"}  # seen spellings

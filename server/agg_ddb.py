@@ -670,24 +670,6 @@ class DDBDeviceLedger:
                     Key={"pk": it["pk"], "sk": it["sk"]})
 
 
-def get_ledger_store(client=None, table_name: str = None):
-    """`v2.store.LEDGER`-equivalent factory: DynamoDB when boto3 AND
-    credentials resolve, else the in-memory DeviceLedger."""
-    if client is not None:
-        return DDBDeviceLedger(client=client, table_name=table_name)
-    b3, why = _aws_ready()
-    if b3 is None:
-        from v2.store import DeviceLedger
-        return DeviceLedger()
-    try:
-        return DDBDeviceLedger(
-            client=b3.client("dynamodb", region_name=_region()),
-            table_name=table_name)
-    except Exception:  # noqa: BLE001
-        from v2.store import DeviceLedger
-        return DeviceLedger()
-
-
 # ------------------------------------------------------------- factory
 
 def get_trip_store(client=None, table_name: str = None):

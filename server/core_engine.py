@@ -358,13 +358,6 @@ def _tok_wanted(etoks, t):
     return False
 
 
-def _anchor_row(toks, lat, lon):
-    ah = search_index().query(" ".join(toks), lat, lon, 1)
-    if ah and (ah[0].get("cov") or 0.0) >= 0.75:
-        return ah[0]
-    return None
-
-
 def _anchor_candidates(toks, lat, lon, k=6):
     """every plausible anchor, not just the top-1 — 'udyog vihar' is a
     Delhi locality AND the Gurgaon phases the user usually means; the
