@@ -809,13 +809,6 @@ const ss = StyleSheet.create({
     marginTop: 4,
     lineHeight: 22,
   },
-  speciesLine: {
-    color: V2T.text2,
-    fontSize: V2Type.secondary,
-    marginHorizontal: 18,
-    marginTop: 4,
-    lineHeight: 22,
-  },
   /* the species instruments as tinted stat tiles — a wrapping grid,
      each tile number-over-symbol in its family well (sky instruments,
      clay AQI summary) */
