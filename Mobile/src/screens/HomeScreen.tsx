@@ -1304,25 +1304,27 @@ function TravelCtaInner({ lang, onGo }: { lang: Lang; onGo: () => void }) {
 const TravelCta = React.memo(TravelCtaInner);
 
 /** Feature doors — the secondary rooms as chunky icon tiles (the
- *  register's Swiggy-pattern feature doors): a tinted well, one glyph,
- *  one word. Colour carries component identity; the city door wears the
- *  live ambient band so the tile IS today's read at a glance. */
+ *  register's Swiggy-pattern feature doors). Paper tiles: identity
+ *  colour lives INSIDE the glyph chip — a row of different pastel
+ *  floods reads as a cheap hue parade (owner callout, Oct 6). The
+ *  city chip still wears the live ambient band so the tile carries
+ *  today's read, just not as a flood. */
 function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
   lang: Lang; ambientUg: number | null;
   onMap: () => void; onCity: () => void; onTrips: () => void;
 }) {
   bump("home.DoorRow");
   const ambIdx = bandIdx(ambientUg ?? null);
-  const doors: { key: StringKey; glyph: Glyph; fn: () => void; wash: string; ink: string }[] = [
-    { key: "homeLinkMap", glyph: "explore", fn: onMap, wash: V2Tint.forest.wash, ink: V2Tint.forest.ink },
-    /* the city door breathes today's band — deep wash + band ink when the
+  const doors: { key: StringKey; glyph: Glyph; fn: () => void; chip: string; ink: string }[] = [
+    { key: "homeLinkMap", glyph: "explore", fn: onMap, chip: V2Tint.forest.wash, ink: V2Tint.forest.ink },
+    /* the city chip breathes today's band — band wash + band ink when the
        ambient read exists, the neutral slate well when it doesn't */
     {
       key: "homeLinkCity", glyph: "city", fn: onCity,
-      wash: ambIdx != null ? bandWashDeepIdx(ambIdx) : V2Tint.sky.wash,
+      chip: ambIdx != null ? bandWashDeepIdx(ambIdx) : V2Tint.sky.wash,
       ink: ambIdx != null ? (bandInkIdx(ambIdx) ?? V2Tint.sky.ink) : V2Tint.sky.ink,
     },
-    { key: "homeLinkTrips", glyph: "history", fn: onTrips, wash: V2Tint.clay.wash, ink: V2Tint.clay.ink },
+    { key: "homeLinkTrips", glyph: "history", fn: onTrips, chip: V2Tint.clay.wash, ink: V2Tint.clay.ink },
   ];
   return (
     <View style={ss.doorRow}>
@@ -1331,14 +1333,14 @@ function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
           accessibilityRole="button" accessibilityLabel={t(d.key, lang)}
           style={({ pressed }) => [
             ss.door,
-            { backgroundColor: d.wash, borderColor: `${d.ink}2E` },
+            { backgroundColor: V2T.surface, borderColor: V2T.hairline },
             pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
           ]}>
-          <View style={[ss.doorWell, { backgroundColor: `${d.ink}1F` }]}>
-            <Icon name={d.glyph} color={d.ink} size={20} />
+          <View style={[ss.doorWell, { backgroundColor: d.chip }]}>
+            <Icon name={d.glyph} color={d.ink} size={22} filled />
           </View>
           <Text {...DYNAMIC_TYPE} numberOfLines={1}
-            style={[ss.doorLabel, { fontFamily: fam(lang, "semi"), color: d.ink }]}>
+            style={[ss.doorLabel, { fontFamily: fam(lang, "semi"), color: V2T.text }]}>
             {t(d.key, lang)}
           </Text>
         </Pressable>
