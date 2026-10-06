@@ -367,27 +367,32 @@ def test_s3_series_reads_whole_window(snap_root, monkeypatch):
     fetched and every result kept; the record's count/span come from
     the listing itself."""
     import datetime as _dt
-    base = _dt.datetime.fromtimestamp(NOW, tz=_dt.timezone.utc)
+    # Fresh clock, not the module-level NOW: in a full-suite run this test
+    # executes minutes after import, and _s3_series uses its own
+    # time.time() — fixture rows anchored to the stale NOW drift out of
+    # the 6 h window (oldest row's margin is only ~11 min).
+    now = time.time()
+    base = _dt.datetime.fromtimestamp(now, tz=_dt.timezone.utc)
     objs = {}
     # 30 in-window builds, one every 12 min
     for i in range(30):
-        t = NOW - i * 720 - 60
+        t = now - i * 720 - 60
         d = _dt.datetime.fromtimestamp(t, tz=_dt.timezone.utc)
         objs[f"field/{d:%Y/%m/%d/%H%M}.json.gz"] = (t, _snap_doc(t, 50 + i))
     # out-of-window by slot AND by pad — must not even be fetched
-    old = _dt.datetime.fromtimestamp(NOW - 7 * 3600, tz=_dt.timezone.utc)
+    old = _dt.datetime.fromtimestamp(now - 7 * 3600, tz=_dt.timezone.utc)
     objs[f"field/{old:%Y/%m/%d/%H%M}.json.gz"] = (
-        NOW - 7 * 3600, _snap_doc(NOW - 7 * 3600, 10))
+        now - 7 * 3600, _snap_doc(now - 7 * 3600, 10))
     # inside the slot pad but out of window — fetched, row filtered
-    edge = _dt.datetime.fromtimestamp(NOW - 6 * 3600 - 600,
+    edge = _dt.datetime.fromtimestamp(now - 6 * 3600 - 600,
                                     tz=_dt.timezone.utc)
     objs[f"field/{edge:%Y/%m/%d/%H%M}.json.gz"] = (
-        NOW - 6 * 3600 - 600, _snap_doc(NOW - 6 * 3600 - 600, 15))
+        now - 6 * 3600 - 600, _snap_doc(now - 6 * 3600 - 600, 15))
     # not a build name at all — never fetched, never counted
-    objs[f"field/{base:%Y/%m/%d}/manifest.json.gz"] = (NOW, b"{}")
+    objs[f"field/{base:%Y/%m/%d}/manifest.json.gz"] = (now, b"{}")
     # corrupted body — slot counts it, the row drops
-    bad = _dt.datetime.fromtimestamp(NOW - 1800, tz=_dt.timezone.utc)
-    objs[f"field/{bad:%Y/%m/%d/%H%M}.json.gz"] = (NOW - 1800,
+    bad = _dt.datetime.fromtimestamp(now - 1800, tz=_dt.timezone.utc)
+    objs[f"field/{bad:%Y/%m/%d/%H%M}.json.gz"] = (now - 1800,
                                                  b"not-a-build")
 
     fake = _FakeS3(objs)
