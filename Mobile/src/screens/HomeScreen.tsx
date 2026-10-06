@@ -454,8 +454,17 @@ function MoveCardInner({ curve, outside, lang }: {
       ? t("dayMorningMove", lang, { f: cleanF, g: heavyF, x: a.ratio.toFixed(1) })
       : null);
   const ageLine = fieldAgeLine(curve.fieldAgeS, curve.fieldStale, lang);
+  /* the card has an opinion — its wash IS the verdict: a real clean
+     window tints the whole card that window's band (hopeful); a verdict
+     with no window still gets a warm sand whisper; only a card that
+     couldn't say anything stays bare paper */
+  const cleanIdx = clean != null ? bandIdx(clean.conc) : null;
+  const moveBg = cleanIdx != null ? bandWashIdx(cleanIdx)
+    : (felt != null || flat ? V2Tint.sand.wash : V2T.surface);
+  const moveEdge = cleanIdx != null ? `${bandInkIdx(cleanIdx)}33`
+    : (felt != null || flat ? `${V2Tint.sand.ink}30` : V2T.hairline);
   return (
-    <View style={ss.card}>
+    <View style={[ss.card, { backgroundColor: moveBg, borderColor: moveEdge }]}>
       <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
         {t("moveTitle", lang)}
       </Text>
