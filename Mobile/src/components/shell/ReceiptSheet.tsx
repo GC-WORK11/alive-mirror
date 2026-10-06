@@ -325,7 +325,7 @@ function ReceiptSheetInner({
                      collapse to the single value (NavChrome co2 precedent).
                      nav_kg also keeps the unit Devanagari in hi (किग्रा). */
                   ? `  ·  ${r1(co2.lo) === r1(co2.hi)
-                    ? t("nav_kg", lang, { n: r1(co2.hi) })
+                    ? t("nav_kg", lang, { n: r1(co2.hi).toFixed(1) })
                     : t("nav_kg", lang, { n: `${r1(co2.lo)}–${r1(co2.hi)}` })}`
                   : ""}
               </Text>
