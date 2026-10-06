@@ -694,8 +694,7 @@ const ss = StyleSheet.create({
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
-    borderTopWidth: 1,
-    borderColor: V2T.hairline,
+    ...V2Elev.sheet,
     overflow: "hidden",
   },
   bar: {

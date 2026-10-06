@@ -431,7 +431,7 @@ const us = StyleSheet.create({
   quiet: { alignItems: "center", paddingVertical: 22, paddingHorizontal: 20 },
   quietRing: {
     width: 52, height: 52, borderRadius: 26,
-    borderWidth: 1, borderColor: V2T.hairline, backgroundColor: V2T.surface,
+    backgroundColor: V2T.surface2,
     alignItems: "center", justifyContent: "center",
     marginBottom: 10,
   },

@@ -1304,8 +1304,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
                 })
               : data.week.map((w) => (
                   <View key={w.day} style={[ss.weekDot, {
-                    backgroundColor: "transparent",
-                    borderWidth: 1, borderColor: V2T.hairline,
+                    backgroundColor: V2T.surface3,
                   }]} />
                 ))}
             <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, { fontFamily: mtext(lang) }]}>
@@ -1657,8 +1656,8 @@ const ss = StyleSheet.create({
   oaUnit: { color: V2T.text3, fontSize: V2Type.label },
   oaRow: { flexDirection: "row", gap: 8 },
   oaCell: {
-    flex: 1, borderWidth: 1, borderColor: V2T.hairline,
-    borderRadius: 15, backgroundColor: V2T.surface,
+    flex: 1,
+    borderRadius: 15, backgroundColor: V2T.surface2,
     paddingHorizontal: 6, paddingTop: 10, paddingBottom: 9,
     alignItems: "center",
   },
@@ -1709,8 +1708,8 @@ const ss = StyleSheet.create({
   facetOpts: { flexDirection: "row", gap: 6 },
   opt: {
     paddingHorizontal: 12, paddingVertical: 9,
-    borderRadius: V2Radius.row, borderWidth: 1, borderColor: V2T.hairline,
-    backgroundColor: V2T.surface,
+    borderRadius: V2Radius.row,
+    backgroundColor: V2T.surface2,
   },
   optSel: { backgroundColor: V2T.accentWash, borderColor: V2T.accent, borderWidth: 1.5 },
   optTxt: { color: V2T.text2, fontSize: V2Type.label },
@@ -1740,7 +1739,6 @@ const ss = StyleSheet.create({
     ...V2Elev.float,
     marginHorizontal: 16,
     backgroundColor: V2T.glassDeep,
-    borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.card,
     paddingHorizontal: 16, paddingTop: 12, paddingBottom: 13,
   },

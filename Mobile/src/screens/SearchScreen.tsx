@@ -25,7 +25,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { NUM, V2Radius, V2T, V2Type, fam, famMono } from "../theme";
+import { NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 import { Icon } from "../icons";
@@ -646,8 +646,7 @@ const ss = StyleSheet.create({
     backgroundColor: V2T.bg,
     borderTopLeftRadius: V2Radius.sheet,
     borderTopRightRadius: V2Radius.sheet,
-    borderTopWidth: 1,
-    borderColor: V2T.hairline,
+    ...V2Elev.sheet,
     overflow: "hidden",
   },
   bar: {
@@ -658,10 +657,8 @@ const ss = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
     paddingHorizontal: 12,
-    backgroundColor: V2T.surface,
+    backgroundColor: V2T.surface2,
     borderRadius: V2Radius.pill,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
   },
   barBtn: { padding: 6 },
   input: {
