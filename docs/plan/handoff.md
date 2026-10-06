@@ -904,3 +904,31 @@ Shipped + merged (main `3e75b21`, suite 1079+5 green on `a26fb4e`, deploy in fli
 - Fix `4f60b28`: TravelCta moved out of ScrollView → pinned footer bar (ss.ctaBar) + `collapsable={false}`. Daily-driver grammar bonus: primary verb never scrolls away. iOS verified (tap opens search).
 - alive108-4f60b28.apk built (137MB, sha a4e68c00, 65.2.28.40 baked) → f0abfff3 re-verifying on Android dead-state device.
 - Deploy 4eb9e1e8 verified live: µg clean on /city+landing (23×µg, 16×µg/m³), admin "operator sign in" chip live, 60 fires on wire, why CLAIMS fires (NW wind ×1.24 — first honest claim in prod).
+
+## cont.55 — one-accent color system + font floor (Oct 6, newest owner mandate)
+- Owner verdict on latest build: "still wrong — font sizes, color
+  psychology (multiple colors contrasting over dull/bright/dark),
+  icons read like a cheap CSS template; wants Apple/Samsung-class."
+- Implemented the discipline: ONE neutral paper base + ONE forest
+  accent for ALL functional icon wells; band hues reserved strictly
+  for air-quality MEANING (hero day-mood, move verdict, AQI tile);
+  neutral surface2 for supporting data (species tiles).
+- Commits: `59bf92d` (door chips unified to accentWash/accentInk,
+  font floor 11px on home), `57092e0` (compare option wells, ledger
+  modeBox, sidebar tripIcon, settings vehicleWell → accent family;
+  all icons filled; last 9-10px texts → micro; species tiles neutral;
+  onboarding before-row → forest), `67d6507` (freshness dot reuses
+  V2T.accent — killed the second green), `c23bb48` (brand + moveLine
+  onto the title ramp step).
+- modeTint() kept exported but no longer styles wells — semantic
+  mode-hues removed from surfaces per the psychology rule.
+- Verified on iOS sim: home shows uniform forest chips; compare sheet
+  option tiles all wear the same accent wash (car/bike tiles verified).
+- APK alive108-57092e0 (sha 0c9e5517, attach eb12d5c2) = canonical —
+  apk-v9 re-verifying footer CTA + recording cut8 beats on it.
+- Suite 1151 pass/5 skip → merged to main `b1e3564`.
+- Deploy 7a808d0b STABLE + verified live (health sha match, 903k
+  edges, north wind, 14 belt fires, stagnation primary driver).
+- Lanes running: apk-v9 (+KVM child 1c97d968), web-soul (breathing-
+  card + same one-accent rule relayed for landing/city/admin),
+  field-watch-2 (parali-ramp honesty). 4/5 + possible KVM child.
