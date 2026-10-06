@@ -8,7 +8,7 @@
  */
 import React from "react";
 import Svg, { Circle, G, Path } from "react-native-svg";
-import { V2T } from "./theme";
+import { V2T, V2Tint } from "./theme";
 
 export type Glyph =
   // modes
@@ -239,6 +239,22 @@ export function vehicleGlyph(vehicle: string): Glyph {
   if (k.includes("metro")) return "metro";
   if (k.includes("cab") || k.includes("taxi")) return "cab";
   return "car";
+}
+
+/** Mode identity — the same vehicle classes vehicleGlyph knows, mapped to
+ *  the tint wells so every mode tile wears its mode's colour (icon tiles
+ *  in the ledger, on compare options, in settings). */
+export function modeTint(vehicle: string): { wash: string; ink: string } {
+  const k = (vehicle || "").toLowerCase();
+  if (k.includes("walk")) return V2Tint.forest;
+  if (k.includes("cycle") || k.includes("bicycle")) return V2Tint.sky;
+  if (k.includes("e_rickshaw") || k.includes("erick")) return V2Tint.sand;
+  if (k.includes("auto") || k.includes("rickshaw")) return V2Tint.sand;
+  if (k.includes("two_wheeler") || k.includes("bike") || k.includes("scooter") || k.includes("moto")) return V2Tint.clay;
+  if (k.includes("bus")) return V2Tint.sky;
+  if (k.includes("metro")) return V2Tint.plum;
+  if (k.includes("cab") || k.includes("taxi")) return V2Tint.clay;
+  return V2Tint.clay;
 }
 
 /** Report kind → glyph (ReportsLayer reads community report markers). */

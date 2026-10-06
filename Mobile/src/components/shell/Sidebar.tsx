@@ -16,7 +16,7 @@ import {
 import { F, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMono, famSerif } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { tick } from "../../haptics";
-import { Icon, vehicleGlyph, type Glyph } from "../../icons";
+import { Icon, modeTint, vehicleGlyph, type Glyph } from "../../icons";
 import { approx, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../../i18n/strings";
 import { stats as ledgerStats, weekStats, type Trip } from "../../store/ledger";
 import type { SavedPlace, ShellSettings } from "./settings";
@@ -330,8 +330,8 @@ function SidebarInner({
       accessibilityState={{ disabled: !onTripReceipt }}
       accessibilityLabel={`${placeNameLabel(tr.from, lang)} — ${placeNameLabel(tr.to, lang)}`}
       style={({ pressed }) => [s.trip, pressed && !!onTripReceipt && s.rowPressed]}>
-      <View style={s.tripIcon}>
-        <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={18} />
+      <View style={[s.tripIcon, { backgroundColor: modeTint(tr.vehicle).wash }]}>
+        <Icon name={vehicleGlyph(tr.vehicle)} color={modeTint(tr.vehicle).ink} size={18} />
       </View>
       <View style={s.tripMid}>
         <Text {...DYNAMIC_TYPE} style={[s.tripTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
@@ -542,7 +542,7 @@ function SidebarInner({
                     <Pressable key={l} onPress={() => { tick(); setLang(l); }}
                       accessibilityRole="button" accessibilityState={{ selected: lang === l }}
                       style={[s.seg, lang === l && s.segOn]}>
-                      <Text {...DYNAMIC_TYPE} style={[s.segTxt, { fontFamily: fam(l, "med") }, lang === l && { color: V2T.text }]}>
+                      <Text {...DYNAMIC_TYPE} style={[s.segTxt, { fontFamily: fam(l, "med") }, lang === l && { color: V2T.bg }]}>
                         {l === "en" ? "English" : "हिंदी"}
                       </Text>
                     </Pressable>
@@ -653,21 +653,20 @@ const s = StyleSheet.create({
   },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   mark: {
-    width: 30, height: 30, borderRadius: 9, backgroundColor: V2T.glassSoft,
-    borderWidth: 1, borderColor: V2T.glassLine, alignItems: "center", justifyContent: "center",
+    width: 32, height: 32, borderRadius: 11, backgroundColor: V2T.accentWash,
+    alignItems: "center", justifyContent: "center",
   },
   wordmark: { fontFamily: F.semi, fontSize: V2Type.secondary, color: V2T.text, letterSpacing: 2.4 },
   closeBtn: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: V2T.glassSoft,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    width: 34, height: 34, borderRadius: 17, backgroundColor: V2T.surface2,
     alignItems: "center", justifyContent: "center",
   },
 
   scroll: { paddingHorizontal: 14, paddingTop: 4 },
 
   sectionLabel: {
-    fontSize: V2Type.label, color: V2T.text3, letterSpacing: 0.8,
-    textTransform: "uppercase", marginTop: 18, marginBottom: 8, marginLeft: 2,
+    fontSize: V2Type.secondary, color: V2T.text,
+    marginTop: 20, marginBottom: 10, marginLeft: 2,
   },
   sectionLabelFirst: { marginTop: 12 },
 
@@ -675,19 +674,19 @@ const s = StyleSheet.create({
      admin-district rhythm: 10px gaps, 12px radius, generous padding ---- */
   tileRow: { flexDirection: "row", gap: 10 },
   tile: {
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.glassLine,
+    backgroundColor: V2T.surface, borderRadius: 16, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.hairline,
   },
   gridTile: {
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.glassLine,
-    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12, minHeight: 92,
+    backgroundColor: V2T.surface, borderRadius: 16, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.hairline,
+    paddingHorizontal: 13, paddingTop: 12, paddingBottom: 13, minHeight: 96,
   },
-  gridTileDown: { backgroundColor: V2T.glassSel, borderColor: V2T.accentTint },
+  gridTileDown: { backgroundColor: V2T.accentWash, borderColor: `${V2T.accentInk}33` },
   tileTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   tileIcon: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: V2T.accentWash, borderWidth: 1, borderColor: V2T.glassLine,
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: V2T.accentWash,
     alignItems: "center", justifyContent: "center",
   },
   tileCorner: { padding: 4, marginTop: -4, marginRight: -4 },
@@ -700,16 +699,16 @@ const s = StyleSheet.create({
   },
   optTile: {
     flexBasis: "48%", flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 9,
-    paddingHorizontal: 12, paddingVertical: 12, minHeight: 48,
+    paddingHorizontal: 12, paddingVertical: 12, minHeight: 50,
     borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.glassLine, backgroundColor: V2T.glassSoft,
+    borderWidth: 1, borderColor: V2T.hairline, backgroundColor: V2T.surface,
   },
-  optTileOn: { borderColor: V2T.accent, backgroundColor: V2T.glassSel },
+  optTileOn: { borderColor: V2T.accent, backgroundColor: V2T.accentWash, borderWidth: 1.5 },
   optTileTxt: { fontSize: V2Type.label, color: V2T.text, flexShrink: 1 },
 
   card: {
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.glassLine,
+    backgroundColor: V2T.surface, borderRadius: V2Radius.card, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.hairline,
     overflow: "hidden",
   },
   hair: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.glassLine, marginLeft: 50 },
@@ -727,8 +726,8 @@ const s = StyleSheet.create({
   rowHint: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 3, lineHeight: 17 },
 
   panel: {
-    marginHorizontal: 8, marginBottom: 8, borderRadius: 10,
-    backgroundColor: V2T.glassFaint, borderWidth: 1, borderColor: V2T.glassLine, paddingVertical: 2,
+    marginHorizontal: 8, marginBottom: 8, borderRadius: 12,
+    backgroundColor: V2T.surface2, paddingVertical: 2,
   },
   subRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -741,8 +740,8 @@ const s = StyleSheet.create({
 
   /* today hero tiles */
   statTile: {
-    flex: 1, backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.glassLine,
+    flex: 1, backgroundColor: V2T.surface, borderRadius: 16, borderCurve: "continuous",
+    borderWidth: 1, borderColor: V2T.hairline,
     paddingHorizontal: 14, paddingVertical: 14,
   },
   statHead: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -758,7 +757,7 @@ const s = StyleSheet.create({
   },
   dayCol: { flex: 1, alignItems: "center" },
   dayBarWrap: { height: 46, justifyContent: "flex-end" },
-  dayBar: { width: 10, borderRadius: 4 },
+  dayBar: { width: 12, borderRadius: 6 },
   dayLabel: { fontFamily: F.reg, fontSize: 10, color: V2T.text3, marginTop: 6 },
 
   tripsHead: {
@@ -767,8 +766,8 @@ const s = StyleSheet.create({
   },
   allBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: V2Radius.row,
-    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
+    paddingHorizontal: 11, paddingVertical: 7, borderRadius: V2Radius.pill,
+    backgroundColor: V2T.surface2,
   },
   allBtnTxt: { fontSize: V2Type.label, color: V2T.accent },
 
@@ -777,8 +776,7 @@ const s = StyleSheet.create({
     minHeight: 52, paddingHorizontal: 14, paddingVertical: 10,
   },
   tripIcon: {
-    width: 32, height: 32, borderRadius: 9, backgroundColor: V2T.glassFaint,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    width: 34, height: 34, borderRadius: 12,
     alignItems: "center", justifyContent: "center",
   },
   tripMid: { flex: 1 },
@@ -787,16 +785,16 @@ const s = StyleSheet.create({
   tripNum: { fontSize: V2Type.secondary, color: V2T.text2 },
 
   segWrap: {
-    flexDirection: "row", borderRadius: V2Radius.row,
-    borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
-    backgroundColor: V2T.glassSoft,
+    flexDirection: "row", borderRadius: V2Radius.pill,
+    overflow: "hidden", padding: 3,
+    backgroundColor: V2T.surface2,
   },
-  seg: { paddingHorizontal: 12, paddingVertical: 6 },
-  segOn: { backgroundColor: V2T.glassSel },
+  seg: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: V2Radius.pill },
+  segOn: { backgroundColor: V2T.text },
   segTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text3 },
   langBadge: {
-    width: 24, height: 24, borderRadius: 7, backgroundColor: V2T.accentWash,
-    borderWidth: 1, borderColor: V2T.glassLine, alignItems: "center", justifyContent: "center",
+    width: 26, height: 26, borderRadius: 8, backgroundColor: V2T.accentWash,
+    alignItems: "center", justifyContent: "center",
   },
   langBadgeTxt: { fontFamily: F.semi, fontSize: 10, color: V2T.text2 },
 

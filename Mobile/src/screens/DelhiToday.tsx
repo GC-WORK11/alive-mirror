@@ -24,6 +24,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import {
   bandColor,
+  bandIdx,
+  bandInkIdx,
+  bandWashMidIdx,
   cigOf,
   doseColor,
   fam,
@@ -33,6 +36,7 @@ import {
   NUM,
   V2Radius,
   V2T,
+  V2Tint,
   V2Type,
 } from "../theme";
 import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
@@ -282,7 +286,13 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 on the cigarette equivalence sits as a secondary line
                 under the µg — never the hero (owner mandate). */}
             {data.breath && pm && inhaled ? (
-              <View style={ss.hero}>
+              /* the hero card breathes the band it reports — the mid
+                 wash + band-inked numeral, one tinted object holding the
+                 city's whole day */
+              <View style={[ss.hero, {
+                backgroundColor: bandWashMidIdx(bandIdx(pm.mid) ?? 0),
+                borderColor: `${bandInkIdx(bandIdx(pm.mid) ?? 0)}33`,
+              }]}>
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
                 >
@@ -295,7 +305,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                       NUM,
                       {
                         fontFamily: famSerif(lang, "semi"),
-                        color: doseColor(pm.mid),
+                        color: bandInkIdx(bandIdx(pm.mid) ?? 0) ?? doseColor(pm.mid),
                       },
                     ]}
                   >
@@ -303,8 +313,8 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                   </Text>
                   <Icon
                     name="dust"
-                    color={doseColor(pm.mid)}
-                    size={30}
+                    color={bandInkIdx(bandIdx(pm.mid) ?? 0) ?? doseColor(pm.mid)}
+                    size={34}
                   />
                 </View>
                 <Text {...DYNAMIC_TYPE}
@@ -327,25 +337,24 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                     {`${fmtCig(cig.mid)} ${t("cityHeroUnit", lang)}`}
                   </Text>
                 )}
+                {/* why tonight — the field's causal read lives inside
+                    the hero card, not floating beneath it */}
+                {data.why?.line ? (
+                  <Text {...DYNAMIC_TYPE} style={[ss.whyHero, { fontFamily: famSerif(lang, "reg") }]}>
+                    {whyLine(data.why, data.wind, lang)}
+                  </Text>
+                ) : null}
               </View>
             ) : (
               <Text {...DYNAMIC_TYPE}
                 style={[
                   ss.heroLead,
-                  { fontFamily: fam(lang, "med"), marginTop: 16 },
+                  { fontFamily: fam(lang, "med"), marginTop: 16, marginHorizontal: 18 },
                 ]}
               >
                 {t("cityNoField", lang)}
               </Text>
             )}
-
-            {/* why tonight — the field's own causal read, shown only when
-                the explainer had enough to say (never a guessed cause) */}
-            {data.why?.line ? (
-              <Text {...DYNAMIC_TYPE} style={[ss.whyHero, { fontFamily: famSerif(lang, "reg") }]}>
-                {whyLine(data.why, data.wind, lang)}
-              </Text>
-            ) : null}
 
             {/* freshness — the age chip always tells the truth */}
             <View style={ss.chips}>
@@ -394,7 +403,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
               if (!items.length) return null;
               return (
                 <>
-                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
                     {t("citySpeciesTitle", lang)}
                   </Text>
                   <Text {...DYNAMIC_TYPE} style={[ss.speciesLine, NUM,
@@ -428,7 +437,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
               const max = Math.max(...hrs.map((x) => x.pm25), 1);
               return (
                 <>
-                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
+                  <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
                     {t("cityForecastTitle", lang)}
                   </Text>
                   <View style={ss.fcRow}>
@@ -460,7 +469,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
             })()}
 
             {/* measured streets — k>=3 aggregates, heaviest first */}
-            <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
+            <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
               {t("cityStreetsTitle", lang)}
             </Text>
             {corridors.length === 0 ? (
@@ -477,7 +486,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 hidden when there's nothing (doc 07: no zero-fill) */}
             {day && day.trips > 0 ? (
               <>
-                <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: famMonoText(lang, "med") }]}>
+                <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
                   {t("cityTravellersTitle", lang)}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
@@ -669,7 +678,7 @@ const ss = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    height: 52,
+    height: 56,
     paddingHorizontal: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: V2T.glassLine,
@@ -696,7 +705,11 @@ const ss = StyleSheet.create({
   },
   retryText: { color: V2T.accent, fontSize: V2Type.secondary },
 
-  hero: { marginTop: 16, marginHorizontal: 18 },
+  hero: {
+    marginTop: 18, marginHorizontal: 16,
+    borderRadius: 24, borderWidth: 1,
+    paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16,
+  },
   heroLead: { color: V2T.text2, fontSize: V2Type.body },
   heroRow: {
     flexDirection: "row",
@@ -704,9 +717,9 @@ const ss = StyleSheet.create({
     marginTop: 4,
     gap: 10,
   },
-  heroNum: { fontSize: V2Type.hero, lineHeight: 46 },
+  heroNum: { fontSize: V2Type.heroXL, lineHeight: 64 },
   heroUnit: { color: V2T.text, fontSize: V2Type.body, marginTop: 2 },
-  heroRange: { color: V2T.text3, fontSize: V2Type.label, marginTop: 4 },
+  heroRange: { color: V2T.text2, fontSize: V2Type.label, marginTop: 4 },
 
   chips: {
     flexDirection: "row",
@@ -719,24 +732,21 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: V2Radius.row,
-    backgroundColor: V2T.glassSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: V2Radius.pill,
+    backgroundColor: V2T.surface,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderColor: V2T.hairline,
   },
   chipText: { color: V2T.text2, fontSize: V2Type.label },
 
-  /* sheet sections = the same eyebrow register as the home cards
-     (mono micro, wide tracking) — not a looser Inter label */
+  /* section heads — warm labels, not uppercase micro eyebrows */
   sec: {
-    color: V2T.text3,
-    fontSize: V2Type.micro,
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
+    color: V2T.text,
+    fontSize: V2Type.secondary,
     marginTop: 24,
-    marginBottom: 4,
+    marginBottom: 6,
     marginHorizontal: 18,
   },
   empty: {
@@ -749,18 +759,21 @@ const ss = StyleSheet.create({
   cRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 54,
+    minHeight: 58,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginHorizontal: 4,
+    paddingVertical: 10,
+    marginHorizontal: 18,
+    marginTop: 6,
     borderRadius: V2Radius.row,
+    backgroundColor: V2T.surface,
+    borderWidth: 1,
+    borderColor: V2T.hairline,
   },
   cGlyph: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: V2T.glassFaint,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: V2Tint.clay.wash,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -799,8 +812,8 @@ const ss = StyleSheet.create({
   fcCol: { flex: 1, alignItems: "center" },
   fcVal: { color: V2T.text2, fontSize: V2Type.label, height: 15 },
   fcBar: {
-    width: 10,
-    borderRadius: 3,
+    width: 12,
+    borderRadius: 6,
     backgroundColor: V2T.accent,
     marginTop: 2,
   },
@@ -817,23 +830,21 @@ const ss = StyleSheet.create({
     gap: 8,
     marginTop: 24,
     marginHorizontal: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     borderRadius: V2Radius.row,
-    backgroundColor: V2T.glassSoft,
+    backgroundColor: V2T.surface,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderColor: V2T.hairline,
   },
-  whyLabel: { color: V2T.text2, fontSize: V2Type.secondary, flex: 1 },
+  whyLabel: { color: V2T.text, fontSize: V2Type.secondary, flex: 1 },
   whyBody: { marginHorizontal: 20, marginTop: 10, gap: 8 },
-  whyLine: { color: V2T.text3, fontSize: V2Type.label, lineHeight: 19 },
+  whyLine: { color: V2T.text2, fontSize: V2Type.label, lineHeight: 19 },
   whyHero: {
     color: V2T.text2,
-    fontSize: V2Type.body,
-    lineHeight: 22,
-    marginHorizontal: 20,
-    marginTop: 4,
-    marginBottom: 6,
+    fontSize: V2Type.secondary,
+    lineHeight: 21,
+    marginTop: 10,
     fontStyle: "italic",
   },
 });

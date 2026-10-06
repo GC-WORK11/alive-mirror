@@ -27,7 +27,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Elev, V2Radius, V2T, V2Type, doseColor, fam, famMono, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
-import { Icon, vehicleGlyph, type Glyph } from "../../icons";
+import { Icon, modeTint, vehicleGlyph, type Glyph } from "../../icons";
 import { CountUp, Sheet, pressFx } from "../../ui";
 import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
@@ -361,7 +361,15 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
         accessibilityRole="button"
         accessibilityState={{ selected }}
         style={({ pressed }) => [s.cardRow, pressFx(pressed)]}>
-        <Icon name={vehicleGlyph(o.mode)} color={selected ? V2T.accent : V2T.text2} size={28} filled={selected} />
+        {/* the mode tile — the option's identity in its own colour;
+            selection re-inks it, never re-fills the card */}
+        <View style={[s.modeWell, {
+          backgroundColor: selected ? V2T.accentWash : modeTint(o.mode).wash,
+        }]}>
+          <Icon name={vehicleGlyph(o.mode)}
+            color={selected ? V2T.accentInk : modeTint(o.mode).ink}
+            size={24} filled={selected} />
+        </View>
         <View style={s.cardMid}>
           <View style={s.cardTop}>
             <Text {...DYNAMIC_TYPE} style={[s.optLabel, { fontFamily: fam(lang, "med") }]} numberOfLines={2}>
@@ -749,9 +757,9 @@ const s = StyleSheet.create({
   vehChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginHorizontal: 14, marginTop: 4, marginBottom: 2, minHeight: 34,
-    paddingHorizontal: 11, paddingVertical: 6,
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: V2T.surface, borderRadius: V2Radius.pill,
+    borderWidth: 1, borderColor: V2T.hairline,
   },
   vehChipTxt: { fontSize: V2Type.label, color: V2T.text2, maxWidth: 220 },
   /* "PUC" badge — marks a profile carrying the pollution certificate */
@@ -762,12 +770,12 @@ const s = StyleSheet.create({
   pucBadgeTxt: { fontSize: 9, color: V2T.accent, letterSpacing: 0.4 },
   departRow: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    marginHorizontal: 14, marginTop: 6, marginBottom: 2, minHeight: 44,
-    paddingHorizontal: 12, paddingVertical: 9, borderRadius: V2Radius.row,
-    backgroundColor: V2T.glassSel,
-    borderWidth: 1, borderColor: V2T.accent,
+    marginHorizontal: 14, marginTop: 8, marginBottom: 2, minHeight: 46,
+    paddingHorizontal: 13, paddingVertical: 10, borderRadius: V2Radius.row,
+    backgroundColor: V2T.accentWash,
+    borderWidth: 1, borderColor: `${V2T.accentInk}3D`,
   },
-  departTxt: { fontSize: V2Type.label, color: V2T.accent, flex: 1 },
+  departTxt: { fontSize: V2Type.label, color: V2T.accentInk, flex: 1 },
   refineRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2 },
   degradedRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2,
     paddingVertical: 5, paddingHorizontal: 10, borderRadius: V2Radius.row,
@@ -783,14 +791,18 @@ const s = StyleSheet.create({
      dissolved the row edges into noise; real cards carry a shadow) ---- */
   card: {
     ...V2Elev.card,
-    marginHorizontal: 14, marginTop: 7, borderRadius: V2Radius.card,
-    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.glassLine,
+    marginHorizontal: 14, marginTop: 8, borderRadius: V2Radius.card,
+    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
     overflow: "hidden",
   },
   cardSel: { borderColor: V2T.accent, borderWidth: 1.5, backgroundColor: V2T.accentWash },
   cardRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    paddingVertical: 12, paddingHorizontal: 14, minHeight: 64,
+    paddingVertical: 13, paddingHorizontal: 14, minHeight: 68,
+  },
+  modeWell: {
+    width: 44, height: 44, borderRadius: 15,
+    alignItems: "center", justifyContent: "center",
   },
   cardMid: { flex: 1 },
   cardTop: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
@@ -800,10 +812,10 @@ const s = StyleSheet.create({
     borderRadius: V2Radius.row, paddingHorizontal: 7, paddingVertical: 2,
     marginLeft: 8,
   },
-  chipAccent: { backgroundColor: V2T.glassSel },
-  chipPlain: { backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine },
+  chipAccent: { backgroundColor: V2T.accentWash },
+  chipPlain: { backgroundColor: V2T.surface2 },
   chipTxt: { fontSize: V2Type.label },
-  chipTxtAccent: { color: V2T.accent },
+  chipTxtAccent: { color: V2T.accentInk },
   chipTxtPlain: { color: V2T.text2 },
   optMeta: { fontSize: V2Type.label, color: V2T.text3, marginTop: 2 },
   optReason: { fontSize: V2Type.label, color: V2T.text3, marginTop: 3 },
@@ -863,17 +875,17 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
   },
   ghostBtn: {
-    minHeight: 44, justifyContent: "center", borderRadius: V2Radius.card,
-    paddingHorizontal: 16, borderWidth: 1, borderColor: V2T.glassLine,
-    backgroundColor: V2T.glassSoft,
+    minHeight: 44, justifyContent: "center", borderRadius: V2Radius.pill,
+    paddingHorizontal: 16, borderWidth: 1, borderColor: V2T.hairline,
+    backgroundColor: V2T.surface,
   },
   ghostBtnOn: { borderColor: V2T.accent, backgroundColor: V2T.glassSel },
   ghostTxt: { fontSize: V2Type.secondary, color: V2T.text2 },
   ghostTxtOn: { color: V2T.accent },
   goBtn: {
     ...V2Elev.float,
-    minHeight: 44, justifyContent: "center", alignItems: "center",
-    backgroundColor: V2T.accent, borderRadius: V2Radius.card, paddingHorizontal: 34,
+    minHeight: 48, justifyContent: "center", alignItems: "center",
+    backgroundColor: V2T.text, borderRadius: V2Radius.pill, paddingHorizontal: 36,
   },
   goBtnTxt: { fontSize: V2Type.body, color: V2T.bg },   // light on the accent fill (V2T.bg ≈7:1 on accent)
 

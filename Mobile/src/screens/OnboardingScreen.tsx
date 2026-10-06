@@ -32,7 +32,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fam, famSerif, NUM, V2Radius, V2T, V2Type } from "../theme";
+import { fam, famSerif, NUM, V2Radius, V2T, V2Tint, V2Type } from "../theme";
 import { t, type Lang } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import { saveConsent, type SharingChoice } from "../store/consent";
@@ -79,30 +79,32 @@ function Fact({ lang, children }: { lang: Lang; children: string }) {
   );
 }
 
-/** One stage of the trip arc — icon chip + the product's own strings. */
+/** One stage of the trip arc — a tinted card + the product's own strings
+ *  (the register's card stack: one idea each, the icon's own colour). */
 function JourneyRow({
   lang,
   icon,
   iconColor = V2T.text2,
+  well = V2Tint.sky,
   kicker,
   title,
   subs,
-  last = false,
   children,
 }: {
   lang: Lang;
   icon: Glyph;
   iconColor?: string;
+  /** the stage's tint well — colour is the row's identity, not decoration */
+  well?: { wash: string; ink: string };
   kicker?: string;
   title: string;
   subs?: string[];
-  last?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <View style={[ss.jRow, last && ss.jRowLast]}>
-      <View style={ss.jIcon}>
-        <Icon name={icon} color={iconColor} size={18} />
+    <View style={[ss.jRow, { backgroundColor: well.wash, borderColor: `${well.ink}24` }]}>
+      <View style={[ss.jIcon, { backgroundColor: `${well.ink}1C` }]}>
+        <Icon name={icon} color={iconColor === V2T.text2 ? well.ink : iconColor} size={19} />
       </View>
       <View style={ss.jText}>
         {kicker ? (
@@ -234,6 +236,7 @@ function OnboardingSheet({
                 <JourneyRow
                   lang={lang}
                   icon="search"
+                  well={V2Tint.sky}
                   kicker={t("onb_arcBefore", lang)}
                   title={t("searchPlaceholder", lang)}
                   subs={[t("checkingRoutes", lang)]}
@@ -251,6 +254,7 @@ function OnboardingSheet({
                 <JourneyRow
                   lang={lang}
                   icon="dust"
+                  well={V2Tint.sand}
                   iconColor={V2T.breath1}
                   kicker={t("onb_arcDuring", lang)}
                   title={t("nav_breathe", lang)}
@@ -260,13 +264,13 @@ function OnboardingSheet({
                 <JourneyRow
                   lang={lang}
                   icon="flag"
+                  well={V2Tint.forest}
                   kicker={t("onb_arcAfter", lang)}
                   title={t("youreHere", lang)}
                   subs={[
                     t("onboard_receiptSub1", lang),
                     t("onboard_receiptSub2", lang),
                   ]}
-                  last
                 />
               </View>
             </View>
@@ -481,37 +485,31 @@ const ss = StyleSheet.create({
     lineHeight: 23,
   },
 
-  // p1 — the trip arc as a hairline spec sheet
+  // p1 — the trip arc as a stack of tinted cards, one beat each
   journey: {
     marginTop: 30,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: V2T.line,
+    gap: 12,
   },
   jRow: {
     flexDirection: "row",
     gap: 14,
-    paddingVertical: 15,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: V2T.line,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: V2Radius.card,
+    borderWidth: 1,
   },
-  jRowLast: { borderBottomWidth: 0 },
   jIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: V2Radius.row,
-    backgroundColor: V2T.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   jText: { flex: 1, gap: 4, paddingTop: 2 },
-  /* the before/during/after beat — the arc reads even skimmed */
+  /* the before/during/after beat — a small warm label, not a mono eyebrow */
   jKicker: {
-    fontSize: V2Type.label - 1,
-    color: V2T.text3,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
+    fontSize: V2Type.label,
+    color: V2T.text2,
     marginBottom: 1,
   },
   jTitle: { fontSize: V2Type.body, color: V2T.text },
@@ -524,15 +522,15 @@ const ss = StyleSheet.create({
     alignItems: "center",
     gap: 18,
     marginTop: 26,
-    backgroundColor: V2T.surface,
-    borderRadius: V2Radius.sheet,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.line,
-    paddingVertical: 20,
+    backgroundColor: V2Tint.forest.wash,
+    borderRadius: V2Radius.card,
+    borderWidth: 1,
+    borderColor: `${V2Tint.forest.ink}2E`,
+    paddingVertical: 22,
     paddingHorizontal: 22,
   },
-  kNum: { fontSize: V2Type.hero + 8, color: V2T.text },
-  kLabel: { flex: 1, fontSize: V2Type.label, color: V2T.text2, lineHeight: 19 },
+  kNum: { fontSize: V2Type.hero + 8, color: V2Tint.forest.ink },
+  kLabel: { flex: 1, fontSize: V2Type.secondary, color: V2Tint.forest.ink, lineHeight: 20 },
   facts: { marginTop: 24, gap: 13 },
   fact: { flexDirection: "row", alignItems: "flex-start" },
   factDot: {
@@ -550,18 +548,18 @@ const ss = StyleSheet.create({
   // a solid surface button, not a ghosted link. Equal weight, no nudge.
   choiceCol: { gap: 12, marginTop: 28 },
   choiceBtn: {
-    borderRadius: V2Radius.row,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    minHeight: 76,
+    borderRadius: V2Radius.card,
+    paddingVertical: 20,
+    paddingHorizontal: 22,
+    minHeight: 84,
     justifyContent: "center",
     gap: 4,
   },
   choiceShare: { backgroundColor: V2T.accent },
   choiceKeep: {
-    backgroundColor: V2T.surface2,
+    backgroundColor: V2T.surface,
     borderWidth: 1,
-    borderColor: V2T.line,
+    borderColor: V2T.hairline,
   },
   choiceShareTxt: { fontSize: V2Type.body, color: V2T.bg },
   choiceShareSub: { fontSize: V2Type.label, color: V2T.bg },
@@ -590,10 +588,10 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: V2T.accent,
-    borderRadius: V2Radius.card,
-    paddingHorizontal: 26,
-    height: 52,
+    backgroundColor: V2T.text,
+    borderRadius: V2Radius.pill,
+    paddingHorizontal: 28,
+    height: 56,
     justifyContent: "center",
   },
   nextTxt: { fontSize: V2Type.body, color: V2T.bg },

@@ -54,12 +54,12 @@ const s = StyleSheet.create({
   bar: {
     ...V2Elev.float,
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.card, height: 52,
+    backgroundColor: V2T.glassDeep, borderRadius: V2Radius.pill, height: 54,
     paddingHorizontal: 8, paddingRight: 16,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    borderWidth: 1, borderColor: V2T.hairline,
   },
   menuBtn: {
-    width: 38, height: 38, borderRadius: V2Radius.row,
+    width: 38, height: 38, borderRadius: V2Radius.pill,
     alignItems: "center", justifyContent: "center", marginRight: 2,
   },
   field: { flex: 1, justifyContent: "center", alignSelf: "stretch", paddingHorizontal: 6 },

@@ -57,9 +57,8 @@ const s = StyleSheet.create({
      sheet's drags. iOS ignores it. */
   wrap: { position: "absolute", bottom: 0, left: 0, right: 0, elevation: 30 },
   title: {
-    fontSize: V2Type.secondary, color: V2T.text3,
-    paddingHorizontal: 18, paddingTop: 2, paddingBottom: 6,
-    textTransform: "uppercase", letterSpacing: 0.8,
+    fontSize: V2Type.secondary, color: V2T.text,
+    paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8,
   },
   row: {
     flexDirection: "row", alignItems: "center", gap: 14,

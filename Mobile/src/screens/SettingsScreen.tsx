@@ -33,7 +33,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants"; // transitively installed via `expo` (SDK 57)
-import { F, V2Elev, V2Radius, V2T, V2Type, fam } from "../theme";
+import { F, V2Elev, V2Radius, V2T, V2Tint, V2Type, fam } from "../theme";
 import { Icon, vehicleGlyph, type Glyph } from "../icons";
 import { API, postJson } from "../components/shell/net";
 import { t, type Lang, type StringKey } from "../i18n/strings";
@@ -260,7 +260,9 @@ function SettingsSheetInner({
             )}
             style={({ pressed }) => [ss.row, pressed && ss.rowPressed]}
           >
-            <Icon name={vehicleGlyph(current.vehicle ?? "car")} color={V2T.text2} size={22} />
+            <View style={ss.vehicleWell}>
+              <Icon name={vehicleGlyph(current.vehicle ?? "car")} color={V2Tint.clay.ink} size={22} />
+            </View>
             <View style={ss.rowMid}>
               <Text {...DYNAMIC_TYPE} style={[ss.rowLabel, { fontFamily: fam(lang, "med") }]}>
                 {t("sidebarMyVehicle", lang)}
@@ -304,7 +306,7 @@ function SettingsSheetInner({
                     style={[
                       ss.segTxt,
                       { fontFamily: fam(code, "med") },
-                      lang === code && { color: V2T.text },
+                      lang === code && { color: V2T.bg },
                     ]}
                   >
                     {name}
@@ -644,21 +646,20 @@ const ss = StyleSheet.create({
   title: { fontSize: V2Type.body, color: V2T.text },
   scroll: { paddingHorizontal: 16 },
 
+  /* group titles read as words, not metadata — no more uppercase micros */
   sectionLabel: {
-    fontSize: V2Type.label,
-    color: V2T.text3,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginTop: 22,
-    marginBottom: 8,
+    fontSize: V2Type.secondary,
+    color: V2T.text,
+    marginTop: 24,
+    marginBottom: 10,
     marginLeft: 4,
   },
   card: {
     ...V2Elev.card,
-    backgroundColor: V2T.glassSoft,
-    borderRadius: V2Radius.row,
+    backgroundColor: V2T.surface,
+    borderRadius: V2Radius.card,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderColor: V2T.hairline,
     marginTop: 8,
     overflow: "hidden",
   },
@@ -668,9 +669,9 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 56,
   },
   rowPressed: { backgroundColor: "rgba(255,255,255,0.55)" },
   rowDisabled: { opacity: 0.55 },
@@ -689,7 +690,12 @@ const ss = StyleSheet.create({
     lineHeight: 18,
   },
   explainStatus: { color: V2T.text3, marginTop: 6 },
-  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.glassLine, marginHorizontal: 14 },
+  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.hairline, marginHorizontal: 16 },
+  vehicleWell: {
+    width: 40, height: 40, borderRadius: 13,
+    backgroundColor: V2Tint.clay.wash,
+    alignItems: "center", justifyContent: "center",
+  },
 
   expandBody: { paddingHorizontal: 14, paddingBottom: 12 },
   bulletRow: { flexDirection: "row", gap: 8, paddingVertical: 4 },
@@ -704,18 +710,17 @@ const ss = StyleSheet.create({
   bodyTxt: { fontSize: V2Type.label, color: V2T.text2, lineHeight: 19 },
   sourcesTxt: { fontSize: V2Type.label, color: V2T.text2, lineHeight: 18 },
 
+  /* the language pick is a segment — picked segment fills ink */
   segWrap: {
     flexDirection: "row",
-    borderRadius: V2Radius.row,
-    borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderRadius: V2Radius.pill,
     overflow: "hidden",
-    backgroundColor: V2T.glassSoft,
+    backgroundColor: V2T.surface2,
+    padding: 3,
   },
-  // 44pt-tall segment targets (HIG floor), compact look preserved
-  seg: { paddingHorizontal: 16, minHeight: 44, justifyContent: "center" },
-  segOn: { backgroundColor: V2T.glassSel },
-  segTxt: { fontSize: V2Type.label, color: V2T.text3 },
+  seg: { paddingHorizontal: 16, minHeight: 40, justifyContent: "center", borderRadius: V2Radius.pill },
+  segOn: { backgroundColor: V2T.text },
+  segTxt: { fontSize: V2Type.label, color: V2T.text2 },
 
   /* rate ALive·108 — stars + one-line note + send, inside the about card */
   rateStars: { flexDirection: "row", gap: 12, paddingVertical: 6 },
@@ -734,14 +739,14 @@ const ss = StyleSheet.create({
   rateFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 },
   rateErrTxt: { color: V2T.breath3, flex: 1 },
   rateSendBtn: {
-    backgroundColor: V2T.glassSel,
-    borderRadius: V2Radius.row,
+    backgroundColor: V2T.accentWash,
+    borderRadius: V2Radius.pill,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
-    paddingHorizontal: 16,
-    minHeight: 36,
+    borderColor: `${V2T.accentInk}33`,
+    paddingHorizontal: 18,
+    minHeight: 40,
     justifyContent: "center",
   },
-  rateSendTxt: { fontSize: V2Type.secondary, color: V2T.accent },
+  rateSendTxt: { fontSize: V2Type.secondary, color: V2T.accentInk },
   rateDoneRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
 });

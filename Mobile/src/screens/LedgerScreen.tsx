@@ -36,11 +36,11 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono, famMonoText, famSerif } from "../theme";
+import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Tint, V2Type, fam, famMono, famMonoText, famSerif } from "../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import { doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
-import { Icon, vehicleGlyph } from "../icons";
+import { Icon, modeTint, vehicleGlyph } from "../icons";
 import {
   clearTrips,
   deleteTrip,
@@ -214,11 +214,13 @@ const TripCard = React.memo(function TripCard({
         accessibilityState={{ expanded: open }}
         style={({ pressed }) => [
           ss.cardHead,
-          (pressed || open) && { backgroundColor: "rgba(255,255,255,0.55)" },
+          (pressed || open) && { opacity: 0.85 },
         ]}
       >
-        <View style={ss.modeBox}>
-          <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={22} />
+        {/* the mode tile — a tinted square well carrying the mode's own
+            colour; identity lives on the component, not on the pane */}
+        <View style={[ss.modeBox, { backgroundColor: modeTint(tr.vehicle).wash }]}>
+          <Icon name={vehicleGlyph(tr.vehicle)} color={modeTint(tr.vehicle).ink} size={21} />
         </View>
         <View style={ss.tripMid}>
           <Text {...DYNAMIC_TYPE}
@@ -277,7 +279,7 @@ function EmptyState({ lang }: { lang: Lang }) {
   return (
     <View style={ss.emptyWrap}>
       <View style={ss.emptyBadge}>
-        <Icon name="clock" color={V2T.text3} size={26} />
+        <Icon name="clock" color={V2Tint.forest.ink} size={30} />
       </View>
       <Text {...DYNAMIC_TYPE} style={[ss.emptyTitle, { fontFamily: famSerif(lang, "semi") }]}>
         {t("tripsEmpty", lang)}
@@ -720,9 +722,9 @@ const ss = StyleSheet.create({
   sumRow: { flexDirection: "row" },
   sumCol: { flex: 1 },
   sumNum: { color: V2T.text, fontSize: V2Type.title, lineHeight: 30 },
-  /* breathed µg owns the summary — display-class vs the title-size
+  /* breathed µg owns the summary — hero-class vs the title-size
      count/kg siblings (dose is the app's number, not a stat among stats) */
-  sumNumHero: { color: V2T.text, fontSize: V2Type.display, lineHeight: 36 },
+  sumNumHero: { color: V2T.text, fontSize: V2Type.hero, lineHeight: 44 },
   sumUnitHero: { color: V2T.text2, fontSize: V2Type.secondary },
   sumUnit: { color: V2T.text2, fontSize: V2Type.secondary },
   sumCap: { color: V2T.text2, fontSize: V2Type.label, marginTop: 2 },
@@ -734,55 +736,51 @@ const ss = StyleSheet.create({
     paddingTop: 10,
   },
   weekLabel: {
-    color: V2T.text3,
-    fontSize: V2Type.label,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
+    color: V2T.text,
+    fontSize: V2Type.secondary,
   },
-  weekLine: { color: V2T.text2, fontSize: V2Type.micro, marginTop: 4 },
+  weekLine: { color: V2T.text2, fontSize: V2Type.label, marginTop: 4 },
   barsRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    marginTop: 12,
-    height: 52,
+    marginTop: 14,
+    height: 56,
+    gap: 6,
   },
   barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end" },
-  barFill: { width: 10, borderRadius: 5, minHeight: 3 },
-  barLbl: { color: V2T.text3, fontSize: 9, marginTop: 4 },
+  barFill: { width: 14, borderRadius: 7, minHeight: 4 },
+  barLbl: { color: V2T.text3, fontSize: 10, marginTop: 5 },
 
   dayHead: {
-    color: V2T.text3,
-    fontSize: V2Type.label,
-    letterSpacing: 0.4,
+    color: V2T.text2,
+    fontSize: V2Type.secondary,
     marginHorizontal: 18,
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 8,
   },
 
   card: {
     ...V2Elev.card,
     marginHorizontal: 14,
-    marginBottom: 8,
-    backgroundColor: V2T.glassSoft,
-    borderRadius: V2Radius.row,
+    marginBottom: 10,
+    backgroundColor: V2T.surface,
+    borderRadius: V2Radius.card,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderColor: V2T.hairline,
     overflow: "hidden",
   },
   cardHead: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 60,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 10,
+    minHeight: 68,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
   },
   modeBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: V2T.glassFaint,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -810,14 +808,14 @@ const ss = StyleSheet.create({
   dSaved: { color: V2T.text2, fontSize: V2Type.label, paddingVertical: 6 },
   badgeRow: { flexDirection: "row", paddingVertical: 4 },
   badge: {
-    borderRadius: V2Radius.row,
+    borderRadius: V2Radius.pill,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    backgroundColor: V2T.glassFaint,
+    borderColor: `${V2T.accentInk}33`,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+    backgroundColor: V2T.accentWash,
   },
-  badgeTxt: { color: V2T.text2, fontSize: V2Type.label },
+  badgeTxt: { color: V2T.accentInk, fontSize: V2Type.label },
   dHairline: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: V2T.glassLine,
@@ -841,12 +839,12 @@ const ss = StyleSheet.create({
     paddingBottom: 72,
   },
   emptyBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: V2T.surface,
+    width: 76,
+    height: 76,
+    borderRadius: 26,
+    backgroundColor: V2Tint.forest.wash,
     borderWidth: 1,
-    borderColor: V2T.hairline,
+    borderColor: `${V2Tint.forest.ink}2E`,
     alignItems: "center",
     justifyContent: "center",
   },

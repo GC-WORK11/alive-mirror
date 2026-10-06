@@ -48,6 +48,7 @@ import {
   V2Elev,
   V2Radius,
   V2T,
+  V2Tint,
   V2Type,
   bandColor,
   bandColorIdx,
@@ -56,6 +57,7 @@ import {
   bandInkIdx,
   bandWashDeepIdx,
   bandWashIdx,
+  bandWashMidIdx,
   fam,
   famMono,
   famMonoText,
@@ -63,7 +65,7 @@ import {
 } from "../theme";
 import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
 import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
-import { Icon } from "../icons";
+import { Icon, type Glyph } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tap, tick } from "../haptics";
@@ -409,7 +411,7 @@ function MoveCardInner({ curve, outside, lang }: {
   if (outside) {
     return (
       <View style={ss.card}>
-        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
           {t("moveTitle", lang)}
         </Text>
         <Quiet glyph="pin" title={t("dayOutsideDelhi", lang)} lang={lang} />
@@ -420,7 +422,7 @@ function MoveCardInner({ curve, outside, lang }: {
   if (!curve.covered) {
     return (
       <View style={ss.card}>
-        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
           {t("moveTitle", lang)}
         </Text>
         <Quiet glyph="pin" title={t("dayMorningNoCell", lang)} lang={lang} />
@@ -453,7 +455,7 @@ function MoveCardInner({ curve, outside, lang }: {
   const ageLine = fieldAgeLine(curve.fieldAgeS, curve.fieldStale, lang);
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
         {t("moveTitle", lang)}
       </Text>
       {/* the decision is the hero of this card — serif at title scale so
@@ -471,9 +473,15 @@ function MoveCardInner({ curve, outside, lang }: {
       {!flat && (
         <>
           {heavy && (
-            <View style={ss.mRow}>
+            /* window chips — the heavy/clean evidence as tinted pills,
+               each washed in its own band so the card's two facts read
+               as components, not fine print */
+            <View style={[ss.winChip, {
+              backgroundColor: bandWashIdx(bandIdx(heavy.conc) ?? 0),
+              borderColor: `${bandInkIdx(bandIdx(heavy.conc) ?? 0)}2E`,
+            }]}>
               <BandDot conc={heavy.conc} />
-              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mtext(lang) }]}>
+              <Text {...DYNAMIC_TYPE} style={[ss.winChipTxt, NUM, { fontFamily: mtext(lang) }]}>
                 {t("dayMorningHeavy", lang, {
                   f: heavyF,
                   t: heavyT,
@@ -483,9 +491,12 @@ function MoveCardInner({ curve, outside, lang }: {
             </View>
           )}
           {clean && (
-            <View style={ss.mRow}>
+            <View style={[ss.winChip, {
+              backgroundColor: bandWashIdx(bandIdx(clean.conc) ?? 0),
+              borderColor: `${bandInkIdx(bandIdx(clean.conc) ?? 0)}2E`,
+            }]}>
               <BandDot conc={clean.conc} />
-              <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mtext(lang) }]}>
+              <Text {...DYNAMIC_TYPE} style={[ss.winChipTxt, NUM, { fontFamily: mtext(lang) }]}>
                 {t("dayMorningClean", lang, {
                   f: cleanF,
                   t: cleanT,
@@ -596,7 +607,7 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
   return (
     <View style={ss.card}>
       <View style={ss.oaHead}>
-        <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med"), marginBottom: 0 }]}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi"), marginBottom: 0 }]}>
           {t("dayOutlookTitle", lang)}
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.oaUnit, { fontFamily: mono(lang) }]}>µg/m³</Text>
@@ -733,18 +744,23 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
     <View style={ss.arcWrap}>
       {rec.arc.map((h) => {
         const isNow = h.hour === nh;
+        /* the arc is a heat strip: the bar's height is the dose that hour
+           added, its colour is the band of the air breathed — the day
+           reads as weather before it reads as numbers */
+        const barCol = isNow ? V2T.text : (bandColor(h.conc) ?? V2T.text3);
         return (
           <View key={h.hour} style={ss.arcCol}>
             <View style={ss.arcBarCol}>
-              {h.conc != null && (
-                <View style={[ss.arcDot, { backgroundColor: bandColor(h.conc) ?? V2T.hairline }]} />
-              )}
-              {h.covered && h.dose_ug > 0 && (
+              {h.covered && h.dose_ug > 0 ? (
                 <View style={[ss.arcBar, {
-                  height: 4 + 40 * (h.dose_ug / max),
-                  backgroundColor: isNow ? V2T.text : V2T.text3,
+                  height: 4 + 44 * (h.dose_ug / max),
+                  backgroundColor: barCol,
                 }]} />
-              )}
+              ) : h.conc != null ? (
+                /* uncovered hour — the band dot keeps the field visible
+                   without claiming dose we didn't count */
+                <View style={[ss.arcDot, { backgroundColor: bandColor(h.conc) ?? V2T.hairline }]} />
+              ) : null}
               {h.trip_marks > 0 && <View style={ss.arcTrip} />}
             </View>
             <Text {...DYNAMIC_TYPE}
@@ -767,27 +783,33 @@ function DayCardInner({ rec, budgetUg, lang }: {
   if (rec.thin) return null; // the hero already carries the honest-empty line
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
         {t("dayTitle", lang)}
       </Text>
       <HourArc rec={rec} lang={lang} />
       {rec.parts.length > 0 && (
         <>
-          <Text {...DYNAMIC_TYPE} style={[ss.partsEyebrow, { fontFamily: mtext(lang, "med") }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.partsTitle, { fontFamily: fam(lang, "med") }]}>
             {t("dayPartsTitle", lang)}
           </Text>
-          {rec.parts.map((p, i) => (
-            <View key={i} style={ss.partRow}>
-              <View style={[ss.partDot, { backgroundColor: doseDotColor(p.ug, budgetUg) }]} />
-              <Text {...DYNAMIC_TYPE} style={[ss.partLabel, { fontFamily: fam(lang, "reg") }]}
-                numberOfLines={1}>
-                {p.label}
-              </Text>
-              <Text {...DYNAMIC_TYPE} style={[ss.partUg, NUM, { fontFamily: mono(lang) }]}>
-                {approx(doseUgRound(p.ug))} µg
-              </Text>
-            </View>
-          ))}
+          {/* each span is a chip — a dose-tinted spine, the span's own
+              words, its µg count; a row of components, not a table */}
+          {rec.parts.map((p, i) => {
+            const pt = doseTierIdx(p.ug, budgetUg);
+            return (
+              <View key={i} style={ss.partChip}>
+                <View style={[ss.partSpine, { backgroundColor: doseDotColor(p.ug, budgetUg) }]} />
+                <Text {...DYNAMIC_TYPE} style={[ss.partLabel, { fontFamily: fam(lang, "reg") }]}
+                  numberOfLines={1}>
+                  {p.label}
+                </Text>
+                <Text {...DYNAMIC_TYPE} style={[ss.partUg, NUM, { fontFamily: mono(lang, "med"),
+                  color: pt != null ? bandInkIdx(pt) ?? V2T.text : V2T.text }]}>
+                  {approx(doseUgRound(p.ug))} µg
+                </Text>
+              </View>
+            );
+          })}
         </>
       )}
     </View>
@@ -813,7 +835,7 @@ function LensCardInner({ checkin, lens, lang, onCheckin }: {
   const val = { breath: checkin?.breath ?? -1, eyes: checkin?.eyes ?? -1, energy: checkin?.energy ?? -1 };
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
         {t("lensTitle", lang)}
       </Text>
       <Text {...DYNAMIC_TYPE} style={[ss.lensSub, { fontFamily: fam(lang, "reg") }]}>
@@ -879,7 +901,7 @@ function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
   const frac = Math.max(0, Math.min(1, totalUg / budget));
   return (
     <View style={ss.card}>
-      <Text {...DYNAMIC_TYPE} style={[ss.cardEyebrow, { fontFamily: mtext(lang, "med") }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
         {t("budgetTitle", lang)}
       </Text>
       <View style={ss.budgetBar}>
@@ -897,11 +919,14 @@ function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
         {PROFILES.map((p) => {
           const sel = profile === p.k;
           return (
+            /* the profile is a segment row — the picked segment fills ink
+               so the choice reads as state, not as one more outlined pill */
             <Pressable key={p.k} onPress={() => { tap(); onProfile(p.k); }}
               accessibilityRole="button" accessibilityLabel={t(p.labelKey, lang)}
-              style={({ pressed }) => [ss.opt, sel && ss.optSel, pressFx(pressed)]}>
+              accessibilityState={{ selected: sel }}
+              style={({ pressed }) => [ss.segOpt, sel && ss.segOptSel, pressed && !sel && { opacity: 0.6 }]}>
               <Text {...DYNAMIC_TYPE}
-                style={[ss.optTxt, { fontFamily: fam(lang, "reg") }, sel && ss.optTxtSel]}>
+                style={[ss.segTxt, { fontFamily: fam(lang, "med") }, sel && ss.segTxtSel]}>
                 {t(p.labelKey, lang)}
               </Text>
             </Pressable>
@@ -975,7 +1000,7 @@ function DayPeekInner({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
           }]}>
             ≈{doseUgRound(data.rec.totalUg)}
           </Text>
-          <Text {...DYNAMIC_TYPE} style={[ss.peekUnit, { fontFamily: mono(lang) }]}>{t("unitUg", lang)}</Text>
+          <Text {...DYNAMIC_TYPE} style={[ss.peekUnit, { fontFamily: mono(lang) }]}>{t("unitUg", lang).split(" ")[0]}</Text>
           <View style={ss.peekDots}>
             {data.week.map((w) => (
               <View key={w.day} style={[ss.weekDot, {
@@ -1060,6 +1085,17 @@ const DoseGauge = React.memo(DoseGaugeInner);
 /** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
  *  breathed at display scale, coloured by the day's fraction of budget,
  *  with the covered-hours and outside-now reads as tier-2 evidence. */
+/** Which CPCB band the day's dose-fraction whispers on the hero card —
+ *  the same thresholds doseDotColor uses, returned as an index so the
+ *  card can take a pastel wash + edge. null = a quiet day stays paper. */
+function doseTierIdx(ug: number, budgetUg: number): number | null {
+  const r = budgetUg > 0 ? ug / budgetUg : 1;
+  if (ug <= 0 || r < 0.34) return null;
+  if (r < 0.67) return 2;
+  if (r <= 1) return 3;
+  return 4;
+}
+
 function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   data: DayData | null; budgetUg: number; ambientUg: number | null; lang: Lang;
 }) {
@@ -1067,7 +1103,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   if (!data) {
     /* skeleton — blocks morph to content when the disk read lands */
     return (
-      <View>
+      <View style={ss.heroCard}>
         <View style={ss.skelEyebrow} />
         <View style={ss.skelHero} />
         <View style={ss.skelLine} />
@@ -1076,7 +1112,17 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   }
   const rec = data.rec;
   const ug = rec.totalUg;
-  const col = doseDotColor(rec.totalUg, budgetUg);
+  /* the hero card is a tinted object: the day's dose severity washes the
+     surface (18% band) while the numeral keeps full band-ink — colour ON
+     the component, never a repaint of the pane */
+  const tier = doseTierIdx(rec.totalUg, budgetUg);
+  const ambHeroIdx = bandIdx(ambientUg ?? null);
+  const sparseWash = ambHeroIdx != null ? bandWashMidIdx(ambHeroIdx) : null;
+  const heroBg = tier != null ? bandWashMidIdx(tier) : (sparseWash ?? V2T.surface);
+  const heroEdge = tier != null
+    ? `${bandInkIdx(tier)}38`
+    : (sparseWash != null ? `${bandInkIdx(ambHeroIdx!)}33` : V2T.hairline);
+  const col = tier != null ? (bandInkIdx(tier) ?? V2T.text) : doseDotColor(rec.totalUg, budgetUg);
   const ambIdx = bandIdx(ambientUg ?? null);
   const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
   const maxW = Math.max(...data.week.map((w) => w.ug), 1);
@@ -1087,8 +1133,8 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   const weekCounted = data.week.some((w) => w.ug > 0);
   const cityDays = data.outlook?.days.slice(0, 7) ?? [];
   return (
-    <View>
-      <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: mono(lang, "med") }]}>
+    <View style={[ss.heroCard, { backgroundColor: heroBg, borderColor: heroEdge }]}>
+      <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "semi") }]}>
         {t("homeBreathed", lang)}
       </Text>
       {rec.thin ? (
@@ -1146,8 +1192,11 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
             <CountUp value={ug} duration={620}
               style={[ss.heroNum, { fontFamily: famSerif(lang, "semi"), color: col }]}
               format={(n) => `≈${doseUgRound(n)}`} />
-            <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}>
-              {t("unitUg", lang)}
+            {/* bare "µg" — the register's number+unit pair; the
+                "(micrograms)" gloss lives on the peek card, not here */}
+            <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}
+              numberOfLines={1}>
+              {t("unitUg", lang).split(" ")[0]}
             </Text>
           </View>
           <View style={ss.heroGaugeCol}>
@@ -1232,56 +1281,73 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
 
 const HeroBlock = React.memo(HeroBlockInner);
 
-/** The travel verb — the Uber-homescreen affordance: one search-shaped
- *  bar that opens the journey. The map lives behind it, never resident. */
+/** The travel verb — THE primary CTA of the home surface (the register's
+ *  one-primary-pill rule): a solid ink pill, search glyph, the question,
+ *  navigate arrow. The map lives behind it, never resident. */
 function TravelCtaInner({ lang, onGo }: { lang: Lang; onGo: () => void }) {
   bump("home.TravelCta");
   return (
     <Pressable onPress={() => { tick(); onGo(); }}
       accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
       style={({ pressed }) => [ss.cta, pressFx(pressed)]}>
-      <Icon name="search" color={V2T.text3} size={18} />
-      <Text {...DYNAMIC_TYPE} style={[ss.ctaTxt, { fontFamily: fam(lang, "med") }]}>
+      <Icon name="search" color={V2T.bg} size={19} />
+      <Text {...DYNAMIC_TYPE} style={[ss.ctaTxt, { fontFamily: fam(lang, "semi") }]}>
         {t("searchPlaceholder", lang)}
       </Text>
-      <Icon name="navigate" color={V2T.accent} size={16} />
+      <View style={ss.ctaArrow}>
+        <Icon name="navigate" color={V2T.bg} size={16} />
+      </View>
     </Pressable>
   );
 }
 
 const TravelCta = React.memo(TravelCtaInner);
 
-/** Quiet links — text-only, hairline-separated: the secondary rooms
- *  (the map surface, the city view, the trips ledger). */
-function QuietLinksInner({ lang, onMap, onCity, onTrips }: {
-  lang: Lang;
+/** Feature doors — the secondary rooms as chunky icon tiles (the
+ *  register's Swiggy-pattern feature doors): a tinted well, one glyph,
+ *  one word. Colour carries component identity; the city door wears the
+ *  live ambient band so the tile IS today's read at a glance. */
+function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
+  lang: Lang; ambientUg: number | null;
   onMap: () => void; onCity: () => void; onTrips: () => void;
 }) {
-  bump("home.QuietLinks");
-  const links: { key: StringKey; fn: () => void }[] = [
-    { key: "homeLinkMap", fn: onMap },
-    { key: "homeLinkCity", fn: onCity },
-    { key: "homeLinkTrips", fn: onTrips },
+  bump("home.DoorRow");
+  const ambIdx = bandIdx(ambientUg ?? null);
+  const doors: { key: StringKey; glyph: Glyph; fn: () => void; wash: string; ink: string }[] = [
+    { key: "homeLinkMap", glyph: "explore", fn: onMap, wash: V2Tint.forest.wash, ink: V2Tint.forest.ink },
+    /* the city door breathes today's band — deep wash + band ink when the
+       ambient read exists, the neutral slate well when it doesn't */
+    {
+      key: "homeLinkCity", glyph: "city", fn: onCity,
+      wash: ambIdx != null ? bandWashDeepIdx(ambIdx) : V2Tint.sky.wash,
+      ink: ambIdx != null ? (bandInkIdx(ambIdx) ?? V2Tint.sky.ink) : V2Tint.sky.ink,
+    },
+    { key: "homeLinkTrips", glyph: "history", fn: onTrips, wash: V2Tint.clay.wash, ink: V2Tint.clay.ink },
   ];
   return (
-    <View style={ss.linksRow}>
-      {links.map((l, i) => (
-        <React.Fragment key={l.key}>
-          {i > 0 && <View style={ss.linkSep} />}
-          <Pressable onPress={() => { tap(); l.fn(); }} hitSlop={6}
-            accessibilityRole="button" accessibilityLabel={t(l.key, lang)}
-            style={({ pressed }) => [pressed && { opacity: 0.55 }]}>
-            <Text {...DYNAMIC_TYPE} style={[ss.linkTxt, { fontFamily: mtext(lang, "med") }]}>
-              {t(l.key, lang)}
-            </Text>
-          </Pressable>
-        </React.Fragment>
+    <View style={ss.doorRow}>
+      {doors.map((d) => (
+        <Pressable key={d.key} onPress={() => { tap(); d.fn(); }}
+          accessibilityRole="button" accessibilityLabel={t(d.key, lang)}
+          style={({ pressed }) => [
+            ss.door,
+            { backgroundColor: d.wash, borderColor: `${d.ink}2E` },
+            pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+          ]}>
+          <View style={[ss.doorWell, { backgroundColor: `${d.ink}1F` }]}>
+            <Icon name={d.glyph} color={d.ink} size={20} />
+          </View>
+          <Text {...DYNAMIC_TYPE} numberOfLines={1}
+            style={[ss.doorLabel, { fontFamily: fam(lang, "semi"), color: d.ink }]}>
+            {t(d.key, lang)}
+          </Text>
+        </Pressable>
       ))}
     </View>
   );
 }
 
-const QuietLinks = React.memo(QuietLinksInner);
+const DoorRow = React.memo(DoorRowInner);
 
 function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
   data: DayData | null; lang: Lang; settings: ShellSettings;
@@ -1300,24 +1366,26 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
       <ScrollView style={ss.flex}
         contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}>
-        {/* the hero lands first; content blocks arrive staggered under it */}
+        {/* the hero lands first; the verb and the doors sit under it;
+            content cards arrive staggered below */}
         <FadeIn delay={0}>
-          <View style={ss.heroBlock}>
-            <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg} lang={lang} />
-          </View>
+          <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg} lang={lang} />
         </FadeIn>
         <FadeIn delay={50}>
           <TravelCta lang={lang} onGo={onGo} />
         </FadeIn>
-        <FadeIn delay={100}>
+        <FadeIn delay={90}>
+          <DoorRow lang={lang} ambientUg={ambientUg} onMap={onMap} onCity={onCity} onTrips={onTrips} />
+        </FadeIn>
+        <FadeIn delay={130}>
           <MoveCard curve={data?.curve ?? null} outside={data?.outside ?? false} lang={lang} />
         </FadeIn>
         {data && !data.rec.thin && (
-          <FadeIn delay={150}>
+          <FadeIn delay={170}>
             <DayCard rec={data.rec} budgetUg={budget} lang={lang} />
           </FadeIn>
         )}
-        <FadeIn delay={200}>
+        <FadeIn delay={210}>
           <DaysAheadCard outlook={data?.outlook ?? null} lang={lang} />
         </FadeIn>
         <FadeIn delay={250}>
@@ -1325,9 +1393,6 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
             lens={data?.lens ?? { kind: "early", days: 0, need: 7 }} lang={lang} onCheckin={onCheckin} />
         </FadeIn>
         <FadeIn delay={300}>
-          <QuietLinks lang={lang} onMap={onMap} onCity={onCity} onTrips={onTrips} />
-        </FadeIn>
-        <FadeIn delay={340}>
           <BudgetCard totalUg={data?.rec.totalUg ?? 0} profile={settings.profile}
             lang={lang} onProfile={onProfile} />
         </FadeIn>
@@ -1424,161 +1489,188 @@ const ss = StyleSheet.create({
   menuBars: { gap: 4 },
   menuBar: { width: 18, height: 2, borderRadius: 1, backgroundColor: V2T.text2 },
   flex: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingTop: 6, gap: 12 },
+  content: { paddingHorizontal: 16, paddingTop: 6, gap: 14 },
 
-  /* the hero block — an editorial block on paper, not a card */
-  heroBlock: {
-    paddingHorizontal: 6, paddingTop: 16, paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.line,
-    marginBottom: 2,
+  /* the hero — a chunky tinted card that owns the screen. The surface
+     itself carries the day's dose severity at 18% (quiet days stay paper);
+     everything inside is components, not lines. */
+  heroCard: {
+    ...V2Elev.card,
+    backgroundColor: V2T.surface,
+    borderWidth: 1, borderColor: V2T.hairline,
+    borderRadius: 24,
+    paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16,
   },
   heroEyebrow: {
-    color: V2T.text3, fontSize: V2Type.micro,
-    letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 6,
+    color: V2T.text2, fontSize: V2Type.label, marginBottom: 6,
   },
   heroNum: { fontSize: 88, lineHeight: 92, letterSpacing: -2 },
   heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, flex: 1 },
-  heroUg: { color: V2T.text3, fontSize: V2Type.title, paddingBottom: 14 },
+  heroUg: { color: V2T.text2, fontSize: V2Type.title, paddingBottom: 14 },
   heroMainRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
   heroGaugeCol: { alignItems: "center", paddingBottom: 8 },
   gaugeWrap: { width: 76, height: 76 },
   gaugeCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   gaugePct: { fontSize: 11, color: V2T.text2 },
-  heroOfBudget: { color: V2T.text4, fontSize: 9, marginTop: 5, letterSpacing: 0.4 },
-  heroThin: { color: V2T.text3, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
+  heroOfBudget: { color: V2T.text2, fontSize: 10, marginTop: 6, letterSpacing: 0.3 },
+  heroThin: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
   /* the sparse hero — the ambient truth where the personal number can't
      stand yet: faint field arc, labelled read, count progress */
   sparseArc: { opacity: 0.62, marginTop: 4, marginBottom: 6 },
   sparseAmbRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
-  sparseAmb: { color: V2T.text3, fontSize: V2Type.label },
-  sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10 },
-  sparseProgLbl: { color: V2T.text4, fontSize: 9, marginLeft: 6, letterSpacing: 0.4 },
-  heroStatRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 10 },
-  heroStat: { color: V2T.text3, fontSize: V2Type.micro },
+  sparseAmb: { color: V2T.text2, fontSize: V2Type.label },
+  sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 12 },
+  sparseProgLbl: { color: V2T.text2, fontSize: 10, marginLeft: 6, letterSpacing: 0.3 },
+  heroStatRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 12 },
+  heroStat: { color: V2T.text2, fontSize: V2Type.label },
   heroAmb: { flexDirection: "row", alignItems: "center", gap: 6 },
-  heroWeekRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 12 },
-  heroWeekLbl: { color: V2T.text4, fontSize: 9, marginLeft: 6, letterSpacing: 0.4 },
+  heroWeekRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14 },
+  heroWeekLbl: { color: V2T.text2, fontSize: 10, marginLeft: 6, letterSpacing: 0.3 },
 
   /* skeleton → content morph */
-  skelEyebrow: { width: 150, height: 11, borderRadius: 3, backgroundColor: V2T.surface2, marginBottom: 12 },
-  skelHero: { width: 230, height: 88, borderRadius: 6, backgroundColor: V2T.surface2 },
-  skelLine: { width: "70%", height: 11, borderRadius: 3, backgroundColor: V2T.surface2, marginTop: 14 },
+  skelEyebrow: { width: 150, height: 13, borderRadius: 6, backgroundColor: V2T.surface2, marginBottom: 12 },
+  skelHero: { width: 230, height: 88, borderRadius: 8, backgroundColor: V2T.surface2 },
+  skelLine: { width: "70%", height: 13, borderRadius: 6, backgroundColor: V2T.surface2, marginTop: 14 },
 
-  /* the travel verb — a search-shaped bar on paper */
+  /* the travel verb — the ONE primary CTA: solid ink pill */
   cta: {
     ...V2Elev.card,
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
-    borderRadius: V2Radius.card, height: 52, paddingHorizontal: 16,
+    backgroundColor: V2T.text,
+    borderRadius: V2Radius.pill, height: 56, paddingHorizontal: 20,
   },
-  ctaTxt: { flex: 1, color: V2T.text3, fontSize: V2Type.body },
+  ctaTxt: { flex: 1, color: V2T.bg, fontSize: V2Type.body },
+  ctaArrow: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: "rgba(250,250,247,0.16)",
+    alignItems: "center", justifyContent: "center",
+  },
 
-  /* quiet links row */
-  linksRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingVertical: 6, gap: 14,
+  /* feature doors — the icon-tile row into the other rooms */
+  doorRow: { flexDirection: "row", gap: 10 },
+  door: {
+    flex: 1, borderRadius: 18, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 12, gap: 9,
+    minHeight: 84, justifyContent: "space-between",
   },
-  linkSep: { width: StyleSheet.hairlineWidth, height: 12, backgroundColor: V2T.hairline },
-  linkTxt: {
-    color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.2,
-    textTransform: "uppercase",
+  doorWell: {
+    width: 34, height: 34, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
   },
+  doorLabel: { fontSize: V2Type.label, letterSpacing: 0.1 },
 
   card: {
     ...V2Elev.card,
     backgroundColor: V2T.surface,
     borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.card,
-    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
+    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16,
   },
-  cardEyebrow: {
-    color: V2T.text3, fontSize: V2Type.micro,
-    letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 10,
+  /* the card's own word — a warm label, never an uppercase micro eyebrow */
+  cardTitle: {
+    color: V2T.text, fontSize: V2Type.secondary, marginBottom: 10,
   },
   finePrint: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 10 },
 
-  /* the move — decision felt at serif scale, evidence stays mono */
-  moveLine: { color: V2T.text, fontSize: 20, lineHeight: 27, marginBottom: 10 },
+  /* the move — decision felt at serif scale, evidence lives in chips */
+  moveLine: { color: V2T.text, fontSize: 21, lineHeight: 28, marginBottom: 10 },
   sparkLabels: { position: "relative", height: 13, marginTop: 2 },
-  sparkHr: { position: "absolute", top: 0, width: 40, color: V2T.text4, fontSize: 9, textAlign: "center" },
+  sparkHr: { position: "absolute", top: 0, width: 40, color: V2T.text3, fontSize: 9, textAlign: "center" },
+  winChip: {
+    flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8,
+    borderRadius: V2Radius.row, borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 8, alignSelf: "flex-start",
+  },
+  winChipTxt: { color: V2T.text, fontSize: V2Type.label },
   mRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
   mLine: { color: V2T.text2, fontSize: V2Type.secondary },
   noteLine: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
 
-  /* the days ahead — compact cells, same card language as the tiles */
+  /* the days ahead — chunky band-washed cells */
   oaHead: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     marginBottom: 10,
   },
-  oaUnit: { color: V2T.text4, fontSize: V2Type.micro },
-  oaRow: { flexDirection: "row", gap: 6 },
+  oaUnit: { color: V2T.text3, fontSize: V2Type.label },
+  oaRow: { flexDirection: "row", gap: 8 },
   oaCell: {
     flex: 1, borderWidth: 1, borderColor: V2T.hairline,
-    borderRadius: V2Radius.row, backgroundColor: V2T.surface,
-    paddingHorizontal: 6, paddingTop: 7, paddingBottom: 7,
+    borderRadius: 15, backgroundColor: V2T.surface,
+    paddingHorizontal: 6, paddingTop: 10, paddingBottom: 9,
     alignItems: "center",
   },
   oaCellSel: { borderColor: V2T.accent, borderWidth: 1.5 },
-  oaDay: { color: V2T.text3, fontSize: 9 },
-  oaMidRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
-  oaMid: { color: V2T.text, fontSize: V2Type.secondary, lineHeight: 20 },
-  oaSub: { color: V2T.text4, fontSize: 9, marginTop: 2, minHeight: 12 },
+  oaDay: { color: V2T.text3, fontSize: 10 },
+  oaMidRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
+  oaMid: { color: V2T.text, fontSize: V2Type.body, lineHeight: 22 },
+  oaSub: { color: V2T.text3, fontSize: 9, marginTop: 2, minHeight: 12 },
   oaMark: { color: V2T.accentInk, fontSize: 9, marginTop: 2, minHeight: 12 },
   oaDetail: {
-    marginTop: 10, paddingTop: 10,
+    marginTop: 12, paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
   },
   oaDetailHead: { color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.0 },
   oaDetailNote: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 6 },
 
-  /* day arc */
+  /* day arc — a heat strip, bars wear the hour's band */
   arcWrap: { flexDirection: "row", alignItems: "flex-end", marginTop: 12 },
   arcCol: { flex: 1, alignItems: "center" },
-  arcBarCol: { height: 52, alignItems: "center", justifyContent: "flex-end" },
+  arcBarCol: { height: 54, alignItems: "center", justifyContent: "flex-end" },
   arcDot: { width: 5, height: 5, borderRadius: 2.5, marginBottom: 3 },
-  arcBar: { width: 3 },
+  arcBar: { width: 6, borderRadius: 3 },
   arcTrip: {
-    width: 5, height: 5, marginTop: 3, borderRadius: 1,
+    width: 5, height: 5, marginTop: 3, borderRadius: 1.5,
     backgroundColor: V2T.accent,
   },
-  arcHr: { color: V2T.text4, fontSize: 9, marginTop: 4, height: 12 },
-  partsEyebrow: {
-    color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.8,
-    textTransform: "uppercase", marginTop: 14, marginBottom: 4,
+  arcHr: { color: V2T.text3, fontSize: 9, marginTop: 4, height: 12 },
+  partsTitle: {
+    color: V2T.text3, fontSize: V2Type.label,
+    marginTop: 16, marginBottom: 6,
   },
-  partRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 },
-  partDot: { width: 6, height: 6, borderRadius: 3 },
-  partLabel: { color: V2T.text2, fontSize: V2Type.label, flex: 1 },
+  partChip: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.row,
+    paddingHorizontal: 10, paddingVertical: 9, marginTop: 6,
+  },
+  partSpine: { width: 4, height: 18, borderRadius: 2 },
+  partLabel: { color: V2T.text, fontSize: V2Type.secondary, flex: 1 },
   partUg: { color: V2T.text, fontSize: V2Type.label },
 
-  /* lens */
-  lensSub: { color: V2T.text3, fontSize: V2Type.label, marginBottom: 10 },
+  /* lens — facets answer in chunky pills */
+  lensSub: { color: V2T.text2, fontSize: V2Type.label, marginBottom: 10, lineHeight: 19 },
   facetRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
   facetLabel: { color: V2T.text, fontSize: V2Type.secondary },
   facetOpts: { flexDirection: "row", gap: 6 },
   opt: {
-    paddingHorizontal: 10, paddingVertical: 6,
+    paddingHorizontal: 12, paddingVertical: 9,
     borderRadius: V2Radius.row, borderWidth: 1, borderColor: V2T.hairline,
     backgroundColor: V2T.surface,
   },
-  optSel: { backgroundColor: V2T.accentWash, borderColor: V2T.accent },
+  optSel: { backgroundColor: V2T.accentWash, borderColor: V2T.accent, borderWidth: 1.5 },
   optTxt: { color: V2T.text2, fontSize: V2Type.label },
   optTxtSel: { color: V2T.accentInk },
   verdict: { color: V2T.text2, fontSize: V2Type.label, marginTop: 12 },
 
-  weekDot: { width: 8, height: 8, borderRadius: 4 },
+  weekDot: { width: 9, height: 9, borderRadius: 4.5 },
 
-  /* budget */
+  /* budget — a real track, a segment row for the profile */
   budgetBar: {
-    height: 3, borderRadius: 2, backgroundColor: V2T.surface2,
-    overflow: "hidden", marginBottom: 8,
+    height: 8, borderRadius: 4, backgroundColor: V2T.surface2,
+    overflow: "hidden", marginBottom: 10,
   },
-  budgetFill: { height: 3, borderRadius: 2 },
-  budgetLine: { color: V2T.text2, fontSize: V2Type.secondary },
-  profileRow: { flexDirection: "row", gap: 6, marginTop: 12 },
+  budgetFill: { height: 8, borderRadius: 4 },
+  budgetLine: { color: V2T.text, fontSize: V2Type.secondary },
+  profileRow: {
+    flexDirection: "row", gap: 4, marginTop: 14,
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.pill, padding: 3,
+  },
+  segOpt: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: V2Radius.pill },
+  segOptSel: { backgroundColor: V2T.text },
+  segTxt: { color: V2T.text2, fontSize: V2Type.label },
+  segTxtSel: { color: V2T.bg },
 
   /* the peek card on the idle map — the door back home */
   peek: {
@@ -1587,18 +1679,17 @@ const ss = StyleSheet.create({
     backgroundColor: V2T.glassDeep,
     borderWidth: 1, borderColor: V2T.hairline,
     borderRadius: V2Radius.card,
-    paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 13,
   },
   peekTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   peekTopRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  peekAmb: { fontSize: V2Type.micro },
+  peekAmb: { fontSize: V2Type.label },
   peekEyebrow: {
-    color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.8,
-    textTransform: "uppercase",
+    color: V2T.text2, fontSize: V2Type.label,
   },
-  peekEmpty: { color: V2T.text3, fontSize: V2Type.label, marginTop: 6 },
+  peekEmpty: { color: V2T.text2, fontSize: V2Type.label, marginTop: 6 },
   peekRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginTop: 4 },
-  peekNum: { color: V2T.text, fontSize: 38, lineHeight: 42 },
-  peekUnit: { color: V2T.text3, fontSize: V2Type.micro, paddingBottom: 4 },
-  peekDots: { flexDirection: "row", gap: 4, flex: 1, justifyContent: "flex-end", paddingBottom: 8 },
+  peekNum: { color: V2T.text, fontSize: 40, lineHeight: 44 },
+  peekUnit: { color: V2T.text2, fontSize: V2Type.label, paddingBottom: 5 },
+  peekDots: { flexDirection: "row", gap: 4, flex: 1, justifyContent: "flex-end", paddingBottom: 9 },
 });

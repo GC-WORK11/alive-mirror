@@ -130,7 +130,7 @@ function OptionCard({ glyph, label, caption, active, onPress, lang, style }: {
         <Icon name={glyph} color={active ? V2T.accent : V2T.text2} size={24} filled={active} />
       ) : null}
       <View style={s.cardBody}>
-        <Text {...DYNAMIC_TYPE} style={[s.cardTxt, { fontFamily: fam(lang, "med") }, active && { color: V2T.accent }]}
+        <Text {...DYNAMIC_TYPE} style={[s.cardTxt, { fontFamily: fam(lang, "med") }, active && { color: V2T.accentInk }]}
           numberOfLines={1}>
           {label}
         </Text>
@@ -484,25 +484,24 @@ const s = StyleSheet.create({
   scroll: { flexGrow: 0, flexShrink: 1 },
   scrollIn: { paddingHorizontal: 16, paddingBottom: 6 },
   grp: {
-    fontSize: V2Type.label, color: V2T.text3,
-    paddingHorizontal: 4, marginTop: 4, marginBottom: 6,
+    fontSize: V2Type.secondary, color: V2T.text,
+    paddingHorizontal: 4, marginTop: 8, marginBottom: 8,
   },
-  gridRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
-  listRow: { marginBottom: 8 },
+  gridRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  listRow: { marginBottom: 10 },
   card: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    /* this sheet stacks over the compare sheet — glassSoft bled through
-       (Pixel_7 verify flag); glass keeps the milk while stopping the
-       double-translucency text ghost behind the tiles */
-    backgroundColor: V2T.glass, borderRadius: V2Radius.row,
+    /* this sheet stacks over the compare sheet — translucency bled
+       through (Pixel_7 verify flag); a solid surface is the register */
+    backgroundColor: V2T.surface, borderRadius: 16,
     ...V2Elev.card,
-    borderWidth: 1, borderColor: V2T.glassLine,
-    paddingHorizontal: 12, paddingVertical: 10, minHeight: 56,
+    borderWidth: 1, borderColor: V2T.hairline,
+    paddingHorizontal: 13, paddingVertical: 12, minHeight: 60,
   },
   cardHalf: { flex: 1 },
-  /* selected card keeps an opaque-ish milk surface so the accent label
-     stays ≥4.5:1 — the accent border + radio carry the selected signal */
-  cardOn: { borderColor: V2T.accent, backgroundColor: V2T.glass },
+  /* selected = accent wash + accent border + filled radio (the shared
+     pick grammar — reads at a glance and keeps ≥4.5:1 on the label) */
+  cardOn: { borderColor: V2T.accent, backgroundColor: V2T.accentWash, borderWidth: 1.5 },
   cardBody: { flex: 1, gap: 1 },
   cardTxt: { fontSize: V2Type.secondary, color: V2T.text },
   cardCap: { fontSize: V2Type.label, color: V2T.text3 },
@@ -520,15 +519,14 @@ const s = StyleSheet.create({
   footBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
   footRight: { flexDirection: "row", alignItems: "center", gap: 16 },
   footTxt: { fontSize: V2Type.label, color: V2T.text3 },
-  footTxtAccent: { fontSize: V2Type.secondary, color: V2T.accent },
+  footTxtAccent: { fontSize: V2Type.secondary, color: V2T.accentInk },
   /* PUC certificate fields — label + numeric input + hint, one row each */
   fieldRow: { marginBottom: 12 },
   fieldLabel: { fontSize: V2Type.label, color: V2T.text2, marginBottom: 4, paddingHorizontal: 4 },
   input: {
-    backgroundColor: V2T.glass, borderRadius: V2Radius.row,
-    borderWidth: 1, borderColor: V2T.glassLine,
-    paddingHorizontal: 12, paddingVertical: 9,
-    fontSize: V2Type.secondary, color: V2T.text, minHeight: 44,
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.row,
+    paddingHorizontal: 13, paddingVertical: 10,
+    fontSize: V2Type.secondary, color: V2T.text, minHeight: 46,
   },
   fieldHint: { fontSize: V2Type.label, color: V2T.text3, marginTop: 4, paddingHorizontal: 4 },
   doneWrap: { paddingHorizontal: 20, paddingVertical: 30, alignItems: "center" },

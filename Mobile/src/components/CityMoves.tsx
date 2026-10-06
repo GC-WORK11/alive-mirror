@@ -296,13 +296,14 @@ export default CityMoves;
 
 const ss = StyleSheet.create({
   card: {
-    marginHorizontal: 14,
-    marginTop: 14,
-    padding: 14,
-    borderRadius: V2Radius.row,
-    backgroundColor: V2T.glassSoft,
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: V2Radius.card,
+    backgroundColor: V2T.surface,
     borderWidth: 1,
-    borderColor: V2T.glassLine,
+    borderColor: V2T.hairline,
   },
   title: { color: V2T.text, fontSize: V2Type.body },
   sub: { color: V2T.text3, fontSize: V2Type.label, marginTop: 2 },
@@ -322,14 +323,14 @@ const ss = StyleSheet.create({
   /* proportional mode-share bar */
   bar: {
     flexDirection: "row",
-    height: 8,
-    borderRadius: 4,
+    height: 10,
+    borderRadius: 5,
     overflow: "hidden",
     marginTop: 12,
     gap: 2,
     backgroundColor: "rgba(20,24,31,0.08)",
   },
-  seg: { minWidth: 3 },
+  seg: { minWidth: 4 },
 
   /* legend rows */
   mRow: {

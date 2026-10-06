@@ -129,13 +129,16 @@ const MANEUVER_GLYPH: Record<Exclude<Maneuver, "arrive" | "walk" | "transit" | "
   straight: "arrowUp",
 };
 
-function ManeuverIcon({ m, mode, size = 30 }: { m: Maneuver; mode?: string; size?: number }) {
-  if (m === "arrive") return <Icon name="pin" color={V2T.pinDest} size={size - 2} filled />;
-  if (m === "walk") return <Icon name="walk" color={V2T.text} size={size} />;
+function ManeuverIcon({ m, mode, size = 30, onInk = false }: {
+  m: Maneuver; mode?: string; size?: number; onInk?: boolean;
+}) {
+  const fg = onInk ? V2T.bg : V2T.text;
+  if (m === "arrive") return <Icon name="pin" color={onInk ? "#E8B8A8" : V2T.pinDest} size={size - 2} filled />;
+  if (m === "walk") return <Icon name="walk" color={fg} size={size} />;
   if (m === "transit" || m === "mode") {
-    return <Icon name={vehicleGlyph(mode ?? "")} color={V2T.text} size={size} />;
+    return <Icon name={vehicleGlyph(mode ?? "")} color={fg} size={size} />;
   }
-  return <Icon name={MANEUVER_GLYPH[m]} color={V2T.text} size={size} />;
+  return <Icon name={MANEUVER_GLYPH[m]} color={fg} size={size} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -274,7 +277,7 @@ function NavChromeInner({
       <View style={[s.banner, { top: insets.top + 12 }]}>
         <Animated.View style={[s.tile, { opacity: swap, transform: [{ translateY: swapTy }] }]} accessible={false}
           accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <ManeuverIcon m={maneuver} mode={mode} />
+          <ManeuverIcon m={maneuver} mode={mode} onInk />
         </Animated.View>
         <Animated.View style={[s.bannerTxt, { opacity: swap, transform: [{ translateY: swapTy }] }]}>
           {next && (
@@ -379,14 +382,17 @@ const s = StyleSheet.create({
   banner: {
     position: "absolute", left: 12, right: 12,
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.glass, borderRadius: V2Radius.card,
-    paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: V2T.glassDeep, borderRadius: V2Radius.card,
+    paddingVertical: 12, paddingHorizontal: 12,
     ...V2Elev.float,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    borderWidth: 1, borderColor: V2T.hairline,
   },
+  /* the maneuver tile goes ink — the turn arrow is glance-critical, so
+     it sits in the darkest tile on the sheet (the one place chrome may
+     go dark over the live map) */
   tile: {
-    width: 52, height: 52, borderRadius: V2Radius.row + 2,
-    backgroundColor: V2T.glassSoft, borderWidth: 1, borderColor: V2T.glassLine,
+    width: 54, height: 54, borderRadius: 17,
+    backgroundColor: V2T.text,
     alignItems: "center", justifyContent: "center",
   },
   bannerTxt: { flex: 1, marginLeft: 12, marginRight: 4 },
@@ -402,10 +408,10 @@ const s = StyleSheet.create({
   pill: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center",
-    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
-    paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: V2T.glassDeep, borderRadius: V2Radius.pill,
+    paddingHorizontal: 16, paddingVertical: 9,
     ...V2Elev.card,
-    borderWidth: 1, borderColor: V2T.glassLine,
+    borderWidth: 1, borderColor: V2T.hairline,
   },
   pillDot: {
     width: 7, height: 7, borderRadius: 4,
@@ -415,9 +421,9 @@ const s = StyleSheet.create({
 
   cluster: {
     position: "absolute", left: 14, right: 14,
-    backgroundColor: V2T.glass, borderRadius: V2Radius.card,
+    backgroundColor: V2T.glassDeep, borderRadius: V2Radius.card,
     ...V2Elev.float,
-    borderWidth: 1, borderColor: V2T.glassLine, overflow: "hidden",
+    borderWidth: 1, borderColor: V2T.hairline, overflow: "hidden",
   },
   progTrack: { height: 3, backgroundColor: V2T.glassSoft },
   progFill: {
@@ -430,13 +436,12 @@ const s = StyleSheet.create({
   cellDiv: { width: 1, backgroundColor: V2T.line, marginVertical: 10 },
   cellHead: { flexDirection: "row", alignItems: "center" },
   cellLbl: {
-    fontSize: 10, color: V2T.text3, marginLeft: 6, flexShrink: 1,
-    letterSpacing: 0.5, textTransform: "uppercase",
+    fontSize: 11, color: V2T.text3, marginLeft: 6, flexShrink: 1,
   },
   cellVal: { fontSize: V2Type.body, color: V2T.text, marginTop: 4 },
   bandTrack: {
     height: 3, borderRadius: 2, marginTop: 7,
-    backgroundColor: V2T.glassSoft, overflow: "visible",
+    backgroundColor: V2T.surface2, overflow: "visible",
   },
   bandSeg: { position: "absolute", top: 0, bottom: 0, borderRadius: 2, opacity: 0.5 },
   bandMid: {

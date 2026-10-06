@@ -35,11 +35,14 @@ export const V2T = {
   text3: "#8A8D94",  // ink3 — weakest ink that still reads on paper
   text4: "#A6ACB8",  // ink4 — empty states, "insufficient data"
 
-  // the only non-data accent in the register — web --sage
-  accent: "#4D7C0F",       // sage
-  accentInk: "#3D610A",    // accent text on paper
-  accentWash: "#EEF2E2",   // flat sage wash — selected states
-  accentTint: "#E3E9D3",   // deeper sage wash — pressed states
+  // the only non-data accent in the register — forest, not olive:
+  // the overhaul's muted-expensive discipline (deep, saturated, classy —
+  // no lime-slime / chocolaty green / cheap yellow). Contrast on paper
+  // stays ≥4.5:1 for the primary-CTA fill.
+  accent: "#3A6844",       // forest
+  accentInk: "#2B4E32",    // accent text on paper
+  accentWash: "#EAF0E4",   // flat forest wash — selected states
+  accentTint: "#DCE7D1",   // deeper forest wash — pressed states
 
   // ── CPCB band palette, muted to sit on paper (landing.html BAND) ─────
   // Colour means data: these six are the ONLY hues used for pollution
@@ -77,7 +80,7 @@ export const V2T = {
   glassDeep: "rgba(255,255,255,0.95)",  // full-height screens
   glassSoft: "rgba(255,255,255,0.76)",  // rows resting on a milk pane
   glassFaint: "rgba(255,255,255,0.86)", // floating chips, FABs, peek card
-  glassSel: "rgba(238,242,226,0.88)",   // sage-wash glass — selected rows
+  glassSel: "rgba(234,240,228,0.88)",   // forest-wash glass — selected rows
   glassEdge: "rgba(255,255,255,0.85)",
   glassLine: "rgba(22,24,29,0.10)",     // the register's hairline on glass
 } as const;
@@ -137,6 +140,12 @@ export const bandWashIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i
 export const bandWash = (v: number | null | undefined) => {
   const i = bandIdx(v); return i == null ? null : bandWashIdx(i);
 };
+/** ~18% band — pastel card surfaces that carry the day's colour
+ *  (the overhaul's tinted-hero grammar: a card CAN wear its band) */
+export const bandWashMidIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.82);
+export const bandWashMid = (v: number | null | undefined) => {
+  const i = bandIdx(v); return i == null ? null : bandWashMidIdx(i);
+};
 /** ~26% band — tile fills where the band itself must scan at a glance
  *  (the days-ahead row: five 10% washes read identical on paper) */
 export const bandWashDeepIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.74);
@@ -166,10 +175,25 @@ export const V2Type = {
   heroXL: 62,     // the number that owns the card (dose hero, big verdicts)
 } as const;
 
-// Squared-ish register: hairline cards carry a small radius; only the
-// sheet keeps the platform top-corner roundness; `pill` for the few true
-// pill semantics left (chips that are themselves capsule-shaped data).
-export const V2Radius = { row: 8, card: 12, sheet: 20, pill: 999 } as const;
+// Chunky-component register: one-idea cards carry ~20px; rows and wells
+// sit at ~13px; the sheet keeps the platform top-corner roundness; `pill`
+// for the few true pill semantics (chips, the primary CTA, tab pills).
+export const V2Radius = { row: 13, card: 20, sheet: 24, pill: 999 } as const;
+
+// ── component tint wells ─────────────────────────────────────────────────
+// Feature doors, icon tiles and select-pills wear pastel identity colours
+// that are NOT the CPCB ramp — colour here means component identity, never
+// data (a band hue still means pollution). Each well is a wash + a
+// readable ink for the glyph/label on top. Muted-expensive: every tone is
+// a deep hue pulled ~80% toward paper.
+const well = (hex: string) => ({ wash: hexMix(hex, "#FFFFFF", 0.80), ink: hexMix(hex, "#16181D", 0.28) });
+export const V2Tint = {
+  forest: well("#3A6844"),   // accent family — primary doors (map, go)
+  sky:    well("#4A6B80"),   // slate-blue  — city surfaces
+  clay:   well("#8A5648"),   // terracotta  — trips/ledger
+  sand:   well("#8A7440"),   // warm oat    — spare identity
+  plum:   well("#6E4E62"),   // muted plum  — spare identity
+} as const;
 
 // ── fonts ─────────────────────────────────────────────────────────────────
 // Three voices like the web pages: serif display (Fraunces — the "New York"

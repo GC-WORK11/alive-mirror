@@ -425,9 +425,8 @@ const s = StyleSheet.create({
   title: { flex: 1, fontSize: V2Type.title, color: V2T.text },
   modeChip: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
-    borderWidth: 1, borderColor: V2T.glassLine,
-    paddingHorizontal: 10, paddingVertical: 5, maxWidth: "55%",
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.pill,
+    paddingHorizontal: 11, paddingVertical: 6, maxWidth: "55%",
   },
   modeChipTxt: { fontSize: V2Type.label, color: V2T.text2 },
 
@@ -464,14 +463,15 @@ const s = StyleSheet.create({
     backgroundColor: V2T.surface, marginLeft: -5,
   },
 
-  /* stats grid */
+  /* stats — each figure its own chip, not cells in a strip */
   grid: {
-    flexDirection: "row", marginTop: 16,
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row,
-    borderWidth: 1, borderColor: V2T.glassLine,
-    paddingVertical: 10, paddingHorizontal: 4,
+    flexDirection: "row", marginTop: 18, gap: 8,
   },
-  cell: { flex: 1, paddingHorizontal: 10, gap: 2 },
+  cell: {
+    flex: 1, paddingHorizontal: 10, gap: 2,
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.row,
+    paddingVertical: 11, alignItems: "center",
+  },
   cellVal: { fontSize: V2Type.body, color: V2T.text },
   cellCap: { fontSize: 11, color: V2T.text3 },
 
@@ -486,18 +486,17 @@ const s = StyleSheet.create({
   /* actions */
   btns: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
   done: {
-    flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center",
-    backgroundColor: V2T.accent, borderRadius: V2Radius.card,
-    paddingHorizontal: 22, paddingVertical: 11,
+    flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center",
+    backgroundColor: V2T.text, borderRadius: V2Radius.pill,
+    paddingHorizontal: 22, paddingVertical: 12,
   },
   doneTxt: { fontSize: V2Type.secondary, color: V2T.bg },
   share: {
-    minHeight: 44, flexDirection: "row", alignItems: "center", gap: 7,
-    borderRadius: V2Radius.card, borderWidth: 1, borderColor: V2T.glassLine,
-    /* glassFaint keeps the accent label ≥4.5:1 while staying milky */
-    backgroundColor: V2T.glassFaint, paddingHorizontal: 18, paddingVertical: 11,
+    minHeight: 48, flexDirection: "row", alignItems: "center", gap: 7,
+    borderRadius: V2Radius.pill, borderWidth: 1, borderColor: V2T.hairline,
+    backgroundColor: V2T.surface, paddingHorizontal: 18, paddingVertical: 12,
   },
-  shareTxt: { fontSize: V2Type.secondary, color: V2T.accent },
+  shareTxt: { fontSize: V2Type.secondary, color: V2T.accentInk },
   tertiaryRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 28, marginTop: 2,
