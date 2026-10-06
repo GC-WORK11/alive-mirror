@@ -773,13 +773,12 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
     const h = Math.max(0, Math.min(23, Math.floor((x / arcW.current) * 24)));
     if (h !== lastH.current) { lastH.current = h; setScrubH(h); tick(); }
   }, []);
-  /* the readout lingers after the finger lifts — the ScrollView may
-     terminate the responder instantly on a tap, and clearing there
-     would hide the line before it ever renders. It fades on its own. */
+  /* the readout lingers after the finger lifts, then fades on its own —
+     tap-to-inspect, not modal state. */
   const scheduleHide = useCallback(() => {
     anchor.current = null;
     if (hideT.current) clearTimeout(hideT.current);
-    hideT.current = setTimeout(() => { lastH.current = null; setScrubH(null); }, 4000);
+    hideT.current = setTimeout(() => { lastH.current = null; setScrubH(null); }, 5000);
   }, []);
   const scrub = scrubH != null ? rec.arc.find((h) => h.hour === scrubH) : null;
   const scrubLine = scrub == null ? " "
@@ -813,13 +812,21 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
         onResponderTerminate={scheduleHide}>
         {rec.arc.map((h) => {
           const isNow = h.hour === nh;
+          const press = () => {
+            if (hideT.current) { clearTimeout(hideT.current); hideT.current = null; }
+            lastH.current = h.hour;
+            setScrubH(h.hour);
+            tick();
+            scheduleHide();
+          };
           /* the arc is a heat strip: the bar's height is the dose that hour
              added, its colour is the band of the air breathed — the day
              reads as weather before it reads as numbers */
           const lit = scrubH === h.hour;
           const barCol = lit ? V2T.text : isNow ? V2T.text : (bandColor(h.conc) ?? V2T.text3);
           return (
-            <View key={h.hour} style={ss.arcCol}>
+            <Pressable key={h.hour} style={ss.arcCol} onPress={press}
+              accessibilityRole="button" accessibilityLabel={`hour ${h.hour}`}>
               <View style={ss.arcBarCol}>
                 {h.covered && h.dose_ug > 0 ? (
                   <View style={[ss.arcBar, {
@@ -842,7 +849,7 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
                   (isNow || lit) && { color: V2T.text }]}>
                 {h.hour % 3 === 0 || lit ? `${h.hour}` : ""}
               </Text>
-            </View>
+            </Pressable>
           );
         })}
       </View>
