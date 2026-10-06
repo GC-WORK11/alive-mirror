@@ -503,6 +503,7 @@ const en = {
   // dosimeter — the day stack (alive-depth L1–L4). Copy rule: never
   // "don't go out" — always the cheaper-for-lungs version of the same plan.
   dayTitle: "your day",
+  weekTitle: "your week",
   dayNow: "now",
   /* the sparse hero — ambient truth labelled, never a fake personal
      number (docs/lanes/hero-sparse): the field at the device's cell is
@@ -1097,6 +1098,7 @@ const hi: Record<StringKey, string> = {
   a11yClear: "साफ़ करें",
   a11yClearSaved: "सहेजी जगह हटाएँ",
   dayTitle: "आज का दिन",
+  weekTitle: "आपका हफ़्ता",
   dayNow: "अभी",
   daySparseAir: "आज की हवा आपके यहाँ: ~{n} µg/m³",
   daySparseWait: "आज की पहली हवा रीडिंग का इंतज़ार",

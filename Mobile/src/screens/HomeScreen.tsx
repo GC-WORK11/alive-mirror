@@ -535,6 +535,7 @@ function MoveCardInner({ curve, outside, lang }: {
 const MoveCard = React.memo(MoveCardInner);
 
 const nowHour = () => new Date().getHours();
+const todayKey = () => dayKey(Date.now());
 
 /* ---------------- the days ahead ---------------- */
 
@@ -904,6 +905,64 @@ function DayCardInner({ rec, budgetUg, lang }: {
 }
 
 const DayCard = React.memo(DayCardInner);
+
+/* ---------------- your week ---------------- */
+
+/* the week read as a calendar strip — seven honest cells, weekday
+   letters over dose bars, today lit. Reuses the same per-day
+   reconstructions the hero's mini-bars compress; an uncounted day is a
+   bare stub, never a claimed zero. */
+function WeekCardInner({ data, budgetUg, lang }: {
+  data: DayData; budgetUg: number; lang: Lang;
+}) {
+  bump("home.WeekCard");
+  const counted = data.week.some((w) => w.ug > 0);
+  if (!counted) return null; // the hero's sparse fallback already says it
+  const maxW = Math.max(...data.week.map((w) => w.ug), 1);
+  const todayK = todayKey();
+  const total = data.week.reduce((s, w) => s + w.ug, 0);
+  return (
+    <View style={ss.card}>
+      <View style={ss.weekHead}>
+        <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
+          {t("weekTitle", lang)}
+        </Text>
+        <Text {...DYNAMIC_TYPE} style={[ss.weekTotal, NUM, { fontFamily: mono(lang, "med") }]}>
+          {t("homeWeek", lang, { n: approx(doseUgRound(total)) })}
+        </Text>
+      </View>
+      <View style={ss.weekGrid}>
+        {data.week.map((w) => {
+          const isToday = w.day === todayK;
+          /* midday anchor dodges DST/edge hours in the weekday read */
+          const letter = new Date(`${w.day}T12:00:00`)
+            .toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { weekday: "narrow" });
+          return (
+            <View key={w.day} style={[ss.weekCell, isToday && ss.weekCellToday]}>
+              <Text {...DYNAMIC_TYPE}
+                style={[ss.weekDay, { fontFamily: mono(lang) }, isToday && { color: V2T.text }]}>
+                {letter}
+              </Text>
+              <View style={ss.weekBarCol}>
+                <View style={[ss.weekBarTall, {
+                  height: w.ug > 0 ? 4 + 30 * (w.ug / maxW) : 4,
+                  backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : V2T.surface3,
+                  opacity: w.ug > 0 ? 0.55 + 0.45 * (w.ug / maxW) : 0.9,
+                }]} />
+              </View>
+              <Text {...DYNAMIC_TYPE}
+                style={[ss.weekUg, NUM, { fontFamily: mono(lang) }, isToday && { color: V2T.text }]}>
+                {w.ug > 0 ? `${approx(doseUgRound(w.ug))}` : " "}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const WeekCard = React.memo(WeekCardInner);
 
 /* ---------------- the symptom lens ---------------- */
 
@@ -1460,6 +1519,11 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
             <DayCard rec={data.rec} budgetUg={budget} lang={lang} />
           </FadeIn>
         )}
+        {data && (
+          <FadeIn delay={190}>
+            <WeekCard data={data} budgetUg={budget} lang={lang} />
+          </FadeIn>
+        )}
         <FadeIn delay={210}>
           <DaysAheadCard outlook={data?.outlook ?? null} lang={lang} />
         </FadeIn>
@@ -1707,6 +1771,15 @@ const ss = StyleSheet.create({
   },
   arcHr: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 4, height: 14 },
   arcScrub: { color: V2T.text, fontSize: V2Type.label, textAlign: "center", marginTop: 6, height: 17 },
+  weekHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  weekTotal: { color: V2T.text3, fontSize: V2Type.label },
+  weekGrid: { flexDirection: "row", marginTop: 10 },
+  weekCell: { flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 12 },
+  weekCellToday: { backgroundColor: V2T.accentWash },
+  weekDay: { color: V2T.text3, fontSize: V2Type.micro },
+  weekBarCol: { height: 34, justifyContent: "flex-end", marginTop: 4 },
+  weekBarTall: { width: 8, borderRadius: 4 },
+  weekUg: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 4, height: 13 },
   partsTitle: {
     color: V2T.text3, fontSize: V2Type.label,
     marginTop: 16, marginBottom: 6,
