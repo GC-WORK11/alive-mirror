@@ -85,7 +85,7 @@ function JourneyRow({
   lang,
   icon,
   iconColor = V2T.text2,
-  well = V2Tint.sky,
+  well = V2Tint.forest,
   kicker,
   title,
   subs,
