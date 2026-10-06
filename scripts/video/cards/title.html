@@ -1,23 +1,62 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><style>
-  /* title card — serif mark on the product's own paper, no emoji, no
-     gradient; the build sha is the live build being filmed */
-  html,body{margin:0;height:100%;background:#14181f}
-  body{display:flex;align-items:center;justify-content:center;
-    font-family:Georgia,'Times New Roman',serif;color:#f2f4f8}
-  .box{text-align:center}
-  h1{font-size:120px;font-weight:400;letter-spacing:.01em;margin:0}
-  h1 .dot{color:#2dd4bf}
-  .sub{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:21px;letter-spacing:.28em;text-transform:uppercase;
-    color:#8a93a3;margin-top:26px}
-  .sha{position:fixed;right:36px;bottom:26px;
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:15px;color:#5a6472}
+  /* title card — the product's own register: warm paper, hairline chrome,
+     eyebrow chip + 6px tick, serif display, mono micro-labels. ONE accent
+     (forest). @@BUILD@@ is filled by assemble.sh from live /health. */
+  :root{
+    --paper:#FAFAF7; --surface:#FFFFFF; --surf2:#F3F2EC;
+    --ink:#16181D; --ink2:#4A4E57; --ink3:#6E7278;
+    --line:#E4E1D8; --hairline:#D8D5C9;
+    --acc:#3A6844; --accInk:#2B4E32; --accWash:#EAF0E4; --accTint:#DCE7D1;
+    --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
+           "Segoe UI",Inter,system-ui,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
+  }
+  html,body{margin:0;height:100%;background:var(--paper)}
+  body{color:var(--ink);font-family:var(--sans);
+    display:flex;flex-direction:column}
+  .bar{border-bottom:1px solid var(--line);display:flex;
+    align-items:baseline;justify-content:space-between;
+    padding:26px 56px}
+  .wm{font-family:var(--mono);font-size:15px;font-weight:600;
+    letter-spacing:.22em}
+  .wm i{font-style:normal;color:var(--acc)}
+  .nav{font-family:var(--mono);font-size:12.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink2)}
+  .main{flex:1;display:flex;flex-direction:column;justify-content:center;
+    padding:0 120px 40px}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;align-self:flex-start;
+    font-family:var(--mono);font-size:15px;letter-spacing:.24em;
+    text-transform:uppercase;color:var(--accInk);
+    background:var(--accWash);border:1px solid var(--accTint);
+    border-radius:8px;padding:7px 14px}
+  .eyebrow .sq{width:7px;height:7px;background:var(--acc);border-radius:2px}
+  h1{font-family:var(--serif);font-weight:400;
+    font-size:132px;line-height:1.04;letter-spacing:-.028em;
+    margin:44px 0 0;max-width:14ch}
+  h1 em{font-style:italic;color:var(--ink2)}
+  .sub{margin-top:34px;font-size:27px;color:var(--ink2);max-width:56ch;
+    line-height:1.45}
+  .sub b{color:var(--ink);font-weight:600}
+  .foot{border-top:1px solid var(--line);display:flex;
+    align-items:baseline;justify-content:space-between;
+    padding:22px 56px;font-family:var(--mono);font-size:14px;
+    color:var(--ink3);letter-spacing:.08em}
 </style></head><body>
-  <div class="box">
-    <h1>ALive<span class="dot">·</span>108</h1>
-    <div class="sub">exposure-aware routing · Delhi NCR</div>
+  <div class="bar">
+    <span class="wm">ALIVE<i>·</i>108</span>
+    <span class="nav">exposure-aware routing · delhi ncr</span>
   </div>
-  <div class="sha">live build @@BUILD@@</div>
+  <div class="main">
+    <span class="eyebrow"><span class="sq"></span>track 01 · air — environmental hacks</span>
+    <h1>A ledger for <em>your lungs.</em></h1>
+    <div class="sub">A personal PM2.5 dosimeter for Delhi — <b>no device, no
+      uploads.</b> The field knows what Delhi breathed; the app knows what
+      you breathed.</div>
+  </div>
+  <div class="foot">
+    <span>live api 65.2.28.40 · field rebuilt every 15 min</span>
+    <span>live build @@BUILD@@</span>
+  </div>
 </body></html>

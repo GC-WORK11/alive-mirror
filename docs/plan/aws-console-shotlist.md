@@ -24,11 +24,11 @@ revision, not the stamp. It bumps on every deploy.
 
 | # | Console page | Must visibly show | ~secs |
 |---|--------------|-------------------|-------|
-| 1 | ECS → cluster `alive108` → service `alive108` | **Service status ACTIVE**, **Desired/Running tasks 1/1**, launch type **FARGATE** (see note below) | 6 |
-| 2 | Service → "Tasks" tab → running task → task definition | **Image URI** `…/alive108:<build_sha>` matching `/health`, CPU/memory, env block | 6 |
+| 1 | ECS → cluster `alive108` → service `alive108` | **Service status ACTIVE**, **Desired/Running tasks 1/1**, launch type **FARGATE** (see note below) | 5 |
+| 2 | Service → "Tasks" tab → running task → task definition | **Image URI** `…/alive108:<build_sha>` matching `/health`, CPU/memory, env block | 5 |
 | 3 | CloudWatch → Log groups → `/ecs/alive108` → latest stream | Fresh log lines with today's timestamps — proves it's really serving | 5 |
-| 4 | CodeBuild → build history | Last build **Succeeded**, duration, commit hash matching repo HEAD | 4 |
-| 5 | EC2 → Load Balancers → the NLB → Listeners + Target Groups | Listener `:80` forwarding; target group **healthy targets 1/1** | 4 |
+| 4 | EC2 → Load Balancers → the NLB → Listeners + Target Groups | Listener `:80` forwarding; target group **healthy targets 1/1** | 5 |
+| 5 | DynamoDB → Tables → `alive108-agg` → Explore items | The items are **aggregate counters only** — corridor/day rollups, no user rows, no coordinates — the privacy architecture made visible in the console | 5 |
 
 ## Numbered click-path (say it as you go)
 
@@ -41,13 +41,16 @@ revision, not the stamp. It bumps on every deploy.
 3. Task detail → **Logs** tab (or CloudWatch → log group `/ecs/alive108`) →
    newest stream. Let the tail scroll — field-refresh lines land every ~15 min.
    Say: *"CloudWatch tails the engine live."*
-4. Search **CodeBuild** → project `alive108` → **Build history** → top row
-   **Succeeded**.
-   Say: *"CodeBuild rebuilds and redeploys on every push."*
-5. Search **EC2** → left rail **Load Balancers** → `alive108-…` NLB →
+4. Search **EC2** → left rail **Load Balancers** → `alive108-…` NLB →
    **Listeners** (`:80 → target group`) → **Target groups** → **Targets** tab →
    **Healthy**.
    Say: *"The NLB fronts it; the target's healthy — that's the site you just saw."*
+5. Search **DynamoDB** → **Tables** → `alive108-agg` → **Explore items**.
+   Say: *"What leaves a phone lands here as counters — no user rows,
+   no coordinates. That's the privacy architecture."*
+   (Swap in **CodeBuild → build history → Succeeded** instead if the
+   DynamoDB page is slow — build history is the second-best proof; the
+   table above lists both but only 5 frames fit the slot.)
 
 Total ~25 s of console on camera. If a page is slow, keep rolling — load
 spinner on a real console reads as more authentic than a cut.

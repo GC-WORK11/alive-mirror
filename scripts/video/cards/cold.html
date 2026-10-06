@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  /* cold-open card — the felt line before any product. Warm paper, neutral
+     chip (the scenario isn't a feature — no accent here), serif lines.
+     @@CIGS@@/@@UG@@/@@DATE@@ are filled by assemble.sh from the live
+     /v2/city breath block at film time — the number on this card is the
+     same number the landing hero renders on tape. */
+  :root{
+    --paper:#FAFAF7; --ink:#16181D; --ink2:#4A4E57; --ink3:#6E7278;
+    --line:#E4E1D8; --surf2:#F3F2EC; --hairline:#D8D5C9;
+    --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
+           "Segoe UI",Inter,system-ui,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
+  }
+  html,body{margin:0;height:100%;background:var(--paper)}
+  body{color:var(--ink);font-family:var(--sans);
+    display:flex;flex-direction:column}
+  .main{flex:1;display:flex;flex-direction:column;justify-content:center;
+    padding:0 160px 30px}
+  .eyebrow{align-self:flex-start;display:inline-flex;align-items:center;gap:9px;
+    font-family:var(--mono);font-size:14px;letter-spacing:.24em;
+    text-transform:uppercase;color:var(--ink2);
+    background:var(--surf2);border:1px solid var(--hairline);
+    border-radius:8px;padding:7px 14px}
+  .eyebrow .sq{width:7px;height:7px;background:var(--ink2);border-radius:2px}
+  h1{font-family:var(--serif);font-weight:400;font-size:104px;
+    line-height:1.12;letter-spacing:-.024em;margin:52px 0 0;max-width:20ch}
+  h1 .l2{display:block;margin-top:26px;color:var(--ink)}
+  h1 .l2 em{font-style:italic;color:var(--ink2)}
+  .cap{margin-top:56px;font-family:var(--mono);font-size:15px;
+    color:var(--ink3);letter-spacing:.06em}
+  .foot{border-top:1px solid var(--line);padding:22px 56px;
+    font-family:var(--mono);font-size:13px;color:var(--ink3);
+    letter-spacing:.08em}
+</style></head><body>
+  <div class="main">
+    <span class="eyebrow"><span class="sq"></span>delhi · @@DATE@@</span>
+    <h1>It&rsquo;s 7 a.m. in Delhi.
+      <span class="l2">The air outside your door costs
+        <em>@@CIGS@@ cigarettes</em> today.</span></h1>
+    <div class="cap">≈ @@UG@@ µg inhaled over a day of breathing today&rsquo;s
+      field — the live number, not a prop.</div>
+  </div>
+  <div class="foot">and nobody tells you.</div>
+</body></html>
