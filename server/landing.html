@@ -11,7 +11,7 @@
 :root{
   /* shared register — docs/lanes/register-card.md (web grammar) */
   --paper:#fafaf7; --surf:#fff; --surf2:#f3f2ec; --surf3:#ebe9e1;
-  --ink:#16181d; --ink2:#4a4e57; --ink3:#8a8d94;
+  --ink:#16181d; --ink2:#4a4e57; --ink3:#6e7278;
   --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
   --acc:#3a6844; --accInk:#2b4e32; --accWash:#eaf0e4; --accTint:#dce7d1;
@@ -115,13 +115,17 @@ h1 em{font-style:italic;color:var(--ink2)}
 /* the hero stat tile — the one live figure a cold reader remembers:
    accent chip on top, huge serif numeral, label beside it, provenance
    shrunk to a one-line caption. */
+/* soul pass — the hero tile wears the day's live band: --hw deep band
+   wash (74% white, the app's bandWashDeepIdx), --ht a band-edge
+   hairline, --he the band ink that breathes. All set from /v2/city's
+   field mean in JS; the accent wash is the no-field fallback. */
 .hnum{margin-top:30px;display:flex;align-items:center;gap:22px;
-  max-width:560px;flex-wrap:wrap;background:var(--accWash);
-  border:1px solid var(--accTint);border-radius:18px;
-  padding:20px 24px 18px}
+  max-width:560px;flex-wrap:wrap;background:var(--hw,var(--accWash));
+  border:1px solid var(--ht,var(--accTint));border-radius:18px;
+  padding:20px 24px 18px;position:relative}
 .hnum-v{font-family:var(--serif);font-weight:400;
   font-size:clamp(56px,6vw,80px);line-height:.95;letter-spacing:-.02em;
-  font-variant-numeric:tabular-nums;color:var(--ink)}
+  font-variant-numeric:tabular-nums;color:var(--nv,var(--ink))}
 .hnum-t{font-size:15px;line-height:1.55;color:var(--ink);max-width:300px}
 .hnum-chip{display:inline-block;margin-bottom:8px;
   font-family:var(--mono);font-size:9px;letter-spacing:.16em;
@@ -129,16 +133,28 @@ h1 em{font-style:italic;color:var(--ink2)}
   padding:3px 8px;border-radius:6px}
 .hnum-t i{display:block;margin-top:7px;font-style:normal;
   font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accInk)}
+  text-transform:uppercase;color:var(--ni,var(--accInk))}
+/* the card breathes — a dosimeter is a breathing thing. the app's
+   BreathEdge as CSS: a 4.4s sine opacity loop on a 1.5px band-ink ring,
+   subtle enough to be felt not watched. the page's only ambient motion;
+   skipped under reduce-motion. */
+@keyframes breath{0%,100%{opacity:.12}50%{opacity:.32}}
+.hnum::after{content:"";position:absolute;inset:0;pointer-events:none;
+  border-radius:inherit;border:1.5px solid transparent}
+.hnum.breathe::after{border-color:var(--he,var(--accInk));
+  animation:breath 4.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.hnum.breathe::after{display:none}}
 .sub{margin-top:26px;max-width:540px;font-size:16px;line-height:1.7;
   color:var(--ink2)}
 .sub b{color:var(--ink);font-weight:600}
-/* feature doors — colourful pastel tiles with a solid icon block,
-   the Swiggy-door grammar: tile colour = where it goes */
+/* feature doors — pastel tiles with a solid icon block; every door
+   wears the one forest accent family */
 .links{margin-top:30px;display:flex;gap:12px;flex-wrap:wrap}
+/* one accent (owner mandate): every functional door/well/chip wears
+   the forest family — the band ramp stays for hues that mean air */
 .door{display:flex;align-items:center;gap:12px;min-width:218px;
   padding:12px 18px 12px 12px;border-radius:15px;text-decoration:none;
-  color:var(--ink);background:var(--bd0);border:1px solid #c9dcb4;
+  color:var(--ink);background:var(--accWash);border:1px solid var(--accTint);
   transition:transform .3s cubic-bezier(.22,1,.36,1),
     box-shadow .3s cubic-bezier(.22,1,.36,1)}
 .door .dic{width:36px;height:36px;flex:none;border-radius:10px;
@@ -152,10 +168,6 @@ h1 em{font-style:italic;color:var(--ink2)}
 .door .darr{margin-left:auto;color:var(--accInk);font-size:15px}
 .door:hover{transform:translateY(-2px);
   box-shadow:0 12px 24px -12px rgba(43,78,50,.35)}
-.door.alt{background:var(--bd2);border-color:#e6cbae}
-.door.alt .dic{background:var(--b2)}
-.door.alt .dl i,.door.alt .darr{color:var(--bi2)}
-.door.alt:hover{box-shadow:0 12px 24px -12px rgba(117,77,41,.35)}
 @media(prefers-reduced-motion:reduce){.door{transition:none}
   .door:hover{transform:none}}
 /* ops status — a chip row, not a sentence */
@@ -182,9 +194,6 @@ h1 em{font-style:italic;color:var(--ink2)}
 .sec-tick{display:inline-block;width:7px;height:7px;border-radius:2px;
   margin-right:8px;flex:none}
 .sec-tick.t-acc{background:var(--acc)}
-.sec-tick.t-b1{background:var(--b1)}
-.sec-tick.t-b2{background:var(--b2)}
-.sec-tick.t-b3{background:var(--b3)}
 /* pill grammar — a segmented control, not a row of loose text.
    surface2 track; the selected option lifts as a white card. */
 .psel{display:inline-flex;gap:2px;padding:3px;background:var(--surf2);
@@ -429,9 +438,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 .steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .step{border-radius:16px;padding:20px 20px 18px;
   border:1px solid rgba(22,24,29,.07)}
-.step.s1{background:var(--bd0)}
-.step.s2{background:var(--bd2)}
-.step.s3{background:var(--bd1)}
+.step.s1,.step.s2,.step.s3{background:var(--accWash)}
 .step .n{display:inline-block;font-family:var(--mono);font-size:10px;
   color:var(--ink2);letter-spacing:.14em;
   background:rgba(255,255,255,.65);border-radius:6px;padding:3px 8px}
@@ -467,7 +474,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="hero"><div class="col"><div class="hero-grid">
   <div class="hero-copy">
-    <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — a dosimeter without hardware</div>
+    <div class="eyebrow rise" style="--d:0ms" id="eyebrow"><span class="sq"></span>delhi ncr — a dosimeter without hardware</div>
     <h1 class="rise" style="--d:70ms">A ledger for <em>your lungs.</em></h1>
     <div class="hnum rise" style="--d:140ms" id="hnum" role="status">
       <div><span class="hnum-chip">live</span><br>
@@ -488,7 +495,7 @@ h1 em{font-style:italic;color:var(--ink2)}
       <a class="door" href="/city"><span class="dic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.2c-2.9 0-5.2 2.3-5.2 5.1 0 3.7 4.3 7.5 5.2 8.2.9-.7 5.2-4.5 5.2-8.2 0-2.8-2.3-5.1-5.2-5.1z" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="9" cy="7.4" r="1.9" fill="#fff"/></svg></span>
         <span class="dl"><b>Open the live field</b><i>the city, this hour</i></span>
         <span class="darr">→</span></a>
-      <a class="door alt" href="/community"><span class="dic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff"/><rect x="10.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="2.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="10.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".38"/></svg></span>
+      <a class="door" href="/community"><span class="dic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff"/><rect x="10.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="2.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="10.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".38"/></svg></span>
         <span class="dl"><b>Community</b><i>k≥3 aggregates only</i></span>
         <span class="darr">→</span></a>
     </div>
@@ -557,7 +564,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="day-sec" id="daySec" hidden><div class="col">
   <div class="day-head">
-    <span class="lbl"><i class="sec-tick t-b2"></i>the day, recorded — <b>a typical october, hour by hour</b></span>
+    <span class="lbl"><i class="sec-tick t-acc"></i>the day, recorded — <b>a typical october, hour by hour</b></span>
     <span class="lbl" id="dayNote">—</span>
   </div>
   <div class="daybars" id="daybars"
@@ -568,7 +575,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 
 <section class="dist-sec"><div class="col">
   <div class="dist-head">
-    <span class="lbl"><i class="sec-tick t-b3"></i>the districts — <b><span id="distN">29</span> real boundaries, each filled live</b></span>
+    <span class="lbl"><i class="sec-tick t-acc"></i>the districts — <b><span id="distN">29</span> real boundaries, each filled live</b></span>
     <span class="hint">tap a boundary · worst first</span>
   </div>
   <div class="distwrap">
@@ -727,6 +734,26 @@ function washHex(hex,t){
   const px=i=>Math.round(((n>>(16-8*i))&255)*(1-t)+255*t);
   return `rgb(${px(0)},${px(1)},${px(2)})`;
 }
+/* the app's bandInkIdx — the hue pulled 15% toward ink; the breathing
+   edge's colour (deeper than a wash, softer than text ink) */
+function inkHex(hex,t){
+  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return null;
+  const n=parseInt(m[1],16),ik=[0x16,0x18,0x1d];
+  const px=i=>Math.round(((n>>(16-8*i))&255)*(1-(t||.15))+ik[i]*(t||.15));
+  return `rgb(${px(0)},${px(1)},${px(2)})`;
+}
+const bandHex=i=>'#'+BAND[i].map(v=>v.toString(16).padStart(2,'0')).join('');
+
+/* hour-aware greeting, IST — "good evening" then the existing stamp;
+   the web is English-only, one quiet line in the hero eyebrow */
+(function(){
+  const h=Math.floor((Date.now()/6e4+330)%1440/60);
+  const g=h<5?'up late':h<12?'good morning':h<17?'good afternoon'
+    :h<21?'good evening':'up late';
+  const e=document.querySelector('.hero-copy .eyebrow');
+  const t=e&&[...e.childNodes].find(n=>n.nodeType===3);
+  if(t)t.nodeValue=g+' · '+t.nodeValue.trim();
+})();
 
 /* --- the canvas --------------------------------------------------------
    three stacked canvases — repaint only the layer whose inputs changed.
@@ -1114,7 +1141,7 @@ function showCellCard(ft,x,y,pinned){
       .then(rr=>{
         NAMES[key]=(rr&&rr.name)
           ?esc(rr.name)+(rr.subtitle?` <span style="font-family:var(--sans);font-size:10px;color:var(--ink3)">${esc(rr.subtitle)}</span>`:'')
-          :'<span style="font-size:12px;color:var(--ink3)">no named place within 150m</span>';
+          :'<span style="font-size:12px;color:var(--ink4)">no named place within 150m</span>';
         if(INS&&INS.key===key&&!pop.hidden){
           const nm=pop.querySelector('.p-name');if(nm)nm.innerHTML=NAMES[key]}
       })
@@ -1398,6 +1425,19 @@ async function heroCity(){
     const d=await api('/v2/city');
     const b=d.breath||{};
     const cig=(b.cigarettes||{}).mid, ug=(b.day_inhaled_ug||{}).mid;
+    /* soul pass — the tile deepens into the day's live band and its
+       edge breathes (deep wash + band-edge hairline + band-ink ring +
+       band-inked numeral, all off the field's own mean) */
+    const mean=d.pm25_stats&&d.pm25_stats.mean;
+    if(mean!=null){
+      const bi=bandIdx(mean,SPECS.pm2_5.breaks),el=$('hnum'),bx=bandHex(bi);
+      el.style.setProperty('--hw',`var(--bd${bi})`);
+      el.style.setProperty('--ht',washHex(bx,.60));
+      el.style.setProperty('--he',inkHex(bx));
+      el.style.setProperty('--nv',`var(--bi${bi})`);
+      el.style.setProperty('--ni',`var(--bi${bi})`);
+      el.classList.add('breathe');
+    }
     if(cig!=null&&cig>0){
       $('hnumV').textContent=F1(cig);
       $('hnumT').innerHTML=`cigarettes a day — a day of breathing today's
@@ -1513,7 +1553,7 @@ async function dtTrend(d){
 function paintDChips(){
   const el=$('dscroll');
   if(!DIST.length){el.innerHTML=
-    '<div style="padding:14px 4px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase">district feed resting — chips fill when /v2/districts answers</div>';
+    '<div style="padding:14px 4px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink4);text-transform:uppercase">district feed resting — chips fill when /v2/districts answers</div>';
     return}
   const rows=[...DIST].sort((a,b)=>(b.aqi??-1)-(a.aqi??-1));
   el.innerHTML=rows.map(d=>{
@@ -1547,7 +1587,7 @@ async function dtShow(chip){
   chip.setAttribute('aria-pressed','true');
   const r=chip.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
   pop.style.left=Math.min(Math.max(4,r.left-wr.left),Math.max(4,wr.width-256))+'px';
-  const c=d.color||'#8a8d94';
+  const c=d.color||'#6e7278';
   const na=d.pm25==null&&d.aqi==null;
   const level=d.level==='osm_admin_5'
     ?`sub-area · ${d.parent||'delhi nct'}`:`district · ${d.state||'—'}`;

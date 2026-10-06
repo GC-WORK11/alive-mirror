@@ -13,7 +13,7 @@
      palette; the map itself keeps the true CPCB fills). */
   :root{
     --paper:#fafaf7; --surface:#FFFFFF; --surface2:#F2F1EA; --surface3:#E8E5DB;
-    --ink:#16181D; --ink2:#4A4E57; --ink3:#8A8D94; --ink4:#A6ACB8;
+    --ink:#16181D; --ink2:#4A4E57; --ink3:#6E7278; --ink4:#A6ACB8;
     --line:#E4E1D8; --line2:#D8D5C9; --hair:#D8D5C9;
     --sage:#3A6844; --accent:#3A6844; --accent-ink:#2B4E32; --accent-wash:#EAF0E4;
     --acc-tint:#DCE7D1;
@@ -210,10 +210,21 @@
           gap:8px;margin-top:9px}
   .day{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
        padding:10px 12px 9px;background:var(--dw,var(--surface2));
-       border:1px solid var(--line);border-radius:12px;font-family:var(--mono);
+       border:1px solid var(--de,var(--line));border-radius:12px;font-family:var(--mono);
        font-size:10px;text-align:left;cursor:pointer;color:var(--ink3);
-       box-shadow:0 1px 3px -1px rgba(22,24,29,.06);
+       box-shadow:0 1px 3px -1px rgba(22,24,29,.06);position:relative;
        transition:transform .2s cubic-bezier(.22,1,.36,1)}
+  /* soul pass — today's tile is the big day-AQI number's card: its wash
+     deepens to the register's 26% (--dw at .74, the live band) and its
+     edge breathes — the app's BreathEdge as a 4.4s sine opacity loop on
+     a 1.5px band-ink ring. the page's one breathing element; skipped
+     under reduce-motion. */
+  @keyframes breath{0%,100%{opacity:.12}50%{opacity:.32}}
+  .day.breathe::after{content:"";position:absolute;inset:0;
+       pointer-events:none;border-radius:inherit;
+       border:1.5px solid var(--he,var(--ink3));
+       animation:breath 4.4s ease-in-out infinite}
+  @media(prefers-reduced-motion:reduce){.day.breathe::after{display:none}}
   .day:hover{border-color:var(--line2);transform:translateY(-1px)}
   .day .dl{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
            color:var(--ink2)}
@@ -584,6 +595,12 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const washHex=(hex,t=.78)=>{const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');
   if(!m)return null;const n=parseInt(m[1],16);
   const px=i=>Math.round(((n>>(16-8*i))&255)*(1-t)+255*t);
+  return `rgb(${px(0)},${px(1)},${px(2)})`};
+/* the app's bandInkIdx — band hue pulled 15% toward ink, the breathing
+   edge's colour (deeper than a wash, softer than text ink) */
+const inkHex=(hex,t=.15)=>{const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');
+  if(!m)return null;const n=parseInt(m[1],16),ik=[0x14,0x18,0x1f];
+  const px=i=>Math.round(((n>>(16-8*i))&255)*(1-t)+ik[i]*t);
   return `rgb(${px(0)},${px(1)},${px(2)})`};
 
 /* ---------- geography / projection ---------- */
@@ -1281,17 +1298,24 @@ async function outLoad(){
   OUT.model=(d.model||'').toLowerCase();
   if(OUT.sel&&!OUT.days.some(x=>x.date_ist===OUT.sel))OUT.sel=null;
   outUI.row.hidden=false;
-  outUI.row_.innerHTML=OUT.days.map(dy=>{
+  outUI.row_.innerHTML=OUT.days.map((dy,di)=>{
     const lo=dy.confidence==='lo';
     const meta=[dy.band,
       dy.partial&&dy.n_hours!=null?`first ~${dy.n_hours}h only`:null,
       OUT.best===dy.date_ist?'least-bad':null,
       lo?'model estimate':null].filter(Boolean).join(' · ');
     const on=OUT.sel===dy.date_ist;
-    const dw=dy.band?washHex(bandCol(dy.band)):null;
-    return `<button type="button" class="day${lo?' lo':''}${on?' on':''}"
+    /* today = the big day-AQI number's card: deep wash (26% band) +
+       band-edge hairline + the breathing band-ink ring; the outlook
+       behind it stays at the quieter tile wash */
+    const col=dy.band?bandCol(dy.band):null;
+    const dw=col?washHex(col,di===0?.74:.78):null;
+    const today=di===0;
+    const st=(dw?`--dw:${dw};`:'')
+      +(today?`--de:${col?washHex(col,.60):'var(--line)'};--he:${col?inkHex(col):'var(--ink3)'}`:'');
+    return `<button type="button" class="day${lo?' lo':''}${on?' on':''}${today?' breathe':''}"
       data-d="${esc(dy.date_ist)}" aria-pressed="${on}"
-      ${dw?`style="--dw:${dw}"`:''}>
+      ${st?`style="${st}"`:''}>
       <span class="dl">${esc(dy.label)}<small>${esc(outDate(dy.date_ist))}</small></span>
       <span class="dv">${dy.pm25_mid!=null?Math.round(dy.pm25_mid):'—'}<i style="background:${bandCol(dy.band)}"></i></span>
       <span class="dr">${dy.pm25_lo!=null&&dy.pm25_hi!=null?Math.round(dy.pm25_lo)+'–'+Math.round(dy.pm25_hi):'no band'}</span>
@@ -1546,7 +1570,7 @@ async function load(){
        <td><span class="modep">${c.relative?c.relative+' than typical':'—'}</span></td></tr>`).join('');
     document.getElementById('corridors').innerHTML=
       '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>'+
-      (rows||'<tr><td colspan="5" style="color:var(--ink3)">no street has enough phones yet — this fills in as delhi moves</td></tr>');
+      (rows||'<tr><td colspan="5" style="color:var(--ink4)">no street has enough phones yet — this fills in as delhi moves</td></tr>');
     setTxt('stamp','updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' ist');
     /* cadence from the field itself — refresh_in_s rides /v2/city */
     const rs=(ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000;

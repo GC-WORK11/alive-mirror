@@ -82,8 +82,6 @@
          color:var(--ink2);background:var(--surface2);border-radius:7px;
          padding:4px 9px;line-height:1.55;margin:0 0 12px}
   .kchip.accent{background:var(--accent-wash);color:var(--accent-ink)}
-  .kchip.brick{background:rgba(163,68,70,.10);color:var(--brick)}
-  .kchip.wine{background:var(--wine-wash);color:var(--wine)}
   .cap{font-family:var(--mono);font-size:9px;color:var(--ink4);
        letter-spacing:.02em;margin-top:8px;line-height:1.6}
   .card .num{font-family:var(--serif);font-size:clamp(26px,2.6vw,36px);font-weight:400;
@@ -107,6 +105,17 @@
      margin-left:auto}
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;
          overflow:hidden}
+  /* soul pass — the field-state panel breathes: the card that holds
+     what the router reads right now takes the app's living edge (a
+     4.4s sine opacity loop on an accent-ink ring). the page's one
+     breathing element; skipped under reduce-motion. */
+  @keyframes breath{0%,100%{opacity:.12}50%{opacity:.32}}
+  .panel.breathe{position:relative}
+  .panel.breathe::after{content:"";position:absolute;inset:0;
+         pointer-events:none;border-radius:inherit;
+         border:1.5px solid var(--accent-ink);
+         animation:breath 4.4s ease-in-out infinite}
+  @media(prefers-reduced-motion:reduce){.panel.breathe::after{display:none}}
   .scrollx{overflow-x:auto}
   /* phones: wide tables clip mid-word with no hint they scroll — local cover
      + scroll shadow peeks only while more columns sit past that edge */
@@ -451,7 +460,7 @@
     <div class="panel"><div class="panel-h">measured api latency — the server's own stopwatch</div><dl class="kv" id="timing"></dl></div>
   </div>
   <div class="cols" style="margin-top:10px">
-    <div class="panel"><div class="panel-h">field state — what the router reads right now</div><dl class="kv" id="field"></dl></div>
+    <div class="panel breathe"><div class="panel-h">field state — what the router reads right now</div><dl class="kv" id="field"></dl></div>
     <div class="panel"><div class="panel-h">model scorecard — error vs held-out stations</div><dl class="kv" id="scorecard"></dl></div>
   </div>
 
@@ -771,10 +780,10 @@ async function tick(){
      `daily median pm2.5 · mid of live cells${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null,
      'the middle reading across every live cell — half of Delhi breathes worse than this right now'],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
-     `cumulative dose · inhaled over all donated trips · ~${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'brick',t.dose_ug>0,
+     `cumulative dose · inhaled over all donated trips · ~${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg/trip</span>`,'accent',t.dose_ug>0,
      'total PM2.5 mass actually inhaled across every shared trip — the number nobody else measures'],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
-     `CO₂ from donated rides · mid estimate`,'bronze',t.co2_kg_mid>0,
+     `CO₂ from donated rides · mid estimate`,'accent',t.co2_kg_mid>0,
      'what the shared rides emitted — midpoint between the low and high emission factors'],
     [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
      `model error · ${maeL} (mae — vs held-out stations)${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null,

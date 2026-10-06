@@ -7,7 +7,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
 <style>
 :root{
-  --paper:#fafaf7; --ink:#16181d; --ink2:#4a4e57; --ink3:#8a8d94;
+  --paper:#fafaf7; --ink:#16181d; --ink2:#4a4e57; --ink3:#6e7278;
+  --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
   --sage:#3a6844;
   --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
@@ -81,10 +82,19 @@ h1 em{font-style:italic;color:var(--ink2)}
 .sec-head .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink3);white-space:nowrap}
 @media(max-width:560px){.sec-head .lbl{display:none}}
-.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 56px}
-@media(max-width:560px){.lgrid{grid-template-columns:1fr}}
+/* soul pass — the totals card wears the app's clay-wash ledger
+   identity (terracotta pulled ~80% to paper, solid blend never alpha);
+   the hairline rows stay ruled inside it, first row unruled so the
+   card's own edge is the line */
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 56px;
+  background:#E8DDDA;border:1px solid #D0BBB6;border-radius:16px;
+  padding:4px 22px 10px}
+@media(min-width:561px){.lgrid>.lrow:nth-child(-n+2){border-top:none}}
+@media(max-width:560px){.lgrid{grid-template-columns:1fr}
+  .lgrid>.lrow:first-child{border-top:none}}
 .lrow{display:flex;align-items:baseline;justify-content:space-between;gap:18px;
   padding:20px 0;border-top:1px solid var(--line)}
+.lgrid .lrow{border-top-color:#DCC8C3}
 .lrow .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
   text-transform:uppercase;color:var(--ink3);line-height:1.7;max-width:30ch}
 .lrow .k .w{display:block;margin-top:6px;font-family:var(--sans);
@@ -113,7 +123,7 @@ td{padding:14px 12px;border-top:1px solid var(--line);font-size:13.5px;
 td.rank{font-family:var(--mono);font-size:10px;color:var(--ink3);width:30px}
 td.cell{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
 td.num{color:var(--ink);font-variant-numeric:tabular-nums}
-td .empty{color:var(--ink3);font-size:13px}
+td .empty{color:var(--ink4);font-size:13px}
 td.cell .st{display:block;font-family:var(--sans);font-size:13px;
   color:var(--ink)}
 td.cell .co{display:block;margin-top:3px;font-family:var(--mono);
@@ -142,7 +152,7 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink3);flex:none;width:110px}
 .rline .rn{font-family:var(--mono);font-size:10px;color:var(--ink3);
   margin-left:auto;white-space:nowrap}
-.rline .empty{color:var(--ink3)}
+.rline .empty{color:var(--ink4)}
 .tnote{margin-top:16px;font-family:var(--mono);font-size:9.5px;
   letter-spacing:.1em;line-height:1.9;text-transform:uppercase;
   color:var(--ink3);max-width:74ch}
