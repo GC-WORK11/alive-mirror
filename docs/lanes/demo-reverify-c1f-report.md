@@ -13,6 +13,6 @@
 | least-bad hour | ~59.2 µg/m³ at h+3 | GET /v2/day hours | ✔ plausible vs day_mean |
 | landing hero | hnum tile LIVE chip + serif + provenance caption (hnumV hydrates client-side) | GET / | ✔ new grammar serving |
 | web grammar live | landing .door/.dchip; city washHex day tiles; admin .kchip/.cap | GET /,/city,/admin | ✔ |
-| breath ≈ cigarettes | landing copy "≈ 1 cigarette a day · 22 {noT}-day" (placeholder template hydrated client-side — VERIFY hi substitution non-broken) | GET / | ⚠ `${noT}` template literal seen in static HTML — check it hydrates to a number, not raw |
+| breath ≈ cigarettes | landing copy "≈ 1 cigarette a day · 22 µg/m³-day" — `${noT}` is a JS template var holding the styled µg/m³ span (µ→Μ casing rule), hydrates correctly | GET / | ✔ |
 
-FLAGS: (1) `${noT}` in landing static markup — likely a template slot the JS fills; verify it renders a number, not the literal. (2) everything else inside published ranges — no drift >10%.
+FLAGS: none — everything inside published ranges, no drift >10%.
