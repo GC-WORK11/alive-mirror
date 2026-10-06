@@ -423,7 +423,7 @@ const s = StyleSheet.create({
        frames the sheet's edges, the pane itself reads opaque */
     backgroundColor: V2T.bg, borderRadius: V2Radius.sheet,
     ...V2Elev.pop,
-    borderWidth: 1, borderColor: V2T.hairline, padding: 18, paddingBottom: 14,
+    padding: 18, paddingBottom: 14,
   },
 
   /* header */
@@ -499,8 +499,8 @@ const s = StyleSheet.create({
   doneTxt: { fontSize: V2Type.secondary, color: V2T.bg },
   share: {
     minHeight: 48, flexDirection: "row", alignItems: "center", gap: 7,
-    borderRadius: V2Radius.pill, borderWidth: 1, borderColor: V2T.hairline,
-    backgroundColor: V2T.surface, paddingHorizontal: 18, paddingVertical: 12,
+    borderRadius: V2Radius.pill,
+    backgroundColor: V2T.surface2, paddingHorizontal: 18, paddingVertical: 12,
   },
   shareTxt: { fontSize: V2Type.secondary, color: V2T.accentInk },
   tertiaryRow: {

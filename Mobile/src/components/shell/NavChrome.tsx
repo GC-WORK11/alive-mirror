@@ -389,7 +389,6 @@ const s = StyleSheet.create({
     backgroundColor: V2T.glassDeep, borderRadius: V2Radius.card,
     paddingVertical: 12, paddingHorizontal: 12,
     ...V2Elev.float,
-    borderWidth: 1, borderColor: V2T.hairline,
   },
   /* the maneuver tile goes ink — the turn arrow is glance-critical, so
      it sits in the darkest tile on the sheet (the one place chrome may
@@ -415,7 +414,6 @@ const s = StyleSheet.create({
     backgroundColor: V2T.glassDeep, borderRadius: V2Radius.pill,
     paddingHorizontal: 16, paddingVertical: 9,
     ...V2Elev.card,
-    borderWidth: 1, borderColor: V2T.hairline,
   },
   pillDot: {
     width: 7, height: 7, borderRadius: 4,
@@ -427,7 +425,7 @@ const s = StyleSheet.create({
     position: "absolute", left: 14, right: 14,
     backgroundColor: V2T.glassDeep, borderRadius: V2Radius.card,
     ...V2Elev.float,
-    borderWidth: 1, borderColor: V2T.hairline, overflow: "hidden",
+    overflow: "hidden",
   },
   progTrack: { height: 3, backgroundColor: V2T.glassSoft },
   progFill: {

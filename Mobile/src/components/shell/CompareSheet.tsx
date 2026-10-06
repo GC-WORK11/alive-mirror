@@ -795,7 +795,7 @@ const s = StyleSheet.create({
   card: {
     ...V2Elev.card,
     marginHorizontal: 14, marginTop: 8, borderRadius: V2Radius.card,
-    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.hairline,
+    backgroundColor: V2T.surface,
     overflow: "hidden",
   },
   cardSel: { borderColor: V2T.accent, borderWidth: 1.5, backgroundColor: V2T.accentWash },
@@ -879,10 +879,10 @@ const s = StyleSheet.create({
   },
   ghostBtn: {
     minHeight: 44, justifyContent: "center", borderRadius: V2Radius.pill,
-    paddingHorizontal: 16, borderWidth: 1, borderColor: V2T.hairline,
+    paddingHorizontal: 16,
     backgroundColor: V2T.surface,
   },
-  ghostBtnOn: { borderColor: V2T.accent, backgroundColor: V2T.glassSel },
+  ghostBtnOn: { backgroundColor: V2T.accentWash },
   ghostTxt: { fontSize: V2Type.secondary, color: V2T.text2 },
   ghostTxtOn: { color: V2T.accent },
   goBtn: {
