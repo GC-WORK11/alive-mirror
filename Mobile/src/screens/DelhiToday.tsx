@@ -27,7 +27,6 @@ import {
   bandIdx,
   bandInkIdx,
   bandWashDeepIdx,
-  bandWashIdx,
   cigOf,
   doseColor,
   fam,
@@ -42,7 +41,6 @@ import {
   V2Type,
 } from "../theme";
 import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
-import { BreathEdge } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
@@ -297,13 +295,12 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                     <Defs>
                       <LinearGradient id="citySky" x1="0" y1="0" x2="0" y2="1">
                         <Stop offset="0" stopColor={bandWashDeepIdx(bandIdx(pm.mid) ?? 0)} />
-                        <Stop offset="1" stopColor={bandWashIdx(bandIdx(pm.mid) ?? 0)} />
+                        <Stop offset="1" stopColor={V2T.bg} />
                       </LinearGradient>
                     </Defs>
                     <Rect x="0" y="0" width="100%" height="100%" fill="url(#citySky)" />
                   </Svg>
                 </View>
-                <BreathEdge color={bandInkIdx(bandIdx(pm.mid) ?? 0) ?? V2T.text} />
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
                 >
@@ -320,18 +317,28 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                       },
                     ]}
                   >
-                    ≈ {doseUgRound(inhaled.mid)}
+                    {doseUgRound(inhaled.mid)}
                   </Text>
-                  <Icon
-                    name="dust"
-                    color={bandInkIdx(bandIdx(pm.mid) ?? 0) ?? doseColor(pm.mid)}
-                    size={34}
-                  />
+                  <Text {...DYNAMIC_TYPE}
+                    style={[ss.heroUnit, { fontFamily: fam(lang, "med") }]}
+                  >
+                    {t("unitUg", lang).split(" ")[0]}
+                  </Text>
                 </View>
                 <Text {...DYNAMIC_TYPE}
-                  style={[ss.heroUnit, { fontFamily: fam(lang, "reg") }]}
+                  style={[ss.heroFelt, { fontFamily: famSerif(lang, "med"), color: bandInkIdx(bandIdx(pm.mid) ?? 0) ?? V2T.text }]}
+                >
+                  {t(feltKeyForBand(bandIdx(pm.mid)), lang)}
+                </Text>
+                <Text {...DYNAMIC_TYPE}
+                  style={[ss.heroRef, NUM, { fontFamily: fam(lang, "reg") }]}
                 >
                   {t("cityHeroUnitUg", lang)}
+                  {"\n"}
+                  {pm.mid / WHO_DAILY_UG > 1.05
+                    ? t("refWhoOver", lang, { x: pm.mid / WHO_DAILY_UG >= 10 ? Math.round(pm.mid / WHO_DAILY_UG) : (pm.mid / WHO_DAILY_UG).toFixed(1) })
+                    : t("refWhoUnder", lang)}
+                  {` · ~${Math.round(pm.mid)} µg/m³`}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroRange, NUM, { fontFamily: famMonoText(lang, "reg") }]}
@@ -396,20 +403,22 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
             {(() => {
               const sp = data.species;
               if (!sp) return null;
-              const tiles: { label: string; val: string; wash: string; ink: string }[] = [];
-              const push = (key: string, label: string) => {
+              /* each reading stands beside its WHO 2021 guideline (24-h
+                 means; O₃ is the 8-h peak value) — the reference is the
+                 meaning, and over-limit values take the over-limit ink */
+              const tiles: { label: string; val: string; who: number | null; over: boolean }[] = [];
+              const push = (key: string, label: string, who: number | null) => {
                 const v = sp[key];
-                if (v) tiles.push({ label, val: `${v.mean}`, wash: V2T.surface2, ink: V2T.text2 });
+                if (v) tiles.push({ label, val: `${v.mean}`, who, over: who != null && v.mean > who });
               };
-              push("pm10", "PM10");
-              push("nitrogen_dioxide", "NO\u2082");
-              push("ozone", "O\u2083");
-              push("carbon_monoxide", "CO");
-              push("sulphur_dioxide", "SO\u2082");
-              push("ammonia", "NH\u2083");
+              push("pm10", "PM10", 45);
+              push("nitrogen_dioxide", "NO\u2082", 25);
+              push("ozone", "O\u2083", 100);
+              push("carbon_monoxide", "CO", 4000);
+              push("sulphur_dioxide", "SO\u2082", 40);
+              push("ammonia", "NH\u2083", null);
               const aqi = sp.us_aqi;
-              if (aqi) tiles.push({ label: "US AQI", val: `${Math.round(aqi.mean)}`,
-                                    wash: V2Tint.clay.wash, ink: V2Tint.clay.ink });
+              if (aqi) tiles.push({ label: "US AQI", val: `${Math.round(aqi.mean)}`, who: null, over: false });
               if (!tiles.length) return null;
               return (
                 <>
@@ -417,18 +426,20 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                     {t("citySpeciesTitle", lang)}
                   </Text>
                   <View style={ss.speciesGrid}>
-                    {tiles.map((tile) => (
-                      <View key={tile.label}
-                            style={[ss.speciesTile, { backgroundColor: tile.wash }]}>
+                    {tiles.map((tile, i) => (
+                      <View key={tile.label} style={[ss.speciesTile, i > 0 && ss.speciesSep]}>
                         <Text {...DYNAMIC_TYPE} numberOfLines={1}
-                              style={[ss.speciesVal, NUM,
-                                      { fontFamily: famMono(lang, "reg"), color: tile.ink }]}>
+                              style={[ss.speciesLab, { fontFamily: fam(lang, "med") }]}>
+                          {tile.label}
+                        </Text>
+                        <Text {...DYNAMIC_TYPE} numberOfLines={1}
+                              style={[ss.speciesVal, NUM, { fontFamily: fam(lang, "med"),
+                                      color: tile.over ? V2T.band3 : V2T.text }]}>
                           {tile.val}
                         </Text>
                         <Text {...DYNAMIC_TYPE} numberOfLines={1}
-                              style={[ss.speciesLab,
-                                      { fontFamily: fam(lang, "semi"), color: tile.ink }]}>
-                          {tile.label}
+                              style={[ss.speciesWho, NUM, { fontFamily: fam(lang, "reg") }]}>
+                          {tile.who != null ? t("whoRef", lang, { n: tile.who }) : ""}
                         </Text>
                       </View>
                     ))}
@@ -446,9 +457,10 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
             {data.typical?.vs_now_pct != null ? (
               <Text {...DYNAMIC_TYPE} style={[ss.speciesNote,
                            { fontFamily: fam(lang, "reg") }]}>
-                {t("cityTypicalLine", lang)
-                  .replace("{pct}", `${data.typical.vs_now_pct > 0 ? "+" : ""}${data.typical.vs_now_pct}`)
-                  .replace("{med}", `${Math.round(data.typical.median)}`)}
+                {t(data.typical.vs_now_pct < 0 ? "cityTypicalBelow" : "cityTypicalAbove", lang, {
+                  p: Math.abs(Math.round(data.typical.vs_now_pct)),
+                  med: Math.round(data.typical.median),
+                })}
               </Text>
             ) : null}
 
@@ -676,6 +688,9 @@ function DelhiTodayInner({
   );
 }
 
+/** WHO 2021 24-hour PM2.5 guideline, µg/m³. */
+const WHO_DAILY_UG = 15;
+
 export const DelhiToday = React.memo(DelhiTodayInner);
 
 export default DelhiToday;
@@ -702,8 +717,6 @@ const ss = StyleSheet.create({
     alignItems: "center",
     height: 56,
     paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: V2T.glassLine,
   },
   barBtn: { padding: 6, marginRight: 8 },
   title: { color: V2T.text, fontSize: V2Type.title },
@@ -721,17 +734,14 @@ const ss = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: V2Radius.card,
-    backgroundColor: V2T.glassSoft,
-    borderWidth: 1,
-    borderColor: V2T.glassLine,
+    backgroundColor: V2T.surface2,
   },
   retryText: { color: V2T.accent, fontSize: V2Type.secondary },
 
+  /* no card: the hero is the top of the sheet, washed by the band and
+     settling into paper — the same statement grammar as home */
   hero: {
-    ...V2Elev.card,
-    marginTop: 18, marginHorizontal: 16,
-    borderRadius: 28, overflow: "hidden",
-    paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16,
+    paddingHorizontal: 22, paddingTop: 22, paddingBottom: 18,
   },
   heroLead: { color: V2T.text2, fontSize: V2Type.body },
   heroRow: {
@@ -740,8 +750,10 @@ const ss = StyleSheet.create({
     marginTop: 4,
     gap: 10,
   },
-  heroNum: { fontSize: V2Type.heroXL, lineHeight: 64 },
-  heroUnit: { color: V2T.text, fontSize: V2Type.body, marginTop: 2 },
+  heroNum: { fontSize: 96, lineHeight: 102, letterSpacing: -4, marginLeft: -3 },
+  heroUnit: { color: V2T.text2, fontSize: V2Type.body, alignSelf: "flex-end", paddingBottom: 18 },
+  heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, marginTop: -4 },
+  heroRef: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 4 },
   heroRange: { color: V2T.text2, fontSize: V2Type.label, marginTop: 4 },
 
   chips: {
@@ -813,21 +825,21 @@ const ss = StyleSheet.create({
      each tile number-over-symbol in its family well (sky instruments,
      clay AQI summary) */
   speciesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginHorizontal: 18,
+    marginHorizontal: 16,
     marginTop: 8,
+    borderRadius: 20, borderCurve: "continuous",
+    backgroundColor: V2T.surface,
+    ...V2Elev.card,
+    paddingHorizontal: 16,
   },
   speciesTile: {
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    minWidth: 78,
-    alignItems: "center",
+    flexDirection: "row", alignItems: "center",
+    paddingVertical: 12,
   },
-  speciesVal: { fontSize: V2Type.body, lineHeight: 20 },
-  speciesLab: { fontSize: V2Type.label, marginTop: 3, opacity: 0.72 },
+  speciesSep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.hairline },
+  speciesLab: { flex: 1, color: V2T.text2, fontSize: V2Type.secondary },
+  speciesVal: { fontSize: V2Type.body, minWidth: 64, textAlign: "right" },
+  speciesWho: { color: V2T.text3, fontSize: V2Type.label, minWidth: 84, textAlign: "right" },
   speciesNote: {
     color: V2T.text3,
     fontSize: V2Type.label,

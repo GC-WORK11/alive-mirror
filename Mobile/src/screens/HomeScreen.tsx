@@ -35,6 +35,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Animated,
+  Easing,
   LayoutAnimation,
   Pressable,
   ScrollView,
@@ -59,7 +60,6 @@ import {
   bandInkIdx,
   bandWashDeepIdx,
   bandWashIdx,
-  bandWashMidIdx,
   doseDotColor,
   doseTierIdx,
   fam,
@@ -68,7 +68,7 @@ import {
   famSerif,
 } from "../theme";
 import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
-import { BreathEdge, CountUp, FadeIn, Quiet, pressFx } from "../ui";
+import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
@@ -234,30 +234,26 @@ function SparklineInner({ series, lang }: { series: (number | null)[]; lang: Lan
   const [w, setW] = useState(0);
   const H = 44, PAD = 8;
   const vals = series.filter((v): v is number => v != null);
-  const max = Math.max(...vals, 1), min = Math.min(...vals, 0);
+  const max = Math.max(...vals, 1), min = 0;
   const span = Math.max(1, max - min);
   const x = (i: number) => PAD + (w - 2 * PAD) * (series.length <= 1 ? 0 : i / (series.length - 1));
-  const y = (v: number) => H - 14 - (H - 24) * ((v - min) / span);
-  /* contiguous runs only — a failed hour is a gap in the stroke, not a
-     line drawn through a guess */
-  const runs: string[] = [];
-  let cur = "";
-  series.forEach((v, i) => {
-    if (v == null) { if (cur) runs.push(cur); cur = ""; return; }
-    cur += `${cur ? " L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
-  });
-  if (cur) runs.push(cur);
+  const y = (v: number) => H - 6 - (H - 10) * ((v - min) / span);
+  /* one rounded column per hour, band-coloured by its forecast — the
+     day reads as a strip of cells; a failed hour is an empty stub,
+     never a guess */
+  const slot = series.length > 0 ? (w - 2 * PAD) / series.length : 0;
+  const bw = Math.max(3, Math.min(10, slot - 4));
   return (
     <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
       {w > 0 && (
         <Svg width={w} height={H + 14}>
-          {runs.map((d, i) => (
-            <Path key={i} d={d} stroke={V2T.text3} strokeWidth={1} fill="none" />
-          ))}
-          {series.map((v, i) => (
-            <Circle key={i} cx={x(i)} cy={y(v ?? min)} r={2.2}
-              fill={bandColor(v) ?? V2T.hairline} opacity={v == null ? 0.4 : 1} />
-          ))}
+          {series.map((v, i) => {
+            const top = v == null ? H - 4 : Math.min(y(v), H - 6);
+            return (
+              <Rect key={i} x={x(i) - bw / 2} y={top} width={bw} height={H - top}
+                rx={bw / 2} fill={v == null ? V2T.surface3 : (bandColor(v) ?? V2T.text4)} />
+            );
+          })}
         </Svg>
       )}
       {w > 0 && (
@@ -288,33 +284,55 @@ const Sparkline = React.memo(SparklineInner);
  *  the truth we HAVE (the field) labelled, never a fake personal count
  *  (docs/lanes/hero-sparse). Same hole-not-a-guess rule as the move
  *  sparkline — a failed hour is a gap in the stroke. */
-function SparseAirArcInner({ series }: { series: (number | null)[] }) {
+function SparseAirArcInner({ series, color }: { series: (number | null)[]; color: string }) {
   bump("home.SparseAirArc");
   const [w, setW] = useState(0);
-  const H = 46, PAD = 10;
+  const H = 64, PAD = 4;
   const vals = series.filter((v): v is number => v != null);
   const max = Math.max(...vals, 1), min = Math.min(...vals, 0);
   const span = Math.max(1, max - min);
   const x = (i: number) => PAD + (w - 2 * PAD) * (series.length <= 1 ? 0 : i / (series.length - 1));
-  const y = (v: number) => H - 8 - (H - 18) * ((v - min) / span);
-  const runs: string[] = [];
-  let cur = "";
-  series.forEach((v, i) => {
-    if (v == null) { if (cur) runs.push(cur); cur = ""; return; }
-    cur += `${cur ? " L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
-  });
-  if (cur) runs.push(cur);
+  const y = (v: number) => H - 6 - (H - 16) * ((v - min) / span);
+  /* contiguous runs only — a failed hour is a gap, never a guess; each
+     run is a smoothed curve (midpoint quadratics) with its own wash */
+  const runs: { line: string; area: string }[] = [];
+  let pts: [number, number][] = [];
+  const flush = () => {
+    if (pts.length > 1) {
+      let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+      for (let k = 1; k < pts.length; k++) {
+        const [px, py] = pts[k - 1], [cx, cy] = pts[k];
+        const mx = (px + cx) / 2, my = (py + cy) / 2;
+        d += ` Q${px.toFixed(1)} ${py.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`;
+      }
+      const last = pts[pts.length - 1];
+      d += ` L${last[0].toFixed(1)} ${last[1].toFixed(1)}`;
+      runs.push({ line: d, area: `${d} L${last[0].toFixed(1)} ${H} L${pts[0][0].toFixed(1)} ${H} Z` });
+    }
+    pts = [];
+  };
+  series.forEach((v, i) => { if (v == null) flush(); else pts.push([x(i), y(v)]); });
+  flush();
+  const first = series.findIndex((v) => v != null);
   return (
     <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={ss.sparseArc}>
       {w > 0 && (
         <Svg width={w} height={H}>
-          {runs.map((d, i) => (
-            <Path key={i} d={d} stroke={V2T.text3} strokeWidth={1} fill="none" opacity={0.5} />
+          <Defs>
+            <LinearGradient id="arcWash" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={color} stopOpacity={0.16} />
+              <Stop offset="1" stopColor={color} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          {runs.map((r, i) => (
+            <React.Fragment key={i}>
+              <Path d={r.area} fill="url(#arcWash)" />
+              <Path d={r.line} stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.75} />
+            </React.Fragment>
           ))}
-          {series.map((v, i) => (
-            <Circle key={i} cx={x(i)} cy={y(v ?? min)} r={3}
-              fill={bandColor(v) ?? V2T.hairline} opacity={v == null ? 0.3 : 0.85} />
-          ))}
+          {first >= 0 && (
+            <Circle cx={x(first)} cy={y(series[first] as number)} r={4} fill={color} />
+          )}
         </Svg>
       )}
     </View>
@@ -360,7 +378,6 @@ function decisionLine(
   series: (number | null)[],
   lang: Lang,
 ): string {
-  if (lang === "en") return d.line;
   const mids = series.filter((v): v is number => v != null);
   if (!mids.length) return d.line;
   const lo = Math.min(...mids), hi = Math.max(...mids);
@@ -632,13 +649,14 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
           /* the band IS the scan cue — a deeper wash + band-inked day
              label so worst/best reads at a glance (five 10% washes were
              indistinguishable paper) */
-          const cellBg = bi != null ? bandWashDeepIdx(bi) : V2T.surface;
-          const cellEdge = bi != null ? bandEdgeIdx(bi) : V2T.hairline;
+          /* stone cells; the band lives only in the dot and the numeral,
+             so five days never read as five pastel tiles */
+          const cellBg = sel ? V2T.surface : V2T.surface2;
           /* the numeral owns the cell in full ink — band-ink at 85%
              washed the figure into the tinted fill; the band lives on
              the wash, the dot and the day label instead */
-          const midCol = V2T.text;
-          const dayCol = bi != null ? bandInkIdx(bi) ?? V2T.text3 : V2T.text3;
+          const midCol = bi != null ? bandInkIdx(bi) ?? V2T.text : V2T.text;
+          const dayCol = V2T.text3;
           return (
             <Pressable key={d.date_ist}
               onPress={() => {
@@ -653,8 +671,8 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
               accessibilityLabel={`${dayLabel(d.label, lang)} ${Math.round(d.pm25_mid)}`}
               style={({ pressed }) => [
                 ss.oaCell,
-                { backgroundColor: cellBg, borderColor: cellEdge },
-                d.confidence === "lo" && { opacity: 0.45 }, // ghosted — past the live anchor's reach
+                { backgroundColor: cellBg },
+                d.confidence === "lo" && { opacity: 0.62 }, // ghosted — past the live anchor's reach
                 sel && ss.oaCellSel,
                 pressed && { transform: [{ scale: 0.96 }] },
               ]}>
@@ -948,34 +966,37 @@ export const DayPeek = React.memo(DayPeekInner);
 const WEEKDAY_EN = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
-  bump("home.HomeHeader");
   const insets = useSafeAreaInsets();
-  const now = new Date();
+  /* a clock that tells the time — the header re-reads it every 30 s
+     (the memoized header froze at mount before) */
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(iv);
+  }, []);
   const hh = `${now.getHours()}`.padStart(2, "0");
   const mm = `${now.getMinutes()}`.padStart(2, "0");
-  /* the surface meets you at your hour — a greeting first, the stamp
-     after: "good evening · tuesday · 16:38 · delhi" */
   const hr = now.getHours();
-  const greetKey: StringKey =
-    hr < 5 || hr >= 21 ? "homeGreetNight"
-    : hr < 12 ? "homeGreetMorning"
-    : hr < 17 ? "homeGreetAfternoon"
-    : "homeGreetEvening";
+  const greetKey: StringKey = hr < 5 || hr >= 21 ? "homeGreetNight"
+    : hr < 12 ? "homeGreetMorning" : hr < 17 ? "homeGreetAfternoon" : "homeGreetEvening";
+  const greet = t(greetKey, lang);
+  const cap = (x: string) => (lang === "en" ? x.charAt(0).toUpperCase() + x.slice(1) : x);
+  const title = cap(greet);
   return (
-    <View style={[ss.homeHead, { paddingTop: insets.top + 8 }]}>
-      <View>
-        <Text {...DYNAMIC_TYPE} style={[ss.brand, { fontFamily: famSerif(lang, "black") }]}>
-          ALive-108
+    <View style={[ss.homeHead, { paddingTop: insets.top + 6 }]}>
+      <View style={ss.flex}>
+        <Text {...DYNAMIC_TYPE} numberOfLines={1} style={[ss.brand, { fontFamily: famSerif(lang, "med") }]}>
+          {title}
         </Text>
-        <Text {...DYNAMIC_TYPE} style={[ss.brandSub, { fontFamily: mtext(lang) }]}>
-          {t(greetKey, lang)} · {dayLabel(WEEKDAY_EN[now.getDay()], lang)} · {hh}:{mm} · {t("cityTag", lang)}
+        <Text {...DYNAMIC_TYPE} style={[ss.brandSub, NUM, { fontFamily: fam(lang, "reg") }]}>
+          {t("cityName", lang)} · {cap(dayLabel(WEEKDAY_EN[now.getDay()], lang))} {hh}:{mm}
         </Text>
       </View>
       <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}
         accessibilityRole="button" accessibilityLabel={t("a11yMenu", lang)}
-        style={({ pressed }) => [ss.homeMenuBtn, pressed && { opacity: 0.55 }]}>
+        style={({ pressed }) => [ss.homeMenuBtn, pressFx(pressed)]}>
         <View style={ss.menuBars}>
-          {[0, 1, 2].map((i) => <View key={i} style={ss.menuBar} />)}
+          {[0, 1].map((k) => <View key={k} style={ss.menuBar} />)}
         </View>
       </Pressable>
     </View>
@@ -984,41 +1005,14 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
 
 const HomeHeader = React.memo(HomeHeaderInner);
 
-/** The dose gauge — one ring filling toward the day's budget. Oura/Apple
- *  ring grammar: fraction filled + colour does the work, no axes. Over
- *  budget keeps a full ring and turns the percent line honest. */
-function DoseGaugeInner({ frac, color, lang }: { frac: number; color: string; lang: Lang }) {
-  const R = 30, S = 76, SW = 7;
-  const f = Math.max(0, Math.min(1, frac));
-  const cx = S / 2, cy = S / 2;
-  const a0 = -Math.PI / 2;
-  const a1 = a0 + 2 * Math.PI * Math.min(f, 0.9999);
-  const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0);
-  const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
-  return (
-    <View style={ss.gaugeWrap}>
-      <Svg width={S} height={S}>
-        <Circle cx={cx} cy={cy} r={R} stroke={V2T.line} strokeWidth={SW} fill="none" />
-        {f > 0.004 && (
-          <Path
-            d={`M${x0.toFixed(2)} ${y0.toFixed(2)} A${R} ${R} 0 ${f > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`}
-            stroke={color} strokeWidth={SW} fill="none" strokeLinecap="round" />
-        )}
-      </Svg>
-      <View style={ss.gaugeCenter}>
-        <Text {...DYNAMIC_TYPE} style={[ss.gaugePct, NUM, { fontFamily: mono(lang, "med"), color }]}>
-          {Math.round(f * 100)}%
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-const DoseGauge = React.memo(DoseGaugeInner);
 
 /** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
  *  breathed at display scale, coloured by the day's fraction of budget,
  *  with the covered-hours and outside-now reads as tier-2 evidence. */
+/** WHO 2021 air-quality guideline — 24-hour PM2.5, µg/m³. The one
+ *  outside reference a stranger already trusts. */
+const WHO_DAILY_UG = 15;
+
 function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   data: DayData | null; budgetUg: number; ambientUg: number | null; lang: Lang;
 }) {
@@ -1026,7 +1020,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   if (!data) {
     /* skeleton — blocks morph to content when the disk read lands */
     return (
-      <View style={ss.heroCard}>
+      <View style={ss.hero}>
         <View style={ss.skelEyebrow} />
         <View style={ss.skelHero} />
         <View style={ss.skelLine} />
@@ -1035,191 +1029,120 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   }
   const rec = data.rec;
   const ug = rec.totalUg;
-  /* the hero card is a tinted object: the day's dose severity washes the
-     surface (18% band) while the numeral keeps full band-ink — colour ON
-     the component, never a repaint of the pane */
-  const tier = doseTierIdx(rec.totalUg, budgetUg);
-  const ambHeroIdx = bandIdx(ambientUg ?? null);
-  const sparseWash = ambHeroIdx != null ? bandWashMidIdx(ambHeroIdx) : null;
-  /* the day's mood saturates the hero — deep wash (26% band), not the
-     18% whisper: the card IS the day's felt state, not a pastel hint */
-  /* the air is the canvas (docs/20): the hero is a window into today's
-     sky — a graded field, deep band wash at the top falling toward
-     paper at the base. no flat fill, no border. */
-  const skyTop = tier != null ? bandWashDeepIdx(tier) : (sparseWash ?? V2T.surface);
-  const skyBottom = tier != null ? bandWashIdx(tier) : V2T.surface;
-  const breathTint = tier != null ? bandInkIdx(tier)
-    : (ambHeroIdx != null ? bandInkIdx(ambHeroIdx) : null);
-  const col = tier != null ? (bandInkIdx(tier) ?? V2T.text) : doseDotColor(rec.totalUg, budgetUg);
-  const ambIdx = bandIdx(ambientUg ?? null);
-  const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
-  const maxW = Math.max(...data.week.map((w) => w.ug), 1);
-  /* the sparse hero's ambient truth: the poll's own read first, then the
-     curve's now-slot — whichever the device actually has (never a guess) */
+  const tier = doseTierIdx(ug, budgetUg);
   const airNow = ambientUg ?? data.curve?.series.find((v) => v != null) ?? null;
   const airNowIdx = bandIdx(airNow);
-  const weekCounted = data.week.some((w) => w.ug > 0);
-  const cityDays = data.outlook?.days.slice(0, 7) ?? [];
+  const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
+  const maxW = Math.max(...data.week.map((w) => w.ug), 1);
+  const weekCounted = data.week.filter((w) => w.ug > 0).length >= 2;
+  /* the hero is a statement, not a card: number → felt word → reference.
+     Counted day: your dose, its felt tier, its share of your budget (and
+     yesterday when yesterday was counted). Sparse day: the air at your
+     cell, its felt band, its multiple of the WHO daily guideline. */
+  const counted = !rec.thin;
+  const idx = counted ? (tier ?? 0) : airNowIdx;
+  const ink = idx != null ? (bandInkIdx(idx) ?? V2T.text) : V2T.text;
+  const felt = idx != null ? t(feltKeyForBand(idx), lang) : null;
+  const yday = data.week.length >= 2 ? data.week[data.week.length - 2].ug : 0;
+  let ref: string | null = null;
+  let ref2: string | null = null;
+  if (counted) {
+    ref = budgetUg > 0 ? t("refBudget", lang, { p: Math.round((ug / budgetUg) * 100) }) : null;
+    if (yday > 0) {
+      const d = Math.round(ug - yday);
+      if (d !== 0) ref2 = t(d > 0 ? "refYesterdayMore" : "refYesterdayLess", lang, { n: Math.abs(d) });
+    }
+  } else if (airNow != null) {
+    const x = airNow / WHO_DAILY_UG;
+    ref = x > 1.05
+      ? t("refWhoOver", lang, { x: x >= 10 ? Math.round(x) : x.toFixed(1) })
+      : t("refWhoUnder", lang);
+  }
   return (
-    <View style={ss.heroCard}>
-      {/* the sky field — the day's live band rendered as sky light */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Svg width="100%" height="100%">
-          <Defs>
-            <LinearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={skyTop} />
-              <Stop offset="1" stopColor={skyBottom} />
-            </LinearGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#sky)" />
-        </Svg>
-      </View>
-      {/* the field breathes — the product's one literal metaphor, a
-          4.4s edge-glow loop; skipped under Reduce Motion */}
-      {breathTint != null && <BreathEdge color={breathTint} />}
-      <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "semi") }]}>
-        {t("homeBreathed", lang)}
+    <View style={ss.hero}>
+      <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "med") }]}>
+        {t(counted ? "homeBreathed" : "homeAirNowLead", lang)}
       </Text>
-      {rec.thin ? (
-        /* designed sparse (docs/lanes/hero-sparse) — the field at the
-           device's cell IS known, so show it labelled and faint inside
-           the hero zone; what's missing is only the personal count, and
-           the meter says how far the phone is from its first counted
-           day. Never a fake personal number. */
-        <>
-          {airNow != null && (
-            <>
-              {!!data.curve?.series.some((v) => v != null) && (
-                <SparseAirArc series={data.curve.series} />
-              )}
-              <View style={ss.sparseAmbRow}>
-                <BandDot conc={null} color={bandColor(airNow)} />
-                <Text {...DYNAMIC_TYPE} style={[ss.sparseAmb, NUM, {
-                  fontFamily: mtext(lang, "med"),
-                  color: airNowIdx != null ? bandInkIdx(airNowIdx) ?? V2T.text3 : V2T.text3,
-                }]}>
-                  {t("daySparseAir", lang, { n: Math.round(airNow) })}
-                </Text>
-              </View>
-            </>
-          )}
-          {airNow == null && (
-            <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
-              {t("daySparseWait", lang)}
-            </Text>
-          )}
-          <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
-            {t("daySparseCount", lang)}
+      {counted ? (
+        <View style={ss.heroNumRow}>
+          <CountUp value={ug} duration={900}
+            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
+            style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: ink }]}
+            format={(n) => `${doseUgRound(n)}`} />
+          <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+            {t("unitUg", lang).split(" ")[0]}
           </Text>
-          {/* progress to the first counted day — the same 3-sample gate
-              the hero number answers to, shown as it fills */}
-          <View style={ss.sparseProgRow}>
-            {Array.from({ length: THIN_SAMPLE_MIN }).map((_, i) => (
-              <View key={i} style={[ss.weekDot, {
-                backgroundColor: i < rec.samplesToday ? V2T.text3 : "transparent",
-                borderWidth: i < rec.samplesToday ? 0 : 1,
-                borderColor: V2T.hairline,
-              }]} />
-            ))}
-            <Text {...DYNAMIC_TYPE} style={[ss.sparseProgLbl, NUM, { fontFamily: mtext(lang) }]}>
-              {t("daySparseSamples", lang, {
-                n: Math.min(rec.samplesToday, THIN_SAMPLE_MIN),
-                m: THIN_SAMPLE_MIN,
-              })}
-            </Text>
-          </View>
-        </>
-      ) : (
-        <View style={ss.heroMainRow}>
-          <View style={ss.heroNumRow}>
-            <CountUp value={ug} duration={620}
-              numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
-              style={[ss.heroNum, { fontFamily: famSerif(lang, "light"), color: col }]}
-              format={(n) => `≈${doseUgRound(n)}`} />
-            {/* bare "µg" — the register's number+unit pair; the
-                "(micrograms)" gloss lives on the peek card, not here */}
-            <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: mono(lang, "med") }]}
-              numberOfLines={1}>
-              {t("unitUg", lang).split(" ")[0]}
-            </Text>
-          </View>
-          <View style={ss.heroGaugeCol}>
-            <DoseGauge frac={budgetUg > 0 ? rec.totalUg / budgetUg : 0} color={col} lang={lang} />
-            <Text {...DYNAMIC_TYPE} style={[ss.heroOfBudget, NUM, { fontFamily: mtext(lang) }]}>
-              {t("homeOfBudget", lang, { b: budgetUg })}
-            </Text>
-          </View>
         </View>
+      ) : airNow != null ? (
+        <View style={ss.heroNumRow}>
+          <CountUp value={Math.round(airNow)} duration={900}
+            numberOfLines={1}
+            style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: ink }]} />
+          <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+            µg/m³
+          </Text>
+        </View>
+      ) : (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroThin, { fontFamily: fam(lang, "reg") }]}>
+          {t("daySparseWait", lang)}
+        </Text>
       )}
-      {/* the stat row carries the covered-hours read in the counted
-          state; in the sparse state the ambient read lives inside the
-          hero zone itself (labelled as the field, not as your dose) */}
-      {!rec.thin && (
+      {felt != null && (counted || airNow != null) && (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroFelt, { fontFamily: famSerif(lang, "med"), color: ink }]}>
+          {felt}
+        </Text>
+      )}
+      {ref != null && (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroRef, NUM, { fontFamily: fam(lang, "reg") }]}>
+          {ref}{ref2 ? `  ·  ${ref2}` : ""}
+        </Text>
+      )}
+      {!counted && !!data.curve?.series.some((v) => v != null) && (
+        <SparseAirArc series={data.curve.series} color={ink} />
+      )}
+      {counted ? (
         <View style={ss.heroStatRow}>
-          <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: mtext(lang) }]}>
+          <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: fam(lang, "reg") }]}>
             {h > 0 ? t("dayCovered", lang, { h, m }) : t("dayCoveredMin", lang, { m })}
           </Text>
-          {ambientUg != null && ambIdx != null && (
+          {ambientUg != null && airNowIdx != null && (
             <View style={ss.heroAmb}>
-              <BandDot conc={null} color={bandColorIdx(ambIdx)} />
-              <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, {
-                fontFamily: mtext(lang), color: bandInkIdx(ambIdx) ?? V2T.text3,
-              }]}>
-                {t("homeOutsideNow", lang, { n: Math.round(ambientUg), w: t(feltKeyForBand(ambIdx), lang) })}
+              <BandDot conc={null} color={bandColorIdx(airNowIdx)} />
+              <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: fam(lang, "reg") }]}>
+                {t("homeOutsideNow", lang, { n: Math.round(ambientUg), w: t(feltKeyForBand(airNowIdx), lang) })}
               </Text>
             </View>
           )}
         </View>
+      ) : (
+        /* progress to the first counted day — the same gate the personal
+           number answers to, filling as the phone logs real reads */
+        <View style={ss.sparseProgRow}>
+          {Array.from({ length: THIN_SAMPLE_MIN }).map((_, i) => (
+            <View key={i} style={[ss.progSeg, {
+              backgroundColor: i < rec.samplesToday ? ink : V2T.surface3,
+            }]} />
+          ))}
+          <Text {...DYNAMIC_TYPE} style={[ss.sparseProgLbl, NUM, { fontFamily: fam(lang, "reg") }]}>
+            {t("daySparseCount", lang)}
+          </Text>
+        </View>
       )}
-      {/* the week — last 7 local days as dose dots (reconstruction, not
-          ambition); a quiet trend under the hero, not a chart. With no
-          day counted yet the personal arc can't stand — the city's own
-          forecast days stand in, dimmed and named as Delhi's, never
-          read as yours ('0µg' + empty dots reads broken, not honest). */}
-      <View style={ss.heroWeekRow}>
-        {weekCounted ? (
-          <>
-            {data.week.map((w) => (
-              /* the week as dose bars — height is the day's dose, hue
-                 its severity; a real trend you can read, not a dot row */
-              <View key={w.day} style={[ss.weekBar, {
-                backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : V2T.surface3,
-                height: w.ug > 0 ? 4 + 12 * (w.ug / maxW) : 4,
-                opacity: w.ug > 0 ? 0.55 + 0.45 * (w.ug / maxW) : 0.9,
-              }]} />
-            ))}
-            <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: mtext(lang) }]}>
-              {t("homeWeek", lang, {
-                n: approx(doseUgRound(data.week.reduce((s, w) => s + w.ug, 0))),
-              })}
-            </Text>
-          </>
-        ) : (
-          <>
-            {cityDays.length > 0
-              ? cityDays.map((d) => {
-                  const bi = bandIdxForName(d.band) ?? bandIdx(d.pm25_mid);
-                  return (
-                    <View key={d.date_ist} style={[ss.weekBar, {
-                      backgroundColor: bi != null ? bandColorIdx(bi) ?? V2T.surface3 : V2T.surface3,
-                      height: 8, opacity: 0.35,
-                    }]} />
-                  );
-                })
-              : data.week.map((w) => (
-                  <View key={w.day} style={[ss.weekBar, {
-                    backgroundColor: V2T.surface3,
-                    height: 4,
-                  }]} />
-                ))}
-            <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, { fontFamily: mtext(lang) }]}>
-              {cityDays.length > 0
-                ? `${t("homeWeekCity", lang)} · ${t("homeWeekSparse", lang)}`
-                : t("homeWeekSparse", lang)}
-            </Text>
-          </>
-        )}
-      </View>
+      {weekCounted && (
+        <View style={ss.heroWeekRow}>
+          {data.week.map((w) => (
+            <View key={w.day} style={[ss.weekBar, {
+              backgroundColor: w.ug > 0 ? doseDotColor(w.ug, budgetUg) : V2T.surface3,
+              height: w.ug > 0 ? 4 + 14 * (w.ug / maxW) : 4,
+            }]} />
+          ))}
+          <Text {...DYNAMIC_TYPE} style={[ss.heroWeekLbl, NUM, { fontFamily: fam(lang, "reg") }]}>
+            {t("homeWeek", lang, {
+              n: approx(doseUgRound(data.week.reduce((sum, w) => sum + w.ug, 0))),
+            })}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -1269,26 +1192,80 @@ function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
   return (
     <View style={ss.doorCard}>
       {doors.map((d, i) => (
-        <Pressable key={d.key} onPress={() => { tap(); d.fn(); }}
-          accessibilityRole="button" accessibilityLabel={t(d.key, lang)}
-          style={({ pressed }) => [
-            ss.doorListRow,
-            i > 0 && ss.doorListSep,
-            pressed && { backgroundColor: V2T.surface2 },
-          ]}>
-          <Icon name={d.glyph} color={V2T.accentInk} size={26} filled />
-          <Text {...DYNAMIC_TYPE} numberOfLines={1}
-            style={[ss.doorListLabel, { fontFamily: fam(lang, "semi") }]}>
-            {t(d.key, lang)}
-          </Text>
-          <Icon name="chevron" color={V2T.text3} size={18} />
-        </Pressable>
+        <React.Fragment key={d.key}>
+          {i > 0 && <View style={ss.doorListSep} />}
+          <Pressable onPress={() => { tap(); d.fn(); }}
+            accessibilityRole="button" accessibilityLabel={t(d.key, lang)}
+            style={({ pressed }) => [
+              ss.doorListRow,
+              pressed && { backgroundColor: V2T.surface2 },
+            ]}>
+            <Icon name={d.glyph} color={V2T.text2} size={24} filled />
+            <Text {...DYNAMIC_TYPE} numberOfLines={1}
+              style={[ss.doorListLabel, { fontFamily: fam(lang, "med") }]}>
+              {t(d.key, lang)}
+            </Text>
+            <Icon name="chevron" color={V2T.text4} size={18} />
+          </Pressable>
+        </React.Fragment>
       ))}
     </View>
   );
 }
 
 const DoorRow = React.memo(DoorRowInner);
+
+/** The screen answers the number: today's band floods the top of the
+ *  page and settles into paper. A band change cross-fades (900 ms,
+ *  ease-in-out) instead of snapping, and the wash breathes on a slow
+ *  5.6 s sine — a dosimeter is a breathing thing. Reduce Motion: a
+ *  static field, instant swaps. */
+function MoodCanvasInner({ color }: { color: string }) {
+  const reduce = useReduceMotion();
+  const [pair, setPair] = useState({ prev: color, cur: color });
+  const [fade] = useState(() => new Animated.Value(1));
+  const [breath] = useState(() => new Animated.Value(1));
+  if (pair.cur !== color) setPair({ prev: pair.cur, cur: color });
+  useEffect(() => {
+    if (reduce) { fade.setValue(1); return; }
+    fade.setValue(0);
+    const a = Animated.timing(fade, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.cubic), useNativeDriver: true });
+    a.start();
+    return () => a.stop();
+  }, [pair.cur, fade, reduce]);
+  useEffect(() => {
+    if (reduce) { breath.setValue(1); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(breath, { toValue: 0.72, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(breath, { toValue: 1, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [breath, reduce]);
+  const layer = (c: string, id: string) => (
+    <Svg width="100%" height="100%">
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={c} />
+          <Stop offset="0.38" stopColor={c} stopOpacity={0.55} />
+          <Stop offset="0.7" stopColor={V2T.bg} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill={V2T.bg} />
+      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
+    </Svg>
+  );
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <View style={StyleSheet.absoluteFill}>{layer(pair.prev, "moodPrev")}</View>
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: Animated.multiply(fade, breath) }]}>
+        {layer(pair.cur, "moodCur")}
+      </Animated.View>
+    </View>
+  );
+}
+
+const MoodCanvas = React.memo(MoodCanvasInner);
 
 function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
   data: DayData | null; lang: Lang; settings: ShellSettings;
@@ -1305,20 +1282,10 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
      environment itself is the data, cards float in paper on it */
   const canvasIdx = bandIdx(ambientUg ?? null)
     ?? (data ? doseTierIdx(data.rec.totalUg, budget) : null);
-  const canvasTop = canvasIdx != null ? bandWashIdx(canvasIdx) : V2T.bg;
+  const canvasTop = canvasIdx != null ? bandWashDeepIdx(canvasIdx) : V2T.bg;
   return (
     <View style={ss.home}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Svg width="100%" height="100%">
-          <Defs>
-            <LinearGradient id="canvas" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={canvasTop} />
-              <Stop offset="0.55" stopColor={V2T.bg} />
-            </LinearGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#canvas)" />
-        </Svg>
-      </View>
+      <MoodCanvas color={canvasTop} />
       <HomeHeader lang={lang} onMenu={onMenu} />
       {/* the travel verb pinned TOP — the maps-app grammar: the primary
           action is a fixed header row, never the bottom of a component;
@@ -1444,61 +1411,46 @@ const ss = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingBottom: 6,
   },
-  brand: { color: V2T.text, fontSize: V2Type.title, letterSpacing: 0.2 },
-  brandSub: {
-    color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.4,
-    textTransform: "uppercase", marginTop: 3,
-  },
+  brand: { color: V2T.text, fontSize: V2Type.display, letterSpacing: -0.6, lineHeight: 36 },
+  brandSub: { color: V2T.text3, fontSize: V2Type.label, marginTop: 1 },
   homeMenuBtn: {
-    ...V2Elev.card,
-    width: 40, height: 40, borderRadius: V2Radius.row,
+    width: 42, height: 42, borderRadius: 21,
     alignItems: "center", justifyContent: "center",
-    backgroundColor: V2T.surface,
+    backgroundColor: "rgba(22,24,29,0.05)",
   },
-  menuBars: { gap: 4 },
-  menuBar: { width: 18, height: 2, borderRadius: 1, backgroundColor: V2T.text2 },
+  menuBars: { gap: 5 },
+  menuBar: { width: 16, height: 2, borderRadius: 1, backgroundColor: V2T.text },
   flex: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingTop: 6, gap: 14 },
+  content: { paddingHorizontal: 16, paddingTop: 4, gap: 16 },
 
-  heroCard: {
-    ...V2Elev.card,
-    borderRadius: 28, overflow: "hidden",
-    paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16,
-  },
-  heroEyebrow: {
-    color: V2T.text2, fontSize: V2Type.label, marginBottom: 6,
-  },
-  heroNum: { fontSize: 96, lineHeight: 98, letterSpacing: -3.5 },
-  heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, flex: 1 },
-  heroUg: { color: V2T.text2, fontSize: V2Type.title, paddingBottom: 18 },
-  heroMainRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  heroGaugeCol: { alignItems: "center", paddingBottom: 8 },
-  gaugeWrap: { width: 76, height: 76 },
-  gaugeCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
-  gaugePct: { fontSize: 11, color: V2T.text2 },
-  heroOfBudget: { color: V2T.text2, fontSize: V2Type.micro, marginTop: 6, letterSpacing: 0.3 },
+  /* the hero sits ON the mood canvas — no card, no edge, no shadow:
+     a statement in the page, the way a weather app states the sky */
+  hero: { paddingHorizontal: 6, paddingTop: 18, paddingBottom: 10 },
+  heroEyebrow: { color: V2T.text2, fontSize: V2Type.secondary },
+  heroNum: { fontSize: 112, lineHeight: 118, letterSpacing: -5, marginLeft: -4 },
+  heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  heroUg: { color: V2T.text2, fontSize: V2Type.body, paddingBottom: 22 },
+  heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, marginTop: -6 },
+  heroRef: { color: V2T.text2, fontSize: V2Type.secondary, marginTop: 4, lineHeight: 21 },
   heroThin: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
-  /* the sparse hero — the ambient truth where the personal number can't
-     stand yet: faint field arc, labelled read, count progress */
-  sparseArc: { opacity: 0.62, marginTop: 4, marginBottom: 6 },
-  sparseAmbRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
-  sparseAmb: { color: V2T.text2, fontSize: V2Type.label },
-  sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 12 },
-  sparseProgLbl: { color: V2T.text2, fontSize: V2Type.micro, marginLeft: 6, letterSpacing: 0.3 },
-  heroStatRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 12 },
-  heroStat: { color: V2T.text2, fontSize: V2Type.label },
+  sparseArc: { marginTop: 18, marginHorizontal: -6 },
+  sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 14 },
+  progSeg: { width: 18, height: 4, borderRadius: 2 },
+  sparseProgLbl: { color: V2T.text3, fontSize: V2Type.label, marginLeft: 8, flex: 1 },
+  heroStatRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 14, marginTop: 14 },
+  heroStat: { color: V2T.text3, fontSize: V2Type.label },
   heroAmb: { flexDirection: "row", alignItems: "center", gap: 6 },
-  heroWeekRow: { flexDirection: "row", alignItems: "flex-end", gap: 5, marginTop: 14 },
-  heroWeekLbl: { color: V2T.text2, fontSize: V2Type.micro, marginLeft: 6, letterSpacing: 0.3 },
+  heroWeekRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, marginTop: 16 },
+  heroWeekLbl: { color: V2T.text3, fontSize: V2Type.label, marginLeft: 8 },
 
   /* skeleton → content morph */
   skelEyebrow: { width: 150, height: 13, borderRadius: 6, backgroundColor: V2T.surface2, marginBottom: 12 },
-  skelHero: { width: 230, height: 88, borderRadius: 8, backgroundColor: V2T.surface2 },
+  skelHero: { width: 200, height: 110, borderRadius: 8, backgroundColor: V2T.surface2 },
   skelLine: { width: "70%", height: 13, borderRadius: 6, backgroundColor: V2T.surface2, marginTop: 14 },
 
   /* the travel verb — the ONE primary CTA: solid ink pill */
   cta: {
-    ...V2Elev.card,
+    ...V2Elev.float,
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: V2T.text,
     borderRadius: V2Radius.pill, height: 56, paddingHorizontal: 20,
@@ -1509,7 +1461,7 @@ const ss = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 2,
     backgroundColor: "transparent",
   },
-  ctaTxt: { flex: 1, color: V2T.bg, fontSize: V2Type.body },
+  ctaTxt: { flex: 1, color: V2T.bg, fontSize: V2Type.body, letterSpacing: -0.1 },
   ctaArrow: {
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: "rgba(250,250,247,0.16)",
@@ -1521,24 +1473,24 @@ const ss = StyleSheet.create({
   doorCard: {
     ...V2Elev.card,
     backgroundColor: V2T.surface,
-    borderRadius: 20, overflow: "hidden",
+    borderRadius: 24, borderCurve: "continuous", overflow: "hidden",
   },
   doorListRow: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    paddingHorizontal: 16, paddingVertical: 15,
+    paddingHorizontal: 18, paddingVertical: 16,
   },
-  doorListSep: { borderTopWidth: 1, borderTopColor: V2T.hairline },
+  doorListSep: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.hairline, marginLeft: 56 },
   doorListLabel: { flex: 1, fontSize: V2Type.body, color: V2T.text },
 
   card: {
     ...V2Elev.card,
     backgroundColor: V2T.surface,
-    borderRadius: V2Radius.card,
-    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16,
+    borderRadius: 24, borderCurve: "continuous",
+    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 18,
   },
   /* the card's own word — a warm label, never an uppercase micro eyebrow */
   cardTitle: {
-    color: V2T.text, fontSize: V2Type.secondary, marginBottom: 10,
+    color: V2T.text3, fontSize: V2Type.label, marginBottom: 8,
   },
   finePrint: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 10 },
 
@@ -1548,8 +1500,8 @@ const ss = StyleSheet.create({
   sparkHr: { position: "absolute", top: 0, width: 44, color: V2T.text3, fontSize: V2Type.micro, textAlign: "center" },
   winChip: {
     flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8,
-    borderRadius: V2Radius.row, borderWidth: 1,
-    paddingHorizontal: 10, paddingVertical: 8, alignSelf: "flex-start",
+    borderRadius: V2Radius.pill,
+    paddingHorizontal: 12, paddingVertical: 7, alignSelf: "flex-start",
   },
   winChipTxt: { color: V2T.text, fontSize: V2Type.label },
   mRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
@@ -1569,17 +1521,16 @@ const ss = StyleSheet.create({
     paddingHorizontal: 6, paddingTop: 10, paddingBottom: 9,
     alignItems: "center",
   },
-  oaCellSel: { borderColor: V2T.accent, borderWidth: 1.5 },
+  oaCellSel: { transform: [{ translateY: -3 }], ...V2Elev.card },
   oaDay: { color: V2T.text3, fontSize: V2Type.micro },
   oaMidRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
   oaMid: { color: V2T.text, fontSize: V2Type.body, lineHeight: 22 },
   oaSub: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 2, minHeight: 14 },
   oaMark: { color: V2T.accentInk, fontSize: V2Type.micro, marginTop: 2, minHeight: 14 },
   oaDetail: {
-    marginTop: 12, paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: V2T.line,
+    marginTop: 14, paddingTop: 2,
   },
-  oaDetailHead: { color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.0 },
+  oaDetailHead: { color: V2T.text2, fontSize: V2Type.label },
   oaDetailNote: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 6 },
 
   partsTitle: {
@@ -1596,7 +1547,7 @@ const ss = StyleSheet.create({
   partUg: { color: V2T.text, fontSize: V2Type.label },
 
   weekDot: { width: 9, height: 9, borderRadius: 4.5 },
-  weekBar: { width: 7, height: 16, borderRadius: 3.5 },
+  weekBar: { width: 8, height: 16, borderRadius: 4 },
 
   /* budget — a real track, a segment row for the profile */
   budgetBar: {

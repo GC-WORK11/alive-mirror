@@ -98,7 +98,9 @@ function HourArcInner({ rec, lang, nh }: {
              added, its colour is the band of the air breathed — the day
              reads as weather before it reads as numbers */
           const lit = scrubH === h.hour;
-          const barCol = lit ? V2T.text : isNow ? V2T.text : (bandColor(h.conc) ?? V2T.text3);
+          /* the bar wears its hour's air band; the selected/now hour is
+             told by full opacity, never by switching to black */
+          const barCol = bandColor(h.conc) ?? V2T.text3;
           return (
             <Pressable key={h.hour} style={ss.arcCol} onPress={press}
               accessibilityRole="button" accessibilityLabel={`hour ${h.hour}`}>

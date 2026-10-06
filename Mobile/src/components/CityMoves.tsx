@@ -47,8 +47,8 @@ const MODE_META: Record<
   string,
   { icon: Glyph; label?: StringKey; color: string }
 > = {
-  metro: { icon: "metro", label: "vehicle_metro", color: V2T.accent },
-  bus: { icon: "bus", label: "vehicle_bus", color: V2T.accent },
+  metro: { icon: "metro", label: "vehicle_metro", color: V2T.text2 },
+  bus: { icon: "bus", label: "vehicle_bus", color: V2T.text2 },
   walk: { icon: "walk", label: "vehicle_walk", color: V2T.text2 },
   cycle: { icon: "cycle", label: "vehicle_cycle", color: V2T.text3 },
   bike: { icon: "bike", label: "vehicle_bike", color: V2T.breath1 },

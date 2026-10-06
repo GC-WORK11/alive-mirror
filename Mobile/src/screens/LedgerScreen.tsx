@@ -811,8 +811,6 @@ const ss = StyleSheet.create({
   badgeRow: { flexDirection: "row", paddingVertical: 4 },
   badge: {
     borderRadius: V2Radius.pill,
-    borderWidth: 1,
-    borderColor: `${V2T.accentInk}33`,
     paddingHorizontal: 11,
     paddingVertical: 4,
     backgroundColor: V2T.accentWash,

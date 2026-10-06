@@ -869,7 +869,7 @@ function AppInner() {
           onPress={() => { tick(); setMapPickArmed(false); }}
           accessibilityRole="button" accessibilityLabel={t("mapPickHint", lang)}
         >
-          <Icon name="pin" color={V2T.accent} size={14} />
+          <Icon name="pin" color={V2T.text2} size={14} />
           <Text {...DYNAMIC_TYPE} style={[s.pickHintTxt, { fontFamily: fam(lang, "med") }]}>
             {t("mapPickHint", lang)}
           </Text>
@@ -1085,16 +1085,14 @@ const s = StyleSheet.create({
     position: "absolute", alignSelf: "center",
     ...V2Elev.float,
     backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: V2T.glassLine,
   },
   offlineTxt: { fontSize: V2Type.label, color: V2T.text2 },
   pickHintWrap: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center", gap: 6,
     ...V2Elev.float,
-    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
+    backgroundColor: V2T.surface, borderRadius: V2Radius.row,
     paddingHorizontal: 12, paddingVertical: 7,
-    borderWidth: 1, borderColor: V2T.accent,
   },
   pickHintTxt: { fontSize: V2Type.label, color: V2T.text },
   freshWrap: { position: "absolute", left: 16 },

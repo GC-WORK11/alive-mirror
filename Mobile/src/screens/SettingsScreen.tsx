@@ -742,10 +742,8 @@ const ss = StyleSheet.create({
   /* rate ALive·108 — stars + one-line note + send, inside the about card */
   rateStars: { flexDirection: "row", gap: 12, paddingVertical: 6 },
   rateInput: {
-    backgroundColor: V2T.glassSoft,
+    backgroundColor: V2T.surface2,
     borderRadius: V2Radius.row,
-    borderWidth: 1,
-    borderColor: V2T.glassLine,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: V2Type.secondary,
@@ -756,10 +754,8 @@ const ss = StyleSheet.create({
   rateFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 },
   rateErrTxt: { color: V2T.breath3, flex: 1 },
   rateSendBtn: {
-    backgroundColor: V2T.accentWash,
+    backgroundColor: V2T.surface2,
     borderRadius: V2Radius.pill,
-    borderWidth: 1,
-    borderColor: `${V2T.accentInk}33`,
     paddingHorizontal: 18,
     minHeight: 40,
     justifyContent: "center",

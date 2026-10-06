@@ -409,7 +409,7 @@ function ReceiptSheetInner({
             <Pressable onPress={onShare}
               style={s.share}
               {...a11y(t("share", lang), undefined, "button", { lang })}>
-              <Icon name="share" color={V2T.accent} size={16} />
+              <Icon name="share" color={V2T.text2} size={16} />
               <Text style={[s.shareTxt, { fontFamily: fam(lang, "med") }]} {...DYNAMIC_TYPE}>
                 {t("share", lang)}
               </Text>

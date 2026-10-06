@@ -22,8 +22,8 @@ export const V2T = {
   card: "#FFFFFF",
 
   // hairlines — ~10% ink equivalents on paper (web --line/--line2)
-  line: "#E4E1D8",      // dividers
-  hairline: "#D8D5C9",  // crisp card/sheet edge
+  line: "#ECE9E2",      // dividers
+  hairline: "#E3E0D7",  // crisp card/sheet edge
   ink10: "rgba(22,24,29,0.10)", // true ~10%-ink hairline for overlays
 
   // scrims stay dark + rgba — they dim the map behind sheets
@@ -40,31 +40,31 @@ export const V2T = {
   // the overhaul's muted-expensive discipline (deep, saturated, classy —
   // no lime-slime / chocolaty green / cheap yellow). Contrast on paper
   // stays ≥4.5:1 for the primary-CTA fill.
-  accent: "#3A6844",       // forest
-  accentInk: "#2B4E32",    // accent text on paper
-  accentWash: "#EAF0E4",   // flat forest wash — selected states
-  accentTint: "#DCE7D1",   // deeper forest wash — pressed states
+  accent: "#35614B",       // forest
+  accentInk: "#2A4D3B",    // accent text on paper
+  accentWash: "#EFEDE7",   // flat forest wash — selected states
+  accentTint: "#E5E2DA",   // deeper forest wash — pressed states
 
   // ── CPCB band palette, muted to sit on paper (landing.html BAND) ─────
   // Colour means data: these six are the ONLY hues used for pollution
   // values. Order is the scale — index by CPCB pm2.5 band breaks.
-  band0: "#7AAB59", // good          ≤30 µg/m³
-  band1: "#C8B25A", // satisfactory  ≤60
-  band2: "#D58C4A", // moderate      ≤90
-  band3: "#B85442", // poor          ≤120
-  band4: "#8F3C49", // very poor     ≤250
-  band5: "#6E3C54", // severe        >250
+  band0: "#6E93AE", // good          ≤30 µg/m³
+  band1: "#B9A46C", // satisfactory  ≤60
+  band2: "#CF8A50", // moderate      ≤90
+  band3: "#BE6440", // poor          ≤120
+  band4: "#974532", // very poor     ≤250
+  band5: "#62392C", // severe        >250
 
   // smoke you breathe — indexed onto the band ramp so a dose number and
   // a field cell of the same concentration read the same colour.
-  breath1: "#D58C4A", // moderate
-  breath2: "#B85442", // poor
-  breath3: "#8F3C49", // very poor→severe hue
+  breath1: "#CF8A50", // moderate
+  breath2: "#BE6440", // poor
+  breath3: "#974532", // very poor→severe hue
   // smoke your ride puts out — neutral greys
   out1: "#4A4E57",
   out2: "#8A8D94",
   out3: "#A6ACB8",
-  pinDest: "#B85442", // band 'poor' hue — reads on paper + light map
+  pinDest: "#BE6440", // band 'poor' hue — reads on paper + light map
 
   // map tokens mirror the light basemap (v2-light.json)
   mapMotorway: "#F0B85A",
@@ -81,9 +81,9 @@ export const V2T = {
   glassDeep: "rgba(255,255,255,0.95)",  // full-height screens
   glassSoft: "rgba(255,255,255,0.76)",  // rows resting on a milk pane
   glassFaint: "rgba(255,255,255,0.86)", // floating chips, FABs, peek card
-  glassSel: "rgba(234,240,228,0.88)",   // forest-wash glass — selected rows
+  glassSel: "rgba(239,237,231,0.92)",   // forest-wash glass — selected rows
   glassEdge: "rgba(255,255,255,0.85)",
-  glassLine: "rgba(22,24,29,0.10)",     // the register's hairline on glass
+  glassLine: "rgba(22,24,29,0.06)",     // the register's hairline on glass
 } as const;
 
 /** CPCB pm2.5 band index (0 good … 5 severe) — web bandIdx(), same breaks. */
@@ -116,11 +116,11 @@ export function bandColorIdx(i: number | null | undefined): string | null {
 // surface lets its own shadow ghost through the edges.
 export const V2Elev = {
   /** resting card on a sheet / panel */
-  card: { elevation: 2, shadowColor: "#16181D", shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  card: { elevation: 1, shadowColor: "#3B3423", shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 6 } },
   /** floating chrome over the map — FABs, pills, peek card */
-  float: { elevation: 5, shadowColor: "#16181D", shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 3 } },
+  float: { elevation: 4, shadowColor: "#3B3423", shadowOpacity: 0.12, shadowRadius: 22, shadowOffset: { width: 0, height: 8 } },
   /** sheets/drawers — the cast goes UP (they rise from the bottom edge) */
-  sheet: { elevation: 12, shadowColor: "#16181D", shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -4 } },
+  sheet: { elevation: 12, shadowColor: "#3B3423", shadowOpacity: 0.12, shadowRadius: 30, shadowOffset: { width: 0, height: -6 } },
   /** popovers/receipts — the biggest cast we allow */
   pop: { elevation: 18, shadowColor: "#16181D", shadowOpacity: 0.22, shadowRadius: 30, shadowOffset: { width: 0, height: -6 } },
 } as const;
@@ -170,33 +170,30 @@ export const V2Type = {
 export const V2Radius = { row: 13, card: 20, sheet: 24, pill: 999 } as const;
 
 // ── component tint wells ─────────────────────────────────────────────────
-// Feature doors, icon tiles and select-pills wear pastel identity colours
-// that are NOT the CPCB ramp — colour here means component identity, never
-// data (a band hue still means pollution). Each well is a wash + a
-// readable ink for the glyph/label on top. Muted-expensive: every tone is
-// a deep hue pulled ~80% toward paper.
-const well = (hex: string) => ({ wash: hexMix(hex, "#FFFFFF", 0.80), ink: hexMix(hex, "#16181D", 0.28) });
+// design-v4: colour never names a component. Every well is warm stone;
+// band hues stay reserved for air-quality meaning.
+const STONE = { wash: "#F1EFE9", ink: "#4A4E57" };
 export const V2Tint = {
-  forest: well("#3A6844"),   // accent family — primary doors (map, go)
-  sky:    well("#4A6B80"),   // slate-blue  — city surfaces
-  clay:   well("#8A5648"),   // terracotta  — trips/ledger
-  sand:   well("#8A7440"),   // warm oat    — spare identity
-  plum:   well("#6E4E62"),   // muted plum  — spare identity
+  forest: { wash: "#EFEDE7", ink: "#35614B" },   // accent family — primary doors (map, go)
+  /* identity hues retired (design-v4): colour never names a component,
+     so every non-accent well is the same warm stone */
+  sky:    STONE,
+  clay:   STONE,
+  sand:   STONE,
+  plum:   STONE,
 } as const;
 
 // ── fonts ─────────────────────────────────────────────────────────────────
-// Three voices: a geometric grotesque display (Satoshi — Indian Type
-// Foundry; Fraunces was retired after design research flagged it as the
-// literal AI-template signature, docs/20), sans body (Inter), ui-monospace
-// for EVERY number and every eyebrow/label. Hindi keeps Noto Sans
-// Devanagari in all three slots — Satoshi and Plex Mono carry no
-// Devanagari glyphs.
+// One voice (design-v4): Satoshi (Indian Type Foundry) carries display,
+// body, labels AND numbers — the serif/sans/mono trio read as a template.
+// Hierarchy comes from size + weight, never from switching families.
+// Hindi keeps Noto Sans Devanagari (Satoshi has no Devanagari cut).
 export const F = {
-  light: "Inter_400Regular",
-  reg: "Inter_400Regular",
-  med: "Inter_500Medium",
-  semi: "Inter_600SemiBold",
-  bold: "Inter_600SemiBold",
+  light: "Satoshi-Light",
+  reg: "Satoshi-Regular",
+  med: "Satoshi-Medium",
+  semi: "Satoshi-Bold",
+  bold: "Satoshi-Bold",
 };
 
 export const FH = {
@@ -218,10 +215,13 @@ export const FSERIF = {
   italic: "Satoshi-Regular",
 };
 
+/* design-v4: the instrument-panel mono voice is retired — numbers speak
+   in the same Satoshi as the words (tabular via NUM). The slot names stay
+   so every caller keeps compiling. */
 export const FMONO = {
-  reg: "IBMPlexMono_400Regular",
-  med: "IBMPlexMono_500Medium",
-  semi: "IBMPlexMono_600SemiBold",
+  reg: "Satoshi-Regular",
+  med: "Satoshi-Medium",
+  semi: "Satoshi-Bold",
 };
 
 type W = keyof typeof FH;
@@ -264,7 +264,7 @@ export const doseColor = (avg: number | null | undefined) => {
 export const doseDotColor = (ug: number, budgetUg: number): string => {
   const r = budgetUg > 0 ? ug / budgetUg : 1;
   if (ug <= 0) return "transparent";
-  if (r < 0.34) return V2T.text3;
+  if (r < 0.34) return V2T.band0;
   if (r < 0.67) return V2T.band2;
   if (r <= 1) return V2T.band3;
   return V2T.band4;
