@@ -306,7 +306,7 @@ function WelcomeFilm({
           <View style={ss.readRow}>
             <Text {...DYNAMIC_TYPE} style={[ss.dim, { fontFamily: famMonoText(lang, "reg") }]}>
               {resolved
-                ? numeral != null ? prov : "the field serves nothing yet — never faked"
+                ? numeral != null ? prov : "nothing served — never faked"
                 : t("cityLoading", lang)}
             </Text>
             <Animated.Text
@@ -319,7 +319,7 @@ function WelcomeFilm({
 
         <View style={[ss.footRow, { bottom: insets.bottom + 30 }]}>
           <Text {...DYNAMIC_TYPE} style={[ss.foot, { fontFamily: famMonoText(lang, "reg") }]}>
-            what delhi breathes — then what you breathe
+            {banded && numeral != null ? "then — what you breathe" : "what delhi breathes"}
           </Text>
         </View>
       </Pressable>
