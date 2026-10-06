@@ -34,7 +34,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   LayoutAnimation,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -758,27 +757,20 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
      claims strongly-horizontal moves. */
   const [scrubH, setScrubH] = useState<number | null>(null);
   const lastH = useRef<number | null>(null);
+  const anchor = useRef<{ x: number; y: number } | null>(null);
+  const arcW = useRef(0);
   const originX = useRef(0);
-  const arcW = useRef(1);
   const arcRef = useRef<View>(null);
-  const hourAt = useCallback((pageX: number) => {
+  /* locationX is relative to the touched child column (14pt wide), not
+     the strip — it would map every touch to hour 0. pageX is absolute,
+     so the strip's window origin is measured once and subtracted. */
+  const scrubTo = useCallback((pageX: number) => {
+    if (arcW.current <= 0) return;
     const x = pageX - originX.current;
-    return Math.max(0, Math.min(23, Math.floor((x / arcW.current) * 24)));
+    const h = Math.max(0, Math.min(23, Math.floor((x / arcW.current) * 24)));
+    if (h !== lastH.current) { lastH.current = h; setScrubH(h); tick(); }
   }, []);
-  const pan = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_e, g) =>
-      Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-    onPanResponderGrant: (e) => {
-      const h = hourAt(e.nativeEvent.pageX);
-      lastH.current = h; setScrubH(h); tick();
-    },
-    onPanResponderMove: (e) => {
-      const h = hourAt(e.nativeEvent.pageX);
-      if (h !== lastH.current) { lastH.current = h; setScrubH(h); tick(); }
-    },
-    onPanResponderRelease: () => { lastH.current = null; setScrubH(null); },
-    onPanResponderTerminate: () => { lastH.current = null; setScrubH(null); },
-  })).current;
+  const clearScrub = useCallback(() => { anchor.current = null; lastH.current = null; setScrubH(null); }, []);
   const scrub = scrubH != null ? rec.arc.find((h) => h.hour === scrubH) : null;
   const scrubLine = scrub == null ? " "
     : scrub.covered && scrub.dose_ug > 0
@@ -788,10 +780,26 @@ function HourArcInner({ rec, lang }: { rec: DayReconstruction; lang: Lang }) {
         : t("dayArcFlat", lang, { h: scrub.hour });
   return (
     <View>
-      <View ref={arcRef} style={ss.arcWrap} {...pan.panHandlers}
-        onLayout={() => arcRef.current?.measureInWindow((x, _y, w) => {
-          originX.current = x; arcW.current = Math.max(1, w);
-        })}>
+      <View ref={arcRef} style={ss.arcWrap}
+        onLayout={(e) => {
+          arcW.current = e.nativeEvent.layout.width;
+          arcRef.current?.measureInWindow((x) => { originX.current = x; });
+        }}
+        onTouchStart={(e) => {
+          anchor.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+          scrubTo(e.nativeEvent.pageX);
+        }}
+        onMoveShouldSetResponder={(e) => {
+          const st = anchor.current;
+          if (!st) return false;
+          const dx = Math.abs(e.nativeEvent.pageX - st.x);
+          const dy = Math.abs(e.nativeEvent.pageY - st.y);
+          return dx > 8 && dx > dy;
+        }}
+        onResponderGrant={(e) => scrubTo(e.nativeEvent.pageX)}
+        onResponderMove={(e) => scrubTo(e.nativeEvent.pageX)}
+        onResponderRelease={clearScrub}
+        onResponderTerminate={clearScrub}>
         {rec.arc.map((h) => {
           const isNow = h.hour === nh;
           /* the arc is a heat strip: the bar's height is the dose that hour
