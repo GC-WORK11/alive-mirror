@@ -471,15 +471,24 @@ async def sources():
             "belt_fires": fires.get("belt_fires"),
             "status": fires.get("status"),
             "age_s": fires.get("age_s"),
-            "modifier": (prov.get("fires") or {}).get("modifier")}),
+            "modifier": (prov.get("fires") or {}).get("modifier"),
+            "stale_after_s": fires.get("stale_after_s")}),
         "location": merged("location", {"enabled": loc_up}),
         # the routing engine — observed from real /v2/plan calls, never
         # probed synthetically; nulls mean 'no route requested yet'
         "routing": _routing_status(),
     }
+    # Each source is stale only past ITS OWN cadence: `stale_after_s`
+    # stays the field's 45-min alarm rule as the default, but a source
+    # that self-describes a slower contract (fires carries cache-TTL +
+    # one fetch cycle — its refreshes legitimately run ~6h apart) is
+    # held to its own bar. Holding a 6 h-cached feed to 45 min flapped
+    # it stale between on-spec refreshes (field-drift-watch finding).
     for s in out.values():
+        lim = s.get("stale_after_s") or stale_after
         a = s.get("age_s")
-        s["stale"] = (a > stale_after) if isinstance(a, (int, float)) else None
+        s["stale_after_s"] = lim
+        s["stale"] = (a > lim) if isinstance(a, (int, float)) else None
 
     return {
         "ts": time.time(),

@@ -385,7 +385,7 @@ def test_build_why_tail_off_loop_and_off_shared_pool(monkeypatch):
 
     def series_spy(*a, **k):
         calls.append(threading.current_thread().name)
-        return []
+        return [], {}
     monkeypatch.setattr(v2why, "_snapshot_series", series_spy)
     monkeypatch.setattr(v2why, "_wind_read", lambda: {"ok": True})
     monkeypatch.setattr(v2why, "_fires_read", lambda: {"count": 0})
@@ -397,7 +397,7 @@ def test_build_why_tail_off_loop_and_off_shared_pool(monkeypatch):
                         lambda *a: (None, {"ok": True}, None))
     monkeypatch.setattr(v2why, "_eval_trend",
                         lambda *a: (None, {"ok": True}, None))
-    monkeypatch.setattr(v2why, "_history", lambda s: [])
+    monkeypatch.setattr(v2why, "_history", lambda *a: [])
     monkeypatch.setattr(v2why, "_line", lambda d, w: "quiet")
     monkeypatch.setattr(v2why, "_refresh_fires_bounded",
                         lambda: asyncio.sleep(0))

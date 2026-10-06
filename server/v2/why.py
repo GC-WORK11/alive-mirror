@@ -87,9 +87,11 @@ _REFRESH_BUDGET_S = 6.0    # never hold a 'why' answer hostage upstream
 # field/YYYY/MM/DD/HHmm.json.gz in UTC. The series is rebuilt per call,
 # so cache it briefly: builds land on a 15-min cadence anyway.
 _SNAP_S3_MAX_KEYS = 40     # ~10 h at 15-min — dup-key pairs eat a few
-_SNAP_S3_GET_BUDGET_S = 4.0
+# A build's doc timestamp can drift a little past its key's HHmm slot —
+# pad the key-side window filter so the fetch never skips the tail.
+_SNAP_S3_SLOT_PAD_S = 1200
 _SERIES_TTL_S = 300.0      # snaps land every ~15 min; 5-min cache is safe
-_SERIES_CACHE: dict = {"at": 0.0, "key": None, "rows": []}
+_SERIES_CACHE: dict = {"at": 0.0, "key": None, "rows": [], "meta": {}}
 
 _CARRY_WORDS = ((337.5, "N"), (292.5, "NW"), (247.5, "W"), (202.5, "SW"),
                 (157.5, "S"), (112.5, "SE"), (67.5, "E"), (22.5, "NE"))
@@ -103,6 +105,21 @@ def _compass(deg: Optional[float]) -> Optional[str]:
         if d >= top:
             return name
     return "N"
+
+
+def _snap_slot_t(name: str) -> Optional[float]:
+    """The build slot embedded in a snapshot's own name — the UTC
+    minute in .../YYYY/MM/DD/HHmm.json.gz. None for paths that aren't
+    builds. Free truth: the window's count+span can be read off the
+    listing, no body fetch required (drift-watch: the fetched count
+    oscillated 26-32 vs ~31 listed while the record never shrank)."""
+    try:
+        parts = name.replace("\\", "/").rsplit("/", 4)
+        stamp = "/".join(parts[-4:]).split(".")[0]   # YYYY/MM/DD/HHmm
+        return datetime.strptime(stamp, "%Y/%m/%d/%H%M").replace(
+            tzinfo=timezone.utc).timestamp()
+    except Exception:
+        return None
 
 
 def _snap_root() -> str:
@@ -158,6 +175,7 @@ def _fires_read() -> dict:
         "belt_frp_mw": belt_frp,
         "modifier": st.get("modifier"),
         "age_s": st.get("age_s"),
+        "stale_after_s": st.get("stale_after_s"),
         "fetched_at": st.get("fetched_at"),
         "feed_wind_deg": st.get("wind_deg"),
     }
@@ -268,9 +286,12 @@ def _row_from_build(f: dict) -> Optional[dict]:
             "modifier": fr.get("modifier")}
 
 
-def _local_series(window_s: float) -> list:
+def _local_series(window_s: float) -> tuple:
     """Newest->oldest recorded builds on this task's disk — the dev
-    path; production writes are S3-only so this is usually thin."""
+    path; production writes are S3-only so this is usually thin.
+    -> (rows, meta); meta['available_ts'] lists the in-window build
+    slots the directory holds (name-derived — counts even a build
+    whose body won't parse)."""
     root = _snap_root()
     try:
         paths = sorted(
@@ -278,9 +299,13 @@ def _local_series(window_s: float) -> list:
                       recursive=True),
             key=lambda p: (os.path.getmtime(p), p), reverse=True)
     except Exception:
-        return []
+        return [], {"available_ts": []}
     import airindex
     now = time.time()
+    # avail scans the whole listing, not just the 40 bodies read —
+    # the record's size is the names on disk, fetch-independent
+    avail = {t for t in (_snap_slot_t(p) for p in paths)
+             if t is not None and now - t <= window_s}
     rows = []
     for p in paths[:40]:
         try:
@@ -294,39 +319,67 @@ def _local_series(window_s: float) -> list:
             break  # sorted newest-first: past the window, stop
         rows.append(row)
     rows.reverse()  # oldest -> newest
-    return rows
+    return rows, {"available_ts": sorted(avail)}
 
 
-def _s3_series(window_s: float) -> list:
+def _s3_series(window_s: float) -> tuple:
     """Newest->oldest recorded builds out of the bucket — the
     production path. Lists at most two UTC day-prefixes, fetches only
-    as many keys as the window needs, bounded and fully optional: any
-    failure yields the local view."""
+    the keys whose slots fall in the window, and keeps EVERY result:
+    the old loop broke out of the result iterator at a 4 s deadline,
+    but the executor's shutdown(wait=True) waited for every submitted
+    fetch anyway — the deadline bought no latency, it only discarded
+    results, always the OLDEST rows (the exact tail the drift watch
+    saw vanish: n_snapshots 26-32 vs ~31 listed, span_h shrinking).
+    -> (rows, meta); meta['available_ts'] lists the in-window build
+    slots the listing holds, so the record's count/span stay true
+    even when a body fetch fails."""
     bucket = os.environ.get("ALIVE_AIR_BUCKET")
     if not bucket:
-        return []
+        return [], {"available_ts": []}
     try:
         import boto3
         s3 = boto3.client("s3")
     except Exception:
-        return []
+        return [], {"available_ts": []}
     now = time.time()
-    days = sorted({datetime.fromtimestamp(now, tz=timezone.utc),
-                   datetime.fromtimestamp(now - window_s,
-                                          tz=timezone.utc)},
+    # Day-prefixes, not datetimes: when the window never crosses a UTC
+    # midnight both endpoints format to the SAME day — a set of
+    # datetimes kept them distinct, listed the day's prefix twice, and
+    # doubled every key into the MAX_KEYS cap, silently dropping the
+    # window's OLDEST builds (half the day, every day). Deduped as
+    # strings the range [now-window-pad, now] touches at most 2 days.
+    days = sorted({f"field/{d:%Y/%m/%d}/" for d in
+                   (datetime.fromtimestamp(now, tz=timezone.utc),
+                    datetime.fromtimestamp(
+                        now - window_s - _SNAP_S3_SLOT_PAD_S,
+                        tz=timezone.utc))},
                   reverse=True)
     keys: list = []
     try:
-        for d in days:
-            pref = f"field/{d:%Y/%m/%d}/"
+        for pref in days:
             r = s3.list_objects_v2(Bucket=bucket, Prefix=pref)
             for o in r.get("Contents", []):
                 keys.append((o["LastModified"].timestamp(), o["Key"]))
     except Exception:
-        return []
+        return [], {"available_ts": []}
     keys.sort(reverse=True)
     import airindex
-    deadline = now + _SNAP_S3_GET_BUDGET_S
+
+    # The window's shape from the listing alone: a build's key IS its
+    # UTC slot, so 'how many recorded builds span the window' can't
+    # shrink under CPU contention — only the set of bodies read can
+    # (disclosed downstream as n_snapshots vs n_snapshots_available).
+    slot_of = {k: _snap_slot_t(k) for _, k in keys}
+    avail = sorted({t for t in slot_of.values()
+                    if t is not None and now - t <= window_s})
+    want = [k for _, k in keys
+            if slot_of.get(k) is not None
+            and now - slot_of[k] <= window_s + _SNAP_S3_SLOT_PAD_S]
+    if not want:                        # name format drifted — degrade to
+        want = [k for _, k in keys]     # the old newest-first listing
+    want = want[:_SNAP_S3_MAX_KEYS]
+    meta = {"available_ts": avail}
 
     def _fetch(key):
         try:
@@ -335,17 +388,11 @@ def _s3_series(window_s: float) -> list:
         except Exception:
             return None
 
-    # Serial get+deserialize of ~14k-cell builds costs ~0.3 s each and the
-    # 4 s budget starved the series at ~15 rows — newest only, hiding the
-    # older half of the window. Bounded parallel fetch keeps the budget.
     from concurrent.futures import ThreadPoolExecutor
     rows = []
     seen_t: set = set()
-    want = [k for _, k in keys[:_SNAP_S3_MAX_KEYS]]
     with ThreadPoolExecutor(max_workers=8) as ex:
         for row in ex.map(_fetch, want):
-            if time.time() > deadline:
-                break
             if row is None or row["t"] in seen_t:
                 continue  # the same build can persist under two keys
             if now - row["t"] > window_s:
@@ -353,24 +400,34 @@ def _s3_series(window_s: float) -> list:
             seen_t.add(row["t"])
             rows.append(row)
     rows.sort(key=lambda r: r["t"])  # oldest -> newest
-    return rows
+    return rows, meta
 
 
-def _snapshot_series(window_s: float = TREND_WINDOW_S) -> list:
+def _snapshot_series(window_s: float = TREND_WINDOW_S) -> tuple:
     """Recorded builds inside `window_s` — local disk first (dev), the
     bucket when local is thin (production), merged and deduped by build
-    time, cached for _SERIES_TTL_S."""
+    time, cached for _SERIES_TTL_S.
+    -> (rows, meta): meta.n_available / .span_available_s describe the
+    record the listings hold (name-derived, fetch-independent); rows
+    are the bodies actually read — the pair discloses truncation."""
     key = _snap_root()  # tests swap the root — cache is per-root
     if _SERIES_CACHE["key"] == key and _SERIES_CACHE["at"] and \
             time.time() - _SERIES_CACHE["at"] < _SERIES_TTL_S:
-        return _SERIES_CACHE["rows"]
-    rows = _local_series(window_s)
+        return _SERIES_CACHE["rows"], _SERIES_CACHE["meta"]
+    rows, meta = _local_series(window_s)
+    avail = set(meta.get("available_ts") or [])
     if len(rows) < TREND_MIN_SNAPS:
         seen = {r["t"] for r in rows}
-        rows += [r for r in _s3_series(window_s) if r["t"] not in seen]
+        s3_rows, s3_meta = _s3_series(window_s)
+        rows += [r for r in s3_rows if r["t"] not in seen]
         rows.sort(key=lambda r: r["t"])
-    _SERIES_CACHE.update({"at": time.time(), "key": key, "rows": rows})
-    return rows
+        avail |= set(s3_meta.get("available_ts") or [])
+    meta = {"n_available": len(avail),
+            "span_available_s": (max(avail) - min(avail)
+                                 if len(avail) > 1 else 0.0)}
+    _SERIES_CACHE.update({"at": time.time(), "key": key,
+                          "rows": rows, "meta": meta})
+    return rows, meta
 
 
 def _ventilation_read(lat: float, lon: float) -> dict:
@@ -434,6 +491,7 @@ def _eval_fires(fires: dict, wind: dict) -> tuple:
           "modifier": fires.get("modifier"),
           "feed": fires.get("source"), "feed_status": fires.get("status"),
           "feed_age_s": fires.get("age_s"),
+          "feed_stale_after_s": fires.get("stale_after_s"),
           "carrying": _carries_toward_delhi(wind.get("from_deg"),
                                           wind.get("speed_kmh"))}
     belt = fires.get("belt_fires") or 0
@@ -507,19 +565,36 @@ def _eval_stagnation(vent: dict) -> tuple:
     return driver, ev, None
 
 
-def _eval_trend(series: list) -> tuple:
+def _eval_trend(series: list, meta: Optional[dict] = None) -> tuple:
     """Served field, recorded: split the 6 h window in half and compare
     city means. Admitted only with enough builds over enough span, and a
-    newest build fresh enough to speak for 'now'."""
+    newest build fresh enough to speak for 'now'.
+
+    meta (from _snapshot_series) carries the record's own shape —
+    n_available / span_available_s are listing-derived, so the payload
+    shows the true window even when a body fetch didn't finish: read
+    count and record count side by side, never a lower bound posed as
+    the record."""
+    meta = meta or {}
     snaps = [s for s in series if s.get("pm25") is not None]
+    n_avail = meta.get("n_available")
+    span_avail_s = meta.get("span_available_s")
     now = time.time()
     ev = {"n_snapshots": len(snaps), "window_h": TREND_WINDOW_S / 3600.0,
           "newest_age_s": (round(now - snaps[-1]["t"]) if snaps else None),
           "delta_ug": None}
+    if n_avail is not None:
+        # the record's own count/span — stable across fetch luck; when
+        # it exceeds n_snapshots the difference IS the truncation
+        ev["n_snapshots_available"] = n_avail
+        ev["span_available_h"] = round(span_avail_s / 3600.0, 1)
     if len(snaps) < TREND_MIN_SNAPS:
+        of = (f" of {n_avail} on record" if isinstance(n_avail, int)
+              and n_avail > len(snaps) else "")
         return None, ev, {"kind": "trend",
-                          "reason": f"only {len(snaps)} recorded build(s) "
-                                    "in 6 h — can't compare hours"}
+                          "reason": f"only {len(snaps)} recorded "
+                                    f"build(s) read{of} in 6 h — can't "
+                                    "compare hours"}
     if now - snaps[-1]["t"] > SNAP_MAX_AGE_S:
         return None, ev, {"kind": "trend",
                           "reason": "newest recorded build is "
@@ -546,11 +621,14 @@ def _eval_trend(series: list) -> tuple:
         return None, ev, None   # flat — no honest trend claim
     direction = "rising" if delta > 0 else "falling"
     score = min(1.0, abs(delta) / 40.0)
+    n_bit = (f"{len(snaps)} of {n_avail} recorded builds"
+             if isinstance(n_avail, int) and n_avail > len(snaps)
+             else f"{len(snaps)} recorded builds")
     driver = {
         "kind": "trend", "score": round(score, 3),
         "direction": direction,
         "evidence": (f"city field mean {d_old:g} → {d_new:g} µg/m³ over "
-                     f"{span_h:.1f} h ({len(snaps)} recorded builds)"),
+                     f"{span_h:.1f} h ({n_bit})"),
         "detail": dict(ev),
     }
     return driver, ev, None
@@ -587,15 +665,19 @@ def _line(drivers: list, wind: dict) -> str:
     return " + ".join(parts)
 
 
-def _history(series: list) -> Optional[dict]:
+def _history(series: list, meta: Optional[dict] = None) -> Optional[dict]:
     """The bonus sparkline — each driver's recorded contribution per
-    build. Ships only when the record genuinely covers ~3+ hours."""
+    build. Ships only when the record genuinely covers ~3+ hours.
+    n_snapshots_available discloses the record's true size when the
+    listing knows it — points is the read subset, never silently so."""
     if len(series) < MIN_HISTORY_POINTS:
         return None
     if series[-1]["t"] - series[0]["t"] < HISTORY_MIN_SPAN_S:
         return None
+    meta = meta or {}
     return {
         "window_h": round((series[-1]["t"] - series[0]["t"]) / 3600.0, 2),
+        "n_snapshots_available": meta.get("n_available"),
         "points": [{
             "t": s["t"],
             "pm25": s.get("pm25"),
@@ -618,12 +700,13 @@ async def build_why(lat: float, lon: float) -> dict:
         wind = _wind_read()
         fires = _fires_read()
         vent = _ventilation_read(lat, lon)
-        series = _snapshot_series()
+        series, series_meta = _snapshot_series()
 
         evaluated, cannot_tell, drivers = {}, [], []
         for key, fn, arg in (("fires", _eval_fires, (fires, wind)),
                              ("ventilation", _eval_stagnation, (vent,)),
-                             ("trend", _eval_trend, (series,))):
+                             ("trend", _eval_trend, (series,
+                                                     series_meta))):
             d, ev, ct = fn(*arg)
             evaluated[key] = ev
             if d:
@@ -647,7 +730,7 @@ async def build_why(lat: float, lon: float) -> dict:
             "evaluated": evaluated,
             "cannot_tell": cannot_tell,
             "wind": wind,
-            "history": _history(series),
+            "history": _history(series, series_meta),
             "honesty": ("a driver that can't be observed isn't claimed — "
                         "checked-but-failed ingredients are under "
                         "cannot_tell; 'local background' is the honest "

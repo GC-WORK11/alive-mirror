@@ -32,6 +32,16 @@ RING_BBOX = (75.75, 27.20, 78.75, 30.05)
 DELHI = (77.2090, 28.6139)  # lon, lat for wind check
 CACHE_S = 6 * 3600           # task spec: 6h cache for the overlay
 
+# The honest stale marker for this feed: refreshes are TTL-gated to
+# CACHE_S, so a healthy feed can legitimately serve data ~6h old (the
+# public CSVs are daily products — freshness is bounded by the cache
+# contract, not by how often we poll). Flag 'stale' only once the feed
+# has outlived its own cache window plus one fetch cycle — anything
+# tighter (e.g. the field's 45-min line) flaps between refreshes that
+# are running exactly to spec (field-drift-watch 2026-10-06: fires
+# honestly flagged stale ~half the watch while obeying its TTL).
+STALE_AFTER_S = CACHE_S + 900
+
 # Contribution mapping: index 1.0 ≈ typical ~15-20% share; episode days
 # reach ~3.75× (50-75% vs ~20%). Fire counts are normalized against a
 # documented baseline of ~80 detections/day in the belt during the season.
@@ -234,6 +244,10 @@ class FireField:
                 if belt_rows else 0.0,
                 "wind_deg": self._wind_deg,
                 "modifier": self.smoke_modifier(),
+                # the feed's own freshness bar — surfaces that flag
+                # staleness must hold this feed to its cache contract,
+                # not the live field's 45-min rule
+                "stale_after_s": STALE_AFTER_S,
                 "age_s": round(time.time() - self._fetched_at) if self._fetched_at else None,
                 # the feed's own fetch instant — 'as of' without
                 # back-computing from age_s

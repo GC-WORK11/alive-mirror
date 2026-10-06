@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 
 import pytest
 
@@ -256,10 +257,13 @@ def test_trend_rising(snap_root):
                             (3.0, 80, 2800, 25, 1.2),
                             (1.0, 130, 2000, 40, 1.5),
                             (0.5, 140, 1800, 45, 1.6)])
-    series = v2why._snapshot_series()
-    d, ev, ct = v2why._eval_trend(series)
+    series, meta = v2why._snapshot_series()
+    d, ev, ct = v2why._eval_trend(series, meta)
     assert d and d["kind"] == "trend" and d["direction"] == "rising"
     assert ev["delta_ug"] >= v2why.TREND_MIN_DELTA_UG
+    # the record's own shape rides along — local listing saw all 5 slots
+    assert ev["n_snapshots_available"] == 5
+    assert ev["span_available_h"] == pytest.approx(4.5, abs=0.1)
 
 
 def test_trend_flat_not_claimed(snap_root):
@@ -267,14 +271,14 @@ def test_trend_flat_not_claimed(snap_root):
                             (3.0, 102, 3000, 20, 1.1),
                             (1.0, 104, 3000, 20, 1.1),
                             (0.5, 101, 3000, 20, 1.1)])
-    d, ev, ct = v2why._eval_trend(v2why._snapshot_series())
+    d, ev, ct = v2why._eval_trend(*v2why._snapshot_series())
     assert d is None and ct is None
 
 
 def test_trend_too_few_cannot_tell(snap_root):
     _write_series(snap_root, [(2.0, 100, 3000, 5, 1.0),
                             (0.5, 130, 3000, 5, 1.0)])
-    d, ev, ct = v2why._eval_trend(v2why._snapshot_series())
+    d, ev, ct = v2why._eval_trend(*v2why._snapshot_series())
     assert d is None and ct and ct["kind"] == "trend"
 
 
@@ -284,7 +288,7 @@ def test_trend_stale_newest_cannot_tell(snap_root):
                             (3.8, 120, 3000, 5, 1.0),
                             (3.5, 130, 3000, 5, 1.0)])
     # 4 builds inside the window but newest 3.5h old — beyond SNAP_MAX_AGE_S
-    d, ev, ct = v2why._eval_trend(v2why._snapshot_series())
+    d, ev, ct = v2why._eval_trend(*v2why._snapshot_series())
     assert d is None and ct and "old" in ct["reason"]
 
 
@@ -298,11 +302,139 @@ def test_series_s3_fallback_merges_and_dedupes(snap_root, monkeypatch):
                 "blh_m": None, "belt_fires": 5, "modifier": 1.0},
                {"t": NOW - 1.0 * 3600, "pm25": 999, "vc_m2s": 3000,
                 "blh_m": None, "belt_fires": 5, "modifier": 1.0}]  # dup
-    monkeypatch.setattr(v2why, "_s3_series", lambda w: s3_rows)
-    v2why._SERIES_CACHE.update({"at": 0.0, "key": None, "rows": []})
-    rows = v2why._snapshot_series()
+    # listing-derived slots are minute-floored (they come from names);
+    # the local file's slot collapses onto the dup build's
+    def _slot(h_ago):
+        return int(NOW - h_ago * 3600) // 60 * 60
+    s3_meta = {"available_ts": [_slot(5.0), _slot(4.0), _slot(1.0)]}
+    monkeypatch.setattr(v2why, "_s3_series", lambda w: (s3_rows, s3_meta))
+    v2why._SERIES_CACHE.update({"at": 0.0, "key": None,
+                                "rows": [], "meta": {}})
+    rows, meta = v2why._snapshot_series()
     assert len(rows) == 3            # local row + 2 unique bucket rows
     assert rows[-1]["pm25"] == 70    # local newest wins over the dup key
+    assert meta["n_available"] == 3  # merged slots, duped build collapses
+
+
+def test_snap_slot_t_parses_build_names():
+    t = v2why._snap_slot_t("field/2026/10/06/0540.json.gz")
+    assert t == datetime(2026, 10, 6, 5, 40,
+                         tzinfo=timezone.utc).timestamp()
+    # same name under a local snapshot root parses identically
+    assert v2why._snap_slot_t(
+        "/tmp/snaps/2026/10/06/0540.json.gz") == t
+    assert v2why._snap_slot_t("field/2026/10/06/latest.json.gz") is None
+    assert v2why._snap_slot_t("random.bin") is None
+
+
+class _FakeS3:
+    """In-memory bucket for _s3_series — keys -> raw doc bytes."""
+
+    def __init__(self, objs):
+        self._objs = objs          # {key: (last_modified_ts, bytes)}
+        self.fetched = []
+
+    def list_objects_v2(self, Bucket=None, Prefix=""):
+        return {"Contents": [
+            {"Key": k, "LastModified": datetime.fromtimestamp(
+                lm, tz=timezone.utc)}
+            for k, (lm, _) in self._objs.items()
+            if k.startswith(Prefix)]}
+
+    def get_object(self, Bucket=None, Key=None):
+        self.fetched.append(Key)
+        body = self._objs[Key][1]
+
+        class _B:
+            def read(self):
+                return body
+        return {"Body": _B()}
+
+
+def _snap_doc(t, pm):
+    import gzip as _gz
+    doc = {"schema": "alive-field/1", "built_epoch": t,
+           "stats": {"mean_pm25": pm},
+           "met": {"vc_m2s": 2000.0},
+           "provenance": {"met": {"vc_m2s": 2000.0}}}
+    return _gz.compress(json.dumps(doc).encode())
+
+
+def test_s3_series_reads_whole_window(snap_root, monkeypatch):
+    """Drift-watch finding: the 4 s result-iterator deadline discarded
+    the OLDEST rows while the executor still waited for every fetch —
+    under-count wobble 26-32 vs ~31. Now every listed in-window key is
+    fetched and every result kept; the record's count/span come from
+    the listing itself."""
+    import datetime as _dt
+    base = _dt.datetime.fromtimestamp(NOW, tz=_dt.timezone.utc)
+    objs = {}
+    # 30 in-window builds, one every 12 min
+    for i in range(30):
+        t = NOW - i * 720 - 60
+        d = _dt.datetime.fromtimestamp(t, tz=_dt.timezone.utc)
+        objs[f"field/{d:%Y/%m/%d/%H%M}.json.gz"] = (t, _snap_doc(t, 50 + i))
+    # out-of-window by slot AND by pad — must not even be fetched
+    old = _dt.datetime.fromtimestamp(NOW - 7 * 3600, tz=_dt.timezone.utc)
+    objs[f"field/{old:%Y/%m/%d/%H%M}.json.gz"] = (
+        NOW - 7 * 3600, _snap_doc(NOW - 7 * 3600, 10))
+    # inside the slot pad but out of window — fetched, row filtered
+    edge = _dt.datetime.fromtimestamp(NOW - 6 * 3600 - 600,
+                                    tz=_dt.timezone.utc)
+    objs[f"field/{edge:%Y/%m/%d/%H%M}.json.gz"] = (
+        NOW - 6 * 3600 - 600, _snap_doc(NOW - 6 * 3600 - 600, 15))
+    # not a build name at all — never fetched, never counted
+    objs[f"field/{base:%Y/%m/%d}/manifest.json.gz"] = (NOW, b"{}")
+    # corrupted body — slot counts it, the row drops
+    bad = _dt.datetime.fromtimestamp(NOW - 1800, tz=_dt.timezone.utc)
+    objs[f"field/{bad:%Y/%m/%d/%H%M}.json.gz"] = (NOW - 1800,
+                                                 b"not-a-build")
+
+    fake = _FakeS3(objs)
+    import boto3
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: fake)
+    monkeypatch.setenv("ALIVE_AIR_BUCKET", "test-bucket")
+    rows, meta = v2why._s3_series(v2why.TREND_WINDOW_S)
+    # all 30 in-window docs read; corrupted body drops out of the rows
+    # but NOT out of the record — its slot still counts
+    assert len(rows) == 30
+    assert rows == sorted(rows, key=lambda r: r["t"])   # oldest->newest
+    assert len(meta["available_ts"]) == 31   # 30 good + corrupt slot
+    # fetched: 30 in-window + pad-edge + corrupt; skipped: 7h slot,
+    # manifest (not a build name)
+    assert len(fake.fetched) == 32
+    assert f"field/{old:%Y/%m/%d/%H%M}.json.gz" not in fake.fetched
+    assert not any("manifest" in k for k in fake.fetched)
+
+
+def test_eval_trend_discloses_truncation():
+    """When the read set is smaller than the record, the payload says
+    so — n_snapshots is what the delta used, n_snapshots_available the
+    record's true count, span_available_h the record's true span."""
+    series = [{"t": NOW - h * 3600, "pm25": p, "vc_m2s": 2000,
+               "belt_fires": 5, "modifier": 1.0}
+              for h, p in ((4.0, 60), (3.0, 70), (1.0, 120), (0.5, 140))]
+    meta = {"n_available": 8, "span_available_s": 5.5 * 3600}
+    d, ev, ct = v2why._eval_trend(series, meta)
+    assert d and d["kind"] == "trend"
+    assert ev["n_snapshots"] == 4               # bodies read
+    assert ev["n_snapshots_available"] == 8     # the record's truth
+    assert ev["span_available_h"] == 5.5
+    assert ev["span_h"] == pytest.approx(3.5, abs=0.05)  # read coverage
+    assert "4 of 8 recorded builds" in d["evidence"]
+
+
+def test_eval_trend_too_few_discloses_record():
+    """Truncation below the admission bar must not pretend the record
+    itself is thin."""
+    series = [{"t": NOW - h * 3600, "pm25": p}
+              for h, p in ((1.0, 100), (0.5, 130))]
+    meta = {"n_available": 30, "span_available_s": 5.8 * 3600}
+    d, ev, ct = v2why._eval_trend(series, meta)
+    assert d is None and ct
+    assert "of 30" in ct["reason"]              # the record is not 2
+    assert ev["n_snapshots"] == 2
+    assert ev["n_snapshots_available"] == 30
 
 
 # ---------------------------------------------------------------- endpoint

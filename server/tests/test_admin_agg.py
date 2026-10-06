@@ -111,6 +111,41 @@ def test_validation_shape_and_no_grid_cells():
         assert "cells" not in d["daily"]
 
 
+def test_sources_fires_held_to_own_cadence(monkeypatch):
+    """Drift-watch finding: FIRMS' public CSV refreshes on its 6 h cache
+    TTL, so holding it to the field's 45-min alarm rule flapped it stale
+    between on-spec refreshes. Each source is now held to its own
+    stale_after_s — fires self-declares STALE_AFTER_S = CACHE_S + one
+    fetch cycle."""
+    import fires as fires_mod
+    fires_age = {"v": 3600.0}
+    monkeypatch.setattr(admin_agg._health, "collect_health",
+                        lambda **k: {"sources": {
+                            "stations": {"age_s": 3000}}})
+    monkeypatch.setattr(admin_agg, "_field_status",
+                        lambda: {"stale_after_s": 2700, "age_s": 60})
+    monkeypatch.setattr(admin_agg, "_fires_status",
+                        lambda: {"age_s": fires_age["v"], "fires": 3,
+                                 "stale_after_s": fires_mod.STALE_AFTER_S})
+    monkeypatch.setattr(admin_agg, "_snapshot_prov", lambda: {})
+    monkeypatch.setattr(admin_agg, "_location_enabled", lambda: False)
+    monkeypatch.setattr(admin_agg, "_routing_status", lambda: {})
+
+    d = client.get("/admin/api/sources").json()
+    src = d["sources"]
+    # past the FIELD bar (3600 > 2700) but inside its own cadence
+    assert src["fires"]["stale_after_s"] == fires_mod.STALE_AFTER_S
+    assert src["fires"]["stale_after_s"] > d["stale_after_s"]
+    assert src["fires"]["stale"] is False
+    # stations stay on the 45-min field line: 3000 > 2700 -> stale
+    assert src["stations"]["stale_after_s"] == 2700
+    assert src["stations"]["stale"] is True
+    # and a fires feed genuinely past its own bar still flags
+    fires_age["v"] = fires_mod.STALE_AFTER_S + 60
+    assert client.get("/admin/api/sources").json()[
+        "sources"]["fires"]["stale"] is True
+
+
 # --- corridors: k>=3 ---------------------------------------------------------
 
 def test_corridors_empty_is_honest():
