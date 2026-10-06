@@ -658,8 +658,6 @@ const ss = StyleSheet.create({
     ...V2Elev.card,
     backgroundColor: V2T.surface,
     borderRadius: V2Radius.card,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
     marginTop: 8,
     overflow: "hidden",
   },

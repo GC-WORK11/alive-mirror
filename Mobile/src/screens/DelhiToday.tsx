@@ -21,12 +21,13 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import {
   bandColor,
   bandIdx,
   bandInkIdx,
   bandWashDeepIdx,
+  bandWashIdx,
   cigOf,
   doseColor,
   fam,
@@ -34,6 +35,7 @@ import {
   famMonoText,
   famSerif,
   NUM,
+  V2Elev,
   V2Radius,
   V2T,
   V2Tint,
@@ -287,13 +289,20 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 on the cigarette equivalence sits as a secondary line
                 under the µg — never the hero (owner mandate). */}
             {data.breath && pm && inhaled ? (
-              /* the hero card breathes the band it reports — the deep
-                 wash + band-inked numeral + living edge, one tinted
-                 object holding the city's whole day */
-              <View style={[ss.hero, {
-                backgroundColor: bandWashDeepIdx(bandIdx(pm.mid) ?? 0),
-                borderColor: `${bandInkIdx(bandIdx(pm.mid) ?? 0)}4D`,
-              }]}>
+              /* the hero is a window into the day's sky (docs/20):
+                 the band rendered as graded light, not a flat card */
+              <View style={ss.hero}>
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                  <Svg width="100%" height="100%">
+                    <Defs>
+                      <LinearGradient id="citySky" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor={bandWashDeepIdx(bandIdx(pm.mid) ?? 0)} />
+                        <Stop offset="1" stopColor={bandWashIdx(bandIdx(pm.mid) ?? 0)} />
+                      </LinearGradient>
+                    </Defs>
+                    <Rect x="0" y="0" width="100%" height="100%" fill="url(#citySky)" />
+                  </Svg>
+                </View>
                 <BreathEdge color={bandInkIdx(bandIdx(pm.mid) ?? 0) ?? V2T.text} />
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
@@ -306,7 +315,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                       ss.heroNum,
                       NUM,
                       {
-                        fontFamily: famSerif(lang, "semi"),
+                        fontFamily: famSerif(lang, "light"),
                         color: bandInkIdx(bandIdx(pm.mid) ?? 0) ?? doseColor(pm.mid),
                       },
                     ]}
@@ -720,8 +729,9 @@ const ss = StyleSheet.create({
   retryText: { color: V2T.accent, fontSize: V2Type.secondary },
 
   hero: {
+    ...V2Elev.card,
     marginTop: 18, marginHorizontal: 16,
-    borderRadius: 24, borderWidth: 1,
+    borderRadius: 28, overflow: "hidden",
     paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16,
   },
   heroLead: { color: V2T.text2, fontSize: V2Type.body },
@@ -749,9 +759,7 @@ const ss = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: V2Radius.pill,
-    backgroundColor: V2T.surface,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
+    backgroundColor: V2T.surface2,
   },
   chipText: { color: V2T.text2, fontSize: V2Type.label },
 
@@ -779,9 +787,7 @@ const ss = StyleSheet.create({
     marginHorizontal: 18,
     marginTop: 6,
     borderRadius: V2Radius.row,
-    backgroundColor: V2T.surface,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
+    backgroundColor: V2T.surface2,
   },
   cGlyph: {
     width: 36,
@@ -866,9 +872,7 @@ const ss = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
     borderRadius: V2Radius.row,
-    backgroundColor: V2T.surface,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
+    backgroundColor: V2T.surface2,
   },
   whyLabel: { color: V2T.text, fontSize: V2Type.secondary, flex: 1 },
   whyBody: { marginHorizontal: 20, marginTop: 10, gap: 8 },

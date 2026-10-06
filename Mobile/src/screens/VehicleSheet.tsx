@@ -495,7 +495,6 @@ const s = StyleSheet.create({
        through (Pixel_7 verify flag); a solid surface is the register */
     backgroundColor: V2T.surface, borderRadius: 16,
     ...V2Elev.card,
-    borderWidth: 1, borderColor: V2T.hairline,
     paddingHorizontal: 13, paddingVertical: 12, minHeight: 60,
   },
   cardHalf: { flex: 1 },

@@ -496,7 +496,6 @@ const ss = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: V2Radius.card,
-    borderWidth: 1,
   },
   jIcon: {
     width: 42,
@@ -524,8 +523,6 @@ const ss = StyleSheet.create({
     marginTop: 26,
     backgroundColor: V2Tint.forest.wash,
     borderRadius: V2Radius.card,
-    borderWidth: 1,
-    borderColor: `${V2Tint.forest.ink}2E`,
     paddingVertical: 22,
     paddingHorizontal: 22,
   },
@@ -557,9 +554,7 @@ const ss = StyleSheet.create({
   },
   choiceShare: { backgroundColor: V2T.accent },
   choiceKeep: {
-    backgroundColor: V2T.surface,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
+    backgroundColor: V2T.surface2,
   },
   choiceShareTxt: { fontSize: V2Type.body, color: V2T.bg },
   choiceShareSub: { fontSize: V2Type.label, color: V2T.bg },

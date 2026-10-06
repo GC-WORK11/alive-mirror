@@ -56,7 +56,6 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     backgroundColor: V2T.glassDeep, borderRadius: V2Radius.pill, height: 54,
     paddingHorizontal: 8, paddingRight: 16,
-    borderWidth: 1, borderColor: V2T.hairline,
   },
   menuBtn: {
     width: 38, height: 38, borderRadius: V2Radius.pill,

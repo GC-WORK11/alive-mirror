@@ -718,8 +718,6 @@ const ss = StyleSheet.create({
        terracotta, not bare paper */
     backgroundColor: V2Tint.clay.wash,
     borderRadius: V2Radius.card,
-    borderWidth: 1,
-    borderColor: `${V2Tint.clay.ink}33`,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
@@ -772,8 +770,6 @@ const ss = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: V2T.surface,
     borderRadius: V2Radius.card,
-    borderWidth: 1,
-    borderColor: V2T.hairline,
     overflow: "hidden",
   },
   cardHead: {
@@ -850,8 +846,6 @@ const ss = StyleSheet.create({
     height: 76,
     borderRadius: 26,
     backgroundColor: V2Tint.forest.wash,
-    borderWidth: 1,
-    borderColor: `${V2Tint.forest.ink}2E`,
     alignItems: "center",
     justifyContent: "center",
   },

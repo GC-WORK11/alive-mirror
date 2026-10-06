@@ -674,12 +674,12 @@ const s = StyleSheet.create({
      admin-district rhythm: 10px gaps, 12px radius, generous padding ---- */
   tileRow: { flexDirection: "row", gap: 10 },
   tile: {
+    ...V2Elev.card,
     backgroundColor: V2T.surface, borderRadius: 16, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.hairline,
   },
   gridTile: {
+    ...V2Elev.card,
     backgroundColor: V2T.surface, borderRadius: 16, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.hairline,
     paddingHorizontal: 13, paddingTop: 12, paddingBottom: 13, minHeight: 96,
   },
   gridTileDown: { backgroundColor: V2T.accentWash, borderColor: `${V2T.accentInk}33` },
@@ -701,14 +701,14 @@ const s = StyleSheet.create({
     flexBasis: "48%", flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 9,
     paddingHorizontal: 12, paddingVertical: 12, minHeight: 50,
     borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.hairline, backgroundColor: V2T.surface,
+    borderWidth: 1, borderColor: "transparent", backgroundColor: V2T.surface,
   },
-  optTileOn: { borderColor: V2T.accent, backgroundColor: V2T.accentWash, borderWidth: 1.5 },
+  optTileOn: { borderColor: V2T.accent, backgroundColor: V2T.accentWash },
   optTileTxt: { fontSize: V2Type.label, color: V2T.text, flexShrink: 1 },
 
   card: {
+    ...V2Elev.card,
     backgroundColor: V2T.surface, borderRadius: V2Radius.card, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.hairline,
     overflow: "hidden",
   },
   hair: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.glassLine, marginLeft: 50 },
@@ -740,8 +740,8 @@ const s = StyleSheet.create({
 
   /* today hero tiles */
   statTile: {
+    ...V2Elev.card,
     flex: 1, backgroundColor: V2T.surface, borderRadius: 16, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.hairline,
     paddingHorizontal: 14, paddingVertical: 14,
   },
   statHead: { flexDirection: "row", alignItems: "center", gap: 6 },
