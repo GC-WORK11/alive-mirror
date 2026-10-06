@@ -1512,7 +1512,7 @@ const ss = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingBottom: 6,
   },
-  brand: { color: V2T.text, fontSize: 21, letterSpacing: 0.2 },
+  brand: { color: V2T.text, fontSize: V2Type.title, letterSpacing: 0.2 },
   brandSub: {
     color: V2T.text3, fontSize: V2Type.micro, letterSpacing: 1.4,
     textTransform: "uppercase", marginTop: 3,
@@ -1613,7 +1613,7 @@ const ss = StyleSheet.create({
   finePrint: { color: V2T.text3, fontSize: V2Type.micro, marginTop: 10 },
 
   /* the move — decision felt at serif scale, evidence lives in chips */
-  moveLine: { color: V2T.text, fontSize: 21, lineHeight: 28, marginBottom: 10 },
+  moveLine: { color: V2T.text, fontSize: V2Type.title, lineHeight: 29, marginBottom: 10 },
   sparkLabels: { position: "relative", height: 13, marginTop: 2 },
   sparkHr: { position: "absolute", top: 0, width: 44, color: V2T.text3, fontSize: V2Type.micro, textAlign: "center" },
   winChip: {
