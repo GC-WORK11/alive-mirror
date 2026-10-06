@@ -11,7 +11,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Animated,
   BackHandler,
-  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -237,43 +236,25 @@ function SearchSheetInner({
   const [armed, setArmed] = useState<{ place: PlaceResult; removeSlot?: SavedSlot } | null>(null);
   const [search] = useState(() => new ServerSearch(80));
   const inputRef = useRef<TextInput>(null);
-  const closingRef = useRef(false);
   const insets = useSafeAreaInsets();
   /* mount in two frames: the shell commits first, the field+list subtree
      lands next frame — one giant mount commit against the map's draw
-     thread is the residual-SIGSEGV trigger (ci15: search-open ~2/5).
-     Keyboard waits for the enter spring to finish for the same reason. */
+     thread is the residual-SIGSEGV trigger (ci15: search-open ~2/5). */
   const [bodyReady, setBodyReady] = useState(false);
 
   useEffect(() => {
     warm();
     getPlaces().then(setStore).catch(() => {});
     const raf = requestAnimationFrame(() => setBodyReady(true));
-    /* autofocus must not run inside the mount-commit window: on this
-       stack a focus()/becomeFirstResponder that lands while Fabric is
-       still committing the sheet — or while the previous close's
-       responder/keyboard teardown is live — segfaults as a Hermes GC
-       heap stomp (reproduced live: reopening the sheet over a running
-       map/compare transition dies mid-dispatch; disabling focus made
-       the same loop 20/20 clean). runAfterInteractions defers the
-       responder handoff until the enter spring + commit queue drain. */
-    const focusField = () => {
-      InteractionManager.runAfterInteractions(() => {
-        if (!closingRef.current) inputRef.current?.focus();
-      });
-    };
-    const foc = setTimeout(focusField, 350);
-    /* cold-start race: the 350 ms focus() can fire before the window token
-       accepts IME — field ends focused with mInputShown=false and the
-       first keystrokes drop (seen on first-ever open post-install). If
-       keyboardDidShow never fired by 1400 ms, focus() once more; the latch
-       also blocks a re-raise after the user's own dismiss. */
-    let kbShown = false;
-    const ks = Keyboard.addListener("keyboardDidShow", () => { kbShown = true; });
-    const refoc = setTimeout(() => {
-      if (!closingRef.current && !kbShown) focusField();
-    }, 1400);
-    return () => { cancelAnimationFrame(raf); clearTimeout(foc); clearTimeout(refoc); ks.remove(); search.dispose(); };
+    /* NO programmatic focus ever: every timed focus() variant still
+       segfaults this stack — runAfterInteractions only waits on RN's
+       interaction queue, not MapLibre's draw thread, so the responder
+       handoff can land mid-draw (ios-journey-overnight: SIGSEGV(11)
+       ~2 s after open over a panning map, stealKB signature, d791879's
+       gate present). Apple/Google Maps grammar instead: recents render
+       on open with no keyboard; the field focuses natively on the
+       user's own tap — a tap is itself proof the scene settled. */
+    return () => { cancelAnimationFrame(raf); search.dispose(); };
   }, [search]);
 
   const loc = userLocation ?? undefined;
@@ -304,7 +285,6 @@ function SearchSheetInner({
      with a 500ms cap if the keyboard never rose (no event ever arrives).
      Imperceptible to a user; identical UX on hardware. */
   const dismissThen = useCallback((fn: () => void) => {
-    closingRef.current = true; // no late focus() while the sheet tears down
     if (!Keyboard.isVisible()) { fn(); return; }
     let done = false;
     const fire = () => { if (!done) { done = true; sub.remove(); fn(); } };
@@ -413,9 +393,8 @@ function SearchSheetInner({
           onSubmitEditing={submit}
           placeholder={t("searchPlaceholder", lang)}
           placeholderTextColor={V2T.text2} // text3-on-surface2 = 4.33:1 < AA
-          /* no autoFocus — becomeFirstResponder during mount races the
-             responder chain on this stack; the +350ms focus lands after
-             the enter spring settles */
+          /* no autoFocus and no .focus() anywhere — the keyboard rises
+             only when the user taps the field (see mount effect) */
           autoCorrect={false}
           autoCapitalize="none"
           autoComplete="off"

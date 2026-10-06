@@ -19,19 +19,16 @@ test("SearchScreen enter spring stays on the JS driver", () => {
     "enter spring must run with useNativeDriver:false (native driver segfaults this stack)");
 });
 
-test("SearchScreen autofocus is gated behind runAfterInteractions", () => {
+test("SearchScreen never focuses the input programmatically", () => {
   const path = fileURLToPath(new URL("../screens/SearchScreen.tsx", import.meta.url));
   const src = readFileSync(path, "utf8");
-  /* focus()/becomeFirstResponder inside the mount-commit window is the
-     segfault trigger (see docs/lanes/search-crash-report.md): every call
-     into inputRef.current?.focus() must be queued behind
-     InteractionManager.runAfterInteractions so the responder handoff
-     lands after the enter spring + commit queue drain. */
-  const focusCalls = src.match(/inputRef\.current\?\.focus\(\)/g) ?? [];
-  assert.ok(focusCalls.length > 0, "autofocus call not found");
-  const gate = src.match(/InteractionManager\.runAfterInteractions\([\s\S]*?inputRef\.current\?\.focus\(\)/);
-  assert.ok(gate, "focus() must run inside InteractionManager.runAfterInteractions");
-  const outside = src.replace(/InteractionManager\.runAfterInteractions\([\s\S]*?\}\);/g, "");
-  assert.equal(outside.match(/inputRef\.current\?\.focus\(\)/g)?.length ?? 0, 0,
-    "focus() found outside the runAfterInteractions gate");
+  /* the gate itself proved insufficient: runAfterInteractions waits on RN's
+     interaction queue but not MapLibre's draw thread, so a timed focus()
+     still SIGSEGV'd (ios-journey-overnight lane — stealKB signature with
+     d791879's gate present). The invariant is now stronger: NO focus() or
+     autoFocus anywhere; the keyboard rises only on the user's own tap. */
+  assert.equal(src.match(/inputRef\.current\?\.focus\(\)/g)?.length ?? 0, 0,
+    "programmatic focus() reintroduced — keyboard must rise on user tap only");
+  assert.equal(src.match(/autoFocus\s*[=={]/g)?.length ?? 0, 0,
+    "autoFocus prop reintroduced — same responder-handoff crash class");
 });
