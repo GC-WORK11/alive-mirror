@@ -62,6 +62,35 @@ export function FadeIn({ delay = 0, children, style }: {
 /** The score-reveal moment — a number that counts up to its value when
  *  the surface mounts (Oura's ring-tick). ~36 frames on one Text node,
  *  JS-driven, silenced under reduce-motion. */
+/** The soul of the register: a tinted card's edge breathes — a 4.4s
+ *  sine opacity loop on a band-ink border ring (0.12→0.32). Subtle
+ *  enough to be felt not watched; the only ambient motion on a
+ *  surface, and it means something — a dosimeter is a breathing
+ *  thing. Skipped under Reduce Motion. Mount inside any rounded
+ *  tinted card (borderRadius 24). */
+export function BreathEdge({ color, radius = 24 }: { color: string; radius?: number }) {
+  const reduce = useReduceMotion();
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (reduce) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]));
+    loop.start();
+    return () => loop.stop();
+  }, [v, reduce]);
+  if (reduce) return null;
+  return (
+    <Animated.View pointerEvents="none"
+      style={[StyleSheet.absoluteFill, {
+        borderRadius: radius, borderWidth: 1.5, borderColor: color,
+        opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.32] }),
+      }]} />
+  );
+}
+
 export function CountUp({ value, format, style, duration = 620, ...rest }: {
   value: number; format?: (n: number) => string; duration?: number;
   style?: StyleProp<TextStyle>; [k: string]: unknown;

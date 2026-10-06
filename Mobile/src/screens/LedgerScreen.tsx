@@ -713,10 +713,13 @@ const ss = StyleSheet.create({
 
   summaryCard: {
     ...V2Elev.card,
-    backgroundColor: V2T.surface,
+    /* the ledger's identity — clay-washed (the breath/lungs family
+       hue): the cumulative dose card carries the product's warm
+       terracotta, not bare paper */
+    backgroundColor: V2Tint.clay.wash,
     borderRadius: V2Radius.card,
     borderWidth: 1,
-    borderColor: V2T.hairline,
+    borderColor: `${V2Tint.clay.ink}33`,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,

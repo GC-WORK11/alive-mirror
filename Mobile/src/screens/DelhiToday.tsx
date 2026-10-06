@@ -26,7 +26,7 @@ import {
   bandColor,
   bandIdx,
   bandInkIdx,
-  bandWashMidIdx,
+  bandWashDeepIdx,
   cigOf,
   doseColor,
   fam,
@@ -40,6 +40,7 @@ import {
   V2Type,
 } from "../theme";
 import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
+import { BreathEdge } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
@@ -286,13 +287,14 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 on the cigarette equivalence sits as a secondary line
                 under the µg — never the hero (owner mandate). */}
             {data.breath && pm && inhaled ? (
-              /* the hero card breathes the band it reports — the mid
-                 wash + band-inked numeral, one tinted object holding the
-                 city's whole day */
+              /* the hero card breathes the band it reports — the deep
+                 wash + band-inked numeral + living edge, one tinted
+                 object holding the city's whole day */
               <View style={[ss.hero, {
-                backgroundColor: bandWashMidIdx(bandIdx(pm.mid) ?? 0),
-                borderColor: `${bandInkIdx(bandIdx(pm.mid) ?? 0)}33`,
+                backgroundColor: bandWashDeepIdx(bandIdx(pm.mid) ?? 0),
+                borderColor: `${bandInkIdx(bandIdx(pm.mid) ?? 0)}4D`,
               }]}>
+                <BreathEdge color={bandInkIdx(bandIdx(pm.mid) ?? 0) ?? V2T.text} />
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroLead, { fontFamily: fam(lang, "med") }]}
                 >

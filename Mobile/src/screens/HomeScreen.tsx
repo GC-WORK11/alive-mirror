@@ -33,7 +33,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Animated,
-  Easing,
   LayoutAnimation,
   Pressable,
   ScrollView,
@@ -65,7 +64,7 @@ import {
   famSerif,
 } from "../theme";
 import { approx, doseUgRound, t, type Lang, type StringKey } from "../i18n/strings";
-import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
+import { BreathEdge, CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
@@ -1104,32 +1103,6 @@ function DoseGaugeInner({ frac, color, lang }: { frac: number; color: string; la
 
 const DoseGauge = React.memo(DoseGaugeInner);
 
-/** The hero's edge-breath — the product's one literal metaphor: the
- *  card's band-ink border glows a slow 4.4s inhale/exhale (0.12→0.32
- *  opacity, sine). Subtle enough to be felt not watched; the only
- *  ambient motion on the whole surface, and it means something — the
- *  dosimeter is a breathing thing. Skipped under Reduce Motion. */
-function BreathEdge({ color }: { color: string }) {
-  const reduce = useReduceMotion();
-  const [v] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    if (reduce) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(v, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]));
-    loop.start();
-    return () => loop.stop();
-  }, [v, reduce]);
-  if (reduce) return null;
-  return (
-    <Animated.View pointerEvents="none"
-      style={[ss.breathEdge, { borderColor: color,
-              opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.32] }) }]} />
-  );
-}
-
 /** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
  *  breathed at display scale, coloured by the day's fraction of budget,
  *  with the covered-hours and outside-now reads as tier-2 evidence. */
@@ -1557,12 +1530,6 @@ const ss = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 6, gap: 14 },
 
-  /* the hero's living edge — the slow border-glow loop renders inside
-     the card's bounds (1.5px band-ink ring, opacity-breathed) */
-  breathEdge: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 24, borderWidth: 1.5,
-  },
   heroCard: {
     ...V2Elev.card,
     backgroundColor: V2T.surface,
