@@ -61,3 +61,37 @@ changes:
 - This lane owns Mobile only — web surfaces have a sibling lane;
   share the design language via docs/lanes/register-card.md
   (update it, don't fork it).
+
+## DECODED REGISTER (from his two tabs, ~30 production screens studied)
+Screens studied: KakaoBank card stack, Plata Card, Swiggy, Origin,
+Trust Wallet, Ultrahuman, stoic., Nextdoor, Ronas finance apps,
+trek/cycling map+stat, AI assistant glass set, sports/deals apps.
+
+1. **One hero per screen** — a huge numeral or one statement owns
+   the viewport ("$3,200.00", "153,295원", "USE YOUR CARD TO GET
+   CASHBACK"); everything else visibly recedes.
+2. **Chunky rounded cards ~18-28px radius, ONE idea each** —
+   KakaoBank: mint/salmon/blue/beige account cards, huge numeral,
+   zero prose. Card surfaces CAN be tinted pastel — the card itself
+   is the color.
+3. **Category icon tiles as feature doors** — Swiggy FOOD/
+   INSTAMART/DINEOUT/SCENES: small colorful square tiles with an
+   icon + 1-word label. Our features (search, day, trips, ledger,
+   settings) enter through designed tiles, not text links.
+4. **Pills for everything interactive** — search pill, ONE primary
+   CTA pill per screen (dark or saturated), filter tab pills,
+   status chips.
+5. **Accent color = component identity** — lime banner, purple
+   tile, orange stat. Band colors get saturated pastel component
+   surfaces (not just dots).
+6. **Art/photo in cards** — personality lives in imagery and
+   gradient-mesh "liquid" art on hero surfaces, not prose.
+7. **Honest empty states as designed cards** — Ultrahuman "No data/
+   Calibrating/Locked" are styled blocks, not apologies. Our sparse
+   states already do this — keep the pattern.
+8. **Tab bar: icon + 1-word label, 4-5 items.**
+9. **Glass = frosted tint on floaters over live content** (search
+   bar, chips, map HUD) — subtle blur + tint, never a frosting
+   layer on solid surfaces.
+10. **Words rationed**: number + unit + ≤3-word label. Sentences
+    only in CTAs and empty states.
