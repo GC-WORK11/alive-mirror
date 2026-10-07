@@ -84,7 +84,11 @@ occluded. Both are first-run-only. So:
   `India Gate` → `Huda City Centre` → let the compare sheet land →
   walk through the vehicle wizard once → **leave the app on home**.
   This clears the wizard so tomorrow's on-camera chooser plays clean,
-  and seeds every last-good cache (the offline safety net below).
+  seeds every last-good cache — **and caches the map tiles over the
+  demo corridor** (see the Wi-Fi fallback: the offline tile pack
+  downloads zero tiles — only viewport you actually panned renders
+  offline, so panning the demo OD now is what makes the map survive
+  a dead hall).
 - [ ] Rig note that might be real: suggestion rows sometimes eat a
   light tap — if a row seems dead, **long-press it ~300 ms**. Same on
   compare CTAs. (rehearsal-v2 F5; possibly emulator flake, possibly
@@ -241,7 +245,7 @@ US AQI (was 86 today — a citywide mean) while `/aqi` at CP point-reads
 | admin login | 429 rate_limited | wait ~5 s, one clean paste — the bucket refills ~1/5 s |
 | admin login | `admin auth is not configured` (503) | task env lost the token — deep failure; demo everything else, gate card still tells the privacy story |
 | venue Wi-Fi | anything stops loading | switch the phone to the hotspot you armed at T-30; captive portals kill plain HTTP silently |
-| venue Wi-Fi + hotspot | **both** dead | the app still demos air-gapped: bundled 124k-row gazetteer search, a pre-planned route's full nav leg, receipt, ledger, day log all work offline (8/8 honesty checks). Only a **new** plan honestly refuses — for server beats, cut to `cut1.mp4`/`cut2.mp4` on the phone |
+| venue Wi-Fi + hotspot | **both** dead | the app still demos air-gapped: bundled 124k-row gazetteer search, a pre-planned route's nav leg, receipt, ledger, day log all work offline (8/8 honesty checks). **But the basemap only renders where you actually panned** — the `delhi-ncr-z9-13-r1` offline pack lands zero tiles (`offline-walk`: `file://` style_url rejected by the native fetcher). The T-45 pre-warm pan over the demo corridor is what keeps the map alive. Only a **new** plan honestly refuses — for server beats, cut to `cut1.mp4`/`cut2.mp4` on the phone |
 | APK | crashes on open | relaunch once — every state persists (consent, vehicle, recents, ledger); back on the map in <1 s. Crash twice → web surfaces carry the same numbers |
 | AWS console | won't load | CLI understudy from any credentialed shell: `aws ecs describe-services --cluster alive108 --service alive108 --query 'services[0].{status:status,running:runningCount,taskDef:taskDefinition,capacity:capacityProviderStrategy}'` → ACTIVE · 1/1 · FARGATE_SPOT — describe it, don't fake the screen |
 | a judge hits prod mid-demo | numbers differ from your line | expected — the field rebuilds every 15 min; "every number on every screen is served live, which is why mine moved too" |
