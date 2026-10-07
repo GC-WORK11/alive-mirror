@@ -14,7 +14,8 @@ wind 5.1 km/h @ 354° N. No code touched; this lane writes two docs only.
 on prod by admin-login-e2e), `docs/plan/go-nogo.md`,
 `docs/submission/submission-checklist.md` §3, `docs/plan/handoff.md`
 cont.66–70, and today's lane reports: `demo-rehearsal-v2-report.md`,
-`watchdog-log.md`, `testday-offline-report.md`,
+`watchdog-log.md`, `testday-offline-report.md`, `offline-walk-report.md`
+(landed 81c2326 mid-write — verdict folded into the runbook),
 `ios-residual-reverify-report.md`, `apk-v10-report.md`,
 `apk-final-report.md`, `admin-login-e2e-report.md`.
 
