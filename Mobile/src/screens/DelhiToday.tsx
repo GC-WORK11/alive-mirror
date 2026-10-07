@@ -552,12 +552,14 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                   {showCig
                     ? t("cityTravellersLine", lang, {
                         trips: day.trips,
+                        tripNoun: t(day.trips === 1 ? "tripNounOne" : "tripNounMany", lang),
                         km: fmtKm(day.km),
                         cigs: fmtCig(cigOf(day.dose_ug) ?? 0),
                         kg: fmtKg(day.co2_kg_mid),
                       })
                     : t("cityTravellersLineUg", lang, {
                         trips: day.trips,
+                        tripNoun: t(day.trips === 1 ? "tripNounOne" : "tripNounMany", lang),
                         km: fmtKm(day.km),
                         ug: approx(Math.round(day.dose_ug)),
                         kg: fmtKg(day.co2_kg_mid),

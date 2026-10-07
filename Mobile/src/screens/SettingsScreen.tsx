@@ -193,7 +193,10 @@ function SettingsSheetInner({
           value={value}
           onValueChange={onValue}
           disabled={disabled}
-          trackColor={{ false: V2T.line, true: V2T.accent }}
+          /* a disabled-but-ON row (kind toggles under an off master) keeps
+             a translucent accent track — it reads "asleep, not cleared"; a
+             flat grey track looked like the pref had been wiped */
+          trackColor={{ false: V2T.line, true: disabled ? V2T.accent + "66" : V2T.accent }}
           thumbColor={V2T.surface}
         />
       </Pressable>

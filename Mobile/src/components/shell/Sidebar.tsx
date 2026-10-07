@@ -391,7 +391,7 @@ function SidebarInner({
                 <View style={s.statTile}>
                   <View style={s.statHead}>
                     <Icon name="dust" color={V2T.text3} size={15} />
-                    <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("breathed", lang)}</Text>
+                    <Text {...DYNAMIC_TYPE} style={[s.statCap, { fontFamily: fam(lang, "reg") }]}>{t("breathedOnTrips", lang)}</Text>
                   </View>
                   <Text {...DYNAMIC_TYPE} style={[s.statNum, NUM, { fontFamily: famSerif(lang, "semi") }]}>
                     {t("doseUg", lang, { n: approx(doseUgRound(st.todayUg)) })}

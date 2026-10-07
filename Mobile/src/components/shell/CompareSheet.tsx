@@ -50,14 +50,16 @@ const arrivalLabel = (durationMin: number) => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+/* naive-UTC `start` → device-local clock — every other clock in the app
+   (arrival, ETA chip) renders device-local too, so the strip stays in the
+   same frame on a non-IST phone (IST users see identical labels). The old
+   +5.5h shift forced IST and hardcoded ":30" minutes. */
 const hourLabel = (iso: string | null, ahead: number, lang: Lang) => {
   if (iso) {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
     if (!isNaN(d.getTime())) {
-      const ist = new Date(d.getTime() + 5.5 * 3600 * 1000);
-      const hh = String(ist.getUTCHours()).padStart(2, "0");
-      const today = new Date(Date.now() + 5.5 * 3600 * 1000);
-      return `${ist.getUTCDate() !== today.getUTCDate() ? t("departTomorrow", lang) + " " : ""}${hh}:30`;
+      const hhmm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      return `${d.getDate() !== new Date().getDate() ? t("departTomorrow", lang) + " " : ""}${hhmm}`;
     }
   }
   return `+${ahead}h`;

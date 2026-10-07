@@ -1080,6 +1080,7 @@ const NavSession = React.memo(function NavSession({
       mode: option.mode,
       worstDoseUg: worstDose > 0 ? worstDose : null,
       worstLabel: worstOpt ? modeLabel(worstOpt.mode, worstOpt.label, lang) : null,
+      worstMode: worstOpt?.mode ?? null,
       alt: altEmit
         ? { label: modeLabel(altEmit.mode, altEmit.label, lang), co2KgMid: altEmit.emissions?.co2_kg?.mid ?? null }
         : null,
