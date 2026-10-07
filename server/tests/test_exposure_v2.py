@@ -207,6 +207,24 @@ def test_route_leaving_field_coverage():
     assert out["dose_ug"] is None and out["confidence"] == "none"
 
 
+def test_partial_coverage_caps_confidence():
+    # safe-path audit (route-segments lane): a route 10-50 % outside
+    # the field answered 'high' when its midpoint happened to sit near
+    # a station — partial coverage must cap confidence at 'medium'
+    # (and 'low' once the nearest read is also far).
+    mostly = lambda lat, lon: 120.0 if lon < 77.215 else None
+    near = lambda lat, lon: 1.0            # station right at midpoint
+    r = dose(GEO, 600.0, "walking", mostly, near)
+    assert 0.5 <= r["coverage"] < 0.9
+    assert r["confidence"] == "medium"
+    far = lambda lat, lon: 99.0            # nothing within 15 km either
+    r2 = dose(GEO, 600.0, "walking", mostly, far)
+    assert r2["confidence"] == "low"
+    # full coverage keeps the old tier ladder
+    r3 = dose(GEO, 600.0, "walking", F100, near)
+    assert r3["confidence"] == "high"
+
+
 def test_field_exception_and_negative_and_bad_sigma():
     boom = lambda lat, lon: (_ for _ in ()).throw(RuntimeError("boom"))
     r = dose(GEO, 600.0, "walking", boom)

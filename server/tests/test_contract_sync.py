@@ -432,6 +432,31 @@ def test_nested_v2_option_and_band_shapes():
             assert not extra, (
                 f"{o.get('mode')}.{key}: undeclared {extra} — "
                 f"add to contract.ts")
+        # route-segments lane: the per-option paint strip, when the
+        # server emitted one, must match V2PlanSegment row-for-row and
+        # tile the option's path contiguously (fracs 0→1, shared
+        # boundary vertices — the render lane relies on both)
+        segs = o.get("segments")
+        if segs:
+            for j, s in enumerate(segs):
+                missing = _required("V2PlanSegment") - set(s)
+                assert not missing, (
+                    f"{o.get('mode')}.segments[{j}]: missing {missing}")
+                extra = set(s) - _declared("V2PlanSegment")
+                assert not extra, (
+                    f"{o.get('mode')}.segments[{j}]: undeclared {extra}")
+                sc = (s.get("geometry") or {}).get("coordinates") or []
+                assert len(sc) >= 2, (
+                    f"{o.get('mode')}.segments[{j}]: <2 coords")
+                assert sc[0] in o["geometry"]["coordinates"], (
+                    f"{o.get('mode')}.segments[{j}]: start vertex not "
+                    f"on the option path")
+            assert segs[0]["start_frac"] == 0.0
+            assert segs[-1]["end_frac"] == pytest.approx(1.0)
+            for a, b in zip(segs, segs[1:]):
+                assert a["geometry"]["coordinates"][-1] == \
+                    b["geometry"]["coordinates"][0], (
+                        f"{o.get('mode')}: span boundary gap")
 
 
 def test_nested_place_and_strip_rows():

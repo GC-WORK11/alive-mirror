@@ -604,6 +604,7 @@ export interface V2RerouteResponse {
   duration_s?: number | null;   // alias of eta_s
   distance_km?: number | null;
   steps?: V2PlanStep[];
+  segments?: V2PlanSegment[] | null; // same paint strip as the option rows
   dose?: DoseBand;
   emissions?: EmissionBand;
   mode?: string;

@@ -2265,6 +2265,10 @@ async def reroute(body: dict):
         "duration_s": best["eta_s"],
         "distance_km": best["distance_km"],
         "steps": best["steps"],
+        "segments": best.get("segments"),   # flattened parity with
+                                            # /v2/plan option rows —
+                                            # the paint strip lives in
+                                            # `option`/`options` too
         "dose": best["dose"],
         "emissions": best["emissions"],
         "mode": best["mode"],

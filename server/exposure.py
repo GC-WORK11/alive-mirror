@@ -364,6 +364,12 @@ def dose(geometry: dict, duration_s: float, mode: str,
             near_km = 999.0
     if coverage < 0.5:
         conf = "low"
+    elif coverage < 0.9:
+        # a route whose breathing is 10-50 % unmeasured is not 'high'
+        # confidence however dense the field at its midpoint — the
+        # covered stretch prices, the unknown stretch says so (safe-
+        # path audit: an out-of-coverage OD answered conf=high)
+        conf = "medium" if near_km < 15 else "low"
     elif near_km < 5:
         conf = "high"
     elif near_km < 15:
