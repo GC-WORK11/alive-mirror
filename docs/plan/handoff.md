@@ -1254,3 +1254,42 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   values (India Gate→Huda metro OD 23 opts ~34x; T-45 checklist +
   ≥90s iOS cold-launch line).
 - Board: android-drive re-verifying IME fix + demo APK at HEAD.
+
+## cont.65 — 2026-10-08 ~04:30 UTC (security batch + usage analytics live)
+
+- **Deploy `aea1c688` → `dc6d0cc2`** both LIVE + verified (task defs :195, :196).
+- **Rate limiter PROVEN on the wire** (was the pentest HIGH): 12 parallel
+  POST /v2/plan each with a *different* forged X-Forwarded-For → exactly
+  6×200 + 6×429 — socket-peer key holds, forged XFFs mint zero buckets.
+  Earlier all-200 bursts were under the global class's 10rps refill —
+  inconclusive, now settled. Admin stored-XSS fix also on the wire.
+- **/v2/usage + admin "who's using it" tab LIVE** (16d3764→dc6d0cc):
+  admin-token gated, structural k≥3 (city-level scalars only — nothing
+  dimensional below a city total exists to leak). Verified live: 23
+  devices-that-shared, 41 trips, 179.5km, 108.3µg, 14.03kg CO₂, 6
+  switched; `installs: null` + note (unknowable by design — disclosed
+  honestly, not dressed up).
+- **SIGSEGV root-caused + killed** (`3c24a5e`, Max lane): off-JS-thread
+  jsi::Function/Object destructors corrupting Hermes pinned roots —
+  victim dies walking the freelist ~2s after the burst. Explains the
+  touch-vs-a11y axis (real taps drive more native work) + box
+  determinism + cold/post-wipe windows. Fix = patch-package sim-only
+  (#if TARGET_OS_SIMULATOR): allowRelease→CallInvoker hop, ~Promise
+  deferJsi queue, CallbackWrapper defer, GC sizing + ProtectMetadata
+  tripwire. Gate 34/34 clean on their box. Build caveat: pod installs
+  need RCT_USE_PREBUILT_RNCORE=0 + plain xcodebuild. Composes with
+  ced7672 press-in hold (different layer).
+- **Suite: 1204 passed, 5 skipped** at `aea1c68` (my box).
+- **Demo APK delivered + verified**: alive108-3589209.apk @ 3589209,
+  sha256 8896d5b2…fc17 — Lane C PASS 0 P0 (IME fix confirmed).
+- **Landing-v5 recorded demo sent to owner** (full-scroll live-prod
+  MP4). ASCII-art question dispositioned: killed deliberately in v4
+  a916fc0; restore = owner taste call, flagged.
+- **Owner asks relayed**: admin "sexy/orgasmic" love → Max board; usage
+  tab must follow same scheme (it does); coordinator syncs every ~20min
+  running (sync #8 sent).
+- **Board**: me + ios-cold-drive (native rebuild + re-running its exact
+  8-touch SIGSEGV harness on post-3c24a5e for independent confirmation).
+- **Owner calls still open**: ASCII restore; TLS domain+ACM / honest
+  card; EventBridge enable / in-app+doc; donation anti-abuse attestation
+  (pentest MED — needs device attestation, owner decision).
