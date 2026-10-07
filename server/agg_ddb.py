@@ -314,6 +314,61 @@ class DDBTripAggregates:
             self.last_error = f"{type(e).__name__}: {e}"
             return []
 
+    def hours_window(self, window_s: float, now: float = None) -> dict:
+        """Rolling-window sums over the retained hour items — trips/km/
+        dose totals plus the unioned distinct-device count (devices SS
+        unions exactly across buckets). Scalar totals only — a window
+        sum is a city figure, so no k-gate applies (hour ROWS stay
+        behind recent()'s >=3 rule). None on failure: a partial scan
+        reported as a total would be a lie."""
+        now = now or time.time()
+        out = {"trips": 0, "km": 0.0, "dose_ug": 0.0,
+               "devices": 0, "hours": 0}
+        devices = set()
+        try:
+            for it in self._scan(RECENT_PK):
+                parts = (it.get("sk") or {}).get("S", "").split("#")
+                if len(parts) != 2 or parts[0] != "hour":
+                    continue
+                try:
+                    h = int(parts[1])
+                except ValueError:
+                    continue
+                if now - h * 3600 > window_s:
+                    continue
+                out["hours"] += 1
+                out["trips"] += int(_num(it.get("trips")) or 0)
+                out["km"] += float(_num(it.get("km")) or 0.0)
+                out["dose_ug"] += float(_num(it.get("dose_ug")) or 0.0)
+                devices |= set((it.get("devices") or {}).get("SS") or [])
+            out["devices"] = len(devices)
+            out["km"] = round(out["km"], 1)
+            out["dose_ug"] = round(out["dose_ug"], 1)
+            self.last_error = None
+            return out
+        except Exception as e:  # noqa: BLE001
+            self.last_error = f"{type(e).__name__}: {e}"
+            return None
+
+    def trips_per_hour(self, hours: int = 24) -> list:
+        """Donations bucketed per UTC hour, oldest→newest — mirrors
+        v2.store.TripAggregates.trips_per_hour."""
+        try:
+            per = {}
+            for it in self._scan(RECENT_PK):
+                parts = (it.get("sk") or {}).get("S", "").split("#")
+                if len(parts) != 2 or parts[0] != "hour":
+                    continue
+                try:
+                    per[int(parts[1])] = int(_num(it.get("trips")) or 0)
+                except ValueError:
+                    continue
+            cur = int(time.time() // 3600)
+            return [per.get(cur - hours + 1 + i, 0) for i in range(hours)]
+        except Exception as e:  # noqa: BLE001
+            self.last_error = f"{type(e).__name__}: {e}"
+            return []
+
     def global_aggregates(self) -> dict:
         """/admin/api/global's read — area rows, OD-pair rows, savings
         counters; same k>=3-on-devices filter and same shape as the
@@ -649,6 +704,66 @@ class DDBDeviceLedger:
         except Exception as e:  # noqa: BLE001
             self.last_error = f"{type(e).__name__}: {e}"
             return 0
+
+    def device_windows(self, now: float = None) -> dict:
+        """Distinct devices by last-donation recency: 24 h / 7 d /
+        all-time, from the ledger_meta last_ts items. Same contract as
+        v2.store.DeviceLedger.device_windows — counts 'devices that
+        shared', never installs. None on failure (a partial scan shown
+        as a total would be a lie)."""
+        now = now or time.time()
+        out = {"total": 0, "seen_24h": 0, "seen_7d": 0}
+        try:
+            kw = {"TableName": self.table_name,
+                  "ProjectionExpression": "pk, last_ts"}
+            while True:
+                r = self.client.scan(**kw)
+                for it in r.get("Items", []):
+                    if (it.get("pk") or {}).get("S") != LEDGER_META_PK:
+                        continue
+                    out["total"] += 1
+                    last = _num(it.get("last_ts"))
+                    if now - last <= 86400:
+                        out["seen_24h"] += 1
+                    if now - last <= 7 * 86400:
+                        out["seen_7d"] += 1
+                lek = r.get("LastEvaluatedKey")
+                if not lek:
+                    self.last_error = None
+                    return out
+                kw["ExclusiveStartKey"] = lek
+        except Exception as e:  # noqa: BLE001
+            self.last_error = f"{type(e).__name__}: {e}"
+            return None
+
+    def dose_values(self, limit: int = 50000) -> list:
+        """Every retained per-trip dose_ug on the ledger# items —
+        numbers only, for aggregate distribution stats. None on
+        failure: a partial median is a wrong median."""
+        out = []
+        try:
+            kw = {"TableName": self.table_name,
+                  "ProjectionExpression": "pk, dose_ug"}
+            while True:
+                r = self.client.scan(**kw)
+                for it in r.get("Items", []):
+                    if not (it.get("pk") or {}).get(
+                            "S", "").startswith("ledger#"):
+                        continue
+                    d = it.get("dose_ug")
+                    if d is not None:
+                        out.append(float(_num(d)))
+                        if len(out) >= limit:
+                            self.last_error = None
+                            return out
+                lek = r.get("LastEvaluatedKey")
+                if not lek:
+                    self.last_error = None
+                    return out
+                kw["ExclusiveStartKey"] = lek
+        except Exception as e:  # noqa: BLE001
+            self.last_error = f"{type(e).__name__}: {e}"
+            return None
 
     def delete(self, token_hash: str) -> int:
         """Drop one device's ledger rows + its meta counter — /v2/ledger

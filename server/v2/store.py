@@ -265,6 +265,41 @@ class TripAggregates:
             out.sort(key=lambda e: -e["ts"])
             return out[:limit]
 
+    def hours_window(self, window_s: float, now: float = None) -> dict:
+        """Rolling-window sums over the retained UTC-hour aggregates —
+        trips/km/dose totals plus the UNIONED distinct-device count.
+
+        Scalar totals only: a window sum is a city figure, not a person,
+        so no k-gate applies here (the hour ROWS stay behind recent()'s
+        >=3-device rule as before). Covers at most the 72 h retention of
+        _hours. Mirrors agg_ddb.DDBTripAggregates.hours_window."""
+        now = now or time.time()
+        trips = 0
+        km = dose = 0.0
+        devices = set()
+        hours = 0
+        with LOCK:
+            for h, r in self._hours.items():
+                if now - h * 3600 > window_s:
+                    continue
+                hours += 1
+                trips += r["trips"]
+                km += r["km"]
+                dose += r["dose_ug"]
+                devices |= r["devices"]
+        return {"trips": trips, "km": round(km, 1),
+                "dose_ug": round(dose, 1), "devices": len(devices),
+                "hours": hours}
+
+    def trips_per_hour(self, hours: int = 24) -> list:
+        """Donations bucketed per UTC hour, oldest→newest — the usage
+        sparkline over the ledger's own hour aggregates (mirrors
+        community.journeys_per_hour, which reads its corridor subset)."""
+        cur = int(time.time() // 3600)
+        with LOCK:
+            return [self._hours.get(cur - hours + 1 + i, {}).get("trips", 0)
+                    for i in range(hours)]
+
     def global_aggregates(self) -> dict:
         """Everything /admin/api/global may reveal — area and OD-pair
         rows plus the lifetime savings counters, k>=3 filtered on
@@ -413,6 +448,35 @@ class DeviceLedger:
     def devices(self) -> int:
         with LOCK:
             return len(self._ledgers)
+
+    def device_windows(self, now: float = None) -> dict:
+        """Distinct devices by last-donation recency: 24 h / 7 d /
+        all-time. 'Seen' = the device's newest ledger row — the ledger
+        only ever learns a token when a donation carries it, so these
+        count 'devices that shared', never installs.
+        Mirrors agg_ddb.DDBDeviceLedger.device_windows."""
+        now = now or time.time()
+        with LOCK:
+            lasts = [max(r["ts"] for r in rows)
+                     for rows in self._ledgers.values() if rows]
+        return {"total": len(lasts),
+                "seen_24h": sum(1 for t in lasts if now - t <= 86400),
+                "seen_7d": sum(1 for t in lasts if now - t <= 7 * 86400)}
+
+    def dose_values(self, limit: int = 50000) -> list:
+        """Every retained per-trip dose_ug in the ledger — numbers only
+        (no keys, no ordering), for aggregate distribution stats.
+        Mirrors agg_ddb.DDBDeviceLedger.dose_values."""
+        out = []
+        with LOCK:
+            for rows in self._ledgers.values():
+                for r in rows:
+                    d = r.get("dose_ug")
+                    if isinstance(d, (int, float)):
+                        out.append(float(d))
+                        if len(out) >= limit:
+                            return out
+        return out
 
     def delete(self, token_hash: str) -> int:
         """Drop one device's rows — /v2/ledger DELETE. Returns count."""
