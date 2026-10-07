@@ -27,6 +27,7 @@ import {
   type AmbientSample,
 } from "./daylog";
 import { File, Paths } from "expo-file-system";
+import { purgeJsonDoc } from "./safefile";
 import type { Trip } from "./ledger";
 
 const VE_M3H = 0.6; // VE_REST_M3H — seated/resting 10 L/min
@@ -229,7 +230,11 @@ describe("resetDaylogCache — the delete-my-data wipe (testday-ios P2)", () => 
        then the files go. Without the reset the mounted home's
        allSamples() kept serving wiped samples until relaunch. */
     resetDaylogCache();
-    DAYLOG.delete();
+    /* the file lives under safefile now: the wipe primitive is
+       purgeJsonDoc — main + .tmp + .bak. A bare main-file delete would
+       correctly roll back to the .bak generation, which is rollback,
+       not deletion. */
+    purgeJsonDoc("daylog.json");
     assert.equal((await allSamples()).length, 0);
     /* and the post-wipe session starts clean — the next real read is
        deduped against an empty day, not a ghost of the wiped one */
@@ -250,7 +255,7 @@ describe("resetDaylogCache — the delete-my-data wipe (testday-ios P2)", () => 
     const p = allSamples();        // readDisk starts under the old generation
     await Promise.resolve();       // let it reach the FILE.text() await
     resetDaylogCache();            // the wipe lands mid-read…
-    DAYLOG.delete();               // …and removes the file
+    purgeJsonDoc("daylog.json");    // …and removes main + .tmp + .bak
     assert.equal((await p).length, 0);        // stale payload dropped, not adopted
     assert.equal((await allSamples()).length, 0); // mem stayed clean
   });
