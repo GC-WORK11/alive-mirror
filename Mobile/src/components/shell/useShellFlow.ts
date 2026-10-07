@@ -299,7 +299,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         setDepartCurve(c?.slots?.length ? c : null);
         setDepart(c?.best
           ? { best: { hours_ahead: c.best.hour, start: c.best.start, dose_ug: c.best.dose_mid },
-              ug_saved_vs_now: c.ug_saved_vs_now }
+              ug_saved_vs_now: c.ug_saved_vs_now,
+              pct_less_vs_now: c.pct_less_vs_now }
           : null);
       })
       .catch(() => { if (!cancelled) { setDepartCurve(null); setDepart(null); } });
@@ -433,11 +434,14 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const remind = useCallback(async () => {
     if (!depart?.best?.start || notified || !(await requestPerms())) return;
     const fire = new Date(depart.best.start.endsWith("Z") ? depart.best.start : depart.best.start + "Z");
-    /* /depart returns ug_saved_vs_now in µg — the notification copy wants
-       a real percent: saved / dose-if-left-now (claims audit: no unit wash). */
-    const saved = depart.ug_saved_vs_now ?? 0;
-    const doseNow = (depart.best.dose_ug ?? 0) + saved;
-    const pct = doseNow > 0 ? Math.max(0, Math.round((saved / doseNow) * 100)) : 0;
+    /* /depart serves the saving as a PERCENT already — pct_less_vs_now is
+       the honest name (ug_saved_vs_now is the legacy alias for the same
+       percent, not µg). Reading it as µg and recomputing a percent off it
+       overstated the claim ~2.5× in the scheduled copy (13% true read
+       32%). Take the served percent verbatim. */
+    const pct = Math.max(0, Math.round(
+      depart.pct_less_vs_now ?? depart.ug_saved_vs_now ?? 0,
+    ));
     if (await scheduleDeparture({ fireAt: fire, savedPct: pct })) setNotified(true);
   }, [depart, notified]);
 

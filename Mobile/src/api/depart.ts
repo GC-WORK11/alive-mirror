@@ -50,6 +50,9 @@ export type DepartCurve = {
   /** PERCENT dose saved vs leaving now (misleading server name kept for
    *  drop-in compat with shell/types.ts `Depart`); null when now-dose is 0 */
   ug_saved_vs_now: number | null;
+  /** the honest key for the same percent — the server serves it verbatim;
+   *  prefer this over the ug_* alias at every read site */
+  pct_less_vs_now: number | null;
   slots: DepartSlot[];             // the 24h curve, in hours_ahead order
   forecast_age_s: number | null;   // forecast field age, for "data N min old"
   fieldAgeS: number | null;        // live field the horizon anchors to — its age
@@ -104,6 +107,7 @@ function mapDepart(j: Record<string, unknown>): DepartCurve {
     best: toSlot(j.best),
     worst: toSlot(j.worst),
     ug_saved_vs_now: num(j.ug_saved_vs_now),
+    pct_less_vs_now: num(j.pct_less_vs_now),
     slots,
     forecast_age_s: fc ? num(fc.age_s) : null,
     fieldAgeS: num(j.field_age_s) ?? (fld ? num(fld.age_s) : null),

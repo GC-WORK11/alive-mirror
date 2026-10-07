@@ -142,6 +142,7 @@ export type Seg = {
 export type Depart = {
   best: { hours_ahead: number; start: string | null; dose_ug: number };
   ug_saved_vs_now: number | null;
+  pct_less_vs_now?: number | null;
 } | null;
 
 export type Step = { instruction: string; distance_m: number; type?: string; modifier?: string; street?: string };
