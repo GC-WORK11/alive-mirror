@@ -1023,3 +1023,31 @@ consistency, real-time updates, profile behavior, both platforms.
   degrade; `*[...]*` stamped blocks + handoff logs no longer false-flag;
   fires/~35×/×1.27 matchers drift-aware; bare-6.2 holdout claims flagged.
   Green run vs prod bc8f82c4, ~01:05 UTC Oct 7 — T-45 safe.
+
+### cont.58 — edge-honesty markers landed (Oct 7, fix-edge-honesty lane)
+The three lies the edge-honesty probe proved on live prod now carry
+explicit markers — additive keys only, no field removed, clients that
+never read them see the same payload:
+- **`/v2/why` out-of-area**: was silently clamping the ventilation read
+  to an edge cell and returning the Delhi line for any coords (London
+  included). Now `point_in_area:false` + `note` ("the city-wide read,
+  not a local one") when `in_service_area` fails — the same gate `/aqi`
+  applies, but the answer keeps serving (drivers are city-scale).
+- **`/aqi` past the field edge**: inside the 2° margin but outside the
+  served field's own extent, it served the literal edge cell's pm25
+  (probe: 62.4 at ~139 km out, disclosed only by nearest_sample_km).
+  New `beyond_field_edge:true` via `FIELD.beyond_field_edge()` — reads
+  the field's own coverage bbox (`_snap_bbox` snapshot / live sample
+  extent), the same record status() reports.
+- **`depart_at` never validated**: garbage echoed verbatim while the
+  GTFS arm fell back to the (approx.) station model. New
+  `depart_at_parsed:false` on `/v2/plan` AND `/v2/reroute` — judged by
+  the transit arm's own parser (`transit_v2._to_ist`), so the flag can
+  never disagree with what the leg actually did.
+- Contract: `AqiResponse.beyond_field_edge`, `V2PlanResponse` +
+  `V2RerouteResponse.depart_at_parsed` declared in Bridge/contract.ts.
+- Verified live on a local uvicorn (real HTTP, seeded field): London
+  why → point_in_area:false+note; 30.20°N aqi → beyond_field_edge:true
+  ns_km 171.9 pm25 167.8; plan depart_at 'banana' → parsed:false echo
+  kept; ISO → true; absent → key absent. 12 new regression tests.
+- Full suite + report: docs/lanes/fix-edge-honesty-report.md.

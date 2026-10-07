@@ -232,7 +232,11 @@ export async function notifyAirEvent(
         body: t(keys.body, lang, v),
         sound: "default",
       },
-      trigger: null, // deliver immediately — the event already happened
+      /* a bare {channelId} is the channel-aware immediate trigger: it
+         delivers now AND lands on the air-events channel — trigger:null
+         would post to Android's default channel instead, bypassing the
+         named mute control we just created. */
+      trigger: { channelId: CH_EVENTS },
     });
   } catch {
     return null;

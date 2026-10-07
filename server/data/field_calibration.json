@@ -1,9 +1,9 @@
 {
-  "method": "leave-one-out over live OpenAQ instrument readings",
-  "n_stations": 94,
-  "mae_ug": 46.1,
-  "rmse_ug": 71.9,
-  "median_abs_pct": 56.0,
-  "mean_bias_ug": 0.3,
+  "method": "leave-one-out over live WAQI+DPCC instrument readings (krige refit per held-out station)",
+  "n_stations": 70,
+  "mae_ug": 8.8,
+  "rmse_ug": 12.7,
+  "median_abs_pct": 8.8,
+  "mean_bias_ug": 0.2,
   "note": "error between stations \u2014 at a station the field reads the instrument itself"
 }

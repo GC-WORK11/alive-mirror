@@ -697,6 +697,7 @@ async def build_why(lat: float, lon: float) -> dict:
     await _refresh_fires_bounded()
 
     def _sync_tail():
+        from airfield import in_service_area
         wind = _wind_read()
         fires = _fires_read()
         vent = _ventilation_read(lat, lon)
@@ -719,10 +720,16 @@ async def build_why(lat: float, lon: float) -> dict:
             d["weight"] = "primary" if i == 0 else "secondary"
 
         now = time.time()
-        return {
+        out = {
             "generated_at": datetime.fromtimestamp(
                 now, tz=timezone.utc).isoformat(timespec="seconds"),
             "lat": lat, "lon": lon,
+            # the drivers are city-scale, so the answer still stands for
+            # a point outside the service box — but it must not read as
+            # a local one: /aqi rejects these coords, /v2/why used to
+            # silently clamp the ventilation read to an edge cell and
+            # return the Delhi line with no marker (edge-honesty P1)
+            "point_in_area": bool(in_service_area(lat, lon)),
             "scope": "city — fires/stagnation/trend are city-scale "
                      "drivers; lat/lon localizes the ventilation read",
             "line": _line(drivers, wind),
@@ -736,6 +743,11 @@ async def build_why(lat: float, lon: float) -> dict:
                         "cannot_tell; 'local background' is the honest "
                         "empty answer, not an error"),
         }
+        if not out["point_in_area"]:
+            out["note"] = ("point outside the Delhi/NCR service area — "
+                           "this is the city-wide read, not a local one "
+                           "for this point")
+        return out
 
     # sync reads + scoring off the event loop AND off the shared default
     # executor (see _WHY_EXEC): a cold first call used to park the loop

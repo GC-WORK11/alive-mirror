@@ -516,6 +516,43 @@ def test_why_block_in_city(snap_root, wind_se, cold_forecast,
     assert why["why_url"] == "/v2/why"
 
 
+def test_endpoint_marks_point_outside_service_area(snap_root, wind_se,
+                                                   cold_forecast,
+                                                   monkeypatch):
+    """/aqi rejects the same coords outright; /v2/why keeps its
+    city-scale answer (fires/stagnation/trend are city drivers) but
+    must not read as a local one — the edge-honesty probe showed a
+    far-out-of-area query silently clamping the ventilation read to
+    an edge cell and returning the Delhi line with no marker."""
+    import fires
+    monkeypatch.setattr(fires, "FIRES", _NoFires())
+    r = client.get("/v2/why?lat=51.5074&lon=-0.1278")
+    assert r.status_code == 200
+    got = r.json()
+    assert got["point_in_area"] is False
+    assert got["lat"] == 51.5074 and got["lon"] == -0.1278
+    assert "outside" in got["note"]
+
+
+def test_endpoint_marks_point_inside_service_area(snap_root, wind_se,
+                                                  cold_forecast,
+                                                  monkeypatch):
+    import fires
+    monkeypatch.setattr(fires, "FIRES", _NoFires())
+    got = client.get("/v2/why?lat=28.6315&lon=77.2167").json()
+    assert got["point_in_area"] is True
+    assert "note" not in got
+
+
+def test_endpoint_default_point_marks_in_area(snap_root, wind_se,
+                                              cold_forecast,
+                                              monkeypatch):
+    import fires
+    monkeypatch.setattr(fires, "FIRES", _NoFires())
+    got = client.get("/v2/why").json()     # Delhi default
+    assert got["point_in_area"] is True
+
+
 # ----------------------------------------------------------------- surfaces
 
 def test_city_html_has_why_line():
