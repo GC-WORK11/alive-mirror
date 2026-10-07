@@ -85,6 +85,15 @@ class TripAggregates:
         self._days: dict = {}    # "YYYY-MM-DD" -> day counters
         self._cells: dict = {}   # cell key -> {count, dose_sum, tokens:set}
         self._cell_window_s = 72 * 3600  # corridor rule: 72 h freshness
+        # Memory bound: every windowed store (_cells/_hours/_areas/_od)
+        # evicts entries whose last_ts is past the window — the same
+        # 72 h freshness rule the publishable read already applies, so
+        # nothing published can change. Without it the in-memory
+        # backend (dev/CI, or any deployment without AGG_TABLE) grew
+        # _cells and the per-cell token sets forever: a real OOM vector
+        # on a small task under sustained donations. Prune runs at most
+        # once a minute, amortized inside record_trip's lock.
+        self._last_prune = 0.0
         # per-UTC-hour aggregates for the admin live feed — sums plus a
         # distinct hashed-token set, the same k>=3-device contract the
         # corridor cells use. Per-trip rows (ts/mode/dose/km) would
@@ -97,6 +106,20 @@ class TripAggregates:
         # k>=3 publish contract identical to corridor cells.
         self._areas: dict = {}  # origin area -> {trips, devices:set}
         self._od: dict = {}     # (o_area, d_area) -> {trips, devices:set}
+
+    def _prune_stale(self, ts: float) -> None:
+        """Drop entries dead past the publish window — call with LOCK
+        held. 'cells_tracked'/'areas_tracked' then mean 'live in the
+        last 72 h', which is what a reader of the corridor map should
+        weigh anyway."""
+        if ts - self._last_prune < 60.0:
+            return
+        self._last_prune = ts
+        w = self._cell_window_s
+        for store in (self._cells, self._areas, self._od):
+            for stale in [k for k, v in store.items()
+                          if ts - v.get("last_ts", 0.0) > w]:
+                del store[stale]
 
     def record_trip(self, cells: list, summary: dict,
                     token_hash: str, ts: float = None,
@@ -189,16 +212,20 @@ class TripAggregates:
             d2 = str(dest_area or "").replace("#", " ")[:64] or None
             if o:
                 a = self._areas.setdefault(
-                    o, {"trips": 0, "devices": set()})
+                    o, {"trips": 0, "devices": set(), "last_ts": 0.0})
                 a["trips"] += 1
+                a["last_ts"] = max(a["last_ts"], ts)
                 if token_hash:
                     a["devices"].add(token_hash)
             if o and d2:
                 pair = self._od.setdefault(
-                    (o, d2), {"trips": 0, "devices": set()})
+                    (o, d2), {"trips": 0, "devices": set(),
+                              "last_ts": 0.0})
                 pair["trips"] += 1
+                pair["last_ts"] = max(pair["last_ts"], ts)
                 if token_hash:
                     pair["devices"].add(token_hash)
+            self._prune_stale(ts)
 
     def _publishable_cells(self, now: float, limit: int) -> list:
         """k>=3-window filter — call with LOCK held (aggregates only)."""
