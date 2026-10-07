@@ -70,10 +70,32 @@ no ramp, alive at 95 s.
 \* r3/r4 early taps were eaten by a stray OS "Fitness" notification
 dialog — tap data void for those runs; the crashes still count.
 
-Tap-landing summary (valid runs): tap@1.5 s → search open by ~3-4 s;
-taps at ~7-20 s → land, including one tap at ~20 s that opened search
-in <1 s DURING the trickle burst (the input-yield working). After the
-~17-24 s crash, everything lands on SpringBoard — the "freeze".
+Tap-landing summary (valid runs): tap@1.5 s → search open by ~2-4 s
+(shot-verified: sheet fully rendered at ~4 s); taps at ~7-20 s → land,
+including one tap at ~20 s that opened search in <1 s DURING the
+trickle burst (the input-yield working). After the ~17-24 s crash,
+everything lands on SpringBoard — the "freeze".
+
+### The lazy interplay (what "search needs the index" actually means)
+
+The search sheet itself needs nothing — it opens empty ("type a place
+or landmark"), which is why early taps land even with `warm()`
+deferred. The index is needed only at the first `query()` call, and
+`t0.ts:query()` gets it by `build()` — a **synchronous, unbounded**
+`while (!built) buildSlice(1 << 30)`. Two consequences, both verified
+in code:
+
+- An early typer re-arms the same ~4M-alloc burst that `warm()` defers:
+  first keystroke before the index is ready = one blocking JS pass of
+  the entire remaining build (~10 s+ on this sim rig; expect
+  ~0.3-0.6 s on a real device). On the iOS sim that lands inside the
+  ~90 s corruption window — the 15 s defer only protects the no-input
+  path, not the user-driven one.
+- The input-yield gating can't help inside that pass (it's synchronous
+  user-requested work, not background theft) — and shouldn't: results
+  stay complete, which is the correct trade. The real fix is still
+  the bundle-time prebuilt index, which deletes both the deferred
+  burst and the first-query burst.
 
 ### Crash stacks (lldb)
 
@@ -88,6 +110,34 @@ property access / old-gen metadata write). `indexRow()` does
 furnace; the corruption is in the alloc pattern itself, not the
 macrotask length: 12 ms slices die, 50 ms-spaced trickle dies, only
 not-running survives.
+
+### The sigbus mitigation is in the binary — and does not hold
+
+The coldfix+sigbus `gcConfig` block **is compiled into the shipped
+.app** (banner `[coldfix] sim GC sizing applied: init=512MB min=256MB`
+prints at every launch; `withAllocInYoung(false)` sits in
+`HermesInstance.cpp:173`; `allocInOldGenBeforeTTI=false` at
+`RCTHermesInstanceFactory.mm:17`, so no `RevertToYGAtTTI` re-opens it).
+
+Yet `os_log` gcdbg capture on a dying run shows **~194
+`GC Young Gen` collection events** — 7 pairs inside launch burst, then
+a dense ~40-event/400 ms storm at t+16 s as `warm()` slices — and the
+process still exits ~t+33 s on an old-gen fault. Objects are landing
+in young gen and being scavenged **despite the flag**: either
+`allocInYoung` is only an initial-allocation hint this hermesvm build
+overrides (its own adaptive path re-enables YG under pressure), or the
+flag never reached the running config. Either way the "closed" claim
+fails empirically on this rig: YG scavenges ran right up to death.
+
+The surviving class is the coldfix lane's ORIGINAL one, still
+documented in their own patch comment: hermes 0.17 on the iOS-26 sim
+corrupts old-gen segment metadata "during cold-boot GC churn — the
+next hades sweep (`OldGen::sweepNext`) or old-gen alloc
+(`OldGen::search`) dereferences it and SIGSEGVs, ~2 s after any
+allocation burst inside the first ~90 s". Their heap sizing made
+majors rare; it did not eliminate them — a ~4M-alloc burst at t+15 s
+still fills 512 MB of headroom, forces the sweep, and detonates
+inside the ~90 s fragile window.
 
 ## What shipped (9e75472)
 
@@ -118,7 +168,12 @@ odds by keeping burst work off the input path.
 - sigbus lane: their `fix5` harness exercised search at 5-9 s — the
   15 s defer moved detonation outside that window. Re-run their
   reproducer with a ≥40 s dwell to see the residual (this report's
-  lldb frames match their fault forms 1 and 3).
+  lldb frames match their fault forms 1 and 3). Separately, the
+  `withAllocInYoung(false)` premise itself needs a look: gcdbg shows
+  ~194 YG scavenges firing through a crash anyway, so the flag is not
+  suppressing young-gen work in the shipped sim build — worth
+  confirming whether it ever reached the running `GCConfig` or is a
+  hint hermesvm discards under pressure.
 - iOS testers: a "frozen" app at ~17-25 s post-launch is the dead
   process — check SpringBoard/pid before calling it a stall.
 
