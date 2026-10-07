@@ -61,6 +61,9 @@ export type ReceiptData = {
   worstDoseUg?: number | null;
   /** label of the worst option, e.g. "Auto" */
   worstLabel?: string | null;
+  /** the worst option's mode — lets copy pick natural phrasing
+      ("less than on foot", never "by On foot") */
+  worstMode?: string | null;
   /** the next-best option on emissions → the "would have put out" line */
   alt?: ReceiptAlt | null;
   /** field freshness, minutes (claims: always visible when known) */
@@ -220,7 +223,9 @@ function ReceiptSheetInner({
     : null;
   const ratioTxt = ratio != null && ratio > 1.05
     ? (data.worstLabel
-        ? t("receipt_lessVs", lang, { n: ratio, m: data.worstLabel })
+        ? data.worstMode === "walk"
+          ? t("receipt_lessVsWalk", lang, { n: ratio })
+          : t("receipt_lessVs", lang, { n: ratio, m: data.worstLabel })
         : t("receipt_lessVsWorst", lang, { n: ratio }))
     : null;
   const scaleA11y = [breathedTxt, ratioTxt, cigTxt].filter(Boolean).join(". ");

@@ -173,6 +173,27 @@ own pmtiles), also pass `EXPO_PUBLIC_TILES_URL=http://65.2.28.40/
 tiles/tilejson.json` at bundle time; omitted → hosted OpenFreeMap
 fallback, still fine but not ours (docs/plan/handoff.md cont.15).
 
+## Runbook setup — export once at the top of your shell
+
+Every `curl $NLB/…` and `aws …` command below assumes this block ran
+first — paste it verbatim before anything else (the runbook audit
+found `$NLB` was never `export`ed anywhere, so the steps failed as
+pasted):
+
+```bash
+export AWS_DEFAULT_REGION=ap-south-1
+
+# The public base URL — the NLB serves HTTP :80 ONLY (never :8000,
+# never https://). Resolve the DNS name from AWS (deploy.sh's
+# NLB_NAME=alive108):
+export NLB="http://$(aws elbv2 describe-load-balancers --names alive108 \
+  --query 'LoadBalancers[0].DNSName' --output text)"
+# No-CLI fallback — the current DNS name (resolves to EIP 65.2.28.40):
+# export NLB=http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com
+
+curl -s -o /dev/null -w "NLB -> %{http_code}\n" "$NLB/health"   # expect 200
+```
+
 ## The pitches (one breath each)
 
 - **Consumer (the dosimeter):** "Your lungs' ledger for Delhi — what you
@@ -332,11 +353,18 @@ we'd rather show a missing arm than a fabricated answer.
    34.0 MW → `carrying:true`, modifier ×1.24 — it flips back to refused
    on a southerly wind)
 
-## The judge's first 90 seconds (demo binary `0b11123`)
+## The judge's first 90 seconds (demo APK = the newest HEAD build)
 
-The release APK is **`alive108-0b11123.apk`** — the apk-final drive
-binary, 14/14 PASS (docs/lanes/apk-final-report.md; the three commits
-after its build tree are docs-only, so it IS the HEAD binary). What a
+Install **the newest `alive108-<sha>.apk`**, built at HEAD — the named
+binaries `alive108-0b11123.apk` / `alive108-c3bb731.apk` are STALE
+(~30 Mobile commits behind, incl. two fixes on this exact flow:
+`344b4a9` — the "Where to?" pill occluded under the open home sheet,
+the flow's FIRST tap — and `c84b5c2` — phantom re-plan after
+receipt-Done, the flow's LAST beat). Build + verify per the build
+lane's report: recipe and expected sha256 in
+`docs/lanes/apk-v10-report.md` (or the newest `apk-*-report.md` in
+`docs/lanes/` if a later build lands); check `shasum -a 256
+alive108-*.apk` against that report's value before sideloading. What a
 judge sees, in order, with the clock running:
 
 - [ ] **0–5 s — cold-open**: from force-stopped, the app is on the map in
@@ -564,7 +592,10 @@ The service runs `capacityProviderStrategy: FARGATE_SPOT weight=1 base=1`
 (re-verified `describe-services` 2026-10-06 ~05:10 UTC via boto3 —
 running 1/1, task `capacityProviderName FARGATE_SPOT` — ~$0 but Spot can
 reclaim any time, including mid-demo). To pin the task on on-demand
-Fargate for the day — **T-60: run this verbatim**:
+Fargate for the day — **T-60: run this verbatim** (the block opens
+with a credentials preflight — abort if it fails; a dead credential
+means the flip silently never runs and the task stays on reclaimable
+FARGATE_SPOT):
 
 *(the flip replaces the task — SAFE for the why-trend/history surfaces
 since `268ed54`+`3aea78f`: the series reads the S3 `field/` builds
@@ -576,6 +607,14 @@ pathological upstream stall (~2-3min bounded now, `5ec1f2f`).)*
 ```bash
 export AWS_DEFAULT_REGION=ap-south-1
 
+# CREDS PREFLIGHT — must answer BEFORE the flip:
+aws sts get-caller-identity --query 'Account' --output text  # expect the deploy account id
+echo "region=$AWS_DEFAULT_REGION"                           # must read ap-south-1
+# ABORT here if sts fails or the region is wrong — on a dead
+# credential the flip silently never happens and the demo stays on
+# reclaimable FARGATE_SPOT. Fix creds (aws configure / fresh keys)
+# and re-run; do not "try the flip anyway".
+
 # PRE-check (expect FARGATE_SPOT before the flip):
 aws ecs describe-services --cluster alive108 --services alive108 \
   --query 'services[0].{cap:capacityProviderStrategy,running:runningCount,taskDef:taskDefinition}'
@@ -585,15 +624,22 @@ aws ecs update-service --cluster alive108 --service alive108 \
   --capacity-provider-strategy "capacityProvider=FARGATE,weight=1,base=1" \
   --force-new-deployment
 aws ecs wait services-stable --cluster alive108 --services alive108
+# (waiter budget is ~10 min — a slow rollout exits it with an error;
+#  re-run the same wait once before assuming failure. A FAILED rollout
+#  still leaves the old SPOT task serving — degraded safety, not an
+#  outage; decide then: re-run, accept SPOT, or abort per NO-GO.)
 
-# POST-verify — BOTH of these must show FARGATE (not FARGATE_SPOT):
+# POST-verify — the service strategy AND every listed task must show
+# FARGATE (iterate ALL task ARNs: mid-rollout two tasks exist and
+# taskArns[0] can be the draining SPOT one — a lingering FARGATE_SPOT
+# row before services-stable is the old task leaving, not a bad flip):
 #  a) service strategy:
 aws ecs describe-services --cluster alive108 --services alive108 \
   --query 'services[0].{cap:capacityProviderStrategy,deploy:deployments[].rolloutState,running:runningCount}'
-#  b) the task itself — capacityProviderName on the new task ARN:
+#  b) every listed task's capacityProviderName + status:
 aws ecs describe-tasks --cluster alive108 \
-  --tasks "$(aws ecs list-tasks --cluster alive108 --service-name alive108 \
-             --query 'taskArns[0]' --output text)" \
+  --tasks $(aws ecs list-tasks --cluster alive108 --service-name alive108 \
+            --query 'taskArns[]' --output text) \
   --query 'tasks[].{cap:capacityProviderName,last:lastStatus}'
 
 # THEN warm the replacement task (boots cold — ~2 min to priced engine):
@@ -608,7 +654,15 @@ so warm it before judging. In-memory route_ids do not survive the swap:
 any `/v2/plan → /v2/strip` pair must be re-minted on the new task
 (observed live: strip 404s on a pre-deploy route_id).
 
-### Task-size bump for the demo window (optional, pairs with the above)
+### Task-size bump for the demo window (optional — INSTEAD of the flip, never both)
+
+**Mutually exclusive with the T-60 flip block:** its `update-service`
+already carries the FARGATE strategy, so running it after the flip is
+a SECOND full rollout (~10–16 min total) inside the window. Choose
+one: the plain flip (same 1 vCPU / 3 GB image, pinned on-demand —
+enough for a single demo phone) OR this bump INSTEAD of the flip
+(2 vCPU / 4 GB headroom when several judge devices will hit the
+service at once).
 
 The service runs 1 vCPU / 3 GB (task-def `:181`) — one uvicorn worker. A burst of
 concurrent heavy calls (plans + city + admin on several devices at
@@ -669,7 +723,14 @@ reclaim risk. Revert to SPOT after the event.
 Rule: *"a repository whose history does not match the event dates
 disqualifies the whole team."* Our private history predates Oct 8 —
 squash it to ONE baseline commit on a NEW public repo, then every
-commit after lands inside the window:
+commit after lands inside the window.
+
+Prereqs the script dies without: **create the EMPTY GitHub repo
+first** (no README, no license — anything in it adds a second root
+commit) and **have push auth ready** (SSH key or PAT in the credential
+helper) — it `git ls-remote`s the URL before anything else. It never
+touches your worktree: it writes one commit holding the tip-most tree
+of {base/v2, main} via `git commit-tree` and pushes it as `main`.
 
 ```bash
 ./scripts/public-repo.sh https://github.com/<owner>/<new-repo>.git
@@ -682,11 +743,22 @@ commits the judges will actually read.
 
 ### Demo-morning checklist (T-60 → T-0)
 
+*Companion checklists — don't run them twice, read them once:
+`docs/submission/submission-checklist.md` §3 is the richer morning
+sequence (token probe, both-networks health check, airplane-mode video
+play, the NO-GO list); `docs/plan/go-nogo.md` is the gate table this
+section was distilled from.*
+
 - [ ] FIRST: run `scripts/public-repo.sh` → new public repo (above) —
-  the private history disqualifies the entry if skipped
-- [ ] T-60: switch SPOT→on-demand (above) or accept reclaim risk and
-  note a Spot interruption kills the task with ~2 min warning — the
-  replacement boots cold (~2 min to priced engine even with warm-up)
+  the private history disqualifies the entry if skipped. Prereqs:
+  the EMPTY repo already created (no README/license) + push auth in
+  the credential helper.
+- [ ] T-60: credentials preflight, then switch SPOT→on-demand (above)
+  — `aws sts get-caller-identity` + region `ap-south-1` must answer
+  before the flip or the flip silently never happens. Or accept
+  reclaim risk and note a Spot interruption kills the task with ~2 min
+  warning — the replacement boots cold (~2 min to priced engine even
+  with warm-up)
 - [ ] T-45: `curl $NLB/health` — `build_sha` is the build you mean to
   demo; `field_stale: false`; `engine: "alive_core"`
 - [ ] T-40: `python3 tools/warm_task.py` exits 0 (engine rows flowing;
@@ -696,16 +768,53 @@ commits the judges will actually read.
   tiles, which still renders but isn't ours)
 - [ ] T-30: phone on the venue's network (NLB is HTTP :80 only — hotel
   Wi-Fi "captive portal" pages break it; a phone hotspot is the safest
-  path, verified: the APK hits the NLB direct)
-- [ ] T-25: open admin page (`/reports` + aggregates) once — confirm
-  light theme + CPCB colors render and the 30 s refresh ticks
-- [ ] T-15: run ONE full demo pass offline → consent → vehicle → plan →
-  ride → donate → watch the aggregate land in the next /reports tick
+  path, verified: the APK hits the NLB direct). Battery >80% + power
+  bank + cable on the table; hotspot already armed as the fallback
+  uplink.
+- [ ] T-30: admin token physically at hand (phone note or paper, not a
+  laptop you'll have to unlock on stage) — Secrets Manager
+  `alive108/admin-token`, the `ALIVE_ADMIN_TOKEN` env the task def
+  injects (`aws secretsmanager get-secret-value --secret-id
+  alive108/admin-token --query SecretString --output text`). Needed
+  for the `/admin` "operator sign in" chip if a judge asks for the
+  internals; the public board renders without it.
+- [ ] T-25: open `$NLB/admin` in the demo browser — the public board
+  renders tokenless; confirm light theme + CPCB band colors render and
+  the live feed ticks (~30 s refresh; the "operator sign in" chip +
+  token unlock the internals). The totals a donation increments, by
+  curl: `curl -s $NLB/community` → `obs_total` / `obs_today` /
+  `contributors` / `latest_obs_age_min`. (`/reports` is the k≥3
+  corridor GeoJSON — honestly empty until 3 devices cross a street;
+  never the surface a donation lands on.)
+- [ ] T-15: run ONE full pass on the pre-seeded flow → consent →
+  vehicle → plan → ride → receipt → **donate**. Donated offline, it
+  honestly queues on the device — receipt reads "saved — will send
+  when back online", the status pill counts the outbox ("N saved to
+  send") — and auto-flushes on the first successful request after
+  reconnect. Then verify it LANDED: `curl -s $NLB/community` →
+  `obs_total`/`obs_today` +1 and `latest_obs_age_min` ~0, or the
+  signed-in admin live feed shows it within ~30 s. One device can
+  NEVER make a corridor — `/reports` is k≥3-gated; don't look there.
 - [ ] T-10: kill background apps on the phone; disable auto-lock
 - [ ] T-5: `curl $NLB/health` once more — if the task restarted, re-run
   warm_task.py before stepping on stage
-- [ ] Backups queued: recorded ride video, iOS-sim capture, localhost
-  backend path (see below) — pick whichever survives the hall's network
+- [ ] Before leaving: boot the localhost backup ONCE so it's proven —
+  `docker compose up --build` from the repo root → `curl
+  http://localhost:8080/health` returns 200 (compose builds
+  `server/Dockerfile`; a fresh box needs Docker + a ~5–10 min image
+  build; the `.venv312` uvicorn line in §iOS is the no-Docker path).
+  Fallback only — the prod NLB is the primary.
+- [ ] Backups on the playing device: `docs/video/cut1.mp4` +
+  `docs/video/cut2.mp4` copied onto the demo phone and played once in
+  airplane mode — the "if live breaks" fallback. iOS-sim capture +
+  the localhost path (above) as the deeper fallback — pick whichever
+  survives the hall's network.
+
+Budget check (audit-verified): scripted blocks cost ~31–35 min inside
+the 60 → ~25 min slack. The new preflight/token/battery lines add
+<2 min total; the localhost boot happens before leaving, not inside
+the window. The task-size bump is OUTSIDE this budget — INSTEAD of
+the flip, never on top of it.
 
 ### Numbers morning-of (the integrity pass — T-45)
 
@@ -713,11 +822,13 @@ commits the judges will actually read.
 service and prints it next to what our docs/script/shotlist quote. One
 command; read the FLAGS block; canonical ledger: `docs/plan/NUMBERS.md`.
 Caveats found today (2026-10-05): the script needs **python ≥3.12**
-(stock macOS `python3` 3.9 dies on an f-string — run it with
-`server/.venv312/bin/python3` or Homebrew 3.12 on PATH); and it crashes
-`mid(None)` if a probed mode is absent — tonight metro+walk rows were
-honestly gone (transit service hours over) so the dose table truncated
-after `auto`. Read the partial table + check missing modes separately.
+(stock macOS `python3` 3.9 dies on an f-string — it self-resolves a
+`.venv312`→3.14→3.13→3.12→python3 fallback chain since `1ce7678`/`4a9f4f7`,
+so just run it). The old `mid(None)` crash on an absent mode is FIXED
+(`mid()` guards non-dicts, `1ce7678`) — a missing mode now renders as a
+missing row, not a truncated table; metro+walk rows are honestly gone
+outside transit service hours — read the partial table + check missing
+modes separately.
 
 - [ ] `bash scripts/verify_numbers.sh` — read the FLAGS block end to
   end. Any flag = a stale doc line or a field read that moved; fix the

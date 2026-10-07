@@ -61,13 +61,13 @@ export type DepartGraphProps = {
 
 const TICK_W = 48;
 
-/** naive-UTC ISO → IST wall-clock "HH:00" (mirrors CompareSheet.hourLabel) */
+/** naive-UTC ISO → device-local "HH:MM" (same frame as CompareSheet.hourLabel
+    and the arrival/ETA clocks — IST users see IST, non-IST stays consistent) */
 const clockOf = (iso: string | null | undefined): string | null => {
   if (!iso) return null;
   const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
   if (isNaN(d.getTime())) return null;
-  const ist = new Date(d.getTime() + 5.5 * 3600 * 1000);
-  return `${String(ist.getUTCHours()).padStart(2, "0")}:${String(ist.getUTCMinutes()).padStart(2, "0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
 export function DepartGraph({
