@@ -424,7 +424,12 @@ export function useNavEngine(opts: NavEngineOpts) {
           bearing: heading,
           zoom: speedRef.current > 10 ? 16 : 16.8,
           pitch: 55,
-          duration: camDur(teleport ? 1600 : 900),
+          /* 650 ms commit cadence: a 900 ms ease outlives it, so every
+             fix cancels the in-flight move mid-flight — the follow reads
+             jumpy. 600 ms lands just inside the gate (the eased move
+             settles before the next commit chains onto it); teleports
+             keep the long stretch — they need it. */
+          duration: camDur(teleport ? 1600 : 600),
           easing: "linear",
         });
       }
