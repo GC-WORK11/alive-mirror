@@ -1,8 +1,8 @@
 # ALive-108
 
-**A Delhi navigation app that prices every trip in two numbers most maps don't show: the smoke you will breathe, and the smoke your ride puts into the air** — before you leave, live while you travel, and as a receipt when you arrive. Anonymous trip aggregates feed a live picture of what Delhi breathes and emits on its roads.
+**A personal PM2.5 dosimeter for Delhi** — a navigation app that prices every trip in two numbers most maps don't show: the smoke you will breathe, and the smoke your ride puts into the air — before you leave, live while you travel, and as a receipt when you arrive. The phone measures nothing: it reconstructs what you breathed from a live modelled field, and only consented, anonymized **k≥3 aggregates** ever leave the device ([`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)).
 
-Built for the AWS × WeMakeDevs Environmental Hacks hackathon, Air track. Delhi-only by design.
+Built for the AWS × WeMakeDevs Environmental Hacks hackathon, Air track. Delhi-only by design. MIT-licensed — see [`LICENSE`](LICENSE).
 
 Live API (ECS Fargate + NLB, `ap-south-1`): `http://65.2.28.40` — `GET /health` is public; current builds report field age and per-source status.
 
@@ -76,7 +76,7 @@ Everything below traces to a file in this repo. Where a row says "bench", the pr
 | Emission integrator | ~3.3× p50 (11.2 µs vs 37.3 µs) | `docs/plan/bench-results.md` |
 | Search corpus | 124,311 bundled gazetteer rows; 97,447 OSM-NCR corpus entries (incl. 16,949 real address rows — housenumbers + street interpolations) | `server/data/corpus/STATS.md` |
 | Search acceptance | 67/67 fixed queries in top-3 (name, typo, compound, sector, alias) | `server/data/corpus/STATS.md`, `tests/search_queries.txt`, `server/tests/test_query_tolerance.py` |
-| Search latency | C++ index p50 0.86 ms / p95 2.51 ms on 120k rows; live HTTP p50 ~3–7 ms | `docs/plan/bench-results.md`, live bench |
+| Search latency | C++ index p50 0.189 ms / p95 0.723 ms on the benched 26,545-row corpus (`bench_search.py`); re-measured p50 0.320 ms / p95 1.228 ms on today's 120,351-entry index (same harness, this checkout) | `docs/plan/bench-results.md` |
 | Field leave-one-out vs live instruments | MAE 8.8 µg/m³, bias +0.2, n=70 WAQI+DPCC instruments (krige refit per held-out station) | `server/data/field_calibration.json` |
 | Field vs station archive (3,550 pairs, 85 stations) | MAE 22.0 µg/m³, bias +15.5 µg (+51.6%) — **over-reads in clean post-monsoon air** | `server/data/field_validation.md` |
 | Served field size | 14,628 grid cells in the benched snapshot | `docs/plan/bench-results.md` |
@@ -162,7 +162,7 @@ Phases per `docs/plan/09-build-sequence.md` — honest checkboxes.
 
 ## Docs
 
-The plan folder is the source of truth; `docs/plan/10-claims-ledger.md` governs every number this repo shows.
+The plan folder is the source of truth; `docs/plan/10-claims-ledger.md` governs every number this repo shows. Full map of the ~240 files: [`docs/README.md`](docs/README.md).
 
 | Doc | Contents |
 |---|---|
