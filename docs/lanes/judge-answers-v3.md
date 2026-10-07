@@ -157,58 +157,72 @@ and the 'truth' side is your own recorded field. The model grades
 itself."
 
 **THE HONEST ANSWER:** "It does decay — every forecast does — and we
-publish the ladder instead of hiding it; a ~22% band-hit at eleven hours
-out is the honest tail of a PM2.5 forecast, not a bug. Two honest
-counters: the hit metric is strict CPCB-category equality — by h+11 the
-MAE (~49 µg) is about the same size as the error between two real
-stations a few km apart (LOO 46.1) — and yes, on non-station cells the
-'recorded' side shares our blend, which is why we call it a self-grade
-and publish the method instead of calling it accuracy."
+publish the ladder instead of hiding it; a low-twenties band-hit at
+eleven hours out is the honest tail of a PM2.5 forecast, not a bug, and
+the hit metric is strict CPCB-category equality, not 'were you close'.
+On non-station cells the 'recorded' side does share our model+krige
+blend — which is exactly why we call it a self-grade and publish the
+method rather than calling it accuracy."
 
 **THE PROOF:** `GET /v2/skill` live tonight — `pairs:227`, h+0 MAE 4.2 /
 band_hit 88.3% → h+11 MAE 49.3 / band_hit 23.8% (the ~21.7% read was the
 audit night's — the number drifts, the shape doesn't);
 `server/skill.py` — earliest-capture rule, `MIN_PAIRS=5` thin floor,
 hourly realizations only ("a handful of hours is one weather regime, not
-a score"); `server/calibrate.py` + `server/data/field_calibration.json`
-(LOO `mae_ug:46.1`, `n_stations:94`, note: "error between stations — at
-a station the field reads the instrument itself").
+a score"). For the instrument-truth comparison judges want: the rebuilt
+LOO calibration at HEAD (`server/data/field_calibration.json`, commit
+`6ad7de6`) — real krige refit per held-out WAQI+DPCC instrument,
+`mae_ug:8.8`, `n_stations:70`, bias +0.2 — so at-horizon error past
+~h+3 is honestly larger than between-station error; we don't claim
+otherwise.
 
 **THE WEAKNESS LEFT:** There is no live grade against held-out
-*instrument* truth — `field_calibration.json` is a static artifact, and
-the self-grade's ground truth is our own pipeline output. The h+11
-tail is real; say the number plainly and point at the published ladder.
+*instrument* truth — the self-grade's ground truth is our own pipeline
+output, and the older "h+4 ≈ station disagreement" counter died with the
+rebuilt LOO (8.8, not 46.1 — forecast decay past ~h+3 is genuinely
+worse than interpolation error). The honest lines are the published
+ladder and the live self-grade itself — don't reach for a comparison
+the numbers no longer support.
 
 ## 6. "46.1 MAE on the wire vs your 95.2% headline — which is it?"
 
 **THE ATTACK:** "Your /aqi serves `mae_ug:46.1` while the pitch says
 95.2% inside ±2σ. Those can't both be good."
 
-**THE HONEST ANSWER:** "They measure different things, and we publish
-both on purpose: 46.1 is leave-one-out — how wrong the field is at a
-spot where we delete the nearest instrument and interpolate, the honest
-'between stations' error. 95.2% isn't accuracy — it's coverage: whether
-the band we state actually contains reality at the rate we claim, and it
-does, measured on 3,550 held-out station-hours. The band exists exactly
-because the point error is large — a service with 46.1 between stations
-that *didn't* show you a band would be lying."
+**THE HONEST ANSWER:** "They measure different things, and the 46.1
+itself is a stale artifact we already caught: leave-one-out is the
+'between stations' error — delete an instrument, interpolate at its
+spot — while 95.2% is coverage, whether the band we state actually
+contains reality at the rate we claim, measured on 3,550 held-out
+station-hours. We found the published LOO was OpenAQ-era and quietly
+broken, rebuilt it as a real krige refit over the live WAQI+DPCC
+instruments, and the honest between-stations number is now 8.8 µg —
+that lands on the wire with the next deploy. The band exists because
+point error exists; a service that hid either number would be lying,
+we publish both."
 
-**THE PROOF:** `GET /aqi` → `calibration` block serves
-`server/data/field_calibration.json` verbatim (`mae_ug:46.1`,
-`n_stations:94`, `mean_bias_ug:+0.3`, `median_abs_pct:56.0`, note
-verbatim "error between stations"); `server/calibrate.py` — the LOO
-method in 40 lines (hold out each instrument, re-interpolate, compare);
-`server/data/field_validation.md` — the *same window* publishes MAE 22.0
-(point error vs archive truth) AND ±2σ coverage 95.2% vs nominal 95.4% —
-coverage and error sitting in one table, not cherry-picked apart.
+**THE PROOF:** `GET /aqi` → `calibration` still serves the old artifact
+on the deployed build `bc8f82c4` (`mae_ug:46.1`, `n_stations:94`,
+`method:"leave-one-out over live OpenAQ instrument readings"` — deploy
+lag, verified tonight); `server/data/field_calibration.json` at HEAD
+now reads `mae_ug:8.8`, `n_stations:70`, `median_abs_pct:8.8`, bias
++0.2, `method:"leave-one-out over live WAQI+DPCC instrument readings
+(krige refit per held-out station)"`; commit `6ad7de6` — the fix commit
+says plainly why the old number was stale twice over (OpenAQ is the
+dead last-resort leg; the old selector matched 0 stations under the
+co-pollutant blend); `server/data/field_validation.md` — the *same
+window* publishes MAE 22.0 (point error vs archive truth) AND ±2σ
+coverage 95.2% vs nominal 95.4% — coverage and error in one table, not
+cherry-picked apart.
 
-**THE WEAKNESS LEFT:** The numbers genuinely float on different surfaces
-(46.1 LOO / 22.0 archive window / 6.2 post-DPCC at-instrument holdout —
-three measures, three answers), and the LOO label still says "OpenAQ"
-though the artifact predates the DPCC feed. If a judge asks "what's your
-error, full stop" the honest one-liner is: "single-digit µg at an
-instrument, ~22 on a clean-air holdout window, ~46 between stations —
-which number do you want?"
+**THE WEAKNESS LEFT:** Deploy lag is the residual — a judge hitting
+`/aqi` tonight still sees 46.1 while the repo says 8.8, and either
+number is only "true" for its measure (8.8 LOO between stations / 22.0
+archive window / 6.2 post-DPCC at-instrument holdout). The one-liner if
+asked "what's your error, full stop": "about 9 µg between stations by
+the rebuilt LOO, ~6 at an instrument, ~22 on the clean-air holdout
+window — which measure do you want?" — then show the file, not the
+headline.
 
 ## 7. "Skip consents unseen — a page-0 skipper donates without ever seeing the choice."
 
@@ -355,6 +369,10 @@ each, for stage lookup.
   at the audit, **23.8%** tonight — say "low twenties by h+11".
 - `stations.count`: **53** tonight (54 earlier; drifts with DPCC page
   availability; 24 if the site stalls past 90 min).
+- `/aqi.calibration`: prod still serves the **stale 46.1/n=94 "OpenAQ"**
+  artifact; HEAD has the rebuilt LOO (**8.8/n=70**, commit `6ad7de6`).
+  Check `/health.build_sha` vs HEAD before quoting either number to a
+  judge — a redeploy flips which answer is true.
 - Fires modifier, corridors active, plan multiples, `/depart` — all
   drift; `verify_numbers.sh` at T-45 is the canonical re-derive.
 - Deploy lag check: prod `bc8f82c4` tonight vs audit's `ce01ec5c` —
