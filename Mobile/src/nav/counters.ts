@@ -98,7 +98,14 @@ export class LiveCounters {
        effective speed; capped at 45 m/s (~160 km/h) so a snapped-fix
        jump can't flash an absurd rate into the bands. */
     const vDerived = ddM / dtS;
-    const v = Math.min(45, Math.max(0, speedMps || 0, vDerived));
+    /* speedMps (GNSS-reported) is primary; derived covers the GNSS
+       speed-dropout case. max()-ing them lets a single location jump
+       pin v at the 45 clamp — a GNSS spike would count 4.5× the real
+       rate into dose/CO2 (c84b5c2's "exhaust needs no GNSS speed" was
+       a fallback, not a max). */
+    const v = Math.min(45, speedMps && speedMps > 0
+      ? speedMps
+      : Math.max(0, vDerived));
     this.travelledM += Math.max(0, ddM);
     const km = this.travelledM / 1000;
     if (!curve) return;

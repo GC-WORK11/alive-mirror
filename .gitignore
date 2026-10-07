@@ -29,6 +29,7 @@ Mobile/build_debug/
 # python
 .venv/
 .venv312/
+.venv-dev/
 __pycache__/
 *.pyc
 uv.lock

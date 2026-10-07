@@ -16,7 +16,7 @@ against the rate bucket; either is safe):
 
     SecurityHeadersMiddleware   (outermost — headers land on EVERY
                                  response, including our own 429/413s)
-    RateLimitMiddleware         (token/IP token-bucket, honest 429s)
+    RateLimitMiddleware         (per-IP token-bucket, honest 429s)
     BodySizeLimitMiddleware     (413 before a big body is read)
 
     ALIVE_RATE_RPS        sustained requests/s per client   (default 10)
@@ -24,6 +24,8 @@ against the rate bucket; either is safe):
     ALIVE_MAX_BODY_BYTES  POST/PUT/PATCH body cap           (default 2 MiB)
     ALIVE_SEC_HSTS        "0" disables the HSTS header      (default on,
                                                             https only)
+    ALIVE_TRUSTED_PROXIES comma list of IPs/CIDRs allowed to assert
+                          X-Forwarded-For                     (default none)
 
 SLOW-LORIS / HEADER-TIMEOUT NOTE — an ASGI middleware only sees a
 request AFTER the HTTP layer has parsed its headers, so a header-read
@@ -37,6 +39,7 @@ bounded_str, parse_point) are exported for endpoint modules — they
 are pure functions with no middleware wiring.
 """
 import hashlib
+import ipaddress
 import math
 import os
 import time
@@ -63,40 +66,72 @@ async def _json_reply(send, status: int, payload: dict,
 
 
 # ---------------------------------------------------------------------------
-# 1. Rate limiting — in-memory token bucket per client token / IP
+# 1. Rate limiting — in-memory token bucket per client IP
 # ---------------------------------------------------------------------------
 
 
 def _client_key(scope) -> str:
-    """Anonymous device token when the client sends one, else the
-    source IP. Key material is sha256-truncated before it keys the
-    bucket map — the same treatment /v2/trip gives tokens before the
-    store, so the limiter can't become a place raw tokens sit around."""
+    """Socket-peer IP keys every bucket. An earlier version keyed on
+    x-device-token when present, but that header is a self-minted
+    anonymous id — rotating it mints a fresh bucket per request and
+    the limiter stops existing (same bypass as rotating XFF). The TCP
+    peer is the only client distinguisher an attacker can't forge at
+    request granularity. Key material is sha256-truncated before it
+    keys the bucket map."""
     headers = Headers(scope=scope)
-    token = headers.get("x-device-token") or headers.get("authorization")
-    if token:
-        raw = f"tok:{token.strip()[:128]}"
-    else:
-        raw = f"ip:{_client_ip(headers, scope)}"
+    raw = f"ip:{_client_ip(headers, scope)}"
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _client_ip(headers: Headers, scope) -> str:
-    """Source IP for rate bucketing.
+def _trusted_proxy_nets() -> list:
+    """ALIVE_TRUSTED_PROXIES — comma-separated IPs/CIDRs whose asserted
+    X-Forwarded-For is believed. Empty by default and on parse errors:
+    a malformed entry must never silently widen trust."""
+    raw = os.environ.get("ALIVE_TRUSTED_PROXIES", "").strip()
+    if not raw:
+        return []
+    nets = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            nets.append(ipaddress.ip_network(part, strict=False))
+        except ValueError:
+            continue
+    return nets
 
-    Behind an appending balancer (the NLB) each proxy appends the peer
-    it actually saw, so the RIGHTMOST X-Forwarded-For hop is the one
-    the balancer wrote — everything left of it is client-supplied and
-    can rotate per request, which would defeat per-IP budgets. Fall
-    back to the socket peer when XFF is absent or carries no usable
-    hop."""
+
+def _client_ip(headers: Headers, scope) -> str:
+    """Source IP for rate bucketing — the TCP socket peer.
+
+    The deployed edge is an L4 network load balancer (scripts/deploy.sh
+    creates --type network, a TCP listener) — it preserves the client
+    IP but CANNOT append X-Forwarded-For, so every XFF hop a request
+    carries is client-supplied spoofing material. Verified against
+    prod: a 200-request burst with a unique XFF each got 200×200 while
+    the same burst without it got 81×429 — the claimed IP minted a
+    fresh bucket per request.
+
+    If a real L7 front (CDN/ALB) is ever placed in front, set
+    ALIVE_TRUSTED_PROXIES to its egress IPs/CIDRs; only then is XFF
+    honored, and only its rightmost hop — the hop that front wrote —
+    since everything left of it is client-supplied.
+    """
+    peer = (scope.get("client") or ("?",))[0]
     fwd = headers.get("x-forwarded-for")
     if fwd:
-        for hop in reversed(fwd.split(",")):
-            ip = hop.strip()
-            if ip:
-                return ip
-    return (scope.get("client") or ("?",))[0]
+        try:
+            addr = ipaddress.ip_address(peer)
+        except ValueError:
+            addr = None
+        if addr is not None and any(addr in n
+                                    for n in _trusted_proxy_nets()):
+            for hop in reversed(fwd.split(",")):
+                ip = hop.strip()
+                if ip:
+                    return ip
+    return peer
 
 
 class _Bucket:
@@ -108,7 +143,7 @@ class _Bucket:
 
 
 class RateLimitMiddleware:
-    """Token bucket per client (device-token or IP).
+    """Token bucket per client IP (the TCP socket peer).
 
     rate_per_s : sustained refill rate, requests/second.
     burst      : bucket capacity — how big a burst is allowed.

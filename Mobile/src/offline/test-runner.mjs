@@ -44,25 +44,36 @@ registerHooks({
         format: "module",
         shortCircuit: true,
         /* in-memory stand-in for expo-file-system's File/Paths API —
-           same surface queue.ts calls (exists, create, text, write,
-           delete). Disk durability isn't the unit under test; the
-           wipe-generation guard is. */
+           same surface queue.ts calls via safefile (exists, create,
+           text, write, delete, copySync, moveSync with the overwrite
+           semantics safefile's atomic rename needs — the store
+           runner's stub, mirrored). Disk durability isn't the unit
+           under test; the wipe-generation guard is. */
         source:
           "const store = globalThis.__offtest_fs ??= new Map();" +
           "export const Paths = { document: '/offtest-docs' };" +
-          "export class Directory {" +   /* api/cache.ts constructs one at load */
-          "  constructor(dir, name) { this.uri = dir + '/' + name; }" +
-          "  get exists() { return store.has(this.uri); }" +
-          "  create() { store.set(this.uri, 'dir'); }" +
-          "  list() { return []; }" +
-          "}" +
           "export class File {" +
-          "  constructor(dir, name) { this.uri = dir + '/' + name; }" +
+          "  constructor(dir, name) { this.uri = name === undefined ? String(dir) : dir + '/' + name; }" +
           "  get exists() { return store.has(this.uri); }" +
           "  create() { if (!store.has(this.uri)) store.set(this.uri, ''); }" +
           "  text() { return Promise.resolve(store.get(this.uri) ?? ''); }" +
           "  write(s) { store.set(this.uri, String(s)); }" +
           "  delete() { store.delete(this.uri); }" +
+          "  copySync(dest, opts) {" +
+          "    if (store.has(dest.uri) && !(opts && opts.overwrite)) throw new Error('dest exists');" +
+          "    store.set(dest.uri, store.get(this.uri) ?? '');" +
+          "  }" +
+          "  moveSync(dest, opts) {" +
+          "    if (store.has(dest.uri) && !(opts && opts.overwrite)) throw new Error('dest exists');" +
+          "    store.set(dest.uri, store.get(this.uri) ?? '');" +
+          "    store.delete(this.uri);" +
+          "  }" +
+          "}" +
+          "export class Directory {" +   /* api/cache.ts constructs one at load */
+          "  constructor(dir, name) { this.uri = name === undefined ? String(dir) : dir + '/' + name; }" +
+          "  get exists() { return store.has(this.uri); }" +
+          "  create() { store.set(this.uri, 'dir'); }" +
+          "  list() { return []; }" +
           "}",
       };
     }

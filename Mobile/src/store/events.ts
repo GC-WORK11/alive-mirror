@@ -53,6 +53,11 @@ import {
   type SeenMark, type V2Why,
 } from "./events-core";
 
+/* release builds must not write feed diagnostics to the device log —
+   dev-only, same convention as startup/marks.ts */
+const _IS_DEV =
+  typeof __DEV__ !== "undefined" ? __DEV__ : process.env.NODE_ENV !== "production";
+
 /* ---- persisted state ---------------------------------------------------- */
 type FeedHealth = {
   /** when the record was written */
@@ -402,7 +407,7 @@ export async function checkAirEvents(opts: {
     const prevHealth = st.feedHealth;
     if ((prevHealth?.stalled ?? false) !== (stalls.length > 0) ||
         (prevHealth?.which ?? null) !== which) {
-      if (prevHealth) {
+      if (prevHealth && _IS_DEV) {
         console.debug(
           `[events] feed ${which ? `stall: ${which}` : "recovered"}` +
           (f0?.feed_age_s != null

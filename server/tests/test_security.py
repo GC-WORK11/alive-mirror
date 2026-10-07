@@ -58,21 +58,20 @@ def test_429_after_burst_and_retry_after_header():
     assert body["retry_after_s"] >= 1
 
 
-def test_rate_limit_is_per_client_token():
+def test_rate_limit_ignores_self_minted_tokens():
+    """x-device-token is a client-chosen anonymous id — rotating it must
+    NOT mint fresh buckets or the limiter is a header-length away from
+    being bypassed. Buckets key on the socket peer only."""
     c = make_app(rate_per_s=0.5, burst=2.0, path_overrides={})
-    h1 = {"x-device-token": "anon-token-A"}
-    h2 = {"x-device-token": "anon-token-B"}
-    assert c.get("/ping", headers=h1).status_code == 200
-    assert c.get("/ping", headers=h1).status_code == 200
-    assert c.get("/ping", headers=h1).status_code == 429  # A exhausted
-    # a different anonymous token gets its own bucket
-    assert c.get("/ping", headers=h2).status_code == 200
+    for i, tok in enumerate(("tok-A", "tok-B", "tok-C")):
+        r = c.get("/ping", headers={"x-device-token": tok})
+        assert r.status_code == (200 if i < 2 else 429)
 
 
-def test_rate_limit_keys_on_rightmost_xff_hop():
-    """Behind an appending balancer (the NLB) the rightmost
-    X-Forwarded-For entry is the hop the balancer wrote — the leftmost
-    is client-supplied, so rotating it must NOT mint a fresh bucket."""
+def test_xff_spoof_cannot_mint_buckets():
+    """The edge is an L4 NLB — it cannot append X-Forwarded-For, so a
+    rotating claimed IP is pure spoofing material: buckets must key on
+    the socket peer and every hop of the XFF header is ignored."""
     c = make_app(rate_per_s=0.5, burst=2.0, path_overrides={})
     for i, spoof in enumerate(("10.0.0.1", "10.0.0.2", "10.0.0.3")):
         r = c.get("/ping",
@@ -80,18 +79,25 @@ def test_rate_limit_keys_on_rightmost_xff_hop():
         assert r.status_code == (200 if i < 2 else 429)
 
 
-def test_rate_limit_separate_buckets_per_rightmost_ip():
-    c = make_app(rate_per_s=0.5, burst=1.0, path_overrides={})
-
-    def xff(ip):
-        return {"x-forwarded-for": f"9.9.9.9, {ip}"}
-
-    assert c.get("/ping", headers=xff("198.51.100.1")).status_code == 200
-    # same spoofed leftmost, different honest rightmost → own bucket
-    assert c.get("/ping", headers=xff("198.51.100.2")).status_code == 200
-    # first rightmost key is exhausted even under a fresh leftmost hop
-    assert c.get("/ping", headers=xff("8.8.8.8, 198.51.100.1")
-                 ).status_code == 429
+def test_xff_trusted_proxy_opt_in(monkeypatch):
+    """ALIVE_TRUSTED_PROXIES re-enables XFF when a real L7 front exists —
+    honored only when the socket peer is inside the trusted CIDRs, and
+    then only its rightmost hop (the one the front appended)."""
+    from starlette.datastructures import Headers
+    monkeypatch.setenv("ALIVE_TRUSTED_PROXIES", "10.0.0.0/8")
+    hdr = [(b"x-forwarded-for", b"1.1.1.1, 2.2.2.2")]
+    # socket peer inside the trusted range → rightmost XFF hop wins
+    scope = {"headers": hdr, "client": ("10.1.2.3", 5000)}
+    assert middleware._client_ip(Headers(scope=scope), scope) == "2.2.2.2"
+    # socket peer outside the trusted range → XFF ignored entirely
+    scope = {"headers": hdr, "client": ("192.0.2.1", 5000)}
+    assert middleware._client_ip(Headers(scope=scope), scope) == \
+        "192.0.2.1"
+    # malformed trusted-proxy entry → trust widens to nobody
+    monkeypatch.setenv("ALIVE_TRUSTED_PROXIES", "not-a-cidr, ")
+    scope = {"headers": hdr, "client": ("10.1.2.3", 5000)}
+    assert middleware._client_ip(Headers(scope=scope), scope) == \
+        "10.1.2.3"
 
 
 def test_rate_limit_falls_back_to_socket_peer():

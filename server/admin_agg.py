@@ -504,7 +504,7 @@ async def corridors(limit: int = 25):
     """k>=3 corridor aggregates straight from TripAggregates.
 
     The k>=3 + 72h-window rule is enforced INSIDE the store
-    (_publishable_cells, under lock). The assert below is a tripwire,
+    (_publishable_cells, under lock). The check below is a tripwire,
     not the mechanism: if a k<3 row ever reaches this layer it is a
     store bug, and the correct behaviour is to fail loud — never to
     render a row that shouldn't exist.

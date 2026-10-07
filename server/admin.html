@@ -2096,7 +2096,7 @@ function paintShared(dn,S,rows,G){
   const rv=G&&G.reviews;
   const rvSub=rv&&rv.count?[
     [5,4,3,2,1].map(s=>`${s}★ ${fmt(rv.hist&&rv.hist[s]||0)}`).join(' · '),
-    rv.notes&&rv.notes.length?`latest: “${rv.notes[0].note}”`:null,
+    rv.notes&&rv.notes.length?`latest: “${esc(rv.notes[0].note)}”`:null,
     rv.notes_withheld?'notes stay hidden until 3+ reviews exist':null,
   ].filter(Boolean).join('<br>')
     :'stars + an optional note from the app; note text publishes only once 3+ reviews exist';

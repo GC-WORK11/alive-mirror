@@ -6,6 +6,7 @@ routes come from OSRM on the real OSM road graph. No hardcoded places.
 import asyncio
 import concurrent.futures
 import functools
+import hmac
 import math
 import os
 import subprocess
@@ -1571,7 +1572,7 @@ def _admin_guard(request: Request):
     token = os.environ.get("ALIVE_ADMIN_TOKEN")
     if token:
         auth = request.headers.get("authorization", "")
-        if auth != f"Bearer {token}":
+        if not hmac.compare_digest(auth, f"Bearer {token}"):
             raise HTTPException(401, "admin token required")
         return
     host = request.client.host if request.client else ""

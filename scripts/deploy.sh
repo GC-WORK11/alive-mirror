@@ -84,6 +84,12 @@ build_codebuild() {
   local zip=/tmp/alive108-src.zip
   run git archive --format=zip -o "$zip" "HEAD:server"
   try aws s3 mb "s3://$BUILD_BUCKET" >/dev/null 2>&1 || true
+  # the build bucket holds src.zip + community/state.json — private like
+  # alive108-air; `s3 mb` defaults private but nothing pins it until this
+  # runs once (pentest-lane: parity with infra/provision.sh's air bucket)
+  run aws s3api put-public-access-block --bucket "$BUILD_BUCKET" \
+    --public-access-block-configuration \
+    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
   run aws s3 cp "$zip" "s3://$BUILD_BUCKET/src.zip"
 
   local trust='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"codebuild.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
