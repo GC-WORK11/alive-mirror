@@ -24,7 +24,9 @@ import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { latinLabels, v2StyleUrl } from "./src/map/style";
 import { camDur } from "./src/map/cam";
-import { holdMapDraw, useHeldState, useMapDrawHeld } from "./src/map/drawHold";
+import {
+  holdMapDraw, noteMapBusy, noteMapIdle, useHeldState, useMapDrawHeld,
+} from "./src/map/drawHold";
 import { ReportsLayer, reconcileReportSlots, REPORT_POOL, type ReportSlot } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
 import { RouteTintSource } from "./src/components/RouteTint";
@@ -101,6 +103,13 @@ const MAX_BOUNDS: [number, number, number, number] = [74.75, 26.15, 79.95, 30.98
 type MapPressEvent = Parameters<NonNullable<React.ComponentProps<typeof Map>["onPress"]>>[0];
 type TrackChangeEvent = Parameters<NonNullable<React.ComponentProps<typeof Camera>["onTrackUserLocationChange"]>>[0];
 
+/* hoisted map render-activity hooks (stable identity for the memo) —
+   drawHold's cold-boot watch reads the render thread's busy/idle
+   through these: a mount commit inside the first tile stream is the
+   residual SIGSEGV (drawHold.ts boot-watch comment). */
+const onMapBusy = () => noteMapBusy();
+const onMapIdle = () => { noteMapIdle(); if (PERF_ON) mark("map.rendered"); };
+
 /* The whole native map subtree behind one memo boundary: every app-level
    poll (reports 60 s, aqi 60 s, health 15 s, ambient samples) used to
    re-diff the Map + Camera + layers + markers per render. All props are
@@ -152,8 +161,13 @@ const MapTree = React.memo(function MapTree({
          (hosted OpenFreeMap = network; bundled pmtiles = local) */
       {...(PERF_ON ? {
         onDidFinishLoadingStyle: () => mark("map.style"),
-        onDidFinishRenderingMapFully: () => mark("map.rendered"),
       } : {})}
+      /* boot-watch feeds: willStartRenderingMap marks the pump busy
+         (tiles streaming / render pass in flight), didFinishRendering-
+         MapFully + didFinishLoadingMap mark it idle */
+      onWillStartRenderingMap={onMapBusy}
+      onDidFinishRenderingMapFully={onMapIdle}
+      onDidFinishLoadingMap={onMapIdle}
       /* the compass clears the chrome: search bar at rest, the taller
          maneuver banner in nav (was clipped behind it at top-right) */
       compassPosition={compassPosition}

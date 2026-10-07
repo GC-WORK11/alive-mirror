@@ -1,63 +1,71 @@
 {
-  "expo": {
-    "name": "ALive·108",
-    "slug": "app",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.app",
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#FAFAF7",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.app",
-      "permissions": [
-        "SCHEDULE_EXACT_ALARM"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "@maplibre/maplibre-react-native",
-      "expo-font",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 220,
-          "resizeMode": "contain",
-          "backgroundColor": "#FAFAF7"
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "enableBackgroundRemoteNotifications": false,
-          "icon": "./assets/android-icon-monochrome.png",
-          "color": "#4D7C0F"
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "ALive-108 uses your position to show live air along your route and to donate anonymized traversal data to Delhi's community air map."
-        }
-      ],
-      "./plugins/withCleartext"
-    ]
-  }
+    "expo": {
+        "name": "ALive\u00b7108",
+        "slug": "app",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "light",
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.anonymous.app",
+            "infoPlist": {
+                "NSAppTransportSecurity": {
+                    "NSAllowsArbitraryLoads": true
+                }
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "backgroundColor": "#FAFAF7",
+                "foregroundImage": "./assets/android-icon-foreground.png",
+                "backgroundImage": "./assets/android-icon-background.png",
+                "monochromeImage": "./assets/android-icon-monochrome.png"
+            },
+            "predictiveBackGestureEnabled": false,
+            "package": "com.anonymous.app",
+            "permissions": [
+                "SCHEDULE_EXACT_ALARM"
+            ]
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "plugins": [
+            "@maplibre/maplibre-react-native",
+            "expo-font",
+            [
+                "expo-splash-screen",
+                {
+                    "image": "./assets/splash-icon.png",
+                    "imageWidth": 220,
+                    "resizeMode": "contain",
+                    "backgroundColor": "#FAFAF7"
+                }
+            ],
+            [
+                "expo-notifications",
+                {
+                    "enableBackgroundRemoteNotifications": false,
+                    "icon": "./assets/android-icon-monochrome.png",
+                    "color": "#4D7C0F"
+                }
+            ],
+            [
+                "expo-location",
+                {
+                    "locationWhenInUsePermission": "ALive-108 uses your position to show live air along your route and to donate anonymized traversal data to Delhi's community air map."
+                }
+            ],
+            "./plugins/withCleartext",
+            [
+                "expo-build-properties",
+                {
+                    "ios": {
+                        "buildReactNativeFromSource": true
+                    }
+                }
+            ]
+        ]
+    }
 }

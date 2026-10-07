@@ -43,3 +43,25 @@ test("camera commits wait for draw-idle", () => {
   assert.match(flow, /whenMapDrawFree\(\(\) => \{\s*if \(!cancelled\) camRef\.current\?\.fitBounds/,
     "the plan fitBounds must wait for draw-idle");
 });
+
+test("the cold-boot watch holds the pump while the first tile stream runs", () => {
+  const src = read("../map/drawHold.ts");
+  /* testday-ios §9: mounts inside the first ~90 s of a cold launch die
+     on the young render pipeline even with the mount-window hold — the
+     watch keeps the throttle armed for the whole fixed window */
+  assert.match(src, /noteMapBusy/, "noteMapBusy export missing");
+  assert.match(src, /noteMapIdle/, "noteMapIdle export missing");
+  assert.match(src, /BOOT_WATCH_MS/, "boot watch needs a fixed span past the residual window");
+  assert.match(src, /holdMapDrawThen[\s\S]*mapBusy/, "in-window mounts must wait for draw-idle");
+});
+
+test("the map feeds render busy/idle into the boot watch", () => {
+  const app = read("../../App.tsx");
+  assert.match(app, /onWillStartRenderingMap=\{onMapBusy\}/,
+    "Map must wire onWillStartRenderingMap into noteMapBusy");
+  assert.match(app, /onDidFinishRenderingMapFully=\{onMapIdle\}/,
+    "Map must wire onDidFinishRenderingMapFully into noteMapIdle");
+  assert.match(app, /const onMapBusy = \(\) => noteMapBusy\(\)/,
+    "onMapBusy must call noteMapBusy");
+  assert.match(app, /noteMapIdle\(\)/, "onMapIdle must call noteMapIdle");
+});
