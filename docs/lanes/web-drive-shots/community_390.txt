@@ -1,0 +1,95 @@
+ALIVE·108
+THE CITY
+ADMIN
+DELHI NCR — SHARED COMMUTES
+What Delhi breathed together — merged, never named.
+
+Government air stations watch only part of Delhi — most streets have no sensor on them at all. Riders who share their trips (the app calls it donating) fill in those gaps: every ride joins everyone else's as totals on this page — never as you. There is no sign-up — no name, no number.
+
+We can't leak what we never take. The proof is three rules below — and the count beside them is live.
+
+01
+cut on your phone
+the first and last 300 m of a ride are trimmed on-device before it sends anything — home and work never leave the phone
+02
+merged, never filed
+a trip joins totals the moment it lands — no record of any single ride exists at rest, only merged counts
+03
+3 phones to appear
+a street stretch shows up only after 3 different phones cross it inside 3 days — below that it isn't in the data at all
+Delhi's air right now →
+Admin →
+22 PHONES SHARING
+40 TRIPS SHARED · ALL-TIME
+3.1 ΜG BREATHED · TODAY
+8.0 KM OF TRIPS · TODAY
+1,029 µg PM2.5 DODGED · ALL-TIME
+LAST SHARED TRIP 67 min AGO
+The ledger.
+
+The running total of every trip riders have shared — all added together, never per person.
+
+PHONES SHARING · ALL-TIME
+every phone that has ever shared a trip — counted once, never named
+22
+TRIPS SHARED · ALL-TIME
+rides donated since the beginning — yours included if you share
+40
+TRIPS SHARED · TODAY
+shared rides counted since utc midnight — same day-key as the /city ledger
+1
+DISTANCE TRAVELLED · TODAY
+how far today's shared trips went, added up
+8.0 km
+PM2.5 BREATHED ON TRIPS · TODAY
+the fine dust riders actually inhaled today — µg is micrograms; one cigarette is roughly 316 µg
+3.1 µg
+PM2.5 DODGED · TODAY
+dust riders did not breathe today because the app steered them off the smokiest option
+63 µg
+PM2.5 DODGED · ALL-TIME
+the same dodged total since the beginning
+1,029 µg
+LIVE RIDER FLAGS
+dust, smoke, burning-smell and clean-air pins — each fades after 6 hours
+0
+HOW TRIPS TRAVELLED · TODAY
+the mix of wheels today's shared trips ran on
+bus ×1
+The streets enough phones have crossed.
+
+Each row is a stretch of about 500 m of street that at least 3 different phones have crossed in the last 3 days — everyone's trips merged into totals, never anyone's own.
+
+	STREET STRETCH	TRIPS	PHONES	PM2.5 / TRIP	MAIN MODE	CO₂ PER 100 M
+01	
+Outer Circle
+28.630°N · 77.220°E
+	8	6	14.6 µg	CAR	51.3 g
+02	
+Radial Road 4
+28.635°N · 77.220°E
+	6	5	11.5 µg	CAR	91.9 g
+03	
+Tolstoy Marg
+28.625°N · 77.220°E
+	5	4	0.6 µg	CAR	161.5 g
+04	
+Shahjahan Road
+28.610°N · 77.230°E
+	4	3	1.1 µg	CAR	53.4 g
+05	
+Maulana Azad Road
+28.610°N · 77.220°E
+	4	4	0.7 µg	CAR	219.6 g
+
+THE 3-PHONES RULE ABOVE IS THE WHOLE TRICK — MERGED MEANS NO SINGLE COMMUTE CAN EVER BE TRACED BACK TO A PERSON. PM2.5/TRIP = FINE DUST INHALED, AVERAGED OVER SHARED TRIPS THROUGH THE STRETCH (ESTIMATED, NOT A SENSOR) · CO₂ = EXHAUST PER 100 M, AVERAGED.
+
+What riders are flagging.
+
+Dust, smoke, a burning smell, a stretch of clean air — flagged by riders where they stand. Each flag fades after six hours.
+
+FLAGS
+no flags right now — a flag only lives six hours
+ALIVE·108 — DELHI NCR
+BUILD AEE635EB
+MERGED TOTALS ONLY · A STREET NEEDS 3 PHONES · NO PROFILES
