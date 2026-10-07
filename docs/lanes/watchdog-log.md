@@ -20,3 +20,11 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
 - `/v2/usage` guest: 401 (expected).
 - CloudWatch (ap-south-1): all 3 alarms `OK` — field-age, field-emitter-dead, target-down.
 - Baseline verdict: prod healthy on 698cf808 (news-layer build). Sampler started ~10:56 UTC.
+
+### 2026-10-07 11:36 — ~40 min mark, 13 samples
+- Three full field cycles observed, ~15 min cadence: peaks 914→912→911, resets to ~180 on schedule.
+- Stations dipped 52→46 between 11:14–11:24, self-recovered to 52 at 11:30 (transient feed flake, not a stall).
+- cause_note present every cycle (83–124 chars, content rotates with new field builds — currently fires-belt note).
+- CloudWatch re-check 11:36: all 3 alarms `OK`. `/community` unchanged (44 obs / 24 contributors / 0 active reports).
+- Surface spot-check 11:19: `/`, `/landing`, `/admin`, `/city` all HTTP 200; landing title + boot overlay + 79 KB inline script intact, no control chars (dead-page trap clear).
+- No sha transitions, no anomalies.
