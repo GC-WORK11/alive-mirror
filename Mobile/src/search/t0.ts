@@ -414,7 +414,12 @@ export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResul
     if (!allToks && !phrase) continue outer;
     let s = e.nrm.startsWith(nq) ? 100 : allToks ? 70 : 40;
     s += weight(e);
-    if (userLoc) s -= Math.min(distKm(e, userLoc), 60) * 0.8;
+    /* distKm once arrived as a non-callable namespace object on a cold
+       launch (metro inline-require flake, same class as the SearchScreen
+       distLabel guard): the distance bias degrades to flat scoring
+       instead of taking the sheet down. */
+    if (userLoc && typeof distKm === "function")
+      s -= Math.min(distKm(e, userLoc), 60) * 0.8;
     scored.push({ s, e });
   }
 
@@ -480,6 +485,7 @@ export function nearestPlace(p: LatLon, maxM = 150): NearestHit | null {
       for (let dj = -r; dj <= r; dj++) {
         if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
         for (const i of geo.get(`${bi + di},${bj + dj}`) ?? []) {
+          if (typeof distKm !== "function") continue; // inline-require flake — miss over crash
           const e = entries[i];
           const d = distKm(e, p) * 1000;
           if (d > maxM) continue;
