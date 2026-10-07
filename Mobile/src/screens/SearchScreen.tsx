@@ -38,7 +38,7 @@ import {
   type PlaceResult,
   type SearchSelection,
 } from "../search/t0";
-import { mergeResults, ServerSearch, type ServerTiers } from "../search/client";
+import { mergeResults, sameNamedPlace, ServerSearch, type ServerTiers } from "../search/client";
 import { addRecent, getPlaces, setSaved, type PlaceStore, type SavedSlot } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
 import { confirm, tick } from "../haptics";
@@ -57,9 +57,9 @@ const fmtDist = (km: number, lang: Lang): string =>
       ? `${(Math.round(km * 10) / 10).toFixed(1)} ${t("unitsKm", lang)}`
       : `${Math.round(km)} ${t("unitsKm", lang)}`;
 
-const samePlace = (a: PlaceResult, b: PlaceResult) =>
-  normalize(a.name) === normalize(b.name) &&
-  Math.hypot((a.lat - b.lat) * 110.6, (a.lon - b.lon) * 99.4) * 1000 < 75;
+/* same-named-place dedupe lives in client.ts — the admin-area rule there
+   is what drops the 'Connaught Place · district' dupe of the macrohood */
+const samePlace = sameNamedPlace;
 
 /* ---------- matched-prefix highlight ----------
  * t0 ranks on normalized name tokens (nt.startsWith(qt)); we replay that same

@@ -470,10 +470,14 @@ function AppInner() {
   /* ---- boot: warm the API, load trips/settings, resolve location ---- */
   useEffect(() => {
     /* one flaky ping while a 25 s plan krige is in flight flashed a false
-       "can't reach the server" strip — require two consecutive misses */
+       "can't reach the server" strip — require two consecutive misses.
+       The ping MUST be bounded: a bare fetch on a blackholed route never
+       resolves, so a stall-type dead net produced zero *completed* misses
+       and apiOk could never fail honestly (offline-verify catalogue).
+       fetchJson's 8 s abort keeps detection inside the 15 s cadence. */
     let misses = 0;
-    const ping = () => fetch(`${API}/health`, { keepalive: true })
-      .then((r) => { misses = r.ok ? 0 : misses + 1; if (!misses) setApiOk(true); else if (misses >= 2) setApiOk(false); })
+    const ping = () => fetchJson(`${API}/health`, 8000)
+      .then(() => { misses = 0; setApiOk(true); })
       .catch(() => { misses += 1; if (misses >= 2) setApiOk(false); });
     ping();
     const healthIv = setInterval(ping, 15000);
@@ -796,6 +800,17 @@ function AppInner() {
   const dayData = useDayData(dayPos.lat, dayPos.lon, trips, dayNonce, homeOpen, lang);
   useEffect(() => { if (dayData) { mark("daydata.first"); report("boot"); } }, [dayData != null]);
   const sel = options[selected];
+  /* the served field block is verbatim-identical between rebuilds — the
+     aqiField dedupe holds, this memo never re-runs, and 'air reading:
+     N min old' freezes mid-count while wall-clock moves (android-verify
+     bug #1; it only LOOKED alive when a fresh field landed). A 30 s tick
+     re-derives the age on wall-clock and lets `stale` cross
+     stale_after_s on a dead network. */
+  const [ageTick, setAgeTick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setAgeTick((n) => n + 1), 30000);
+    return () => clearInterval(iv);
+  }, []);
   const mapField: FieldStatus | null = useMemo(() => planField ?? (aqiField
     ? { ...aqiField.data,
         age_s: aqiField.data.age_s == null
@@ -805,7 +820,7 @@ function AppInner() {
           : aqiField.data.age_s == null ? aqiField.data.stale ?? null
           : (aqiField.data.age_s + (Date.now() - aqiField.at) / 1000)
             > (aqiField.data.stale_after_s ?? 2700) }
-    : null), [planField, aqiField]);
+    : null), [planField, aqiField, ageTick]);
 
   /* the field block re-issues every 60 s poll (age_s ticks, so the JSON
      dedupe never holds it) — but the stations list itself only moves
@@ -861,13 +876,16 @@ function AppInner() {
       setSidebarOpen(true);
       return;
     }
-    pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
+    /* no explicit "to": the armed slot wins — with "Where from?" open a
+       map tap must land in `from`, not silently re-target the
+       destination (offline-verify catalogue #1) */
+    pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] });
   }, [mapPickArmed, placePickSlot, patchSettings, pick]);
   const onMapLongPress = useCallback(async (f: MapPressEvent) => {
     const c = (f as { nativeEvent?: { lngLat?: [number, number] } }).nativeEvent?.lngLat;
     if (!c) return;
     const rev = await reverseName(c[1], c[0]);
-    pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] }, "to");
+    pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] });
   }, [pick]);
   const onTrackUserLocationChange = useCallback((e: TrackChangeEvent) => {
     if (!e.nativeEvent.trackUserLocation) setFollow(false);
@@ -903,8 +921,10 @@ function AppInner() {
       }
       setMapPickArmed(false);
       setHomeOpen(false);        // the journey lives on the map surface
+      /* again the armed slot, not a hardcoded "to" — a typed place pick
+         while "Where from?" was armed used to drop into `to` */
       pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
-        lat: sel.place.lat, lon: sel.place.lon }, "to");
+        lat: sel.place.lat, lon: sel.place.lon });
       return;
     }
     if (sel.type === "choose_on_map") {

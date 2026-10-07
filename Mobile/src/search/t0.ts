@@ -39,10 +39,17 @@ export type SearchSelection =
   | { type: "current_location" }
   | { type: "choose_on_map" };
 
-// Delhi NCR bounds — the same box App.tsx uses for the "outside Delhi" tag.
-const NCR = { minLon: 76.75, maxLon: 77.95, minLat: 28.15, maxLat: 28.98 };
+/* Delhi NCR service bounds — THE single source. The server's canonical
+   box is v2/deps.NCR_BBOX = (76.80, 28.20, 77.90, 28.95) (same as
+   airfield in_service_area / tiles.py _BOUNDS / the offline pack's
+   region row). This client used to carry a WIDER box (76.75–77.95 /
+   28.15–28.98), so a fringe point read "in Delhi" here while the API
+   said beyond_field_edge — 'outside NCR' verdicts diverged at the edges
+   (component-audit hardcode hunt). Order: [minLon, minLat, maxLon,
+   maxLat] — the order a bbox query param takes. */
+export const NCR_BOUNDS: [number, number, number, number] = [76.8, 28.2, 77.9, 28.95];
 export const inNcr = (lat: number, lon: number) =>
-  lon > NCR.minLon && lon < NCR.maxLon && lat > NCR.minLat && lat < NCR.maxLat;
+  lon > NCR_BOUNDS[0] && lon < NCR_BOUNDS[2] && lat > NCR_BOUNDS[1] && lat < NCR_BOUNDS[3];
 export const DELHI_CENTER: LatLon = { lat: 28.6139, lon: 77.209 };
 
 // Fast km estimate near Delhi (~28.6°N) — same constants as the rest of the

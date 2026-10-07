@@ -51,6 +51,10 @@ export const DEFAULT_SETTINGS: ShellSettings = {
   profile: "general",
 };
 
+/** WHO 2021 24-h PM2.5 guideline (µg/m³) — the denominator behind every
+ *  "× WHO daily limit" read-out. Was duplicated per screen; one truth. */
+export const WHO_DAILY_UG = 15;
+
 /** Daily inhaled-µg ceilings per profile — the honest basis lives in the
  *  UI label (WHO 24-h 15µg/m³ guide × resting-day volume is the anchor;
  *  sensitive takes the WHO annual guide as a daily ceiling; child scales

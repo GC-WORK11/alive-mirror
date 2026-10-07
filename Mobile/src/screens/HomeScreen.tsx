@@ -99,7 +99,7 @@ import {
   fetchOutlook,
   type Outlook,
 } from "../api/outlook";
-import { PROFILE_BUDGET_UG, type ShellSettings } from "../components/shell/settings";
+import { PROFILE_BUDGET_UG, WHO_DAILY_UG, type ShellSettings } from "../components/shell/settings";
 import { fetchCity } from "../api/city";
 import { causeNote, type CauseNoteFields } from "../store/events-core";
 import { CheckinSheet } from "../components/shell/CheckinSheet";
@@ -842,7 +842,7 @@ const BudgetCard = React.memo(BudgetCardInner);
  *  read. Tap returns home (the dosimeter surface). An empty day says so in
  *  one line and still opens home — the move + check-in are useful before
  *  the arc fills. */
-function DayPeekInner({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
+function DayPeekInner({ data, lang, onOpen, ambientUg, budgetUg = PROFILE_BUDGET_UG.general }: {
   data: DayData | null; lang: Lang; onOpen: () => void;
   /** latest ambient PM2.5 read — the "outside right now" line; the aqi
       poll hands it over so the peek feels the air, not just states it */
@@ -962,10 +962,9 @@ const HomeHeader = React.memo(HomeHeaderInner);
 
 /** The hero — WHOOP's one-score compression (design-refs §3): ≈N µg
  *  breathed at display scale, coloured by the day's fraction of budget,
- *  with the covered-hours and outside-now reads as tier-2 evidence. */
-/** WHO 2021 air-quality guideline — 24-hour PM2.5, µg/m³. The one
- *  outside reference a stranger already trusts. */
-const WHO_DAILY_UG = 15;
+ *  with the covered-hours and outside-now reads as tier-2 evidence.
+ *  WHO_DAILY_UG (the WHO 2021 24-h PM2.5 denominator behind the
+ *  "× WHO" lines) comes from shell/settings — single-sourced. */
 
 /** What the app's /aqi poll knows about the ambient number beyond its
  *  value — the hero's honesty lines are honest only with it. */

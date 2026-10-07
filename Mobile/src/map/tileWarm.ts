@@ -30,6 +30,7 @@
  */
 import { OfflineManager } from "@maplibre/maplibre-react-native";
 import { API_BASE } from "../search/client";
+import { NCR_BOUNDS } from "../search/t0";
 import { v2Style, type V2MapStyleInput } from "./style";
 
 const PACK_NAME = "delhi-ncr-z9-13-r2";
@@ -37,8 +38,9 @@ const PACK_NAME = "delhi-ncr-z9-13-r2";
  *  (0 tiles, unfetchable style_url) — deleted on sight so a device that ran
  *  the old build doesn't keep the dead row and skip the working pack. */
 const LEGACY_PACK_NAME = "delhi-ncr-z9-13-r1";
-/** NCR service bbox — same as v2/deps.NCR_BBOX / tiles.py _BOUNDS. */
-const NCR_BOUNDS: [number, number, number, number] = [76.8, 28.2, 77.9, 28.95];
+/* NCR_BOUNDS imported from search/t0 — single-sourced to the server's
+   v2/deps.NCR_BBOX / tiles.py _BOUNDS (the region row below already
+   carried exactly this box). */
 const MIN_ZOOM = 9;
 const MAX_ZOOM = 13;
 const STYLE_PATH = "/v2-light.json";

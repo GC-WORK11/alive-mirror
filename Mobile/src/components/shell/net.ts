@@ -1,7 +1,7 @@
 /** Shared shell constants + fetch helper. */
 import { Platform } from "react-native";
 import * as Location from "expo-location";
-import { nearestPlace } from "../../search/t0";
+import { nearestPlace, inNcr } from "../../search/t0";
 
 // EXPO_PUBLIC_API_URL, else the emulator loopback aliases (dev only —
 // release bundles must not ship loopback strings; missing env in a
@@ -15,9 +15,9 @@ export const API =
     : "");
 
 export const DELHI: [number, number] = [77.209, 28.6139];
-export const NCR = { minLon: 76.75, maxLon: 77.95, minLat: 28.15, maxLat: 28.98 };
-export const inNcr = (lat: number, lon: number) =>
-  lon > NCR.minLon && lon < NCR.maxLon && lat > NCR.minLat && lat < NCR.maxLat;
+/* inNcr is single-sourced in src/search/t0 (server NCR_BBOX) — re-exported
+   here so the shell keeps one import surface. */
+export { inNcr };
 
 /* Fresh fix first, honest cached fix second: getCurrentPositionAsync can
    return null while a perfectly good last-known fix sits in the fused

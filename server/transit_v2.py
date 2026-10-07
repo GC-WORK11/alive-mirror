@@ -102,11 +102,21 @@ def line_name(kind: str, short: str, long: str) -> str:
         return (long or short or "").split("_")[0].title() or "Metro"
     nm = (short or long or "?").strip()
     nm = re.sub(r"(UP|DOWN)$", "", nm) or nm   # DTC "347AUP" -> "347A"
-    # feed-internal line ids ('CGOCOMPLEX-2', 'LNWST-1') aren't names a
-    # rider can board by — a bare 'Bus' is the honest option label
-    # (all-caps token >=9 chars: real route numbers like '347ACL' and
-    # short board names like 'HOHO' both survive)
-    if re.match(r"^[A-Z0-9_-]{9,}$", nm):
+    # feed service tags ride as parenthesised tails + a leading-0 prefix:
+    # '0OMS(-)(NS)' is feed-speak for the OMS run, '0AIRPORTEXP-4(NS)' for
+    # AIRPORTEXP-4. Strip short '([A-Z0-9+-]{1,3})' tails (word-length
+    # qualifiers like '(Night)' stay), then the leading 0 ahead of a letter.
+    # What remains either is a board name ('OMS', 'TMS') or still an id.
+    nm = re.sub(r"(\([A-Z0-9+-]{1,3}\)\s*)+$", "", nm).strip()
+    nm = re.sub(r"^0(?=[A-Z])", "", nm)
+    # feed-internal line ids aren't names a rider can board by — a bare
+    # 'Bus' is the honest option label. Two shapes: a long all-caps token
+    # ('CGOCOMPLEX-2', the cleaned 'AIRPORTEXP-4', 'EXPRESS-20A') — the
+    # >=9 bound keeps real route numbers like '347ACL' and board names
+    # like 'HOHO' safe — or a short LETTERS-NUMBER slug like 'LNWST-1'
+    # (the >=4-letter bound lets 'OMS'/'TMS' through).
+    if (re.match(r"^[A-Z0-9_-]{9,}$", nm)
+            or re.match(r"^[A-Z]{4,}-[0-9]+$", nm)):
         return "Bus"
     return nm
 

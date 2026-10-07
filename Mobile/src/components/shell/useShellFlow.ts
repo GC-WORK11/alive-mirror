@@ -425,6 +425,16 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        fix). "idle" lands on home with the completed trace still on the
        map; nothing re-plans until the user asks. */
     setPhase("idle");
+    /* an ended trip leaves no live route context: the OD pair is stale
+       the moment the engine stops — yet `to`/`from` used to linger, so
+       the next "Where to?" reopened on the finished destination AND
+       closing the sheet silently re-entered compare on it
+       (offline-verify catalogue #2). Fresh slate: the trip was already
+       logged by the engine before Done. */
+    setFrom(null); setTo(null);
+    setOptions([]); setSelected(0); setDepart(null); setDepartCurve(null);
+    setSteps(null); setStepsOpen(false); setStrips({});
+    setPlanError(null); setPlanField(null); setPlanDegraded([]);
     /* the flip frame already carries receipt-unmount + chrome remount —
        every map-side commit rides staggered later, ~one per frame-budget,
        so nothing piles inside the teardown window (ci15: the last
@@ -432,7 +442,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     setTimeout(() => setFollow(false), 300);
     setTimeout(() => whenMapDrawFree(() =>
       camRef.current?.setStop({ pitch: 0, duration: camDur(700) })), 400);
-  }, [camRef, setPhase]);
+  }, [camRef, setPhase, setOptions, setSelected]);
 
   /* ---- ledger: only a COMPLETED trip is logged (claims audit — logging
      on option view fabricated trips + inflated every avoided-µg total).

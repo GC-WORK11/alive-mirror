@@ -49,6 +49,7 @@ import {
   type CityPayload,
 } from "../api/city";
 import { CityMoves } from "../components/CityMoves";
+import { WHO_DAILY_UG } from "../components/shell/settings";
 import { causeNote, type CauseNoteFields } from "../store/events-core";
 import { loadTrips } from "../store/ledger";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
@@ -779,8 +780,8 @@ function DelhiTodayInner({
   );
 }
 
-/** WHO 2021 24-hour PM2.5 guideline, µg/m³. */
-const WHO_DAILY_UG = 15;
+/* WHO_DAILY_UG imported from shell/settings — single-sourced WHO 2021
+   24-h PM2.5 guideline. */
 
 export const DelhiToday = React.memo(DelhiTodayInner);
 

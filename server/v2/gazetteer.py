@@ -543,6 +543,39 @@ class Gazetteer:
                 return _LOCALITY_BOOST
         return 0.0
 
+    _ADMIN_KINDS = ("district", "administrative")
+
+    @staticmethod
+    def _collapse_same_named(scored: list) -> list:
+        """Same-named-place collapse — mirrors the client's sameNamedPlace
+        (Mobile/src/search/client.ts): identical normalized names within
+        75 m are one row; within 400 m when either side is an admin-area
+        kind (a district/administrative row names the place it contains —
+        the OSM 'Connaught Place' district centroid sits 117 m off the
+        macrohood and used to double the row). Input is score-sorted; an
+        earlier row wins, except an admin row hands its slot to a
+        non-admin row of the same name (the actionable one)."""
+        kept = []
+        for cand in scored:
+            cr = cand[2]
+            dup = -1
+            for i, k in enumerate(kept):
+                if k[2]["norm"] != cr["norm"]:
+                    continue
+                dd = _haversine_m(k[2]["lat"], k[2]["lon"],
+                                  cr["lat"], cr["lon"])
+                if (dd < 75 or
+                        (dd < 400 and (k[2]["kind"] in Gazetteer._ADMIN_KINDS
+                                       or cr["kind"] in Gazetteer._ADMIN_KINDS))):
+                    dup = i
+                    break
+            if dup < 0:
+                kept.append(cand)
+            elif (kept[dup][2]["kind"] in Gazetteer._ADMIN_KINDS
+                  and cr["kind"] not in Gazetteer._ADMIN_KINDS):
+                kept[dup] = cand
+        return kept
+
     def search(self, q: str, lat: Optional[float] = None,
                lon: Optional[float] = None, limit: int = 8) -> list:
         rows = self._load()
@@ -605,8 +638,10 @@ class Gazetteer:
             scored.append((score, d, r, cov, fuzzy))
         scored.sort(key=lambda t: (-t[0], t[1], t[2]["name"]))
 
+        kept = self._collapse_same_named(scored)
+
         out = []
-        for score, d, r, cov, fuzzy in scored[:limit]:
+        for score, d, r, cov, fuzzy in kept[:limit]:
             if cov >= 1.0:
                 cls = 0 if r["norm"].startswith(qn) else (2 if fuzzy else 1)
             else:

@@ -5,7 +5,7 @@
 //   - first character fires immediately; further typing debounces 80 ms
 //   - stale responses are dropped by a sequence guard
 import { Platform } from "react-native";
-import { DELHI_CENTER, inNcr, normalize, type LatLon, type PlaceResult } from "./t0";
+import { DELHI_CENTER, NCR_BOUNDS, inNcr, normalize, type LatLon, type PlaceResult } from "./t0";
 
 // Same resolution as App.tsx — EXPO_PUBLIC_API_URL, else the emulator
 // loopback aliases. Do not diverge: the shell and the search tiers must
@@ -168,8 +168,8 @@ export async function fetchPhoton(
   const url =
     `${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=${limit}` +
     `&lat=${bias.lat}&lon=${bias.lon}` +
-    // bbox = minLon,minLat,maxLon,maxLat — the NCR box, server-style
-    `&bbox=76.75,28.15,77.95,28.98`;
+    // bbox = minLon,minLat,maxLon,maxLat — the NCR box, server-canonical
+    `&bbox=${NCR_BOUNDS.join(",")}`;
   const inner = new AbortController();
   const onAbort = () => inner.abort();
   if (signal.aborted) inner.abort();
@@ -214,17 +214,34 @@ export async function fetchPhoton(
   return out;
 }
 
-/** Merge server tiers + dedupe by normalized name within ~75 m
- * (doc 04 §2). Earlier lists win. */
+/** Admin-area rows name the place they contain — the OSM "Connaught
+ * Place" district polygon IS Connaught Place, not a second destination
+ * worth its own row. Same normalized name + an admin container on either
+ * side → one place; the loose bound matches t0's own same-name radius
+ * (a polygon centroid sits a few hundred metres off the place point —
+ * the gazetteer district row is 117 m from the macrohood). Two
+ * non-admin rows still need the tight 75 m — real same-name neighbours
+ * exist (the two Connaught Lanes are 600 m apart). */
+const ADMIN_KINDS = new Set(["administrative", "district"]);
+const isAdminArea = (p: PlaceResult) => ADMIN_KINDS.has(p.kind);
+
+export const sameNamedPlace = (a: PlaceResult, b: PlaceResult): boolean => {
+  if (normalize(a.name) !== normalize(b.name)) return false;
+  const d = Math.hypot((a.lat - b.lat) * 110.6, (a.lon - b.lon) * 99.4) * 1000;
+  return d < 75 || (d < 400 && (isAdminArea(a) || isAdminArea(b)));
+};
+
+/** Merge server tiers + dedupe by same-named-place rule (doc 04 §2; t0's
+ *  own dedupe is upstream). Earlier lists win — except an admin row that
+ *  arrived first hands its slot to the real place row of the same name,
+ *  so the kept row is always the actionable one. */
 export function mergeResults(...lists: PlaceResult[][]): PlaceResult[] {
   const kept: PlaceResult[] = [];
   for (const list of lists)
     for (const p of list) {
-      const dup = kept.some(
-        (k) => normalize(k.name) === normalize(p.name) && Math.hypot(
-          (k.lat - p.lat) * 110.6, (k.lon - p.lon) * 99.4) * 1000 < 75,
-      );
-      if (!dup) kept.push(p);
+      const dup = kept.findIndex((k) => sameNamedPlace(k, p));
+      if (dup < 0) { kept.push(p); continue; }
+      if (isAdminArea(kept[dup]) && !isAdminArea(p)) kept[dup] = p;
     }
   return kept;
 }
