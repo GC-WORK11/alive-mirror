@@ -42,3 +42,11 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
   - `/admin` login card present (operator token field + sign-in). `/v2/usage` guest → 401.
   - `/v2/why` cause_note populated: "12 fires in the Punjab–Haryana belt — the wind isn't
     carrying it this way right now".
+
+### 2026-10-07 12:16 — ~80 min mark, 24 samples
+- 5 field refresh cycles observed since watch start (~15 min cadence, all on schedule:
+  resets at ~10:59, ~11:14, ~11:30, ~11:54, ~12:12). `field_stale` never true, max age 922 s.
+- Stations 53→54 (recovered past baseline 52). cause_note populated every sample.
+- CloudWatch 12:16: all 3 alarms `OK`. `/community` steady: 44 obs / 24 contributors / 0 active
+  reports / latest_obs_age 315 min (donation feed idle — expected pre-demo).
+- Deploy survived: field generator kept cycling through the 43913dc0 cutover, zero stall.
