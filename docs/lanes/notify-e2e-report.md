@@ -44,7 +44,7 @@ zero POSTs anywhere in this lane.
 | `severe` | ⛔ codepath-only quiet — `equivalent_stage` 0 | ⛔ codepath-only quiet — same | stage < III today |
 | `grap_up` / `grap_down` | ⛔ quiet — live stage never moved off 0 (grap_clear covers the transition path) | ⛔ same | — |
 | `trend_up` | ⛔ quiet — the admitted move was down | ⛔ same | — |
-| `outlook_heavy` / `outlook_light` | ⛔ gate-verified quiet — fold is heavy (+54%) but fires only inside IST 17:00–22:00; `outlookMove` floor/unit-tested in events.test.ts | ⛔ gate-verified quiet — fold +62% real at 15:39 IST, gate still closed when the window ended | window gate, not data, silences it |
+| `outlook_heavy` / `outlook_light` | ✅ **real-fired un-seeded inside the gate** — app relaunched at 17:00:31 IST, first poll fired: "tomorrow reads heavier · average ~105 µg/m³ vs ~65 today · 12 fires in the Punjab–Haryana belt — the wind isn'…" (`slide-outlook_heavy.png`, mark `level:105`) | ⛔ gate-verified quiet — fold +62% real at 15:39 IST, gate still closed when the Android window ended at ~15:50 | gate + fold both verified live |
 | feed-stall record | ⛔ no record — both feeds inside staleness bounds | ⛔ same | diagnostics-only, never pings |
 
 ## iOS evidence (dev-client, all banners real-engine)
@@ -65,13 +65,18 @@ file edited only while the app was terminated — `mem` cache stomps live edits)
 - `slide-grap_clear.png`, `slide-reflect.png`, `slide-trend_down.png`.
 - `notif-center-5cards.png`, `lockscreen-5cards.png` — 5 real cards, no
   `fires_nc` card (the +8 jump correctly did not fire).
+- `slide-outlook_heavy.png` — evening-gate pass: relaunched 17:00:31 IST,
+  first poll fired "tomorrow reads heavier · ~105 vs ~65 today · 12 fires
+  in the Punjab–Haryana belt". The only trigger that was gate-quiet all day
+  fired the moment its window opened — `seen.outlook_heavy={day,level:105}`
 - `trips-ledger-state.png` — the seeded ledger rows behind `reflect`.
 - `settings-alerts.png` — Air alerts master + all four kind rows ON.
 - `home-ambient-63.png` — the in-app state behind the banners (63 µg/m³).
 - `events-final.json` — dedupe store verbatim:
-  `seen={stagnation:85, window:810, trend_down:12, grap_clear:0, reflect:1}`,
-  `beltFires` rebaselined 4→12 (jump rule), `grapStage` 3→0, **no `fires_nc`
-  mark** — the dedupe file proves every fire AND the correct silence.
+  `seen={stagnation:85, window:810, trend_down:12, grap_clear:0, reflect:1,
+  outlook_heavy:105}`, `beltFires` rebaselined 4→12 (jump rule),
+  `grapStage` 3→0, **no `fires_nc` mark** — the dedupe file proves every
+  fire AND the correct silence.
 
 ## Android evidence (release APK `70914c0` on KVM emulator, session ~15:05–15:50 IST)
 
@@ -124,8 +129,8 @@ _Drive (Linux KVM child `4b6eb8ea`, `demo` AVD pixel_7 android-35 google_apis):_
 ## Honest limits
 
 - Foreground-poll only (60 s `aqiPoll`) — unchanged; settings copy says so.
-- `outlook_*` fires evenings-only by design (17:00–22:00 IST); the fold was
-  heavy at drive time but the gate was closed — unit-tested gate, no banner.
+- `outlook_*` fires evenings-only by design (17:00–22:00 IST); verified
+  live — it fired on the first poll after the gate opened (fold +62%).
 - `fires_nc`/`band`/`severe` were honestly quiet today (rules verified by the
   seeded-jump silence + unit tests, not by banners).
 - iOS dev toast `[expo-notifications] Error reading persisted server
