@@ -1060,8 +1060,10 @@ consistency, real-time updates, profile behavior, both platforms.
 - **Demo-morning assets verified**: scripts/public-repo.sh ready
   (commit-tree, never touches worktree, secrets+blob guards);
   tools/warm_task.py walks every lazy layer with real requests;
-  Fargate already on-demand (no spot config exists — "flip" item
-  is steady state); server/.env untracked+ignored (baseline safe).
+  service currently on FARGATE_SPOT (describe-services confirms —
+  capacityProviderStrategy overrides deploy.sh's --launch-type);
+  the go-nogo T-60 on-demand flip IS required; server/.env
+  untracked+ignored (baseline safe).
 - Live prod `bc8f82c4`: 54 stations, 1.07M edges, 903k priced.
 - Next deploy batch: 1e3278f (calibration) + 8346460 (channel fix)
   + web-bugfix when it lands.
