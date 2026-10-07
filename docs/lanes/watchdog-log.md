@@ -50,3 +50,13 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
 - CloudWatch 12:16: all 3 alarms `OK`. `/community` steady: 44 obs / 24 contributors / 0 active
   reports / latest_obs_age 315 min (donation feed idle — expected pre-demo).
 - Deploy survived: field generator kept cycling through the 43913dc0 cutover, zero stall.
+
+### 2026-10-07 12:31 — SHA TRANSITION `43913dc0 → c86074ff`
+- Trigger: watchdog's own 80-min log commit — prod rebuilds on ANY base/v2 push, docs included.
+  (Mechanic noted for all lanes: every commit = a redeploy; spacing log commits ~hourly.)
+- Field cycle unbroken through cutover (920→181→100 across the transition).
+- Sweep: all routes 200 (`/` `/landing` `/admin` `/city` `/v2/city`), `/v2/usage` 401,
+  landing real script PARSE-OK (65,857 B, byte-identical to 43913dc0).
+- cause_note ROTATED (new signal, healthy): now "16 fires in the Punjab–Haryana belt — a N wind
+  at 5.9 km/h is carrying it toward Delhi · air barely mixing — ventilation 1,364 m²…"
+  (belt_fires 12→16, carrying false→true — wind shifted, smoke inbound).
