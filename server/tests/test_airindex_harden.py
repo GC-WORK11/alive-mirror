@@ -139,7 +139,13 @@ def test_fires_all_csvs_down_retries_then_degrades():
 
 
 def test_stations_no_key_is_definitive_not_retried(monkeypatch):
-    monkeypatch.delenv("OPENAQ_API_KEY", raising=False)
+    # the chain consults three env keys (WAQI -> CPCB -> OpenAQ); 'no key'
+    # means all three absent — clearing only OpenAQ lets a developer .env
+    # (main.py loads it at import) flip the run into a real upstream
+    # attempt that rightly outranks the placeholder (see
+    # test_ingest_waqi.test_inbody_error_status_surfaces_verbatim).
+    for k in ("WAQI_API_KEY", "CPCB_API_KEY", "OPENAQ_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
     out = airindex._fetch_stations(object(), sleep=lambda s: None)
     assert "no key" in out["status"]
     assert out["attempts"] == 1                # not an exception -> no retry

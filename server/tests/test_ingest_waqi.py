@@ -111,7 +111,12 @@ def test_fetch_normalizes_to_stations_schema():
     assert all(c2["params"].get("token") == KEY for c2 in c.calls)
 
 
-def test_no_key_is_owner_blocker():
+def test_no_key_is_owner_blocker(monkeypatch):
+    # api_key=None falls through to $WAQI_API_KEY — a developer .env or
+    # exported shell key would turn the 'no key' path into a real call
+    # (and the fake client would answer 'ok'). Clear the env so the
+    # owner-blocker branch is what runs.
+    monkeypatch.delenv("WAQI_API_KEY", raising=False)
     out = iw.fetch(api_key=None, client=_client(1))
     assert out["status"] == "no key — owner blocker"
     assert out["stations"] == []

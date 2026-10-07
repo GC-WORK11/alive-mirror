@@ -1,9 +1,16 @@
 """Pytest path setup — make `server/` and the alive_core build dir importable."""
+import glob
 import os
 import sys
 
 _SERVER = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in (_SERVER, os.path.join(_SERVER, "core", "build")):
+# the compiled ext lands in a versioned dir (core/build312/ etc. since
+# 0b93eaa) — glob any build* so the suite exercises the real C++ path,
+# not the pure-python reference fallback (which is ~10x slower and made
+# test_search_latency_compound_path fail under pytest while standalone
+# runs passed).
+_paths = [_SERVER] + sorted(glob.glob(os.path.join(_SERVER, "core", "build*")))
+for _p in _paths:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
