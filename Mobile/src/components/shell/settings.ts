@@ -7,7 +7,7 @@ import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
 import { resetDaylogCache } from "../../store/daylog";
 import { resetDaySum } from "../../store/daysum";
-import { purgeJsonDoc } from "../../store/safefile";
+import { purgeJsonDoc, readJsonDoc, writeJsonDoc } from "../../store/safefile";
 import { clearConsent } from "../../store/consent";
 import { clearWelcomeSeen } from "../../store/welcome";
 import { clearVehicle } from "../../store/vehicle";
@@ -28,8 +28,10 @@ export type ShellSettings = {
      Master + three kinds; every ping traces to a served field. */
   alerts: boolean;
   alerts_fires: boolean;   // NW burn-belt builds (fires spike)
-  alerts_band: boolean;    // air turning worse — band crossings, severe days, stagnation
-  alerts_windows: boolean; // the day's clean window opening
+  alerts_band: boolean;    // air turning worse — band crossings, severe days,
+                           // stagnation, the recorded city-mean trend, GRAP steps
+  alerts_windows: boolean; // the day's clean window opening + tomorrow's fold
+  alerts_reflect: boolean; // yesterday's trips — the once-a-day look-back
   show_cig: boolean;       // cigarette-equivalence framing — OFF by default;
                            // dose reads in µg unless the user opts in
   vehicle: string | null;  // S8 choice, e.g. "bike" | "car" | "auto"
@@ -43,6 +45,7 @@ export type ShellSettings = {
 export const DEFAULT_SETTINGS: ShellSettings = {
   lang: "en", voice: true, share: true, brief: false, remind: true,
   alerts: true, alerts_fires: true, alerts_band: true, alerts_windows: true,
+  alerts_reflect: true,
   show_cig: false,
   vehicle: null, home: null, work: null,
   profile: "general",
@@ -54,7 +57,7 @@ export const DEFAULT_SETTINGS: ShellSettings = {
  *  the volume down ~60%). A user-set ceiling, never a medical claim. */
 export const PROFILE_BUDGET_UG = { general: 216, sensitive: 72, child: 130 } as const;
 
-const FILE = new File(Paths.document, "settings.json");
+const NAME = "settings.json";
 
 /* perf (r4): in-memory mirror + deduped first read + serialized writes.
    loadSettings used to hit disk on every call (boot AND notify prefs());
@@ -69,14 +72,16 @@ export async function loadSettings(): Promise<ShellSettings> {
   let p = inflight;
   if (!p) {
     p = (async (): Promise<ShellSettings> => {
-      try {
-        if (FILE.exists) {
-          const j = JSON.parse(await FILE.text());
-          const s: ShellSettings = { ...DEFAULT_SETTINGS, ...(j ?? {}) };
-          mem = s;
-          return s;
-        }
-      } catch {}
+      /* atomic+.bak read: the object shape check keeps a garbage-typed
+         main from shadowing a good .bak; spread-merge over defaults is
+         the existing migration path (new keys default honestly) */
+      const j = await readJsonDoc(NAME, (v): v is Partial<ShellSettings> =>
+        !!v && typeof v === "object" && !Array.isArray(v));
+      if (j) {
+        const s: ShellSettings = { ...DEFAULT_SETTINGS, ...j };
+        mem = s;
+        return s;
+      }
       const s: ShellSettings = mem ?? { ...DEFAULT_SETTINGS };
       mem = s;
       return s;
@@ -91,10 +96,9 @@ export function saveSettings(s: ShellSettings): void {
   writeTail = writeTail
     .then(() => {
       if (mem === null) return; // wiped by clearAllData — don't resurrect
-      try {
-        if (!FILE.exists) FILE.create();
-        FILE.write(JSON.stringify(mem)); // last-state-wins per flush
-      } catch {}
+      /* atomic + .bak — lang/alert prefs are read on frame-1; a torn
+         file must not silently reset them */
+      writeJsonDoc(NAME, mem); // last-state-wins per flush
     })
     .catch(() => {});
 }
@@ -119,7 +123,8 @@ export function clearAllData(): void {
      are still user data */
   purgeJsonDoc("ledger.json");
   purgeJsonDoc("daylog.json");
-  for (const name of ["settings.json", "contributor.txt", "intro_seen.txt", "events.json"]) {
+  purgeJsonDoc(NAME); // settings.json
+  for (const name of ["contributor.txt", "intro_seen.txt", "events.json"]) {
     try {
       const f = new File(Paths.document, name);
       if (f.exists) f.delete();

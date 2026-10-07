@@ -8,10 +8,10 @@
 //     learns we're back (a successful search, a manual retry button)
 // Bounded: past MAX_QUEUE the oldest items drop and `dropped` counts
 // them honestly — the pill can say "2 trips couldn't be saved".
-import { File, Paths } from "expo-file-system";
+import { purgeJsonDoc, readJsonDoc, writeJsonDoc } from "../store/safefile";
 import { onNetEvent } from "./net";
 
-const OUTBOX = new File(Paths.document, "outbox.json");
+const OUTBOX_NAME = "outbox.json";
 export const MAX_QUEUE = 50;
 const POST_TIMEOUT_MS = 8000;
 
@@ -49,23 +49,22 @@ type OutboxData = { items: OutboxItem[]; dropped: number };
 const empty = (): OutboxData => ({ items: [], dropped: 0 });
 
 async function load(): Promise<OutboxData> {
-  try {
-    if (!OUTBOX.exists) return empty();
-    const j = JSON.parse(await OUTBOX.text()) as Partial<OutboxData>;
-    return {
-      items: Array.isArray(j.items) ? j.items : [],
-      dropped: typeof j.dropped === "number" ? j.dropped : 0,
-    };
-  } catch {
-    return empty();
-  }
+  /* atomic+.bak read: the shape check keeps a torn main from shadowing
+     the previous good generation — a donation in the outbox is a
+     promise the user made; we don't lose it to a bad parse */
+  const j = await readJsonDoc(OUTBOX_NAME, (v): v is Partial<OutboxData> =>
+    !!v && typeof v === "object" && !Array.isArray(v));
+  if (!j) return empty();
+  return {
+    items: Array.isArray(j.items) ? j.items : [],
+    dropped: typeof j.dropped === "number" ? j.dropped : 0,
+  };
 }
 
 async function save(d: OutboxData): Promise<void> {
-  try {
-    if (!OUTBOX.exists) OUTBOX.create();
-    OUTBOX.write(JSON.stringify(d));
-  } catch {}
+  /* atomic + .bak via safefile — a kill mid-write used to leave a torn
+     outbox.json and silently lose queued donations */
+  writeJsonDoc(OUTBOX_NAME, d);
 }
 
 /* ---- change notifications (pill: "N trips will send when back") --------- */
@@ -234,9 +233,8 @@ export async function queueSize(): Promise<number> {
  *  mirror. */
 export async function clearOutbox(): Promise<void> {
   wipeGen++;
-  try {
-    if (OUTBOX.exists) OUTBOX.delete();
-  } catch {}
+  purgeJsonDoc(OUTBOX_NAME); // file + .tmp + .bak — the donation queue
+                           // carries trajectory; no residue survives
   notify(empty());
 }
 
