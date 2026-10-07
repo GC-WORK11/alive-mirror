@@ -67,16 +67,20 @@ above everything; if long, trim in this order: city day-tiles dwell
 ### 2 · Hero — the live field (0:11–0:23)
 
 - **Screen:** `10_hero.mp4` — landing top fold: statusline chips on
-  tape "54 STATIONS LIVE · FIELD 15 MIN FRESH · MEDIAN 50 µg/m³ · WIND
-  7 KM/H · 903K EDGES PRICED", the PM2.5 cell map, watch-the-day
-  scrub h+2→h+10→now, measured/interpolated/thin caption.
+  tape "52 STATIONS LIVE · FIELD 13 MIN FRESH · MEDIAN 57 µg/m³ · WIND
+  6 KM/H · 903K EDGES PRICED", the PM2.5 cell map (new copy: "the
+  field the dosimeter reads — the same surface the router prices on"),
+  watch-the-day scrub h+2→h+10→now, measured/interpolated/thin
+  caption, self-grade footer ("234 pairs · missed by 29.5 µg/m³").
 - **VO:** "A live pollution field over Delhi — rebuilt every fifteen
-  minutes from fifty-four government instruments — that you can scrub
+  minutes off over fifty government instruments — that you can scrub
   an hour at a time."
-- **Claims:** `stations.count=54` (`waqi+dpcc`, `/health`); field
-  refresh cadence 15 min (`field_refresh_in_s`, EventBridge
-  `alive108` group — `infra/provision.sh`); ~903k priced edges.
-  **[T-45: station count falls to 24 if DPCC stalls — say
+- **Claims:** `stations.count=52` live on `aee635eb` (`waqi+dpcc`,
+  `/health` — was 54 on the previous build; the count breathes, so the
+  line says "over fifty"); field refresh cadence 15 min
+  (`field_refresh_in_s`, EventBridge `alive108` group —
+  `infra/provision.sh`); ~903k priced edges.
+  **[T-45: if DPCC stalls hard, count falls to 24 — say
   "twenty-four live, thirty more when their site comes back"]**
 
 ### 3 · City — the public ledger (0:23–0:43)
@@ -86,17 +90,19 @@ above everything; if long, trim in this order: city day-tiles dwell
   is sitting over the city"* — stagnation, fires refused on the
   easterly wind), district choropleth, then the reach solve: the page's
   own **walk ≤50 µg** budget paints the ink-vein road frontier, caption
-  on tape *"683.3 km of roads reachable · 12,418 road segments drawn"*
+  on tape *"622.2 km of roads reachable · 11,436 road segments drawn"*
   + "every ink line is a real road — solved by the engine", day tiles,
   corridor table.
 - **VO:** "Delhi's day, kept as a ledger. Ask it where your lungs can
-  go — a fifty-microgram walking budget from the centre settles nearly
-  seven hundred kilometres of street. Every line is a real road — not
+  go — a fifty-microgram walking budget from the centre settles over
+  six hundred kilometres of street. Every line is a real road — not
   a smoothed circle."
 - **Claims:** the tape itself — `/city` reach solve completed on
-  camera (683.3 km / 12,418 segments). API cross-check `/v2/reach`
-  walk≤25 µg → 4,279 edges / 191.4 km live (the stricter budget the
-  script doesn't say). Bounded Dijkstra — `server/v2/reach.py`. **[T-45]**
+  camera on `aee635eb` (622.2 km / 11,436 segments; 683 km on the
+  previous build — the field moves, the caption is honest at tape
+  time). API cross-check `/v2/reach` walk≤25 µg → 4,279 edges /
+  191.4 km live (the stricter budget the script doesn't say). Bounded
+  Dijkstra — `server/v2/reach.py`. **[T-45]**
 
 ### 4 · Trip plan — the dose gap (0:43–1:23) — the money shot
 
@@ -106,14 +112,14 @@ both honest — don't mix them in one sentence.
 **4a — the ladder, web a→b (0:43–1:01, `30_dosegap.mp4`)**
 
 - **Screen:** a→b armed on the landing field map, priced corridor
-  drawn (31.6 km), then the five-mode ladder on tape: **Car (AC)
-  11.4 µg (3.5–19.3) · Bike 33.3 · Auto 38.6 · Bicycle 161.9 ·
-  On foot 382.2** — "5 options priced in 2.5 s" + depart line
-  "leave ~08:00 — 11% less dose than now".
+  drawn (31.4 km), then the five-mode ladder on tape: **Car (AC)
+  11.4 µg (3.5–19.3) · Bike 34.5 · Auto 38.3 · Bicycle 161.7 ·
+  On foot 381.4** — "5 options priced in 1.2 s" + depart line
+  "leave ~11:00 — 15% less dose than now".
 - **VO:** "Same city, same minutes — the mode decides the dose.
-  A sealed car: about eleven micrograms. An auto: thirty-nine.
+  A sealed car: about eleven micrograms. An auto: about forty.
   On foot: nearly four hundred. Same trip — different lungs."
-- **Claims:** ladder read off the tape (`ce01ec5c`, 33.5× foot/car);
+- **Claims:** ladder read off the tape (`aee635eb`, 33.5× foot/car);
   `POST /v2/plan` CP→Gurugram live shows the same structure
   (8.5–282.5 µg, 33×). **[T-45]**
 
@@ -185,8 +191,8 @@ both honest — don't mix them in one sentence.
 
 **9a — what leaves a phone (2:13–2:21, `65_community.mp4` -ss 5)**
 
-- **Screen:** `/community` — the shared-ledger card ("14 phones sharing
-  · 22 trips all-time · 726 µg dodged all-time" — *"all added together,
+- **Screen:** `/community` — the shared-ledger card ("22 phones sharing
+  · 40 trips all-time · 1,029 µg dodged all-time" — *"all added together,
   never per person"*) over the corridor table + its own caption:
   *"at least 3 different phones have crossed it"* — the k≥3 floor,
   on the page's own words.
@@ -232,14 +238,14 @@ both honest — don't mix them in one sentence.
 | spoken claim | value at write (05:10 IST, `ce01ec5c`) | truth source |
 |---|---|---|
 | "two and a half cigarettes" | 2.49 mid (hi 6.29) · 787 µg | `GET /v2/city → breath` — landing hero renders same math |
-| "fifty-four instruments / every fifteen minutes" | 54 (24 WAQI + 30 DPCC) · refresh 900 s | `GET /health → sources.stations`, `field_refresh_in_s`; `infra/provision.sh` |
-| "nearly seven hundred kilometres of street" | tape: walk ≤50 µg → 683.3 km / 12,418 segments | `40_city.mp4` solve caption (API `/v2/reach` ≤25 µg → 191.4 km tonight) |
+| "over fifty instruments / every fifteen minutes" | 52 live on `aee635eb` (`waqi+dpcc`; was 54) · refresh 900 s | `GET /health → sources.stations`, `field_refresh_in_s`; `infra/provision.sh` |
+| "over six hundred kilometres of street" | tape: walk ≤50 µg → 622.2 km / 11,436 segments | `40_city.mp4` solve caption on `aee635eb` (API `/v2/reach` ≤25 µg → 191.4 km) |
 | "eleven … thirty-nine … four hundred" | tape: 11.4 / 38.6 / 382.2 µg (33.5×) | `30_dosegap.mp4` ladder (API `POST /v2/plan` → 8.5–282.5, 33×) |
 | "point six micrograms, ninety-eight times less" | tape values (`c3bb731` beat 26) | `docs/lanes/video-v8-report.md` beat table |
 | "a real instrument about two kilometres away" | 1.8 km at CP | `GET /aqi → nearest_sample_km` + v8 tape line |
 | "twenty-two-eight … ten-point-five … six-point-two" | fixed (Oct-6/7 holdouts) | `docs/lanes/holdout-reverify-report.md` |
 | "three distinct devices" | `min_k:3`; 12/54 publishable | `GET /v2/city/moves`; `server/community.py` |
-| "all added together, never per person … three phones" | 14 phones · 22 trips · 726 µg dodged; `min_k:3`, 12/54 publishable | `65_community.mp4` page copy; `GET /community`; `server/community.py` |
+| "all added together, never per person … three phones" | tape: 22 phones · 40 trips · 1,029 µg dodged; `min_k:3` | `65_community.mp4` page copy on `aee635eb`; `GET /community`; `server/community.py` |
 | "built by CodeBuild … Fargate … NLB … DynamoDB … Secrets Manager" | deployed, not claimed | `docs/18-aws-architecture.md`; console beat films it |
 
 ## Film-morning checklist (in order)
@@ -259,12 +265,12 @@ both honest — don't mix them in one sentence.
 
 | beat file | taped on | status |
 |---|---|---|
-| `10_hero.mp4` | web, `ce01ec5c` | ✅ usable — re-tape only if the field is flat on film morning |
-| `40_city.mp4` | web, `ce01ec5c` | ✅ usable — reach solve completed on tape (683 km / 12,418 segments) |
-| `30_dosegap.mp4` | web, `ce01ec5c` | ✅ usable — ladder drift covered by "about" phrasing |
+| `10_hero.mp4` | web, `aee635eb` | ✅ usable — re-tape only if the field is flat on film morning |
+| `40_city.mp4` | web, `aee635eb` | ✅ usable — reach solve completed on tape (622 km / 11,436 segments) |
+| `30_dosegap.mp4` | web, `aee635eb` | ✅ usable — ladder drift covered by "about" phrasing |
 | `25_journey.mp4` | APK `c3bb731` | ✅ canonical app take |
 | `26_receipt.mp4` / `27_ledger.mp4` / `28_today.mp4` | APK `c3bb731` | ✅ canonical |
-| `65_community.mp4` | web, `ce01ec5c` | ✅ close beat takes `-ss 5` for 8 s (shared-ledger stats card + k≥3 street table) |
+| `65_community.mp4` | web, `aee635eb` | ✅ close beat takes `-ss 5` for 8 s (shared-ledger stats card + k≥3 street table) |
 | `50_admin.mp4` | web, `4eb9e1e8` | spare — needs `~/.alive_admin_token` on the capture box; only if the token is available film morning |
 | `80_aws` | — | ⏳ **owner tapes on film morning** (console needs his login) |
 | `cards/title.html` `cold.html` `close.html` `end.html` | — | ✅ this lane — paper register, live placeholders injected |

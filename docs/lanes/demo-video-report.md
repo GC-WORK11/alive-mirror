@@ -117,6 +117,30 @@ than the admin scorecard could); **city + dosegap VO numbers rewritten to the
 taped values** (walk ≤50 µg → 683.3 km; ladder 11.4/33.3/38.6/161.9/382.2 µg)
 — narration always says what the screen shows.
 
+## Re-tape on prod `aee635eb` (2026-10-07 ~07:15 IST)
+
+Prod moved `ce01ec5c` → `aee635eb` after the first draft (city+community
+overhaul `6c36219`, landing overhaul, admin overhaul). All four web beats
+re-taped on current prod — app beats (`25/26/27/28`, APK `c3bb731`) unchanged
+and still canonical:
+
+| beat | re-taped | on tape now |
+|---|---|---|
+| `10_hero` 13.6 s | `aee635eb` | "52 STATIONS LIVE · FIELD 13 MIN FRESH · MEDIAN 57 · 903K EDGES" + new field copy ("the field the dosimeter reads — the same surface the router prices on") + self-grade footer (234 pairs · 29.5 µg/m³) |
+| `30_dosegap` 21.0 s | `aee635eb` | corridor 31.4 km + ladder Car 11.4 / Bike 34.5 / Auto 38.3 / Bicycle 161.7 / On foot 381.4 µg · "5 options priced in 1.2 s" · depart "leave ~11:00, 15% less" |
+| `40_city` 33.0 s | `aee635eb` | NEW layout: named-boundary district SVG + forecast scrub + reach solve **on tape: walk ≤50 µg → 622.2 km / 11,436 segments** + day tiles + "the ledger, today" numbered cards incl. "STREETS WE CAN SHOW 12 ≥3 phones" |
+| `65_community` 13.5 s | `aee635eb` | NEW layout: "22 phones · 40 trips · 1,029 µg dodged all-time · bus ×1" + k≥3 corridor caption |
+
+Every recorder hook still resolves post-overhaul (`tlDeep`/`TL.cache`,
+`click_geo`, `scroll_el`, reach `armed→solving→cap` — zero selector breakage).
+The `@@` injection lives in the CARDS only (never page overlays), so nothing
+to re-anchor; `assemble.sh` filled `aee635eb` / "about 2.6" / 818 µg into the
+new draft. Shotlist VO re-pinned to the new tape (52→"over fifty" instruments,
+622→"over six hundred" km, auto "about forty").
+
+New draft: `~/video/cut7.mp4` — 158.0 s, frame-verified inside the assembled
+file (new city district map + new community ledger visible in the cut).
+
 ## Oct-8 open items (in order)
 
 1. `scripts/verify_numbers.sh` → update shotlist `[T-45]` figures if drifted
