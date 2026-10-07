@@ -1023,3 +1023,46 @@ consistency, real-time updates, profile behavior, both platforms.
   degrade; `*[...]*` stamped blocks + handoff logs no longer false-flag;
   fires/~35×/×1.27 matchers drift-aware; bare-6.2 holdout claims flagged.
   Green run vs prod bc8f82c4, ~01:05 UTC Oct 7 — T-45 safe.
+
+### Oct-7 morning — BandScale + events engine + audits + calibration fix
+- **BandScale** `bc8f82c`: 6-seg CPCB position strip under heroes
+  (HomeScreen + DelhiToday). Zero new words — position answers
+  "is this bad?". Verified on-device, deployed `bc8f82c4`.
+- **Air alerts engine** `4d20990` + notify channel fix `8346460`:
+  6 kinds (fires/fires_nc/band/window/stagnation/severe) off served
+  fields only — belt_fires+carrying from /v2/why, bandIdx from /aqi,
+  cleanest_window+grapStage from /v2/day. Per-UTC-day dedupe,
+  re-ping only on worse, 18h baseline expiry, foreground-only
+  (settings copy honest: "checked while the app is open").
+  Verified: stagnation+fires_nc fired real; band/severe/window
+  correctly silent. Report `docs/lanes/events-notify-report.md`.
+  - BUG FOUND+FIXED `8346460`: trigger:null → {channelId:"air-events"} —
+    immediate pings were bypassing the named Android channel.
+- **Suite 1169 green at HEAD** after `98f45da` (3 hermetic fixes):
+  conftest globs `core/build*` (was silently running Python fallback
+  — search tests ~10× slower than C++); no-key chain tests delenv
+  WAQI+CPCB+OPENAQ (load_dotenv pulls server/.env into pytest).
+- **calibrate.py real LOO** `1e3278f`: instrument set = station
+  coords (pm2_5-only selector found 0 rows post-DPCC debias); KF
+  refit per holdout (old "LOO" served stale fit → measured nothing).
+  New artifact: n=70, MAE 8.8, RMSE 12.7, bias +0.2. Replaces the
+  stale n=27/MAE-46.1 OpenAQ-era artifact on /aqi.calibration.
+- **Audits landed**: server-audit `fd951e8` (deep clean bill — dose
+  contract, k≥3 mechanism, banned-keys allowlist, honest degrade all
+  verified live; top risk = deploy lag, now fixed by bc8f82c4);
+  web-audit `b7c2714` (city stale day-key + donation 22v39 + 28
+  hardcoded dots → web-bugfix lane e6398956); judge-attack `0f5f879`
+  (top-3: citizen layer sparse-but-honest / plaintext HTTP / disabled
+  EventBridge — last two pending OWNER decision); mobile-audit
+  `01d3e59` (outbox resurrection → Max fix lanes; i18n leaks fixed
+  832e7fa; consent disclosure 1afccd8).
+- **Demo-morning assets verified**: scripts/public-repo.sh ready
+  (commit-tree, never touches worktree, secrets+blob guards);
+  tools/warm_task.py walks every lazy layer with real requests;
+  Fargate already on-demand (no spot config exists — "flip" item
+  is steady state); server/.env untracked+ignored (baseline safe).
+- Live prod `bc8f82c4`: 54 stations, 1.07M edges, 903k priced.
+- Next deploy batch: 1e3278f (calibration) + 8346460 (channel fix)
+  + web-bugfix when it lands.
+- Board: web-bugfix e6398956 + android-drive 53a85a60 + field-watch-2
+  running; Max board (coordinator): audits landing + 2 fix lanes.
