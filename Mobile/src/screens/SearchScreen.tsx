@@ -26,7 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { NUM, V2Elev, V2Radius, V2T, V2Type, fam, famMono } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
-import { t, type Lang } from "../i18n/strings";
+import { localizeKind, t, type Lang } from "../i18n/strings";
 import { Icon } from "../icons";
 import { Quiet } from "../ui";
 import {
@@ -355,7 +355,7 @@ function SearchSheetInner({
         query={q}
         glyph={categoryGlyph(p.kind, V2T.text2)}
         title={p.name}
-        subtitle={p.subtitle}
+        subtitle={p.subtitle != null ? localizeKind(p.subtitle, lang) : undefined}
         distLabel={distLabel(p)}
         outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
         dim={p.outside_ncr}
@@ -473,7 +473,7 @@ function SearchSheetInner({
                     lang={lang}
                     glyph={<Icon name="clock" color={V2T.text2} size={20} />}
                     title={p.name}
-                    subtitle={p.subtitle}
+                    subtitle={p.subtitle != null ? localizeKind(p.subtitle, lang) : undefined}
                     distLabel={distLabel(p)}
                     outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
                     dim={p.outside_ncr}

@@ -215,8 +215,8 @@ function WelcomeFilm({
   const bandHex = bandColorIdx(bi);
   const word = bi != null ? t(BAND_WORD[bi], lang) : null;
   const prov = field?.src === "ambient"
-    ? "live · the field here, this hour"
-    : "live · field mean over the ncr lattice";
+    ? t("wel_provAmbient", lang)
+    : t("wel_provCity", lang);
   const numeral = v != null
     ? (v >= 100 ? `${Math.round(v)}` : v.toFixed(1))
     : null;
@@ -306,7 +306,7 @@ function WelcomeFilm({
           <View style={ss.readRow}>
             <Text {...DYNAMIC_TYPE} style={[ss.dim, { fontFamily: famMonoText(lang, "reg") }]}>
               {resolved
-                ? numeral != null ? prov : "nothing served — never faked"
+                ? numeral != null ? prov : t("wel_neverFaked", lang)
                 : t("cityLoading", lang)}
             </Text>
             <Animated.Text
@@ -319,7 +319,7 @@ function WelcomeFilm({
 
         <View style={[ss.footRow, { bottom: insets.bottom + 30 }]}>
           <Text {...DYNAMIC_TYPE} style={[ss.foot, { fontFamily: famMonoText(lang, "reg") }]}>
-            {banded && numeral != null ? "then — what you breathe" : "what delhi breathes"}
+            {banded && numeral != null ? t("wel_thenBreathe", lang) : t("wel_delhiBreathes", lang)}
           </Text>
         </View>
       </Pressable>
