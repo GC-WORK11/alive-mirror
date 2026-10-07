@@ -99,6 +99,9 @@ export interface FieldStatus {
   built_epoch?: number | null;     // unix seconds of the served build
   built_at?: string | null;        // the same instant, ISO UTC
   station_readings?: number;       // live station readings blended — 0 = dark
+  /** the live instrument set behind station_readings — real feed coords,
+      so surfaces draw these dots and never a baked-in list (e572f58) */
+  stations?: { lat: number; lon: number; name?: string | null }[];
   stations_src?: string | null;    // "waqi" | "cpcb" | "openaq" — winning feed
   stations_status?: Record<string, string> | null; // per-feed verbatim verdicts
   wind?: Record<string, unknown>;
