@@ -652,7 +652,11 @@ function AppInner() {
     if (!e.nativeEvent.trackUserLocation) setFollow(false);
   }, [setFollow]);
 
-  const openSidebar = useCallback(() => setSidebarOpen(true), []);
+  /* the drawer is modal — opening it dismisses the layers sheet, which
+     otherwise mounts later in JSX and floats ABOVE the open sidebar
+     (testday-ios z-order wart). Mirrors onDelhiTodayOpen/onFullSettings
+     closing the drawer beneath their own surface. */
+  const openSidebar = useCallback(() => { setLayersOpen(false); setSidebarOpen(true); }, []);
   const openSearch = useCallback(() => { setEditWhich("to"); setPhase("search"); }, [setEditWhich, setPhase]);
   const closeCompareToHome = useCallback(() => { setHomeOpen(true); clearRoute(); }, [clearRoute]);
   const onSearchClose = useCallback(() => {
