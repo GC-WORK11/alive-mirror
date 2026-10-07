@@ -154,7 +154,7 @@ def summarize_outlook(day_pairs, today, has_krige: bool,
     grand = sum(all_mids) / len(all_mids)
     best = min(days, key=lambda dd: dd["pm25_mid"])
     word = "least-bad" if best["pm25_mid"] > _CLEAN_UG else "cleanest"
-    line = ("%s looks %s — avg ~%.0f vs ~%.0f µg/m³ across the %d-day forecast"
+    line = ("%s looks %s — average ~%.0f vs ~%.0f µg/m³ across the %d-day forecast"
             % (best["label"], word, best["pm25_mid"], grand, len(days)))
     if best["n_hours"] < 12:
         line += (" (only its first ~%dh fall inside the forecast)"

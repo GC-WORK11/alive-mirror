@@ -188,7 +188,7 @@ function PairBars({ o, worstIn, worstOut, lang }: {
 
 /** Tag / recommended chip — server tags fill accent, the fallback "our
  *  pick" stays neutral so the stronger claim reads stronger. `glyph`
- *  puts a small icon beside the text (the "safest route" leaf). */
+ *  puts a small icon beside the text (the least-smoky leaf). */
 function Chip({ text, accent, glyph, lang }: {
   text: string; accent?: boolean; glyph?: Glyph; lang: Lang;
 }) {
@@ -400,7 +400,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
                 <Text {...DYNAMIC_TYPE} style={[s.optQual, { fontFamily: fam(lang, "reg") }]}>{lblQual}</Text>
               ) : null}
             </Text>
-            {/* the least-inhalation route leads: "safest route" (the
+            {/* the least-inhalation route leads: "least smoky" (the
                 server's safest_path flag, or the dose-min option when
                 no flag was sent) sits ahead of the server tag, which is
                 demoted to plain while the headline chip is up */}
@@ -522,7 +522,7 @@ function CompareSheetInner({
   const anyBars = worstIn > 0 || worstOut > 0;
   const toggleDetail = (i: number) => setDetailIdx((cur) => (cur === i ? null : i));
 
-  /* The "safest route" headline: an explicit server `safest_path` flag
+  /* The "least smoky" headline: an explicit server `safest_path` flag
    * wins wherever it appears; with no flag, the first option at the
    * lowest dose carries it — the least-inhalation path is always obvious. */
   const flaggedSafest = options.some((o) => o.safest_path === true);

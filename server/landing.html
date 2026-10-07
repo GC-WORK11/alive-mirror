@@ -535,7 +535,7 @@ h1.lede em{font-style:normal;color:var(--ink2)}
     <div class="bt-num"><b id="btNumV"></b><span class="u" id="btUnit"></span></div>
     <div class="bt-word" id="btWord"></div>
   </div>
-  <div class="bt-line"><span id="btLine">reading the field…</span><span class="cur"></span></div>
+  <div class="bt-line"><span id="btLine">reading the live air…</span><span class="cur"></span></div>
   <div class="bt-foot" id="btFoot">the field knows what delhi breathed</div>
 </div>
 
@@ -565,12 +565,12 @@ h1.lede em{font-style:normal;color:var(--ink2)}
      line of text, not a row of tiles. -->
 <section class="proof" id="heroZone"><div class="col">
   <div class="hnum" id="hnum" role="status" data-rv>
-    <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the field, live</span></span>
+    <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the air map, live</span></span>
     <div class="hnum-n"><b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span></div>
-    <span class="hnum-t" id="hnumT">a day of breathing today's field — reading…</span>
-    <i class="hnum-s" id="hnumS">reading the live field…</i>
+    <span class="hnum-t" id="hnumT">a day of breathing today's air — reading…</span>
+    <i class="hnum-s" id="hnumS">reading the live air map…</i>
   </div>
-  <div class="statusline" id="status" aria-live="polite" data-rv>reading the field…</div>
+  <div class="statusline" id="status" aria-live="polite" data-rv>reading the live air…</div>
 </div></section>
 
 <!-- the mechanics — how a breath becomes a number, then the privacy
@@ -582,31 +582,32 @@ h1.lede em{font-style:normal;color:var(--ink2)}
       <div class="step"><span class="n">01</span><span class="t">measure</span>
         <p class="d">WAQI and DPCC instruments across the NCR report on
         their own cadences — DPCC posts fresh pages about every 5
-        minutes and the field rebuilds roughly every 15; AQI
-        sub-indices are inverted back to µg/m³ before anything touches
+        minutes and the map rebuilds roughly every 15; station
+        readings are converted back to µg/m³ before anything touches
         them.</p></div>
       <div class="step"><span class="n">02</span><span class="t">interpolate</span>
-        <p class="d">Ordinary kriging draws the field — a surface, not a
-        guess — and every cell keeps its own error band. 95.2% of 3,550
-        held-out station-hours landed inside ±2σ.
+        <p class="d">Ordinary kriging — careful fill-in between stations —
+        draws the map, a surface, not a guess — and every cell keeps
+        its own error band. 95.2% of 3,550 held-out station-hours landed
+        inside ±2σ.
         <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">the method ↗</a></p></div>
       <div class="step"><span class="n">03</span><span class="t">dose</span>
-        <p class="d">Concentration × ventilation × minutes, summed along
+        <p class="d">Concentration × breathing rate × minutes, summed along
         the road you take — a C++ engine priced
-        <b><span id="pricedcount2">—</span>&nbsp;million</b> edges on it
+        <b><span id="pricedcount2">—</span>&nbsp;million</b> road segments on it
         to rank routes; the app runs the same sum over your trips,
         on-device.</p></div>
     </div>
-    <p class="why" data-rv>Dose-priced routing is the proof the field can
+    <p class="why" data-rv>Dose-priced routing is the proof the map can
     decide — the engine priced <b><span id="pricedcount">—</span>&nbsp;million</b>
-    of <b><span id="edgecount">—</span>&nbsp;million</b> road edges under
-    this hour's field.</p>
+    of <b><span id="edgecount">—</span>&nbsp;million</b> road segments under
+    this hour's map.</p>
     <div class="pledge" data-rv>
       <h3>The ledger stays yours.</h3>
       <div class="pl"><span class="pl-t">your dose</span>
         <span class="pl-d">counted on your phone, kept on your phone</span></div>
       <div class="pl"><span class="pl-t">a shared trip</span>
-        <span class="pl-d">joins a corridor only where three or more phones cross it — below that, it never appears at all</span></div>
+        <span class="pl-d">joins a shared street only where three or more phones cross it — below that, it never appears at all</span></div>
       <div class="pl"><span class="pl-t">the rest</span>
         <span class="pl-d">no accounts, no profiles — aggregates or nothing</span></div>
     </div>
@@ -614,7 +615,7 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   <figure class="shot" data-rv>
     <img src="/app-hero.png" width="552" height="1200"
       alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
-    <figcaption>the app on android, live — real route, real field</figcaption>
+    <figcaption>the app on android, live — real route, real air map</figcaption>
   </figure>
 </div></div></section>
 
@@ -625,7 +626,7 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   <h2 class="lead" data-rv>The city, right now.</h2>
   <div class="field-sec">
     <div class="field-head">
-      <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the field, this hour</b></span></span>
+      <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the air map, this hour</b></span></span>
       <span class="psel" id="msel" role="group" aria-label="tool"></span>
       <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
       <span class="lbl" id="fieldAge">—</span>
@@ -634,7 +635,7 @@ h1.lede em{font-style:normal;color:var(--ink2)}
       <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
       <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
       <canvas id="raster" tabindex="0"
-        aria-label="live interpolated field over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
+        aria-label="live air map over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
         aria-describedby="kbhint"></canvas>
       <div class="fpop" id="fpop" hidden></div>
     </div>
@@ -655,12 +656,12 @@ h1.lede em{font-style:normal;color:var(--ink2)}
       <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
         letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
         line-height:1.9">
-        the live field, the district map, and today's dose figure need
+        the live map, the district map, and today's dose figure need
         javascript — everything else on this page does not.</p>
     </noscript>
     <div class="field-cap">
       <span class="left" id="capLeft">This is the sensor —
-      every cell interpolated from live instruments, confidence carried with
+      every cell filled in from live instruments, confidence carried with
       it; the same surface the router prices on. It records Delhi hourly —
       history, not just forecast. Click a cell.</span>
       <span class="legend">
@@ -1104,10 +1105,10 @@ function capLive(){
   const spec=SPECS[PARAM];
   if(!LIVE_CAP.n)return;
   $('capLeft').innerHTML=
-    `The field the dosimeter reads — ${fmt(LIVE_CAP.n)} cells, `+
+    `The air map the dosimeter reads — ${fmt(LIVE_CAP.n)} cells, `+
     `${F1(LIVE_CAP.lo)}–${F1(LIVE_CAP.hi)} ${spec.unit}`+
     `${LIVE_CAP.derived?` · ${esc(LIVE_CAP.derived)}`:''} `+
-    `· cell fade = distance to nearest sample · the same surface the `+
+    `· cell fade = distance to the nearest station · the same surface the `+
     `router prices on. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
 }
 async function paint(){
@@ -1129,10 +1130,10 @@ async function paint(){
   if(!FEATS.length){
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='#a6acb8';ctx.font='11px '+monoFont();ctx.textAlign='center';
-    ctx.fillText('reading the live field…',W/2,H/2);
+    ctx.fillText('reading the live air map…',W/2,H/2);
     cv.parentElement.classList.add('ready');
   }
-  $('capLeft').innerHTML=`reading the ${spec.title} field — <b>live fetch</b>…`;
+  $('capLeft').innerHTML=`reading the ${spec.title} map — <b>live</b>…`;
   try{
     const g=await api(`/grid?cells=${CELLS}&param=${PARAM}`);
     if(seq!==PAINTSEQ)return;   /* a later click owns the canvas now */
@@ -1149,7 +1150,7 @@ async function paint(){
     vals.sort((a,b)=>a-b);
     MEDIAN=vals.length?vals[vals.length>>1]:null;
     $('confSplit').textContent=
-      `${hi} measured · ${med} interpolated · ${lo} thin`;
+      `${hi} measured · ${med} estimated between stations · ${lo} thin`;
     const ep=g.properties&&g.properties.cell_epoch;
     /* IST like the other pages' stamps — a viewer on any other clock
        sees the field's own build minute, not a stale local time */
@@ -1157,7 +1158,7 @@ async function paint(){
       `refreshed ${new Date(ep[0]*1000).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})} IST`;
     $('legendTick').innerHTML=
       `<span>${spec.ticks[0]}</span><span>${spec.ticks[1]}</span><span>${spec.ticks[2]}</span>`;
-    $('fieldLbl').innerHTML=`${spec.title} — <b>the field, this hour</b>`;
+    $('fieldLbl').innerHTML=`${spec.title} — <b>the air map, this hour</b>`;
     const derived=(FEATS[0]&&FEATS[0].properties&&FEATS[0].properties.derived)||null;
     LIVE_CAP={n:vals.length,lo:vals.length?vals[0]:null,
               hi:vals.length?vals[vals.length-1]:null,derived};
@@ -1171,11 +1172,11 @@ async function paint(){
        cadence (the 120s interval does retry), never fake a surface. */
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='#a6acb8';ctx.font='11px '+monoFont();ctx.textAlign='center';
-    ctx.fillText('the live field is unreachable — retrying',W/2,H/2-9);
+    ctx.fillText('the live map is unreachable — retrying',W/2,H/2-9);
     ctx.fillText('automatically every 2 minutes',W/2,H/2+9);
     $('confSplit').textContent='';
     $('capLeft').innerHTML=
-      'The live field is unreachable right now — this page retries every 2 minutes.';
+      'The live map is unreachable right now — this page retries every 2 minutes.';
     cv.parentElement.classList.add('ready');
   }
 }
@@ -1202,7 +1203,7 @@ $('msel').addEventListener('click',e=>{
   MODE=b.dataset.m;renderPills();
   INS=null;$('fpop').hidden=true;
   if(MODE==='inspect'){PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';drawScene()}
-  else $('capLeft').innerHTML='Pick two points on the field — the engine prices the corridor between them live.';
+  else $('capLeft').innerHTML='Pick two points on the map — the engine prices the route between them live.';
 });
 
 /* --- cell inspector ----------------------------------------------------- */
@@ -1230,9 +1231,9 @@ function showCellCard(ft,x,y,pinned){
   pop.innerHTML=`<div class="p-name">${NAMES[key]!=null?NAMES[key]:'locating…'}</div>
     <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}`:''}${TL.frame?` · forecast h+${TL.h}`:''}${pinned?' · pinned — esc closes':''}</div>
     <div class="p-v"><b>${v==null?'—':F1(v)}</b> ${spec.title}${spec.unit==='aqi'?'':' µg/m³'}${bi!=null?` · <span class="pcol" style="background:rgb(${BAND[bi].join(',')})"></span>${BAND_NAME[bi]}`:''}</div>
-    <div class="p-conf">${p.conf==='hi'?'hi conf — dense sample coverage'
-      :p.conf==='med'?'med conf — moderate coverage'
-      :'lo conf — far from samples'}${p.derived?` · ${esc(p.derived)}`:''}${p.pm25!=null&&PARAM!=='pm2_5'?` · pm2.5 ${F1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
+    <div class="p-conf">${p.conf==='hi'?'high confidence — many stations near here'
+      :p.conf==='med'?'medium confidence — some stations near here'
+      :'low confidence — no stations near here'}${p.derived?` · ${esc(p.derived)}`:''}${p.pm25!=null&&PARAM!=='pm2_5'?` · pm2.5 ${F1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
   srSay(`sector ${fmSector(clon,clat)} — `+
     `${v==null?'no reading':F1(v)+' '+(spec.unit==='aqi'?'aqi':'µg/m³')}`+
     `${bi!=null?', '+BAND_NAME[bi]:''}`);
@@ -1289,7 +1290,7 @@ function pickAt(x,y){
   const{ft}=hitCell(x,y);
   if(!ft){
     $('routeline').innerHTML=
-      '<b>a→b</b> — that point sits outside the priced field; pick inside the map';
+      '<b>a→b</b> — that point sits outside the map's reach; pick inside it';
     return;
   }
   if(!PT_A||(PT_A&&PT_B)){
@@ -1300,7 +1301,7 @@ function pickAt(x,y){
   const cand={lon:toLon(x),lat:toLat(y)};
   if(hav(PT_A,cand)<0.3){
     $('routeline').innerHTML=
-      '<b>a→b</b> — the two points are too close to price a corridor; pick a farther second point';
+      '<b>a→b</b> — the two points are too close to price a route; pick a farther second point';
     return;
   }
   PT_B=cand;
@@ -1317,7 +1318,7 @@ const srSay=t=>{const e=$('srlive');if(e)e.textContent=t};
 $('raster').addEventListener('focus',()=>{
   if(W&&H&&!KBD)KBD={x:W/2,y:H/2};
   $('kbhint').hidden=false;
-  srSay('field map focused — arrow keys move the crosshair, enter selects');
+  srSay('air map focused — arrow keys move the crosshair, enter selects');
   drawScene();
 });
 $('raster').addEventListener('blur',()=>{
@@ -1351,7 +1352,7 @@ document.addEventListener('click',e=>{
 async function planAB(){
   const seq=++PLANSEQ;
   const a={...PT_A},b={...PT_B};
-  $('routeline').innerHTML='pricing the corridor — <b>live engine call</b>…';
+  $('routeline').innerHTML='pricing the route — <b>live engine call</b>…';
   $('departline').textContent='';$('ladder').textContent='';
   try{
     const d=await api('/v2/plan',{method:'POST',
@@ -1367,10 +1368,10 @@ async function planAB(){
          inside with no road path between the points. Only the first is a
          coverage statement; don't claim coverage for a timed-out arm. */
       const tail=d.code==='outside_service_area'
-        ?'the engine only prices inside the NCR field window'
+        ?'the engine only prices inside the NCR map'
         :(d.degraded||[]).length
           ?`the ${d.degraded.map(esc).join(' · ')} arm${d.degraded.length>1?'s':''} didn't answer inside the plan budget — try again`
-          :'inside the field window, but no road path connects those points';
+          :'inside the map, but no road path connects those points';
       $('routeline').innerHTML=
         `<b>a→b</b> — ${esc(d.error||'no route')} — ${tail}`;
       return;
@@ -1391,7 +1392,7 @@ async function planAB(){
       `<b>a→b</b> ${esc(o.label||o.mode||'route')} — `+
       `<span class="rdose">${ds.mid!=null?F1(ds.mid)+' µg':'—'}</span>`+
       `${ds.lo!=null?` inhaled <b>${F1(ds.lo)}–${F1(ds.hi)}</b>`:''}`+
-      `${ds.confidence==='low'?' · <b>lo conf</b>':''}`+
+      `${ds.confidence==='low'?' · <b>low confidence</b>':''}`+
       `${km!=null?` · <b>${F1(km)} km</b>`:''}`+
       `${min!=null?` · ~${min} min`:` —`}`+
       (snap
@@ -1444,7 +1445,7 @@ async function departAB(a,b,seq){
       :`leave ~<b>${hh(d.best)}</b> — <b>${Math.round(pct)}%</b> less dose than now`;
     $('departline').innerHTML=
       `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="dose by departure hour">${line}${dots}</svg>`+
-      `<span>${txt} · next 12h, same corridor</span>`;
+      `<span>${txt} · next 12h, same route</span>`;
   }catch(e){if(seq===PLANSEQ)$('departline').textContent='';}
 }
 
@@ -1471,7 +1472,7 @@ function ladderAB(opts,drawnOpt,seq){
     const flags=[];
     if(snap)flags.push(`starts ~${ogap!=null?ogap+' km':'—'} from a`);
     if(trunc)flags.push(`~${gap!=null?gap+' km':'—'} short`);
-    if(ds.confidence==='low')flags.push('lo conf');
+    if(ds.confidence==='low')flags.push('low confidence');
     if(ds.sparse)flags.push(ds.basis?esc(ds.basis):'sparse cells');
     const geo=(o.route_geojson||{}).coordinates||[];
     if(!geo.length)flags.push('priced, no road path');
@@ -1548,33 +1549,33 @@ async function heroCity(){
       el.classList.add('breathe');
       /* the felt line: cigarettes as the translation, never the figure */
       if(cig!=null&&cig>0){
-        $('hnumT').innerHTML=`a day of breathing today's field ≈`
+        $('hnumT').innerHTML=`a day of breathing today's air ≈`
           +` <b>${F1(cig)} cigarettes</b>`;
       }else{
-        $('hnumT').innerHTML=`a day of breathing today's field`
+        $('hnumT').innerHTML=`a day of breathing today's air`
           +`${ug!=null?` ≈ <b>${fmt(ug)} µg</b> inhaled`:''}`;
       }
       /* the basis line uppercases — µ must opt out or µg becomes "mg" */
       const noT='<span style="text-transform:none">µg/m³</span>';
-      $('hnumS').innerHTML=`live · field mean over the ncr lattice`
-        +`${(b.cigarettes||{}).hi!=null?` · worst ≈${F1(b.cigarettes.hi)} cig` :''}`
-        +` · 22 ${noT}-day ≈ 1 cig`;
+      $('hnumS').innerHTML=`live · the ncr-wide average`
+        +`${(b.cigarettes||{}).hi!=null?` · worst ≈${F1(b.cigarettes.hi)} cigarettes` :''}`
+        +` · a day at 22 ${noT} ≈ 1 cigarette`;
     }else{
       $('hnumV').textContent='—';
-      $('hnumW').textContent='pm2.5 — the field';
+      $('hnumW').textContent='pm2.5 — the air map';
       $('hnumT').textContent='the breath figure came back empty — no fake number shown';
-      $('hnumS').textContent='the field below still reads live';
+      $('hnumS').textContent='the map below still reads live';
     }
     const t=d.typical||{};
     if(t.vs_now_pct!=null){
       const pc=Math.round(t.vs_now_pct);
       $('dayNote').textContent=
-        `now — live field ${pc>0?'+':''}${pc}% vs the typical hour`;
+        `now — live air ${pc>0?'+':''}${pc}% vs the typical hour`;
     }
   }catch(e){
     $('hnumV').textContent='—';
     $('hnumT').textContent='the breath figure is unreachable — the page retries it';
-    $('hnumS').textContent='the field below still reads live';
+    $('hnumS').textContent='the map below still reads live';
   }
 }
 async function dayStrip(){
@@ -1588,7 +1589,7 @@ async function dayStrip(){
       `<span class="db${i===now?' now':''}" style="height:${Math.max(2,v/mx*100)}%"
         title="${String(i).padStart(2,'0')}:00 ist — typical ~${Math.round(v)} µg/m³"></span>`).join('');
     $('dayWhy').innerHTML=
-      `typical = the archive's median for this hour — october · ist ·
+      `typical = the archive's middle value for this hour — october · ist ·
       connaught place · <b>recorded history</b>, not a forecast`;
     $('daySec').hidden=false;
   }catch(e){/* the strip stays hidden — honest absence, no fake curve */}
@@ -1602,7 +1603,7 @@ async function skillLine(){
     const ov=d.overall||{},cv=d.coverage||{};
     if(d.status!=='ok'||ov.mae_ug==null)return;
     $('skillLine').innerHTML=
-      `this field also grades itself — over <b>${fmt(cv.hours_graded)}</b>
+      `this air map also grades itself — over <b>${fmt(cv.hours_graded)}</b>
        recorded hours the forecast we served missed the air delhi got by
        <b>${F1(ov.mae_ug)} <span style="text-transform:none">µg/m³</span></b> on average · ${fmt(ov.n)} pairs ·
        <a href="/v2/skill">the raw numbers ↗</a>`;
@@ -1618,7 +1619,7 @@ async function whyTonight(){
     if(!ln)return;
     const nd=(d.drivers||[]).length;
     $('whyLine').innerHTML=
-      `why tonight — <b>${ln}</b>${nd?` · ${nd} driver${nd>1?'s':''} observed`:''
+      `why tonight — <b>${ln}</b>${nd?` · ${nd} cause${nd>1?'s':''} seen`:' '
       } · <a href="/v2/why?lat=28.6315&lon=77.2167">the evidence ↗</a>`;
     $('whyLine').hidden=false;
   }catch(e){/* hidden — the explainer had nothing honest to say */}
@@ -1705,20 +1706,20 @@ async function dtShow(chip){
   const level=d.level==='osm_admin_5'
     ?`sub-area · ${d.parent||'delhi nct'}`:`district · ${d.state||'—'}`;
   const basis=d.confidence==='sparse'
-    ?`centroid read — ${d.cells_covered||0} covered cell${(d.cells_covered||0)===1?'':'s'}`
-    :d.cells_covered?`mean of ${d.cells_covered} covered cells`:'no covered cells';
+    ?`centre-point read — ${d.cells_covered||0} covered cell${(d.cells_covered||0)===1?'':'s'}`
+    :d.cells_covered?`average of ${d.cells_covered} covered cells`:'no covered cells';
   const pcut=CUT[name];
   pop.innerHTML=`${pcut?`<svg class="p-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${pcut}" fill="${c}" fill-opacity="${na?0.10:0.85}" stroke="#16181d" stroke-width="1.6" stroke-linejoin="round"/></svg>`:''}
     <div class="p-name">${esc(d.name)}</div>
     <div class="p-sub">${esc(level)}</div>
     <div class="p-v">${na
-      ?'<b>—</b> no field data'
+      ?'<b>—</b> no map data'
       :`<b>${d.pm25==null?'—':F1(d.pm25)}</b> µg/m³ <span class="daqi" style="background:${c};color:${chipInk(c)}">aqi ${d.aqi} · ${esc((d.category||'').toLowerCase())}</span>`}
     </div>
     <div class="p-conf">${na
-      ?'outside the measured field'
+      ?'outside the measured map'
       :esc(basis)+(d.partial_field_coverage?' · partial coverage':'')}
-      ${na?'':'<br><span id="dttrend">trend — computing +12h field…</span>'}</div>`;
+      ${na?'':'<br><span id="dttrend">trend — computing the +12h read…</span>'}</div>`;
   pop.hidden=false;
   pop.style.top=Math.max(6,r.bottom-wr.top+6)+'px';
   if(pop.offsetTop+pop.offsetHeight>wrap.offsetHeight)
@@ -1775,13 +1776,13 @@ async function status(){
     if(stn>0)$('stnHero').textContent=stn;
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
-      `<span>field <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
-      (MEDIAN!=null?`<span>${PARAM==='pm2_5'?'median':SPECS[PARAM].title+' median'} <b>${Math.round(MEDIAN)}</b> <span style="text-transform:none">${SPECS[PARAM].unit}</span></span>`:'')+
+      `<span>map <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
+      (MEDIAN!=null?`<span>${PARAM==='pm2_5'?'usual':SPECS[PARAM].title+' usual'} <b>${Math.round(MEDIAN)}</b> <span style="text-transform:none">${SPECS[PARAM].unit}</span></span>`:'')+
       (wind.speed_kmh?`<span>wind <b>${Math.round(wind.speed_kmh)} km/h</b></span>`:'')+
-      `<span><b>${ptxt}</b> edges priced</span>`;
+      `<span><b>${ptxt}</b> road segments priced</span>`;
     if(h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
   }catch(e){
-    $('status').innerHTML='<span>field unreachable — retrying</span>';
+    $('status').innerHTML='<span>map unreachable — retrying</span>';
   }
 }
 
@@ -1825,13 +1826,13 @@ function bootStrip(){
         const c=`rgb(${BAND[i].join(',')})`;
         numV.style.color=c;word.style.color=c;
         word.textContent='pm2.5 · '+BAND_NAME[i];
-        line.textContent='live · field mean over the ncr lattice';
+        line.textContent='live · the ncr-wide average';
         foot.textContent='the app counts what you breathe';
       },rm?0:500);
     }else{
       word.textContent='no live air reading right now';
       b.classList.add('banded');
-      line.textContent='the field serves nothing yet — never faked';
+      line.textContent='the map serves nothing yet — never faked';
     }
   };
   const tryResolve=()=>{
