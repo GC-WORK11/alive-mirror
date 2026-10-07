@@ -1097,3 +1097,25 @@ never read them see the same payload:
   ns_km 171.9 pm25 167.8; plan depart_at 'banana' → parsed:false echo
   kept; ISO → true; absent → key absent. 12 new regression tests.
 - Full suite + report: docs/lanes/fix-edge-honesty-report.md.
+
+### cont.59 — android-drive findings + fixes (Oct 7)
+`37d659d` drove base/v2 release APK end-to-end on a KVM AVD (76 shots):
+welcome→hero→search→2 real nav trips w/ live reroutes→receipts→ledger→
+DelhiToday→community→settings→हिंदी→day-arc→consent-off pcap = zero
+telemetry POSTs (only GETs + allowed plan/reroute POSTs). Verdict:
+build_ok, no blockers, design-v4 holds on Android.
+Real findings:
+- FIXED `c84b5c2`: phantom re-plan after receipt-Done (exitNav reopened
+  compare on the traveled OD — now phase idle); "≈≈ N µg" double tilde
+  in HourArc (template + approx() both carried the mark); exhaust model
+  collapsed to idle×time when GNSS speed absent (now falls back to
+  along-route ddM/dtS, capped 45 m/s).
+- FIXED `344b4a9`: "Where to?" pill occluded under open home sheet —
+  rendered but answered no taps; now yields (home CTA covers search).
+- OPEN (needs physical device): basemap renders zero text labels on
+  the SwiftShader AVD at every zoom — EN style verified correct in
+  maplibre-gl-js + glyph ranges present in mbgl-offline.db; iOS sim
+  DOES render labels. Likely SwiftShader SDF quirk — classify on the
+  owner's real Android hardware demo-morning (if real on device = P0).
+- NIT (unfixed): community street-name casing mixed ("hanuman lane"
+  vs "Fire Brigade Lane") — real /reports data casing, cosmetic only.
