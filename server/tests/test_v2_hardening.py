@@ -591,6 +591,38 @@ def test_aqi_inside_service_area_still_serves():
     assert "outside service area" not in (body.get("error") or "")
 
 
+def test_aqi_beyond_field_edge_marked(wired):
+    """Inside the 2° service margin but ~170 km past the seeded field's
+    extent — /aqi still answers (the service box is the gate), but the
+    served value is the nearest edge evidence extrapolated, not a local
+    read. The edge-honesty probe served the literal edge cell's pm25
+    here, confident-looking, disclosed only by a large ns_km a client
+    can ignore. beyond_field_edge is the additive marker."""
+    r = client.get("/aqi", params={"lat": 30.20, "lon": 77.21})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["beyond_field_edge"] is True
+    assert body["nearest_sample_km"] > 100     # the disclosure it replaces
+    assert body["pm25"] is not None            # response kept, just honest
+
+
+def test_aqi_inside_field_extent_not_beyond_edge(wired):
+    r = client.get("/aqi", params={"lat": 28.60, "lon": 77.20})
+    assert r.status_code == 200
+    body = r.json()
+    if body.get("pm25") is not None:           # field seeded -> served
+        assert body["beyond_field_edge"] is False
+
+
+def test_beyond_field_edge_empty_field_is_false():
+    """No serving data -> no 'past the edge' claim (the flag only ever
+    comments on a point actually being served)."""
+    from airfield import FIELD
+    FIELD._samples = []
+    FIELD._snap_cells = []
+    assert FIELD.beyond_field_edge(28.60, 77.20) is False
+
+
 def test_option_marks_geometry_truncated_at_field_edge():
     """Hostile-audit #1: geometry ending far short of the requested
     destination (live osrm-local clips at its NCR extract edge, ~28.95°N)

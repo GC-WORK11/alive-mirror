@@ -1052,6 +1052,24 @@ class AirField:
         return min(math.hypot(slat - lat, slon - lon) * 111.0
                    for slat, slon, _, _ in self._samples)
 
+    def beyond_field_edge(self, lat: float, lon: float) -> bool:
+        """(lat, lon) sits outside the served field's own extent — the
+        built index's bbox on snapshot serving, the live samples' extent
+        on live serving (the same coverage bbox status() reports).
+        value() then extrapolates the nearest edge evidence rather than
+        interpolating — a plausible number, but never a local read. The
+        margin between the real grid edge and the service box is exactly
+        where a clamp used to look confident (edge-honesty probe: a
+        point ~140 km past the kriged grid served the edge cell's pm25
+        disclosed only by nearest_sample_km)."""
+        serving = ("snapshot" if self._serving_snapshot()
+                   else "live" if self._samples else "none")
+        bb = (self._coverage(serving) or {}).get("bbox")
+        if not bb:
+            return False
+        w, s, e, n = bb
+        return not (w <= lon <= e and s <= lat <= n)
+
     def status(self) -> dict:
         serving = ("snapshot" if self._serving_snapshot()
                    else "live" if self._samples else "none")
