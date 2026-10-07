@@ -50,6 +50,9 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);
 a{color:inherit}
 a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .col{max-width:960px;margin:0 auto;padding:0 32px}
+/* the instrument gets a wider berth than the prose — the field map is
+   the page's largest object and deserves the full measure */
+.col-wide{max-width:1120px;margin:0 auto;padding:0 32px}
 
 /* one quiet entrance — nothing loops, nothing pulses */
 @keyframes rise{from{opacity:0;transform:translateY(10px)}
@@ -63,19 +66,34 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;
   clip:rect(0 0 0 0);white-space:nowrap}
 
-/* top bar — plain text floating on paper; no rule, air is the edge */
-.top-in{max-width:960px;margin:0 auto;padding:22px 32px;
+/* top bar — plain text floating on paper; no rule, air is the edge.
+   toplive is the scroll companion: once the proof zone leaves view the
+   live reading takes its place in the chrome — the page never stops
+   carrying the number it exists for. JS fills it; empty means hidden. */
+.top-in{max-width:1120px;margin:0 auto;padding:22px 32px;
   display:flex;align-items:baseline;justify-content:space-between;gap:24px}
 .wm{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
   font-weight:600;text-decoration:none}
 .wm i{font-style:normal;color:var(--sage)}
+#toplive{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink3);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;opacity:0;transform:translateY(3px);
+  transition:opacity .45s ease,transform .45s ease}
+#toplive.on{opacity:1;transform:none}
+#toplive:empty{display:none}
+#toplive b{color:var(--ink);font-weight:600}
+#toplive .tdot{display:inline-block;width:6px;height:6px;border-radius:1.5px;
+  background:var(--hb,var(--acc));margin-right:8px;vertical-align:1px}
+@media(prefers-reduced-motion:reduce){#toplive{transition:none}}
 .top nav{display:flex;gap:26px}
 .top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink2);text-decoration:none}
 .top nav a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px;text-decoration-thickness:1px}
 @media(max-width:640px){.top nav{gap:16px}
-  .top nav a{font-size:11px;letter-spacing:.12em;padding:14px 0}}
+  .top nav a{font-size:11px;letter-spacing:.12em;padding:14px 0}
+  #toplive{display:none}}
 
 /* quiet one-time scroll entrance — sections rise as they arrive.
    applied by JS only (data-rv → .rv), so no-JS never hides content;
@@ -87,19 +105,31 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;
   transition:none}}
 
-/* the opening — one editorial statement on paper. no card, no chip,
-   no tick: the statement IS the design. */
-.open .col{padding-top:88px;padding-bottom:70px}
+/* the opening — one editorial statement on paper, drifting over a faint
+   engineering dot-grid (the field the whole page reports on, drawn at
+   furniture weight — texture is ink, not colour). the statement IS the
+   design: no card, no chip, no tick. */
+.open{position:relative;overflow:clip}
+.open::before{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(rgba(22,24,29,.055) 1px,transparent 1.3px);
+  background-size:26px 26px;
+  -webkit-mask-image:linear-gradient(115deg,#000 18%,transparent 72%);
+  mask-image:linear-gradient(115deg,#000 18%,transparent 72%);
+  pointer-events:none}
+.open .col{position:relative;padding-top:64px;padding-bottom:58px}
 .hero-grid{display:block}
-.hero-copy{max-width:680px}
-@media(max-width:640px){.open .col{padding-top:56px;padding-bottom:46px}}
+.hero-copy{max-width:680px;will-change:transform}
+@media(max-width:640px){.open .col{padding-top:44px;padding-bottom:40px}}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;
   text-transform:uppercase;color:var(--ink3)}
+.eyebrow .livedot{display:inline-block;width:7px;height:7px;
+  border-radius:2px;background:var(--hb,var(--line2));margin-right:9px;
+  vertical-align:0;transition:background .6s ease}
 h1.lede{font-family:var(--sans);font-weight:500;
-  font-size:clamp(34px,7.6vw,60px);line-height:1.06;
-  letter-spacing:-.035em;margin-top:26px;max-width:19ch}
+  font-size:clamp(38px,8.2vw,66px);line-height:1.04;
+  letter-spacing:-.038em;margin-top:24px;max-width:18ch}
 h1.lede em{font-style:normal;color:var(--ink2)}
-.sub{margin-top:28px;max-width:540px;font-size:16.5px;line-height:1.66;
+.sub{margin-top:24px;max-width:560px;font-size:16.5px;line-height:1.62;
   color:var(--ink2)}
 .sub b{color:var(--ink);font-weight:600}
 @media(max-width:640px){.eyebrow{letter-spacing:.12em;line-height:1.9}}
@@ -109,7 +139,7 @@ h1.lede em{font-style:normal;color:var(--ink2)}
    exception — docs/20): one label, one numeral, one felt line, one basis
    line, one provenance line. everything else is air. */
 .proof{background:var(--hw,var(--paper));transition:background .8s ease}
-.proof .col{padding-top:64px;padding-bottom:66px}
+.proof .col{padding-top:56px;padding-bottom:60px}
 @media(prefers-reduced-motion:reduce){.proof{transition:none}}
 @media(max-width:640px){.proof .col{padding-top:48px;padding-bottom:52px}}
 /* the readout stacks like an instrument read: label, numeral, felt,
@@ -149,13 +179,69 @@ h1.lede em{font-style:normal;color:var(--ink2)}
 .statusline b{color:var(--ink);font-weight:600}
 .statusline .ok{color:var(--accInk)}
 
-/* the field — one honest raster, real geography, click through it.
-   the map is this viewport's hero: a card frame owns it. */
+/* the equation — the aqi-to-dose translation drawn as the instrument's
+   own arithmetic: four live terms, hairline-separated, each with its
+   three-word provenance label. the page's second numeral (dose) lives
+   here, not in a card. */
+.eq{display:flex;align-items:stretch;flex-wrap:wrap;gap:0;margin-top:34px}
+.eq .term{flex:1 1 0;min-width:120px;padding:6px 18px 8px}
+.eq .term:first-child{padding-left:0}
+.eq .term + .term{border-left:1px solid var(--line2)}
+.eq .tv{font-family:var(--sans);font-weight:300;
+  font-size:clamp(24px,4.4vw,34px);line-height:1.08;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+.eq .tv .tu{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  color:var(--ink3);margin-left:4px}
+.eq .tv em{font-style:normal;font-weight:500}
+.eq .tl{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink3);margin-top:7px;line-height:1.7}
+.eq .op{flex:none;align-self:center;padding:0 4px;
+  font-family:var(--mono);font-size:15px;color:var(--ink4)}
+@media(max-width:640px){
+  .eq{flex-direction:column;gap:0;max-width:100%;margin-top:26px}
+  .eq .term{flex:none;min-width:0;padding:10px 0 12px}
+  .eq .term:first-child{padding-left:0;padding-top:0}
+  .eq .term + .term{border-left:none}
+  .eq .term.mid{border-left:none}
+  .eq .op{align-self:stretch;display:flex;align-items:center;gap:14px;
+    padding:3px 0;font-size:15px}
+  .eq .op::before,.eq .op::after{content:"";flex:1;height:1px;
+    background:var(--line2)}}
+
+/* the next twelve hours — a hairline forecast curve inside the proof
+   zone, drawn from the same /v2/city payload (next_hours), no fetch of
+   its own. teases the map's scrub deck below. */
+.spark{margin-top:30px;max-width:560px}
+.spark svg{display:block;width:100%;height:52px;overflow:visible}
+.spark .cap{display:flex;justify-content:space-between;gap:10px;
+  margin-top:6px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
+  font-variant-numeric:tabular-nums}
+.spark .cap b{color:var(--ink);font-weight:600}
+.spark .cap .goto a{color:var(--ink);text-decoration:none;
+  border-bottom:1px solid var(--line2);padding-bottom:2px}
+.spark .cap .goto a:hover{border-bottom-color:var(--ink)}
+
+/* the field — the page's instrument, promoted to first place after the
+   proof. one honest raster, real geography, click through it; the card
+   frame owns it and a band-tinted glow warms the air around it
+   (colour = the live band again, never decoration). */
+.field .col-wide{padding-top:72px}
 .field-sec{padding:0}
+.field-lead{display:flex;align-items:baseline;justify-content:space-between;
+  gap:14px 28px;flex-wrap:wrap;margin-bottom:16px}
+.field-lead .lead{margin:0}
+.field-lead .sub2{font-size:14px;line-height:1.6;color:var(--ink2);
+  max-width:34ch;text-align:right}
+@media(max-width:640px){.field-lead .sub2{text-align:left;max-width:none}
+  .field .col-wide{padding-top:56px}}
 .field-head{display:flex;align-items:center;
-  margin:22px 0 14px;gap:10px 14px;flex-wrap:wrap}
+  margin:0 0 14px;gap:10px 14px;flex-wrap:wrap}
 .field-head .psel{margin-right:2px}
 .field-head #fieldAge{margin-left:auto}
+.field-head .livedot{display:inline-block;width:6px;height:6px;
+  border-radius:2px;background:var(--he,var(--ink4));margin-right:8px;
+  vertical-align:1px;opacity:.5;transition:background .6s ease}
 .field-head .lbl{font-family:var(--mono);font-size:11px;
   letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
   display:inline-flex;align-items:center}
@@ -173,10 +259,40 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   box-shadow:0 1px 3px rgba(22,24,29,.12),inset 0 0 0 1px var(--line)}
 .psel button:hover{color:var(--ink)}
 .psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
-.fwrap{position:relative;opacity:0;transition:opacity .5s ease;
+/* the live glow — the day's band bleeding softly past the card's edge,
+   the field's own colour carrying outside the frame. sits as a sibling
+   behind the card (the card clips its own children). */
+.fstage{position:relative}
+.fglow{position:absolute;inset:-7% -4%;z-index:0;border-radius:40px;
+  background:var(--gw,transparent);filter:blur(34px);opacity:.55;
+  transition:background 1.2s ease;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.fglow{transition:none}}
+.fwrap{position:relative;z-index:1;opacity:0;transition:opacity .5s ease;
   background:var(--surf);border-radius:16px;
-  overflow:hidden;box-shadow:0 8px 30px -10px rgba(22,24,29,.16)}
+  overflow:hidden;
+  box-shadow:0 22px 54px -20px rgba(22,24,29,.26),
+             0 4px 14px -6px rgba(22,24,29,.10)}
 .fwrap.ready{opacity:1}
+/* the demo chip — one tap to the money shot: a real a→b priced live on
+   the map, honestly labelled as a live example, not a canned video */
+.demochip{position:absolute;left:14px;bottom:14px;z-index:6;
+  display:inline-flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink);
+  background:rgba(250,250,247,.94);border:none;border-radius:10px;
+  padding:10px 14px;cursor:pointer;text-align:left;
+  box-shadow:0 6px 18px -6px rgba(22,24,29,.28),
+    inset 0 0 0 1px rgba(22,24,29,.08);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.demochip .dc-play{flex:none;width:0;height:0;border-left:8px solid var(--ink);
+  border-top:5px solid transparent;border-bottom:5px solid transparent}
+.demochip small{display:block;font-size:11px;letter-spacing:.1em;
+  color:var(--ink3);margin-top:3px;text-transform:none}
+.demochip:hover{background:#fff}
+.demochip:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.demochip.gone{display:none}
+@media(max-width:640px){.demochip{left:10px;bottom:10px;right:10px;
+  padding:13px 14px}}
 /* reserve the true map aspect before first paint — no layout jump
    ((e-w)*ASP lon-km : (n-s) lat-km = 1.1*0.879 : 0.75) */
 #raster{position:relative;z-index:2;display:block;width:100%;
@@ -225,19 +341,28 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
 .legend .conf{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   color:var(--ink3);text-transform:uppercase}
-/* the day, recorded — the decade archive's 24-hour curve drawn bare on
-   paper, current hour inked. no card: the chart is the content. */
-.day-sec{padding:48px 0 0}
+/* the day, recorded — the decade archive's 24-hour curve as a real
+   timeline: every hour wears its own band wash, the live hour sits on
+   the baseline in band ink with its flag. the chart is the content. */
+.day-sec{padding:56px 0 0}
 .day-head{display:flex;justify-content:space-between;align-items:center;
-  gap:12px 24px;flex-wrap:wrap;margin-bottom:14px}
+  gap:12px 24px;flex-wrap:wrap;margin-bottom:18px}
 .day-head .lbl{font-family:var(--mono);font-size:11px;
   letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
   display:inline-flex;align-items:center}
 .day-head .lbl b{color:var(--ink);font-weight:600}
-.daybars{display:flex;align-items:flex-end;gap:3px;height:64px}
-.daybars .db{flex:1;background:var(--surf3);min-height:3px;
-  border-radius:3px 3px 0 0}
-.daybars .db.now{background:var(--ink)}
+#dayNote{font-variant-numeric:tabular-nums}
+#dayNote b{color:var(--ink);font-weight:600}
+.daybars{display:flex;align-items:flex-end;gap:3px;height:76px;
+  position:relative;padding-bottom:1px;
+  border-bottom:1px solid var(--line2)}
+.daybars .db{flex:1;background:var(--dbw,var(--surf3));min-height:3px;
+  border-radius:3px 3px 0 0;position:relative}
+.daybars .db.now{background:var(--dbn,var(--ink))}
+.daybars .db.now::before{content:"now";position:absolute;top:-17px;
+  left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink2)}
 .daybars .db:hover{outline:1px solid var(--ink);outline-offset:1px}
 .dayticks{display:flex;justify-content:space-between;margin-top:6px;
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;
@@ -284,6 +409,23 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   .tl-range{height:28px;min-width:140px}
   .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7.5px}
   .tl-range::-moz-range-thumb{width:16px;height:16px}}
+/* the scrub deck featured: the "watch the day" control reads as the
+   field's own control surface — raised, roomier, hour readout at
+   readout weight, progress fill in the band's own ink */
+.trow{padding:14px 16px;gap:12px 16px;background:var(--surf);
+  box-shadow:0 10px 26px -12px rgba(22,24,29,.18),
+    inset 0 0 0 1px var(--line);border-radius:14px}
+.trow button{box-shadow:0 1px 3px rgba(22,24,29,.10),
+  inset 0 0 0 1px var(--line2)}
+.tl-h{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;
+  min-width:96px}
+.tl-range::-webkit-slider-runnable-track{height:2px;
+  background:linear-gradient(to right,var(--he,var(--ink3)) 0 var(--tp,0%),
+  var(--line2) var(--tp,0%) 100%)}
+.tl-range::-moz-range-progress{height:2px;background:var(--he,var(--ink3))}
+.tl-range::-webkit-slider-thumb{width:11px;height:11px;margin-top:-4.5px}
+@media(max-width:640px){
+  .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7px}}
 /* results surface as tiles — the priced corridor, the depart read,
    the dose ladder: tonal cards on ambient depth, never outlined */
 .routeline{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
@@ -311,6 +453,8 @@ h1.lede em{font-style:normal;color:var(--ink2)}
 .lrow:hover{background:var(--surf2)}
 .lrow.rec{background:var(--accWash);box-shadow:inset 0 0 0 1.5px var(--acc)}
 .lrow:focus-visible{outline:1px solid var(--ink);outline-offset:-2px}
+.lrow .lbd{flex:none;width:7px;height:7px;border-radius:2px;
+  align-self:center;margin-right:-4px}
 .lrow .lname{width:138px;flex:none;color:var(--ink2);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .lrow .lbar{flex:1;position:relative;height:5px}
@@ -388,11 +532,11 @@ h1.lede em{font-style:normal;color:var(--ink2)}
 /* the mechanics — the section lead is a felt line, not a labelled
    band; steps are numbered editorial rows separated by air, not rules;
    the pledge block is the privacy story drawn as a ledger. */
-.mech .col{padding-top:84px}
-.city .col{padding-top:84px}
+.mech .col{padding-top:76px}
+.city .col{padding-top:76px}
 .lead{font-family:var(--sans);font-weight:500;
-  font-size:clamp(24px,4.6vw,32px);line-height:1.16;
-  letter-spacing:-.02em;color:var(--ink);max-width:26ch;margin:0}
+  font-size:clamp(26px,4.8vw,38px);line-height:1.14;
+  letter-spacing:-.024em;color:var(--ink);max-width:26ch;margin:0}
 .mech-grid{display:grid;grid-template-columns:minmax(0,1fr) 236px;
   gap:64px;align-items:start}
 .steps{margin-top:38px}
@@ -541,6 +685,7 @@ h1.lede em{font-style:normal;color:var(--ink2)}
 
 <header class="top"><div class="top-in">
   <a class="wm" href="/">ALIVE<i>·</i>108</a>
+  <span id="toplive" aria-hidden="true"></span>
   <nav>
     <a href="/city">the city</a>
     <a href="/community">community</a>
@@ -550,7 +695,7 @@ h1.lede em{font-style:normal;color:var(--ink2)}
 <!-- the opening — one statement, on paper. felt words, no chrome. -->
 <section class="open"><div class="col"><div class="hero-grid">
   <div class="hero-copy">
-    <div class="eyebrow rise" style="--d:0ms" id="eyebrow">delhi ncr — a dosimeter without hardware</div>
+    <div class="eyebrow rise" style="--d:0ms" id="eyebrow"><i class="livedot" id="liveDot"></i>delhi ncr — a dosimeter without hardware</div>
     <h1 class="lede rise" style="--d:70ms">A ledger for your <em>lungs</em>, kept on your phone.</h1>
     <p class="sub rise" style="--d:160ms">A personal dosimeter for Delhi —
     no hardware. <b id="stnHero">—</b> instruments across the NCR are the
@@ -570,7 +715,96 @@ h1.lede em{font-style:normal;color:var(--ink2)}
     <span class="hnum-t" id="hnumT">a day of breathing today's air — reading…</span>
     <i class="hnum-s" id="hnumS">reading the live air map…</i>
   </div>
+  <div class="eq" id="eq" hidden data-rv>
+    <div class="term"><div class="tv"><b id="eqConc">—</b><span class="tu">µg/m³</span></div>
+      <div class="tl">in the air · the ncr-wide mean</div></div>
+    <span class="op">×</span>
+    <div class="term mid"><div class="tv">14.4<span class="tu">m³/day</span></div>
+      <div class="tl">the air a pair of lungs moves</div></div>
+    <span class="op">=</span>
+    <div class="term mid"><div class="tv"><em id="eqDose">—</em><span class="tu">µg</span></div>
+      <div class="tl">inhaled in a day · your dose</div></div>
+    <span class="op">≈</span>
+    <div class="term mid"><div class="tv"><em id="eqCig">—</em><span class="tu">cigarettes</span></div>
+      <div class="tl">the same day's dose, felt</div></div>
+  </div>
+  <div class="spark" id="spark" hidden data-rv>
+    <svg id="sparkSvg" viewBox="0 0 560 52" preserveAspectRatio="none"
+      role="img" aria-label="the next twelve hours — live forecast curve"></svg>
+    <div class="cap"><span id="sparkL">the next twelve hours</span>
+      <span class="goto"><a href="#fieldSec" id="sparkGo">watch it move on the map ↓</a></span></div>
+  </div>
   <div class="statusline" id="status" aria-live="polite" data-rv>reading the live air…</div>
+</div></section>
+
+<!-- the instrument — the live field promoted to first place after the
+     proof: the demo IS this map. touch a cell, or let it price a real
+     trip; the day-strip deck scrubs the next twelve served hours. -->
+<section class="field" id="fieldSec"><div class="col-wide">
+  <div class="field-lead" data-rv>
+    <h2 class="lead">The field, live.</h2>
+    <p class="sub2">every cell filled in from live instruments —
+    touch one, or watch the engine price a real trip around the dirty air</p>
+  </div>
+  <div class="field-sec">
+    <div class="field-head">
+      <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the air map, this hour</b></span></span>
+      <span class="psel" id="msel" role="group" aria-label="tool"></span>
+      <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
+      <span class="lbl"><i class="livedot" id="fieldDot"></i><span id="fieldAge">—</span></span>
+    </div>
+    <div class="fstage">
+      <div class="fglow" aria-hidden="true"></div>
+      <div class="fwrap">
+        <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
+        <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
+        <canvas id="raster" tabindex="0"
+          aria-label="live air map over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
+          aria-describedby="kbhint"></canvas>
+        <div class="fpop" id="fpop" hidden></div>
+        <button class="demochip" id="demoChip" type="button">
+          <i class="dc-play"></i>
+          <span>watch it work<small>connaught place → i.g.i. — a real trip, priced live</small></span>
+        </button>
+      </div>
+    </div>
+    <div class="trow" id="tl" hidden>
+      <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
+      <input class="tl-range" id="tlRange" type="range" min="0" max="11"
+             step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
+      <span class="tl-h" id="tlHour">h+0 now</span>
+      <span class="tl-load" id="tlLoad" hidden></span>
+      <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
+      <span class="tl-note" id="tlNote"></span>
+    </div>
+    <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
+    <noscript>
+      <style>
+        #status,.field-head,.fstage,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum{display:none}
+      </style>
+      <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
+        letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+        line-height:1.9">
+        the live map, the district map, and today's dose figure need
+        javascript — everything else on this page does not.</p>
+    </noscript>
+    <div class="field-cap">
+      <span class="left" id="capLeft">This is the sensor —
+      every cell filled in from live instruments, confidence carried with
+      it; the same surface the router prices on. It records Delhi hourly —
+      history, not just forecast. Click a cell.</span>
+      <span class="legend">
+        <span class="strip" id="legendStrip"></span>
+        <span class="tick" id="legendTick"></span>
+        <span class="conf" id="confSplit">—</span>
+      </span>
+    </div>
+    <div class="day-note" id="skillLine" hidden></div>
+    <div class="day-note" id="whyLine" hidden></div>
+    <div class="routeline" id="routeline" aria-live="polite"></div>
+    <div class="depart" id="departline"></div>
+    <div class="ladder" id="ladder"></div>
+  </div>
 </div></section>
 
 <!-- the mechanics — how a breath becomes a number, then the privacy
@@ -619,64 +853,11 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   </figure>
 </div></div></section>
 
-<!-- the city — one authored strip: the live field you can touch, the
-     recorded day it sits inside, the district rail. the map is the
-     instrument; its pills and stamp are controls, not chrome. -->
+<!-- the city, recorded — the archive strip and the district rail.
+     the live instrument moved up; what remains is the memory of it:
+     a typical october hour by hour, and every district's live read. -->
 <section class="city"><div class="col">
-  <h2 class="lead" data-rv>The city, right now.</h2>
-  <div class="field-sec">
-    <div class="field-head">
-      <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the air map, this hour</b></span></span>
-      <span class="psel" id="msel" role="group" aria-label="tool"></span>
-      <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
-      <span class="lbl" id="fieldAge">—</span>
-    </div>
-    <div class="fwrap">
-      <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
-      <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
-      <canvas id="raster" tabindex="0"
-        aria-label="live air map over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
-        aria-describedby="kbhint"></canvas>
-      <div class="fpop" id="fpop" hidden></div>
-    </div>
-    <div class="trow" id="tl" hidden>
-      <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
-      <input class="tl-range" id="tlRange" type="range" min="0" max="11"
-             step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
-      <span class="tl-h" id="tlHour">h+0 now</span>
-      <span class="tl-load" id="tlLoad" hidden></span>
-      <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
-      <span class="tl-note" id="tlNote"></span>
-    </div>
-    <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
-    <noscript>
-      <style>
-        #status,.field-head,.fwrap,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum{display:none}
-      </style>
-      <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
-        letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
-        line-height:1.9">
-        the live map, the district map, and today's dose figure need
-        javascript — everything else on this page does not.</p>
-    </noscript>
-    <div class="field-cap">
-      <span class="left" id="capLeft">This is the sensor —
-      every cell filled in from live instruments, confidence carried with
-      it; the same surface the router prices on. It records Delhi hourly —
-      history, not just forecast. Click a cell.</span>
-      <span class="legend">
-        <span class="strip" id="legendStrip"></span>
-        <span class="tick" id="legendTick"></span>
-        <span class="conf" id="confSplit">—</span>
-      </span>
-    </div>
-    <div class="day-note" id="skillLine" hidden></div>
-    <div class="day-note" id="whyLine" hidden></div>
-    <div class="routeline" id="routeline" aria-live="polite"></div>
-    <div class="depart" id="departline"></div>
-    <div class="ladder" id="ladder"></div>
-  </div>
-
+  <h2 class="lead" data-rv>The city, kept.</h2>
   <div class="day-sec" id="daySec" hidden>
     <div class="day-head">
       <span class="lbl">the day, recorded — <b>a typical october, hour by hour</b></span>
@@ -756,8 +937,16 @@ const BBOX={w:76.80,e:77.90,s:28.20,n:28.95};
 const ASP=0.879;   /* cos(28.6°) — lon-deg vs lat-deg on the ground */
 const CELLS=34;
 let MEDIAN=null,PARAM='pm2_5',MODE='inspect';
+let CITY_MEAN=null,HNUM_DONE=false,FIELD_AGE_TXT=null;
+let tlSync=()=>{};   /* bound by the scroll furniture below */
 let FEATS=[],GJ=[],WIND=null;
 let W=0,H=0,PT_A=null,PT_B=null,ROUTE=null,PLANSEQ=0;
+let ROUTE_RAF=0;   /* the draw-on animation's rAF handle */
+const ROUTE_DUR=1100;
+/* the demo trip — two real anchors inside the priced window, fired only
+   on a tap of the map chip (a live /v2/plan call, never a canned path) */
+const DEMO={a:{lon:77.2167,lat:28.6315},b:{lon:77.1000,lat:28.5562}};
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let INS=null;   /* inspector state {key,pinned} */
 const NAMES={}; /* centroid-key → place name html */
 
@@ -940,6 +1129,60 @@ function paintMid(){
   }
   MID_DIRTY=false;
 }
+/* the priced route draws as what it is — a strip of air: each engine
+   segment stroked in its own pm2.5 band over a paper casing, revealing
+   along start_frac→end_frac so the line grows out of a and into b.
+   segments missing → the same reveal over the mono ink line. */
+function segPts(seg,p){
+  const f=(p-seg.f0)/(seg.f1-seg.f0);
+  if(f<=0)return null;
+  const pts=seg.coords;
+  return f>=1?pts:pts.slice(0,Math.max(2,Math.ceil(pts.length*f)));
+}
+function drawSegRoute(ctx,segs,p){
+  const vis=[];
+  for(const s of segs){const pts=segPts(s,p);
+    if(pts&&pts.length>1)vis.push([s,pts])}
+  ctx.lineJoin='round';ctx.lineCap='round';
+  for(const [,pts] of vis){
+    ctx.beginPath();
+    pts.forEach(([lo,la],i)=>{i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
+    ctx.strokeStyle='rgba(250,250,247,.9)';ctx.lineWidth=6.5;ctx.stroke()}
+  let k=0;
+  for(const [s,pts] of vis){
+    const c=s.pm25!=null?bandCol(s.pm25,SPECS.pm2_5.breaks):[22,24,29];
+    const deep=c.map(v=>Math.round(v*.74+0x16*.26));   /* inked 26% — a line needs the hue's darker register */
+    ctx.beginPath();
+    pts.forEach(([lo,la],j)=>{j?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
+    ctx.strokeStyle=`rgb(${deep[0]},${deep[1]},${deep[2]})`;
+    ctx.lineWidth=3.1;ctx.stroke();k++}
+  return k;
+}
+/* the drawing front — the last point the reveal has reached, as px */
+function routeHead(p){
+  if(!ROUTE)return null;
+  if(ROUTE.segs&&ROUTE.segs.length){
+    let head=null;
+    for(const s of ROUTE.segs){const pts=segPts(s,p);
+      if(pts&&pts.length)head=pts[pts.length-1]}
+    return head?[toX(head[0]),toY(head[1])]:null;
+  }
+  const n=ROUTE.coords.length,idx=Math.min(n-1,Math.max(0,p*(n-1))),
+        i=Math.floor(idx),t=idx-i,
+        a=ROUTE.coords[i],b=ROUTE.coords[Math.min(n-1,i+1)];
+  return[toX(a[0]+(b[0]-a[0])*t),toY(a[1]+(b[1]-a[1])*t)];
+}
+/* driver for the draw-on reveal — one rAF loop, rescheduling drawScene
+   until the progress hits 1 */
+function kickRoute(){
+  if(ROUTE_RAF||RM)return;
+  const tick=()=>{ROUTE_RAF=0;
+    if(!ROUTE||ROUTE.t0==null)return;
+    const el=performance.now()-ROUTE.t0;
+    drawScene();
+    if(el<ROUTE_DUR)ROUTE_RAF=requestAnimationFrame(tick)};
+  ROUTE_RAF=requestAnimationFrame(tick);
+}
 function drawScene(){
   if(!W||!H)return;
   if(CELLS_DIRTY)paintCells();
@@ -962,14 +1205,34 @@ function drawScene(){
       ctx.lineTo(toX(target[0]),toY(target[1]));ctx.stroke();ctx.restore();};
     const c0=ROUTE.coords[0],cN=ROUTE.coords[ROUTE.coords.length-1];
     dashTo(PT_A,c0);dashTo(PT_B,cN);
-    ctx.lineJoin='round';ctx.lineCap='round';
-    ctx.beginPath();
-    ROUTE.coords.forEach(([lo,la],i)=>{
-      i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
-    ctx.strokeStyle='rgba(250,250,247,.85)';ctx.lineWidth=5;ctx.stroke();
-    ctx.strokeStyle='rgba(22,24,29,.92)';ctx.lineWidth=2;ctx.stroke();
-    /* dose along it isn't smooth-coloured — the line is the engine's own
-       geometry, so it draws in one ink */
+    const p=ROUTE.t0==null||RM?1
+      :Math.min(1,(performance.now()-ROUTE.t0)/ROUTE_DUR);
+    const ease=1-Math.pow(1-p,3);
+    let drewSeg=false;
+    if(ROUTE.segs&&ROUTE.segs.length)drewSeg=drawSegRoute(ctx,ROUTE.segs,ease)>0;
+    if(!drewSeg){
+      ctx.lineJoin='round';ctx.lineCap='round';
+      if(ROUTE.len==null){let l=0;
+        for(let i=1;i<ROUTE.coords.length;i++)
+          l+=Math.hypot(toX(ROUTE.coords[i][0])-toX(ROUTE.coords[i-1][0]),
+                        toY(ROUTE.coords[i][1])-toY(ROUTE.coords[i-1][1]));
+        ROUTE.len=l||1}
+      ctx.beginPath();
+      ROUTE.coords.forEach(([lo,la],i)=>{
+        i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
+      ctx.strokeStyle='rgba(250,250,247,.85)';ctx.lineWidth=5;ctx.stroke();
+      ctx.save();
+      if(ease<1)ctx.setLineDash([ROUTE.len*ease,ROUTE.len]);
+      ctx.strokeStyle='rgba(22,24,29,.92)';ctx.lineWidth=2;ctx.stroke();
+      ctx.restore();
+    }
+    /* the head of the growing line gets a hairline tick — a pen tip */
+    if(ease<1){
+      const hc=routeHead(ease);
+      if(hc){ctx.beginPath();ctx.arc(hc[0],hc[1],4.2,0,6.283);
+        ctx.fillStyle='rgba(250,250,247,.95)';ctx.fill();
+        ctx.strokeStyle='rgba(22,24,29,.85)';ctx.lineWidth=1.4;ctx.stroke()}
+    }
   }
   /* keyboard crosshair — visible only while the canvas holds focus */
   if(KBD){
@@ -1198,12 +1461,25 @@ $('psel').addEventListener('click',e=>{
   PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';
   paint();
 });
+/* the demo chip — one tap, a real trip priced live on the map. honest
+   by construction: it fires the same /v2/plan call a manual a→b does,
+   on two real anchors; it just saves the demo-room the pin-hunting. */
+function hideDemoChip(){const c=$('demoChip');if(c)c.classList.add('gone')}
+$('demoChip').addEventListener('click',()=>{
+  hideDemoChip();
+  if(MODE!=='ab'){MODE='ab';renderPills()}
+  INS=null;$('fpop').hidden=true;
+  PT_A={...DEMO.a};PT_B={...DEMO.b};ROUTE=null;
+  $('capLeft').innerHTML='a live example — connaught place → i.g.i. — '+
+    'being priced by the engine right now';
+  drawScene();planAB();
+});
 $('msel').addEventListener('click',e=>{
   const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===MODE)return;
   MODE=b.dataset.m;renderPills();
   INS=null;$('fpop').hidden=true;
   if(MODE==='inspect'){PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';drawScene()}
-  else $('capLeft').innerHTML='Pick two points on the map — the engine prices the route between them live.';
+  else{hideDemoChip();$('capLeft').innerHTML='Pick two points on the map — the engine prices the route between them live.'}
 });
 
 /* --- cell inspector ----------------------------------------------------- */
@@ -1349,6 +1625,23 @@ document.addEventListener('click',e=>{
 });
 
 /* --- a→b : the real /v2/plan call --------------------------------------- */
+function mkRoute(o){
+  const segs=(o.segments||[]).map(s=>{
+    const cs=s.geometry&&s.geometry.coordinates;
+    return cs&&cs.length>1&&s.end_frac>s.start_frac
+      ?{f0:s.start_frac,f1:s.end_frac,pm25:s.pm25,coords:cs}:null
+  }).filter(Boolean);
+  return{coords:((o.route_geojson||{}).coordinates)||[],segs,
+    len:null,t0:RM?null:performance.now()};
+}
+/* per-option air along its own path — distance-weighted mean of the
+   served segments; the ladder wears it as a small band dot */
+function segAvgPM25(o){
+  const sg=o.segments||[];let s=0,w=0;
+  for(const x of sg){const d=+x.dist_m||0;
+    if(x.pm25!=null&&d>0){s+=x.pm25*d;w+=d}}
+  return w?s/w:null;
+}
 async function planAB(){
   const seq=++PLANSEQ;
   const a={...PT_A},b={...PT_B};
@@ -1377,8 +1670,8 @@ async function planAB(){
       return;
     }
     const o=opts.find(x=>x.recommended)||opts[0];
-    ROUTE={coords:((o.route_geojson||{}).coordinates)||[]};
-    drawScene();
+    ROUTE=mkRoute(o);
+    drawScene();kickRoute();
     const ds=o.dose||{},km=o.distance_km,min=o.eta_s!=null?Math.round(o.eta_s/60):null;
     /* honest truncation: reaches_destination===false means the geometry
        stops short of b — say the gap, and that dose covers the mapped
@@ -1477,8 +1770,11 @@ function ladderAB(opts,drawnOpt,seq){
     const geo=(o.route_geojson||{}).coordinates||[];
     if(!geo.length)flags.push('priced, no road path');
     const cls=`lrow${o.recommended&&!trunc&&!snap?' rec':''}${o===drawnOpt?' drawn':''}`;
+    const sa=segAvgPM25(o),sc=sa!=null?bandCol(sa,SPECS.pm2_5.breaks):null;
+    const dot=sc?`<i class="lbd" style="background:rgb(${sc[0]},${sc[1]},${sc[2]})"`+
+      ` title="air along this option — about ${F1(sa)} µg/m³ on average"></i>`:'';
     return `<div class="${cls}" role="button" tabindex="0" data-i="${i}"`+
-      ` title="${esc(o.label||'')}"><span class="lname">${nm}</span>`+
+      ` title="${esc(o.label||'')}">${dot}<span class="lname">${nm}</span>`+
       `<span class="lbar"><i style="width:${w.toFixed(1)}%"></i></span>`+
       `<span class="ldose">${ds.mid!=null?F1(ds.mid)+' µg':'—'}`+
       `${ds.lo!=null?`<i>${F1(ds.lo)}–${F1(ds.hi)}</i>`:''}</span>`+
@@ -1514,8 +1810,8 @@ function drawOption(i,seq){
   if(seq!==PLANSEQ)return;
   const o=LOPTS[i];if(!o)return;
   const geo=(o.route_geojson||{}).coordinates||[];
-  ROUTE=geo.length?{coords:geo}:null;
-  drawScene();
+  ROUTE=geo.length?mkRoute(o):null;
+  drawScene();kickRoute();
   $('ladder').querySelectorAll('.lrow').forEach((r,j)=>{
     r.classList.toggle('drawn',j===i&&geo.length>0)});
 }
@@ -1526,6 +1822,58 @@ function drawOption(i,seq){
    cigarettes (the page's only unit a cold reader already feels). the day
    strip = /today's climatology curve — recorded history, not forecast.
    every state has an honest shape: unreachable says so, never fakes. */
+/* the hero numeral counts in once — the instrument waking up. refresh
+   ticks stay instant; reduced-motion skips the sweep entirely. */
+function countIn(el,target){
+  const done=()=>{el.textContent=target>=100?`${Math.round(target)}`:F1(target)};
+  if(HNUM_DONE||RM){done();HNUM_DONE=true;return}
+  HNUM_DONE=true;
+  const t0=performance.now();
+  const step=n=>{const p=Math.min(1,(n-t0)/950),e=1-Math.pow(1-p,3),
+      v=target*e;
+    el.textContent=target>=100?`${Math.round(v)}`:v.toFixed(1);
+    if(p<1)requestAnimationFrame(step);else done()};
+  requestAnimationFrame(step);
+  /* rAF can stall on a hidden or slow renderer — the true value must
+     land regardless */
+  setTimeout(done,1100);
+}
+/* the next-twelve curve — drawn from the same /v2/city payload's
+   next_hours, a real served forecast, nothing interpolated. */
+function sparkFill(hrs){
+  const el=$('spark');if(!el)return;
+  const vs=(hrs||[]).map(h=>h&&h.pm25).filter(v=>v!=null);
+  if(vs.length<4)return;
+  const lo=Math.min(...vs),hi=Math.max(...vs);
+  const W=560,H=52,pad=4,base=H-8;
+  const sx=i=>pad+i*(W-2*pad)/(vs.length-1);
+  const sy=v=>hi>lo?5+(hi-v)/(hi-lo)*(base-10):base/2;
+  const pts=vs.map((v,i)=>sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ');
+  const c=bandCol(vs[0],SPECS.pm2_5.breaks);
+  $('sparkSvg').innerHTML=
+    `<line x1="${pad}" y1="${base}" x2="${W-pad}" y2="${base}" stroke="var(--line2)" stroke-width="1"/>`+
+    `<polygon points="${pad},${base} ${pts} ${sx(vs.length-1).toFixed(1)},${base}"`+
+      ` fill="rgba(${c[0]},${c[1]},${c[2]},.13)"/>`+
+    `<polyline points="${pts}" fill="none" stroke="var(--ink)" stroke-width="1.2"`+
+      ` stroke-linejoin="round" stroke-linecap="round"/>`+
+    `<circle cx="${sx(0).toFixed(1)}" cy="${sy(vs[0]).toFixed(1)}" r="2.7"`+
+      ` fill="rgb(${c[0]},${c[1]},${c[2]})" stroke="var(--ink)" stroke-width="1"/>`;
+  $('sparkL').innerHTML=
+    `the next ${vs.length-1} hours — live forecast · <b>${F1(lo)}–${F1(hi)}</b>`+
+    ` <span style="text-transform:none">µg/m³</span>`;
+  el.hidden=false;
+}
+/* the live read that follows you past the proof zone — filled once
+   BOTH halves are known: the mean from /v2/city (heroCity) and the
+   field's age from /health (status); either may answer first */
+function paintToplive(){
+  const tl=$('toplive');
+  if(!tl||CITY_MEAN==null)return;
+  tl.innerHTML=`<i class="tdot"></i>`+
+    `pm2.5 <b>${CITY_MEAN>=100?Math.round(CITY_MEAN):F1(CITY_MEAN)}</b>`+
+    ` µg/m³`+(FIELD_AGE_TXT?` · map ${FIELD_AGE_TXT}`:'');
+  tlSync();   /* the text may land after the last scroll event */
+}
 async function heroCity(){
   try{
     const d=await api('/v2/city');
@@ -1538,15 +1886,32 @@ async function heroCity(){
        hue — all off pm25_stats.mean. */
     const mean=d.pm25_stats&&d.pm25_stats.mean;
     if(mean!=null){
+      CITY_MEAN=mean;
       const bi=bandIdx(mean,SPECS.pm2_5.breaks),el=$('hnum'),bx=bandHex(bi);
       $('heroZone').style.setProperty('--hw',`var(--bw${bi})`);
       el.style.setProperty('--he',inkHex(bx));
       el.style.setProperty('--nv',`var(--bi${bi})`);
       el.style.setProperty('--ni',`var(--bi${bi})`);
       el.style.setProperty('--hb',bx);
+      /* band vars beyond .hnum's scope — eyebrow dot, field dot, the
+         top-strip square, the map card's glow, the scrub deck fill */
+      const root=document.documentElement.style;
+      root.setProperty('--bhex',bx);
+      root.setProperty('--he',inkHex(bx));
+      root.setProperty('--gw',washHex(bx,.55));
       $('hnumW').textContent=`pm2.5 · ${BAND_NAME[bi]}`;
-      $('hnumV').textContent=mean>=100?`${Math.round(mean)}`:F1(mean);
+      countIn($('hnumV'),mean);
       el.classList.add('breathe');
+      /* the equation — dose made visible as arithmetic, all terms live
+         (mean + a day's inhaled µg + its cigarette equivalent) */
+      if(ug!=null&&cig!=null&&cig>0){
+        $('eqConc').textContent=mean>=100?`${Math.round(mean)}`:F1(mean);
+        $('eqDose').textContent='≈'+fmt(ug);
+        $('eqCig').textContent=F1(cig);
+        $('eq').hidden=false;
+      }
+      sparkFill(d.next_hours);
+      paintToplive();
       /* the felt line: cigarettes as the translation, never the figure */
       if(cig!=null&&cig>0){
         $('hnumT').innerHTML=`a day of breathing today's air ≈`
@@ -1585,9 +1950,16 @@ async function dayStrip(){
     const hrs=(d.hours_ist||[]).filter(v=>v!=null);
     if(hrs.length<2)return;
     const mx=Math.max(...hrs),now=d.hour_now_ist;
-    $('daybars').innerHTML=hrs.map((v,i)=>
-      `<span class="db${i===now?' now':''}" style="height:${Math.max(2,v/mx*100)}%"
-        title="${String(i).padStart(2,'0')}:00 ist — typical ~${Math.round(v)} µg/m³"></span>`).join('');
+    /* every hour wears its own band — a wash of the hue for plain
+       hours, the hue's ink register on the live one; the strip reads
+       as the city's day, not a chart of bars */
+    $('daybars').innerHTML=hrs.map((v,i)=>{
+      const bx=bandHex(bandIdx(v,SPECS.pm2_5.breaks));
+      const vars=i===now
+        ?`--dbw:${washHex(bx,.74)};--dbn:${inkHex(bx,.1)}`
+        :`--dbw:${washHex(bx,.74)}`;
+      return `<span class="db${i===now?' now':''}" style="height:${Math.max(2,v/mx*100)}%;${vars}"
+        title="${String(i).padStart(2,'0')}:00 ist — typical ~${Math.round(v)} µg/m³"></span>`}).join('');
     $('dayWhy').innerHTML=
       `typical = the archive's middle value for this hour — october · ist ·
       connaught place · <b>recorded history</b>, not a forecast`;
@@ -1774,6 +2146,10 @@ async function status(){
       (priced/1e6).toFixed(2);$('pricedcount2').textContent=
       (priced/1e6).toFixed(2)}
     if(stn>0)$('stnHero').textContent=stn;
+    /* the live read that follows you past the first fold — same field
+       mean the hero counted, same freshness the status strip reads */
+    FIELD_AGE_TXT=h.field_stale?'stale':age+' fresh';
+    paintToplive();
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
       `<span>map <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
@@ -1854,6 +2230,34 @@ function bootStrip(){
     {threshold:.12,rootMargin:'0px 0px -6% 0px'});
   document.querySelectorAll('[data-rv]').forEach(el=>{
     el.classList.add('rv');io.observe(el)});
+})();
+
+/* scroll furniture — the live read slides into the top strip once the
+   proof zone is past, and the hero copy + app shot drift a few px
+   against the scroll so layers read as layers. all px, no layout. */
+(function(){
+  const tl=$('toplive'),hz=$('heroZone'),
+        copy=document.querySelector('.hero-copy'),
+        shot=document.querySelector('.shot');
+  let tick=false;
+  const on=()=>{if(tick)return;tick=true;
+    requestAnimationFrame(()=>{tick=false;
+      /* the proof zone's own bottom, measured live — eq/spark unhide
+         later, so a cached value would lie */
+      const hb=hz?hz.getBoundingClientRect().bottom+scrollY:1e9;
+      if(tl)tl.classList.toggle('on',
+        scrollY>hb-56&&tl.innerHTML.trim()!=='');
+      if(RM)return;
+      if(copy)copy.style.transform=
+        `translateY(${Math.max(-26,-scrollY*.05)}px)`;
+      if(shot){const r=shot.getBoundingClientRect();
+        const off=(r.top+r.height*.5-innerHeight*.5)/innerHeight;
+        shot.style.transform=
+          `translateY(${Math.max(-24,Math.min(24,off*-34))}px)`}
+    })};
+  tlSync=on;
+  addEventListener('scroll',on,{passive:true});
+  addEventListener('resize',on);on();
 })();
 
 bootStrip();
