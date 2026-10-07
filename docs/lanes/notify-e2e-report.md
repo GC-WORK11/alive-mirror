@@ -34,18 +34,18 @@ zero POSTs anywhere in this lane.
 
 | kind | iOS dev-client | Android release APK | basis |
 |---|---|---|---|
-| `stagnation` | ✅ **real-fired un-seeded** — "the air is sitting over the city · 2× stiller than usual — the day's smoke will linger" | ⏳ pending child | live `/v2/why` primary driver, factor 2.02 |
-| `window` | ✅ **real-fired un-seeded** — "easiest hours ahead · today's lightest air ~13:30–18:30 IST · about 62 µg/m³" | ⏳ pending | live `/v2/day` window + IST gate |
-| `trend_down` | ✅ **real-fired un-seeded** — "the city's air is easing · 65 → 53 µg/m³ over 5.7h — the air barely moving to clear it — off the earlier high" | ⏳ pending | server admitted the driver mid-drive |
-| `grap_clear` | ✅ **fired vs seeded prior** — "the day eased off the GRAP map · today's air no longer reads like a stage (AQI ~127)" | ⏳ pending | events.json `grapStage:3` → live 0 |
-| `reflect` | ✅ **fired vs seeded ledger** — "yesterday on the road · 2 trips · about 60 µg inhaled — heavier than Sunday (25 µg)" | ⏳ pending | ledger.json rows; on-device by design |
-| `fires` / `fires_nc` | ⛔ **honestly silent** — seeded baseline 4 vs live belt 12 = +8 < +15 jump floor; baseline rebaselined to 12, no mark, no card | ⏳ pending | jump rule working as designed |
-| `band` | ⛔ codepath-only quiet — ambient 62–66 µg never crossed idx ≥3 | ⏳ pending | CPCB threshold not met today |
-| `severe` | ⛔ codepath-only quiet — `equivalent_stage` 0 | ⏳ pending | stage < III today |
-| `grap_up` / `grap_down` | ⛔ quiet — live stage never moved off 0 (grap_clear covers the transition path) | ⏳ pending | — |
-| `trend_up` | ⛔ quiet — the admitted move was down | ⏳ pending | — |
-| `outlook_heavy` / `outlook_light` | ⛔ gate-verified quiet — fold is heavy (+54%) but fires only inside IST 17:00–22:00; `outlookMove` floor/unit-tested in events.test.ts | ⏳ pending | window gate, not data, silences it |
-| feed-stall record | ⛔ no record — both feeds inside staleness bounds | ⏳ pending | diagnostics-only, never pings |
+| `stagnation` | ✅ **real-fired un-seeded** — "the air is sitting over the city · 2× stiller than usual — the day's smoke will linger" | ✅ **real-fired un-seeded** — "the air is sitting over the city · barely mixing — 2× stiller than usual; expect the day's smoke to linger" | live `/v2/why` primary driver (factor 2.02 ios / 1.86 apk; APK copy is older build 70914c0 — documented) |
+| `window` | ✅ **real-fired un-seeded** — "easiest hours ahead · today's lightest air ~13:30–18:30 IST · about 62 µg/m³" | ✅ **real-fired un-seeded, incl. revision re-fire** — "~14:30–18:30" card replaced in place by "~15:30–19:30 IST" when prod revised the window (level 870→930) | live `/v2/day` window + IST gate; Android pass proved the re-post path |
+| `trend_down` | ✅ **real-fired un-seeded** — "the city's air is easing · 65 → 53 µg/m³ over 5.7h — the air barely moving to clear it — off the earlier high" | ✅ **real-fired un-seeded** — "65 → 50 µg/m³ over 5.7h — the air barely moving to clear it — off the earlier high" | server admitted the driver mid-drive on both |
+| `grap_clear` | ✅ **fired vs seeded prior** — "the day eased off the GRAP map · today's air no longer reads like a stage (AQI ~127)" | ✅ **fired vs seeded prior** — "our read no longer maps to a stage (aqi ~119)" | events.json `grapStage:3` → live 0 |
+| `reflect` | ✅ **fired vs seeded ledger** — "yesterday on the road · 2 trips · about 60 µg inhaled — heavier than Sunday (25 µg)" | ✅ **fired vs seeded ledger** — "2 trips · about 84 µg inhaled — heavier than Sunday (60 µg)" | ledger.json rows; on-device by design |
+| `fires` / `fires_nc` | ⛔ **honestly silent** — seeded baseline 4 vs live belt 12 = +8 < +15 jump floor; baseline rebaselined to 12, no mark, no card | ⛔ **honestly silent** — same +8 < +15 floor, held across 3 passes | jump rule working as designed |
+| `band` | ⛔ codepath-only quiet — ambient 62–66 µg never crossed idx ≥3 | ⛔ codepath-only quiet — ambient ~59–65 µg → idx 1–2 | CPCB threshold not met today |
+| `severe` | ⛔ codepath-only quiet — `equivalent_stage` 0 | ⛔ codepath-only quiet — same | stage < III today |
+| `grap_up` / `grap_down` | ⛔ quiet — live stage never moved off 0 (grap_clear covers the transition path) | ⛔ same | — |
+| `trend_up` | ⛔ quiet — the admitted move was down | ⛔ same | — |
+| `outlook_heavy` / `outlook_light` | ⛔ gate-verified quiet — fold is heavy (+54%) but fires only inside IST 17:00–22:00; `outlookMove` floor/unit-tested in events.test.ts | ⛔ gate-verified quiet — fold +62% real at 15:39 IST, gate still closed when the window ended | window gate, not data, silences it |
+| feed-stall record | ⛔ no record — both feeds inside staleness bounds | ⛔ same | diagnostics-only, never pings |
 
 ## iOS evidence (dev-client, all banners real-engine)
 
@@ -73,27 +73,53 @@ file edited only while the app was terminated — `mem` cache stomps live edits)
   `beltFires` rebaselined 4→12 (jump rule), `grapStage` 3→0, **no `fires_nc`
   mark** — the dedupe file proves every fire AND the correct silence.
 
-## Android evidence — PENDING (child spawn blocked by org session cap)
+## Android evidence (release APK `70914c0` on KVM emulator, session ~15:05–15:50 IST)
 
-_Verified statically this lane (no emulator needed):_
+_Static pre-checks (this lane, no emulator):_ sha256 `bfceaf26…e88f` re-verified;
+binary manifest declares `POST_NOTIFICATIONS`; the JS bundle inside the APK
+contains the `air-events` engine + verbatim copy (build `70914c0` — older than
+HEAD `9fbd851`, so on-device copy differs slightly from `strings.ts`; not a bug).
 
-- Release APK `alive108-70914c0.apk` re-downloaded and sha256-verified
-  (`bfceaf26ad8f410d3995c473e77d14efd950e7ee1b610a20f7fa66849f41e88f`,
-  137,120,268 B — matches apk-v10-report).
-- Binary `AndroidManifest.xml` string-pool decoded on-box: declares
-  **`android.permission.POST_NOTIFICATIONS`** (plus VIBRATE, WAKE_LOCK,
-  INTERNET, RECEIVE_BOOT_COMPLETED, FCM RECEIVE/SEND and the OEM badge
-  permission set). The Android-13+ runtime prompt has its manifest
-  precondition — a missing-permission failure mode is excluded statically.
-- `assets/index.android.bundle` (10.8 MB, in the APK) contains the engine
-  itself: `air-events` channel id, `requestPermissionsAsync` call sites,
-  and the verbatim banner strings ("the air is sitting over the city",
-  "easiest hours ahead", "yesterday on the road" + the heavier/lighter
-  template fragments). The shipped binary IS the notify-v2 build — what
-  remains is runtime delivery proof on a device.
-- Runtime prompt + `air-events` channel creation + banner delivery still
-  require the emulator; child session spawn is HTTP-429ing on the org's
-  7-concurrent-SWE-2 cap and retries on a timer. Fills when it lands.
+_Drive (Linux KVM child `4b6eb8ea`, `demo` AVD pixel_7 android-35 google_apis):_
+
+- **Permission: REAL OS dialog, no breakage.** Cold launch → "Allow ALive·108 to
+  send you notifications?" granted via UI (logcat GrantPermissionsViewModel
+  result=4) — `perm_dialog.png`, `after_allow.png`. The feared Android-13+
+  POST_NOTIFICATIONS showstopper does not exist.
+- **Channel:** `air-events` `mImportance=4` HIGH, name "air alerts", sound +
+  vibration `[0,250,250,250]`; every record `mIsInterruptive`, AUTO_CANCEL,
+  vis=PRIVATE — `dumpsys_final.txt`.
+- **Cards on camera:** `shade_events2.png` (trend_down expanded + stagnation),
+  `shade_p3/p4.png` (reflect + window + grap_clear), `shade_grap_expanded.png`,
+  `shade_now2.png` (the window REVISION re-post replacing its card in place —
+  per-kind identifier `air-event-<kind>` works), `shade_stag.png`,
+  `keyguard_swipe.png` (both natural cards on the real keyguard),
+  `settings_airalerts.png` (+crop — master + 4 sub-toggles ON), `side4.png`
+  (sidebar rendering the seeded ledger "3 trips · ≈144 µg"), `home2.png`.
+- **Videos:** `n1.mp4` (launch → perm dialog → first fires), `n2`–`n4`/`n6`
+  (repeat passes incl. dedupe re-verification), `nt.mp4` (heads-up peek probe).
+- **State:** `events_pass1.json` (baselines stored silently on first read —
+  first-run seeding is silent by design), `events_final.json` (marks
+  `stagnation:60, trend_down:16, window:930, reflect:1, grap_clear:0`, no
+  `fires_nc`), `ledger_final.json`, `facts.md` (child's full verbatim account).
+- **Dedupe verified:** same-day marks blocked every repeat fire across 6
+  relaunches; seeded baselines self-corrected to live (beltFires 4→12).
+
+## Findings / caveats
+
+1. **Heads-up peek never rendered on this AVD** (observation, not proven app
+   bug): across ~11 min of footage + 6 launches, cards posted directly to the
+   shade; NMS autogroup set `groupAlertBehavior=1` despite `mIsInterruptive`
+   and channel importance 4 — most likely the API-35 google_apis emulator's
+   autogroup presentation quirk. **Recommend one physical-device (or
+   Play-image) check before claiming heads-up peek in the pitch.** Delivery
+   itself — post, channel config, shade, keyguard, in-place replace — is
+   verified. On iOS the peek DID render (slide-ins in ios-natural-fires.mp4).
+2. Cosmetic (known): the OS permission dialog can paint over the intro
+   carousel before first-run finishes — `requestPerms()` runs inside `fire()`,
+   i.e. the moment the first real event qualifies, which can precede
+   onboarding completion. Ordering note, not a bug.
+3. APK copy lag vs HEAD strings (documented above — build is `70914c0`).
 
 ## Honest limits
 
