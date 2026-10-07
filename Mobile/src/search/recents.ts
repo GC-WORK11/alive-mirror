@@ -2,10 +2,10 @@
 // saved slots, Home and Work. Persists as a JSON document via
 // expo-file-system; if the FS ever fails we still work in memory for the
 // session. Same File/Paths pattern as src/store/ledger.ts.
-import { File, Paths } from "expo-file-system";
+import { purgeJsonDoc, readJsonDoc, writeJsonDoc } from "../store/safefile";
 import { normalize, type PlaceResult } from "./t0";
 
-const FILE = new File(Paths.document, "places.json");
+const NAME = "places.json";
 const MAX_RECENTS = 5;
 
 export type SavedSlot = "home" | "work";
@@ -47,24 +47,20 @@ function sanitize(raw: unknown): PlaceStore {
 
 async function persist(s: PlaceStore): Promise<void> {
   mem = s;
-  try {
-    if (!FILE.exists) FILE.create();
-    FILE.write(JSON.stringify(s));
-  } catch {
-    // in-memory copy still holds — persistence is best-effort
-  }
+  /* atomic + .bak via safefile — a kill mid-write used to leave a torn
+     places.json; in-memory copy still holds either way (best-effort) */
+  writeJsonDoc(NAME, s);
 }
 
 /** Load the store (recents + home + work). */
 export async function getPlaces(): Promise<PlaceStore> {
   if (mem) return mem;
-  try {
-    if (FILE.exists) {
-      mem = sanitize(JSON.parse(await FILE.text()));
-      return mem;
-    }
-  } catch {}
-  mem = EMPTY;
+  /* bare-format read w/ .bak fallback: the shape check keeps a
+     garbage-typed main from shadowing a good .bak; sanitize() then
+     handles torn-but-parseable content → EMPTY, never garbage places */
+  mem = sanitize(
+    (await readJsonDoc(NAME, (v): v is PlaceStore => !!v && typeof v === "object")) ?? null,
+  );
   return mem;
 }
 
@@ -88,7 +84,5 @@ export async function setSaved(slot: SavedSlot, p: PlaceResult | null): Promise<
  *  most personal thing on the phone. Drop the mirror AND the file. */
 export async function clearPlaces(): Promise<void> {
   mem = null;
-  try {
-    if (FILE.exists) FILE.delete();
-  } catch {}
+  purgeJsonDoc(NAME); // file + .tmp + .bak — no residue holds a place
 }

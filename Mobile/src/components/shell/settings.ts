@@ -7,7 +7,7 @@ import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
 import { resetDaylogCache } from "../../store/daylog";
 import { resetDaySum } from "../../store/daysum";
-import { purgeJsonDoc } from "../../store/safefile";
+import { purgeJsonDoc, readJsonDoc, writeJsonDoc } from "../../store/safefile";
 import { clearConsent } from "../../store/consent";
 import { clearWelcomeSeen } from "../../store/welcome";
 import { clearVehicle } from "../../store/vehicle";
@@ -54,7 +54,7 @@ export const DEFAULT_SETTINGS: ShellSettings = {
  *  the volume down ~60%). A user-set ceiling, never a medical claim. */
 export const PROFILE_BUDGET_UG = { general: 216, sensitive: 72, child: 130 } as const;
 
-const FILE = new File(Paths.document, "settings.json");
+const NAME = "settings.json";
 
 /* perf (r4): in-memory mirror + deduped first read + serialized writes.
    loadSettings used to hit disk on every call (boot AND notify prefs());
@@ -69,14 +69,16 @@ export async function loadSettings(): Promise<ShellSettings> {
   let p = inflight;
   if (!p) {
     p = (async (): Promise<ShellSettings> => {
-      try {
-        if (FILE.exists) {
-          const j = JSON.parse(await FILE.text());
-          const s: ShellSettings = { ...DEFAULT_SETTINGS, ...(j ?? {}) };
-          mem = s;
-          return s;
-        }
-      } catch {}
+      /* atomic+.bak read: the object shape check keeps a garbage-typed
+         main from shadowing a good .bak; spread-merge over defaults is
+         the existing migration path (new keys default honestly) */
+      const j = await readJsonDoc(NAME, (v): v is Partial<ShellSettings> =>
+        !!v && typeof v === "object" && !Array.isArray(v));
+      if (j) {
+        const s: ShellSettings = { ...DEFAULT_SETTINGS, ...j };
+        mem = s;
+        return s;
+      }
       const s: ShellSettings = mem ?? { ...DEFAULT_SETTINGS };
       mem = s;
       return s;
@@ -91,10 +93,9 @@ export function saveSettings(s: ShellSettings): void {
   writeTail = writeTail
     .then(() => {
       if (mem === null) return; // wiped by clearAllData — don't resurrect
-      try {
-        if (!FILE.exists) FILE.create();
-        FILE.write(JSON.stringify(mem)); // last-state-wins per flush
-      } catch {}
+      /* atomic + .bak — lang/alert prefs are read on frame-1; a torn
+         file must not silently reset them */
+      writeJsonDoc(NAME, mem); // last-state-wins per flush
     })
     .catch(() => {});
 }
@@ -119,7 +120,8 @@ export function clearAllData(): void {
      are still user data */
   purgeJsonDoc("ledger.json");
   purgeJsonDoc("daylog.json");
-  for (const name of ["settings.json", "contributor.txt", "intro_seen.txt", "events.json"]) {
+  purgeJsonDoc(NAME); // settings.json
+  for (const name of ["contributor.txt", "intro_seen.txt", "events.json"]) {
     try {
       const f = new File(Paths.document, name);
       if (f.exists) f.delete();

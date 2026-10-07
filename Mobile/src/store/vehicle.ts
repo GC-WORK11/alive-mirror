@@ -2,11 +2,11 @@
 // Persists as a JSON document via expo-file-system; same File/Paths
 // pattern as src/search/recents.ts and src/store/ledger.ts. If the FS
 // fails we still work in memory for the session.
-import { File, Paths } from "expo-file-system";
+import { purgeJsonDoc, readJsonDoc, writeJsonDoc } from "./safefile";
 import { t, type Lang, type StringKey } from "../i18n/strings";
 import { afterFirstFrame } from "../startup/idle";
 
-const FILE = new File(Paths.document, "vehicle.json");
+const NAME = "vehicle.json";
 
 /** Chips offered by the S8 sheet (docs/plan/02 §S8 + mission brief). */
 export type VehicleClass = "car" | "auto" | "bike" | "bus" | "metro" | "walk" | "cycle";
@@ -84,14 +84,11 @@ export async function getVehicle(): Promise<VehicleProfile | null> {
     inflight = (async () => {
       await afterFirstFrame();
       if (mem !== undefined) return mem; // a writer won while we waited
-      try {
-        if (FILE.exists) {
-          mem = sanitize(JSON.parse(await FILE.text()));
-          return mem;
-        }
-      } catch {}
-      mem = null;
-      return mem;
+      /* atomic+.bak read via safefile: sanitize() is the shape check;
+         a torn main falls through to the previous good generation */
+      mem = await readJsonDoc(NAME, (v): v is VehicleProfile => sanitize(v) !== null)
+        .then((v) => (v ? sanitize(v) : null));
+      return mem ?? null;
     })();
   }
   return inflight;
@@ -102,12 +99,9 @@ export async function saveVehicle(p: VehicleProfile): Promise<VehicleProfile> {
   writeTail = writeTail
     .then(() => {
       if (mem == null) return; // cleared meanwhile — don't resurrect the file
-      try {
-        if (!FILE.exists) FILE.create();
-        FILE.write(JSON.stringify(mem));
-      } catch {
-        // in-memory copy still holds — persistence is best-effort
-      }
+      /* atomic + .bak via safefile — the profile drives plan
+         calibration; a torn file must not silently reset it */
+      writeJsonDoc(NAME, mem);
     })
     .catch(() => {});
   await writeTail;
@@ -116,9 +110,7 @@ export async function saveVehicle(p: VehicleProfile): Promise<VehicleProfile> {
 
 export async function clearVehicle(): Promise<void> {
   mem = null;
-  try {
-    if (FILE.exists) FILE.delete();
-  } catch {}
+  purgeJsonDoc(NAME); // file + .tmp + .bak
 }
 
 /** Profile → the `vehicle` string /v2/plan accepts (server/v2/plan.py:
