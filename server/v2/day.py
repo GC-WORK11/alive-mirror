@@ -307,7 +307,7 @@ def _decisions(hours: list, day: dict, mean: float) -> list:
         word = ("least-bad" if clean["pm25_mid"] > 60.0 else "cleanest")
         ds.append({
             "label": "outdoor exercise",
-            "line": "%s window %s IST (avg %.0f µg/m³ vs day %.0f)"
+            "line": "%s window %s IST (average %.0f µg/m³, %.0f across the day)"
                     % (word, _fmt_window(clean), clean["pm25_mid"], mean)})
     elif heavy is not None:
         ds.append({
@@ -320,7 +320,7 @@ def _decisions(hours: list, day: dict, mean: float) -> list:
             ds.append({
                 "label": "kids outdoors",
                 "line": ("indoors today — heavy all day "
-                         "(~%.0f µg/m³ avg)" % mean)})
+                         "(~%.0f µg/m³ average)" % mean)})
         else:
             ds.append({
                 "label": "kids outdoors",
@@ -347,7 +347,7 @@ def _decisions(hours: list, day: dict, mean: float) -> list:
         # silent while hours remain
         ds.append({
             "label": "today",
-            "line": ("no sustained window today — lightest reads "
+            "line": ("no steady window today — lightest reads "
                      "%.0f µg/m³, heaviest %.0f"
                      % (day["day_min"], day["day_max"]))})
     return ds

@@ -65,7 +65,7 @@ export type V2Option = {
   emissions: Emissions;
   tag: string | null;                 // "lightest on both" | "lightest for you" | "lightest for Delhi"
   /** server flag on the least-inhalation route (dose-optimized variant
-   *  when the path engine ships) — the headline "safest route" chip. */
+   *  when the path engine ships) — the headline "least smoky" chip. */
   safest_path?: boolean | null;
   recommended: boolean;               // doc 06 §4 winner
   reason_line: string;                // server one-liner under the row
