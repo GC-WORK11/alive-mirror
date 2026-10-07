@@ -15,6 +15,7 @@ from v2.store import TRIPS
 
 app = FastAPI()
 app.include_router(admin_agg.router)
+app.include_router(admin_agg.usage_router)
 client = TestClient(app)
 
 ENDPOINTS = [
@@ -24,6 +25,7 @@ ENDPOINTS = [
     "/admin/api/corridors",
     "/admin/api/donations",
     "/admin/api/validation",
+    "/v2/usage",
 ]
 
 # Same contract as test_admin_agg: no response may carry identity or

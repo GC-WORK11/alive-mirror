@@ -18,6 +18,7 @@ from v2.store import TRIPS
 
 app = FastAPI()
 app.include_router(admin_agg.router)
+app.include_router(admin_agg.usage_router)
 client = TestClient(app)
 
 ENDPOINTS = [
@@ -30,6 +31,7 @@ ENDPOINTS = [
     "/admin/api/model",
     "/admin/api/timing",
     "/admin/api/global",
+    "/v2/usage",
 ]
 
 # Field names that must never appear anywhere in an admin response —
