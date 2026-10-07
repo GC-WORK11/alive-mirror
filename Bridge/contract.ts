@@ -142,6 +142,10 @@ export interface AqiResponse {
   pm10?: number | null;
   no2?: number | null;
   nearest_sample_km?: number;
+  /** true when the point is inside the service margin but outside the
+      served field's own extent — the value is the nearest edge evidence
+      extrapolated, not a local read (edge-honesty marker) */
+  beyond_field_edge?: boolean;
   smoke_modifier?: number;         // fire-season multiplier (1.0 = none)
   field?: FieldStatus;             // absent on the "field unavailable" path
   error?: string;
@@ -499,6 +503,10 @@ export interface V2PlanResponse {
   vehicle_requested: string;    // raw client echo ("unicycle" stays honest)
   vehicle_profile?: Record<string, unknown> | null;
   depart_at: string | null;
+  /** present whenever depart_at was sent: false = the string echoed
+      verbatim but never parsed (GTFS falls back to the approx
+      station model — the marker keeps that honest) */
+  depart_at_parsed?: boolean;
   options: V2PlanOption[];      // recommended first when scored
   ranking: string;
   /** FIRES breathing-zone multiplier applied to every dose block —
@@ -583,6 +591,9 @@ export interface V2RerouteResponse {
   finish_on_foot?: { distance_km: number; eta_s: number;
                      dose: DoseBand | null; route_id: string };
   smoke_modifier?: number;      // same bz basis as /v2/plan
+  /** same marker as /v2/plan — present whenever depart_at was sent;
+      false = the departure string never parsed */
+  depart_at_parsed?: boolean;
   field?: FieldStatus;
   took_ms?: number;
   error?: string;
