@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALive-108 — Delhi NCR air, district by district</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%23f4f1ea%27/%3E%3Crect x=%273%27 y=%273%27 width=%2710%27 height=%2710%27 fill=%27%234a7a5e%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%23f4f1ea%27/%3E%3Crect x=%273%27 y=%273%27 width=%2710%27 height=%2710%27 fill=%27%233a6844%27/%3E%3C/svg%3E">
 <style>
   /* web-overhaul-v2: shared muted-expensive register, component grammar
      from docs/lanes/register-card.md — tiles over hairlines, stat =
@@ -66,6 +66,37 @@
   .dek{margin-top:26px;max-width:560px}
   .dek p{color:var(--ink2);font-size:16px;line-height:1.72;font-weight:400}
   .dek p b{color:var(--ink);font-weight:500}
+
+  /* the today card — the page's hero: the city's average fine dust now,
+     its band, the honest range across the map, and which districts
+     breathe easiest vs heaviest. deep band wash (--hw/.74, --ht/.60,
+     --he band ink — all set from the live mean) + the breathing band-ink
+     edge, the page's one ambient motion; accent wash is the no-field
+     fallback. */
+  .htoday{margin-top:28px;display:flex;align-items:center;gap:24px;
+          max-width:660px;flex-wrap:wrap;background:var(--hw,var(--accent-wash));
+          border:1px solid var(--ht,var(--acc-tint));border-radius:18px;
+          padding:20px 24px 18px;position:relative}
+  .htoday .hv{font-family:var(--serif);font-weight:400;
+          font-size:clamp(56px,6vw,80px);line-height:.95;letter-spacing:-.02em;
+          font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+  .htoday .hv small{font-family:var(--mono);font-size:11px;color:var(--ink3);
+          letter-spacing:.08em;font-weight:400;text-transform:none}
+  .htoday .ht{font-size:14.5px;line-height:1.5;color:var(--ink);
+          min-width:220px;flex:1;max-width:340px}
+  .htoday .ht .hchip{display:inline-block;margin-bottom:9px;
+          font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+          text-transform:uppercase;color:var(--hi,var(--accent-ink));
+          background:rgba(255,255,255,.65);border-radius:6px;padding:3px 8px}
+  .htoday .ht i{display:block;margin-top:8px;font-style:normal;
+          font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;
+          text-transform:uppercase;color:var(--ink3);line-height:1.85}
+  .htoday::after{content:"";position:absolute;inset:0;pointer-events:none;
+          border-radius:inherit;border:1.5px solid transparent}
+  .htoday.breathe::after{border-color:var(--he,var(--accent-ink));
+          animation:breath 4.4s ease-in-out infinite}
+  @media(prefers-reduced-motion:reduce){.htoday.breathe::after{display:none}}
+
   /* the why/grap callouts — tinted tiles, solid tag chip, one line each */
   .whyline{margin-top:12px;font-size:14px;line-height:1.55;color:var(--ink2);
            display:flex;gap:12px;align-items:center;max-width:600px;
@@ -214,10 +245,9 @@
        font-size:10px;text-align:left;cursor:pointer;color:var(--ink3);
        box-shadow:0 1px 3px -1px rgba(22,24,29,.06);position:relative;
        transition:transform .2s cubic-bezier(.22,1,.36,1)}
-  /* soul pass — today's tile is the big day-AQI number's card: its wash
-     deepens to the register's 26% (--dw at .74, the live band) and its
-     edge breathes — the app's BreathEdge as a 4.4s sine opacity loop on
-     a 1.5px band-ink ring. the page's one breathing element; skipped
+  /* the breathing edge — a 4.4s sine opacity loop on a 1.5px band-ink
+     ring. it lives on the today card now (the page's one ambient
+     motion); the day tiles keep their deeper today wash only. skipped
      under reduce-motion. */
   @keyframes breath{0%,100%{opacity:.12}50%{opacity:.32}}
   .day.breathe::after{content:"";position:absolute;inset:0;
@@ -412,13 +442,16 @@
   <div class="hero">
     <div class="eyebrow">what delhi is breathing · delhi ncr</div>
     <h1>Delhi NCR air, <em>right now.</em></h1>
-    <div class="dek"><p>Every district is coloured by the government's
-      air-quality score (<b>AQI</b> — 0 is clean, 500 is hazardous),
-      driven by <b>pm2.5</b>: the fine dust that settles deep in lungs,
-      measured in <b>µg/m³</b> (micrograms in a cubic metre of air).
-      Live government monitors anchor it; the satellite model and the
-      trips riders choose to share fill in the rest. This is the air
-      the app plans your day around.</p></div>
+    <div class="htoday" id="hToday" role="status">
+      <div class="hv"><span id="hMean">—</span><small> µg/m³</small></div>
+      <div class="ht"><span class="hchip" id="hBand">reading the live field…</span><br>
+        <span id="hWhat">fine dust (pm2.5) — the city's average right now</span>
+        <i id="hRange"></i><i id="hDist"></i></div>
+    </div>
+    <div class="dek"><p>Every district on the map is coloured by the
+      government air score (<b>AQI</b>), driven by <b>pm2.5</b> — the
+      fine dust that settles deep in lungs. Live government monitors
+      anchor it; the satellite model and shared trips fill the rest.</p></div>
     <div class="whyline" id="whyline" hidden><span class="wtag">why tonight</span>
       <span class="wtxt" id="whytxt"></span></div>
     <div class="whyline" id="grapline" hidden><span class="wtag">grap</span>
@@ -576,14 +609,16 @@
 </div>
 
 <script>
-/* ---------- CPCB National AQI — official six-band palette ----------
-   hexes per Google's ind_cpcb table, which implements the CPCB scheme
-   (developers.google.com/maps/documentation/air-quality/laqis):
-   Good #00B050 · Satisfactory #92D050 · Moderate #FFFF00 ·
-   Poor #FF6500 · Very Poor #FF0000 · Severe #C00000                    */
-const BANDS=[[0,50,'Good','#00B050'],[51,100,'Satisfactory','#92D050'],
-  [101,200,'Moderate','#FFFF00'],[201,300,'Poor','#FF6500'],
-  [301,400,'Very Poor','#FF0000'],[401,500,'Severe','#C00000']];
+/* ---------- CPCB National AQI — official six band names, the product's
+   muted ramp ----------
+   band NAMES stay the official CPCB categories; the hexes are the whole
+   web family's muted product ramp (--b0..5, same as landing + admin) —
+   the raw govt swatches (#FFFF00, #FF0000…) flooded the choropleth and
+   read neon against the warm register. hue = air-quality meaning only. */
+const BANDS=[[0,50,'Good','#7AAB59'],[51,100,'Satisfactory','#C8B25A'],
+  [101,200,'Moderate','#D58C4A'],[201,300,'Poor','#B85442'],
+  [301,400,'Very Poor','#8F3C49'],[401,500,'Severe','#6E3C54']];
+
 const NODATA='#E8E5DB';
 /* -> [aqi, category, colour] so every painter reads [1]/[2] uniformly */
 const bandOf=a=>{if(a==null)return[null,'No data',NODATA];
@@ -709,7 +744,7 @@ function showDetail(f){
     `<div class="d-name">${esc(f.properties.name)}</div>`+
     `<div class="d-state">${esc(f.properties.state||'')}${d.cells_covered!=null?` · ${d.cells_covered} map squares`:''}</div>`+
     `<div class="d-aqi">${d.aqi!=null?d.aqi:'—'}<small>aqi · pm2.5 ${d.pm25!=null?d.pm25+' <span style="text-transform:none">µg/m³</span>':'—'}</small></div>`+
-    `<div class="d-cat" style="background:${band[2]};${band[1]==='Moderate'||band[1]==='Satisfactory'?'color:#14181F':''}">${band[1]}</div>`+
+    `<div class="d-cat" style="background:${band[2]};${BANDS.slice(0,3).some(b=>b[1]===band[1])?'color:#14181F':''}">${band[1]}</div>`+
     `<div class="d-conf">${d.confidence==='sparse'?'edge of coverage — estimated from the district centre; few readings inside':(d.confidence==='none'?'no live reading over this district':'average of the map squares inside the boundary')}</div>`;
   DETAIL.classList.add('on');
 }
@@ -1305,15 +1340,15 @@ async function outLoad(){
       OUT.best===dy.date_ist?'least-bad':null,
       lo?'model estimate':null].filter(Boolean).join(' · ');
     const on=OUT.sel===dy.date_ist;
-    /* today = the big day-AQI number's card: deep wash (26% band) +
-       band-edge hairline + the breathing band-ink ring; the outlook
-       behind it stays at the quieter tile wash */
+    /* today = the deep wash (26% band) + band-edge hairline; the
+       breathing ring moved up to the today card — one ambient motion
+       per page, and the hero owns it now */
     const col=dy.band?bandCol(dy.band):null;
     const dw=col?washHex(col,di===0?.74:.78):null;
     const today=di===0;
     const st=(dw?`--dw:${dw};`:'')
-      +(today?`--de:${col?washHex(col,.60):'var(--line)'};--he:${col?inkHex(col):'var(--ink3)'}`:'');
-    return `<button type="button" class="day${lo?' lo':''}${on?' on':''}${today?' breathe':''}"
+      +(today?`--de:${col?washHex(col,.60):'var(--line)'}`:'');
+    return `<button type="button" class="day${lo?' lo':''}${on?' on':''}"
       data-d="${esc(dy.date_ist)}" aria-pressed="${on}"
       ${st?`style="${st}"`:''}>
       <span class="dl">${esc(dy.label)}<small>${esc(outDate(dy.date_ist))}</small></span>
@@ -1363,6 +1398,14 @@ function paintDistricts(rows){
   if(selName){const f=FEATS.find(f=>f.properties.name===selName);if(f)showDetail(f)}
 }
 
+/* lo–hi spread of the served map squares — the honest range, shared by
+   the today card and the ticker */
+function cellRange(){let lo=1e9,hi=-1e9,n=0;
+  for(const ft of FEAT_CELLS){const v=(ft.properties||{}).pm25;
+    if(v==null)continue;n++;if(v<lo)lo=v;if(v>hi)hi=v}
+  const f1=v=>(+v).toFixed(1);
+  return n?`${f1(lo)}–${f1(hi)}`:null}
+
 function paintTicker(a,cy,t,ad,nd){
   const f1=v=>v==null?'—':(+v).toFixed(1);
   /* strip reads the SAME basis the choropleth paints — the ambient field
@@ -1370,10 +1413,7 @@ function paintTicker(a,cy,t,ad,nd){
      breathing-zone point estimate (ambient×smoke modifier) that /aqi
      serves at one coordinate. map and strip can no longer diverge. */
   const sp=(cy&&cy.species)||{},pm=(cy&&cy.pm25_stats)||{};
-  const rng=(()=>{let lo=1e9,hi=-1e9,n=0;
-    for(const ft of FEAT_CELLS){const v=(ft.properties||{}).pm25;
-      if(v==null)continue;n++;if(v<lo)lo=v;if(v>hi)hi=v}
-    return n?`${f1(lo)}–${f1(hi)}`:'—'})();
+  const rng=cellRange()||'—';
   const items=[
     [`fine dust (pm2.5) · ncr avg`,`${f1(pm.mean)} µg/m³`,
       'the main pollutant delhi breathes — the same number the map is coloured by'],
@@ -1521,7 +1561,42 @@ async function load(){
       document.getElementById('corridors').innerHTML=
         '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>'+
         '<tr><td colspan="5" style="color:var(--ink3)">the street feed is unreachable — retrying</td></tr>';
+      /* the today card degrades honestly too */
+      setTxt('hBand','live feed unreachable');
+      setTxt('hWhat','the city feed is resting — the map below may still answer');
       return;
+    }
+    /* ---- the today card: live mean + band + honest range + districts --
+       every figure on it is a served field: pm25_stats.mean (the NCR
+       lattice mean), grap.aqi (the server's own cpcb aqi of that mean,
+       cpcbOf() as the same-scale fallback), the lo–hi spread of the
+       served map squares, and the district extremes off /v2/districts */
+    const ht=document.getElementById('hToday');
+    const pm25s=cy.pm25_stats||{};
+    if(pm25s.mean!=null){
+      const mean=+pm25s.mean;
+      const aqi=(cy.grap&&cy.grap.aqi!=null)?cy.grap.aqi:Math.round(cpcbOf(mean));
+      const band=bandOf(aqi);
+      ht.style.setProperty('--hw',washHex(band[2],.74));
+      ht.style.setProperty('--ht',washHex(band[2],.60));
+      ht.style.setProperty('--he',inkHex(band[2]));
+      ht.classList.add('breathe');
+      setTxt('hMean',Math.round(mean));
+      setTxt('hBand',`${band[1]} · aqi ${aqi}`);
+      const rng=cellRange();
+      setTxt('hRange',rng?`across the map: ${rng} µg/m³`:'the map range is still loading');
+      /* every polygon with a live read — the same denominator the
+         ticker's 'districts live' chip counts (districts + their
+         sub-district wards), so hero and ticker can't disagree */
+      const dl=(dd&&dd.districts||[]).filter(x=>x.aqi!=null);
+      if(dl.length){
+        const lo=dl.reduce((a,b)=>b.aqi<a.aqi?b:a);
+        const hi=dl.reduce((a,b)=>b.aqi>a.aqi?b:a);
+        setTxt('hDist',`${dl.length} districts live · easiest ${lo.name.toLowerCase()} ${lo.aqi} · heaviest ${hi.name.toLowerCase()} ${hi.aqi}`);
+      }else setTxt('hDist','district feed resting');
+    }else{
+      setTxt('hBand','the live field is still warming');
+      setTxt('hRange','');setTxt('hDist','');
     }
     const days=(cy.trips&&cy.trips.days)||{};
     const dayKeys=Object.keys(days).sort();
