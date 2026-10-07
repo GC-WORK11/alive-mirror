@@ -709,7 +709,7 @@ function AppInner() {
         ? (settings.show_cig ? t("nav_cigs", lang, { n: approx(cigOf(tr.dose_ug) ?? 0) }) : `~${Math.round(tr.dose_ug)}µg`)
         : "—",
       // co2 was never passed — the template printed a literal "{co2}"
-      co2: tr.emit_kg != null ? `${t("nav_kg", lang, { n: `~${tr.emit_kg.toFixed(1)}` })} CO₂` : "—",
+      co2: tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : "—",
     }),
   }).catch(() => {}), [lang, settings.show_cig]);
   const onLayersClose = useCallback(() => setLayersOpen(false), []);

@@ -1018,3 +1018,8 @@ consistency, real-time updates, profile behavior, both platforms.
 - Lanes overnight: field-watch-3 (2cc799a4) watching the ramp +
   DPCC behavior; ios-journey-overnight (75a15af5) Lane-B early on
   sim+prod; builder-center-writeup (46321b23) the AirPods article.
+- verify_numbers.sh un-pinned from the 24-WAQI world (fix-verify-numbers
+  lane): /health stations.count live check accepts 54 or the 24-only
+  degrade; `*[...]*` stamped blocks + handoff logs no longer false-flag;
+  fires/~35×/×1.27 matchers drift-aware; bare-6.2 holdout claims flagged.
+  Green run vs prod bc8f82c4, ~01:05 UTC Oct 7 — T-45 safe.

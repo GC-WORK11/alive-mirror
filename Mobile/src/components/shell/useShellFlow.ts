@@ -96,9 +96,10 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [stepsOpen, setStepsOpen] = useState(false);
   const [navDose] = useState(0); // kept: NavChrome's legacy prop path (engine's `nav` supersedes)
 
-  // SEAM(trip-submit): anonymous traversal donation moved to POST /v2/trip
-  // (src/api/trip.ts) — the nav lane owns it and will read `shareEnabled`
-  // there. Kept referenced so the prop stays meaningful for App.tsx.
+  // SEAM(trip-submit): anonymous traversal donation lives in the nav
+  // engine (src/nav/engine.ts donate() → POST /v2/trip, outbox on
+  // failure) and reads `shareEnabled` there. Kept referenced so the
+  // prop stays meaningful for App.tsx.
   void shareEnabled;
 
   /* the S8 vehicle answer — loaded once, drives the /v2/plan `vehicle`

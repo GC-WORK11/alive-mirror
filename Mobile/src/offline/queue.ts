@@ -42,18 +42,22 @@ export type TripDonation = {
 type OutboxItem = { id: string; queuedAt: number; url: string; body: unknown };
 type OutboxData = { items: OutboxItem[]; dropped: number };
 
-const EMPTY: OutboxData = { items: [], dropped: 0 };
+/* A shared EMPTY.items array would resurrect wiped items: load() handing
+   out `{...EMPTY}` shares the constant's `items` reference, so enqueue's
+   push() mutates it — and after clearOutbox deletes the file, the next
+   load() returns the wiped items again. Always mint a fresh object. */
+const empty = (): OutboxData => ({ items: [], dropped: 0 });
 
 async function load(): Promise<OutboxData> {
   try {
-    if (!OUTBOX.exists) return { ...EMPTY };
+    if (!OUTBOX.exists) return empty();
     const j = JSON.parse(await OUTBOX.text()) as Partial<OutboxData>;
     return {
       items: Array.isArray(j.items) ? j.items : [],
       dropped: typeof j.dropped === "number" ? j.dropped : 0,
     };
   } catch {
-    return { ...EMPTY };
+    return empty();
   }
 }
 
@@ -88,13 +92,29 @@ function notify(d: OutboxData): void {
 
 let idSeq = 0;
 
+/* Wipe generation — the same guard cache.ts runs (its cacheSet takes
+   `since`). Bump on every clearOutbox so a donation whose POST started
+   before delete-my-data can never re-create outbox.json after the wipe
+   and auto-flush on the next "up" event — a wiped user must not
+   silently re-donate. */
+let wipeGen = 0;
+export function outboxGeneration(): number {
+  return wipeGen;
+}
+
 /** Append a POST to the outbox. Over-cap items drop oldest-first and are
- * counted in `droppedNow` (and persisted in `dropped` forever after). */
+ * counted in `droppedNow` (and persisted in `dropped` forever after).
+ * `since` = the generation captured when the request started; a wipe in
+ * between means this item belongs to the deleted era — don't write. */
 export async function enqueue(
   url: string,
   body: unknown,
+  since?: number,
 ): Promise<{ size: number; droppedNow: number }> {
   const d = await load();
+  if (since != null && since !== wipeGen) {
+    return { size: d.items.length, droppedNow: 0 };
+  }
   d.items.push({ id: `${Date.now()}-${idSeq++}`, queuedAt: Date.now(), url, body });
   let droppedNow = 0;
   while (d.items.length > MAX_QUEUE) {
@@ -107,12 +127,14 @@ export async function enqueue(
   return { size: d.items.length, droppedNow };
 }
 
-/** Convenience for the donation path. */
+/** Convenience for the donation path — pass the outboxGeneration()
+ * captured when the POST started so a wipe in between drops the item. */
 export function enqueueTripDonation(
   api: string,
   donation: TripDonation,
+  since?: number,
 ): Promise<{ size: number; droppedNow: number }> {
-  return enqueue(`${api}/v2/trip`, donation);
+  return enqueue(`${api}/v2/trip`, donation, since);
 }
 
 /* ---- flush -------------------------------------------------------------- */
@@ -206,12 +228,16 @@ export async function queueSize(): Promise<number> {
 }
 
 /** "Delete my data" — queued donations hold device_token + trajectory.
- *  Delete the file and drop watchers to zero; the store has no mirror. */
+ *  Bumping the generation runs synchronously with the call so an
+ *  in-flight enqueue from the pre-wipe era dies before it can write;
+ *  then delete the file and drop watchers to zero; the store has no
+ *  mirror. */
 export async function clearOutbox(): Promise<void> {
+  wipeGen++;
   try {
     if (OUTBOX.exists) OUTBOX.delete();
   } catch {}
-  notify({ ...EMPTY });
+  notify(empty());
 }
 
 /** Total items ever dropped for exceeding the cap — persisted, honest. */

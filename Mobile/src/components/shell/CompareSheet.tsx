@@ -332,9 +332,9 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
   onSelect: (i: number) => void; onToggleDetail: (i: number) => void;
 }) {
   /* selection crossfades in — the card never snaps accent-on. The overlay
-     carries the old cardSel paint (accentWash wash + accent edge); with
-     borders now reserved for selection, the accent edge fades IN instead
-     of swapping widths — deselecting can't jump a border out either.
+     carries the accentWash wash only; the glyph well's accentTint is the
+     edge colour — nothing border-shaped swaps, so deselecting can't jump
+     a border out either.
      spring on opacity: the pick "arrives" rather than flipping (doc 20 §6) */
   const reduce = useReduceMotion();
   const [selV] = useState(() => new Animated.Value(selected ? 1 : 0));

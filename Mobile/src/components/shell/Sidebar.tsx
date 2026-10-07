@@ -460,28 +460,26 @@ function SidebarInner({
           <Rise i={rise++} open={open}>
             {sectionLabel(t("sidebarSavedPlaces", lang), st.todayUg === 0 && week.totalTrips === 0)}
             <View style={s.tileRow}>{placeTile("home")}{placeTile("work")}</View>
-            {(onDelhiToday || true) && (
-              <View style={[s.tileRow, { marginTop: 10 }]}>
-                {onDelhiToday ? (
-                  <View style={{ flex: 1 }}>
-                    {gridTile({
-                      glyph: "city", label: t("sidebarDelhiToday", lang),
-                      value: t("delhiTodayOpen", lang), valueAccent: false,
-                      onPress: () => { onDelhiToday(); },
-                      chevron: true,
-                    })}
-                  </View>
-                ) : <View style={{ flex: 1 }} />}
+            <View style={[s.tileRow, { marginTop: 10 }]}>
+              {onDelhiToday ? (
                 <View style={{ flex: 1 }}>
                   {gridTile({
-                    glyph: (settings.vehicle ? vehicleGlyph(settings.vehicle) : "bike") as Glyph,
-                    label: t("sidebarMyVehicle", lang),
-                    value: settings.vehicle ? t(vehicleLabelKey(settings.vehicle), lang) : t("notSet", lang),
-                    onPress: () => toggle("vehicle"), chevron: true, open: section === "vehicle",
+                    glyph: "city", label: t("sidebarDelhiToday", lang),
+                    value: t("delhiTodayOpen", lang), valueAccent: false,
+                    onPress: () => { onDelhiToday(); },
+                    chevron: true,
                   })}
                 </View>
+              ) : <View style={{ flex: 1 }} />}
+              <View style={{ flex: 1 }}>
+                {gridTile({
+                  glyph: (settings.vehicle ? vehicleGlyph(settings.vehicle) : "bike") as Glyph,
+                  label: t("sidebarMyVehicle", lang),
+                  value: settings.vehicle ? t(vehicleLabelKey(settings.vehicle), lang) : t("notSet", lang),
+                  onPress: () => toggle("vehicle"), chevron: true, open: section === "vehicle",
+                })}
               </View>
-            )}
+            </View>
             {section === "vehicle" && (
               <View style={s.optGrid}>
                 {VEHICLES.map((v) => {

@@ -60,7 +60,7 @@ const kmNum = (m: number) =>
 const distToStr = (m: number, lang: Lang) =>
   m >= 950
     ? `${(m / 1000).toFixed(1)} ${t("unitsKm", lang)}`
-    : `${Math.max(10, Math.round(m / 10) * 10)} m`;
+    : `${Math.max(10, Math.round(m / 10) * 10)} ${t("unitsM", lang)}`;
 
 /* ------------------------------------------------------------------ */
 /* maneuver glyph                                                      */

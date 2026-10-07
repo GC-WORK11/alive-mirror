@@ -17,7 +17,7 @@ import { fetchStrip } from "../api/strip";
 import { camDur } from "../map/cam";
 import type { EmissionsBreakdown } from "../components/shell/types";
 import { postJson, postReroute } from "../api/reroute";
-import { enqueueTripDonation } from "../offline/queue";
+import { enqueueTripDonation, outboxGeneration } from "../offline/queue";
 import { LiveCounters } from "./counters";
 import {
   ARRIVE_M, ArrivalTracker, flattenCoords, havM, OFF_ROUTE_M, OffRouteTracker,
@@ -284,6 +284,11 @@ export function useNavEngine(opts: NavEngineOpts) {
         ...co2Split(routeRef.current.emissionsBreakdown),
       },
     };
+    /* generation captured at request start — delete-my-data bumps it, so
+       a POST that fails after the wipe must not resurrect outbox.json
+       (same guard as fetchCached → cacheSet; the privacy promise is
+       absolute). */
+    const gen = outboxGeneration();
     try {
       await postJson(`${api}/v2/trip`, donation, 9000);
       return "sent";
@@ -291,7 +296,7 @@ export function useNavEngine(opts: NavEngineOpts) {
       /* offline → outbox, not loss: flushes itself when the network
          comes back (pill counts it until then). It is SAVED, not sent —
          the receipt must say exactly that. */
-      try { await enqueueTripDonation(api, donation); return "queued"; }
+      try { await enqueueTripDonation(api, donation, gen); return "queued"; }
       catch { return false; }
     }
   }, [api]);

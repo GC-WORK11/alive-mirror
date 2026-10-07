@@ -8,8 +8,9 @@
 // Skip is persistent on every page. Decision (docs/plan/onboarding.md):
 // skip completes the flow with sharing ON — doc 07 §3 / doc 02 §7 make
 // sharing the documented default, and Settings shows the state in one
-// line with one tap to undo. The choice page discloses it plainly
-// ("skipping counts as sharing on") — no dark patterns.
+// line with one tap to undo. The disclosure travels with the button —
+// the "skipping counts as sharing on" line renders on EVERY page, so a
+// page-0/1 skipper sees the consequence before tapping it.
 //
 // Mount only while `visible` so each open starts at page 1 fresh.
 //
@@ -157,7 +158,8 @@ function OnboardingSheet({
     Animated.timing(anim, {
       toValue: 1,
       duration: 200,
-      // JS driver — same RN 0.86 native-detach guard as ui.tsx Sheet
+      // native driver — pure opacity timing; none of Sheet's mixed-graph
+      // detach risk (that JS-driver guard is about drag transforms)
       useNativeDriver: true,
     }).start();
   }, [step, reduceMotion, anim]);
@@ -373,11 +375,14 @@ function OnboardingSheet({
                   </Text>
                 </Pressable>
               </View>
-              <Text {...DYNAMIC_TYPE} style={[ss.footnote, { fontFamily: fam(lang, "reg") }]}>
-                {t("consent_footnote", lang)}
-              </Text>
             </View>
           )}
+
+          {/* the skip disclosure travels with the button — visible on
+              every page, not only the choice page it qualifies */}
+          <Text {...DYNAMIC_TYPE} style={[ss.footnote, { fontFamily: fam(lang, "reg") }]}>
+            {t("consent_footnote", lang)}
+          </Text>
         </Animated.View>
       </ScrollView>
 
