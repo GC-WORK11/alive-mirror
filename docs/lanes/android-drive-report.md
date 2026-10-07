@@ -57,3 +57,33 @@
 - The exhaust counter needs speed-bearing fixes to show non-idle accumulation — `set-test-provider-location --location lat,lon` doesn't carry speed; compute-and-pass it if prod parity matters.
 - `input text` wants `%s` for spaces; `keyevent 4` dismisses the keyboard (111=ESC exits the app).
 - adb root works on this image; app files under `/data/data/com.anonymous.app/files/` are directly readable (settings.json, consent.json, outbox.json, alive-cache/*, mbgl-offline.db).
+
+## v2 verify pass
+
+Verification pass on the fix commits landed in response to this report — `c84b5c2` (phantom re-plan, ≈≈ readout, exhaust-without-GNSS-speed), `344b4a9` (Where-to? pill yields), `4d20990` (air alerts engine), `bc8f82c` (BandScale), `8346460` (air-events channel).
+
+- Build: same rig, release APK rebuilt at **`base/v2` @ `39bae99`** (contains all five). `Mobile/android/app/build/outputs/apk/release/app-release.apk`, 137 MB — **this APK is the demo-morning artifact**. Bundle rebaked fresh (index.android.bundle rm'd first; `alerts_fires`/`bandScaleA11y` strings confirmed inside the new bundle).
+- Fresh `adb install -r` on the same `demo` AVD.
+
+| Verify item | Result | Shots |
+|---|---|---|
+| a. Post-Done phantom re-plan | **FIXED.** Full nav trip (central Delhi → Connaught Place, live reroute en route) → "You're here." receipt → Done lands on populated home, phase idle — **no compare sheet, no dest→dest re-plan.** | 95, 97, 98 |
+| b. "≈≈" scrub readout | **FIXED.** Arc scrub now renders single tilde: "≈39 µg · 1:00". | 94 |
+| c. Exhaust needs GNSS speed | **FIXED** (derived-speed path verified). `set-test-provider-location` still carries no speed channel — but `counters.ts` now derives v=ddM/dtS (cap 45 m/s) when `speedMps` is absent. Same speedless feed that printed 0.00/0.1 kg now shows **"put out ≈0.2 kg · incl. 0.28–0.38 g PM2.5" over 7.7 km** and the counter visibly accumulated mid-trip (0.1 kg at 1.6 km left). Note: `adb emu geo fix lon lat alt sats velocity_knots` exists, but its fixes never surfaced through fused on this AVD — GNSS-speed path still untested on the emulator (hardware check). | 96, 97 |
+| d. Where-to? pill yields | **FIXED.** With the home sheet open the top map-chrome pill no longer renders — only the sheet's own "Where to?" search row (which answers taps — it opened the search sheet for this trip). Previously it sat painted but dead. | 80 |
+| e. Air alerts (4d20990) | **WORKS.** Notification permission prompt on first launch (78). Settings → Notifications shows master "Air alerts" + "smoke & fires" / "air turning worse" / "clean windows" kind toggles; kind taps write settings.json instantly (`alerts_fires:false` observed), master off writes `alerts:false` and visually disables the three kind rows; no truncation at 1080px. Restored all-on after. | 78, 89, 90 |
+| f. BandScale (bc8f82c) | **WORKS.** Six-segment good→severe strip renders under the hero on **home** (segment 2 solid at ~57 satisfactory) and on **Delhi today** (same anchor under "3.8× WHO"). Pure positional anchor, zero new words. Note: correctly gated on `airNowIdx != null` — it was absent while the box read "can't reach the server" (transient, cleared when geo moved into Delhi). | 83, 84, 98 |
+| g. Basemap labels re-check | **STILL BLANK at street zoom** — two separate viewports (99, 102) show zero road/place/POI text. Could not reach a tile-zoom: no pinch on this rig (`input` is single-pointer; sendevent multi-touch on the virtio nodes doesn't reach the view; double-tap-hold-drag fell outside MapLibre's gesture window and only panned). Unchanged verdict: style/latinLabels verified correct and renders Latin-only in web maplibre-gl-js — **needs one physical device to classify**. | 99, 102 |
+| h. APK artifact | `Mobile/android/app/build/outputs/apk/release/app-release.apk` built @ `39bae99` — attached to the session message as the demo build. | — |
+
+### Original findings — status after this build
+
+| # | Finding | Status |
+|---|---|---|
+| 1 | No basemap labels | **UNRESOLVED on emulator** — still zero labels at street zoom (99, 102); classification still needs hardware. |
+| 2 | Phantom dest→dest re-plan after Done | **FIXED** (item a). |
+| 3 | Exhaust = idle×time, no distance path | **FIXED** — derived speed from position deltas (item c). GNSS-speed path itself still unverifiable on emulator. |
+| 4 | "≈≈" double tilde | **FIXED** (item b). |
+| 5 | Intermittently eaten taps | UNVERIFIED — not formally re-tested; this trip's gestures (search, options, Start, Done, toggles, scrub) all registered, though several needed the usual re-tap/micro-swipe pattern earlier in the pass. |
+| 6 | Community street casing | UNVERIFIED — community list not re-opened this pass. |
+| 7 | Dead header Where-to? pill | **FIXED** by removal-under-sheet (item d). |
