@@ -220,6 +220,7 @@ export function CityMoves({
                 {t("movesCorridorN", lang, {
                   n: corridors.active ?? 0,
                   h: corridors.window_h ?? 72,
+                  streetNoun: t((corridors.active ?? 0) === 1 ? "streetNounOne" : "streetNounMany", lang),
                 })}
               </Text>
               <View style={ss.bVals}>

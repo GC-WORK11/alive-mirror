@@ -104,7 +104,7 @@ function CheckinSheetInner({ checkin, lens, lang, onCheckin }: {
       {/* the verdict earns its line honestly */}
       <Text {...DYNAMIC_TYPE} style={[cs.verdict, { fontFamily: fam(lang, "med") }]}>
         {lens.kind === "early" ? t("lensEarly", lang)
-          : lens.kind === "flat" ? t("lensFlat", lang, { n: lens.days })
+          : lens.kind === "flat" ? t("lensFlat", lang, { n: lens.days, dayNoun: t(lens.days === 1 ? "dayNounOne" : "dayNounMany", lang) })
           : t("lensLink", lang, {
               f: t(lens.facet === "eyes" ? "lensFacetEyes"
                     : lens.facet === "energy" ? "lensFacetEnergy" : "lensFacetBreath", lang),
