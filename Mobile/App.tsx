@@ -775,8 +775,12 @@ function AppInner() {
       <StatusBar style="dark" />
       {mapTree}
 
-      {/* rest state chrome: search bar + locate + layers (doc 02 §S1) */}
-      {phase !== "nav" && (
+      {/* rest state chrome: search bar + locate + layers (doc 02 §S1).
+          The pill yields while the home sheet is open — it renders before
+          HomeScreen in tree order, so under the hero it sat occluded:
+          looked alive, answered no taps (android-drive finding). The
+          home screen's own "go somewhere" CTA covers search there. */}
+      {phase !== "nav" && !(phase === "idle" && homeOpen) && (
         <View style={[s.pillWrap, { top: insets.top + 10 }]}>
           <SearchBar
             label={phase === "compare" && to ? to.name : undefined}
