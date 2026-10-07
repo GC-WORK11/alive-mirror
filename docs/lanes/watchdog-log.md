@@ -28,3 +28,17 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
 - CloudWatch re-check 11:36: all 3 alarms `OK`. `/community` unchanged (44 obs / 24 contributors / 0 active reports).
 - Surface spot-check 11:19: `/`, `/landing`, `/admin`, `/city` all HTTP 200; landing title + boot overlay + 79 KB inline script intact, no control chars (dead-page trap clear).
 - No sha transitions, no anomalies.
+
+### 2026-10-07 11:42 — SHA TRANSITION `698cf808 → 43913dc0`
+- Landed: landing-perf (47d7bff — webp+preload hero, dedupe boot fetches, /v2/city 60 s cache,
+  cache headers, overlay count-in) + notify-e2e/admin-login docs commits. Field cycle continued
+  through the deploy (age 730→197 on the new sha, refresh cadence intact, cause_note populated).
+- Surface sweep on 43913dc0 — all pass:
+  - `/` `/landing` `/admin` `/city` `/v2/city` all HTTP 200; landing payload 114 KB → 115.8 KB.
+  - Landing live-verified in Chrome ~11:47: boot overlay clears, live number paints
+    (35.1 µg/m³ · SATISFACTORY, cigarette-equiv line + dose row all live). Dead-page trap clear.
+  - Landing inline JS: `node --check` PARSE-OK on the real script (65,857 B; the two
+    `<script>`-inside-comment false matches are identical on old/new builds).
+  - `/admin` login card present (operator token field + sign-in). `/v2/usage` guest → 401.
+  - `/v2/why` cause_note populated: "12 fires in the Punjab–Haryana belt — the wind isn't
+    carrying it this way right now".
