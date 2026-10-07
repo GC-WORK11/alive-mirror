@@ -60,3 +60,11 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
 - cause_note ROTATED (new signal, healthy): now "16 fires in the Punjab–Haryana belt — a N wind
   at 5.9 km/h is carrying it toward Delhi · air barely mixing — ventilation 1,364 m²…"
   (belt_fires 12→16, carrying false→true — wind shifted, smoke inbound).
+
+### 2026-10-07 13:33 — ~2h mark, 37 samples
+- 9 field refresh cycles, all on ~15 min cadence (latest 13:31, age 752→14). Max age seen 922 s.
+- CloudWatch 13:33: all 3 alarms `OK`. `/community` steady (44 obs / 24 contributors).
+- cause_note stays on the parali-carrying story (fires 16, N wind, ventilation ~1,364 m²).
+- Deploy-latency note: the c1f22da docs commit pushed 12:37 never surfaced as build_sha
+  (>55 min) while c86074ff took ~14 min — pipeline appears to batch/dedupe doc-only
+  pushes; app sha is not a reliable per-commit ticker. Watching for any later bump.
