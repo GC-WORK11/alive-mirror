@@ -575,6 +575,12 @@ const en = {
   noPlaceFound: "no place found — try a landmark",
   emptySearchHint: "type a place or landmark — or choose on the map",
   mapPickHint: "tap the map to drop a pin there",
+  /* the air map's own legend card — what the painted field means and
+     what stands behind it (AirMapCard). Station count reuses
+     srcStations, the scale ends reuse band_good/band_severe, the age
+     line reuses howWe_fieldAge/cityStale/cityNoField. */
+  airmapTitle: "the air map",
+  airmapLine: "redder = worse air right now",
   // first run
   onboard_breatheSub: "counts the smoke as you ride",
   onboard_receiptSub1: "what you breathed, estimated",
@@ -1568,6 +1574,8 @@ const hi: Record<StringKey, string> = {
   noPlaceFound: "कोई जगह नहीं मिली — कोई लैंडमार्क लिखकर देखें",
   emptySearchHint: "जगह या लैंडमार्क लिखें — या नक्शे पर चुनें",
   mapPickHint: "नक्शे पर टैप करके पिन लगाएँ",
+  airmapTitle: "हवा का नक्शा",
+  airmapLine: "जितना लाल, उतनी ख़राब हवा अभी",
   onboard_breatheSub: "सफ़र के दौरान धुएँ का अंदाज़ा",
   onboard_receiptSub1: "आपने कितना धुआँ लिया",
   onboard_receiptSub2: "और आपकी गाड़ी ने कितना छोड़ा",
