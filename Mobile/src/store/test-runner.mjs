@@ -19,6 +19,10 @@ import { registerHooks } from "node:module";
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+/* Metro injects __DEV__ at bundle time; the API-base modules read it at
+   import. Node has no such global — tests want production values. */
+globalThis.__DEV__ = false;
+
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "expo-file-system") {
@@ -48,19 +52,43 @@ registerHooks({
         format: "module",
         shortCircuit: true,
         /* in-memory stand-in for expo-file-system's File/Paths API —
-           same surface daylog.ts and ledger.ts call (exists, create,
-           text, write). Persistence across runs isn't the unit under
-           test; the reconstruction math is. */
+           same surface daylog.ts/ledger.ts/daysum.ts call (exists,
+           create, text, write, delete, copySync, moveSync with the
+           overwrite semantics safefile's atomic rename needs).
+           Persistence across runs isn't the unit under test; the
+           reconstruction math is. */
         source:
           "const store = globalThis.__storetest_fs ??= new Map();" +
           "export const Paths = { document: '/storetest-docs' };" +
           "export class File {" +
-          "  constructor(dir, name) { this.uri = dir + '/' + name; }" +
+          "  constructor(dir, name) { this.uri = name === undefined ? String(dir) : dir + '/' + name; }" +
           "  get exists() { return store.has(this.uri); }" +
           "  create() { if (!store.has(this.uri)) store.set(this.uri, ''); }" +
           "  text() { return Promise.resolve(store.get(this.uri) ?? ''); }" +
           "  write(s) { store.set(this.uri, String(s)); }" +
           "  delete() { store.delete(this.uri); }" +
+          "  copySync(dest, opts) {" +
+          "    if (store.has(dest.uri) && !(opts && opts.overwrite)) throw new Error('dest exists');" +
+          "    store.set(dest.uri, store.get(this.uri) ?? '');" +
+          "  }" +
+          "  moveSync(dest, opts) {" +
+          "    if (store.has(dest.uri) && !(opts && opts.overwrite)) throw new Error('dest exists');" +
+          "    store.set(dest.uri, store.get(this.uri) ?? '');" +
+          "    store.delete(this.uri);" +
+          "  }" +
+          "}" +
+          /* Directory — only the surface api/cache.ts touches (exists,
+             create, list); needed so settings.clearAllData can be
+             exercised in-process. */
+          "export class Directory {" +
+          "  constructor(dir, name) { this.uri = name ? dir + '/' + name : String(dir); }" +
+          "  get exists() { return true; }" +
+          "  create() {}" +
+          "  delete() {}" +
+          "  list() {" +
+          "    const p = this.uri + '/';" +
+          "    return [...store.keys()].filter((k) => k.startsWith(p)).map((u) => new File(u));" +
+          "  }" +
           "}",
       };
     }

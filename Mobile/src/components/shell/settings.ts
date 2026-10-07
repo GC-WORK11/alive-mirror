@@ -6,6 +6,8 @@ import { File, Paths } from "expo-file-system";
 import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
 import { resetDaylogCache } from "../../store/daylog";
+import { resetDaySum } from "../../store/daysum";
+import { purgeJsonDoc } from "../../store/safefile";
 import { clearConsent } from "../../store/consent";
 import { clearWelcomeSeen } from "../../store/welcome";
 import { clearVehicle } from "../../store/vehicle";
@@ -104,14 +106,20 @@ export function clearAllData(): void {
   mem = null;
   inflight = null;
   resetLedgerCache();
-  resetDaylogCache(); // daylog.json mirror — without it the mounted home keeps wiped totals
+  resetDaylogCache(); // daylog.json mirror — without it a wipe resurrects
+                      // every sample/check-in on the next recordSample
+  resetDaySum();      // daysum.json — the rollup engine's file + .tmp/.bak
   clearConsent();   // re-arms the onboarding gate on next launch
   clearWelcomeSeen(); // welcome_seen_v1 — the first-breath moment re-arms too
   clearVehicle();   // vehicle.json — the S8 profile
   clearPlaces();    // places.json — recents + home/work, the location history
   clearOutbox();    // outbox.json — queued donations carry token + trajectory
   void cacheClear(); // alive-cache/ — last-good plan/strip payloads carry route GPS coords
-  for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt", "daylog.json", "events.json"]) {
+  /* safefile stores purge their .tmp/.bak too — a torn write's artifacts
+     are still user data */
+  purgeJsonDoc("ledger.json");
+  purgeJsonDoc("daylog.json");
+  for (const name of ["settings.json", "contributor.txt", "intro_seen.txt", "events.json"]) {
     try {
       const f = new File(Paths.document, name);
       if (f.exists) f.delete();

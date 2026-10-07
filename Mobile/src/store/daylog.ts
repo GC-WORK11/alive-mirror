@@ -11,12 +11,13 @@
  *  leave through the trip-donation path this file never touches.
  *  `clearAllData` deletes the file outright.
  */
-import { File, Paths } from "expo-file-system";
 import { afterFirstFrame } from "../startup/idle";
+import { readJsonDoc, writeJsonDoc } from "./safefile";
 import type { Trip } from "./ledger";
 import { modeLabel, placeNameLabel, type Lang } from "../i18n/strings";
 
-const FILE = new File(Paths.document, "daylog.json");
+/* on-disk: <document>/daylog.json via safefile — bare {samples,checkins}
+   object (drive lanes read it raw), atomic rename + .bak */
 
 /** A single ambient read while the app was in the foreground. */
 export type AmbientSample = {
@@ -54,38 +55,38 @@ const VE_REST_M3H = 0.6;
 let mem: DayLogFile | null = null;
 let inflight: Promise<DayLogFile> | null = null;
 let writeTail: Promise<unknown> = Promise.resolve();
-/* wipe generation — mirrors api/cache.ts wipeGen: a readDisk that was
-   in-flight across clearAllData must drop its stale payload instead of
-   resurrecting the wiped day in the mounted home (testday-ios P2). */
+/* wipe generation — the outbox/cache guard: a disk read that started
+   before delete-my-data must not resurrect the mirror after it (the
+   store lacked this — its file was deleted but mem survived, and the
+   next recordSample resurrected every wiped sample + check-in). */
 let wipeGen = 0;
 
 async function readDisk(): Promise<DayLogFile> {
   await afterFirstFrame(); // the day's data is not frame-1 data — mount wins
-  const gen = wipeGen;
   if (mem) return mem;
-  try {
-    if (FILE.exists) {
-      const j = JSON.parse(await FILE.text()) as Partial<DayLogFile>;
-      if (gen !== wipeGen) return { samples: [], checkins: {} }; // wiped mid-read
-      mem = {
-        samples: Array.isArray(j.samples) ? j.samples : [],
-        checkins: j.checkins && typeof j.checkins === "object" ? j.checkins : {},
-      };
-      return mem;
-    }
-  } catch {}
-  mem = { samples: [], checkins: {} };
+  const gen = wipeGen;
+  /* safefile read: bare-object format unchanged; .bak is the rollback
+     generation if the main file is torn or corrupt. */
+  const j = await readJsonDoc<Partial<DayLogFile>>("daylog.json",
+    (v): v is Partial<DayLogFile> => v != null && typeof v === "object");
+  if (gen !== wipeGen || mem !== null) {
+    // wiped mid-read, or a writer won the race while we parsed
+    if (mem) return mem;
+    return { samples: [], checkins: {} };
+  }
+  mem = {
+    samples: j && Array.isArray(j.samples) ? j.samples : [],
+    checkins: j?.checkins && typeof j.checkins === "object" ? j.checkins : {},
+  };
   return mem;
 }
 
-/** Cache reset for settings.clearAllData() — it removes the file
- *  directly, so the mirror must drop too or wiped samples/check-ins
- *  would resurrect on the next allSamples() (the mounted home showed
- *  stale totals until relaunch). */
+/** "Delete my data" — the file is removed by clearAllData; the mirror
+ *  must drop here too or the next write resurrects every wiped row. */
 export function resetDaylogCache(): void {
+  wipeGen++;
   mem = null;
   inflight = null;
-  wipeGen++;
 }
 
 function ensureMem(): Promise<DayLogFile> {
@@ -98,12 +99,28 @@ function scheduleWrite(): void {
   writeTail = writeTail
     .then(() => {
       if (mem === null) return; // wiped — a queued flush must not resurrect it
-      try {
-        if (!FILE.exists) FILE.create();
-        FILE.write(JSON.stringify(mem));
-      } catch {}
+      writeJsonDoc("daylog.json", mem); // atomic rename + .bak (safefile)
     })
     .catch(() => {});
+}
+
+/* ---- mutation listeners ---------------------------------------------------
+ * daysum.ts subscribes so an appended sample marks its day dirty — no
+ * caller has to remember. Check-ins don't change dose reconstruction,
+ * so setCheckin does not fire; only sample appends do. */
+const listeners = new Set<(e: { day: string }) => void>();
+export function onDaylogMutation(cb: (e: { day: string }) => void): () => void {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
+}
+function fire(day: string): void {
+  for (const cb of [...listeners]) {
+    try {
+      cb({ day });
+    } catch {}
+  }
 }
 
 /** Local calendar-day key — the check-in and the arc both bucket by it. */
@@ -128,6 +145,7 @@ export async function recordSample(s: AmbientSample): Promise<boolean> {
     d.samples = d.samples.filter((x) => x.ts >= cutoff).slice(-MAX_SAMPLES);
   }
   scheduleWrite();
+  fire(dayKey(s.ts)); // this sample's day rollup is stale now
   return true;
 }
 

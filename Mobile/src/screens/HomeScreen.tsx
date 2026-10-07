@@ -87,6 +87,7 @@ import {
   type LensVerdict,
 } from "../store/daylog";
 import type { Trip } from "../store/ledger";
+import { getDay } from "../store/daysum";
 import {
   fetchDayCurve,
   morningAnswers,
@@ -150,23 +151,25 @@ export function useDayData(
       const today = dayKey(now);
       const rec = reconstructDay(today, samples, trips, now, lang);
 
-      // week: one reconstruction per day — cheap at this volume, and
-      // honest (a day with no samples reads 0, not an invented number).
-      // A day already over is bounded at its own 23:59, not at today's
-      // clock hour — its last hours were always counted, just dropped
-      // by the old same-clock-time bound.
+      /* week: today's rec is live; the six finished days come from the
+         day-sum rollup — each was reconstructed once when its inputs
+         last changed and is sealed on disk, instead of every assemble
+         re-deriving it from the full sample+trip history (pocket-engine
+         lane: this used to cost one reconstructDay per finished day on
+         EVERY refresh). */
       const week: DayData["week"] = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
         const k = dayKey(d.getTime());
-        const r = i === 0 ? rec
-          : reconstructDay(k, samples, trips, new Date(`${k}T23:59:59`).getTime(), lang);
+        const r = i === 0 ? rec : (await getDay(k, lang)).rec;
         week.push({ day: k, ug: r.totalUg, rec: r });
       }
 
       // the lens needs a dose per checkin's *previous* day, counted only
-      // where coverage was real enough to say so
+      // where coverage was real enough to say so — same rollup: up to
+      // ~120 days that used to each rescan every sample+trip on every
+      // assemble now read one sealed record each
       const doseByDay: Record<string, number> = {};
       const keys = new Set<string>();
       for (const k of Object.keys(checkins)) {
@@ -175,7 +178,7 @@ export function useDayData(
         keys.add(dayKey(d.getTime()));
       }
       for (const k of keys) {
-        const r = reconstructDay(k, samples, trips, new Date(`${k}T23:59:59`).getTime(), lang);
+        const r = (await getDay(k, lang)).rec;
         if (r.coveredMin >= 30 || r.parts.length > 0) doseByDay[k] = r.totalUg;
       }
 
