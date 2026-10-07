@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALive-108 — Delhi NCR air, district by district</title>
+<meta name="description" content="Delhi NCR's air right now, district by district — every number measured live from government monitors, the satellite model, and trips riders share.">
+<meta property="og:title" content="ALive-108 — Delhi NCR air, right now">
+<meta property="og:description" content="Every district boundary filled by its live air level — government monitors anchor it, the satellite model and shared trips fill the rest.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%23f4f1ea%27/%3E%3Crect x=%273%27 y=%273%27 width=%2710%27 height=%2710%27 fill=%27%233a6844%27/%3E%3C/svg%3E">
 <style>
   /* web-overhaul-v2: shared muted-expensive register, component grammar
@@ -40,7 +45,7 @@
         font-weight:600;color:var(--ink);text-decoration:none}
   .mark b{color:var(--sage);font-weight:400}
   .mast-r{display:flex;align-items:baseline;gap:26px;font-family:var(--mono);
-          font-size:10.5px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
+          font-size:11px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
   .mast-r a{color:var(--ink2);text-decoration:none}
   .mast-r a:hover{color:var(--ink);text-decoration:underline;
           text-underline-offset:4px;text-decoration-thickness:1px}
@@ -53,16 +58,14 @@
   .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
   .hero{padding:clamp(40px,7vh,72px) 0 26px}
   .eyebrow{display:inline-flex;align-items:center;gap:8px;
-           font-family:var(--mono);font-size:10px;letter-spacing:.24em;
-           color:var(--accent-ink);text-transform:uppercase;
-           background:var(--accent-wash);border:1px solid var(--acc-tint);
-           border-radius:8px;padding:5px 11px}
+           font-family:var(--mono);font-size:11px;letter-spacing:.24em;
+           color:var(--ink2);text-transform:uppercase}
   .eyebrow::before{content:"";width:6px;height:6px;background:var(--sage);
            border-radius:2px;flex:none}
-  h1{font-family:var(--serif);font-weight:400;letter-spacing:-0.028em;
+  h1{font-family:var(--sans);font-weight:500;letter-spacing:-0.03em;
      font-size:clamp(40px,6.8vw,72px);line-height:1.04;margin:28px 0 0;
      color:var(--ink)}
-  h1 em{font-style:italic;color:var(--ink2)}
+  h1 em{font-style:normal;color:var(--ink2)}
   .dek{margin-top:26px;max-width:560px}
   .dek p{color:var(--ink2);font-size:16px;line-height:1.72;font-weight:400}
   .dek p b{color:var(--ink);font-weight:500}
@@ -74,8 +77,8 @@
      edge, the page's one ambient motion; accent wash is the no-field
      fallback. */
   .htoday{margin-top:28px;display:flex;align-items:center;gap:24px;
-          max-width:660px;flex-wrap:wrap;background:var(--hw,var(--accent-wash));
-          border:1px solid var(--ht,var(--acc-tint));border-radius:18px;
+          max-width:660px;flex-wrap:wrap;background:var(--hw,var(--surface2));
+          border:1px solid var(--ht,var(--line));border-radius:18px;
           padding:20px 24px 18px;position:relative}
   .htoday .hv{font-family:var(--serif);font-weight:400;
           font-size:clamp(56px,6vw,80px);line-height:.95;letter-spacing:-.02em;
@@ -85,11 +88,11 @@
   .htoday .ht{font-size:14.5px;line-height:1.5;color:var(--ink);
           min-width:220px;flex:1;max-width:340px}
   .htoday .ht .hchip{display:inline-block;margin-bottom:9px;
-          font-family:var(--mono);font-size:9px;letter-spacing:.16em;
-          text-transform:uppercase;color:var(--hi,var(--accent-ink));
+          font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+          text-transform:uppercase;color:var(--hi,var(--ink3));
           background:rgba(255,255,255,.65);border-radius:6px;padding:3px 8px}
   .htoday .ht i{display:block;margin-top:8px;font-style:normal;
-          font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;
+          font-family:var(--mono);font-size:11px;letter-spacing:.11em;
           text-transform:uppercase;color:var(--ink3);line-height:1.85}
   .htoday::after{content:"";position:absolute;inset:0;pointer-events:none;
           border-radius:inherit;border:1.5px solid transparent}
@@ -100,13 +103,11 @@
   /* the why/grap callouts — tinted tiles, solid tag chip, one line each */
   .whyline{margin-top:12px;font-size:14px;line-height:1.55;color:var(--ink2);
            display:flex;gap:12px;align-items:center;max-width:600px;
-           background:var(--accent-wash);border:1px solid var(--acc-tint);
+           background:var(--surface2);border:1px solid var(--line);
            border-radius:12px;padding:10px 14px}
-  #grapline{background:var(--surface2);border-color:var(--line)}
-  .whyline .wtag{font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  .whyline .wtag{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
                  text-transform:uppercase;color:#fff;flex:none;
-                 background:var(--accent);border-radius:6px;padding:4px 8px}
-  #grapline .wtag{background:var(--ink2)}
+                 background:var(--ink2);border-radius:6px;padding:4px 8px}
   .whyline .wtxt em{font-style:normal;color:var(--ink);font-weight:500}
 
   /* ---------- map frame — the card that holds the field ---------- */
@@ -120,11 +121,11 @@
      the whole NCR extent inside ~270px of dead canvas at phone widths */
   @media(max-width:640px){svg#ncr{height:auto}}
   .m-tag{position:absolute;top:16px;left:18px;font-family:var(--mono);
-         font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+         font-size:11px;letter-spacing:.18em;text-transform:uppercase;
          color:var(--ink3);pointer-events:none;line-height:1.9}
   .m-tag b{color:var(--ink2);font-weight:400}
   .m-wind{position:absolute;top:16px;right:18px;font-family:var(--mono);
-          font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+          font-size:11px;letter-spacing:.14em;text-transform:uppercase;
           color:var(--ink3);pointer-events:none;text-align:right;line-height:1.9}
   @media(max-width:640px){.m-wind{display:none}
     /* phones: drop the tag off the map and into the hairline — at 60% of
@@ -151,18 +152,20 @@
             border-top:1px solid var(--line);padding:10px 18px 12px}
   .chips{display:flex;gap:6px;flex-wrap:wrap;max-width:min(560px,80%)}
   .chip{display:flex;align-items:center;gap:6px;font-family:var(--mono);
-        font-size:9px;letter-spacing:.08em;color:var(--ink2);
-        background:rgba(250,250,247,.88);border:1px solid var(--line);
-        border-radius:7px;padding:3px 9px 3px 6px}
+        font-size:11px;letter-spacing:.08em;color:var(--ink2);
+        background:rgba(250,250,247,.88);
+        border-radius:7px;padding:3px 9px 3px 6px;
+        box-shadow:0 1px 3px -1px rgba(22,24,29,.10),inset 0 0 0 1px rgba(22,24,29,.04)}
   .chip i{width:9px;height:9px;flex:none;border-radius:2px}
-  .m-src{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  .m-src{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
          color:var(--ink3);text-transform:uppercase;text-align:right;
          line-height:1.9;background:rgba(250,250,247,.88);
-         border:1px solid var(--line);border-radius:7px;padding:4px 9px}
+         border-radius:7px;padding:4px 9px;
+         box-shadow:0 1px 3px -1px rgba(22,24,29,.10),inset 0 0 0 1px rgba(22,24,29,.04)}
   .m-src b{color:var(--ink2);font-weight:400}
   /* the one-line gloss that makes the band numbers legible — same
      register as the control-row notes */
-  .leg-note{flex-basis:100%;font-family:var(--mono);font-size:9.5px;
+  .leg-note{flex-basis:100%;font-family:var(--mono);font-size:11px;
             letter-spacing:.12em;text-transform:uppercase;
             color:var(--ink4);line-height:1.9}
 
@@ -171,16 +174,17 @@
      hairline scrubber with an ink progress fill, mono ticks */
   .tl{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
       border-top:1px solid var(--line);padding:9px 18px 10px;
-      font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+      font-family:var(--mono);font-size:11px;letter-spacing:.1em;
       color:var(--ink3)}
   .tl[hidden]{display:none}
   /* controls are chips now — surface2 tiles on the card's floor,
      selection reads as the accent-wash chip */
   .tl button{font-family:inherit;font-size:inherit;letter-spacing:.14em;
       text-transform:uppercase;color:var(--ink2);
-      background:var(--surface2);border:1px solid var(--line);
-      border-radius:8px;padding:5px 11px;cursor:pointer}
-  .tl button:hover{color:var(--ink);border-color:var(--line2)}
+      background:var(--surface2);border:none;
+      border-radius:8px;padding:5px 11px;cursor:pointer;
+      box-shadow:0 1px 3px -1px rgba(22,24,29,.10)}
+  .tl button:hover{color:var(--ink)}
   .tl button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   .tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
       appearance:none;background:transparent;height:14px;margin:0;
@@ -199,14 +203,14 @@
   .tl-h{min-width:66px;color:var(--ink2);white-space:nowrap}
   .tl-load{color:var(--ink4);white-space:nowrap}
   .tl-now{white-space:nowrap}
-  .tl-note{flex-basis:100%;font-size:9.5px;letter-spacing:.12em;
+  .tl-note{flex-basis:100%;font-size:11px;letter-spacing:.12em;
       text-transform:uppercase;color:var(--ink4)}
   /* where can your lungs go? — same control row, text-link pills for
      mode/budget presets; the caption carries the honest counts */
   .rch-pills{display:inline-flex;gap:6px}
   .rch-pills button.on,
-  #rchArm[aria-pressed="true"]{background:var(--accent-wash);
-      border-color:var(--acc-tint);color:var(--accent-ink)}
+  #rchArm[aria-pressed="true"]{background:var(--surface);color:var(--ink);
+      box-shadow:0 1px 3px rgba(22,24,29,.12),inset 0 0 0 1px var(--line)}
 
   /* what happened — the recorded archive strip. one square per ist
      hour: recorded = its mean band tile (clickable, replays the stored
@@ -232,7 +236,7 @@
      speaks (the served note says why); the verdict reads as caption */
   .days{border-top:1px solid var(--line);padding:12px 18px 14px}
   .days[hidden]{display:none}
-  .days-lbl{display:block;font-family:var(--mono);font-size:9px;
+  .days-lbl{display:block;font-family:var(--mono);font-size:11px;
             letter-spacing:.18em;text-transform:uppercase;color:var(--ink4)}
   .days-lbl .u{text-transform:none;letter-spacing:.04em}
   /* five pastel tiles — each washed from the day's own CPCB band
@@ -242,7 +246,7 @@
   .day{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
        padding:10px 12px 9px;background:var(--dw,var(--surface2));
        border:1px solid var(--de,var(--line));border-radius:12px;font-family:var(--mono);
-       font-size:10px;text-align:left;cursor:pointer;color:var(--ink3);
+       font-size:11px;text-align:left;cursor:pointer;color:var(--ink3);
        box-shadow:0 1px 3px -1px rgba(22,24,29,.06);position:relative;
        transition:transform .2s cubic-bezier(.22,1,.36,1)}
   /* the breathing edge — a 4.4s sine opacity loop on a 1.5px band-ink
@@ -256,25 +260,25 @@
        animation:breath 4.4s ease-in-out infinite}
   @media(prefers-reduced-motion:reduce){.day.breathe::after{display:none}}
   .day:hover{border-color:var(--line2);transform:translateY(-1px)}
-  .day .dl{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  .day .dl{font-size:11px;letter-spacing:.16em;text-transform:uppercase;
            color:var(--ink2)}
   .day .dl small{color:var(--ink4);letter-spacing:.08em;margin-left:5px;
                  text-transform:none}
   .day .dv{margin-top:2px;font-size:19px;line-height:1.3;color:var(--ink);
            font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:7px}
   .day .dv i{width:8px;height:8px;flex:none;border-radius:2px}
-  .day .dr{font-size:9px;letter-spacing:.08em;color:var(--ink3)}
-  .day .dm{margin-top:2px;font-size:9px;letter-spacing:.1em;
+  .day .dr{font-size:11px;letter-spacing:.08em;color:var(--ink3)}
+  .day .dm{margin-top:2px;font-size:11px;letter-spacing:.1em;
            text-transform:uppercase;color:var(--ink3);line-height:1.65}
   .day.on{box-shadow:inset 0 0 0 1.5px var(--ink)}
   .day.lo{opacity:.6}
   .day.lo:hover,.day.lo.on{opacity:.85}
   .day:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
-  .days-cap{display:block;margin-top:12px;font-family:var(--serif);
-            font-style:italic;font-size:15px;letter-spacing:-.01em;
+  .days-cap{display:block;margin-top:12px;
+            font-size:14px;letter-spacing:-.01em;
             color:var(--ink2)}
   .days-note{display:block;margin-top:6px;font-family:var(--mono);
-             font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+             font-size:11px;letter-spacing:.12em;text-transform:uppercase;
              color:var(--ink4);line-height:1.9}
   @media(max-width:640px){.dayrow{display:flex;overflow-x:auto;
       scrollbar-width:none}.dayrow::-webkit-scrollbar{display:none}
@@ -288,20 +292,20 @@
           box-shadow:0 8px 24px -12px rgba(22,24,29,.18);
           opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s}
   .detail.on{opacity:1;transform:none}
-  .detail .d-name{font-family:var(--serif);font-size:19px;letter-spacing:-.01em;
+  .detail .d-name{font-weight:500;font-size:17px;letter-spacing:-.01em;
                   color:var(--ink)}
-  .detail .d-state{font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  .detail .d-state{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
                    text-transform:uppercase;color:var(--ink3);margin-top:2px}
   .detail .d-aqi{font-family:var(--serif);font-size:30px;line-height:1.15;
                  color:var(--ink);margin-top:8px;display:flex;align-items:baseline;gap:8px}
-  .detail .d-aqi small{font-family:var(--mono);font-size:9px;letter-spacing:.14em;
+  .detail .d-aqi small{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
                        color:var(--ink3);text-transform:uppercase}
   .detail .d-cat{display:inline-block;margin-top:6px;padding:3px 9px;
-                 border-radius:6px;font-family:var(--mono);font-size:9.5px;
+                 border-radius:6px;font-family:var(--mono);font-size:11px;
                  letter-spacing:.1em;text-transform:uppercase;color:#fff}
-  .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:10.5px;
+  .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:11px;
                 color:var(--ink2);line-height:1.8}
-  .detail .d-conf{margin-top:4px;font-size:10px;color:var(--ink4);line-height:1.5}
+  .detail .d-conf{margin-top:4px;font-size:11px;color:var(--ink4);line-height:1.5}
   /* ≤640: chips become one scrollable row + provenance wraps under it.
      The detail card docks to the bottom of .map-view (the svg box) —
      anchoring to .map-card put it over the legend/days stack once the
@@ -318,10 +322,11 @@
   .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
           margin-top:34px}
   .ticker-in{display:flex;flex-wrap:wrap;gap:8px;padding:14px 0;
-             font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+             font-family:var(--mono);font-size:11px;letter-spacing:.16em;
              text-transform:uppercase;color:var(--ink3)}
-  .ticker-in span{background:var(--surface);border:1px solid var(--line);
-             border-radius:8px;padding:6px 11px;color:var(--ink2)}
+  .ticker-in span{background:var(--surface);
+             border-radius:8px;padding:6px 11px;color:var(--ink2);
+             box-shadow:0 1px 3px -1px rgba(22,24,29,.08)}
   .ticker-in i{display:none}
   .ticker-in b{color:var(--ink);font-weight:600;text-transform:none}
 
@@ -330,14 +335,14 @@
   .sec-h{display:flex;align-items:baseline;gap:18px;margin-bottom:38px;
          border-bottom:1px solid var(--line);padding-bottom:14px}
   /* section number reads as the register's accent chip */
-  .sec-n{font-family:var(--mono);font-size:10px;color:var(--accent-ink);
-         letter-spacing:.14em;background:var(--accent-wash);
-         border:1px solid var(--acc-tint);border-radius:6px;
-         padding:4px 9px;flex:none}
-  .sec-t{font-family:var(--serif);font-size:clamp(24px,3.4vw,34px);
-         font-weight:400;letter-spacing:-0.01em}
-  .sec-t em{font-style:italic;color:var(--ink2)}
-  .sec-sub{font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  .sec-n{font-family:var(--mono);font-size:11px;color:var(--ink2);
+         letter-spacing:.14em;background:var(--surface2);
+         border-radius:6px;padding:4px 9px;flex:none;
+         box-shadow:0 1px 3px -1px rgba(22,24,29,.10),inset 0 0 0 1px rgba(22,24,29,.05)}
+  .sec-t{font-size:clamp(24px,3.4vw,34px);
+         font-weight:500;letter-spacing:-0.02em}
+  .sec-t em{font-style:normal;color:var(--ink2)}
+  .sec-sub{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
            color:var(--ink3);text-transform:uppercase;margin-left:auto;text-align:right}
   @media(max-width:700px){.sec-sub{display:none}}
 
@@ -346,18 +351,17 @@
   .ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   @media(max-width:960px){.ledger{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:520px){.ledger{grid-template-columns:1fr}}
-  .stat{background:var(--accent-wash);border:1px solid var(--acc-tint);
+  .stat{background:var(--surface);
         border-radius:14px;padding:14px 16px 13px;
-        display:flex;flex-direction:column;min-height:132px}
-  .stat:nth-child(even){background:var(--surface2);border-color:var(--line)}
-  .stat .k{display:inline-block;font-family:var(--mono);font-size:9px;
+        display:flex;flex-direction:column;min-height:132px;
+        box-shadow:0 1px 3px -1px rgba(22,24,29,.08),inset 0 0 0 1px rgba(22,24,29,.05)}
+  .stat .k{display:inline-block;font-family:var(--mono);font-size:11px;
            letter-spacing:.14em;text-transform:uppercase;line-height:1.6;
-           color:var(--accent-ink);background:rgba(255,255,255,.65);
+           color:var(--ink2);background:var(--surface2);
            border-radius:6px;padding:3px 8px;margin-right:auto}
-  .stat:nth-child(even) .k{color:var(--ink2)}
   .stat .v{font-family:var(--serif);font-size:clamp(32px,3.2vw,42px);font-weight:400;
            letter-spacing:-0.02em;margin-top:auto;padding-top:14px;line-height:1}
-  .stat .v small{font-family:var(--mono);font-size:10px;color:var(--ink3);
+  .stat .v small{font-family:var(--mono);font-size:11px;color:var(--ink3);
                  font-weight:400;letter-spacing:.06em}
   .stat .d{font-size:11px;color:var(--ink3);margin-top:9px;line-height:1.5}
   .stat .d b{color:var(--ink2);font-weight:500}
@@ -375,21 +379,21 @@
 
   /* corridors */
   table{width:100%;border-collapse:collapse}
-  th{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
      color:var(--ink3);font-weight:400;text-align:left;padding:0 12px 12px}
   td{padding:13px 12px;border-top:1px solid var(--line);font-size:13.5px;
      color:var(--ink2);font-weight:400;vertical-align:middle}
-  td.rank{font-family:var(--mono);font-size:10px;color:var(--ink4);width:34px}
+  td.rank{font-family:var(--mono);font-size:11px;color:var(--ink4);width:34px}
   td.cell{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
   td.cell small{color:var(--ink3)}
   td.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
-  td .modep{display:inline-block;font-family:var(--mono);font-size:9.5px;
+  td .modep{display:inline-block;font-family:var(--mono);font-size:11px;
             letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;
-            border:1px solid var(--acc-tint);border-radius:6px;
-            background:var(--accent-wash);color:var(--accent-ink)}
+            border-radius:6px;
+            background:var(--surface2);color:var(--ink2)}
   .dose-chip{display:inline-block;min-width:64px;text-align:right;padding:3px 10px;
              font-size:12px;font-variant-numeric:tabular-nums;border-radius:6px;
-             background:var(--accent-wash);color:var(--accent-ink)}
+             background:var(--surface2);color:var(--ink)}
   .scrollx{overflow-x:auto}
   .card2{border:1px solid var(--line);border-radius:14px;
          padding:16px 14px 4px;background:var(--surface)}
@@ -405,7 +409,7 @@
          padding:26px 0 56px;display:grid;grid-template-columns:1fr auto;gap:26px}
   .foot-l{max-width:640px;color:var(--ink3);font-size:11.5px;line-height:1.85}
   .foot-l b{color:var(--ink2);font-weight:500}
-  .foot-r{font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  .foot-r{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
           text-transform:uppercase;color:var(--ink3);text-align:right;line-height:2.2}
   .foot-r a{color:var(--ink2);text-decoration:none}
   .foot-r a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
@@ -461,7 +465,7 @@
   <noscript>
     <style>.map-card,.ticker,.minimap,#corridors{display:none}
       .rv{opacity:1;transform:none}</style>
-    <p style="margin-top:20px;font-family:var(--mono);font-size:10.5px;
+    <p style="margin-top:20px;font-family:var(--mono);font-size:11px;
       letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
       line-height:1.9">
       the live map, the hour-by-hour replay and the numbers need
@@ -588,6 +592,7 @@
         <tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>
       </table>
     </div>
+    <p class="days-note" id="corrNote" hidden></p>
   </section>
 
   <footer>
@@ -625,6 +630,9 @@ const bandOf=a=>{if(a==null)return[null,'No data',NODATA];
   const b=BANDS.find(b=>a<=b[1])||BANDS[5];return[a,b[2],b[3]]};
 const IN=n=>n==null?'—':Math.round(n).toLocaleString('en-IN');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* OSM names arrive raw — 'hanuman lane' — title-case the way the app
+   does before they land in a table */
+const tName=s=>String(s||'').replace(/(^|[\s\-/'(])([a-z])/g,(m,p1,p2)=>p1+p2.toUpperCase());
 /* official hue → pastel tile surface: wash toward white (never alpha),
    register-card's bandWashIdx — tiles wear the day's own band */
 const washHex=(hex,t=.78)=>{const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');
@@ -1647,15 +1655,23 @@ async function load(){
     setTxt('fieldmeta',`map rebuilt ${Math.round((a.field?.age_s||0)/60)} min ago · nearest map square ${a.nearest_sample_km??'—'} km away · ${a.calibration?.mae_ug?`typical error ±${a.calibration.mae_ug} µg/m³`:'not yet calibrated'}`);
     paintTicker(a,cy,t,ad,(dd&&dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
-    const rows=(ad.corridors||[]).slice(0,9).map((c,i)=>
+    const rows=(ad.corridors||[]).map((c,i)=>
       `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>
-       <td class="cell">${esc(c.name||`${(+c.lat).toFixed(3)}°N · ${(+c.lon).toFixed(3)}°E`)}</td>
+       <td class="cell">${esc(c.name?tName(c.name):`${(+c.lat).toFixed(3)}°N · ${(+c.lon).toFixed(3)}°E`)}</td>
        <td class="num">${IN(c.trips)}</td>
        <td class="num"><span class="dose-chip">${IN(Math.round(c.avg_dose_ug))} µg</span></td>
        <td><span class="modep">${c.relative?c.relative+' than typical':'—'}</span></td></tr>`).join('');
     document.getElementById('corridors').innerHTML=
       '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>'+
       (rows||'<tr><td colspan="5" style="color:var(--ink4)">no street has enough phones yet — this fills in as delhi moves</td></tr>');
+    /* the served set is the publishable store's heaviest+lightest ends —
+       say so when it isn't the whole count the stat above claims */
+    const nCorr=(ad.corridors||[]).length,nPub=t.corridors_publishable;
+    const cn=document.getElementById('corrNote');
+    if(cn){cn.hidden=!nCorr;
+      cn.textContent=nCorr&&nPub>nCorr
+        ?`showing ${nCorr} of ${nPub} stretches — the heaviest and lightest ends by dose`
+        :(nCorr?`every stretch with ≥3 phones, dose-sorted`:'');}
     setTxt('stamp','updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' ist');
     /* cadence from the field itself — refresh_in_s rides /v2/city */
     const rs=(ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000;
