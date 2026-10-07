@@ -225,7 +225,13 @@ function ReceiptSheetInner({
   const cigTxt = showCig && cigs != null
     ? t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
     : null;
-  const ratioTxt = ratio != null && ratio > 1.05
+  /* the ×less comparison and the "would have added" line both measure
+     against the FULL-route worst option — on an ended-early trip the
+     accrued dose covered only part of the corridor, so the ratio reads
+     inflated (a 0.4 km stub claims "30× less than foot"). Suppress both
+     until the trip actually runs the corridor. */
+  const fullRun = data.endedEarly !== true;
+  const ratioTxt = ratio != null && ratio > 1.05 && fullRun
     ? (data.worstLabel
         ? data.worstMode === "walk"
           ? t("receipt_lessVsWalk", lang, { n: ratio })
@@ -301,7 +307,7 @@ function ReceiptSheetInner({
               {ratioTxt}
             </Text>
           ) : null}
-          {savedUg != null && savedUg >= 6 && (
+          {savedUg != null && savedUg >= 6 && fullRun && (
             <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
               {t("receiptSavedUg", lang, { n: approx(doseUgRound(savedUg)) })}
               {showCig && savedCigs != null && savedCigs >= 0.02
@@ -318,7 +324,9 @@ function ReceiptSheetInner({
         <StatTile index={0} reduce={reduceMotion}>
           <Text style={[s.cellVal, NUM, { fontFamily: famMonoText(lang, "med") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
-            {co2 == null ? "—" : t("nav_kg", lang, { n: approx(r1(Math.max(0, co2.mid))) })}
+            {co2 == null ? "—" : co2.hi < 1
+              ? t("nav_g", lang, { n: Math.round(Math.max(0, co2.mid) * 1000) })
+              : t("nav_kg", lang, { n: approx(r1(Math.max(0, co2.mid))) })}
           </Text>
           <Text style={[s.cellCap, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} {...DYNAMIC_TYPE}>
@@ -360,15 +368,23 @@ function ReceiptSheetInner({
             <>
               <Text style={[s.detailTxt, NUM, { fontFamily: famMonoText(lang, "reg") }]} {...DYNAMIC_TYPE}>
                 {t("receipt_estLike", lang)}
-                {co2.hi - co2.lo > 0.05
+                {co2.hi < 1
+                  /* sub-kilo: grams carry the band (same rule as NavChrome);
+                     always show — the footnote is where precision lives */
+                  ? `  ·  ${(() => {
+                    const lo = Math.round(Math.max(0, co2.lo) * 1000);
+                    const hi = Math.round(Math.max(0, co2.hi) * 1000);
+                    return t("nav_g", lang, { n: lo === hi ? `${hi}` : `${lo}–${hi}` });
+                  })()}`
+                  : co2.hi - co2.lo > 0.05
                   /* the raw band survives the >0.05 gate but rounds to the
                      same 1dp value → "0.1–0.1 kg" read like a formatting bug;
                      collapse to the single value (NavChrome co2 precedent).
                      nav_kg also keeps the unit Devanagari in hi (किग्रा). */
-                  ? `  ·  ${r1(co2.lo) === r1(co2.hi)
-                    ? t("nav_kg", lang, { n: r1(co2.hi).toFixed(1) })
-                    : t("nav_kg", lang, { n: `${r1(co2.lo)}–${r1(co2.hi)}` })}`
-                  : ""}
+                    ? `  ·  ${r1(co2.lo) === r1(co2.hi)
+                      ? t("nav_kg", lang, { n: r1(co2.hi).toFixed(1) })
+                      : t("nav_kg", lang, { n: `${r1(co2.lo)}–${r1(co2.hi)}` })}`
+                    : ""}
               </Text>
               {data.pm25G != null && data.pm25G.hi > 0 && (() => {
                 const lo = r2(data.pm25G.lo), hi = r2(data.pm25G.hi);

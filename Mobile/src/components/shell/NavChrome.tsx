@@ -228,6 +228,9 @@ function NavChromeInner({
   const ugMid = nav ? nav.dose.mid : doseUg;
   const showOut = nav != null && nav.co2.hi > 0;
   const outKg = showOut ? Math.round(Math.max(0, nav.co2.mid) * 10) / 10 : null; // kg, 1dp
+  /* small motors (bikes ~0.04 kg/km) round to "0 kg" for the whole trip
+     and the cell reads dead — under a kilo, grams move */
+  const outG = showOut && nav.co2.hi < 1;
   const frozen = nav?.stripOk === false; // counters paused — dimmed, pill explains
   const progress = typeof nav?.progress === "number"
     ? Math.min(1, Math.max(0, nav.progress)) : null;
@@ -272,7 +275,18 @@ function NavChromeInner({
     }
     : null;
   const co2Band: BandViz | null = showOut
-    ? { ...nav.co2, text: nav.co2.lo.toFixed(1) === nav.co2.hi.toFixed(1) ? t("nav_kg", lang, { n: nav.co2.lo.toFixed(1) }) : t("nav_kg", lang, { n: `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)}` }) }
+    ? {
+      ...nav.co2,
+      text: outG
+        ? (() => {
+          const lo = Math.round(Math.max(0, nav.co2.lo) * 1000);
+          const hi = Math.round(Math.max(0, nav.co2.hi) * 1000);
+          return t("nav_g", lang, { n: lo === hi ? `${lo}` : `${lo}–${hi}` });
+        })()
+        : nav.co2.lo.toFixed(1) === nav.co2.hi.toFixed(1)
+          ? t("nav_kg", lang, { n: nav.co2.lo.toFixed(1) })
+          : t("nav_kg", lang, { n: `${nav.co2.lo.toFixed(1)}–${nav.co2.hi.toFixed(1)}` }),
+    }
     : null;
 
   return (
@@ -364,7 +378,9 @@ function NavChromeInner({
                 label={t("nav_putOut", lang)}
                 dim={frozen}
                 band={co2Band}
-                value={t("nav_kg", lang, { n: approx(outKg) })} />
+                value={outG
+                  ? t("nav_g", lang, { n: Math.round(Math.max(0, nav.co2.mid) * 1000) })
+                  : t("nav_kg", lang, { n: approx(outKg) })} />
             </>
           )}
         </View>
