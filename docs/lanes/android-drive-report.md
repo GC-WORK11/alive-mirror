@@ -87,3 +87,33 @@ Verification pass on the fix commits landed in response to this report — `c84b
 | 5 | Intermittently eaten taps | UNVERIFIED — not formally re-tested; this trip's gestures (search, options, Start, Done, toggles, scrub) all registered, though several needed the usual re-tap/micro-swipe pattern earlier in the pass. |
 | 6 | Community street casing | UNVERIFIED — community list not re-opened this pass. |
 | 7 | Dead header Where-to? pill | **FIXED** by removal-under-sheet (item d). |
+
+## v4 — counters fix aea1c68 verify + demo APK
+
+**Build:** `0be8181` (HEAD of base/v2 at build time) · artifact `Mobile/android/app/build/outputs/apk/release/app-release.apk` · sha256 `218c4ce3322e126305e6cd09b044b7030e2b856e0cfe5e0b2a3eae7033841cc6` · fresh bundle rebake (build/outputs + generated rm'd before `expo run:android --variant release`, `EXPO_PUBLIC_API_URL=http://65.2.28.40`). **This is the Oct-10 demo artifact.**
+
+**Verdict: aea1c68 holds — no 45-cap pin on teleport fixes; speedless fallback not regressed.**
+
+### a. Teleport-spike check (GNSS-speed channel)
+
+Method: real-GNSS feed via `adb emu geo fix` along a 270-fix CP-bound route at ~10 m hop / 4 s cadence, then mid-trip a single ~5 km teleport fix (lon jump from ~77.21→77.26 + lat shift), then resumed smooth feed. On this AVD the platform's `vel` reported to the app is fused-derived: dumpsys showed `Location[fused ... vel=10.02]` on the jump tick itself — the platform filtered the step into a plausible speed. App consumed `speedMps=10` → rate ~real, no pin.
+
+- `144-spike-at.png` — HUD at jump tick: counters continuous (≈0.5→0.6 kg band), no step.
+- `145-spike-plus5.png`, `146-spike-plus15.png` — 5 s / 15 s after: ≈0.9 kg total, deltas monotonic; a 45-cap pin for even ~15 s would have printed a +0.3 kg step on exhaust alone.
+- Trip receipts: `143-receipt-gnss.png` ≈1.5 kg / ≈2.7 µg over ~2.7 km (real-speed feeding), `147-148` second receipt clean.
+
+Caveat, stated plainly: on this emulator the fused provider clamps/derives velocity itself, so a *sustained* every-fix-jump pattern (real-phone GNSS trusting a raw spiked `speedMps` for consecutive ticks) isn't fully exercisable here — the platform hands the app a sane speed through the spike. The pre-fix arithmetic path that produced the pin (vDerived maxed against speedMps regardless) is gone from the code path entirely: `speedMps>0` gates it.
+
+### b. Speedless fallback (c84b5c2 regression check)
+
+Re-armed `add-test-provider gps` + `set-test-provider-location` feed (no speed field → `speedMps` absent → vDerived path). `149–151` show mid-trip accumulation; `152-receipt-speedless.png`: "≈0.1 kg · 4.9 km · 4 min · 0.39–0.42 g PM2.5" — non-zero distance-based accumulation preserved.
+
+### c. Smoke
+
+Typed search → gazetteer pick → plan/compare mounts with `mInputShown=false` (no IME over rows — `153-smoke-sheet.png`); receipts render; `adb logcat` clean (no FATAL; only uiautomator dump noise).
+
+| Finding | Status |
+|---|---|
+| aea1c68 45-cap pin on location jumps | **NOT REPRODUCED — fix holds** (shots 144–146; platform-level velocity filter observed, app consumed sane speedMps) |
+| c84b5c2 speedless accumulation | **NOT REGRESSED** (149–152) |
+| IME over sheet rows | still fixed (153, dumpsys mInputShown=false) |
