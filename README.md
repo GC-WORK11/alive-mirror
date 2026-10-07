@@ -186,7 +186,7 @@ AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=… ./scripts/deploy.sh
 
 ## Docs
 
-The plan folder is the source of truth; `docs/plan/10-claims-ledger.md` governs every number this repo shows. Full map: [`docs/README.md`](docs/README.md) — `docs/plan/` (engineering plan, benches, runbook, living `handoff.md`), `docs/lanes/` (~160 dated audit reports — evidence, not prose), `docs/submission/` (hackathon writeup + checklist), `docs/privacy/` (claim → enforcement → test table).
+The plan folder is the source of truth; `docs/plan/10-claims-ledger.md` governs every number this repo shows. Full map: [`docs/README.md`](docs/README.md) — `docs/plan/` (engineering plan, benches, runbook, living `handoff.md`), `docs/lanes/` (~185 dated audit reports and briefs — evidence, not prose), `docs/submission/` (hackathon writeup + checklist), `docs/privacy/` (claim → enforcement → test table).
 
 ## Layout
 
