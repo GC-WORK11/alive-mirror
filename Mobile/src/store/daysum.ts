@@ -222,7 +222,10 @@ async function computeDay(k: string, lang: Lang): Promise<DaySum> {
   return {
     rec,
     trip_ug: r10(tripUg),
-    stay_ug: r10(rec.totalUg - tripUg),
+    /* stay can't be negative — a midnight-straddling trip or a rounding
+       gap between rec's split and this sum could push it just under 0;
+       store the honest floor rather than a physically impossible stay */
+    stay_ug: r10(Math.max(0, rec.totalUg - tripUg)),
     trips: n,
     modes,
     lang,
