@@ -34,6 +34,12 @@ registerHooks({
     if (specifier === "react-native") {
       return { url: "navtest:react-native", shortCircuit: true };
     }
+    /* components/shell/net.ts's posNow imports expo-location — the async
+       providers are never the unit under test; null keeps callers on
+       the last-known path. */
+    if (specifier === "expo-location") {
+      return { url: "navtest:expo-location", shortCircuit: true };
+    }
     try {
       return next(specifier, context);
     } catch (err) {
@@ -50,6 +56,17 @@ registerHooks({
         shortCircuit: true,
         source:
           "export const Platform = { select: (o) => o?.default };" +
+          "export default {};",
+      };
+    }
+    if (url === "navtest:expo-location") {
+      return {
+        format: "module",
+        shortCircuit: true,
+        source:
+          "export const Accuracy = { Balanced: 3 };" +
+          "export const getCurrentPositionAsync = async () => null;" +
+          "export const getLastKnownPositionAsync = async () => null;" +
           "export default {};",
       };
     }
