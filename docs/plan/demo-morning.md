@@ -1,19 +1,28 @@
 # ALive-108 — demo-morning runbook (the one checklist you hold)
 
-*Written 2026-10-07 ~13:05 UTC, last sync ~14:25 UTC — every moving
-number below re-verified live on prod build **`7c68c8bc`** (`/health`
-`build_sha` == ECR image tag; deploy-5 roll 2 — `deploy5-report.md`).
+*Written 2026-10-07 ~13:05 UTC, re-synced ~21:15 UTC for the **Oct-7
+owner fix wave** — every moving number below re-verified live on prod
+build **`6bc2b808`** (`/health` `build_sha` == ECR image tag; deploy-7 —
+transit real names on the wire, `deploy-7-report.md`). The stage script
+is **`demo-script.md` v3** (rewritten beat-by-beat against HEAD
+`e147dbd`); the judge card is **`judge-answers-v7.md`**.
 Sources: `docs/demo-day.md`, `docs/plan/demo-script.md`,
-`docs/11-demo-script.md`, `docs/plan/admin-login.md`,
-`docs/plan/go-nogo.md`, `docs/submission/submission-checklist.md` §3,
-plus today's lane evidence — rehearsal-v2 (Android), deploy5,
-privacy-f1-fix, offline-pack-fix, community-sanity,
-ios-release-residual, judge-answers-v6, watchdog (deploy sweeps, all
-alarms OK), testday-offline (8/8 honesty checks PASS), admin-login-e2e.
-A final freeze-cut APK re-cut is IN FLIGHT (apk-recut lane) — the APK
-steps below point at it, not at the older `c3f7e9e` freeze. Nothing
-here is seeded or faked; the numbers marked **⟳ LIVE** move with the
-field — read them at T-45, never from memory.*
+`docs/plan/admin-login.md`, `docs/plan/go-nogo.md`,
+`docs/submission/submission-checklist.md` §3, plus the wave's lane
+evidence — chooser-craft, audit-fix/2, home-truth, delhi-today-truth,
+search-report, jank-perf, nav-journey (SIGBUS X1), map-perf,
+offline-verify, union-regression, judge-answers-v6/v7.
+
+**⚠ THE BINARY DECIDES WHICH SCRIPT IS REAL.** The pinned demo APK
+`alive108-ef5d95f.apk` predates the whole wave (19 Mobile commits
+behind) — on it, the 4-act chooser, the visible air field, raw-phrase
+search, the no-film cold open and Delhi Today's honest gate **do not
+exist**. Re-cut at **`e147dbd` or later — never in
+`d8c7b41..edc4666`** (map-perf alone crashes Android at launch;
+`edc4666` is the fix). If no re-cut lands, the phone beats fall back
+to v2 wording (`demo-script.md` contingency row). Nothing here is
+seeded or faked; numbers marked **⟳ LIVE** move with the field — read
+them at T-45, never from memory.*
 
 `NLB = http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com`
 (HTTP :80 only — never `https://`, never `:8000`)
@@ -53,10 +62,10 @@ hope.** Then warm.
 
 | # | check | exact command | pass |
 |---|-------|---------------|------|
-| 1 | service health | `curl -s "$NLB/health" \| python3 -m json.tool \| head -40` | HTTP 200 · `field_stale:false` · `engine:"alive_core"` · `transit.real_feeds` bus+metro `true` · `build_sha` = the deployed tag (`7c68c8bc` family — re-check anytime with this same curl; a flip means a task restart or a freeze-break, see T-5) |
+| 1 | service health | `curl -s "$NLB/health" \| python3 -m json.tool \| head -40` | HTTP 200 · `field_stale:false` · `engine:"alive_core"` · `transit.real_feeds` bus+metro `true` · `build_sha` = the deployed tag (`6bc2b808` family — re-check anytime with this same curl; a flip means a task restart or a freeze-break, see T-5) |
 | 2 | plan serving (priced engine) | `python3 tools/warm_task.py` | exit 0 → prints `WARM: priced engine serving after Ns`; last line `/tiles/health ok — 22.7 MB` |
 | 3 | field age < 20 min | `curl -s "$NLB/health"` → `field_age_s` | `< 1200` (it peaks ~920 s then resets on the ~15-min cycle — a stuck reading >1200 s means the ingest loop died) |
-| 4 | APK installed + warmed | on the phone: app opens → home hero shows a live "outside" number → search India Gate → Huda City Centre → plan lands → back to home | install the latest `alive108-<sha>.apk` from the final freeze-cut — **check the recut report for the sha** (newest `docs/lanes/apk-*-report.md`) and `shasum -a 256` the file against it; `alive108-c3f7e9e.apk` is the OLD freeze (predates the offline-pack fix — its r1 pack warms zero tiles), `c3bb731`/`0b11123` are **never** (30–40 Mobile commits behind) |
+| 4 | APK installed + warmed | on the phone: app opens → home hero shows a live "outside" number → tap "Air map" (the field must be painted, not a bare basemap) → "Where to?" India Gate → Huda City Centre → plan lands → back to home | install the latest `alive108-<sha>.apk` — **must be a re-cut ≥`e147dbd`** (the wave's Mobile commits; `demo-kit.md` §1). The pinned `ef5d95f` still *works* (r2 pack inside) but shows the OLD app — v1 chooser, invisible field, welcome film on fresh install. `c3bb731`/`0b11123` are **never**; a `d8c7b41..edc4666` cut crashes at launch. `shasum -a 256` the file against its report |
 | 5 | admin login works | `TOKEN=$(aws secretsmanager get-secret-value --secret-id alive108/admin-token --query SecretString --output text)` then `curl -s -D- -o /dev/null -X POST "$NLB/v2/admin/login" -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN\"}" \| grep -i '^set-cookie'` | `alive_admin=v1.<exp>.<sig>; HttpOnly; Max-Age=28800` — proves token + endpoint good before you need them on camera |
 
 **NO-GO conditions (cut or fix, don't fake):**
@@ -75,26 +84,36 @@ hope.** Then warm.
 
 ### The phone (3 min — kills the two cold-start traps from rehearsal-v2)
 
-First boot on a fresh install is a gauntlet, not a demo: **welcome film
-→ POST_NOTIFICATIONS dialog → 3-page onboarding (consent is page 3) →
-location permission → home**. And the **first-ever plan runs the
-chooser *behind* the vehicle wizard** — the signature beat plays
-occluded. Both are first-run-only. So:
+First boot on a fresh install is a gauntlet, not a demo. On the wave's
+build the order is **ambient number beats first (~4 s, 9 s offline
+fallback) → 3-page onboarding (consent is page 3) → location
+permission → home — NO welcome film** (retired `4b8ac8a`), and the
+notification permission is **lazy** now (it fires on the first real
+air event after consent, or when you arm a reminder — don't stand
+there waiting for the dialog). On the old `ef5d95f` binary the film is
+still in. And the **first-ever plan still runs the chooser *behind*
+the vehicle wizard** — the signature beat plays occluded. All
+first-run-only. So:
 
 - [ ] APK installed + opened once **before** morning — grant every
-  permission when the dialogs fire (notifications, location), swipe
-  the onboarding pages, answer consent either way (it persists).
+  permission when the dialogs fire (location; notifications fire
+  lazily post-consent), swipe the onboarding pages, answer consent
+  either way (it persists).
+- [ ] **iOS-only caution (SIGBUS — closed on sim `849fd4a`,
+  belt-and-suspenders):** the YG-scavenge crash class is dead on sim
+  (40/40 repro-clean, fix `TARGET_OS_SIMULATOR`-gated). It could only
+  bite a binary **predating** `849fd4a` — the re-cut at `e147dbd`
+  carries the fix, but if the phone somehow runs older, don't open
+  "Where to?" in the first ~90 s after a fresh-install cold launch.
+  On Android there's no such caution (0 crashes across every drive).
 - [ ] **Now, on any working uplink**: open the app → search
   `India Gate` → `Huda City Centre` → let the compare sheet land →
   walk through the vehicle wizard once → **leave the app on home**.
   This clears the wizard so tomorrow's on-camera chooser plays clean,
   seeds every last-good cache — **and caches the map tiles over the
-  demo corridor**. The pack fix is live on prod but any APK installed
-  before the freeze re-cut still carries r1-era code that downloads
-  zero tiles — only the viewport you actually panned renders offline,
-  so panning the demo OD now is what makes the map survive a dead
-  hall. (On the re-cut APK the r2 pack pulls all 744 NCR tiles itself
-  — pan anyway, belt-and-braces.)
+  demo corridor**. On any APK ≥`54a296e` (incl. pinned `ef5d95f`) the
+  r2 pack already pulled all 744 NCR tiles — pan anyway,
+  belt-and-braces.
 - [ ] Rig note that might be real: suggestion rows sometimes eat a
   light tap — if a row seems dead, **long-press it ~300 ms**. Same on
   compare CTAs. (rehearsal-v2 F5; possibly emulator flake, possibly
@@ -115,23 +134,24 @@ curl -s "$NLB/v2/why" | python3 -m json.tool | head -25
 # 2) The leave-later row — renders only when pct_less_vs_now > 8:
 curl -s "$NLB/v2/depart?from_lat=28.6129&from_lon=77.2295&to_lat=28.4958&to_lon=77.0854&vehicle=car" \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print('pct:', d['pct_less_vs_now'], 'now:', d['now']['dose_ug'], 'best:', d['best'])"
-#    today: pct 17→25→29 across reads (row present all day). If it
-#    reads ≤8 tomorrow the row is gone — narrate the curve's
+#    tonight: pct 27, now 14.3 → best 10.4 @ +13 h (11:00 IST).
+#    If it reads ≤8 tomorrow the row is gone — narrate the curve's
 #    dip→overnight climb instead (see fallback table).
 
 # 3) The plan numbers you'll quote — demo OD only:
 curl -s -X POST "$NLB/v2/plan" -H 'content-type: application/json' \
   -d '{"from":{"lat":28.6129,"lon":77.2295},"to":{"lat":28.4958,"lon":77.0854}}' \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); o=d['options']; print('opts:',len(o),'took_ms:',round(d.get('took_ms',0)),'degraded:',d.get('degraded')); [print(' ',x['mode'],(x.get('dose_ug') or {}).get('mid')) for x in o]"
-#    today: 20–22 opts, car-AC 7.4–8.9, walk 254–307 → ~34–35×,
-#    metro+walk PRESENT (48.5 → 58.8). Confirm a `metro+walk` row
-#    exists — if absent, the "car beats metro" clause comes out.
+  | python3 -c "import json,sys; d=json.load(sys.stdin); o=d['options']; print('opts:',len(o),'took_ms:',round(d.get('took_ms',0)),'degraded:',d.get('degraded')); [print(' ',x['mode'],(x.get('dose') or {}).get('mid')) for x in o]"
+#    tonight's read: 23 opts, car-AC 15.5 mid, walk 535.1 → ~34.5×,
+#    warm took_ms 118–326. metro+walk is GTFS-hours dependent —
+#    ABSENT at the ~02:35 IST read, present (~38–53 µg) in service
+#    hours. If absent at T-45, the "car beats metro" clause comes out.
 
 # 4) The state of the machine:
 curl -s "$NLB/health" | python3 -m json.tool | head -30
-#    build_sha (demo build — `7c68c8bc` family; re-check: this same
+#    build_sha (demo build — `6bc2b808` family; re-check: this same
 #    curl — a flip means a task restart or a freeze-break, not field
-#    drift), field_age_s, stations count (51–54 drift band), wind.
+#    drift), field_age_s, stations count (52–54 drift band), wind.
 
 # 5) Full sweep if you have 3 min — prints FLAGS for anything stale:
 bash scripts/verify_numbers.sh
@@ -139,15 +159,20 @@ bash scripts/verify_numbers.sh
 
 ### Pinned numbers that DON'T move (verified today, quote freely)
 
-- spread on the demo OD: **~34–35×** (34.4× at rehearsal, 34.5× on my
-  13:00 UTC probe) — say "more than thirty times"
-- options count: **"about twenty"** (16–22 seen today; swings 9–24)
-- car-AC vs walk on the demo OD: **about seven-to-nine vs
-  two-fifty-to-three-hundred µg** — read the screen, it ranges
-- chooser pill: holds **~4.2 s, twice** ("cleanest and fastest" →
-  "cleanest · N% less than fastest") — narrate the SECOND pill, it
-  carries the quantified claim; let the animation finish before
-  reading the ladder
+- spread on the demo OD: **~34–35×** (34.5× on tonight's wire —
+  car-AC 15.5 vs walk 535.1) — say "more than thirty times"
+- options count: **"about twenty"** (16–24 seen across reads)
+- car-AC vs walk on the demo OD: **about ten-to-sixteen vs
+  four-to-six-hundred µg** — read the screen, it ranges with the field
+- the chooser's beat (new 4-act, `2590598`): **frame** (rings mark
+  from/to ~640 ms) → **ways** (≤3 candidates equal weight, ~¾ s each,
+  540 ms stagger) → **hold** ~300 ms → **settle + verdict pill**
+  (~260 ms after the winner thickens; ONE honest line —
+  "cleanest and fastest" / "cleanest · N% less than fastest" / the
+  server's `reason_line` — holds ~4 s then fades). Felt total **~4–6 s**
+  — let it play out before reading the ladder. (On the OLD `ef5d95f`
+  binary it's the v1 chooser: candidates draw as equals → settle →
+  pill ~4.2 s — still real, just fewer acts.)
 - graph: **1,070,459 edges / 903,058 priced** · `alive_core` · ~15 ms
   self-hosted OSRM
 - field heartbeat: **15 min**, `refresh_in_s` counts down on the wire
@@ -168,8 +193,16 @@ bash scripts/verify_numbers.sh
   corridor dose avgs until ~Oct-8 06:20Z (the 44-trip headline is
   unaffected).
 - iOS release measured **0/60 cold launches clean**
-  (ios-release-residual) — the ~47% dev-debug crash is a
-  dev-inspector-only race; honestly a post-demo engineering item.
+  (ios-release-residual) — and the sim SIGBUS class is now closed
+  (`849fd4a`: 40/40 repro-clean; caution kept in the T-45 block as
+  belt-and-suspenders for pre-fix binaries).
+- app cold open: **~0.8–1 s** on the release APK (`am start -W`
+  845 ms; offline relaunch → honest home+map 938 ms) — no welcome film.
+- sheet opens: "Where to?" ~200–250 ms (index pre-warmed at boot),
+  air map ~50–70 ms, check-in pill echo ~80 ms (jank-perf).
+- offline pack verified end-to-end on Android: 744 region_tiles +
+  297 resources, airplane-mode cold relaunch renders the basemap
+  (offline-verify). Rides in the pinned `ef5d95f` too.
 - `/v2/skill` answers in **~0.7 s on prod** (was ~6 s — deploy4).
 
 ---
@@ -211,7 +244,7 @@ bash scripts/verify_numbers.sh
 
 ```bash
 curl -s "$NLB/health" | python3 -c "import json,sys; d=json.load(sys.stdin); print('sha:',d['build_sha'],'stale:',d['field_stale'],'age_s:',d.get('field_age_s'))"
-# ^ task alive, `build_sha` still in the `7c68c8bc` family, field fresh.
+# ^ task alive, `build_sha` still in the `6bc2b808` family, field fresh.
 #   If build_sha CHANGED (a task restarted), re-run:
 #   python3 tools/warm_task.py   — before stepping on stage.
 
@@ -230,14 +263,14 @@ canonical verbatim; this is the order + the honest number behind each):
 
 | # | time | on screen | the line (shape, not script) |
 |---|------|-----------|------------------------------|
-| 1 | 0:00–0:12 | `/` landing — live raster + wind arrow | "not a video — the live field over NCR, right now; the arrow is today's real wind" |
-| 2 | 0:12–0:30 | `/aqi` at Connaught Place | "US AQI in the 150s ⟳ LIVE — built minutes ago from ~52 live instruments + a satellite model, kriged by our own C++ engine; the countdown is the 15-min field heartbeat" |
-| 3 | 0:30–1:05 | **phone**: India Gate → Huda City Centre plan → chooser → compare ladder | "about twenty options — watch them draw as equals before the winner settles and names why … same road, same minutes: on foot ~two-fifty-to-three-hundred µg, a sealed AC car about seven-to-nine — a thirty-times spread the map you use today never tells you." **Metro clause only if the row exists**: "metro plus walk about fifty — the sealed car beats it, because the clean coach is bookended by road-level walks." Let both ~4.2 s pills play. |
-| 4 | 1:05–1:30 | `/depart` curve (app's 24 h window) | "when you leave matters as much as how — this is the same trip re-priced every departure hour; it climbs overnight." If the leave-later row is up: "leave ~HH:MM — ~N% less" (read it off screen). |
-| 5 | 1:30–1:55 | `/v2/city` + `/community` + `/admin` | "every donated trip becomes a live sensor — the air varies street to street, and a street only publishes after 3 different riders cross it; the privacy is in the math." Community counts ⟳ LIVE from `curl $NLB/community`. |
-| 6 | 1:55–2:20 | AWS console — ECS `alive108` | "real infrastructure: ECS Fargate behind an NLB — one task, healthy, Spot-priced; DynamoDB holds only aggregates." Read task-def off the console, never a memorized number. |
-| 7 | 2:20–2:40 | `/admin` field map — species pills | "we hold one rule: no fake precision — the band is *measured* (95.2% @2σ over 3,550 held-out station-hours). Ten pollutants ride the lattice — ammonia is honestly empty — click NO₂, it's a different map, not a relabeled layer." |
-| 8 | 2:40–2:50 | back to `/` | "dose every 250 metres for the rider, emissions per mode for the city — ALive-108, the map that prices the air." |
+| 1 | 0:00–0:15 | **phone cold open → home** — hero ambient number + provenance + freshness; incidents card above the doors | "no video, no splash — it opens on the number. Sixty-seven micrograms per cubic metre outside right now — same air other apps call AQI one-fifty-seven. It says where it read it, how far the nearest real instrument is, and how old the number is. Below it — what's in Delhi's air right now, measured not reported." ⟳ LIVE |
+| 2 | 0:15–0:35 | **phone**: tap "Air map" — the field itself | "this isn't a styled map — this IS the air: every cell the kriged field in its own official band, contour edges where it crosses, the instruments' own numbers floating on it, rings at the fifty-four live stations. Redder means worse; nothing else on the screen uses colour." |
+| 3 | 0:35–0:55 | **phone**: "Where to?" → type `ashook nagar shadara gali no 4`, then `huda city centre` | "search works the way you actually type — misspelled, phonetic, a gali number, 'near the mandir'; it folds the spelling, anchors 'near' to the real landmark, never invents a pin. Now the trip — HUDA city centre." |
+| 4 | 0:55–1:35 | **phone**: plan lands → the 4-act chooser on the map → compare ladder + leave-later row | "watch the map think: your from, your to — then the ways, drawn as equals — then one settles and *says why*. Same twenty-five kilometres: on foot about five hundred µg, a sealed AC car about fifteen — more than a thirty-times spread the map you use today never tells you. And it prices *when* — leave at eleven, about a quarter less." Metro clause ONLY if the row's on the wire. |
+| 5 | 1:35–1:55 | **phone**: "your lungs' calendar" week sheet → "Delhi today" | "every trip lands in your lungs' calendar — seven real days, blank means the app wasn't with you, never a fake zero. Delhi today: the city's air is shared, but your trips are yours — until you've taken one it says so." |
+| 6 | 1:55–2:15 | **laptop**: `/` landing + `/community` + `/v2/city` + `/admin` gate→board | "the same field serves the public page — and every donated trip becomes a live sensor: forty-seven real donations, twenty-five contributors; a street only publishes after three different riders cross it — the privacy is in the math." ⟳ LIVE counts |
+| 7 | 2:15–2:35 | AWS console — ECS `alive108` | "real infrastructure: ECS Fargate behind an NLB — one task, healthy, Spot-priced; DynamoDB holds only aggregates." Read task-def off the console, never a memorized number. |
+| 8 | 2:35–2:50 | `/admin` field map — species pills → back to `/` | "we hold one rule: no fake precision — the band is *measured* (95.2% @2σ over 3,550 held-out station-hours). Click NO₂ — a different map, not a relabeled layer. Dose every 250 metres for the rider, emissions per mode for the city — ALive-108, the map that prices the air." |
 
 **Do NOT improvise other ODs on stage.** The metro+walk row is only
 guaranteed on the demo OD (India Gate → Huda City Centre — verified
@@ -259,7 +292,7 @@ US AQI (was 86 today — a citywide mean) while `/aqi` at CP point-reads
 | `/aqi` number | `field_stale:true` or old age | "it reports its own age instead of pretending fresh — the honesty is the product" (read the real age aloud) |
 | plan call | > 4 s on the demo OD | "1.07 million edges being re-priced off this morning's field" — it lands; warm hits ~0.5–2 s, a post-refresh reprice ~6–9 s is legit. `options:[]` once = honest planner timeout; retry once, then cut to the backup video |
 | chooser | plays behind the vehicle wizard | only happens if T-45 pre-warm was skipped — close the wizard sheet, the winner is already drawn; run the OD once more and it plays clean |
-| chooser pill | text differs from the script | the pill quotes the server's `reason_line` verbatim — read whatever it says; it's the engine's own words |
+| chooser pill | text differs from the script | the pill quotes `chooserVerdict`/the server's `reason_line` verbatim — read whatever it says; it's the engine's own words. On the new beat it pins ONCE (~4 s) then fades — don't wait for a second pill (the two-pill cycle was the old build) |
 | dose ladder | numbers drifted | "they move with the field — read the screen: about seven-to-nine vs two-fifty-to-three-hundred" — say the range, never a stale constant |
 | metro clause | no `metro+walk` row | drop the clause entirely — the road-mode rows alone carry the ~35× spread; transit rows honestly absent ≠ a bug |
 | leave-later | row absent (`pct ≤ 8`) | "today the curve is flat — the honest answer is 'it doesn't matter when'; on a swing day it tells you the cheaper hour" — narrate the dip→overnight climb on the curve |
@@ -269,8 +302,8 @@ US AQI (was 86 today — a citywide mean) while `/aqi` at CP point-reads
 | admin login | 429 rate_limited | wait ~5 s, one clean paste — the bucket refills ~1/5 s |
 | admin login | `admin auth is not configured` (503) | task env lost the token — deep failure; demo everything else, gate card still tells the privacy story |
 | venue Wi-Fi | anything stops loading | switch the phone to the hotspot you armed at T-30; captive portals kill plain HTTP silently |
-| venue Wi-Fi + hotspot | **both** dead | the app still demos air-gapped: bundled 124k-row gazetteer search, a pre-planned route's nav leg, receipt, ledger, day log all work offline (8/8 honesty checks). Basemap: the pack fix IS live on prod (`GET /v2-light.json` serves, `region_tiles`=744 verified on iOS sim — `offline-pack-fix-report.md`) but it only reaches a phone via the freeze re-cut — **any APK installed before it still warms zero tiles**, so on this morning's install the map renders only where the T-45 pan cached it (ambient cache is the plan, not a fallback). On the re-cut APK the whole NCR z9–13 pack is already local. Only a **new** plan honestly refuses — for server beats, cut to `cut1.mp4`/`cut2.mp4` on the phone |
-| APK | crashes on open | relaunch once — every state persists (consent, vehicle, recents, ledger); back on the map in <1 s. Crash twice → web surfaces carry the same numbers |
+| venue Wi-Fi + hotspot | **both** dead | the app still demos air-gapped: bundled 124k-row gazetteer search, a pre-planned route's nav leg, receipt, ledger, day log all work offline; the r2 pack is IN any APK ≥`54a296e` (incl. the pinned `ef5d95f`) — 744 tiles verified on Android, airplane-mode cold relaunch → honest home+map in 938 ms (`offline-verify-report.md`). Home surfaces offline render as honest empty containers, not fake zeros (C4). Only a **new** plan honestly refuses — for server beats, cut to `cut1.mp4`/`cut2.mp4` on the phone |
+| APK | crashes on open | relaunch once — every state persists (consent, vehicle, recents, ledger); back on the map in ~1 s. iOS-only on a pre-`849fd4a` binary: give the map ~90 s to settle after a fresh-install cold launch before opening "Where to?" (SIGBUS class — closed on sim by `withAllocInYoung(false)`, 40/40 repro-clean). Crash twice → web surfaces carry the same numbers |
 | AWS console | won't load | CLI understudy from any credentialed shell: `aws ecs describe-services --cluster alive108 --service alive108 --query 'services[0].{status:status,running:runningCount,taskDef:taskDefinition,capacity:capacityProviderStrategy}'` → ACTIVE · 1/1 · FARGATE_SPOT — describe it, don't fake the screen |
 | a judge hits prod mid-demo | numbers differ from your line | expected — the field rebuilds every 15 min; "every number on every screen is served live, which is why mine moved too" |
 
@@ -288,13 +321,15 @@ US AQI (was 86 today — a citywide mean) while `/aqi` at CP point-reads
   swap, re-mint plan→strip pairs; old ids 404.
 - **Never deploy inside the window.** Whatever HEAD is at T-60 is the
   demo build.
-- **iOS is not the demo device** — and the release build is now
-  measured clean: **0/60 cold launches** on the reference rig
-  (`ios-release-residual-report.md`; sim-verified — a device release
-  build is unmeasured). The ~47% residual is dev-debug only: the
-  crash victim is the React dev inspector, which doesn't exist in
-  release builds — fixing the underlying race is a post-demo item.
-  Android stays the demo target (never crashed in E2E).
+- **Android is the demo device** — zero crashes across every
+  recorded drive (rehearsal-v2, offline-verify, map-perf). iOS Release
+  keeps its 0/60 cold-launch record and the sim SIGBUS class is now
+  **root-caused and closed** (`849fd4a` — 40/40 repro-clean,
+  sim-gated). Mid-range Android *feel* is honestly unproven
+  (SwiftShader deltas only — `map-perf-report.md`); the demo phone's
+  real glass is the proof. If anyone asks: "verified on the
+  emulator; the phone tells the real story." Nothing else changed:
+  read the screen, not the script.
 - **Read the screen, not the script.** The pinned ranges above are
   honest; a recited constant that the field moved past is a gotcha,
   not a feature.

@@ -1,73 +1,55 @@
-# ALive-108 — demo-day stage script (≤3:00) — v2
+# ALive-108 — demo-day stage script (≤3:00) — v3
 
-*Verified end-to-end against the live service **2026-10-05, 16:05–16:50 IST**
-(build `951eeb3c`, ECS `ap-south-1`, task-def `alive108:141`, FARGATE_SPOT,
-deployment COMPLETED — confirmed via `aws ecs describe-services`).
-Dose model is the re-anchored one (walk/auto ME 1.30, seated VE 10.0–10.5) —
-numbers below replace the pre-re-anchor pass.*
-*Re-rehearsed 2026-10-05 ~23:55 UTC → Oct 6 ~00:15 UTC on live build
-`37e55668` (a deploy rolled mid-pass — earlier reads were on `3711ccd0`;
-figures below are the newest build's). Every verbatim re-phrased to
-tonight's reads (walk ~430, metro+walk ~80, depart worst ~100); see
-Passes 4–5 in the rehearsal log and
-`docs/lanes/demo-rehearse-v2-report.md`.*
-*demo-day-final re-verify 2026-10-06 ~05:10–05:30 UTC on live build
-**`f4139b24`** (the persistence-blend deploy — the forecast now carries a
-fitted nowcast blend on the wire; image tag == `build_sha`). Beats and
-the numbers sheet re-phrased to this morning's reads (walk ~359 on the
-script OD / ~430–450 on the India Gate→Huda demo OD, depart worst ~103,
-skill 80 pairs); see Pass 6 in the rehearsal log and
-`docs/lanes/demo-day-final-report.md`.*
-*demo-reverify-v2 2026-10-06 ~11:07–11:40 UTC on live build
-**`4eb9e1e8`** (task-def `:181`; `/health` == image == `/admin/api/status`
-token-probed). **Fire story flipped**: `/v2/why` now claims stubble smoke
-(NW wind 315° inside the gate, 14/60 belt fires, modifier ×1.24) — the
-stage verbatim still works but the fires aside is now "carrying", not
-"refused". Numbers sheet re-phrased to this afternoon's reads (walk ~293
-on the script OD / ~355 on IG→HCC, day windows null — flat moderate,
-skill 131 pairs all horizons graded, archive 21 snapshots); see
-`docs/lanes/demo-reverify-v2-report.md`.*
-*submission-sync re-pin 2026-10-07 ~11:00 UTC on live build **`698cf808`**
-(the ship wave: cinematic route chooser `e2ff634` — folded into beat 3
-below — `cause_note` parali-watch `795ff3b`, admin sign-in `b563da2`,
-map depth `b47ffd4`, iOS residual kill `9fbd851`, codebase-truth
-`1627a13`/`b633a2d`, landing v6, deploy.sh verified ×2). **Fire story
-flipped back to refused**: SW wind → `carrying:false`, ×1.06 — and
-`/v2/why` now also serves `cause_note` (the parali-watch line); trend
-primary today (−13.7 µg/5.8 h). **`/admin` now opens on a gate card —
-sign in via `POST /v2/admin/login` at T-30, never paste the token on
-camera.** Numbers sheet re-pinned to this morning's reads (walk ~238
-script OD / ~255 demo OD, 17/16 opts, skill 304 pairs, community
-44/24/1,278.9).*
-Every number below was read off the wire during rehearsal — most twice,
-across a field refresh, so the drift is documented. Numbers marked ⟳
-**drift** — the verbatim lines are phrased to survive it ("about",
-"over", "under"), and the T-45 `curl $NLB/health` re-read is mandatory.
-Nothing here is seeded or faked.*
+*Re-synced to the **Oct-7 owner fix wave** (19 Mobile commits —
+chooser-craft `2590598`, visible air field `677dc5d`+`e1e9d22`, search
+t0 rewrite `c583cab`, home-truth `3088716`, delhi-today-truth `7a2cedd`,
+jank-perf `4b8ac8a`, plan-flow `4fa85ea`, jargon `313ffe5`, nav-journey
+`70d8de2`, map-perf `d8c7b41`, audit-fix `e1e9d22`/`6bc2b80`,
+offline-verify `c06f478`/`edc4666`, sigbus-release `849fd4a`,
+leftover-fixup `e147dbd`). Every beat below was re-read
+against **code at HEAD `e147dbd`** + the lane reports + live prod
+**`6bc2b808`** (`/health.build_sha`, deploy-7 — transit real names on
+the wire) on **2026-10-07 ~21:00–21:10 UTC**. Prior stamps (Oct-5/6/7
+rehearsal passes) are history — see the rehearsal log tail.*
+
+**⚠️ The binary decides which script is real.** The pinned demo APK
+`alive108-ef5d95f.apk` is baked at `ef5d95f` — **it predates this whole
+wave** (19 Mobile commits). On that binary the new beats do not exist
+(it carries the old v1 chooser, the invisible 0.12-alpha field, the
+welcome film, the old search). The script below assumes a re-cut at
+**`e147dbd` or later — and never in `d8c7b41..edc4666`**: the map-perf
+tune alone crashes Android at launch (`edc4666` is its fix). If no
+re-cut lands, the phone beats fall back to v2's wording (the old
+chooser still plays — frame/act claims come out). See `demo-kit.md` §1.
 
 `NLB = http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com`
 
+Every number below was read off the wire or the code — most twice.
+Numbers marked ⟳ **drift** — the verbatim lines are phrased to survive
+it ("about", "over", "under"); the T-45 `curl $NLB/health` re-read is
+mandatory. Nothing here is seeded or faked.
+
 ---
 
-## Beats (total 2:50, 10 s of slack)
+## Beats (total ~2:50, 10 s of slack)
 
-| # | time | on screen | say this (verbatim) | verified number behind it |
+| # | time | what to tap / what the screen does | say this (verbatim) | verified number behind it |
 |---|------|-----------|---------------------|---------------------------|
-| 1 | 0:00–0:12 | `/` landing — live raster + wind arrow | "Delhi's air has a price per street. What you're looking at isn't a video — it's the live pollution field over NCR, right now — the arrow is today's real wind, and this scrubber walks the next twelve hours of it." | landing canvas = real `/grid` cells on true NCR geography · wind arrow ~5 km/h @ ~315° (NW — drifts) · '▶ watch the day' scrubs real `/grid?h=0..12` forecast surfaces ⟳ |
-| 2 | 0:12–0:30 | `/aqi` at Connaught Place | "US AQI in the 150s — Unhealthy — built minutes ago from fifty-two live instruments blended with a satellite model, kriged by our own C++ engine, with about forty NASA fire detections feeding a smoke modifier. And this is a countdown — the field refreshes on a 15-minute heartbeat you can watch tick." | us_aqi **154** today at CP, pm2.5 breathing **64.5** / ambient **60.8** (LOO calibration 8.8/12.7/70/+0.2 on the wire), stations **52 — WAQI + DPCC both `ok`** (`source:"waqi+dpcc"`, drift band 52–54) + **~97** CAMS/model samples, fires **44** today (12 belt, 26.2 MW, modifier **×1.06 — SW wind, refused**; ×1.24 NW-carrying at the Oct-6 read), `engine: alive_core`, field age ~7 min at probe, `refresh_in_s` observed counting down ⟳ |
-| 3 | 0:30–1:05 | `/v2/plan` India Gate → Huda City Centre compare sheet — **the cinematic route chooser now runs this beat** (`e2ff634`, live since Oct 7: let it play — candidates draw as equals, camera fits them all, the winner settles bold ~1.5 s in, and the verdict pill pins the server's own reason line: "cleanest · N% less than fastest". The judge types "huda city centre"; it resolves to the metro station; the old CP→Gurugram script OD kept as backup) | "India Gate to Huda City Centre — about twenty options in under two seconds — watch them draw as equals before the winner settles and names why. All 1.07 million road edges were re-priced off that live field. Same road, same minutes: on foot you inhale about two hundred and fifty micrograms; in an auto, about twenty-three; metro plus walk — when the trains are running — about fifty — and here's the honest surprise: a sealed AC car at about seven beats the metro, because the clean coach is bookended by road-level walks. That's more than a thirty-times spread the map you use today never tells you." | **demo OD reads (re-pinned Oct-7 ~11:00 UTC, live build `698cf808`):** 16 opts on the warm hit (a cold post-refresh hit served 9 + `degraded:["engine"]` — narrate the honesty if it happens; count drifts 9–24), car-AC **7.4**, walk **255.0** → **~34.5×**; **metro+walk 53.2 present** (car beats it ~7.2×); auto 22.8, bus 19.4, bike 17.7, car-open 13.5, cycle ~113; warm `took_ms` ~1.2 s (the fresh hit ~9.2 s server — reprice); edges 1,070,459 (903,058 priced); dose `coverage: 1.0`; alternates measured **96%/55%/19% divergent** (spec ≥15%, earlier field); script-OD CP→GGN backup read same pass: 17 opts, car-AC **7.2** / walk **237.9** → **33.0×**, **metro+walk 32.5 present** ⟳ |
-| 4 | 1:05–1:30 | `/depart` curve (the app's window is the next **24 h** — quote what's on the curve, not the old 4-day numbers) | "When you leave matters as much as how. Same trip now: about twenty micrograms. This curve is that same trip re-priced for every departure hour — it climbs overnight; by tomorrow morning's rush it runs more than twice the easy hour. The city breathes on a schedule — the lattice itself swings a third across the next twelve hours — and the same forecast reaches about four days out, blended onto the live field where the observation is freshest." | **24 h window on the demo OD, car (live `698cf808`, Oct-7 ~11:05 UTC):** now **20.7** → overnight climb to worst **45.2 @+19 h** (tomorrow ~06:00 IST, ~2.2×); dip **17.3 @+23 h** — `pct_less_vs_now` **16** → the leave-later row IS present on the demo OD today (gate >8; it reads 0 — absent — on the script OD: honest per-trip behaviour, re-check T-45). `live_anchor.blend` served on the wire: the 'beats persistence' claim is EARNED pooled on the fitted night, strictly better h+5+; inside the 2 h hold it IS persistence — say "blended onto the live field", never "beats persistence" flat; `/v2/city.next_hours` swing **60.8→78.2 (~29%)** today ⟳ |
-| 5 | 1:30–1:55 | `/v2/city` + `/admin` + `/community` | "Every donated trip becomes a live sensor. Twenty-four contributors have logged about thirty kilometres in the last day — the engine counts over three hundred micrograms of smoke they didn't breathe in that window, almost thirteen hundred all-time. And the air varies street to street: along this one drive the field runs from about fifty-two to about eighty-six — and one expressway stretch carries nearly a third of the trip's dose. Streets only publish after three different riders cross them; the privacy is in the math." | contributors **24**, km_today **31.4**, avoided_ug_all **1,278.9** (today 312.9), obs **44** (5 today); 12 of 55 corridors publishable on the wire today; strip numbers re-mint on the day — mint the strip on the tagged *recommended* row (the least-smoke `rd` engine row resolves to 'unnamed road'); `/v2/city/moves` 44 trips, suppression field live; `/admin` now opens on the **gate card** — sign in at T-30 (`POST /v2/admin/login` → HttpOnly cookie ~8 h; Bearer kept for ops curls) ⟳ |
-| 6 | 1:55–2:20 | **AWS console** — ECS `alive108` service | "Real infrastructure, not a laptop demo: ECS Fargate in Mumbai behind a Network Load Balancer — one service, one task, healthy, Spot-priced. CodeBuild ships every deploy, DynamoDB holds only aggregates, S3 keeps the last good field snapshot. Net zero billed this week inside the event credits." | `describe-services` ACTIVE · 1/1 · FARGATE_SPOT · rollout COMPLETED; `/health` `build_sha` `698cf808` == image `alive108-api:698cf808` (ECR tag is truth — read the live task-def off the console, never a memorized revision); ops account 185708268748: 3 CloudWatch alarms OK + SNS confirmed + $0.00 net/7d (ops-handover) ⟳ |
-| 7 | 2:20–2:40 | `/admin` field map — species pills | "We hold one rule: no fake precision. The uncertainty band is *measured* — 95.2 percent coverage at two-sigma over 3,550 held-out station-hours across 85 stations. Ten pollutants ride the same lattice — an eleventh, ammonia, is honestly empty today — and they're chemically different maps: PM2.5 and NO₂ correlate at only plus point-one-four. Click NO₂, the pattern changes; it's not a relabeled layer. Far from a sensor the band honestly widens; outside Delhi it refuses to answer." | band coverage **95.2% @±2σ / 3,550 held-out h, 85 stations** (field_validation.md); 10 species live today (ammonia param served but empty); pm25↔no₂ cell corr **r=+0.14 today** (484 cells — was +0.55/+0.34 at prior reads; it drifts); us_aqi grid range drifts (91→166 at the last pinned read); edge band 10.7–97.7 at 11.1 km (NE corner — widens with distance); Mumbai → typed `outside_service_area` |
-| 8 | 2:40–2:50 | back to `/` | "Exposure and emissions, measured end-to-end — dose every 250 metres for the rider, emissions per mode for the city. ALive-108 — the map that prices the air." | `step_m: 250.0` live on `/v2/strip`; pitch per docs/demo-day.md |
+| 1 | 0:00–0:15 | **Phone, cold open.** The app lands straight on home — **no welcome film** (retired `4b8ac8a`; release cold start ~0.8–1 s `am start`, ~2.6 s to painted home on the iOS dev build). Hero: "the air around you · **67 µg/m³** · moderate" + "PM2.5 dust per m³ of air · same air = AQI **~157** on other apps" + "read at your location · nearest live monitor **~1.8 km** away" + "air reading: N min old". Under it, above the doors, the **incidents card**: "in Delhi's air right now — *16 fires in the Punjab–Haryana belt — the wind isn't carrying it this way right now · air barely mixing — ventilation 521 m²/s vs ~3,000 typical · measured, not reported*". | "No video, no splash — it opens on the number. Sixty-seven micrograms of fine dust per cubic metre of air outside right now — the same air other apps would call AQI one-fifty-seven. It says where it read it, how far the nearest real instrument sits, and how old the number is. And below it — what's actually happening in Delhi's air today: fires in the burn belt, and the wind checked, honestly." | `/aqi` @CP live `6bc2b808`: pm2.5 **72.4** breathing / **67.1** ambient · us_aqi **157** · nearest_sample_km **1.8** · field age ~4 min, 54 stations WAQI+DPCC ok · smoke ×1.08. Incidents line = `/v2/why.cause_note` verbatim — **flips with the wind** (N carrying ↔ refused), re-read T-45 ⟳ |
+| 2 | 0:15–0:35 | **Tap "Air map".** Sheet exits in ~50–70 ms — the whole viewport is the field itself: band-coloured cells (CPCB colours — the one place colour means air), each cell edged in its own band ink so a band change reads as a **contour seam**; the cell's own µg/m³ number floats on it like an instrument readout; quiet rings mark the **54 live instruments**, names at neighbourhood zoom. Legend: "redder = worse air right now · 54 live stations · air reading: N min old". Pan south — real variance: red cells over INA/Sarojini, a cleaner pocket at Kidwai Nagar. | "This is not a styled map — this IS the air. Every cell is the kriged field, coloured by its own official band; the edges draw as contours where the air changes. The numbers on the cells are what the instruments are reading — fifty-four of them live across NCR — and the field between them is measured uncertainty, not wallpaper. Redder means worse; nothing else on this screen uses colour at all." | `AirFieldLayer.tsx` — CONF_A alphas .92/.60/.34 (same as the web hero) + `airfieldEdges` contours + `airfieldValues` per-cell reads (z≥10.5) + `airStationDots`/`airStationNames` (z≥14.5). Verified on-device `audit-fix-report.md` (`06-airmap-field.png`, `07-airmap-variation.png`) + union walk (`airmap-after-pan.png` — field stays painted through gestures) ⟳ |
+| 3 | 0:35–0:55 | **Tap "Where to?"** — the sheet opens in ~200–250 ms (the 124k-entry gazetteer index was slice-built at boot, not in the sheet's mount). **Type it the way he types it:** `ashook nagar shadara gali no 4` — real gali-4 rows near Shahdara + a Photon row resolving the full address · or `pawan bakery near hanuman mandir` — real bakeries anchored on the nearest Hanuman Mandir. Then the demo pick: `huda city centre` → "HUDA City Centre Metro Station · 18 km". | "Search works the way you actually type. Misspelled, half-phonetic, a gali number, 'the bakery near the mandir' — it folds the spelling, understands gali and block and pocket, anchors 'near' to the real landmark, and never invents a pin. Watch: 'ashook nagar shadara gali no 4' — real streets, the locality it meant. Now the trip: H-U-D-A city centre — the metro station itself." | `search-report.md` — phonetic fold (ashok→xk), units, near-anchor, kind scan; t0 local + Photon t3 labelled `· OpenStreetMap`; drops-chars bug killed (`useDeferredValue` + memo rows, `6bc2b80`). Offline: bundled gazetteer answers sans network ⟳ |
+| 4 | 0:55–1:35 | **Tap the HUDA row → the plan lands (~1 s warm; a fresh post-refresh OD can take ~6–9 s — it lands) → THE CHOOSER plays on the map, four acts:** **frame** — a ring breathes once on India Gate, then on HUDA (~640 ms, endpoints marked before any line); **ways** — up to three candidates trace on at ease-out, each ~¾ s, staggered ~540 ms, all at equal weight — real alternates the server priced; **hold** — a ~300 ms breath, all equals; **settle** — losers dip to hairline, the winner re-traces itself bold from→to, and the **verdict pill** pins mid-route ~260 ms later: "cleanest and fastest" / "cleanest · N% less than fastest" / the server's own `reason_line` — ~4 s on, then it fades so the route stays the object. **Whole beat ~4–6 s — let it play.** Then the compare sheet: ~20 options — Car (AC) **≈15 µg** · car-open ≈28 · bike ≈37 · bus ≈41 · auto ≈48 · bicycle ≈237 · **on foot ≈535 µg** — **~34×** · the route itself is painted by dose, segment by segment. **Leave-later row on the same sheet** (served only when `pct_less_vs_now` > 8): tonight reads "leave tomorrow 11:00 → breathe ~27% less". | "India Gate to Huda City Centre — watch the map think. Your from, your to — then the ways it found, drawn as equals. Then one settles and *says why* — in the engine's own words. Now look at the ladder: same roads, same twenty-five kilometres — on foot you inhale about five hundred micrograms; in a sealed AC car, about fifteen. That's more than a thirty-times spread the map you use today never tells you. And it prices *when* too — leave at eleven tomorrow, about a quarter less." | `RouteTint.tsx` beat constants (170/540/300/260 ms; ~4 s pill) + `chooser-craft-report.md` (on-device Release: frame/candidates/settle/pill shots; "cleanest · 53% less" on a real plan). Wire `6bc2b808` ~21:05 UTC: **23 opts**, car-AC mid **15.5** (6.3–24.8), walk **535.1** → **34.5×**, warm `took_ms` **118–326** (first hit 6.3 s). `reason_line` verbatim: "Within ~10% of the lightest dose and the lightest exhaust of those — a fair trade." **Metro+walk ABSENT at tonight's read** (~02:35 IST — GTFS service hours; it returns in service hours — T-45 decides if the "car beats metro" clause lives) ⟳ |
+| 5 | 1:35–1:55 | **Home → tap the week strip** ("your lungs' calendar", chevron): the **WeekSheet** rises — 7 real day cells (weekday, serif date, dose bar washed in that day's severity), the picked day's own hour-arc + accumulators, **"the air ahead"** ghosted forecast row (band dots, least-bad marks, `confidence:"lo"` dimming), footer "only real readings land here — a blank day is a day the app wasn't with you, never a zero". Then **"Delhi today"**: city hero + species + the honest gate — a fresh phone shows "no trips yet — go live your day, we'll count it here" and *the streets/totals of strangers never masquerade as your trips*. | "Every trip lands in your lungs' calendar — seven real days, each cell washed in what that day cost. Blank means the app wasn't with you — never a fake zero. And Delhi today: the city's air is real for everyone — but your phone's trips are yours. Until you've taken one, this screen says so honestly instead of borrowing strangers'." | `WeekSheet.tsx` + `home-truth-report.md` (sheet shots, verdict row, thin-day honesty) · `delhi-today-truth-report.md` — `own===0` collapses corridors/"travellers"/CityMoves to the quiet well; filesystem proof (no ledger.json on fresh install). Outlook live: Oct-8 Moderate ~80 = best of 5 days → Oct-9…12 **Very Poor** ⟳ |
+| 6 | 1:55–2:15 | **Laptop:** `/` landing (live raster + wind arrow + the shipped app's own hero + the chooser film-strip) → `/community` → `/v2/city` → `/admin` gate card → signed-in board (signed in at T-30). | "The same field serves the public surfaces — the landing page you're looking at is that exact field, live. Every donated trip becomes a live sensor: forty-seven real donations, twenty-five contributors, thirty-five kilometres today — and the privacy is in the math: a street only publishes after three different riders crossed it. The engine room sits behind a real sign-in." | `/community` live: **47 obs / 8 today / 25 contributors / 34.7 km** today · avoided **1,410.3 µg** all-time (444.3 today) · corridors 12/55 publishable (k≥3) · `/v2/city` mean **92.5** tonight (dirty evening), GRAP-indicative **stage 1** ⟳ |
+| 7 | 2:15–2:35 | **AWS console** — ECS `alive108` service card: ACTIVE · 1/1 · Fargate Spot · rollout COMPLETED. Pan to Tasks if they linger. | "Real infrastructure, not a laptop demo: ECS Fargate in Mumbai behind a Network Load Balancer — one service, one task, healthy, Spot-priced. CodeBuild ships every deploy, DynamoDB holds only aggregates, S3 keeps the last good field. Net zero billed this week inside the event credits." | `describe-services` ACTIVE 1/1 FARGATE_SPOT; `/health.build_sha` `6bc2b808` == image tag (read task-def off the console, never a memorized revision); 3 alarms OK + SNS confirmed + $0.00 net/7d (ops-handover) ⟳ |
+| 8 | 2:35–2:50 | **`/admin` field map — species pills** (signed in) → back to `/`. | "One rule: no fake precision. The uncertainty band is *measured* — ninety-five-point-two percent coverage at two-sigma over three and a half thousand held-out station-hours. Ten pollutants ride the same lattice — ammonia is honestly empty today — click NO₂, it's a different map, not a relabeled layer. Dose every two hundred and fifty metres for the rider; emissions per mode for the city. ALive-108 — the map that prices the air." | band coverage **95.2% @±2σ / 3,550 held-out h, 85 stations** (field_validation.md); 10 species live (ammonia param served, honestly empty); pm25↔no₂ cell corr drifts (was +0.14–0.55); edge band widens with distance; Mumbai → `outside_service_area`; `step_m: 250.0` live on `/v2/strip` ⟳ |
 
 ## The AWS console moment (required — no console, no score)
 
 **Primary:** ECS console, already signed in, pinned tab —
 `https://ap-south-1.console.aws.amazon.com/ecs/v2/clusters/alive108/services/alive108/health`
-(service card: ACTIVE, running 1/1, Fargate). Pan to **Tasks** if they linger.
-Task definition family `alive108`, live revision **:181** today.
+(service card: ACTIVE, running 1/1, Fargate). Pan to **Tasks** if they
+linger. Read the task-def revision off the console — it rides deploys.
 
 **CLI understudy (verified live 2026-10-05):**
 
@@ -77,102 +59,138 @@ aws ecs describe-services --cluster alive108 --service alive108 \
   --query 'services[0].{status:status,running:runningCount,taskDef:taskDefinition,capacity:capacityProviderStrategy}'
 ```
 
-→ `ACTIVE · 1/1 · alive108:181 · FARGATE_SPOT`. Do **not** log in live on stage.
+→ `ACTIVE · 1/1 · alive108:210 · FARGATE_SPOT`. Do **not** log in live
+on stage.
 
 ## Contingency beats
 
 | If this stalls | do this on stage |
 |---|---|
-| `/v2/plan` > ~4 s | Engine re-pricing after a field refresh — wait ~12 s once, never spam; rehearsed OD lands warm in ~0.6 s. Rehearse on the SAME OD you'll demo (fresh unseen ODs measured 2.3–6.7 s server-side; one 60-km cold call hit the 20 s planner budget → honest `options:[] + error:"planner timed out"`). `python3 tools/warm_task.py` at T-40 is load-bearing. |
+| `/v2/plan` > ~4 s | Engine re-pricing after a field refresh — wait ~12 s once, never spam; rehearsed OD lands warm in ~0.1–1.2 s. Rehearse on the SAME OD you'll demo (fresh unseen ODs measured 2.3–9.2 s server-side; one 60-km cold call hit the 20 s planner budget → honest `options:[] + error:"planner timed out"`). `python3 tools/warm_task.py` at T-40 is load-bearing. |
 | `degraded:["engine","transit"]` on the wire | Narrate it: "the API names which arm timed out — we'd rather show a missing arm than a fabricated answer." Router rows still render. |
+| Chooser plays behind the vehicle wizard | Only on a profile that's never planned — the T-45 pre-warm burns this off. If it happens: close the sheet, the winner is already drawn; re-run the OD. |
+| Pill text differs from the script | The pill quotes `chooserVerdict`/the server's `reason_line` verbatim — read whatever it says; it's the engine's own words. |
 | Any endpoint > 8 s twice | Cut to pre-recorded ride video (docs/demo-day.md backups); keep narrating — numbers were live-verified today. |
 | `/health` `field_stale:true` | Say it tells the truth; read the real age aloud. |
-| Hall Wi-Fi dead | Phone hotspot (NLB is HTTP :80 only; captive portals break it). Bundled 124k-row gazetteer keeps search alive offline. |
-| Numbers drifted since morning | They will — the field refreshes every 15 min. Quote the ranges ("mid-160s", "over 200", "about 6"); the drift column below shows the observed swing. |
+| Hall Wi-Fi dead | Phone hotspot (NLB is HTTP :80 only; captive portals break it). Bundled 124k-row gazetteer keeps search alive offline; the r2 pack (744 tiles) rides any APK ≥`54a296e`. |
+| Numbers drifted since morning | They will — the field refreshes every 15 min. Quote the ranges ("about fifteen", "over five hundred", "thirty-something times"); never a stale constant. |
+| **Demo binary is the old `ef5d95f`** | The new beats don't exist on it — narrate the v1 chooser (draw-as-equals → settle → pill still plays), skip the air-field/choos­er-4-act/raw-search claims, and say the fix wave lands in the next cut. Do NOT fake familiarity with beats that aren't on the glass. |
 
-## Numbers sheet (re-pinned 2026-10-07 ~11:00 UTC on `698cf808`; prior passes' drift kept for swing context)
+## Numbers sheet (re-pinned 2026-10-07 ~21:05 UTC on `6bc2b808`; ⟳ = drifts)
 
 **Field & air**
-- engine `alive_core` · routing **1,070,459 edges / 903,058 priced** · `osrm-local` router (self-hosted, ~15 ms)
-- field: **~97** model samples today · **52** instruments — **WAQI + DPCC both `ok`** (`source:"waqi+dpcc"`, drift band 52–54; stations drift stale mid-day, recover) · age ~7 min (TTL 900 s) · `stale:false` · `refresh_in_s` visibly counting down on the wire · history.stations_climatology **125**
-- fires: **44** today (12 in-belt, 26.2 MW), FIRMS public CSV · smoke modifier **×1.06** at CP (SW wind — **refused** today; **×1.24 NW-carrying at the Oct-6 read** — echo on `/v2/plan`+`/v2/reroute`) · wind ~9.9 km/h from ~241°
-- CP now: pm2.5 **64.5** breathing / **60.8** ambient · **US AQI ~154** today · LOO calibration MAE 8.8 / RMSE 12.7 / n=70 / bias +0.2 · GRAP-indicative stage 0 · vs decade norm for the hour at CP (name the basis)
-- city: pm25 mean **43.2** / median 43.3 / max 55.0 · typical Oct median 56.9 (**−24.0%**) · GRAP stage 0, aqi 73 · next-12h swing **60.8→78.2 (~29%)** — a mild day, don't quote the old ~4×
-- outlook @CP: today Moderate 67.5 → **Thu Poor ~107** → **Fri–Sun Very Poor ~135–177** (confidence "lo" — say the shape, not the digits); cleanest windows Sat ~10:30–18:30 ~77, Sun ~10:30–16:30 ~64
-- breath: day-inhaled **~620 µg mid ≈ 1.96 cigarettes** (22 µg/m³-day ≈ 1 cig, ~14.4 m³/day — scales with the day's field mean; evening reads ran ~2.5–3.7 cig this week)
-- `/v2/day` @CP: day_mean **67.5** · both windows honestly `null` (flat moderate 61–75) · `decisions` carries the plain-words row
+- engine `alive_core` · routing **1,070,459 edges / 903,058 priced** · `osrm-local` router (~15 ms)
+- field: **102** model samples · **54** instruments — WAQI + DPCC both `ok` (drift band 52–54; 24 if DPCC stalls >90 min) · age ~4 min · `stale:false` · history.stations_climatology **125**
+- fires: **90** today (16 in-belt, 41.4 MW), FIRMS public CSV · smoke modifier **×1.08** at CP — **refused** (wind ~4 km/h NNE; NW quadrant = carrying; it flipped both ways today) · `cause_note` on `/v2/why` + `/v2/city.why` ⟳
+- CP now: pm2.5 **72.4** breathing / **67.1** ambient · **US AQI 157** · LOO calibration MAE 8.8 / RMSE 12.7 / n=70 / bias +0.2 · nearest sample **1.8 km** ⟳
+- city: pm25 mean **92.5** / median 91.6 / max 137.6 · GRAP-indicative **stage 1**, aqi 209 — a dirty evening (was mild all afternoon — the field moves; name the anchor) · breath day-inhaled **~1,329 µg mid ≈ 4.2 cigarettes** ⟳
+- outlook @CP: **Oct-8 Moderate ~80 = the best of 5 days** → Oct-9…12 **Very Poor** (confidence "lo" past the anchor — say the shape, not the digits) ⟳
 
 **Routing & dose**
-- **demo OD India Gate→Huda City Centre (24.7 km — the OD the judge flow types; re-pinned Oct-7 ~11:00 UTC on `698cf808`):** **16 options** on the warm hit (a cold post-refresh hit served 9 + `degraded:["engine"]`; the count swings 9–24 across reads minutes apart), warm `took_ms` **~1.2 s** (fresh-OD hit ~9.2 s server — reprice; one 60-km cold call timed out at the 20 s budget → honest empty) · doses: car-AC **7.4** · car-open 13.5 · bike 17.7 · bus 19.4 · auto 22.8 · **metro+walk 53.2 PRESENT** · cycle ~113 · **walk 255.0 µg → ~34.5× car** · script OD CP→Gurugram (23.7 km) backup: 17 opts, car-AC **7.2** / walk **237.9** → **33.0×**, metro+walk 32.5 present
-- **µg/km ladder** (demo-OD reads ÷ 24.7 km): car-AC ~0.3 · car-open ~0.5 · bike ~0.7 · bus ~0.8 · auto ~0.9 · metro+walk ~2.2 · cycle ~4.6 · **walk ~10**
-- **the honest surprise**: metro+walk ≈ **7.2× car-AC** dose on the demo OD today (53.2 vs 7.4; ~4.5× on the script OD, 32.5 vs 7.2) — GTFS ride is clean, road-level access walks aren't. It's GTFS-service-hours dependent — if the row is absent at T-45 the clause dies with it
-- **the route chooser (`e2ff634`)**: candidates draw as equals (≤3, staggered 220 ms) → camera unions all bounds → winner settles bold ~1.4–1.7 s → verdict pill pins `chooserVerdict` (the server's `reason_line` verbatim — "cleanest and fastest" / "cleanest · N% less than fastest") at `pointAtFrac(geometry,0.45)`, hold 4.2 s
-- corridor alternates measured divergent: alt1 **96%**, alt2 **55%**, rd **19%** of length (spec: ≥15%) — real different routes
-- per-street air on one trip (strip, `step_m` 250): re-mint on the day — last pinned 82 samples · 52.2→85.9 (1.65×) on `4eb9e1e8` · **mint strip on the tagged recommended row — least-smoke `rd` engine rows resolve to 'unnamed road'**
-- emissions: car CO₂ 1.8–5.2 kg (mid 2.82) + PM2.5 tailpipe up to 3.18 g · metro+walk 0.42 kg CO₂, **zero PM** · curve params (`co2_g_km`, idle, cold-start) served for client-side 1 Hz ticking
-- other ODs (earlier-field, ambient-basis reads — the ratios hold on the bz basis, re-mint absolutes on the day): India Gate→Noida car 2.4 vs walk 78.4 (**32.7×**, 24 opts); KG→Faridabad car 6.5 vs walk 250.0 (**38.5×**, 21 opts — first cold call timed out at 20 s, retry answered in 6.7 s); CP→India Gate walk 47.5 µg on 4.7 km (car 1.5, metro+walk 15.7) — the spread holds, the factor doesn't (say "30–40×")
+- **demo OD India Gate→Huda City Centre (24.7 km), live `6bc2b808` ~21:05 UTC:** **23 options** · warm `took_ms` **118–326 ms** (first post-boot hit 6,324 ms) · Car (AC) **15.5** mid (lo 6.3 / hi 24.8) · car-open 28.2 · bike 37.0 · bus 40.7 (46 min) + slow bus 126.8 (125 min) · auto 47.8 · bicycle ~237–266 · **on foot 535.1 → ~34.5×** · **metro+walk ABSENT tonight** (02:35 IST — outside GTFS service hours; present in daytime reads 38.5–53.2 — the clause lives or dies at T-45) · `reason_line`: "Within ~10% of the lightest dose and the lightest exhaust of those — a fair trade." ⟳
+- **the chooser's clock** (`RouteTint.tsx`): frame ~640 ms (rings 170 ms apart) → ways ≤3 × ~¾ s @540 ms stagger → hold 300 ms → settle ~300 ms + pill +260 ms → pill ~4 s hold → fade. Felt total **~4–6 s** (chooser-craft on-device). Tap-swap on the same set skips the acts: bold settle ~300 ms, demote ~450 ms. Reduce-motion collapses to final state.
+- **the honest surprise**: when metro+walk is on the wire it doses ~2.5–7× car-AC (53.2 vs 7.4 this afternoon; 38.5 vs ~11 at the v6 read) — clean coach, dirty access walks. **Clause conditional on the row existing at T-45** — absent tonight.
+- corridor alternates measured divergent: 96%/55%/19% of length (spec ≥15%) — real different routes
+- emissions: car CO₂ 1.8–5.2 kg (mid 2.82) + PM2.5 tailpipe up to 3.18 g · metro+walk 0.42 kg CO₂, zero PM · receipt/nav counters render **grams** under 1 kg (nav-journey F1)
+- per-street air (strip `step_m` 250): mint on the tagged *recommended* row on the day — least-smoke `rd` engine rows strip as 'unnamed road'
+- other ODs (older fields — ratios hold, absolutes re-mint): IG→Noida 32.7×; KG→Faridabad 38.5× (first cold call timed out at 20 s → retry 6.7 s); CP→IG walk 47.5 µg/4.7 km — say "30–40×"
 
-**Search & corpus**
-- corpus truth (STATS.md): **91,931,396 OSM nodes + 8,888,227 ways scanned → 97,447 entries, 16,949 real address rows** (house numbers + interpolations) · app bundles **124,311-row gazetteer** → offline search
-- battery of 174 real Delhi queries live: **172/174 top-1 (98.9%), p50 471 ms / p95 704 ms / max 1.5 s** over NLB · misses: '25 rajinder nagar' (→ '25-K Rajinder Nagar' substring artefact), 'panipat' (honest empty — outside coverage) · the 25-query stage subset still lands 25/25 · engine itself ~1 ms C++
+**The app's new truths (this wave — code-verified, HEAD `e147dbd`)**
+- cold open: **no welcome film** (`WelcomeScreen` unmounted, `4b8ac8a`); release APK `am start -W` TotalTime **845 ms**; offline cold relaunch → honest home+map **938 ms** (offline-verify); iOS dev build ~2.6 s to painted home. Fresh-install order now: **ambient beat first** (4 s, 9 s fallback) → 3-page onboarding (consent p3) → location ask — **notification permission is lazy** (fires on first real air event post-consent, or on arming a reminder; `events.ts` + `notify.ts`)
+- sheet opens: "Where to?" ~**200–250 ms** · "go somewhere" ~150–250 ms · Air map open ~**50–70 ms** (jank-perf, measured on iOS sim; gazetteer slice-builds at boot +900 ms)
+- felt buttons: check-in pill fills same-frame (~80 ms echo, before the disk write lands); daylog sample no longer collapses MoveCard/DaysAhead (stale-keep re-assemble)
+- air map: field cells CONF_A .92/.60/.34 + band-ink contour edges + per-cell µg values (z≥10.5) + station rings + names (z≥14.5) + legend "redder = worse air right now · N live stations · air reading: N min old"
+- search: phonetic fold + gali/block/pocket units + near-anchor + kind scan; Photon t3 labelled `· OpenStreetMap`; dropped-chars bug dead (`useDeferredValue` + memoized rows)
+- ambient hero: eyebrow names the source ("the air around you" / "near central Delhi" / "expected near you"), provenance line (nearest monitor km), freshness line ("air reading: N min old"), AQI bridge ("same air = AQI N on other apps")
+- Delhi today: `own===0` → corridors/traveller-totals/CityMoves collapse to "no trips yet — go live your day, we'll count it here"; IncidentsCard on home = `cause_note` + "· measured, not reported"
+- offline pack: `delhi-ncr-z9-13-r2` — **744 region_tiles / 297 resources** verified on Android KVM, airplane-mode cold relaunch renders the basemap ~4 viewports out; style_url `http://<api>/v2-light.json`; zero crashes across the whole offline walk
+- transit on prod: real line names — `Bus 405`, `0AIRPORTEXP-4(NS) → 764EXT`; all-caps feed ids (`CGOCOMPLEX-2`) suppressed to plain "Bus" (`6bc2b80`, live since deploy-7 `6bc2b808`)
+- gates at HEAD: `tsc`/`expo lint` clean · node:test 84+76+17+16 pass · routeTint self-test 55 OK (union-regression)
 
 **Honesty**
-- band coverage **95.2% @±2σ over 3,550 held-out station-hours, 85 stations** (`σ=√(krige_sd²+(0.12·µ)²) × SIGMA_CAL 3.2`; MAE 22.0, bias +51.6% on clean-air window — source: `server/data/field_validation.md`)
-- LOO calibration: MAE **8.8 µg/m³**, bias **+0.2**, n=70 live WAQI+DPCC instruments (krige refit per held-out station — served live at `/aqi.calibration`)
-- grid confidence: hi 33% / med 62% / lo 4% — thin cells paint honest (drifts a few pts with the field)
-- edge /aqi 11.1 km from nearest sample (NE corner): band widens 10.7–97.7 · Mumbai → typed `outside_service_area`, zero fabricated route · in-bounds budget timeout → `options:[] + error:"planner timed out"`, degraded arm named
-- `/community`: **44 obs · 24 contributors · 31.4 km today · 1,278.9 µg avoided all-time (312.9 today)** · corridors publish only at k≥3 devices — suppression mechanism on the wire (`mode_share_suppressed_trips`)
-- self-grade (`/v2/skill`): **304 pairs** — h+0 MAE 3.8 / band-hit 90.2% → h+11 MAE 37.2 / 37.7% (hour_band_hit 47.8%; error widening honestly with horizon)
-- why (`/v2/why`): **trend primary today** (−13.7 µg over 5.8 h, 33 recorded builds); **`cause_note` live since `795ff3b`** — *"12 fires in the Punjab–Haryana belt — the wind isn't carrying it this way right now · city mean 60.6 → 46.8 µg/m³ over 5.8 h"* — fires evaluated 44/12 belt/26.2 MW but SW wind → `carrying:false`, refused (a NW day flips it back to claimed); VC ~3,468 vs ~3,000 typical; `cannot_tell` empty. Re-check `curl $NLB/v2/why` on the day
-- archive: today recorded [1,3–16] · honest gaps {0,2} · pending 17–23 (grows hourly — dozens by demo morning)
-- reach: walk@25 **3,767 edges / 167.9 km** · walk@50 11,409/618.0 km · car@25 **993,344/92,805.9 km `edge_partial:true`** (cap-pinned — say "the whole priced graph")
-- forecast blend: `live_anchor.blend` on the plan/depart wire (w=1 → h+2, linear→0 at h+40, w_h11 0.763, fitted on served-vs-recorded archive pairs 2026-10-05/06 IST) — 'beats persistence' is EARNED pooled on the fitted night (blend 11.2 < persistence 13.1 < pre-blend model 39.2 µg/m³), strictly better h+5+; inside the 2-h hold it IS persistence by construction — phrase it "blended onto the live field", never a flat "beats persistence"
-- `/v2/city/moves`: **44 trips · 12 of 55 corridors publishable** · min_k 3 on the wire
-- `/v2/outlook` @CP: today Moderate 67.5 → **Oct-8 Poor 107.2 → Oct-9 Very Poor 176.9 → Oct-10 134.1 → Oct-11 136.8** (Fri–Sun confidence "lo"); cleanest windows Sat 10:30–18:30 ~77.5, Sun 10:30–16:30 ~64.3
-- admin sign-in (`b563da2`): `POST /v2/admin/login` → `alive_admin=v1.<exp>.<sig>` HttpOnly+SameSite=Strict cookie, 8 h, Secure-on-TLS · login bucket (0.2,5) · sessionStorage token + prompt() deleted · guests land on a gate card · Bearer kept for ops curls
+- band coverage **95.2% @±2σ over 3,550 held-out station-hours, 85 stations** (`σ=√(krige_sd²+(0.12·µ)²) × SIGMA_CAL 3.2`; `server/data/field_validation.md`)
+- LOO calibration: MAE **8.8 µg/m³**, bias **+0.2**, n=70 — live at `/aqi.calibration`
+- edge /aqi 11.1 km from nearest sample: band widens 10.7–97.7 · Mumbai → `outside_service_area` · budget timeout → `options:[] + error:"planner timed out"`
+- `/community`: **47 obs · 25 contributors · 34.7 km today · 1,410.3 µg avoided all-time (444.3 today)** · corridors publish only at k≥3 — suppression on the wire ⟳
+- self-grade (`/v2/skill`): **~330 pairs** — h+0 band-hit ~90% → h+11 ~36% (error widens honestly with horizon; endpoint 5.2 s → 0.7 s on prod)
+- why: **stagnation primary tonight** (VC 521 m²/s vs ~3,000; trend +11.0 µg/5.8 h climbing underneath); fires refused (`carrying:false`) ⟳
+- archive: recorded hours grow daily; honest gaps stay gaps — check `/v2/archive` on the day
+- admin: gate card → `POST /v2/admin/login` → HttpOnly cookie ~8 h (T-30 playbook `docs/plan/admin-login.md`)
 
 **AWS**
-- ECS `alive108` ACTIVE · running 1/1 · FARGATE_SPOT (weight=1, base=1) · rollout COMPLETED; image `alive108-api:698cf808` == `/health` `build_sha 698cf808` — task-def revision rides the deploys, read it off the console (Spot→on-demand flip = T-60 runbook step); ops-handover account 185708268748 verified: 3 alarms OK, SNS confirmed, $0.00 net/7d
+- ECS `alive108` ACTIVE · 1/1 · FARGATE_SPOT (owner's standing call — no flip) · image `alive108-api:6bc2b808` == `/health.build_sha` · 3 alarms OK + SNS confirmed + **$0.00 net/7d** · rollback `deploy.sh rollback <sha>`
 
 ## Do-not-say list (failed verification — never on stage)
 
-- ~~"plans answer in ~70 ms"~~ — full plan: ~1.1–1.2 s warm on the rehearsed ODs today (don't quote a bare ms: cold fresh ODs run 2.3–9.2 s server, post-refresh first hit can reprice ~9 s, one 60-km cold call hit the 20 s planner budget → honest empty). Say "about a second to two on the rehearsed trip".
-- ~~"62-station DMRC registry"~~ — real GTFS now (263 stations / 37 routes).
-- ~~"~55–57 fires"~~, ~~fixed AQI/pm2.5 values~~ — everything drifts each 15-min refresh; say ranges (60 fires/14 belt at this afternoon's read).
-- ~~"97,452 corpus / 16,952 addresses"~~ — exact truth: **97,447 / 16,949**.
-- ~~"7,240 held-out station-hours"~~ — the deployed validation says **3,550** held-out station-hours over **85** stations; 95.2% coverage is the number that holds.
-- ~~"11 live species"~~ — **10** today; the ammonia param is served but honestly empty.
-- ~~"metro is the clean option"~~ — on the demo OD metro+walk doses ~7.2× car-AC today (53.2 vs 7.4; ~4.5× on the script OD). The clean claim is per-leg (coach), not per-trip.
+- ~~"the welcome film"~~ — gone (`4b8ac8a`). Fresh install: ambient beat → onboarding → location ask; the notif dialog is lazy now.
+- ~~"the map is just a basemap / the field is invisible"~~ — dead since `e1e9d22`; the air map IS the field. (On the old `ef5d95f` APK it's still true — know which binary is on the phone.)
+- ~~"candidates draw as equals, winner settles ~1.5 s"~~ — that's the v1 chooser. Now: **frame → ways → hold → settle → verdict pill**, ~4–6 s felt (`2590598`). The pill pins ONE line ~4 s, then fades — don't wait for a second pill (the two-pill cycle was the old build).
+- ~~"search is hardcoded / types garbage"~~ — phonetic fold + units + near-anchors; try `ashook nagar shadara gali no 4` live.
+- ~~"Delhi today shows trips you never took"~~ — aggregates gated on one real own trip (`7a2cedd`); a fresh phone says "no trips yet".
+- ~~"Bus CGOCOMPLEX-2"~~ — feed-internal ids suppressed live (`6bc2b808`); receipts read "Bus 347A → Metro"-style.
+- ~~"release iOS is proven clean"~~ — overstated until tonight: nav-journey caught **SIGBUS ×2 on a Release build** tapping "Where to?" in the first ~90 s of a post-reinstall cold launch. **Now root-caused and closed on sim** — `849fd4a` found the YG-scavenge fault class (JS thread faulting into a just-scavenged young-gen segment; every crash window is GC-Young-Gen), eliminated three false leads, then killed the mechanism itself with `withAllocInYoung(false)` on sim: **40/40 clean** under full repro (`sigbus-release-report.md`). Device builds unaffected (gates are `TARGET_OS_SIMULATOR`). Say "found it, root-caused it, fixed it — forty clean runs of the exact repro" — device hardware remains honestly unmeasured.
+- ~~"plans answer in ~70 ms"~~ — warm ~0.1–1.2 s on the rehearsed OD; fresh ODs 2.3–9.2 s server; one cold 60-km call hit the 20 s budget → honest empty. Say "about a second or two on the rehearsed trip".
+- ~~"metro is the clean option"~~ / ~~"car beats metro" as a constant~~ — metro+walk is GTFS-hours dependent (absent at tonight's 02:35 IST read, ~38–53 µg in service hours). **Only narrate it if the row is on the wire at T-45.**
+- ~~"62-station DMRC registry"~~ — real GTFS (263 stations / 37 routes).
+- ~~"97,452 corpus / 16,952 addresses"~~ — **97,447 / 16,949**.
+- ~~"7,240 held-out station-hours"~~ — **3,550 over 85 stations**; 95.2% is the number that holds.
+- ~~"11 live species"~~ — **10**; ammonia served but honestly empty.
 - ~~"corridors diverge ≥15%"~~ as the quote — measured **19–96%**; quote the measured number.
-- ~~"walk ~205–228 µg / ~34×"~~ — and every prior stamp aged the same way: today's reads are **238 µg / 33.0× on the script OD, 255 µg / ~34.5× on the demo OD** — quote the wire you just read, never a memorized figure.
-- ~~"fires checked and refused"/~~ ~~"fires claimed"~~ — **drifts with the wind, and `/v2/why` now also serves `cause_note`** (the parali-watch line — say what it reads): today SW wind → `carrying:false`, refused (44 fires / 12 belt / ×1.06); Oct-6 was claimed at ×1.24 on a 315° NW wind. Re-check `curl $NLB/v2/why` before stage and say the live line.
-- ~~"all ODs answer ~1.8 s"~~ — fresh ODs measured 2.3–6.7 s server (`took_ms`), one cold far-OD timed out at the 20 s budget. Rehearse on the demo OD.
-- ~~"24 ms reroute / 100+ concurrent"~~ — single-user path only; the 1-vCPU task pinned at 100% CPU under parallel load in testing.
-- ~~absolute "Delhi AQI is 150"~~ — that's Connaught Place; city lattice mean ~55 this morning (~36–62 across this week). Always name the place.
-- ~~"/admin/api tiles"~~ — the whole `/admin` board sits behind the sign-in now (`b563da2`): guests land on a gate card; sign in at T-30 (`/v2/admin/login` → HttpOnly cookie ~8 h), never paste the token on camera; `/v2/city` + `/community` carry the same aggregates for stage.
+- ~~fixed AQI/pm2.5/option-count values~~ — everything drifts with the 15-min field; say ranges and read the screen.
+- ~~"all ODs answer ~1.8 s"~~ / ~~"24 ms reroute / 100+ concurrent"~~ — fresh ODs 2.3–9.2 s; single-user path only (~8–15 concurrent honest posture).
+- ~~absolute "Delhi AQI is 150"~~ — that's a point read; name the place (city lattice mean ≠ CP point).
+- ~~"/admin/api tiles"~~ — `/admin` sits behind the sign-in (`b563da2`): gate card; sign in at T-30, never paste the token on camera.
+- ~~"Android mid-range feel is proven"~~ — every Android number so far is a **SwiftShader delta** (~500 ms/present floor); the tune shows up as *more presents per window* (follow-mode p50 501→153 ms), not lower p50. Honest line: "verified on the emulator; the phone tells the real story" — `map-perf-report.md`.
 
 ## Rehearsal logs
 
-**Pass 1 (12:20 IST):** beats in stage order — landing 0.71 s · health 0.48 · aqi 0.48 · plan 1.80 (took_ms 354) · depart 0.48 · community 0.48 · city 0.69 · moves 0.52 · grid-40 1.47 · edge-aqi 0.49 · admin 0.94 · describe-services 1.61 → **~10 s network in a 170 s script.**
+**Pass 1 (Oct-5 12:20 IST):** beats in stage order — landing 0.71 s ·
+health 0.48 · aqi 0.48 · plan 1.80 · depart 0.48 · community 0.48 ·
+city 0.69 · moves 0.52 · grid-40 1.47 · edge-aqi 0.49 · admin 0.94 ·
+describe-services 1.61 → ~10 s network in a 170 s script.
 
-**Pass 2 (12:55–13:15 IST, deep probes):** search battery 25/25, p50 474 ms; plan warm p50 346 ms; unseen-OD plans 4.0 s / 6.3 s server; strip `step_m` 250 live; corridor divergence 44–97% measured; species corr −0.05; refresh countdown ticking.
+**Pass 2 (Oct-5 12:55–13:15 IST, deep probes):** search battery 25/25,
+p50 474 ms; plan warm p50 346 ms; unseen-OD plans 4.0/6.3 s; strip
+`step_m` 250; corridor divergence 44–97%; species corr −0.05; refresh
+countdown ticking.
 
-**Pass 3 (16:05–16:50 IST, post-re-anchor re-verify):** *(numbers stamped at pass time — fires/modifier/option counts drift; `verify_numbers.sh` T-45)* build `951eeb3c` (`:141`); demo OD now 20 opts, walk 189.8–211.6 µg ≈ 33–35× car; fresh-OD plans 2.3–6.7 s; KG→Faridabad cold call hit the 20 s planner budget → `options:[] + "planner timed out"` (retry 6.7 s, 21 opts); fires 70/16 ×1.27; wind 7.3@308; species 10 live (ammonia empty); pm25↔no₂ r=+0.34; held-out truth = 3,550 station-hours/85 stations; search battery 172/174 (98.9%) p50 471 ms.
+**Pass 3 (Oct-5 16:05–16:50 IST, post-re-anchor `951eeb3c`):** demo OD
+20 opts, walk 189.8–211.6 µg ≈ 33–35× car; fresh-OD plans 2.3–6.7 s;
+KG→Faridabad cold call hit the 20 s planner budget → honest empty;
+fires 70/16 ×1.27; species 10 (ammonia empty); 3,550 h / 85 stations;
+search battery 172/174 (98.9%) p50 471 ms.
 
-**Pass 4 (2026-10-05 ~23:55 UTC → Oct 6 ~05:30 IST, `verify_numbers.sh` + live probes on build `3711ccd0`):** options 19→24 within minutes on a field reprice — metro+walk 81.6 + GTFS "Bus 859" 147.7 present ~05:30 IST; warm plan 378–490 ms server (~2.1 s wall ex-India), post-refresh first hit 5.4–6.1 s; walk 405.7–410.5 → **33.1–33.3×** (39.7× slowest/best); fires 83/19 ×1.10; depart (hours=120): now 33.1 → worst +89 h 100.6 (3.0×), best +10 h 13.9, 96 slots over ~95 h; breath 1,064 µg ≈ 3.4 cig; skill 35 pairs (h+3/h+4 now graded); archive 10 snapshots; reach walk@25 2,945/128.7 km; strip on the tagged recommended row: 77 samples, full street names, pm2.5 68.5→84.3 (1.23×) — the least-smoke `rd` engine row strips as 'unnamed road' (mint on the recommended row); surfaces verified live: why-line on `/city` + `/admin` + landing, species pills, `/city` 'what happened' recorded flip, landing `a→b` + `whyLine`. Report: `docs/lanes/demo-rehearse-v2-report.md`.
+**Pass 4–6 (Oct-5 23:55 UTC → Oct-6 11:40 UTC, builds `37e55668` →
+`f4139b24` → `4eb9e1e8`):** persistence blend live; plan demo OD
+19–24 opts ~33–36×; metro+walk flickered present/absent (GTFS hours);
+depart now ~29 → worst ~103; skill 34→131 pairs; fires flipped
+carrying↔refused with the wind; admin became gated cookie auth. Full
+tables: `demo-rehearse-v2-report.md`, `demo-day-final-report.md`,
+`demo-reverify-v2-report.md`.
 
-**Pass 5 (Oct 6 ~00:15 UTC, re-read after deploy roll — live build `37e55668`):** all figures re-verified on the new build; ledger-floor/why-parallel/ingest-parallel `0fdd597`/`3aea78f`/`5ec1f2f` confirmed live. Plan: 24 opts, car-AC 12.9 / walk 429.2 → 33.3× (40.1× slowest/best), warm took_ms ~610 ms (~2.1 s wall), post-refresh first hit ~8 s; fires 89/22 ×1.11; us_aqi 161, pm25 83.3/75.1; depart 24 h: now 34.4 → worst 100.6 (2.9×), best 14.9; `?hours=120` 109 slots; breath 1,165 µg ≈ 3.7 cig; next_hours 36.8→151.6 (4.1×); skill 34 pairs, h+1..h+4 graded (14.2/+11.2, 26.3/+24.5, 42.0, 49.0); why trend HISTORY LIT (34 snapshots, +0.3 µg/5.8 h); strip 77 samples pm2.5 69.7→90.3 (1.30×), SP Marg 29.5%; reach w25 ~84 km / w50 ~396 km / c25 ~54,350 km edge_partial; day windows swung back to evening (22:30→end @160.5) — windows move with the field; **`/v2/day` now requires lat/lon**; `/v2/city` uses `trips.days` (moves endpoint still serves: 39 trips/7 d); archive 10 snapshots; community unchanged. All verbatim lines re-phrased to these reads.
+**Pass 7 — the owner fix wave (Oct-7, this rewrite):** re-beated
+against code `e147dbd` + lane reports; live re-pin on `6bc2b808` ~21:05
+UTC: plan demo OD 23 opts, car-AC 15.5 / walk 535.1 → **34.5×**, warm
+118 ms, metro absent overnight; `/aqi` @CP 72.4/67.1/AQI 157, fires
+90/16 ×1.08 refused; community 47/25/34.7 km/1,410.3 µg; city mean
+92.5 (GRAP-1 evening); depart pct 27 (best +13 h 11:00); outlook
+Oct-8 Moderate ~80 best-of-5 then 4× Very Poor. **The binary gap is
+the day's standing caveat:** APK `ef5d95f` predates the wave — re-cut
+≥`edc4666`/`e147dbd` or the phone beats narrate the old app.
 
-**Pass 6 (Oct 6 ~05:10–05:30 UTC — demo-day-final truth pass, live build `f4139b24` == image `alive108-api:f4139b24`, task-def `:178`):** persistence-blend deploy live — `live_anchor.blend` on the wire (hold_h 2.0, end_h 40.0, w_h11 0.763, fitted_on 2026-10-05/06 archive pairs); the 'beats persistence' claim is now EARNED pooled (11.2 vs 13.1 vs 39.2 pre-blend; strictly better h+5+; IS persistence inside the 2-h hold — judge-qa §7 rewritten). Plan: demo OD IG→Huda 19→23 opts, car-AC ~12 / walk ~430–450 → **~36×**; script OD 24 opts, 10.8/359.1 → 33.3×, metro+walk 42.9, GTFS "Bus 729" 89.5; warm took_ms ~47 ms (rehearsed OD), fresh OD ~6.8 s. Depart now 28.7 → worst 102.7 (+83 h)/best 16.0 (+51 h), 104 slots. Day windows moved to evening (heavy ~19:30→end @76.0 / cleanest 14:30–18:30 @52.7 / mean 62.7). Skill 80 pairs, h+1..h+9 graded (12.2/+9.4 … 63.6). Why: stagnation VC ~1,252 m²/s (BLH 846 m — morning layer), fires refused S 138°, history −6.0 µg/5.7 h/29 snapshots. Archive 15 snapshots. Breath ~795 µg ≈ 2.5 cig. Reach w25 ~109 km / w50 ~477 / c25 ~83,642 edge_partial. Strip re-minted: 82 samples, 64.5→82.2 (1.27×), Delhi-Gurugram Expressway 29.6%. Community 24h: 5 obs/10.4 km/432.4 µg. pm25↔no₂ r=+0.55; us_aqi grid 91→166; edge band 10.7–97.7 @11.1 km; ammonia empty. Full evidence: `docs/lanes/demo-day-final-report.md`.
-
-**Cold-path observation:** first three plan calls (engine re-price + transit arm cold) hit ~12 s arm timeouts → `degraded:["engine","transit"]` with 7 real rows still served; recovered to 17 opts once warm. A later full-budget timeout on KG→Faridabad produced the honest empty wire (`degraded:["planner"]`). This is the only latency cliff — `warm_task.py` + rehearsed OD is the mitigation.
+**Cold-path observation (unchanged):** first plan calls after a task
+swap can hit ~12 s arm timeouts → `degraded:["engine","transit"]` with
+real rows still served; recovered once warm. `warm_task.py` + rehearsed
+OD is the mitigation; `/v2/strip` route_ids are per-task — re-mint
+plan→strip pairs after any task swap.
 
 | check | verdict |
 |---|---|
 | every quoted number read off the wire | GO |
-| all 8 beats inside budget (2:50/3:00) | GO |
+| all 8 beats inside budget (~2:50/3:00) | GO |
 | plan latency on rehearsed OD | GO — warm only |
-| fresh-OD latency | NOTE — 4–8 s; stick to rehearsed OD or accept the pause |
+| fresh-OD latency | NOTE — 4–9 s; stick to rehearsed OD or accept the pause |
 | drift safety of verbatim lines | GO — phrased in ranges, T-45 re-read mandated |
 | AWS console / CLI proof | GO — verified |
 | corrupt-data risk (public POSTs) | GO — GET-only probing + /v2/plan |
+| demo binary carries the new beats | **BLOCKED on re-cut** — `ef5d95f` predates the wave; cut ≥`e147dbd` or fall back to v2 wording |
