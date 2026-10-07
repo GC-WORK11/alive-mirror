@@ -765,6 +765,12 @@ export interface V2CityResponse {
   wind: Record<string, unknown>;
   sources: Record<string, { up: boolean; [k: string]: unknown }>;
   trips: { days: Record<string, unknown>;
+           /** the UTC day the store keys itself on — served so the page
+               never keys 'today' on the last populated day */
+           today_key?: string;
+           /** days[today_key] or null when nothing was shared today —
+               the honest-empty state, never an older day's numbers */
+           today?: Record<string, unknown> | null;
            cells_tracked: number;
            corridors_publishable: number };
 }

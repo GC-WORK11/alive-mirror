@@ -53,6 +53,7 @@ def wired(monkeypatch):
     FIELD._samples = list(SAMPLES)
     FIELD._fetched_at = time.time()
     FIELD._station_count = 0
+    FIELD._stations_live = []
     FIELD._source = "open-meteo/cams"
 
     async def _no_refresh():
@@ -66,6 +67,7 @@ def wired(monkeypatch):
     FIELD._snap_centers = []    # airfield autoloads it at import; the
     FIELD._snap_epoch = 0.0     # serving gate keys on _snap_centers
     FIELD._station_count = 0
+    FIELD._stations_live = []
 
 
 def _seed_corridor(lat, lon, tokens, dose=60.0):
@@ -214,3 +216,39 @@ def test_cell_center_both_schemes():
     # an h3 res-8 centre is within ~1 km of the query point
     assert abs(ctr[0] - 28.63) < 0.01 and abs(ctr[1] - 77.21) < 0.01
     assert v2city._cell_center("not-a-cell") is None
+
+
+# --- the today-ledger never serves an older day under TODAY ------------------
+def _seed_day(offset_h, n, km=3.0):
+    """n trips timestamped offset_h hours ago (another UTC day when
+    offset crosses midnight)."""
+    ts = time.time() - offset_h * 3600
+    for i in range(n):
+        store.TRIPS.record_trip(
+            ["ll:28.6000,77.2000"],
+            {"mode": "walk", "distance_km": km, "dose_ug": 40.0 + i},
+            f"dev-{offset_h}-{i}", ts=ts)
+
+
+def test_today_ledger_never_falls_back_to_last_populated_day():
+    """Audit bug: /city 'the ledger, today' painted the NEWEST day-key
+    under a today label — after any donation gap that is yesterday's
+    numbers. The server now serves today_key + today explicitly; an
+    absent today is the honest-empty state, not the last day."""
+    _seed_day(offset_h=26, n=8)              # yesterday: 8 trips
+    t = client.get("/v2/city").json()["trips"]
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    assert t["today_key"] == today
+    assert t["today"] is None, "no today key must never paint yesterday"
+    assert sum(d["trips"] for d in t["days"].values()) == 8
+
+
+def test_today_ledger_serves_todays_real_numbers():
+    _seed_day(offset_h=26, n=8)
+    _seed_day(offset_h=1, n=2, km=5.0)       # today: 2 trips, 10 km
+    t = client.get("/v2/city").json()["trips"]
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    assert t["today_key"] == today
+    assert t["today"]["trips"] == 2
+    assert t["today"]["km"] == 10.0
+    assert sum(d["trips"] for d in t["days"].values()) == 10

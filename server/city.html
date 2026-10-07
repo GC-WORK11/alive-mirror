@@ -540,7 +540,7 @@
       <div class="stat">
         <div class="k">trips shared today</div>
         <div class="v"><span id="obs">—</span><small> trips</small></div>
-        <div class="d"><b><span id="km">—</span> km</b> travelled · <b><span id="contrib">—</span></b> trips shared in the last 3 days</div>
+        <div class="d"><b><span id="km">—</span> km</b> travelled · <b><span id="contrib">—</span></b> trips shared <span id="contribw">so far</span></div>
       </div>
       <div class="stat">
         <div class="k">exhaust from shared trips, today</div>
@@ -1596,22 +1596,20 @@ async function load(){
       setTxt('hRange','');setTxt('hDist','');
     }
     const days=(cy.trips&&cy.trips.days)||{};
-    /* the ledger keys itself by UTC day — 'today' means today's UTC key,
-       not whichever key is newest: after midnight rollover the newest
-       populated key is still yesterday, and the card was serving that
-       stale day under a 'today' label */
-    const todayKey=new Date().toISOString().slice(0,10);
-    const latest=days[todayKey]||{};
-    /* 'last 3 days' = trailing UTC days ending today — fixed window,
-       not 'the last 3 keys that exist' */
-    const dayMs=86400000,nowT=Date.now();
-    const trips3d=[0,1,2].reduce((s,i)=>{
-      const k=new Date(nowT-i*dayMs).toISOString().slice(0,10);
-      return s+((days[k]&&days[k].trips)||0)},0);
+    const dayKeys=Object.keys(days).sort();
+    /* 'today' keys on the ledger's own UTC day — trips.today_key is the
+       server's gmtime, the same basis the store writes (the client-side
+       fallback computes the same basis for older payloads) — and never
+       on the last populated day: an absent key is the honest 'nothing
+       shared yet today' state, not yesterday's numbers under a TODAY
+       label */
+    const tkey=(cy.trips&&cy.trips.today_key)||new Date().toISOString().slice(0,10);
+    const lastKey=dayKeys.length?dayKeys[dayKeys.length-1]:null;
+    const latest=(cy.trips&&cy.trips.today)||days[tkey]||{};
     const t={
       dose_ug_24h: latest.dose_ug||0,
       obs_24h: latest.trips||0,
-      obs_3d: trips3d,
+      obs_total: dayKeys.reduce((s,k)=>s+(days[k].trips||0),0),
       km_24h: latest.km||0,
       cells_tracked: cy.trips?.cells_tracked||0,
       corridors_publishable: cy.trips?.publishable_corridors??cy.trips?.corridors_publishable??0,
@@ -1625,9 +1623,10 @@ async function load(){
       pm>0?Math.floor((t.dose_ug_24h||0)/pm*2000).toLocaleString('en-IN'):'—';
     setTxt('doseug',IN(t.dose_ug_24h));
     setTxt('obs',IN(t.obs_24h));
-    setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_3d));
+    setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_total));
     setTxt('corr',IN(t.corridors_publishable));
     setTxt('cellstr',IN(t.cells_tracked));
+    setTxt('contribw',dayKeys.length?`since ${dayKeys[0]}`:'so far');
     const co2v=latest.co2_kg_mid,pmv=latest.pm25_g_mid;
     if(co2v!=null&&(latest.trips||0)>0){
       setTxt('co2',(+co2v).toFixed(co2v<1?2:1));
@@ -1638,7 +1637,10 @@ async function load(){
         `${md?` · by mode: ${md}`:''}`;
     }else{
       setTxt('co2','—');
-      setTxt('co2d','no shared trips today — this fills in as delhi moves');
+      setTxt('co2d',(latest.trips||0)>0
+        ?'shared trips today, but none carried an exhaust estimate'
+        :(lastKey?`no shared trips today — last shared ${lastKey} · this fills in as delhi moves`
+          :'no shared trips today — this fills in as delhi moves'));
     }
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
     liveStations=(cy.field&&Array.isArray(cy.field.stations))?cy.field.stations:[];

@@ -443,6 +443,14 @@ async def city():
     agg = TRIPS.city_aggregates()
     corridors = await _corridors(loc)
     now = time.time()
+    # 'today' is the store's own UTC day — served explicitly so the
+    # page's ledger never keys on the last POPULATED day (the stale-today
+    # bug: after a donation gap the newest key is yesterday, and the card
+    # was painting it under a TODAY label). today is the real day dict or
+    # null — an absent key is the honest 'nothing shared yet today'.
+    _today_key = time.strftime("%Y-%m-%d", time.gmtime(now))
+    agg["today_key"] = _today_key
+    agg["today"] = (agg.get("days") or {}).get(_today_key)
 
     why_block = None
     try:
