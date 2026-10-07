@@ -18,7 +18,8 @@ section is new). Grep-able sources in brackets.
 ## The lede
 
 **Your lungs' ledger for Delhi: what you breathed today, where it cost you, and
-when tomorrow's air is worth going out in — no device, no uploads.**
+when tomorrow's air is worth going out in — no device, nothing personal
+leaves the phone.**
 
 Delhi is the most polluted megacity on earth — winter PM2.5 runs 10–20× the WHO
 guideline through October–February [`docs/00-executive-thesis.md`]. Every tool
@@ -48,10 +49,11 @@ the dose math are real enough to decide with.
 
 ## The architecture: field → engine → dose → ledger
 
-- **Field.** A concentration surface rebuilt every 15 minutes from **54
-  live ground instruments — 24 WAQI + 30 DPCC** (the second adapter shipped
+- **Field.** A concentration surface rebuilt every 15 minutes from **~53–54
+  live ground instruments — WAQI + DPCC** (the second adapter shipped
   Oct 6 after our own holdout found the blind spots — see the holdout
-  section below) + **~70 CAMS/open-meteo model samples** +
+  section below; the count churns ±1 as instruments age in and out of
+  feed health) + **~98 CAMS/open-meteo model samples** +
   **NASA FIRMS fire detections** (67 at last read, 15 in the NW belt; the
   claim is wind-gated — ×1.24 while the NW fetch carried, downscaled to
   ×1.08 and named-but-refused once the wind turned easterly), kriged with a
@@ -107,11 +109,12 @@ Three questions, three shipped surfaces:
   heuristic, no destination — settling every edge whose inhaled dose stays
   under `budget_ug`. The returned set is the real Dijkstra frontier as
   polylines, never a smoothed circle. Live tonight: a **25 µg walking budget
-  from Connaught Place settles 3,211 road segments (~141 km of street —
+  from Connaught Place settles ~3,400 road segments (~150 km of street —
   directed edges, so a two-way street counts in both directions)**;
-  ≤50 µg walks 10,510 segments (~554 km); a sealed car on a **25 µg**
-  budget settles ~891k edges, ~75,822 km (`edge_partial:true` — the
-  2M-state cap binds; the veil paints the nearest 90,000)
+  ≤50 µg walks ~11,000 segments (~600 km); a sealed car on a **25 µg**
+  budget settles ~900k edges, ~77,000 km (`edge_partial:true` — the
+  2M-state cap binds; the veil paints a 90,000-edge strided sample of the
+  settled frontier, so it shows the frontier, not a blob)
   [`GET /v2/reach` — live;
   `server/v2/reach.py`; painted as the "where can your lungs go?" veil on
   `/city`].
@@ -122,7 +125,7 @@ Same city, same minutes — the mode you pick decides what you inhale. Measured
 live on the demo trip (Connaught Place → Gurugram, 23.7 km) tonight, 23 options
 [`POST /v2/plan` — live, read 2026-10-05 ~22:16 UTC on build `80a15258`,
 breathing-zone basis (`smoke_modifier: 1.09` on the wire); the count drifts
-16–23 as transit rows come and go]:
+16–24 as transit rows come and go]:
 
 | mode | inhaled dose (µg PM2.5, mid) | ≈µg/km |
 |---|---|---|
@@ -151,9 +154,9 @@ path [`docs/plan/demo-script.md` numbers sheet].
 ## What nobody else does
 
 - **A field that moves.** `/v2/city` serves the next 12 hours hour-by-hour —
-  tonight the lattice runs ~70 → ~151 µg/m³ into the ~03:00 IST peak, then
-  falls to ~39 by ~09:00, driven by a
-  120-hour CAMS forecast anchored to the live field (τ=9 h)
+  driven by a 5-day CAMS forecast anchored to the live field (τ=9 h;
+  tonight's stamped read ran ~70 → ~151 µg/m³ into the ~03:00 IST peak,
+  then fell toward ~39 by ~09:00 — the live shape drifts nightly)
   [`GET /v2/city → next_hours`; `GET /depart` — live]. `/depart` answers
   "leave now or later?" in micrograms: same trip, ~29 µg now vs ~80 µg at
   tomorrow's worst hour, ~15 µg at the +12 h best (**~2.7×** now→worst
@@ -164,8 +167,8 @@ path [`docs/plan/demo-script.md` numbers sheet].
   The raw-coords `/observe` endpoint is retired (**410 Gone**); uvicorn's
   access log is off and the app's own request log writes path templates only,
   with coordinates and tokens on a denylist; the contributor id is a 64-bit
-  CSPRNG that rotates every 30 days. And k≥3 everywhere: 12 of 54 tracked
-  corridor cells are publishable today; the other 42 are honestly suppressed,
+  CSPRNG that rotates every 30 days. And k≥3 everywhere: 12 of 55 tracked
+  corridor cells are publishable today; the other 43 are honestly suppressed,
   the suppression field (`mode_share_suppressed_trips`) ships on the wire
   [`PRIVACY.md`; `server/community.py`, `server/observability.py`;
   `GET /community`, `GET /v2/city/moves` — live].
@@ -175,6 +178,11 @@ path [`docs/plan/demo-script.md` numbers sheet].
   mirror). `GET /v2/archive` replays a day hour-by-hour; gaps are serialized
   as gaps, never interpolated. Recording since Oct 5 — the `/admin` archive
   tile shows it live [`server/archive.py`; `GET /v2/archive` — live].
+  **`GET /v2/skill` goes further — the forecast grades itself**: every
+  served hour is later compared against the field that actually shipped,
+  and the wire publishes the decay ladder honestly (band-hit ~95% at h+1,
+  ~30% by h+11, `basis:"self-graded"`). The model marking its own homework
+  is the product's calibration habit made public [`GET /v2/skill` — live].
 - **Emissions alongside dose.** Each option carries a CO₂ + tailpipe-PM2.5
   band on real Delhi fleet factors (BS-class, fuel, idle, cold-start) —
   metro+walk: 0.42 kg CO₂, zero tailpipe PM [`/v2/plan` wire].
@@ -271,9 +279,11 @@ decomposed to a verified spatial gradient, not a scaling bug
   repo.
 - **EventBridge Scheduler** (`alive108` group) drives a daily rollup and a
   validation schedule (00:30 IST / 20:30 IST — enabled live, run as one-off
-  Fargate tasks [`infra/schedules/`]). The 15-minute field-rebuild cadence
-  runs in-app (`ALIVE_INGEST_IN_APP=1` loop — the `alive108-ingest-15min`
-  schedule stays disabled, `docs/plan/handoff.md`).
+  Fargate tasks; the committed `infra/schedules/*.json` are provisioning
+  templates with placeholder ARNs — the live schedules and their exit-0
+  runs are documented in `docs/plan/handoff.md`). The 15-minute
+  field-rebuild cadence runs in-app (`ALIVE_INGEST_IN_APP=1` loop — the
+  `alive108-ingest-15min` schedule stays disabled, `docs/plan/handoff.md`).
 - **CloudWatch + Budgets** — a field-age alarm (missing data breaches, not
   just errors), the ops dashboard, and a $50/month budget alarm.
 - **OpenAQ's public S3 archive** is the decade climatology source
@@ -305,13 +315,17 @@ its basis ("est."), and the field's own age.
   a typed `outside_service_area` for Mumbai instead of a fabricated route,
   `null` where a feed serves nothing (ammonia today — the eleventh species
   is honestly empty).
-- Community data is young — 14 contributors, ~14.1 km / 6 donated trips in
-  the last 24 h (22 trips all-time; read Oct 6 ~03:50 IST — live counters
-  at `GET /community`).
+- Community data is young — 22 contributors, 40 corridor observations
+  all-time, ~1,028.5 µg avoided (read Oct 7 ~04:30 UTC — live counters
+  at `GET /community`; figures are stamped reads, the wire drifts).
   The k≥3 floor means the corridor table is honestly sparse.
 - `/v2/day` is the morning card's *data* — the card surface itself rides the
   app's ledger today; the endpoint is public JSON for the same answer.
 - One task, one region (NCR-only), HTTP :80 only — no custom domain yet.
+  Said plainly, because a security judge deserves it: **the transport is
+  plaintext today, and we don't pretend otherwise** — what travels is a
+  trimmed aggregate, no credentials, no identity; closing it is a domain +
+  ACM cert + a 443 listener.
 - CPCB live feeds are geo-blocked from our network (documented in
   `field_validation.md`) — WAQI + DPCC carry the measured-instrument role
   meanwhile; the CPCB adapter reports itself dormant rather than pretend.
