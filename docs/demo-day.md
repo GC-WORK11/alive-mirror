@@ -383,6 +383,11 @@ judge sees, in order, with the clock running:
 - [ ] **~3 s — the first real number**: the ambient read lands ~3 s
   after launch (~3.5 s measured on swiftshader, quicker on the phone's
   GPU) — a live `/aqi` read, not a splash screen.
+- [ ] **iOS rule — the app must be open ≥90 s BEFORE the first
+  search-sheet tap** (cold launch → "Where to?" inside ~10–90 s is the
+  verified mount-vs-draw SIGSEGV window on iOS; the same probe is
+  Android-proven safe — but never hand over a cold-launched iOS build,
+  and on iOS let the consent/hero beats eat the window first).
 - [ ] **~30–90 s — three taps to the dose gap**: (1) tap the **"where
   to?"** bar on home, (2) set the pair — tap the "from" row and type
   **India Gate**, then the destination and type **Huda City Centre**
@@ -855,12 +860,18 @@ modes separately.
   "35×": if a judge hits
   `/v2/plan` during a quiet field hour it may read 28× and we'd be
   caught in a fake-constant.
-- [ ] **The ladder** — car-AC vs walk mids move with the field (this
-  afternoon ~8.8 / ~293 µg on CP→Gurugram — a ~33× spread; the India
-  Gate→Huda City Centre demo OD reads ~9.9 / ~355, ~36× —
-  `smoke_modifier: 1.24` echoed on the plan wire). Read the verifier's
-  dose table; narrate "about nine vs three hundred"
+- [ ] **The ladder** — car-AC vs walk mids move with the field (the
+  India Gate→Huda City Centre demo OD reads **~10–11 / ~330–420 µg**
+  across reads — 10.3 / 353.4 → ~34× on `a1dca1ec` Oct-7, ~9–11.4 /
+  ~322–355 through the Oct-6/7 passes — `smoke_modifier` echoed on
+  the plan wire). Read the verifier's
+  dose table; narrate "about ten vs three-fifty"
   unless the morning reads differently.
+- [ ] **US AQI at CP** — drifts inside "Unhealthy": **152–157** across
+  the Oct-7 rehearsal hour (158–161 at the Oct-6 pins) — the stage
+  "around 160" survives as long as it stays in the 150s; re-read
+  `curl "$NLB/aqi?lat=28.6315&lon=77.2167"` at T-45 and quote what
+  it says.
 - [ ] **Day windows** — this afternoon `/v2/day` carried **neither
   window** — flat moderate air all day (71–82 µg/m³): `heavy_window`
   and `cleanest_window` are honestly `null`, `decisions` carried 1
@@ -873,12 +884,14 @@ modes separately.
   14:30–18:30 @ ~53). If `decisions` is empty
   on stage, read `hours[]` + `day_mean_pm25` out loud — today that's
   "moderate all day, ~71 rising to ~86 into the evening, day mean ~76."
-- [ ] **Fires/modifier** — `fires` swings daily (33 → 70 → 79 → 89 → 60
-  this week; **60 total / 14 in-belt / 34.0 MW tonight**); tonight the
-  NW wind carries them — `smoke_modifier: 1.24` at CP, echoed on
-  `/v2/plan` + `/v2/reroute`. It can still be absent (`null`) on a
-  southerly day — if so, say "fires feed the field" without a
-  multiplier.
+- [ ] **Fires/modifier** — `fires` swings daily (33 → 70 → 79 → 89 →
+  80 → 44 this week; **44 total / 12 in-belt / 26.2 MW on `a1dca1ec`
+  Oct-7**); the carrying call is wind-driven — NW inside the gate →
+  `carrying:true` (uplift ×1.24 echo at the Oct-6 read), **easterly
+  or southerly → `carrying:false`, refused** (Oct-7 ran refused all
+  day, modifier ~1.06–1.1). If refused, the fires aside is "not
+  today"; if the modifier is `null`, say "fires feed the field"
+  without a multiplier.
 - [ ] **The archive** — `/v2/archive` has been recording hourly since
   Oct 5 20:00 IST (**21 snapshots** this afternoon: Oct-5 20:00 → Oct-6
   16:00 IST; today 17/17 hours recorded, zero gaps; dozens by demo
@@ -887,12 +900,15 @@ modes separately.
   — /city paints recorded hours over forecast and pending hours stay
   unpainted — the honest-gap story is the beat.
 - [ ] **Options count** — drifts 16–24 as GTFS transit rows come and
-  go (measured 20 on CP→Gurugram and 21 on IG→HCC this
-  afternoon — `metro+walk` 37.5/43.9 present on
-  `4eb9e1e8`, `transit.real_feeds bus+metro true` on `/health`; transit rows
+  go (23 on the demo OD Oct-7 — **`metro+walk` is present on the demo
+  OD** (67.0; 62.4–64 at the rehearsal) but **absent on
+  CP→Gurugram** — the "car beats metro" clause only exists on the
+  demo OD, GTFS service-hours permitting;
+  `transit.real_feeds bus+metro true` on `/health`; transit rows
   are honestly absent outside service hours, not `degraded`). If
   `metro+walk`/`bus` rows are absent at T-45, the road-mode rows alone
-  still carry the spread line.
+  still carry the spread line — and the metro clause comes out of
+  the beat.
 - [ ] **build_sha** — `/health` this afternoon stamps `4eb9e1e8`,
   matching image `alive108-api:4eb9e1e8` on task-def `:181`
   (the lag wart is resolved on this revision).
@@ -906,27 +922,28 @@ modes separately.
   MAE 2.2/+1.0, 93.4% cell / 100% hour band-hit; h+1 9.4/+6.6; h+2
   18.5/+14.2; h+3 27.1 → h+11 54.5; error widening with horizon is the
   story); no `thin` horizons left tonight.
-- [ ] **the why line** — `curl $NLB/v2/why` once before doors; this
-  afternoon
-  it reads *"stubble smoke drifting in on the north-west wind"*
-  (**fires claimed tonight**: 60 on the wire, 14 in the NW belt /
-  34.0 MW FRP, wind 4.8 km/h @315° inside the gate → `carrying:true`,
-  uplift ×1.24 — verify it stayed NW on the day; a southerly wind
-  flips it back to refused; **trend evaluated, history lit**
-  +5.4 µg over 5.9 h, 28 snapshots — `cannot_tell` empty).
+- [ ] **the why line** — `curl $NLB/v2/why` once before doors; Oct-7
+  it reads *"the air is barely moving — the day's pollution is
+  sitting over the city"* (**stagnation primary**, VC ~1,683 m²/s;
+  fires evaluated 44 / 12-belt / 26.2 MW but easterly wind →
+  `carrying:false` — the NW "stubble smoke" aside only runs when
+  carrying; a southerly OR easterly day flips it to refused).
   On `6e82f290`+ the line ends
   clean; if an older build shows a "— the build you see" tail, read
   the line without it.
-- [ ] **Stations/samples** — 54 instruments tonight (24 WAQI + 30 DPCC;
-  earlier passes saw 13–24 on the WAQI-only feed — stations go stale
-  mid-day, honest drift, recovers); ~61–72 model samples. Both thin
-  out after a cold task and recover over ~60 min. If you redeployed
-  inside the window, say "recovering to".
-- [ ] **Breath/community** — the breath hero reads ~576 µg ≈ 1.8
-  cigarettes this afternoon (it scales with the day's field mean; evening
-  reads run higher — ~2.5–3.7 cig this week); community all-time 22
-  trips / 14 contributors /
-  725.9 µg avoided, 24 h: 3 obs / 4.6 km / 392.4 µg.
+- [ ] **Stations/samples** — the accepted band is **51–54**
+  instruments (51 on `a1dca1ec` Oct-7, 53 at the rehearsal, 54 at the
+  Oct-6 pin — `/admin` tiles can read ~2 lower, cosmetic aging;
+  stations go stale mid-day, honest drift, recovers); ~61–72 model
+  samples. Both thin out after a cold task and recover over ~60 min.
+  If you redeployed inside the window, say "recovering to".
+- [ ] **Breath/community** — the breath hero scales with the day's
+  field mean (~576 µg ≈ 1.8 cigarettes at the Oct-6 read; evening
+  reads run ~2.5–3.7 cig this week); the community ledger climbs
+  daily — **40 obs / 22 contributors / 1,028.5 µg avoided all-time
+  (24 h: 8.0 km / 62.5 µg)** at the Oct-7 rehearsal vs the Oct-6
+  pin (22 obs / 14 / 725.9) — quote the morning's `curl
+  $NLB/community` read, not the pin.
 - [ ] Reach km figures (`distance_km`) drift hour to hour — if quoted,
   stamp them: "a 25 µg walk budget reached ~136 km of street this
   afternoon"

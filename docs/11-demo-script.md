@@ -3,8 +3,10 @@
 Judging sees a recorded video, not a live demo. Every number below is a
 real verified response from the server (numbers drift with the live
 field — re-verify on recording day). Verified today (Oct 1, uniform
-58–74 µg/m³ field): Car AC 2.9 µg → on foot 89.7 µg, depart −83%,
-ledger 11.5 µg / 0.04 cig-eq / avoided 167.9 µg.
+58–74 µg/m³ field): Car AC 2.9 µg → on foot 89.7 µg, depart −N%
+(−83% that day; −13% at the Oct-7 rehearsal, −5%/row-absent later
+that day — always day-read, see the 2:05 beat), ledger 11.5 µg /
+0.04 cig-eq / avoided 167.9 µg.
 
 ## Beats (≈180 s)
 
@@ -54,12 +56,19 @@ the car over the walk."
 invisible cost visible — that's the point.)
 
 **2:05–2:35 — time as a lever + ambient**
-"leave 12:30 — same trip, 83% less PM2.5" → tap **remind me** → real
-iOS notification permission → "set ✓". Then crescent → **Ambient
-Mode**: black screen, clock, giant PM2.5, "breathe least at 12:30".
+"leave HH:MM — same trip, N% less PM2.5" — read the percent + slot
+straight off the compare sheet's leave-later row ON RECORDING DAY.
+The row only exists when the served percent clears 8 (`pct_less_vs_now`
+> 8): it read ~13% at the Oct-7 rehearsal and ~5% — absent — later
+that day; the Oct-1 "83%" was a uniform-field day and can never be
+promised. If the row isn't up, narrate the DepartGraph 24-h curve's
+own dip→overnight climb instead, don't force the beat. → tap
+**remind me** → real iOS notification permission → "set ✓". Then
+crescent → **Ambient Mode**: black screen, clock, giant PM2.5,
+"breathe least at HH:MM" (the day's best slot).
 Voiceover: "Delhi's boundary layer traps pollution overnight; we model
-it hourly five days out. Your phone tells you when the same trip costs
-less — then keeps it on the glass where you glance."
+it hourly about four days out. Your phone tells you when the same trip
+costs less — then keeps it on the glass where you glance."
 
 **2:20–2:40 — AWS beat (mandatory)**
 Screen-record the AWS console, ~10 s: ECS cluster `alive108` (service

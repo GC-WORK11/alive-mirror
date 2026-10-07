@@ -32,7 +32,7 @@ import { CountUp, Sheet } from "../../ui";
 import { PressSpring } from "../PressSpring";
 import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 import { DepartGraph } from "../DepartGraph";
-import type { DepartCurve } from "../../api/depart";
+import { departSavedPct, type DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
 import { confirm, tap, tick } from "../../haptics";
 import { localizeStep } from "../../nav/instructions";
@@ -531,6 +531,11 @@ function CompareSheetInner({
     o.safest_path === true ||
     (!flaggedSafest && o.dose?.mid != null && o.dose.mid === minDose && minDose < Infinity);
 
+  /* the leave-later saving is a served PERCENT — pct_less_vs_now is the
+     honest key (ug_saved_vs_now the legacy alias); read it verbatim via
+     departSavedPct, never as µg (the >8 gate stays on the raw value). */
+  const departSaved = departSavedPct(depart);
+
   const chip = (
     <PressSpring style={{ alignSelf: "flex-start" }}>
     <Pressable
@@ -631,7 +636,7 @@ function CompareSheetInner({
                   </Text>
                 </View>
               )}
-              {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 8 && (
+              {depart && departSaved != null && departSaved > 8 && (
                 <PressSpring><Pressable onPress={() => { tap(); onRemind(); }} style={s.departRow}
                   accessibilityRole="button">
                   <Icon name={notified ? "bell" : "clock"} color={V2T.text2} size={16} filled={notified} />
@@ -640,7 +645,7 @@ function CompareSheetInner({
                       ? t("wellPing", lang)
                       : t("leaveAtBreatheLess", lang, {
                           time: hourLabel(depart.best.start, depart.best.hours_ahead, lang),
-                          n: Math.round(depart.ug_saved_vs_now),
+                          n: Math.round(departSaved),
                         })}
                   </Text>
                 </Pressable></PressSpring>

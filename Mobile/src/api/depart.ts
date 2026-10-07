@@ -115,6 +115,19 @@ function mapDepart(j: Record<string, unknown>): DepartCurve {
   };
 }
 
+/** The served dose-saving percent, read verbatim — `pct_less_vs_now` is
+ *  the honest key; `ug_saved_vs_now` is the legacy alias for the SAME
+ *  percent (server: round(100*(1-best/now))). Neither is µg: reading one
+ *  as dose and recomputing a percent off it overstated the scheduled
+ *  notification ~2.5× (13% true → ~33%) — take the wire value as-is.
+ *  Works on both DepartCurve and the shell's narrower `Depart` shape. */
+export function departSavedPct(d: {
+  pct_less_vs_now?: number | null;
+  ug_saved_vs_now?: number | null;
+} | null): number | null {
+  return d?.pct_less_vs_now ?? d?.ug_saved_vs_now ?? null;
+}
+
 /** Full NetResult — stale/ageS preserved for honest offline labelling. */
 export async function departCurveResult(
   req: DepartRequest, timeoutMs = 10000,

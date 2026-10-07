@@ -19,7 +19,7 @@ import { planEngineFirst, planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
 import { camDur } from "../../map/cam";
 import { holdMapDrawThen, whenMapDrawFree } from "../../map/drawHold";
-import { departCurveResult, type DepartCurve } from "../../api/depart";
+import { departCurveResult, departSavedPct, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
@@ -446,10 +446,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        the honest name (ug_saved_vs_now is the legacy alias for the same
        percent, not µg). Reading it as µg and recomputing a percent off it
        overstated the claim ~2.5× in the scheduled copy (13% true read
-       32%). Take the served percent verbatim. */
-    const pct = Math.max(0, Math.round(
-      depart.pct_less_vs_now ?? depart.ug_saved_vs_now ?? 0,
-    ));
+       32%). Take the served percent verbatim (depart.test.ts pins this). */
+    const pct = Math.max(0, Math.round(departSavedPct(depart) ?? 0));
     if (await scheduleDeparture({ fireAt: fire, savedPct: pct })) setNotified(true);
   }, [depart, notified]);
 
