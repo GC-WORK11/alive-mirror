@@ -59,6 +59,14 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
      src/map/drawHold.ts). One wrap covers every caller. */
   const setPhase = useCallback((p: SetStateAction<Phase>) =>
     holdMapDrawThen(() => setPhaseState(p)), []);
+  /* the soft keyboard belongs to the search phase only — on Android the
+     IME can outlive the pick's async dismiss and sit over the next
+     sheet's bottom rows, eating back/skip taps until manually dismissed
+     (testday-android finding #1; VehicleSheet's own edge-guard covers
+     the wizard specifically, this covers every other overlay). */
+  useEffect(() => {
+    if (phase !== "search") Keyboard.dismiss();
+  }, [phase]);
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
   const [editWhich, setEditWhich] = useState<Which>("to");

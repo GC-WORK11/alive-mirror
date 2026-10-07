@@ -421,11 +421,14 @@ function VehicleSheetInner({
   onDone: (p: VehicleProfile) => void;
   onClose: () => void;
 }) {
-  /* closing while a PUC field holds focus leaves the IME up over the
-     compare sheet (unmount does not ask the IME to hide) — dismiss on
-     every visible→false edge so save / skip / ✕ / BACK all end quiet */
+  /* dismiss on BOTH edges: closing while a PUC field holds focus leaves
+     the IME up over the compare sheet (unmount does not ask the IME to
+     hide), and opening while a typed search's keyboard is still up —
+     Android can outlive the pick's async dismiss — leaves it covering
+     the wizard's back/skip rows and eating their taps (testday-android
+     finding #1). A field inside re-rises the keyboard on focus. */
   useEffect(() => {
-    if (!visible) Keyboard.dismiss();
+    Keyboard.dismiss();
   }, [visible]);
 
   /* the IME must come down BEFORE the focused field unmounts — after
