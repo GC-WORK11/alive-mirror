@@ -341,51 +341,91 @@ const PREFIX_CAP = 80;  // max ids kept per prefix (heaviest first)
 
 const weight = (e: Entry) => e.w + e.k * 2;
 
-function build(): void {
-  if (ENTRIES) return;
-  const raw = require("../../assets/delhi-gazetteer.json") as Raw[];
-  const entries: Entry[] = [];
-  const prefix = new Map<string, number[]>();
+/* The corpus load + index build used to run as ONE synchronous block the
+   first time search touched it — inside the sheet's mount effect. On a
+   mid-range phone that's an 11 MB parse plus ~124k-entry indexing —
+   seconds of dead JS thread; the sheet's JS-driven enter spring froze
+   mid-slide and the owner saw "10 seconds, screen hung". Now the work
+   is sliced: warm() steps through ~6k entries per macrotask at boot-idle
+   (or on the CTA's press-in), so the index is almost always complete
+   before the first keystroke. A query that lands mid-build still
+   finishes the remainder synchronously — correctness never waits on
+   the scheduler. */
+let RAW: Raw[] | null = null;   // the require'd corpus, freed once built
+let cursor = 0;                  // next raw row to index
+let built = false;
+let scheduled = false;
+const WARM_SLICE = 6000;         // ~15-30 ms a slice on-device
 
-  for (const g of raw) {
-    // malformed corpus rows are skipped, never crash the sheet
-    if (!g || typeof g.n !== "string") continue;
-    const nrm = g.n.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-    if (!nrm) continue;
-    const e: Entry = { n: g.n, c: g.c, lat: g.lat, lon: g.lon, w: g.w, k: g.k, nrm, toks: nrm.split(" ") };
-    const id = entries.push(e) - 1;
+function indexRow(g: Raw): void {
+  // malformed corpus rows are skipped, never crash the sheet
+  if (!g || typeof g.n !== "string") return;
+  const nrm = g.n.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!nrm) return;
+  const e: Entry = { n: g.n, c: g.c, lat: g.lat, lon: g.lon, w: g.w, k: g.k, nrm, toks: nrm.split(" ") };
+  const id = ENTRIES!.push(e) - 1;
 
-    const keys = new Set<string>();
-    for (const tok of e.toks)
-      for (let l = 1; l <= Math.min(tok.length, MAX_PREFIX); l++) keys.add(tok.slice(0, l));
-    // reverse aliases: a name containing "greater kailash" also answers to "gk"
-    for (const [exp, ab] of EXPANSIONS)
-      if (nrm.includes(exp))
-        for (let l = 1; l <= Math.min(ab.length, MAX_PREFIX); l++) keys.add(ab.slice(0, l));
+  const keys = new Set<string>();
+  for (const tok of e.toks)
+    for (let l = 1; l <= Math.min(tok.length, MAX_PREFIX); l++) keys.add(tok.slice(0, l));
+  // reverse aliases: a name containing "greater kailash" also answers to "gk"
+  for (const [exp, ab] of EXPANSIONS)
+    if (nrm.includes(exp))
+      for (let l = 1; l <= Math.min(ab.length, MAX_PREFIX); l++) keys.add(ab.slice(0, l));
 
-    for (const key of keys) {
-      const list = prefix.get(key);
-      if (list) list.push(id);
-      else prefix.set(key, [id]);
-    }
+  const prefix = PREFIX!;
+  for (const key of keys) {
+    const list = prefix.get(key);
+    if (list) list.push(id);
+    else prefix.set(key, [id]);
   }
+}
 
+/** One slice of index work; returns true when the whole index is ready. */
+function buildSlice(maxRows: number): boolean {
+  if (built) return true;
+  if (!RAW) {
+    /* the require's own parse is the one cost we can't slice — it lands
+       whichever way the first touch arrives; every indexed row after it
+       is what the slice loop amortizes */
+    RAW = require("../../assets/delhi-gazetteer.json") as Raw[];
+    ENTRIES = [];
+    PREFIX = new Map();
+    cursor = 0;
+  }
+  const raw = RAW, end = Math.min(cursor + maxRows, raw.length);
+  for (; cursor < end; cursor++) indexRow(raw[cursor]);
+  if (cursor < raw.length) return false;
+  const prefix = PREFIX!, entries = ENTRIES!;
   for (const ids of prefix.values())
     if (ids.length > PREFIX_CAP) {
       ids.sort((a, b) => weight(entries[b]) - weight(entries[a]));
       ids.length = PREFIX_CAP;
     }
-
-  // free the 2.7MB source array — the require()d JSON otherwise stays
+  // free the multi-MB source array — the require()d JSON otherwise stays
   // pinned in Metro's module registry for the app lifetime (perf-r4)
   raw.length = 0;
-  ENTRIES = entries;
-  PREFIX = prefix;
+  RAW = null;
+  built = true;
+  return true;
 }
 
-/** Preload the gazetteer + index (call when the search UI opens). */
+/** Synchronous finish — every reader path (query, nearestPlace) calls
+ *  this, so results are always complete however far warm() got. */
+function build(): void {
+  while (!built) buildSlice(1 << 30);
+}
+
+/** Preload the gazetteer + index in background slices — call at boot-idle
+ *  and on the search CTA's press-in. Idempotent; a no-op once built. */
 export function warm(): void {
-  build();
+  if (built || scheduled) return;
+  scheduled = true;
+  const step = () => {
+    if (buildSlice(WARM_SLICE)) scheduled = false;
+    else setTimeout(step, 0);
+  };
+  setTimeout(step, 0);
 }
 
 /** On-device search: prefix-index lookup, distance+weight ranked.

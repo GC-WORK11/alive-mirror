@@ -24,6 +24,8 @@ import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { latinLabels, v2StyleUrl } from "./src/map/style";
 import { warmBasemap } from "./src/map/tileWarm";
+import { warm as warmSearchIndex } from "./src/search/t0";
+import { afterFirstFrame } from "./src/startup/idle";
 import { camDur } from "./src/map/cam";
 import {
   holdMapDraw, noteMapBusy, noteMapIdle, useHeldState, useMapDrawHeld,
@@ -44,7 +46,6 @@ import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen, type SharingChoice } from "./src/screens/OnboardingScreen";
-import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 import { loadWelcomeSeen, markWelcomeSeen } from "./src/store/welcome";
 import { HomeScreen, DayPeek, useDayData, type AmbientMeta } from "./src/screens/HomeScreen";
 import { recordSample, setCheckin } from "./src/store/daylog";
@@ -365,9 +366,9 @@ function AppInner() {
      (home-truth: a number you can't verify reads as a wrong number). */
   const [ambientMeta, setAmbientMeta] = useState<AmbientMeta | null>(null);
   const [introSeen, setIntroSeen] = useHeldState<boolean | null>(null);
-  /* welcome_seen_v1 — the first-breath cinematic; null until the flag
-     reads so a returning user never flashes the overlay for a frame */
-  const [welcomeSeen, setWelcomeSeen] = useHeldState<boolean | null>(null);
+  /* welcome_seen_v1 — the first-breath cinematic is retired (owner:
+     "slop I never asked for"); the flag file still writes once per
+     install below so its lifecycle stays consistent. */
   const net = useNetStatus();
 
   const [fontsLoaded] = useFonts({
@@ -458,7 +459,9 @@ function AppInner() {
         }
         const lat = pos?.coords.latitude ?? DELHI[1];
         const lon = pos?.coords.longitude ?? DELHI[0];
-        if (pos) setUserPos({ lat, lon });
+        /* same-fix dedupe: a fresh {lat,lon} object every poll would
+           re-render the tree for nothing */
+        if (pos) setUserPos((p) => (p && p.lat === lat && p.lon === lon ? p : { lat, lon }));
         try {
           const j = await fetchJson(`${API}/aqi?lat=${lat}&lon=${lon}`, 8000);
           const nf = j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null;
@@ -507,7 +510,19 @@ function AppInner() {
     aqiPollRef.current = () => aqiPoll(true);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
-    loadWelcomeSeen().then(setWelcomeSeen).catch(() => setWelcomeSeen(true));
+    /* the welcome film is gone — the flag still lands once per install
+       so the file's semantics (welcome_seen_v1.json exists ⇔ this
+       install ran its first-open flow) hold for anything reading it */
+    loadWelcomeSeen()
+      .then((seen) => { if (!seen) void markWelcomeSeen(); })
+      .catch(() => {});
+    /* search gazetteer: slice-build the 124k-entry index in the
+       background once the first frame has painted — by the time a
+       search door is tapped the index is already a Map, so the sheet
+       opens in ms instead of freezing on a multi-second sync build
+       inside its mount effect (the owner's "10 seconds, hung" read).
+       The 900 ms delay keeps the slices behind the boot burst. */
+    void afterFirstFrame().then(() => setTimeout(() => warmSearchIndex(), 900));
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); clearInterval(fieldIv); };
   }, [setFrom, setTrips, settings.lang]);
 
@@ -1077,16 +1092,7 @@ function AppInner() {
       <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
         onDone={onOnboardDone} />
 
-      {/* the first-breath cinematic — once per install (welcome_seen_v1),
-          mounted last so it sits above every sheet incl. the consent
-          gate; on a fresh install it exits INTO the armed onboarding
-          sheet. It fetches /v2/city itself and falls back to the boot
-          ambient read — a real number or honestly nothing. */}
-      <WelcomeScreen
-        visible={welcomeSeen === false}
-        lang={lang}
-        ambientUg={ambientUg}
-        onDone={() => { markWelcomeSeen().catch(() => {}); setWelcomeSeen(true); }} />
+
     </View>
   );
 }
