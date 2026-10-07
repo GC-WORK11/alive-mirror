@@ -11,6 +11,10 @@
  *     selected={flow.selected}          // index, or a route_id string
  *     strips={stripsByRouteId}          // Record<route_id, RouteStrip> —
  *                                       // optional; see below
+ *     from={fromPin} to={toPin}         // [lon,lat] — the frame act's
+ *                                       // endpoint rings (optional;
+ *                                       // falls back to the selected
+ *                                       // geometry's own endpoints)
  *     lang={lang}                       // pill copy language
  *   />
  *
@@ -21,19 +25,28 @@
  * (the {geometry, pm25, band} spans) outrank strips when present.
  *
  * MOTION — THE CHOOSER. When a NEW option set lands the map visibly
- * thinks, in three acts inside whenMapDrawFree:
- *   1. draw  — up to three drawable candidates (candidatesFor: ranked
- *      alternates first, the selected row LAST) trace on span by span,
- *      each ~34 ms per chunk over ~220 ms staggers, all at one equal
- *      "contender" opacity — every line a real option the server priced.
- *   2. hold  — a ~120 ms breath where all candidates read as equals.
- *   3. settle — the winner's features leave the alts pool and land on
- *      the selected source at once (9 px casing under 6 px line =
- *      thickens), the rest drop toward the hairline alternate style,
- *      and a verdict pill pins onto the route midpoint: one short claim
- *      re-derived from the set's own numbers (chooserVerdict — "cleanest
- *      · 41% less than fastest" only when the fastest option's dose
- *      really is that much heavier). ~4 s on, then it fades.
+ * thinks, in four acts inside whenMapDrawFree:
+ *   0. frame — before any line draws, a ring breathes once on each
+ *      endpoint (origin first, then destination ~170 ms later): the
+ *      trip itself is marked on the map — your from and your to —
+ *      while nothing else moves. ~640 ms.
+ *   1. ways  — up to three drawable candidates (candidatesFor: ranked
+ *      alternates first, the selected row LAST) trace on span by span
+ *      at an ease-out cadence (the pen relaxes as it arrives), each
+ *      option ~¾ s and staggered ~540 ms so every alternative lands as
+ *      its own felt moment — all at one equal "contender" opacity:
+ *      every line a real option the server priced.
+ *   2. hold  — a ~300 ms breath where all candidates read as equals.
+ *   3. settle — the losers dip toward hairline while the winner
+ *      re-traces itself bold from → to (three slices, ~190 ms apart,
+ *      rising opacity: 9 px casing under 6 px line = thickens), the
+ *      losers ease back to the hairline alternate style, and a verdict
+ *      pill pins onto the route just after the winner's weight lands:
+ *      one short claim re-derived from the set's own numbers
+ *      (chooserVerdict — "cleanest · 41% less than fastest" only when
+ *      the fastest option's dose really is that much heavier). ~4 s
+ *      on, then it fades. The whole beat lands in ~3½–5 s depending
+ *      on how many candidates the server priced.
  *  A tap-swap on the SAME set keeps the older motion: the new choice
  *  settles into its bold state (~300 ms) while the demoted one eases
  *  down into the alternatives (~450 ms).
@@ -52,7 +65,7 @@
  * 6 px on 9 px casing). Round caps soften each colour step into the next.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { GeoJSONSource, Layer, Marker } from "@maplibre/maplibre-react-native";
 import { fam, V2Elev, V2Radius, V2T } from "../theme";
 import { useReduceMotion } from "../a11y";
@@ -61,7 +74,7 @@ import { Icon } from "../icons";
 import { t, type Lang } from "../i18n/strings";
 import { reasonTxt } from "./shell/CompareSheet";
 import { DELHI } from "./shell/net";
-import type { LonLat } from "../nav/offroute";
+import { flattenCoords, type LonLat } from "../nav/offroute";
 import type { V2Option } from "./shell/types";
 import {
   candidatesFor,
@@ -86,6 +99,10 @@ export type RouteTintSourceProps = {
   stepM?: number;
   /** draw unselected alternates (default true) */
   showAlts?: boolean;
+  /** trip endpoints [lon,lat] — the frame act's ring pulse sits on each
+   *  pin. Optional; falls back to the selected geometry's own ends. */
+  from?: LonLat | null;
+  to?: LonLat | null;
   /** pill copy language (default en) */
   lang?: Lang;
 };
@@ -96,26 +113,41 @@ const EMPTY_FC: GeoJSON.FeatureCollection = {
 };
 
 /* ── the chooser's clock ────────────────────────────────────────────────
- * Candidates draw through CAND_GROUPS chunk-steps (~34 ms apart) with
- * CAND_IN opacity steps, each candidate CAND_STAGGER_MS after the last.
- * The settle lands SETTLE_GAP_MS after the final chunk: winner asserts
- * on the selected source, losers ease to the hairline resting style.
- * Full run for three ~12-span candidates ≈ 1.7 s (inside the 1.2–1.8
- * ask); fewer candidates → shorter (honest — the engine served fewer). */
+ * frame → ways → settle (see the file header). The frame holds the map
+ * for one breath while a ring marks each endpoint; each candidate then
+ * gets ~¾ s of its own — span batches land on an ease-out cadence
+ * (CAND_GROUP_DELAY: quick early spans relax into the tail, so the line
+ * draws like a pen, not a progress bar) with the next option starting
+ * CAND_STAGGER_MS after the previous one BEGAN — overlapping trails,
+ * each alternative its own visible moment. The settle lands
+ * SETTLE_GAP_MS after the final chunk: losers hairline, the winner
+ * re-traces bold from → to in WIN_SWEEP slices, and the verdict pins
+ * PILL_DELAY_MS after the winner's full weight lands. Three ~12-span
+ * candidates ≈ 3.4 s of motion, then the pill — felt, not rushed. */
 const ALT_OP = 0.5;          // resting opacity of an alternative
 const CAND_OP = 0.85;        // contender opacity — equal, prominent
-const CHOOSE_START_MS = 300; // sheet lands first, then the map thinks
-const CAND_STAGGER_MS = 220;
+const FRAME_MS = 640;        // endpoint rings land before the first line
+const FRAME_STAGGER_MS = 170;// origin ring, then the destination ring
+const RING_MS = 640;         // one ring's expand + fade
+const FRAME_NO_END_MS = 220; // no endpoints to frame → a short pre-roll
+const CAND_STAGGER_MS = 540;
 const CAND_GROUPS = 11;
-const CAND_GROUP_MS = 34;
-const CAND_IN: readonly (readonly [number, number])[] = [
-  [0, 0.3],          // span appears faint
-  [110, CAND_OP],    // settles to contender opacity
+/* ease-out span cadence — cumulative ms at each group index. Draws
+   fast where the line is being born, settles as it arrives. */
+const CAND_GROUP_DELAY: readonly number[] = [
+  0, 42, 88, 138, 192, 250, 312, 378, 448, 522, 600,
 ];
-const SETTLE_GAP_MS = 120;
-const DROP_OP = 0.32;   // losers' mid-drop — a visible demotion, not a cut
-const WIN_SET_MS = 240; // winner's bold settle
-const ALT_SET_MS = 420; // losers ease to resting ALT_OP
+const CAND_IN: readonly (readonly [number, number])[] = [
+  [0, 0.16],           // span appears faint
+  [120, 0.5],          // blooms
+  [230, CAND_OP],      // settles to contender opacity
+];
+const SETTLE_GAP_MS = 300;   // the equality breath before the claim
+const DROP_OP = 0.3;    // losers' dip — a visible demotion, not a cut
+const WIN_SWEEP_MS = 190;   // winner re-traces: bold slices from → to
+const ALT_SET_MS = 420;   // ghost clears, losers rest at ALT_OP — one
+                          // clean beat after the winner's sweep lands
+const PILL_DELAY_MS = 260;  // verdict lands just after the winner's weight
 const DEMOTE_OP = 0.18;   // tap-swap: just-deselected route fades down
 const DEMOTE_MS = 450;
 const SELECT_FADE_MS = 300; // newly-chosen route settles into its bold state
@@ -189,6 +221,8 @@ function RouteTintSourceFn({
   strips,
   stepM = TINT_STEP_M,
   showAlts = true,
+  from = null,
+  to = null,
   lang = "en",
 }: RouteTintSourceProps) {
   // one derivation per plan fetch / strip arrival / selection change —
@@ -237,6 +271,43 @@ function RouteTintSourceFn({
   /* a stable Animated.Value via lazy useState — useRef(...).current in
      render is a lint error (refs during render) */
   const [pillV] = useState(() => new Animated.Value(0));
+  /* ── the frame act's endpoint rings — always-mounted Markers whose
+     children swap <View/> → ring at beat start (the sanctioned
+     annotation-content pattern; the Marker itself never unmounts).
+     Anchors are the real endpoint pins when App passes them, else the
+     selected route's own snapped ends. The epoch is a counter so a new
+     plan re-fires the pulse; each ring's Value resets then expands. */
+  const endCoords = useMemo(() => {
+    const g = flattenCoords(options[selIdx]?.geometry);
+    return {
+      from: from ?? g[0] ?? null,
+      to: to ?? g[g.length - 1] ?? null,
+    };
+  }, [options, selIdx, from, to]);
+  const endsRef = useRef(endCoords);
+  useEffect(() => {
+    endsRef.current = endCoords;
+  });
+  const [ringFromEpoch, setRingFromEpoch] = useState(0);
+  const [ringToEpoch, setRingToEpoch] = useState(0);
+  const [ringFromV] = useState(() => new Animated.Value(0));
+  const [ringToV] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (!ringFromEpoch || reduceMotion) return;
+    ringFromV.setValue(0);
+    Animated.timing(ringFromV, {
+      toValue: 1, duration: RING_MS,
+      easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start();
+  }, [ringFromEpoch, ringFromV, reduceMotion]);
+  useEffect(() => {
+    if (!ringToEpoch || reduceMotion) return;
+    ringToV.setValue(0);
+    Animated.timing(ringToV, {
+      toValue: 1, duration: RING_MS,
+      easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start();
+  }, [ringToEpoch, ringToV, reduceMotion]);
   /* the settle flashes the pill only when there's an honest line and a
      real anchor — mirrored through a ref so timer closures can check. */
   const pillReady = useRef<{ text: string | null; anchor: LonLat | null }>({
@@ -311,6 +382,9 @@ function RouteTintSourceFn({
     bt.length = 0;
     swapTimers.current.length = 0;
     const flash = () => {
+      /* the pill pins only when the verdict has an honest line and a
+         real anchor — checked via the ref so stale closures can't
+         flash a pill the data doesn't back */
       if (pillReady.current.text && pillReady.current.anchor) {
         setPillEpoch((e) => e + 1);
       }
@@ -328,9 +402,12 @@ function RouteTintSourceFn({
       );
       return;
     }
-    /* the beat — t=0 both sources empty; candidates (≤3 drawable,
-       selected last) draw span by span; at the settle the winner moves
-       onto the selected source bold while the rest land hairline. */
+    /* the beat — t=0 both sources empty; the frame act pulses a ring on
+       each endpoint (the trip's from → to marked before any line), then
+       candidates (≤3 drawable, selected last) trace on at an ease-out
+       cadence, each option's own felt moment; at the settle the losers
+       dip to hairline while the winner re-traces itself bold from → to
+       and the verdict pins onto the route. */
     const cands = candidatesFor(options, selected, tint.perOption);
     bt.push(
       setTimeout(() => {
@@ -340,8 +417,23 @@ function RouteTintSourceFn({
     );
     whenMapDrawFree(() => {
       if (!alive.current || gen !== beatGen.current) return;
+      /* act 0 — frame: mark the endpoints (origin, then destination).
+         Rings anchor on the passed pins or the winner's snapped ends —
+         no pins and no geometry → the frame collapses to a pre-roll. */
+      const ends = endsRef.current;
+      const framed = ends.from != null || ends.to != null;
+      const frameMs = framed ? FRAME_MS : FRAME_NO_END_MS;
+      if (ends.from) {
+        bt.push(setTimeout(() => setRingFromEpoch((e) => e + 1), 0));
+      }
+      if (ends.to) {
+        bt.push(
+          setTimeout(() => setRingToEpoch((e) => e + 1), FRAME_STAGGER_MS),
+        );
+      }
+      /* act 1 — ways */
       cands.forEach((opt, pos) => {
-        const start = CHOOSE_START_MS + pos * CAND_STAGGER_MS;
+        const start = frameMs + pos * CAND_STAGGER_MS;
         const n0 = tintRef.current.perOption[opt]?.features.length ?? 0;
         const n = Math.max(1, Math.min(CAND_GROUPS, n0));
         for (let g = 0; g < n; g++) {
@@ -352,40 +444,61 @@ function RouteTintSourceFn({
                 const cut = Math.ceil((fs.length * (g + 1)) / n);
                 setStagedAlts((cur) =>
                   mergeOpt(cur, withOp(fs.slice(0, cut), op), opt));
-              }, start + g * CAND_GROUP_MS + dt),
+              }, start + CAND_GROUP_DELAY[g] + dt),
             );
           }
         }
       });
+      /* act 2 — settle */
       const lastFeats = cands.length
         ? tintRef.current.perOption[cands[cands.length - 1]]?.features.length ?? 0
         : 0;
       const revealMs =
-        Math.max(1, Math.min(CAND_GROUPS, lastFeats)) * CAND_GROUP_MS +
+        CAND_GROUP_DELAY[Math.max(0, Math.min(CAND_GROUPS, lastFeats) - 1)] +
         CAND_IN[CAND_IN.length - 1][0];
       const settleT =
-        CHOOSE_START_MS + Math.max(0, cands.length - 1) * CAND_STAGGER_MS +
+        frameMs + Math.max(0, cands.length - 1) * CAND_STAGGER_MS +
         revealMs + SETTLE_GAP_MS;
+      /* the winner's claim: everything staged dips toward hairline —
+         the winner keeps a faint ghost — while its line re-traces bold
+         from → to over it (cumulative slices at rising weight). When
+         the sweep completes the alts pool returns to just the losers at
+         resting opacity (the winner's ghost leaves with it). */
+      const winSweep = () => {
+        const fs = tintRef.current.selected.features;
+        const thirds = [
+          fs.slice(0, Math.ceil(fs.length / 3)),
+          fs.slice(0, Math.ceil((2 * fs.length) / 3)),
+        ];
+        return [0.62, 0.82].map((op, i) =>
+          setTimeout(
+            () =>
+              setStagedSel({
+                type: "FeatureCollection",
+                features: withOp(thirds[i], op),
+              }),
+            settleT + i * WIN_SWEEP_MS,
+          ),
+        );
+      };
       bt.push(
         setTimeout(() => {
-          setStagedSel({
+          setStagedAlts((cur) => ({
             type: "FeatureCollection",
-            features: withOp(tintRef.current.selected.features, 0.45),
-          });
-          setStagedAlts({
-            type: "FeatureCollection",
-            features: withOp(tintRef.current.alts.features, DROP_OP),
-          });
-          flash();
+            features: withOp(cur.features, DROP_OP),
+          }));
         }, settleT),
+        ...winSweep(),
         setTimeout(
           () => setStagedSel(tintRef.current.selected),
-          settleT + WIN_SET_MS,
+          settleT + 2 * WIN_SWEEP_MS,
         ),
         setTimeout(
           () => setStagedAlts(tintRef.current.alts),
           settleT + ALT_SET_MS,
         ),
+        /* the verdict pins just after the winner's full weight lands */
+        setTimeout(flash, settleT + 2 * WIN_SWEEP_MS + PILL_DELAY_MS),
       );
     });
     // options identity marks the plan fetch; tint carries strips/selected
@@ -480,6 +593,64 @@ function RouteTintSourceFn({
           layout={{ "line-cap": "round", "line-join": "round" }}
         />
       </GeoJSONSource>
+      {/* the frame act's endpoint rings — parked at the real pins (or
+          the route's snapped ends), always mounted; the child swaps to
+          the pulsing ring only while a beat fires it (same annotation-
+          content pattern as the endpoint pins / the pill below). */}
+      <Marker lngLat={endCoords.from ?? DELHI} anchor="center">
+        {ringFromEpoch > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              st.ring,
+              { borderColor: V2T.text },
+              {
+                opacity: ringFromV.interpolate({
+                  inputRange: [0, 0.18, 1],
+                  outputRange: [0, 0.55, 0],
+                }),
+                transform: [
+                  {
+                    scale: ringFromV.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 2.2],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        ) : (
+          <View />
+        )}
+      </Marker>
+      <Marker lngLat={endCoords.to ?? DELHI} anchor="center">
+        {ringToEpoch > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              st.ring,
+              { borderColor: V2T.pinDest },
+              {
+                opacity: ringToV.interpolate({
+                  inputRange: [0, 0.18, 1],
+                  outputRange: [0, 0.55, 0],
+                }),
+                transform: [
+                  {
+                    scale: ringToV.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 2.2],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        ) : (
+          <View />
+        )}
+      </Marker>
       <Marker lngLat={anchor ?? DELHI} anchor="bottom">
         {line && anchor ? (
           <Animated.View
@@ -493,6 +664,12 @@ function RouteTintSourceFn({
                     translateY: pillV.interpolate({
                       inputRange: [0, 1],
                       outputRange: [5, 0],
+                    }),
+                  },
+                  {
+                    scale: pillV.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.92, 1],
                     }),
                   },
                 ],
@@ -512,6 +689,16 @@ function RouteTintSourceFn({
 }
 
 const st = StyleSheet.create({
+  /* the frame ring — a single breathing circle on each endpoint. 26 px
+     at rest, expands ~2.2× while fading; a hairline-weight stroke keeps
+     it on the paper register, no glow. */
+  ring: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    backgroundColor: "transparent",
+  },
   /* the verdict pill — floating-chrome elevation over the map, warm
      surface, a hairline edge. Nothing under 11px (label = 13). */
   pill: {

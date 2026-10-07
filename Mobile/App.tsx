@@ -234,7 +234,8 @@ const MapTree = React.memo(function MapTree({
           ~250 m chunk from the fetched strips, flat dose-mean until they
           land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
           (<RouteTintSource/> — src/components/RouteTint.tsx contract) */}
-      <RouteTintSource options={options} selected={selected} strips={strips} lang={lang} />
+      <RouteTintSource options={options} selected={selected} strips={strips} lang={lang}
+        from={fromSet ? fromPin : null} to={toSet ? toPin : null} />
       {/* endpoint annotations stay mounted at their last coordinates —
           unmounting a MarkerView mid-draw is the same upstream
           remove-during-render class as the route sources. Hidden is an

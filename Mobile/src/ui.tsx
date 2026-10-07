@@ -287,16 +287,72 @@ export function ModeRow({
   );
 }
 
-/** Endpoint pins: origin = white ring, destination = red pinlet (doc 03). */
+/** Endpoint pins: origin = white ring, destination = red pinlet (doc 03).
+ *  The pin DROPS onto the map when it mounts — the first beat of the
+ *  chooser's from → to frame: the origin ring pops in, then the
+ *  destination pinlet lands a hair later (the map "placing" the trip's
+ *  two ends). Reduce-motion renders them static. */
 export function EndpointPin({ kind }: { kind: "origin" | "dest" }) {
+  const reduceMotion = useReduceMotion();
+  /* lazy-useState pattern (refs in render are a lint error) — one value
+     drives scale + drop + fade in a single spring */
+  const [v] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
+  useEffect(() => {
+    if (reduceMotion) { v.setValue(1); return; }
+    Animated.spring(v, {
+      toValue: 1,
+      /* a soft arrival — lands and settles without a rubbery bounce */
+      damping: 16,
+      stiffness: 210,
+      mass: 0.75,
+      /* the destination lands a beat after the origin: from → to */
+      delay: kind === "dest" ? 110 : 0,
+      useNativeDriver: false,
+    }).start();
+  }, [v, kind, reduceMotion]);
   if (kind === "origin") {
     return (
-      <View style={us.originPin}>
+      <Animated.View
+        style={[
+          us.originPin,
+          {
+            opacity: v,
+            transform: [
+              {
+                scale: v.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.4, 1],
+                }),
+              },
+            ],
+          },
+        ]}>
         <View style={us.originDot} />
-      </View>
+      </Animated.View>
     );
   }
-  return <Icon name="pin" color={V2T.pinDest} size={32} filled />;
+  return (
+    <Animated.View
+      style={{
+        opacity: v,
+        transform: [
+          {
+            translateY: v.interpolate({
+              inputRange: [0, 1],
+              outputRange: [-15, 0],
+            }),
+          },
+          {
+            scale: v.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.65, 1],
+            }),
+          },
+        ],
+      }}>
+      <Icon name="pin" color={V2T.pinDest} size={32} filled />
+    </Animated.View>
+  );
 }
 
 /** Round floating map control — one shadow level (doc 03 §elevation). */
