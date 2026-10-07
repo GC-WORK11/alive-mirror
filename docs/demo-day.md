@@ -786,6 +786,14 @@ section was distilled from.*
   alive108/admin-token --query SecretString --output text`). Needed
   for the `/admin` "operator sign in" chip if a judge asks for the
   internals; the public board renders without it.
+- [ ] T-30b (physical phone sanity — 3 min, all four verified-needed):
+  basemap shows street labels (emulator-only upstream bug, near-certain
+  fine on hardware); "Where to?" opens the search sheet on a normal
+  tap (the touch-path crash is sim-only, but this is the main CTA —
+  tap it once); tap a couple of map/sheet controls for eaten-tap feel;
+  confirm one Air-alerts notification lands (fire a real trigger —
+  the events engine only pings on real signals; if today is quiet the
+  toggle test in Settings proves the path, a ping is not owed).
 - [ ] T-25: open `$NLB/admin` in the demo browser — the public board
   renders tokenless; confirm light theme + CPCB band colors render and
   the live feed ticks (~30 s refresh; the "operator sign in" chip +
@@ -945,6 +953,19 @@ modes separately.
   stepped location updates + arrival→receipt clean — previously every
   location drive crashed); the residual concentrates at sheet
   mount/unmount commits (search-sheet open, receipt teardown)
+- **Oct-7 addendum (ios-cold-drive, verified A/B):** the search-sheet
+  mount went ~deterministic under TOUCH on this box — 8/8 kills on
+  coordinate taps vs 4/4 clean a11y-dispatch mounts, cold+warm, on
+  BOTH pre- and post-fix JS bundles (host/sim GPU-pipe state, not
+  our code). Countermove `ced7672`: both search CTAs open the map
+  draw-hold at `onPressIn` (touch-DOWN) so the gesture's own native
+  work runs inside the throttled window. Rebuilt A/B: **0/8 → 16/20
+  (80%) touch mounts survive**; residuals = cold-boot first-mounts
+  racing JSI/Metal warmup (~37%) + one rare warm kill.
+  **On sim: pre-warm ~30 s + open/close one sheet before the first
+  real CTA tap. On hardware: the search-sheet tap check is MANDATORY
+  demo-morning** — sim kills do not imply device kills, but this is
+  the main CTA; verify once on the physical phone.
 - If it drops to SpringBoard: relaunch — every state (consent, vehicle,
   recents, trip ledger, donated aggregates) persists; back on the map
   in ~9 seconds
