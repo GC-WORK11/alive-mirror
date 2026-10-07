@@ -183,6 +183,10 @@ const en = {
   settingsAlertsWindowsHint: "when the day's lightest hours open up + tomorrow's read each evening",
   settingsAlertsReflect: "your day on the road",
   settingsAlertsReflectHint: "yesterday's trips, once a day — from your own ledger",
+  /* OS-level denial: the toggles below are app prefs; when the system has
+     notifications blocked none of them can reach the shade — say so and
+     hand over the escape hatch (Linking.openSettings). */
+  settingsNotifBlocked: "notifications are blocked in system settings — tap to open and allow",
   settingsDevBuild: "dev build",
   settingsHowNumbers: "How numbers are estimated",
   settingsHowNumbersBody: "your breath number comes from a street-level air map — Delhi's monitoring stations + satellite weather, refreshed about every 15 minutes. it's always a range, never a fake-exact number. · 1 cigarette ≈ 316 µg of PM2.5 breathed in (the Berkeley Earth rule). · what your ride puts out comes from published tests on that kind of ride (ARAI / ICCT road measurements) — a range like 1.1–1.6 kg CO2. · your phone doesn't sense the air — it just moves through the map.",
@@ -1410,6 +1414,7 @@ const hi: Record<StringKey, string> = {
   settingsAlertsWindowsHint: "दिन की सबसे हल्की घड़ी खुलने पर + शाम को कल की हवा",
   settingsAlertsReflect: "सड़क पर आपका दिन",
   settingsAlertsReflectHint: "कल की यात्राएँ, दिन में एक बार — आपके ही लेजर से",
+  settingsNotifBlocked: "सिस्टम सेटिंग में नोटिफ़िकेशन बंद हैं — खोलकर अनुमति देने के लिए टैप करें",
   settingsDevBuild: "डेव बिल्ड",
   settingsHowNumbers: "संख्याएँ कैसे बनती हैं",
   settingsHowNumbersBody: "साँस का नंबर सड़क-स्तर के हवा-नक्शे से आता है — दिल्ली के मॉनिटरिंग स्टेशन + सैटेलाइट मौसम, हर ~15 मिनट में ताज़ा। यह हमेशा एक रेंज है, नकली-सटीक संख्या नहीं। · 1 सिगरेट ≈ 316 µg PM2.5 साँस में (बर्कले अर्थ नियम)। · आपकी गाड़ी का धुआँ उस तरह की गाड़ियों के प्रकाशित माप से (ARAI / ICCT सड़क माप) — जैसे 1.1–1.6 kg CO2। · आपका फ़ोन हवा नहीं नापता — वह बस उस नक्शे से गुज़रता है।",

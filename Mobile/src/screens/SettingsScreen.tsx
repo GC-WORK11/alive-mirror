@@ -20,8 +20,10 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Animated,
+  AppState,
   BackHandler,
   LayoutAnimation,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -38,6 +40,7 @@ import { Icon, vehicleGlyph, type Glyph } from "../icons";
 import { API, postJson } from "../components/shell/net";
 import { t, type Lang, type StringKey } from "../i18n/strings";
 import { a11y, DYNAMIC_TYPE, useReduceMotion } from "../a11y";
+import { notifPerm, type NotifPerm } from "../notify";
 import { tick } from "../haptics";
 import type { ShellSettings } from "../components/shell/settings";
 import { bump, jank } from "../perf";
@@ -118,6 +121,22 @@ function SettingsSheetInner({
   // brief arming awaits OS perms — guard re-entry so a double-tap can't
   // queue two permission prompts (the row also reports busy to TalkBack).
   const [arming, setArming] = useState(false);
+
+  /* OS-level notification state. The toggles below are app prefs; when
+     the system has notifications blocked they read ON but can't reach
+     the shade — the card names that instead of silently lying. Re-read
+     on every foreground: a user can flip it in system settings and walk
+     back in. */
+  const [notifOs, setNotifOs] = useState<NotifPerm>("granted");
+  useEffect(() => {
+    let alive = true;
+    const read = async () => { if (alive) setNotifOs(await notifPerm()); };
+    void read();
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") void read();
+    });
+    return () => { alive = false; sub.remove(); };
+  }, []);
   const insets = useSafeAreaInsets();
 
   /* rate ALive·108 — quiet expander in the About card: 1–5 stars + an
@@ -407,6 +426,26 @@ function SettingsSheetInner({
         {/* ── notifications ── */}
         {sectionLabel("settingsNotifications")}
         <View style={ss.card}>
+          {notifOs === "denied" ? (
+            <>
+              <Pressable
+                onPress={() => { tick(); Linking.openSettings(); }}
+                {...a11y(t("settingsNotifBlocked", lang), undefined, "button", { lang })}
+                style={({ pressed }) => [ss.row, pressed && ss.rowPressed]}
+              >
+                <Icon name="warn" color={V2T.breath3} size={20} />
+                <View style={ss.rowMid}>
+                  <Text
+                    {...DYNAMIC_TYPE}
+                    style={[ss.hint, ss.dangerTxt, { fontFamily: fam(lang, "reg") }]}
+                  >
+                    {t("settingsNotifBlocked", lang)}
+                  </Text>
+                </View>
+              </Pressable>
+              <View style={ss.hairline} />
+            </>
+          ) : null}
           {switchRow("settingsDepartRemind", current.remind, (v) => onChange("remind", v), "settingsDepartRemindHint")}
           <View style={ss.hairline} />
           {switchRow(

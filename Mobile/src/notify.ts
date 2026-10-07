@@ -130,6 +130,22 @@ export async function requestPerms(): Promise<boolean> {
   }
 }
 
+/** What the OS currently lets through, for honest settings rows:
+    "granted" — pings can reach the shade; "denied" — the user settled the
+    dialog against us or revoked it in system settings (canAskAgain is
+    false, so asking again is a no-op); "unset" — the OS would still show
+    its dialog if we asked. */
+export type NotifPerm = "granted" | "denied" | "unset";
+export async function notifPerm(): Promise<NotifPerm> {
+  try {
+    const cur = await Notifications.getPermissionsAsync();
+    if (granted(cur)) return "granted";
+    return cur.canAskAgain === false ? "denied" : "unset";
+  } catch {
+    return "unset";
+  }
+}
+
 /* ---- one pending ping per purpose — fixed identifiers + cancel-before-arm
    so re-arming replaces instead of stacking ---- */
 const ID_DEPARTURE = "alive-departure";
