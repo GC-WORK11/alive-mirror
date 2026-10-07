@@ -1114,10 +1114,10 @@ Real findings:
   along-route ddM/dtS, capped 45 m/s).
 - FIXED `344b4a9`: "Where to?" pill occluded under open home sheet —
   rendered but answered no taps; now yields (home CTA covers search).
-- OPEN (needs physical device): basemap renders zero text labels on
-  the SwiftShader AVD at every zoom — EN style verified correct in
-  maplibre-gl-js + glyph ranges present in mbgl-offline.db; iOS sim
-  DOES render labels. Likely SwiftShader SDF quirk — classify on the
-  owner's real Android hardware demo-morning (if real on device = P0).
+- CLOSED (emulator-only): basemap renders zero text labels on the
+  SwiftShader AVD — confirmed upstream bug maplibre-native #3648
+  (11.8.0+ OpenGL-emulated text pipeline; real devices render fine,
+  iOS sim renders labels correctly on the same style). Action left:
+  one glance on the owner's real phone demo-morning — near-certain ok.
 - NIT (unfixed): community street-name casing mixed ("hanuman lane"
   vs "Fire Brigade Lane") — real /reports data casing, cosmetic only.
