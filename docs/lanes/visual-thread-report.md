@@ -9,7 +9,7 @@
 
 **iOS: full journey works end-to-end on live prod data — zero crashes, zero SIGSEGV.** The cold-fix holds. Home hero self-updates (55→57→61→64→63 µg/m³ across 15 min), dose counter transitions "count starts…" → real "8 µg · 12m counted" ledger mid-drive, search→compare→depart→settings→community all verified.
 
-**Web: 3 of 4 surfaces fully live. Landing `/` is BROKEN on prod** — inline `<script>` fails to parse (unescaped `'` in `map's` at landing.html:1292, introduced by `326e64e`), so the "READING THE LIVE AIR…" boot overlay never dismisses and no landing JS runs. One-char fix (`map's`→`map&rsquo;s`) verified via `node --check`; **not shipped** — docs-only lane. `/city`, `/community`, `/admin` (guest) all populate live numbers.
+**Web: all 4 surfaces live.** Landing `/` was captured BROKEN mid-drive (unescaped `'` in `map's` at landing.html:1292, from `326e64e` → dead boot overlay); diagnosed and alerted in-chat, a sibling lane shipped `f9ea5ae` + deploy `adff31e` within the hour, and re-drive verifies the hero painting live (49.2 µg/m³, 53 stations, 903K segments). `/city`, `/community`, `/admin` (guest) all populate live numbers.
 
 **Android: driven by Linux child `devin-34e11ab2`** — see "Android lane" below (report merged from child evidence).
 
@@ -48,7 +48,7 @@
 
 | Surface | Result | Evidence |
 |---|---|---|
-| `/` landing | **BROKEN on prod.** Boot overlay "READING THE LIVE AIR…" + SKIP never dismisses; `Uncaught SyntaxError` at served line 1292:52 (`map's` unescaped in single-quoted string inside the big inline script, from `326e64e`). All landing JS dead — no live number, no map, no scroll content. Verified served==HEAD; fix `map's`→`map&rsquo;s` passes `node --check`. | landing-390-*, landing-desk-*, scroll videos (~identical frames = dead page) |
+| `/` landing | **Was BROKEN mid-drive → FIXED + re-verified live.** Dead-state capture: `Uncaught SyntaxError` at served 1292:52 (`map's` unescaped in single-quoted string, from `326e64e`) → boot overlay never dismissed, all landing JS dead. Fix `map\'s` shipped by sibling lane `f9ea5ae`/`adff31e`; re-drive at `?v=fix1` (cache-busted): script parses clean, page paints 3745 px — hero 49.2 µg/m³ SATISFACTORY · 2.2 cig · 53 stations · 12 min fresh · wind · 903K segments. | dead: landing-390-dead, landing-desk-dead + scroll videos; healed: landing-fixed-00..05 + text dump |
 | `/city` | Works, live — "Delhi NCR air, right now": 51 µg/m³ SATISFACTORY AQI 86, across-map 28.3–72.1, 29 districts live, easiest Hapur 71 / heaviest North Delhi 121, WHY TONIGHT ("barely moving"), GRAP badge (below stage I, "computed here"), district choropleth with wind 4 km/h S. Renders identically at 390px (nav collapses correctly). | city-390-00..09, city-desk-00..05, both scroll mp4s |
 | `/community` | Works, live — "What Delhi breathed together — merged, never named": **24 phones sharing, 44 trips all-time, 31.4 km today, 1,279 µg dodged, last shared 55 min ago**; three-rule proof cards (300 m on-device trim / merged-never-filed / 3-phones-to-appear); live rider flags + mode mix. | community-390-*, community-desk-*, scroll mp4s |
 | `/admin` guest | Works, live — ops truth panel: 51.4 µg/m³ over 25 sampled cells (median 52.2, worst 67.4), "32% below typical oct day", wind 3.6 km/h/174°; map-is-live card (rebuilt 7 m ago, 53 govt feeds, 101 map points, **9,03,058 streets priced**, 44 fires / 12 in belt, next rebuild 8 m); health cards incl. 8.8 µg/m³ honesty score. Guest-locks operator internals. | admin-390-*, admin-desk-*, scroll mp4s |
