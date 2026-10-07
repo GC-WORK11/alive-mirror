@@ -23,8 +23,10 @@ import {
   recordSample,
   allSamples,
   dayKey,
+  resetDaylogCache,
   type AmbientSample,
 } from "./daylog";
+import { File, Paths } from "expo-file-system";
 import type { Trip } from "./ledger";
 
 const VE_M3H = 0.6; // VE_REST_M3H — seated/resting 10 L/min
@@ -210,5 +212,46 @@ describe("recordSample — the dedupe the file depends on", () => {
     assert.equal(await recordSample(samp(t0 + 20 * MIN, SAKET.lat, SAKET.lon, SAKET.amb, SAKET.bz)), true);
     const all = await allSamples();
     assert.equal(all.length, 3);
+  });
+});
+
+describe("resetDaylogCache — the delete-my-data wipe (testday-ios P2)", () => {
+  const DAYLOG = new File(Paths.document, "daylog.json");
+
+  it("dropping the mirror + file leaves a mounted home with an empty day", async () => {
+    // seed: two spaced reads land in mem and flush to the stub file
+    // (>8min apart so the dedupe keeps them)
+    await recordSample(samp(at(10, 0), CP.lat, CP.lon, CP.amb, CP.bz));
+    await recordSample(samp(at(10, 20), CP.lat, CP.lon, CP.amb, CP.bz));
+    await Promise.resolve(); // let the writeTail flush hit the stub file
+    assert.ok((await allSamples()).length >= 2);
+    /* clearAllData's own order: every in-memory mirror resets first,
+       then the files go. Without the reset the mounted home's
+       allSamples() kept serving wiped samples until relaunch. */
+    resetDaylogCache();
+    DAYLOG.delete();
+    assert.equal((await allSamples()).length, 0);
+    /* and the post-wipe session starts clean — the next real read is
+       deduped against an empty day, not a ghost of the wiped one */
+    assert.equal(await recordSample(samp(at(9, 0), CP.lat, CP.lon, CP.amb, CP.bz)), true);
+    assert.equal((await allSamples()).length, 1);
+  });
+
+  it("a disk read spanning the wipe drops its stale payload (wipeGen)", async () => {
+    /* a read must actually reach readDisk for the guard to matter —
+       ensureMem short-circuits on a non-null mem, so start wiped */
+    resetDaylogCache();
+    // stale file still on disk — the window between clearAllData's
+    // mirror resets and its file deletes
+    DAYLOG.write(JSON.stringify({
+      samples: [samp(at(7, 0), CP.lat, CP.lon, CP.amb, CP.bz)],
+      checkins: {},
+    }));
+    const p = allSamples();        // readDisk starts under the old generation
+    await Promise.resolve();       // let it reach the FILE.text() await
+    resetDaylogCache();            // the wipe lands mid-read…
+    DAYLOG.delete();               // …and removes the file
+    assert.equal((await p).length, 0);        // stale payload dropped, not adopted
+    assert.equal((await allSamples()).length, 0); // mem stayed clean
   });
 });

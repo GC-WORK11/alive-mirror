@@ -581,6 +581,10 @@ function AppInner() {
       clearAllData();
       resetEventsStore();   // events.json baselines + dedupe — same wipe
       setTrips([]); setVehicleProfile(null);
+      /* dayNonce bumps so the mounted home re-assembles its (now empty)
+         reconstruction instead of holding pre-wipe totals — the wipe
+         invalidates the day, same as a fresh ambient read does */
+      setDayNonce((n) => n + 1);
       setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
       /* closing the sheet IS the acknowledgment — the user lands back on
          a clean map; the consent gate re-arms itself on next launch */
@@ -648,7 +652,11 @@ function AppInner() {
     if (!e.nativeEvent.trackUserLocation) setFollow(false);
   }, [setFollow]);
 
-  const openSidebar = useCallback(() => setSidebarOpen(true), []);
+  /* the drawer is modal — opening it dismisses the layers sheet, which
+     otherwise mounts later in JSX and floats ABOVE the open sidebar
+     (testday-ios z-order wart). Mirrors onDelhiTodayOpen/onFullSettings
+     closing the drawer beneath their own surface. */
+  const openSidebar = useCallback(() => { setLayersOpen(false); setSidebarOpen(true); }, []);
   const openSearch = useCallback(() => { setEditWhich("to"); setPhase("search"); }, [setEditWhich, setPhase]);
   const closeCompareToHome = useCallback(() => { setHomeOpen(true); clearRoute(); }, [clearRoute]);
   const onSearchClose = useCallback(() => {

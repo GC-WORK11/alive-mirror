@@ -185,13 +185,20 @@ export function Sheet({
         Animated.spring(drag, { toValue: 0, damping: 22, stiffness: 220, useNativeDriver: false }).start(),
     });
   }, [drag, onClose]);
+  /* touches are dead until the enter spring lands — a tap mid-flight
+     hits whatever child is under the finger at that translateY, not the
+     one it aimed at (testday-ios: a compare option tap logged "bus" for
+     the card that slid away). The veil EATS the touch (topmost hit, no
+     responder) instead of letting it fall through to the map. */
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
     /* useNativeDriver must stay false here: RN 0.86's createAnimatedPropsHook
        throws `undefined is not a function` inside its queueMicrotask detach /
        mixed native-graph path (reproduced live on the search sheet). A 60 px
        one-shot enter doesn't need the native driver anyway. */
     jank("enter.sheet");
-    Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: false }).start();
+    Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: false })
+      .start(() => setSettled(true));
   }, [anim]);
   return (
     <Animated.View
@@ -213,6 +220,7 @@ export function Sheet({
         )}
       </View>
       {children}
+      {!settled && <View style={us.enterVeil} pointerEvents="auto" />}
     </Animated.View>
   );
 }
@@ -345,6 +353,8 @@ const us = StyleSheet.create({
   grabberRow: { alignItems: "center", paddingTop: 8, paddingBottom: 15 },
   grabber: { width: 40, height: 5, borderRadius: 2.5, backgroundColor: V2T.out3 },
   sheetX: { position: "absolute", right: 14, top: 4, padding: 4 },
+  /* entry gate — invisible, swallows touches until the spring settles */
+  enterVeil: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
 
   /* rows in the sheet's 16px rhythm — inner frost tiles on the milk pane */
   modeRow: {

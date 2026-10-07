@@ -60,6 +60,7 @@ registerHooks({
           "  create() { if (!store.has(this.uri)) store.set(this.uri, ''); }" +
           "  text() { return Promise.resolve(store.get(this.uri) ?? ''); }" +
           "  write(s) { store.set(this.uri, String(s)); }" +
+          "  delete() { store.delete(this.uri); }" +
           "}",
       };
     }

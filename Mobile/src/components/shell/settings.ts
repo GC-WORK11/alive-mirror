@@ -5,6 +5,7 @@
 import { File, Paths } from "expo-file-system";
 import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
+import { resetDaylogCache } from "../../store/daylog";
 import { clearConsent } from "../../store/consent";
 import { clearWelcomeSeen } from "../../store/welcome";
 import { clearVehicle } from "../../store/vehicle";
@@ -103,6 +104,7 @@ export function clearAllData(): void {
   mem = null;
   inflight = null;
   resetLedgerCache();
+  resetDaylogCache(); // daylog.json mirror — without it the mounted home keeps wiped totals
   clearConsent();   // re-arms the onboarding gate on next launch
   clearWelcomeSeen(); // welcome_seen_v1 — the first-breath moment re-arms too
   clearVehicle();   // vehicle.json — the S8 profile

@@ -1058,8 +1058,13 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
       </Text>
       {counted ? (
         <View style={ss.heroNumRow}>
+          {/* spec size, not auto-fit: on iOS adjustsFontSizeToFit
+              measures against NotoDevanagari's taller glyph box and
+              collapses the Hindi hero to the 0.55 floor (~62pt vs the
+              112pt spec). numberOfLines=1 alone keeps the anti-wrap the
+              prop was added for; a 4-digit dose still fits the row. */}
           <CountUp value={ug} duration={900}
-            numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
+            numberOfLines={1}
             style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: ink }]}
             format={(n) => `${doseUgRound(n)}`} />
           <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
