@@ -1199,3 +1199,26 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
 - Board: route-segments fc54326b (re-scoped), wipe-verify 3b1586e9,
   android-drive 53a85a60 (Lane C oct7 plan on shipped APK),
   repo-hygiene slept. Slot held for incoming findings.
+
+## cont.62 — 2026-10-08 ~00:20 UTC (base/v2 @ 0c9ba5a)
+
+- **R9 unit-bug FIXED `0c9ba5a`**: `useShellFlow.remind` read
+  `ug_saved_vs_now` as µg and re-derived a percent off it — wire serves
+  percent already (server `pct_less_vs_now` honest key + ug_* alias same
+  value, main.py:1027-1031) → scheduled "breathe X% less" copy overstated
+  ~2.5× (13% true → ~32% shown). Now takes served percent verbatim
+  (clamped ≥0); `pct_less_vs_now` carried through DepartCurve mapper +
+  Depart type. tsc/lint/76-store-tests clean.
+- **Sim live-nav verified end-to-end on HEAD**: painted per-segment
+  gradient, staggered alt-routes, camera-follow on moved fixes, live
+  dose counters (≈0.3µg / ≈0.3kg), remaining-distance ticking
+  (35.4→29.9km), receipt "Trip ended" with honest zeros + "kept on this
+  phone only", Done → idle (no phantom re-plan — c84b5c2 confirmed).
+- **Suite at HEAD running** for deploy batch: server-side `58632f3`
+  (reroute segments parity + dose-coverage cap) + Mobile `790d4e6`
+  (NSURLCache purge) + rehearsal doc + R9 fix.
+- **Board**: me + android-drive 53a85a60 (Lane C oct7-plan on shipped
+  APK — wipe completeness incl. OkHttp http-cache, alerts toggles,
+  daysum parity, BandScale, 10+ Where-to taps kill-count=0).
+- **Owner calls still open**: TLS domain+ACM / honest card; EventBridge
+  enable / in-app+doc.
