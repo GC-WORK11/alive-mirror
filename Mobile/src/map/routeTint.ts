@@ -48,7 +48,7 @@
  *
  * COLOUR SCALE — the CPCB band ramp ONLY (design law: colour means air).
  *  theme.bandIdx/bandColor carry the six official bands
- *  (#6E93AE good → #62392C severe); a span's served `band` name wins over
+ *  (#6E93AE good → #6E2D28 severe); a span's served `band` name wins over
  *  re-binning its pm25 (server truth, one scale). Absence of a read paints
  *  MAP_QUIET — quiet = absence of colour, never a fabricated band.
  * ──────────────────────────────────────────────────────────────────────────

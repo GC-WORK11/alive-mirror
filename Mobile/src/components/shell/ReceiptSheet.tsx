@@ -13,7 +13,7 @@
  *   ─────────────────────────────────────────────────────────────
  *   ≈ 1.4 kg          6.2 km          31 min
  *   put out           distance        time
- *   est. — for vehicles like yours · 1.1–1.6 kg
+ *   estimated for this kind of ride · 1.1–1.6 kg
  *   incl. 0.02–0.04 g of fine particles
  *   metro would have put out ≈ 0.3 kg
  *   ─────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@
  *   How we got this                    save
  *
  * Copy rules honoured: cigarette equivalence only via "≈ N cigarettes"
- * (claims ledger), emissions labelled "est. — for vehicles like yours",
+ * (claims ledger), emissions labelled "estimated for this kind of ride",
  * bands kept {lo,mid,hi} internally and shown where they're honest
  * (dose µg range + fine-particle g range), field age always visible,
  * donation line says what actually happened. No bare numbers: every
@@ -213,6 +213,10 @@ function ReceiptSheetInner({
   const mins = Math.max(1, Math.round(data.durationMin));
   const co2 = data.co2Kg;
   const co2Zero = co2 != null && co2.hi <= 0;
+  /* the never-started trip: ended before it travelled ~100 m. The full
+     receipt would read "Trip ended." over a grid of zeros — dead crap.
+     One honest line instead; share/save stay off (nothing happened). */
+  const neverStarted = data.endedEarly === true && (data.distanceKm ?? 0) < 0.1;
   const breathedTxt = dose != null
     ? `${t("youBreathed", lang)} ${t("doseUg", lang, { n: approx(doseUgRound(dose.mid)) })}`
     : null;
@@ -239,9 +243,9 @@ function ReceiptSheetInner({
       {/* ── header: arrival + mode chip ── */}
       <View style={s.head}>
         <Text style={[s.title, { fontFamily: famSerif(lang, "semi") }]} {...DYNAMIC_TYPE}>
-          {t(data?.endedEarly ? "tripEnded" : "youreHere", lang)}
+          {t(neverStarted ? "receipt_notStarted" : data?.endedEarly ? "tripEnded" : "youreHere", lang)}
         </Text>
-        {data.modeLabel ? (
+        {data.modeLabel && !neverStarted ? (
           <View style={s.modeChip}>
             {data.mode ? (
               <Icon name={vehicleGlyph(data.mode)} color={V2T.text2} size={14} />
@@ -254,6 +258,12 @@ function ReceiptSheetInner({
         ) : null}
       </View>
 
+      {neverStarted ? (
+        <Text style={[s.sub, { fontFamily: fam(lang, "reg") }]} {...DYNAMIC_TYPE}>
+          {t("receipt_notStartedSub", lang)}
+        </Text>
+      ) : (
+      <>
       {/* ── hero: what you breathed ── */}
       <View style={s.eyebrowRow}>
         <Icon name="dust" color={V2T.breath1} size={15} />
@@ -381,6 +391,8 @@ function ReceiptSheetInner({
           )}
         </View>
       )}
+      </>
+      )}
 
       {/* ── provenance ── */}
       <View style={s.foot}>
@@ -409,7 +421,7 @@ function ReceiptSheetInner({
             </Text>
           </Pressable>
         </PressSpring>
-        {onShare ? (
+        {onShare && !neverStarted ? (
           <PressSpring>
             <Pressable onPress={onShare}
               style={s.share}
@@ -422,7 +434,7 @@ function ReceiptSheetInner({
           </PressSpring>
         ) : null}
       </View>
-      {(onHowWeGotThis || onSave) && (
+      {(onHowWeGotThis || onSave) && !neverStarted && (
         <View style={s.tertiaryRow}>
           {onHowWeGotThis ? (
             <PressSpring>

@@ -22,7 +22,7 @@ export type ShellSettings = {
   voice: boolean;          // turn-guidance voice (SEAM: TTS engine lands with nav lane)
   share: boolean;          // anonymous traversal donation — on by default (doc 02 §7)
   brief: boolean;          // daily cleanest-window notification
-  remind: boolean;         // master switch for "leave later, breathe less" pings (doc 02 §S4)
+  remind: boolean;         // master switch for clean-window pings (doc 02 §S4)
   /* air alerts — real-event pings out of store/events.ts: fires building,
      the band crossing upward, still air, severe days, clean windows.
      Master + three kinds; every ping traces to a served field. */

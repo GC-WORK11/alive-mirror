@@ -1,4 +1,4 @@
-"""Emissions inference engine — "vehicles like yours" bands, never points.
+"""Emissions inference engine — vehicle-class bands, never points.
 
 Chain (docs/plan/06 §2):
     declared {class, fuel, year_bucket}
@@ -393,15 +393,15 @@ def _merge_band(vclass, fuel, dom, opts, prior):
 def _label(vclass, fuel, year, dom, opts):
     cname = _CLASS_NAME[vclass]
     if fuel == "electric":
-        return (f"estimated for vehicles like yours (electric {cname}, "
-                f"incl. grid electricity)")
+        return (f"estimated for an electric {cname} "
+                f"(incl. grid electricity)")
     bs_txt = _BS_NAME[dom] if len(opts) == 1 else \
         "–".join((_BS_NAME[opts[0]], _BS_NAME[opts[-1]]))
     if year == "not_sure":
-        return (f"estimated for vehicles like yours "
-                f"({_FUEL_NAME[fuel]} {cname}, Delhi fleet mix — {bs_txt})")
-    return (f"estimated for vehicles like yours "
-            f"({_YEAR_NAME[year]} {_FUEL_NAME[fuel]} {cname}, {bs_txt})")
+        return (f"estimated for a {_FUEL_NAME[fuel]} {cname} "
+                f"(Delhi fleet mix — {bs_txt})")
+    return (f"estimated for a {_YEAR_NAME[year]} {_FUEL_NAME[fuel]} {cname} "
+            f"({bs_txt})")
 
 
 def _band(lo, mid, hi, nd=4):

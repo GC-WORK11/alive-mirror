@@ -255,7 +255,7 @@ def test_ev_tailpipe_zero_but_grid_co2():
 
 def test_label_shape():
     r = emissions.integrate(CAR_BS4, [span(5.0)], cold_km_done=WARM)
-    assert r["label"].startswith("estimated for vehicles like yours")
+    assert r["label"].startswith("estimated for a ")
     assert "petrol car" in r["label"] and "BS-IV" in r["label"]
 
 

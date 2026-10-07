@@ -31,7 +31,7 @@ import {
   type Fuel, type PucInfo, type VehicleClass, type VehicleProfile, type YearBand,
 } from "../store/vehicle";
 
-type Step = "cls" | "fuel" | "year" | "puc" | "done";
+type Step = "intro" | "cls" | "fuel" | "year" | "puc" | "done";
 
 /* ── i18n ────────────────────────────────────────────────────────────────
  * The caption/group strings live in src/i18n/strings.ts as the veh_*
@@ -163,7 +163,10 @@ function Wizard({ lang, current, onDone, onClose }: {
   onDone: (p: VehicleProfile) => void;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState<Step>("cls");
+  /* before-state: a first open (nothing saved) lands on one honest intro
+     — what this is, that it stays on the phone — before any question.
+     Editing a saved profile drops straight into the picker. */
+  const [step, setStep] = useState<Step>(current ? "cls" : "intro");
   const [cls, setCls] = useState<VehicleClass | null>(current?.cls ?? null);
   const [fuel, setFuel] = useState<Fuel | null>(current?.fuel ?? null);
   const [year, setYear] = useState<YearBand | null>(current?.year ?? null);
@@ -240,7 +243,8 @@ function Wizard({ lang, current, onDone, onClose }: {
     ? 1 + (needsFuel(cls) ? 1 : 0) + (needsYear(cls) ? 1 : 0)
       + (pucEligible(cls, fuel) ? 1 : 0)
     : 0;
-  const stepIdx = step === "cls" ? 0
+  const stepIdx = step === "intro" ? -1
+    : step === "cls" ? 0
     : step === "fuel" ? 1
     : step === "year" ? totalQ - (pucEligible(cls, fuel) ? 2 : 1)
     : totalQ - 1;   // puc / done — the last dot
@@ -261,6 +265,36 @@ function Wizard({ lang, current, onDone, onClose }: {
             </Text>
           ) : null}
         </View>
+      ) : step === "intro" ? (
+        <>
+          <View style={s.introWrap}>
+            <Text {...DYNAMIC_TYPE} style={[s.q, { fontFamily: fam(lang, "semi") }]}>
+              {t("veh_introTitle", lang)}
+            </Text>
+            <Text {...DYNAMIC_TYPE} style={[s.why, { fontFamily: fam(lang, "reg") }]}>
+              {t("veh_introBody", lang)}
+            </Text>
+            <Text {...DYNAMIC_TYPE} style={[s.introHonest, { fontFamily: fam(lang, "reg") }]}>
+              {t("veh_introHonest", lang)}
+            </Text>
+            <Pressable onPress={() => setStep("cls")} accessibilityRole="button"
+              style={({ pressed }) => [s.startBtn, pressed && { opacity: 0.75 }]}>
+              <Text {...DYNAMIC_TYPE} style={[s.startTxt, { fontFamily: fam(lang, "semi") }]}>
+                {t("veh_start", lang)}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={s.foot}>
+            <View />
+            <View style={s.footRight}>
+              {/* never forced — dismissing keeps the Delhi fleet prior */}
+              <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button"
+                accessibilityLabel={t("vehicleQ_skip", lang)} style={s.footBtn}>
+                <Text {...DYNAMIC_TYPE} style={[s.footTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleQ_skip", lang)}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </>
       ) : (
         <>
           <View style={s.headRow}>
@@ -522,6 +556,17 @@ const s = StyleSheet.create({
   footRight: { flexDirection: "row", alignItems: "center", gap: 16 },
   footTxt: { fontSize: V2Type.label, color: V2T.text3 },
   footTxtAccent: { fontSize: V2Type.secondary, color: V2T.accentInk },
+  /* intro step — the before-state: framing lines + one accent CTA */
+  introWrap: { paddingHorizontal: 20, paddingBottom: 8 },
+  introHonest: {
+    fontSize: V2Type.label, color: V2T.text3, marginTop: 10, lineHeight: 18,
+  },
+  startBtn: {
+    alignSelf: "flex-start", marginTop: 16, minHeight: 44,
+    backgroundColor: V2T.accent, borderRadius: V2Radius.card,
+    paddingHorizontal: 18, justifyContent: "center",
+  },
+  startTxt: { fontSize: V2Type.secondary, color: V2T.bg },   // light on the accent fill
   /* PUC certificate fields — label + numeric input + hint, one row each */
   fieldRow: { marginBottom: 12 },
   fieldLabel: { fontSize: V2Type.label, color: V2T.text2, marginBottom: 4, paddingHorizontal: 4 },

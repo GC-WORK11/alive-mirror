@@ -36,7 +36,7 @@ export type Emissions = {
   pm25_g?: Band | null;
   nox_g?: Band | null;
   breakdown?: EmissionsBreakdown;
-  label?: string | null;         // "estimated for vehicles like yours (…)"
+  label?: string | null;         // "estimated for a 2010–2016 petrol car (…)"
   basis?: string | null;
   occupancy?: number | null;     // per-passenger divisor on shared modes
   bs_class?: string | null;

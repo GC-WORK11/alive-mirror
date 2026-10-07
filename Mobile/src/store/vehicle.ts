@@ -181,7 +181,7 @@ export function className(c: string, lang: Lang = "en"): string {
 
 /** Chip / sidebar label: "2010–2016 petrol car"; partial answers shrink
  *  gracefully ("petrol car", "car"); nothing answered → the caller shows
- *  `t("vehicle_likeYours")` ("vehicles like yours") instead. */
+ *  `t("vehicle_likeYours")` ("a typical Delhi ride") instead. */
 export function vehicleLabel(p: VehicleProfile | null, lang: Lang = "en"): string {
   if (!p) return t("vehicle_likeYours", lang);
   const parts = [

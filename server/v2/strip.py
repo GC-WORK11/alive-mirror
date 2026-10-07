@@ -114,7 +114,7 @@ def _emission_curve(mode: str, vehicle: dict = None) -> dict:
             out["label"] = ef.get("label")
             out["basis"] = ("server/emissions.py — est., "
                             + (ef.get("label") or
-                               "vehicles like yours; band = class spread "
+                               "the vehicle class; band = class spread "
                                "x speed-curve uncertainty"))
             out["engine"] = "server/emissions.py"
             return out

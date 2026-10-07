@@ -49,22 +49,22 @@ export const V2T = {
   // Colour means data: these six are the ONLY hues used for pollution
   // values. Order is the scale — index by CPCB pm2.5 band breaks.
   band0: "#6E93AE", // good          ≤30 µg/m³
-  band1: "#B9A46C", // satisfactory  ≤60
+  band1: "#C7A34F", // satisfactory  ≤60 — muted gold, not olive
   band2: "#CF8A50", // moderate      ≤90
-  band3: "#BE6440", // poor          ≤120
-  band4: "#974532", // very poor     ≤250
-  band5: "#62392C", // severe        >250
+  band3: "#C05F3A", // poor          ≤120 — ember, not rust-brown
+  band4: "#A83D30", // very poor     ≤250 — brick red, not brown
+  band5: "#6E2D28", // severe        >250 — deep maroon, not stool-brown
 
   // smoke you breathe — indexed onto the band ramp so a dose number and
   // a field cell of the same concentration read the same colour.
   breath1: "#CF8A50", // moderate
-  breath2: "#BE6440", // poor
-  breath3: "#974532", // very poor→severe hue
+  breath2: "#C05F3A", // poor
+  breath3: "#A83D30", // very poor→severe hue
   // smoke your ride puts out — neutral greys
   out1: "#4A4E57",
   out2: "#8A8D94",
   out3: "#A6ACB8",
-  pinDest: "#BE6440", // band 'poor' hue — reads on paper + light map
+  pinDest: "#C05F3A", // band 'poor' hue — reads on paper + light map
 
   // map tokens mirror the light basemap (v2-light.json)
   mapMotorway: "#F0B85A",

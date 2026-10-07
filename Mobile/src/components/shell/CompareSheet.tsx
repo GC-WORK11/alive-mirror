@@ -25,13 +25,13 @@
  * SEAM(compare): the screens lane may replace this with src/screens S4. */
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { NUM, V2Elev, V2Radius, V2T, V2Type, doseColor, fam, famMono, famMonoText } from "../../theme";
+import { NUM, V2Elev, V2Radius, V2T, V2Type, bandColor, doseColor, fam, famMono, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { CountUp, Sheet } from "../../ui";
 import { PressSpring } from "../PressSpring";
 import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
-import { DepartGraph } from "../DepartGraph";
+
 import { departSavedPct, type DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
 import { confirm, tap, tick } from "../../haptics";
@@ -147,41 +147,104 @@ const bandTxt = (b: Band | null | undefined, unit: string) =>
 
 /** in-bar ramp: warm, brighter = heavier dose (absence of colour = light) */
 const inTone = (f: number) => (f > 0.66 ? V2T.breath3 : f > 0.33 ? V2T.breath2 : V2T.breath1);
-/** out-bar ramp: cool greys, lighter grey = heavier exhaust */
-const outTone = (f: number) => (f > 0.66 ? V2T.out1 : f > 0.33 ? V2T.out2 : V2T.out3);
 
-/** One micro-track: fill = this option vs the trip's worst on that axis.
- *  A dimmed empty groove means "no data", distinct from "zero". */
-function Track({ frac, tone }: { frac: number | null; tone: "in" | "out" }) {
+/** One micro-track: fill = this option vs the trip's worst. A dimmed
+ *  empty groove means "no data", distinct from "zero". */
+function Track({ frac }: { frac: number | null }) {
   if (frac == null) return <View style={[s.track, s.trackNA]} />;
   const f = Math.max(0, Math.min(1, frac));
   return (
     <View style={s.track}>
-      <View style={[s.trackFill, { flex: f, backgroundColor: tone === "in" ? inTone(f) : outTone(f) }]} />
+      <View style={[s.trackFill, { flex: f, backgroundColor: inTone(f) }]} />
       <View style={{ flex: Math.max(0, 1 - f) }} />
     </View>
   );
 }
 
-/** The pair of bars on every card — breathe-in (dust/cigarette glyph) over
- *  the dose band, exhaust (plume) over CO2, both relative to the worst
- *  option. The cigarette equivalence lives in the detail block below —
- *  never as a primary glyph on the bars. */
-function PairBars({ o, worstIn, worstOut, lang }: {
-  o: V2Option; worstIn: number; worstOut: number; lang: Lang;
+/** The one bar per card — smoke inhaled vs the trip's worst option. The
+ *  two-track in/out pair read as "complex graphs nobody understands"
+ *  (owner); one track + the felt gap line carries the comparison, and
+ *  the exhaust numbers stay honest inside "how we got this". */
+function DoseBar({ o, worstIn, lang }: {
+  o: V2Option; worstIn: number; lang: Lang;
 }) {
   const inFrac = o.dose?.mid != null && worstIn > 0 ? o.dose.mid / worstIn : null;
-  const outFrac = o.emissions?.co2_kg?.mid != null && worstOut > 0 ? o.emissions.co2_kg.mid / worstOut : null;
   return (
     <View style={s.bars}>
       <View style={s.barGroup} accessible accessibilityLabel={t("compare_smokeIn", lang)}>
         <Icon name="dust" color={V2T.text3} size={11} />
-        <Track frac={inFrac} tone="in" />
+        <Track frac={inFrac} />
       </View>
-      <View style={s.barGroup} accessible accessibilityLabel={t("compare_smokeOut", lang)}>
-        <Icon name="smoke" color={V2T.text3} size={11} />
-        <Track frac={outFrac} tone="out" />
+    </View>
+  );
+}
+
+/** short mode word for the felt comparison line — "metro", "auto",
+ *  "on foot". Falls back to the full label for unfamiliar modes. */
+const MODE_WORD: Record<string, StringKey> = {
+  car: "vehicle_car", car_open: "vehicle_car", bike: "vehicle_bike",
+  auto: "vehicle_auto", bus: "vehicle_bus", metro: "vehicle_metro",
+  "metro+walk": "vehicle_metro", cycle: "vehicle_cycle", walk: "vehicle_walk",
+};
+const modeWord = (o: V2Option, lang: Lang): string => {
+  const k = MODE_WORD[o.mode];
+  return k ? t(k, lang) : modeLabel(o.mode, o.label, lang);
+};
+
+/** The day ribbon — replaces the candlestick depart graph: one flat cell
+ *  per hour tinted by that hour's own field band (band colors = data,
+ *  design law), the lightest hour under-bracketed in accent. One glance —
+ *  no axis, no bars to decode. Colours are the served values, never a
+ *  forecast-invented hue; a slot with no reading paints a neutral cell.
+ *  The caption quotes the lightest hour's real dose. */
+function DayStrip({ data, bestHour, lang }: {
+  data: DepartCurve["slots"]; bestHour: number; lang: Lang;
+}) {
+  const rows = data
+    .filter((d) => Number.isFinite(d.dose_mid))
+    .slice()
+    .sort((a, b) => a.hour - b.hour);
+  if (!rows.length) return null;
+  const last = rows[rows.length - 1];
+  const best = rows.find((d) => d.hour === bestHour) ?? null;
+  return (
+    <View
+      accessible
+      accessibilityLabel={
+        t("depart_airByHour", lang)
+        + (best ? `. ${t("depart_bestLine", lang, {
+            time: hourLabel(best.start, best.hour, lang), n: Math.round(best.dose_mid),
+          })}` : "")
+      }>
+      <Text {...DYNAMIC_TYPE} style={[s.stripCap, { fontFamily: fam(lang, "reg") }]}>
+        {t("depart_airByHour", lang)}
+      </Text>
+      <View style={s.strip} importantForAccessibility="no-hide-descendants">
+        {rows.map((d) => (
+          <View key={d.hour} style={s.stripCell}>
+            <View style={[s.stripFill, {
+              backgroundColor: bandColor(d.avg_conc_ugm3 ?? d.dose_mid) ?? V2T.surface3,
+            }]} />
+            <View style={[s.stripTick, d.hour === bestHour ? s.stripTickOn : null]} />
+          </View>
+        ))}
       </View>
+      <View style={s.stripAxis} importantForAccessibility="no-hide-descendants">
+        <Text {...DYNAMIC_TYPE} style={[s.stripAxisTxt, { fontFamily: fam(lang, "reg") }]}>
+          {t("departNow", lang)}
+        </Text>
+        <Text {...DYNAMIC_TYPE} style={[s.stripAxisTxt, { fontFamily: famMonoText(lang, "reg") }]}>
+          {`+${last.hour}h`}
+        </Text>
+      </View>
+      {best ? (
+        <Text {...DYNAMIC_TYPE} style={[s.stripBestTxt, { fontFamily: fam(lang, "reg") }]}
+          numberOfLines={1}>
+          {t("depart_bestLine", lang, {
+            time: hourLabel(best.start, best.hour, lang), n: Math.round(best.dose_mid),
+          })}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -238,7 +301,7 @@ const basisTxt = (b: string | null | undefined, lang: Lang): string | null => {
   return b;
 };
 
-/** The "estimated for vehicles like yours (…)" provenance line — the
+/** The "estimated for a {year fuel class} (…)" provenance line — the
  *  server composes it in English; we rebuild it in the user's language
  *  from the structured fields it also ships (fuel, class, bs range,
  *  occupancy, puc), with the same grammar as _label(). English keeps
@@ -324,11 +387,13 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
 
 /** One ranked option — solid card. Tap selects; the ⓘ beside the bars
  *  (or a long-press anywhere on the card) opens the details panel. */
-function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, open,
+function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours, open,
   fieldAgeS, showCig, safest, veh, lang, onSelect, onToggleDetail }: {
-  o: V2Option; i: number; selected: boolean; worstIn: number; worstOut: number;
-  /** the lightest dose in the set — the gap line is computed against it */
-  minDose: number;
+  o: V2Option; i: number; selected: boolean; worstIn: number;
+  /** the lightest dose in the set — the gap line is computed against it,
+      and lightestWord names that option ("metro") so the gap reads like
+      a sentence instead of a chip of numbers */
+  minDose: number; lightestWord: string;
   showYours: boolean; open: boolean; fieldAgeS?: number | null;
   showCig: boolean; safest: boolean; veh: VehicleProfile | null; lang: Lang;
   onSelect: (i: number) => void; onToggleDetail: (i: number) => void;
@@ -355,11 +420,19 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
     ? `${d.lo != null ? Math.round(d.lo) : "?"}–${d.hi != null ? Math.round(d.hi) : "?"}`
     : null;
   const doseCol = d?.avg_conc_ugm3 != null ? doseColor(d.avg_conc_ugm3) : V2T.text;
-  /* the dose-gap line — the sheet's emotional payload. "+6 vs lightest"
-     is the number that makes a person pick the metro. µg-gap against the
-     set's minimum; invisible on the lightest card itself. */
+  /* the felt gap line — the sheet's emotional payload. "~2.4× more
+     inhaled than metro" is the number that makes a person pick the
+     metro; below 2× the honest µg gap reads better ("+14 µg more than
+     metro"). Invisible on the lightest card itself. */
   const doseGap = d?.mid != null && minDose < Infinity && d.mid - minDose >= 0.5
     ? Math.round(d.mid - minDose) : null;
+  const felt = doseGap != null && d?.mid != null
+    ? (minDose > 0 && d.mid / minDose >= 2
+        ? t("compare_feltMore", lang, {
+            x: (d.mid / minDose).toFixed(1).replace(/\.0$/, ""), m: lightestWord,
+          })
+        : t("compare_moreVs", lang, { n: doseGap, m: lightestWord }))
+    : null;
   const meta = `${o.distance_km ?? "?"} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: arrivalLabel(o.duration_min) })}`
     + `${o.stations ? ` · ${o.stations.board}→${o.stations.alight}` : ""}`;
   const tag = o.tag ? (TAG_KEY[o.tag.toLowerCase()] ? t(TAG_KEY[o.tag.toLowerCase()], lang) : o.tag) : null;
@@ -410,6 +483,10 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
           </View>
           <Text {...DYNAMIC_TYPE} style={[s.optMeta, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{meta}</Text>
+          {felt ? (
+            <Text {...DYNAMIC_TYPE} style={[s.optFelt, { fontFamily: fam(lang, "med") }]}
+              numberOfLines={2}>{felt}</Text>
+          ) : null}
           {o.reason_line ? (
             /* Devanagari runs longer per sentence — 3 lines keeps the
                benefit line whole instead of truncating "—…" (audit #5) */
@@ -439,15 +516,6 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
               <Text {...DYNAMIC_TYPE} style={[s.optDoseSub, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
                 <Text {...DYNAMIC_TYPE} style={s.optDoseUnit}>µg</Text>
                 {band ? ` ${band}` : ""}
-                {doseGap != null ? (
-                  <Text {...DYNAMIC_TYPE} style={[s.optGap, { fontFamily: fam(lang, "med") }]}>
-                    {"  "}{t("compare_vsLightest", lang, { n: doseGap })}
-                    {/* the felt multiple — "2.4×" lands harder than "+82"
-                        when the gap is big; under 2× the µg reads truer */}
-                    {minDose > 0 && d?.mid != null && d.mid / minDose >= 2
-                      ? ` · ${(d.mid / minDose).toFixed(1)}×` : ""}
-                  </Text>
-                ) : null}
               </Text>
             </>
           ) : (
@@ -457,7 +525,7 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
             {Math.round(o.duration_min)}<Text {...DYNAMIC_TYPE} style={s.optEtaUnit}> {t("minUnit", lang)}</Text>
           </Text>
           <View style={s.barsRow}>
-            <PairBars o={o} worstIn={worstIn} worstOut={worstOut} lang={lang} />
+            <DoseBar o={o} worstIn={worstIn} lang={lang} />
             <Pressable
               onPress={() => { tick(); onToggleDetail(i); }}
               hitSlop={16}
@@ -522,8 +590,7 @@ function CompareSheetInner({
   const veh = vehicle !== undefined ? vehicle : vehSelf;
 
   const worstIn = Math.max(...options.map((o) => o.dose?.mid ?? 0), 0);
-  const worstOut = Math.max(...options.map((o) => o.emissions?.co2_kg?.mid ?? 0), 0);
-  const anyBars = worstIn > 0 || worstOut > 0;
+  const anyBars = worstIn > 0;
   const toggleDetail = (i: number) => setDetailIdx((cur) => (cur === i ? null : i));
 
   /* The "least smoky" headline: an explicit server `safest_path` flag
@@ -531,6 +598,9 @@ function CompareSheetInner({
    * lowest dose carries it — the least-inhalation path is always obvious. */
   const flaggedSafest = options.some((o) => o.safest_path === true);
   const minDose = Math.min(...options.map((o) => o.dose?.mid ?? Infinity));
+  const lightestOpt = minDose < Infinity
+    ? (options.find((o) => o.dose?.mid != null && o.dose.mid === minDose) ?? null)
+    : null;
   const isSafest = (o: V2Option) =>
     o.safest_path === true ||
     (!flaggedSafest && o.dose?.mid != null && o.dose.mid === minDose && minDose < Infinity);
@@ -656,11 +726,8 @@ function CompareSheetInner({
               )}
               {departCurve?.slots?.length ? (
                 <View style={{ marginTop: 10, marginBottom: 4 }}>
-                  {/* a tapped column brightens + the caption quotes that
-                      slot's dose — real reading, not decoration */}
-                  <DepartGraph data={departCurve.slots}
-                    bestHour={departCurve.best?.hour ?? 0} lang={lang}
-                    onSelectHour={() => tick()} />
+                  <DayStrip data={departCurve.slots}
+                    bestHour={departCurve.best?.hour ?? 0} lang={lang} />
                 </View>
               ) : null}
               {anyBars && (
@@ -669,10 +736,6 @@ function CompareSheetInner({
                     <Icon name="dust" color={V2T.text3} size={11} />
                     <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeIn", lang)}</Text>
                   </View>
-                  <View style={s.legendItem}>
-                    <Icon name="smoke" color={V2T.text3} size={11} />
-                    <Text {...DYNAMIC_TYPE} style={[s.legendTxt, { fontFamily: fam(lang, "reg") }]}>{t("compare_smokeOut", lang)}</Text>
-                  </View>
                 </View>
               )}
               {options.map((o, i) => (
@@ -680,8 +743,9 @@ function CompareSheetInner({
                   key={`${o.mode}-${i}`}
                   o={o} i={i}
                   selected={i === selected}
-                  worstIn={worstIn} worstOut={worstOut}
+                  worstIn={worstIn}
                   minDose={minDose}
+                  lightestWord={lightestOpt ? modeWord(lightestOpt, lang) : ""}
                   showYours={!!o.your_vehicle && veh != null}
                   open={detailIdx === i}
                   fieldAgeS={fieldAgeS}
@@ -870,6 +934,20 @@ const s = StyleSheet.create({
   optDoseUnit: { fontSize: V2Type.micro, color: V2T.text3 },
   optDoseNA: { color: V2T.text3 },
   optGap: { fontSize: V2Type.label, color: V2T.breath2 },
+  optFelt: { fontSize: V2Type.label, color: V2T.breath2, marginTop: 2 },
+  /* day strip — flat band-tinted cells, the lightest hour under-bracketed */
+  stripWrap: { marginTop: 2 },
+  stripCap: { fontSize: V2Type.label, color: V2T.text3, marginBottom: 6 },
+  strip: { flexDirection: "row", gap: 1.5 },
+  stripCell: { flex: 1 },
+  stripFill: { height: 10, borderRadius: 2 },
+  stripTick: { height: 2.5, borderRadius: 1.5, marginTop: 2, backgroundColor: "transparent" },
+  stripTickOn: { backgroundColor: V2T.accent },
+  stripAxis: {
+    flexDirection: "row", justifyContent: "space-between", marginTop: 5,
+  },
+  stripAxisTxt: { fontSize: V2Type.micro, color: V2T.text3 },
+  stripBestTxt: { fontSize: V2Type.label, color: V2T.accentInk, marginTop: 6 },
   barsRow: { flexDirection: "row", alignItems: "center", marginTop: 6, gap: 10 },
   bars: { flexDirection: "row", alignItems: "center", gap: 8 },
   barGroup: { flexDirection: "row", alignItems: "center", gap: 4 },
