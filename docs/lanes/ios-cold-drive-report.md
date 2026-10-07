@@ -69,7 +69,7 @@ Rebuilt Release (368c155 + cached native), re-drove every fixed surface on the s
 
 ### NEW finding escalated — search-sheet SIGSEGV is now ~deterministic on touch input
 
-**Severity: high on this environment / demo-risk.** The documented MapLibre render-churn crash class (launchd `exited due to SIGSEGV, sent by exc handler`, no .ips) went from ~12% historical rate to **8 consecutive kills on the "Where to?" → search-sheet mount via touch taps** — across both sims (iPhone 17 + a clean-install iPhone 17 Pro), cold AND 4-min-warm instances, and BOTH JS bundles (verified by reverting Mobile to 6c52cd4 and crashing identically → **368c155 exonerated**; the diff is label-level and cannot SEGV natively anyway).
+**Severity: high on this environment / demo-risk.** The documented MapLibre render-churn crash class (launchd `exited due to SIGSEGV, sent by exc handler`, no .ips) went from ~12% historical rate to **8 consecutive kills on the "Where to?" → search-sheet mount via touch taps** — across both sims (iPhone 17 + a clean-install iPhone 17 Pro), cold AND 4-min-warm instances, on the same embedded Release bundle.
 
 Notably: **a11y-dispatch presses mounted the same sheet 4/4 times without crashing** (including on a ~3-min-old instance) — the crash correlates with the touch-driven mount path (tap → keyboard+sheet anim + map re-render), not the mount itself. Air-map mount, drawer, Delhi today, nav, receipt all fine on touch.
 
@@ -77,6 +77,33 @@ Read for demo day: this is a host/sim render-pipeline issue (native SEGV can't b
 
 Also observed once: unexplained exit-to-SpringBoard with no crash line in the log (mid-tap, 20:21) — recorded as anomaly, once.
 
+**Correction (addendum-2):** an earlier line here claimed the crash was verified "on BOTH JS bundles" — that read was confounded: this lane's app is a **Release build with the JS embedded in the .app**, so `simctl launch` relaunches and `git checkout` worktree reverts do NOT change the JS under test (Metro is only consulted on the `expo run:ios`-initiated dev-client deep link, and even then the embedded bundle wins — proven when the a11y tree showed pre-ced7672 strings on a post-pull instance). All bundle-A/B claims above were actually same-bundle; the honest pre/post A/B below uses two real Release builds.
+
 ### Verdict after fix wave
 
 All six targeted fixes verified live (one PARTIAL — residual "1 trips" line). The fix commit introduced no regressions; the search-mount SIGSEGV is environmental but currently ~100% on touch input and should be treated as the top demo-day risk to re-check on hardware.
+
+---
+
+## Addendum-2 — ced7672: "1 trip" residual + onPressIn draw-hold A/B (21:00–21:15)
+
+### "1 trips" residual → **FIXED**
+
+On the ced7672 build the community line renders "**1 यात्रा हल्के रास्ते पर**" — grammatical nominative for n=1 (en: "1 trip took a lighter way"). Evidence: `21_1yatra_fixed.png`. Fix-2 now fully PASS.
+
+### Crash-hammer protocol (touch-tap mounts of "Where to?" sheet)
+
+Correction applied: a fresh **Release build embedding ced7672** was installed on both sims (the earlier hammer ran the embedded 368c155 bundle — its numbers are discarded from the A/B and kept only as environment-drift evidence).
+
+| Build | iPhone 17 (EDD9) | iPhone 17 Pro | Total |
+|---|---|---|---|
+| 368c155 embedded (pre-hold) | 0/5 mounts survived | 0/3 survived | **0/8 — every touch-tap mount killed**, incl. 4-min-warm instances |
+| ced7672 embedded (onPressIn hold) | 11/13 survived — kills only on cold-boot first mounts (4/6 cold, 7/7 warm) | 5/7 survived — 1 cold kill + 1 warm kill | **16/20 (80%)** |
+
+**Read:** the onPressIn hold is a **real improvement on this host** — the tap's gesture work now runs inside the throttled window and the mount survived 16/20 vs 0/8 before. But it is **not a complete fix**: the residual kill window is the **cold-boot first mount** (~37% lethal: 5/8 cold survived) with rare warm kills (Pro lost one warm instance). The race narrows but doesn't close on this sim stack.
+
+**Demo-day guidance unchanged + hardened:** the crash is a native render-pipeline SEGV (host-side; a11y-dispatch path mounts cleanly, touch-path races), substantially mitigated but NOT eliminated by the hold. Cold-boot + first tap remains the risky gesture — **verify on hardware before stage**; on sim demos, pre-warm the app (~30s up, one sheet open+close) before the first CTA tap.
+
+### Interim theory check
+
+The press-In-hold hypothesis is partially confirmed: holding draws from touch-DOWN removes most of the race. The remaining cold-boot kills suggest the mount commit also races **JS-bundle/JSI warmup + first Metal pipeline compile**, which the hold can't cover — consistent with every residual kill landing on an instance younger than ~15s.
