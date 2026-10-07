@@ -89,7 +89,7 @@ function ModeRow({ row, lang }: { row: CityMovesModeRow; lang: Lang }) {
         {fmtPct(row.share)}
       </Text>
       <Text {...DYNAMIC_TYPE} style={[ss.mTrips, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
-        {t("cityTrips", lang, { n: row.trips })}
+        {t("cityTrips", lang, { n: row.trips, tripNoun: t(row.trips === 1 ? "tripNounOne" : "tripNounMany", lang) })}
       </Text>
     </View>
   );
@@ -161,7 +161,7 @@ export function CityMoves({
       <Text {...DYNAMIC_TYPE} style={[ss.sub, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
         {windowDays === 7 ? t("ledgerLast7", lang) : t("movesWindowDays", lang, { d: windowDays })}
         {"  ·  "}
-        {t("cityTrips", lang, { n: data.n_trips })}
+        {t("cityTrips", lang, { n: data.n_trips, tripNoun: t(data.n_trips === 1 ? "tripNounOne" : "tripNounMany", lang) })}
       </Text>
 
       {data.insufficient_data ? (

@@ -131,7 +131,7 @@ function CorridorRow({ c, first, lang }: { c: CityCorridor; first: boolean; lang
           {c.name ? streetName(c.name) : t("cityUnnamed", lang)}
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.cSub, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
-          {t("cityTrips", lang, { n: c.trips })}
+          {t("cityTrips", lang, { n: c.trips, tripNoun: t(c.trips === 1 ? "tripNounOne" : "tripNounMany", lang) })}
         </Text>
       </View>
       {/* heavier carries breath-ramp colour; lighter stays grey —

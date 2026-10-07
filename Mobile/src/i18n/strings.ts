@@ -232,7 +232,7 @@ const en = {
   cityEmptyStreets: "nothing to show yet — a street appears after 3+ travellers cross it in 3 days",
   cityHeavier: "heavier",
   cityLighter: "lighter",
-  cityTrips: "{n} trips",
+  cityTrips: "{n} {tripNoun}",
   /* "why tonight" — /v2/why composes the hero line in English; hi
      rebuilds it from drivers[].kind + wind.from_deg, mirroring
      server/v2/why.py:_line (top-2 drivers joined " + "-style) */
@@ -1129,7 +1129,7 @@ const hi: Record<StringKey, string> = {
   cityEmptyStreets: "अभी दिखाने को कुछ नहीं — 3+ यात्रियों के 3 दिन में गुज़रने पर सड़क दिखती है",
   cityHeavier: "ज़्यादा धुआँ",
   cityLighter: "कम धुआँ",
-  cityTrips: "{n} यात्राएँ",
+  cityTrips: "{n} {tripNoun}",
   /* "why tonight" — drivers[].kind से rebuild (server/v2/why.py:_line) */
   whyNoDriver: "स्थानीय धुआँ — कोई एक वजह सामने नहीं",
   whyBit_stubble: "पराली का धुआँ {dir} की हवा से बहता आ रहा है",
