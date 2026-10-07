@@ -377,11 +377,9 @@ class Gazetteer:
         self._tri: Optional[dict] = None
 
     # --- loading -------------------------------------------------------------
-    def _add_row(self, rows: list, idx, name: str, kind: str,
-                 lat, lon, pop: float, aliases: list) -> None:
-        norm = normalize(name)
-        if not norm or lat is None or lon is None:
-            return
+    def _match_tokens(self, norm: str, aliases: list) -> list:
+        """norm tokens + alias expansions — the bag the index posts on.
+        Built lazily per row inside _ensure_index (see _load note)."""
         match = norm.split()
         seen = set(match)
         for al in aliases or []:
@@ -397,16 +395,27 @@ class Gazetteer:
                     if a not in seen:
                         seen.add(a)
                         match.append(a)
-        rows.append({
+        return match
+
+    def _add_row(self, rows: list, idx, name: str, kind: str,
+                 lat, lon, pop: float, aliases: list) -> None:
+        norm = normalize(name)
+        if not norm or lat is None or lon is None:
+            return
+        row = {
             "idx": idx,
             "name": name,
             "norm": norm,
-            "display_tokens": norm.split(),
-            "match_tokens": match,
             "kind": kind or "place",
             "lat": float(lat), "lon": float(lon),
             "pop": _norm_popularity(float(pop or 0.0)),
-        })
+        }
+        # corpus aliases feed match_tokens only inside _ensure_index —
+        # keeping the raw list (~a few short strings per corpus row)
+        # is far cheaper than expanding every row eagerly.
+        if aliases:
+            row["_raw_aliases"] = list(aliases)
+        rows.append(row)
 
     def _load(self) -> list:
         if self._rows is not None:
@@ -465,17 +474,38 @@ class Gazetteer:
         rows = list(best.values())
 
         self._rows = rows
+        return self._rows
+
+    def _ensure_index(self) -> None:
+        """Materialize the search structures — postings/vocab/trigram
+        plus per-row match/display token bags.
+
+        Split out of _load() on purpose (lowram lane): the postings
+        side costs ~3× the slim rows in resident memory (~150 MB of
+        token lists over 120 k rows) and is only read by search()
+        — the last-resort T1 fallback that never fires when the C++ /
+        ref index is up. Naming readers (_name_rows, _gaz_nearest,
+        by_index, classify) only need the slim rows, so a prod task
+        never pays for an index it never queries. If search() is ever
+        hit, it builds the structures once and behaves exactly as
+        before."""
+        if self._postings is not None:
+            return
+        rows = self._load()
         postmap: dict = {}
         for i, r in enumerate(rows):
+            if "match_tokens" not in r:
+                r["match_tokens"] = self._match_tokens(
+                    r["norm"], r.get("_raw_aliases") or [])
             for t in set(r["match_tokens"]):
                 postmap.setdefault(t, []).append(i)
         self._vocab = sorted(postmap)
         self._postings = postmap
-        self._tri = {}
+        tri: dict = {}
         for vid, tok in enumerate(self._vocab):
             for key in _trigrams(tok):
-                self._tri.setdefault(key, []).append(vid)
-        return self._rows
+                tri.setdefault(key, []).append(vid)
+        self._tri = tri
 
     def count(self) -> int:
         return len(self._load())
@@ -489,6 +519,7 @@ class Gazetteer:
     # --- query ---------------------------------------------------------------
     def _candidates(self, groups: list) -> dict:
         """{row_i: {atom: quality}} — prefix scan + trigram-gated fuzzy."""
+        self._ensure_index()
         atom_best: dict = {}
         vocab = self._vocab
         seen_atoms: set = set()
@@ -540,6 +571,7 @@ class Gazetteer:
                lon: Optional[float] = None, limit: int = 8) -> list:
         rows = self._load()
         qn = normalize(q)
+        self._ensure_index()
         if not rows or not qn or limit <= 0:
             return []
         blat = lat if lat is not None else 28.6139
@@ -582,7 +614,7 @@ class Gazetteer:
                 continue
             G = len(groups)
             pq, cov = sum_q / G, matched / G
-            disp = r["display_tokens"]
+            disp = r["norm"].split()
             # display precision — prefix either direction (cheap: the
             # term only breaks score ties between same-coverage rows)
             prec = (sum(1 for t in disp
