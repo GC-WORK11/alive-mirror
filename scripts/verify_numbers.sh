@@ -133,8 +133,10 @@ nh = C.get("next_hours") or []
 nh_lo = min((h.get("pm25") for h in nh), default=None)
 nh_hi = max((h.get("pm25") for h in nh), default=None)
 # /health.sources.stations is the station-count live check: two accepted
-# states — 54 (24 WAQI + 30 DPCC) full, or 24 WAQI-only when DPCC pages go
-# stale >MAX_AGE_S and drop out (honest degrade, recovers on next feed).
+# states — 52–54 (24 WAQI + up-to-30 DPCC; instruments age out individually
+# under MAX_AGE_S so the full-feed count drifts down a few between feeds) or
+# 24 WAQI-only when DPCC pages go stale wholesale (honest degrade, recovers
+# on next feed).
 st = (H.get("sources") or {}).get("stations") or {}
 st_count, st_source = st.get("count"), st.get("source")
 st_feeds = st.get("feeds") or {}
@@ -169,9 +171,9 @@ emit("field age s / refresh_in s / stale",
      r"~4 min|15.?min|field age|age", "drift")
 emit("stations live (instruments)",
      f"{st_count} — src:{st_source} feeds:{json.dumps(st_feeds)} aqi:{aq_readings}",
-     r"54 (live )?(instruments|stations)|24 (live )?WAQI|waqi\+dpcc|30 DPCC", "drift",
-     "two accepted states: 54 = 24 WAQI + 30 DPCC; 24 = WAQI-only degrade "
-     "(DPCC stale-dropped ~90 min, recovers)")
+     r"~?5[2-4] (live )?(instruments|stations)|24 (live )?WAQI|waqi\+dpcc|30 DPCC", "drift",
+     "accepted states: 52–54 = full (per-instrument aging drifts the count "
+     "down); 24 = WAQI-only degrade (DPCC stale-dropped ~90 min, recovers)")
 emit("model samples", (H.get("sources") or {}).get("model", {}).get("samples"),
      r"~4[0-9] model|7[0-9] samples|samples", "drift")
 emit("fires total / in-belt", f"{n_fires} / {n_belt}", r"~?[0-9]{2,3}.{0,30}(fires|in.?belt|MW)|fires", "drift")
@@ -400,17 +402,19 @@ for pat, R, nm in ((r"~?4,?200.{0,20}187 ?km", load("reach_w25.json"), "walk@25"
         flag(f"reach {nm}", m[0] + " → " + m[1][:70],
              f"{r.get('edge_count')} edges / {r.get('distance_km')} km")
 
-# 10) /health sources.stations.count live check — the two accepted states are
-#     54 (24 WAQI + 30 DPCC) and 24 (WAQI-only degrade: DPCC pages stale
-#     >MAX_AGE_S get dropped, feed recovers). Anything else is a real surprise.
+# 10) /health sources.stations.count live check — the accepted states are
+#     52–54 (24 WAQI + up-to-30 DPCC — instruments age out individually under
+#     MAX_AGE_S, so the full-feed count is a range, not a pin) and 24
+#     (WAQI-only degrade: DPCC pages stale >MAX_AGE_S get dropped wholesale,
+#     feed recovers). Anything else is a real surprise.
 if st_count is None:
     flag("stations.count", "—", "sources.stations missing from /health")
-elif st_count == 54:
+elif 52 <= st_count <= 54:
     if "dpcc" not in (st_source or ""):
-        flag("stations.source", f"count 54, source {st_source!r}",
-             "54 instruments can't come from WAQI alone — inconsistent wire")
+        flag("stations.source", f"count {st_count}, source {st_source!r}",
+             f"{st_count} instruments can't come from WAQI alone — inconsistent wire")
     if "dpcc" not in st_feeds:
-        infos.append("feeds map lacks 'dpcc' while count=54 — known transient "
+        infos.append(f"feeds map lacks 'dpcc' while count={st_count} — known transient "
                      "mid-refresh wart (truth-audit §1), self-heals on next build")
 elif st_count == 24:
     infos.append("stations in DEGRADE mode (24 WAQI-only — DPCC stale-dropped). "
@@ -418,10 +422,17 @@ elif st_count == 24:
                  "re-check after the next feed lands")
 else:
     flag("stations.count", str(st_count),
-         "not an accepted state — expected 54 (waqi+dpcc) or 24 (waqi-only degrade)")
-if aq_readings is not None and st_count is not None and aq_readings != st_count:
+         "not an accepted state — expected 52–54 (waqi+dpcc, per-instrument "
+         "aging drift) or 24 (waqi-only degrade)")
+# /health and /aqi refresh at different times — each drops instruments as
+# they age past MAX_AGE_S, so the two counts can sit a couple apart on one
+# probe (54→53→52 watched in the max2 run). ±2 = honest skew; more = the
+# wires disagree.
+if (aq_readings is not None and st_count is not None
+        and abs(aq_readings - st_count) > 2):
     flag("/aqi station_readings", str(aq_readings),
-         f"/health count {st_count} — the two wires disagree")
+         f"/health count {st_count} — the two wires disagree beyond ±2 "
+         "per-instrument aging skew")
 
 # 11) stale 24-world phrasing — an UNSTAMPED '24 stations/instruments' claim
 #     is stale when live is 54; '24 WAQI + 30 DPCC' and degrade-mode notes
@@ -432,10 +443,10 @@ for p in DOCS:
         if not re.search(r"\b24 (WAQI )?(stations|instruments)\b", l): continue
         if re.search(r"30 DPCC|waqi\+dpcc|\+ ?30", l): continue
         if stamped(p, i): continue
-        if st_count == 54:
+        if st_count is not None and 52 <= st_count <= 54:
             flag("'24 stations' world", f"{p}:{i+1} → {l.strip()[:70]}",
-                 "live is 54 (24 WAQI + 30 DPCC) — 24-only is the degrade "
-                 "mode, not the world")
+                 f"live is {st_count} (24 WAQI + DPCC, full-feed range "
+                 "52–54) — 24-only is the degrade mode, not the world")
 
 # 12) bare '6.2' holdout MAE — the artifact's all-30 figure is only true of
 #     its probe; a doc asserting 6.2 with no range/artifact framing over-claims
@@ -470,9 +481,11 @@ notes:
    {walk_mid and f'{walk_mid*0.5:.0f}'} vs {car_mid and f'{car_mid*0.5:.1f}'} mg.
  · '90,503 km' / '706 km' were earlier /v2/reach distance_km reads — drift-prone;
    re-run for the morning-of value.
- · stations live check accepts two states: {st_count} now — 54 = 24 WAQI + 30 DPCC;
-   24 = WAQI-only degrade (DPCC staleness guard drops all 30 ~90 min after a site
-   stall; honest, recovers). Docs claiming 54 are still true in a degrade window.
+ · stations live check accepts: {st_count} now — 52–54 = 24 WAQI + up-to-30
+   DPCC (per-instrument aging drifts the count down a few between feeds);
+   24 = WAQI-only degrade (DPCC staleness guard drops all 30 ~90 min after a
+   site stall; honest, recovers). /aqi station_readings may sit ±2 off
+   /health — each endpoint ages instruments at different times.
  · holdout MAE: the 22.8→10.5 / 27.1→6.2 figures belong to their probe artifact
    (docs/lanes/holdout-reverify-report.md). Field truth is single-digit to
    low-teens µg at instrumented sites — never quote a bare 6.2.

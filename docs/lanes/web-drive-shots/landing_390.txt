@@ -1,0 +1,161 @@
+ALIVE·108
+THE CITY
+COMMUNITY
+GOOD MORNING · DELHI NCR — A DOSIMETER WITHOUT HARDWARE
+What did you breathe today?
+58.2
+µg/m³
+PM2.5 · SATISFACTORY
+a day of breathing today's field ≈ 2.6 cigarettes
+LIVE · FIELD MEAN OVER THE NCR LATTICE · WORST ≈6.2 CIG · 22 µg/m³-DAY ≈ 1 CIG
+
+A personal dosimeter for Delhi — no hardware. The field below, rebuilt every 15 minutes from 53 instruments, is the sensor, and the app knows what you breathed — a ledger kept on your phone, where only k≥3 aggregates ever leave.
+
+OPEN THE LIVE FIELD
+→
+COMMUNITY — K≥3 AGGREGATES ONLY
+→
+53 STATIONS LIVE
+FIELD 5 MIN FRESH
+MEDIAN 59 µg/m³
+WIND 6 KM/H
+903K EDGES PRICED
+PM2.5 — THE FIELD, THIS HOUR
+INSPECT
+A→B
+PM2.5
+US AQI
+PM10
+REFRESHED 07:59 PM
+▶ WATCH THE DAY
+h+0 now
+THE NEXT TWELVE HOURS — FORECAST SURFACE — CAMS + STAGNATION MODEL; CONFIDENCE FADES WITH HORIZON
+The field the dosimeter reads — 1,156 cells, 22.9–87.4 µg/m³ · cell fade = distance to nearest sample · the same surface the router prices on. Click a cell.
+30
+µg/m³
+250+
+358 MEASURED · 726 INTERPOLATED · 72 THIN
+THIS FIELD ALSO GRADES ITSELF — OVER 33 RECORDED HOURS THE FORECAST WE SERVED MISSED THE AIR DELHI GOT BY 28.8 µg/m³ ON AVERAGE · 242 PAIRS · THE RAW NUMBERS ↗
+WHY TONIGHT — THE AIR IS BARELY MOVING — THE DAY'S POLLUTION IS SITTING OVER THE CITY · 1 DRIVER OBSERVED · THE EVIDENCE ↗
+THE DAY, RECORDED — A TYPICAL OCTOBER, HOUR BY HOUR
+NOW — LIVE FIELD -49% VS THE TYPICAL HOUR
+00
+04
+08
+12
+16
+20
+24 ist
+TYPICAL = THE ARCHIVE'S MEDIAN FOR THIS HOUR — OCTOBER · IST · CONNAUGHT PLACE · RECORDED HISTORY, NOT A FORECAST
+THE DISTRICTS — 29 REAL BOUNDARIES, EACH FILLED LIVE
+TAP A BOUNDARY · WORST FIRST
+North Delhi
+DELHI NCT
+153 aqi
+Outer North Delhi
+DELHI NCT
+131 aqi
+Rohtak
+HARYANA
+127 aqi
+Gurugram
+HARYANA
+121 aqi
+Nuh
+HARYANA
+120 aqi
+North East Delhi
+DELHI NCT
+119 aqi
+Jhajjar
+HARYANA
+117 aqi
+Rewari
+HARYANA
+117 aqi
+South West Delhi
+DELHI NCT
+116 aqi
+Sonipat
+HARYANA
+114 aqi
+North West Delhi
+DELHI NCT
+112 aqi
+Palwal
+HARYANA
+108 aqi
+Central North Delhi
+DELHI NCT
+102 aqi
+Delhi NCT
+DELHI
+100 aqi
+Bulandshahr
+UTTAR PRADESH
+98 aqi
+Old Delhi
+DELHI NCT
+98 aqi
+Gautam Buddha Nagar
+UTTAR PRADESH
+95 aqi
+Faridabad
+HARYANA
+93 aqi
+West Delhi
+DELHI NCT
+93 aqi
+Baghpat
+UTTAR PRADESH
+92 aqi
+Central Delhi
+DELHI NCT
+91 aqi
+Ghaziabad
+UTTAR PRADESH
+90 aqi
+Noida
+UTTAR PRADESH
+89 aqi
+Hapur
+UTTAR PRADESH
+83 aqi
+Meerut
+UTTAR PRADESH
+82 aqi
+New Delhi
+DELHI NCT
+81 aqi
+East Delhi
+DELHI NCT
+81 aqi
+South East Delhi
+DELHI NCT
+80 aqi
+South Delhi
+DELHI NCT
+74 aqi
+HOW IT WORKS
+
+Dose-priced routing is the proof the field can decide — the engine priced 0.90 million of 1.07 million road edges under this hour's field.
+
+01
+measure
+
+WAQI and DPCC instruments across the NCR report every 15 minutes; AQI sub-indices are inverted back to µg/m³ before anything touches them.
+
+02
+interpolate
+
+Ordinary kriging draws the field — a surface, not a guess — and every cell keeps its own error band. 95.2% of 3,550 held-out station-hours landed inside ±2σ. the method ↗
+
+03
+dose
+
+Concentration × ventilation × minutes, summed along the road you take — a C++ engine priced 0.90 million edges on it to rank routes; the app runs the same sum over your trips, on-device.
+
+THE APP ON ANDROID, LIVE — REAL ROUTE, REAL FIELD
+ALIVE·108 — DELHI NCR
+BUILD AEE635EB
+AGGREGATES ONLY · K≥3 · NO PROFILES

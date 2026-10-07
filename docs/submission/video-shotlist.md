@@ -130,7 +130,7 @@ APK lane covers the release build), web beats re-verified same-day.
      on the engine-room side: *"the engine grades its own causality."*
    - The field map with real detections; the engine tile (1,070,459
      edges, 903,058 priced, C++ `alive_core`); kalman/calibration stats
-     (LOO calibration MAE 46.1 µg over 94 live stations; weekly LOSO
+     (LOO calibration MAE 8.8 µg over 70 live WAQI+DPCC instruments; weekly LOSO
      MAE 11.31 µg, 24 folds, week 41 — both live on the wire).
    - The **archive tile** — one line: *"the field has recorded Delhi
      hourly since Oct 5 20:00 IST — history, not just forecast;

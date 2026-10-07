@@ -118,15 +118,16 @@ where we're *bad*.
 ```bash
 curl -s "http://65.2.28.40/aqi?lat=28.6315&lon=77.2167" | python3 -c \
   'import json,sys; print(json.load(sys.stdin)["calibration"])'
-# {"method":"leave-one-out over live OpenAQ instrument readings",
-#  "n_stations":94, "mae_ug":46.1, "rmse_ug":71.9,
-#  "median_abs_pct":56.0, "mean_bias_ug":0.3,
+# {"method":"leave-one-out over live WAQI+DPCC instrument readings
+#   (krige refit per held-out station)",
+#  "n_stations":70, "mae_ug":8.8, "rmse_ug":12.7,
+#  "median_abs_pct":8.8, "mean_bias_ug":0.2,
 #  "note":"error between stations — at a station the field reads the
 #          instrument itself"}
-# (wire-accurate 2026-10-06 — this artifact predates the DPCC feed:
-#  its `method` label and n_stations=94 describe the OpenAQ-era audit,
-#  not today's 54-instrument waqi+dpcc feed. Flagged for the code lane
-#  — don't quote the label, quote the number as the pre-DPCC audit.)
+# (wire-accurate 2026-10-07 — rebuilt artifact, byte-identical to
+#  server/data/field_calibration.json: the earlier 46.1/n=94 was the
+#  pre-DPCC OpenAQ-era audit; the wire now serves the calibration
+#  measured on the live waqi+dpcc feed.)
 ```
 
 - `server/data/field_validation.md` — 3,550 station-hours across 85
@@ -141,7 +142,7 @@ curl -s "http://65.2.28.40/aqi?lat=28.6315&lon=77.2167" | python3 -c \
   serves.
 
 **Stage:** "Two answers. Live: the calibration rides on every response
-— LOO over 94 instruments, mean bias +0.3 µg. Offline: 3,550 held-out
+— LOO over 70 instruments, mean bias +0.2 µg. Offline: 3,550 held-out
 station-hours, ±2σ coverage measured 95.2 against a nominal 95.4 — and
 the file shows you the stations where we're worst, not just the mean.
 Calibration that's afraid to show its residuals isn't calibration."

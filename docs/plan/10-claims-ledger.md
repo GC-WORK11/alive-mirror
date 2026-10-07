@@ -14,7 +14,7 @@ Rule: every number on a screen, in the video, or in the writeup traces to a row 
 | ~89% of measured on-road vehicles BS-IV or newer | — | ICCT TRUE remote sensing, 111,712 measurements (docs/32) |
 | ~31% of active vehicles had expired PUC (Sept 2024) | — | Delhi govt via ET (docs/32) |
 | Transport share of Delhi PM2.5: "18–39% depending on the study" | always the range | docs/32 §4 |
-| Field accuracy vs real stations: MAE ~22 µg/m³, over-reads in clean hours (clean-air window; LOO live-instrument MAE is 46.1) | shown on the city dashboard | `server/data/field_validation.md` |
+| Field accuracy vs real stations: MAE ~22 µg/m³, over-reads in clean hours (clean-air window; LOO live-instrument MAE is 8.8) | shown on the city dashboard | `server/data/field_validation.md` |
 | "Data is N minutes old" | always visible | field timestamp |
 
 ## Never say

@@ -12,7 +12,7 @@
 |---|---|
 | Kriged/IDW field over 48-pt NCR grid + confidence tiers (hi/med/lo) | `server/airfield.py` |
 | Wind-advected sampling weights (`UPWIND_GAIN`) | `server/airfield.py` |
-| Per-station LOO debias + field calibration (MAE 46.1 µg/m³) | `server/calibrate.py` |
+| Per-station LOO debias + field calibration (MAE 8.8 µg/m³, n=70 WAQI+DPCC) | `server/calibrate.py` |
 | Mode × ventilation × microenv dose = µg inhaled per route leg | `server/exposure.py` |
 | `/depart` leave-later over 120h CAMS forecast + BLH stagnation factor | `server/forecast.py` |
 | FIRMS fire pixels + DTP blackspot layers | `fires-blackspots` branch merge |

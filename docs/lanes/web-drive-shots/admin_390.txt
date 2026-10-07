@@ -1,0 +1,345 @@
+ALIVE·108 / engine room
+what delhi's air system is doing, in plain english · every number measured live
+OPERATOR SIGN IN
+NO PERSON IS EVER SHOWN · GROUPS OF 3+ PHONES ONLY
+UPDATED 08:35:16 AM IST
+REFRESHES ITSELF · EVERY 30S · 8 LOCKED — SIGN IN AS OPERATOR
+08:35 AM IST
+the engine room — how sensor readings become the air map that prices every route · every number below is measured live, nothing invented
+UPDATED 08:35:16 AM IST · guest view — OPERATOR SIGN-IN UNLOCKS THE INTERNALS; EVERYTHING BELOW IS LIVE PUBLIC TRUTH
+DELHI'S AIR · RIGHT NOW
+LIVE
+58.2
+µg/m³ · pm2.5
+SATISFACTORY
+
+the mean across 25 sampled cells — median 59.2 · worst 70.4 µg/m³ — every cell above the WHO 24-hour guideline · indian aqi 97
+
+49% below a typical oct day (≈113.3 µg/m³) · below emergency-rules stage I — computed here, caqm declares the official one · wind 6.4 km/h from 112°
+
+THE MAP IS
+LIVE
+LAST REBUILT
+6m ago · every ~15m
+INSTRUMENTS
+53 live · govt feeds
+MAP POINTS
+100
+STREETS PRICED
+9,03,058
+FIRES
+80 spotted · 20 in the belt
+NEXT REBUILD
+in 9m
+THE AIR MAP · HOW FRESH · SERVING LIVE
+GOOD
+6m
+how long since the air map was rebuilt from real readings — the fresher, the more every route trusts it
+MAP DETAIL · POINTS FITTED TO 53 MONITORS
+GOOD
+100 map points
+how many map-points the air surface has — the engine reads air at ~500m granularity, not one city average
+DELHI'S AIR RIGHT NOW · MIDDLE OF 25 SAMPLED POINTS
+SATISFACTORY
+59.2 µg/m³
+the middle reading across the sampled cells right now — half of delhi breathes worse than this
+HOW WRONG THE MAP IS · LIVE CHECK · EACH MONITOR HIDDEN IN TURN
+GOOD
+8.8 µg/m³
+the honesty score: how far the filled-in map misses a real monitor it was never shown — lower is truer
+01 · WHAT IT'S MADE OF
+monitors measure, the forecast fills the gaps between them (each fill shows how sure it is), then every road in delhi gets a smoke price — each stage names its source and freshness
+53
+MONITORS REPORTING · GOVT FEEDS · 6M OLD
+→
+100
+FORECAST POINTS · WAQI+DPCC-STATIONS+OPEN-METEO/CAMS
+→
+±16.8 µg/m³
+THE ± RANGE STAMPED ON EVERY GAP-FILLED READ · GAP-FILL ON · ALIVE_CORE · MEASURED AT THE CITY READ
+→
+9,03,058
+STREETS PRICED BY LIVE AIR · OF 10,70,459
+01
+measure
+government monitors measure the air right now
+53 monitors · 100 forecast points · waqi+dpcc-stations+open-meteo/cams
+6M
+02
+blend
+real readings fold into the forecast grid — monitors outweigh the model
+monitors enter at 3× weight · smoothed · the forecast is de-biased toward the readings
+6M
+03
+fill
+the gaps between monitors are filled in — σ shows how honest each fill is
+gap-fill engine alive_core · honesty σ per-query · 100 cells covered
+LIVE
+04
+price
+every road in delhi gets a smoke cost from the map above it
+alive_core · 9,03,058 of 10,70,459 streets priced
+—
+05
+dose
+what a body actually inhales — street air × how shielded the vehicle is × how hard you breathe
+air outside × cabin shield × breathing rate × minutes — internals locked
+FIXED CONSTANTS
+06
+share
+shared trips merge into street-level counts — a street appears only when ≥3 different phones crossed it
+groups of 3+ only · 55 streets tracked · 12 shareable · 40 trips
+72H WINDOW
+THE FEED	STATE	READINGS	AGE	WHAT IT IS	FRESHNESS
+city monitors · waqi	live	53 blended	6m	government monitors, republished via waqi — leads the blend · every reading trusted 3× over the forecast	FRESH
+city monitors · dpcc	live	—	—	delhi's own 5-minute pollution pages — live: adds the monitors waqi misses	—
+city monitors · cpcb	dormant	—	—	india's central pollution board — rests while waqi+dpcc are winning the chain; a keyed attempt whose network route is refused from our region today	—
+city monitors · openaq	dormant	—	—	the fallback of last resort — runs only when nothing else contributes; the old key was revoked, it rests until a fresh one lands	—
+forecast grid · europe	live	100 pts	6m	the european atmosphere model (cams · open-meteo) — open, no key	FRESH
+wind + air column	live	6.4 km/h @ 112°	6m	wind + how high smoke can mix — open, no key	FRESH
+fires · nasa satellites	live	80 fires · 20 in the belt	52m	nasa's public fire list · smoke lift ×1.1 · live	FRESH
+places + names · amazon	down	—	—	no key set — place search falls back to the open maps (photon + osrm)	—
+streets · own router	live	9,03,058 priced	—	our own delhi road engine first, the public demo router as fallback — timed by real plan calls, never pinged	—
+how monitors feed the map: waqi plus delhi's own dpcc pages carry the city first; india's cpcb then openaq only run when the leaders can't cover it — every resting feed says so instead of pretending. no feed is ever shown green when it isn't.
+02 · IS IT HONEST
+the map grades itself against monitors it never saw — the live check, the causal read, and the guts (dose math, route engine, api speed) honestly exposed; a check that can't run is named, not hidden
+FIELD STATE — WHAT THE ROUTE ENGINE READS RIGHT NOW
+THE MAP IS
+LIVE
+BUILT FROM
+waqi+dpcc-stations+open-meteo/cams
+LAST UPDATED
+6m ago FRESH
+MAP DETAIL
+100 map points · 53 monitors read
+GAP FILLING
+on — every gap between monitors is filled in, each carrying its honesty band
+UNCERTAINTY BAND
+per query — every read carries its own ± range
+AREA COVERED
+100 cells across the commute-shed
+STREETS PRICED
+alive_core · 9,03,058 of 10,70,459 priced by live air
+WIND
+6 km/h from 112°
+OTHER GASES TODAY
+PM10 132.1 · NO₂ 24 · O₃ 36.4 · CO 843.8 · SO₂ 16.6 µg/m³ · US AQI 89
+EMERGENCY RULES (GRAP)
+below GRAP stage I — no restrictions map to this air · index 97 on the live field · computed here — the official stage is declared by india's air commission (caqm)
+FORECAST
+the next 12h served publicly · the 120h model horizon unlocks for the operator
+HOW WRONG THE MAP IS — CHECKED AGAINST MONITORS IT NEVER SAW
+LIVE CHECK
+each monitor hidden in turn, then predicted — misses by 8.8 µg/m³ on average · big-miss score (rmse) 12.7 · bias +0.2 µg/m³ · 70 monitors
+MORE
+weekly tests · daily rollups — locked, sign in as operator
+WHY THE AIR IS LIKE THIS
+the causal read · a cause that can't be observed isn't claimed
+the air is barely moving — the day's pollution is sitting over the city
+as of 08:35:16 am IST · every claim below carries its evidence; checks that couldn't run are named, not hidden · 27 recorded maps over 5.67h — solid line: the air · dashed: clearing room · dotted: belt fires
+THE CAUSE	ROLE	STRENGTH (0–1)	THE EVIDENCE	THE NUMBERS
+stagnant air	MAIN DRIVER	1.00	boundary layer 364.8 m + wind 1.88 m/s → ventilation 686 m²/s vs ~3,000 typical — the air is barely mixing	clearing m²/s 685.8 mixing height m 364.8 wind m/s 1.88 × less clearing 4.37 from forecast age s 1307
+CHECKED — THE RAW READS BEHIND THE CALL
+WIND
+6 km/h from 112° · field · 6m
+FARM FIRES
+20 in the belt · smoke lift ×1.1 · drifting toward delhi: no
+AIR CAN CLEAR
+686 m²/s of clearing room · clears ×4.37 slower than a typical day · forecast
+DRIFT OVER 6H
++0.9 µg/m³ over 5.7h · 27 recorded maps
+DOSE MATH — WHAT ONE MINUTE OF EACH MODE BREATHES
+HOW YOU TRAVEL	CABIN ×	BREATHING L/MIN
+
+NOTHING TO SHOW YET
+locked — sign in as operator
+THE ROUTE ENGINE'S LIVE STATE
+ENGINE
+alive_core
+ROAD MAP
+10,70,459 streets
+PRICED BY LIVE AIR
+9,03,058
+INTERNALS
+sign in to see road-map internals
+HOW FAST THE API ANSWERS — THE SERVER'S OWN STOPWATCH
+NOTHING TO SHOW YET
+locked — sign in as operator
+03 · THE FIRE BELT
+real fires spotted by satellite around delhi — bigger dot = more heat; fires upwind in the north-west belt are what actually push the city's smoke up
+80
+fires spotted
+20
+inside the smoke beltsmoke lift
+×1.1
+viirs 74 / modis 657 by day · 23 by nightwind 110° — blowing it away from delhifirms-public-csv · fetched 52m ago
+80 fires · dot size = heat energy · belt fires ringed — 20 inside the belt wind 110° — blowing it away from delhi → the city's air map is lifted ×1.1 by their smoke · source firms-public-csv · fetched 52m ago
+04 · DISTRICT BY DISTRICT
+each area boundary filled by its live air level right now — darker means worse; click one for its full card
+PM2.5
+US AQI
+PM10
+NO₂
+O₃
+CO
+SO₂
+NH₃
+GOOD 0–50
+SATISFACTORY 51–100
+MODERATE 101–200
+POOR 201–300
+VERY POOR 301–400
+SEVERE 401–500
+NO CELLS INSIDE
+29 boundaries · 29 live · 1 thin (centroid read) · fills = india's national aqi bands for pm2.5 · value = mean of the covered cells inside each border · click pins a card
+05 · THE LIVE AIR MAP
+the actual map the route engine reads — every coloured cell is a real filled-in PM2.5 value; hover any point for its reading, drag the bar for the next 12 hours
+PM2.5
+PM10
+NO₂
+O₃
+CO
+SO₂
+US AQI
+HOW IT'S MADE
+NOW
+1,600 cells · 40×40 grid · ~2.1×2.7 km each · hover or click a cell to read it · pm2.5 22.7–89.3 µg/m³ · fainter cells = farther from real evidence · 30 fires plotted (50 more outside this view) · wind 6 km/h from 112° — the arrow is where smoke drifts
+06 · WHAT RIDERS SHARE
+streets that ≥3 different phones crossed + what all the donated trips add up to — anonymized totals only; nothing shown can collapse to one person
+TRIPS PEOPLE SHARED · ALL TIME
+LIVE
+40
+real journeys users chose to share — anonymized totals only, never a person
+SHARED STREETS · ≥3 PHONES CROSSED
+LIVE
+12
+streets where ≥3 different phones crossed in 72h — safe to show without exposing anyone
+CLEANER CHOICES MADE
+LIVE
+5
+trips where someone picked the lower-smoke option the app showed
+SMOKE INHALED · ALL SHARED TRIPS · ~3 µg each
+COUNTED
+107 µg
+total PM2.5 mass actually inhaled across every shared trip — the number nobody else measures
+CO₂ FROM SHARED RIDES · MID ESTIMATE
+COUNTED
+12.9 kg
+what the shared rides emitted — midpoint between the low and high emission factors
+	STREET CELL	NEAR	TRIPS	PHONES	SMOKE INHALED	CO₂/100M	AIR NOW
++	883da1140dfffff	Punjab National Bank	4	4	
+8.8 µg	30.1 g	—
++	883da11409fffff	hanuman lane	14	11	
+5.9 µg	45.3 g	—
++	883da1140bfffff	Fire Brigade Lane	3	3	
+1.5 µg	123.3 g	—
++	883da11401fffff	Atul Grove Road	7	6	
+1.2 µg	78.7 g	—
++	883da11407fffff	moti	8	5	
+1.1 µg	31.4 g	—
++	883da11429fffff	Motilal Nehru Marg	7	6	
+0.8 µg	40.3 g	—
++	883da1142bfffff	Jodhpur Officers' Hostel	7	5	
+0.8 µg	22 g	—
++	883da11463fffff	Rajya Sabha Marg	6	5	
+0.8 µg	40.3 g	—
++	883da11461fffff	Presidential Estate	5	4	
+0.8 µg	95.4 g	—
++	883da11455fffff	Howrah - Delhi Railway	3	3	
+0.6 µg	46.6 g	—
+each row = one street cell that ≥3 different phones crossed in 72h — shared trips, anonymized so no single person can be picked out · smoke inhaled = the mean PM2.5 each crossing breathed · air now = what the air reads over that street right now
+SHARED TRIPS
+40 across 4 days
+DISTANCE
+175.6 km · 4.4 km per trip
+SMOKE INHALED
+107 µg · anonymized totals only
+PER TRIP / PER KM
+2.7 µg/trip · 0.61 µg/km
+CO₂ EMITTED
+12.9 kg · 9.3 g tailpipe PM2.5
+PICKED CLEANER
+5 trips chose the lower-smoke option
+STREET CELLS TRACKED
+55 · 12 shareable (3+ phones)
+WINDOW
+street counts reset every 72h ·
+BY DAY
+2026-10-03: 17 trips / 71.7 km
+2026-10-04: 14 trips / 58.1 km
+2026-10-05: 8 trips / 37.8 km
+2026-10-07: 1 trips / 8 km
+BUSIEST SHARED HOURS — GROUPS OF 3+ PHONES IN THE SAME HOUR — UNLOCK FOR THE OPERATOR
+where the ride CO₂ comes from — moving 91% · idling 1% · cold starts 9% · over 29 trips that reported a split
+HOW PEOPLE TRAVELLED · SHARE OF SHARED TRIPS
+car
+80%
+32
+auto rickshaw
+5%
+2
+mode unknown
+5%
+2
+cycling
+3%
+1
+metro
+3%
+1
+walking
+3%
+1
+bus
+3%
+1
+10-03
+10-04
+10-05
+10-07
+AREAS WITH RIDERS
+nothing to show yet
+places where riders are active — shown only at 3+ phones — never a person
+JOURNEYS BETWEEN PLACES
+64 crossings · 10 journeys
+shared trips between two places — only where 3+ phones went the same way; anything smaller is counted, never shown
+SMOKE + CO₂ AVOIDED
+2 kg co₂ · 1,029 µg dose
+what riders saved by taking the cleaner option instead of the worst one
+WHAT RIDERS THINK
+nothing to show yet
+stars + an optional note from the app; note text publishes only once 3+ reviews exist
+07 · THE ARCHIVE
+the same air map you saw live, saved every hour into permanent storage — delhi's air is a recorded history now, not just a forecast
+HOURS SAVED TODAY
+7 / 9 ist
+missing hours: 00:00 · 02:00
+RECORDING SINCE
+2026-10-05 · 20:00 ist
+the air map has been saved hourly since then
+SAVED MAPS · ALL TIME
+35
+stored in the cloud (s3://alive108-air/archive/) · mirrored locally
+LAST SAVE
+08:00 ist
+the most recent hourly save
+TODAY, HOUR BY HOUR — ONE SQUARE PER HOUR, COLOURED BY HOW BAD THE AIR WAS
+7 RECORDED · 2 GAPS · 7 WITH A FORECAST (01·03·04·05·06·07·08H) · 00 → 23 IST
+2026-10-07 · 7 of 9 elapsed hours recorded · recording since 2026-10-05 20:00 ist
+THE FORECAST GRADES ITSELF — WHAT IT PREDICTED VS WHAT THE RECORDED HOUR TURNED OUT TO BE
+HOW FAR AHEAD IT LOOKED	HOURS GRADED	MISSED BY µg/m³	LEANED HIGH/LOW	RIGHT BAND
++0h	12	3.9	+2.6	89.2%
++1h	19	7.9	+5	82.3%
++2h	25	13.5	+7.3	61.4%
++3h	23	20.6	+12.7	52.3%
++4h	23	24.8	+16.8	48%
++5h	22	30.8	+23.2	42.5%
++6h	21	35.4	+30.1	39.4%
++7h	20	37.4	+33.1	32.1%
++8h	20	39.4	+34.1	28.8%
++9h	19	41.8	+37.3	24.9%
++10h	20	41.2	+34.5	27.8%
++11h	18	45.1	+39	28.3%
+242 checks over 33 recorded hours since 2026-10-05 — overall miss 28.8 µg/m³, bias +23 (we over-called) · 45.4% of cells landed in the right band
+ALIVE·108 ENGINE ROOM · THE PAGE REFRESHES ITSELF EVERY 30 SECONDS · GROUPS OF 3+ PHONES ONLY, NEVER A PERSON
+/CITY ↗ · /V2/CITY ↗

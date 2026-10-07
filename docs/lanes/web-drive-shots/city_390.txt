@@ -1,0 +1,143 @@
+ALIVE·108
+HOME
+COMMUNITY
+ADMIN
+LIVE
+WHAT DELHI IS BREATHING · DELHI NCR
+Delhi NCR air, right now.
+58 µg/m³
+SATISFACTORY · AQI 97
+fine dust (pm2.5) — the city's average right now
+ACROSS THE MAP: 22.9–87.4 ΜG/M³
+29 DISTRICTS LIVE · EASIEST SOUTH DELHI 74 · HEAVIEST NORTH DELHI 153
+
+Every district on the map is coloured by the government air score (AQI), driven by pm2.5 — the fine dust that settles deep in lungs. Live government monitors anchor it; the satellite model and shared trips fill the rest.
+
+WHY TONIGHT
+the air is barely moving — the day's pollution is sitting over the city
+GRAP
+today's air sits below GRAP stage I — aqi 97 on the city's live pm2.5 · computed here, not the official caqm call
+Delhi NCT
+Baghpat
+Ghaziabad
+Gautam Buddha Nagar
+Bulandshahr
+Hapur
+Sonipat
+Jhajjar
+Gurugram
+Faridabad
+Palwal
+Nuh
+Meerut
+Rohtak
+Rewari
+Noida
+DISTRICTS COLOURED BY THE GOVT AIR SCORE · EACH DISTRICT AVERAGES THE MAP SQUARES INSIDE IT
+TAP A DISTRICT FOR ITS NUMBER
+▶ THE HOURS AHEAD
+now
+THE NEXT TWELVE HOURS, FROM THE SATELLITE MODEL — FURTHER OUT MEANS LESS CERTAIN
+◎ WHERE CAN YOUR LUNGS GO?
+WALK
+CYCLE
+AUTO
+CAR
+≤25 µg
+≤50 µg
+≤100 µg
+PICK A MODE AND A DUST BUDGET — A CIGARETTE IS ≈316 µg — THEN PRESS THE BUTTON AND TAP THE MAP
+▶ THE DAY SO FAR
+THE AIR MAP, SAVED EVERY HOUR — 7 HOURS SAVED TODAY · TAP A SQUARE TO SEE IT · 7 ALSO CARRY WHAT THE MODEL CALLED FOR THEM — FLIP WITH THE PILLS
+Good 0–50
+Satisfactory 51–100
+Moderate 101–200
+Poor 201–300
+Very Poor 301–400
+Severe 401–500
+no live read
+WAQI+DPCC-STATIONS+OPEN-METEO/CAMS · 100 POINTS FITTED · 53 LIVE STATIONS · GAP-FILLING ON
+INDIA'S OFFICIAL BANDS — UNDER 100 IS FINE FOR MOST PEOPLE · 200+ SENSITIVE LUNGS FEEL IT · 300+ EVERYONE DOES
+THE DAYS AHEAD · AVERAGE FINE DUST PER DAY, µg/m³
+TODAYoct 7
+86
+72–100
+MODERATE · FIRST ~16H ONLY · LEAST-BAD
+TOMORROWoct 8
+126
+106–146
+POOR · MODEL ESTIMATE
+FRIDAYoct 9
+165
+141–190
+VERY POOR · MODEL ESTIMATE
+SATURDAYoct 10
+133
+108–157
+VERY POOR · MODEL ESTIMATE
+SUNDAYoct 11
+135
+109–161
+VERY POOR · FIRST ~18H ONLY · MODEL ESTIMATE
+today looks least-bad — avg ~86 vs ~132 µg/m³ across the 5-day forecast
+CAMS HOURLY FORECAST X VENTILATION STAGNATION CORRECTION, ADVECTED ON 10 M WIND, LIVE-ANCHORED BY PARCEL-BIAS DELTA (DECAYS ~9 H) AND A FITTED PERSISTENCE BLEND (W=1 TO H+2, LINEAR TO 0 BY H+40)
+FINE DUST (PM2.5) · NCR AVG 58.2 µg/m³
+COARSE DUST (PM10) · NCR AVG 132.1 µg/m³
+NO₂ · NCR AVG 24.0 µg/m³
+O₃ · NCR AVG 36.4 µg/m³
+CO · NCR AVG 843.8 µg/m³
+SO₂ · NCR AVG 16.6 µg/m³
+US AQI · NCR AVG 89
+FINE DUST · LOWEST–HIGHEST 22.9–87.4
+WIND 6 km/h from the E
+GOVT MONITORS 53 live
+SMOG ALERT below stage i
+DISTRICTS 29 live
+SHARED TRIPS TODAY 1
+KM SHARED TODAY 8
+STREET STRETCHES SEEN 55
+STREETS ≥3 PHONES 12
+MAP REBUILT 5 min ago
+NEXT REBUILD in 9 min
+01
+the ledger, today
+BREATHS TAKEN ON SHARED TRIPS
+106
+how many breaths today's shared trips add up to — dust inhaled ÷ dust in the air ÷ half a litre a breath · an estimate, updates each refresh
+FINE DUST INHALED ON SHARED TRIPS
+3 µg pm2.5
+all the dust riders breathed today, added together — a cigarette is roughly 316 µg · totals only; no per-person data exists
+TRIPS SHARED TODAY
+1 trips
+8 km travelled · 9 trips shared in the last 3 days
+EXHAUST FROM SHARED TRIPS, TODAY
+0.21 kg co₂
+tailpipe pm2.5 0.016 g · central estimate · by mode: bus 1
+STREETS WE CAN SHOW
+12 ≥3 phones
+a street stretch is shown only after 3 different phones cross it in 3 days · 55 stretches seen so far
+02
+where the numbers come from
+
+Delhi's government monitors were built to regulate the city, not to tell one commuter what they breathed. 53 live instruments feed this map — the green squares on it — and each live reading counts triple next to the European satellite model (CAMS) and every shared trip.
+
+Where monitors are far apart, the estimate is less sure and the colours go quiet. A district near the edge of coverage says so on its card instead of pretending precision.
+
+map rebuilt 5 min ago · nearest map square 2.2 km away · typical error ±8.8 µg/m³
+
+03
+the streets the city actually travels
+	STREET STRETCH	TRIPS	PM2.5 PER TRIP	VS TYPICAL
+01	Punjab National Bank	4	9 µg	HEAVIER THAN TYPICAL
+02	hanuman lane	14	6 µg	HEAVIER THAN TYPICAL
+03	Fire Brigade Lane	3	2 µg	HEAVIER THAN TYPICAL
+04	Atul Grove Road	7	1 µg	HEAVIER THAN TYPICAL
+05	moti	8	1 µg	HEAVIER THAN TYPICAL
+06	Motilal Nehru Marg	7	1 µg	LIGHTER THAN TYPICAL
+07	Jodhpur Officers' Hostel	7	1 µg	LIGHTER THAN TYPICAL
+08	Rajya Sabha Marg	6	1 µg	LIGHTER THAN TYPICAL
+09	Presidential Estate	5	1 µg	LIGHTER THAN TYPICAL
+Alive-108 — shared trips help fill the gaps between government stations. The map is estimated between live station readings and the CAMS/Open-Meteo satellite model, then corrected by what shared trips actually measure. Every estimate carries an uncertainty band — we show it rather than hide it. District boundaries from OpenStreetMap (ODbL). The map refreshes on its own cadence.
+OPS ↗
+API DOCS ↗
+UPDATED 08:35 AM IST

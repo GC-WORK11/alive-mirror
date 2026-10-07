@@ -91,7 +91,7 @@ Constraints applied literally: exactly 4 lines; a Delhi rickshaw driver gets eve
 > When it's guessing, the guess wears a label.
 > Then it counts your cigarettes anyway — honestly.
 
-- **Why last as a pitch, first as a trust weapon:** zero emotional hook, but it is the line that disarms technical judges — judge finding #5 made concrete. **Shipped:** `field.station_readings` count + nearest-sample distance + confidence that visibly drops + LOO calibration MAE 46 µg/m³ shown on camera (README/docs/10). Put it in the honesty beat (§c) and the README/writeup first line, not the cold open.
+- **Why last as a pitch, first as a trust weapon:** zero emotional hook, but it is the line that disarms technical judges — judge finding #5 made concrete. **Shipped:** `field.station_readings` count + nearest-sample distance + confidence that visibly drops + LOO calibration MAE 8.8 µg/m³ shown on camera (README/docs/10). Put it in the honesty beat (§c) and the README/writeup first line, not the cold open.
 
 **Recommended stack (consistent with docs/20 §d, now tied to shipped wows):** opener = #1 · jaw-drop = #2 · loop = #3 · utility = #4 · moat close = #5 · trust card + writeup lede = #6. The repeat-to-another-judge sentence across all six is the same: **"the Delhi map that prices trips in breath."**
 

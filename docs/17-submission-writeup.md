@@ -61,10 +61,10 @@ breathing in real time.
 
 ## Validation — the part most projects skip
 
-We measured the field against itself: leave-one-out over 94 live
-government instruments gives **MAE 46 µg/m³, mean bias +0.3** — and the
-residual is co-located instruments disagreeing (one site reads 72 and
-268 simultaneously). CAMS alone under-reads Delhi 2–8× at hotspots;
+We measured the field against itself: leave-one-out over the 70 live
+WAQI+DPCC instruments — a krige refit per held-out station — gives
+**MAE 8.8 µg/m³, mean bias +0.2**; at an instrument the field reads
+the instrument itself. CAMS alone under-reads Delhi 2–8× at hotspots;
 the server de-biases every model sample against nearby instruments
 before interpolating. Numbers served live at `/aqi` → `calibration`.
 
