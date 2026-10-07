@@ -151,14 +151,14 @@ def test_snapshot_round_trip_preserves_aggregates(tmp_path, monkeypatch):
     # the snapshot persists the traversal projection (per-day/day rollups,
     # corridors) — NOT the public ledger, which lives in v2.store.TRIPS
     before = ([(r["day"], r["trips"], r["contributors"])
-               for r in community.contributors_detail()],
+               for r in community.contributors_detail()["days"]],
               len(community.corridors()), len(community._HOURS))
     for d in (community._CELLS, community._DAYS, community._HOURS):
         d.clear()
     community._loaded = False
     community._load()
     after = ([(r["day"], r["trips"], r["contributors"])
-              for r in community.contributors_detail()],
+              for r in community.contributors_detail()["days"]],
              len(community.corridors()), len(community._HOURS))
     assert before == after and before[0][0][1] == 3
 
@@ -344,13 +344,42 @@ def test_no_per_device_fields_anywhere():
 def test_contributors_detail_is_day_rollup_not_devices():
     for dev in ("dev-a", "dev-b", "dev-c"):
         _donate(dev)
-    rows = community.contributors_detail()
+    out = community.contributors_detail()
+    rows = out["days"]
     assert len(rows) == 1  # one UTC day, not one row per device
     r = rows[0]
     assert r["day"] == time.strftime("%Y-%m-%d", time.gmtime())
     assert r["contributors"] == 3 and r["trips"] == 3
     assert "contributor" not in _keys(rows)
     assert "last_seen_min_ago" in r  # /admin/api live-activity check
+
+
+def test_contributors_detail_suppresses_sub_k_days():
+    """A UTC day held by 1-2 devices is a labelled one-person day-slice
+    (their trips/km/dose/modes + last-seen to the minute) — the same
+    leak recent_obs suppresses at hour granularity and corridors apply
+    to cells. Sub-k day rows are counted in suppressed.day_rows and
+    never emitted; days_tracked stays honest."""
+    now = time.time()
+    for dev in ("dev-a", "dev-b"):                 # today: k=2 -> dark
+        _mk_fold(now, dev)
+    for dev in ("dev-c", "dev-d", "dev-e"):        # 25 h back: k=3 -> shown
+        _mk_fold(now - 25 * 3600, dev)
+    out = community.contributors_detail()
+    assert [r["contributors"] for r in out["days"]] == [3]
+    assert out["suppressed"] == {"day_rows": 1}
+    assert out["days_tracked"] == 2
+
+
+def test_contributors_detail_k_counts_devices_not_trips():
+    """Three donations from ONE device on a day is k=1, not k=3 — the
+    trips count must never publish the day row."""
+    for _ in range(3):
+        _donate("same-dev")
+    out = community.contributors_detail()
+    assert out["days"] == []
+    assert out["suppressed"] == {"day_rows": 1}
+    assert out["days_tracked"] == 1
 
 
 def test_recent_obs_are_hour_buckets_not_trips():

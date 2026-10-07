@@ -607,7 +607,7 @@ def reports_geojson() -> dict:
     return {"type": "FeatureCollection", "features": feats}
 
 
-def contributors_detail() -> list[dict]:
+def contributors_detail() -> dict:
     """Per-day city rollup for the admin dashboard — aggregates only.
 
     This used to return one row per contributor id (trips/km/dose/
@@ -616,19 +616,34 @@ def contributors_detail() -> list[dict]:
     rows linkable across days. Rows are now UTC-day buckets: what the
     city did each day, plus the count of distinct devices behind it.
     `last_seen_min_ago` is kept so /admin/api's live-activity check
-    still computes."""
+    still computes.
+
+    The same k>=_K_MIN_DEVICES distinct-device rule recent_obs applies
+    to hour buckets gates the day rows too: a UTC day held by 1-2
+    devices is a *labelled* one-person day-slice — their trips, km,
+    dose, modes and a last-seen to the minute. Sub-k days are
+    suppressed and counted, never emitted (same shape as
+    v2.store.global_aggregates' suppressed block)."""
     _load()
-    out = [{
-        "day": k,
-        "trips": v["trips"], "km": round(v["km"], 1),
-        "dose_ug": round(v["dose_sum"], 1),
-        "avoided_ug": round(v["avoided_sum"], 1),
-        "contributors": len(v["devices"]),
-        "last_seen_min_ago": round((time.time() - v["last_ts"]) / 60),
-        "modes": sorted(v["modes"]),
-    } for k, v in _DAYS.items()]
+    out = []
+    suppressed = 0
+    for k, v in _DAYS.items():
+        if len(v["devices"]) < _K_MIN_DEVICES:
+            suppressed += 1
+            continue  # below-k day row — counted, never published
+        out.append({
+            "day": k,
+            "trips": v["trips"], "km": round(v["km"], 1),
+            "dose_ug": round(v["dose_sum"], 1),
+            "avoided_ug": round(v["avoided_sum"], 1),
+            "contributors": len(v["devices"]),
+            "last_seen_min_ago": round((time.time() - v["last_ts"]) / 60),
+            "modes": sorted(v["modes"]),
+        })
     out.sort(key=lambda x: x["last_seen_min_ago"])
-    return out
+    return {"days": out,
+            "suppressed": {"day_rows": suppressed},
+            "days_tracked": len(_DAYS)}
 
 
 def recent_obs(limit: int = 20) -> list[dict]:

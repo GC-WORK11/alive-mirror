@@ -100,7 +100,9 @@ AGGREGATES at ingest; no per-trip row is ever created.
      ≥3 devices with a fresh traversal (dev_ts, 72 h windows)
                                    │
         GET /admin/api (Bearer token / loopback)   ▼
-   contributors_detail() — UTC-DAY rollups + distinct-device count
+   contributors_detail() — UTC-DAY rollups + distinct-device count,
+                           published only at k≥3 devices per day
+                           (sub-k days counted in suppressed, never served)
    recent_obs(20)        — HOUR buckets, each published only at k≥3
                            distinct devices
    live_reports()        — hazard pins (no contributor field exists)

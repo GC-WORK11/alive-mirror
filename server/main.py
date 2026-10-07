@@ -1689,7 +1689,8 @@ async def admin_session(request: Request):
 async def admin_api():
     """Live ops snapshot for the admin dashboard — anon ids only."""
     thirty_min = 30
-    contributors = community.contributors_detail()
+    detail = community.contributors_detail()
+    contributors = detail["days"]
     return {
         "ts": time.time(),
         "uptime_s": round(time.time() - _BOOT_TS),
@@ -1700,6 +1701,10 @@ async def admin_api():
         "community": community.totals(),
         "corridors": community.corridors(10),
         "contributors": contributors,
+        # k>=3 gate mirrors corridors/global: sub-k UTC day rows are a
+        # one-person slice — counted here, never served above.
+        "contributors_suppressed": detail["suppressed"],
+        "contributors_days_tracked": detail["days_tracked"],
         "recent_journeys": community.recent_obs(20),
         "reports": community.live_reports(),
         "journeys_per_hour": community.journeys_per_hour(),
