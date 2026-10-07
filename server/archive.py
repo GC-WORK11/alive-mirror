@@ -374,7 +374,8 @@ def _enum_s3(s3, bucket) -> dict:
         for o in r.get("Contents", []):
             k = _parse_name(o["Key"])
             if k is not None:
-                out[k] = {"s3": o["Key"]}
+                out[k] = {"s3": o["Key"], "lms": o.get("LastModified"),
+                          "size": o.get("Size")}
         if not r.get("IsTruncated"):
             return out
         token = r.get("NextContinuationToken")

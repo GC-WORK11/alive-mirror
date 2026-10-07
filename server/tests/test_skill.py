@@ -29,6 +29,8 @@ def clean(monkeypatch, tmp_path):
     monkeypatch.delenv("ALIVE_AIR_BUCKET", raising=False)
     monkeypatch.setenv("ALIVE_ARCHIVE_DIR", str(tmp_path))
     _skill._CACHE.update({"at": 0.0, "fp": None, "doc": None})
+    _skill._DOCS.clear()
+    _skill._DOCS_SRC = ()
     yield tmp_path
 
 
@@ -204,6 +206,60 @@ def test_earliest_served_surface_is_the_pair(tmp_path, monkeypatch):
     # hour 15 covered by both captures at h=2 — earliest on record wins
     assert h2["n"] == 1 and h2["bias_ug"] == -50.0
     assert p["pairs"] == 3
+
+
+# ------------------------------------------------------------------ doc cache
+
+def test_doc_cache_loads_only_the_delta(tmp_path, monkeypatch):
+    """The rescan's cost is the I/O: parsed docs are cached by source
+    signature, so a miss re-reads nothing unchanged and a new snapshot
+    costs exactly one load."""
+    calls = []
+    orig = _arch._load_doc
+
+    def spy(info, *, s3=None, bucket=None):
+        calls.append(info)
+        return orig(info, s3=s3, bucket=bucket)
+
+    monkeypatch.setattr(_arch, "_load_doc", spy)
+    for hh in (9, 10, 11, 12, 13):
+        _seed_fc(str(tmp_path), hh, _utc(2026, 10, 5, hh - 6, 32))
+    for h in range(14, 21):
+        _seed_rec(str(tmp_path), h, 110.0)
+    now = _ts_ist(2026, 10, 6, 1)
+    _skill.skill_payload(root=str(tmp_path), now=now)
+    n_first = len(calls)
+    assert n_first == 12                     # the cold fill reads all
+
+    calls.clear()
+    _skill._CACHE["at"] = 0.0                # expire the payload cache
+    _skill.skill_payload(root=str(tmp_path), now=now)
+    assert calls == []                       # nothing changed → no reads
+
+    _seed_rec(str(tmp_path), 21, 130.0)      # one new snapshot lands
+    _skill._CACHE["at"] = 0.0
+    _skill.skill_payload(root=str(tmp_path), now=now)
+    assert len(calls) == 1                   # only the delta is read
+
+
+def test_same_hour_rewrite_is_regraded(tmp_path, monkeypatch):
+    """A capture re-writes its own IST-hour bucket — same keys, same
+    max, only the content changed. The signature fingerprint must bust
+    BOTH caches: the payload re-scores the new doc inside the TTL."""
+    monkeypatch.setattr(_skill, "MIN_PAIRS", 1)
+    monkeypatch.setattr(_skill, "_MIN_GRADED_HOURS", 1)
+    _seed_fc(str(tmp_path), 13, _utc(2026, 10, 5, 8, 5),
+             mid=80.0, drift=0.0, field_mid=90.0)   # h=1 → hour 14
+    _seed_rec(str(tmp_path), 14, 130.0)
+    now = _ts_ist(2026, 10, 6, 1)
+    p1 = _skill.skill_payload(root=str(tmp_path), now=now)
+    h1 = next(x for x in p1["horizons"] if x["h"] == 1)
+    assert h1["n"] == 1 and h1["bias_ug"] == -50.0   # 80 vs 130
+
+    _seed_rec(str(tmp_path), 14, 200.0)      # same bucket, re-written
+    p2 = _skill.skill_payload(root=str(tmp_path), now=now)
+    h1 = next(x for x in p2["horizons"] if x["h"] == 1)
+    assert h1["n"] == 1 and h1["bias_ug"] == -120.0  # 80 vs 200, fresh
 
 
 # ------------------------------------------------------------------ http
