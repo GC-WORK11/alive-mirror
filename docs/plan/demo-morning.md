@@ -1,15 +1,19 @@
 # ALive-108 — demo-morning runbook (the one checklist you hold)
 
-*Written 2026-10-07 ~13:05 UTC, every moving number below re-verified live
-on prod build **`c86074ff`** (`/health` `build_sha` == ECR image tag).
+*Written 2026-10-07 ~13:05 UTC, last sync ~14:25 UTC — every moving
+number below re-verified live on prod build **`7c68c8bc`** (`/health`
+`build_sha` == ECR image tag; deploy-5 roll 2 — `deploy5-report.md`).
 Sources: `docs/demo-day.md`, `docs/plan/demo-script.md`,
 `docs/11-demo-script.md`, `docs/plan/admin-login.md`,
 `docs/plan/go-nogo.md`, `docs/submission/submission-checklist.md` §3,
-plus today's lane evidence — rehearsal-v2 (Android, freeze APK
-`alive108-c3f7e9e.apk`), watchdog (deploy sweeps ×3, all alarms OK),
-testday-offline (8/8 honesty checks PASS), ios-residual-reverify,
-admin-login-e2e. Nothing here is seeded or faked; the numbers marked
-**⟳ LIVE** move with the field — read them at T-45, never from memory.*
+plus today's lane evidence — rehearsal-v2 (Android), deploy5,
+privacy-f1-fix, offline-pack-fix, community-sanity,
+ios-release-residual, judge-answers-v6, watchdog (deploy sweeps, all
+alarms OK), testday-offline (8/8 honesty checks PASS), admin-login-e2e.
+A final freeze-cut APK re-cut is IN FLIGHT (apk-recut lane) — the APK
+steps below point at it, not at the older `c3f7e9e` freeze. Nothing
+here is seeded or faked; the numbers marked **⟳ LIVE** move with the
+field — read them at T-45, never from memory.*
 
 `NLB = http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com`
 (HTTP :80 only — never `https://`, never `:8000`)
@@ -49,10 +53,10 @@ hope.** Then warm.
 
 | # | check | exact command | pass |
 |---|-------|---------------|------|
-| 1 | service health | `curl -s "$NLB/health" \| python3 -m json.tool \| head -40` | HTTP 200 · `field_stale:false` · `engine:"alive_core"` · `transit.real_feeds` bus+metro `true` |
+| 1 | service health | `curl -s "$NLB/health" \| python3 -m json.tool \| head -40` | HTTP 200 · `field_stale:false` · `engine:"alive_core"` · `transit.real_feeds` bus+metro `true` · `build_sha` = the deployed tag (`7c68c8bc` family — re-check anytime with this same curl; a flip means a task restart or a freeze-break, see T-5) |
 | 2 | plan serving (priced engine) | `python3 tools/warm_task.py` | exit 0 → prints `WARM: priced engine serving after Ns`; last line `/tiles/health ok — 22.7 MB` |
 | 3 | field age < 20 min | `curl -s "$NLB/health"` → `field_age_s` | `< 1200` (it peaks ~920 s then resets on the ~15-min cycle — a stuck reading >1200 s means the ingest loop died) |
-| 4 | APK installed + warmed | on the phone: app opens → home hero shows a live "outside" number → search India Gate → Huda City Centre → plan lands → back to home | the freeze APK `alive108-c3f7e9e.apk` (sha256 `4faa08ed…7c72`, verified in rehearsal-v2) or a newer HEAD re-cut if one landed — check `shasum -a 256` against the newest `apk-*-report.md`; **never** `c3bb731`/`0b11123` (30–40 Mobile commits behind) |
+| 4 | APK installed + warmed | on the phone: app opens → home hero shows a live "outside" number → search India Gate → Huda City Centre → plan lands → back to home | install the latest `alive108-<sha>.apk` from the final freeze-cut — **check the recut report for the sha** (newest `docs/lanes/apk-*-report.md`) and `shasum -a 256` the file against it; `alive108-c3f7e9e.apk` is the OLD freeze (predates the offline-pack fix — its r1 pack warms zero tiles), `c3bb731`/`0b11123` are **never** (30–40 Mobile commits behind) |
 | 5 | admin login works | `TOKEN=$(aws secretsmanager get-secret-value --secret-id alive108/admin-token --query SecretString --output text)` then `curl -s -D- -o /dev/null -X POST "$NLB/v2/admin/login" -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN\"}" \| grep -i '^set-cookie'` | `alive_admin=v1.<exp>.<sig>; HttpOnly; Max-Age=28800` — proves token + endpoint good before you need them on camera |
 
 **NO-GO conditions (cut or fix, don't fake):**
@@ -85,10 +89,12 @@ occluded. Both are first-run-only. So:
   walk through the vehicle wizard once → **leave the app on home**.
   This clears the wizard so tomorrow's on-camera chooser plays clean,
   seeds every last-good cache — **and caches the map tiles over the
-  demo corridor** (see the Wi-Fi fallback: the offline tile pack
-  downloads zero tiles — only viewport you actually panned renders
-  offline, so panning the demo OD now is what makes the map survive
-  a dead hall).
+  demo corridor**. The pack fix is live on prod but any APK installed
+  before the freeze re-cut still carries r1-era code that downloads
+  zero tiles — only the viewport you actually panned renders offline,
+  so panning the demo OD now is what makes the map survive a dead
+  hall. (On the re-cut APK the r2 pack pulls all 744 NCR tiles itself
+  — pan anyway, belt-and-braces.)
 - [ ] Rig note that might be real: suggestion rows sometimes eat a
   light tap — if a row seems dead, **long-press it ~300 ms**. Same on
   compare CTAs. (rehearsal-v2 F5; possibly emulator flake, possibly
@@ -123,8 +129,9 @@ curl -s -X POST "$NLB/v2/plan" -H 'content-type: application/json' \
 
 # 4) The state of the machine:
 curl -s "$NLB/health" | python3 -m json.tool | head -30
-#    build_sha (demo build — c86074ff at writing), field_age_s,
-#    stations count (51–54 drift band), wind.
+#    build_sha (demo build — `7c68c8bc` family; re-check: this same
+#    curl — a flip means a task restart or a freeze-break, not field
+#    drift), field_age_s, stations count (51–54 drift band), wind.
 
 # 5) Full sweep if you have 3 min — prints FLAGS for anything stale:
 bash scripts/verify_numbers.sh
@@ -147,6 +154,23 @@ bash scripts/verify_numbers.sh
 - admin cookie: ~8 h, survives redeploys
 - offline honesty: **8/8 checks PASS** on the release build
   (testday-offline) — nothing on screen pretends
+- privacy, verified end-to-end today: spine audit **PASS** — zero
+  identity fields on any gated wire, k≥3 **firing live** (55 cells →
+  12 publishable, every hour bucket dark) — and the one latent gap
+  (ungated day-rows) **closed and live on prod** (privacy-spine +
+  privacy-f1-fix + deploy5). "A street publishes only after 3
+  different riders crossed it" is now true on every surface.
+- community ledger **proven 100% real** (community-sanity): the page
+  reconciles exactly to DynamoDB + S3 — 44 trips / 24 contributors /
+  1,278.9 µg — zero test-labelled devices, zero seeds, zero non-Delhi
+  geometry. Caveats to say if pressed: "contributors" counts device
+  tokens not humans; two legacy `/observe` traversals inflate two
+  corridor dose avgs until ~Oct-8 06:20Z (the 44-trip headline is
+  unaffected).
+- iOS release measured **0/60 cold launches clean**
+  (ios-release-residual) — the ~47% dev-debug crash is a
+  dev-inspector-only race; honestly a post-demo engineering item.
+- `/v2/skill` answers in **~0.7 s on prod** (was ~6 s — deploy4).
 
 ---
 
@@ -187,7 +211,7 @@ bash scripts/verify_numbers.sh
 
 ```bash
 curl -s "$NLB/health" | python3 -c "import json,sys; d=json.load(sys.stdin); print('sha:',d['build_sha'],'stale:',d['field_stale'],'age_s:',d.get('field_age_s'))"
-# ^ task alive, same build you rehearsed, field fresh.
+# ^ task alive, `build_sha` still in the `7c68c8bc` family, field fresh.
 #   If build_sha CHANGED (a task restarted), re-run:
 #   python3 tools/warm_task.py   — before stepping on stage.
 
@@ -245,7 +269,7 @@ US AQI (was 86 today — a citywide mean) while `/aqi` at CP point-reads
 | admin login | 429 rate_limited | wait ~5 s, one clean paste — the bucket refills ~1/5 s |
 | admin login | `admin auth is not configured` (503) | task env lost the token — deep failure; demo everything else, gate card still tells the privacy story |
 | venue Wi-Fi | anything stops loading | switch the phone to the hotspot you armed at T-30; captive portals kill plain HTTP silently |
-| venue Wi-Fi + hotspot | **both** dead | the app still demos air-gapped: bundled 124k-row gazetteer search, a pre-planned route's nav leg, receipt, ledger, day log all work offline (8/8 honesty checks). Basemap: on any APK built ≥ `54a296e` the `delhi-ncr-z9-13-r2` pack actually lands (744 tiles, NCR z9–13 — verified `region_tiles`=744 on iOS sim; see `docs/lanes/offline-pack-fix-report.md`) so the map renders across Delhi with no wifi. On an older APK it only renders where you actually panned — the r1 pack landed zero tiles. Either way keep the T-45 pre-warm pan over the demo corridor as belt-and-braces. Only a **new** plan honestly refuses — for server beats, cut to `cut1.mp4`/`cut2.mp4` on the phone |
+| venue Wi-Fi + hotspot | **both** dead | the app still demos air-gapped: bundled 124k-row gazetteer search, a pre-planned route's nav leg, receipt, ledger, day log all work offline (8/8 honesty checks). Basemap: the pack fix IS live on prod (`GET /v2-light.json` serves, `region_tiles`=744 verified on iOS sim — `offline-pack-fix-report.md`) but it only reaches a phone via the freeze re-cut — **any APK installed before it still warms zero tiles**, so on this morning's install the map renders only where the T-45 pan cached it (ambient cache is the plan, not a fallback). On the re-cut APK the whole NCR z9–13 pack is already local. Only a **new** plan honestly refuses — for server beats, cut to `cut1.mp4`/`cut2.mp4` on the phone |
 | APK | crashes on open | relaunch once — every state persists (consent, vehicle, recents, ledger); back on the map in <1 s. Crash twice → web surfaces carry the same numbers |
 | AWS console | won't load | CLI understudy from any credentialed shell: `aws ecs describe-services --cluster alive108 --service alive108 --query 'services[0].{status:status,running:runningCount,taskDef:taskDefinition,capacity:capacityProviderStrategy}'` → ACTIVE · 1/1 · FARGATE_SPOT — describe it, don't fake the screen |
 | a judge hits prod mid-demo | numbers differ from your line | expected — the field rebuilds every 15 min; "every number on every screen is served live, which is why mine moved too" |
@@ -264,11 +288,13 @@ US AQI (was 86 today — a citywide mean) while `/aqi` at CP point-reads
   swap, re-mint plan→strip pairs; old ids 404.
 - **Never deploy inside the window.** Whatever HEAD is at T-60 is the
   demo build.
-- **iOS is not the demo device** — the cold-launch residual is back in
-  DEBUG builds (14/30 on HEAD sim; dev-inspector crash site, Release
-  rate unmeasured, `ios-release-residual-report.md` not landed). The
-  release target is Android, which has never crashed in E2E. If iOS
-  must show, it needs ≥90 s open before the first search tap.
+- **iOS is not the demo device** — and the release build is now
+  measured clean: **0/60 cold launches** on the reference rig
+  (`ios-release-residual-report.md`; sim-verified — a device release
+  build is unmeasured). The ~47% residual is dev-debug only: the
+  crash victim is the React dev inspector, which doesn't exist in
+  release builds — fixing the underlying race is a post-demo item.
+  Android stays the demo target (never crashed in E2E).
 - **Read the screen, not the script.** The pinned ranges above are
   honest; a recited constant that the field moved past is a gotcha,
   not a feature.
