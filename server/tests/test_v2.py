@@ -291,8 +291,11 @@ def test_trip_privacy_pipeline():
     traj = _line_traj()
     r = client.post("/v2/trip", json={
         "device_token": "device-under-test-1",
+        # dose_ug retargeted: 60.5 in an 8-min AC-car ride implies
+        # ~1375 µg/m³ ambient — past the implied-C admission ceiling
+        # (v2/trip MAX_IMPLIED_PM25), so the bound was right to refuse it
         "summary": {"mode": "car", "distance_km": 2.4,
-                    "duration_s": 480, "dose_ug": 60.5},
+                    "duration_s": 480, "dose_ug": 30.0},
         "trajectory": traj})
     assert r.status_code == 200
     body = r.json()

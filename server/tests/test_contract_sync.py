@@ -258,10 +258,13 @@ def _fetchers():
         "V2ReachResponse": lambda: client.get("/v2/reach", params={
             "lat": CP[0], "lon": CP[1], "mode": "walk",
             "budget_ug": 25}).json(),
+        # dose_ug retargeted: 40.0 in an 8-min AC-car ride implies
+        # ~909 µg/m³ ambient — just past the implied-C admission ceiling
+        # (v2/trip MAX_IMPLIED_PM25), which correctly refused it
         "V2TripResponse": lambda: client.post("/v2/trip", json={
             "device_token": "contract-tok",
             "summary": {"mode": "car", "distance_km": 3.0,
-                    "duration_s": 480, "dose_ug": 40.0},
+                    "duration_s": 480, "dose_ug": 30.0},
             "trajectory": LINE["coordinates"]}).json(),
         "V2LedgerResponse": lambda: client.get("/v2/ledger", params={
             "token": "contract-tok"}).json(),

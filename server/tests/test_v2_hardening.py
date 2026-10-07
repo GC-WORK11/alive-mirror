@@ -520,6 +520,101 @@ def test_trip_distance_only_donation_still_lands():
     assert r.status_code == 200 and r.json()["stored"]
 
 
+# --- /v2/trip geo + implied-C admission (judge-attack, server-audit) ----------
+def test_trip_outside_service_area_rejected_and_never_counted():
+    """The audits' proven poisoning path: donations minted corridor
+    cells for any in-range lat/lon on Earth. Every kept point leaves
+    the dose field's service area (NCR bbox + margin) → 422, and no
+    cells or totals accrue."""
+    day_key = time.strftime("%Y-%m-%d", time.gmtime())
+    before = client.get("/v2/city").json()["trips"]["days"].get(day_key, {})
+    trips_before = before.get("trips", 0)
+    cells_before = store.TRIPS.snapshot_cells()
+
+    foreign = [
+        # a whole Mumbai ride — every point outside the box
+        [[72.87 + i * 0.001, 19.07] for i in range(40)],
+        # Chennai hop — outside on latitude as well
+        [[80.27 + i * 0.001, 13.08] for i in range(40)],
+        # starts at CP, ends past the eastern margin
+        [[77.20 + i * 0.13, 28.63] for i in range(40)],
+        # endpoints inside NCR but the middle leaves the field —
+        # cell-poisoning shape: mints foreign cells mid-path
+        ([[77.20 + i * 0.05, 28.63] for i in range(70)]
+         + [[77.20 + (139 - i) * 0.05, 28.63] for i in range(70, 139)]),
+    ]
+    for i, traj in enumerate(foreign):
+        r = client.post("/v2/trip", json={
+            "device_token": f"foreign-{i}",
+            "summary": {"mode": "car", "distance_km": 5.0,
+                        "duration_s": 900, "dose_ug": 80.0},
+            "trajectory": traj})
+        assert r.status_code == 422, (
+            f"trajectory {i} → {r.status_code}: {r.json()}")
+
+    day = client.get("/v2/city").json()["trips"]["days"].get(day_key, {})
+    assert day.get("trips", 0) == trips_before, (
+        f"out-of-area donations reached the totals: {day}")
+    assert store.TRIPS.snapshot_cells() == cells_before, (
+        "out-of-area donation minted corridor cells")
+
+
+def test_trip_valid_ncr_traversal_still_flows():
+    """The bound must not eat real Delhi data: a CP→outskirts ride
+    inside the margin still stores and reaches the aggregates."""
+    r = client.post("/v2/trip", json={
+        "device_token": "ncr-real",
+        "summary": {"mode": "car", "distance_km": 30.0,
+                    "duration_s": 2400, "dose_ug": 150.0},
+        "trajectory": [[77.20 + i * 0.001, 28.63] for i in range(50)]})
+    assert r.status_code == 200 and r.json()["stored"]
+    assert r.json()["cells_traversed"] >= 1
+
+
+def test_trip_implausible_implied_concentration_rejected():
+    """dose_ug carried only a 50,000 magnitude cap — '5 km walked in
+    an hour inhaling 50 mg' implies ~46,000 µg/m³ ambient. The
+    corridor layer accepts <=900 as a measurement; donations past it
+    are refused, whether or not duration_s was sent (it falls back to
+    the 6 h cap — the most donor-favorable duration)."""
+    day_key = time.strftime("%Y-%m-%d", time.gmtime())
+    before = client.get("/v2/city").json()["trips"]["days"].get(day_key, {})
+    trips_before = before.get("trips", 0)
+
+    absurd = [
+        # walk 1 h, 50 mg → implied C ≈ 46k µg/m³
+        {"mode": "walk", "distance_km": 5.0, "duration_s": 3600,
+         "dose_ug": 50_000.0},
+        # metro 10 min, 5 mg → implied C ≈ 111k
+        {"mode": "metro", "distance_km": 8.0, "duration_s": 600,
+         "dose_ug": 5_000.0},
+        # no duration: at the 6 h cap 50 mg still implies ~25k
+        {"mode": "car", "distance_km": 120.0, "dose_ug": 50_000.0},
+    ]
+    for i, summary in enumerate(absurd):
+        r = client.post("/v2/trip", json={
+            "device_token": f"sniffer-{i}",
+            "summary": summary,
+            "trajectory": [[77.20 + j * 0.0011, 28.63]
+                           for j in range(50)]})
+        assert r.status_code == 422, f"{summary} → {r.status_code}"
+
+    day = client.get("/v2/city").json()["trips"]["days"].get(day_key, {})
+    assert day.get("trips", 0) == trips_before, (
+        f"absurd-dose donations reached the totals: {day}")
+
+
+def test_trip_bad_air_day_dose_still_lands():
+    """A severe-day traversal is real data: 1 h in an auto at implied
+    ~795 µg/m³ sits under the ceiling and must store."""
+    r = client.post("/v2/trip", json={
+        "device_token": "hard-day",
+        "summary": {"mode": "auto", "distance_km": 9.0,
+                    "duration_s": 3600, "dose_ug": 620.0},
+        "trajectory": [[77.20 + i * 0.0011, 28.63] for i in range(50)]})
+    assert r.status_code == 200 and r.json()["stored"]
+
+
 # --- DELETE /v2/ledger ---------------------------------------------------------
 def test_ledger_delete_requires_token():
     """'Delete my data' takes a device token — no token, no scoped wipe,
