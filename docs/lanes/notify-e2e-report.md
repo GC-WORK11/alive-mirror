@@ -85,6 +85,12 @@ _Verified statically this lane (no emulator needed):_
   INTERNET, RECEIVE_BOOT_COMPLETED, FCM RECEIVE/SEND and the OEM badge
   permission set). The Android-13+ runtime prompt has its manifest
   precondition — a missing-permission failure mode is excluded statically.
+- `assets/index.android.bundle` (10.8 MB, in the APK) contains the engine
+  itself: `air-events` channel id, `requestPermissionsAsync` call sites,
+  and the verbatim banner strings ("the air is sitting over the city",
+  "easiest hours ahead", "yesterday on the road" + the heavier/lighter
+  template fragments). The shipped binary IS the notify-v2 build — what
+  remains is runtime delivery proof on a device.
 - Runtime prompt + `air-events` channel creation + banner delivery still
   require the emulator; child session spawn is HTTP-429ing on the org's
   7-concurrent-SWE-2 cap and retries on a timer. Fills when it lands.
