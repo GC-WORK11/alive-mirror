@@ -123,6 +123,13 @@ CO2_SPLIT_KEYS = ("co2_moving_g", "co2_idle_g", "co2_cold_g")
 # check only runs when both numbers are present.
 MIN_TRIP_KM = 0.1       # 100 m — nobody navigates less
 MAX_SPEED_KMH = 140.0   # airport-express peak ≈120; nothing real tops it
+# Implied-concentration ceiling (judge-attack + server-audit fix): the
+# corridor layer inverts dose → ambient C = dose/(VE·dur·microenv) and
+# only accepts <=900 µg/m³ as a measurement (community._fold's gate —
+# above it a traversal is refused as a field sample anyway). A donation
+# claiming worse than that ceiling is not a real traversal, so it is
+# refused at the door instead of letting its dose land in the totals.
+MAX_IMPLIED_PM25 = 900.0
 # A mode is a vehicle-class token — word characters, spaces and '+'.
 # Anything carrying markup or punctuation can never reach mode_share.
 # '+' is in the class because the planner itself emits multimodal modes
@@ -273,6 +280,23 @@ async def post_trip(body: dict):
         from airfield import in_service_area, OUT_OF_AREA
         if not all(in_service_area(la, lo) for la, lo in kept):
             raise HTTPException(422, OUT_OF_AREA)
+    # Implied-concentration bound: invert dose/(VE·dur·microenv) exactly
+    # like community._fold does and refuse anything above the corridor
+    # layer's own measurement ceiling — a 50k-µg claim on a short ride
+    # would otherwise land in dose totals while never being a
+    # measurable sample. duration_s absent → the most donor-favorable
+    # duration (the 6 h cap): anything still absurd then is impossible
+    # no matter the true ride time.
+    dose = summary.get("dose_ug")
+    if dose:
+        from exposure import MICROENV, VENTILATION_LPM
+        mode = summary.get("mode") or ""
+        ve = VENTILATION_LPM.get(mode, 10.0) / 1000.0
+        me = MICROENV.get(mode, 1.0)
+        dur_min = (dur if dur is not None
+                   else _BOUNDS["duration_s"][1]) / 60.0
+        if dose / (ve * dur_min * me) > MAX_IMPLIED_PM25:
+            raise HTTPException(422, "implausible dose_ug for duration_s")
     dupe = _seen_dupe(_dupe_key(token_hash, cells, summary))
     # endpoint areas for the admin global layer — the trimmed first/last
     # kept point snapped to its district/sub-district NAME (a string,
