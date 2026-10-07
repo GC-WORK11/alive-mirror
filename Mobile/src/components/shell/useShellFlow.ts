@@ -21,6 +21,7 @@ import { camDur } from "../../map/cam";
 import { holdMapDrawThen, whenMapDrawFree } from "../../map/drawHold";
 import { departCurveResult, departSavedPct, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
+import { flattenCoords } from "../../nav/offroute";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
 import { isTransit, preserveIdx } from "./types";
@@ -195,7 +196,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         let painted = false;      // engine-first rows already on screen
         let paintedEngine: V2Option[] = [];   // kept if the full plan's engine arm dies
         let fullDone = false;
-        let fitDone = false;
         const show = (opts: V2Option[], field: FieldStatus | null | undefined) => {
           /* keep the user's pick across the swap — by option identity,
              never route_id (the server mints a fresh UUID per /v2/plan
@@ -214,21 +214,29 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
               if (!cancelled) setStrips((m) => (m[o.route_id!] ? m : { ...m, [o.route_id!]: st }));
             }).catch(() => {});
           }
-          const g = opts[0]?.geometry;
-          if (!fitDone && g?.type === "LineString") {
-            fitDone = true;
-            const c = (g as GeoJSON.LineString).coordinates;
-            const bounds: [number, number, number, number] = [
-              Math.min(...c.map((x) => x[0])), Math.min(...c.map((x) => x[1])),
-              Math.max(...c.map((x) => x[0])), Math.max(...c.map((x) => x[1]))];
-            // let the compare sheet's enter spring finish before the one
-            // camera move per plan — a camera anim inside a sheet-mount
-            // frame is the same render-thread spike class
-            setTimeout(() => {
-              if (!cancelled) whenMapDrawFree(() => {
-                if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: camDur(700) });
-              });
-            }, 500);
+          /* camera fits ALL drawable candidates, not just opts[0] — the
+             chooser stages them as equals and the frame must hold every
+             contender before the settle. Re-runs per show() since the
+             full plan's union can grow past the engine-first rows. */
+          {
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            for (const o of opts) {
+              for (const [x, y] of flattenCoords(o.geometry)) {
+                if (x < x0) x0 = x; if (y < y0) y0 = y;
+                if (x > x1) x1 = x; if (y > y1) y1 = y;
+              }
+            }
+            if (x0 <= x1 && y0 <= y1) {
+              const bounds: [number, number, number, number] = [x0, y0, x1, y1];
+              // let the compare sheet's enter spring finish before the
+              // camera move — a camera anim inside a sheet-mount frame
+              // is the same render-thread spike class
+              setTimeout(() => {
+                if (!cancelled) whenMapDrawFree(() => {
+                  if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: camDur(700) });
+                });
+              }, 500);
+            }
           }
         };
         setStrips({});

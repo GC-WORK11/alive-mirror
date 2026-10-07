@@ -458,6 +458,13 @@ const en = {
   /** headline chip on the least-dose option — o.safest_path flag, or the
       dose-min row when the server sends no flag */
   compare_safest: "least smoky",
+  /** the chooser's verdict pill on the winning route — every claim
+      re-derived from the set's own numbers (routeTint.chooserVerdict);
+      never asserted ahead of them */
+  chooser_best: "cleanest and fastest",
+  chooser_lessVsFastest: "cleanest · {n}% less than fastest",
+  chooser_cleanest: "the cleanest way there",
+  chooser_fastest: "the fastest way there",
   compare_smokeIn: "smoke you breathe",
   compare_smokeOut: "smoke your ride puts out",
   plan_failed: "couldn't load the ways there — check the connection",
@@ -1403,6 +1410,10 @@ const hi: Record<StringKey, string> = {
   compare_pick: "हमारी पसंद",
   compare_yours: "आपकी सामान्य",
   compare_safest: "सबसे कम धुआँ",
+  chooser_best: "सबसे कम धुआँ और सबसे तेज़",
+  chooser_lessVsFastest: "सबसे कम धुआँ · सबसे तेज़ से {n}% कम",
+  chooser_cleanest: "सबसे कम धुआँ वाला रास्ता",
+  chooser_fastest: "सबसे तेज़ रास्ता",
   compare_smokeIn: "आपके साँस का धुआँ",
   compare_smokeOut: "आपकी गाड़ी का धुआँ",
   plan_failed: "रास्ते नहीं खुल पाए — कनेक्शन जाँचें",

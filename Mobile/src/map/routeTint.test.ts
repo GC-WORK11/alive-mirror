@@ -13,10 +13,13 @@
  * on the first failed assertion.
  */
 import { MAP_QUIET,
+  candidatesFor,
+  chooserVerdict,
   collectionsFor,
   cumOf,
   featureFor,
   pmColor,
+  pointAtFrac,
   resampleLine,
   TINT_STEP_M,
 } from "./routeTint";
@@ -237,5 +240,93 @@ ok(
   withStrips.alts.features.every((f) => f.properties?.src === "avg"),
   "options without strips fall back to their dose average",
 );
+
+/* ── the chooser: candidatesFor / chooserVerdict / pointAtFrac ─────────── */
+const optNoGeom = mkOption({ route_id: "rid-t", geometry: null }); // transit row
+const optC = mkOption({ geometry: geom, route_id: "rid-c" });
+{
+  const cols = collectionsFor([optA, optNoGeom, optC, optB], 3);
+  /* candidates = ≤3 drawable rows, selected LAST — rid-t (no geometry)
+     never enters the stage */
+  const cands = candidatesFor([optA, optNoGeom, optC, optB], 3, cols.perOption);
+  ok(cands.length === 3, "chooser caps at three candidates");
+  ok(cands[cands.length - 1] === 3, "selected draws last");
+  ok(!cands.includes(1), "geometry-less option is never a candidate");
+  ok(
+    candidatesFor([optA, optB], 0, collectionsFor([optA, optB], 0).perOption)
+      .join(",") === "1,0",
+    "two options → both candidates, winner last",
+  );
+  ok(
+    candidatesFor([optA], 0, collectionsFor([optA], 0).perOption).length === 1,
+    "a lone option draws alone — honest fewer candidates",
+  );
+}
+
+/* chooserVerdict — every claim re-derived from the served numbers */
+const doseOf = (mid: number | null) => ({ lo: null, mid, hi: null, avg_conc_ugm3: null });
+{
+  /* least dose + fastest → the double win */
+  const v1 = chooserVerdict([
+    mkOption({ dose: doseOf(5), eta_s: 500 }),
+    mkOption({ dose: doseOf(9), eta_s: 900 }),
+  ], 0);
+  ok(v1?.kind === "best", "least dose AND fastest → 'best'");
+
+  /* least dose but a faster option exists that breathes 40% more →
+     'cleanestVsFastest' with the real percentage */
+  const v2 = chooserVerdict([
+    mkOption({ dose: doseOf(6), eta_s: 900 }),
+    mkOption({ dose: doseOf(10), eta_s: 500 }),
+  ], 0);
+  ok(
+    v2?.kind === "cleanestVsFastest" && v2.pct === 40,
+    `cleanest vs fastest carried the real gap (40), got ${JSON.stringify(v2)}`,
+  );
+
+  /* least dose, no meaningful faster contrast → plain cleanest; the
+     flag beats dose-min ordering (mirrors the sheet's isSafest) */
+  const v3 = chooserVerdict([
+    mkOption({ dose: doseOf(6), eta_s: 900, safest_path: true }),
+    mkOption({ dose: doseOf(6.02), eta_s: 500 }),
+  ], 0);
+  ok(v3?.kind === "cleanest", "safest_path flag → cleanest");
+
+  /* a user's pick that's the fastest but NOT the cleanest → fastest */
+  const v4 = chooserVerdict([
+    mkOption({ dose: doseOf(6), eta_s: 900 }),
+    mkOption({ dose: doseOf(10), eta_s: 500 }),
+  ], 1);
+  ok(v4?.kind === "fastest", "fastest non-cleanest pick → 'fastest'");
+
+  /* a pick that's neither → the server's own reason_line, or null
+     when there's nothing honest to say */
+  const v5 = chooserVerdict([
+    mkOption({ dose: doseOf(6), eta_s: 900 }),
+    mkOption({ dose: doseOf(10), eta_s: 500 }),
+    mkOption({ dose: doseOf(8), eta_s: 800, reason_line: "a reason" }),
+  ], 2);
+  ok(v5?.kind === "reason" && v5.text === "a reason", "middle pick → server reason_line");
+  const v6 = chooserVerdict([
+    mkOption({ dose: doseOf(6), eta_s: 900 }),
+    mkOption({ dose: doseOf(10), eta_s: 500 }),
+    mkOption({ dose: doseOf(8), eta_s: 800 }),
+  ], 2);
+  ok(v6 === null, "no numbers, no reason → the pill stays silent");
+}
+
+/* pointAtFrac — the pill anchor sits ON the route at its frac point */
+{
+  const mid = pointAtFrac(geom, 0.5)!;
+  ok(
+    Math.abs(mid[0] - 77.20565) < 0.0005 && Math.abs(mid[1] - 28.6) < 1e-6,
+    `midpoint anchor on the line, got ${mid}`,
+  );
+  ok(pointAtFrac(null) === null, "no geometry → no anchor");
+  ok(
+    pointAtFrac({ type: "LineString", coordinates: [[77.2, 28.6]] })?.[0] === 77.2,
+    "single-point geometry anchors on itself",
+  );
+}
 
 console.log(`routeTint self-test OK — ${checks} assertions`);

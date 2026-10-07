@@ -308,6 +308,112 @@ export type TintCollections = {
   perOption: GeoJSON.FeatureCollection[];
 };
 
+/* ── the chooser (RouteTint.tsx sequences it) ────────────────────────────
+ * The map-side "thinking" beat when a plan lands: up to three drawable
+ * candidates draw on as equals, then the selected one settles bold while
+ * the rest fade to hairline alternates. Everything below is pure math on
+ * the option set — candidates are the server's own ranked rows, and the
+ * verdict's every word re-derives from the numbers actually served. */
+
+/** Candidate option-indices in DRAW order: the non-selected drawable
+ *  rows in rank order first, the selected row LAST — the winner's line
+ *  is the final candidate drawn and immediately claims. Drawable = at
+ *  least one tint feature (a geometry-less transit row can never be a
+ *  candidate — it simply isn't staged). */
+export function candidatesFor(
+  options: V2Option[],
+  selected: number | string | null | undefined,
+  perOption: GeoJSON.FeatureCollection[],
+  cap = 3,
+): number[] {
+  const drawable = (i: number) => (perOption[i]?.features.length ?? 0) > 0;
+  const selIdx = typeof selected === "number"
+    ? selected
+    : typeof selected === "string"
+      ? options.findIndex((o) => o.route_id === selected)
+      : -1;
+  const selOk = selIdx >= 0 && selIdx < options.length && drawable(selIdx);
+  const room = selOk ? cap - 1 : cap;
+  const others: number[] = [];
+  for (let i = 0; i < options.length && others.length < room; i++) {
+    if (i !== selIdx && drawable(i)) others.push(i);
+  }
+  return selOk ? [...others, selIdx] : others;
+}
+
+/** What the settle pill may claim for `options[selected]` — each kind
+ *  maps to a strings.ts key; `reason` carries the server's own
+ *  reason_line for the picked row that is neither cleanest nor
+ *  fastest. Returns null when nothing honest can be said. */
+export type ChooserVerdict =
+  | { kind: "best" }                          // least dose AND fastest
+  | { kind: "cleanestVsFastest"; pct: number } // least dose; fastest exists and breathes more
+  | { kind: "cleanest" }                       // least dose; no honest comparison
+  | { kind: "fastest" }                        // quickest; dose claim doesn't hold
+  | { kind: "reason"; text: string }           // user's pick — server's own line
+  | null;
+
+export function chooserVerdict(options: V2Option[], selected: number): ChooserVerdict {
+  const sel = options[selected];
+  if (!sel) return null;
+  const etaOf = (o: V2Option) =>
+    o.eta_s ?? (o.duration_min > 0 ? o.duration_min * 60 : null);
+  const doses = options.map((o) => o.dose?.mid).filter((d): d is number => d != null);
+  const minDose = doses.length ? Math.min(...doses) : Infinity;
+  const selDose = sel.dose?.mid ?? null;
+  const selEta = etaOf(sel);
+  /* mirrors CompareSheet's isSafest: an explicit flag wins anywhere;
+     flagless sets give the claim to the dose-min row. The pill repeats
+     that truth — never asserts it. */
+  const flagged = options.some((o) => o.safest_path === true);
+  const cleanest =
+    sel.safest_path === true ||
+    (!flagged && selDose != null && selDose <= minDose + 0.05);
+  const fastestOpt = options.reduce<V2Option | null>((b, o) => {
+    const e = etaOf(o);
+    return e != null && e <= (etaOf(b ?? o) ?? Infinity) ? o : b;
+  }, null);
+  const fastestEta = fastestOpt ? etaOf(fastestOpt) : null;
+  const fastest = selEta != null && fastestEta != null
+    && selEta <= fastestEta + Math.max(1, fastestEta * 0.02);
+  if (cleanest && fastest) return { kind: "best" };
+  if (cleanest) {
+    const foDose = fastestOpt?.dose?.mid ?? null;
+    if (foDose != null && selDose != null && foDose > selDose) {
+      const pct = Math.round((1 - selDose / foDose) * 100);
+      if (pct >= 4) return { kind: "cleanestVsFastest", pct };
+    }
+    return { kind: "cleanest" };
+  }
+  if (fastest) return { kind: "fastest" };
+  return sel.reason_line ? { kind: "reason", text: sel.reason_line } : null;
+}
+
+/** Point at `frac` of a geometry's total length — the pill anchor, ON
+ *  the route line (default just past midpoint so it reads above the
+ *  compare sheet's top edge under the fit bounds). */
+export function pointAtFrac(
+  geometry: GeoJSON.Geometry | null | undefined,
+  frac = 0.45,
+): LonLat | null {
+  const coords = flattenCoords(geometry);
+  if (!coords.length) return null;
+  if (coords.length < 2) return coords[0];
+  const cum = cumOf(coords);
+  const target = Math.max(0, Math.min(1, frac)) * cum[cum.length - 1];
+  for (let i = 1; i < coords.length; i++) {
+    if (cum[i] >= target) {
+      const s0 = cum[i - 1];
+      const t = cum[i] > s0 ? (target - s0) / (cum[i] - s0) : 0;
+      return [
+        coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * t,
+        coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * t,
+      ];
+    }
+  }
+  return coords[coords.length - 1];
+}
+
 /** All options → { alts, selected, perOption }. `selected` is either the
  *  option INDEX (App's flow.selected) or a route_id string — both are
  *  supported so the compare screen and any future id-keyed store wire up

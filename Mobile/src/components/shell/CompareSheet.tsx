@@ -132,7 +132,7 @@ const doseNoteTxt = (n: string, lang: Lang): string => {
   return key ? t(key, lang) : n;
 };
 
-const reasonTxt = (n: string, lang: Lang): string => {
+export const reasonTxt = (n: string, lang: Lang): string => {
   const m = n.match(SLOWER_RE);
   const base = m ? n.slice(0, -m[0].length) : n;
   const key = REASON_KEY[base];
