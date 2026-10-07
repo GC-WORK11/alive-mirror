@@ -40,6 +40,7 @@ import {
   V2Type,
 } from "../theme";
 import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
+import { BandScale } from "../components/BandScale";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
@@ -339,6 +340,11 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                     : t("refWhoUnder", lang)}
                   {` · ~${Math.round(pm.mid)} µg/m³`}
                 </Text>
+                {/* the good→severe anchor: where today's city air sits on
+                    the CPCB scale — position, not prose */}
+                <View style={ss.heroScale}>
+                  <BandScale idx={bandIdx(pm.mid) ?? 0} lang={lang} />
+                </View>
                 {/* a band that starts at 0 says nothing a stranger can use */}
                 {Math.round(inhaled.lo) > 0 && (
                   <Text {...DYNAMIC_TYPE}
@@ -758,6 +764,7 @@ const ss = StyleSheet.create({
   heroUnit: { color: V2T.text2, fontSize: V2Type.body, alignSelf: "flex-end", paddingBottom: 18 },
   heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, marginTop: -4 },
   heroRef: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 4 },
+  heroScale: { marginTop: 10, alignSelf: "stretch" as const, maxWidth: 210 },
   heroRange: { color: V2T.text2, fontSize: V2Type.label, marginTop: 4 },
 
   chips: {

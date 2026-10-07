@@ -95,6 +95,8 @@ export function bandIdx(v: number | null | undefined): number | null {
   return Math.min(i, 5);
 }
 const BANDS = [V2T.band0, V2T.band1, V2T.band2, V2T.band3, V2T.band4, V2T.band5];
+/** segment count of the CPCB scale (0 good … 5 severe) — BandScale maps onto it */
+export const BAND_SEG_COUNT = BANDS.length;
 /** Muted CPCB colour for a concentration — null-safe (absence → null). */
 export function bandColor(v: number | null | undefined): string | null {
   const i = bandIdx(v);

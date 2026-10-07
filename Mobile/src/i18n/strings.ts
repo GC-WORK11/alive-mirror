@@ -543,6 +543,7 @@ const en = {
   band_poor: "poor",
   band_veryPoor: "very poor",
   band_severe: "severe",
+  bandScaleA11y: "air quality today: {b} — position {n} of 6 on the good to severe scale",
   /* felt words — the band spoken like a person, not a scale
      (the minimal meaning layer: colour + one word, no glossary) */
   felt_easy: "good",
@@ -1129,6 +1130,7 @@ const hi: Record<StringKey, string> = {
   band_poor: "ख़राब",
   band_veryPoor: "बहुत ख़राब",
   band_severe: "गंभीर",
+  bandScaleA11y: "आज की हवा: {b} — अच्छी से गंभीर स्केल पर {n}वाँ स्थान, कुल 6",
   felt_easy: "अच्छी",
   felt_fine: "संतोषजनक",
   felt_fair: "मध्यम",
