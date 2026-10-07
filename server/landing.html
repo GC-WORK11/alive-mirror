@@ -31,13 +31,15 @@
          "Segoe UI",Inter,system-ui,sans-serif;
   --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
 }
-/* ---- web component grammar ---------------------------------------------
-   tile     one idea per card — pastel surface, hairline edge, r 12–16
-   stat     accent chip + huge numeral + unit + label-under + caption
-   chip     tinted label block — wash bg + band-ink text (never raw band)
-   door     feature door — pastel tile, solid icon block, name, arrow
+/* ---- web component grammar (v5 — the page is one editorial flow) -----
+   statement the felt opening line — big sans, one quiet em, no chrome
+   readout  the proof object — band-washed zone, light numeral, felt +
+            basis lines, provenance as a text line
+   steps    numbered editorial rows — air separates, no rules
+   pledge   the privacy story drawn as a ledger — term, then claim
    pill     segmented control — surface2 track, options, white selection
-   sec-tick 7px colour square — a section's identity mark
+   tile     band/tonal surface on ambient depth — hairlines only mark
+            selection or emptiness
    words    number + unit + ≤3-word label; sentences only in CTAs/captions
    ----------------------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
@@ -61,9 +63,8 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;
   clip:rect(0 0 0 0);white-space:nowrap}
 
-/* top bar — plain text, one hairline */
-.top{border-bottom:1px solid var(--line)}
-.top-in{max-width:960px;margin:0 auto;padding:20px 32px;
+/* top bar — plain text floating on paper; no rule, air is the edge */
+.top-in{max-width:960px;margin:0 auto;padding:22px 32px;
   display:flex;align-items:baseline;justify-content:space-between;gap:24px}
 .wm{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
   font-weight:600;text-decoration:none}
@@ -76,116 +77,94 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 @media(max-width:640px){.top nav{gap:16px}
   .top nav a{font-size:11px;letter-spacing:.12em;padding:14px 0}}
 
-/* hero — the readout. the zone wears the day's live band as a tonal
-   wash (colour = the data, not decoration); one question, one numeral,
-   one move. v3 register (docs/20): light grotesque numeral on the field,
-   no hairline hero card, no icon-well doors. */
-.hero{background:var(--hw,var(--paper));border-bottom:1px solid var(--line);
-  transition:background .8s ease}
-.hero .col{padding-top:82px;padding-bottom:62px}
+/* quiet one-time scroll entrance — sections rise as they arrive.
+   applied by JS only (data-rv → .rv), so no-JS never hides content;
+   reduced-motion leaves everything simply visible. */
+.rv{opacity:0;transform:translateY(12px);
+  transition:opacity .6s cubic-bezier(.16,.6,.24,1),
+             transform .6s cubic-bezier(.16,.6,.24,1)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;
+  transition:none}}
+
+/* the opening — one editorial statement on paper. no card, no chip,
+   no tick: the statement IS the design. */
+.open .col{padding-top:88px;padding-bottom:70px}
 .hero-grid{display:block}
 .hero-copy{max-width:680px}
-@media(prefers-reduced-motion:reduce){.hero{transition:none}}
-@media(max-width:640px){.hero .col{padding-top:54px;padding-bottom:48px}}
-/* the app artifact — moved out of the hero into the how section; the
-   field map, not a framed screenshot, is this page's product visual */
-.shot{margin:0;max-width:236px;width:100%;
-  border:1px solid var(--line2);border-radius:26px;overflow:hidden;
-  background:#fff;box-shadow:0 20px 44px -34px rgba(22,24,29,.3)}
-.shot img{display:block;width:100%;height:auto}
-.shot figcaption{padding:11px 16px 12px;border-top:1px solid var(--line);
-  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+@media(max-width:640px){.open .col{padding-top:56px;padding-bottom:46px}}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;
   text-transform:uppercase;color:var(--ink3)}
-@media(max-width:840px){.shot{margin-top:44px}}
-.eyebrow{display:flex;align-items:center;gap:9px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.2em;
-  text-transform:uppercase;color:var(--ink2)}
-.eyebrow .sq{width:7px;height:7px;background:var(--acc);flex:none;
-  border-radius:2px}
-h1{font-family:var(--sans);font-weight:500;
-  font-size:clamp(30px,4.6vw,50px);line-height:1.1;
-  letter-spacing:-.03em;margin-top:26px;max-width:22ch}
-h1 em{font-style:normal;color:var(--ink2)}
-/* the readout — the numeral floats on the zone's band wash; a fine
-   band-inked rule under it breathes (the app's BreathEdge, kept as a
-   baseline instead of a card ring). all set live from /v2/city's field
-   mean in JS; --hb the true band hue for the square dot. */
-.hnum{margin-top:40px;display:flex;align-items:flex-end;gap:30px;
-  flex-wrap:wrap;padding-bottom:24px;position:relative}
+h1.lede{font-family:var(--sans);font-weight:500;
+  font-size:clamp(34px,7.6vw,60px);line-height:1.06;
+  letter-spacing:-.035em;margin-top:26px;max-width:19ch}
+h1.lede em{font-style:normal;color:var(--ink2)}
+.sub{margin-top:28px;max-width:540px;font-size:16.5px;line-height:1.66;
+  color:var(--ink2)}
+.sub b{color:var(--ink);font-weight:600}
+@media(max-width:640px){.eyebrow{letter-spacing:.12em;line-height:1.9}}
+
+/* the proof — the readout IS the object. the zone wears the day's live
+   band as a tonal wash (colour = the data, the "the air is the canvas"
+   exception — docs/20): one label, one numeral, one felt line, one basis
+   line, one provenance line. everything else is air. */
+.proof{background:var(--hw,var(--paper));transition:background .8s ease}
+.proof .col{padding-top:64px;padding-bottom:66px}
+@media(prefers-reduced-motion:reduce){.proof{transition:none}}
+@media(max-width:640px){.proof .col{padding-top:48px;padding-bottom:52px}}
+/* the readout stacks like an instrument read: label, numeral, felt,
+   basis. the fine band-inked rule under it breathes (the app's
+   BreathEdge as a baseline, not a card ring). all set live from
+   /v2/city in JS; --hb the true band hue for the square dot. */
+.hnum{position:relative;padding-bottom:26px}
 @keyframes breath{0%,100%{opacity:.10}50%{opacity:.30}}
 .hnum::after{content:"";position:absolute;left:0;right:0;bottom:0;
   height:1.5px;background:var(--he,var(--acc));opacity:0;pointer-events:none}
 .hnum.breathe::after{animation:breath 4.4s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){.hnum.breathe::after{animation:none;opacity:.18}}
-.hnum-n{display:flex;align-items:baseline;gap:12px}
-.hnum-v{font-family:var(--sans);font-weight:250;
-  font-size:clamp(92px,15vw,168px);line-height:.9;letter-spacing:-.045em;
-  font-variant-numeric:tabular-nums;color:var(--nv,var(--ink))}
-.hnum-n .u{font-family:var(--mono);font-size:12px;letter-spacing:.06em;
-  color:var(--ink2)}
-.hnum-side{min-width:230px;max-width:330px;padding-bottom:10px}
 .hnum-band{display:inline-flex;align-items:center;gap:8px;
   font-family:var(--mono);font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ni,var(--accInk))}
 .hnum-band .bsq{width:8px;height:8px;border-radius:2px;flex:none;
   background:var(--hb,var(--acc))}
-.hnum-t{display:block;margin-top:10px;font-size:15px;line-height:1.55;
-  color:var(--ink)}
+.hnum-n{display:flex;align-items:baseline;gap:14px;margin-top:18px}
+.hnum-v{font-family:var(--sans);font-weight:250;
+  font-size:clamp(104px,27vw,192px);line-height:.9;letter-spacing:-.05em;
+  font-variant-numeric:tabular-nums;color:var(--nv,var(--ink))}
+.hnum-n .u{font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  color:var(--ink2)}
+.hnum-t{display:block;margin-top:20px;font-size:16.5px;line-height:1.55;
+  color:var(--ink);max-width:46ch}
 .hnum-t b{font-weight:600}
-.hnum-s{display:block;margin-top:9px;font-style:normal;
+.hnum-s{display:block;margin-top:10px;font-style:normal;
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ni,var(--ink3));line-height:1.9}
-.sub{margin-top:30px;max-width:560px;font-size:16px;line-height:1.68;
-  color:var(--ink2)}
-.sub b{color:var(--ink);font-weight:600}
-/* links — quiet mono text links. the icon-in-a-coloured-tile door was
-   the catalog tell (docs/20); an underlined word + arrow is the
-   affordance. */
-.links{margin-top:36px;display:flex;gap:36px;flex-wrap:wrap;
-  align-items:center}
-.go{display:inline-flex;align-items:center;gap:10px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink);text-decoration:none;
-  padding-bottom:4px;border-bottom:1px solid var(--ink)}
-.go .arr{display:inline-block;
-  transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.go:hover .arr{transform:translateX(4px)}
-.go.dim{color:var(--ink2);border-bottom-color:var(--line2)}
-.go.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
-@media(max-width:640px){.eyebrow{letter-spacing:.12em;flex-wrap:wrap;
-    row-gap:6px}
-  .hnum{gap:20px}.hnum-side{padding-bottom:0}
-  .links{gap:22px}}
-@media(prefers-reduced-motion:reduce){.go .arr{transition:none}
-  .go:hover .arr{transform:none}}
-/* ops status — a chip row, not a sentence */
-.statusline{margin-top:46px;display:flex;gap:8px;flex-wrap:wrap;
-  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
-  color:var(--ink3);text-transform:uppercase;
-  font-variant-numeric:tabular-nums}
-.statusline>span{background:var(--surf2);border:1px solid var(--line);
-  border-radius:7px;padding:5px 10px}
+/* provenance — the ops truth as one line of text, dots for separators.
+   the equal tile row was the kit tell; a provenance line is how a real
+   instrument cites its sources. */
+.statusline{margin-top:26px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;
+  font-variant-numeric:tabular-nums;line-height:2}
+.statusline>span+span::before{content:"·";margin:0 12px;color:var(--ink4)}
 .statusline b{color:var(--ink);font-weight:600}
 .statusline .ok{color:var(--accInk)}
 
 /* the field — one honest raster, real geography, click through it.
    the map is this viewport's hero: a card frame owns it. */
-.field-sec{padding:14px 0 40px}
+.field-sec{padding:0}
 .field-head{display:flex;align-items:center;
-  margin-bottom:12px;gap:10px 14px;flex-wrap:wrap}
+  margin:22px 0 14px;gap:10px 14px;flex-wrap:wrap}
 .field-head .psel{margin-right:2px}
 .field-head #fieldAge{margin-left:auto}
 .field-head .lbl{font-family:var(--mono);font-size:11px;
   letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
   display:inline-flex;align-items:center}
 .field-head .lbl b{color:var(--ink);font-weight:600}
-.sec-tick{display:inline-block;width:7px;height:7px;border-radius:2px;
-  margin-right:8px;flex:none}
-.sec-tick.t-acc{background:var(--acc)}
 /* pill grammar — a segmented control, not a row of loose text.
-   surface2 track; the selected option lifts as a white card. */
+   surface2 track on paper needs no edge; the selected option lifts as
+   a white card with the one sanctioned hairline (selection). */
 .psel{display:inline-flex;gap:2px;padding:3px;background:var(--surf2);
-  border:1px solid var(--line);border-radius:11px}
+  border-radius:11px}
 .psel button{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
   text-transform:uppercase;padding:6px 13px 5px;cursor:pointer;
   border:none;border-radius:8px;background:transparent;
@@ -195,8 +174,8 @@ h1 em{font-style:normal;color:var(--ink2)}
 .psel button:hover{color:var(--ink)}
 .psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
 .fwrap{position:relative;opacity:0;transition:opacity .5s ease;
-  background:var(--surf);border:1px solid var(--line);border-radius:16px;
-  overflow:hidden;box-shadow:0 3px 14px -6px rgba(22,24,29,.10)}
+  background:var(--surf);border-radius:16px;
+  overflow:hidden;box-shadow:0 8px 30px -10px rgba(22,24,29,.16)}
 .fwrap.ready{opacity:1}
 /* reserve the true map aspect before first paint — no layout jump
    ((e-w)*ASP lon-km : (n-s) lat-km = 1.1*0.879 : 0.75) */
@@ -246,20 +225,17 @@ h1 em{font-style:normal;color:var(--ink2)}
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
 .legend .conf{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   color:var(--ink3);text-transform:uppercase}
-/* the day, recorded — a 24-hour strip card from the decade archive,
-   current hour inked. sits between the live field and the districts:
-   this hour → the day it sits inside. */
-.day-sec{padding:26px 0 10px}
+/* the day, recorded — the decade archive's 24-hour curve drawn bare on
+   paper, current hour inked. no card: the chart is the content. */
+.day-sec{padding:48px 0 0}
 .day-head{display:flex;justify-content:space-between;align-items:center;
-  gap:12px 24px;flex-wrap:wrap;margin-bottom:12px}
+  gap:12px 24px;flex-wrap:wrap;margin-bottom:14px}
 .day-head .lbl{font-family:var(--mono);font-size:11px;
   letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
   display:inline-flex;align-items:center}
 .day-head .lbl b{color:var(--ink);font-weight:600}
-.daybars{display:flex;align-items:flex-end;gap:3px;height:64px;
-  background:var(--surf);border:1px solid var(--line);
-  border-radius:14px;padding:16px 16px 12px}
-.daybars .db{flex:1;background:var(--line2);min-height:3px;
+.daybars{display:flex;align-items:flex-end;gap:3px;height:64px}
+.daybars .db{flex:1;background:var(--surf3);min-height:3px;
   border-radius:3px 3px 0 0}
 .daybars .db.now{background:var(--ink)}
 .daybars .db:hover{outline:1px solid var(--ink);outline-offset:1px}
@@ -269,18 +245,19 @@ h1 em{font-style:normal;color:var(--ink2)}
 .day-note{margin-top:9px;font-family:var(--mono);font-size:11px;
   letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
 .day-note b{color:var(--ink2);font-weight:600}
-/* watch the day — forecast scrubber under the field card: a control
-   strip tile — chip play button, hairline scrubber with ink progress */
+/* watch the day — forecast scrubber under the field card: a tonal
+   control strip, no edge — grouped controls read as one instrument */
 .trow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  margin-top:12px;padding:10px 14px;background:var(--surf);
-  border:1px solid var(--line);border-radius:12px;
+  margin-top:12px;padding:10px 14px;background:var(--surf2);
+  border-radius:12px;
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
 .trow[hidden]{display:none}
 .trow button{font-family:inherit;font-size:inherit;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--ink);background:var(--surf2);
-  border:1px solid var(--line);border-radius:8px;
+  text-transform:uppercase;color:var(--ink);background:var(--surf);
+  border:none;border-radius:8px;
+  box-shadow:0 1px 3px rgba(22,24,29,.10);
   padding:6px 12px 5px;cursor:pointer}
-.trow button:hover{background:var(--surf3)}
+.trow button:hover{background:#fff}
 .trow button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
   appearance:none;background:transparent;height:14px;margin:0;cursor:pointer}
@@ -308,10 +285,10 @@ h1 em{font-style:normal;color:var(--ink2)}
   .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7.5px}
   .tl-range::-moz-range-thumb{width:16px;height:16px}}
 /* results surface as tiles — the priced corridor, the depart read,
-   the dose ladder: each a small card, not an inline hairline */
+   the dose ladder: tonal cards on ambient depth, never outlined */
 .routeline{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
   color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0;
-  background:var(--accWash);border:1px solid var(--accTint);
+  background:var(--accWash);
   border-radius:10px;padding:10px 14px}
 .routeline:empty{display:none}
 .routeline b{color:var(--ink);font-weight:600}
@@ -319,7 +296,7 @@ h1 em{font-style:normal;color:var(--ink2)}
   letter-spacing:-.01em}
 .depart{display:flex;align-items:center;gap:14px;margin-top:8px;
   font-family:var(--mono);font-size:11px;letter-spacing:.07em;
-  color:var(--ink3);background:var(--surf2);border:1px solid var(--line);
+  color:var(--ink3);background:var(--surf2);
   border-radius:10px;padding:10px 14px}
 .depart:empty{display:none}
 .depart svg{flex:none;display:block}
@@ -327,11 +304,12 @@ h1 em{font-style:normal;color:var(--ink2)}
 .ladder{margin-top:10px}
 .ladder:empty{display:none}
 .lrow{display:flex;align-items:baseline;gap:12px;padding:9px 12px;
-  margin-top:6px;background:var(--surf);border:1px solid var(--line);
-  border-radius:10px;font-family:var(--mono);font-size:11px;
+  margin-top:6px;background:var(--surf);border-radius:10px;
+  box-shadow:0 1px 3px -1px rgba(22,24,29,.08);
+  font-family:var(--mono);font-size:11px;
   letter-spacing:.06em;color:var(--ink3);cursor:pointer}
-.lrow:hover{border-color:var(--line2);background:var(--surf2)}
-.lrow.rec{border-color:var(--acc);background:var(--accWash)}
+.lrow:hover{background:var(--surf2)}
+.lrow.rec{background:var(--accWash);box-shadow:inset 0 0 0 1.5px var(--acc)}
 .lrow:focus-visible{outline:1px solid var(--ink);outline-offset:-2px}
 .lrow .lname{width:138px;flex:none;color:var(--ink2);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
@@ -353,7 +331,7 @@ h1 em{font-style:normal;color:var(--ink2)}
 /* the districts — every boundary cut, filled by its live cpcb band.
    chips are band-tinted tiles: the tile surface is the district's own
    band washed pastel (--cw set in JS), the silhouette keeps the hue. */
-.dist-sec{padding:30px 0 84px}
+.dist-sec{padding:52px 0 0}
 .dist-head{display:flex;justify-content:space-between;align-items:center;
   margin-bottom:14px;gap:14px;flex-wrap:wrap}
 .dist-head .lbl{font-family:var(--mono);font-size:11px;
@@ -377,13 +355,13 @@ h1 em{font-style:normal;color:var(--ink2)}
   background-size:22px 100%,22px 100%,8px 100%,8px 100%;
   background-attachment:local,local,scroll,scroll}}
 .dchip{flex:0 0 auto;display:flex;align-items:center;gap:10px;
-  padding:11px 16px 11px 11px;border:1px solid var(--line);
+  padding:11px 16px 11px 11px;
   border-radius:13px;background:var(--cw,var(--surf));
   cursor:pointer;text-align:left;
-  box-shadow:0 1px 3px -1px rgba(22,24,29,.06);
+  box-shadow:0 2px 8px -3px rgba(22,24,29,.10);
   transition:transform .25s cubic-bezier(.22,1,.36,1);
   -webkit-appearance:none;appearance:none;font-family:var(--sans)}
-.dchip:hover{border-color:var(--line2);transform:translateY(-1px)}
+.dchip:hover{transform:translateY(-1px)}
 .dchip:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
 .dchip[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--ink)}
 .dchip svg{width:40px;height:40px;flex:none;display:block}
@@ -407,37 +385,81 @@ h1 em{font-style:normal;color:var(--ink2)}
 @media(max-width:640px){
   .day-head .lbl,.dist-head .lbl{display:block;line-height:1.9}}
 
-/* how — the proof line, then three numbered rows. rows read editorial;
-   the uniform pastel card trio was a kit tell (docs/20). */
-.how{border-top:1px solid var(--line)}
-.how .col{padding-top:66px;padding-bottom:84px}
-.how-grid{display:grid;grid-template-columns:minmax(0,1fr) 236px;
+/* the mechanics — the section lead is a felt line, not a labelled
+   band; steps are numbered editorial rows separated by air, not rules;
+   the pledge block is the privacy story drawn as a ledger. */
+.mech .col{padding-top:84px}
+.city .col{padding-top:84px}
+.lead{font-family:var(--sans);font-weight:500;
+  font-size:clamp(24px,4.6vw,32px);line-height:1.16;
+  letter-spacing:-.02em;color:var(--ink);max-width:26ch;margin:0}
+.mech-grid{display:grid;grid-template-columns:minmax(0,1fr) 236px;
   gap:64px;align-items:start}
-.why{font-size:19px;line-height:1.55;letter-spacing:-.008em;
-  color:var(--ink);max-width:42ch;margin:0 0 46px}
-.why b{font-weight:600;white-space:nowrap}
-.how-head{margin-bottom:12px}
-.how h2{font-family:var(--mono);font-weight:500;font-size:11px;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
-.steps{border-top:1px solid var(--ink)}
+.steps{margin-top:38px}
 .step{display:grid;grid-template-columns:40px 118px minmax(0,1fr);
-  column-gap:20px;padding:20px 0;border-bottom:1px solid var(--line)}
+  column-gap:20px;padding:22px 0}
+.step + .step{margin-top:2px}
 .step .n{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  color:var(--ink3);padding-top:4px}
+  color:var(--ink4);padding-top:4px}
 .step .t{display:block;font-weight:600;font-size:15.5px;
   letter-spacing:-.01em;color:var(--ink);padding-top:1px}
 .step .d{display:block;font-size:13.5px;line-height:1.65;color:var(--ink2)}
 .step .d a{color:var(--ink);text-decoration:none;
   border-bottom:1px solid var(--line2)}
 .step .d a:hover{border-bottom-color:var(--ink)}
-@media(max-width:840px){.how-grid{grid-template-columns:1fr}}
+.why{font-size:19px;line-height:1.55;letter-spacing:-.008em;
+  color:var(--ink);max-width:42ch;margin:44px 0 0}
+.why b{font-weight:600;white-space:nowrap}
+/* the ledger — the privacy story as design: three lines, term then
+   claim, the shape of the thing it describes */
+.pledge{margin-top:52px}
+.pledge h3{font-family:var(--sans);font-weight:500;font-size:19px;
+  letter-spacing:-.012em;color:var(--ink);margin:0 0 18px}
+.pl{display:grid;grid-template-columns:132px minmax(0,1fr);
+  column-gap:20px;padding:13px 0;align-items:baseline}
+.pl-t{font-weight:600;font-size:15px;color:var(--ink)}
+.pl-d{font-size:14.5px;line-height:1.6;color:var(--ink2)}
+@media(max-width:840px){.mech-grid{grid-template-columns:1fr}}
 @media(max-width:560px){
   .step{grid-template-columns:34px minmax(0,1fr)}
-  .step .d{grid-column:2}}
+  .step .d{grid-column:2}
+  .pl{grid-template-columns:1fr;row-gap:3px}}
 
-/* footer */
-.foot{border-top:1px solid var(--line)}
-.foot-in{max-width:960px;margin:0 auto;padding:24px 32px 42px;
+/* the app artifact — proof furniture beside the mechanics; the field
+   map, not a framed screenshot, is this page's product visual */
+.shot{margin:0;max-width:236px;width:100%;
+  border-radius:26px;overflow:hidden;
+  background:#fff;box-shadow:0 24px 50px -30px rgba(22,24,29,.34)}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{padding:11px 16px 12px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3)}
+@media(max-width:840px){.shot{margin-top:44px}}
+
+/* links — quiet mono text links. the icon-in-a-coloured-tile door was
+   the catalog tell (docs/20); an underlined word + arrow is the
+   affordance. */
+.links{margin-top:40px;display:flex;gap:36px;flex-wrap:wrap;
+  align-items:center}
+.go{display:inline-flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink);text-decoration:none;
+  padding-bottom:4px;border-bottom:1px solid var(--ink)}
+.go .arr{display:inline-block;
+  transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.go:hover .arr{transform:translateX(4px)}
+.go.dim{color:var(--ink2);border-bottom-color:var(--line2)}
+.go.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
+@media(max-width:640px){.links{gap:22px}}
+@media(prefers-reduced-motion:reduce){.go .arr{transition:none}
+  .go:hover .arr{transform:none}}
+
+/* the close — the felt line at statement weight, then the doors */
+.close .col{padding-top:88px;padding-bottom:26px}
+.close .lead{max-width:30ch}
+
+/* footer — quiet meta on paper, air instead of a rule */
+.foot-in{max-width:960px;margin:0 auto;padding:20px 32px 46px;
   display:flex;justify-content:space-between;gap:12px 28px;flex-wrap:wrap;
   font-family:var(--mono);font-size:11px;letter-spacing:.14em;
   color:var(--ink3);text-transform:uppercase}
@@ -525,113 +547,37 @@ h1 em{font-style:normal;color:var(--ink2)}
   </nav>
 </div></header>
 
-<section class="hero" id="heroZone"><div class="col"><div class="hero-grid">
+<!-- the opening — one statement, on paper. felt words, no chrome. -->
+<section class="open"><div class="col"><div class="hero-grid">
   <div class="hero-copy">
-    <div class="eyebrow rise" style="--d:0ms" id="eyebrow"><span class="sq"></span>delhi ncr — a dosimeter without hardware</div>
-    <h1 class="rise" style="--d:70ms">What did you <em>breathe</em> today?</h1>
-    <div class="hnum rise" style="--d:140ms" id="hnum" role="status">
-      <div class="hnum-n"><b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span></div>
-      <div class="hnum-side">
-        <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the field, live</span></span>
-        <span class="hnum-t" id="hnumT">a day of breathing today's field — reading…</span>
-        <i class="hnum-s" id="hnumS">reading the live field…</i>
-      </div>
-    </div>
-    <p class="sub rise" style="--d:200ms">A personal dosimeter for Delhi —
-    no hardware. The field below, rebuilt every 15 minutes from
-    <b id="stnHero">—</b> instruments, is the sensor, and the app knows
-    what you breathed — a ledger kept on your phone, where only k≥3
+    <div class="eyebrow rise" style="--d:0ms" id="eyebrow">delhi ncr — a dosimeter without hardware</div>
+    <h1 class="lede rise" style="--d:70ms">A ledger for your <em>lungs</em>, kept on your phone.</h1>
+    <p class="sub rise" style="--d:160ms">A personal dosimeter for Delhi —
+    no hardware. <b id="stnHero">—</b> instruments across the NCR are the
+    sensor; the app does the counting on your phone, where only k≥3
     aggregates ever leave.</p>
-    <div class="links rise" style="--d:260ms">
-      <a class="go" href="/city">open the live field<span class="arr">→</span></a>
-      <a class="go dim" href="/community">community — k≥3 aggregates only<span class="arr">→</span></a>
-    </div>
   </div>
 </div></div></section>
 
-<section class="field-sec"><div class="col">
-  <div class="statusline" id="status" aria-live="polite">reading the field…</div>
-  <div class="field-head">
-    <span class="lbl"><i class="sec-tick t-acc"></i><span id="fieldLbl">pm2.5 — <b>the field, this hour</b></span></span>
-    <span class="psel" id="msel" role="group" aria-label="tool"></span>
-    <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
-    <span class="lbl" id="fieldAge">—</span>
+<!-- the proof — the readout is the object of the page: the zone itself
+     wears the day's live CPCB band (colour = the data), the numeral is
+     the field's own mean, and provenance sits under it as one quiet
+     line of text, not a row of tiles. -->
+<section class="proof" id="heroZone"><div class="col">
+  <div class="hnum" id="hnum" role="status" data-rv>
+    <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the field, live</span></span>
+    <div class="hnum-n"><b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span></div>
+    <span class="hnum-t" id="hnumT">a day of breathing today's field — reading…</span>
+    <i class="hnum-s" id="hnumS">reading the live field…</i>
   </div>
-  <div class="fwrap">
-    <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
-    <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
-    <canvas id="raster" tabindex="0"
-      aria-label="live interpolated field over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
-      aria-describedby="kbhint"></canvas>
-    <div class="fpop" id="fpop" hidden></div>
-  </div>
-  <div class="trow" id="tl" hidden>
-    <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
-    <input class="tl-range" id="tlRange" type="range" min="0" max="11"
-           step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
-    <span class="tl-h" id="tlHour">h+0 now</span>
-    <span class="tl-load" id="tlLoad" hidden></span>
-    <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
-    <span class="tl-note" id="tlNote"></span>
-  </div>
-  <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
-  <noscript>
-    <style>
-      #status,.field-head,.fwrap,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum{display:none}
-    </style>
-    <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
-      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
-      line-height:1.9">
-      the live field, the district map, and today's dose figure need
-      javascript — everything else on this page does not.</p>
-  </noscript>
-  <div class="field-cap">
-    <span class="left" id="capLeft">This is the sensor —
-    every cell interpolated from live instruments, confidence carried with
-    it; the same surface the router prices on. It records Delhi hourly —
-    history, not just forecast. Click a cell.</span>
-    <span class="legend">
-      <span class="strip" id="legendStrip"></span>
-      <span class="tick" id="legendTick"></span>
-      <span class="conf" id="confSplit">—</span>
-    </span>
-  </div>
-  <div class="day-note" id="skillLine" hidden></div>
-  <div class="day-note" id="whyLine" hidden></div>
-  <div class="routeline" id="routeline" aria-live="polite"></div>
-  <div class="depart" id="departline"></div>
-  <div class="ladder" id="ladder"></div>
+  <div class="statusline" id="status" aria-live="polite" data-rv>reading the field…</div>
 </div></section>
 
-<section class="day-sec" id="daySec" hidden><div class="col">
-  <div class="day-head">
-    <span class="lbl"><i class="sec-tick t-acc"></i>the day, recorded — <b>a typical october, hour by hour</b></span>
-    <span class="lbl" id="dayNote">—</span>
-  </div>
-  <div class="daybars" id="daybars"
-    role="img" aria-label="typical october day at connaught place, hour by hour — decade of records"></div>
-  <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
-  <div class="day-note" id="dayWhy"></div>
-</div></section>
-
-<section class="dist-sec"><div class="col">
-  <div class="dist-head">
-    <span class="lbl"><i class="sec-tick t-acc"></i>the districts — <b><span id="distN">—</span> real boundaries, each filled live</b></span>
-    <span class="hint">tap a boundary · worst first</span>
-  </div>
-  <div class="distwrap">
-    <div class="dscroll" id="dscroll"></div>
-    <div class="fpop dtpop" id="dtpop" hidden></div>
-  </div>
-</div></section>
-
-<section class="how"><div class="col"><div class="how-grid">
+<!-- the mechanics — how a breath becomes a number, then the privacy
+     story as design: the ledger kept on-device, shared only at k≥3. -->
+<section class="mech"><div class="col"><div class="mech-grid">
   <div>
-    <div class="how-head"><h2>how it works</h2></div>
-    <p class="why">Dose-priced routing is the proof the field can decide —
-    the engine priced <b><span id="pricedcount">—</span>&nbsp;million</b>
-    of <b><span id="edgecount">—</span>&nbsp;million</b> road edges under
-    this hour's field.</p>
+    <h2 class="lead" data-rv>How a breath becomes a number.</h2>
     <div class="steps">
       <div class="step"><span class="n">01</span><span class="t">measure</span>
         <p class="d">WAQI and DPCC instruments across the NCR report on
@@ -651,13 +597,117 @@ h1 em{font-style:normal;color:var(--ink2)}
         to rank routes; the app runs the same sum over your trips,
         on-device.</p></div>
     </div>
+    <p class="why" data-rv>Dose-priced routing is the proof the field can
+    decide — the engine priced <b><span id="pricedcount">—</span>&nbsp;million</b>
+    of <b><span id="edgecount">—</span>&nbsp;million</b> road edges under
+    this hour's field.</p>
+    <div class="pledge" data-rv>
+      <h3>The ledger stays yours.</h3>
+      <div class="pl"><span class="pl-t">your dose</span>
+        <span class="pl-d">counted on your phone, kept on your phone</span></div>
+      <div class="pl"><span class="pl-t">a shared trip</span>
+        <span class="pl-d">joins a corridor only where three or more phones cross it — below that, it never appears at all</span></div>
+      <div class="pl"><span class="pl-t">the rest</span>
+        <span class="pl-d">no accounts, no profiles — aggregates or nothing</span></div>
+    </div>
   </div>
-  <figure class="shot rise" style="--d:120ms">
+  <figure class="shot" data-rv>
     <img src="/app-hero.png" width="552" height="1200"
       alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
     <figcaption>the app on android, live — real route, real field</figcaption>
   </figure>
 </div></div></section>
+
+<!-- the city — one authored strip: the live field you can touch, the
+     recorded day it sits inside, the district rail. the map is the
+     instrument; its pills and stamp are controls, not chrome. -->
+<section class="city"><div class="col">
+  <h2 class="lead" data-rv>The city, right now.</h2>
+  <div class="field-sec">
+    <div class="field-head">
+      <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the field, this hour</b></span></span>
+      <span class="psel" id="msel" role="group" aria-label="tool"></span>
+      <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
+      <span class="lbl" id="fieldAge">—</span>
+    </div>
+    <div class="fwrap">
+      <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
+      <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
+      <canvas id="raster" tabindex="0"
+        aria-label="live interpolated field over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
+        aria-describedby="kbhint"></canvas>
+      <div class="fpop" id="fpop" hidden></div>
+    </div>
+    <div class="trow" id="tl" hidden>
+      <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
+      <input class="tl-range" id="tlRange" type="range" min="0" max="11"
+             step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
+      <span class="tl-h" id="tlHour">h+0 now</span>
+      <span class="tl-load" id="tlLoad" hidden></span>
+      <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
+      <span class="tl-note" id="tlNote"></span>
+    </div>
+    <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
+    <noscript>
+      <style>
+        #status,.field-head,.fwrap,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum{display:none}
+      </style>
+      <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
+        letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+        line-height:1.9">
+        the live field, the district map, and today's dose figure need
+        javascript — everything else on this page does not.</p>
+    </noscript>
+    <div class="field-cap">
+      <span class="left" id="capLeft">This is the sensor —
+      every cell interpolated from live instruments, confidence carried with
+      it; the same surface the router prices on. It records Delhi hourly —
+      history, not just forecast. Click a cell.</span>
+      <span class="legend">
+        <span class="strip" id="legendStrip"></span>
+        <span class="tick" id="legendTick"></span>
+        <span class="conf" id="confSplit">—</span>
+      </span>
+    </div>
+    <div class="day-note" id="skillLine" hidden></div>
+    <div class="day-note" id="whyLine" hidden></div>
+    <div class="routeline" id="routeline" aria-live="polite"></div>
+    <div class="depart" id="departline"></div>
+    <div class="ladder" id="ladder"></div>
+  </div>
+
+  <div class="day-sec" id="daySec" hidden>
+    <div class="day-head">
+      <span class="lbl">the day, recorded — <b>a typical october, hour by hour</b></span>
+      <span class="lbl" id="dayNote">—</span>
+    </div>
+    <div class="daybars" id="daybars"
+      role="img" aria-label="typical october day at connaught place, hour by hour — decade of records"></div>
+    <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
+    <div class="day-note" id="dayWhy"></div>
+  </div>
+
+  <div class="dist-sec">
+    <div class="dist-head">
+      <span class="lbl">the districts — <b><span id="distN">—</span> real boundaries, each filled live</b></span>
+      <span class="hint">tap a boundary · worst first</span>
+    </div>
+    <div class="distwrap">
+      <div class="dscroll" id="dscroll"></div>
+      <div class="fpop dtpop" id="dtpop" hidden></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- the close — the felt line, then the two doors as quiet text links. -->
+<section class="close"><div class="col">
+  <p class="lead" data-rv>The field knows what Delhi breathed —<br>
+  the app knows what you breathed.</p>
+  <div class="links" data-rv>
+    <a class="go" href="/city">open the live field<span class="arr">→</span></a>
+    <a class="go dim" href="/community">community — k≥3 aggregates only<span class="arr">→</span></a>
+  </div>
+</div></section>
 
 <footer class="foot"><div class="foot-in">
   <span>alive·108 — delhi ncr</span>
@@ -1792,6 +1842,19 @@ function bootStrip(){
   setTimeout(()=>{if(!resolved){resolved=true;settled=true;resolve()}},1450);
   setTimeout(bye,rm?1900:2350);
 }
+/* quiet scroll entrance — elements marked data-rv rise once as they
+   arrive. the marker stays inert without JS (content is just visible);
+   reduced-motion skips the effect entirely. */
+(function(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  if(!('IntersectionObserver' in window))return;
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{
+    if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}})},
+    {threshold:.12,rootMargin:'0px 0px -6% 0px'});
+  document.querySelectorAll('[data-rv]').forEach(el=>{
+    el.classList.add('rv');io.observe(el)});
+})();
+
 bootStrip();
 renderPills();paint();status();loadDistricts();tlInit();heroCity();dayStrip();skillLine();whyTonight();
 let rsz=null;window.addEventListener('resize',()=>{
