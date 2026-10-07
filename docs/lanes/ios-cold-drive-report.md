@@ -50,3 +50,33 @@
 - "India Gate CP · 100m" search row = real gazetteer park 79m from CP, not a phantom.
 - Days-ahead "~17h" subs on cells are honest partial-day markers (today n_hours=17).
 - Screenshots in `ios-cold-drive-shots/`; desktop-scale shots also taken during the drive.
+
+---
+
+## Addendum — fix verification on 368c155 (20:15–20:48)
+
+Rebuilt Release (368c155 + cached native), re-drove every fixed surface on the same sim (PDT — the non-IST frame the fix targets).
+
+| Fix | Result | Evidence |
+|---|---|---|
+| 1 Depart strip TZ | **PASS** — strip now fully device-local on a PDT device: "अभ 20:00 · +6घ 02:00 · +12घ 08:00 · +18घ 14:00 · +23घ 19:00", agreeing with arrival "20:48 तक पहुँचें" and the 20:44 clock. Same strip read "now 07:30" before. | 18_depart_strip_device_local.png |
+| 2 "1 trips" plural | **PARTIAL** — headline now "1 trip · 8.0 km · ≈3 µg" ✓ but a second line still renders "**1 trips** took a lighter way" — tripNoun applied to the summary line only, not this instance. | 15_1trip_fixed_1trips_residual.png |
+| 3 hi agoMin | **PASS** — drawer trip row now "ऑटो-रिक्शा · … · **58 मिनट**" (was "9मि"); the "9min" I flagged was the ago-label, consistent with EN "57m". | 16_hi_minit_fixed.png |
+| 4 Sidebar dose basis | **PASS** — "breathed on trips ≈3 µg" caption, scope explicit; hero still 39µg ambient+trips. | 20 shots + drawer states |
+| 5 Master-off toggles | **PASS** — kinds become `[checked=true,disabled=true]` with a faint-accent track at on-position (asleep, not wiped); re-arming master restores all 3. | 17_toggles_asleep.png |
+| 8 Receipt phrasing | **PASS** — live receipt: "**पैदल से 38.4× कम** · सबसे धुआँदार रास्ता ≈42µg ज़्यादा देता" — `worstMode` correctly resolved to walk (the smokiest option), properly localized. | 19_receipt_paidal.png |
+| Nav→Done→home (c84b5c2 re-check) | **PASS** — receipt → हो गया → home/idle, no compare reopen. | 20_done_lands_home.png |
+
+### NEW finding escalated — search-sheet SIGSEGV is now ~deterministic on touch input
+
+**Severity: high on this environment / demo-risk.** The documented MapLibre render-churn crash class (launchd `exited due to SIGSEGV, sent by exc handler`, no .ips) went from ~12% historical rate to **8 consecutive kills on the "Where to?" → search-sheet mount via touch taps** — across both sims (iPhone 17 + a clean-install iPhone 17 Pro), cold AND 4-min-warm instances, and BOTH JS bundles (verified by reverting Mobile to 6c52cd4 and crashing identically → **368c155 exonerated**; the diff is label-level and cannot SEGV natively anyway).
+
+Notably: **a11y-dispatch presses mounted the same sheet 4/4 times without crashing** (including on a ~3-min-old instance) — the crash correlates with the touch-driven mount path (tap → keyboard+sheet anim + map re-render), not the mount itself. Air-map mount, drawer, Delhi today, nav, receipt all fine on touch.
+
+Read for demo day: this is a host/sim render-pipeline issue (native SEGV can't be JS-caused), but on THIS box right now any normal tap on the main CTA kills the app — a real-device check before stage is mandatory; if a phone does the same, the CTA path needs the mitigation.
+
+Also observed once: unexplained exit-to-SpringBoard with no crash line in the log (mid-tap, 20:21) — recorded as anomaly, once.
+
+### Verdict after fix wave
+
+All six targeted fixes verified live (one PARTIAL — residual "1 trips" line). The fix commit introduced no regressions; the search-mount SIGSEGV is environmental but currently ~100% on touch input and should be treated as the top demo-day risk to re-check on hardware.
