@@ -1,5 +1,6 @@
 /** Shared shell constants + fetch helper. */
 import { Platform } from "react-native";
+import * as Location from "expo-location";
 import { nearestPlace } from "../../search/t0";
 
 // EXPO_PUBLIC_API_URL, else the emulator loopback aliases (dev only —
@@ -17,6 +18,24 @@ export const DELHI: [number, number] = [77.209, 28.6139];
 export const NCR = { minLon: 76.75, maxLon: 77.95, minLat: 28.15, maxLat: 28.98 };
 export const inNcr = (lat: number, lon: number) =>
   lon > NCR.minLon && lon < NCR.maxLon && lat > NCR.minLat && lat < NCR.maxLat;
+
+/* Fresh fix first, honest cached fix second: getCurrentPositionAsync can
+   return null while a perfectly good last-known fix sits in the fused
+   provider (network-positioning dead but GNSS alive — the emulator rig
+   reproduced it; a cold first launch indoors hits the same shape).
+   Without the fallback the plan flow dead-ended on "couldn't get your
+   location" while the home read (same device, last-known path at the
+   aqi poll) showed real numbers. Guards match the home read: in-NCR +
+   15 min freshness, so a stale or out-of-area fix still fails honestly. */
+export const posNow = async () => {
+  const cur = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+  if (cur) return cur;
+  const last = await Location.getLastKnownPositionAsync().catch(() => null);
+  if (!last) return null;
+  if (!inNcr(last.coords.latitude, last.coords.longitude)) return null;
+  if (Date.now() - last.timestamp > 15 * 60 * 1000) return null;
+  return last;
+};
 
 export const fetchJson = (url: string, timeoutMs = 9000) => {
   const ctrl = new AbortController();

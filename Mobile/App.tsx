@@ -64,7 +64,7 @@ import { LayersButton } from "./src/components/shell/LayersButton";
 import { LayersSheet, type LayerKey } from "./src/components/shell/LayersSheet";
 import { Sidebar } from "./src/components/shell/Sidebar";
 import { useShellFlow } from "./src/components/shell/useShellFlow";
-import { API, DELHI, fetchJson, inNcr, reverseName } from "./src/components/shell/net";
+import { API, DELHI, fetchJson, inNcr, posNow, reverseName } from "./src/components/shell/net";
 import {
   DEFAULT_SETTINGS, PROFILE_BUDGET_UG, clearAllData, loadSettings, saveSettings, type SavedPlace, type ShellSettings,
 } from "./src/components/shell/settings";
@@ -649,7 +649,7 @@ function AppInner() {
       const r = await Location.requestForegroundPermissionsAsync().catch(() => null);
       if (cancelled) return;
       setHasLoc(!!r?.granted);
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+      const pos = await posNow();
       if (pos && !cancelled) {
         setUserPos({ lat: pos.coords.latitude, lon: pos.coords.longitude });
         /* prev ?? — a fast user can type a real place inside the ~1-2 s
@@ -914,8 +914,7 @@ function AppInner() {
                                    // when placePickSlot is armed
       return;
     }
-    const pos = await Location.getCurrentPositionAsync(
-      { accuracy: Location.Accuracy.Balanced }).catch(() => null);
+    const pos = await posNow();
     if (pos && placePickSlot) {
       patchSettings({ [placePickSlot]: { name: t("yourLocation", lang),
         lat: pos.coords.latitude, lon: pos.coords.longitude } });
@@ -937,7 +936,7 @@ function AppInner() {
     /* warm the fused provider before engaging follow — MapLibre's
        native layer posts a raw error toast when track starts with
        no fix yet (Android forensic find); a one-shot fix primes it */
-    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+    posNow()
       .then((pos) => { if (pos) { setHasLoc(true); setFollow(true); } })
       .catch(() => {});
   }, [follow, setFollow]);

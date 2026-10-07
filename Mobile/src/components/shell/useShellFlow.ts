@@ -7,7 +7,6 @@
  * /directions remain — /v2/plan carries no turn steps yet. */
 import { useCallback, useEffect, useRef, useState, type RefObject, type SetStateAction } from "react";
 import { Keyboard, Platform, UIManager } from "react-native";
-import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief, cancelDeparture } from "../../notify";
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
@@ -23,7 +22,7 @@ import { departCurveResult, departSavedPct, type DepartCurve } from "../../api/d
 import type { RouteStrip } from "../../nav/strip";
 import { flattenCoords, havM } from "../../nav/offroute";
 import { t } from "../../i18n/strings";
-import { API, DELHI, fetchJson, inNcr } from "./net";
+import { API, DELHI, fetchJson, inNcr, posNow } from "./net";
 import { isTransit, preserveIdx } from "./types";
 import type { Depart, Place, Step, V2Option } from "./types";
 import { tap } from "../../haptics";
@@ -169,7 +168,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     }
     setTo(p);
     if (!from) {
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+      const pos = await posNow();
       if (pos) {
         /* a destination within a street of where you stand is the
            no-route case — 'Your location' tapped as a destination did
@@ -404,7 +403,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     if (!o || !from || !to) return;
     setPhase("nav");
     Keyboard.dismiss();
-    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+    const pos = await posNow();
     setFollow(!!(pos && inNcr(pos.coords.latitude, pos.coords.longitude)));
     /* the sheet-unmount and the camera commits must not land in the same
        frame — back-to-back render commits are the residual-SIGSEGV trigger
