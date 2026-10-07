@@ -816,9 +816,10 @@ section was distilled from.*
   laptop you'll have to unlock on stage) — Secrets Manager
   `alive108/admin-token`, the `ALIVE_ADMIN_TOKEN` env the task def
   injects (`aws secretsmanager get-secret-value --secret-id
-  alive108/admin-token --query SecretString --output text`). Needed
-  for the `/admin` "operator sign in" chip if a judge asks for the
-  internals; the public board renders without it.
+  alive108/admin-token --region ap-south-1 --query SecretString
+  --output text`). Since `b563da2` the token is what stands between a
+  judge and the engine room: guests get the gate card, the board
+  opens only after sign-in — full playbook `docs/plan/admin-login.md`.
 - [ ] T-30b (physical phone sanity — 3 min, all four verified-needed):
   basemap shows street labels (emulator-only upstream bug, near-certain
   fine on hardware); "Where to?" opens the search sheet on a normal
@@ -827,10 +828,12 @@ section was distilled from.*
   confirm one Air-alerts notification lands (fire a real trigger —
   the events engine only pings on real signals; if today is quiet the
   toggle test in Settings proves the path, a ping is not owed).
-- [ ] T-25: open `$NLB/admin` in the demo browser — the public board
-  renders tokenless; confirm light theme + CPCB band colors render and
-  the live feed ticks (~30 s refresh; the "operator sign in" chip +
-  token unlock the internals). The totals a donation increments, by
+- [ ] T-25: open `$NLB/admin` in the demo browser — since `b563da2` a
+  guest lands on the **gate card** ("operator only"), not the board.
+  Paste the token → SIGN IN → board renders + ticks every ~30 s
+  (verified on prod 2026-10-07, playbook `docs/plan/admin-login.md`;
+  if judges never go near `/admin`, the gate card itself is the
+  privacy story — leave it gated). The totals a donation increments, by
   curl: `curl -s $NLB/community` → `obs_total` / `obs_today` /
   `contributors` / `latest_obs_age_min`. (`/reports` is the k≥3
   corridor GeoJSON — honestly empty until 3 devices cross a street;
