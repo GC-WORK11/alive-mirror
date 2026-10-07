@@ -15,6 +15,7 @@
 
 import { EXPANSIONS, fold, foldName, normalize } from "./text";
 import { kindRegexFor, parseQuery, type Parsed } from "./parse";
+import { msSinceInput } from "../startup/idle";
 
 export { normalize } from "./text";
 
@@ -375,6 +376,13 @@ let cursor = 0;                  // next raw row to index
 let built = false;
 let scheduled = false;
 const WARM_SLICE = 6000;         // ~15-30 ms a slice on-device
+/* hard wall-clock cap per slice: on a saturated rig (sim/emu boot burst)
+   a 6k-row slice can run 100 ms+ — the cap stops mid-slice inside a frame
+   budget so queued input always wins the next macrotask (boot-burst lane). */
+const WARM_SLICE_MS = 12;
+/* a touch inside this window pauses the slice loop — the user's own tap
+   always lands before deferred index work resumes (priority to input). */
+const INPUT_YIELD_MS = 1200;
 
 const post = (map: Map<string, number[]>, key: string, id: number) => {
   const list = map.get(key);
@@ -418,8 +426,10 @@ function indexRow(g: Raw): void {
   if (AREA_KINDS.has(e.c)) post(AREA!, gk, id);
 }
 
-/** One slice of index work; returns true when the whole index is ready. */
-function buildSlice(maxRows: number): boolean {
+/** One slice of index work; returns true when the whole index is ready.
+ *  `maxMs` bounds the slice's wall time regardless of row count — the
+ *  loop exits mid-slice once the budget is spent. */
+function buildSlice(maxRows: number, maxMs = Infinity): boolean {
   if (built) return true;
   if (!RAW) {
     /* the require's own parse is the one cost we can't slice — it lands
@@ -435,7 +445,14 @@ function buildSlice(maxRows: number): boolean {
     cursor = 0;
   }
   const raw = RAW, end = Math.min(cursor + maxRows, raw.length);
-  for (; cursor < end; cursor++) indexRow(raw[cursor]);
+  const t0 = performance.now();
+  for (; cursor < end; cursor++) {
+    indexRow(raw[cursor]);
+    /* wall-time early-out: a saturating rig stretches a 6k-row slice far
+       past one frame — bail mid-slice so queued input wins the next
+       macrotask (a clock read per row costs ~ms total across the build). */
+    if (performance.now() - t0 > maxMs) return false;
+  }
   if (cursor < raw.length) return false;
   const entries = ENTRIES!;
   const cap = (map: Map<string, number[]>) => {
@@ -473,20 +490,30 @@ export function warm(): void {
      The same burst is harmless once boot activity settles, so the first
      call defers the whole build past the window instead of racing it.
      Press-in calls still warm lazily through the same path — the index
-     also builds on demand, so early queries stay complete. */
+     also builds on demand, so early queries stay complete.
+
+     boot-burst lane: inside the slice loop itself, real input wins — a
+     touch within INPUT_YIELD_MS pauses slicing, and each slice is capped
+     at WARM_SLICE_MS of wall time, so a saturated rig never parks the JS
+     thread behind index work while the user is tapping. */
   deferred = true;
   setTimeout(() => {
     if (built || scheduled) return;
     scheduled = true;
     const step = () => {
-      if (buildSlice(WARM_SLICE)) scheduled = false;
-      else setTimeout(step, 0);
+      if (msSinceInput() < INPUT_YIELD_MS) {
+        setTimeout(step, INPUT_YIELD_MS);
+        return;
+      }
+      if (buildSlice(WARM_SLICE, WARM_SLICE_MS)) scheduled = false;
+      else setTimeout(step, STEP_GAP_MS);
     };
     setTimeout(step, 0);
   }, WARM_DEFER_MS);
 }
 
 const WARM_DEFER_MS = 15000;
+const STEP_GAP_MS = 50;
 let deferred = false;
 
 /** Damerau-Levenshtein with an early-exit cap — only runs when the cheap

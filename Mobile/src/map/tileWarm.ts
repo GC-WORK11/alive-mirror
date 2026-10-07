@@ -31,6 +31,7 @@
 import { OfflineManager } from "@maplibre/maplibre-react-native";
 import { API_BASE } from "../search/client";
 import { NCR_BOUNDS } from "../search/t0";
+import { msSinceInput } from "../startup/idle";
 import { v2Style, type V2MapStyleInput } from "./style";
 
 const PACK_NAME = "delhi-ncr-z9-13-r2";
@@ -48,6 +49,14 @@ const AMBIENT_MAX_BYTES = 160 * 1024 * 1024;
 
 let started = false;
 
+/* the pack's download runs on MapLibre's own threads, but on a 2-core rig
+   the tile decode + sqlite writes still compete with the boot burst —
+   start it only once input has been quiet for a beat (the user reading
+   the home surface isn't tapping), keeping the warm lazy, never deleted
+   (boot-burst lane). On hardware this wait elapses once, immediately. */
+const INPUT_QUIET_MS = 2000;
+const QUIET_POLL_MS = 1000;
+
 /** Fire-and-forget from App once the map has settled. Runs once per launch;
  *  a second launch sees the stored pack and does nothing. */
 export function warmBasemap(style: V2MapStyleInput): void {
@@ -56,7 +65,11 @@ export function warmBasemap(style: V2MapStyleInput): void {
   // different object and the served style would warm the wrong source.
   if (started || style !== v2Style || !API_BASE.startsWith("http")) return;
   started = true;
-  void warm().catch(() => {});
+  const startWhenQuiet = () => {
+    if (msSinceInput() >= INPUT_QUIET_MS) void warm().catch(() => {});
+    else setTimeout(startWhenQuiet, QUIET_POLL_MS);
+  };
+  startWhenQuiet();
 }
 
 async function warm(): Promise<void> {

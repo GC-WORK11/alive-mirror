@@ -6,6 +6,22 @@
 // made later in the session resolve on the next microtask.
 let firstIdle: Promise<void> | null = null;
 
+/* ---- input-priority signal for boot-time background work ----
+   The root view's onTouchStart marks every touch-down; schedulers of
+   boot bursts (gazetteer warm, tile-pack prefetch) check msSinceInput()
+   before each work slice so a user's tap never queues behind deferred
+   work — the boot-burst freeze class (docs/lanes/boot-burst-report.md). */
+let lastInputAt = 0;
+
+export function noteUserInput(): void {
+  lastInputAt = Date.now();
+}
+
+/** ms since the last observed touch; Infinity until the first one. */
+export function msSinceInput(): number {
+  return lastInputAt ? Date.now() - lastInputAt : Number.POSITIVE_INFINITY;
+}
+
 export function afterFirstFrame(capMs = 1200): Promise<void> {
   if (!firstIdle) {
     firstIdle = new Promise<void>((resolve) => {

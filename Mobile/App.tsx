@@ -29,7 +29,7 @@ import {
 } from "./src/map/style";
 import { warmBasemap } from "./src/map/tileWarm";
 import { warm as warmSearchIndex } from "./src/search/t0";
-import { afterFirstFrame } from "./src/startup/idle";
+import { afterFirstFrame, noteUserInput } from "./src/startup/idle";
 import { camDur } from "./src/map/cam";
 import {
   holdMapDraw, noteMapBusy, noteMapIdle, useHeldState, useMapDrawHeld,
@@ -1084,9 +1084,13 @@ function AppInner() {
      (hosted OpenFreeMap — nothing bundled) used to start only AFTER the
      ~220 ms font gate; now it overlaps it. Splash still covers the tree —
      nothing about the visible order changes. */
-  if (!fontsLoaded) return <View style={s.root}>{mapTree}</View>;
+  /* onTouchStart on the root: marks every touch-down for the boot-idle
+     schedulers (gazetteer warm, tile pack) so their slices yield to real
+     input — one handler, zero render cost (src/startup/idle.ts). */
+  if (!fontsLoaded)
+    return <View style={s.root} onTouchStart={noteUserInput}>{mapTree}</View>;
   return (
-    <View style={s.root}>
+    <View style={s.root} onTouchStart={noteUserInput}>
       <StatusBar style="dark" />
       {mapTree}
 
