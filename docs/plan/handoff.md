@@ -1324,3 +1324,30 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
 - **Board**: me + android-drive (APK re-cut ~1.5h). ios-cold-drive slept.
 - **Owner calls still open**: ASCII restore; TLS; EventBridge; donation
   attestation.
+
+## cont.67 — 2026-10-08 ~08:15 UTC (prod 38492947, ops-holes closed)
+
+- **Deploy `38492947` LIVE + verified**: plain-words server-side now on
+  the wire — landing serves "reading the live air", "the air map",
+  corridor→"shared street" in the k≥3 explainer; day.py/outlook.py
+  avg→average. /v2/city serving honest copy on the new build.
+- **Demo APK deliveries**: `alive108-70914c0.apk` (Max org, sha256
+  bfceaf26, KVM-verified 0 crashes) sent to owner w/ fallback
+  `alive108-0be8181.apk` (in-org, teleport-verified counters fix).
+  Both predate plain-words strings.ts — **canonical demo binary = ONE
+  final re-cut at freeze HEAD (~20:00 IST) by Max apk-final lane +
+  GitHub Release asset** — agreed w/ coordinator, no per-commit churn.
+- **OPS-HOLES found + closed (real)**:
+  - field-age alarm watched namespace `ALive108` — metric lives in
+    `ALive-108`. NEVER saw a datapoint; missing-data=breaching made it
+    permanently cry wolf. Recreated on correct ns, 900s×2 eval,
+    notBreaching on gaps → now OK on real data.
+  - `alive108-5xx-rate` watched Http5xx/RequestCount — metrics that
+    don't exist anywhere. Deleted (always-OK false security).
+  - NEW `alive108-target-down`: HealthyHostCount<1 for 2×60s →
+    alive108-ops SNS (missing-data=breaching — right for down-detector).
+  - alive108-ops SNS had ZERO subscribers — every alarm fired into the
+    void. Subscribed owner's email (pending his SNS confirm click).
+- **SIGSEGV residual honest note**: 22/24 on this rig (2 cold-boot
+  kills), their box 34/34 — pre-warm ritual in runbook.
+- **Board**: me + coordinator channel. Freeze ~20:00 IST → final APK.
