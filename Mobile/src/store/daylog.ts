@@ -54,13 +54,19 @@ const VE_REST_M3H = 0.6;
 let mem: DayLogFile | null = null;
 let inflight: Promise<DayLogFile> | null = null;
 let writeTail: Promise<unknown> = Promise.resolve();
+/* wipe generation — mirrors api/cache.ts wipeGen: a readDisk that was
+   in-flight across clearAllData must drop its stale payload instead of
+   resurrecting the wiped day in the mounted home (testday-ios P2). */
+let wipeGen = 0;
 
 async function readDisk(): Promise<DayLogFile> {
   await afterFirstFrame(); // the day's data is not frame-1 data — mount wins
+  const gen = wipeGen;
   if (mem) return mem;
   try {
     if (FILE.exists) {
       const j = JSON.parse(await FILE.text()) as Partial<DayLogFile>;
+      if (gen !== wipeGen) return { samples: [], checkins: {} }; // wiped mid-read
       mem = {
         samples: Array.isArray(j.samples) ? j.samples : [],
         checkins: j.checkins && typeof j.checkins === "object" ? j.checkins : {},
@@ -70,6 +76,16 @@ async function readDisk(): Promise<DayLogFile> {
   } catch {}
   mem = { samples: [], checkins: {} };
   return mem;
+}
+
+/** Cache reset for settings.clearAllData() — it removes the file
+ *  directly, so the mirror must drop too or wiped samples/check-ins
+ *  would resurrect on the next allSamples() (the mounted home showed
+ *  stale totals until relaunch). */
+export function resetDaylogCache(): void {
+  mem = null;
+  inflight = null;
+  wipeGen++;
 }
 
 function ensureMem(): Promise<DayLogFile> {

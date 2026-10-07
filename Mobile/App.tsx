@@ -581,6 +581,10 @@ function AppInner() {
       clearAllData();
       resetEventsStore();   // events.json baselines + dedupe — same wipe
       setTrips([]); setVehicleProfile(null);
+      /* dayNonce bumps so the mounted home re-assembles its (now empty)
+         reconstruction instead of holding pre-wipe totals — the wipe
+         invalidates the day, same as a fresh ambient read does */
+      setDayNonce((n) => n + 1);
       setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
       /* closing the sheet IS the acknowledgment — the user lands back on
          a clean map; the consent gate re-arms itself on next launch */
