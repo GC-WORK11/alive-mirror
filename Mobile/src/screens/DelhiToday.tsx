@@ -58,6 +58,14 @@ const fmtKm = (km: number): string =>
   km < 10 ? km.toFixed(1) : `${Math.round(km)}`;
 const fmtKg = (kg: number): string => (kg < 1 ? kg.toFixed(2) : kg.toFixed(1));
 
+/* OSM gazetteer names arrive inconsistently cased ("hanuman lane" beside
+   "Fire Brigade Lane") — title-case only names that carry no uppercase at
+   all, so real casing (NH-8, AIIMS Flyover) is never touched. */
+const streetName = (name: string): string =>
+  /[A-Z]/.test(name)
+    ? name
+    : name.replace(/\b\w/g, (ch) => ch.toUpperCase());
+
 const latestDay = (data: CityPayload) => {
   const days = data.trips?.days;
   if (!days) return null;
@@ -120,7 +128,7 @@ function CorridorRow({ c, first, lang }: { c: CityCorridor; first: boolean; lang
           style={[ss.cName, { fontFamily: fam(lang, "med") }]}
           numberOfLines={1}
         >
-          {c.name ?? t("cityUnnamed", lang)}
+          {c.name ? streetName(c.name) : t("cityUnnamed", lang)}
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.cSub, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
           {t("cityTrips", lang, { n: c.trips })}
