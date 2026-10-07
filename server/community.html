@@ -11,6 +11,8 @@
   --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
   --sage:#3a6844;
+  --acc:#3a6844; --accInk:#2b4e32; --accWash:#eaf0e4; --accTint:#dce7d1;
+  --surf2:#f2f1ea;
   --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
          "Segoe UI",Inter,system-ui,sans-serif;
@@ -60,6 +62,23 @@ h1 em{font-style:italic;color:var(--ink2)}
 .sub{margin-top:30px;max-width:560px;font-size:16px;line-height:1.72;
   color:var(--ink2)}
 .sub b{color:var(--ink);font-weight:500}
+/* the proof strip — the privacy mechanism as three pipe tiles, not a
+   paragraph: what the phone cuts, what the server keeps, and the
+   3-phones gate every street below must pass. register-card's pipe /
+   step-tile grammar: numbered chip + serif title + one line. */
+.pipe{margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);
+  gap:12px}
+@media(max-width:700px){.pipe{grid-template-columns:1fr}}
+.pt{background:var(--surf2);border-radius:14px;padding:16px 18px 15px;
+  display:flex;flex-direction:column;gap:6px}
+.pt .n{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  color:var(--accInk);background:var(--accWash);
+  border:1px solid var(--accTint);border-radius:6px;padding:3px 8px;
+  align-self:flex-start}
+.pt b{font-family:var(--serif);font-weight:400;font-size:17.5px;
+  letter-spacing:-.01em;color:var(--ink);margin-top:2px}
+.pt .d{font-size:12px;line-height:1.6;color:var(--ink2)}
+
 .links{margin-top:38px;display:flex;gap:36px;flex-wrap:wrap}
 .tlink{font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;
   border-bottom:1px solid var(--ink);padding-bottom:3px}
@@ -178,22 +197,30 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 
 <section class="hero"><div class="col">
   <div class="eyebrow rise" style="--d:0ms"><span class="sq"></span>delhi ncr — shared commutes</div>
-  <h1 class="rise" style="--d:70ms">Everyone's trips, merged. <em>The map the stations can't make.</em></h1>
+  <h1 class="rise" style="--d:70ms">What Delhi breathed together —
+  <em>merged, never named.</em></h1>
   <p class="sub rise" style="--d:140ms">Government air stations watch
   only part of Delhi — most streets have no sensor on them at all.
   Riders who share their trips (the app calls it <b>donating</b>) fill
-  in those gaps: a ride joins everyone else's as totals on this page —
-  never as you.</p>
+  in those gaps: every ride joins everyone else's as totals on this
+  page — never as you. There is no sign-up — no name, no number.</p>
   <p class="sub rise" style="--d:190ms"><b>We can't leak what we never
-  take.</b> There is no sign-up — no name, no number, no email. A
-  ride's first and last 300 m are cut on your phone before it sends
-  anything, and no record of any single trip is ever written down —
-  only merged counts exist. A street stretch appears below only after
-  <b>3 different phones</b> have crossed it, so no one commute can be
-  traced back to a person.</p>
-  <p class="sub rise" style="--d:240ms">Just shared a trip? It's already
-  inside the numbers below — <b>counted, merged, anonymous</b>.</p>
-  <div class="links rise" style="--d:300ms">
+  take.</b> The proof is three rules below — and the count beside them
+  is live.</p>
+  <div class="pipe rise" style="--d:250ms">
+    <div class="pt"><span class="n">01</span><b>cut on your phone</b>
+      <span class="d">the first and last 300 m of a ride are trimmed
+      on-device before it sends anything — home and work never leave
+      the phone</span></div>
+    <div class="pt"><span class="n">02</span><b>merged, never filed</b>
+      <span class="d">a trip joins totals the moment it lands — no record
+      of any single ride exists at rest, only merged counts</span></div>
+    <div class="pt"><span class="n">03</span><b>3 phones to appear</b>
+      <span class="d">a street stretch shows up only after 3 different
+      phones cross it inside 3 days — below that it isn't in the data
+      at all</span></div>
+  </div>
+  <div class="links rise" style="--d:310ms">
     <a class="tlink" href="/city">Delhi's air right now →</a>
     <a class="tlink dim" href="/admin">Admin →</a>
   </div>
@@ -231,12 +258,11 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
   at least 3 different phones have crossed in the last 3 days —
   everyone's trips merged into totals, never anyone's own.</p>
   <div class="scrollx"><table id="corridors"></table></div>
-  <p class="tnote">a stretch shows up only after 3 different phones
-    have crossed it inside 3 days — below that it isn't in the data
-    at all. that's the whole trick: everyone's trips merged means no
-    single commute can ever be traced back to a person. pm2.5/trip =
-    fine dust inhaled, averaged over shared trips through the stretch
-    (estimated, not a sensor). co₂ = exhaust per 100 m, averaged.</p>
+  <p class="tnote">the 3-phones rule above is the whole trick — merged
+    means no single commute can ever be traced back to a person.
+    pm2.5/trip = fine dust inhaled, averaged over shared trips through
+    the stretch (estimated, not a sensor) · co₂ = exhaust per 100 m,
+    averaged.</p>
 </div></section>
 
 <section class="reports"><div class="col">
@@ -292,7 +318,8 @@ async function load(){
     const last=c.latest_obs_age_min;
     $('status').innerHTML=
       `<span><b>${IN(c.contributors)}</b> phones sharing</span>`+
-      `<span><b>${IN(c.obs_24h)}</b> trips shared · 24h</span>`+
+      `<span><b>${IN(c.obs_total)}</b> trips shared · all-time</span>`+
+      `<span><b>${F1(c.dose_ug_24h)}</b> µg breathed · 24h</span>`+
       `<span><b>${F1(c.km_24h)}</b> km of trips · 24h</span>`+
       `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 dodged · all-time</span>`+
       (last!=null?`<span>last shared trip <b>${agoMin(last)}</b> ago</span>`:'');

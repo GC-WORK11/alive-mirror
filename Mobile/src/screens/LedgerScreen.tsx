@@ -223,8 +223,8 @@ const TripCard = React.memo(function TripCard({
       >
         {/* the mode tile — a tinted square well carrying the mode's own
             colour; identity lives on the component, not on the pane */}
-        <View style={[ss.modeBox, { backgroundColor: V2T.accentWash }]}>
-          <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.accentInk} size={22} filled />
+        <View style={[ss.modeBox, { backgroundColor: V2T.surface2 }]}>
+          <Icon name={vehicleGlyph(tr.vehicle)} color={V2T.text2} size={22} filled />
         </View>
         <View style={ss.tripMid}>
           <Text {...DYNAMIC_TYPE}
@@ -283,7 +283,7 @@ function EmptyState({ lang }: { lang: Lang }) {
   return (
     <View style={ss.emptyWrap}>
       <View style={ss.emptyBadge}>
-        <Icon name="clock" color={V2Tint.forest.ink} size={30} />
+        <Icon name="clock" color={V2T.text3} size={30} />
       </View>
       <Text {...DYNAMIC_TYPE} style={[ss.emptyTitle, { fontFamily: famSerif(lang, "semi") }]}>
         {t("tripsEmpty", lang)}
