@@ -12,9 +12,11 @@
  *   option.geometry            GeoJSON LineString (`route_geojson`) — REQUIRED
  *   option.route_id?           → caller fetches GET /v2/strip and passes the
  *                              RouteStrip in via `strips` (see StripLookup)
- *   option.segments?           legacy per-segment strip seam (Seg[] with
- *                              avg_conc_ugm3 + coords, server/segments.py) —
- *                              consumed verbatim when a payload carries it
+ *   option.segments?           per-segment field paint — two shapes accepted:
+ *                              v2/plan `{geometry, pm25, band, start_frac,
+ *                              end_frac}` spans (server/v2/plan.py
+ *                              _option_segments) and the legacy strip seam
+ *                              (avg_conc_ugm3 + coords, server/segments.py)
  *   option.dose.avg_conc_ugm3? route-mean concentration — flat fallback tint
  *                              when no per-segment data exists yet
  *
@@ -34,7 +36,8 @@
  * every feature is a short LineString with properties:
  *   pm25   µg/m³ field concentration at the chunk midpoint (null = unknown)
  *   lo, hi the strip's band edges at that point (null when no strip)
- *   color  baked doseColor() value — the existing layers' ["get","color"]
+ *   color  baked CPCB band colour — the layers' ["get","color"]
+ *   band   CPCB category name when the server served one (null else)
  *   seg    chunk index within the option   opt   option index
  *   src    "segments" | "strip" | "avg" | "none" — which path supplied pm25
  *
@@ -43,12 +46,11 @@
  * already paint ["get","color"]. Or mount <RouteTintSource/> and delete
  * the "alts"+"route" GeoJSONSources entirely (preferred — see that file).
  *
- * COLOUR SCALE — same THRESHOLDS as theme.doseColor, muted editorial hues
- * tuned for the light basemap (bronze → brick → wine, never neon):
- *   null or pm25 < 60  → MAP_QUIET   #8A93A3  quiet = absence of colour
- *   60 ≤ pm25 < 130    → MAP_WARN    #B0763B  bronze
- *   130 ≤ pm25 < 250   → MAP_HEAVY   #B05355  brick
- *   pm25 ≥ 250         → MAP_SEVERE  #8A2D3E  wine
+ * COLOUR SCALE — the CPCB band ramp ONLY (design law: colour means air).
+ *  theme.bandIdx/bandColor carry the six official bands
+ *  (#6E93AE good → #62392C severe); a span's served `band` name wins over
+ *  re-binning its pm25 (server truth, one scale). Absence of a read paints
+ *  MAP_QUIET — quiet = absence of colour, never a fabricated band.
  * ──────────────────────────────────────────────────────────────────────────
  */
 
@@ -59,28 +61,32 @@ import {
   type StripSample,
 } from "../nav/strip";
 import { flattenCoords, havM, type LonLat } from "../nav/offroute";
+import { bandColor, bandColorIdx } from "../theme";
 import type { V2Option } from "../components/shell/types";
 
 /** Chunk length — matches server/v2/strip.py STEP_M so tint chunks land on
  *  the same ~250 m cadence the strip samples at. */
 export const TINT_STEP_M = 250;
 
-/** doseColor() thresholds (µg/m³) — the single scale every surface shares. */
-export const PM25_BANDS = { quiet: 60, warn: 130, severe: 250 } as const;
-
-/** On-map ramp — muted editorial twin of the chrome dose ramp (light
- *  basemap: same bands, hues deepened to read on paper, not neon). */
+/** No-data paint — absence of colour for spans the field can't read. */
 export const MAP_QUIET = "#8A93A3";
-export const MAP_WARN = "#B0763B";   // muted bronze
-export const MAP_HEAVY = "#B05355";  // dusty brick
-export const MAP_SEVERE = "#8A2D3E"; // deep wine
 
-/** µg/m³ → hex colour for the light map — same bands as theme.doseColor. */
+/** CPCB category name (server districts.cpcb_band) → band index — mirrors
+ *  api/outlook.bandIdxForName; duplicated so this module's test graph
+ *  stays free of the net imports outlook.ts pulls. */
+const CPCB_BAND_IDX: Record<string, number> = {
+  good: 0, satisfactory: 1, moderate: 2, poor: 3, "very poor": 4, severe: 5,
+};
+export const bandIdxForName = (band: string | null | undefined): number | null =>
+  band ? CPCB_BAND_IDX[band.trim().toLowerCase()] ?? null : null;
+
+/** µg/m³ → hex colour on the CPCB ramp (theme.bandColor); null → quiet. */
 export const pmColor = (pm25: number | null | undefined) =>
-  pm25 == null || pm25 < PM25_BANDS.quiet ? MAP_QUIET
-    : pm25 < PM25_BANDS.warn ? MAP_WARN
-    : pm25 < PM25_BANDS.severe ? MAP_HEAVY
-    : MAP_SEVERE;
+  bandColor(pm25) ?? MAP_QUIET;
+
+/** A served CPCB band name beats re-binning — same scale either way. */
+const segColor = (band: string | null | undefined, pm25: number | null) =>
+  bandColorIdx(bandIdxForName(band)) ?? pmColor(pm25);
 
 
 /** Anything a caller can hand us as "the strip": a full RouteStrip, a bare
@@ -111,9 +117,13 @@ export type TintProps = {
   lo: number | null;
   hi: number | null;
   color: string;
+  /** CPCB category when the server served one on this span */
+  band: string | null;
   seg: number;
   opt: number;
   src: "segments" | "strip" | "avg" | "none";
+  /** draw opacity the layer reads (staggered reveal animates it) */
+  op?: number;
 };
 
 const FC = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({
@@ -129,9 +139,10 @@ const feat = (
   seg: number,
   opt: number,
   src: TintProps["src"],
+  band: string | null = null,
 ): GeoJSON.Feature => ({
   type: "Feature",
-  properties: { pm25, lo, hi, color: pmColor(pm25), seg, opt, src } satisfies TintProps,
+  properties: { pm25, lo, hi, color: segColor(band, pm25), band, seg, opt, src } satisfies TintProps,
   geometry: { type: "LineString", coordinates: coords },
 });
 
@@ -241,17 +252,29 @@ export function featureFor(
       ? fieldAtAlongM(samples, stripCum, alongM * scale)
       : { lo: null, mid: null, hi: null };
 
-  // 1 — server per-segment payload (the `segments` seam on V2Option)
-  const segs = (option.segments ?? []).filter(
-    (s) => Array.isArray(s.coords) && s.coords.length >= 2,
-  );
+  // 1 — server per-segment payload (the `segments` seam on V2Option):
+  //     v2/plan `{geometry, pm25, band}` spans, else the legacy strip
+  //     seam's `{coords, avg_conc_ugm3}` — either tiles the path verbatim.
+  const segCoords = (s: NonNullable<V2Option["segments"]>[number]) => {
+    const g = s.geometry;
+    const c = g && g.type === "LineString" && Array.isArray(g.coordinates)
+      ? g.coordinates
+      : s.coords;
+    return Array.isArray(c) && c.length >= 2 ? (c as number[][]) : null;
+  };
+  const segs = (option.segments ?? [])
+    .map((s) => ({ s, coords: segCoords(s) }))
+    .filter((e): e is { s: NonNullable<V2Option["segments"]>[number]; coords: number[][] } =>
+      e.coords != null);
   if (segs.length) {
     return FC(
-      segs.map((sg, i) => {
+      segs.map(({ s: sg, coords: sc }, i) => {
         const midFrac = ((sg.start_frac ?? 0) + (sg.end_frac ?? 0)) / 2;
-        const probe = sg.avg_conc_ugm3 == null ? atM(midFrac * geomTotal) : null;
-        const pm25 = sg.avg_conc_ugm3 ?? probe?.mid ?? fallback;
-        return feat(sg.coords, pm25, probe?.lo ?? null, probe?.hi ?? null, i, optIdx, "segments");
+        const own = sg.pm25 ?? sg.avg_conc_ugm3 ?? null;
+        const probe = own == null ? atM(midFrac * geomTotal) : null;
+        const pm25 = own ?? probe?.mid ?? fallback;
+        return feat(sc, pm25, probe?.lo ?? null, probe?.hi ?? null, i, optIdx,
+          "segments", sg.band ?? null);
       }),
     );
   }

@@ -128,6 +128,15 @@ export type CompareOption = V2Option;
 export type Seg = {
   start_frac: number; end_frac: number; dose_ug: number | null;
   avg_conc_ugm3: number | null; color: string; coords: number[][];
+  /* v2/plan `segments` wire (server/v2/plan.py _option_segments): the
+     span as a GeoJSON LineString + the breathing-zone PM2.5 read at its
+     arc midpoint and the CPCB band that read lands in. Optional — the
+     legacy strip seam carries coords/avg_conc_ugm3 instead; the route
+     tint accepts either shape. */
+  geometry?: GeoJSON.LineString | null;
+  pm25?: number | null;
+  band?: string | null;
+  dist_m?: number;
 };
 
 export type Depart = {

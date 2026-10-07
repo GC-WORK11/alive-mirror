@@ -171,6 +171,11 @@ function toOption(raw: unknown): V2Option | null {
       : null,
     transfers: num(stations?.transfers),
     steps: Array.isArray(o.steps) ? (o.steps as V2Option["steps"]) : null,
+    // per-stretch field paint from v2/plan (`{geometry, pm25, band}` spans);
+    // absent on older servers — RouteTint then falls back to the flat dose tint
+    segments: Array.isArray(o.segments)
+      ? (o.segments as V2Option["segments"])
+      : undefined,
   };
 }
 

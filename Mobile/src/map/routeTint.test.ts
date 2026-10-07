@@ -12,7 +12,7 @@
  * Prints "routeTint self-test OK" and exits 0 on pass; throws (exit 1)
  * on the first failed assertion.
  */
-import { MAP_QUIET, MAP_WARN, MAP_HEAVY, MAP_SEVERE,
+import { MAP_QUIET,
   collectionsFor,
   cumOf,
   featureFor,
@@ -20,9 +20,14 @@ import { MAP_QUIET, MAP_WARN, MAP_HEAVY, MAP_SEVERE,
   resampleLine,
   TINT_STEP_M,
 } from "./routeTint";
+import { bandColor } from "../theme";
 
 import type { StripSample } from "../nav/strip";
 import type { Seg, V2Option } from "../components/shell/types";
+
+/* CPCB ramp hexes (theme.V2T.band*) the assertions below expect. */
+const SAT = bandColor(45)!, MOD = bandColor(75)!,
+  POOR = bandColor(110)!, VPOOR = bandColor(200)!, SEVERE = bandColor(300)!;
 
 let checks = 0;
 const ok = (cond: boolean, msg: string) => {
@@ -101,10 +106,10 @@ ok(
 // chunk mids at 125/375/625/875/~(1000+total)/2 — interpolated pm25:
 //  125→40(clamp)  375→60  625→120  875→230  ~1050→~190
 ok(fcStrip.features[0].properties?.pm25 === 40, "chunk0 clamps to first sample (40)");
-ok(fcStrip.features[0].properties?.color === MAP_QUIET, "chunk0 (<60) is quiet grey");
-ok(fcStrip.features[1].properties?.color === MAP_WARN, "chunk1 (60) is amber");
-ok(fcStrip.features[2].properties?.color === MAP_WARN, "chunk2 (120) is amber");
-ok(fcStrip.features[3].properties?.color === MAP_HEAVY, "chunk3 (230) is orange");
+ok(fcStrip.features[0].properties?.color === SAT, "chunk0 (40) is CPCB satisfactory");
+ok(fcStrip.features[1].properties?.color === SAT, "chunk1 (60) is satisfactory");
+ok(fcStrip.features[2].properties?.color === POOR, "chunk2 (120) is poor");
+ok(fcStrip.features[3].properties?.color === VPOOR, "chunk3 (230) is very poor");
 ok(
   (fcStrip.features[3].properties?.pm25 ?? 0) > (fcStrip.features[0].properties?.pm25 ?? 1e9),
   "pm25 rises into the hot zone",
@@ -120,7 +125,8 @@ ok(
   "strip band lo/hi carried onto features",
 );
 
-/* ── option.segments path (legacy Seg seam) ───────────────────────────── */
+/* ── option.segments path — legacy Seg seam AND the v2/plan
+      {geometry, pm25, band} wire are both accepted ──────────────────── */
 const segs: Seg[] = [
   { start_frac: 0, end_frac: 0.5, dose_ug: 10, avg_conc_ugm3: 45, color: "#000000",
     coords: [[77.2, 28.6], [77.20565, 28.6]] },
@@ -130,14 +136,46 @@ const segs: Seg[] = [
 const fcSegs = featureFor(mkOption({ geometry: geom, segments: segs }));
 ok(fcSegs.features.length === 2, "segments path: one feature per Seg");
 ok(fcSegs.features[0].properties?.src === "segments", "segments path: src=segments");
-// NOTE: Seg.color is server-side legacy scale — we re-tint on doseColor's
-// scale so map colours agree with the compare sheet (assert overrides).
-ok(fcSegs.features[0].properties?.color === MAP_QUIET, "seg avg 45 → quiet grey");
-ok(fcSegs.features[1].properties?.color === MAP_SEVERE, "seg avg 280 → red");
+// NOTE: Seg.color is server-side legacy scale — we re-tint on the CPCB
+// ramp so map colours agree with every other surface.
+ok(fcSegs.features[0].properties?.color === SAT, "seg avg 45 → satisfactory");
+ok(fcSegs.features[1].properties?.color === SEVERE, "seg avg 280 → severe");
 ok(
   (fcSegs.features[0].geometry as GeoJSON.LineString).coordinates.length === 2,
   "seg coords carried verbatim",
 );
+
+/* v2/plan wire: {geometry, pm25, band, start_frac, end_frac, dist_m} —
+   geometry wins over the option's own path, the served band name beats
+   re-binning, and a null pm25 is honest (quiet + no band colour). */
+const v2segs: Seg[] = [
+  { start_frac: 0, end_frac: 0.34, dose_ug: null, avg_conc_ugm3: null, color: "",
+    coords: [], dist_m: 400,
+    geometry: { type: "LineString", coordinates: [[77.2, 28.6], [77.204, 28.6]] },
+    pm25: 75, band: "Moderate" },
+  { start_frac: 0.34, end_frac: 0.67, dose_ug: null, avg_conc_ugm3: null, color: "",
+    coords: [], dist_m: 400,
+    geometry: { type: "LineString", coordinates: [[77.204, 28.6], [77.208, 28.6]] },
+    pm25: null, band: "No data" },
+  { start_frac: 0.67, end_frac: 1, dose_ug: null, avg_conc_ugm3: null, color: "",
+    coords: [], dist_m: 400,
+    geometry: { type: "LineString", coordinates: [[77.208, 28.6], [77.2113, 28.6]] },
+    pm25: 260, band: "Severe" },
+];
+const fcV2 = featureFor(mkOption({ geometry: geom, segments: v2segs }));
+ok(fcV2.features.length === 3, "v2 segments: one feature per span");
+ok(fcV2.features.every((f) => f.properties?.src === "segments"), "v2 segs src=segments");
+ok(fcV2.features[0].properties?.pm25 === 75, "v2 seg pm25 carried");
+ok(fcV2.features[0].properties?.color === MOD, "v2 seg band 'Moderate' → band2");
+ok(fcV2.features[0].properties?.band === "Moderate", "v2 seg band name on feature");
+ok(
+  (fcV2.features[0].geometry as GeoJSON.LineString).coordinates[0][0] === 77.2,
+  "v2 seg geometry carried verbatim",
+);
+ok(fcV2.features[1].properties?.pm25 === null, "v2 null read stays null");
+// no served band + null pm25 → quiet; 'No data' isn't a CPCB colour
+ok(fcV2.features[1].properties?.color === MAP_QUIET, "v2 null read → quiet grey");
+ok(fcV2.features[2].properties?.color === SEVERE, "v2 seg 260 'Severe' → band5");
 
 /* ── fallback path: dose.avg_conc_ugm3 flat tint ──────────────────────── */
 const fcAvg = featureFor(
@@ -146,9 +184,9 @@ const fcAvg = featureFor(
 ok(fcAvg.features.length === chunks.length, "avg path: still chunked");
 ok(
   fcAvg.features.every(
-    (f) => f.properties?.pm25 === 200 && f.properties?.color === MAP_HEAVY && f.properties?.src === "avg",
+    (f) => f.properties?.pm25 === 200 && f.properties?.color === VPOOR && f.properties?.src === "avg",
   ),
-  "avg path: flat 200 → orange everywhere, src=avg",
+  "avg path: flat 200 → very poor everywhere, src=avg",
 );
 const fcNone = featureFor(mkOption({ geometry: geom }));
 ok(
@@ -181,8 +219,8 @@ ok(byIdx.alts.features.every((f) => f.properties?.opt === 0), "alts = unselected
 ok(byIdx.selected.features.every((f) => f.properties?.opt === 1), "selected = chosen option");
 ok(byIdx.perOption.length === 2, "perOption aligned with options");
 ok(
-  byIdx.selected.features.every((f) => f.properties?.color === MAP_SEVERE),
-  "selected option tinted by its own avg (300 → red)",
+  byIdx.selected.features.every((f) => f.properties?.color === SEVERE),
+  "selected option tinted by its own avg (300 → severe)",
 );
 const byId = collectionsFor([optA, optB], "rid-b");
 ok(
