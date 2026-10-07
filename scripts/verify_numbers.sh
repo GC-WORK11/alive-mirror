@@ -132,6 +132,15 @@ max_spread = (maxw / car_mid) if car_mid and maxw else None
 nh = C.get("next_hours") or []
 nh_lo = min((h.get("pm25") for h in nh), default=None)
 nh_hi = max((h.get("pm25") for h in nh), default=None)
+# /health.sources.stations is the station-count live check: two accepted
+# states — 54 (24 WAQI + 30 DPCC) full, or 24 WAQI-only when DPCC pages go
+# stale >MAX_AGE_S and drop out (honest degrade, recovers on next feed).
+st = (H.get("sources") or {}).get("stations") or {}
+st_count, st_source = st.get("count"), st.get("source")
+st_feeds = st.get("feeds") or {}
+aq_readings = finfo.get("station_readings")
+aq_src = finfo.get("stations_src")
+aq_status = finfo.get("stations_status") or {}
 
 # ---------- figure table ----------
 print("\n====================  FIGURE TABLE  ====================")
@@ -158,11 +167,14 @@ emit("/grid cells h=0 (default cells=22 / cells=40)",
 emit("field age s / refresh_in s / stale",
      f"{H.get('field_age_s')} / {H.get('field_refresh_in_s')} / {H.get('field_stale')}",
      r"~4 min|15.?min|field age|age", "drift")
-emit("stations live (WAQI)", (H.get("sources") or {}).get("stations", {}).get("count"),
-     r"24 (live )?(WAQI|instruments|stations)", "drift")
+emit("stations live (instruments)",
+     f"{st_count} — src:{st_source} feeds:{json.dumps(st_feeds)} aqi:{aq_readings}",
+     r"54 (live )?(instruments|stations)|24 (live )?WAQI|waqi\+dpcc|30 DPCC", "drift",
+     "two accepted states: 54 = 24 WAQI + 30 DPCC; 24 = WAQI-only degrade "
+     "(DPCC stale-dropped ~90 min, recovers)")
 emit("model samples", (H.get("sources") or {}).get("model", {}).get("samples"),
      r"~4[0-9] model|7[0-9] samples|samples", "drift")
-emit("fires total / in-belt", f"{n_fires} / {n_belt}", r"~?7[0-9].{0,30}(fire|belt)|fires", "drift")
+emit("fires total / in-belt", f"{n_fires} / {n_belt}", r"~?[0-9]{2,3}.{0,30}(fires|in.?belt|MW)|fires", "drift")
 emit("smoke modifier @CP", A.get("smoke_modifier") or "absent", r"×1\.[0-9]{2}|modifier", "drift")
 emit("PM2.5 @CP breathing / ambient", f"{A.get('pm25')} / {A.get('pm25_ambient')}",
      r"7[0-9]\.[0-9].*breathing|ambient", "drift")
@@ -254,6 +266,17 @@ except Exception as e:
 emit("history stations (climatology)", (H.get("history") or {}).get("stations"),
      r"125 stations|9M station", "artifact",
      "'9M station-hours' is a build-log count, not re-derivable from the committed quantile file")
+try:
+    hv = open(os.path.join(REPO, "docs/lanes/holdout-reverify-report.md")).read()
+    _gap = re.search(r"former-GAP[^\n]*\*\*([0-9.]+)\*\*", hv)
+    _all = re.search(r"all 30 DPCC sites[^\n]*\*\*([0-9.]+)\*\*", hv)
+    emit("holdout artifact: former-GAP / all-30 MAE",
+         f"{_gap.group(1) if _gap else '?'} / {_all.group(1) if _all else '?'}",
+         r"6\.2|10\.5|holdout", "artifact",
+         "drift-class: quote 'single-digit to low-teens µg at instrumented "
+         "sites' — never bare 6.2 (re-probe ~10 mean, to ~17 on falling edges)")
+except Exception:
+    emit("holdout artifact", "MISSING", r"", "artifact")
 
 # ---------- where each figure is quoted ----------
 print("\n====================  WHERE EACH IS QUOTED  ====================")
@@ -278,44 +301,95 @@ def grab(pat, paths):
             if m: return (f"{p}:{i}", l.strip())
     return None
 
-# 1) every surface's edge/priced numbers must equal live
+DOC_LINES = {}
+for _p in DOCS:
+    _fp = os.path.join(REPO, _p)
+    if os.path.exists(_fp):
+        DOC_LINES[_p] = open(_fp, encoding="utf-8", errors="replace").read().splitlines()
+
+# Stamped reads are records, not claims: NUMBERS §4 declares the handoff logs
+# snapshots wholesale; elsewhere a ±4-line window decides whether a figure is
+# inside a dated pass/deploy/probe entry. Stamped lines can never contradict
+# live — they were true at their stamp.
+LOG_FILES = {"docs/plan/handoff.md", "HANDOFF.md"}
+STAMP = re.compile(
+    r"(?i)(stamp|pass\s+[0-9ivx]|verif|deploy|task-?def|build [`']?[0-9a-f]{7}|"
+    r"20[0-9]{2}[-/][0-9]{2}|epoch|watch|earlier|previous|last (week|night|pass)|"
+    r"probe|re-?ran|record|snapshot|histor|observed|afternoon|tonight|morning|"
+    r"evening|mid-day|stale|drift|recover)")
+def _stamp_spans(lines):
+    """lines inside a `*[ ... ]*` stamped-pass block (demo-day's convention)."""
+    inside, out = False, set()
+    for i, l in enumerate(lines):
+        if "*[" in l: inside = True
+        if inside: out.add(i)
+        if "]*" in l: inside = False
+    return out
+BLOCK_STAMPED = {p: _stamp_spans(ls) for p, ls in DOC_LINES.items()}
+def stamped(path, i):
+    if path in LOG_FILES: return True
+    if i in BLOCK_STAMPED.get(path, ()): return True
+    ls = DOC_LINES.get(path, [])
+    return any(STAMP.search(x) for x in ls[max(0, i - 4):i + 1])
+
+infos = []  # printed under flags: live-state notes that are not doc faults
+
+# 1) every surface's edge/priced numbers must equal live — and the figure
+#    must not have vanished from docs entirely
 for pat, val, nm in ((r"1,?070,?459", routing.get("edges"), "edges"),
                      (r"903,?058", routing.get("edges_priced"), "edges_priced")):
     hits = surf(pat)
-    ok = val is not None
-    if not ok: flag(nm, "—", "live MISSING")
+    if val is None:
+        flag(nm, "—", "live MISSING")
+    elif not hits:
+        flag(nm, f"live {val}", f"no surface quotes {pat} — figure dropped everywhere")
 
 # 2) README validation row vs the file it cites
 m = grab(r"MAE 4[0-9]\.[0-9].*field_validation", DOCS)
 filev = re.search(r"MAE[^0-9]*([0-9]+\.[0-9])", fv)
 if m and filev and m[1] and str(filev.group(1)) not in m[1]:
     flag("field-validation MAE", m[0] + " → " + m[1][:70], f"file says MAE {filev.group(1)}")
-# 3) gazetteer row counts
-m = grab(r"124,?334", DOCS)
-if m: flag("gazetteer '124,334'", m[0] + " → " + m[1][:70], f"bundle has {g1}; server copy {g2}")
-m = grab(r"123,?934", DOCS)
-if m: flag("gazetteer '123,934'", m[0] + " → " + m[1][:70], f"bundle has {g1}; server copy {g2} — say which")
+# 3) gazetteer row counts — '124,334' is always wrong; '123,934' is only a
+#    fault when the line doesn't say it's the server-side copy
+for pat in (r"124,?334", r"123,?934"):
+    for p in DOCS:
+        for i, l in enumerate(DOC_LINES.get(p, [])):
+            if not re.search(pat, l): continue
+            if pat.startswith("123") and re.search(
+                    r"server|copy|bundle|mobile|on-?device|fallback", l):
+                continue
+            flag(f"gazetteer {pat}", f"{p}:{i+1} → {l.strip()[:70]}",
+                 f"bundle has {g1}; server copy {g2} — say which")
 # 4) demo-OD dose pair quoted vs live ladder
 m = grab(r"5\.7 vs 189\.7|5\.7.{0,6}189\.7", DOCS)
 if m: flag("demo-OD dose pair", m[0] + " → " + m[1][:70], f"car {car_mid} vs walk {walk_mid} µg")
-# 5) spread phrasing
+# 5) spread phrasing — '~35×' is a RANGE claim; only a read outside the
+#    recorded 31–45× band makes it a lie
 m = grab(r"~35×", DOCS)
-if m and spread and abs(spread - 35) > 2:
-    flag("'~35×' quoted", m[0], f"today {spread:.1f}× — range 31–45× keeps '~35×' honest")
-# 6) fires quoted ~70 vs live
-m = grab(r"~70 (over|fires|NASA)", DOCS)
-if m and n_fires and abs(n_fires - 70) > 10:
-    flag("fires '~70'", m[0] + " → " + m[1][:70], f"live {n_fires} total / {n_belt} belt")
-# 7) smoke modifier ×1.27 vs live
-m = grab(r"×1\.27", DOCS)
-smk = A.get("smoke_modifier")
-if m:
-    flag("smoke ×1.27 at CP", m[0] + " → " + m[1][:70], f"smoke block {smk or 'null'} today")
+if m and spread and not (31 <= spread <= 45):
+    flag("'~35×' quoted", m[0],
+         f"today {spread:.1f}× — outside the recorded 31–45× band; re-stamp")
+# 6) fires count quoted vs live — fires swing ~30→90 in a day; an unstamped
+#    count more than ~25 off live contradicts, a stamped one is a record
+for p in DOCS:
+    for i, l in enumerate(DOC_LINES.get(p, [])):
+        fm = re.search(r"(?:~?(\d{2,3})\s*(?:/\s*\d+\s*)?fires|fires\s*~?(\d{2,3}))", l)
+        if not fm or stamped(p, i): continue
+        q = int(fm.group(1) or fm.group(2))
+        if n_fires and abs(q - n_fires) > 25:
+            flag("fires count quoted", f"{p}:{i+1} → {l.strip()[:70]}",
+                 f"live {n_fires} total / {n_belt} belt — stamp the read")
+# 7) smoke modifier ×1.27 vs live — skip stamped pass entries
+for p in DOCS:
+    for i, l in enumerate(DOC_LINES.get(p, [])):
+        if not re.search(r"×1\.27", l) or stamped(p, i): continue
+        flag("smoke ×1.27 at CP", f"{p}:{i+1} → {l.strip()[:70]}",
+             f"smoke block {A.get('smoke_modifier') or 'null'} today — range absent↔×1.27")
 # 8) 'Stations are offline' vs live stations
 m = grab(r"[Ss]tations are offline", DOCS)
-if m and (H.get("sources") or {}).get("stations", {}).get("count"):
+if m and st_count:
     flag("'stations offline' claim", m[0] + " → " + m[1][:70],
-         f"{H['sources']['stations']['count']} WAQI stations live")
+         f"{st_count} instruments live on /health ({st_source})")
 # 9) reach numbers quoted vs live
 for pat, R, nm in ((r"~?4,?200.{0,20}187 ?km", load("reach_w25.json"), "walk@25"),
                    (r"~?15,?000.{0,20}880", load("reach_w50.json"), "walk@50"),
@@ -326,10 +400,64 @@ for pat, R, nm in ((r"~?4,?200.{0,20}187 ?km", load("reach_w25.json"), "walk@25"
         flag(f"reach {nm}", m[0] + " → " + m[1][:70],
              f"{r.get('edge_count')} edges / {r.get('distance_km')} km")
 
+# 10) /health sources.stations.count live check — the two accepted states are
+#     54 (24 WAQI + 30 DPCC) and 24 (WAQI-only degrade: DPCC pages stale
+#     >MAX_AGE_S get dropped, feed recovers). Anything else is a real surprise.
+if st_count is None:
+    flag("stations.count", "—", "sources.stations missing from /health")
+elif st_count == 54:
+    if "dpcc" not in (st_source or ""):
+        flag("stations.source", f"count 54, source {st_source!r}",
+             "54 instruments can't come from WAQI alone — inconsistent wire")
+    if "dpcc" not in st_feeds:
+        infos.append("feeds map lacks 'dpcc' while count=54 — known transient "
+                     "mid-refresh wart (truth-audit §1), self-heals on next build")
+elif st_count == 24:
+    infos.append("stations in DEGRADE mode (24 WAQI-only — DPCC stale-dropped). "
+                 "Docs quoting 54 stay honest (they say 'drifts/recovers'); "
+                 "re-check after the next feed lands")
+else:
+    flag("stations.count", str(st_count),
+         "not an accepted state — expected 54 (waqi+dpcc) or 24 (waqi-only degrade)")
+if aq_readings is not None and st_count is not None and aq_readings != st_count:
+    flag("/aqi station_readings", str(aq_readings),
+         f"/health count {st_count} — the two wires disagree")
+
+# 11) stale 24-world phrasing — an UNSTAMPED '24 stations/instruments' claim
+#     is stale when live is 54; '24 WAQI + 30 DPCC' and degrade-mode notes
+#     are the current truth, not flags
+for p in DOCS:
+    if p in LOG_FILES: continue
+    for i, l in enumerate(DOC_LINES.get(p, [])):
+        if not re.search(r"\b24 (WAQI )?(stations|instruments)\b", l): continue
+        if re.search(r"30 DPCC|waqi\+dpcc|\+ ?30", l): continue
+        if stamped(p, i): continue
+        if st_count == 54:
+            flag("'24 stations' world", f"{p}:{i+1} → {l.strip()[:70]}",
+                 "live is 54 (24 WAQI + 30 DPCC) — 24-only is the degrade "
+                 "mode, not the world")
+
+# 12) bare '6.2' holdout MAE — the artifact's all-30 figure is only true of
+#     its probe; a doc asserting 6.2 with no range/artifact framing over-claims
+for p in DOCS:
+    for i, l in enumerate(DOC_LINES.get(p, [])):
+        if not re.search(r"\b6\.2\b", l): continue
+        ctx = " ".join(DOC_LINES[p][max(0, i - 2):i + 1])
+        if not re.search(r"(?i)MAE|agreement|error|holdout|accuracy|µg|\bug\b", ctx):
+            continue
+        if re.search(r"(?i)→|->|—|–|single-digit|low-teens|worst|holdout|reverif|"
+                     r"artifact|stamp|probe|range|blind|up to|~", ctx):
+            continue
+        flag("bare '6.2' holdout MAE", f"{p}:{i+1} → {l.strip()[:70]}",
+             "quote 'single-digit to low-teens µg at instrumented sites' — "
+             "6.2 is one probe's artifact (re-probe ~10 mean, to ~17 on falling edges)")
+
 if not flags:
     print("  (none — all quoted numbers match live within their stated precision)")
 for w_, s_, l_ in flags:
     print(f"  ⚠ {w_}\n      surface: {s_}\n      live   : {l_}")
+for n_ in infos:
+    print(f"  · {n_}")
 
 print(f"""
 notes:
@@ -342,6 +470,12 @@ notes:
    {walk_mid and f'{walk_mid*0.5:.0f}'} vs {car_mid and f'{car_mid*0.5:.1f}'} mg.
  · '90,503 km' / '706 km' were earlier /v2/reach distance_km reads — drift-prone;
    re-run for the morning-of value.
+ · stations live check accepts two states: {st_count} now — 54 = 24 WAQI + 30 DPCC;
+   24 = WAQI-only degrade (DPCC staleness guard drops all 30 ~90 min after a site
+   stall; honest, recovers). Docs claiming 54 are still true in a degrade window.
+ · holdout MAE: the 22.8→10.5 / 27.1→6.2 figures belong to their probe artifact
+   (docs/lanes/holdout-reverify-report.md). Field truth is single-digit to
+   low-teens µg at instrumented sites — never quote a bare 6.2.
  · raw responses saved under {OUT} — diff the JSON, don't trust prose.
 """)
 PY
