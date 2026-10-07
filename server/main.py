@@ -1107,6 +1107,11 @@ async def aqi(lat: float, lon: float):
         "aod": FIELD.value(lat, lon, "aerosol_optical_depth"),
         "conditions": FIELD.weather(),
         "nearest_sample_km": round(FIELD.nearest_sample_km(lat, lon), 1),
+        # inside the service margin but past the field's own extent the
+        # value above is the nearest edge evidence extrapolated, not a
+        # local read — disclosed before only by ns_km + a huge band a
+        # consumer can ignore. Same spirit as /v2/plan's basis string.
+        "beyond_field_edge": FIELD.beyond_field_edge(lat, lon),
         "smoke_modifier": mod,
         "fire": FIRES.status(),
         "wind": FIELD.wind(),
