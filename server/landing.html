@@ -7,8 +7,9 @@
 <meta property="og:title" content="ALive·108 — a personal dosimeter for Delhi air">
 <meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and only k≥3 aggregates ever leave your phone.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
-<!-- the hero shot is the page's heaviest byte (92% lighter as webp) —
-     start it during the html download, not when the <img> tag arrives -->
+<!-- the hero shot is the page's heaviest first-paint byte (86% lighter
+     as webp) — start it during the html download, not when the <img>
+     tag arrives -->
 <link rel="preload" as="image" href="/app-hero-708.webp" type="image/webp"
       imagesrcset="/app-hero-472.webp 472w, /app-hero-708.webp 708w"
       imagesizes="236px" fetchpriority="high">
@@ -585,6 +586,34 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   text-transform:uppercase;color:var(--ink3)}
 @media(max-width:840px){.shot{margin-top:44px}}
 
+/* the chooser beat — the same field asked to pick, on the shipped app.
+   three real frames from one run, composed as one strip (alpha gaps,
+   rounded frames baked); a drop-shadow filter draws each frame's edge
+   against the paper — no card, no chrome. the verdict pill is the app's
+   own voice, quoted once in page type beside the lead: white surface,
+   hairline, ambient depth — the mark stays ink, not band colour. */
+.choose .col{padding-top:76px}
+.choose-head{display:flex;align-items:center;justify-content:space-between;
+  gap:16px 28px;flex-wrap:wrap}
+.vpill{display:inline-flex;align-items:center;gap:9px;flex:none;
+  font-size:14px;font-weight:500;letter-spacing:-.006em;color:var(--ink);
+  background:var(--surf);border-radius:12px;padding:10px 15px;
+  box-shadow:0 10px 24px -12px rgba(22,24,29,.22),
+    inset 0 0 0 1px rgba(22,24,29,.06)}
+.vpill .vmark{font-style:normal;color:var(--ink2);font-size:13px}
+.film{margin:30px 0 0}
+.film img{display:block;width:100%;height:auto;
+  filter:drop-shadow(0 18px 30px rgba(22,24,29,.16))}
+.film figcaption{display:flex;gap:12px;margin-top:14px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3);
+  font-variant-numeric:tabular-nums}
+.film figcaption span{flex:1;text-align:center}
+.film figcaption span:first-child{text-align:left}
+.film figcaption span:last-child{text-align:right}
+@media(max-width:640px){.film figcaption{font-size:10px;
+  letter-spacing:.06em}}
+
 /* links — quiet mono text links. the icon-in-a-coloured-tile door was
    the catalog tell (docs/20); an underlined word + arrow is the
    affordance. */
@@ -812,6 +841,28 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   </div>
 </div></section>
 
+<!-- the chooser — the same field, asked to pick on the shipped app:
+     three frames from one real run (a trip to india gate, priced live).
+     the verdict pill is the app's own voice, quoted once in page type —
+     a pull-quote of real UI text, never a fake render. -->
+<section class="choose"><div class="col">
+  <div class="choose-head" data-rv>
+    <h2 class="lead">The same field, asked to choose.</h2>
+    <span class="vpill"><i class="vmark" aria-hidden="true">∅</i>the cleanest way there</span>
+  </div>
+  <figure class="film" data-rv>
+    <picture>
+      <source type="image/webp"
+        srcset="/app-choose-strip-848.webp 848w, /app-choose-strip-1360.webp 1360w, /app-choose-strip-1520.webp 1520w"
+        sizes="(max-width:960px) calc(100vw - 64px), 896px">
+      <img src="/app-choose-strip-848.png" width="848" height="409"
+        loading="lazy" fetchpriority="low" decoding="async"
+        alt="three real frames from one run on the shipped app: every way to india gate priced with its dose, the verdict pill landing on the map, then the cleanest route gone bold while the rest fade">
+    </picture>
+    <figcaption><span>every way, priced</span><span>the verdict pins itself</span><span>the cleanest goes bold</span></figcaption>
+  </figure>
+</div></section>
+
 <!-- the mechanics — how a breath becomes a number, then the privacy
      story as design: the ledger kept on-device, shared only at k≥3. -->
 <section class="mech"><div class="col"><div class="mech-grid">
@@ -856,8 +907,8 @@ h1.lede em{font-style:normal;color:var(--ink2)}
       <source type="image/webp"
         srcset="/app-hero-472.webp 472w, /app-hero-708.webp 708w"
         sizes="236px">
-      <img src="/app-hero-708.png" width="708" height="1540" decoding="async"
-        alt="the app on android: today's inhaled dose ≈32 µg, the least-bad window strip, and where the dose accumulated">
+      <img src="/app-hero-708.png" width="708" height="1573" decoding="async"
+        alt="the app on android: you've breathed 17 µg today — 8% of the daily budget, good band — with the day's least-bad hours below">
     </picture>
     <figcaption>the app on android, live — the real dose ledger</figcaption>
   </figure>

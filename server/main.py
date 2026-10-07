@@ -1822,6 +1822,54 @@ async def app_hero_708_png():
         headers=_STATIC_CACHE)
 
 
+@app.get("/app-choose-strip-848.webp")
+async def app_choose_strip_848_webp():
+    """The landing's chooser strip — three REAL frames from one run on
+    the shipped build (priced candidates → verdict pill → settled
+    winner), composed into a single asset with alpha gaps. 848w tier."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-choose-strip-848.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/app-choose-strip-1360.webp")
+async def app_choose_strip_1360_webp():
+    """1360w tier of the chooser strip — served bytes, not a mockup."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-choose-strip-1360.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/app-choose-strip-1520.webp")
+async def app_choose_strip_1520_webp():
+    """1520w tier of the chooser strip — ~1.7× for the 896px-wide figure;
+    the top rung — keeps the whole page near the ~200KB wire line."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-choose-strip-1520.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/app-choose-strip-848.png")
+async def app_choose_strip_848_png():
+    """PNG fallback of the chooser strip for the pre-WebP browser —
+    still the real frames, just resized to the box it renders in."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-choose-strip-848.png"),
+        headers=_STATIC_CACHE)
+
+
 @app.get("/delhi_subdistricts.geojson")
 async def delhi_subdistricts_geojson():
     """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/
