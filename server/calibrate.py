@@ -25,9 +25,16 @@ async def main() -> None:
         await field.refresh(client, force=True)
 
     samples = field._samples
-    # real instruments = openaq entries: named + only pm2_5 measured
+    # real instruments = the rows _grab_stations returned this refresh
+    # (WAQI + flag-gated DPCC). Named sample-shape used to mark them
+    # ('pm2_5'-only rows) but stations now carry every measured species,
+    # and named model anchors (Bawana, ITO…) would sneak in on name
+    # alone — so match on the fetched station coordinates instead.
+    async with httpx.AsyncClient(timeout=30) as client:
+        station_rows = await field._grab_stations(client)
+    inst_xy = {(round(s[0], 4), round(s[1], 4)) for s in station_rows}
     inst = [(i, s) for i, s in enumerate(samples)
-            if s[2] is not None and set(s[3].keys()) == {"pm2_5"}]
+            if (round(s[0], 4), round(s[1], 4)) in inst_xy]
     if len(inst) < 5:
         print(f"only {len(inst)} instrument readings — calibration skipped")
         return
@@ -37,13 +44,19 @@ async def main() -> None:
         actual = float(vals["pm2_5"])
         keep = samples[:idx] + samples[idx + 1:]
         field._samples = keep
+        # the serve path is KF.estimate — refit without the held-out
+        # instrument or the krige object still 'saw' it (the pre-DPCC
+        # artifact measured exactly that: a LOO that held nothing out).
+        airfield.KF.fit(keep)
         est = field.value(slat, slon, "pm2_5")
         field._samples = samples
+        airfield.KF.fit(samples)
         if est is None:
             continue
         errs.append((name, actual, est))
 
     field._samples = samples
+    airfield.KF.fit(samples)
 
     abs_e = [abs(a - e) for _, a, e in errs]
     signed = [e - a for _, a, e in errs]
@@ -51,7 +64,7 @@ async def main() -> None:
     rmse = math.sqrt(sum((a - e) ** 2 for _, a, e in errs) / len(errs))
 
     report = {
-        "method": "leave-one-out over live OpenAQ instrument readings",
+        "method": "leave-one-out over live WAQI+DPCC instrument readings (krige refit per held-out station)",
         "n_stations": len(errs),
         "mae_ug": round(statistics.mean(abs_e), 1),
         "rmse_ug": round(rmse, 1),
