@@ -50,6 +50,11 @@ export type DayCurve = {
     cleanLabel?: string | null;
     heavyEndLabel?: string | null;
     cleanEndLabel?: string | null;
+    /** the day's GRAP-equivalent stage (0-4) — the server's own "maps to"
+        read off day_mean_pm25 (districts.grap_block); absent on cold
+        field, never invented client-side. Air alerts read it verbatim. */
+    grapStage?: number | null;
+    grapAqi?: number | null;
   };
 };
 
@@ -134,6 +139,10 @@ type V2DayResponse = {
   heavy_window?: V2DayWindow | null;
   cleanest_window?: V2DayWindow | null;
   decisions?: { label: string; line: string }[];
+  /** GRAP-equivalent block — districts.grap_block: the stage the day
+      mean maps to ("computed from today's air, not the official CAQM
+      declaration"). Present only when a real stage exists. */
+  grap?: { equivalent_stage?: number | null; aqi?: number | null; basis?: string; note?: string } | null;
   /** the served field's own age + verdict — the card's 'as of' */
   field_age_s?: number | null;
   field?: { age_s?: number | null; stale?: boolean | null } | null;
@@ -177,6 +186,9 @@ async function fetchDayServer(lat: number, lon: number): Promise<DayCurve | null
         cleanLabel: d.cleanest_window?.start_label ?? null,
         heavyEndLabel: d.heavy_window?.end_label ?? null,
         cleanEndLabel: d.cleanest_window?.end_label ?? null,
+        grapStage: typeof d.grap?.equivalent_stage === "number"
+          ? d.grap.equivalent_stage : null,
+        grapAqi: typeof d.grap?.aqi === "number" ? d.grap.aqi : null,
       },
     };
   } catch {

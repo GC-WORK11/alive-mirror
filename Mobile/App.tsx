@@ -58,6 +58,7 @@ import {
   DEFAULT_SETTINGS, PROFILE_BUDGET_UG, clearAllData, loadSettings, saveSettings, type SavedPlace, type ShellSettings,
 } from "./src/components/shell/settings";
 import { loadTrips, type Trip } from "./src/store/ledger";
+import { checkAirEvents, resetEventsStore } from "./src/store/events";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
 import { approx, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
@@ -219,7 +220,7 @@ function AppInner() {
     community, setCommunity, follow, setFollow, loadingRoute, refining,
     planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
-    pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
+    pick, clearRoute, startNav, exitNav, remind, armDailyBrief, armAirEvents,
     strips, reloadTrips,
   } = flow;
   useEffect(() => {
@@ -394,6 +395,12 @@ function AppInner() {
               setDayNonce((n) => n + 1);
             }
           }
+          /* air alerts — real-event detection piggybacks this same 60 s
+             tick (foreground only, honest "while the app is open"); the
+             engine self-throttles its own /v2/why + /v2/day reads and
+             drops every check when the settings say so. fire-and-forget:
+             a slow /v2/why must never hold the dosimeter sample. */
+          void checkAirEvents({ lat, lon, ambientUg: amb ?? bz });
         } catch {}
       })();
     };
@@ -548,6 +555,7 @@ function AppInner() {
         }).catch(() => {});
       }
       clearAllData();
+      resetEventsStore();   // events.json baselines + dedupe — same wipe
       setTrips([]); setVehicleProfile(null);
       setSettings((s) => ({ ...DEFAULT_SETTINGS, lang: s.lang }));
       /* closing the sheet IS the acknowledgment — the user lands back on
@@ -908,6 +916,7 @@ function AppInner() {
       <LedgerScreen visible={ledgerOpen} onClose={onLedgerClose} lang={lang} showCig={settings.show_cig} onTripsChanged={reloadTrips} />
       <SettingsScreen visible={settingsOpen} onClose={onSettingsClose}
         lang={lang} current={settings} onArmBrief={armDailyBrief}
+        onArmAlerts={armAirEvents}
         onDeleteData={deleteAll} nearestKm={nearestKm}
         onChange={onSettingsChange} />
       <VehicleSheet visible={vehicleOpen || wizArmed} lang={lang}

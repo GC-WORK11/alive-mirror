@@ -19,7 +19,7 @@
  *  app.json android.permissions — flagged in docs/plan/notifications.md. */
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-import { t, type Lang } from "./i18n/strings";
+import { feltKeyForBand, t, type Lang, type StringKey } from "./i18n/strings";
 import { loadSettings, type ShellSettings } from "./components/shell/settings";
 
 Notifications.setNotificationHandler({
@@ -36,6 +36,7 @@ Notifications.setNotificationHandler({
    Notifications. (The OS keeps the name from the first creation per id.) ---- */
 const CH_DEPARTURE = "departures";
 const CH_BRIEF = "daily-brief";
+const CH_EVENTS = "air-events";
 
 async function ensureChannels(lang: Lang): Promise<void> {
   if (Platform.OS !== "android") return;
@@ -53,6 +54,16 @@ async function ensureChannels(lang: Lang): Promise<void> {
     importance: Notifications.AndroidImportance.LOW,
     sound: null,
     enableVibrate: false,
+  });
+  // real air events (fires building, band crossings, clean windows) —
+  // heads-up like the departure ping; the per-kind settings toggles are
+  // the user's volume control on what reaches the shade
+  await Notifications.setNotificationChannelAsync(CH_EVENTS, {
+    name: t("notify_chan_events", lang),
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: "default",
+    enableVibrate: true,
+    vibrationPattern: [0, 250, 250, 250],
   });
 }
 
@@ -169,6 +180,59 @@ export async function scheduleDailyBrief(opts: {
         date: at,
         channelId: CH_BRIEF,
       },
+    });
+  } catch {
+    return null;
+  }
+}
+
+/* ---- air events (store/events.ts) — immediate, not scheduled: each ping
+   fires the moment a real field crosses its rule. Quiet-hours shifting
+   would be a lie here ("air just turned poor" delivered at 7am isn't
+   "just") — the OS's own DND is the user's quiet switch for these. ---- */
+
+/** The event kinds events.ts can raise — "fires_nc" is the same belt
+   build with the wind NOT carrying it to Delhi (evaluated.fires.carrying
+   !== true): a real claim, worded differently. */
+export type AirEventKind =
+  "fires" | "fires_nc" | "band" | "window" | "stagnation" | "severe";
+
+const EV_KEYS: Record<AirEventKind, { title: StringKey; body: StringKey }> = {
+  fires:      { title: "notifyFiresTitle",  body: "notifyFiresBody" },
+  fires_nc:   { title: "notifyFiresNcTitle", body: "notifyFiresNcBody" },
+  band:       { title: "notifyBandTitle",   body: "notifyBandBody" },
+  window:     { title: "notifyWindowTitle", body: "notifyWindowBody" },
+  stagnation: { title: "notifyStagTitle",   body: "notifyStagBody" },
+  severe:     { title: "notifySevereTitle", body: "notifySevereBody" },
+};
+
+/** Immediate local notification for a real air event — trigger:null so it
+    delivers now, on the events channel. One identifier per kind: a worse
+    reading REPLACES its earlier card in the shade rather than stacking a
+    row of escalating duplicates. Returns the id or null on any failure. */
+export async function notifyAirEvent(
+  kind: AirEventKind,
+  lang: Lang,
+  vars: Record<string, string | number>,
+): Promise<string | null> {
+  try {
+    await ensureChannels(lang);
+    const keys = EV_KEYS[kind];
+    /* band names its own felt words from the wire idx/prev — single-sourced
+       through feltKeyForBand like every other surface in the app */
+    const v = kind === "band"
+      ? { ...vars,
+          word: t(feltKeyForBand(typeof vars.idx === "number" ? vars.idx : null), lang),
+          was: t(feltKeyForBand(typeof vars.prev === "number" ? vars.prev : null), lang) }
+      : vars;
+    return await Notifications.scheduleNotificationAsync({
+      identifier: `air-event-${kind}`,
+      content: {
+        title: t(keys.title, lang),
+        body: t(keys.body, lang, v),
+        sound: "default",
+      },
+      trigger: null, // deliver immediately — the event already happened
     });
   } catch {
     return null;

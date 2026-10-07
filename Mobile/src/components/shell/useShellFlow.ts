@@ -402,6 +402,15 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     return (await scheduleDailyBrief({ startHour: best, endHour: (best + 3) % 24, dropPct: drop })) != null;
   }, [from, to]);
 
+  /* Air alerts (store/events.ts): arming is just the OS permission —
+     the engine needs no scheduling; pings fire live off the ambient poll
+     whenever a real field crosses its rule. Returns whether the OS lets
+     notifications through so the toggle only stays on when pings can
+     actually reach the shade. */
+  const armAirEvents = useCallback(async (): Promise<boolean> => {
+    return await requestPerms();
+  }, []);
+
   const remind = useCallback(async () => {
     if (!depart?.best?.start || notified || !(await requestPerms())) return;
     const fire = new Date(depart.best.start.endsWith("Z") ? depart.best.start : depart.best.start + "Z");
@@ -429,7 +438,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     loadingRoute, refining, planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,
-    pick, clearRoute, startNav, exitNav, remind, armDailyBrief,
+    pick, clearRoute, startNav, exitNav, remind, armDailyBrief, armAirEvents,
     strips, reloadTrips,
   };
 }

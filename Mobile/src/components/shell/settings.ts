@@ -20,6 +20,13 @@ export type ShellSettings = {
   share: boolean;          // anonymous traversal donation — on by default (doc 02 §7)
   brief: boolean;          // daily cleanest-window notification
   remind: boolean;         // master switch for "leave later, breathe less" pings (doc 02 §S4)
+  /* air alerts — real-event pings out of store/events.ts: fires building,
+     the band crossing upward, still air, severe days, clean windows.
+     Master + three kinds; every ping traces to a served field. */
+  alerts: boolean;
+  alerts_fires: boolean;   // NW burn-belt builds (fires spike)
+  alerts_band: boolean;    // air turning worse — band crossings, severe days, stagnation
+  alerts_windows: boolean; // the day's clean window opening
   show_cig: boolean;       // cigarette-equivalence framing — OFF by default;
                            // dose reads in µg unless the user opts in
   vehicle: string | null;  // S8 choice, e.g. "bike" | "car" | "auto"
@@ -32,6 +39,7 @@ export type ShellSettings = {
 
 export const DEFAULT_SETTINGS: ShellSettings = {
   lang: "en", voice: true, share: true, brief: false, remind: true,
+  alerts: true, alerts_fires: true, alerts_band: true, alerts_windows: true,
   show_cig: false,
   vehicle: null, home: null, work: null,
   profile: "general",
@@ -101,7 +109,7 @@ export function clearAllData(): void {
   clearPlaces();    // places.json — recents + home/work, the location history
   clearOutbox();    // outbox.json — queued donations carry token + trajectory
   void cacheClear(); // alive-cache/ — last-good plan/strip payloads carry route GPS coords
-  for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt", "daylog.json"]) {
+  for (const name of ["settings.json", "ledger.json", "contributor.txt", "intro_seen.txt", "daylog.json", "events.json"]) {
     try {
       const f = new File(Paths.document, name);
       if (f.exists) f.delete();

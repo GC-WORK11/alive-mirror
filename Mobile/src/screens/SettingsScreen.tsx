@@ -1,7 +1,7 @@
 // S-settings — the settings surface the sidebar's section 7 grew into
 // (docs/plan/02 §sidebar-7, docs/plan/07 §3, docs/plan/10).
 // Contract: <SettingsScreen visible onClose lang current onChange(key,value)
-//           onArmBrief? onDeleteData? />
+//           onArmBrief? onArmAlerts? onDeleteData? />
 // Controlled component — reads `current` (the persisted ShellSettings), and
 // reports every edit through onChange; the parent applies the patch through
 // shell/settings.saveSettings. Same Modal-sheet contract as SearchScreen:
@@ -91,6 +91,7 @@ function SettingsSheetInner({
   current,
   onChange,
   onArmBrief,
+  onArmAlerts,
   onDeleteData,
   nearestKm,
 }: {
@@ -98,6 +99,7 @@ function SettingsSheetInner({
   lang: Lang;
   current: ShellSettings;
   onChange: SettingsChangeFn;
+  onArmAlerts?: () => Promise<boolean>;
   onArmBrief?: () => Promise<boolean>;
   onDeleteData?: () => void;
   /** km to the nearest real instrument feeding the field at the user's
@@ -428,6 +430,53 @@ function SettingsSheetInner({
             "settingsBriefHint",
             { disabled: arming, busy: arming },
           )}
+          <View style={ss.hairline} />
+          {/* air alerts — the events engine (store/events.ts). Master arms
+              the OS permission once (same pattern as the brief: on via
+              onArmAlerts, off always a direct write); the three kind rows
+              die with the master so a disabled master can't ghost-enable. */}
+          {switchRow(
+            "settingsAlerts",
+            current.alerts,
+            async (v) => {
+              if (v && onArmAlerts) {
+                setArming(true);
+                try {
+                  onChange("alerts", await onArmAlerts());
+                } finally {
+                  setArming(false);
+                }
+              } else {
+                onChange("alerts", v);
+              }
+            },
+            "settingsAlertsHint",
+            { disabled: arming, busy: arming },
+          )}
+          <View style={ss.hairline} />
+          {switchRow(
+            "settingsAlertsFires",
+            current.alerts_fires,
+            (v) => onChange("alerts_fires", v),
+            "settingsAlertsFiresHint",
+            { disabled: !current.alerts },
+          )}
+          <View style={ss.hairline} />
+          {switchRow(
+            "settingsAlertsBand",
+            current.alerts_band,
+            (v) => onChange("alerts_band", v),
+            "settingsAlertsBandHint",
+            { disabled: !current.alerts },
+          )}
+          <View style={ss.hairline} />
+          {switchRow(
+            "settingsAlertsWindows",
+            current.alerts_windows,
+            (v) => onChange("alerts_windows", v),
+            "settingsAlertsWindowsHint",
+            { disabled: !current.alerts },
+          )}
         </View>
 
         {/* ── about / provenance ── */}
@@ -570,6 +619,7 @@ function SettingsScreenInner({
   current,
   onChange,
   onArmBrief,
+  onArmAlerts,
   onDeleteData,
   nearestKm,
 }: {
@@ -582,6 +632,10 @@ function SettingsScreenInner({
   onChange: SettingsChangeFn;
   /** SEAM: asks the parent to request perms + schedule the daily brief; returns whether it armed. */
   onArmBrief?: () => Promise<boolean>;
+  /** SEAM: asks the parent to request notification perms for air alerts;
+      returns whether the OS lets pings through (no scheduling needed —
+      events fire live off the poll). */
+  onArmAlerts?: () => Promise<boolean>;
   /** SEAM(delete-data): parent's confirmed wipe (App.tsx `deleteAll`). The
    *  destructive row renders only when this prop exists. */
   onDeleteData?: () => void;
@@ -622,6 +676,7 @@ function SettingsScreenInner({
           current={current}
           onChange={onChange}
           onArmBrief={onArmBrief}
+          onArmAlerts={onArmAlerts}
           onDeleteData={onDeleteData}
           nearestKm={nearestKm}
         />
