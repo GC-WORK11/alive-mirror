@@ -68,6 +68,37 @@
       color:var(--accent-ink);background:var(--accent-wash)}
   .tokbtn:hover{border-color:var(--accent)}
 
+  /* the gate — the engine room fails closed: no live session, no board.
+     same register as the boot strip: warm paper, one card, hairlines,
+     mono small-caps. the token goes to the server once (POST /v2/admin/
+     login) and never touches JS again — the session is an HttpOnly
+     cookie, so this page stores no secret a script could steal */
+  #gate{position:fixed;inset:0;z-index:60;background:var(--paper);
+        display:flex;align-items:center;justify-content:center;padding:20px}
+  #gate[hidden]{display:none}
+  .gate-card{width:min(430px,100%);background:var(--surface);
+             border:1px solid var(--line);border-radius:20px;
+             padding:clamp(24px,4vw,40px);
+             box-shadow:0 18px 50px -22px rgba(22,24,29,.22)}
+  .gate-kick{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
+             text-transform:uppercase;color:var(--ink4);margin-top:16px}
+  .gate-line{font-size:14.5px;line-height:1.7;color:var(--ink2);margin-top:10px}
+  #gateform{display:flex;gap:8px;margin-top:20px}
+  #gatetok{flex:1;min-width:0;font-family:var(--mono);font-size:13px;
+           letter-spacing:.04em;padding:11px 13px;color:var(--ink);
+           border:1px solid var(--hair);border-radius:9px;
+           background:var(--surface2)}
+  #gatetok:focus{outline:none;border-color:var(--ink3);background:var(--surface)}
+  .gatebtn{padding:11px 18px;border-radius:9px;font-size:11px}
+  .gatebtn:disabled{opacity:.55;cursor:default}
+  .gate-err{min-height:19px;margin-top:12px;font-family:var(--mono);
+            font-size:11px;letter-spacing:.05em;color:var(--brick)}
+  .gate-foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--hair);
+             font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+             color:var(--ink4);line-height:1.9}
+  .gate-foot a{color:var(--accent-ink);text-decoration:none;
+               border-bottom:1px solid rgba(58,104,68,.4)}
+
   .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 70px}
   .statusline{padding:14px 0 4px;font-family:var(--mono);font-size:11px;
               letter-spacing:.1em;color:var(--ink3);text-transform:uppercase;
@@ -536,6 +567,26 @@
   <div class="bt-foot" id="btFoot">the same field, watched</div>
 </div>
 
+<!-- the gate — shown the moment /v2/admin/session says no live cookie.
+     guests never reach the board's fetches for gated tiles; the one
+     escape is the public city view, which needs nothing -->
+<div id="gate" hidden>
+  <div class="gate-card" role="dialog" aria-label="operator sign in">
+    <div class="mark">ALIVE<b>·</b>108 <i>/ engine room</i></div>
+    <div class="gate-kick">operator only</div>
+    <p class="gate-line">the engine room shows the machine itself — feeds,
+      models, counters. it opens for the operator and nobody else.</p>
+    <form id="gateform" autocomplete="off">
+      <input id="gatetok" type="password" placeholder="operator token"
+             autocomplete="current-password" aria-label="operator token">
+      <button class="tokbtn gatebtn" id="gatebtn" type="submit">sign in</button>
+    </form>
+    <div class="gate-err" id="gateerr" aria-live="polite"></div>
+    <div class="gate-foot">sessions last ~8 h · sign-in is rate-limited ·
+      not the operator? <a href="/city">delhi's air, the public view →</a></div>
+  </div>
+</div>
+
 <header class="mast">
   <div class="mast-l">
     <div class="mark">ALIVE<b>·</b>108 <i>/ engine room</i></div>
@@ -734,33 +785,41 @@ const freshBadge=(flag)=>flag===true?'<span class="badge stale">stale</span>'
   :flag===false?'<span class="badge ok">fresh</span>'
   :'<span class="badge">no data</span>';
 
-/* admin api is token-gated when ALIVE_ADMIN_TOKEN is set (loopback-only
-   otherwise). Nobody is asked for the token on load — the masthead's
-   'operator sign in' button is the only prompt trigger, so a phone
-   visitor lands straight on the public feeds. prompt() blocks the event
-   loop, so parallel 401s serialise — callers behind the first prompt
-   wake up to the stored token and just retry. */
-async function getJSON(u,retried){
-  const tok=sessionStorage.getItem('alive_admin_tok');
+/* auth model: POST /v2/admin/login mints an HttpOnly SameSite=Strict
+   cookie signed server-side — the token itself never lives in JS, so a
+   page-context script cannot steal it (the sessionStorage Bearer this
+   replaces could). AUT tracks 'is the session live' for short-circuiting
+   gated fetches; the session probe in tick() is what flips it. */
+let AUT=false;
+async function checkSession(){
+  try{
+    const r=await fetch('/v2/admin/session',{credentials:'same-origin',
+      signal:AbortSignal.timeout(8000)});
+    if(!r.ok)return AUT;
+    return !!(await r.json()).authenticated;
+  }catch(e){return AUT}
+}
+function showGate(note){
+  const g=$('gate');if(!g)return;
+  g.hidden=false;
+  if(note!=null)$('gateerr').textContent=note;
+  tokBtnRefresh();
+  setTimeout(()=>{const t=$('gatetok');if(t)t.focus()},80);
+}
+function hideGate(){
+  const g=$('gate');if(g)g.hidden=true;
+  $('gateerr').textContent='';tokBtnRefresh();
+}
+async function getJSON(u){
   /* a stalled feed must land in its honest-empty state, not pin the
      Promise.allSettled forever — every call carries a 15s deadline */
-  const r=await fetch(u,{...(tok?{headers:{authorization:'Bearer '+tok}}:{}),
+  const r=await fetch(u,{credentials:'same-origin',
     signal:AbortSignal.timeout(15000)});
   if(r.status===401||r.status===403){
-    /* re-read: another caller may have stored a token while this
-       fetch/prompt was in flight — retry with it before asking */
-    const now=sessionStorage.getItem('alive_admin_tok');
-    if(now&&!retried)return getJSON(u,true);
-    /* the stored token itself was rejected — clear it and ask again */
-    if(now&&retried)sessionStorage.removeItem('alive_admin_tok');
-    /* a cancelled prompt declines for the tab — without this the next
-       feed's 401 re-asks, so a declined operator gets nagged every tick */
-    if(sessionStorage.getItem('alive_admin_tok_no'))
-      throw new Error(u+' '+r.status);
-    const t=prompt('alive·108 engine room — operator token:');
-    if(t){sessionStorage.setItem('alive_admin_tok',t);return getJSON(u,true)}
-    sessionStorage.setItem('alive_admin_tok_no','1');
-    throw new Error(u+' '+r.status+' — token declined');
+    /* the cookie died mid-view (8h expiry or a token rotation) — flip
+       the board to its locked render and put the gate back up */
+    if(AUT){AUT=false;showGate('session ended — sign in again')}
+    throw new Error(u+' '+r.status+' — sign-in required');
   }
   if(!r.ok)throw new Error(u+' '+r.status);return r.json()}
 
@@ -792,8 +851,11 @@ async function tick(){
        edges priced, engine), /aqi the live read + fire status + σ band,
        /fires the raw firms detections */
     '/health','/aqi?lat=28.6315&lon=77.2167','/fires',
-    '/v2/why?lat=28.63&lon=77.22','/v2/city'];
-  const gated=!sessionStorage.getItem('alive_admin_tok');
+    '/v2/why?lat=28.63&lon=77.22','/v2/city',
+    /* the auth probe — not gated, always fetched; it is how sign-out /
+       expiry in another tab (or a token rotation) re-locks this board */
+    '/v2/admin/session'];
+  const gated=!AUT;
   /* every operator-only path must short-circuit for guests — a fetch
      that hits the server anyway would surface its 401/403 as a nagging
      token prompt instead of the honest locked state */
@@ -824,7 +886,13 @@ async function tick(){
   }
   const val=r=>r.status==='fulfilled'?r.value:null;
   const [status,sources,corridors,donations,validation,model,districts,
-    timing,globalAgg,usage,health,aqiPt,firesDoc,why,cityDoc]=res.map(val);
+    timing,globalAgg,usage,health,aqiPt,firesDoc,why,cityDoc,session]=
+    res.map(val);
+  if(session&&typeof session.authenticated==='boolean'){
+    const was=AUT;AUT=session.authenticated;
+    if(was&&!AUT)showGate('session ended — sign in again');
+    else if(!was&&AUT)hideGate();
+  }
   /* --- why tonight: driver attribution over the same live ingredients --- */
   try{
     const wv=why||{};
@@ -2608,21 +2676,38 @@ async function paintFieldMap(param){
 function clock(){$('clock').textContent=
   new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST'}
 
-/* the token is an affordance, not a gate: first paint must be the public
-   board. the button asks on demand — prompt() is the operator's own
-   choice, so blocking their tap is honest */
+/* sign-in is a real form on the gate screen now — the token crosses the
+   wire once, the session lives in an HttpOnly cookie, and this button
+   alternates between 'open the gate' and 'end the session' */
 function tokBtnRefresh(){$('tokbtn').textContent=
-  sessionStorage.getItem('alive_admin_tok')?'sign out':'operator sign in'}
+  AUT?'sign out':'operator sign in'}
 $('tokbtn').addEventListener('click',()=>{
-  if(sessionStorage.getItem('alive_admin_tok')){
-    sessionStorage.removeItem('alive_admin_tok');
-    sessionStorage.removeItem('alive_admin_tok_no');
-    tokBtnRefresh();tick();return}
-  sessionStorage.removeItem('alive_admin_tok_no');
-  const t=prompt('alive·108 engine room — operator token (cancel keeps the public view):');
-  if(t)sessionStorage.setItem('alive_admin_tok',t);
-  else sessionStorage.setItem('alive_admin_tok_no','1');
-  tokBtnRefresh();tick()});
+  if(AUT){
+    fetch('/v2/admin/logout',{method:'POST',credentials:'same-origin'})
+      .finally(()=>{AUT=false;showGate();tick()});
+    return}
+  showGate('')});
+$('gateform').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=$('gatebtn'),err=$('gateerr'),tok=$('gatetok').value;
+  if(!tok){err.textContent='enter the operator token';return}
+  btn.disabled=true;err.textContent='signing in…';
+  try{
+    const r=await fetch('/v2/admin/login',{method:'POST',
+      credentials:'same-origin',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({token:tok}),
+      signal:AbortSignal.timeout(10000)});
+    if(r.ok){
+      AUT=true;$('gatetok').value='';hideGate();tick();return}
+    const d=await r.json().catch(()=>({}));
+    err.textContent=r.status===401?'wrong token — try again'
+      :r.status===429?`too many tries — wait ~${d.retry_after_s||30}s`
+      :r.status===503?'admin auth is not configured on this server'
+      :`sign-in failed (${r.status})`;
+  }catch(x){err.textContent='server unreachable — try again'}
+  finally{btn.disabled=false}
+});
 /* --- the boot strip (lane: welcome-loading) — identical beats to the
    landing strip: mono digits resolving into the REAL live field mean,
    CPCB band colour + word, honest type-only frame when the field can't
@@ -2681,7 +2766,12 @@ function bootStrip(){
 }
 bootStrip();
 tokBtnRefresh();
-tick();clock();setInterval(tick,30000);setInterval(clock,30000);
+/* first paint decides the gate: probe the session cookie before the
+   first tick so an unauthenticated load lands on the sign-in card, not
+   a board of locked tiles */
+(async()=>{AUT=await checkSession();
+  if(!AUT)showGate('');
+  tick();clock();setInterval(tick,30000);setInterval(clock,30000)})();
 </script>
 </body>
 </html>

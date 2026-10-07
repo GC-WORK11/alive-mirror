@@ -429,6 +429,9 @@ _DEFAULT_PATH_LIMITS = {
     "/v2/trip": (1.0, 5),
     "/observe": (1.0, 5),
     "/report": (1.0, 5),
+    # operator sign-in: 5 attempts then ~1 per 5 s per socket peer — a
+    # real login needs one shot; anything beyond five is brute force
+    "/v2/admin/login": (0.2, 5),
 }
 
 

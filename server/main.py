@@ -6,6 +6,7 @@ routes come from OSRM on the real OSM road graph. No hardcoded places.
 import asyncio
 import concurrent.futures
 import functools
+import hashlib
 import hmac
 import math
 import os
@@ -1560,25 +1561,128 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     }
 
 
+# --- operator session: HMAC-signed cookie, minted by /v2/admin/login --------
+#
+# No server-side session store (zero-infra constraint): the cookie is a
+# stateless "expiry + signature" pair signed with ALIVE_ADMIN_TOKEN, so it
+# can only be minted by someone holding the token and every issued cookie
+# dies the moment the token rotates. HttpOnly keeps it out of JS reach
+# (the old sessionStorage token was one XSS away from theft);
+# SameSite=Strict means a cross-site request never carries it, which also
+# kills the CSRF surface without a token dance.
+
+_ADMIN_COOKIE = "alive_admin"
+_ADMIN_SESSION_S = 8 * 3600   # ~one demo day; ALIVE_ADMIN_SESSION_S overrides
+
+
+def _admin_session_s() -> int:
+    try:
+        return int(os.environ.get("ALIVE_ADMIN_SESSION_S",
+                                  _ADMIN_SESSION_S))
+    except ValueError:
+        return _ADMIN_SESSION_S
+
+
+def _session_sign(exp: int) -> str:
+    key = os.environ.get("ALIVE_ADMIN_TOKEN", "").encode()
+    return hmac.new(key, f"alive-admin-v1:{exp}".encode(),
+                    hashlib.sha256).hexdigest()[:32]
+
+
+def _session_value(exp: int) -> str:
+    return f"v1.{exp}.{_session_sign(exp)}"
+
+
+def _session_ok(request: Request) -> bool:
+    """True when the request carries a well-formed, unexpired session
+    cookie signed under the CURRENT ALIVE_ADMIN_TOKEN."""
+    raw = request.cookies.get(_ADMIN_COOKIE, "")
+    try:
+        ver, exp_s, sig = raw.split(".")
+        exp = int(exp_s)
+    except (AttributeError, ValueError):
+        return False
+    if ver != "v1" or exp <= time.time():
+        return False
+    return hmac.compare_digest(sig, _session_sign(exp))
+
+
 def _admin_guard(request: Request):
     """Gate for /admin/api* — the ops dashboard's data surface.
 
-    `ALIVE_ADMIN_TOKEN` set  → require `Authorization: Bearer <token>`.
-    Unset                  → loopback clients only (dev default); a real
+    `ALIVE_ADMIN_TOKEN` set  → require the signed session cookie (minted
+    by POST /v2/admin/login) or `Authorization: Bearer <token>` — Bearer
+    is kept for ops curl/health-checks, the browser only ever sees the
+    cookie. Unset → loopback clients only (dev default); a real
     deployment sits behind a LB, so remote callers get 403 until the
     operator sets the token. The /admin HTML page itself is public —
     it carries no data; every fetch it makes goes through this guard.
     """
     token = os.environ.get("ALIVE_ADMIN_TOKEN")
     if token:
+        if _session_ok(request):
+            return
         auth = request.headers.get("authorization", "")
-        if not hmac.compare_digest(auth, f"Bearer {token}"):
-            raise HTTPException(401, "admin token required")
-        return
+        if hmac.compare_digest(auth, f"Bearer {token}"):
+            return
+        raise HTTPException(401, "admin sign-in required")
     host = request.client.host if request.client else ""
     if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
         raise HTTPException(
             403, "admin api is loopback-only until ALIVE_ADMIN_TOKEN is set")
+
+
+@app.post("/v2/admin/login")
+async def admin_login(request: Request):
+    """Trade the operator token for a signed session cookie.
+
+    Rate-limited hard by middleware's /v2/admin/login bucket (5 tries
+    then ~1 per 5 s per socket peer) — brute force is a dead end against
+    a 256-bit token; the brake is what keeps an attempt cheap and loud.
+    """
+    token = os.environ.get("ALIVE_ADMIN_TOKEN")
+    if not token:
+        raise HTTPException(503, "admin auth is not configured")
+    try:
+        body = await request.json()
+        supplied = str((body or {}).get("token", ""))[:512]
+    except Exception:
+        supplied = ""
+    if not supplied or not hmac.compare_digest(supplied, token):
+        raise HTTPException(401, "bad operator token")
+    ttl = _admin_session_s()
+    exp = int(time.time()) + ttl
+    from fastapi.responses import JSONResponse
+    r = JSONResponse({"ok": True, "expires_in": ttl})
+    # Secure only when the request itself arrived over TLS — the NLB still
+    # serves plain :80 (pentest flagged; owner decision), so pinning
+    # Secure now would brick demo-morning sign-in. Strict+HttpOnly hold.
+    secure = (request.url.scheme == "https"
+              or request.headers.get("x-forwarded-proto") == "https")
+    r.set_cookie(_ADMIN_COOKIE, _session_value(exp), max_age=ttl,
+                 httponly=True, samesite="strict", secure=secure, path="/")
+    return r
+
+
+@app.post("/v2/admin/logout")
+async def admin_logout():
+    """Drop the session cookie. Stateless — a copied cookie stays valid
+    until its signed expiry (≤8h worst case); the report owns that."""
+    from fastapi.responses import JSONResponse
+    r = JSONResponse({"ok": True})
+    r.delete_cookie(_ADMIN_COOKIE, path="/")
+    return r
+
+
+@app.get("/v2/admin/session")
+async def admin_session(request: Request):
+    """The gate screen's probe — is this browser signed in right now?
+    Answers the cookie path of _admin_guard (loopback dev included)."""
+    if os.environ.get("ALIVE_ADMIN_TOKEN"):
+        return {"authenticated": _session_ok(request)}
+    host = request.client.host if request.client else ""
+    return {"authenticated": host in ("127.0.0.1", "::1", "localhost",
+                                      "testclient")}
 
 
 @app.get("/admin/api", dependencies=[Depends(_admin_guard)])

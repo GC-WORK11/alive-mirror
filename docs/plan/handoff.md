@@ -1395,3 +1395,37 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
 - Task def :201 live; alarms: field-age OK, target-down OK,
   emitter-dead armed (-1 dead-man threshold — real 0.0 datapoints no
   longer self-breach).
+
+## cont.70 — 2026-10-08 ~14:00 IST (admin auth: real sign-in, cookie session)
+
+- **Lane: admin-auth.** `/admin` now fails closed behind a real login:
+  unauthenticated → a gate card (ops register — warm paper, hairlines,
+  mono small-caps, `/city` escape link for guests), no gated fetches
+  fire. **Govinda signs in demo morning**: open `/admin` → paste the
+  operator token → sign in; the session is an HMAC-signed HttpOnly
+  SameSite=Strict cookie (~8h, `ALIVE_ADMIN_SESSION_S` tunes).
+  Sign-out = masthead button → `POST /v2/admin/logout`.
+- **Endpoints (new, all in main.py ~120 lines, stdlib only)**:
+  `POST /v2/admin/login` (token→cookie, 503 when ALIVE_ADMIN_TOKEN
+  unset), `POST /v2/admin/logout`, `GET /v2/admin/session` (probe).
+  Rate limit: `/v2/admin/login` gets its own socket-peer bucket
+  (5 tries → ~1/5s) in middleware `_DEFAULT_PATH_LIMITS`.
+- **Guard widened, not replaced**: `_admin_guard` now accepts the
+  session cookie OR `Authorization: Bearer` — Bearer stays for
+  go-nogo/ops curl. No-token loopback dev path unchanged.
+- **The XSS→theft path pentest flagged is dead**: admin.html no
+  longer stores `alive_admin_tok` in sessionStorage nor calls
+  prompt(); JS never sees a secret — it only knows `AUT` (signed-in
+  bool). Mid-view expiry → locked tiles + gate with "session ended".
+- **Honest limits** (in lane report): stateless cookie can't be
+  revoked server-side (logout deletes it locally; a copied cookie
+  lives ≤8h); Secure flag only when the request arrives over TLS —
+  the NLB is still :80 so the cookie rides plaintext on-wire (same
+  as the Bearer did); sessions die on token rotation (intended) and
+  on redeploy is NOT a factor (stateless — survives restarts).
+- Verified: pytest +12 (login ok/bad/503/expired/tamper/rotation/
+  flags/429/logout/page-no-sessionStorage) 21/21 with usage suite;
+  live curl chain guest→login→cookie→logout on :8099; real Chrome
+  E2E (gate→wrong→login→board→sign out→gate).
+- **Demo-morning line**: token lives in SM `alive108/admin-token`;
+  paste once → ~8h of board; phone hotspot = same flow.
