@@ -252,3 +252,20 @@ def test_today_ledger_serves_todays_real_numbers():
     assert t["today"]["trips"] == 2
     assert t["today"]["km"] == 10.0
     assert sum(d["trips"] for d in t["days"].values()) == 10
+
+
+# --- the minimap's instrument set is the field's own ---------------------------
+def test_station_dots_ride_field_status():
+    """/city's minimap dots are field.stations — the same rows
+    station_readings counts, so dots and the 'N live instruments'
+    counter can never disagree, and a station-feed stall empties both."""
+    FIELD._stations_live = [(28.63, 77.21, "dtu"), (28.70, 77.32, None)]
+    b = client.get("/v2/city").json()
+    assert b["field"]["stations"] == [
+        {"lat": 28.63, "lon": 77.21, "name": "dtu"},
+        {"lat": 28.70, "lon": 77.32, "name": None}]
+    r = client.get("/aqi?lat=28.63&lon=77.22")
+    assert r.status_code == 200
+    assert r.json()["field"]["stations"] == b["field"]["stations"]
+    FIELD._stations_live = []                # a stall empties the set
+    assert client.get("/v2/city").json()["field"]["stations"] == []
