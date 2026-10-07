@@ -300,7 +300,7 @@ export async function checkAirEvents(opts: {
           Math.round(tr.delta), {
             a: Math.round(tr.from),
             b: Math.round(tr.to),
-            h: Math.round(tr.spanH * 10) / 10,
+            h: Math.round(tr.spanH),
             cause: causeClause(why, lang, ["trend"]),
             note: noteFor(["trend"]),
           });

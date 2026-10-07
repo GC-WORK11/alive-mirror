@@ -284,7 +284,9 @@ describe("causeFieldsFromWhy + causeNote — the parali/news line", () => {
     assert.match(s, /up from 20 over ~4h/);
     assert.match(s, /north-west wind at 9 km\/h is carrying it toward Delhi/);
     assert.match(s, /air barely mixing/);
-    assert.match(s, /64\.8 → 49\.2/);
+    // plain frame: pace percent (1.86× stiller → ~54%) + whole µg endpoints
+    assert.match(s, /~54% of its usual pace/);
+    assert.match(s, /the city's average 65 → 49 µg\/m³/);
     assert.match(s, /smoke inflow meeting still air$/);
   });
 

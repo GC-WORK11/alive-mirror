@@ -69,7 +69,7 @@ import { loadTrips, type Trip } from "./src/store/ledger";
 import { checkAirEvents, resetEventsStore } from "./src/store/events";
 import { cancelDailyBrief } from "./src/notify";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
-import { approx, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
+import { approx, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
 import { PERF_ON, bump, mark, report } from "./src/perf";
 
@@ -119,6 +119,19 @@ type TrackChangeEvent = Parameters<NonNullable<React.ComponentProps<typeof Camer
    drawHold's cold-boot watch reads the render thread's busy/idle
    through these: a mount commit inside the first tile stream is the
    residual SIGSEGV (drawHold.ts boot-watch comment). */
+/** the share text — clauses compose, so a missing estimate never prints
+    a bare "—" inside the sentence; nothing to say → the app's own line */
+function shareTripMsg(
+  lang: Lang, from: string, to: string,
+  dose: string | null, co2: string | null,
+): string {
+  const what = [
+    dose != null ? t("shareClauseBreathe", lang, { dose }) : null,
+    co2 != null ? t("shareClausePutOut", lang, { co2 }) : null,
+  ].filter((x): x is string => x != null).join(" · ");
+  return what ? t("shareTripLine", lang, { from, to, what }) : t("shareAppBody", lang);
+}
+
 const onMapBusy = () => noteMapBusy();
 const onMapIdle = () => { noteMapIdle(); if (PERF_ON) mark("map.rendered"); };
 /* first fully-rendered frame → kick the one-time NCR tile prefetch in the
@@ -864,15 +877,13 @@ function AppInner() {
   const onLangChange = useCallback((l: "en" | "hi") => patchSettings({ lang: l }), [patchSettings]);
   const onShare = useCallback(() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {}), [lang]);
   const onShareTrip = useCallback((tr: Trip) => Share.share({
-    message: t("shareTripBody", lang, {
-      from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
-      // cigarette figure only with show_cig on; µg is the default
-      dose: tr.dose_ug != null
-        ? (settings.show_cig ? t("nav_cigs", lang, { n: approx(cigOf(tr.dose_ug) ?? 0) }) : `~${Math.round(tr.dose_ug)}µg`)
-        : "—",
-      // co2 was never passed — the template printed a literal "{co2}"
-      co2: tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : "—",
-    }),
+    message: shareTripMsg(lang, placeNameLabel(tr.from, lang), placeNameLabel(tr.to, lang),
+      tr.dose_ug != null
+        ? (settings.show_cig
+            ? t("nav_cigs", lang, { n: Math.max(0.01, Math.round((cigOf(tr.dose_ug) ?? 0) * 100) / 100) })
+            : t("doseUg", lang, { n: doseUgRound(tr.dose_ug) }))
+        : null,
+      tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : null),
   }).catch(() => {}), [lang, settings.show_cig]);
   const onLayersClose = useCallback(() => setLayersOpen(false), []);
   const onDelhiClose = useCallback(() => setDelhiOpen(false), []);
@@ -1246,15 +1257,15 @@ const NavSession = React.memo(function NavSession({
          deferred search focus/close fixes). */
       <ReceiptSheet data={data} lang={lang} showCig={showCig} onDone={() => setTimeout(onExit, 280)}
         onShare={() => Share.share({
-          message: t("shareTripBody", lang, {
-            from: from ? placeNameLabel(from.name, lang) : "?",
-            to: to ? placeNameLabel(to.name, lang) : "?",
-            // cigarette figure only with show_cig on; µg is the default
-            dose: summary.doseUg.mid != null
-              ? (showCig ? t("nav_cigs", lang, { n: approx(cigOf(summary.doseUg.mid) ?? 0) }) : `~${Math.round(summary.doseUg.mid)}µg`)
-              : "—",
-            co2: summary.co2Kg.mid != null ? `${t("nav_kg", lang, { n: `~${summary.co2Kg.mid.toFixed(1)}` })} CO₂` : "—",
-          }),
+          message: shareTripMsg(lang,
+            from ? placeNameLabel(from.name, lang) : "?",
+            to ? placeNameLabel(to.name, lang) : "?",
+            summary.doseUg.mid != null
+              ? (showCig
+                  ? t("nav_cigs", lang, { n: Math.max(0.01, Math.round((cigOf(summary.doseUg.mid) ?? 0) * 100) / 100) })
+                  : t("doseUg", lang, { n: doseUgRound(summary.doseUg.mid) }))
+              : null,
+            summary.co2Kg.mid != null ? `${t("nav_kg", lang, { n: `~${summary.co2Kg.mid.toFixed(1)}` })} CO₂` : null),
         }).catch(() => {})} />
     );
   }

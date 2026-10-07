@@ -1252,14 +1252,14 @@ function IncidentsCardInner({ lang }: { lang: Lang }) {
     fetchCity(ctrl.signal).then((d) => {
       const w = d.why;
       if (ctrl.signal.aborted) return;
-      /* same grammar as DelhiToday's noteLine — en keeps the wire
-         line; hi rebuilds from the measured fields, never wire
-         English */
+      /* same grammar as DelhiToday's noteLine — BOTH languages rebuild
+         from the measured fields (the wire grammar leaks m²/s and
+         "city mean"); cause_note stays the no-fields fallback
+         (jargon-sweep) */
       setLine(!w ? ""
-        : lang === "en" ? (w.cause_note ?? "")
         : w.cause_note_fields
           ? causeNote(w.cause_note_fields as CauseNoteFields, lang)
-          : "");
+          : (w.cause_note ?? ""));
     }).catch(() => setLine(""));
     return () => ctrl.abort();
   }, [lang]);

@@ -217,9 +217,8 @@ function WelcomeFilm({
   const prov = field?.src === "ambient"
     ? t("wel_provAmbient", lang)
     : t("wel_provCity", lang);
-  const numeral = v != null
-    ? (v >= 100 ? `${Math.round(v)}` : v.toFixed(1))
-    : null;
+  /* whole digits — a decimal on an estimated city mean is fake-exact */
+  const numeral = v != null ? `${Math.round(v)}` : null;
 
   /* two alternating digit blocks — the strip flip; fixed at mount so a
      flip reads as the next frame, not a reshuffle mid-frame */

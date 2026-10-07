@@ -217,8 +217,11 @@ export function CityMoves({
               <Text {...DYNAMIC_TYPE}
                 style={[ss.bLabel, { fontFamily: fam(lang, "reg") }]}
               >
-                {t("movesCorridorN", lang, {
+                {/* whole-day windows read as days ("3 days", not "72
+                    hours"); a ragged window keeps the honest hours */}
+                {t((corridors.window_h ?? 72) % 24 === 0 ? "movesCorridorNDays" : "movesCorridorN", lang, {
                   n: corridors.active ?? 0,
+                  d: Math.round((corridors.window_h ?? 72) / 24),
                   h: corridors.window_h ?? 72,
                   streetNoun: t((corridors.active ?? 0) === 1 ? "streetNounOne" : "streetNounMany", lang),
                 })}

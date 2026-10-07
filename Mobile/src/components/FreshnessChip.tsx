@@ -136,7 +136,11 @@ export function FreshnessChip({
 
   let label: string;
   if (compact) {
-    label = min != null ? `${min} ${t("minUnit", lang)}` : "—";
+    /* "12 min" alone reads as a duration — "12 min old" says what it is;
+       no age gets a word, not a bare dash */
+    label = min != null
+      ? t("fieldAgeCompact", lang, { n: min })
+      : t("fieldAgeNone", lang);
   } else if (tone === "unknown") {
     label = t("cityNoField", lang);
   } else if (tone === "stale") {

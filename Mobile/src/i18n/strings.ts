@@ -223,10 +223,10 @@ const en = {
   cityNoField: "no live air reading right now",
   cityStale: "older data — reconnecting",
   citySpeciesTitle: "the other things in the air",
-  citySpeciesNote: "city average, µg/m³ — measured every 15 minutes",
+  citySpeciesNote: "dust & gases — city average in µg/m³ · measured every 15 minutes",
   cityTypicalLine:
     "{pct}% of this hour's 10-year average ({med} µg/m³)",
-  whoRef: "WHO {n}",
+  whoRef: "WHO limit {n}",
   cityTypicalBelow: "{p}% below the 10-year average for this hour ({med} µg/m³)",
   cityTypicalAbove: "{p}% above the 10-year average for this hour ({med} µg/m³)",
   cityForecastTitle: "the next 12 hours",
@@ -291,7 +291,7 @@ const en = {
   layers: "Layers",
   layerFires: "fires",
   layerBlackspots: "crash spots",
-  layerCorridors: "commute-mapped streets",
+  layerCorridors: "streets travellers crossed",
   // sidebar header + ledger
   breathed: "breathed",
   breathedOnTrips: "breathed on trips",
@@ -386,9 +386,9 @@ const en = {
   noteCarryUnknown: " — wind unknown, can't tell if it's coming",
   noteBeltQuiet: "a quiet belt — {n} fires burning",
   noteBeltQuiet0: "a quiet belt right now",
-  noteStagVc: "air barely mixing — ventilation {vc} m²/s vs ~3,000 typical",
+  noteStagVc: "air barely mixing — ventilation {vc} m²/s vs ~3,000 typical", /* superseded by noteStagPct (jargon-sweep) — kept for stale-surface compat */
   noteStag: "air barely mixing",
-  noteTrend: "city mean {a} → {b} µg/m³ over {h}h",
+  noteTrend: "the city's average {a} → {b} µg/m³ over ~{h}h",
   noteTailInflow: "smoke inflow meeting still air",
   noteTailClimb: "the climb is still on",
   noteBackground: "local background — no big driver in play right now",
@@ -456,7 +456,7 @@ const en = {
   homeGreetNight: "up late",
   offline: "can't reach the server — trying again",
   offlineStale: "offline — showing last known air",
-  offlinePending: "{n} saved to send",
+  offlinePending: "{n} waiting to send",
   // first run — onboarding slides (docs/plan/onboarding.md)
   onb_next: "Next",
   onb_skip: "Skip",
@@ -488,7 +488,7 @@ const en = {
       re-derived from the set's own numbers (routeTint.chooserVerdict);
       never asserted ahead of them */
   chooser_best: "cleanest and fastest",
-  chooser_lessVsFastest: "cleanest · {n}% less than fastest",
+  chooser_lessVsFastest: "cleanest · {n}% less smoke than fastest",
   chooser_cleanest: "the cleanest way there",
   chooser_fastest: "the fastest way there",
   compare_smokeIn: "smoke you breathe",
@@ -507,6 +507,9 @@ const en = {
   nav_cigs: "{n} cigarettes",
   nav_kg: "{n} kg",
   nav_left: "{min} min · {km} km left",
+  /** under a kilometre the distance reads in metres — "350 m", never
+      a bare "0.35" (jargon-sweep) */
+  nav_left_m: "{min} min · {m} m left",
   nav_recenter: "re-centre",
   nav_in: "in {d} metres — {i}",
   nav_now: "now — {i}",
@@ -566,7 +569,7 @@ const en = {
   emit_basisPerPaxKm: "per km per passenger",
   // fixed server label sentences (emissions.py) — verbatim-mapped
   emit_metroShort: "metro per km per passenger (incl. electricity)",
-  emit_metroLong: "metro per km per passenger, incl. electricity (11–25 g CO2e per passenger-km — DMRC + CEA grid factors, docs/31 §3)",
+  emit_metroLong: "metro per km per passenger, incl. electricity (11–25 g CO2e per passenger-km — DMRC + CEA grid factors)",
   // dose-note fallbacks (server/v2/plan.py) — shown when dose can't estimate
   doseNote_engineDown: "smoke estimate unavailable",
   doseNote_engineError: "smoke estimate error",
@@ -708,7 +711,7 @@ const en = {
   peekEmpty: "no reads yet — open the map, take a trip, this fills in",
   peekAmbient: "now ~{n} µg/m³",
   /* compare sheet — the gap line under a heavier option's dose */
-  compare_vsLightest: "+{n} vs lightest",
+  compare_vsLightest: "+{n} µg vs lightest",
   /* the dose column when an option carries no estimate — a bare dash
      says nothing; two short words say why */
   compare_doseNA: "no estimate",
@@ -1086,6 +1089,35 @@ const en = {
   veh_start: "tell us what you're taking",
   depart_airByHour: "air by hour",
   depart_bestLine: "lightest around {time} — ≈ {n} µg",
+
+
+  /* jargon-sweep adds — plain-words frames for numbers that were leaking
+     engineering units or internals (docs/lanes/jargon-sweep-report.md) */
+  /** stagnation note's measure — the stillness factor as a percent of the
+      air's usual clearing pace (was raw m²/s) */
+  noteStagPct: "air barely mixing — clearing at ~{p}% of its usual pace",
+  /** freshness chip's tight form — "{n} min old" so a bare "12 min" never
+      reads as a duration on the map/compare surface */
+  fieldAgeCompact: "{n} min old",
+  /** compact chip when no field landed — a word, not a bare "—" */
+  fieldAgeNone: "no reading",
+  /** the AQI tile's scale gloss — separates the index from µg/m³ species */
+  aqiScale: "0–500 scale",
+  /** the city hero's ambient reference — names itself so the inhaled-µg
+      hero figure and the ambient µg/m³ never read as one number */
+  cityHeroAirNow: "air now ~{n} µg/m³",
+  /** moves corridor count when the served window is a whole number of
+      days — "3 days" where "72 hours" used to sit */
+  movesCorridorNDays: "{n} {streetNoun} measured over the last {d} days",
+  cityBasisPrivacyDays: "a street shows up only after {k} different travellers crossed it in {d} days — nobody is singled out",
+  /** one-sided dose band upper bound — "up to {n}" when the low end
+      isn't served (was a bare "?") */
+  bandUpTo: "up to {n}",
+  /* the share-text composer — clauses compose so a missing estimate never
+     renders a bare "—" inside the sentence */
+  shareTripLine: "my trip {from} → {to}: {what} — estimated on ALive-108",
+  shareClauseBreathe: "I breathed about {dose} of smoke",
+  shareClausePutOut: "my ride put out {co2}",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -1239,7 +1271,7 @@ const hi: Record<StringKey, string> = {
   citySpeciesNote: "शहर का औसत, µg/m³ — हर 15 मिनट ताज़ा",
   cityTypicalLine:
     "इस समय के 10-वर्ष औसत {med} µg/m³ की तुलना में {pct}%",
-  whoRef: "WHO {n}",
+  whoRef: "WHO सीमा {n}",
   cityTypicalBelow: "इस समय के 10-वर्ष औसत ({med} µg/m³) से {p}% कम",
   cityTypicalAbove: "इस समय के 10-वर्ष औसत ({med} µg/m³) से {p}% ज़्यादा",
   cityForecastTitle: "अगले 12 घंटे",
@@ -1341,7 +1373,7 @@ const hi: Record<StringKey, string> = {
   settingsWhatWeStore: "हम क्या रखते हैं",
   layerFires: "आग",
   layerBlackspots: "एक्सीडेंट स्पॉट",
-  layerCorridors: "सफ़र से बनी सड़कें",
+  layerCorridors: "सड़कें जिनसे यात्री गुज़रे",
   breathed: "साँस में लिया",
   breathedOnTrips: "यात्राओं में लिया",
   putOut: "गाड़ी ने छोड़ा",
@@ -1403,9 +1435,9 @@ const hi: Record<StringKey, string> = {
   noteCarryUnknown: " — हवा अनजान, आएगा या नहीं कह नहीं सकते",
   noteBeltQuiet: "बेल्ट शांत — {n} आग जल रही",
   noteBeltQuiet0: "बेल्ट अभी शांत है",
-  noteStagVc: "हवा मुश्किल से घुल रही — वेंटिलेशन {vc} m²/s बनाम ~3,000 सामान्य",
+  noteStagVc: "हवा मुश्किल से घुल रही — वेंटिलेशन {vc} m²/s बनाम ~3,000 सामान्य", /* superseded by noteStagPct (jargon-sweep) */
   noteStag: "हवा मुश्किल से घुल रही",
-  noteTrend: "शहर औसत {a} → {b} µg/m³ {h} घं में",
+  noteTrend: "शहर का औसत {a} → {b} µg/m³, ~{h} घं में",
   noteTailInflow: "धुआँ आता, ठहरी हवा पकड़े",
   noteTailClimb: "चढ़ाई जारी है",
   noteBackground: "स्थानीय पृष्ठभूमि — अभी कोई बड़ा कारक नहीं",
@@ -1487,7 +1519,7 @@ const hi: Record<StringKey, string> = {
   homeGreetNight: "देर रात",
   offline: "सर्वर से संपर्क नहीं — फिर कोशिश हो रही है",
   offlineStale: "ऑफ़लाइन — पिछली ज्ञात हवा दिख रही है",
-  offlinePending: "{n} भेजने के लिए सहेजी गई",
+  offlinePending: "{n} भेजने को बाकी",
   onb_next: "आगे",
   onb_skip: "छोड़ें",
   onb_arcBefore: "जाने से पहले",
@@ -1511,7 +1543,7 @@ const hi: Record<StringKey, string> = {
   compare_yours: "आपकी सामान्य",
   compare_safest: "सबसे कम धुआँ",
   chooser_best: "सबसे कम धुआँ और सबसे तेज़",
-  chooser_lessVsFastest: "सबसे कम धुआँ · सबसे तेज़ से {n}% कम",
+  chooser_lessVsFastest: "सबसे कम धुआँ · सबसे तेज़ से {n}% कम धुआँ",
   chooser_cleanest: "सबसे कम धुआँ वाला रास्ता",
   chooser_fastest: "सबसे तेज़ रास्ता",
   compare_smokeIn: "आपके साँस का धुआँ",
@@ -1529,6 +1561,9 @@ const hi: Record<StringKey, string> = {
   nav_cigs: "{n} सिगरेट",
   nav_kg: "{n} किग्रा",
   nav_left: "{min} मिनट · {km} किमी बाकी",
+  /** ज़्यादा करीब की दूरी मीटर में — "350 मी", "0.35" जैसा बिना-शब्द
+      दशमलव नहीं (jargon-sweep) */
+  nav_left_m: "{min} मिनट · {m} मी बाकी",
   nav_recenter: "नक्शा केंद्र में लाएँ",
   nav_in: "{d} मीटर में — {i}",
   nav_now: "अब — {i}",
@@ -1583,7 +1618,7 @@ const hi: Record<StringKey, string> = {
   emit_basisPerVkm: "गाड़ी के प्रति किमी",
   emit_basisPerPaxKm: "यात्री के प्रति किमी",
   emit_metroShort: "मेट्रो यात्री के प्रति किमी (बिजली सहित)",
-  emit_metroLong: "मेट्रो यात्री के प्रति किमी, बिजली सहित (11–25 g CO2e प्रति यात्री-किमी — DMRC + CEA ग्रिड फ़ैक्टर, docs/31 §3)",
+  emit_metroLong: "मेट्रो यात्री के प्रति किमी, बिजली सहित (11–25 g CO2e प्रति यात्री-किमी — DMRC + CEA ग्रिड फ़ैक्टर)",
   doseNote_engineDown: "धुएँ-अनुमान उपलब्ध नहीं",
   doseNote_engineError: "धुएँ-अनुमान में त्रुटि",
   doseNote_fieldDown: "हवा-नक्शा उपलब्ध नहीं",
@@ -1699,7 +1734,7 @@ const hi: Record<StringKey, string> = {
   peekEmpty: "अभी कोई रीडिंग नहीं — नक्शा खोलें, एक यात्रा करें, यहाँ भर जाएगा",
   peekAmbient: "अभी ~{n} µg/m³",
   /* compare sheet — the gap line under a heavier option's dose */
-  compare_vsLightest: "सबसे हल्के से +{n}",
+  compare_vsLightest: "सबसे हल्के से +{n} µg",
   compare_doseNA: "अनुमान नहीं",
   goLabel: "कहीं जाएँ",
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
@@ -2045,6 +2080,21 @@ const hi: Record<StringKey, string> = {
   veh_start: "बताएँ क्या ले रहे हैं",
   depart_airByHour: "घंटेवार हवा",
   depart_bestLine: "सबसे हल्का {time} के आसपास — ≈ {n} µg",
+
+
+  /* jargon-sweep जोड़े — इकाइयाँ/आंतरिक-शब्द लीक करती संख्याओं के सीधे-शब्द
+     फ़्रेम (docs/lanes/jargon-sweep-report.md) */
+  noteStagPct: "हवा मुश्किल से घुल रही — घुलने की रफ़्तार सामान्य की ~{p}%",
+  fieldAgeCompact: "{n} मिनट पुरानी",
+  fieldAgeNone: "कोई रीडिंग नहीं",
+  aqiScale: "0–500 स्केल",
+  cityHeroAirNow: "अभी हवा ~{n} µg/m³",
+  movesCorridorNDays: "पिछले {d} दिनों में {n} {streetNoun} नापी गईं",
+  cityBasisPrivacyDays: "कोई सड़क तभी दिखती है जब {d} दिनों में {k} अलग यात्री उससे गुज़रें — कोई अलग से पहचाना नहीं जा सकता",
+  bandUpTo: "{n} तक",
+  shareTripLine: "मेरी यात्रा {from} → {to}: {what} — ALive-108 पर अनुमानित",
+  shareClauseBreathe: "मैंने साँस में लिया करीब {dose} धुआँ",
+  shareClausePutOut: "मेरी गाड़ी ने छोड़ा {co2}",
 };
 
 export type Lang = "en" | "hi";
