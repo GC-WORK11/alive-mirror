@@ -69,6 +69,39 @@ def test_rate_limit_is_per_client_token():
     assert c.get("/ping", headers=h2).status_code == 200
 
 
+def test_rate_limit_keys_on_rightmost_xff_hop():
+    """Behind an appending balancer (the NLB) the rightmost
+    X-Forwarded-For entry is the hop the balancer wrote — the leftmost
+    is client-supplied, so rotating it must NOT mint a fresh bucket."""
+    c = make_app(rate_per_s=0.5, burst=2.0, path_overrides={})
+    for i, spoof in enumerate(("10.0.0.1", "10.0.0.2", "10.0.0.3")):
+        r = c.get("/ping",
+                  headers={"x-forwarded-for": f"{spoof}, 203.0.113.7"})
+        assert r.status_code == (200 if i < 2 else 429)
+
+
+def test_rate_limit_separate_buckets_per_rightmost_ip():
+    c = make_app(rate_per_s=0.5, burst=1.0, path_overrides={})
+
+    def xff(ip):
+        return {"x-forwarded-for": f"9.9.9.9, {ip}"}
+
+    assert c.get("/ping", headers=xff("198.51.100.1")).status_code == 200
+    # same spoofed leftmost, different honest rightmost → own bucket
+    assert c.get("/ping", headers=xff("198.51.100.2")).status_code == 200
+    # first rightmost key is exhausted even under a fresh leftmost hop
+    assert c.get("/ping", headers=xff("8.8.8.8, 198.51.100.1")
+                 ).status_code == 429
+
+
+def test_rate_limit_falls_back_to_socket_peer():
+    """No XFF header (or no usable hop in it) → the socket peer keys the
+    bucket, consistently."""
+    c = make_app(rate_per_s=0.5, burst=1.0, path_overrides={})
+    assert c.get("/ping").status_code == 200
+    assert c.get("/ping").status_code == 429
+
+
 def test_health_is_exempt_from_rate_limit():
     c = make_app(rate_per_s=0.5, burst=1.0, path_overrides={})
     codes = [c.get("/health").status_code for _ in range(10)]

@@ -77,11 +77,26 @@ def _client_key(scope) -> str:
     if token:
         raw = f"tok:{token.strip()[:128]}"
     else:
-        fwd = headers.get("x-forwarded-for")
-        ip = (fwd.split(",")[0].strip() if fwd
-              else (scope.get("client") or ("?",))[0])
-        raw = f"ip:{ip}"
+        raw = f"ip:{_client_ip(headers, scope)}"
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+
+def _client_ip(headers: Headers, scope) -> str:
+    """Source IP for rate bucketing.
+
+    Behind an appending balancer (the NLB) each proxy appends the peer
+    it actually saw, so the RIGHTMOST X-Forwarded-For hop is the one
+    the balancer wrote — everything left of it is client-supplied and
+    can rotate per request, which would defeat per-IP budgets. Fall
+    back to the socket peer when XFF is absent or carries no usable
+    hop."""
+    fwd = headers.get("x-forwarded-for")
+    if fwd:
+        for hop in reversed(fwd.split(",")):
+            ip = hop.strip()
+            if ip:
+                return ip
+    return (scope.get("client") or ("?",))[0]
 
 
 class _Bucket:
