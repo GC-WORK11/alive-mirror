@@ -63,6 +63,6 @@ Page basis says "corridor cells publish only with ≥3 distinct devices in 72 h"
 
 ## Evidence
 
-- Raw dumps this audit used: `/tmp/comm_audit/ddb_items.json` (170 items), `/tmp/comm_audit/community_state.json` (S3 snapshot) on this box — recomputed figures quoted above.
+- Raw dumps this audit used: `~/comm_audit/ddb_items.json` (170 items), `~/comm_audit/community_state.json` (S3 snapshot) on this box — recomputed figures quoted above.
 - Code anchors: `server/community.py` (`totals()` L908, `corridors()` L869, `_fold` L146, k-gate L119-120), `server/agg_ddb.py` (`_publishable_cells` L470, `recent` L268, ledger layout L568+), `server/v2/trip.py` (`_BOUNDS` L86, `MIN_TRIP_KM`/`MAX_SPEED_KMH` L124-125, dedupe L47-80), `server/v2/store.py` (memory-backend mirror of the same contract).
 - `/observe` retirement: `ad9367d` (10-05 14:34Z) — diff shows it wrote `community.observe` only, never `TRIPS`/`LEDGER`.
