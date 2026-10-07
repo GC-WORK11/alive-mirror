@@ -110,6 +110,13 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [vehicle, setVehicle] = useState<VehicleProfile | null>(null);
   const [vehicleLoaded, setVehicleLoaded] = useState(false);
   const [notified, setNotified] = useState(false);
+  /* the OS said no to notifications — the bell's honest answer instead
+     of the dead tap it used to be (lifecycle-drive) */
+  const [pingDenied, setPingDenied] = useState(false);
+  /* the ping CAN'T be armed either — the best window sits deep inside
+     quiet hours, so scheduleDeparture refuses (a ping hours after the
+     window would be a lie). The row must say so, not dead-tap. */
+  const [pingQuiet, setPingQuiet] = useState(false);
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
   const [navDose] = useState(0); // kept: NavChrome's legacy prop path (engine's `nav` supersedes)
@@ -498,7 +505,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   }, []);
 
   const remind = useCallback(async () => {
-    if (!depart?.best?.start || notified || !(await requestPerms())) return;
+    if (!depart?.best?.start || notified) return;
+    if (!(await requestPerms())) { setPingDenied(true); return; }
     const fire = new Date(depart.best.start.endsWith("Z") ? depart.best.start : depart.best.start + "Z");
     /* /depart serves the saving as a PERCENT already — pct_less_vs_now is
        the honest name (ug_saved_vs_now is the legacy alias for the same
@@ -507,6 +515,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        32%). Take the served percent verbatim (depart.test.ts pins this). */
     const pct = Math.max(0, Math.round(departSavedPct(depart) ?? 0));
     if (await scheduleDeparture({ fireAt: fire, savedPct: pct })) setNotified(true);
+    else setPingQuiet(true);
   }, [depart, notified]);
 
   /* the master switch (settings.remind) off — the OS ping must die AND
@@ -529,7 +538,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   return {
     phase, setPhase, from, setFrom, to, setTo,
     editWhich, setEditWhich, options, selected, setSelected,
-    depart, notified, trips, setTrips, recordTrip, community, setCommunity, follow, setFollow,
+    depart, notified, pingDenied, pingQuiet, trips, setTrips, recordTrip, community, setCommunity, follow, setFollow,
     loadingRoute, refining, planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,

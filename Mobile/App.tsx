@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, LogBox, Pressable, Share, StyleSheet, Text, View, type NativeSyntheticEvent } from "react-native";
+import { BackHandler, Linking, LogBox, Pressable, Share, StyleSheet, Text, View, type NativeSyntheticEvent } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
@@ -13,6 +13,7 @@ import {
   NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium, NotoSansDevanagari_600SemiBold,
 } from "@expo-google-fonts/noto-sans-devanagari";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import {
   Camera, Layer, Map, Marker, UserLocation,
   type CameraRef, type ViewStateChangeEvent,
@@ -339,7 +340,7 @@ function AppInner() {
      useCallbacks), so destructure once and depend on them directly. */
   const {
     phase, setPhase, from, setFrom, to, setTo, editWhich, setEditWhich,
-    options, selected, setSelected, depart, notified, trips, setTrips, recordTrip,
+    options, selected, setSelected, depart, notified, pingDenied, pingQuiet, trips, setTrips, recordTrip,
     community, setCommunity, follow, setFollow, loadingRoute, refining,
     planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
@@ -394,6 +395,7 @@ function AppInner() {
   const [sidebarOpen, setSidebarOpen] = useHeldState(false);
   const [layersOpen, setLayersOpen] = useHeldState(false);
   const [mapPickArmed, setMapPickArmed] = useHeldState(false);
+  const [locDenied, setLocDenied] = useState(false);
   const [vehicleOpen, setVehicleOpen] = useHeldState(false);
   /* needsVehicle flips inside the same commit as the first option rows —
      mounting the wizard there makes its enter-spring share a frame with
@@ -706,6 +708,28 @@ function AppInner() {
     return () => sub.remove();
   }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, homeOpen, phase, clearRoute]);
 
+  /* notification taps — before this a ping answered with a dead open on
+     whatever surface was last up (lifecycle-drive): air events land on
+     the air map (the field the ping is about), the daily brief and the
+     departure ping land on Delhi today (the window both narrate).
+     getLastNotificationResponseAsync covers the killed-app tap. */
+  useEffect(() => {
+    const route = (resp: Notifications.NotificationResponse | null) => {
+      const id = resp?.notification?.request?.identifier ?? "";
+      if (!id) return;
+      if (id.startsWith("air-event-")) { setHomeOpen(false); return; }
+      if (id === "alive-daily-brief" || id === "alive-departure") {
+        setHomeOpen(false);
+        setDelhiOpen(true);
+      }
+    };
+    const sub = Notifications.addNotificationResponseReceivedListener(route);
+    Notifications.getLastNotificationResponseAsync()
+      .then(route)
+      .catch(() => {});
+    return () => sub.remove();
+  }, []);
+
   const patchSettings = useCallback((p: Partial<ShellSettings>) => {
     setSettings((s) => { const n = { ...s, ...p }; saveSettings(n); return n; });
     // the consent record mirrors the share toggle — it is the canonical
@@ -957,8 +981,13 @@ function AppInner() {
        native layer posts a raw error toast when track starts with
        no fix yet (Android forensic find); a one-shot fix primes it */
     posNow()
-      .then((pos) => { if (pos) { setHasLoc(true); setFollow(true); } })
-      .catch(() => {});
+      .then((pos) => {
+        if (pos) { setLocDenied(false); setHasLoc(true); setFollow(true); }
+        /* a denied/off location used to dead-tap — press the crosshair,
+           nothing answers, no hint why (lifecycle-drive) */
+        else setLocDenied(true);
+      })
+      .catch(() => setLocDenied(true));
   }, [follow, setFollow]);
   const openLayers = useCallback(() => setLayersOpen(true), []);
   const onPeekOpen = useCallback(() => setHomeOpen(true), []);
@@ -1132,6 +1161,7 @@ function AppInner() {
       {phase === "compare" && (
         <CompareSheet options={options} selected={selected} onSelect={setSelected}
           depart={depart} departCurve={departCurve} notified={notified}
+          pingDenied={pingDenied} pingQuiet={pingQuiet}
           onRemind={remind} remindEnabled={settings.remind}
           loading={loadingRoute} refining={refining}
           steps={steps} stepsOpen={stepsOpen} onToggleSteps={onToggleSteps}
@@ -1190,6 +1220,25 @@ function AppInner() {
           <Icon name="pin" color={V2T.text2} size={14} />
           <Text {...DYNAMIC_TYPE} style={[s.pickHintTxt, { fontFamily: fam(lang, "med") }]}>
             {t("mapPickHint", lang)}
+          </Text>
+        </Pressable>
+      )}
+
+      {/* locate tapped with location off/denied — the crosshair used to
+          answer with silence. Tap opens iOS Settings, where the switch
+          actually lives; a later fix or a fresh grant clears it. */}
+      {locDenied && !mapPickArmed && (
+        <Pressable
+          style={[s.pickHintWrap, {
+            top: insets.top + 66 + (airMapOpen ? AIR_CARD_CLEARANCE : 0)
+              + ((net.state !== "online" || apiOk === false) ? 36 : 0),
+          }]}
+          onPress={() => { tick(); setLocDenied(false); Linking.openSettings().catch(() => {}); }}
+          accessibilityRole="button" accessibilityLabel={t("homeAirCityHint", lang)}
+        >
+          <Icon name="locate" color={V2T.text2} size={14} />
+          <Text {...DYNAMIC_TYPE} style={[s.pickHintTxt, { fontFamily: fam(lang, "med") }]}>
+            {t("homeAirCityHint", lang)}
           </Text>
         </Pressable>
       )}

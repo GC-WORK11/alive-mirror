@@ -67,6 +67,14 @@ const en = {
   /** corridor names under an engine row — "via Outer Circle → …" */
   viaStreets: "via {streets}",
   findingNewWay: "Finding a new way…",
+  /* no position fixes yet — the counters' honesty line: dose still counts,
+     at the air where the trip started (lifecycle-drive) */
+  navNoGps: "no location — counting the air where you started",
+  /* bell tapped with OS notifications denied — the row's honest answer */
+  notifDenied: "notifications are off — tap to open Settings",
+  /* scheduleDeparture refused: the best window sits deep inside quiet
+     hours — a ping landing hours late would lie, so the row says why */
+  notifTooLate: "the best window is inside quiet hours — ping skipped",
   youreHere: "You're here.",
   /** manual "End" before reaching the destination — the trip is real,
       but it never arrived */
@@ -1232,6 +1240,9 @@ const hi: Record<StringKey, string> = {
   mode_altN: " · विकल्प {n}",
   viaStreets: "{streets} होते हुए",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
+  navNoGps: "लोकेशन नहीं — जहाँ से चले थे वहीं की हवा गिन रहे हैं",
+  notifDenied: "नोटिफ़िकेशन बंद हैं — Settings खोलने के लिए टैप करें",
+  notifTooLate: "सबसे अच्छा समय क्वाइट-ऑवर्स में है — पिंग नहीं होगा",
   youreHere: "आप पहुँच गए।",
   tripEnded: "यात्रा ख़त्म हुई।",
   youBreathed: "आपने साँस में लिया",

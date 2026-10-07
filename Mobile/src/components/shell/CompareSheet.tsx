@@ -24,7 +24,7 @@
  *   re-plans with the new vehicle when onVehicleChange is wired.
  * SEAM(compare): the screens lane may replace this with src/screens S4. */
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Elev, V2Radius, V2T, V2Type, bandColor, doseColor, fam, famMono, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
@@ -573,6 +573,8 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
 
 function CompareSheetInner({
   options, selected, onSelect, depart, departCurve, notified, onRemind,
+  pingDenied = false,
+  pingQuiet = false,
   remindEnabled = true,
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
@@ -580,6 +582,12 @@ function CompareSheetInner({
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
+  /** OS denied notification perms — the bell's row turns into the honest
+      "notifications are off" line instead of a dead tap (lifecycle-drive) */
+  pingDenied?: boolean;
+  /** quiet-hours refusal — the best window sits too deep inside 22→7 to
+      ping honestly; the row says why instead of a silent dead tap */
+  pingQuiet?: boolean;
   /** settings.remind — the master switch; off hides the offer row so a
       disabled preference can't ghost-offer a ping (App.tsx wiring) */
   remindEnabled?: boolean;
@@ -748,11 +756,24 @@ function CompareSheetInner({
               })() && (
                 <>
               {remindEnabled && depart && departSaved != null && departSaved > 8 && (
-                <PressSpring><Pressable onPress={() => { tap(); onRemind(); }} style={s.departRow}
+                <PressSpring><Pressable
+                  onPress={() => {
+                    tap();
+                    /* denied perms can't arm the ping — the row used to
+                       dead-tap; now it says so and offers the switch */
+                    if (pingDenied) Linking.openSettings().catch(() => {});
+                    /* quiet-hours refusal is terminal — the line already
+                       carries the reason; tapping again would re-lie */
+                    else if (!pingQuiet) onRemind();
+                  }} style={s.departRow}
                   accessibilityRole="button">
                   <Icon name={notified ? "bell" : "clock"} color={V2T.text2} size={16} filled={notified} />
                   <Text {...DYNAMIC_TYPE} style={[s.departTxt, { fontFamily: fam(lang, "med") }]}>
-                    {notified
+                    {pingDenied
+                      ? t("notifDenied", lang)
+                      : pingQuiet
+                      ? t("notifTooLate", lang)
+                      : notified
                       ? t("wellPing", lang)
                       : t("leaveAtBreatheLess", lang, {
                           time: hourLabel(depart.best.start, depart.best.hours_ahead, lang),

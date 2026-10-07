@@ -358,6 +358,18 @@ function NavChromeInner({
           </Text>
         </View>
       )}
+      {/* no position fixes yet — permission denied or the fix hasn't
+          landed: the pill says what the counters are actually doing
+          (ticking at the trip-start air), instead of a silently
+          standing-still ETA (lifecycle-drive) */}
+      {nav?.running && !nav.snapped && !nav.offRoute && !nav.outsideField
+        && nav.stripOk !== false && (
+        <View style={[s.pill, { top: insets.top + 92 }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
+            {t("navNoGps", lang)}
+          </Text>
+        </View>
+      )}
 
       {/* instrument cluster — the two signature counters + trip meta */}
       <View style={[s.cluster, { bottom: insets.bottom + 12 }]}>
