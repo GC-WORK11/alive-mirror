@@ -28,8 +28,10 @@ export type ShellSettings = {
      Master + three kinds; every ping traces to a served field. */
   alerts: boolean;
   alerts_fires: boolean;   // NW burn-belt builds (fires spike)
-  alerts_band: boolean;    // air turning worse — band crossings, severe days, stagnation
-  alerts_windows: boolean; // the day's clean window opening
+  alerts_band: boolean;    // air turning worse — band crossings, severe days,
+                           // stagnation, the recorded city-mean trend, GRAP steps
+  alerts_windows: boolean; // the day's clean window opening + tomorrow's fold
+  alerts_reflect: boolean; // yesterday's trips — the once-a-day look-back
   show_cig: boolean;       // cigarette-equivalence framing — OFF by default;
                            // dose reads in µg unless the user opts in
   vehicle: string | null;  // S8 choice, e.g. "bike" | "car" | "auto"
@@ -43,6 +45,7 @@ export type ShellSettings = {
 export const DEFAULT_SETTINGS: ShellSettings = {
   lang: "en", voice: true, share: true, brief: false, remind: true,
   alerts: true, alerts_fires: true, alerts_band: true, alerts_windows: true,
+  alerts_reflect: true,
   show_cig: false,
   vehicle: null, home: null, work: null,
   profile: "general",

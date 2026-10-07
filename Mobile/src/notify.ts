@@ -193,9 +193,17 @@ export async function scheduleDailyBrief(opts: {
 
 /** The event kinds events.ts can raise — "fires_nc" is the same belt
    build with the wind NOT carrying it to Delhi (evaluated.fires.carrying
-   !== true): a real claim, worded differently. */
+   !== true): a real claim, worded differently.
+
+   notify-v2 adds the cause-aware kinds: trend_* names the live driver
+   behind the recorded move; grap_* are stage transitions (an arrival
+   INTO ≥III stays `severe`); outlook_* is the tomorrow fold's own
+   heavy/light call; reflect is the ledger's once-a-day look-back. */
 export type AirEventKind =
-  "fires" | "fires_nc" | "band" | "window" | "stagnation" | "severe";
+  "fires" | "fires_nc" | "band" | "window" | "stagnation" | "severe" |
+  "trend_up" | "trend_down" |
+  "grap_up" | "grap_down" | "grap_clear" |
+  "outlook_heavy" | "outlook_light" | "reflect";
 
 const EV_KEYS: Record<AirEventKind, { title: StringKey; body: StringKey }> = {
   fires:      { title: "notifyFiresTitle",  body: "notifyFiresBody" },
@@ -204,6 +212,14 @@ const EV_KEYS: Record<AirEventKind, { title: StringKey; body: StringKey }> = {
   window:     { title: "notifyWindowTitle", body: "notifyWindowBody" },
   stagnation: { title: "notifyStagTitle",   body: "notifyStagBody" },
   severe:     { title: "notifySevereTitle", body: "notifySevereBody" },
+  trend_up:   { title: "notifyTrendUpTitle",   body: "notifyTrendUpBody" },
+  trend_down: { title: "notifyTrendDownTitle", body: "notifyTrendDownBody" },
+  grap_up:    { title: "notifyGrapUpTitle",    body: "notifyGrapUpBody" },
+  grap_down:  { title: "notifyGrapDownTitle",  body: "notifyGrapDownBody" },
+  grap_clear: { title: "notifyGrapClearTitle", body: "notifyGrapClearBody" },
+  outlook_heavy: { title: "notifyOutlookHeavyTitle", body: "notifyOutlookHeavyBody" },
+  outlook_light: { title: "notifyOutlookLightTitle", body: "notifyOutlookLightBody" },
+  reflect:    { title: "notifyReflectTitle",  body: "notifyReflectBody" },
 };
 
 /** Immediate local notification for a real air event — trigger:null so it

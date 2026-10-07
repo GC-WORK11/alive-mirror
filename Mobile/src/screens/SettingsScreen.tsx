@@ -480,6 +480,14 @@ function SettingsSheetInner({
             "settingsAlertsWindowsHint",
             { disabled: !current.alerts },
           )}
+          <View style={ss.hairline} />
+          {switchRow(
+            "settingsAlertsReflect",
+            current.alerts_reflect,
+            (v) => onChange("alerts_reflect", v),
+            "settingsAlertsReflectHint",
+            { disabled: !current.alerts },
+          )}
         </View>
 
         {/* ── about / provenance ── */}
