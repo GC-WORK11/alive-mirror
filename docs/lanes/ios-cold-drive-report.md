@@ -107,3 +107,27 @@ Correction applied: a fresh **Release build embedding ced7672** was installed on
 ### Interim theory check
 
 The press-In-hold hypothesis is partially confirmed: holding draws from touch-DOWN removes most of the race. The remaining cold-boot kills suggest the mount commit also races **JS-bundle/JSI warmup + first Metal pipeline compile**, which the hold can't cover — consistent with every residual kill landing on an instance younger than ~15s.
+
+---
+
+## Addendum-3 — SIGSEGV root-fix verify on 3c24a5e (23:25–23:40)
+
+Independent re-run of the exact 8-touch harness on post-3c24a5e HEAD (`dc6d0cc`). Rebuilt natively with `RCT_USE_PREBUILT_RNCORE=0` + `ios.buildReactNativeFromSource` (pod patch-package change to RN-core — JS-only pull would NOT have picked it up; boot log confirms `[coldfix] sim GC sizing applied: init=512MB min=256MB` → patch is live in the tested binary).
+
+**Harness:** coordinate touch-taps on "Where to?" → search-sheet mount, on both sims, cold instances (~12s) AND warm instances, kill+relaunch between cold trials. Identical input path that produced 8/8 kills on the pre-fix build.
+
+### Results
+
+| Build | iPhone 17 (EDD9) | iPhone 17 Pro | Total |
+|---|---|---|---|
+| 368c155 (pre-hold baseline) | 0/5 | 0/3 | **0/8** |
+| ced7672 (press-in hold) | 11/13 | 5/7 | 16/20 |
+| **3c24a5e (root fix)** | **15/17** — 2 cold-boot kills (pids 11975, 12106; 11975 log-verified `exited due to SIGSEGV | sent by exc handler`, ran 21.6s) | **7/7** | **22/24** |
+
+Breakdown on 3c24a5e: **warm/re-mounts 10/10 clean**; **cold-boot first-mounts 12/14** — the residual kill class is unchanged in kind (cold-boot first gesture) but the rate dropped 100% → ~14% on this rig.
+
+### Independent verdict vs the Max board's 34/34
+
+Their gate: 34/34 clean on the same commit. Mine: 22/24 with 2 cold-boot kills — **the fix is substantially confirmed but NOT proven closed on this rig.** The remaining kills are statistically indistinguishable-ish from zero at these n's (2/24 vs 0/34), and environment drift on this box makes their 0 plausible vs my 2 — but I can not independently sign off "0 kills": I watched the CTA kill a fresh instance twice tonight on the fixed binary, same `SIGSEGV | sent by exc handler` signature as the pre-fix deaths.
+
+**Demo-morning read (flag):** the fix converts the crash from ~deterministic to rare (~8% overall; ~14% of cold-boot first-taps on this box, 0% warm). Not a launch-blocker — but the pre-warm ritual stays cheap insurance: launch the demo app 30s before stage, open+close the search sheet once, then leave it running. If hardware behaves like this sim, one cold-boot tap is the only dangerous gesture left.
