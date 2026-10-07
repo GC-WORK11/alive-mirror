@@ -99,6 +99,7 @@ import {
 } from "../api/outlook";
 import { PROFILE_BUDGET_UG, type ShellSettings } from "../components/shell/settings";
 import { CheckinSheet } from "../components/shell/CheckinSheet";
+import { BandScale } from "../components/BandScale";
 import { HourArc } from "../components/shell/HourArc";
 import { WeekStrip, type WeekDay } from "../components/shell/WeekStrip";
 import { bump, jank } from "../perf";
@@ -1089,6 +1090,14 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
           {ref}{ref2 ? `  ·  ${ref2}` : ""}
         </Text>
       )}
+      {airNowIdx != null && (
+        /* the good→severe anchor: today's air band as a solid segment on
+           the washed CPCB ramp — "what's good, what's bad" answered as a
+           position, not a sentence */
+        <View style={ss.heroScale}>
+          <BandScale idx={airNowIdx} lang={lang} />
+        </View>
+      )}
       {!counted && !!data.curve?.series.some((v) => v != null) && (
         <SparseAirArc series={data.curve.series} color={ink} />
       )}
@@ -1424,6 +1433,7 @@ const ss = StyleSheet.create({
   heroUg: { color: V2T.text2, fontSize: V2Type.body, paddingBottom: 22 },
   heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, marginTop: -6 },
   heroRef: { color: V2T.text2, fontSize: V2Type.secondary, marginTop: 4, lineHeight: 21 },
+  heroScale: { marginTop: 10, alignSelf: "stretch" as const, maxWidth: 210 },
   heroThin: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
   sparseArc: { marginTop: 18, marginHorizontal: -6 },
   sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 14 },
