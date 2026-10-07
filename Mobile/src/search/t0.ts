@@ -457,14 +457,30 @@ function build(): void {
 /** Preload the gazetteer + index in background slices — call at boot-idle
  *  and on the search CTA's press-in. Idempotent; a no-op once built. */
 export function warm(): void {
-  if (built || scheduled) return;
-  scheduled = true;
-  const step = () => {
-    if (buildSlice(WARM_SLICE)) scheduled = false;
-    else setTimeout(step, 0);
-  };
-  setTimeout(step, 0);
+  if (built || scheduled || deferred) return;
+  /* sigbus-release lane: the warm burst is thousands of allocations inside
+     ~8 ms slices — while it runs during the cold-boot window (bundle eval,
+     module init, tile churn, first mounts, roughly the first ~12 s) the
+     Hermes heap gets corrupted on the iOS sim and detonates later inside a
+     TimerCallback (SIGBUS/SIGSEGV, docs/lanes/sigbus-release-report.md).
+     The same burst is harmless once boot activity settles, so the first
+     call defers the whole build past the window instead of racing it.
+     Press-in calls still warm lazily through the same path — the index
+     also builds on demand, so early queries stay complete. */
+  deferred = true;
+  setTimeout(() => {
+    if (built || scheduled) return;
+    scheduled = true;
+    const step = () => {
+      if (buildSlice(WARM_SLICE)) scheduled = false;
+      else setTimeout(step, 0);
+    };
+    setTimeout(step, 0);
+  }, WARM_DEFER_MS);
 }
+
+const WARM_DEFER_MS = 15000;
+let deferred = false;
 
 /** Damerau-Levenshtein with an early-exit cap — only runs when the cheap
  * stages found nothing, over a few hundred dictionary folds. */

@@ -1,7 +1,6 @@
-diff --git a/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h b/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h
-index a6c5083..479a618 100644
---- a/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h
-+++ b/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/CallbackWrapper.h b/ReactCommon/react/bridging/CallbackWrapper.h
+--- a/ReactCommon/react/bridging/CallbackWrapper.h	1985-10-26 01:15:00
++++ b/ReactCommon/react/bridging/CallbackWrapper.h	2026-10-07 11:50:08
 @@ -9,8 +9,14 @@
  
  #include <jsi/jsi.h>
@@ -17,7 +16,7 @@ index a6c5083..479a618 100644
  #include <react/bridging/LongLivedObject.h>
  
  namespace facebook::react {
-@@ -18,7 +24,8 @@ namespace facebook::react {
+@@ -18,7 +24,8 @@
  class CallInvoker;
  
  // Helper for passing jsi::Function arg to other methods.
@@ -27,7 +26,7 @@ index a6c5083..479a618 100644
   private:
    CallbackWrapper(jsi::Function &&callback, jsi::Runtime &runtime, std::shared_ptr<CallInvoker> jsInvoker)
        : LongLivedObject(runtime), callback_(std::move(callback)), jsInvoker_(std::move(jsInvoker))
-@@ -34,13 +41,34 @@ class CallbackWrapper : public LongLivedObject {
+@@ -34,13 +41,34 @@
    {
      auto wrapper =
          std::shared_ptr<CallbackWrapper>(new CallbackWrapper(std::move(callback), runtime, std::move(jsInvoker)));
@@ -63,10 +62,9 @@ index a6c5083..479a618 100644
      allowRelease();
    }
  
-diff --git a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp
-index 9c6d7c3..9d856f3 100644
---- a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp
-+++ b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/LongLivedObject.cpp b/ReactCommon/react/bridging/LongLivedObject.cpp
+--- a/ReactCommon/react/bridging/LongLivedObject.cpp	1985-10-26 01:15:00
++++ b/ReactCommon/react/bridging/LongLivedObject.cpp	2026-10-07 11:50:08
 @@ -6,6 +6,7 @@
   */
  
@@ -75,7 +73,7 @@ index 9c6d7c3..9d856f3 100644
  #include <unordered_map>
  
  namespace facebook::react {
-@@ -47,6 +48,12 @@ void LongLivedObjectCollection::remove(const LongLivedObject* o) {
+@@ -47,6 +48,12 @@
  void LongLivedObjectCollection::clear() {
    std::scoped_lock lock(collectionMutex_);
    collection_.clear();
@@ -88,7 +86,7 @@ index 9c6d7c3..9d856f3 100644
  }
  
  size_t LongLivedObjectCollection::size() const {
-@@ -54,10 +61,60 @@ size_t LongLivedObjectCollection::size() const {
+@@ -54,10 +61,60 @@
    return collection_.size();
  }
  
@@ -150,10 +148,9 @@ index 9c6d7c3..9d856f3 100644
  }
  
  } // namespace facebook::react
-diff --git a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h
-index 1e3ff3f..f669c93 100644
---- a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h
-+++ b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/LongLivedObject.h b/ReactCommon/react/bridging/LongLivedObject.h
+--- a/ReactCommon/react/bridging/LongLivedObject.h	1985-10-26 01:15:00
++++ b/ReactCommon/react/bridging/LongLivedObject.h	2026-10-07 11:50:08
 @@ -10,10 +10,18 @@
  #include <jsi/jsi.h>
  #include <memory>
@@ -161,11 +158,11 @@ index 1e3ff3f..f669c93 100644
 +#include <optional>
  #include <unordered_set>
 +#include <vector>
-+
+ 
 +#ifdef __APPLE__
 +#include <TargetConditionals.h>
 +#endif
- 
++
  namespace facebook::react {
  
 +class CallInvoker;
@@ -173,7 +170,7 @@ index 1e3ff3f..f669c93 100644
  /**
   * A simple wrapper class that can be registered to a collection that keep it
   * alive for extended period of time. This object can be removed from the
-@@ -53,9 +61,38 @@ class LongLivedObjectCollection {
+@@ -53,9 +61,38 @@
    void clear();
    size_t size() const;
  
@@ -212,10 +209,9 @@ index 1e3ff3f..f669c93 100644
  };
  
  } // namespace facebook::react
-diff --git a/node_modules/react-native/ReactCommon/react/bridging/Promise.h b/node_modules/react-native/ReactCommon/react/bridging/Promise.h
-index a1f17f8..a621c5c 100644
---- a/node_modules/react-native/ReactCommon/react/bridging/Promise.h
-+++ b/node_modules/react-native/ReactCommon/react/bridging/Promise.h
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/Promise.h b/ReactCommon/react/bridging/Promise.h
+--- a/ReactCommon/react/bridging/Promise.h	1985-10-26 01:15:00
++++ b/ReactCommon/react/bridging/Promise.h	2026-10-07 11:50:08
 @@ -11,6 +11,10 @@
  #include <react/bridging/Function.h>
  #include <react/bridging/LongLivedObject.h>
@@ -227,7 +223,7 @@ index a1f17f8..a621c5c 100644
  #include <mutex>
  #include <optional>
  
-@@ -38,7 +42,13 @@ class AsyncPromise {
+@@ -38,7 +42,13 @@
              jsInvoker));
  
      auto promiseHolder = std::make_shared<PromiseHolder>(rt, promise.asObject(rt));
@@ -242,10 +238,9 @@ index a1f17f8..a621c5c 100644
  
      // The shared state can retain the promise holder weakly now.
      state_->promiseHolder = promiseHolder;
-diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
-index b881694..aab0cd2 100644
---- a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
-+++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
+--- a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp	1985-10-26 01:15:00
++++ b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp	2026-10-07 11:50:08
 @@ -7,6 +7,13 @@
  
  #include "TurboModuleUtils.h"
@@ -260,7 +255,7 @@ index b881694..aab0cd2 100644
  namespace facebook::react {
  
  Promise::Promise(jsi::Runtime& rt, jsi::Function resolve, jsi::Function reject)
-@@ -14,11 +21,60 @@ Promise::Promise(jsi::Runtime& rt, jsi::Function resolve, jsi::Function reject)
+@@ -14,11 +21,60 @@
        resolve_(std::move(resolve)),
        reject_(std::move(reject)) {}
  
@@ -321,10 +316,9 @@ index b881694..aab0cd2 100644
    jsi::Object error(runtime_);
    error.setProperty(
        runtime_, "message", jsi::String::createFromUtf8(runtime_, message));
-diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
-index 0c436aa..098a96b 100644
---- a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
-+++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
+--- a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h	1985-10-26 01:15:00
++++ b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h	2026-10-07 11:50:08
 @@ -15,8 +15,10 @@
  
  namespace facebook::react {
@@ -337,10 +331,9 @@ index 0c436aa..098a96b 100644
  
    void resolve(const jsi::Value &result);
    void reject(const std::string &message);
-diff --git a/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp b/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp
-index b308cfd..9a09e69 100644
---- a/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp
-+++ b/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/runtime/hermes/HermesInstance.cpp b/ReactCommon/react/runtime/hermes/HermesInstance.cpp
+--- a/ReactCommon/react/runtime/hermes/HermesInstance.cpp	1985-10-26 01:15:00
++++ b/ReactCommon/react/runtime/hermes/HermesInstance.cpp	2026-10-07 15:01:08
 @@ -7,6 +7,11 @@
  
  #include "HermesInstance.h"
@@ -353,7 +346,18 @@ index b308cfd..9a09e69 100644
  #include <hermes/inspector-modern/chrome/HermesRuntimeTargetDelegate.h>
  #include <jsi/jsilib.h>
  #include <jsinspector-modern/InspectorFlags.h>
-@@ -136,6 +141,24 @@ std::unique_ptr<JSRuntime> HermesInstance::createJSRuntime(
+@@ -22,6 +27,10 @@
+ #include <jsi/decorator.h>
+ #endif
+ 
++#if defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
++#include <jsi/threadsafe.h>
++#endif
++
+ using namespace facebook::hermes;
+ using namespace facebook::jsi;
+ 
+@@ -136,6 +145,39 @@
                        // Default to 3GB
                        .withMaxHeapSize(3072 << 20)
                        .withName("RNBridgeless");
@@ -372,9 +376,67 @@ index b308cfd..9a09e69 100644
 +          .withMinHeapSize(256 << 20)
 +          .withOccupancyTarget(0.9)
 +          .withShouldReleaseUnused(::hermes::vm::kReleaseUnusedNone)
-+          .withProtectMetadata(true);
++          .withProtectMetadata(true)
++          /* sigbus-release lane (docs/lanes/sigbus-release-report.md):
++             every captured crash fires inside a young-gen scavenge
++             window — a live pointer into a reclaimed semi-space
++             segment (base+0x50 / +0x18) is dereferenced on the JS
++             thread. Allocating old-gen-only removes the semi-space
++             copies entirely, so the fault class cannot form.
++             Simulator-only; device keeps the stock generational heap.
++             Deliberately no RevertToYGAtTTI: the warm() burst lands
++             post-TTI and would re-open the window. */
++          .withAllocInYoung(false)
++          .withCallback([](::hermes::vm::GCEventKind kind, const char *details) {
++            os_log_error(
++                OS_LOG_DEFAULT, "[gcdbg] event %d %s", (int)kind,
++                details ? details : "");
++          });
 +  os_log_error(OS_LOG_DEFAULT, "[coldfix] sim GC sizing applied: init=512MB min=256MB");
 +#endif
  
    if (allocInOldGenBeforeTTI) {
      // For the next two arguments: avoid GC before TTI
+@@ -156,6 +198,34 @@
+     runtimeConfigBuilder.withCrashMgr(crashManager);
+   }
+ 
++#if defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR && \
++    !(defined(HERMES_ENABLE_DEBUGGER) && !defined(HERMES_V1_ENABLED))
++  /* sigbus-release lane (docs/lanes/sigbus-release-report.md): a plain
++     HermesRuntime is not thread-safe — every jsi entry point (value
++     clones, handle creation, host-object install, weak-object lock)
++     mutates GC-visible state, and the JS-thread hops only cover the
++     destructor/continuation paths. A foreign thread that still calls
++     into the runtime while the JS thread is mid-allocation/collection
++     leaves live pointers into decommitted segment pages — the
++     doGetByIdSlowPath / OldGen::search SIGBUS/SIGSEGV family that
++     detonates inside TimerCallback during early boot. ThreadSafeRuntime
++     serializes all runtime entry, so an off-thread jsi call queues
++     behind in-flight JS work instead of racing it — closing the
++     remaining off-thread-call class wholesale, at the cost of a mutex
++     per jsi call. Sim-only: device builds keep the stock runtime.
++     (jsi::Value/Pointer destructors are not virtual and bypass the
++     wrapper — those are covered separately by the DeferredJSIBox hops
++     on the Swift side.) */
++  std::unique_ptr<jsi::ThreadSafeRuntime> tsRuntime =
++      hermes::makeThreadSafeHermesRuntime(runtimeConfigBuilder.build());
++  tsRuntime->global()
++      .getPropertyAsObject(*tsRuntime, "Error")
++      .setProperty(*tsRuntime, "jsEngine", "hermes");
++  HermesRuntime& hermesRuntimeRef =
++      static_cast<HermesRuntime&>(tsRuntime->getUnsafeRuntime());
++  return std::make_unique<HermesJSRuntime>(
++      std::move(tsRuntime), hermesRuntimeRef);
++#else
+   std::unique_ptr<HermesRuntime> hermesRuntime =
+       hermes::makeHermesRuntime(runtimeConfigBuilder.build());
+ 
+@@ -179,6 +249,7 @@
+   HermesRuntime& hermesRuntimeRef = *hermesRuntime;
+   return std::make_unique<HermesJSRuntime>(
+       std::move(hermesRuntime), hermesRuntimeRef);
++#endif
+ }
+ 
+ } // namespace facebook::react

@@ -1,0 +1,24 @@
+diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ios/Core/SharedObjects/SharedObjectRegistry.swift b/ios/Core/SharedObjects/SharedObjectRegistry.swift
+--- a/ios/Core/SharedObjects/SharedObjectRegistry.swift	1985-10-26 01:15:00
++++ b/ios/Core/SharedObjects/SharedObjectRegistry.swift	2026-10-07 13:07:23
+@@ -126,7 +126,20 @@
+     // whichever ran last and lose the earlier runtimes' pairings.
+     let nativeState = nativeObject.nativeState ?? {
+       let releaser: ObjectReleaser = { [weak self] id in
++#if targetEnvironment(simulator)
++        // The C++ SharedObject can be released during GC finalization on the
++        // GC background thread; `delete` runs module release hooks that are
++        // only safe on the JS thread, so hop through the runtime scheduler.
++        if let runtime = try? self?.appContext?.runtime {
++          runtime.schedule {
++            self?.delete(id)
++          }
++        } else {
++          self?.delete(id)
++        }
++#else
+         self?.delete(id)
++#endif
+       }
+       let state = SharedObjectNativeState(native: nativeObject) { context, deallocator in
+         return SharedObjectUtils.makeSharedObjectNativeStatePtr(
