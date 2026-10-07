@@ -73,13 +73,21 @@ file edited only while the app was terminated — `mem` cache stomps live edits)
   `beltFires` rebaselined 4→12 (jump rule), `grapStage` 3→0, **no `fires_nc`
   mark** — the dedupe file proves every fire AND the correct silence.
 
-## Android evidence — PENDING
+## Android evidence — PENDING (child spawn blocked by org session cap)
 
-_Linux KVM child spawned for the release-APK drive; this section fills with
-its media + dumpsys/channel evidence when it lands. Interim: POST_NOTIFICATIONS
-is exercised on every install by the early OS prompt (apk-v10 noted it paints
-before the welcome film — cosmetic ordering note, not a bug). If the child
-proves the flow broken, that becomes a fix-it finding here._
+_Verified statically this lane (no emulator needed):_
+
+- Release APK `alive108-70914c0.apk` re-downloaded and sha256-verified
+  (`bfceaf26ad8f410d3995c473e77d14efd950e7ee1b610a20f7fa66849f41e88f`,
+  137,120,268 B — matches apk-v10-report).
+- Binary `AndroidManifest.xml` string-pool decoded on-box: declares
+  **`android.permission.POST_NOTIFICATIONS`** (plus VIBRATE, WAKE_LOCK,
+  INTERNET, RECEIVE_BOOT_COMPLETED, FCM RECEIVE/SEND and the OEM badge
+  permission set). The Android-13+ runtime prompt has its manifest
+  precondition — a missing-permission failure mode is excluded statically.
+- Runtime prompt + `air-events` channel creation + banner delivery still
+  require the emulator; child session spawn is HTTP-429ing on the org's
+  7-concurrent-SWE-2 cap and retries on a timer. Fills when it lands.
 
 ## Honest limits
 
