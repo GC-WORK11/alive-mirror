@@ -214,30 +214,6 @@ def alias_table() -> dict:
     return table
 
 
-def _lev_le1(a: str, b: str) -> bool:
-    """Edit distance <= 1, early exit — the cheap typo bucket."""
-    la, lb = len(a), len(b)
-    if abs(la - lb) > 1 or not a or not b:
-        return False
-    if la == lb:
-        diff = sum(1 for x, y in zip(a, b) if x != y)
-        return diff <= 1
-    if la > lb:
-        a, b = b, a
-    i = j = 0
-    skipped = False
-    while i < len(a) and j < len(b):
-        if a[i] == b[j]:
-            i += 1
-            j += 1
-        elif skipped:
-            return False
-        else:
-            skipped = True
-            j += 1
-    return True
-
-
 def _lev_bound(a: str, b: str, bound: int) -> int:
     """Plain Levenshtein with a length cutoff — <=bound or bound+1."""
     la, lb = len(a), len(b)

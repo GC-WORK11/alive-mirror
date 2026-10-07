@@ -284,7 +284,7 @@ def render(truth, pairs, hours_back, min_pairs):
     rows = []
     for s, prs in by_stn.items():
         o = [p[0] for p in prs]; e = [p[1] - p[0] for p in prs]
-        ns, mae_s, rmse_s, bias_s, bp_s = _stats(e, o)
+        ns, mae_s, rmse_s, _bias_s, bp_s = _stats(e, o)
         if ns >= min_pairs:
             rows.append((abs(bp_s), s, ns, sum(o) / ns, mae_s, rmse_s, bp_s,
                          sum(p[1] for p in prs) / ns))

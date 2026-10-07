@@ -608,17 +608,6 @@ def metro_journey(from_lat: float, from_lon: float,
     }
 
 
-def nearest_stop(lat: float, lon: float, feed: str = "metro") -> Optional[tuple]:
-    """(name, lat, lon, km) of nearest real stop in a loaded feed."""
-    idx = _metro() if feed == "metro" else _bus()
-    if not idx:
-        return None
-    n = _nearest(idx["stops"], lat, lon)
-    if not n:
-        return None
-    return (n[1], n[2], n[3], n[4])
-
-
 # --- bus hints ------------------------------------------------------------
 def _direct_bus_routes(bus: dict, a_sid: str, b_sid: str) -> list:
     """Route names where one scheduled sequence serves A before B."""

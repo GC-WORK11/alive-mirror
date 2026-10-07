@@ -77,8 +77,6 @@ SNAP_MAX_AGE_S = 2.5 * 3600  # a build this old can't speak for 'now'
 MIN_HISTORY_POINTS = 4     # sparkline ships only when it spans >= 3 h
 HISTORY_MIN_SPAN_S = 3 * 3600
 
-WIND_GONE_S = 3600.0       # a wind read older than this can't gate smoke
-
 _REFRESH_BUDGET_S = 6.0    # never hold a 'why' answer hostage upstream
 
 # The ingest worker stores 15-min builds S3-only (ingest_worker.store_blob:

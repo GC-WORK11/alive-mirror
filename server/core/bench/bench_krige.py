@@ -82,13 +82,6 @@ def load_slice(doc, month, hour):
     return names, lats, lons, z
 
 
-def city_median(doc, month, hour):
-    try:
-        return float(doc["city"][str(month)][str(hour)]["pm25"][1])
-    except KeyError:
-        return None
-
-
 _CP_LAT, _CP_LON = 28.61, 77.21   # Connaught Place — trend origin
 
 
