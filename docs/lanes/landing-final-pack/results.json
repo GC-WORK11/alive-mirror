@@ -1,0 +1,58 @@
+{
+  "timing": {
+    "d": {
+      "hnum": 4177.299999999988,
+      "bootResolved": 4177.299999999988,
+      "bootGone": null,
+      "city": [
+        {
+          "start": 3510.5,
+          "dur": 633.5999999999767,
+          "end": 4144.099999999977
+        }
+      ],
+      "now": 4992.400000000023
+    },
+    "m": {
+      "hnum": 816.0999999999767,
+      "bootResolved": 795.0999999999767,
+      "bootGone": null,
+      "city": [
+        {
+          "start": 21.20000000001164,
+          "dur": 764.0999999999767,
+          "end": 785.2999999999884
+        }
+      ],
+      "now": 1299.0999999999767
+    }
+  },
+  "notes": [
+    {
+      "tag": "d",
+      "demo": {
+        "route": "a→b Car (AC) · least-smoke rd — 6.8 µg inhaled 2.2–11.4 · 18.8 km · ~27 min · lightest for you · 5 options priced in 2.5 s",
+        "depart": "now is the light slot — dose climbs to 8.2 µg by 23:00 · next 12h, same route",
+        "ladder": "Car (AC)6.8 µg2.2–11.4Bike / scooter18.7 µg6.3–31.0Auto-rickshaw20.1 µg6.7–33.5Bicycle84.6 µg26.4–142.9On foot188.8 µg61.0–316.6at five round-trips a week for a year — 94 mg inhaled vs 3.4 mg; same trip, different lungs"
+      }
+    },
+    {
+      "tag": "d-city",
+      "parali": "12 fires in the Punjab–Haryana belt — a W wind at 12.9 km/h is carrying it toward Delhi · measured, not reported",
+      "why": "stubble smoke drifting in on the westerly wind"
+    },
+    {
+      "tag": "m",
+      "demo": {
+        "route": "a→b Car (AC) · least-smoke rd — 6.8 µg inhaled 2.2–11.4 · 18.8 km · ~27 min · lightest for you · 5 options priced in 0.0 s",
+        "depart": "now is the light slot — dose climbs to 8.2 µg by 23:00 · next 12h, same route",
+        "ladder": "Car (AC)6.8 µg2.2–11.4Bike / scooter18.7 µg6.3–31.0Auto-rickshaw20.1 µg6.7–33.5Bicycle84.6 µg26.4–142.9On foot188.8 µg61.0–316.6at five round-trips a week for a year — 94 mg inhaled vs 3.4 mg; same trip, different lungs"
+      }
+    },
+    {
+      "tag": "m-city",
+      "parali": "12 fires in the Punjab–Haryana belt — a W wind at 12.9 km/h is carrying it toward Delhi · measured, not reported",
+      "why": "stubble smoke drifting in on the westerly wind"
+    }
+  ]
+}

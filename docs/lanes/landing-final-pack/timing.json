@@ -1,0 +1,44 @@
+[
+  {
+    "ttfb": 239,
+    "docEnd": 472,
+    "dcl": 489,
+    "hnum": 744.5999999999767,
+    "boot": null,
+    "city": [
+      {
+        "start": 477,
+        "dur": 238
+      }
+    ],
+    "field": []
+  },
+  {
+    "ttfb": 2,
+    "docEnd": 2,
+    "dcl": 57,
+    "hnum": 286.19999999995343,
+    "boot": null,
+    "city": [
+      {
+        "start": 16,
+        "dur": 239
+      }
+    ],
+    "field": []
+  },
+  {
+    "ttfb": 2,
+    "docEnd": 3,
+    "dcl": 53,
+    "hnum": 437.30000000004657,
+    "boot": null,
+    "city": [
+      {
+        "start": 18,
+        "dur": 399
+      }
+    ],
+    "field": []
+  }
+]
