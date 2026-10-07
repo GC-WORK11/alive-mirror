@@ -1069,7 +1069,6 @@ consistency, real-time updates, profile behavior, both platforms.
   + web-bugfix when it lands.
 - Board: web-bugfix e6398956 + android-drive 53a85a60 + field-watch-2
   running; Max board (coordinator): audits landing + 2 fix lanes.
-||||||| 8346460
 
 
 ### cont.58 — edge-honesty markers landed (Oct 7, fix-edge-honesty lane)
@@ -1121,3 +1120,42 @@ Real findings:
   one glance on the owner's real phone demo-morning — near-certain ok.
 - NIT (unfixed): community street-name casing mixed ("hanuman lane"
   vs "Fire Brigade Lane") — real /reports data casing, cosmetic only.
+
+### cont.60 — Oct-7 build-freeze wave: fixes, deploy, lane board (Oct 7)
+Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
+- `368c155`: depart strip device-local (was hardcoded IST+":30" — a
+  non-IST judge saw "now 07:30" vs their wall clock); tripNoun plural;
+  hi "9मि"→"मिनट"; sidebar "breathed on trips" scope caption; dormant
+  toggles read asleep-not-wiped (translucent accent track); receipt
+  "…less than on foot" via new worstMode field.
+- `1d77366`: boot-GPS `setFrom` race — a typed `from` inside the
+  ~1-2s permission window is no longer clobbered by the fix.
+- `ced7672`/`33cdab8`/`44e5e97`: residual "1 trips"→nominative plural
+  family (tripNoun/streetNoun/dayNoun en+hi, call sites in
+  DelhiToday/CityMoves/CheckinSheet).
+- **Search-mount SIGSEGV (sim): ~deterministic on touch, exonerated
+  of our code** — 8/8 kills touch vs 4/4 clean a11y, cold+warm, both
+  JS bundles. Countermove `ced7672`: both search CTAs open the map
+  draw-hold at `onPressIn` (touch-DOWN) so the tap's own native work
+  runs inside the throttled window. Rebuilt A/B: **0/8 → 16/20
+  (80%) touch mounts survive**; residual = cold-boot JSI/Metal warmup
+  (outside the hold window). REAL-DEVICE CHECK MANDATORY demo-morning;
+  on sim pre-warm ~30s + one sheet cycle before first CTA tap.
+- **DEPLOY VERIFIED `44e5e97f`** (suite 1199 passed): XFF rate-limit
+  rightmost-hop bucket key, community-snapshot durability, unified
+  donation ledger, verify-numbers drift closes, plural family,
+  edge-honesty markers, sigsegv mount-vs-draw fix (d45a55c),
+  fix-trip-bounds admission control. /health sha match, 53 stations
+  waqi+dpcc, transit compiled, CloudWatch silent post-deploy.
+- Edge-honesty holds live: degenerate params all get typed honest
+  answers (422 validation / outside-service-area / point_in_area:false).
+- AWS spend Oct 1-7: **$0.15** (NLB+S3; Fargate $0 spot+credits).
+  $50 budget alarm armed. FARGATE_SPOT permanent — no T-60 flip
+  (owner's ₹0 call; docs/demo-day.md updated).
+- Board (old org): route-segments fc54326b (owns /v2/plan segments[]
+  contract — render lane on Max org consumes it, must NOT write
+  server/ itself), pocket-engine d2782cd, notify-v2 ec5f70f,
+  repo-hygiene a38cf33 (secrets git-history audit + judge README +
+  LICENSE + .env.example). ios-cold-drive slept after its wave.
+- Owner pending calls: TLS (domain+ACM :443 vs honest-answer card),
+  EventBridge enable (rollup-daily+validate-weekly vs in-app+doc).
