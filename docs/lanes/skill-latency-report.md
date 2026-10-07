@@ -18,7 +18,7 @@ S3-only. At ~130 ms per sequential `get_object`:
 | prod situation | miss cost |
 |---|---:|
 | archive mostly S3-side (post-deploy, crash-restart) | **44 sequential GETs + 1 LIST ≈ 5.9 s** — the landing lane's 6.00 s |
-| live recompute caught on prod 12:04 UTC (task ~7 h old, ~36 docs S3-side) | **4.86 s** |
+| live recomputes caught on prod 12:04–12:15 UTC (task ~7 h old, ~36 docs S3-side): gen advanced ~every 120 s under traffic, each miss **4.5–4.9 s**, queued callers 2.2–3.4 s | **4.83–4.94 s** |
 | archive all-local (long-lived task) | ~90–280 ms CPU |
 
 And the misses are frequent, not rare: the payload cache only serves
@@ -80,8 +80,9 @@ skill+archive+executor+cache 50/50):
 ## Honest caveats
 
 - The ~6 s "before" is the S3-side path at ~130 ms/op — matching the
-  landing lane's 6.00 s almost exactly, and the 4.86 s live recompute
-  caught on prod at 12:04 UTC is consistent with ~36 S3-side docs.
+  landing lane's 6.00 s almost exactly, and the live recomputes caught
+  on prod (4.83–4.94 s, ~every 120 s under traffic, 12:04–12:15 UTC)
+  are consistent with ~36 of 44 docs S3-side on the current task.
   On a task with a fully local mirror the miss was already ~0.1–0.3 s —
   the fix bounds the S3-side tail, which is when users/judges actually
   feel it.
