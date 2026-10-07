@@ -350,7 +350,13 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   }, [options, selected, from, to, camRef]);
 
   const exitNav = useCallback(() => {
-    setPhase("compare");
+    /* arrival-Done (and the nav X) means the trip is OVER — going back to
+       "compare" re-opened the options sheet on the just-traveled OD
+       (android-drive: every trip ended in a phantom re-plan, often the
+       degenerate dest→dest pair once `from` had drifted to the arrival
+       fix). "idle" lands on home with the completed trace still on the
+       map; nothing re-plans until the user asks. */
+    setPhase("idle");
     /* the flip frame already carries receipt-unmount + chrome remount —
        every map-side commit rides staggered later, ~one per frame-budget,
        so nothing piles inside the teardown window (ci15: the last

@@ -90,7 +90,15 @@ export class LiveCounters {
     // odometer is independent of the emissions curve — a strip failure
     // must not zero the receipt's distance (testnav F1)
     const ddKm = Math.max(0, ddM) / 1000;
-    const v = Math.max(0, speedMps || 0);
+    /* speed: GNSS `speedMps` when present, else derived from along-route
+       distance — providers without a speed channel (and the emulator's
+       test provider) report v=0 while the position still moves, which
+       used to collapse every moving leg to idle×time (a real 4 km drive
+       printed 0.00 kg). ddM is map-snapped, so ddM/dtS is the honest
+       effective speed; capped at 45 m/s (~160 km/h) so a snapped-fix
+       jump can't flash an absurd rate into the bands. */
+    const vDerived = ddM / dtS;
+    const v = Math.min(45, Math.max(0, speedMps || 0, vDerived));
     this.travelledM += Math.max(0, ddM);
     const km = this.travelledM / 1000;
     if (!curve) return;

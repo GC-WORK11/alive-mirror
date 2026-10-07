@@ -11,7 +11,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { NUM, V2T, V2Type, bandColor, famMono } from "../../theme";
-import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
+import { doseUgRound, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { tick } from "../../haptics";
 import { bump } from "../../perf";
@@ -58,7 +58,7 @@ function HourArcInner({ rec, lang, nh }: {
   const scrub = scrubH != null ? rec.arc.find((h) => h.hour === scrubH) : null;
   const scrubLine = scrub == null ? " "
     : scrub.covered && scrub.dose_ug > 0
-      ? t("dayArcDose", lang, { n: approx(doseUgRound(scrub.dose_ug)), h: scrub.hour })
+      ? t("dayArcDose", lang, { n: doseUgRound(scrub.dose_ug), h: scrub.hour })
       : scrub.conc != null
         ? t("dayArcAir", lang, { c: Math.round(scrub.conc), h: scrub.hour })
         : t("dayArcFlat", lang, { h: scrub.hour });
