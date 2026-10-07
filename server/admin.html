@@ -670,7 +670,23 @@
     <div class="gtiles" id="sharedpic"></div>
   </div>
 
-  <h2>07 · the archive <em>the same air map you saw live, saved every hour into permanent storage — delhi's air is a recorded history now, not just a forecast</em></h2>
+  <h2>07 · who's using it <em>how many phones share back, how often, what they breathed, what they told us — aggregate counts only; nothing shown can collapse to one person</em></h2>
+  <div class="grid grid--fit" id="usagecards"></div>
+  <div class="cols" style="margin-top:10px">
+    <div class="panel">
+      <div class="panel-h">the counters — trips shared, breathing, reach</div>
+      <dl class="kv" id="usagekv"></dl>
+      <div class="sub" id="usagehourscap" style="padding:0 16px"></div>
+      <div class="daybars" id="usagehours"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h">what riders told us — star reviews + hazard flags</div>
+      <dl class="kv" id="usagefb"></dl>
+      <div class="sub" id="usagefbnote" style="padding:0 16px 12px"></div>
+    </div>
+  </div>
+
+  <h2>08 · the archive <em>the same air map you saw live, saved every hour into permanent storage — delhi's air is a recorded history now, not just a forecast</em></h2>
   <div class="gtiles" id="archive"></div>
 
   <footer>
@@ -760,7 +776,7 @@ async function tick(){
      instantly and render their honest-empty states. */
   const urls=['/admin/api/status','/admin/api/sources','/admin/api/corridors',
     '/admin/api/donations','/admin/api/validation','/admin/api/model',
-    '/v2/districts','/admin/api/timing','/admin/api/global',
+    '/v2/districts','/admin/api/timing','/admin/api/global','/v2/usage',
     /* public feeds — the page renders real truth before the token lands:
        /health carries the public-safe status block (samples, stations,
        edges priced, engine), /aqi the live read + fire status + σ band,
@@ -768,8 +784,12 @@ async function tick(){
     '/health','/aqi?lat=28.6315&lon=77.2167','/fires',
     '/v2/why?lat=28.63&lon=77.22','/v2/city'];
   const gated=!sessionStorage.getItem('alive_admin_tok');
+  /* every operator-only path must short-circuit for guests — a fetch
+     that hits the server anyway would surface its 401/403 as a nagging
+     token prompt instead of the honest locked state */
+  const isGatedPath=u=>u.startsWith('/admin/api/')||u==='/v2/usage';
   const res=await Promise.allSettled(urls.map(u=>
-    (gated&&u.startsWith('/admin/api/'))
+    (gated&&isGatedPath(u))
       ?Promise.reject(new Error(u+' — token required'))
       :getJSON(u)));
   if(res.every(r=>r.status==='rejected')){
@@ -794,7 +814,7 @@ async function tick(){
   }
   const val=r=>r.status==='fulfilled'?r.value:null;
   const [status,sources,corridors,donations,validation,model,districts,
-    timing,globalAgg,health,aqiPt,firesDoc,why,cityDoc]=res.map(val);
+    timing,globalAgg,usage,health,aqiPt,firesDoc,why,cityDoc]=res.map(val);
   /* --- why tonight: driver attribution over the same live ingredients --- */
   try{
     const wv=why||{};
@@ -1405,6 +1425,7 @@ async function tick(){
   /* --- the shared picture: global rollups over the feeds this page
      already trusts — honest-empty for fields the api has not shipped --- */
   paintShared(dn,S,rows,globalAgg);
+  paintUsage(usage,gated);
   paintArchive(S);
 
   /* --- corridors (aggregate rows only; the k≥3 set comes from the
@@ -2123,6 +2144,80 @@ function paintShared(dn,S,rows,G){
     `<div class="card"><div class="kchip">${l}</div>
      <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'nothing to show yet'}</div>
      <div class="cap">${sub}</div></div>`).join('');
+}
+/* --- 07 · who's using it: the /v2/usage rollup. every number is a
+   scalar aggregate over the stores that already exist — a null + note
+   where a source can't answer, an honest locked state for guests
+   (the fetch never fires without a token, so no 401 nags) --- */
+function paintUsage(us,gated){
+  const cards=$('usagecards'),kv=$('usagekv'),hcap=$('usagehourscap'),
+        hours=$('usagehours'),fb=$('usagefb'),fbn=$('usagefbnote');
+  if(!cards)return;
+  if(us==null){
+    const msg=gated?'locked — sign in as operator':'usage feed unavailable';
+    cards.innerHTML=`<div class="card"><div class="kchip">usage</div>
+      <div class="num na" style="font-size:13px;line-height:1.25">${msg}</div>
+      <div class="cap">${gated?'who uses it unlocks with the operator token — aggregate counts only, never a person':'the usage rollup could not be read — retrying next tick'}</div></div>`;
+    if(kv)kv.innerHTML='';if(hours)hours.innerHTML='';
+    if(hcap)hcap.textContent='';if(fb)fb.innerHTML='';
+    if(fbn)fbn.textContent='';
+    return;
+  }
+  const dev=us.devices||{},tr=us.trips||{},ds=us.dose||{},
+        cor=us.corridors||{},fbk=us.feedback||{},
+        tdy=tr.today,w24=tr.last_24h;
+  const tiles=[
+    ['phones that ever shared',
+      dev.total!=null?fmt(dev.total):null,
+      dev.unavailable?'the device ledger could not be read — no count painted':
+      'distinct tokens in the donation ledger — a phone mints its token at install but the server only learns it when a trip is shared, so this is “phones that shared”, never installs'],
+    ['sharing · last 24h / 7d',
+      dev.seen_24h!=null?`${fmt(dev.seen_24h)} <small>/ ${fmt(dev.seen_7d)}</small>`:null,
+      'phones whose latest shared trip lands inside each window'],
+    ['trips shared today',
+      tdy?`${fmt(tdy.trips)} <small>· ${fmt1(tdy.km)} km</small>`:(tr.total?0:null),
+      `the donation ledger's own UTC day counter${tdy&&tdy.modes&&Object.keys(tdy.modes).length?` · ${Object.entries(tdy.modes).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([m,n])=>`${fmt(n)} ${esc(MODE_N[m]||m)}`).join(' · ')}`:''}`],
+    ['breathed per shared trip',
+      ds.mean_ug_per_trip!=null
+        ?`<span style="color:${doseInk(ds.mean_ug_per_trip)}">${fmt1(ds.mean_ug_per_trip)} µg</span>${ds.median_ug_per_trip!=null?` <small>· median ${fmt1(ds.median_ug_per_trip)}</small>`:''}`
+        :null,
+      ds.mean_ug_per_trip!=null
+        ?`mean over every donated trip${ds.median_ug_per_trip!=null?` · median over ${fmt(ds.median_n)} ledgered trips`:' · median needs the device ledger'}`
+        :'no donated trips yet — nothing to average'],
+  ];
+  cards.innerHTML=tiles.map(([l,v,sub])=>
+    `<div class="card"><div class="kchip">${l}</div>
+     <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'nothing to show yet'}</div>
+     <div class="cap">${sub}</div></div>`).join('');
+  kv.innerHTML=(tr.total||(dev&&dev.total))?`
+    <dt>shared trips</dt><dd>${fmt(tr.total)} across ${fmt(tr.days_tracked)} day${tr.days_tracked===1?'':'s'} · ${fmt(tr.switched)} picked the cleaner option</dd>
+    <dt>last 24h</dt><dd>${w24?`${fmt(w24.trips)} trips · ${fmt1(w24.km)} km · ${fmt1(w24.dose_ug)} µg breathed · ${fmt(w24.devices)} phone${w24.devices===1?'':'s'}`:esc(tr.last_24h_note||'rolling window not available on this backend')}</dd>
+    <dt>smoke inhaled</dt><dd>${ds.mean_ug_per_trip!=null?`${fmt1(ds.mean_ug_per_trip)} µg/trip mean${ds.median_ug_per_trip!=null?` · ${fmt1(ds.median_ug_per_trip)} median`:''}${ds.mean_ug_per_km!=null?` · ${fmt1(ds.mean_ug_per_km)} µg/km`:''}`:'—'}</dd>
+    <dt>street cells</dt><dd>${fmt(cor.tracked)} tracked · ${fmt(cor.publishable)} shareable — cells need ${cor.k_min||3}+ phones in ${cor.window_h||72}h</dd>
+    <dt>latest donation</dt><dd>${tr.latest_donation_age_min!=null?ago(tr.latest_donation_age_min*60)+' ago':'—'}</dd>
+    <dt>installs</dt><dd class="sub">${esc(us.installs_note||'unknowable server-side by design')}</dd>
+    <dt>median basis</dt><dd class="sub">${esc(ds.median_basis||'')}</dd>
+    ${(ds.daily||[]).length?`<dt>breathed, by day</dt><dd class="sub">${ds.daily.slice(-7).map(d=>`${esc(d.day)}: ${d.mean_ug!=null?fmt1(d.mean_ug)+' µg':'—'} · ${fmt(d.trips)} trip${d.trips===1?'':'s'}`).join('<br>')}</dd>`:''}`
+    :emptyMsg(us.empty?'no shared trips yet — counters appear when the first anonymized donation lands. nothing is zero-filled.':'the usage rollup answered with nothing — nothing painted');
+  const ph=tr.per_hour||[];
+  if(ph.length){
+    const mx=Math.max(1,...ph),curH=new Date().getUTCHours();
+    hcap.textContent=`donations per hour — the last ${ph.length} UTC hour buckets, oldest→newest`;
+    hours.innerHTML=ph.map((n,i)=>{
+      const h=(curH-ph.length+1+i+96)%24,hh=Math.max(3,Math.round(n/mx*46));
+      return `<div class="dbar" title="${String(h).padStart(2,'0')}:00 utc — ${fmt(n)} shared trip${n===1?'':'s'}">
+        <i style="height:${hh}px"></i><span>${i%4===0?String(h).padStart(2,'0'):''}</span></div>`;
+    }).join('');
+  }else{hours.innerHTML='';hcap.textContent=tr.per_hour_note||''}
+  const rv=fbk.reviews,hz=fbk.hazard_reports;
+  fb.innerHTML=(rv||hz)?`
+    <dt>star reviews</dt><dd>${rv&&rv.count?`${fmt1(rv.avg)}★ across ${fmt(rv.count)} review${rv.count===1?'':'s'}`:'none yet — the first stars land here'}</dd>
+    ${rv&&rv.count?`<dt>by stars</dt><dd class="sub">${[5,4,3,2,1].map(s=>`${s}★ ${fmt(rv.hist&&rv.hist[s]||0)}`).join(' · ')}</dd>`:''}
+    ${rv&&rv.notes&&rv.notes.length?`<dt>latest note</dt><dd class="sub">“${esc(rv.notes[0].note)}” · notes publish only once 3+ reviews exist</dd>`:''}
+    ${rv&&rv.notes_withheld?`<dt>notes withheld</dt><dd class="sub">review notes stay hidden until 3+ reviews exist — the k-anonymity floor, same as everywhere</dd>`:''}
+    <dt>hazard flags live</dt><dd>${hz?`${fmt(hz.active)} active${hz.active?` — ${Object.entries(hz.kinds).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${fmt(n)} ${esc(k)}`).join(' · ')}`:''} · each expires in ${hz.ttl_h||6}h, counts only`:'the report store could not be read'}</dd>`
+    :emptyMsg('feedback feeds unavailable — nothing painted');
+  fbn.textContent=fbk.basis||'';
 }
 /* --- the archive: the served field recorded hourly (archive.py →
    s3://{bucket}/archive/ + the local mirror). every number on this
