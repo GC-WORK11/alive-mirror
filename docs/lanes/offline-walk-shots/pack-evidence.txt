@@ -1,0 +1,44 @@
+=== mbgl-offline.db final pull — 2026-10-07 13:01 UTC ===
+device path: /data/data/com.anonymous.app/files/mbgl-offline.db
+size: 1,269,760 B  (679,936 at first map open -> 1,081,344 -> 1,269,760; all growth ambient viewport tiles)
+
+--- .tables ---
+region_resources  regions           tiles           
+region_tiles      resources       
+--- regions (count=1): pack row EXISTS but empty ---
+1|{"style_url":"file:///data/user/0/com.anonymous.app/cache/alive-v2-style.json","min_zoom":9.0,"max_zoom":13.0,"pixel_ratio":2.625,"include_ideographs":false,"bounds":[28.2,76.8,28.95,77.9]}|{"migrationVersion":1,"id":"42d81b40-9e82-45b9-a463-853869bb19ac","metadata":"{\"name\":\"delhi-ncr-z9-13-r1\"}"}
+--- counts ---
+region_tiles = 0
+region_resources = 0
+tiles = 8
+resources = 9
+--- ambient tiles (z,x,y,bytes): CP viewport only, NOT the z9-13 pack set ---
+8|182|106|71135
+12|2926|1707|105345
+12|2926|1708|116313
+11|1463|853|61539
+14|11706|6830|128192
+14|11706|6831|134587
+14|11705|6830|109447
+14|11705|6831|77123
+--- ambient resources ---
+https://tiles.openfreemap.org/planet|1477
+https://tiles.openfreemap.org/sprites/ofm_f384/ofm@2x.json|2560
+https://tiles.openfreemap.org/sprites/ofm_f384/ofm@2x.png|114272
+https://tiles.openfreemap.org/fonts/Noto%20Sans%20Bold/256-511.pbf|54681
+https://tiles.openfreemap.org/fonts/Noto%20Sans%20Bold/0-255.pbf|43927
+https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf|41819
+https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/0-255.pbf|46472
+https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/8192-8447.pbf|23103
+https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/256-511.pbf|52622
+
+=== logcat: style_url parse failure — fires once per app launch ===
+10-07 12:39:03.812  4659  4707 E Mbgl-HttpRequest: [HTTP] Unable to parse resourceUrl file:///data/user/0/com.anonymous.app/cache/alive-v2-style.json
+10-07 12:39:03.812  4659  4690 E ReactNativeJS: MapLibre Native [ERROR] [Mbgl-HttpRequest] [HTTP] Unable to parse resourceUrl file:///data/user/0/com.anonymous.app/cache/alive-v2-style.json
+10-07 12:39:03.829  4659  4691 E unknown:ReactNative: console.error: MapLibre Native [ERROR] [Mbgl-HttpRequest] [HTTP] Unable to parse resourceUrl file:///data/user/0/com.anonymous.app/cache/alive-v2-style.json, stack:
+10-07 12:58:14.932  6062  6106 E Mbgl-HttpRequest: [HTTP] Unable to parse resourceUrl file:///data/user/0/com.anonymous.app/cache/alive-v2-style.json
+10-07 12:58:14.932  6062  6090 E ReactNativeJS: MapLibre Native [ERROR] [Mbgl-HttpRequest] [HTTP] Unable to parse resourceUrl file:///data/user/0/com.anonymous.app/cache/alive-v2-style.json
+10-07 12:58:14.934  6062  6091 E unknown:ReactNative: console.error: MapLibre Native [ERROR] [Mbgl-HttpRequest] [HTTP] Unable to parse resourceUrl file:///data/user/0/com.anonymous.app/cache/alive-v2-style.json, stack:
+
+=== cache dir: the file:// style tileWarm writes ===
+-rw------- 1 u0_a209 u0_a209_cache 37449 2026-10-07 12:51 /data/data/com.anonymous.app/cache/alive-v2-style.json
