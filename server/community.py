@@ -19,10 +19,12 @@ like v2/trip.py's device_token before it can touch any store, and raw
 coordinates are folded into ~500 m cell traversals at ingest — no raw
 trajectories at rest. And there are no per-trip rows at rest either:
 observe() folds each traversal straight into per-cell / per-hour /
-per-day / lifetime AGGREGATES — the only structures that exist in
-memory, on disk, or in S3 (the old per-trip _obs rows were the leak —
-ordered cell chains a reader could walk endpoint-to-end, linked by the
-same hashed id). Anything this module publishes is an aggregate; a
+per-day AGGREGATES — the only structures that exist in memory, on
+disk, or in S3 (the old per-trip _obs rows were the leak — ordered
+cell chains a reader could walk endpoint-to-end, linked by the same
+hashed id; the all-time _LIFE/_DEVICES counters are gone too — the
+donation ledger lives in v2/store.TRIPS + LEDGER, one source of truth
+every surface reads). Anything this module publishes is an aggregate; a
 corridor cell is revealed only with >=_K_MIN_DEVICES distinct hashed
 devices inside the 72 h window (same rule v2/store.py TripAggregates
 implements). Per-device rows are never returned — that was the leak.
@@ -62,13 +64,17 @@ _last_s3_put = 0.0
 _CELLS: dict = {}   # (lon,lat) -> per-cell totals + k-gate state
 _CELLS_CAP = 60_000          # evict stalest cells beyond this
 _CELL_VAL_CAP = 400          # implied-C ring per cell (freshness pairs)
-_DAYS: dict = {}    # "YYYY-MM-DD" -> day rollup
+_DAYS: dict = {}    # "YYYY-MM-DD" -> traversal rollup (admin per-day view)
 _DAYS_CAP = 400
-_HOURS: dict = {}   # int utc-hour -> hour rollup
+_HOURS: dict = {}   # int utc-hour -> traversal rollup (admin per-hour view)
 _HOUR_KEEP_S = 7 * 86400   # hour buckets evaporate after a week
-_LIFE: dict = {"trips": 0, "km": 0.0, "dose_ug": 0.0,
-               "avoided_ug": 0.0, "last_ts": 0.0}
-_DEVICES: set = set()      # hashed tokens ever seen — distinct COUNT only
+# NOTE — there is deliberately NO all-time trips/km/devices counter
+# here. The public donation ledger lives in v2/store.TRIPS + LEDGER
+# (the store /v2/city and /admin read); totals() repointed to it so the
+# community surface quotes the same numbers. This module's own stores
+# are the corridor-traversal projection: only donations that carried
+# usable coordinates fold in, so their sums are a subset of the ledger
+# — never a second count of 'shared trips'.
 
 _reports: list[dict] = []
 _reviews: list[dict] = []
@@ -154,13 +160,6 @@ def _fold(ts: float, vehicle: str, duration_s: float, dose_ug,
     hr["km"] += km
     hr["last_ts"] = max(hr["last_ts"], ts)
     hr["modes"][vehicle] = hr["modes"].get(vehicle, 0) + 1
-    _LIFE["trips"] += 1
-    _LIFE["km"] += km
-    _LIFE["dose_ug"] += dose_ug or 0.0
-    _LIFE["avoided_ug"] += avoided_ug or 0.0
-    _LIFE["last_ts"] = max(_LIFE.get("last_ts") or 0.0, ts)
-    if tok_hash:
-        _DEVICES.add(tok_hash)
     # implied ambient concentration — only traversals that survive the
     # same validity gates corridor_field_samples() applies count as
     # measurements (dose + >=30 s duration + sane implied value)
@@ -297,10 +296,9 @@ def _hydrate(d: dict) -> None:
             "km": float(v.get("km") or 0.0),
             "last_ts": float(v.get("last_ts") or 0.0),
             "modes": dict(v.get("modes") or {})}
-    _LIFE.update({k: float(v) for k, v in (d.get("life") or {}).items()
-                  if k in _LIFE})
-    _LIFE["trips"] = int(_LIFE["trips"])
-    _DEVICES.update(d.get("devices") or [])
+    # legacy snapshots may carry 'life'/'devices' keys — the duplicate
+    # all-time ledger this module used to keep. They are ignored: the
+    # donation ledger is v2/store.TRIPS + LEDGER now.
 
 
 def _snapshot() -> dict:
@@ -319,8 +317,6 @@ def _snapshot() -> dict:
                  for day, v in _DAYS.items()},
         "hours": {str(h): {**v, "devices": sorted(v["devices"])}
                   for h, v in _HOURS.items()},
-        "life": dict(_LIFE),
-        "devices": sorted(_DEVICES),
         "reports": _reports[-2000:],
         "reviews": _reviews[-_REVIEW_CAP:],
     }
@@ -476,7 +472,7 @@ def observe(vehicle: str, coords: list, duration_s: float,
           cells={tuple(c) for c in cells},
           tok_hash=_token(contributor))
     _save()
-    return {"stored": True, "total_obs": _LIFE["trips"]}
+    return {"stored": True}
 
 
 def report(kind: str, lat: float, lon: float, contributor: Optional[str]) -> dict:
@@ -805,36 +801,49 @@ def corridors(limit: int = 10) -> list[dict]:
 def totals() -> dict:
     """City rollup — the collective ledger judges can read at a glance.
 
-    Every field is a city-level total or a k>=3-suppressed corridor —
-    recomputeable from aggregate-only data (doc 07 §3), never per
-    device. `basis` states the provenance plainly for the client."""
+    Reads the SAME donation ledger /v2/city and /admin serve
+    (v2.store.TRIPS day buckets + LEDGER's device count) — one source
+    of truth, so the public surfaces can never disagree on 'shared
+    trips' again (they diverged: /v2/trip writes TRIPS and best-effort
+    folds here, and this module's own _LIFE/_DEVICES counter answered
+    'how many donated' with the smaller traversal set). 'today' is the
+    UTC day the ledger keys itself on — the same basis /city prints.
+
+    Only the corridor fields come from this module's own stores: a
+    different dataset (donations that carried usable coordinates), and
+    corridors() applies its own k>=3/72 h gate. Every field is a
+    city-level total, never per device (doc 07 §3)."""
     _load()
-    cutoff = time.time() - 86400
-    # 24 h fields are sums over the UTC-hour buckets overlapping the
-    # window — the store holds nothing finer than an hour, so these can
-    # count a boundary bucket's whole hour (bounded, documented bias).
-    hrs = [r for h, r in _HOURS.items() if (h + 1) * 3600 > cutoff]
-    modes: dict = {}
-    for r in hrs:
-        for m, n in r["modes"].items():
-            modes[m] = modes.get(m, 0) + n
+    from v2.store import TRIPS, LEDGER
+    days = TRIPS.city_aggregates().get("days") or {}
+    today_key = time.strftime("%Y-%m-%d", time.gmtime())
+    today = days.get(today_key) or {}
+
+    def _all(k: str) -> float:
+        return sum(float(v.get(k) or 0.0) for v in days.values())
+
+    last_ts = max((float(v.get("last_ts") or 0.0)
+                   for v in days.values()), default=0.0)
     return {
-        "obs_total": _LIFE["trips"],
-        "obs_24h": sum(r["trips"] for r in hrs),
-        "contributors": len(_DEVICES),
-        "km_24h": round(sum(r["km"] for r in hrs), 1),
-        "dose_ug_24h": round(sum(r["dose_ug"] for r in hrs), 1),
-        "avoided_ug_24h": round(sum(r["avoided_ug"] for r in hrs), 1),
-        "avoided_ug_all": round(_LIFE["avoided_ug"], 1),
+        "obs_total": int(_all("trips")),
+        "obs_today": int(today.get("trips") or 0),
+        "today": today_key,
+        "contributors": LEDGER.devices(),
+        "km_today": round(float(today.get("km") or 0.0), 1),
+        "dose_ug_today": round(float(today.get("dose_ug") or 0.0), 1),
+        "avoided_ug_today": round(float(today.get("avoided_ug") or 0.0), 1),
+        "avoided_ug_all": round(_all("avoided_ug"), 1),
         "active_reports": len(_reports),
-        "modes_24h": modes,
-        "latest_obs_age_min": (round((time.time() - _LIFE["last_ts"]) / 60)
-                               if _LIFE.get("last_ts") else None),
+        "modes_today": dict(today.get("modes") or {}),
+        "latest_obs_age_min": (round((time.time() - last_ts) / 60)
+                               if last_ts else None),
         "top_corridors": corridors(5),
-        "source": "donated_trip_aggregates",
-        "basis": ("aggregate of donated trips, anonymized — corridor "
-                  "cells published only with >=3 distinct devices in 72 h; "
-                  "no per-trip records exist at rest"),
+        "source": "trip_aggregates",
+        "basis": ("the shared donation ledger /v2/city and /admin read "
+                  "(v2 trip aggregates + device ledger) — one source of "
+                  "truth for shared-trip totals; corridor cells publish "
+                  "only with >=3 distinct devices in 72 h; no per-trip "
+                  "records exist at rest"),
     }
 
 

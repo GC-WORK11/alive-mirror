@@ -134,11 +134,19 @@ class DDBTripAggregates:
         pk = f"day#{day}"
         try:
             for sk in (DAY_SUM_SK, f"mode#{mode}"):
+                xexpr, xvals = expr, vals
+                if sk == DAY_SUM_SK:
+                    # the day's own freshness stamp — 'last shared trip
+                    # N min ago' surfaces (/community, /city's ledger)
+                    # read it; lives only on the summary row
+                    xexpr = f"SET last_ts = :ts {expr}"
+                    xvals = dict(vals)
+                    xvals[":ts"] = _n(round(ts, 3))
                 self.client.update_item(
                     TableName=self.table_name,
                     Key={"pk": {"S": pk}, "sk": {"S": sk}},
-                    UpdateExpression=expr,
-                    ExpressionAttributeValues=vals)
+                    UpdateExpression=xexpr,
+                    ExpressionAttributeValues=xvals)
             dose = float(summary.get("dose_ug") or 0.0)
             ttl = int(ts) + CELL_TTL_S
             distinct = list(dict.fromkeys(cells))
@@ -452,14 +460,16 @@ class DDBTripAggregates:
                     "co2_moving_g": 0.0, "co2_idle_g": 0.0,
                     "co2_cold_g": 0.0, "co2_split_trips": 0,
                     "avoided_ug": 0.0, "avoided_trips": 0,
-                    "co2_avoided_kg": 0.0, "co2_avoided_trips": 0})
+                    "co2_avoided_kg": 0.0, "co2_avoided_trips": 0,
+                    "last_ts": 0.0})
                 if sk == DAY_SUM_SK:
                     for k in ("trips", "km", "dose_ug", "co2_kg_mid",
                               "pm25_g_mid", "switched",
                               "co2_moving_g", "co2_idle_g",
                               "co2_cold_g", "co2_split_trips",
                               "avoided_ug", "avoided_trips",
-                              "co2_avoided_kg", "co2_avoided_trips"):
+                              "co2_avoided_kg", "co2_avoided_trips",
+                              "last_ts"):
                         d[k] = _num(it.get(k))
                 elif sk.startswith("mode#"):
                     d["modes"][sk[len("mode#"):]] = _num(it.get("trips"))

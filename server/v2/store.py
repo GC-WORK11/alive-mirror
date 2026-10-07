@@ -112,7 +112,12 @@ class TripAggregates:
                 "co2_moving_g": 0.0, "co2_idle_g": 0.0,
                 "co2_cold_g": 0.0, "co2_split_trips": 0,
                 "avoided_ug": 0.0, "avoided_trips": 0,
-                "co2_avoided_kg": 0.0, "co2_avoided_trips": 0})
+                "co2_avoided_kg": 0.0, "co2_avoided_trips": 0,
+                "last_ts": 0.0})
+            # rounded like the DDB backend's write so city_aggregates()
+            # parity holds between stores; the newest donation stamp on
+            # a day drives 'last shared trip N min ago' surfaces
+            d["last_ts"] = max(d["last_ts"], round(ts, 3))
             d["trips"] += 1
             d["km"] += float(summary.get("distance_km") or 0.0)
             d["dose_ug"] += float(summary.get("dose_ug") or 0.0)

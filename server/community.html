@@ -319,8 +319,8 @@ async function load(){
     $('status').innerHTML=
       `<span><b>${IN(c.contributors)}</b> phones sharing</span>`+
       `<span><b>${IN(c.obs_total)}</b> trips shared · all-time</span>`+
-      `<span><b>${F1(c.dose_ug_24h)}</b> µg breathed · 24h</span>`+
-      `<span><b>${F1(c.km_24h)}</b> km of trips · 24h</span>`+
+      `<span><b>${F1(c.dose_ug_today)}</b> µg breathed · today</span>`+
+      `<span><b>${F1(c.km_today)}</b> km of trips · today</span>`+
       `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 dodged · all-time</span>`+
       (last!=null?`<span>last shared trip <b>${agoMin(last)}</b> ago</span>`:'');
   }else if(h){
@@ -333,30 +333,30 @@ async function load(){
     ?`latest shared trip ${agoMin(c.latest_obs_age_min)} ago`:'—'):'—';
 
   /* ---- ledger rows ---- */
-  const modes=c&&c.modes_24h?Object.entries(c.modes_24h).sort((a,b)=>b[1]-a[1])
+  const modes=c&&c.modes_today?Object.entries(c.modes_today).sort((a,b)=>b[1]-a[1])
     .map(([m,n])=>`${esc(m)} ×${n}`).join(' · '):'';
   $('lgrid').innerHTML=
     lrow('phones sharing · all-time',IN(c&&c.contributors),'',!c,
       'every phone that has ever shared a trip — counted once, never named')+
     lrow('trips shared · all-time',IN(c&&c.obs_total),'',!c,
       'rides donated since the beginning — yours included if you share')+
-    lrow('trips shared · last 24 h',IN(c&&c.obs_24h),'',!c,
-      'shared rides counted over the past day')+
-    lrow('distance travelled · 24 h',F1(c&&c.km_24h),'km',!c,
-      'how far the shared trips went, added up')+
-    lrow('pm2.5 breathed on trips · 24 h',F1(c&&c.dose_ug_24h),'µg',!c,
-      'the fine dust riders actually inhaled — µg is micrograms; one cigarette is roughly 316 µg')+
-    lrow('pm2.5 dodged · 24 h',IN(c&&c.avoided_ug_24h),'µg',!c,
-      'dust riders did not breathe because the app steered them off the smokiest option')+
+    lrow('trips shared · today',IN(c&&c.obs_today),'',!c,
+      'shared rides counted since utc midnight — same day-key as the /city ledger')+
+    lrow('distance travelled · today',F1(c&&c.km_today),'km',!c,
+      'how far today\'s shared trips went, added up')+
+    lrow('pm2.5 breathed on trips · today',F1(c&&c.dose_ug_today),'µg',!c,
+      'the fine dust riders actually inhaled today — µg is micrograms; one cigarette is roughly 316 µg')+
+    lrow('pm2.5 dodged · today',IN(c&&c.avoided_ug_today),'µg',!c,
+      'dust riders did not breathe today because the app steered them off the smokiest option')+
     lrow('pm2.5 dodged · all-time',IN(c&&c.avoided_ug_all),'µg',!c,
       'the same dodged total since the beginning')+
     lrow('live rider flags',IN(c&&c.active_reports),'',!c,
       'dust, smoke, burning-smell and clean-air pins — each fades after 6 hours')+
     (modes
-      ?lrow('how trips travelled · 24 h',modes,'',false,
-        'the mix of wheels the shared trips ran on')
-      :lrow('how trips travelled · 24 h','','',true,
-        'the mix of wheels the shared trips ran on'));
+      ?lrow('how trips travelled · today',modes,'',false,
+        'the mix of wheels today\'s shared trips ran on')
+      :lrow('how trips travelled · today','','',true,
+        'the mix of wheels today\'s shared trips ran on'));
 
   /* ---- corridors ---- */
   const rows=(c&&c.top_corridors||[]).map((r,i)=>

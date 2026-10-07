@@ -21,6 +21,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import community  # noqa: E402
+from v2 import store as _v2store  # noqa: E402
 
 # one ~500 m cell near Connaught Place, plus a far-away second cell
 CELL_A = [[77.2090, 28.6300], [77.2091, 28.6301]]  # same _cell bucket
@@ -57,19 +58,24 @@ def _mk_fold(ts, contributor, cells=None, vehicle="bus",
 def clean(monkeypatch):
     """Empty in-memory stores; never touch disk or S3."""
     for d in (community._CELLS, community._DAYS, community._HOURS,
-              community._reports, community._DEVICES):
+              community._reports):
         d.clear()
-    community._LIFE.update(trips=0, km=0.0, dose_ug=0.0,
-                           avoided_ug=0.0, last_ts=0.0)
     community._loaded = True
     community._CELLS_CACHE = (0.0, -1, [])
+    # totals() reads the shared donation ledger — reset the module-level
+    # singletons too so each test starts empty (memory backend only;
+    # the suite never runs against real DDB)
+    for s in (_v2store.TRIPS, _v2store.LEDGER):
+        if getattr(s, "backend", "memory") == "memory":
+            s.reset()
     monkeypatch.setattr(community, "_save", lambda: None)
     yield
     for d in (community._CELLS, community._DAYS, community._HOURS,
-              community._reports, community._DEVICES):
+              community._reports):
         d.clear()
-    community._LIFE.update(trips=0, km=0.0, dose_ug=0.0,
-                           avoided_ug=0.0, last_ts=0.0)
+    for s in (_v2store.TRIPS, _v2store.LEDGER):
+        if getattr(s, "backend", "memory") == "memory":
+            s.reset()
     community._loaded = False
 
 
@@ -99,8 +105,11 @@ ALL_OUTPUTS = lambda: [  # noqa: E731 — every public read surface
 # --- at-rest privacy ----------------------------------------------------------
 def test_observe_hashes_token_and_folds_to_aggregates():
     _donate("raw-device-42")
-    # hashed id lands ONLY inside the device-count sets
-    assert _tok("raw-device-42") in community._DEVICES
+    # hashed id lands ONLY inside the device-count sets — the per-day
+    # traversal rollup now (the all-time device set is gone: the shared
+    # donation ledger's own device index counts contributors)
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    assert _tok("raw-device-42") in community._DAYS[today]["devices"]
     blob = json.dumps(community._snapshot())
     assert "raw-device-42" not in blob
     assert "77.209" not in blob, "raw 5dp coordinates must not persist"
@@ -114,8 +123,8 @@ def test_no_per_trip_rows_can_exist_at_rest():
         _donate(dev, coords=[[77.20, 28.60], [77.21, 28.61], [77.22, 28.62]])
     assert not hasattr(community, "_obs"), "per-trip store must not exist"
     snap = community._snapshot()
-    assert set(snap) == {"v", "cells", "days", "hours", "life",
-                       "devices", "reports", "reviews"}
+    assert set(snap) == {"v", "cells", "days", "hours",
+                       "reports", "reviews"}
     # the snapshot cannot carry an ordered trip: cell aggregates store
     # unordered sets and scalar counters only
     for cell, v in snap["cells"].items():
@@ -132,18 +141,19 @@ def test_snapshot_round_trip_preserves_aggregates(tmp_path, monkeypatch):
     for dev in ("a", "b", "c"):
         _donate(dev)
     community._save()
-    before = (community.totals()["obs_total"],
-              len(community.corridors()), len(community._DEVICES))
-    for d in (community._CELLS, community._DAYS, community._HOURS,
-              community._DEVICES):
+    # the snapshot persists the traversal projection (per-day/day rollups,
+    # corridors) — NOT the public ledger, which lives in v2.store.TRIPS
+    before = ([(r["day"], r["trips"], r["contributors"])
+               for r in community.contributors_detail()],
+              len(community.corridors()), len(community._HOURS))
+    for d in (community._CELLS, community._DAYS, community._HOURS):
         d.clear()
-    community._LIFE.update(trips=0, km=0.0, dose_ug=0.0,
-                           avoided_ug=0.0, last_ts=0.0)
     community._loaded = False
     community._load()
-    after = (community.totals()["obs_total"],
-             len(community.corridors()), len(community._DEVICES))
-    assert before == after and before[0] == 3
+    after = ([(r["day"], r["trips"], r["contributors"])
+              for r in community.contributors_detail()],
+             len(community.corridors()), len(community._HOURS))
+    assert before == after and before[0][0][1] == 3
 
 
 def test_v1_snapshot_migrates_cells_rows_and_drops_points_rows():
@@ -161,8 +171,9 @@ def test_v1_snapshot_migrates_cells_rows_and_drops_points_rows():
          "points": [[77.2090, 28.6300], [77.2091, 28.6301]]},
     ]})
     assert migrated is True
-    assert community._LIFE["trips"] == 1      # only the cells row folded
-    assert _tok("dev-a") in community._DEVICES  # plaintext id hashed in
+    day = time.strftime("%Y-%m-%d", time.gmtime(now))
+    assert community._DAYS[day]["trips"] == 1   # only the cells row folded
+    assert _tok("dev-a") in community._DAYS[day]["devices"]  # hashed in
 
 
 def test_report_stores_no_contributor():
@@ -232,20 +243,37 @@ def test_field_samples_stale_traversals_dont_publish():
     assert community.corridor_field_samples() == []
 
 
-# --- response shape (mobile client compat) ------------------------------------
-def test_totals_shape_matches_mobile_contract():
-    span = [[77.2090, 28.6300], [77.2280, 28.6300]]  # ~1.7 km, 2 cells
-    for dev in ("a", "b", "c"):
-        _donate(dev, coords=span)
+# --- response shape (the /community page contract) -------------------------
+def test_totals_reads_the_shared_ledger():
+    """totals() answers from the SAME donation ledger /v2/city and
+    /admin serve (v2.store TRIPS + LEDGER) — one source of truth, so
+    the public surfaces can never diverge again. The traversal
+    projection this module keeps (community.observe's fold) is a
+    different dataset and must NOT inflate the ledger numbers."""
+    for i, dev in enumerate(("a", "b", "c")):
+        _v2store.TRIPS.record_trip(
+            [f"cell{i % 2}"], {"mode": "bus", "distance_km": 1.7,
+                               "dose_ug": 30.0, "avoided_ug": 5.0},
+            _tok(dev))
+        _v2store.LEDGER.record(_tok(dev), {"distance_km": 1.7})
     t = community.totals()
-    expected = {"obs_total", "obs_24h", "contributors", "km_24h",
-                "dose_ug_24h", "avoided_ug_24h", "avoided_ug_all",
-                "active_reports", "modes_24h"}
-    assert expected <= set(t), "Mobile/src/community.ts CommunityTotals"
-    assert t["obs_total"] == 3 and t["contributors"] == 3
-    assert t["km_24h"] > 0 and t["modes_24h"] == {"bus": 3}
-    assert "aggregate" in t["basis"] and "anonymized" in t["basis"]
-    assert t["source"] == "donated_trip_aggregates"
+    expected = {"obs_total", "obs_today", "today", "contributors",
+                "km_today", "dose_ug_today", "avoided_ug_today",
+                "avoided_ug_all", "active_reports", "modes_today",
+                "latest_obs_age_min"}
+    assert expected <= set(t)
+    assert t["obs_total"] == 3 and t["obs_today"] == 3
+    assert t["contributors"] == 3
+    assert t["km_today"] > 0 and t["modes_today"] == {"bus": 3}
+    assert t["avoided_ug_all"] == 15.0 and t["avoided_ug_today"] == 15.0
+    assert t["today"] == time.strftime("%Y-%m-%d", time.gmtime())
+    assert t["latest_obs_age_min"] is not None
+    assert "ledger" in t["basis"] and "no per-trip" in t["basis"]
+    assert t["source"] == "trip_aggregates"
+    # a traversal-only fold (no TRIPS write) is corridor projection
+    # data, not a shared-trip count — the ledger must not move
+    _donate("coord-only-donor")
+    assert community.totals()["obs_total"] == 3
 
 
 # --- banned-key invariant over every output -----------------------------------
@@ -366,7 +394,8 @@ def test_observe_untrimmed_caller_gets_endpoint_trim():
     assert 28.630 not in lats, "origin cell persisted — trim missing"
     assert 28.650 not in lats, "destination cell persisted — trim missing"
     assert lats == {28.635, 28.640, 28.645}, lats
-    assert 1.0 < community._LIFE["km"] < 1.6, community._LIFE["km"]
+    km = sum(d["km"] for d in community._DAYS.values())
+    assert 1.0 < km < 1.6, km
 
 
 def test_observe_privacy_trimmed_skips_second_trim():
@@ -375,7 +404,7 @@ def test_observe_privacy_trimmed_skips_second_trim():
     donation's stored km by ~0.6 km)."""
     _donate("pre-trimmed")  # helper passes privacy_trimmed=True
     assert community._CELLS, "pre-trimmed payload must keep its cells"
-    assert community._LIFE["km"] > 0
+    assert sum(d["km"] for d in community._DAYS.values()) > 0
 
 
 def test_corridor_rows_carry_est_basis():
@@ -494,23 +523,24 @@ def test_feedback_rate_map_stays_bounded_under_flood():
 # --- junk donations never enter the ledger -------------------------------------
 def test_observe_empty_or_garbage_coords_rejected():
     """A donation folding to zero usable cells is not a donation."""
-    before = community._LIFE["trips"]
+    before = sum(d["trips"] for d in community._DAYS.values())
     for bad in ([], None, ["x"], [["x", "y"]]):
         out = community.observe(vehicle="car", coords=bad,
                                 duration_s=600, dose_ug=10,
                                 avoided_ug=None, contributor="junk",
                                 privacy_trimmed=True)
         assert out["stored"] is False
-    assert community._LIFE["trips"] == before
+    assert sum(d["trips"] for d in community._DAYS.values()) == before
 
 
 def test_observe_negative_metrics_dropped_not_stored():
     _donate("neg-check", dose_ug=-5.0, avoided_ug=-1.0)
     # negative doses are physically impossible — they fold as unknown,
     # never as numbers that would drag the aggregates down
-    assert community._LIFE["dose_ug"] == 0
-    assert community._LIFE["avoided_ug"] == 0
-    assert community._LIFE["trips"] == 1
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    assert community._DAYS[day]["dose_sum"] == 0
+    assert community._DAYS[day]["avoided_sum"] == 0
+    assert community._DAYS[day]["trips"] == 1
     assert all(v["vals"] == [] for v in community._CELLS.values())
 
 

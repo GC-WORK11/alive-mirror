@@ -1459,14 +1459,11 @@ function paintTicker(a,cy,t,ad,nd){
 }
 
 /* ---------- provenance minimap — district outlines + station anchors - */
-const STATIONS=[[77.3162,28.6468],[77.1754,28.6927],[77.0326,28.7936],
-  [77.2010,28.7265],[77.1112,28.7501],[77.0640,28.5710],[77.2426,28.6315],
-  [77.1708,28.7328],[77.2277,28.5918],[77.2015,28.6364],[77.0929,28.8522],
-  [77.2515,28.5686],[77.2813,28.5308],[77.3067,28.6237],[77.1316,28.6692],
-  [77.1691,28.6396],[77.1868,28.5640],[77.1188,28.7325],[77.1474,28.6516],
-  [77.2263,28.5511],[77.2494,28.7330],[77.3153,28.6723],[77.1658,28.6999],
-  [77.1317,28.4706],[77.3220,28.5440],[77.0620,28.4100],[77.3741,28.6427],
-  [77.3150,28.3700]];
+/* station dots come from the field's own live instrument list
+   (/v2/city field.stations — the readings behind station_readings),
+   refreshed with every load; a cold/snapshot field paints no dots —
+   a painted-in station list is never served */
+let liveStations=[];
 function paintMini(){
   const mm=document.getElementById('minimap'),mx=mm.getContext('2d');
   const r=mm.getBoundingClientRect();if(!r.width)return;
@@ -1483,8 +1480,8 @@ function paintMini(){
     f._rings.forEach(ring=>ring.forEach(([lo,la],i)=>
       i?mx.lineTo(px(lo),py(la)):mx.moveTo(px(lo),py(la))));
     mx.stroke()}
-  for(const [lo,la] of STATIONS){
-    const x=px(lo),y=py(la);
+  for(const s of liveStations){
+    const x=px(s.lon),y=py(s.lat);
     if(x<0||x>mW||y<0||y>mH)continue;
     mx.fillStyle='rgba(58,104,68,.8)';mx.fillRect(x-1.5,y-1.5,3,3)}
 }
@@ -1599,12 +1596,22 @@ async function load(){
       setTxt('hRange','');setTxt('hDist','');
     }
     const days=(cy.trips&&cy.trips.days)||{};
-    const dayKeys=Object.keys(days).sort();
-    const latest=dayKeys.length?days[dayKeys[dayKeys.length-1]]:{};
+    /* the ledger keys itself by UTC day — 'today' means today's UTC key,
+       not whichever key is newest: after midnight rollover the newest
+       populated key is still yesterday, and the card was serving that
+       stale day under a 'today' label */
+    const todayKey=new Date().toISOString().slice(0,10);
+    const latest=days[todayKey]||{};
+    /* 'last 3 days' = trailing UTC days ending today — fixed window,
+       not 'the last 3 keys that exist' */
+    const dayMs=86400000,nowT=Date.now();
+    const trips3d=[0,1,2].reduce((s,i)=>{
+      const k=new Date(nowT-i*dayMs).toISOString().slice(0,10);
+      return s+((days[k]&&days[k].trips)||0)},0);
     const t={
       dose_ug_24h: latest.dose_ug||0,
       obs_24h: latest.trips||0,
-      obs_total: dayKeys.reduce((s,k)=>s+(days[k].trips||0),0),
+      obs_3d: trips3d,
       km_24h: latest.km||0,
       cells_tracked: cy.trips?.cells_tracked||0,
       corridors_publishable: cy.trips?.publishable_corridors??cy.trips?.corridors_publishable??0,
@@ -1617,8 +1624,8 @@ async function load(){
     document.getElementById('breaths').textContent=
       pm>0?Math.floor((t.dose_ug_24h||0)/pm*2000).toLocaleString('en-IN'):'—';
     setTxt('doseug',IN(t.dose_ug_24h));
-    setTxt('obs',IN(t.obs_24h??t.obs_total));
-    setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_total));
+    setTxt('obs',IN(t.obs_24h));
+    setTxt('km',IN(t.km_24h));setTxt('contrib',IN(t.obs_3d));
     setTxt('corr',IN(t.corridors_publishable));
     setTxt('cellstr',IN(t.cells_tracked));
     const co2v=latest.co2_kg_mid,pmv=latest.pm25_g_mid;
@@ -1634,6 +1641,7 @@ async function load(){
       setTxt('co2d','no shared trips today — this fills in as delhi moves');
     }
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
+    liveStations=(cy.field&&Array.isArray(cy.field.stations))?cy.field.stations:[];
     setTxt('fieldmeta',`map rebuilt ${Math.round((a.field?.age_s||0)/60)} min ago · nearest map square ${a.nearest_sample_km??'—'} km away · ${a.calibration?.mae_ug?`typical error ±${a.calibration.mae_ug} µg/m³`:'not yet calibrated'}`);
     paintTicker(a,cy,t,ad,(dd&&dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
