@@ -501,9 +501,23 @@ function AppInner() {
       if (r.ok && r.data.fc.features.length) {
         const ep = airFieldEpoch(r.data.fc);
         setFieldGeo((prev) => (prev && airFieldEpoch(prev) === ep ? prev : r.data.fc));
+        return true;
       }
-    }).catch(() => {});
-    fieldPull();
+      return false;
+    }).catch(() => false);
+    /* boot resilience: one dropped read used to leave the air map bare
+       for the full 10 min cadence — the idle map's whole surface. Retry
+       a first-miss twice at short gaps before settling into the normal
+       pull (the air map is the owner's #1 surface; it must not open
+       empty on a flaky first fetch). */
+    let fieldBoot = 0;
+    let fieldT: ReturnType<typeof setTimeout> | null = null;
+    const fieldBootRetry = async () => {
+      if (await fieldPull()) return;
+      if (++fieldBoot >= 3) return;           // three tries, then the 10-min cadence
+      fieldT = setTimeout(fieldBootRetry, 7000);
+    };
+    void fieldBootRetry();
     const fieldIv = setInterval(fieldPull, 10 * 60 * 1000);
     /* the OS permission dialog no longer fires at boot — on a cold install
        it landed on top of the first open before any value or context, and
@@ -600,7 +614,7 @@ function AppInner() {
        inside its mount effect (the owner's "10 seconds, hung" read).
        The 900 ms delay keeps the slices behind the boot burst. */
     void afterFirstFrame().then(() => setTimeout(() => warmSearchIndex(), 900));
-    return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); clearInterval(fieldIv); };
+    return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); clearInterval(fieldIv); if (fieldT) clearTimeout(fieldT); };
   }, [setFrom, setTrips, settings.lang]);
 
   /* first-open ordering: the consent sheet is required on every cold

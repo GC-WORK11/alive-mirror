@@ -60,6 +60,9 @@ const en = {
       engine's shorthand) */
   mode_leastSmoke: " · least smoky way",
   mode_leastSmokeAlt: " · least smoky option {n}",
+  /** a smoke qualifier the client demoted for failing its own claim
+      (api/plan.ts relabelLeastSmoke) — it stays a plain 'alt N' */
+  mode_altN: " · alt {n}",
   /** corridor names under an engine row — "via Outer Circle → …" */
   viaStreets: "via {streets}",
   findingNewWay: "Finding a new way…",
@@ -640,7 +643,12 @@ const en = {
      reaches the hi UI. */
   moveDec_cleanWindow: "{w} hours {win} — around {c} µg/m³, against {m} across the day",
   moveDec_noClean: "no clean hours left today — the lightest is {n} µg/m³",
-  moveDec_short: "only ~{n}h of today left — {b} throughout",
+  moveDec_short: "only ~{n}h of today left on the card — {b} throughout",
+  /* the served horizon is short, not the day: at 11 AM a 2-hour serve
+     is a truncated card, and 'only ~2h of today left' read as a lie
+     (audit #10) — this line names the card's reach instead of the
+     day's end */
+  moveDec_cardShort: "the next ~{n}h look {b} — the rest of today's card isn't in yet",
   moveDec_flat: "no meaningful window today — {b} air all day ({lo}–{hi} µg/m³)",
   moveDec_jagged: "no steady window today — from {lo} to {hi} µg/m³",
   /* CPCB band words (districts.cpcb_band) — only ever used inside
@@ -1178,6 +1186,7 @@ const hi: Record<StringKey, string> = {
   mode_approx: " (अंदाज़न)",
   mode_leastSmoke: " · सबसे कम धुआँ वाला रास्ता",
   mode_leastSmokeAlt: " · सबसे कम धुआँ विकल्प {n}",
+  mode_altN: " · विकल्प {n}",
   viaStreets: "{streets} होते हुए",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
   youreHere: "आप पहुँच गए।",
@@ -1669,7 +1678,8 @@ const hi: Record<StringKey, string> = {
      वही व्याकरण, served windows + series से rebuild */
   moveDec_cleanWindow: "{w} घड़ी {win} (औसत {c} बनाम दिन {m} µg/m³)",
   moveDec_noClean: "आज साफ़ घड़ी नहीं बची — सबसे हल्की हवा {n} µg/m³",
-  moveDec_short: "आज सिर्फ़ ~{n} घंटे बचे — हर घड़ी {b} हवा",
+  moveDec_short: "आज कार्ड में सिर्फ़ ~{n} घंटे बचे — हर घड़ी {b} हवा",
+  moveDec_cardShort: "अगले ~{n} घंटे {b} — आज का बाक़ी कार्ड अभी नहीं आया",
   moveDec_flat: "आज कोई खास घड़ी नहीं — दिनभर {b} हवा ({lo}–{hi} µg/m³)",
   moveDec_jagged: "आज कोई घड़ी टिकी नहीं — सबसे हल्की {lo} µg/m³, सबसे भारी {hi}",
   /* CPCB बैंड-शब्द — हमेशा "…{b} हवा" के अंदर, इसलिए हवा के लिंग पर */
@@ -2149,6 +2159,13 @@ export function modeLabel(mode: string, label: string, lang: Lang): string {
     if (alt) suffix = t("mode_leastSmokeAlt", lang, { n: alt[1] });
     else if (rest === " · least-smoke rd" || rest === " · least smoky way")
       suffix = t("mode_leastSmoke", lang);
+    else {
+      /* ' · alt N' — the client's own demoted qualifier (plan.ts
+         relabelLeastSmoke): localizes like the engine suffixes so the
+         Hindi UI never leaks wire English */
+      const a = rest.match(/^ · alt (\d+)$/);
+      if (a) suffix = t("mode_altN", lang, { n: a[1] });
+    }
   }
   return t(b.key, lang) + suffix;
 }

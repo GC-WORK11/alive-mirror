@@ -378,13 +378,18 @@ function OnboardingSheet({
             </View>
           )}
 
-          {/* the skip disclosure travels with the button — visible on
-              every page, not only the choice page it qualifies */}
-          <Text {...DYNAMIC_TYPE} style={[ss.footnote, { fontFamily: fam(lang, "reg") }]}>
-            {t("consent_footnote", lang)}
-          </Text>
         </Animated.View>
       </ScrollView>
+
+      {/* the skip disclosure travels with the button — visible on every
+          page, not only the choice page it qualifies. It sits OUTSIDE
+          the scroll: inside it, a page whose content overflows rendered
+          the line half-clipped at the viewport edge (component-audit
+          #2) — for a consent line, "present" means visible without
+          scrolling. */}
+      <Text {...DYNAMIC_TYPE} style={[ss.footnote, { fontFamily: fam(lang, "reg") }]}>
+        {t("consent_footnote", lang)}
+      </Text>
 
       {/* footer: dots + next (the choice page answers via its own buttons) */}
       <View style={ss.footer}>
@@ -570,7 +575,11 @@ const ss = StyleSheet.create({
     fontSize: V2Type.label,
     color: V2T.text3,
     textAlign: "center",
-    marginTop: 16,
+    /* pinned above the footer now — horizontal breathing room matches
+       the page gutter; marginTop stays small so the line hugs the dots */
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 28,
     lineHeight: 19,
   },
 

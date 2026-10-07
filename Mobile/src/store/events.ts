@@ -41,6 +41,7 @@ import { API, fetchJson } from "../components/shell/net";
 import { loadSettings } from "../components/shell/settings";
 import { fetchDayCurve } from "../api/dayfield";
 import { fetchOutlook } from "../api/outlook";
+import { loadConsent } from "./consent";
 import { notifyAirEvent, requestPerms, type AirEventKind } from "../notify";
 import { t, type Lang } from "../i18n/strings";
 import { loadTrips } from "./ledger";
@@ -166,6 +167,14 @@ export async function checkAirEvents(opts: {
   try {
     const s = await loadSettings();
     if (!s.alerts) return;
+    /* no consent record yet = onboarding is still on screen — the
+       engine never interrupts the consent flow with a permission
+       dialog or a banner sliding over page 1 (component-audit #3:
+       a trend ping landed ~10 s into first run). Baselines start on
+       the first post-consent poll instead; dedupe is per-day, so any
+       real build still reaches the shade — just not during consent. */
+    const c = await loadConsent().catch(() => null);
+    if (!c?.seen) return;
     const st = await loadState();
     const now = new Date();
     const day = utcDay(now);

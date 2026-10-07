@@ -140,10 +140,23 @@ export const reasonTxt = (n: string, lang: Lang): string => {
   return m ? out + t("reason_slowerSuffix", lang, { m: m[1] }) : out;
 };
 
-const bandTxt = (b: Band | null | undefined, unit: string) =>
-  b && (b.lo != null || b.hi != null)
-    ? `${b.lo ?? "?"}–${b.hi ?? "?"}${unit ? ` ${unit}` : ""}`
-    : null;
+const bandTxt = (b: Band | null | undefined, unit: string, dp = 2) => {
+  if (!b || (b.lo == null && b.hi == null)) return null;
+  const r = (v: number | null) => (v == null ? null : Number(v.toFixed(dp)));
+  const lo = r(b.lo ?? b.mid), hi = r(b.hi ?? b.mid);
+  if (lo == null && hi == null) return null;
+  /* a band that collapses at display precision prints one number —
+     "0–0" and "1.2–1.2" are slop, not spans (audit #21) */
+  if (lo === hi || lo == null || hi == null) return `${lo ?? hi}${unit ? ` ${unit}` : ""}`;
+  return `${lo}–${hi}${unit ? ` ${unit}` : ""}`;
+};
+
+/** true when the whole band is zero at display precision — a "0–0 kg CO2"
+ *  row on walk/cycle says nothing the non_exhaust note doesn't already */
+const zeroBand = (b: Band | null | undefined, dp: number) =>
+  !!b &&
+  Number((b.lo ?? b.mid ?? 0).toFixed(dp)) === 0 &&
+  Number((b.hi ?? b.mid ?? 0).toFixed(dp)) === 0;
 
 /** in-bar ramp: warm, brighter = heavier dose (absence of colour = light) */
 const inTone = (f: number) => (f > 0.66 ? V2T.breath3 : f > 0.33 ? V2T.breath2 : V2T.breath1);
@@ -336,7 +349,13 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
   const d = o.dose, e = o.emissions;
   const cig = showCig && d.mid != null ? Math.round((d.mid / 316) * 100) / 100 : null;
   const ageMin = fieldAgeS != null ? Math.max(0, Math.round(fieldAgeS / 60)) : null;
-  const emit = [bandTxt(e.co2_kg, "kg CO2"), bandTxt(e.pm25_g, "g PM2.5")].filter(Boolean).join("  ·  ");
+  /* hide meaningless zero-rows: a non-motorized option's exhaust is all
+     zero bands, and printing "0–0 kg CO2 · 0–0 g PM2.5" was audit slop;
+     the non_exhaust note underneath still carries the honest "zero" */
+  const emit = [
+    zeroBand(e.co2_kg, 1) ? null : bandTxt(e.co2_kg, "kg CO2", 1),
+    zeroBand(e.pm25_g, 2) ? null : bandTxt(e.pm25_g, "g PM2.5", 2),
+  ].filter(Boolean).join("  ·  ");
   return (
     <View style={s.detail}>
       <Text {...DYNAMIC_TYPE} style={[s.dTitle, { fontFamily: fam(lang, "med") }]}>{t("howWeGotThis", lang)}</Text>
@@ -417,13 +436,17 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
   }, [selected, selV, reduce]);
   const d = o.dose;
   /* the honest band — a missing end reads as "{lo}+"/"up to {hi}",
-     never a bare "?" in the range */
+     never a bare "?" in the range; and a two-ended span only prints
+     when the rounded ends actually differ — "≈0 µg (0–0)" read as a
+     bug. */
+  const bandLoR = d?.lo != null ? Math.round(d.lo) : null;
+  const bandHiR = d?.hi != null ? Math.round(d.hi) : null;
   const band = d && (d.lo != null || d.hi != null) && (d.lo !== d.mid || d.hi !== d.mid)
     ? d.lo != null && d.hi != null
-      ? `${Math.round(d.lo)}–${Math.round(d.hi)}`
+      ? (bandLoR !== bandHiR ? `${bandLoR}–${bandHiR}` : null)
       : d.lo != null
-        ? `${Math.round(d.lo)}+`
-        : t("bandUpTo", lang, { n: Math.round(d.hi ?? 0) })
+        ? `${bandLoR}+`
+        : t("bandUpTo", lang, { n: bandHiR ?? 0 })
     : null;
   const doseCol = d?.avg_conc_ugm3 != null ? doseColor(d.avg_conc_ugm3) : V2T.text;
   /* the felt gap line — the sheet's emotional payload. "~2.4× more

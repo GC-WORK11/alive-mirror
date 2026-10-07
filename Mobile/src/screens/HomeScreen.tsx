@@ -414,10 +414,18 @@ function decisionLine(
        same thresholds picked (<3h card, flat day, jagged remainder) */
     if (mids.length < 3) {
       const last = bandIdx(mids[mids.length - 1]);
-      return t("moveDec_short", lang, {
-        n: mids.length,
-        b: last == null ? "" : t(MOVE_BAND_KEYS[last], lang),
-      });
+      const b = last == null ? "" : t(MOVE_BAND_KEYS[last], lang);
+      /* "~Nh of today left" is only honest when the day itself is nearly
+         done — at 11 AM a 2-hour serve is a truncated forecast horizon,
+         not a short day, and the line read as a lie (audit #10: it fired
+         at 10:56). Gate the phrasing on the real IST clock: when more
+         of the day remains than the card can see, name the card's
+         reach instead of the day's end. */
+      const istHour = (Date.now() / 3600000 + 5.5) % 24;
+      const istLeft = 24 - istHour;
+      return istLeft <= mids.length + 1.5
+        ? t("moveDec_short", lang, { n: mids.length, b })
+        : t("moveDec_cardShort", lang, { n: mids.length, b });
     }
     if (hi - lo <= Math.max(15, 0.15 * mean)) {
       return t("moveDec_flat", lang, {
@@ -1350,6 +1358,7 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
   /* the lungs' calendar sheet — the week strip's tap target (the picked
      day key; null = closed) */
   const [weekDay, setWeekDay] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
   /* the air is the canvas (docs/20): the whole screen breathes today's
      outside band as a whisper at the top, settling to paper — the
      environment itself is the data, cards float in paper on it */
@@ -1369,7 +1378,12 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
         <TravelCta lang={lang} onGo={onGo} />
       </View>
       <ScrollView style={ss.flex}
-        contentContainerStyle={[ss.content, { paddingBottom: 12 }]}
+        /* the audit's occlusion complaint was measured against a ~62 px
+           bottom overlay; the CTA is a top header row now, but the 12 px
+           bottom pad still sat the last card inside the home-indicator
+           zone — the strip the OS reserves for the swipe gesture. Pad
+           past the inset so every bottom cell clears it (audit #1). */
+        contentContainerStyle={[ss.content, { paddingBottom: insets.bottom + 16 }]}
         showsVerticalScrollIndicator={false}
         /* when a card above the viewport grows (the move's age-line
            landing, a rebuild), the scroll view re-pins the first visible

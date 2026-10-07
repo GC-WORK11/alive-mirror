@@ -59,9 +59,11 @@ function BlackspotsLayerFn({ spots, on = true }: { spots: GeoJSON.FeatureCollect
         type="circle"
         minzoom={11.5}
         paint={{
+          /* audit #4: 3–6 px dots read as sub-pixel noise on a city
+             view — bump into the tappable-looking range */
           "circle-radius": [
             "interpolate", ["linear"], ["zoom"],
-            11.5, 3, 15, 6,
+            11.5, 4.5, 15, 8,
           ],
           "circle-color": [
             "match", ["get", "severity"],

@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { GeoJSONSource, Layer } from "@maplibre/maplibre-react-native";
-import { V2T } from "../theme";
+import { V2T, bandInkIdx } from "../theme";
 
 export type AirStation = { lat: number; lon: number; name?: string | null };
 
@@ -14,7 +14,9 @@ const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: 
 /** The served PM2.5 field painted onto the map — the air map's reason
  *  to exist. Cell polygons tinted by their own CPCB band at an alpha
  *  scaled by the cell's confidence (the same honest texture city.html
- *  paints: unsure cells whisper, sure cells speak). Seated under the
+ *  paints: unsure cells whisper, sure cells speak — and at the same
+ *  strengths the web hero uses: .92/.60/.34 — the audit's .55/.38/.20
+ *  tints read as a sepia basemap, not air). Seated under the
  *  road + label stack (`beforeId`) so streets and names stay crisp on
  *  top of the field — the Google-traffic seat, not a film over
  *  everything. The µg/m³ value each cell reports floats on it like
@@ -103,14 +105,47 @@ function AirFieldLayerFn({
               120, V2T.band4,
               250, V2T.band5,
             ],
+            /* the web hero's CONF_A verbatim — the field must read as
+               air, not as a tinted basemap: hi .92 / med .60 / lo .34 */
             "fill-opacity": [
               "match",
               ["get", "conf"],
-              "hi", 0.55,
-              "med", 0.38,
-              "lo", 0.20,
-              0.30,
+              "hi", 0.92,
+              "med", 0.60,
+              "lo", 0.34,
+              0.45,
             ],
+          }}
+        />
+        {/* the mesh itself — each cell edged in its own band's inked hue
+            (bandInkIdx = the band colour pulled 15% toward ink, same as
+            the app's chips). Even a one-band day keeps the instrument
+            grid visible instead of a flat wash, and a band change draws
+            a real contour seam between neighbours */}
+        <Layer
+          id="airfieldEdges"
+          type="line"
+          beforeId="v2-road-tunnel"
+          paint={{
+            "line-color": [
+              "step",
+              ["get", "pm25"],
+              bandInkIdx(0),
+              30, bandInkIdx(1),
+              60, bandInkIdx(2),
+              90, bandInkIdx(3),
+              120, bandInkIdx(4),
+              250, bandInkIdx(5),
+            ],
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              9, 0.4,
+              13, 0.9,
+              17, 1.6,
+            ],
+            "line-opacity": 0.55,
           }}
         />
         {/* each cell's read in µg/m³ — the instruments' numbers, not a

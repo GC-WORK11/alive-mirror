@@ -33,9 +33,11 @@ function CorridorLayerFn({ corridors, on = true }: { corridors: Corridor[] | nul
         id="corridorGlow"
         type="circle"
         paint={{
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, ["*", 26, ["get", "w"]], 15, ["*", 60, ["get", "w"]]],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, ["*", 30, ["get", "w"]], 15, ["*", 68, ["get", "w"]]],
           "circle-color": V2T.accent,
-          "circle-opacity": 0.12,
+          /* .12 read as invisible at street zoom (audit #4) — still a
+             veil, now a visible one */
+          "circle-opacity": 0.26,
           "circle-blur": 0.9,
         }}
       />
@@ -44,9 +46,9 @@ function CorridorLayerFn({ corridors, on = true }: { corridors: Corridor[] | nul
         type="circle"
         minzoom={12.5}
         paint={{
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12.5, 2.5, 15, 5],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12.5, 3, 15, 6],
           "circle-color": V2T.accent,
-          "circle-opacity": 0.5,
+          "circle-opacity": 0.62,
           "circle-stroke-width": 1,
           "circle-stroke-color": V2T.surface,
         }}

@@ -247,13 +247,55 @@ function mapFieldStatus(f: Record<string, unknown>): FieldStatus {
   };
 }
 
-function mapPlan(j: Record<string, unknown>): PlanResultFresh {
+/* The wire's "least-smoke" family is named by the least-inhalation
+   engine against its OWN primary — not against the same-mode rows the
+   sheet actually shows. That puts '· least-smoke alt 2' on options
+   measurably smokier than the mode's plain row (component-audit #22:
+   'least-smoke alt 1' at 34.4 µg over a 26.0 µg primary — the same lie
+   the isSafest fallback already guards elsewhere). The claim is
+   re-derived here against the dose.mids we display: only the group's
+   true lightest row may keep the qualifier; every other member degrades
+   to the factual '· alt N'. */
+const LEAST_SMOKE_RE = /^(.*) · least-smoke (?:rd|alt \d+)$/;
+const LEAST_SMOKE_EPS = 0.05; // display-precision slack — doses render rounded
+
+function relabelLeastSmoke(options: V2Option[]): void {
+  const groups = new Map<string, V2Option[]>();
+  for (const o of options) {
+    if (!LEAST_SMOKE_RE.test(o.label ?? "")) continue;
+    const g = groups.get(o.mode) ?? [];
+    g.push(o);
+    groups.set(o.mode, g);
+  }
+  for (const rows of groups.values()) {
+    const mode = rows[0].mode;
+    /* every same-mode row counts, qualifier or not — 'least' must hold
+       against the plain 'Bicycle' row too */
+    const mids = options
+      .filter((o) => o.mode === mode && o.dose?.mid != null)
+      .map((o) => o.dose.mid!);
+    if (!mids.length) continue; // nothing to verify against — leave the wire as-is
+    const min = Math.min(...mids);
+    let altN = 0;
+    for (const o of rows) {
+      const base = LEAST_SMOKE_RE.exec(o.label!)![1];
+      const isLightest = o.dose?.mid != null && o.dose.mid <= min + LEAST_SMOKE_EPS;
+      o.label = isLightest ? `${base} · least-smoke rd` : `${base} · alt ${++altN}`;
+    }
+  }
+}
+
+/* exported for the unit tests (api/plan.test.ts) — production callers
+   use fetchPlan/fetchReroute which run this same mapper on the wire. */
+export function mapPlan(j: Record<string, unknown>): PlanResultFresh {
   const raw = Array.isArray(j.options) ? j.options : [];
   const field = j.field && typeof j.field === "object"
     ? (j.field as Record<string, unknown>)
     : null;
+  const options = raw.map(toOption).filter((o): o is V2Option => o !== null);
+  relabelLeastSmoke(options);
   return {
-    options: raw.map(toOption).filter((o): o is V2Option => o !== null),
+    options,
     field: field ? mapFieldStatus(field) : null,
     vehicle: str(j.vehicle) ?? undefined,
     error: str(j.error) ?? undefined,
