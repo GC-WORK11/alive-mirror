@@ -828,3 +828,90 @@ def test_depart_at_parsed_mirrors_transit_parser():
     assert v2plan._depart_at_parsed("2026-10-07T08:30:00") is True
     assert v2plan._depart_at_parsed("2026-10-07T08:30:00Z") is True
     assert v2plan._depart_at_parsed(1728100800) is True
+
+
+# --- per-segment field paint (route-render lane) -------------------------------
+_CPCB_BANDS = ("Good", "Satisfactory", "Moderate",
+               "Poor", "Very Poor", "Severe")
+
+
+def test_option_segments_shape_and_tiling():
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": KB[0], "lon": KB[1]}, "vehicle": "car"})
+    assert body["options"]
+    for o in body["options"]:
+        segs = o.get("segments")
+        assert isinstance(segs, list) and segs, o.get("label")
+        assert len(segs) <= 15                       # the coarse budget
+        # coverage ≈ the full path: spans tile [0,1] contiguously and
+        # share boundary vertices so the painted ramp never gaps
+        assert segs[0]["start_frac"] == 0.0
+        assert segs[-1]["end_frac"] == pytest.approx(1.0)
+        assert segs[0]["geometry"]["coordinates"][0] == \
+            o["geometry"]["coordinates"][0]
+        assert segs[-1]["geometry"]["coordinates"][-1] == \
+            o["geometry"]["coordinates"][-1]
+        for a, b in zip(segs, segs[1:]):
+            assert a["end_frac"] == pytest.approx(b["start_frac"])
+            assert a["geometry"]["coordinates"][-1] == \
+                b["geometry"]["coordinates"][0]
+        for s in segs:
+            assert s["geometry"]["type"] == "LineString"
+            assert len(s["geometry"]["coordinates"]) >= 2
+            assert s["dist_m"] > 0
+
+
+def test_option_segments_values_in_field_range():
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": KB[0], "lon": KB[1]}, "vehicle": "car"})
+    vals = [s["pm25"] for o in body["options"] for s in o["segments"]
+            if s["pm25"] is not None]
+    assert vals, "no segment carried a field read at all"
+    # seeded station pm2_5 = 120-210; krige reads stay inside a sane
+    # hull — a fabricated or wrong-unit value falls out of it
+    assert all(0 < v <= 600 for v in vals)
+    for o in body["options"]:
+        for s in o["segments"]:
+            if s["pm25"] is not None:
+                assert s["band"] in _CPCB_BANDS
+            else:
+                assert s["band"] in ("No data", None)
+
+
+def test_option_segments_count_on_long_geometry():
+    # a vertex-dense ~12 km polyline splits near the SEG_N budget and
+    # each span reports its OWN midpoint read — a varying field must
+    # produce varying segment values (the per-part breakdown is real,
+    # not the whole-route mean repainted)
+    coords = [[77.15 + i * 0.01, 28.60 + i * 0.005]
+              for i in range(40)]
+    geom = {"type": "LineString", "coordinates": coords}
+    fval = lambda lat, lon: 60.0 + 400.0 * (lon - 77.15) / 0.39
+    segs = v2plan._option_segments(geom, fval)
+    assert 10 <= len(segs) <= 15
+    pms = [s["pm25"] for s in segs]
+    assert all(v is not None for v in pms)
+    assert max(pms) - min(pms) > 100      # the gradient shows up per-part
+    assert pms[0] < pms[-1]               # reads follow the field, ordered
+    # degenerate + missing-field honesty
+    assert v2plan._option_segments(
+        {"type": "LineString", "coordinates": []}, fval) == []
+    assert v2plan._option_segments(geom, None) == []
+    nd = v2plan._option_segments(geom, lambda a, b: None)
+    assert all(s["pm25"] is None and s["band"] == "No data" for s in nd)
+
+
+def test_option_segments_field_empty_is_null_not_faked(monkeypatch):
+    # a field that can read nothing must paint nothing — every span
+    # reports pm25:null + band 'No data', never a fabricated value
+    monkeypatch.setattr(v2plan, "_ENG_PACK", None)
+    monkeypatch.delattr(FIELD, "_snap_fv", raising=False)
+    monkeypatch.setattr(FIELD, "value",
+                        lambda *a, **k: None, raising=False)
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": KB[0], "lon": KB[1]}, "vehicle": "car"})
+    assert body["options"]
+    for o in body["options"]:
+        for s in o.get("segments") or []:
+            assert s["pm25"] is None
+            assert s["band"] == "No data"

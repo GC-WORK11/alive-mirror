@@ -431,11 +431,31 @@ export interface V2PlanStep {
   lon?: number;
 }
 
+/** per-segment field pollution on a /v2/plan option — the served path
+    cut into ~10-15 equal-length spans (server/v2/plan.py
+    _option_segments), each carrying the breathing-zone PM2.5 read at
+    its arc midpoint and the CPCB band that read lands in. Vertex-
+    boundary spans share endpoints, so the painted ramp tiles the path
+    without gaps. Additive: older servers omit the key and clients fall
+    back to a flat route tint. */
+export interface V2PlanSegment {
+  geometry: RouteGeometry;      // LineString slice of the option path
+  pm25: number | null;          // bz PM2.5 µg/m³ at the span midpoint;
+                                // null = field can't read here
+  band: string | null;          // CPCB category — "Good"…"Severe",
+                                // "No data" when pm25 is null
+  start_frac: number;           // span's share of the whole path [0,1]
+  end_frac: number;
+  dist_m: number;
+}
+
 export interface V2PlanOption {
   mode: string;                 // car|car_open|bike|auto|bus|cycle|walk|metro
   label: string;
   route_geojson: RouteGeometry;
   geometry?: RouteGeometry;     // alias of route_geojson
+  segments?: V2PlanSegment[];   // per-stretch pollution for the
+                              // band-coloured route ramp (additive)
   steps?: V2PlanStep[];         // turn list — client needn't call /directions
   steps_source?: string;        // osrm | amazon | transit | none
   distance_km: number | null;

@@ -660,6 +660,103 @@ def _leg_dist_m(leg: dict) -> float:
     return _geom_length_m(leg.get("geometry"))
 
 
+# --- per-segment field paint ---------------------------------------------------
+# Additive `segments` on each option: the served geometry cut into ~12
+# equal-length spans, each carrying the field's breathing-zone PM2.5 at
+# its arc midpoint + the CPCB band that read lands in — the per-part
+# breakdown exposure.dose already sweeps over the same geometry, exposed
+# so the client can colour the polyline by stretch (route-render lane).
+SEG_N = 12               # ~10-15 spans/option — the owner's coarse budget
+SEG_MIN_M = 150.0        # never cut thinner than this on a short hop —
+                         # the field can't resolve below a few hundred m
+
+
+def _seg_arc_midpoint(coords: list):
+    """[lon, lat] at half the span's arc length — interpolated inside the
+    containing edge so a span midpoint is never a snapped vertex."""
+    try:
+        total = sum(exposure._leg_m(coords[i - 1], coords[i])
+                    for i in range(1, len(coords)))
+        if not (math.isfinite(total) and total > 0):
+            return coords[len(coords) // 2]
+        half, acc = total / 2.0, 0.0
+        for i in range(1, len(coords)):
+            a, b = coords[i - 1], coords[i]
+            d = exposure._leg_m(a, b)
+            if d > 0 and acc + d >= half:
+                t = min(1.0, max(0.0, (half - acc) / d))
+                return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+            acc += d
+        return coords[-1]
+    except Exception:
+        return coords[len(coords) // 2] if coords else None
+
+
+def _pm25_band(pm25):
+    """CPCB category for a breathing-zone concentration — the same six
+    bands the archive publishes; 'No data' when the field can't read
+    the span (null stays null — never a neighbour's band)."""
+    try:
+        import districts
+        return districts.cpcb_band(districts.cpcb_aqi(pm25))[0]
+    except Exception:
+        return None
+
+
+def _option_segments(geometry: dict, fval) -> list:
+    """[{geometry, pm25, band, start_frac, end_frac, dist_m}] for one
+    option — one field read at each span's arc midpoint (≤ SEG_N reads
+    per option, inside the arm's sampling budget). Vertex-boundary
+    splits like segments.split_geometry: neighbouring spans share the
+    boundary vertex, so the painted ramp tiles the path without gaps.
+    Honest degrade: a span the field can't read reports pm25:null +
+    band 'No data'; a degenerate geometry or missing field → [] (the
+    key is then omitted and old clients see the payload they know)."""
+    coords = (geometry or {}).get("coordinates") or []
+    if len(coords) < 2 or fval is None or exposure is None:
+        return []
+    try:
+        total = sum(exposure._leg_m(coords[i - 1], coords[i])
+                    for i in range(1, len(coords)))
+    except Exception:
+        return []
+    if not (math.isfinite(total) and total > 0):
+        return []
+    n = max(1, min(SEG_N, int(total // SEG_MIN_M)))
+    span_m = total / n
+    segs, cur = [], [coords[0]]
+    acc = seg_start = 0.0
+    for i in range(1, len(coords)):
+        a, b = coords[i - 1], coords[i]
+        acc += exposure._leg_m(a, b)
+        cur.append(b)
+        if acc - seg_start >= span_m or i == len(coords) - 1:
+            segs.append({"coords": cur, "dist_m": acc - seg_start})
+            cur, seg_start = [b], acc
+    out, seen = [], 0.0
+    for s in segs:
+        mid = _seg_arc_midpoint(s["coords"])
+        pm = None
+        if mid is not None:
+            try:
+                c = fval(mid[1], mid[0])
+                if isinstance(c, (int, float)) and math.isfinite(c):
+                    pm = round(max(0.0, float(c)), 1)
+            except Exception:
+                pm = None      # field blew up at this point — null, not a guess
+        f0 = seen / total
+        seen += s["dist_m"]
+        out.append({
+            "geometry": {"type": "LineString", "coordinates": s["coords"]},
+            "pm25": pm,
+            "band": _pm25_band(pm),
+            "start_frac": round(f0, 4),
+            "end_frac": round(seen / total, 4),
+            "dist_m": round(s["dist_m"], 1),
+        })
+    return out
+
+
 # --- option builders -----------------------------------------------------------
 def _option(mode: str, label: str, geometry: dict, dist_km: float,
             eta_s: float, freeflow_s: Optional[float], eta_model: str,
@@ -754,6 +851,22 @@ def _option(mode: str, label: str, geometry: dict, dist_km: float,
                 opt["reason_line"] = (
                     "route leaves the priced field — dose is honest for "
                     "the mapped segment, nothing claimed past it")
+    # per-segment pollution for the map's band-colour ramp — additive:
+    # resolved on the SAME field chain the dose block just priced on
+    # (engine raster → snapshot cells → live estimator, breathing-zone
+    # wrapped), so the painted stretch and the shown dose never disagree.
+    # ~12 midpoint reads/option; the dose sweep already costs more.
+    if isinstance(geometry, dict) and exposure is not None:
+        try:
+            _F = deps.field()
+            _dval, _ = _dose_surface(_F)
+            _fval = field_fn or _dval or _F.value
+            _fval, _ = _bz_field(_fval, None)
+            _segs = _option_segments(geometry, _fval)
+            if _segs:
+                opt["segments"] = _segs
+        except Exception:
+            pass   # additive only — a paint failure never sinks a row
     opt["route_id"] = ROUTES.put({
         "geometry": geometry, "mode": mode,
         "duration_s": eta_s, "vehicle": vehicle,
