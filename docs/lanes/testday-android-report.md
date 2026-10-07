@@ -72,3 +72,34 @@ daysum.json: sealed rollups Oct 1–6 all `totalUg/trip_ug/trips/stay_ug = 0, th
 | 7 | obs | Eaten taps persist on emulator (recents row, Start, Skip) — each recovered on retry; consistent with known rig quirk, not a new regression. | global |
 
 **Verdict: PASS — no P0/P1.** Lane C checklist complete on `a5b9c88`.
+
+## v3 verify — IME fix (b12c6b3)
+
+Build: release APK @ `b12c6b3`, fresh bake (`rm -rf app/build/outputs app/build/generated` first — stale-bundle trap observed).
+Artifact: `Mobile/android/app/build/outputs/apk/release/app-release.apk` (137,127,164 B) — sha256 `9db1159ccfbb9508fd4d2b9f97590dc1b71b720b32df400379373896715c6474`. **This is the demo-morning artifact.**
+
+**P0 check: keyboard is GONE at every sheet mount — PASS.** `dumpsys input_method` → `mInputShown=false` at each transition; uiautomator dumps show no IME window anywhere below the sheets.
+
+### Typed search → pick → sheet mounts keyboard-free — PASS
+- "connaught" typed with IME up (`mInputShown=true`) → result tap → `mInputShown=false`, vehicle wizard mounted clean (130–132). Same for "jantar" (135) and "palika" (no-IME on compare).
+- Result rows needed a retap twice — same eaten-tap rig quirk as before, NOT keyboard coverage (IME already confirmed down via dumpsys before the retap). Unchanged rig note.
+
+### Single-tap rows under where the IME used to sit — PASS (one tap each, zero eaten)
+- wizard bottom `skip — estimate for vehicles like yours` @y≈2247 → compare sheet (133)
+- `car` → Fuel? step; `back` @y≈2248 → step 1; re-enter → `petrol` → year step `2010–2016` → PUC step → `save` @y≈2249 → wizard completes (135–138); `vehicle.json` = `{"cls":"car","fuel":"petrol","year":"y2010_2016","puc":null}` and compare labels the option "· your usual" (139)
+- `close` chips + `Start` @y≈2248 → nav HUD in one tap each (140)
+
+### Remind/depart-percent path — wire+code verified, UI row unreachable at drive hour
+- Fix confirmed in source: `useShellFlow.remind` now serves `depart.pct_less_vs_now` verbatim to `scheduleDeparture` (was µg→percent recompute, ~2.5× overstate).
+- Wire check (GETs only): `/depart` serves `ug_saved_vs_now` and `pct_less_vs_now` as the SAME percent value (e.g. 17/17 on a CP-internal car hop; 0–6 on all long routes at 05:45 IST).
+- The `leaveAtBreatheLess` bell row renders only when served saving > 8%: probed 8 destinations × 5 vehicles live — max 6% at drive hour (now is already the cleanest slot ~05:45), so the row correctly did not render. Percent copy sanity: the values it would print are the served percents verbatim — the overstatement is gone at the API contract level.
+
+### Lane C obs #4 recount (lead's question) — APP traffic, not a box artifact
+Re-filtered `consent-off.pcap` by emulator src: all app traffic including /health shares `10.0.2.16` (this AVD's slirp guest IP — it took .16, not .15; the earlier zero-count on .15 was my red herring). Inside-guest Linux-cooked capture — host-side curls physically cannot appear on the guest interface, and no /health loop ran on this box (no cron/scripts; box restarted since). Corrected cadence: **49 GETs in 336 s ≈ 1/6.9 s** (not ~1/3 s — earlier count was inflated), timestamps show 15 s spacing with same-second bursts on mount/reconnect — consistent with the app's 15 s ping + offline probe.
+
+### Errors status after this pass
+- #1 (medium, IME over sheet rows): **FIXED** on-device at b12c6b3.
+- #4 (obs, /health cadence): **revised — app traffic, ~1/6.9 s**, consistent with documented pollers.
+- #2/#3/#5/#6/#7: unchanged.
+
+**Verdict: PASS — fix holds.** Shots 130–140.
