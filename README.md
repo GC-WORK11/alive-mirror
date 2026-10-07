@@ -6,7 +6,7 @@ Built for the AWS × WeMakeDevs Environmental Hacks hackathon, Track 01 (Air), O
 
 ## See it live
 
-- **Web demo (no install, plain HTTP):** [alive108-….elb.ap-south-1.amazonaws.com](http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com) — the landing demo at `/`, then `/city`, `/community`, `/admin`. `GET /health` is public and reports the running `build_sha`, field age, and per-source status.
+- **Web demo (no install, plain HTTP):** [alive108-….elb.ap-south-1.amazonaws.com](http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com) — the landing demo at `/`, then `/city`, `/community`, `/admin` (the engine room sits behind a real sign-in since Oct 7: operator token → `POST /v2/admin/login` → HMAC-signed HttpOnly session cookie; guests land on a gate card). `GET /health` is public and reports the running `build_sha`, field age, and per-source status.
 - **Android:** the demo build is a sideloaded APK (universal, debug-signed, cleartext HTTP → prod) shipped with the submission; the build recipe is `docs/demo-day.md` → "Release APK", and `Mobile/` below builds it from source. **iOS:** simulator-only (no Apple developer account; see Status).
 
 ## Try it — public, GET-only
@@ -23,9 +23,9 @@ curl -s "$NLB/v2/archive"                        # the served field's own record
 
 ## What it is
 
-You type FROM → TO. The server returns real options — road modes via a router, metro/bus via GTFS — each with an ETA, an estimated inhaled-PM2.5 **dose band**, and an estimated **emission band** for the vehicle class you declared. During the trip the app ticks both counters at 1 Hz off a route strip the server hands it (no per-second network); on arrival the receipt lands in an on-device ledger. Both numbers are always bands with a stated basis, never point truth.
+You type FROM → TO. Candidates draw as equals, then the winner settles with a verdict pill naming *why* (e.g. "cleanest · N% less than fastest" — the server's own reason line). The server returns real options — road modes via a router, metro/bus via GTFS — each with an ETA, an estimated inhaled-PM2.5 **dose band**, and an estimated **emission band** for the vehicle class you declared. During the trip the app ticks both counters at 1 Hz off a route strip the server hands it (no per-second network); on arrival the receipt lands in an on-device ledger. Both numbers are always bands with a stated basis, never point truth.
 
-On the demo OD (India Gate → Huda City Centre, 24.7 km) the same minutes read **car-AC ~9 µg vs on-foot ~310 µg — a ~35× spread** the map you use today never shows. It drifts with the field (31–45× across ODs this week) and matches published Delhi measurements (walking ≈28× metro per km inhaled).
+On the demo OD (India Gate → Huda City Centre, 24.7 km) the same minutes read **car-AC ~7.4 µg vs on-foot ~255 µg — a ~34.5× spread** the map you use today never shows. It drifts with the field (31–45× across ODs this week) and matches published Delhi measurements (walking ≈28× metro per km inhaled). The field also names *why* in plain words: `GET /v2/why` serves a `cause_note` composed only from measured fields (belt fires · carry wind · ventilation · the recorded trend — "measured, not reported"), rendered on `/city`'s parali-watch tile and the app's air card.
 
 ## Privacy, in three lines
 
@@ -82,8 +82,8 @@ On the demo OD (India Gate → Huda City Centre, 24.7 km) the same minutes read 
 │ BLH → QC → Kalman →       │  │ TTL 30 d. No user rows.    │
 │ kriging ±σ → snapshot→S3  │  └────────────────────────────┘
 └───────────────────────────┘
-  *stations live: 53 instruments via the WAQI + DPCC feeds right now
-   (drifts 51–54 with feed health; count on `/health.sources.stations`
+  *stations live: 52 instruments via the WAQI + DPCC feeds right now
+   (drifts 52–54 with feed health; count on `/health.sources.stations`
    — OpenAQ stays a dormant keyed path).
 ```
 
@@ -104,7 +104,7 @@ Everything below traces to a file in this repo or a live endpoint. Where a row s
 | Field leave-one-out vs live instruments | MAE 8.8 µg/m³, bias +0.2, n=70 WAQI+DPCC instruments (krige refit per held-out station) — served on the wire | `GET /aqi → calibration` |
 | Field vs station archive (3,550 pairs, 85 stations) | MAE 22.0 µg/m³, bias +15.5 µg (+51.6%) — **over-reads in clean post-monsoon air**; ±2σ coverage 95.2% measured vs 95.4% nominal | `server/data/field_validation.md` |
 | Path engine | 1,070,459 edges / 819,846 nodes; 903,058 edges priced per reweight; 230 turn bans + 3,428 access overrides | `GET /health → routing` |
-| Live instruments | 53 stations via WAQI + DPCC (verified Oct-7; accepted drift band 51–54, 24 in a DPCC stall) | `GET /health → sources.stations` |
+| Live instruments | 52 stations via WAQI + DPCC (verified Oct-7 ~11:00 UTC on `698cf808`; accepted drift band 52–54, 24 in a DPCC stall) | `GET /health → sources.stations` |
 | Mode exposure ratios | walking ≈28×, rickshaw ≈5× the metro per km inhaled PM2.5 — published Delhi measurements | `docs/plan/10-claims-ledger.md`, `server/exposure.py` header |
 | Cigarette equivalence | 316 µg PM2.5 ≈ 1 cigarette (Berkeley Earth) — OFF by default; opt-in toggle, always "≈" | `docs/plan/10-claims-ledger.md` |
 
@@ -117,10 +117,10 @@ This section is a feature, not a disclaimer.
 - **Phones measure nothing.** The app traverses a model field; it never says "your phone measured the air." User traversals adjust *dose estimates*, never the underlying field.
 - **Emissions are class-level estimates.** "Vehicles like yours (2016 petrol car, BS-IV): ~1.1–1.6 kg CO₂" — a band from published factors, never "your car emitted 42.0 g."
 - **Plaintext HTTP edge, one task.** NLB is TCP:80 only — no TLS terminator today (a domain + ACM cert away; flagged owner decision, in `docs/lanes/pentest-report.md`). One Fargate task, one region: honest capacity is ~8–15 concurrent active users — a demo room, not the internet.
-- **Stations: WAQI + DPCC are live; OpenAQ/CPCB-keyed still pending.** 24 WAQI + ~30 DPCC instruments carry the field today; OpenAQ needs `OPENAQ_API_KEY`, and no CPCB public JSON endpoint is reachable from the deployment network (`server/data/field_validation.md`).
+- **Stations: WAQI + DPCC are live; OpenAQ/CPCB-keyed still pending.** 52 instruments carry the field today (drifting 52–54 with feed health); OpenAQ needs `OPENAQ_API_KEY`, and no CPCB public JSON endpoint is reachable from the deployment network (`server/data/field_validation.md`).
 - **Amazon Location is optional.** With `ALIVE_LOCATION_KEY` you get T2 suggestions, traffic-aware routes, and Amazon reverse-geocode. Without it the app still works: bundled gazetteer + C++ search, public OSRM demo routing, gazetteer-first reverse.
 - **The field is honest about its own error.** It over-reads in clean air (+51.6% bias on the validated window); the calibration and σ bands are served next to the data, not hidden.
-- **The community layer is young.** ~40 real dev donations so far — the k≥3 suppression that keeps them honest also keeps the public corridor table sparse. We say so.
+- **The community layer is young.** 44 real dev donations from 24 contributors so far — the k≥3 suppression that keeps them honest also keeps the public corridor table sparse. We say so.
 - **No outcome claims.** We can count "N trips switched to a lower-smoke option" — a countable behaviour — but not "Delhi got cleaner because of ALive."
 
 ## Why AWS (Track 01)
@@ -176,8 +176,8 @@ AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=… ./scripts/deploy.sh
 | 1 · Instant search | ✔ built | C++ index over 120k rows, fuzzy/compounds/Hinglish/sectors/aliases, 67/67 acceptance, p50 <1 ms engine |
 | 2 · Map + shell | ✔ built | bilingual (hi/en) basemap, housenumber/POI tiers, sidebar + design tokens |
 | 3 · Plan: breath + smoke-out | ✔ built | `/v2/plan` options + least-inhalation engine rows + corridor alternatives + legality; `engine_dose_ug` on the wire |
-| 4 · Live trip | ✔ built | `/v2/strip` + `/v2/trip`, turn nav chrome, voice cues (Android-verified; iOS sim cold-launch SIGSEGV root-caused + patched sim-side — `docs/lanes/sigsegv-coldfix-report.md`), reroute served |
-| 5 · Air index + city + admin | ✔ built | krige field + σ bands, ingest workers, rollup, NCR choropleth, species layers, corridors CO₂/100 m, PUC calibration; 53 stations live via WAQI + DPCC |
+| 4 · Live trip | ✔ built | `/v2/strip` + `/v2/trip`, turn nav chrome, voice cues (Android-verified; iOS sim cold-launch SIGSEGV residual killed — 12/30→0/30 drive-bys via the Promise JS-thread hop, `docs/lanes/ios-residual-report.md`), reroute served, cinematic route chooser with verdict pill (`e2ff634`) |
+| 5 · Air index + city + admin | ✔ built | krige field + σ bands, ingest workers, rollup, NCR choropleth, species layers, corridors CO₂/100 m, PUC calibration, `cause_note` parali-watch line; 52 stations live via WAQI + DPCC; `/admin` behind real sign-in (`b563da2`) |
 | 6 · Polish + proof + submission | ◐ in progress | benchmarks above; videos shipped; store signing on owner |
 
 **Only the owner can unblock:** a wider station key (OpenAQ would add instruments; data.gov.in is TCP-refused even from ap-south-1), the Amazon Location spend cap/key, a release-signing keystore (the shipped APK is debug-signed and sideloads fine), a domain+ACM cert for TLS, real-phone Delhi test drives, and an Apple developer account (iOS stays simulator-only).
@@ -186,7 +186,7 @@ AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=… ./scripts/deploy.sh
 
 ## Docs
 
-The plan folder is the source of truth; `docs/plan/10-claims-ledger.md` governs every number this repo shows. Full map: [`docs/README.md`](docs/README.md) — `docs/plan/` (engineering plan, benches, runbook, living `handoff.md`), `docs/lanes/` (~185 dated audit reports and briefs — evidence, not prose), `docs/submission/` (hackathon writeup + checklist), `docs/privacy/` (claim → enforcement → test table).
+The plan folder is the source of truth; `docs/plan/10-claims-ledger.md` governs every number this repo shows. Full map: [`docs/README.md`](docs/README.md) — `docs/plan/` (engineering plan, benches, runbook, living `handoff.md`), `docs/lanes/` (~200 dated audit reports and briefs — evidence, not prose), `docs/submission/` (hackathon writeup + checklist), `docs/privacy/` (claim → enforcement → test table).
 
 ## Layout
 

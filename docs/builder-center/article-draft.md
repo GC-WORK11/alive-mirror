@@ -9,7 +9,7 @@
 
 ## Submission-form abstract (~120 words)
 
-ALive-108 is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 54 ground instruments, ~70 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rollup/validation jobs. We validated the field against 30 government DPCC stations it never ingests, published the misses, then closed the blind spots with a second ingest adapter — measured on prod: error at the formerly blind sites fell 22.8 → 10.5 µg/m³, all-30 agreement 27.1 → 6.2.
+ALive-108 is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 52 ground instruments, ~97 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rollup/validation jobs. We validated the field against 30 government DPCC stations it never ingests, published the misses, then closed the blind spots with a second ingest adapter — measured on prod: error at the formerly blind sites fell 22.8 → 10.5 µg/m³, all-30 agreement 27.1 → 6.2.
 
 ---
 
@@ -21,7 +21,7 @@ It's 7am in Delhi in October — parali season, the weeks when stubble fires in 
 
 ### The field underneath
 
-Every 15 minutes the service rebuilds a kriged concentration surface over Delhi NCR: 54 live ground instruments today + ~70 CAMS/Open-Meteo model samples + NASA FIRMS fire detections (a stubble-smoke modifier gated by wind direction — more on that below), each cell carrying a real σ band. A C++ engine re-prices 903,058 of 1,070,459 road edges so inhaled dose is a first-class routing criterion: `dose = concentration × micro-environment factor × ventilation rate × time`, integrated every ~250 m along real route geometry. On a measured Connaught Place → Gurugram commute, a sealed AC car inhales ~10.8 µg while walking the same 23.7 km inhales ~358 — a 33× gap that matches published Delhi commuter studies (walking ≈28× the metro per km).
+Every 15 minutes the service rebuilds a kriged concentration surface over Delhi NCR: 52 live ground instruments today (drift band 52–54) + ~97 CAMS/Open-Meteo model samples + NASA FIRMS fire detections (a stubble-smoke modifier gated by wind direction — more on that below), each cell carrying a real σ band. A C++ engine re-prices 903,058 of 1,070,459 road edges so inhaled dose is a first-class routing criterion: `dose = concentration × micro-environment factor × ventilation rate × time`, integrated every ~250 m along real route geometry. On a measured Connaught Place → Gurugram commute, a sealed AC car inhales ~7.2 µg while walking the same 23.7 km inhales ~238 — a ~33× gap that matches published Delhi commuter studies (walking ≈28× the metro per km).
 
 ### We audited ourselves against instruments we never touch
 
@@ -38,7 +38,7 @@ The blind sites were the *best-behaved* class — ~23 µg/m³ MAE with near-zero
 
 ### Then we closed the blind spots
 
-Publishing the misses was half the story. The other half: the same DPCC 5-minute pages we used as truth became a second ingest adapter — `ingest_dpcc.py`, flag-gated behind `ALIVE_DPCC_INGEST`, appending to the WAQI backbone rather than competing with it. The interesting engineering: the site's index tree lists only 24 stations; the nav bar on each station page carries a 30-station superset — and the 6 hidden stations were exactly our verified blind spots (IGNOU, JNU, CWG Akshardham, NSUT West, Talkatora Garden, SBV Delhi Cantt). The adapter asserts the `µg/m³` unit token per row (if the site ever switches to indices, values are refused, never reinterpreted), drops stale rows and physically impossible ones (PM2.5 > PM10), and is now live: **54 ground instruments** feed the blend, and every former GAP site has an instrument at ~0 km.
+Publishing the misses was half the story. The other half: the same DPCC 5-minute pages we used as truth became a second ingest adapter — `ingest_dpcc.py`, flag-gated behind `ALIVE_DPCC_INGEST`, appending to the WAQI backbone rather than competing with it. The interesting engineering: the site's index tree lists only 24 stations; the nav bar on each station page carries a 30-station superset — and the 6 hidden stations were exactly our verified blind spots (IGNOU, JNU, CWG Akshardham, NSUT West, Talkatora Garden, SBV Delhi Cantt). The adapter asserts the `µg/m³` unit token per row (if the site ever switches to indices, values are refused, never reinterpreted), drops stale rows and physically impossible ones (PM2.5 > PM10), and is now live: **52 ground instruments** feed the blend today (the count churns 52–54 as instruments age in and out of feed health), and every former GAP site has an instrument at ~0 km.
 
 Then we re-ran the same holdout against prod, same method, a day later. The number we promised ourselves we'd publish: **error at the formerly blind sites collapsed 22.8 → 10.5 µg/m³** (bias +0.8), and agreement across all 30 stations went **27.1 → 6.2** — no observation missed by more than 19.1, every station reporting `nearest_sample_km = 0.0`. Honest residuals stay in the table: the two largest are instruments reading far off their own region (JNU 83.6 vs neighbors ~55–65; IGNOU 15.6 vs ~30–55 — carrying the same suspect pm25/pm10≈0.15 signature we flagged pre-ingest), so what remains there is instrument-vs-blend disagreement, not blindness. The blend hedges a possibly-glitchy sensor rather than echoing it — we'd rather show that residual than fake agreement.
 
@@ -48,7 +48,7 @@ The same evening, a second watch probed the live service 14 times across ~8 hour
 
 ### Privacy as architecture, not policy
 
-The dose ledger lives in a file on the phone — 500-trip cap, delete-all, no account. Donation is opt-in: a donated trip is trimmed on-device, then re-trimmed, thinned and rounded server-side, and folded into ~500 m cells at ingest — **no per-trip row exists in memory, on disk, or in S3**. Nothing publishes below k=3 distinct devices over 72 h (`min_k` is literally on the wire; 12 of 54 tracked corridor cells are publishable today and the other 42 are honestly suppressed). The raw-coords endpoint is retired 410 Gone; access logs are off; the contributor id is a 64-bit CSPRNG that rotates every 30 days; `DELETE /v2/ledger` wipes server-side history. We can't leak what we never take.
+The dose ledger lives in a file on the phone — 500-trip cap, delete-all, no account. Donation is opt-in: a donated trip is trimmed on-device, then re-trimmed, thinned and rounded server-side, and folded into ~500 m cells at ingest — **no per-trip row exists in memory, on disk, or in S3**. Nothing publishes below k=3 distinct devices over 72 h (`min_k` is literally on the wire; 12 of 55 tracked corridor cells are publishable today and the other 43 are honestly suppressed). The raw-coords endpoint is retired 410 Gone; access logs are off; the contributor id is a 64-bit CSPRNG that rotates every 30 days; `DELETE /v2/ledger` wipes server-side history. We can't leak what we never take.
 
 ### What AWS services did the work
 
@@ -57,9 +57,9 @@ The dose ledger lives in a file on the phone — 500-trip cap, delete-all, no ac
 - **CodeBuild → ECR** — images are built *inside* AWS (`git archive → S3 → buildspec → docker build → push → update-service`); no local Docker needed, ~10–15 min per deploy.
 - **S3** — the last-good field snapshot (the field survives task restarts), community aggregate state, the hour-bucketed field archive (`archive/field-*.json.gz` — Delhi's air as replayable history), and the pmtiles basemap artifact. OpenAQ's public S3 archive supplied the decade climatology baked into the image.
 - **DynamoDB** (`alive108-agg`) — aggregate trip counters only; no user rows exist anywhere by design.
-- **Secrets Manager** — upstream API keys and the admin token; nothing in the repo.
-- **EventBridge Scheduler** (`alive108` group) — a daily rollup and a validation schedule (00:30 / 20:30 IST; the 15-minute field-rebuild cadence runs as an in-app ingest loop, `ALIVE_INGEST_IN_APP=1`).
-- **CloudWatch + Budgets** — a field-age alarm (missing data breaches, not just errors) and a cost alarm; worst case ~$46/month, inside the event credits.
+- **Secrets Manager** — upstream API keys and the admin token; nothing in the repo. The token trades once for an HMAC-signed `HttpOnly` + `SameSite=Strict` session cookie at `POST /v2/admin/login` (8 h) — the admin page's JS never holds a reusable credential; guests land on a gate card and no gated fetch fires.
+- **EventBridge Scheduler** (`alive108` group) — a daily rollup and a validation run (both ENABLED — their IST names lie: the crons read UTC, rollup fires 00:30 UTC and the "weekly" validate actually fires daily 20:30 UTC — drift logged in `docs/plan/ops-handover.md`; the 15-minute field-rebuild cadence runs as an in-app ingest loop, `ALIVE_INGEST_IN_APP=1`).
+- **CloudWatch + Budgets** — three armed alarms (field age, ingest-emitter dead, target down) into a confirmed SNS email, and a cost alarm; **$0.00 net billed over the last 7 days** inside the event credits (~$50/month run-rate absorbed).
 
 ### What we don't claim
 

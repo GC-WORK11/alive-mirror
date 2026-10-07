@@ -61,12 +61,12 @@ to match exactly what is deployed.
   beyond the keyless firms-public-csv feed already serving today.
 - data.gov.in API key — would add the 115 Delhi MoRTH black spots to
   the safety layer (the CPCB-station side is already covered live by
-  the WAQI + DPCC feeds — 54 instruments; the data.gov.in station path
+  the WAQI + DPCC feeds — 52 instruments today (drift band 52–54); the data.gov.in station path
   itself is TCP-refused from ap-south-1 — `docs/plan/handoff.md`).
 
 ## What the judges can click (public, no install)
 
-- `http://65.2.28.40/admin` — ops board, live
+- `http://65.2.28.40/admin` — ops board, live (sign-in gate since Oct-7)
 - `http://65.2.28.40/aqi?lat=28.63&lon=77.24` — field + calibration
 - `http://65.2.28.40/decide?from_lat=28.6519&from_lon=77.1907&to_lat=28.6129&to_lon=77.2295`
   — safety-first engine

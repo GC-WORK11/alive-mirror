@@ -23,10 +23,12 @@ minute, only the mode changes):
 ```bash
 curl -sX POST http://65.2.28.40/v2/plan -H 'content-type: application/json' \
   -d '{"from":{"lat":28.6315,"lon":77.2167},"to":{"lat":28.495,"lon":77.089}}'
-# Connaught Place → Gurugram, tonight's live mids (µg inhaled PM2.5):
-#   Car (AC) 10.8 · Car windows-down 19.6 · Bike 24.8 · Bus 28.3
-#   Auto-rickshaw 32.0 · Metro+walk 95.8 · Bicycle 158.6 · On foot 357.9
-# 24 options, took_ms 4740, smoke_modifier 1.09 echoed on the wire.
+# Connaught Place → Gurugram, today's live mids (µg inhaled PM2.5,
+#   2026-10-07 ~11:20 UTC, build 698cf808):
+#   Car (AC) 8.6 · Car windows-down ~13 · Bike ~17 · Bus ~19
+#   Auto-rickshaw ~22 · Metro+walk ~33 · Bicycle ~105 · On foot ~285
+# 18 options this hit (16–24 drift), took_ms 7,551 fresh / ~1.1 s warm,
+#   smoke_modifier 1.06 echoed on the wire → ~33× car↔walk.
 ```
 
 AQI has no route, no breathing rate, no duration, no vehicle — a city
@@ -42,26 +44,26 @@ thin to score as `thin` instead of a number."
 
 ```bash
 curl -s http://65.2.28.40/v2/skill
-#   pairs: 21 (served-forecast vs recorded-hour, since Oct-5 20:00 IST)
-#   h+1: MAE 16.3 µg/m³, bias +15.8, band-hit 71.4% cell / 80.0% hour
-#   h+2: MAE 29.9 / +29.6 / 13.9% / 20.0%
-#   h=0, h≥3: "thin" — under 5 pairs it refuses to grade itself
+#   pairs: 304 (served-forecast vs recorded-hour) — re-read 2026-10-07
+#   h+0: MAE 3.8 µg/m³, band-hit 90.2% cell
+#   h+11: MAE 37.2, band-hit 37.7% — error widens honestly with horizon
+#   under 5 pairs a horizon refuses to grade itself (`thin`)
 ```
 
 **Second proof — the field admits its own provenance:**
 
 ```bash
 curl -s http://65.2.28.40/health | python3 -c 'import json,sys;print(json.load(sys.stdin)["sources"])'
-#   model:  up, ~100 samples, "waqi+dpcc-stations+open-meteo/cams"
-#   stations: up, 54 instruments (24 WAQI + 30 DPCC — re-read 2026-10-06)
-#   fires:  up, 67 NASA FIRMS detections (drifts daily — 79 at an earlier read)
+#   model:  up, ~97 samples, "waqi+dpcc-stations+open-meteo/cams"
+#   stations: up, 52 instruments (WAQI + DPCC both ok — re-read 2026-10-07, drift band 52–54)
+#   fires:  up, 44 NASA FIRMS detections (drifts daily — 67–79 earlier)
 #   engine: "alive_core" — our own C++ kriging build, not a proxy
 ```
 
 **Third — the recorded-vs-model archive:** `GET /v2/archive` replays
-the field as actually served, hour by hour — tonight hours 00:00–03:00
-IST are `basis:"recorded"`, hour 4 is an honest `gap`, hours 5–23
-`pending`. Nothing is back-filled.
+the field as actually served, hour by hour — today hours 01:00 and
+03:00–16:00 IST are `basis:"recorded"`, hours 0 and 2 are honest
+`gap`s, hours 17–23 `pending`. Nothing is back-filled.
 
 Offline ground truth: `server/data/field_validation.md` — 3,550
 held-out station-hours across 85 stations; measured ±2σ coverage
@@ -95,7 +97,7 @@ created, so there is nothing to breach."
 ```bash
 curl -s http://65.2.28.40/v2/city/moves
 #   min_k: 3 · mode_share_suppressed_trips: 0 ·
-#   corridors: 12 active of 54 tracked (42 honestly suppressed)
+#   corridors: 12 active of 55 tracked (43 honestly suppressed) — 2026-10-07
 curl -s http://65.2.28.40/community
 #   top_corridors[].devices = 6,4,4,3,4 — every published row ≥3
 #   basis: "corridor cells published only with >=3 distinct devices
@@ -186,9 +188,9 @@ breathing-zone concentration, breathing ~1.4× harder. 2.4 × 10 × 1.4 ≈
 **Proof — decompose tonight's wire:**
 
 ```
-walk: 89.9 µg/m³ breathing-zone · 285 min · 14 L/min → 357.9 µg
-car:  38.0 µg/m³ breathing-zone ·  28 min · 10 L/min →  10.8 µg
-2.36× conc (microenv 1.30/0.55) × 10.2× time × 1.4× VE = 33.8×
+walk: 71.4 µg/m³ breathing-zone · 285 min · 14 L/min → 284.6 µg
+car:  30.2 µg/m³ breathing-zone ·  28 min · 10 L/min →   8.6 µg
+2.36× conc (microenv 1.30/0.55) × 10.0× time × 1.4× VE ≈ 33×
                                         wire says 33.1× — closes.
 ```
 
@@ -245,18 +247,18 @@ recorded archive that grades the model."
   never independently re-verified), named in
   `/health.history.source`.
 
-## 10. "Your community map shows 22 trips. That's nothing."
+## 10. "Your community map shows 44 trips. That's nothing."
 
-**Stage answer:** "Correct — it's 22 real donations from dev devices,
+**Stage answer:** "Correct — it's 44 real donations from dev devices,
 and the reason the map isn't fuller is the k≥3 gate doing its job:
-42 of 54 tracked corridors are suppressed tonight because not enough
+43 of 55 tracked corridors are suppressed today because not enough
 distinct devices crossed them. We'd rather show the suppression
 counter than pad the map."
 
 ```bash
 curl -s http://65.2.28.40/community
-#   obs_total 22 · contributors 14 · avoided_ug_all 725.9
-#   corridors publish devices counts (6,4,4,3,4) — the gate is visible
+#   obs_total 44 · contributors 24 · avoided_ug_all 1,278.9 — 2026-10-07
+#   corridors publish devices counts — every row ≥3 distinct devices
 ```
 
 It's also the integrity answer to "did you seed it": a seeded map
@@ -272,9 +274,9 @@ false precision."
 **Proof:** measured ±2σ coverage 95.2% on 3,550 held-out
 station-hours (`server/data/field_validation.md`), LOO calibration
 `MAE 8.8, mean bias +0.2` (`server/data/field_calibration.json`),
-and the live `/aqi` at Connaught Place tonight honestly reports
-`nearest_sample_km: 1.8` with a 59.5–93.4 band — wider where sensors
-are farther. Live self-grade at `/v2/skill` (Q2).
+and the live `/aqi` at Connaught Place honestly reports its
+`nearest_sample_km` with a band that widens where sensors are
+farther (59.5–93.4 at the Oct-6 pin). Live self-grade at `/v2/skill` (Q2).
 
 ## 12. "Plan me a trip to Mumbai."
 
@@ -301,9 +303,9 @@ thin coverage drops confidence instead of hiding."
 microenv × uplift × VE summed linearly into `dose_ug_lo/hi` (the
 conservative bound; independence-assuming RSS is commented out);
 confidence tiers at lines 367-374 (`coverage<0.5 → low`; nearest
-sample <5 km → high). Tonight's walk option: 357.9 with band
-156.7–559.1 — the band is ~3.5× wider than the mid is precise, and we
-show it anyway.
+sample <5 km → high). Today's walk option: 284.6 with band
+0–931.3 — the band honestly spans a floor of zero where coverage is
+thin, and we show it anyway.
 
 ## 14. "Health claims — are you telling people this causes cancer?"
 
@@ -329,16 +331,16 @@ we don't have 5 pairs yet, and the archive has an honest gap in hour
 ```bash
 curl -s http://65.2.28.40/v2/skill | python3 -c 'import json,sys;
 [print(h["h"],h["status"],h.get("n")) for h in json.load(sys.stdin)["horizons"]]'
-#   example output stamped when thin horizons existed; tonight
-#   (2026-10-06) all h+0..h+11 grade `ok` on 210 pairs — run it fresh
+#   example output stamped when thin horizons existed; today
+#   (2026-10-07) all h+0..h+11 grade `ok` on 304 pairs — run it fresh
 curl -s http://65.2.28.40/v2/archive | python3 -c 'import json,sys;print(json.load(sys.stdin)["coverage"])'
-#   recorded [1,3,4] · gaps [0,2] · pending [5..23] tonight — never back-filled
+#   recorded [1,3–16] · gaps [0,2] · pending [17..23] today — never back-filled
 ```
 
 Also live tonight: `nh3: null` in `/aqi` (the feed doesn't serve it —
 empty, not zero-filled). OpenAQ stays dormant in
 `/health.sources.stations` (the adapter exists but stays off without a
-key — WAQI + DPCC carry 54 instruments tonight — the sources table
+key — WAQI + DPCC carry 52 instruments today — the sources table
 names what is up instead of padding).
 
 ## 16. "Fine — what's the moat if I copy the UI tomorrow?"
@@ -360,19 +362,21 @@ imitate; a verified pipeline isn't.
 
 ### Numbers a judge might re-derive on the spot (all live tonight)
 
-| claim | where | tonight |
+| claim | where | today (2026-10-07 ~11:00 UTC, `698cf808`) |
 |---|---|---|
-| dose spread CP→Gurugram | `POST /v2/plan` | car-AC 10.8 vs walk 357.9 µg → 33.1× |
-| options per plan | same | 24 rows incl. metro+walk + corridor alternates |
-| day windows | `GET /v2/day` | heavy 22:30→day end ~159 · cleanest 12:30–18:30 ~45 · mean ~105 |
-| leave-later | `GET /depart` | now 29.2 → best +12 h 14.4 µg (51% less) |
-| breath-of-the-city | `GET /v2/city` | 885 µg/day ≈ 2.8 cig; running about a third to a half below the typical October hour (−44.8% at the 2026-10-05 stamp — `vs_now_pct` is arithmetic vs climatology, it drifts hour to hour; re-read live) |
-| stations / samples | `GET /health` | 54 instruments (24 WAQI + 30 DPCC) + ~100 model samples tonight; field age ~10 min |
+| dose spread CP→Gurugram | `POST /v2/plan` | car-AC 7.2 vs walk 237.9 µg → 33.0× |
+| options per plan | same | 16–24 rows incl. metro+walk + corridor alternates |
+| day windows | `GET /v2/day` | both honestly null today (flat moderate 61–75, mean 67.5) — `decisions` says so in words |
+| leave-later | `GET /depart` | demo OD: now 20.7 → worst +19 h 45.2 (2.2×), +23 h 17.3 (−16% row present; script OD read 0/absent) |
+| breath-of-the-city | `GET /v2/city` | ~620 µg/day ≈ 1.96 cig; −24.0% vs the typical October median today (`vs_now_pct` drifts hour to hour; re-read live) |
+| stations / samples | `GET /health` | 52 instruments (WAQI + DPCC both ok, drift band 52–54) + ~97 model samples; field age ~7 min |
 | engine | `GET /health` | `alive_core`; 1,070,459 edges / 903,058 priced |
-| self-grade | `GET /v2/skill` | 210 pairs tonight — all h+0..h+11 `ok` (h+1 MAE 8.5); an earlier read saw 21 pairs/h+1 16.3 |
-| reach | `GET /v2/reach` | walk@25 µg → 3,168 edges / 139 km in 11 ms; car@25 → capped, `edge_partial` |
-| community | `GET /community` `/v2/city/moves` | 22 trips / 14 contributors; 12 of 54 corridors publishable, k=3 |
-| archive | `GET /v2/archive` | recorded[1,3,4], gaps[0,2] tonight — grows hourly; honest gaps stay unbackfilled |
-| outside-area | `POST /v2/plan` to Mumbai | typed `outside_service_area`, 0.1 ms |
-| reroute | `POST /v2/reroute` | fresh option set + route_id, 21 options |
-| field species | `GET /aqi` | pm2.5 68.9 bz / 63.8 ambient tonight · pm10 · no2 · o3 · co · so2 · dust · aod; nh3 honestly null |
+| self-grade | `GET /v2/skill` | 304 pairs — all h+0..h+11 `ok` (h+0 MAE 3.8, h+11 37.2 / band-hit 37.7%) |
+| reach | `GET /v2/reach` | walk@25 µg → 3,767 edges / 167.9 km; walk@50 → 11,409/618.0; car@25 → capped 993,344, `edge_partial` |
+| community | `GET /community` `/v2/city/moves` | 44 obs / 24 contributors / 1,278.9 µg avoided; 12 of 55 corridors publishable, k=3 |
+| archive | `GET /v2/archive` | recorded[1,3–16], gaps{0,2} today — grows hourly; honest gaps stay unbackfilled |
+| cause note | `GET /v2/why` | `cause_note` live since `795ff3b`: "12 fires in the Punjab–Haryana belt — the wind isn't carrying it this way right now · city mean 60.6 → 46.8 over 5.8 h"; trend primary, fires refused on SW wind |
+| admin | `GET /admin` | gate card since `b563da2` — sign in via `POST /v2/admin/login` (HMAC HttpOnly cookie ~8 h) |
+| outside-area | `POST /v2/plan` to Mumbai | typed `outside_service_area`, ~ms |
+| reroute | `POST /v2/reroute` | fresh option set + route_id |
+| field species | `GET /aqi` | pm2.5 64.5 bz / 60.8 ambient today · pm10 · no2 · o3 · co · so2 · dust · aod; nh3 honestly null |

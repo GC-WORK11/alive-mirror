@@ -42,27 +42,30 @@ Three questions, three shipped surfaces:
    under `budget_ug` — the real search frontier, not a smoothed circle.
 
 And the feature judges will poke — **dose-priced routing**. Same city, same
-minutes; the vehicle decides what you inhale. Measured live
-(Connaught Place → Gurugram, 23.7 km, 20–21 options — the count drifts
-16–24 as GTFS transit rows come and go; breathing-zone basis,
-`smoke_modifier: 1.24` claimed while the NW wind carried belt smoke —
-it was downscaled to ×1.08 and named-but-refused once the wind turned
-easterly; build `4eb9e1e8`):
+minutes; the vehicle decides what you inhale. In the app this moment is now
+the **cinematic route chooser**: candidates draw as equals, the camera fits
+them all, then the winner settles bold with a verdict pill pinning *why*
+("cleanest · N% less than fastest" — the server's own reason_line).
+Measured live
+(Connaught Place → Gurugram, 23.7 km, 17 options at this read — the count
+drifts 16–24 as GTFS/engine rows come and go; breathing-zone basis,
+`smoke_modifier: 1.06` on the wire — named-but-refused on today's SW wind;
+build `698cf808`):
 
 | mode | dose (µg, mid) | | mode | dose (µg, mid) |
 |---|---|---|---|---|
-| car AC | **8.8** | | metro+walk | 37.5 |
-| car open | 16.1 | | cycle | 130.0 |
-| bike | 20.3 | | walk | **293.2** |
-| bus | 23.1 | | auto | 26.2 |
+| car AC | **7.2** | | metro+walk | 32.5 |
+| car open | 13.0 | | cycle | 105.4 |
+| bike | 16.5 | | walk | **237.9** |
+| bus | 18.8 | | auto | 21.2 |
 
 A **~35× spread on a Delhi commute the map you use today never shows you**
-— 33.3× measured today (35.9× on the India Gate→Huda City Centre demo OD),
+— 33.0× measured today (~34.5× on the India Gate→Huda City Centre demo OD),
 31–45× across ODs this week — and it matches
 published Delhi measurements (walk ≈28× metro per km; Sci. Total Environ.
 2021). `GET /v2/day` at the same point today: flat moderate all day — no
 meaningful heavy or clean window (`decisions` names it: "no meaningful
-window today", day mean ~76, hours 71→82)
+window today", day mean ~68, hours ~61→75)
 — the card says when the doors should be open.
 
 <!-- SCREENSHOT 2 — `/city` lung-reach veil + district ledger, captured
@@ -70,14 +73,15 @@ window today", day mean ~76, hours 71→82)
 ![/city — the lung-reach veil and district ledger](../lanes/web-overhaul-v2-shots/after-city.png)
 
 *(reach edge-lengths are over directed edges — a two-way street counts in
-both directions; 3,105 edges ≈ 136 km at 25 µg, 10,436 ≈ 551 km at 50 µg —
+both directions; 3,767 edges ≈ 168 km at 25 µg, 11,409 ≈ 618 km at 50 µg —
 today's read; it drifts with the field)*
 
-Underneath: a live field rebuilt every 15 min from **54 ground
-instruments — 24 WAQI + 30 DPCC** (the DPCC adapter shipped after our own
+Underneath: a live field rebuilt every 15 min from **52 ground
+instruments — WAQI + DPCC** (count drifts 52–54 as instruments age in/out
+of feed health; the DPCC adapter shipped after our own
 independent holdout caught the blind spots — see Validation below) +
-~70 CAMS/open-meteo model samples + NASA FIRMS fires (67 at last read,
-15 in the NW belt — the smoke claim is gated by wind direction), kriged
+~97 CAMS/open-meteo model samples + NASA FIRMS fires (44 at last read,
+12 in the NW belt — the smoke claim is gated by wind direction), kriged
 with a real
 σ band by our own C++ engine — that re-prices all **1.07M road edges** so
 dose is a routing criterion, not an annotation. Plus a 120-hour forecast,
@@ -86,7 +90,10 @@ replays what Delhi actually breathed, hour by hour, history not just
 forecast — per-mode emissions bands (CO₂ + tailpipe PM on Delhi fleet
 factors), and a privacy-floored community layer — streets publish only
 after **3 different devices** cross them, and donations fold to aggregates
-at ingest.
+at ingest. And since today the field explains itself in plain words —
+`GET /v2/why` serves `cause_note`: belt fire detections · carry wind ·
+ventilation · the recorded trend, composed only from measured fields and
+labeled "measured, not reported" on every surface.
 
 <!-- SCREENSHOT 3 — `/admin` engine room, captured 2026-10-06
      (web-overhaul-v2 lane) -->
@@ -131,8 +138,11 @@ curl -s "$NLB/v2/archive?day=2026-10-05"
 ```
 
 Browser surfaces: `/` (dosimeter landing + field map + a→b), `/city`
-(districts, day-in-dose ticker, lung reach), `/community` (donation
-ledger), `/admin` (engine room) — all public, all live.
+(districts, day-in-dose ticker, lung reach, the parali-watch tile),
+`/community` (donation
+ledger), `/admin` (engine room — behind a real sign-in since Oct 7:
+the operator token trades once for an HMAC-signed HttpOnly cookie;
+guests land on a gate card) — the rest all public, all live.
 
 The audit trail behind every claim is committed: independent validation
 against government instruments in `docs/lanes/accuracy-holdout-report.md`,
@@ -144,7 +154,7 @@ validation corpus in `server/data/field_validation.md`.
 
 ```
 Mobile app (Expo, Android+iOS) ──┐         ┌─ in-app ingest: every 15 min ┐
-  · dose ledger ON-DEVICE        │         │  24 WAQI + 30 DPCC stations │
+  · dose ledger ON-DEVICE        │         │  WAQI + DPCC (52 live today) │
   · only k≥3 aggregates leave ───┤ HTTP :80│  + CAMS + NASA FIRMS + wind │
 Web surfaces / judges ──────────┤         │  → krige field → S3 snapshot │
                                 ▼         └─────────────────────────────┘
@@ -174,8 +184,9 @@ Web surfaces / judges ──────────┤         │  → krige f
 Self-hosted Delhi basemap: 22.7 MB pmtiles from Geofabrik OSM, z0–14
 (`/tiles/health`). Decade climatology from OpenAQ's public S3 archive
 (125 stations × a decade of hourly readings, medians by month×hour).
-Cost: ~$46/mo worst case; Fargate Spot
-outside demo windows.
+Cost: **$0.00 net billed** in the last 7 days inside the promo credits
+(~$50/mo run-rate absorbed — `docs/plan/ops-handover.md`); Fargate Spot
+keeps it there.
 
 ## Validation (the part most projects skip)
 
@@ -244,8 +255,8 @@ outside demo windows.
   DPCC carry measured stations meanwhile); the OpenAQ live-key path is
   wired but dormant — documented in `server/data/field_validation.md`.
 - **`/health` `build_sha` can lag the deployed image** by a deploy — the
-  ECR task image tag is the truth (today `alive108-api:ce01ec5c` ==
-  `/health` `build_sha`, `sources.stations` = `waqi+dpcc`, count 54).
+  ECR task image tag is the truth (today `alive108-api:698cf808` ==
+  `/health` `build_sha`, `sources.stations` = `waqi+dpcc`, count 52).
 
 ## Repo layout
 

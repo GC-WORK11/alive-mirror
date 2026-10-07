@@ -23,8 +23,9 @@ air price on every trip: pick FROM→TO and see the actual PM2.5 you'd
 inhale by car, auto, bus, metro, bike or on foot — ranked by a
 safety-first decision engine (50% dose + 30% mode crash-risk anchored
 to MoRTH fatality shares + 20% time). Underneath is a real physics
-stack, not an AQI lookup: live station/CAMS field interpolated with
-wind-advected IDW, breathing-zone microenvironment factors measured on
+stack, not an AQI lookup: live station/CAMS field kriged in our own C++
+engine with a fitted nowcast blend on the wire, breathing-zone
+microenvironment factors measured on
 Delhi roads, per-segment dose colouring, a 120-hour forecast with a
 "leave later" optimizer, and a climatology built from 125 NCR stations
 × ~10 years of public archive data (`/history.source` — the honest
