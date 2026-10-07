@@ -1351,3 +1351,30 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
 - **SIGSEGV residual honest note**: 22/24 on this rig (2 cold-boot
   kills), their box 34/34 — pre-warm ritual in runbook.
 - **Board**: me + coordinator channel. Freeze ~20:00 IST → final APK.
+
+## cont.68 — 2026-10-08 ~08:40 UTC (prod 227c25d8, ops arm only)
+
+- **OWNER DIRECTIVE via coordinator sync#13**: all ALive lanes
+  consolidate on the Max board (7-cap). This org = lead + ops only —
+  no new lanes spawned here. Ops duties kept: deploy.sh, T-60 freeze
+  hold, alarm watch, no-ff merges, verify_numbers, handoff doc.
+- **Alarm surgery complete + honest**: `alive108-field-age` re-created
+  on correct ns `ALive-108` (was `ALive108` — never saw a datapoint),
+  900s×2, missing=notBreaching → now OK on real data. Dead
+  `alive108-5xx-rate` deleted (watched metrics that never existed).
+  NEW `alive108-target-down` (NLB HealthyHostCount<1, 2×60s,
+  missing=breaching) + `alive108-field-emitter-dead` (metric silence
+  45min+ → breach). alive108-ops SNS: owner's gmail subscribed —
+  **pending his AWS confirmation-email click**.
+- **FieldAgeSeconds honesty fix `227c25d8` deployed + verified**:
+  age-less provenance (injected/degraded inputs) used to emit 0 —
+  dressed unknown staleness as fresh. Now emits nothing; silence is
+  the emitter-dead alarm's job. Regression test in test_rollup_lambda.
+  Prod: sha on /health, field 196s fresh, 53 stations waqi+dpcc ok,
+  44 fires (12 in-belt, smoke mod 1.06 @CP — parali ramp IS live).
+  Zero errors/tracebacks on fresh task :200.
+- **verify_numbers: ZERO flags** — every headline figure re-verified:
+  3550 pairs/85 stations/95.4% ±2σ, LOO MAE 8.8 bias +0.2 n=70,
+  CP PM2.5 67.1/AQI 155, corridors 12/55, community 44/24/1278.9µg.
+- **Hold**: no more deploys unless a fix lands; freeze ~20:00 IST →
+  Max apk-final cuts canonical binary at freeze HEAD + GH Release.
