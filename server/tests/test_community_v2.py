@@ -11,6 +11,7 @@ Run from server/:
     .venv/bin/python -m pytest tests/test_community_v2.py -v
 """
 import hashlib
+import io
 import json
 import os
 import sys
@@ -58,10 +59,13 @@ def _mk_fold(ts, contributor, cells=None, vehicle="bus",
 def clean(monkeypatch):
     """Empty in-memory stores; never touch disk or S3."""
     for d in (community._CELLS, community._DAYS, community._HOURS,
-              community._reports):
+              community._reports, community._reviews):
         d.clear()
     community._loaded = True
     community._CELLS_CACHE = (0.0, -1, [])
+    community._s3_unhydrated = False
+    community._s3_next_retry = 0.0
+    community._LAST_ERROR = None
     # totals() reads the shared donation ledger — reset the module-level
     # singletons too so each test starts empty (memory backend only;
     # the suite never runs against real DDB)
@@ -71,11 +75,14 @@ def clean(monkeypatch):
     monkeypatch.setattr(community, "_save", lambda: None)
     yield
     for d in (community._CELLS, community._DAYS, community._HOURS,
-              community._reports):
+              community._reports, community._reviews):
         d.clear()
     for s in (_v2store.TRIPS, _v2store.LEDGER):
         if getattr(s, "backend", "memory") == "memory":
             s.reset()
+    community._s3_unhydrated = False
+    community._s3_next_retry = 0.0
+    community._LAST_ERROR = None
     community._loaded = False
 
 
@@ -548,3 +555,68 @@ def test_report_bad_kind_rejected():
     out = community.report("hurricane", 28.63, 77.21, contributor=None)
     assert out["stored"] is False
     assert not community._reports
+
+
+# --- snapshot durability — hydrate merges, a failed S3 hydrate can't clobber ---
+def test_hydrate_merges_instead_of_replacing():
+    """The old wholesale _hydrate overwrote live stores: a donation
+    folded while the S3 warm-up was still running vanished silently
+    (the DDB ledger kept it; the community projection lost it forever).
+    Hydrate is now a UNION — live folds survive the snapshot."""
+    _donate("live-dev")
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    before = community._DAYS[today]["trips"]
+    community._hydrate({"v": 2, "days": {
+        today: {"trips": 10, "km": 42.0,
+                "devices": ["old-1", "old-2"]}}})
+    d = community._DAYS[today]
+    assert d["trips"] == before + 10
+    assert d["km"] > 42.0                    # snapshot km + live km
+    assert _tok("live-dev") in d["devices"]  # live donor kept
+    assert {"old-1", "old-2"} <= d["devices"]
+
+
+def test_failed_s3_hydrate_stays_retryable_and_never_puts(
+        tmp_path, monkeypatch):
+    """The prod clobber mechanism: _load() caught every S3 error and
+    latched _loaded on an EMPTY store — each later _save() then PUT a
+    near-empty snapshot over the durable one. Now a transient failure
+    stays retryable on a gap, lands in _LAST_ERROR, and _save()
+    refuses to PUT while unhydrated."""
+    puts = []
+
+    class BoomS3:
+        def get_object(self, **kw):
+            raise RuntimeError("network down")
+
+        def put_object(self, **kw):
+            puts.append(kw)
+
+    monkeypatch.undo()                       # restore the real _save
+    monkeypatch.setattr(community, "_FILE",
+                        tmp_path / "community.json")
+    monkeypatch.setattr(community, "_s3", lambda: BoomS3())
+    monkeypatch.setattr(community, "_last_s3_put", 0.0)
+    community._loaded = False
+
+    community._load()                        # boot during an S3 outage
+    assert community._loaded is True
+    assert community._s3_unhydrated is True
+    assert "RuntimeError" in (community._LAST_ERROR or "")
+
+    community._save()                        # must NOT PUT the empty
+    assert puts == []                        # store over the real one
+
+    class GoodS3(BoomS3):
+        def get_object(self, **kw):
+            return {"Body": io.BytesIO(json.dumps(
+                {"v": 2, "days": {"2026-10-01": {"trips": 7}},
+                 "reports": []}).encode())}
+
+    community._s3_next_retry = 0.0           # the gap elapses → retry
+    monkeypatch.setattr(community, "_s3", lambda: GoodS3())
+    community._load()
+    assert community._s3_unhydrated is False
+    assert community._DAYS["2026-10-01"]["trips"] == 7
+    community._save()
+    assert puts, "a landed hydrate reopens PUTs"

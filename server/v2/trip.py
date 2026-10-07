@@ -339,8 +339,15 @@ async def post_trip(body: dict):
                 # the donated traversal's ends
                 privacy_trimmed=True,
             )
-        except Exception:  # noqa: BLE001 — aggregates already stored; a
-            pass               # citizen-layer hiccup must not fail a donation
+        except Exception as e:  # noqa: BLE001 — aggregates already
+            # stored; a citizen-layer hiccup must not fail a donation.
+            # It must not pass silently either — record it where
+            # /admin and the debug surface can read it.
+            try:
+                import community
+                community._record_error(e)
+            except Exception:
+                pass
     return {
         "stored": True,
         "deduplicated": bool(dupe),

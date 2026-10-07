@@ -81,13 +81,37 @@ _reviews: list[dict] = []
 _REVIEW_CAP = 400
 _NOTE_CAP = 240
 _loaded = False
-# Hydration is not atomic: _hydrate() replaces cell dicts wholesale, so
-# a donation folded mid-warm would be silently overwritten (the DDB
-# layer would keep it; the community projection would lose it forever).
-# Boot warms _load() in a thread while requests are already served —
-# the lock makes every later caller wait for the hydrate to finish
-# rather than observe or fold into a half-hydrated store.
+# Hydration is a MERGE, not a wholesale replace: _hydrate() unions each
+# snapshot entry into the live aggregates, so a donation folded while
+# the warm-up thread was still reading S3 survives the hydrate. Boot
+# warms _load() in a thread while requests are already served — the
+# lock makes every later caller wait rather than observe or fold into
+# a half-hydrated store.
 _load_lock = threading.Lock()
+# A FAILED S3 hydrate (network blip, throttling) used to latch _loaded
+# on an empty store: every later _save then PUT an almost-empty
+# snapshot over the real one — the prod community projection was
+# clobbered that way (a boot during an S3 dip erased the durable copy
+# and every write after kept republishing the loss). Now a transient
+# failure stays RETRYABLE on a 30 s gap, _save refuses to PUT until a
+# hydrate has actually landed, and the error is kept in _LAST_ERROR
+# where /admin can read it instead of vanishing into `except: pass`.
+_s3_unhydrated = False   # only while _BUCKET is set and hydrate failed
+_s3_next_retry = 0.0
+_S3_RETRY_GAP_S = 30.0
+_LAST_ERROR: Optional[str] = None
+
+
+def _record_error(e: Exception) -> None:
+    """Last store failure, inspectable instead of silent — a bare
+    `except: pass` on the hydrate path is what let the projection get
+    clobbered unnoticed. Callers (e.g. v2/trip's citizen-layer hop)
+    may record here too."""
+    global _LAST_ERROR
+    try:
+        _LAST_ERROR = f"{type(e).__name__}: {e}"[:200]
+    except Exception:
+        _LAST_ERROR = "unprintable store error"
 
 # k-anonymity contract shared with v2/store.py TripAggregates: a cell is
 # publishable only with >=3 distinct (hashed) devices and a traversal
@@ -242,8 +266,22 @@ def _apply(d: dict) -> bool:
     migrated — the caller re-saves so the per-trip rows die on disk
     the moment they're read, not at the next write."""
     global _reports, _reviews
-    _reports = d.get("reports", [])[-2000:]
-    _reviews = d.get("reviews", [])[-_REVIEW_CAP:]
+    # merge by content key — a retry or a second source may carry rows
+    # already folded; idempotent hydrate keeps them single
+    rkeys = {(r.get("ts"), r.get("kind"), r.get("lat"), r.get("lon"))
+             for r in _reports}
+    _reports = sorted(
+        _reports + [r for r in (d.get("reports") or [])
+                    if (r.get("ts"), r.get("kind"), r.get("lat"),
+                        r.get("lon")) not in rkeys],
+        key=lambda r: r.get("ts") or 0)[-2000:]
+    vkeys = {(v.get("ts"), v.get("stars"), v.get("note"), v.get("build"))
+             for v in _reviews}
+    _reviews = sorted(
+        _reviews + [v for v in (d.get("reviews") or [])
+                    if (v.get("ts"), v.get("stars"), v.get("note"),
+                        v.get("build")) not in vkeys],
+        key=lambda v: v.get("ts") or 0)[-_REVIEW_CAP:]
     if d.get("v") == 2:
         _hydrate(d)
         return False
@@ -253,14 +291,42 @@ def _apply(d: dict) -> bool:
     return migrated
 
 
+def _merge_cell(cell: dict, v: dict) -> None:
+    """Union a hydrated cell into the live one — counters add, device
+    sets union, last_ts takes the max. Entries come from the same
+    aggregate stream, so union recovers what this process missed
+    without double-counting what it already folded."""
+    cell["trips"] += v["trips"]
+    for k in ("dose_sum", "avoided_sum", "km_sum", "co2_kg_sum"):
+        cell[k] += v[k]
+    cell["co2_trips"] += v["co2_trips"]
+    for m, n in v["modes"].items():
+        cell["modes"][m] = cell["modes"].get(m, 0) + n
+    cell["dev_all"] |= v["dev_all"]
+    for k, ts in v["dev_ts"].items():
+        tl = cell["dev_ts"].setdefault(k, [])
+        tl.extend(ts)
+        tl.sort()
+        if len(tl) > 64:
+            del tl[:len(tl) - 64]
+    cell["vals"].extend(v["vals"])
+    cell["vals"].sort(key=lambda p: p[0])
+    if len(cell["vals"]) > _CELL_VAL_CAP:
+        del cell["vals"][:len(cell["vals"]) - _CELL_VAL_CAP]
+    cell["last_ts"] = max(cell["last_ts"], v["last_ts"])
+
+
 def _hydrate(d: dict) -> None:
-    """v2 payload → in-memory aggregates (lists back to sets)."""
+    """v2 payload → in-memory aggregates (lists back to sets), MERGED
+    into whatever already folded — a donation written while this
+    hydrate was still running survives it. A clean boot merges into
+    empty stores, which is exactly the old wholesale-load behaviour."""
     for key, v in (d.get("cells") or {}).items():
         try:
             lon, lat = (float(x) for x in str(key).split(",", 1))
         except (TypeError, ValueError):
             continue
-        _CELLS[(lon, lat)] = {
+        hv = {
             "trips": int(v.get("trips") or 0),
             "dose_sum": float(v.get("dose_sum") or 0.0),
             "avoided_sum": float(v.get("avoided_sum") or 0.0),
@@ -277,25 +343,36 @@ def _hydrate(d: dict) -> None:
                      if isinstance(p, (list, tuple)) and len(p) >= 2],
             "last_ts": float(v.get("last_ts") or 0.0),
         }
+        cur = _CELLS.get((lon, lat))
+        if cur is None:
+            _CELLS[(lon, lat)] = hv
+        else:
+            _merge_cell(cur, hv)
     for day, v in (d.get("days") or {}).items():
-        _DAYS[str(day)] = {
-            "trips": int(v.get("trips") or 0),
-            "dose_sum": float(v.get("dose_sum") or 0.0),
-            "avoided_sum": float(v.get("avoided_sum") or 0.0),
-            "km": float(v.get("km") or 0.0),
-            "last_ts": float(v.get("last_ts") or 0.0),
-            "modes": set(v.get("modes") or []),
-            "devices": set(v.get("devices") or [])}
+        cur = _DAYS.setdefault(str(day), {
+            "trips": 0, "dose_sum": 0.0, "avoided_sum": 0.0, "km": 0.0,
+            "last_ts": 0.0, "modes": set(), "devices": set()})
+        cur["trips"] += int(v.get("trips") or 0)
+        cur["dose_sum"] += float(v.get("dose_sum") or 0.0)
+        cur["avoided_sum"] += float(v.get("avoided_sum") or 0.0)
+        cur["km"] += float(v.get("km") or 0.0)
+        cur["last_ts"] = max(cur["last_ts"], float(v.get("last_ts") or 0.0))
+        cur["modes"] |= set(v.get("modes") or [])
+        cur["devices"] |= set(v.get("devices") or [])
     for h, v in (d.get("hours") or {}).items():
-        _HOURS[int(h)] = {
-            "trips": int(v.get("trips") or 0),
-            "devices": set(v.get("devices") or []),
-            "duration_s": float(v.get("duration_s") or 0.0),
-            "dose_ug": float(v.get("dose_ug") or 0.0),
-            "avoided_ug": float(v.get("avoided_ug") or 0.0),
-            "km": float(v.get("km") or 0.0),
-            "last_ts": float(v.get("last_ts") or 0.0),
-            "modes": dict(v.get("modes") or {})}
+        cur = _HOURS.setdefault(int(h), {
+            "trips": 0, "devices": set(), "duration_s": 0.0,
+            "dose_ug": 0.0, "avoided_ug": 0.0, "km": 0.0,
+            "last_ts": 0.0, "modes": {}})
+        cur["trips"] += int(v.get("trips") or 0)
+        cur["devices"] |= set(v.get("devices") or [])
+        cur["duration_s"] += float(v.get("duration_s") or 0.0)
+        cur["dose_ug"] += float(v.get("dose_ug") or 0.0)
+        cur["avoided_ug"] += float(v.get("avoided_ug") or 0.0)
+        cur["km"] += float(v.get("km") or 0.0)
+        cur["last_ts"] = max(cur["last_ts"], float(v.get("last_ts") or 0.0))
+        for m, n in (v.get("modes") or {}).items():
+            cur["modes"][m] = cur["modes"].get(m, 0) + int(n)
     # legacy snapshots may carry 'life'/'devices' keys — the duplicate
     # all-time ledger this module used to keep. They are ignored: the
     # donation ledger is v2/store.TRIPS + LEDGER now.
@@ -348,9 +425,15 @@ def _prune_agg() -> None:
 
 
 def _load() -> None:
-    global _loaded
+    global _loaded, _s3_unhydrated, _s3_next_retry
     if _loaded:
-        return
+        # a failed S3 hydrate stays retryable — the saved snapshot is
+        # the projection's only durable copy, and serving empty because
+        # of a transient blip then PUTting that empty over it was the
+        # clobber. Retry on a gap rather than latching forever.
+        if not (_s3_unhydrated and time.time() >= _s3_next_retry):
+            return
+        _loaded = False
     with _load_lock:
         if _loaded:
             return
@@ -360,17 +443,38 @@ def _load() -> None:
                 body = s3.get_object(Bucket=_BUCKET, Key=_S3_KEY)["Body"].read()
                 if _apply(json.loads(body)):
                     _save()         # rewrite as aggregates immediately
+                _s3_unhydrated = False
                 _prune_reports()
                 _loaded = True
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                code = ""
+                try:
+                    code = str(e.response["Error"]["Code"])
+                except Exception:
+                    pass
+                if code not in ("NoSuchKey", "NoSuchBucket", "404"):
+                    # transient S3 failure — stay unhydrated and retry;
+                    # the file is NOT hydrated here on purpose: its
+                    # rows would double-merge with S3's once the bucket
+                    # recovers. Folds keep landing live meanwhile — the
+                    # eventual merge unions them with the snapshot.
+                    _record_error(e)
+                    _s3_unhydrated = True
+                    _s3_next_retry = time.time() + _S3_RETRY_GAP_S
+                    _prune_reports()
+                    _loaded = True
+                    return
+                _s3_unhydrated = False   # S3 answered honestly-empty;
+                # a local file may still hold this box's last state
+                # (written before the bucket existed) — safe to merge:
+                # with no S3 key there is no overlap to double-count.
         if _FILE.exists():
             try:
                 if _apply(json.loads(_FILE.read_text())):
                     _save()
-            except Exception:
-                pass
+            except Exception as e:
+                _record_error(e)
         _prune_reports()
         _loaded = True
 
@@ -386,13 +490,16 @@ def _save() -> None:
         pass
     now = time.time()
     s3 = _s3()
-    if s3 and now - _last_s3_put > _S3_MIN_GAP_S:
+    # never PUT while the S3 hydrate is still outstanding — writing a
+    # near-empty snapshot over the durable one is the clobber this flag
+    # exists to prevent
+    if s3 and not _s3_unhydrated and now - _last_s3_put > _S3_MIN_GAP_S:
         _last_s3_put = now
         try:
             s3.put_object(Bucket=_BUCKET, Key=_S3_KEY,
                           Body=json.dumps(payload), ContentType="application/json")
-        except Exception:
-            pass
+        except Exception as e:
+            _record_error(e)
 
 
 def _prune_reports() -> None:
