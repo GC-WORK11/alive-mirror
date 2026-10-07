@@ -66,9 +66,9 @@ build ≠ task-def tag → say the ECR image tag.
 
 | beat | file | state |
 |---|---|---|
-| hero | `10_hero.mp4` | taped on 4eb9e1e8 (video-v7) — current UI |
-| city | `40_city.mp4` | taped on 4eb9e1e8 |
-| dosegap | `30_dosegap.mp4` | taped on 4eb9e1e8 |
+| hero | `10_hero.mp4` | re-taped this lane on `ce01ec5c` — current UI |
+| city | `40_city.mp4` | re-taped this lane on `ce01ec5c` — reach solve on tape |
+| dosegap | `30_dosegap.mp4` | re-taped this lane on `ce01ec5c` — ladder on tape |
 | journey / receipt / ledger / settings | `25` / `26` / `27` / `28` | canonical APK tape `c3bb731` (video-v8 report — every beat PASS, 0 crashes) |
 | close beat | `65_community.mp4` | web, `ce01ec5c`; assemble cuts `-ss 5`, 8 s (stats card + k≥3 table) |
 | admin tail | `50_admin.mp4` | spare — needs `~/.alive_admin_token` on the capture box |
