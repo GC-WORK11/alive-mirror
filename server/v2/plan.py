@@ -1202,6 +1202,21 @@ async def _field_refresh_bounded() -> None:
         pass
 
 
+def _depart_at_parsed(depart_at) -> bool:
+    """Could the server's own time handling read this departure? Reuses
+    transit_v2._to_ist — the GTFS arm's actual parser — so the flag
+    reports exactly the acceptance the transit leg applies. A garbage
+    string used to echo verbatim while the GTFS arm silently fell back
+    to the (approx.) station model — nothing said the time was never
+    understood (edge-honesty P2)."""
+    try:
+        import transit_v2
+        transit_v2._to_ist(depart_at)
+        return True
+    except Exception:
+        return False
+
+
 async def _options_bounded(flat, flon, tlat, tlon, vehicle, profile,
                            depart_at):
     """_build_options under the hard budget. Returns (options, error)
@@ -2010,6 +2025,10 @@ async def plan(body: dict):
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
+    if depart_at is not None:
+        # echo contract keeps the raw string ('banana' still echoes) —
+        # the marker just stops it reading as understood
+        resp["depart_at_parsed"] = _depart_at_parsed(depart_at)
     if any((o.get("emissions") or {}).get("puc_calibrated")
            for o in options):
         resp["puc_calibrated"] = True   # server honoured the PUC card
@@ -2099,15 +2118,19 @@ async def reroute(body: dict):
                 "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
 
     asyncio.ensure_future(_field_refresh_bounded())   # fire-and-forget
+    depart_at = body.get("depart_at")
     options, opt_err, missing = await _options_bounded(
-        flat, flon, tlat, tlon, vehicle, profile, body.get("depart_at"))
+        flat, flon, tlat, tlon, vehicle, profile, depart_at)
     rank_options(options)
     if not options:
-        return {"route_id": None, "options": [], "option": None,
-                "rerouted_from": rid,
-                "error": opt_err or "routing unavailable from this position",
-                "field": _field_status(),
-                "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
+        out = {"route_id": None, "options": [], "option": None,
+               "rerouted_from": rid,
+               "error": opt_err or "routing unavailable from this position",
+               "field": _field_status(),
+               "took_ms": round((time.perf_counter() - t0) * 1000.0, 1)}
+        if depart_at is not None:
+            out["depart_at_parsed"] = _depart_at_parsed(depart_at)
+        return out
 
     mode_hint = str(body.get("mode") or body.get("vehicle") or "").lower()
     best = options[0]
@@ -2138,6 +2161,8 @@ async def reroute(body: dict):
         "field": _field_status(),
         "took_ms": round((time.perf_counter() - t0) * 1000.0, 1),
     }
+    if depart_at is not None:
+        resp["depart_at_parsed"] = _depart_at_parsed(depart_at)
     if missing:
         resp["degraded"] = missing   # same honesty flag as /v2/plan
     # finish-on-foot honesty check: when the remaining leg is walkable

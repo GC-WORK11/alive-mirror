@@ -788,3 +788,43 @@ def test_solve_join_epoch_key_separates_repricings():
     v2plan._solve_join(k1, compute)
     v2plan._solve_join(k2, compute)
     assert len(ran) == 2, "post-reprice key hit the stale memo"
+
+
+# --- depart_at parse honesty (edge-honesty P2) -------------------------------
+# A garbage depart_at used to echo verbatim while the GTFS arm silently
+# fell back to the (approx.) station model — nothing on the response said
+# the time was never understood. depart_at_parsed is the additive marker;
+# option-level approximate:true labelling is unchanged.
+
+
+def test_depart_at_unparseable_flagged_on_response():
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": KB[0], "lon": KB[1]},
+                  "depart_at": "banana"})
+    assert not body.get("error")
+    assert body["depart_at"] == "banana"          # echo contract kept
+    assert body["depart_at_parsed"] is False
+
+
+def test_depart_at_parseable_marked_true():
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": KB[0], "lon": KB[1]},
+                  "depart_at": "2026-10-07T08:30:00+05:30"})
+    assert not body.get("error")
+    assert body["depart_at_parsed"] is True
+
+
+def test_depart_at_absent_omits_marker():
+    body = _post({"from": {"lat": CP[0], "lon": CP[1]},
+                  "to": {"lat": KB[0], "lon": KB[1]}})
+    assert "depart_at_parsed" not in body
+
+
+def test_depart_at_parsed_mirrors_transit_parser():
+    # the flag reuses transit_v2._to_ist — exactly the acceptance the
+    # GTFS arm applies — so it can never disagree with what the transit
+    # leg actually did with the string.
+    assert v2plan._depart_at_parsed("banana") is False
+    assert v2plan._depart_at_parsed("2026-10-07T08:30:00") is True
+    assert v2plan._depart_at_parsed("2026-10-07T08:30:00Z") is True
+    assert v2plan._depart_at_parsed(1728100800) is True

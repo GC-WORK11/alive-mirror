@@ -156,3 +156,23 @@ def test_reroute_engine_backstop(monkeypatch):
     body = r.json()
     assert body["route_id"] is not None
     assert body["option"]["engine"] == "alive_core-path"
+
+
+def test_reroute_depart_at_unparseable_flagged():
+    """Same silent hole as /v2/plan — a garbage depart_at echoes verbatim
+    and the transit arm falls back to the approx model with no signal.
+    depart_at_parsed is the additive marker here too."""
+    r = client.post("/v2/reroute", json={
+        "at": FIX, "to": DEST, "mode": "car", "depart_at": "banana"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["depart_at_parsed"] is False
+
+
+def test_reroute_depart_at_parseable_marked_true():
+    r = client.post("/v2/reroute", json={
+        "at": FIX, "to": DEST, "mode": "car",
+        "depart_at": "2026-10-07T08:30:00+05:30"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["depart_at_parsed"] is True
