@@ -71,6 +71,7 @@ import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } fro
 import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import { freshnessTone } from "../components/FreshnessChip";
+import { holdMapDraw } from "../map/drawHold";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tap, tick } from "../haptics";
 import { inNcr } from "../components/shell/net";
@@ -1164,7 +1165,10 @@ function TravelCtaInner({ lang, onGo }: { lang: Lang; onGo: () => void }) {
     /* collapsable={false}: Android can flatten a Pressable's parent chain
        and drop it from the touch map — the pill read as visible-but-dead
        on device (apk-verify-v8). Cheap insurance on the primary action. */
-    <Pressable collapsable={false} onPress={() => { tick(); onGo(); }}
+    <Pressable collapsable={false} onPressIn={() => { holdMapDraw(); }} onPress={() => { tick(); onGo(); }}
+      /* press-in hold: same touch-down coverage as the search pill — the
+         tap's native work runs inside the sim draw-hold instead of racing
+         the sheet mount (no-op on hardware). */
       accessibilityRole="button" accessibilityLabel={t("goLabel", lang)}
       style={({ pressed }) => [ss.cta, pressFx(pressed)]}>
       <Icon name="search" color={V2T.bg} size={19} />

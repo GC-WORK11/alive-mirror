@@ -573,7 +573,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                       { fontFamily: fam(lang, "reg") },
                     ]}
                   >
-                    {t("citySwitched", lang, { n: day.switched })}
+                    {t("citySwitched", lang, { n: day.switched, tripNoun: t(day.switched === 1 ? "tripNounOne" : "tripNounMany", lang) })}
                   </Text>
                 ) : null}
               </>

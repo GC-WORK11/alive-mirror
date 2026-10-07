@@ -9,6 +9,7 @@ import { DYNAMIC_TYPE } from "../../a11y";
 import { tick } from "../../haptics";
 import { Icon } from "../../icons";
 import { t, type Lang } from "../../i18n/strings";
+import { holdMapDraw } from "../../map/drawHold";
 
 function SearchBarInner({
   label, lang,
@@ -27,7 +28,11 @@ function SearchBarInner({
         style={({ pressed }) => [s.menuBtn, pressed && { opacity: 0.55 }]}>
         <Icon name="menu" color={V2T.text2} size={20} />
       </Pressable>
-      <Pressable onPress={() => { tick(); onPress(); }} accessibilityRole="button"
+      <Pressable onPressIn={() => { holdMapDraw(); }} onPress={() => { tick(); onPress(); }} accessibilityRole="button"
+        /* onPressIn: open the sim draw-hold at touch-DOWN — the tap's own
+           native work (map hit-test/gesture) then runs inside the throttled
+           window instead of racing the sheet mount it triggers. No-op on
+           hardware (Device.isDevice gate in drawHold). */
         accessibilityLabel={label ?? t("searchPlaceholder", lang)}
         style={({ pressed }) => [s.field, pressed && { opacity: 0.65 }]}>
         <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}
