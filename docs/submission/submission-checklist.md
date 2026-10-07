@@ -16,10 +16,14 @@ items are sequenced so nothing disqualifying or irreversible happens early.*
 - Builder Center long-form draft committed at
   `docs/builder-center/article-draft.md` (title options + 120-word abstract
   inside).
-- App demo beats re-taped on the final APK — 7/7 PASS, 0 crashes
-  (`docs/lanes/video-v8-report.md`); final APK is `alive108-c3bb731.apk`
-  (built at `3d3df49` — *includes* the landmark-purge `2c4cab4`, verified
-  ancestor).
+- App demo beats re-taped on the design-v3 APK — 7/7 PASS, 0 crashes
+  (`docs/lanes/video-v8-report.md`, on `alive108-c3bb731.apk` built at
+  `3d3df49` — *includes* the landmark-purge `2c4cab4`, verified
+  ancestor). **Stale-binary caveat:** `c3bb731` predates ~30 Mobile
+  commits incl. two fixes ON the demo flow (`344b4a9` first-tap,
+  `c84b5c2` phantom re-plan) — the Oct-8 install binary is the NEWEST
+  HEAD APK (§3 T-20); if the taped app beats visibly differ from it,
+  re-tape on the new binary.
 
 **Still owner-action (nothing here can be done for you):**
 - WeMakeDevs registration + Builder Center profile + **SheerID** verification
@@ -45,7 +49,8 @@ items are sequenced so nothing disqualifying or irreversible happens early.*
       room → console; `docs/plan/demo-script.md` is the older route-first
       stage script, still valid as a stage runbook but its numbers sheet
       predates the pivot). **App beats done** — 7/7 PASS on
-      `alive108-c3bb731.apk` (video-v8). Remaining: the **AWS-console
+      `alive108-c3bb731.apk` (video-v8 — see the staleness caveat in
+      Status above). Remaining: the **AWS-console
       beat** — `docs/plan/aws-console-shotlist.md` is the owner's
       self-filmed 25 s window; grab the separate ~10 s ECS-console
       screen-record too (needed footage per rules).
@@ -66,13 +71,16 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       baseline-first is cleaner.)
 - [ ] Create an **EMPTY public GitHub repo** (no README, no license —
       anything in it adds a second root commit).
-- [ ] From a clean clone on `main` (`git status --porcelain` empty —
-      the orphan checkout + `git add -A` sweeps whatever is in the tree;
-      also check `git branch --list public-baseline` is empty):
+- [ ] From a clone with the latest fetch (`git fetch origin` — the
+      script NEVER touches the worktree/index: it writes ONE commit
+      holding the tip-most tree of {base/v2, main} via `git commit-tree`
+      and pushes it as `main`; uncommitted/untracked files stay out of
+      the public history automatically):
       `./scripts/public-repo.sh https://github.com/<owner>/<new-repo>.git`
-      → orphan `public-baseline` → one commit "baseline: ALive-108…" →
-      `push … public-baseline:main`. Script pushes `origin/main` HEAD —
-      verified the tree includes base/v2 (main is 1 merge ahead).
+      → one commit "baseline: ALive-108…" → pushed to the new remote's
+      `main`. Needs git committer identity set + push auth (SSH key or
+      PAT in the credential helper) — the script preflights identity
+      and `git ls-remote`s the URL first.
 - [ ] Verify: `gh repo view <new> --json pushedAt` — one commit, dated
       Oct 8; repo is PUBLIC; README renders the live URL.
 - [ ] Keep hacking normally on the public repo after — every later commit
@@ -98,11 +106,27 @@ one baseline commit, run-date stamped, on a NEW public repo.*
 
 ## 3 · Demo/judging morning — live stack (from go-nogo, gotchas baked in)
 
-- [ ] T-60: **Spot → on-demand flip** (owner's runbook step — do NOT
-      pre-run): `aws ecs update-service … FARGATE,weight=1,base=1
+Run once at the top of the shell — every `curl $NLB/…` below needs it:
+
+```bash
+export AWS_DEFAULT_REGION=ap-south-1
+export NLB="http://$(aws elbv2 describe-load-balancers --names alive108 \
+  --query 'LoadBalancers[0].DNSName' --output text)"
+# NLB is HTTP :80 only; no-CLI fallback DNS:
+# export NLB=http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com
+```
+
+- [ ] T-60: **credentials preflight, then Spot → on-demand flip**
+      (owner's runbook step — do NOT pre-run):
+      `aws sts get-caller-identity` + region `ap-south-1` must answer
+      first — a dead credential means the flip silently never runs and
+      the task stays on reclaimable FARGATE_SPOT (abort if it fails).
+      Then `aws ecs update-service … FARGATE,weight=1,base=1
       --force-new-deployment` (full cmd + rollback in
       `docs/demo-day.md` §FARGATE_SPOT). ~₹8/hr; flip back after judging.
-      The flip REPLACES the task → re-warm after.
+      The flip REPLACES the task → re-warm after. A FAILED rollout
+      still leaves the old SPOT task serving — degraded safety, not
+      outage; decide then (re-run / accept SPOT / abort per §NO-GO).
 - [ ] T-45: `curl $NLB/health` → `stale:false`, `engine:alive_core`,
       edges 1,070,459, `build_sha` = the build you rehearsed on
       (**current truth: `ce01ec5c` — the DPCC-ingest deploy; the
@@ -138,11 +162,14 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       `since_ist`; `GET /v2/archive` replays the day hour-by-hour). A
       `gap` hour is honest, not a bug — it's what the recorder wrote
       while a task was down. Whole-ledger sweep: `./scripts/verify_numbers.sh`.
-- [ ] T-20: APK on the demo phone — **final build is
-      `alive108-c3bb731.apk`** (built at `3d3df49`, launcher label
-      `ALive·108`; *includes* the landmark-purge `2c4cab4` — verified
-      ancestor, so the old `6ca0ef7` gazetteer caveat is resolved).
-      Check bundle strings: NLB host present, no `10.0.2.2`.
+- [ ] T-20: APK on the demo phone — install the NEWEST
+      `alive108-<sha>.apk` built at HEAD (build recipe + expected
+      sha256 in `docs/lanes/apk-v10-report.md`, or the newest
+      `apk-*-report.md` if a later build lands; verify `shasum -a 256
+      alive108-*.apk` matches that report's value). Do NOT install
+      `alive108-c3bb731.apk` — it predates ~30 Mobile commits incl.
+      demo-flow fixes `344b4a9` + `c84b5c2`. Check bundle strings:
+      NLB host present, no `10.0.2.2`.
 - [ ] T-20: backup videos on the playing device + play once with
       **Wi-Fi OFF** (airplane-mode proof).
 - [ ] T-15: `curl $NLB/health` → 200 on hall Wi-Fi AND phone hotspot.
