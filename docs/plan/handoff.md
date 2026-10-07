@@ -1222,3 +1222,12 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   daysum parity, BandScale, 10+ Where-to taps kill-count=0).
 - **Owner calls still open**: TLS domain+ACM / honest card; EventBridge
   enable / in-app+doc.
+
+## cont.63 — 2026-10-08 ~00:40 UTC (deployed f5f0bfe)
+
+- **Deploy `f5f0bfe` LIVE + verified**: /health sha match, 51 stns
+  waqi+dpcc, suite 1204 green at HEAD. /v2/reroute now serves
+  `segments[]` (18 opts probed) — painted strip survives mid-trip
+  reroute on the wire (58632f3 live). NSURLCache purge in bundle.
+- Same-unit sibling `ug_saved_vs_worst` audited: genuinely µg,
+  server-only consumer (decide.py >5µg threshold) — clean.
