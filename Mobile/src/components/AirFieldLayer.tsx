@@ -28,9 +28,15 @@ const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: 
 function AirFieldLayerFn({
   field,
   stations,
+  gesturing = false,
 }: {
   field: GeoJSON.FeatureCollection | null;
   stations: AirStation[] | null;
+  /* true while the user drags/pinches — the two symbol layers (the
+     biggest per-frame cost the field adds) drop with the basemap's
+     label set and return on rest. The cells' fill + station rings
+     stay painted: the field IS the surface. */
+  gesturing?: boolean;
 }) {
   const cells = useMemo(() => {
     if (!field?.features?.length) return EMPTY;
@@ -116,6 +122,7 @@ function AirFieldLayerFn({
           beforeId="v2-place-city"
           minzoom={10.5}
           layout={{
+            visibility: gesturing ? "none" : "visible",
             "text-field": ["get", "pm"],
             "text-font": ["Noto Sans Regular"],
             "text-size": [
@@ -167,6 +174,7 @@ function AirFieldLayerFn({
           beforeId="v2-place-city"
           minzoom={14.5}
           layout={{
+            visibility: gesturing ? "none" : "visible",
             "text-field": ["get", "sname"],
             "text-font": ["Noto Sans Regular"],
             "text-size": 10,

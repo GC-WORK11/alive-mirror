@@ -23,8 +23,8 @@ test("drawHold is sim-gated on Device.isDevice", () => {
 
 test("the Map's preferredFramesPerSecond rides the draw-hold", () => {
   const app = read("../../App.tsx");
-  assert.match(app, /preferredFramesPerSecond=\{drawHeld \? 2 : -1\}/,
-    "MapTree must pass the hold through preferredFramesPerSecond");
+  assert.match(app, /preferredFramesPerSecond=\{drawHeld \? 2 : covered \? 8 : -1\}/,
+    "MapTree must pass the hold through preferredFramesPerSecond (covered-cap is the hardware counterpart)");
   assert.match(app, /useMapDrawHeld\(\)/, "AppInner must subscribe to the hold store");
 });
 

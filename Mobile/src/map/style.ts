@@ -26,9 +26,43 @@ import { File, Paths } from "expo-file-system";
 import type { LayerSpecification, StyleSpecification } from "@maplibre/maplibre-react-native";
 import v2LightJson from "./v2-light.json";
 
-/** The self-contained v2 light style. Valid MapLibre style spec v8 object —
- *  pass straight to `<Map mapStyle={…}>` (MLRN accepts objects or URLs). */
-export const v2Style = v2LightJson as unknown as StyleSpecification;
+/* Gesture-drop label set — the basemap's expensive symbol layers. They
+   stay in v2-light.json (the style's single source of truth, and what
+   the served /v2-light.json + offline-pack style_url describe) but are
+   STRIPPED from the mounted style object here and re-added by App.tsx
+   as React <Layer> children — only a React-mounted layer's visibility
+   can flip without a full style reload, and hiding the label set while
+   the user drags removes MapLibre's per-frame collision/text-layout
+   pass (the dominant gesture cost on mid hardware). Geometry — every
+   road, casing, building, park fill — stays painted during the gesture;
+   the names return the frame the camera rests. Selection: all symbol
+   layers EXCEPT the place-* set (cities/neighbourhoods are the
+   orientation anchors a reader tracks while panning — Google keeps
+   them too) and except the app's own overlays. */
+const GESTURE_LABEL_IDS = new Set([
+  "v2-water-name", "v2-waterway-name",
+  "v2-oneway", "v2-housenumber", "v2-park-label",
+  "v2-aeroway-label", "v2-peak",
+  "v2-road-label-major", "v2-road-label-minor",
+  "v2-poi-transit", "v2-poi-civic", "v2-poi-services",
+  "v2-poi-gate", "v2-poi-text",
+]);
+
+const allLayers = v2LightJson.layers as unknown as LayerSpecification[];
+
+/** The self-contained v2 light style minus the gesture-drop label set.
+ *  Valid MapLibre style spec v8 object — pass straight to
+ *  `<Map mapStyle={…}>` (MLRN accepts objects or URLs). */
+export const v2Style = {
+  ...(v2LightJson as unknown as StyleSpecification),
+  layers: allLayers.filter((l) => !GESTURE_LABEL_IDS.has(l.id)),
+};
+
+/** The stripped set, mounted by the map tree as React layers so their
+ *  visibility can flip mid-session. Original JSON order preserved —
+ *  collision priority among them is unchanged. */
+export const gestureLabelLayers: LayerSpecification[] =
+  allLayers.filter((l) => GESTURE_LABEL_IDS.has(l.id));
 
 export type V2MapStyleInput = string | StyleSpecification;
 
@@ -137,6 +171,15 @@ export function v2StyleUrl(): V2MapStyleInput {
 
 const LATIN_NAME = ["coalesce", ["get", "name:latin"], ["get", "name_en"], ["get", "name"], ["get", "ref"]];
 
+/* per-layer latin collapse — shared by latinLabels (whole style) and
+   gestureLabelLayersLatin (the React-mounted set) */
+const latinLayer = (l: LayerSpecification): LayerSpecification => {
+  const layout = (l as { layout?: Record<string, unknown> }).layout;
+  const tf = layout?.["text-field"];
+  if (!layout || tf == null || !JSON.stringify(tf).includes("name:hi")) return l;
+  return { ...l, layout: { ...layout, "text-field": LATIN_NAME } } as LayerSpecification;
+};
+
 /** English-default labels: every bilingual (latin + name:hi) text-field
  *  collapses to its latin name, so no Devanagari reaches the English map.
  *  URL inputs pass through untouched (nothing to rewrite client-side). */
@@ -144,11 +187,11 @@ export function latinLabels(input: V2MapStyleInput): V2MapStyleInput {
   if (typeof input === "string") return input;
   return {
     ...input,
-    layers: input.layers.map((l) => {
-      const layout = (l as { layout?: Record<string, unknown> }).layout;
-      const tf = layout?.["text-field"];
-      if (!layout || tf == null || !JSON.stringify(tf).includes("name:hi")) return l;
-      return { ...l, layout: { ...layout, "text-field": LATIN_NAME } } as LayerSpecification;
-    }),
+    layers: input.layers.map(latinLayer),
   };
 }
+
+/** The gesture set's EN variant — the same name:hi collapse the mounted
+ *  style gets (3 of the 14 reference name:hi). */
+export const gestureLabelLayersLatin: LayerSpecification[] =
+  gestureLabelLayers.map(latinLayer);

@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, LogBox, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { BackHandler, LogBox, Pressable, Share, StyleSheet, Text, View, type NativeSyntheticEvent } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
@@ -14,7 +14,8 @@ import {
 } from "@expo-google-fonts/noto-sans-devanagari";
 import * as Location from "expo-location";
 import {
-  Camera, Map, Marker, UserLocation, type CameraRef,
+  Camera, Layer, Map, Marker, UserLocation,
+  type CameraRef, type ViewStateChangeEvent,
 } from "@maplibre/maplibre-react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { V2Elev, V2Radius, V2T, V2Type, cigOf, fam } from "./src/theme";
@@ -22,7 +23,9 @@ import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
 import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
-import { latinLabels, v2StyleUrl } from "./src/map/style";
+import {
+  gestureLabelLayers, gestureLabelLayersLatin, latinLabels, v2StyleUrl,
+} from "./src/map/style";
 import { warmBasemap } from "./src/map/tileWarm";
 import { warm as warmSearchIndex } from "./src/search/t0";
 import { afterFirstFrame } from "./src/startup/idle";
@@ -134,6 +137,33 @@ function shareTripMsg(
 
 const onMapBusy = () => noteMapBusy();
 const onMapIdle = () => { noteMapIdle(); if (PERF_ON) mark("map.rendered"); };
+
+/* the basemap's symbol set — mounted as React layers (not inside the
+   style object — src/map/style.ts explains why) so their visibility
+   flips while the user drags and returns on rest. Memo'd: every
+   Layer's reactStyle diff reaches the native style, so this subtree
+   must re-render only on a real gesture/lang flip, never on a poll.
+   beforeId seats the block under the place labels, exactly where the
+   bundled JSON held them — collision priority is preserved. */
+const BasemapLabels = React.memo(function BasemapLabels({
+  lang, gesturing,
+}: {
+  lang: Lang;
+  gesturing: boolean;
+}) {
+  const specs = lang === "hi" ? gestureLabelLayers : gestureLabelLayersLatin;
+  return (
+    <>
+      {specs.map((spec) => (
+        <Layer key={spec.id} {...spec} beforeId="v2-place-neighbourhood"
+          layout={{
+            ...(spec as { layout?: Record<string, unknown> }).layout,
+            visibility: gesturing ? "none" : "visible",
+          }} />
+      ))}
+    </>
+  );
+});
 /* first fully-rendered frame → kick the one-time NCR tile prefetch in the
    background (deduped inside warmBasemap; fires every full render but
    only runs once per launch and once per install). */
@@ -145,7 +175,7 @@ const onMapFullyRendered = () => { onMapIdle(); warmBasemap(STYLE_URL); };
    stable identities, so unrelated app state no longer touches it. */
 const MapTree = React.memo(function MapTree({
   lang, compassPosition, logoPosition, attributionPosition,
-  onPress, onLongPress, camRef, drawHeld,
+  onPress, onLongPress, camRef, drawHeld, covered,
   trackUserLocation, onTrackUserLocationChange,
   hasLoc, corridors, reportSlots, fires, spots, layers,
   field, stations,
@@ -178,16 +208,48 @@ const MapTree = React.memo(function MapTree({
   toSet: boolean;
   pinReady: boolean;
   drawHeld: boolean;
+  covered: boolean;
 }) {
   bump("app.MapTree");
+  /* gesture label-drop: hide the basemap symbol set + the field's
+     value/station labels while the user drags, pinch-zooms or pitches
+     — the label collision pass is the map's dominant per-frame cost
+     during camera motion, and every name returns on rest (what Google
+     Maps does). onRegionWillChange fires once per camera change with
+     userInteraction true only for real finger work — programmatic
+     flyTo/track keep their labels, and onRegionIsChanging stays
+     unwired so a gesture costs 2 bridge events, not a per-frame
+     stream. A 4.5 s backstop restores labels if the idle event is
+     lost (app backgrounded mid-drag). */
+  const [gesturing, setGesturing] = useState(false);
+  const gestureEndRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRegionWillChange = useCallback(
+    (e: NativeSyntheticEvent<ViewStateChangeEvent>) => {
+      if (!e.nativeEvent?.userInteraction) return;
+      setGesturing(true);
+      if (gestureEndRef.current) clearTimeout(gestureEndRef.current);
+      gestureEndRef.current = setTimeout(() => setGesturing(false), 4500);
+    }, []);
+  const onRegionDidChange = useCallback(() => {
+    setGesturing(false);
+    if (gestureEndRef.current) {
+      clearTimeout(gestureEndRef.current);
+      gestureEndRef.current = null;
+    }
+  }, []);
   return (
     <Map mapStyle={lang === "hi" ? STYLE_URL : STYLE_EN} style={StyleSheet.absoluteFill}
       /* mount-vs-draw hold (src/map/drawHold.ts): while an overlay
          mounts/unmounts over the map the render pump drops to 2 fps so
          the commit can't intersect a wall of in-flight draws — the
-         sim-only SIGSEGV class; -1 restores the MapLibre default on
-         hardware and outside every window. */
-      preferredFramesPerSecond={drawHeld ? 2 : -1}
+         sim-only SIGSEGV class. `covered` is the hardware steady-state
+         counterpart: while an opaque sheet owns the screen the map
+         still renders into a void, so its pump caps low (8 fps keeps
+         tile warmup + offline progress moving) and scroll/sheet anims
+         keep the GPU/CPU. -1 restores the MapLibre default. */
+      preferredFramesPerSecond={drawHeld ? 2 : covered ? 8 : -1}
+      onRegionWillChange={onRegionWillChange}
+      onRegionDidChange={onRegionDidChange}
       /* PERF-gated milestones in the cold-open path: style load is the
          bundled-light parse, rendered-full is first frame incl. tiles
          (hosted OpenFreeMap = network; bundled pmtiles = local) */
@@ -225,7 +287,8 @@ const MapTree = React.memo(function MapTree({
           under the road/label stack; the band colours + every number
           are the field's real reads, and the rings are the actual
           instrument sites the blend is anchored to */}
-      <AirFieldLayer field={field} stations={stations} />
+      <AirFieldLayer field={field} stations={stations} gesturing={gesturing} />
+      <BasemapLabels lang={lang} gesturing={gesturing} />
       <CorridorLayer corridors={corridors} on={layers.corridors} />
       <ReportsLayer slots={reportSlots} />
       <FiresLayer fires={fires} on={layers.fires} />
@@ -742,6 +805,13 @@ function AppInner() {
      browsing, this is the reading */
   const airMapOpen = phase === "idle" && !homeOpen;
 
+  /* the home sheet is a full opaque surface — the same predicate as its
+     `visible` prop. While it owns the screen the map renders into a
+     void: cap the render pump low so home scroll + sheet springs keep
+     the GPU/CPU (the hardware counterpart of the sim's drawHold —
+     restored to full rate the frame the sheet starts to lift). */
+  const mapCovered = homeOpen && phase === "idle" && !mapPickArmed;
+
   /* ---- memo'd subtree props: every handler below must keep identity
      across poll renders or the memo boundaries are theatre ---- */
   const compassPosition = useMemo(() => (phase === "nav"
@@ -938,7 +1008,8 @@ function AppInner() {
       fromPin={fromPin} toPin={toPin}
       fromSet={!!from} toSet={!!to}
       pinReady={pinReady}
-      drawHeld={drawHeld} />
+      drawHeld={drawHeld}
+      covered={mapCovered} />
   );
 
   /* mount the map under the splash: the native style parse + tile fetch

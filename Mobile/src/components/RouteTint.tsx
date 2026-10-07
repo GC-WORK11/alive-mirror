@@ -131,11 +131,16 @@ const FRAME_STAGGER_MS = 170;// origin ring, then the destination ring
 const RING_MS = 640;         // one ring's expand + fade
 const FRAME_NO_END_MS = 220; // no endpoints to frame → a short pre-roll
 const CAND_STAGGER_MS = 540;
-const CAND_GROUPS = 11;
+/* staged chunk flushes — every step is a full GeoJSON commit through
+   the bridge into a native source re-parse, landing while the sheet
+   mounts + the camera fits. 8 groups (the 11-point ease-out curve
+   resampled at 8 points — same reveal shape + ~600 ms tail) is ~27%
+   fewer source rebuilds per candidate. */
+const CAND_GROUPS = 8;
 /* ease-out span cadence — cumulative ms at each group index. Draws
    fast where the line is being born, settles as it arrives. */
 const CAND_GROUP_DELAY: readonly number[] = [
-  0, 42, 88, 138, 192, 250, 312, 378, 448, 522, 600,
+  0, 62, 131, 209, 294, 388, 490, 600,
 ];
 const CAND_IN: readonly (readonly [number, number])[] = [
   [0, 0.16],           // span appears faint
