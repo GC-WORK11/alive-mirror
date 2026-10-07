@@ -59,8 +59,10 @@ test("the map feeds render busy/idle into the boot watch", () => {
   const app = read("../../App.tsx");
   assert.match(app, /onWillStartRenderingMap=\{onMapBusy\}/,
     "Map must wire onWillStartRenderingMap into noteMapBusy");
-  assert.match(app, /onDidFinishRenderingMapFully=\{onMapIdle\}/,
+  assert.match(app, /onDidFinishRenderingMapFully=\{onMapFullyRendered\}/,
     "Map must wire onDidFinishRenderingMapFully into noteMapIdle");
+  assert.match(app, /const onMapFullyRendered = \(\) => \{ onMapIdle\(\)/,
+    "the fully-rendered handler must call onMapIdle (basemap prefetch rides it)");
   assert.match(app, /const onMapBusy = \(\) => noteMapBusy\(\)/,
     "onMapBusy must call noteMapBusy");
   assert.match(app, /noteMapIdle\(\)/, "onMapIdle must call noteMapIdle");

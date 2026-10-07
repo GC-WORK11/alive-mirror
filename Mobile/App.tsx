@@ -23,6 +23,7 @@ import { EndpointPin } from "./src/ui";
 import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { latinLabels, v2StyleUrl } from "./src/map/style";
+import { warmBasemap } from "./src/map/tileWarm";
 import { camDur } from "./src/map/cam";
 import {
   holdMapDraw, noteMapBusy, noteMapIdle, useHeldState, useMapDrawHeld,
@@ -93,7 +94,10 @@ const DRAWER2CLS: Record<string, VehicleClass> = {
 
 /* hoisted so the memo'd map tree sees stable prop identity — fresh array/
    object literals each render used to defeat the memo boundary anyway */
-const INIT_VIEW = { center: DELHI, zoom: 11 } as const;
+/* z12.5 so the first frame lands inside the street-mesh regime — the
+   basemap's minor roads + locality labels exist from z12 up; opening at
+   z11 showed only arterials (the "empty map" complaint, r6). */
+const INIT_VIEW = { center: DELHI, zoom: 12.5 } as const;
 /* maxBounds = the dose field's service margin (NCR ±2°), not the
    tight NCR box — a destination in Agra/Jaipur must stay on
    screen or the outside-area notice can't be understood */
@@ -109,6 +113,10 @@ type TrackChangeEvent = Parameters<NonNullable<React.ComponentProps<typeof Camer
    residual SIGSEGV (drawHold.ts boot-watch comment). */
 const onMapBusy = () => noteMapBusy();
 const onMapIdle = () => { noteMapIdle(); if (PERF_ON) mark("map.rendered"); };
+/* first fully-rendered frame → kick the one-time NCR tile prefetch in the
+   background (deduped inside warmBasemap; fires every full render but
+   only runs once per launch and once per install). */
+const onMapFullyRendered = () => { onMapIdle(); warmBasemap(STYLE_URL); };
 
 /* The whole native map subtree behind one memo boundary: every app-level
    poll (reports 60 s, aqi 60 s, health 15 s, ambient samples) used to
@@ -166,7 +174,7 @@ const MapTree = React.memo(function MapTree({
          (tiles streaming / render pass in flight), didFinishRendering-
          MapFully + didFinishLoadingMap mark it idle */
       onWillStartRenderingMap={onMapBusy}
-      onDidFinishRenderingMapFully={onMapIdle}
+      onDidFinishRenderingMapFully={onMapFullyRendered}
       onDidFinishLoadingMap={onMapIdle}
       /* the compass clears the chrome: search bar at rest, the taller
          maneuver banner in nav (was clipped behind it at top-right) */
