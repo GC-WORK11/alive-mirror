@@ -12,20 +12,22 @@ trusted from the brief:
   "release clean; the debug race is a post-demo engineering item."
 - Offline pack **found broken then fixed then live** — `offline-walk` caught
   r1 downloading 0 tiles (`81c2326`); `54a296e` shipped the http-style_url
-  repair + parity test; iOS sim verified `region_tiles=744`; prod route live
-  on `ffddab93` (`offline-pack-fix-report.md`).
-- Privacy spine **audited PASS + F1 fixed** — zero identity fields on any
-  gated wire, k≥3 verified firing live (55 cells → 12 publishable, all hour
-  buckets dark), installs honestly `null` (`privacy-spine-report.md`); the one
-  latent gap (ungated day-rows) closed at `af653e5`
-  (`privacy-f1-fix-report.md` — tests green; **deploy pending**, see below).
+  repair + parity test; iOS sim verified `region_tiles=744`; prod route
+  live-verified on `7c68c8bc` (`offline-pack-fix-report.md` +
+  `deploy5-report.md`).
+- Privacy spine **audited PASS + F1 fixed AND live** — zero identity fields
+  on any gated wire, k≥3 verified firing live (55 cells → 12 publishable,
+  all hour buckets dark), installs honestly `null`
+  (`privacy-spine-report.md`); the one latent gap (ungated day-rows) closed
+  at `af653e5` and the new contract is live-verified on prod
+  (`privacy-f1-fix-report.md` + `deploy5-report.md`).
 - Community ledger **proven 100% real** — page↔store reconciliation exact to
   DynamoDB + S3, zero test-labelled devices, zero seeds
   (`community-sanity-report.md`, `cb4efbe`/`834e6d6`).
 - `/v2/skill` **6 s → 0.7 s on prod** (`deploy4-report.md`, `c86074ff`).
 - Landing **v7 live** — hero = the shipped app's real home screen, new
   film-strip of three real chooser frames (`landing-v7-report.md`,
-  `ffddab9` = deploy-5 image).
+  live-verified on prod `7c68c8bc` — `deploy5-report.md`).
 - notify-e2e **complete on BOTH platforms** — real banners on iOS dev-client
   AND the release APK incl. the real permission dialogs
   (`notify-e2e-report.md`).
@@ -42,12 +44,13 @@ no spin).
 
 Every figure re-verified against live prod
 (`alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com`, build
-**`ffddab93`** — `/health.build_sha` == deployed ECR tag; HEAD `7c68c8b` is
-ahead only by `af653e5` + docs — the **single server diff** between prod and
-HEAD is the privacy day-row gate, itself test-verified and latent-only) on
-**2026-10-07 ~14:00–14:10 UTC (~19:30–19:40 IST)**. `verify_numbers.sh` ran
-**one flag** (a stale fires count inside `writeup.md` — doc nit, not live
-skew). Numbers drift with the field — say "about ~N" and re-run at T-45.
+**`7c68c8bc`** — `/health.build_sha` == deployed ECR tag; HEAD `68aa224` is
+docs-only ahead — **zero server diff** between prod and HEAD's tree:
+landing-v7, the offline-pack route AND the privacy day-row gate are all in
+the running image) on **2026-10-07 ~14:00–14:20 UTC (~19:30–19:50 IST)**.
+`verify_numbers.sh` ran **one flag** (a stale fires count inside
+`writeup.md` — doc nit, not live skew). Numbers drift with the field — say
+"about ~N" and re-run at T-45.
 
 ---
 
@@ -125,11 +128,12 @@ flagged owner decision, in writing.
 
 **THE HONEST ANSWER:** Half right and we say which half — the scheduler
 layer is honestly-disabled scaffolding, and the load-bearing AWS is the
-deploy itself. **Today the ops loop ran in anger four times**:
+deploy itself. **Today the ops loop ran in anger five times**:
 `deploy.sh` rolled CodeBuild→ECR→task def→NLB register→healthy at
-`1627a13f` (twice), `c86074ff` (deploy-4, the skill-latency fix) and
-`ffddab93` (deploy-5, landing v7 + the offline-pack route) — with a
-fifth killed mid-run when a sibling lane's newer image won. Three
+`1627a13f` (twice), `c86074ff` (deploy-4, the skill-latency fix), then
+`ffddab93` and `7c68c8bc` back-to-back (deploy-5, landing v7 + the
+offline-pack route + the privacy day-row gate — a mid-flight landing
+forced a second roll ~15 min later, handled in writing). Three
 CloudWatch alarms are armed and the SNS email is a *confirmed*
 subscription; the 7-day bill is literally $0.00.
 
@@ -139,9 +143,9 @@ subscription; the 7-day bill is literally $0.00.
 all **OK** → SNS `alive108-ops` → owner email **confirmed**; budget
 `alive108-monthly` $50 armed; `aws ce` net billed **$0.00 / 7 d** (promo
 credits absorb ~$1.65/day gross ≈ $50/mo run-rate). `deploy-eod-report.md`
-+ `deploy4-report.md` + `offline-pack-fix-report.md` — today's rolls, TG
-healthy each time, pages byte-compared to HEAD. `/health.build_sha`
-tracks the running image (`ffddab93` == git).
++ `deploy4-report.md` + `deploy5-report.md` — today's rolls, TG healthy
+each time, served pages byte-compared to HEAD. `/health.build_sha`
+tracks the running image (`7c68c8bc` == git).
 
 **THE WEAKNESS LEFT:** Same core — EventBridge stubs stay DISABLED
 scaffolding, `/v2/usage` can't be shown to a guest, and the ops doc lists
@@ -199,8 +203,8 @@ the honest line is the ladder plus instrument-anchored LOO.
 as a real krige refit over live WAQI+DPCC instruments, and **still on the
 wire today**: `mae_ug 8.8 / rmse 12.7 / n_stations 70 / bias +0.2`.
 
-**THE PROOF:** `GET /aqi` → `calibration` live-verified ~14:04 UTC on
-`ffddab93` (`method:"leave-one-out over live WAQI+DPCC instrument
+**THE PROOF:** `GET /aqi` → `calibration` live-verified ~14:20 UTC on
+`7c68c8bc` (`method:"leave-one-out over live WAQI+DPCC instrument
 readings (krige refit per held-out station)"`). The lesson stands:
 **before quoting any number-class to a judge, `curl /health` and diff
 `build_sha` against HEAD** — deploy lag is how this attack was born.
@@ -451,7 +455,7 @@ found-broken report (file:// `style_url` → `region_tiles` 0 forever);
 `tileWarm.ts` rewritten to the http URL, pack renamed `r2` so a dead r1
 row can't shadow it, 6 unit tests; iOS sim `cache.db`:
 `region_tiles=744` + `region_resources=297`, counts stable. Prod probe
-at this stamp: `GET /v2-light.json` → **200, 94,254 B** on `ffddab93`.
+at this stamp: `GET /v2-light.json` → **200, 94,254 B** on `7c68c8bc`.
 Densification: `map-depth-report.md` + `b47ffd4`.
 
 **THE WEAKNESS LEFT:** the shipped APK (`apk-v10` @ `70914c0`) predates
@@ -490,9 +494,9 @@ its own findings section — that's the answer."
 ## 18. "Who runs this thing? Who's paying — and who gets paged when it dies?"
 
 **THE HONEST ANSWER:** unchanged and re-verified — the ops loop is
-written down and was exercised four times today (see #3): deploys at
-`1627a13f` ×2, `c86074ff`, `ffddab93`, rollback = one flag to an
-immutable sha tag. Three CloudWatch alarms → SNS *confirmed* email;
+written down and was exercised five times today (see #3): deploys at
+`1627a13f` ×2, `c86074ff`, `ffddab93`, `7c68c8bc`, rollback = one flag
+to an immutable sha tag. Three CloudWatch alarms → SNS *confirmed* email;
 $0.00 net/7 d under promo credits (~$50/mo run-rate after); $50 budget
 alarm armed. A 2 h watchdog swept the latest roll: 9 clean field
 cycles.
@@ -624,7 +628,7 @@ before any store. And today a hostile audit of every gated wire found
 value is an integer count; the only hex strings are public H3 cells
 and a graph checksum. k≥3 isn't a claim — it was caught firing in four
 independent places at once. The one latent gap the audit found, it
-filed and we fixed the same day."
+filed — we fixed it the same day and it's already live on prod."
 
 **THE PROOF:** `privacy-spine-report.md` — recursive scan of
 `/v2/usage`, `/admin/api`, `/admin/api/*`, the `/admin` page source:
@@ -637,17 +641,18 @@ withheld below k=3. "Installs" renders `null` + the reason — a number
 that can't exist isn't faked. `privacy-f1-fix-report.md` (`af653e5`)
 — the F1 day-row gap closed with the same suppress-and-count shape as
 the other surfaces, tests incl. "three donations from ONE device is
-k=1"; full suite 1,244 green.
+k=1"; full suite 1,244 green. **Live-verified on prod**: `deploy5-
+report.md` — `/admin/api` on `7c68c8bc` returns the new contract:
+`contributors` day-rows all ≥3 + `contributors_suppressed:{day_rows:N}`
++ `contributors_days_tracked` (0 suppressed today because every tracked
+day currently holds ≥3 devices — the mechanism is on the wire, not
+just in tests).
 
-**THE WEAKNESS LEFT:** honest and stated: the F1 fix is committed but
-**not yet deployed** — prod `ffddab93` predates `af653e5`; nothing
-identifying is served meanwhile because every live day-row is ≥3, but
-the structural hole stays latent until the next roll (say it exactly
-like that if pressed). F2 — bare counts in windowed totals can
-degenerate to one person on a 1-device window — was assessed and
-deliberately not gated (a count is not a person; gating ops counters
-is a policy call, disclosed not hidden). The stateless cookie's replay
-bound (~8 h) is in #11.
+**THE WEAKNESS LEFT:** honest and stated: F2 — bare counts in windowed
+totals (`last_24h`, `today`, `per_hour`) can degenerate to one person
+on a 1-device window — assessed and deliberately not gated (a count is
+not a person; gating ops counters is a policy call, disclosed not
+hidden). The stateless cookie's replay bound (~8 h) is in #11.
 
 ## 23. "'Works offline' is a bullet on your slide — did anyone actually walk it?"
 
@@ -703,10 +708,9 @@ T-45 anyway — the number reads the field.
 
 ### C. Rolling deploys mid-demo — the freeze-window rule
 
-DEPLOY FREEZE T-60 → demo end. Prod is `ffddab93`; HEAD `7c68c8b` is
-ahead only by `af653e5` (F1) + docs — if the privacy roll lands before
-the freeze, re-check `build_sha`. Number-skew under a roll: "that's a
-deploy catching up — refresh in thirty seconds."
+DEPLOY FREEZE T-60 → demo end. Prod is `7c68c8bc` == HEAD's server
+tree (only docs land after it — zero skew risk). Number-skew under a
+roll: "that's a deploy catching up — refresh in thirty seconds."
 
 ### D. `/health` stations — CLOSED
 
@@ -731,7 +735,7 @@ dependent — it flickered twice today (absent on some ODs/reads).
 
 ### G. Fires aside — REFUSED at this stamp, but it flipped today
 
-`/v2/why`: `carrying:false` — wind **4.1 km/h from 23°** (NNE); the
+`/v2/why`: `carrying:false` — wind **~4 km/h from ~23–30°** (NNE); the
 burn-belt gate is the 270–360° quadrant. Belt **16 fires / 41.4 MW /
 modifier ×1.08**, feed live. The watchdog measured the gate honestly
 both directions today: `carrying` flipped true on a northerly midday
@@ -773,7 +777,7 @@ newest per `apk-*-report.md`; don't chase it during the freeze.
 
 ---
 
-## The numbers card — live prod `ffddab93`, ~14:05 UTC / ~19:35 IST Oct-7
+## The numbers card — live prod `7c68c8bc`, ~14:05–14:20 UTC / ~19:35–19:50 IST Oct-7
 
 *Re-pin at T-45 — internally consistent as of this stamp;
 `verify_numbers.sh` ran one doc-nit flag (writeup fires count).*
@@ -811,14 +815,14 @@ newest per `apk-*-report.md`; don't chase it during the freeze.
 | latencies | GETs ~0.3–0.6 s; `/v2/skill` re-hit **0.55 s** wall; plan fresh-OD `took_ms` ~7.1–8.9 s; warm ~50–660 ms | curl + wire |
 | spend | **net $0.00 last 7 d** (promo credits; ~$1.65/day gross ≈ $50/mo run-rate); $50 budget armed | `ops-handover.md` §4 |
 | task shape | 1 task × 1 vCPU / 3 GB (API ≈2 GB after OSRM sidecar); **~8–15 concurrent** honest posture | `deploy.sh` + `lowram-report.md` |
-| builds | prod **`ffddab93`** == ECR tag == deploy-5; HEAD `7c68c8b` ahead by `af653e5` (F1 fix — the only server diff) + docs | `/health.build_sha` + git |
-| ops | deploy.sh ran live ×4 today (2×`1627a13f`, `c86074ff`, `ffddab93`); 3 alarms OK → SNS confirmed; rollback `deploy.sh rollback <sha>` | `ops-handover.md` + deploy reports |
+| builds | prod **`7c68c8bc`** == ECR tag == deploy-5 roll 2; HEAD docs-only ahead — **zero server diff** (landing-v7 + offline route + F1 all in the image) | `/health.build_sha` + git |
+| ops | deploy.sh ran live ×5 today (2×`1627a13f`, `c86074ff`, `ffddab93`, `7c68c8bc`); 3 alarms OK → SNS confirmed; rollback `deploy.sh rollback c86074ff` | `ops-handover.md` + deploy reports |
 | iOS crash | Release **0/60** (Wilson ≲6%); dev-debug 14/30 — victim `consoleTaskRun` (inspector-only); device build unmeasured | `ios-release-residual-report.md` |
 | Android crash | **0** FATAL/ANR/SIGSEGV across every recorded drive (rehearsal-v2, apk-v10 KVM, notify-e2e) | lane oracles |
 | offline pack | r1 dead (file:// style_url, 0 tiles) → r2 fixed: `GET /v2-light.json` **live on prod** (200, 94,254 B byte-identical); iOS sim `region_tiles=744`+297; needs APK cut ≥`54a296e` | `offline-pack-fix-report.md` |
 | offline fallback | 160 MB ambient cache + T-45 pre-warm pan (8/8 air-gap honesty pass) | `testday-offline-report.md` + `demo-morning.md` |
 | landing | v7 live: hero = shipped app's real home (srcset 472w/708w webp), chooser film-strip = 3 real frames; page ≤206 KB all-in | `/` live + `landing-v7-report.md` |
-| privacy | gated wires carry **zero identity fields**; k≥3 firing live (43/55 suppressed, hours dark, 1 OD suppressed, review notes withheld); installs `null`+reason; F1 fixed `af653e5` (deploy pending) | `privacy-spine` + `privacy-f1-fix` reports |
+| privacy | gated wires carry **zero identity fields**; k≥3 firing live (43/55 suppressed, hours dark, 1 OD suppressed, review notes withheld); installs `null`+reason; F1 fixed `af653e5` **+ live on prod** (`contributors_suppressed` contract on `/admin/api`) | `privacy-spine` + `privacy-f1-fix` + `deploy5` reports |
 
 ---
 
@@ -833,7 +837,7 @@ newest per `apk-*-report.md`; don't chase it during the freeze.
 | "The C++ engine is vaporware" | `/health.engine` = `alive_core`; `test_parity_dose.py` bit-for-bit |
 | "The archive is fake/staged" | `/v2/archive` recorded [1,3–19] gaps {0,2} — records only the served field, never back-fills |
 | "The community layer is seeded" | `community-sanity-report.md`: exact page↔store reconciliation, dictionary-attacked device hashes → 0 test ids, 0 non-Delhi geometry, 0 seed writes; k≥3 visibly suppressing real rows |
-| "Aggregates still leak a person" | `privacy-spine-report.md`: zero identity fields on any wire; k≥3 caught firing in 4 places live; installs honestly `null`; F1 found+fixed `af653e5` |
+| "Aggregates still leak a person" | `privacy-spine-report.md`: zero identity fields on any wire; k≥3 caught firing in 4 places live; installs honestly `null`; F1 found, fixed `af653e5`, live-verified `deploy5-report.md` |
 | "Hindi is a veneer" | `strings.ts` `hi` mirror compiler-enforced; hi-parity lane reports |
 | "You hid the cold start" | `docs/plan/cold-path.md` + T-40 warm task + demo-morning runbook in writing before any judge asked |
 | "Security is a claim, not a test" | pentest 2 HIGHs found+fixed; HMAC cookie sign-in **proven e2e on prod** (login chain, gate probes, browser board render) — `admin-login-e2e-report.md` |
@@ -870,8 +874,8 @@ newest per `apk-*-report.md`; don't chase it during the freeze.
 - **Metro row PRESENT** (38.5 demo OD / 39.2 verify OD) — "car beats
   metro ~4×" armed; GTFS-hours dependent, re-check at T-45.
 - `/aqi.calibration`: rebuilt **8.8/n=70** still on the wire —
-  `/health.build_sha` vs HEAD before quoting (prod `ffddab93`; HEAD
-  `7c68c8b` ahead by the F1 fix + docs only).
+  `/health.build_sha` vs HEAD before quoting (prod `7c68c8bc`; HEAD
+  docs-only ahead, zero server diff).
 - `/v2/feedback` lore: **LIVE**, POST→200. Kill any stale "410" line.
 - `/v2/usage` guest 401 → `admin sign-in required` — the gate is the
   cookie auth; playbook `docs/plan/admin-login.md` (Save-password →
