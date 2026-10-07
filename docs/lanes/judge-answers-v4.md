@@ -17,9 +17,10 @@ to say plainly.
 
 Every figure re-verified against live prod
 (`alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com`, build
-**`e0aca004`** — which is `base/v2` commit `e0aca004`, five docs/deadcode
-commits behind HEAD `b7b951e`, i.e. **prod already carries every fix
-tonight**) on **2026-10-07 ~06:50 UTC (~12:20 IST)**. Numbers drift with
+**`e0aca004`** — which is `base/v2` commit `e0aca004`, a few docs/deadcode
+commits behind HEAD, i.e. **prod already carries every code fix tonight
+except the `stations_climatology` rename `70914c0`**) on
+**2026-10-07 ~06:50 UTC (~12:20 IST)**. Numbers drift with
 the field — say "about ~N" and re-run `scripts/verify_numbers.sh` at T-45.
 
 ---
@@ -455,11 +456,13 @@ spike ~38–58 µg out to +58 h). Never promise the row — check
 
 The audit watched `build_sha` flip `aea1c688→dc6d0cc2` and `/v2/usage` go
 404→401 **inside 15 minutes** — a judge re-checking a number mid-pass
-could screenshot the skew. Rule, stated in writing so every lane honors
-it: **no deploys inside the demo window. Last image lands by T-60; at
-T-45 verify `/health.build_sha` == the commit on stage; anything that
-must land inside the window lands before or after the judge slot, never
-during.** If a judge does catch skew: "that's a rolling deploy catching
+could screenshot the skew. **Now codified in `docs/demo-day.md`
+(`70914c0`): DEPLOY FREEZE T-60 → demo end** — no pushes, no deploys, no
+task swaps (a mid-demo roll = fresh task serving thin field + `/v2/*`
+routes minted on the old task 404ing + `build_sha` flipping under a
+judge's eyes; whatever HEAD is at T-60 is the demo build, fixes found
+inside the window queue for after — no exceptions short of prod down).
+If a judge does catch skew anyway: "that's a rolling deploy catching
 up — refresh in thirty seconds" is true and visible.
 
 ### D. `/health` duplicate `stations` keys — verdict + flag
@@ -472,14 +475,15 @@ archive stations, `server/history.py:142` `summary()` → `len(db["stations"])`)
 both values are true for their population. **But it is a real naming
 collision on the prove-it surface**: a judge curling /health to "prove
 the 53" greps `"stations"` and sees `125`. **Fix-needed: yes — severity
-P3.** Cheapest correct fix is a rename in `history.summary()` (`stations`
-→ `climatology_stations` or `station_count`) — a one-line wire-contract
-change; consumers are `main.py:376` (/health merge) + `admin_agg.py:56`
-(optional merge) only, nothing in the HTML/contract reads it. **Don't
-fix tonight** — it rides the next normal deploy, and the armed line
-meanwhile is: "125 is the climatology archive that backs the 'vs typical'
-baseline; 53 is tonight's live instruments — the field paints from the
-53."
+P3, and it landed while this card was being written**: sibling lane
+`70914c0` renamed it to `history.stations_climatology` in
+`history.summary()` (one-line wire change; consumers were `main.py:376`
++ `admin_agg.py:56`; `verify_numbers.sh` already reads the new key).
+**Prod `e0aca004` still serves the old `history.stations:125`** — the
+rename reaches the wire on the next deploy, which the freeze rule now
+pushes to after the demo. Armed line meanwhile: "125 is the climatology
+archive that backs the 'vs typical' baseline; 53 is tonight's live
+instruments — the field paints from the 53."
 
 ---
 
@@ -515,7 +519,7 @@ baseline; 53 is tonight's live instruments — the field paints from the
 | latencies | GETs ~0.3–0.5 s; plan fresh-OD `took_ms` ~5.9–6.5 s server (reprice), warm ~50–660 ms; first `/v2/reach` one-time ~+200 ms raster | curl + wire |
 | spend | **~$46/mo** (Fargate Spot + small data) — last credentialed verify Oct-6; T-45 CLI understudy re-checks | docs/demo-script beat 6 |
 | task shape | 1 task × 1 vCPU / 3 GB (API ≈2 GB after OSRM sidecar); RSS ~0.95 GB → ~1 GB headroom; **~8–15 concurrent users** honest posture | `deploy.sh` + `lowram-report.md` |
-| builds | prod **`e0aca004`** == commit `e0aca004` (5 docs/deadcode commits behind HEAD `b7b951e` — every code fix tonight is inside the image) | `/health.build_sha` + `git merge-base` |
+| builds | prod **`e0aca004`** == commit `e0aca004` (behind HEAD — contains every code fix except the `stations_climatology` rename `70914c0`, still `history.stations:125` on the wire) | `/health.build_sha` + `git merge-base` |
 
 ---
 
@@ -535,7 +539,7 @@ baseline; 53 is tonight's live instruments — the field paints from the
 | **NEW** "It falls over under a demo load" | `lowram-report.md`: ~0.95 GB working set vs ~2 GB budget, per-request RSS delta 0, every hot cache bounded; CPU-bound honest posture ~8–15 concurrent — the limiter queues, RAM flat |
 | **NEW** "The app crashes on cold open" | `sigsegv-coldfix-report.md`: root-caused (off-JS-thread jsi destructors → Hermes corruption), sim-only fix `3c24a5e`, gate 34/34 clean; independent verify 22/24 — say "root-caused and sim-gated, hardware untouched"; Android zero-crash oracle |
 | **NEW** "The route paint isn't the field" | `demo-exchange-max.md`: 12/12 segment spans within ±5% of `/aqi` at midpoints (0.96–1.10); contract.ts == wire byte-shape; live drift observed mid-audit (real donations landing) |
-| **NEW** "`/health` contradicts itself — 53 vs 125" | populations, not a dup-key bug: `sources.stations.count` = live instruments vs `history.stations` = climatology archive; rename flagged P3 (`history.py:142`) |
+| **NEW** "`/health` contradicts itself — 53 vs 125" | populations, not a dup-key bug: `sources.stations.count` = live instruments vs `history.stations` = climatology archive; renamed `stations_climatology` at HEAD (`70914c0`), reaches prod on the post-freeze deploy |
 | **NEW** "Numbers don't match their siblings" | rolling-deploy skew is the only true source of this (audit watched build flip mid-pass) → freeze rule: no deploys inside the demo window, `build_sha`==HEAD check at T-45 |
 
 ---
