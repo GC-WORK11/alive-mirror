@@ -106,6 +106,11 @@ class TripAggregates:
         # k>=3 publish contract identical to corridor cells.
         self._areas: dict = {}  # origin area -> {trips, devices:set}
         self._od: dict = {}     # (o_area, d_area) -> {trips, devices:set}
+        # mutation counter — /v2/city's short payload cache keys on it,
+        # so a new donation or a reset can never serve a stale ledger
+        # (the DDB backend has no counter; its readers fall back to the
+        # cache's TTL, disclosed via 'cached_s').
+        self._rev = 0
 
     def _prune_stale(self, ts: float) -> None:
         """Drop entries dead past the publish window — call with LOCK
@@ -166,6 +171,7 @@ class TripAggregates:
                     and summary.get("puc_calibrated")):
                 d["co2_avoided_kg"] += float(summary["co2_avoided_kg"])
                 d["co2_avoided_trips"] += 1
+            self._rev += 1
             mode = str(summary.get("mode") or "unknown")[:24]
             d["modes"][mode] = d["modes"].get(mode, 0) + 1
             dose = float(summary.get("dose_ug") or 0.0)
@@ -386,6 +392,7 @@ class TripAggregates:
 
     def reset(self) -> None:
         with LOCK:
+            self._rev += 1
             self._days.clear()
             self._cells.clear()
             self._areas.clear()

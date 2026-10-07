@@ -1714,6 +1714,14 @@ async def admin_reviews():
     return community.reviews_summary()
 
 
+# explicit lifetimes: the pages ship an etag already, so a revisit
+# revalidates cheap — but a judge's second load inside the TTL skips
+# the round trip entirely. Baked statics (geojson, the hero shot)
+# change only with a bake/deploy, so they can sit in cache an hour.
+_PAGE_CACHE = {"cache-control": "public, max-age=300"}
+_STATIC_CACHE = {"cache-control": "public, max-age=3600"}
+
+
 @app.get("/")
 async def root_page():
     """The pitch door: a judge hitting the NLB root lands on the landing
@@ -1721,7 +1729,8 @@ async def root_page():
     /city for the raw choropleth."""
     from fastapi.responses import FileResponse
     import os
-    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"))
+    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"),
+                        headers=_PAGE_CACHE)
 
 
 @app.get("/landing")
@@ -1729,7 +1738,8 @@ async def landing_page():
     """Explicit alias for the marketing surface (same file as /)."""
     from fastapi.responses import FileResponse
     import os
-    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"))
+    return FileResponse(os.path.join(os.path.dirname(__file__), "landing.html"),
+                        headers=_PAGE_CACHE)
 
 
 @app.get("/admin")
@@ -1760,7 +1770,7 @@ async def ncr_districts_geojson():
     return FileResponse(
         os.path.join(os.path.dirname(__file__), "static",
                      "ncr_districts.geojson"),
-        media_type="application/geo+json")
+        media_type="application/geo+json", headers=_STATIC_CACHE)
 
 
 @app.get("/app-hero.png")
@@ -1772,7 +1782,44 @@ async def app_hero_png():
     from fastapi.responses import FileResponse
     import os
     return FileResponse(
-        os.path.join(os.path.dirname(__file__), "static", "app-hero.png"))
+        os.path.join(os.path.dirname(__file__), "static", "app-hero.png"),
+        headers=_STATIC_CACHE)
+
+
+@app.get("/app-hero-472.webp")
+async def app_hero_472_webp():
+    """2×-density WebP of the landing's hero shot — served bytes, not a
+    mockup. Derivative of app-hero.png, regenerated with it."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-hero-472.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/app-hero-708.webp")
+async def app_hero_708_webp():
+    """3×-density WebP — the landing's picture source on every modern
+    browser; app-hero.png stays the capture + the fallback."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-hero-708.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/app-hero-708.png")
+async def app_hero_708_png():
+    """Right-sized PNG fallback for the pre-WebP browser — still the
+    real capture, just resized to the box it renders in."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-hero-708.png"),
+        headers=_STATIC_CACHE)
 
 
 @app.get("/delhi_subdistricts.geojson")
@@ -1789,7 +1836,8 @@ async def delhi_subdistricts_geojson():
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "sub-district boundaries not baked"},
                             status_code=404)
-    return FileResponse(path, media_type="application/geo+json")
+    return FileResponse(path, media_type="application/geo+json",
+                        headers=_STATIC_CACHE)
 
 
 @app.get("/reverse")

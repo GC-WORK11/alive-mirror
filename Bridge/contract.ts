@@ -733,6 +733,11 @@ export interface V2CityCorridor {
 export interface V2CityResponse {
   ts: number;
   generated_at?: string;
+  /** Payload-cache disclosure — seconds since this body was built
+      (same contract as V2DistrictsResponse.cached_s). The endpoint
+      serves a 60 s payload cache keyed on its inputs; 0.0 = built
+      for this request. */
+  cached_s: number;
   /** "Why tonight" — the one-line causal read of the city's air plus
       the drivers that cleared the bar (fires only when the wind
       carries them in; stagnation/trend from the field's own record).

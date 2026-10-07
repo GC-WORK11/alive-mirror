@@ -422,9 +422,25 @@ async def _next_hours() -> Optional[list]:
 
 @router.get("/city")
 async def city():
+    global _CITY_CACHE
     from .plan import _field_refresh_bounded
     await _field_refresh_bounded()
     F = deps.field()
+    ckey = _city_cache_key(F)
+    if (_CITY_CACHE and _CITY_CACHE[1] == ckey
+            and time.time() - _CITY_CACHE[0] < _CITY_TTL_S):
+        built, _k, payload = _CITY_CACHE
+        now = time.time()
+        # the UTC-day ledger keys re-derive per serve — a payload built
+        # at 23:59 must never paint yesterday under 'today' for the TTL
+        tk = time.strftime("%Y-%m-%d", time.gmtime(now))
+        trips = {**(payload.get("trips") or {}), "today_key": tk,
+                 "today": ((payload.get("trips") or {}).get("days")
+                           or {}).get(tk)}
+        return {**payload, "ts": now, "trips": trips,
+                "generated_at": datetime.fromtimestamp(
+                    now, tz=timezone.utc).isoformat(timespec="seconds"),
+                "cached_s": round(now - built, 1)}
     try:
         fstat = F.status()
     except Exception:
@@ -509,7 +525,8 @@ async def city():
     grap = _d.grap_block(stats.get("mean"), "cpcb aqi of pm25_stats.mean")
     if grap is not None:
         out["grap"] = grap
-    return out
+    _CITY_CACHE = (time.time(), ckey, out)
+    return {**out, "cached_s": 0.0}
 
 
 # ---------------------------------------------------------------- districts
@@ -521,6 +538,33 @@ async def city():
 # covered cells per district, centroid read under <3 (confidence:
 # 'sparse'), never zero-filled. Category/colour are the official CPCB
 # six-band scale; aqi_us is the US-EPA companion index.
+
+
+_CITY_TTL_S = 60.0
+_CITY_CACHE = None   # (built_ts, key, payload) — the 'Delhi today'
+                     # payload only moves when its inputs do: the field
+                     # (same key as /v2/districts), the live station
+                     # layer, the donation store's mutation counter,
+                     # the forecast build next_hours reads. A 60 s TTL
+                     # caps residual drift, disclosed via 'cached_s'.
+                     # Rebuilding per call re-ran lattice + why +
+                     # corridors + forecast for byte-identical output
+                     # (~0.5 s of CPU against a 52-station field).
+
+
+def _city_cache_key(F):
+    """_districts_field_key plus the other inputs a payload can move
+    with: the live station layer, the donation store's _rev (in-memory
+    backend; DDB reports 0 and rides the TTL), the forecast build."""
+    try:
+        from forecast import FORECAST
+        f_at = getattr(FORECAST, "_fetched_at", None)
+    except Exception:
+        f_at = None
+    return (_districts_field_key(F),
+            getattr(F, "_station_count", None),
+            len(getattr(F, "_stations_live", None) or []),
+            getattr(TRIPS, "_rev", 0), f_at)
 
 
 _DIST_TTL_S = 120.0

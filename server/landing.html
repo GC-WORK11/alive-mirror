@@ -7,6 +7,11 @@
 <meta property="og:title" content="ALive·108 — a personal dosimeter for Delhi air">
 <meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and only k≥3 aggregates ever leave your phone.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
+<!-- the hero shot is the page's heaviest byte (92% lighter as webp) —
+     start it during the html download, not when the <img> tag arrives -->
+<link rel="preload" as="image" href="/app-hero-708.webp" type="image/webp"
+      imagesrcset="/app-hero-472.webp 472w, /app-hero-708.webp 708w"
+      imagesizes="236px" fetchpriority="high">
 <style>
 :root{
   /* shared register — docs/lanes/register-card.md (web grammar) */
@@ -847,9 +852,14 @@ h1.lede em{font-style:normal;color:var(--ink2)}
     </div>
   </div>
   <figure class="shot" data-rv>
-    <img src="/app-hero.png" width="552" height="1200"
-      alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
-    <figcaption>the app on android, live — real route, real air map</figcaption>
+    <picture>
+      <source type="image/webp"
+        srcset="/app-hero-472.webp 472w, /app-hero-708.webp 708w"
+        sizes="236px">
+      <img src="/app-hero-708.png" width="708" height="1540" decoding="async"
+        alt="the app on android: today's inhaled dose ≈32 µg, the least-bad window strip, and where the dose accumulated">
+    </picture>
+    <figcaption>the app on android, live — the real dose ledger</figcaption>
   </figure>
 </div></div></section>
 
@@ -907,9 +917,19 @@ h1.lede em{font-style:normal;color:var(--ink2)}
 const $=id=>document.getElementById(id);
 /* every fetch carries a deadline — a stalled endpoint must land in the
    caller's honest-degrade path, not hang the surface forever */
-const api=async(p,o,ms=15000)=>{const r=await fetch(p,
-  {...(o||{}),signal:AbortSignal.timeout(ms)});
-  if(!r.ok)throw new Error(p+' '+r.status);return r.json()};
+const _inflight={};
+const api=(p,o,ms=15000)=>{
+  /* identical in-flight GETs share one request — the boot strip and the
+     hero numeral both want /v2/city at parse time; a POST always fires. */
+  const get=!o||!o.method||String(o.method).toUpperCase()==='GET';
+  const key=get?p:null;
+  if(key&&_inflight[key])return _inflight[key];
+  const f=fetch(p,{...(o||{}),signal:AbortSignal.timeout(ms)})
+    .then(r=>{if(!r.ok)throw new Error(p+' '+r.status);return r.json()})
+    .finally(()=>{if(_inflight[key]===f)delete _inflight[key]});
+  if(key)_inflight[key]=f;
+  return f;
+};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const F1=n=>n==null?'—':(+n).toFixed(1);
 const fmt=n=>n==null?'—':Math.round(n).toLocaleString('en-IN');
@@ -2186,7 +2206,7 @@ function bootStrip(){
     b.classList.add('bye');setTimeout(()=>b.remove(),400)};
   ['click','wheel','keydown','touchstart'].forEach(k=>
     addEventListener(k,bye,{capture:true,once:true}));
-  api('/v2/city',{},1800).then(d=>{
+  api('/v2/city').then(d=>{
     const m=d&&d.pm25_stats&&d.pm25_stats.mean;
     if(typeof m==='number')v=m;settled=true;tryResolve();
   }).catch(()=>{settled=true;tryResolve()});
@@ -2195,7 +2215,15 @@ function bootStrip(){
     b.classList.add('resolved');
     if(v!=null){
       const i=bandIdx(v,SPECS.pm2_5.breaks);
-      numV.textContent=v>=100?`${Math.round(v)}`:v.toFixed(1);
+      /* the flip resolves into the real figure — a 380 ms sweep to the
+         live value, the same count-in the hero numeral runs */
+      if(rm||v===0){numV.textContent=v>=100?`${Math.round(v)}`:v.toFixed(1)}
+      else{const t0=performance.now();
+        const sweep=n=>{if(done)return;
+          const p=Math.min(1,(n-t0)/380),e=1-Math.pow(1-p,3),x=v*e;
+          numV.textContent=v>=100?`${Math.round(x)}`:x.toFixed(1);
+          if(p<1)requestAnimationFrame(sweep)};
+        requestAnimationFrame(sweep)}
       unit.textContent=' µg/m³';
       setTimeout(()=>{if(done)return;
         b.classList.add('banded');
@@ -2204,7 +2232,7 @@ function bootStrip(){
         word.textContent='pm2.5 · '+BAND_NAME[i];
         line.textContent='live · the ncr-wide average';
         foot.textContent='the app counts what you breathe';
-      },rm?0:500);
+      },rm?0:380);
     }else{
       word.textContent='no live air reading right now';
       b.classList.add('banded');
@@ -2213,11 +2241,11 @@ function bootStrip(){
   };
   const tryResolve=()=>{
     if(!resolved&&settled&&(pastMin||rm)){resolved=true;resolve()}};
-  setTimeout(()=>{pastMin=true;tryResolve()},750);
+  setTimeout(()=>{pastMin=true;tryResolve()},550);
   /* the honesty deadline — an unanswered field commits the type-only
      frame, not a longer wait */
   setTimeout(()=>{if(!resolved){resolved=true;settled=true;resolve()}},1450);
-  setTimeout(bye,rm?1900:2350);
+  setTimeout(bye,rm?1500:1900);
 }
 /* quiet scroll entrance — elements marked data-rv rise once as they
    arrive. the marker stays inert without JS (content is just visible);
@@ -2261,7 +2289,13 @@ function bootStrip(){
 })();
 
 bootStrip();
-renderPills();paint();status();loadDistricts();tlInit();heroCity();dayStrip();skillLine();whyTonight();
+renderPills();paint();status();heroCity();
+/* below-the-fold feeds wait for the browser's first idle breath — the
+   first wave keeps its connections for the number, the map and its
+   boundaries instead of eleven requests competing for six slots */
+const idle=(window.requestIdleCallback||(f=>setTimeout(f,400)));
+idle(()=>{loadDistricts();tlInit()},{timeout:1500});
+idle(()=>{dayStrip();skillLine();whyTonight()},{timeout:2000});
 let rsz=null;window.addEventListener('resize',()=>{
   clearTimeout(rsz);rsz=setTimeout(()=>{
     const cv=$('raster'),w=cv.parentElement.clientWidth||896,
