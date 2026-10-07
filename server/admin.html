@@ -768,6 +768,16 @@ let LAST_OK=null;   /* last successful refresh — the honest 'as of' time */
 const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
   hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
 
+/* wire mode names → what a person calls them (file scope — donations
+   panel, share feed and the usage tab all translate modes) */
+const MODE_N={'car':'car','auto':'auto rickshaw','walk':'walking',
+  'cycle':'cycling','metro':'metro','bus':'bus','2w':'two-wheeler',
+  'bike':'two-wheeler','unknown':'mode unknown','taxi':'taxi',
+  'driving_car':'car','driving_car_ac':'car · ac',
+  'driving_car_open':'car · windows down',
+  'driving_two_wheeler':'two-wheeler','auto_rickshaw':'auto rickshaw',
+  'walking':'walking','cycling':'cycling'};
+
 async function tick(){
   /* each feed settles on its own — one failing endpoint must not blank
      the rest of the board; a section renders only when its payload lands.
@@ -1292,14 +1302,6 @@ async function tick(){
   $('sources').innerHTML=srows.join('')||`<tr><td colspan="6">${emptyMsg('source probe returned nothing')}</td></tr>`;
 
   /* --- trip aggregates: donations + mode share + k≥3 corridors --- */
-  /* wire mode names → what a person calls them */
-  const MODE_N={'car':'car','auto':'auto rickshaw','walk':'walking',
-    'cycle':'cycling','metro':'metro','bus':'bus','2w':'two-wheeler',
-    'bike':'two-wheeler','unknown':'mode unknown','taxi':'taxi',
-    'driving_car':'car','driving_car_ac':'car · ac',
-    'driving_car_open':'car · windows down',
-    'driving_two_wheeler':'two-wheeler','auto_rickshaw':'auto rickshaw',
-    'walking':'walking','cycling':'cycling'};
   const days=dn.days||{};
   const dayKeys=Object.keys(days).sort();
   const share=dn.mode_share||[];
