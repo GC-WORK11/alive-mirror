@@ -1,0 +1,315 @@
+(lldb) process attach --pid 20995
+warning: (arm64) /Users/devin/Library/Developer/CoreSimulator/Devices/EDD9B083-63F1-44E6-9A7B-0A6964CC2561/data/Containers/Bundle/Application/7DE52700-04A9-481E-89C6-80FA56B219D2/ALive108.app/ALive108 empty dSYM file detected, dSYM was created with an executable with no debug info.
+Process 20995 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP
+    frame #0: 0x0000000192a7429c libAccessibility.dylib`AXSupportLogCommon
+libAccessibility.dylib`AXSupportLogCommon:
+->  0x192a7429c <+0>:  stp    x20, x19, [sp, #-0x20]!
+    0x192a742a0 <+4>:  stp    x29, x30, [sp, #0x10]
+    0x192a742a4 <+8>:  add    x29, sp, #0x10
+    0x192a742a8 <+12>: adrp   x8, 398590
+Target 0: (ALive108) stopped.
+Executable binary set to "/Users/devin/Library/Developer/CoreSimulator/Devices/EDD9B083-63F1-44E6-9A7B-0A6964CC2561/data/Containers/Bundle/Application/7DE52700-04A9-481E-89C6-80FA56B219D2/ALive108.app/ALive108".
+Architecture set to: arm64-apple-ios-simulator.
+(lldb) process handle SIGSEGV -s true -p true -n false
+NAME         PASS   STOP   NOTIFY
+===========  =====  =====  ======
+SIGSEGV      true   true   false
+(lldb) process continue
+Process 20995 resuming
+Process 20995 stopped
+* thread #11, name = 'com.facebook.react.runtime.JavaScript', stop reason = EXC_BAD_ACCESS (code=1, address=0x15540f508)
+    frame #0: 0x0000000105687bb4 hermesvm`hermes::vm::HadesGC::OldGen::search(unsigned int) + 692
+hermesvm`hermes::vm::HadesGC::OldGen::search:
+->  0x105687bb4 <+692>: ldr    x10, [x8, #0x4000]
+    0x105687bb8 <+696>: orr    x9, x10, x9
+    0x105687bbc <+700>: str    x9, [x8, #0x4000]
+    0x105687bc0 <+704>: mov    x0, x19
+Target 0: (ALive108) stopped.
+(lldb) bt all
+  thread #1, queue = 'com.apple.main-thread'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x00000001933599c0 GraphicsServices`GSEventRunModal + 116
+    frame #8: 0x00000001864a54cc UIKitCore`-[UIApplication _run] + 776
+    frame #9: 0x0000000186b9f910 UIKitCore`UIApplicationMain + 120
+    frame #10: 0x000000018564a820 UIKitCore`UIApplicationMain(_:_:_:_:) + 100
+    frame #13: 0x0000000108960ce8 ALive108.debug.dylib`main at <compiler-generated>:0
+    frame #14: 0x0000000104a330e4 dyld_sim`start_sim + 20
+    frame #15: 0x0000000104c604e4 dyld`start + 6992
+  thread #2
+    frame #0: 0x0000000237a4b698 libsystem_kernel.dylib`__workq_kernreturn + 8
+  thread #3
+    frame #0: 0x0000000237a4b698 libsystem_kernel.dylib`__workq_kernreturn + 8
+  thread #4
+    frame #0: 0x0000000237a4b698 libsystem_kernel.dylib`__workq_kernreturn + 8
+  thread #5
+    frame #0: 0x0000000237a4b698 libsystem_kernel.dylib`__workq_kernreturn + 8
+  thread #6, name = 'com.apple.uikit.eventfetch-thread'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018112fa4c Foundation`-[NSRunLoop(NSRunLoop) runMode:beforeDate:] + 208
+    frame #8: 0x000000018112fc68 Foundation`-[NSRunLoop(NSRunLoop) runUntilDate:] + 60
+    frame #9: 0x00000001861d7ad4 UIKitCore`-[UIEventFetcher threadMain] + 404
+    frame #10: 0x0000000181154edc Foundation`__NSThread__start__ + 716
+    frame #11: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #7
+    frame #0: 0x0000000237a4b698 libsystem_kernel.dylib`__workq_kernreturn + 8
+  thread #8
+    frame #0: 0x0000000237a4b698 libsystem_kernel.dylib`__workq_kernreturn + 8
+  thread #9
+    frame #0: 0x0000000000000000 
+  thread #10
+    frame #0: 0x0000000000000000 
+* thread #11, name = 'com.facebook.react.runtime.JavaScript', stop reason = EXC_BAD_ACCESS (code=1, address=0x15540f508)
+  * frame #0: 0x0000000105687bb4 hermesvm`hermes::vm::HadesGC::OldGen::search(unsigned int) + 692
+    frame #1: 0x0000000105687660 hermesvm`hermes::vm::HadesGC::OldGen::allocSlow(unsigned int) + 48
+    frame #2: 0x00000001055f0438 hermesvm`hermes::vm::CallResult<hermes::vm::PseudoHandle<hermes::vm::StringPrimitive>, (hermes::vm::detail::CallResultSpecialize)6> hermes::vm::IdentifierTable::allocateDynamicString<char, true>(hermes::vm::Runtime&, llvh::ArrayRef<char>, hermes::vm::Handle<hermes::vm::StringPrimitive>) + 208
+    frame #3: 0x00000001055ef980 hermesvm`hermes::vm::CallResult<hermes::vm::SymbolID, (hermes::vm::detail::CallResultSpecialize)0> hermes::vm::IdentifierTable::getOrCreateIdentifier<char>(hermes::vm::Runtime&, llvh::ArrayRef<char>, hermes::vm::Handle<hermes::vm::StringPrimitive>, unsigned int) + 204
+    frame #4: 0x00000001056c7b48 hermesvm`hermes::vm::IdentifierTable::getSymbolHandle(hermes::vm::Runtime&, llvh::ArrayRef<char>, unsigned int) + 32
+    frame #5: 0x00000001056286ac hermesvm`hermes::vm::RuntimeModule::createSymbolFromStringIDMayAllocate(unsigned int, hermes::StringTableEntry const&, hermes::OptValue<unsigned int>) + 224
+    frame #6: 0x00000001056293b0 hermesvm`hermes::vm::RuntimeModule::getStringPrimFromStringIDMayAllocate(unsigned int) + 132
+    frame #7: 0x00000001055f322c hermesvm`hermes::vm::CallResult<hermes::vm::HermesValue, (hermes::vm::detail::CallResultSpecialize)2> hermes::vm::Interpreter::interpretFunction<false, false>(hermes::vm::Runtime&, hermes::vm::InterpreterState&) + 6104
+    frame #8: 0x00000001056c81a4 hermesvm`hermes::vm::Runtime::interpretFunctionImpl(hermes::vm::CodeBlock*) + 132
+    frame #9: 0x00000001055da8c0 hermesvm`hermes::vm::JSFunction::_callImpl(hermes::vm::Handle<hermes::vm::Callable>, hermes::vm::Runtime&) + 32
+    frame #10: 0x00000001055d9e40 hermesvm`hermes::vm::BoundFunction::_boundCall(hermes::vm::BoundFunction*, hermes::vm::Runtime&) + 532
+    frame #11: 0x000000010546c5b4 hermesvm`facebook::hermes::(anonymous namespace)::HermesRuntimeImpl::call(facebook::jsi::Function const&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long) + 760
+    frame #12: 0x0000000108a96ee4 ALive108.debug.dylib`facebook::jsi::Function::call(this=0x000000016ba78c00, runtime=0x0000000106460900, args=0x0000000000000000, count=0) const at jsi-inl.h:325:18
+    frame #13: 0x0000000108a96e34 ALive108.debug.dylib`facebook::jsi::Function::call(this=0x000000016ba78c00, runtime=0x0000000106460900, args=size=0) const at jsi-inl.h:331:10
+    frame #14: 0x0000000109240484 ALive108.debug.dylib`facebook::jsi::Value facebook::jsi::Function::call<>(this=0x000000016ba78c00, runtime=0x0000000106460900) const at jsi-inl.h:339:10
+    frame #15: 0x0000000109743028 ALive108.debug.dylib`facebook::react::jsinspector_modern::(anonymous namespace)::consoleTaskRun(runtime=0x0000000106460900, args=0x000000016ba78ef0, count=1, taskContext=nullptr) at RuntimeTargetConsole.cpp:556:13
+    frame #16: 0x0000000109742e6c ALive108.debug.dylib`facebook::react::jsinspector_modern::(anonymous namespace)::consoleCreateTask(facebook::jsi::Runtime&, facebook::jsi::Value const*, unsigned long, facebook::react::jsinspector_modern::RuntimeTargetDelegate&, bool)::$_0::operator()(this=0x00000001336f8c98, runtime=0x0000000106460900, (null)=0x000000016ba78e70, args=0x000000016ba78ef0, count=1) const at RuntimeTargetConsole.cpp:597:20
+    frame #20: 0x0000000109742b30 ALive108.debug.dylib`std::__1::__function::__func<facebook::react::jsinspector_modern::(anonymous namespace)::consoleCreateTask(facebook::jsi::Runtime&, facebook::jsi::Value const*, unsigned long, facebook::react::jsinspector_modern::RuntimeTargetDelegate&, bool)::$_0, facebook::jsi::Value (facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long)>::operator()(this=0x00000001336f8c90, __arg=0x0000000106460900, __arg=0x000000016ba78e70, __arg=0x000000016ba78f78, __arg=0x000000016ba78f70) at function.h:174:12
+    frame #21: 0x0000000105476a38 hermesvm`facebook::hermes::(anonymous namespace)::HermesRuntimeImpl::HFContext::func(void*, hermes::vm::Runtime&) + 292
+    frame #22: 0x00000001055f1978 hermesvm`hermes::vm::Interpreter::handleCallSlowPath(hermes::vm::Runtime&, hermes::vm::PinnedHermesValue*) + 164
+    frame #23: 0x00000001055f3b08 hermesvm`hermes::vm::CallResult<hermes::vm::HermesValue, (hermes::vm::detail::CallResultSpecialize)2> hermes::vm::Interpreter::interpretFunction<false, false>(hermes::vm::Runtime&, hermes::vm::InterpreterState&) + 8372
+    frame #24: 0x00000001056c81a4 hermesvm`hermes::vm::Runtime::interpretFunctionImpl(hermes::vm::CodeBlock*) + 132
+    frame #25: 0x00000001055da8c0 hermesvm`hermes::vm::JSFunction::_callImpl(hermes::vm::Handle<hermes::vm::Callable>, hermes::vm::Runtime&) + 32
+    frame #26: 0x00000001055d9e40 hermesvm`hermes::vm::BoundFunction::_boundCall(hermes::vm::BoundFunction*, hermes::vm::Runtime&) + 532
+    frame #27: 0x000000010546c5b4 hermesvm`facebook::hermes::(anonymous namespace)::HermesRuntimeImpl::call(facebook::jsi::Function const&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long) + 760
+    frame #28: 0x0000000108a96ee4 ALive108.debug.dylib`facebook::jsi::Function::call(this=0x000000016ba795a0, runtime=0x0000000106460900, args=0x000000016ba79590, count=1) const at jsi-inl.h:325:18
+    frame #29: 0x0000000108a96e34 ALive108.debug.dylib`facebook::jsi::Function::call(this=0x000000016ba795a0, runtime=0x0000000106460900, args=size=1) const at jsi-inl.h:331:10
+    frame #30: 0x00000001097d3778 ALive108.debug.dylib`facebook::react::Task::execute(this=0x0000000133e91518, runtime=0x0000000106460900, didUserCallbackTimeout=false) at Task.cpp:57:19
+    frame #31: 0x00000001097c5b3c ALive108.debug.dylib`facebook::react::RuntimeScheduler_Modern::executeTask(this=0x00000001066cae00, runtime=0x0000000106460900, task=0x0000000133e91518, didUserCallbackTimeout=false) const at RuntimeScheduler_Modern.cpp:375:24
+    frame #32: 0x00000001097c66b0 ALive108.debug.dylib`facebook::react::RuntimeScheduler_Modern::runEventLoopTick(this=0x00000001066cae00, runtime=0x0000000106460900, task=0x0000000133e91518) at RuntimeScheduler_Modern.cpp:312:3
+    frame #33: 0x00000001097c63a0 ALive108.debug.dylib`facebook::react::RuntimeScheduler_Modern::runEventLoop(this=0x00000001066cae00, runtime=0x0000000106460900) at RuntimeScheduler_Modern.cpp:266:5
+    frame #34: 0x00000001097cbe40 ALive108.debug.dylib`facebook::react::RuntimeScheduler_Modern::scheduleEventLoop()::$_0::operator()(this=0x0000000133dd50c0, runtime=0x0000000106460900) const at RuntimeScheduler_Modern.cpp:251:52
+    frame #40: 0x00000001091d9fbc ALive108.debug.dylib`std::__1::function<void (facebook::jsi::Runtime&)>::operator()(this= Lambda in File RuntimeScheduler_Modern.cpp at Line 251, __arg=0x0000000106460900) const at function.h:772:10
+    frame #41: 0x0000000109616b34 ALive108.debug.dylib`_ZZZN8facebook5react13ReactInstanceC1ENSt3__110unique_ptrINS0_9JSRuntimeENS2_14default_deleteIS4_EEEENS2_10shared_ptrINS0_18MessageQueueThreadEEENS8_INS0_12TimerManagerEEENS2_8functionIFvRNS_3jsi7RuntimeERKNS0_14JsErrorHandler14ProcessedErrorEEEEPNS0_18jsinspector_modern10HostTargetEENK3$_0clINSD_IFvSG_EEEEEDaT_ENKUlvE_clEv(this=0x0000000133dd5088) at ReactInstance.cpp:93:15
+    frame #42: 0x0000000109616a84 ALive108.debug.dylib`_ZNSt3__18__invokeB9dee210106IJRZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS2_9JSRuntimeENS_14default_deleteIS5_EEEENS_10shared_ptrINS2_18MessageQueueThreadEEENS9_INS2_12TimerManagerEEENS_8functionIFvRNS1_3jsi7RuntimeERKNS2_14JsErrorHandler14ProcessedErrorEEEEPNS2_18jsinspector_modern10HostTargetEENK3$_0clINSE_IFvSH_EEEEEDaT_EUlvE_EEENS_20__invoke_result_implIvJDpT_EE4typeEDpOS10_(__args=0x0000000133dd5088) at invoke.h:87:27
+    frame #43: 0x0000000109616a60 ALive108.debug.dylib`_ZNSt3__128__invoke_void_return_wrapperIvLb1EE6__callB9dee210106IJRZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS4_9JSRuntimeENS_14default_deleteIS7_EEEENS_10shared_ptrINS4_18MessageQueueThreadEEENSB_INS4_12TimerManagerEEENS_8functionIFvRNS3_3jsi7RuntimeERKNS4_14JsErrorHandler14ProcessedErrorEEEEPNS4_18jsinspector_modern10HostTargetEENK3$_0clINSG_IFvSJ_EEEEEDaT_EUlvE_EEEvDpOT_(__args=0x0000000133dd5088) at invoke.h:342:5
+    frame #44: 0x0000000109616a3c ALive108.debug.dylib`_ZNSt3__110__invoke_rB9dee210106IvJRZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS2_9JSRuntimeENS_14default_deleteIS5_EEEENS_10shared_ptrINS2_18MessageQueueThreadEEENS9_INS2_12TimerManagerEEENS_8functionIFvRNS1_3jsi7RuntimeERKNS2_14JsErrorHandler14ProcessedErrorEEEEPNS2_18jsinspector_modern10HostTargetEENK3$_0clINSE_IFvSH_EEEEEDaT_EUlvE_EEESW_DpOT0_(__args=0x0000000133dd5088) at invoke.h:348:10
+    frame #45: 0x0000000109616760 ALive108.debug.dylib`_ZNSt3__110__function6__funcIZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS3_9JSRuntimeENS_14default_deleteIS6_EEEENS_10shared_ptrINS3_18MessageQueueThreadEEENSA_INS3_12TimerManagerEEENS_8functionIFvRNS2_3jsi7RuntimeERKNS3_14JsErrorHandler14ProcessedErrorEEEEPNS3_18jsinspector_modern10HostTargetEENK3$_0clINSF_IFvSI_EEEEEDaT_EUlvE_FvvEEclEv(this=0x0000000133dd5080) at function.h:174:12
+    frame #47: 0x0000000108f06280 ALive108.debug.dylib`std::__1::function<void ()>::operator()(this=0x00000001334f8658) const at function.h:772:10
+    frame #48: 0x0000000108f0ab40 ALive108.debug.dylib`facebook::react::tryAndReturnError(func=0x00000001334f8658) at RCTCxxUtils.mm:67:7
+    frame #49: 0x0000000108f31330 ALive108.debug.dylib`facebook::react::RCTMessageThread::tryFunc(this=0x000000010674a368, func=0x00000001334f8658) at RCTMessageThread.mm:68:20
+    frame #50: 0x0000000108f335b0 ALive108.debug.dylib`facebook::react::RCTMessageThread::runOnQueue(std::__1::function<void ()>&&)::$_0::operator()(this=0x000000013327ea98) const at RCTMessageThread.mm:81:19
+    frame #56: 0x0000000108f06280 ALive108.debug.dylib`std::__1::function<void ()>::operator()(this= Lambda in File RCTMessageThread.mm at Line 79) const at function.h:772:10
+    frame #57: 0x0000000108f310d0 ALive108.debug.dylib`invocation function for block in facebook::react::RCTMessageThread::runAsync(.block_descriptor=0x0000000133059e40) at RCTMessageThread.mm:44:7
+    frame #58: 0x0000000180422d28 CoreFoundation`__CFRUNLOOP_IS_CALLING_OUT_TO_A_BLOCK__ + 20
+    frame #59: 0x00000001804224b4 CoreFoundation`__CFRunLoopDoBlocks + 340
+    frame #60: 0x0000000180421df8 CoreFoundation`__CFRunLoopRun + 2280
+    frame #61: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #62: 0x0000000109609724 ALive108.debug.dylib`+[RCTJSThreadManager runRunLoop](self=RCTJSThreadManager, _cmd="runRunLoop") at RCTJSThreadManager.mm:102:12
+    frame #63: 0x0000000181154edc Foundation`__NSThread__start__ + 716
+    frame #64: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #12, name = 'hades'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x00000001056895e4 hermesvm`hermes::vm::HadesGC::Executor::worker() + 108
+    frame #4: 0x000000010568954c hermesvm`void* std::__1::__thread_proxy[abi:nn190102]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, hermes::vm::HadesGC::Executor::Executor()::'lambda'()>>(void*) + 44
+    frame #5: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #13, name = 'com.apple.CFStream.LegacyThread'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x00000001804403a4 CoreFoundation`_legacyStreamRunLoop_workThread + 260
+    frame #8: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #14, name = 'com.facebook.SocketRocket.NetworkThread'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018112fa4c Foundation`-[NSRunLoop(NSRunLoop) runMode:beforeDate:] + 208
+    frame #8: 0x0000000109889f98 ALive108.debug.dylib`-[SRRunLoopThread main](self=0x000000010ed29c70, _cmd="main") at SRRunLoopThread.m:71:16
+    frame #9: 0x0000000181154edc Foundation`__NSThread__start__ + 716
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #15, name = 'com.apple.NSURLConnectionLoader'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x0000000184fb8020 CFNetwork`+[__CFN_CoreSchedulingSetRunnable _run:] + 368
+    frame #8: 0x0000000181154edc Foundation`__NSThread__start__ + 716
+    frame #9: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #16, name = 'com.apple.CFSocket.private'
+    frame #0: 0x0000000237a53fb4 libsystem_kernel.dylib`__select + 8
+    frame #1: 0x0000000180430b8c CoreFoundation`__CFSocketManager + 680
+    frame #2: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #17, name = 'org.maplibre.mbgl.AssetFileSource'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018041c9e4 CoreFoundation`CFRunLoopRun + 60
+    frame #8: 0x0000000106a5fac8 MapLibre`___lldb_unnamed_symbol_dfa04 + 196
+    frame #9: 0x0000000106a5f904 MapLibre`___lldb_unnamed_symbol_df8cc + 56
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #18, name = 'org.maplibre.mbgl.OnlineFileSource'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018041c9e4 CoreFoundation`CFRunLoopRun + 60
+    frame #8: 0x0000000106a97254 MapLibre`___lldb_unnamed_symbol_1171c0 + 148
+    frame #9: 0x0000000106a970c0 MapLibre`___lldb_unnamed_symbol_117088 + 56
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #19, name = 'org.maplibre.mbgl.DatabaseFileSource'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018041c9e4 CoreFoundation`CFRunLoopRun + 60
+    frame #8: 0x0000000106a662b0 MapLibre`___lldb_unnamed_symbol_e61dc + 212
+    frame #9: 0x0000000106a66088 MapLibre`___lldb_unnamed_symbol_e6054 + 52
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #20, name = 'org.maplibre.mbgl.LocalFileSource'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018041c9e4 CoreFoundation`CFRunLoopRun + 60
+    frame #8: 0x0000000106a6dc5c MapLibre`___lldb_unnamed_symbol_edbc4 + 152
+    frame #9: 0x0000000106a6dac4 MapLibre`___lldb_unnamed_symbol_eda8c + 56
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #21, name = 'org.maplibre.mbgl.MBTilesFileSource'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018041c9e4 CoreFoundation`CFRunLoopRun + 60
+    frame #8: 0x0000000106a7dd38 MapLibre`___lldb_unnamed_symbol_fdc74 + 196
+    frame #9: 0x0000000106a7db74 MapLibre`___lldb_unnamed_symbol_fdb3c + 56
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #22, name = 'org.maplibre.mbgl.PMTilesFileSource'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018041c9e4 CoreFoundation`CFRunLoopRun + 60
+    frame #8: 0x0000000106aa5768 MapLibre`___lldb_unnamed_symbol_1256a0 + 200
+    frame #9: 0x0000000106aa55a0 MapLibre`___lldb_unnamed_symbol_125568 + 56
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #23, name = 'org.maplibre.mbgl.ResourceLoaderThread'
+    frame #0: 0x0000000237a49b70 libsystem_kernel.dylib`mach_msg2_trap + 8
+    frame #1: 0x0000000237a5ae84 libsystem_kernel.dylib`mach_msg2_internal + 72
+    frame #2: 0x0000000237a51c44 libsystem_kernel.dylib`mach_msg_overwrite + 484
+    frame #3: 0x0000000237a49ef0 libsystem_kernel.dylib`mach_msg + 20
+    frame #4: 0x00000001804227c0 CoreFoundation`__CFRunLoopServiceMachPort + 156
+    frame #5: 0x0000000180421978 CoreFoundation`__CFRunLoopRun + 1128
+    frame #6: 0x000000018041c904 CoreFoundation`_CFRunLoopRunSpecificWithOptions + 496
+    frame #7: 0x000000018041c9e4 CoreFoundation`CFRunLoopRun + 60
+    frame #8: 0x0000000106a73a64 MapLibre`___lldb_unnamed_symbol_f3998 + 204
+    frame #9: 0x0000000106a73854 MapLibre`___lldb_unnamed_symbol_f381c + 56
+    frame #10: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #24, name = 'org.maplibre.mbgl.Worker 1'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #25, name = 'org.maplibre.mbgl.Worker 2'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #26, name = 'org.maplibre.mbgl.Worker 3'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #27, name = 'org.maplibre.mbgl.Worker 4'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #28, name = 'org.maplibre.mbgl.Worker 1'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #29, name = 'org.maplibre.mbgl.Worker 1'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #30, name = 'org.maplibre.mbgl.Worker 1'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #31, name = 'org.maplibre.mbgl.Worker 1'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #32, name = 'org.maplibre.mbgl.Worker 1'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+  thread #33, name = 'org.maplibre.mbgl.Worker 1'
+    frame #0: 0x0000000237a4d02c libsystem_kernel.dylib`__psynch_cvwait + 8
+    frame #1: 0x0000000237aafb00 libsystem_pthread.dylib`_pthread_cond_wait + 972
+    frame #2: 0x0000000180300604 libc++.1.dylib`std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+    frame #3: 0x0000000106d65bd8 MapLibre`___lldb_unnamed_symbol_3e5a68 + 368
+    frame #4: 0x0000000237aaf63c libsystem_pthread.dylib`_pthread_start + 104
+(lldb) detach
+Process 20995 detached

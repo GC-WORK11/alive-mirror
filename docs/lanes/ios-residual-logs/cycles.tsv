@@ -1,0 +1,127 @@
+01:47:25.390 CALIBRATION done — sheet opened+closed on warm pid 16995
+01:47:27.779 LAUNCH pid=17162
+01:47:40.541 C01 tap-now pid=17162
+01:49:33.245 C01 KILL pid=17162 segv@01:47:45.86 age~12s screen-black-pre-render
+01:49:35.383 LAUNCH pid=17382
+01:49:49.078 C02 tap-now pid=17382
+01:51:06.353 C02 ALIVE pid=17382 warm-mount ok (cold taps eaten by Fitness dialog+settle)
+01:51:08.088 LAUNCH pid=17534
+01:51:23.848 C03 lldb-attached tap-now pid=17534
+01:51:45.364 C03 ALIVE lldb-attached pid=17534 mount@~12s no-crash
+01:51:47.518 LAUNCH pid=17634
+01:51:59.291 C04 lldb tap-now pid=17634
+01:52:17.364 C04 INVALID pid=17634 — Fitness app came to front (SpringBoard race)
+01:56:24.3N C05 LAUNCH pid=18134
+01:56:43.3N C05 ALIVE pid=18134 rendered=1 cycle-s=19
+01:57:19.3N C06 LAUNCH pid=18289
+01:57:48.3N C06 ALIVE pid=18289 rendered=1 cycle-s=29
+01:57:50.3N C07 LAUNCH pid=18438
+01:58:09.3N C07 ALIVE pid=18438 rendered=1 cycle-s=19
+01:58:11.3N C08 LAUNCH pid=18562
+01:58:29.3N C08 ALIVE pid=18562 rendered=1 cycle-s=18
+01:58:31.3N C09 LAUNCH pid=18687
+01:58:42.3N C09 KILL pid=18687 at-sheet-open 2026-10-07 01:58:41.892898-0700 0x1a921    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+01:58:43.3N C10 LAUNCH pid=18795
+01:59:01.3N C10 ALIVE pid=18795 rendered=1 cycle-s=18
+01:59:02.3N C11 LAUNCH pid=18918
+01:59:13.3N C11 KILL pid=18918 at-sheet-open 2026-10-07 01:59:12.915497-0700 0x1a309    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+01:59:14.3N C12 LAUNCH pid=19027
+01:59:32.3N C12 KILL pid=19027 post-close 2026-10-07 01:59:24.988206-0700 0x1a921    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+01:59:33.3N C13 LAUNCH pid=19152
+01:59:45.3N C13 ALIVE pid=19152 rendered=1 cycle-s=12
+02:00:25.3N C14 LAUNCH pid=19326
+02:00:44.3N C14 ALIVE pid=19326 rendered=1 cycle-s=19
+02:00:46.3N C15 LAUNCH pid=19494
+02:01:04.3N C15 ALIVE pid=19494 rendered=1 cycle-s=18
+02:01:05.3N C16 LAUNCH pid=19665
+02:01:24.3N C16 ALIVE pid=19665 rendered=1 cycle-s=19
+02:01:25.3N C17 LAUNCH pid=19815
+02:01:44.3N C17 ALIVE pid=19815 rendered=1 cycle-s=19
+02:01:45.3N C18 LAUNCH pid=19939
+02:02:03.3N C18 KILL pid=19939 post-close 2026-10-07 02:01:56.202388-0700 0x1c3a7    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+02:02:05.3N C19 LAUNCH pid=20065
+02:02:23.3N C19 ALIVE pid=20065 rendered=1 cycle-s=18
+02:02:24.3N C20 LAUNCH pid=20201
+02:02:42.3N C20 ALIVE pid=20201 rendered=1 cycle-s=18
+02:02:43.3N C21 LAUNCH pid=20336
+02:03:01.3N C21 KILL pid=20336 post-close 2026-10-07 02:02:54.383925-0700 0x1d12b    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+02:03:03.3N C22 LAUNCH pid=20461
+02:03:21.3N C22 KILL pid=20461 post-close 2026-10-07 02:03:14.360004-0700 0x1d471    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+02:04:15.3N C23 LAUNCH pid=20639
+02:04:33.3N C23 ALIVE pid=20639 rendered=1 cycle-s=18
+02:04:35.3N C24 LAUNCH pid=20762
+02:04:53.3N C24 ALIVE pid=20762 rendered=1 cycle-s=18
+02:04:54.3N C25 LAUNCH pid=20886
+02:05:06.3N C25 KILL pid=20886 at-sheet-open 2026-10-07 02:05:05.684530-0700 0x1e0c1    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+02:05:08.3N C26 LAUNCH pid=20995
+02:05:26.3N C26 KILL pid=20995 post-close 2026-10-07 02:05:18.684147-0700 0x1d9e9    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+02:05:27.3N C27 LAUNCH pid=21120
+02:05:45.3N C27 ALIVE pid=21120 rendered=1 cycle-s=18
+02:05:47.3N C28 LAUNCH pid=21245
+02:06:04.3N C28 ALIVE pid=21245 rendered=1 cycle-s=17
+02:06:06.3N C29 LAUNCH pid=21370
+02:06:24.3N C29 KILL pid=21370 post-close 2026-10-07 02:06:16.550609-0700 0x1ed18    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+02:06:25.3N C30 LAUNCH pid=21496
+02:06:42.3N C30 ALIVE pid=21496 rendered=1 cycle-s=17
+02:06:44.3N C31 LAUNCH pid=21620
+02:07:01.3N C31 KILL pid=21620 post-close 2026-10-07 02:06:54.235543-0700 0x1f36a    Default     0x0                  1434   0    runningboardd: (RunningBoard) [com.apple.runningboard:process] Notifying
+02:12:51.3N D01 LAUNCH pid=26332
+02:13:11.3N D01 ALIVE pid=26332 rendered=1 cycle-s=20
+02:13:12.3N D02 LAUNCH pid=26483
+02:13:25.3N D02 ALIVE pid=26483 rendered=1 cycle-s=13
+02:13:26.3N D03 LAUNCH pid=26565
+02:13:38.3N D03 ALIVE pid=26565 rendered=1 cycle-s=12
+02:13:40.3N D04 LAUNCH pid=26644
+02:13:52.3N D04 ALIVE pid=26644 rendered=1 cycle-s=12
+02:13:54.3N D05 LAUNCH pid=26725
+02:14:06.3N D05 ALIVE pid=26725 rendered=1 cycle-s=12
+02:14:08.3N D06 LAUNCH pid=26804
+02:14:20.3N D06 ALIVE pid=26804 rendered=1 cycle-s=12
+02:14:22.3N D07 LAUNCH pid=26884
+02:14:34.3N D07 ALIVE pid=26884 rendered=1 cycle-s=12
+02:14:36.3N D08 LAUNCH pid=26964
+02:14:48.3N D08 ALIVE pid=26964 rendered=1 cycle-s=12
+02:14:50.3N D09 LAUNCH pid=27045
+02:15:02.3N D09 ALIVE pid=27045 rendered=1 cycle-s=12
+02:15:03.3N D10 LAUNCH pid=27125
+02:15:16.3N D10 ALIVE pid=27125 rendered=1 cycle-s=13
+02:15:22.3N D11 LAUNCH pid=27221
+02:15:34.3N D11 ALIVE pid=27221 rendered=1 cycle-s=12
+02:15:36.3N D12 LAUNCH pid=27300
+02:15:48.3N D12 ALIVE pid=27300 rendered=1 cycle-s=12
+02:15:50.3N D13 LAUNCH pid=27382
+02:16:02.3N D13 ALIVE pid=27382 rendered=1 cycle-s=12
+02:16:04.3N D14 LAUNCH pid=27460
+02:16:16.3N D14 ALIVE pid=27460 rendered=1 cycle-s=12
+02:16:18.3N D15 LAUNCH pid=27541
+02:16:31.3N D15 ALIVE pid=27541 rendered=1 cycle-s=13
+02:16:32.3N D16 LAUNCH pid=27622
+02:16:45.3N D16 ALIVE pid=27622 rendered=1 cycle-s=13
+02:16:46.3N D17 LAUNCH pid=27701
+02:16:59.3N D17 ALIVE pid=27701 rendered=1 cycle-s=13
+02:17:01.3N D18 LAUNCH pid=27783
+02:17:13.3N D18 ALIVE pid=27783 rendered=1 cycle-s=12
+02:17:15.3N D19 LAUNCH pid=27861
+02:17:27.3N D19 ALIVE pid=27861 rendered=1 cycle-s=12
+02:17:28.3N D20 LAUNCH pid=27941
+02:17:41.3N D20 ALIVE pid=27941 rendered=1 cycle-s=13
+02:17:52.3N D21 LAUNCH pid=28052
+02:18:04.3N D21 ALIVE pid=28052 rendered=1 cycle-s=12
+02:18:06.3N D22 LAUNCH pid=28130
+02:18:18.3N D22 ALIVE pid=28130 rendered=1 cycle-s=12
+02:18:19.3N D23 LAUNCH pid=28209
+02:18:32.3N D23 ALIVE pid=28209 rendered=1 cycle-s=13
+02:18:33.3N D24 LAUNCH pid=28291
+02:18:46.3N D24 ALIVE pid=28291 rendered=1 cycle-s=13
+02:18:47.3N D25 LAUNCH pid=28369
+02:19:00.3N D25 ALIVE pid=28369 rendered=1 cycle-s=13
+02:19:01.3N D26 LAUNCH pid=28450
+02:19:13.3N D26 ALIVE pid=28450 rendered=1 cycle-s=12
+02:19:15.3N D27 LAUNCH pid=28530
+02:19:27.3N D27 ALIVE pid=28530 rendered=1 cycle-s=12
+02:19:29.3N D28 LAUNCH pid=28609
+02:19:41.3N D28 ALIVE pid=28609 rendered=1 cycle-s=12
+02:19:43.3N D29 LAUNCH pid=28690
+02:19:55.3N D29 ALIVE pid=28690 rendered=1 cycle-s=12
+02:19:57.3N D30 LAUNCH pid=28770
+02:20:09.3N D30 ALIVE pid=28770 rendered=1 cycle-s=12

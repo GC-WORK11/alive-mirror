@@ -243,21 +243,24 @@ index a1f17f8..a621c5c 100644
      // The shared state can retain the promise holder weakly now.
      state_->promiseHolder = promiseHolder;
 diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
-index b881694..f829915 100644
+index b881694..aab0cd2 100644
 --- a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
 +++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
-@@ -7,6 +7,10 @@
+@@ -7,6 +7,13 @@
  
  #include "TurboModuleUtils.h"
  
 +#ifdef __APPLE__
 +#include <TargetConditionals.h>
++#if defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
++#include <ReactCommon/CallInvoker.h>
++#endif
 +#endif
 +
  namespace facebook::react {
  
  Promise::Promise(jsi::Runtime& rt, jsi::Function resolve, jsi::Function reject)
-@@ -14,6 +18,21 @@ Promise::Promise(jsi::Runtime& rt, jsi::Function resolve, jsi::Function reject)
+@@ -14,11 +21,60 @@ Promise::Promise(jsi::Runtime& rt, jsi::Function resolve, jsi::Function reject)
        resolve_(std::move(resolve)),
        reject_(std::move(reject)) {}
  
@@ -276,16 +279,59 @@ index b881694..f829915 100644
 +#endif
 +}
 +
++/* coldfix residual (docs/lanes/ios-residual-report.md): `resolve_.call` /
++   `reject_.call` execute on whatever module queue completes the async
++   turbomodule call. Off the JS thread that is a full runtime mutation —
++   identifier interning, IdentifierHashTable rehash, GC ops — racing the JS
++   thread's own walks (EXC_BAD_ACCESS victims in HadesGC::OldGen::search and
++   IdentifierHashTable::lookupString, lldb bt all). Hop the call onto the JS
++   thread via the collection's registered CallInvoker; the captured
++   shared_ptr keeps this Promise (and resolve_/reject_) alive until the call
++   runs. With no invoker yet, fall back to the stock inline call.
++   Simulator-only; device builds keep stock behavior. */
  void Promise::resolve(const jsi::Value& result) {
++#if defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
++  auto &collection = LongLivedObjectCollection::get(runtime_);
++  if (auto inv = collection.invoker().lock()) {
++    auto resultPtr = std::make_shared<jsi::Value>(runtime_, result);
++    inv->invokeAsync([self = shared_from_this(), this, resultPtr]() {
++      resolve_.call(runtime_, *resultPtr);
++    });
++    return;
++  }
++#endif
    resolve_.call(runtime_, result);
  }
+ 
+ void Promise::reject(const std::string& message) {
++#if defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
++  auto &collection = LongLivedObjectCollection::get(runtime_);
++  if (auto inv = collection.invoker().lock()) {
++    inv->invokeAsync([self = shared_from_this(), this, message]() {
++      jsi::Object error(runtime_);
++      error.setProperty(
++          runtime_,
++          "message",
++          jsi::String::createFromUtf8(runtime_, message));
++      reject_.call(runtime_, error);
++    });
++    return;
++  }
++#endif
+   jsi::Object error(runtime_);
+   error.setProperty(
+       runtime_, "message", jsi::String::createFromUtf8(runtime_, message));
 diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
-index 0c436aa..a79b735 100644
+index 0c436aa..098a96b 100644
 --- a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
 +++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
-@@ -17,6 +17,7 @@ namespace facebook::react {
+@@ -15,8 +15,10 @@
  
- struct Promise : public LongLivedObject {
+ namespace facebook::react {
+ 
+-struct Promise : public LongLivedObject {
++struct Promise : public LongLivedObject,
++                 public std::enable_shared_from_this<Promise> {
    Promise(jsi::Runtime &rt, jsi::Function resolve, jsi::Function reject);
 +  ~Promise() override;
  
