@@ -1,0 +1,1684 @@
+{
+ "from": {
+  "lat": 28.6315,
+  "lon": 77.2167
+ },
+ "to": {
+  "lat": 28.5562,
+  "lon": 77.0871
+ },
+ "vehicle": "car",
+ "vehicle_requested": "car",
+ "vehicle_profile": null,
+ "depart_at": null,
+ "ranking": "doc 06 \u00a74: dose_lo within 10% ties, lowest emission wins",
+ "smoke_modifier": 1.06,
+ "field": {
+  "source": "waqi+dpcc-stations+open-meteo/cams",
+  "samples": 100,
+  "station_readings": 53,
+  "stations": [
+   {
+    "lat": 28.5648,
+    "lon": 77.1744,
+    "name": "R.K. Puram, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.820629,
+    "lon": 77.101099,
+    "name": "Narela, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.815691,
+    "lon": 77.152491,
+    "name": "Alipur, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.566827,
+    "lon": 77.251418,
+    "name": "PGDAV College, Sriniwaspuri, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.620171,
+    "lon": 77.287705,
+    "name": "Mother Dairy Plant, Parparganj, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.700505,
+    "lon": 77.165603,
+    "name": "Delhi Institute of Tool Engineering, Wazirpur, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.531314,
+    "lon": 77.270686,
+    "name": "DITE Okhla, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.672114,
+    "lon": 77.313832,
+    "name": "ITI Shahdra, Jhilmil Industrial Area, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.6341,
+    "lon": 77.2005,
+    "name": "Mandir Marg, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.572714,
+    "lon": 76.933433,
+    "name": "Bramprakash Ayurvedic Hospital, Najafgarh, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.528344,
+    "lon": 77.189304,
+    "name": "Sri Auribindo Marg, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.69572,
+    "lon": 77.181295,
+    "name": "Satyawati College, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.68241,
+    "lon": 77.030469,
+    "name": "Mundka, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.612498,
+    "lon": 77.237388,
+    "name": "Major Dhyan Chand National Stadium, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.733016,
+    "lon": 77.17197,
+    "name": "ITI Jahangirpuri, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.582846,
+    "lon": 77.234366,
+    "name": "Jawaharlal Nehru Stadium, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.6508,
+    "lon": 77.3152,
+    "name": "Anand Vihar, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.499727,
+    "lon": 77.267095,
+    "name": "Dr. Karni Singh Shooting Range, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.636997,
+    "lon": 77.172248,
+    "name": "Pusa, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.576909,
+    "lon": 77.075898,
+    "name": "National Institute of Malaria Research, Sector 8, Dwarka, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.710066,
+    "lon": 77.24622,
+    "name": "Sonia Vihar Water Treatment Plant DJB, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.7757959,
+    "lon": 77.0462514,
+    "name": "Pooth Khurd, Bawana, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.6683,
+    "lon": 77.1167,
+    "name": "Punjabi Bagh, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.732743,
+    "lon": 77.118788,
+    "name": "Shaheed Sukhdev College of Business Studies, Rohini, Delhi, Delhi, India"
+   },
+   {
+    "lat": 28.6468,
+    "lon": 77.3162,
+    "name": "Anand Vihar"
+   },
+   {
+    "lat": 28.6364,
+    "lon": 77.2015,
+    "name": "Mandir Marg"
+   },
+   {
+    "lat": 28.4986,
+    "lon": 77.2648,
+    "name": "Dr. Karni Singh Shooting Range"
+   },
+   {
+    "lat": 28.5686,
+    "lon": 77.2515,
+    "name": "Nehru Nagar"
+   },
+   {
+    "lat": 28.6692,
+    "lon": 77.1316,
+    "name": "Punjabi Bagh"
+   },
+   {
+    "lat": 28.564,
+    "lon": 77.1868,
+    "name": "R.K. Puram"
+   },
+   {
+    "lat": 28.6927,
+    "lon": 77.1754,
+    "name": "Ashok Vihar"
+   },
+   {
+    "lat": 28.7328,
+    "lon": 77.1708,
+    "name": "Jahangirpuri"
+   },
+   {
+    "lat": 28.6999,
+    "lon": 77.1658,
+    "name": "Wazirpur"
+   },
+   {
+    "lat": 28.7325,
+    "lon": 77.1188,
+    "name": "Rohini"
+   },
+   {
+    "lat": 28.5308,
+    "lon": 77.2813,
+    "name": "Okhla Phase-2"
+   },
+   {
+    "lat": 28.6723,
+    "lon": 77.3153,
+    "name": "Vivek Vihar"
+   },
+   {
+    "lat": 28.6237,
+    "lon": 77.3067,
+    "name": "Patparganj"
+   },
+   {
+    "lat": 28.733,
+    "lon": 77.2494,
+    "name": "Sonia Vihar"
+   },
+   {
+    "lat": 28.5702,
+    "lon": 76.9338,
+    "name": "Najafgarh"
+   },
+   {
+    "lat": 28.571,
+    "lon": 77.064,
+    "name": "Dwarka, Sector 8"
+   },
+   {
+    "lat": 28.8522,
+    "lon": 77.0929,
+    "name": "Narela"
+   },
+   {
+    "lat": 28.7936,
+    "lon": 77.0326,
+    "name": "Pooth Khurd, Bawana"
+   },
+   {
+    "lat": 28.5803,
+    "lon": 77.2338,
+    "name": "Jawaharlal Nehru Stadium"
+   },
+   {
+    "lat": 28.8153,
+    "lon": 77.153,
+    "name": "Alipur"
+   },
+   {
+    "lat": 28.6847,
+    "lon": 77.0766,
+    "name": "Mundka"
+   },
+   {
+    "lat": 28.5313,
+    "lon": 77.1902,
+    "name": "Sri Auribindo Marg"
+   },
+   {
+    "lat": 28.6396,
+    "lon": 77.1691,
+    "name": "Pusa"
+   },
+   {
+    "lat": 28.4936,
+    "lon": 77.2012,
+    "name": "IGNOU"
+   },
+   {
+    "lat": 28.5407,
+    "lon": 77.1685,
+    "name": "JNU"
+   },
+   {
+    "lat": 28.6218,
+    "lon": 77.1945,
+    "name": "SPM-SPC Talkatora Garden"
+   },
+   {
+    "lat": 28.594,
+    "lon": 76.9094,
+    "name": "NSUT(West Campus)"
+   },
+   {
+    "lat": 28.5942,
+    "lon": 77.1251,
+    "name": "SBV Delhi Cantt"
+   },
+   {
+    "lat": 28.6158,
+    "lon": 77.272,
+    "name": "CWG Sports Complex,Akshardham"
+   }
+  ],
+  "stations_src": "waqi+dpcc",
+  "stations_status": {
+   "waqi": "ok",
+   "dpcc": "ok"
+  },
+  "age_s": 766,
+  "built_epoch": 1791353119.5501907,
+  "built_at": "2026-10-07T06:05:19+00:00",
+  "refresh_in_s": 134,
+  "refresh_ttl_s": 900,
+  "wind": {
+   "speed_kmh": 7.3,
+   "from_deg": 147.0,
+   "factor": 0.24333333333333332,
+   "known": true,
+   "age_s": 768
+  },
+  "kriging": "on",
+  "engine": "alive_core",
+  "serving": "live",
+  "stale": false,
+  "stale_after_s": 2700,
+  "load_warnings": 0,
+  "load_warn_files": [],
+  "sigma_coverage": "per-query",
+  "coverage": {
+   "bbox": [
+    76.85,
+    28.25,
+    77.75,
+    28.8522
+   ],
+   "out_beyond_km": null,
+   "cells": 100,
+   "sigma_cells": null
+  },
+  "snapshot": null
+ },
+ "took_ms": 4907.2,
+ "options": [
+  {
+   "mode": "car",
+   "label": "Car (AC)",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=22>",
+   "steps_source": "osrm",
+   "distance_km": 19.86,
+   "eta_s": 1508,
+   "freeflow_s": 1508,
+   "eta_model": "osrm-freeflow",
+   "dose": {
+    "lo": 3.0,
+    "mid": 8.1,
+    "hi": 13.1,
+    "avg_conc_ugm3": 32.2,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": "lightest for you",
+   "recommended": true,
+   "reason_line": "Within ~10% of the lightest dose and the lightest exhaust of those \u2014 a fair trade.",
+   "your_vehicle": true,
+   "router_backend": "osrm-local",
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 74.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1707.2
+   },
+   "route_id": "f32a0a580a5b",
+   "safest_path": true
+  },
+  {
+   "mode": "car",
+   "label": "Car (AC) \u00b7 least-smoke rd",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 19.48,
+   "eta_s": 1640,
+   "freeflow_s": 1640,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 3.3,
+    "mid": 8.7,
+    "hi": 14.1,
+    "avg_conc_ugm3": 31.8,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": true,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=10>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": null,
+   "engine_dose_ug": 8.9,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0873,
+    "dist_m": 1696.7
+   },
+   "route_id": "54b53fffe25c"
+  },
+  {
+   "mode": "car",
+   "label": "Car (AC) \u00b7 least-smoke alt 2",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 20.19,
+   "eta_s": 1732,
+   "freeflow_s": 1732,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 3.6,
+    "mid": 9.2,
+    "hi": 14.8,
+    "avg_conc_ugm3": 32.0,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": true,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 2,
+   "engine_dose_ug": 9.7,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0868,
+    "dist_m": 1748.0
+   },
+   "route_id": "f897dd877277"
+  },
+  {
+   "mode": "car",
+   "label": "Car (AC) \u00b7 least-smoke alt 1",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 22.1,
+   "eta_s": 1790,
+   "freeflow_s": 1790,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 3.9,
+    "mid": 9.7,
+    "hi": 15.5,
+    "avg_conc_ugm3": 32.5,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": true,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 1,
+   "engine_dose_ug": 10.1,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 66.3,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0837,
+    "dist_m": 1842.9
+   },
+   "route_id": "1afbdb1d94e8"
+  },
+  {
+   "mode": "car_open",
+   "label": "Car (windows down)",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=22>",
+   "steps_source": "osrm",
+   "distance_km": 19.86,
+   "eta_s": 1508,
+   "freeflow_s": 1508,
+   "eta_model": "osrm-freeflow",
+   "dose": {
+    "lo": 5.5,
+    "mid": 14.7,
+    "hi": 23.9,
+    "avg_conc_ugm3": 58.5,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": true,
+   "router_backend": "osrm-local",
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 74.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1707.2
+   },
+   "route_id": "2767a304957f"
+  },
+  {
+   "mode": "bike",
+   "label": "Bike / scooter",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=22>",
+   "steps_source": "osrm",
+   "distance_km": 19.86,
+   "eta_s": 1430,
+   "freeflow_s": 1430,
+   "eta_model": "osrm-freeflow",
+   "dose": {
+    "lo": 6.6,
+    "mid": 17.6,
+    "hi": 28.5,
+    "avg_conc_ugm3": 70.2,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "router_backend": "osrm-local",
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 74.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1707.2
+   },
+   "route_id": "39f8bd6464be"
+  },
+  {
+   "mode": "bus",
+   "label": "Bus",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=22>",
+   "steps_source": "osrm",
+   "distance_km": 19.86,
+   "eta_s": 2413,
+   "freeflow_s": 2413,
+   "eta_model": "osrm-freeflow",
+   "dose": {
+    "lo": 7.9,
+    "mid": 21.2,
+    "hi": 34.4,
+    "avg_conc_ugm3": 52.6,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "router_backend": "osrm-local",
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 74.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1707.2
+   },
+   "route_id": "251a46afff3b"
+  },
+  {
+   "mode": "auto",
+   "label": "Auto-rickshaw",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=22>",
+   "steps_source": "osrm",
+   "distance_km": 19.86,
+   "eta_s": 1885,
+   "freeflow_s": 1885,
+   "eta_model": "osrm-freeflow",
+   "dose": {
+    "lo": 9.0,
+    "mid": 23.9,
+    "hi": 38.8,
+    "avg_conc_ugm3": 76.0,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "router_backend": "osrm-local",
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 74.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1707.2
+   },
+   "route_id": "eef44c39be66"
+  },
+  {
+   "mode": "bike",
+   "label": "Bike / scooter \u00b7 least-smoke rd",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 21.75,
+   "eta_s": 1933,
+   "freeflow_s": 1933,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 9.3,
+    "mid": 23.8,
+    "hi": 38.4,
+    "avg_conc_ugm3": 70.4,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 114.0
+   },
+   "alternative_index": null,
+   "engine_dose_ug": 24.2,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0835,
+    "dist_m": 1809.5
+   },
+   "route_id": "85395b96a33f"
+  },
+  {
+   "mode": "bike",
+   "label": "Bike / scooter \u00b7 least-smoke alt 1",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 24.61,
+   "eta_s": 2302,
+   "freeflow_s": 2302,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 9.3,
+    "mid": 26.3,
+    "hi": 43.3,
+    "avg_conc_ugm3": 65.3,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 114.0
+   },
+   "alternative_index": 1,
+   "engine_dose_ug": 26.8,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 66.3,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0843,
+    "dist_m": 2067.9
+   },
+   "route_id": "72779290c2db"
+  },
+  {
+   "mode": "metro+walk",
+   "label": "Metro + walk",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      77.2167,
+      28.6315
+     ],
+     [
+      77.209213,
+      28.629007
+     ],
+     [
+      77.161545,
+      28.591776
+     ],
+     [
+      77.120743,
+      28.548792
+     ],
+     [
+      77.087921,
+      28.554869
+     ],
+     [
+      77.0871,
+      28.5562
+     ]
+    ]
+   },
+   "route_geojson": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      77.2167,
+      28.6315
+     ],
+     [
+      77.209213,
+      28.629007
+     ],
+     [
+      77.161545,
+      28.591776
+     ],
+     [
+      77.120743,
+      28.548792
+     ],
+     [
+      77.087921,
+      28.554869
+     ],
+     [
+      77.0871,
+      28.5562
+     ]
+    ]
+   },
+   "steps": "<list len=3>",
+   "steps_source": "gtfs",
+   "distance_km": 16.68,
+   "eta_s": 2606,
+   "freeflow_s": 2606,
+   "eta_model": "gtfs",
+   "dose": {
+    "lo": 10.3,
+    "mid": 22.4,
+    "hi": 34.7,
+    "avg_conc_ugm3": 30.0,
+    "peak_conc": 96.7,
+    "confidence": "medium",
+    "coverage": 1.0,
+    "basis": "est."
+   },
+   "emissions": "<dict len=11>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "legs": "<list len=3>",
+   "stations": {
+    "board": "Shivaji Stadium",
+    "alight": "IGI Airport",
+    "lines": [
+     "Orange/Airport"
+    ],
+    "transfers": 0
+   },
+   "lines": "<list len=1>",
+   "transfers": 0,
+   "walk_m": 950,
+   "depart_at": "2026-10-07T11:48:00+05:30",
+   "arrive_at": "2026-10-07T12:31:26+05:30",
+   "transit_source": "gtfs connection scan",
+   "n_segments": 4,
+   "segment0": {
+    "pm25": 64.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.4203,
+    "dist_m": 7009.8
+   },
+   "route_id": "5f0e14da2330"
+  },
+  {
+   "mode": "auto",
+   "label": "Auto-rickshaw \u00b7 least-smoke alt 1",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 24.02,
+   "eta_s": 2436,
+   "freeflow_s": 2436,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 10.2,
+    "mid": 28.6,
+    "hi": 47.0,
+    "avg_conc_ugm3": 70.4,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 1,
+   "engine_dose_ug": 29.4,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 66.3,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0849,
+    "dist_m": 2033.6
+   },
+   "route_id": "42f2ed5a18ec"
+  },
+  {
+   "mode": "auto",
+   "label": "Auto-rickshaw \u00b7 least-smoke rd",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 21.01,
+   "eta_s": 2039,
+   "freeflow_s": 2039,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 10.5,
+    "mid": 26.2,
+    "hi": 41.9,
+    "avg_conc_ugm3": 77.1,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": null,
+   "engine_dose_ug": 26.7,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0864,
+    "dist_m": 1809.5
+   },
+   "route_id": "735a5e5a44c7"
+  },
+  {
+   "mode": "bike",
+   "label": "Bike / scooter \u00b7 least-smoke alt 2",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 21.94,
+   "eta_s": 2141,
+   "freeflow_s": 2141,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 11.1,
+    "mid": 27.1,
+    "hi": 43.0,
+    "avg_conc_ugm3": 72.3,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 114.0
+   },
+   "alternative_index": 2,
+   "engine_dose_ug": 27.3,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0839,
+    "dist_m": 1834.7
+   },
+   "route_id": "9ef5b84b491d"
+  },
+  {
+   "mode": "auto",
+   "label": "Auto-rickshaw \u00b7 least-smoke alt 2",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 22.0,
+   "eta_s": 2272,
+   "freeflow_s": 2272,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 11.8,
+    "mid": 29.3,
+    "hi": 46.8,
+    "avg_conc_ugm3": 77.4,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 2,
+   "engine_dose_ug": 29.7,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0836,
+    "dist_m": 1834.7
+   },
+   "route_id": "7d3c9b8245a5"
+  },
+  {
+   "mode": "bus",
+   "label": "Bus AIRPORTEXP.-4",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=3>",
+   "steps_source": "gtfs",
+   "distance_km": 16.75,
+   "eta_s": 5424,
+   "freeflow_s": 5424,
+   "eta_model": "gtfs",
+   "dose": {
+    "lo": 23.9,
+    "mid": 55.9,
+    "hi": 87.8,
+    "avg_conc_ugm3": 54.5,
+    "peak_conc": 89.6,
+    "confidence": "high",
+    "coverage": 1.0,
+    "basis": "est."
+   },
+   "emissions": "<dict len=18>",
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "legs": "<list len=3>",
+   "stations": {
+    "board": "Regal",
+    "alight": "Air Traffic Control (ATC)",
+    "lines": [
+     "AIRPORTEXP.-4"
+    ],
+    "transfers": 0
+   },
+   "lines": "<list len=1>",
+   "transfers": 0,
+   "walk_m": 1021,
+   "depart_at": "2026-10-07T11:48:00+05:30",
+   "arrive_at": "2026-10-07T13:18:24+05:30",
+   "transit_source": "gtfs connection scan",
+   "n_segments": 10,
+   "segment0": {
+    "pm25": 66.3,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0972,
+    "dist_m": 1627.8
+   },
+   "route_id": "205d6aa1a828"
+  },
+  {
+   "mode": "cycle",
+   "label": "Bicycle \u00b7 least-smoke alt 2",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 23.23,
+   "eta_s": 5227,
+   "freeflow_s": 5227,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 40.9,
+    "mid": 115.5,
+    "hi": 190.1,
+    "avg_conc_ugm3": 60.3,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "cycle",
+    "engine": "server/emissions.py"
+   },
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 2,
+   "engine_dose_ug": 118.1,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1994.5
+   },
+   "route_id": "4e6836b48b79"
+  },
+  {
+   "mode": "cycle",
+   "label": "Bicycle",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=22>",
+   "steps_source": "osrm",
+   "distance_km": 19.86,
+   "eta_s": 4765,
+   "freeflow_s": 4765,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 42.2,
+    "mid": 112.4,
+    "hi": 182.7,
+    "avg_conc_ugm3": 64.3,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "cycle",
+    "engine": "server/emissions.py"
+   },
+   "tag": "lightest for Delhi",
+   "recommended": false,
+   "reason_line": "Lowest emissions of the options \u2014 but you'd breathe more.",
+   "your_vehicle": false,
+   "router_backend": "osrm-local",
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 74.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1707.2
+   },
+   "route_id": "f4d9713dc19c"
+  },
+  {
+   "mode": "cycle",
+   "label": "Bicycle \u00b7 least-smoke rd",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 20.45,
+   "eta_s": 4731,
+   "freeflow_s": 4731,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 41.6,
+    "mid": 110.3,
+    "hi": 179.0,
+    "avg_conc_ugm3": 63.6,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "cycle",
+    "engine": "server/emissions.py"
+   },
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": null,
+   "engine_dose_ug": 112.0,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0839,
+    "dist_m": 1710.7
+   },
+   "route_id": "a9367bbb3932"
+  },
+  {
+   "mode": "cycle",
+   "label": "Bicycle \u00b7 least-smoke alt 1",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 21.77,
+   "eta_s": 4897,
+   "freeflow_s": 4897,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 47.8,
+    "mid": 116.8,
+    "hi": 185.7,
+    "avg_conc_ugm3": 65.0,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "cycle",
+    "engine": "server/emissions.py"
+   },
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 1,
+   "engine_dose_ug": 118.3,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 66.3,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.085,
+    "dist_m": 1842.9
+   },
+   "route_id": "ef1c1fc46776"
+  },
+  {
+   "mode": "walk",
+   "label": "On foot \u00b7 least-smoke rd",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 19.57,
+   "eta_s": 14093,
+   "freeflow_s": 14093,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 91.9,
+    "mid": 245.1,
+    "hi": 398.3,
+    "avg_conc_ugm3": 74.5,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "walk",
+    "engine": "server/emissions.py"
+   },
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": null,
+   "engine_dose_ug": 250.2,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0869,
+    "dist_m": 1696.7
+   },
+   "route_id": "3115699f56e0"
+  },
+  {
+   "mode": "walk",
+   "label": "On foot \u00b7 least-smoke alt 2",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 21.91,
+   "eta_s": 15773,
+   "freeflow_s": 15773,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 90.6,
+    "mid": 260.3,
+    "hi": 429.9,
+    "avg_conc_ugm3": 70.7,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "walk",
+    "engine": "server/emissions.py"
+   },
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 2,
+   "engine_dose_ug": 270.0,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 68.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.087,
+    "dist_m": 1901.4
+   },
+   "route_id": "4933316f4c62"
+  },
+  {
+   "mode": "walk",
+   "label": "On foot",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=22>",
+   "steps_source": "osrm",
+   "distance_km": 19.86,
+   "eta_s": 14296,
+   "freeflow_s": 14296,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 95.2,
+    "mid": 253.7,
+    "hi": 412.1,
+    "avg_conc_ugm3": 76.0,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "walk",
+    "engine": "server/emissions.py"
+   },
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "router_backend": "osrm-local",
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 74.4,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.086,
+    "dist_m": 1707.2
+   },
+   "route_id": "41d2d3fb4376"
+  },
+  {
+   "mode": "walk",
+   "label": "On foot \u00b7 least-smoke alt 1",
+   "geometry": "<dict len=2>",
+   "route_geojson": "<dict len=2>",
+   "steps": "<list len=2>",
+   "steps_source": "endpoints",
+   "distance_km": 21.23,
+   "eta_s": 15285,
+   "freeflow_s": 15285,
+   "eta_model": "estimated",
+   "dose": {
+    "lo": 117.0,
+    "mid": 277.3,
+    "hi": 437.5,
+    "avg_conc_ugm3": 77.7,
+    "confidence": "high",
+    "coverage": 1.0,
+    "sparse": false,
+    "basis": "est."
+   },
+   "emissions": {
+    "co2_kg": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "pm25_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "nox_g": {
+     "lo": 0.0,
+     "mid": 0.0,
+     "hi": 0.0
+    },
+    "label": "none",
+    "basis": "none",
+    "bs_class": "none",
+    "confidence": "high",
+    "non_exhaust": {
+     "pm10_g": {
+      "lo": 0.0,
+      "mid": 0.0,
+      "hi": 0.0
+     },
+     "note": "zero \u2014 non-motorized mode"
+    },
+    "breakdown": {},
+    "mode": "walk",
+    "engine": "server/emissions.py"
+   },
+   "tag": null,
+   "recommended": false,
+   "reason_line": "",
+   "your_vehicle": false,
+   "engine": "alive_core-path",
+   "duration_model": "estimated",
+   "duration_basis": "freeflow",
+   "via_names": "<list len=12>",
+   "snap_m": {
+    "from_m": 8.9,
+    "to_m": 13.0
+   },
+   "alternative_index": 1,
+   "engine_dose_ug": 280.4,
+   "n_segments": 12,
+   "segment0": {
+    "pm25": 66.3,
+    "band": "Moderate",
+    "start_frac": 0.0,
+    "end_frac": 0.0872,
+    "dist_m": 1842.9
+   },
+   "route_id": "918b9794a59f"
+  }
+ ]
+}
