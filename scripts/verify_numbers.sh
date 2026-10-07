@@ -265,7 +265,7 @@ try:
          r"124,?3[0-9]{2}|123,?9[0-9]{2}", "static")
 except Exception as e:
     emit("gazetteer rows", f"MISSING ({e})", r"", "static")
-emit("history stations (climatology)", (H.get("history") or {}).get("stations"),
+emit("history stations (climatology)", (H.get("history") or {}).get("stations_climatology"),
      r"125 stations|9M station", "artifact",
      "'9M station-hours' is a build-log count, not re-derivable from the committed quantile file")
 try:

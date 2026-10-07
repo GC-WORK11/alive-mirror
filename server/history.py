@@ -145,7 +145,7 @@ def summary() -> dict:
     return {
         "source": db.get("source"),
         "generated_at": db.get("generated_at"),
-        "stations": len(db["stations"]),
+        "stations_climatology": len(db["stations"]),
         "file": DATA_PATH,
         "pollutants": db.get("pollutants", list(POLLUTANTS)),
     }

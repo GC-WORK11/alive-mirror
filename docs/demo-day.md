@@ -766,6 +766,13 @@ section was distilled from.*
   the private history disqualifies the entry if skipped. Prereqs:
   the EMPTY repo already created (no README/license) + push auth in
   the credential helper.
+- [ ] **DEPLOY FREEZE T-60 → demo end**: no pushes, no deploys, no task
+  swaps. A rolling deploy mid-demo = a fresh task serving thin field,
+  `/v2/*` routes minted on the old task 404ing (route store is
+  in-memory per task), and build_sha flipping under a judge's eyes.
+  Whatever HEAD is at T-60 is the demo build; fixes discovered inside
+  the window queue for after the demo, no exceptions short of prod
+  being down.
 - [ ] T-60: credentials preflight, then switch SPOT→on-demand (above)
   — `aws sts get-caller-identity` + region `ap-south-1` must answer
   before the flip or the flip silently never happens. Or accept
