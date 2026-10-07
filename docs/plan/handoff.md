@@ -1378,3 +1378,20 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   CP PM2.5 67.1/AQI 155, corridors 12/55, community 44/24/1278.9µg.
 - **Hold**: no more deploys unless a fix lands; freeze ~20:00 IST →
   Max apk-final cuts canonical binary at freeze HEAD + GH Release.
+
+## cont.69 — 2026-10-08 ~13:15 IST (prod f9ea5ae8, P0 closed)
+
+- **P0**: landing `/` dead on prod — boot overlay never dismissed
+  (plain-words `326e64e` left `map's` unescaped inside a single-quoted
+  JS string in landing.html:1293 → whole inline script failed parse).
+  Coordinator lane fixed `f9ea5ae`; I verified the real script block
+  (lines 720-1870) node --check clean + deployed + re-verified on the
+  wire: prod HTML script parses, escaped `map\'s` served, real Chrome
+  renders hero live (49.2µg, ~2.2 cigs/day, 53 stn, 3min-fresh, 903K
+  edges). Boot overlay self-dismissed — JS path end-to-end.
+- **Gotcha for sweeps**: `grep '<script>'` in landing.html hits a
+  literal inside the CSS comment at line 475 — extract the real block
+  by line range (719<script>→1871</script>), not regex.
+- Task def :201 live; alarms: field-age OK, target-down OK,
+  emitter-dead armed (-1 dead-man threshold — real 0.0 datapoints no
+  longer self-breach).
