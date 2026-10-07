@@ -4,16 +4,24 @@
 // (client.ts) stream in behind it. normalize() is shared with the
 // merge/dedupe layer so every tier keys names identically.
 //
-// Honest tiering delta (vs server T1): T0 is prefix+alias only — no
-// Damerau-Levenshtein fuzzy, no kind+place compounds ("atm near cp" is a
-// name query here), no numeric-exact/leading-prefix ranking. The server
-// can be smarter; offline keeps the floor: real rows, real aliases, a
-// miss rather than a fabricated place.
+// Matching stages, weakest-truth-first ordering: token-prefix →
+// transliteration-fold prefix ("ashook nagar" = "ashok nagar", "ngr" =
+// nagar/nagri) → fused-name skeleton ("nandanagri" = "nand nagri") →
+// per-token DL fuzzy (typos). "gali no 4", "block a", "pocket b" parse
+// as units inside their resolved area; "X near Y" biases X to Y's fix;
+// a bare kind word ("bakery near hanuman mandir") becomes a kind-scan
+// around the anchor. Everything stays honest — a miss shows nothing,
+// never a fabricated place.
+
+import { EXPANSIONS, fold, foldName, normalize } from "./text";
+import { kindRegexFor, parseQuery, type Parsed } from "./parse";
+
+export { normalize } from "./text";
 
 type Raw = { n: string; c: string; lat: number; lon: number; w: number; k: number };
 
 export type LatLon = { lat: number; lon: number };
-export type SearchTier = "t0" | "t1" | "t2";
+export type SearchTier = "t0" | "t1" | "t2" | "t3";
 
 export type PlaceResult = {
   name: string;
@@ -42,36 +50,8 @@ export const DELHI_CENTER: LatLon = { lat: 28.6139, lon: 77.209 };
 export const distKm = (a: LatLon, b: LatLon): number =>
   Math.hypot((a.lat - b.lat) * 110.6, (a.lon - b.lon) * 99.4);
 
-// Hinglish / common abbreviations (docs/plan/04 §2 normalization table).
-// Applied query-side; full names are also reverse-aliased at index time so
-// "gk" finds Greater Kailash even before expansion is considered.
-const ABBREV: Record<string, string> = {
-  cp: "connaught place",
-  gk: "greater kailash",
-  sec: "sector",
-  ngr: "nagar",
-  vhr: "vihar",
-  ext: "extension",
-  encl: "enclave",
-  mkt: "market",
-  rd: "road",
-  stn: "station",
-  chok: "chowk",
-  ph: "phase",
-  clny: "colony",
-};
-const EXPANSIONS: [string, string][] = Object.entries(ABBREV).map(([ab, exp]) => [exp, ab]);
-
-/** Shared normalization: lowercase, punctuation → space, abbreviation
- * expansion, single spaces. Used for queries, index keys and dedupe. */
-export function normalize(q: string): string {
-  const s = q.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!s) return "";
-  return s
-    .split(" ")
-    .map((tok) => ABBREV[tok] ?? tok)
-    .join(" ");
-}
+// normalize/ABBREV/EXPANSIONS/fold live in ./text (shared with parse.ts
+// and client.ts); `normalize` is re-exported above for existing callers.
 
 // Category → short label (mirrors src/gazetteer.ts so T0 rows read the same).
 const SUB: Record<string, string> = {
@@ -330,127 +310,493 @@ export function kindLabel(c: string): string {
 
 type Entry = {
   n: string; c: string; lat: number; lon: number; w: number; k: number;
-  nrm: string; toks: string[];
+  nrm: string; toks: string[]; ftoks: string[]; fskel: string;
 };
 
 let ENTRIES: Entry[] | null = null;
 let PREFIX: Map<string, number[]> | null = null;
+let FPREFIX: Map<string, number[]> | null = null;  // fold-token prefixes
+let FSKEL: Map<string, number[]> | null = null;    // fused-name skeleton prefixes
+let AREA: Map<string, number[]> | null = null;     // area-kind rows by geo cell
+let GEO: Map<string, number[]> | null = null;      // all rows by geo cell
 
 const MAX_PREFIX = 8;   // longest indexed prefix per token
 const PREFIX_CAP = 80;  // max ids kept per prefix (heaviest first)
+const GEO_CELL = 0.002; // ~221 m lat / ~196 m lon at 28.6°N
 
-const weight = (e: Entry) => e.w + e.k * 2;
+/* Type ordering (owner's ranking rule): a street/address row beats a
+   landmark, which beats a locality, for the same match quality — plus
+   the gazetteer's own w/k importance at HALF weight (the raw table was
+   worship-heavy: hindu_place_of_worship w=9 vs address w=2 buried street
+   rows under temple rows for the same name). */
+const typeBonus = (c: string): number => {
+  if (/^(address|housenumber|housename|house|street|residential|living_street|pedestrian|tertiary|unclassified|service|secondary|primary|trunk|motorway|link|crossing|junction)$/.test(c)) return 14;
+  if (/^(platform|stop_position|stop|bus_stop|subway_entrance|entrance|parking|parking_space|parking_entrance|gate|lift_gate|shed)$/.test(c)) return 2;
+  if (/^(monument|landmark|tourist_attraction|memorial|statue|artwork|fort|tomb|castle|ruins|archaeological_site|attraction)$/.test(c)) return 11;
+  if (/^(station|train_station|metro|subway|halt|rail|railway|bus_station|bus_depot|depot|terminal|terminus|isbt)$/.test(c)) return 10;
+  if (/^(locality|neighborhood|neighbourhood|suburb|village|hamlet|district|subdistrict|quarter|macrohood|administrative|sector|block|place|town|city|county|municipality|estate|colony)$/.test(c)) return 9;
+  if (/^(park|garden|playground|recreation_ground|pitch|dog_park|national_park|nature_reserve)$/.test(c)) return 7;
+  if (/worship|temple|mosque|church|gurudwara|gurdwara|shrine|ashram|monastery|dargah|religious|synagogue/.test(c)) return 5;
+  if (/^(historic_site|heritage)$/.test(c)) return 5;
+  if (/^(building|named|amenity|geonames|office|company|commercial|industrial)$/.test(c)) return 5;
+  return 8;   // real POI/shop/service kinds — the honest mid-tier
+};
 
-function build(): void {
-  if (ENTRIES) return;
-  const raw = require("../../assets/delhi-gazetteer.json") as Raw[];
-  const entries: Entry[] = [];
-  const prefix = new Map<string, number[]>();
+const weight = (e: Entry) => typeBonus(e.c) + e.w * 0.5 + e.k * 2;
 
-  for (const g of raw) {
-    // malformed corpus rows are skipped, never crash the sheet
-    if (!g || typeof g.n !== "string") continue;
-    const nrm = g.n.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-    if (!nrm) continue;
-    const e: Entry = { n: g.n, c: g.c, lat: g.lat, lon: g.lon, w: g.w, k: g.k, nrm, toks: nrm.split(" ") };
-    const id = entries.push(e) - 1;
+/* Kinds that name an AREA — they anchor "near Y" resolution and supply
+   the locality half of a subtitle ("street · Shahdara"). */
+const AREA_KINDS = new Set([
+  "locality", "neighborhood", "neighbourhood", "suburb", "village",
+  "hamlet", "district", "subdistrict", "quarter", "macrohood",
+  "administrative", "sector", "block", "place", "town", "city",
+  "colony", "estate",
+]);
 
-    const keys = new Set<string>();
-    for (const tok of e.toks)
-      for (let l = 1; l <= Math.min(tok.length, MAX_PREFIX); l++) keys.add(tok.slice(0, l));
-    // reverse aliases: a name containing "greater kailash" also answers to "gk"
-    for (const [exp, ab] of EXPANSIONS)
-      if (nrm.includes(exp))
-        for (let l = 1; l <= Math.min(ab.length, MAX_PREFIX); l++) keys.add(ab.slice(0, l));
+/* The corpus load + index build used to run as ONE synchronous block the
+   first time search touched it — inside the sheet's mount effect. On a
+   mid-range phone that's an 11 MB parse plus ~124k-entry indexing —
+   seconds of dead JS thread; the sheet's JS-driven enter spring froze
+   mid-slide and the owner saw "10 seconds, screen hung". Now the work
+   is sliced: warm() steps through ~6k entries per macrotask at boot-idle
+   (or on the CTA's press-in), so the index is almost always complete
+   before the first keystroke. A query that lands mid-build still
+   finishes the remainder synchronously — correctness never waits on
+   the scheduler. */
+let RAW: Raw[] | null = null;   // the require'd corpus, freed once built
+let cursor = 0;                  // next raw row to index
+let built = false;
+let scheduled = false;
+const WARM_SLICE = 6000;         // ~15-30 ms a slice on-device
 
-    for (const key of keys) {
-      const list = prefix.get(key);
-      if (list) list.push(id);
-      else prefix.set(key, [id]);
-    }
+const post = (map: Map<string, number[]>, key: string, id: number) => {
+  const list = map.get(key);
+  if (list) list.push(id); else map.set(key, [id]);
+};
+
+function indexRow(g: Raw): void {
+  // malformed corpus rows are skipped, never crash the sheet
+  if (!g || typeof g.n !== "string") return;
+  const nrm = g.n.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!nrm) return;
+  const toks = nrm.split(" ");
+  const e: Entry = {
+    n: g.n, c: g.c, lat: g.lat, lon: g.lon, w: g.w, k: g.k,
+    nrm, toks,
+    ftoks: toks.map(fold).filter(Boolean),
+    fskel: foldName(nrm),
+  };
+  const id = ENTRIES!.push(e) - 1;
+
+  const keys = new Set<string>();
+  const fkeys = new Set<string>();
+  for (const tok of e.toks)
+    for (let l = 1; l <= Math.min(tok.length, MAX_PREFIX); l++) keys.add(tok.slice(0, l));
+  for (const tok of e.ftoks) {
+    if (!tok) continue;
+    for (let l = 1; l <= Math.min(tok.length, MAX_PREFIX); l++) fkeys.add(tok.slice(0, l));
   }
+  for (let l = 2; l <= Math.min(e.fskel.length, MAX_PREFIX); l++)
+    post(FSKEL!, e.fskel.slice(0, l), id);
+  // reverse aliases: a name containing "greater kailash" also answers to "gk"
+  for (const [exp, ab] of EXPANSIONS)
+    if (nrm.includes(exp))
+      for (let l = 1; l <= Math.min(ab.length, MAX_PREFIX); l++) keys.add(ab.slice(0, l));
 
-  for (const ids of prefix.values())
-    if (ids.length > PREFIX_CAP) {
-      ids.sort((a, b) => weight(entries[b]) - weight(entries[a]));
-      ids.length = PREFIX_CAP;
-    }
+  for (const key of keys) post(PREFIX!, key, id);
+  for (const key of fkeys) post(FPREFIX!, key, id);
 
-  // free the 2.7MB source array — the require()d JSON otherwise stays
+  const gk = `${Math.floor(e.lat / GEO_CELL)},${Math.floor(e.lon / GEO_CELL)}`;
+  post(GEO!, gk, id);
+  if (AREA_KINDS.has(e.c)) post(AREA!, gk, id);
+}
+
+/** One slice of index work; returns true when the whole index is ready. */
+function buildSlice(maxRows: number): boolean {
+  if (built) return true;
+  if (!RAW) {
+    /* the require's own parse is the one cost we can't slice — it lands
+       whichever way the first touch arrives; every indexed row after it
+       is what the slice loop amortizes */
+    RAW = require("../../assets/delhi-gazetteer.json") as Raw[];
+    ENTRIES = [];
+    PREFIX = new Map();
+    FPREFIX = new Map();
+    FSKEL = new Map();
+    AREA = new Map();
+    GEO = new Map();
+    cursor = 0;
+  }
+  const raw = RAW, end = Math.min(cursor + maxRows, raw.length);
+  for (; cursor < end; cursor++) indexRow(raw[cursor]);
+  if (cursor < raw.length) return false;
+  const entries = ENTRIES!;
+  const cap = (map: Map<string, number[]>) => {
+    for (const ids of map.values())
+      if (ids.length > PREFIX_CAP) {
+        ids.sort((a, b) => weight(entries[b]) - weight(entries[a]));
+        ids.length = PREFIX_CAP;
+      }
+  };
+  cap(PREFIX!); cap(FPREFIX!); cap(FSKEL!);
+
+  // free the multi-MB source array — the require()d JSON otherwise stays
   // pinned in Metro's module registry for the app lifetime (perf-r4)
   raw.length = 0;
-  ENTRIES = entries;
-  PREFIX = prefix;
+  RAW = null;
+  built = true;
+  return true;
 }
 
-/** Preload the gazetteer + index (call when the search UI opens). */
+/** Synchronous finish — every reader path (query, nearestPlace) calls
+ *  this, so results are always complete however far warm() got. */
+function build(): void {
+  while (!built) buildSlice(1 << 30);
+}
+
+/** Preload the gazetteer + index in background slices — call at boot-idle
+ *  and on the search CTA's press-in. Idempotent; a no-op once built. */
 export function warm(): void {
-  build();
+  if (built || scheduled) return;
+  scheduled = true;
+  const step = () => {
+    if (buildSlice(WARM_SLICE)) scheduled = false;
+    else setTimeout(step, 0);
+  };
+  setTimeout(step, 0);
 }
 
-/** On-device search: prefix-index lookup, distance+weight ranked.
- * Typical <5 ms. */
-export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResult[] {
-  build();
-  const nq = normalize(q);
+/** Damerau-Levenshtein with an early-exit cap — only runs when the cheap
+ * stages found nothing, over a few hundred dictionary folds. */
+function dlDist(a: string, b: string, cap: number): number {
+  const la = a.length, lb = b.length;
+  if (Math.abs(la - lb) > cap) return cap + 1;
+  if (la === 0) return lb;
+  if (lb === 0) return la;
+  let p2: number[] = [];
+  let p1: number[] = [];
+  let cur: number[] = [];
+  for (let j = 0; j <= lb; j++) p1[j] = j;
+  for (let i = 1; i <= la; i++) {
+    cur[0] = i;
+    let rowMin = cur[0];
+    for (let j = 1; j <= lb; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let v = Math.min(p1[j] + 1, cur[j - 1] + 1, p1[j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+        v = Math.min(v, p2[j - 2] + 1);
+      cur[j] = v;
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > cap) return cap + 1;
+    const t = p2; p2 = p1; p1 = cur; cur = t;
+  }
+  return p1[lb];
+}
+
+/** does a row's token set satisfy a unit ask — 'gali 4' needs a 'gali'
+ * family token AND a token equal to '4' ('44' is a different gali); a
+ * letter value also accepts letter+digit ('a block' ~ 'a5 block'). */
+const STRUCT_ALTS: Record<string, string[]> = {
+  gali: ["gali", "gully", "lane", "street"], gully: ["gali", "gully", "lane"],
+  lane: ["lane", "gali", "street"], street: ["street", "gali", "lane", "road"],
+  block: ["block", "blk"], pocket: ["pocket", "poket", "pkt"], poket: ["pocket", "poket", "pkt"],
+  pkt: ["pocket", "poket", "pkt"], sector: ["sector", "sec"], phase: ["phase", "ph"],
+  part: ["part"], khand: ["khand"], enclave: ["enclave"], extension: ["extension", "ext"],
+  khasra: ["khasra", "kh"], kh: ["khasra", "kh"], ward: ["ward"], zone: ["zone"],
+  market: ["market", "mkt"],
+};
+
+const unitSat = (etoks: string[], u: { struct: string; value: string }): boolean => {
+  const alts = STRUCT_ALTS[u.struct] ?? [u.struct];
+  if (!alts.some((a) => etoks.includes(a))) return false;
+  return etoks.some((t) =>
+    t === u.value ||
+    (u.value.length === 1 && /[a-z]/.test(u.value) && t.startsWith(u.value) && /^\d+$/.test(t.slice(1))));
+};
+
+/** nearest area-kind row to a point — the locality half of a subtitle. */
+function areaNear(lat: number, lon: number, maxM = 1400): Entry | null {
+  const area = AREA!;
   const entries = ENTRIES!;
-  const prefix = PREFIX!;
-  if (!nq) return [];
+  const bi = Math.floor(lat / GEO_CELL), bj = Math.floor(lon / GEO_CELL);
+  let best: Entry | null = null;
+  let bestS = -Infinity;
+  for (let r = 0; r <= 8; r++) {
+    for (let di = -r; di <= r; di++)
+      for (let dj = -r; dj <= r; dj++) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+        for (const i of area.get(`${bi + di},${bj + dj}`) ?? []) {
+          const e = entries[i];
+          const d = distKm(e, { lat, lon }) * 1000;
+          if (d > maxM) continue;
+          const s = weight(e) - d / 400;
+          if (s > bestS) { bestS = s; best = e; }
+        }
+      }
+    if (best) break;  // first ring with an area wins — nearest is the truth
+  }
+  return best;
+}
 
-  const qToks = nq.split(" ");
-  // Candidate pool = posting list of the rarest query token; every other
-  // token is then verified against the entry's tokens. Postings are capped
-  // at PREFIX_CAP so the scan is bounded.
-  const lists = qToks.map((tk) => prefix.get(tk.slice(0, MAX_PREFIX)) ?? []);
-  if (lists[0].length === 0) return [];
-  let base = 0;
-  for (let i = 1; i < lists.length; i++) if (lists[i].length < lists[base].length) base = i;
+/** the subtitle a Google-style row shows: "<kind> · <locality>" — the
+ * resolved street/gali + area, not just a bare name pin. */
+const subtitleFor = (e: Entry): string => {
+  if (AREA_KINDS.has(e.c)) return kindLabel(e.c);
+  const a = areaNear(e.lat, e.lon);
+  return a && a.nrm !== e.nrm ? `${kindLabel(e.c)} · ${a.n}` : kindLabel(e.c);
+};
 
-  const scored: { s: number; e: Entry }[] = [];
-  outer: for (const id of lists[base]) {
-    const e = entries[id];
-    const allToks = qToks.every((qt) => e.toks.some((nt) => nt.startsWith(qt)));
-    const phrase = e.nrm.startsWith(nq) || e.nrm.includes(` ${nq}`) || e.nrm.includes(nq);
-    if (!allToks && !phrase) continue outer;
-    let s = e.nrm.startsWith(nq) ? 100 : allToks ? 70 : 40;
-    s += weight(e);
-    /* distKm once arrived as a non-callable namespace object on a cold
-       launch (metro inline-require flake, same class as the SearchScreen
-       distLabel guard): the distance bias degrades to flat scoring
-       instead of taking the sheet down. */
-    if (userLoc && typeof distKm === "function")
-      s -= Math.min(distKm(e, userLoc), 60) * 0.8;
-    scored.push({ s, e });
+/** staged candidate collection: union of prefix, fold-prefix and
+ * skeleton postings → per-entry best match tier. */
+function matchStage(
+  p: Parsed, bias: LatLon | null | undefined, cap: number,
+): { s: number; e: Entry }[] {
+  const entries = ENTRIES!, prefix = PREFIX!, fprefix = FPREFIX!, fskel = FSKEL!;
+  const head = p.toks.join(" ");
+  const cand = new Set<number>();
+
+  const lists = p.toks.map((tk) => prefix.get(tk.slice(0, MAX_PREFIX)) ?? []);
+  const flists = p.folds.map((tk) => fprefix.get(tk.slice(0, MAX_PREFIX)) ?? []);
+  const allLists = [...lists, ...flists];
+  if (allLists.length && allLists.every((l) => l.length === 0)) {
+    // no prefix anywhere — try the fused-name skeleton before giving up
+    const sk = fold(p.toks.join(""));
+    if (sk.length >= 2) for (const id of fskel.get(sk.slice(0, MAX_PREFIX)) ?? []) cand.add(id);
+    if (!cand.size) return [];
+  } else {
+    // rarest posting bounds the scan; fold lists widen the same pool
+    let base = 0;
+    for (let i = 1; i < allLists.length; i++)
+      if (allLists[i].length < allLists[base].length) base = i;
+    for (const id of allLists[base]) cand.add(id);
+    // fused single-token queries also check the full-name skeleton
+    if (p.toks.length === 1) {
+      const sk = fold(p.toks[0]);
+      if (sk.length >= 2) for (const id of fskel.get(sk.slice(0, MAX_PREFIX)) ?? []) cand.add(id);
+    }
   }
 
+  const scored: { s: number; e: Entry }[] = [];
+  for (const id of cand) {
+    const e = entries[id];
+    let m = 0;
+    if (head && e.nrm.startsWith(head)) m = 100;
+    else if (p.toks.every((qt) => e.toks.some((nt) => nt.startsWith(qt)))) m = 75;
+    else if (p.folds.length && p.folds.every((qt) => e.ftoks.some((nt) => nt.startsWith(qt)))) m = 62;
+    else if (head && (e.nrm.includes(` ${head}`) || e.nrm.includes(head))) m = 50;
+    else if (p.folds.length === 1 && e.fskel.startsWith(fold(p.toks[0]))) m = 58;
+    else continue;
+    scored.push({ s: m + weight(e), e });
+  }
+
+  /* fuzzy stage — only when nothing matched. Typos, not guesses: every
+     query fold-token must land within DL distance 1 (short) or 2. */
+  if (!scored.length && p.folds.length) {
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      let sum = 0;
+      let failed = false;
+      for (const qf of p.folds) {
+        const bcap = qf.length <= 4 ? 1 : 2;
+        let bd = bcap + 1;
+        for (const ft of e.ftoks) {
+          if (Math.abs(ft.length - qf.length) > bcap) continue;
+          const d = dlDist(qf, ft, bcap);
+          if (d < bd) bd = d;
+          if (bd === 0) break;
+        }
+        if (bd > bcap) { failed = true; break; }
+        sum += bd;
+      }
+      if (failed) continue;
+      scored.push({ s: 55 - sum * 8 + weight(e), e });
+      if (scored.length > 400) break;
+    }
+  }
+
+  if (bias && typeof distKm === "function")
+    for (const r of scored) r.s -= Math.min(distKm(r.e, bias), 60) * 0.8;
   scored.sort((a, b) => b.s - a.s);
-  const seen = new Set<string>();
+  return scored.slice(0, cap);
+}
+
+/** resolve a near-phrase ("near hanuman mandir") to a real row — any kind
+ * can anchor. Common names ("hanuman mandir" is everywhere) resolve to
+ * the NEAREST strong match to the caller, like Google — a famous mandir
+ * 12 km away is never "the" mandir the user is standing next to. */
+function resolveAnchor(toks: string[], userLoc?: LatLon | null): Entry | null {
+  const p: Parsed = {
+    raw: toks.join(" "), nq: toks.join(" "), toks,
+    folds: toks.map(fold), units: [], kind: null, near: null,
+  };
+  const hits = matchStage(p, userLoc, 8);
+  if (!hits.length) return null;
+  if (!userLoc || typeof distKm !== "function") return hits[0].e;
+  // nearest among the matches — but never pay more than the weight gap
+  // of a clearly better answer (~20 pts ≈ 25 km) for proximity
+  let best = hits[0];
+  for (const h of hits.slice(1)) {
+    const dNew = distKm(h.e, userLoc), dBest = distKm(best.e, userLoc);
+    if (dNew + 1e-9 < dBest && h.s - dNew * 0 >= best.s - dBest * 2.2) best = h;
+  }
+  return best.e;
+}
+
+/** entries satisfying every unit ask within maxM of an anchor — "gali 4"
+ * inside Ashok Nagar. Rides the same geo cells as nearestPlace. */
+function unitScan(anchor: LatLon, units: Parsed["units"], maxM = 2600, cap = 6): { e: Entry; d: number }[] {
+  const entries = ENTRIES!;
+  const geo = GEO!;
+  const out: { e: Entry; d: number }[] = [];
+  const cells = Math.ceil(maxM / 1000 / 0.22);
+  const bi = Math.floor(anchor.lat / GEO_CELL), bj = Math.floor(anchor.lon / GEO_CELL);
+  for (let di = -cells; di <= cells; di++)
+    for (let dj = -cells; dj <= cells; dj++)
+      for (const i of geo.get(`${bi + di},${bj + dj}`) ?? []) {
+        const e = entries[i];
+        if (!units.every((u) => unitSat(e.toks, u))) continue;
+        const d = distKm(e, anchor) * 1000;
+        if (d <= maxM) out.push({ e, d });
+      }
+  out.sort((a, b) => a.d - b.d);
+  return out.slice(0, cap);
+}
+
+/** kind-scan — "bakery near hanuman mandir": real kind rows around the
+ * anchor, honestly labelled as the kind (never pretending to be a named
+ * place the corpus doesn't hold). A name qualifier ('pawan') that a row's
+ * own name carries outranks one it doesn't. */
+function kindScan(anchor: LatLon, kindRe: RegExp, nameToks: string[], maxM = 2600, cap = 6): { e: Entry; d: number }[] {
+  const entries = ENTRIES!;
+  const geo = GEO!;
+  const out: { e: Entry; d: number; named: number }[] = [];
+  const cells = Math.ceil(maxM / 1000 / 0.22);
+  const bi = Math.floor(anchor.lat / GEO_CELL), bj = Math.floor(anchor.lon / GEO_CELL);
+  for (let di = -cells; di <= cells; di++)
+    for (let dj = -cells; dj <= cells; dj++)
+      for (const i of geo.get(`${bi + di},${bj + dj}`) ?? []) {
+        const e = entries[i];
+        if (!kindRe.test(e.c)) continue;
+        const d = distKm(e, anchor) * 1000;
+        if (d > maxM) continue;
+        const named = nameToks.length && nameToks.every((t) => e.toks.some((nt) => nt.startsWith(t))) ? 1 : 0;
+        out.push({ e, d, named });
+      }
+  out.sort((a, b) => b.named - a.named || a.d - b.d);
+  return out.slice(0, cap);
+}
+
+const toResult = (e: Entry, sub?: string): PlaceResult => ({
+  name: e.n,
+  subtitle: sub ?? subtitleFor(e),
+  lat: e.lat,
+  lon: e.lon,
+  kind: e.c,
+  outside_ncr: !inNcr(e.lat, e.lon),
+  tier: "t0",
+});
+
+/** On-device search: staged prefix/fold/fuzzy lookup over the bundled
+ * gazetteer, unit + near-anchor resolution on top. Typical <5 ms. */
+export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResult[] {
+  build();
+  const p = parseQuery(q);
+  if (!p || (!p.toks.length && !p.units.length)) return [];
+
+  /* "X near Y" — resolve Y first; it becomes the bias for everything. */
+  const nearAnchor = p.near && p.near.length ? resolveAnchor(p.near, userLoc) : null;
+  const bias = nearAnchor ?? userLoc ?? null;
+
+  let scored = p.toks.length ? matchStage(p, bias, limit * 4) : [];
+
+  /* trailing-context retry — "ashok nagar shahdara" may only resolve as
+     "ashok nagar" when 'shahdara' is neighbourhood context, not name
+     text. Drop tail tokens one at a time; a dropped tail that resolves
+     as its own anchor biases among same-named candidates. */
+  if (!scored.length && p.toks.length > 1) {
+    for (let cut = p.toks.length - 1; cut >= 1 && !scored.length; cut--) {
+      const tail = resolveAnchor(p.toks.slice(cut), userLoc);
+      const sub: Parsed = {
+        ...p,
+        toks: p.toks.slice(0, cut),
+        folds: p.folds.slice(0, cut),
+        nq: p.toks.slice(0, cut).join(" "),
+      };
+      scored = matchStage(sub, tail ?? bias, limit * 4);
+      if (scored.length && tail) break;
+    }
+  }
+
+  /* units — 'gali 4'/'block a' inside the resolved place: unit rows
+     around the anchor are THE answer; the area itself stands when no
+     unit row exists (honest area answer, not a wrong-colony guess). */
+  const unitRows: PlaceResult[] = [];
+  const anchorE = nearAnchor ?? scored[0]?.e ?? null;
+  if (p.units.length && anchorE) {
+    for (const { e } of unitScan(anchorE, p.units))
+      unitRows.push(toResult(e));
+  }
+
+  /* kind routing — 'bakery near hanuman mandir' is a kind ask around an
+     anchor, not a name ask: name rows of "bakery"-named places get the
+     scan too, but the honest category answer leads. Same for a lone kind
+     word ('atm') — nearby real ATMs beat "Atma Ram College". Only when
+     the scan finds nothing do name-path rows stand. */
+  let kindRows: PlaceResult[] = [];
+  const loneKind = p.kind != null && p.toks.length === 1;
+  const kindFirst = p.kind != null && (loneKind || (nearAnchor != null && p.toks.length >= 1));
+  if (p.kind && (kindFirst || !scored.length) && !unitRows.length) {
+    const re = new RegExp(kindRegexFor(p.kind)!);
+    const nameToks = p.toks.filter((t) => t !== p.kind);
+    const anchor: LatLon | null = nearAnchor ?? bias;
+    if (anchor) {
+      const anchorSub = nearAnchor ? ` · ${nearAnchor.n}` : "";
+      kindRows = kindScan(anchor, re, nameToks, 2600, limit)
+        .map(({ e }) => toResult(e, `${kindLabel(e.c)}${anchorSub}`));
+    }
+    // for a name-bearing kind ask the name hits may still be the better
+    // answer — append them after the kind rows, dedupe handles overlap
+  }
+
+  /* assemble: unit rows → name hits → kind rows, hard-deduped. Same
+     normalized name within ~400 m is ONE place no matter how many rows
+     the corpus split it into. */
   const out: PlaceResult[] = [];
-  for (const { e } of scored) {
-    const key = `${e.nrm}|${e.lat.toFixed(3)}|${e.lon.toFixed(3)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({
-      name: e.n,
-      subtitle: kindLabel(e.c),
-      lat: e.lat,
-      lon: e.lon,
-      kind: e.c,
-      outside_ncr: !inNcr(e.lat, e.lon),
-      tier: "t0",
-    });
-    if (out.length >= limit) break;
+  const seenExact = new Set<string>();
+  const seenName: { nrm: string; lat: number; lon: number }[] = [];
+  const push = (r: PlaceResult, e?: Entry) => {
+    if (out.length >= limit) return;
+    const nrm = e ? e.nrm : normalize(r.name);
+    const key = `${nrm}|${r.lat.toFixed(3)}|${r.lon.toFixed(3)}`;
+    if (seenExact.has(key)) return;
+    if (seenName.some((s) => s.nrm === nrm && Math.hypot((s.lat - r.lat) * 110.6, (s.lon - r.lon) * 99.4) * 1000 < 400)) return;
+    seenExact.add(key);
+    seenName.push({ nrm, lat: r.lat, lon: r.lon });
+    out.push(r);
+  };
+
+  for (const r of unitRows) push(r);
+  if (loneKind) {
+    // a lone kind word's name-path rows are usually a different thing
+    // entirely ('atm' → "Atma Ram College") — the scan IS the answer
+    for (const r of kindRows) push(r);
+    for (const { e } of scored) push(toResult(e), e);
+  } else if (kindRows.length && kindFirst) {
+    for (const r of kindRows) push(r);
+    for (const { e } of scored) push(toResult(e), e);
+  } else {
+    for (const { e } of scored) push(toResult(e), e);
+    for (const r of kindRows) push(r);
   }
   return out;
 }
 
 // --- offline reverse -----------------------------------------------------------
-// Same idea as server/core_engine.nearest: a lat/lon cell grid over the
-// SAME bundled entries, built lazily. A dropped pin with no network can
-// still name the nearest real place — never a fabricated label.
-
-const GEO_CELL = 0.002; // ~221 m lat / ~196 m lon at 28.6°N
-let GEO: Map<string, number[]> | null = null;
+// Same idea as server/core_engine.nearest: the GEO lat/lon cell grid
+// over the SAME bundled entries (built in build() — also serves unit
+// and kind scans). A dropped pin with no network can still name the
+// nearest real place — never a fabricated label.
 
 // kinds that orient a dropped pin: street/address/locality names first,
 // shops+POIs only when nothing else is nearby ("nearest:" phrasing
@@ -465,16 +811,7 @@ export type NearestHit = { name: string; kind: string; distance_m: number };
 export function nearestPlace(p: LatLon, maxM = 150): NearestHit | null {
   build();
   const entries = ENTRIES!;
-  if (!GEO) {
-    const geo = new Map<string, number[]>();
-    entries.forEach((e, i) => {
-      const key = `${Math.floor(e.lat / GEO_CELL)},${Math.floor(e.lon / GEO_CELL)}`;
-      const l = geo.get(key);
-      if (l) l.push(i); else geo.set(key, [i]);
-    });
-    GEO = geo;
-  }
-  const geo = GEO;
+  const geo = GEO!;
   const bi = Math.floor(p.lat / GEO_CELL), bj = Math.floor(p.lon / GEO_CELL);
   let best: NearestHit | null = null;
   let bestRank = 99, bestD = maxM;

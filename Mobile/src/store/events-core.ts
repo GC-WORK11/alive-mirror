@@ -357,17 +357,20 @@ export function causeNote(
     }
   }
   if (fields.stag_factor != null && !skip.has("stag")) {
-    bits.push(fields.vc_m2s != null
-      ? t("noteStagVc", lang, { vc: Math.round(fields.vc_m2s).toLocaleString("en-IN") })
-      : t("noteStag", lang));
+    /* the stillness measure in plain words — percent of the air's usual
+       clearing pace (was raw m²/s, which only an engineer can read) */
+    bits.push(t("noteStagPct", lang, {
+      p: Math.max(1, Math.round(100 / fields.stag_factor)),
+    }));
   }
   const rising = fields.trend_from != null && fields.trend_to != null &&
     fields.trend_to > fields.trend_from;
   if (fields.trend_from != null && fields.trend_to != null && !skip.has("trend")) {
+    /* whole µg/m³ — a decimal on a city mean is fake-exact */
     bits.push(t("noteTrend", lang, {
-      a: Math.round(fields.trend_from * 10) / 10,
-      b: Math.round(fields.trend_to * 10) / 10,
-      h: Math.round((fields.trend_span_h ?? 0) * 10) / 10,
+      a: Math.round(fields.trend_from),
+      b: Math.round(fields.trend_to),
+      h: Math.round(fields.trend_span_h ?? 0),
     }));
   }
   /* the verdict tail — only what the physics itself backs: inflow

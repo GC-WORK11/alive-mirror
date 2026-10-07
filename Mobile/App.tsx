@@ -24,6 +24,8 @@ import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { latinLabels, v2StyleUrl } from "./src/map/style";
 import { warmBasemap } from "./src/map/tileWarm";
+import { warm as warmSearchIndex } from "./src/search/t0";
+import { afterFirstFrame } from "./src/startup/idle";
 import { camDur } from "./src/map/cam";
 import {
   holdMapDraw, noteMapBusy, noteMapIdle, useHeldState, useMapDrawHeld,
@@ -44,7 +46,6 @@ import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen, type SharingChoice } from "./src/screens/OnboardingScreen";
-import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 import { loadWelcomeSeen, markWelcomeSeen } from "./src/store/welcome";
 import { HomeScreen, DayPeek, useDayData, type AmbientMeta } from "./src/screens/HomeScreen";
 import { recordSample, setCheckin } from "./src/store/daylog";
@@ -68,7 +69,7 @@ import { loadTrips, type Trip } from "./src/store/ledger";
 import { checkAirEvents, resetEventsStore } from "./src/store/events";
 import { cancelDailyBrief } from "./src/notify";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
-import { approx, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
+import { approx, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
 import { PERF_ON, bump, mark, report } from "./src/perf";
 
@@ -118,6 +119,19 @@ type TrackChangeEvent = Parameters<NonNullable<React.ComponentProps<typeof Camer
    drawHold's cold-boot watch reads the render thread's busy/idle
    through these: a mount commit inside the first tile stream is the
    residual SIGSEGV (drawHold.ts boot-watch comment). */
+/** the share text — clauses compose, so a missing estimate never prints
+    a bare "—" inside the sentence; nothing to say → the app's own line */
+function shareTripMsg(
+  lang: Lang, from: string, to: string,
+  dose: string | null, co2: string | null,
+): string {
+  const what = [
+    dose != null ? t("shareClauseBreathe", lang, { dose }) : null,
+    co2 != null ? t("shareClausePutOut", lang, { co2 }) : null,
+  ].filter((x): x is string => x != null).join(" · ");
+  return what ? t("shareTripLine", lang, { from, to, what }) : t("shareAppBody", lang);
+}
+
 const onMapBusy = () => noteMapBusy();
 const onMapIdle = () => { noteMapIdle(); if (PERF_ON) mark("map.rendered"); };
 /* first fully-rendered frame → kick the one-time NCR tile prefetch in the
@@ -266,7 +280,7 @@ function AppInner() {
     planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
     pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
-    strips, reloadTrips,
+    strips, reloadTrips, locNotice, setLocNotice,
   } = flow;
   useEffect(() => {
     if (!from) return;
@@ -365,9 +379,9 @@ function AppInner() {
      (home-truth: a number you can't verify reads as a wrong number). */
   const [ambientMeta, setAmbientMeta] = useState<AmbientMeta | null>(null);
   const [introSeen, setIntroSeen] = useHeldState<boolean | null>(null);
-  /* welcome_seen_v1 — the first-breath cinematic; null until the flag
-     reads so a returning user never flashes the overlay for a frame */
-  const [welcomeSeen, setWelcomeSeen] = useHeldState<boolean | null>(null);
+  /* welcome_seen_v1 — the first-breath cinematic is retired (owner:
+     "slop I never asked for"); the flag file still writes once per
+     install below so its lifecycle stays consistent. */
   const net = useNetStatus();
 
   const [fontsLoaded] = useFonts({
@@ -458,7 +472,9 @@ function AppInner() {
         }
         const lat = pos?.coords.latitude ?? DELHI[1];
         const lon = pos?.coords.longitude ?? DELHI[0];
-        if (pos) setUserPos({ lat, lon });
+        /* same-fix dedupe: a fresh {lat,lon} object every poll would
+           re-render the tree for nothing */
+        if (pos) setUserPos((p) => (p && p.lat === lat && p.lon === lon ? p : { lat, lon }));
         try {
           const j = await fetchJson(`${API}/aqi?lat=${lat}&lon=${lon}`, 8000);
           const nf = j?.field && typeof j.field === "object" ? (j.field as FieldStatus) : null;
@@ -507,7 +523,19 @@ function AppInner() {
     aqiPollRef.current = () => aqiPoll(true);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
-    loadWelcomeSeen().then(setWelcomeSeen).catch(() => setWelcomeSeen(true));
+    /* the welcome film is gone — the flag still lands once per install
+       so the file's semantics (welcome_seen_v1.json exists ⇔ this
+       install ran its first-open flow) hold for anything reading it */
+    loadWelcomeSeen()
+      .then((seen) => { if (!seen) void markWelcomeSeen(); })
+      .catch(() => {});
+    /* search gazetteer: slice-build the 124k-entry index in the
+       background once the first frame has painted — by the time a
+       search door is tapped the index is already a Map, so the sheet
+       opens in ms instead of freezing on a multi-second sync build
+       inside its mount effect (the owner's "10 seconds, hung" read).
+       The 900 ms delay keeps the slices behind the boot burst. */
+    void afterFirstFrame().then(() => setTimeout(() => warmSearchIndex(), 900));
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); clearInterval(fieldIv); };
   }, [setFrom, setTrips, settings.lang]);
 
@@ -720,7 +748,15 @@ function AppInner() {
     : { top: insets.top + 76, right: 12 }), [phase, insets.top]);
   const logoPosition = useMemo(() => ({ bottom: insets.bottom + 72, left: 10 }), [insets.bottom]);
   const attributionPosition = useMemo(() => ({ bottom: insets.bottom + 72, right: 10 }), [insets.bottom]);
-  const searchUserLoc = useMemo(() => (from ? { lat: from.lat, lon: from.lon } : null), [from]);
+  /* search bias is the REAL GPS fix — never 'from', which used to feed
+     the bias a fabricated 'central Delhi' fallback and rank results for
+     a place the user wasn't in (owner: 'live location ain't working').
+     'from' only fills in when no real fix exists yet. */
+  const searchUserLoc = useMemo(
+    () => (userPos ? { lat: userPos.lat, lon: userPos.lon }
+      : from ? { lat: from.lat, lon: from.lon } : null),
+    [userPos, from],
+  );
 
   const onMapPress = useCallback(async (f: MapPressEvent) => {
     if (!mapPickArmed) return;
@@ -753,12 +789,17 @@ function AppInner() {
      (testday-ios z-order wart). Mirrors onDelhiTodayOpen/onFullSettings
      closing the drawer beneath their own surface. */
   const openSidebar = useCallback(() => { setLayersOpen(false); setSidebarOpen(true); }, []);
-  const openSearch = useCallback(() => { setEditWhich("to"); setPhase("search"); }, [setEditWhich, setPhase]);
+  const openSearch = useCallback(() => {
+    setLocNotice(null);
+    setEditWhich("to");
+    setPhase("search");
+  }, [setEditWhich, setPhase, setLocNotice]);
   const closeCompareToHome = useCallback(() => { setHomeOpen(true); clearRoute(); }, [clearRoute]);
   const onSearchClose = useCallback(() => {
+    setLocNotice(null);
     if (placePickSlot) { setPlacePickSlot(null); setSidebarOpen(true); }
     setPhase(to ? "compare" : "idle");
-  }, [placePickSlot, setPhase, to]);
+  }, [placePickSlot, setPhase, setLocNotice, to]);
   const onSearchSelect = useCallback(async (sel: SearchSelection) => {
     if (sel.type === "place") {
       if (placePickSlot) {
@@ -793,9 +834,15 @@ function AppInner() {
       setPhase("idle");
       setSidebarOpen(true);
     } else if (pos) pick({ name: t("yourLocation", lang), subtitle: "",
-      lat: pos.coords.latitude, lon: pos.coords.longitude }, "from");
-    else setPhase(to ? "compare" : "idle");
-  }, [placePickSlot, patchSettings, setPhase, pick, lang, to]);
+      lat: pos.coords.latitude, lon: pos.coords.longitude }, editWhich);
+    else {
+      /* the failed fix used to close the sheet and show NOTHING (the
+         'live location ain't working' silent no-op) — stay open and
+         say it failed so typing a place keeps the flow moving. */
+      setLocNotice(t("locPickFailed", lang));
+      setPhase("search");
+    }
+  }, [placePickSlot, patchSettings, setPhase, pick, editWhich, lang, to, setLocNotice]);
   const onLocate = useCallback(() => {
     if (follow) { setFollow(false); return; }
     /* warm the fused provider before engaging follow — MapLibre's
@@ -830,15 +877,13 @@ function AppInner() {
   const onLangChange = useCallback((l: "en" | "hi") => patchSettings({ lang: l }), [patchSettings]);
   const onShare = useCallback(() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {}), [lang]);
   const onShareTrip = useCallback((tr: Trip) => Share.share({
-    message: t("shareTripBody", lang, {
-      from: placeNameLabel(tr.from, lang), to: placeNameLabel(tr.to, lang),
-      // cigarette figure only with show_cig on; µg is the default
-      dose: tr.dose_ug != null
-        ? (settings.show_cig ? t("nav_cigs", lang, { n: approx(cigOf(tr.dose_ug) ?? 0) }) : `~${Math.round(tr.dose_ug)}µg`)
-        : "—",
-      // co2 was never passed — the template printed a literal "{co2}"
-      co2: tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : "—",
-    }),
+    message: shareTripMsg(lang, placeNameLabel(tr.from, lang), placeNameLabel(tr.to, lang),
+      tr.dose_ug != null
+        ? (settings.show_cig
+            ? t("nav_cigs", lang, { n: Math.max(0.01, Math.round((cigOf(tr.dose_ug) ?? 0) * 100) / 100) })
+            : t("doseUg", lang, { n: doseUgRound(tr.dose_ug) }))
+        : null,
+      tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : null),
   }).catch(() => {}), [lang, settings.show_cig]);
   const onLayersClose = useCallback(() => setLayersOpen(false), []);
   const onDelhiClose = useCallback(() => setDelhiOpen(false), []);
@@ -925,6 +970,8 @@ function AppInner() {
         visible={phase === "search"}
         lang={lang}
         userLocation={searchUserLoc}
+        mode={editWhich}
+        notice={locNotice}
         onClose={onSearchClose}
         onSelect={onSearchSelect} />
       {phase === "idle" && (
@@ -1077,16 +1124,7 @@ function AppInner() {
       <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
         onDone={onOnboardDone} />
 
-      {/* the first-breath cinematic — once per install (welcome_seen_v1),
-          mounted last so it sits above every sheet incl. the consent
-          gate; on a fresh install it exits INTO the armed onboarding
-          sheet. It fetches /v2/city itself and falls back to the boot
-          ambient read — a real number or honestly nothing. */}
-      <WelcomeScreen
-        visible={welcomeSeen === false}
-        lang={lang}
-        ambientUg={ambientUg}
-        onDone={() => { markWelcomeSeen().catch(() => {}); setWelcomeSeen(true); }} />
+
     </View>
   );
 }
@@ -1219,15 +1257,15 @@ const NavSession = React.memo(function NavSession({
          deferred search focus/close fixes). */
       <ReceiptSheet data={data} lang={lang} showCig={showCig} onDone={() => setTimeout(onExit, 280)}
         onShare={() => Share.share({
-          message: t("shareTripBody", lang, {
-            from: from ? placeNameLabel(from.name, lang) : "?",
-            to: to ? placeNameLabel(to.name, lang) : "?",
-            // cigarette figure only with show_cig on; µg is the default
-            dose: summary.doseUg.mid != null
-              ? (showCig ? t("nav_cigs", lang, { n: approx(cigOf(summary.doseUg.mid) ?? 0) }) : `~${Math.round(summary.doseUg.mid)}µg`)
-              : "—",
-            co2: summary.co2Kg.mid != null ? `${t("nav_kg", lang, { n: `~${summary.co2Kg.mid.toFixed(1)}` })} CO₂` : "—",
-          }),
+          message: shareTripMsg(lang,
+            from ? placeNameLabel(from.name, lang) : "?",
+            to ? placeNameLabel(to.name, lang) : "?",
+            summary.doseUg.mid != null
+              ? (showCig
+                  ? t("nav_cigs", lang, { n: Math.max(0.01, Math.round((cigOf(summary.doseUg.mid) ?? 0) * 100) / 100) })
+                  : t("doseUg", lang, { n: doseUgRound(summary.doseUg.mid) }))
+              : null,
+            summary.co2Kg.mid != null ? `${t("nav_kg", lang, { n: `~${summary.co2Kg.mid.toFixed(1)}` })} CO₂` : null),
         }).catch(() => {})} />
     );
   }

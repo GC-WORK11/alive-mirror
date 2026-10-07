@@ -50,11 +50,13 @@ const clock = (etaS: number) => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-/** Trip-remaining km as a plain number string — the nav_left template
- *  already carries the "km" unit. 2dp below a kilometre keeps it honest
- *  (the old helper injected a literal " m" here → "350 m km left"). */
+/** Trip-remaining distance as a plain number string — the template
+ *  carries the unit. km at 1dp ≥950 m; below that it reads metres
+ *  (a bare "0.35 km" is a decimal nobody reads mid-trip). */
 const kmNum = (m: number) =>
-  m >= 950 ? (m / 1000).toFixed(1) : (Math.max(0, m) / 1000).toFixed(2);
+  (m / 1000).toFixed(1);
+const leftIsKm = (m: number) => m >= 950;
+const leftMNum = (m: number) => Math.max(10, Math.round(m / 10) * 10);
 
 /** Distance to the next maneuver — "350 m" / "1.2 km". */
 const distToStr = (m: number, lang: Lang) =>
@@ -237,7 +239,11 @@ function NavChromeInner({
   const mode = option.mode || option.vehicle;
 
   const meta = nav
-    ? `${t("nav_left", lang, { min, km: kmNum(leftM) })} · ${t("arriveAt", lang, { t: clock(nav.etaS) })}`
+    ? `${t(leftIsKm(leftM) ? "nav_left" : "nav_left_m", lang,
+        leftIsKm(leftM)
+          ? { min, km: kmNum(leftM) }
+          : { min, m: leftMNum(leftM) })}
+      · ${t("arriveAt", lang, { t: clock(nav.etaS) })}`
     : `${Math.round(option.duration_min)} ${t("minUnit", lang)} · ${option.distance_km ?? 0} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: clock(option.duration_min * 60) })}`;
 
   /* instruction swap: only the sentence/arrow change earns motion — the

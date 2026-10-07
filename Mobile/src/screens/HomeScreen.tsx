@@ -74,6 +74,7 @@ import { holdMapDraw } from "../map/drawHold";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tap, tick } from "../haptics";
 import { inNcr } from "../components/shell/net";
+import { warm as warmSearchIndex } from "../search/t0";
 import {
   allSamples,
   dayKey,
@@ -196,13 +197,22 @@ export function useDayData(
          wait on the forecast fetches. On a dead network those take the
          full timeout and the hero would sit as skeleton blocks the whole
          time. Cards that need the field (the move, days ahead) mount
-         when it lands — they already treat null as "not yet". */
-      setData({
-        rec, week, curve: null, outside, outlook: null,
+         when it lands — they already treat null as "not yet".
+         On re-assembles (a fresh ambient sample, a check-in write, a
+         lang switch) the previous field cards stay mounted while their
+         refetch is in flight — nulling curve/outlook here used to unmount
+         both cards for a beat, collapsing ~600 px of the scroll list and
+         visibly reloading the whole surface every few minutes (jank
+         lane: the owner's "numbers should update in place" complaint). */
+      setData((prev) => ({
+        rec, week,
+        curve: prev?.curve ?? null,
+        outside,
+        outlook: prev?.outlook ?? null,
         lens: symptomLens(checkins, doseByDay),
         checkin: checkins[today] ?? null,
-        curveAgeS: null,
-      });
+        curveAgeS: prev?.curveAgeS ?? null,
+      }));
       if (outside || !withCurve) return;
       const [curve, outlook] = await Promise.all([fetchDayCurve(lat, lon), fetchOutlook(lat, lon)]);
       if (!live) return;
@@ -1166,7 +1176,7 @@ function TravelCtaInner({ lang, onGo }: { lang: Lang; onGo: () => void }) {
     /* collapsable={false}: Android can flatten a Pressable's parent chain
        and drop it from the touch map — the pill read as visible-but-dead
        on device (apk-verify-v8). Cheap insurance on the primary action. */
-    <Pressable collapsable={false} onPressIn={() => { holdMapDraw(); }} onPress={() => { tick(); onGo(); }}
+    <Pressable collapsable={false} onPressIn={() => { holdMapDraw(); warmSearchIndex(); }} onPress={() => { tick(); onGo(); }}
       /* press-in hold: same touch-down coverage as the search pill — the
          tap's native work runs inside the sim draw-hold instead of racing
          the sheet mount (no-op on hardware). */
@@ -1242,14 +1252,14 @@ function IncidentsCardInner({ lang }: { lang: Lang }) {
     fetchCity(ctrl.signal).then((d) => {
       const w = d.why;
       if (ctrl.signal.aborted) return;
-      /* same grammar as DelhiToday's noteLine — en keeps the wire
-         line; hi rebuilds from the measured fields, never wire
-         English */
+      /* same grammar as DelhiToday's noteLine — BOTH languages rebuild
+         from the measured fields (the wire grammar leaks m²/s and
+         "city mean"); cause_note stays the no-fields fallback
+         (jargon-sweep) */
       setLine(!w ? ""
-        : lang === "en" ? (w.cause_note ?? "")
         : w.cause_note_fields
           ? causeNote(w.cause_note_fields as CauseNoteFields, lang)
-          : "");
+          : (w.cause_note ?? ""));
     }).catch(() => setLine(""));
     return () => ctrl.abort();
   }, [lang]);
@@ -1360,7 +1370,13 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
       </View>
       <ScrollView style={ss.flex}
         contentContainerStyle={[ss.content, { paddingBottom: 12 }]}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        /* when a card above the viewport grows (the move's age-line
+           landing, a rebuild), the scroll view re-pins the first visible
+           item instead of letting the content shove under the finger —
+           the days-ahead→move-card yank stays dead even if a future
+           card's height jitters. */
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}>
         {/* the hero lands first; the doors sit under it; content cards
             arrive staggered below. The ONE primary CTA stays out of
             this scroll — it is the fixed header row above. */}

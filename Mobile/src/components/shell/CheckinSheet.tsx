@@ -69,7 +69,27 @@ function CheckinSheetInner({ checkin, lens, lang, onCheckin }: {
   onCheckin: (c: Omit<Checkin, "ts">) => void;
 }) {
   bump("home.LensCard");
-  const val = { breath: checkin?.breath ?? -1, eyes: checkin?.eyes ?? -1, energy: checkin?.energy ?? -1 };
+  /* one press = one clean effect: the picked pill fills THIS frame via a
+     local echo. The disk write + day re-assemble still lands it (onCheckin
+     → dayNonce → the parent's checkin prop), ~100-500 ms later — the pill
+     used to stay dead through that roundtrip, so a tap read as a no-op
+     and a second tap hit a different row mid-layout (owner: "pressing one
+     = piece of crap"). The echo yields to the prop the moment the prop
+     moves — the record's own value always wins once it arrives. */
+  const [echo, setEcho] = useState<Omit<Checkin, "ts"> | null>(null);
+  /* the echo yields when the RECORDED prop catches up to it (facets
+     equal) — not on any prop identity change: a poll-driven re-assemble
+     mid-write would otherwise flash the stale prop and unfill the pill
+     for a beat. If the write itself fails the echo simply keeps showing
+     what was pressed — user intent, not a fake state. */
+  if (echo && checkin &&
+      checkin.breath === echo.breath &&
+      checkin.eyes === echo.eyes &&
+      checkin.energy === echo.energy) {
+    setEcho(null);
+  }
+  const shown = echo ?? checkin;
+  const val = { breath: shown?.breath ?? -1, eyes: shown?.eyes ?? -1, energy: shown?.energy ?? -1 };
   return (
     <View style={cs.card}>
       <Text {...DYNAMIC_TYPE} style={[cs.cardTitle, { fontFamily: fam(lang, "semi") }]}>
@@ -90,10 +110,14 @@ function CheckinSheetInner({ checkin, lens, lang, onCheckin }: {
                 a11yLabel={`${t(f.labelKey, lang)}: ${t(ok, lang)}`}
                 selected={val[f.key] === v}
                 lang={lang}
-                onPress={() => onCheckin({
-                  breath: val.breath, eyes: val.eyes, energy: val.energy,
-                  [f.key]: v,
-                })} />
+                onPress={() => {
+                  const c = {
+                    breath: val.breath, eyes: val.eyes, energy: val.energy,
+                    [f.key]: v,
+                  };
+                  setEcho(c);
+                  onCheckin(c);
+                }} />
             ))}
           </View>
         </View>

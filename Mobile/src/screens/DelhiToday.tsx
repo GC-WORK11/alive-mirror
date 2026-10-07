@@ -197,14 +197,15 @@ function whyLine(
   return parts.join(" + ");
 }
 
-/* The cause_note — the parali/news line under the hero. en keeps the
-   wire line; hi rebuilds from cause_note_fields through i18n so wire
-   English never reaches the hi UI. An old server with no fields just
-   leaves the line absent. */
+/* The cause_note — the parali/news line under the hero. BOTH languages
+   rebuild from the structured fields through causeNote: the wire's own
+   grammar carries engineering units (m²/s, "city mean", decimal spans)
+   that the plain-words rebuild exists to replace. `cause_note` stays as
+   the fallback for serves that don't ship fields. */
 function noteLine(why: NonNullable<CityPayload["why"]>, lang: Lang): string {
-  if (lang === "en") return why.cause_note ?? "";
   const f = why.cause_note_fields;
-  return f ? causeNote(f as CauseNoteFields, lang) : "";
+  if (f) return causeNote(f as CauseNoteFields, lang);
+  return why.cause_note ?? "";
 }
 
 /* ---------- sheet (mounted only while visible → fresh state each open) --- */
@@ -369,7 +370,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                   {pm.mid / WHO_DAILY_UG > 1.05
                     ? t("refWhoOver", lang, { x: pm.mid / WHO_DAILY_UG >= 10 ? Math.round(pm.mid / WHO_DAILY_UG) : (pm.mid / WHO_DAILY_UG).toFixed(1) })
                     : t("refWhoUnder", lang)}
-                  {` · ~${Math.round(pm.mid)} µg/m³`}
+                  {` · ${t("cityHeroAirNow", lang, { n: Math.round(pm.mid) })}`}
                 </Text>
                 {/* the good→severe anchor: where today's city air sits on
                     the CPCB scale — position, not prose */}
@@ -453,7 +454,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
               /* each reading stands beside its WHO 2021 guideline (24-h
                  means; O₃ is the 8-h peak value) — the reference is the
                  meaning, and over-limit values take the over-limit ink */
-              const tiles: { label: string; val: string; who: number | null; over: boolean }[] = [];
+              const tiles: { label: string; val: string; who: number | null; over: boolean; whoTxt?: string }[] = [];
               const push = (key: string, label: string, who: number | null) => {
                 const v = sp[key];
                 if (v) tiles.push({ label, val: `${v.mean}`, who, over: who != null && v.mean > who });
@@ -465,7 +466,9 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
               push("sulphur_dioxide", "SO\u2082", 40);
               push("ammonia", "NH\u2083", null);
               const aqi = sp.us_aqi;
-              if (aqi) tiles.push({ label: "US AQI", val: `${Math.round(aqi.mean)}`, who: null, over: false });
+              /* the index is NOT µg/m³ — its own 0–500 scale is stated on
+                 the tile so it never reads as another concentration */
+              if (aqi) tiles.push({ label: "US AQI", val: `${Math.round(aqi.mean)}`, who: null, over: false, whoTxt: t("aqiScale", lang) });
               if (!tiles.length) return null;
               return (
                 <>
@@ -486,7 +489,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                         </Text>
                         <Text {...DYNAMIC_TYPE} numberOfLines={1}
                               style={[ss.speciesWho, NUM, { fontFamily: fam(lang, "reg") }]}>
-                          {tile.who != null ? t("whoRef", lang, { n: tile.who }) : ""}
+                          {tile.whoTxt ?? (tile.who != null ? t("whoRef", lang, { n: tile.who }) : "")}
                         </Text>
                       </View>
                     ))}
@@ -677,10 +680,15 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 ) : null}
                 <WhyLine text={t("cityBasisBand", lang)} lang={lang} />
                 <WhyLine
-                  text={t("cityBasisPrivacy", lang, {
-                    k: tr?.k_min ?? 3,
-                    h: tr?.window_h ?? 72,
-                  })}
+                  text={((tr?.window_h ?? 72) % 24 === 0
+                      ? t("cityBasisPrivacyDays", lang, {
+                          k: tr?.k_min ?? 3,
+                          d: Math.round((tr?.window_h ?? 72) / 24),
+                        })
+                      : t("cityBasisPrivacy", lang, {
+                          k: tr?.k_min ?? 3,
+                          h: tr?.window_h ?? 72,
+                        }))}
                   lang={lang}
                 />
               </View>

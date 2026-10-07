@@ -416,8 +416,14 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
     }).start();
   }, [selected, selV, reduce]);
   const d = o.dose;
+  /* the honest band — a missing end reads as "{lo}+"/"up to {hi}",
+     never a bare "?" in the range */
   const band = d && (d.lo != null || d.hi != null) && (d.lo !== d.mid || d.hi !== d.mid)
-    ? `${d.lo != null ? Math.round(d.lo) : "?"}–${d.hi != null ? Math.round(d.hi) : "?"}`
+    ? d.lo != null && d.hi != null
+      ? `${Math.round(d.lo)}–${Math.round(d.hi)}`
+      : d.lo != null
+        ? `${Math.round(d.lo)}+`
+        : t("bandUpTo", lang, { n: Math.round(d.hi ?? 0) })
     : null;
   const doseCol = d?.avg_conc_ugm3 != null ? doseColor(d.avg_conc_ugm3) : V2T.text;
   /* the felt gap line — the sheet's emotional payload. "~2.4× more
@@ -433,8 +439,9 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
           })
         : t("compare_moreVs", lang, { n: doseGap, m: lightestWord }))
     : null;
-  const meta = `${o.distance_km ?? "?"} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: arrivalLabel(o.duration_min) })}`
-    + `${o.stations ? ` · ${o.stations.board}→${o.stations.alight}` : ""}`;
+  const meta = (o.distance_km != null ? `${o.distance_km} ${t("unitsKm", lang)} · ` : "")
+    + t("arriveAt", lang, { t: arrivalLabel(o.duration_min) })
+    + (o.stations ? ` · ${o.stations.board}→${o.stations.alight}` : "");
   const tag = o.tag ? (TAG_KEY[o.tag.toLowerCase()] ? t(TAG_KEY[o.tag.toLowerCase()], lang) : o.tag) : null;
   /* the mode label carries a wire suffix (" · least-smoke alt 2",
      " · your usual") that a single-line flexShrink truncated mid-word to

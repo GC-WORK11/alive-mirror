@@ -497,8 +497,14 @@ def _subplace(toks, lat, lon, limit, hits=None):
                    if t not in _SUBPLACE_STRUCT and t not in letters
                    and (not t.isdigit() or t in anchor_digits)]
     anchors, used = None, None
-    for drop in (0, 1):  # full phrase, then minus anchor digits
-        qt = [t for t in anchor_toks if not (drop and t.isdigit())]
+    # full phrase → minus anchor digits → trailing-context shrink:
+    # 'ashok nagar shahdara gali 4' anchors on 'ashok nagar', the
+    # shahdara token was context the user glued on
+    variants = [
+        anchor_toks,
+        [t for t in anchor_toks if not t.isdigit()],
+    ] + [anchor_toks[:c] for c in range(len(anchor_toks) - 1, 1, -1)]
+    for qt in variants:
         if not qt:
             continue
         cands = _anchor_candidates(qt, lat, lon)
@@ -644,13 +650,30 @@ def _compound(q, weak: bool, lat, lon, limit, hits=None):
         anchor = {"display": "your location", "lat": float(lat),
                   "lon": float(lon)}
     else:
-        place_toks = [t for t in rest if t not in _COMPOUND_STOP]
+        # the anchor phrase is what follows the LAST near-class marker —
+        # a name qualifier on the left ('pawan bakery near …') is part of
+        # the ask, not the anchor. Without the split 'pawan' glues to
+        # 'hanuman mandir' and coverage dies below the 0.75 floor.
+        stop_i = -1
+        for i, t in enumerate(rest):
+            if t in _COMPOUND_STOP:
+                stop_i = i
+        right = [t for t in rest[stop_i + 1:] if t not in _COMPOUND_STOP]
+        place_toks = right or [t for t in rest
+                               if t not in _COMPOUND_STOP]
         if not place_toks:
             return []
-        ah = search_index().query(" ".join(place_toks), lat, lon, 1)
-        if not ah or (ah[0].get("cov") or 0.0) < 0.75:
+        anchor = None
+        # shrink from the right — a trailing context token the user
+        # glued on ('ashok nagar shahdara …') must not kill the anchor
+        for cut in range(len(place_toks), 0, -1):
+            qt = place_toks[:cut]
+            ah = search_index().query(" ".join(qt), lat, lon, 1)
+            if ah and (ah[0].get("cov") or 0.0) >= 0.75:
+                anchor = ah[0]
+                break
+        if anchor is None:
             return []
-        anchor = ah[0]
 
     out = []
     # scan deep enough that dense localities can't starve a rarer kind —
