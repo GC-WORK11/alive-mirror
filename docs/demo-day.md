@@ -212,18 +212,20 @@ Yes — keyless, honest provenance, verbatim labels on screen:
   CO, SO₂, NH₃, dust, AOD, US/EU AQI), refreshed every 15 min — a
   countdown (`refresh_in_s`) is on the wire. Params a feed doesn't
   serve stay honestly empty (NH₃ is empty today, not zero-filled)
-- NASA FIRMS VIIRS/MODIS fire detections (60 today, 14 in the smoke
-  belt — drifts daily) feeding a smoke modifier (×1.24 at CP right
-  now — NW wind is carrying belt smoke tonight; sometimes absent;
-  say what `/aqi.smoke_modifier` shows — and
-  the same modifier is echoed on `/v2/plan` +
+- NASA FIRMS VIIRS/MODIS fire detections (67 tonight, 15 in the smoke
+  belt — drifts daily; 60/14 at the prior read) feeding a smoke
+  modifier (×1.08 at CP tonight — SE wind, only marginally inside
+  the gate; it reads ×1.24 when NW wind carries belt smoke;
+  sometimes absent entirely — say what `/aqi.smoke_modifier` shows,
+  and the same modifier is echoed on `/v2/plan` +
   `/v2/reroute`, already inside their dose numbers)
-- WAQI measured stations LIVE: up to 24 instruments across NCR feed the
-  krige directly (13–24 on the wire — stations go stale mid-day and
-  recover; the raw feed is a US-EPA sub-index, not µg/m³ —
+- Measured stations LIVE: **54 instruments across NCR feed the krige
+  directly — 24 WAQI + 30 DPCC** (`/health.sources.stations`,
+  `source:"waqi+dpcc"` — count drifts as stations go stale mid-day and
+  recover; the WAQI raw feed is a US-EPA sub-index, not µg/m³ —
   inverted via the EPA breakpoint table, Kalman-smoothed, de-biased
-  against the archive). CPCB adapter exists too, dormant without a
-  CPCB key — the sources table names what is live, never pads
+  against the archive). The OpenAQ v3 path is dormant without a key —
+  the sources table names what is live, never pads
 - kriged concentration field served by our own C++ engine (`alive_core`,
   Eigen) — check `/health` → `engine: "alive_core"` live
 - a multi-day CAMS horizon anchored to the live field — `/depart?hours=120`
@@ -322,7 +324,7 @@ we'd rather show a missing arm than a fabricated answer.
    forecast strip (CAMS horizon anchored to the live field — hourly
    smoke translates with the real met wind, a semi-Lagrangian
    back-trajectory), "running ±X% vs the decade norm for this hour"
-   (9M station-hours), and the "why tonight" line under the hero —
+   (decade climatology, 125 stations × ~10 years), and the "why tonight" line under the hero —
    `why.line` from `/v2/why` (DelhiToday renders it since `8d032e3`,
    live on `6e82f290`, re-verified on `4eb9e1e8`): this afternoon it's
    stubble smoke — *"stubble smoke drifting in on the north-west wind"*
@@ -453,7 +455,7 @@ Bearer — all 8 endpoints probed 200 with it this pass:
   (PM10 · NO₂ · O₃ · CO · SO₂ · US AQI — all real), forecast horizon
   health (hours ahead · grid points · fetch age · anchored-to-live flag)
 - sources table: model live / met live / fires live / stations live
-  (WAQI, N instruments) / **routing** — osrm-local sidecar in the
+  (waqi+dpcc — 54 instruments tonight) / **routing** — osrm-local sidecar in the
   same Fargate task (self-hosted MLD over 4.4M NCR edges, ~15ms),
   public demo flagged fallback — observed from real route calls,
   never probed; the honesty is the point
@@ -471,13 +473,12 @@ Bearer — all 8 endpoints probed 200 with it this pass:
 - **the model grades itself** (`/v2/skill`, live since `a5ab92d8`):
   served-forecast vs recorded-hour pairs — n, MAE, bias, band-hit per
   horizon; buckets under 5 pairs render `thin` instead of a number.
-  Read it as "the scorecard refuses to bluff" — **131 pairs this
-  afternoon and EVERY horizon now graded** (h+0..h+11, none `thin`):
-  h+0 MAE 2.2 µg/m³ bias +1.0 (93.4% cell / 100% hour band-hit); h+1
-  9.4 / +6.6; h+2 18.5 / +14.2; h+3 27.1 / +24.9; h+4 33.6 / +31.2;
-  h+5 44.5; h+6 54.5; h+7 55.9; h+8 59.7; h+9 58.6; h+10 55.6;
-  h+11 54.5 — the honest widening of error with horizon
-  is itself the story. The card only scores what it has receipts for
+  Read it as "the scorecard refuses to bluff" — **210 pairs tonight
+  and EVERY horizon graded** (h+0..h+11, none `thin`; 131 at the
+  afternoon read — it grows with the archive): h+0 MAE 4.2 µg/m³,
+  h+1 8.5, h+2 14.4, h+3 22.8 … h+11 54.9 — the honest widening of
+  error with horizon is itself the story. The card only scores what
+  it has receipts for
 - **the why beat** (`/v2/why`, shipped `0908d9ad`; line renders on the
   /city 'why tonight' chip, the landing day-note and DelhiToday on
   `6e82f290`) — *the engine grades its own causality.* This afternoon's real
@@ -532,8 +533,8 @@ served number, never a canned animation.
 
 ## Honest limitations (say them first — it lands harder)
 
-- CPCB is dormant without a free CPCB token (WAQI covers measured
-  stations meanwhile — 24 instruments live) — the sources table names
+- OpenAQ is dormant without a free key (WAQI + DPCC cover measured
+  stations meanwhile — 54 instruments live) — the sources table names
   which feeds are up, never pretends
 - A corridor appears only after 3 different devices cross it — early on,
   that table is honestly empty
@@ -789,10 +790,11 @@ after `auto`. Read the partial table + check missing modes separately.
   On `6e82f290`+ the line ends
   clean; if an older build shows a "— the build you see" tail, read
   the line without it.
-- [ ] **Stations/samples** — 24 WAQI instruments at probe start, 13 by
-  pass end (stations go stale mid-day — honest drift, recovers);
-  ~61–72 model samples. Both thin out after a cold task (~16 / ~41) and recover over
-  ~60 min. If you redeployed inside the window, say "recovering to".
+- [ ] **Stations/samples** — 54 instruments tonight (24 WAQI + 30 DPCC;
+  earlier passes saw 13–24 on the WAQI-only feed — stations go stale
+  mid-day, honest drift, recovers); ~61–72 model samples. Both thin
+  out after a cold task and recover over ~60 min. If you redeployed
+  inside the window, say "recovering to".
 - [ ] **Breath/community** — the breath hero reads ~576 µg ≈ 1.8
   cigarettes this afternoon (it scales with the day's field mean; evening
   reads run higher — ~2.5–3.7 cig this week); community all-time 22

@@ -13,7 +13,7 @@
     --paper:#F5F4F0; --surface:#FFFFFF; --surface2:#EFEDE7; --surface3:#E8E5DB;
     --ink:#14181F; --ink2:#4A5161; --ink3:#65707F; --ink4:#A6ACB8;
     --line:#E4E2D9; --hair:#DCDAD0;
-    --accent:#2456D6; --accent-ink:#1E47B0; --accent-wash:#E8EDFB;
+    --accent:#3A6844; --accent-ink:#2B4E32; --accent-wash:#EAF0E4;
     --bronze:#A1662F; --brick:#A34446; --wine:#8A2D3E;
     --bronze-wash:rgba(161,102,47,.10); --wine-wash:rgba(138,45,62,.09);
     --serif:ui-serif,"New York",Georgia,"Times New Roman",serif;
@@ -44,7 +44,7 @@
   .mast-r{display:flex;align-items:center;gap:12px;font-family:var(--mono);
           font-size:9.5px;letter-spacing:.16em;color:var(--ink3);
           text-transform:uppercase;flex-wrap:wrap;justify-content:flex-end}
-  .priv-badge{padding:3px 10px;border:1px solid rgba(36,86,214,.28);
+  .priv-badge{padding:3px 10px;border:1px solid rgba(58,104,68,.30);
               border-radius:6px;
               color:var(--accent-ink);letter-spacing:.12em;background:var(--accent-wash)}
   #updated{color:var(--ink2);letter-spacing:.1em}
@@ -57,7 +57,7 @@
   .feed.off i{background:var(--wine)}
   .tokbtn{font-family:inherit;font-size:inherit;letter-spacing:.16em;
       text-transform:uppercase;padding:3px 10px;cursor:pointer;
-      border:1px solid rgba(36,86,214,.28);border-radius:6px;
+      border:1px solid rgba(58,104,68,.30);border-radius:6px;
       color:var(--accent-ink);background:var(--accent-wash)}
   .tokbtn:hover{border-color:var(--accent)}
 
@@ -207,7 +207,7 @@
   .badge.crit{color:var(--wine);background:var(--wine-wash);
               border-color:rgba(138,45,62,.35)}
   .badge.live{color:var(--accent-ink);background:var(--accent-wash);
-              border-color:rgba(36,86,214,.3)}
+              border-color:rgba(58,104,68,.3)}
   .buildstat{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink3)}
   .buildstat.bad{color:var(--brick)}
 
@@ -262,7 +262,7 @@
     background:var(--surface2);color:var(--ink3)}
   .fmsel button:hover{color:var(--ink2);border-color:var(--hair)}
   .fmsel button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .fmsel button.on{border-color:rgba(36,86,214,.35);color:var(--accent-ink);
+  .fmsel button.on{border-color:rgba(58,104,68,.35);color:var(--accent-ink);
     background:var(--accent-wash)}
   .fmscrub{display:flex;align-items:center;gap:10px;margin-bottom:10px;
     font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.1em}
@@ -290,7 +290,7 @@
   .share-track{height:7px;border-radius:4px;background:var(--surface2);
                overflow:hidden}
   .share-track i{display:block;height:100%;border-radius:4px;
-                 background:rgba(36,86,214,.32)}
+                 background:rgba(58,104,68,.32)}
   .share-row .p{font-family:var(--mono);font-size:10.5px;color:var(--ink);
                 text-align:right}
   .share-row .n{font-family:var(--mono);font-size:10px;color:var(--ink4);
@@ -574,7 +574,7 @@
   <div class="panel scrollx" style="margin-top:10px"><table>
     <thead><tr><th>the feed</th><th>state</th><th class="num">readings</th><th class="num">age</th><th>what it is</th><th>freshness</th></tr></thead>
     <tbody id="sources"></tbody></table></div>
-  <div class="sub" style="margin:8px 2px 0">how monitors feed the map: waqi is asked first, then india's cpcb, then openaq — whichever answers first feeds the city, and the rest honestly report as idle. no feed is ever shown green when it isn't.</div>
+  <div class="sub" style="margin:8px 2px 0">how monitors feed the map: waqi plus delhi's own dpcc pages carry the city first; india's cpcb then openaq only run when the leaders can't cover it — every resting feed says so instead of pretending. no feed is ever shown green when it isn't.</div>
 
   <h2>02 · is it honest <em>the map grades itself against monitors it never saw — the live check, the causal read, and the guts (dose math, route engine, api speed) honestly exposed; a check that can't run is named, not hidden</em></h2>
   <div class="cols">
@@ -589,7 +589,7 @@
   </div>
   <div class="cols">
     <div class="panel scrollx"><table>
-      <thead><tr><th>the cause</th><th>how big</th><th class="num">score</th><th>the evidence</th><th>the numbers</th></tr></thead>
+      <thead><tr><th>the cause</th><th>role</th><th class="num">strength (0–1)</th><th>the evidence</th><th>the numbers</th></tr></thead>
       <tbody id="whydrivers"></tbody></table></div>
     <div class="panel" style="padding:14px">
       <div class="k" style="font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)">checked — the raw reads behind the call</div>
@@ -790,13 +790,19 @@ async function tick(){
     const KIND={'fires':'farm fires','ventilation':'wind + mixing height',
       'stubble':'stubble burning','traffic':'traffic','industry':'industry',
       'dust':'road dust','trend':'drift over 6h','seasonal':'season',
-      'fire':'farm fires','met':'weather'};
+      'stagnation':'stagnant air','fire':'farm fires','met':'weather'};
     const CHIPK={belt_fires:'belt fires',fires_total:'fires seen',
       wind_deg:'wind',wind_kmh:'wind km/h',modifier:'smoke lift',
-      vc_m2s:'clearing m²/s',blh_m:'mixing height',factor:'uplift',
-      delta_ug:'change µg/m³',span_h:'hours',n_snapshots:'reads',
-      carrying:'blowing at delhi',speed_kmh:'wind km/h',from_deg:'wind from',
-      wind_ms:'wind m/s',aod:'dust in the air',mean_ug:'air mean'};
+      vc_m2s:'clearing m²/s',blh_m:'mixing height m',
+      factor:'× less clearing',delta_ug:'change µg/m³',span_h:'hours',
+      n_snapshots:'recorded maps',speed_kmh:'wind km/h',from_deg:'wind from',
+      wind_ms:'wind m/s',aod:'dust in the air',mean_ug:'air mean µg/m³',
+      source:'from',age_s:'age s',belt_frp_mw:'belt heat mw',
+      n_fires:'fires seen',feed:'feed',feed_status:'feed state',
+      feed_age_s:'feed age s',newest_age_s:'latest map age s',
+      n_snapshots_available:'maps on file',span_available_h:'span h',
+      from_pm25:'from µg/m³',to_pm25:'to µg/m³',
+      carrying:'drifting toward delhi'};
     $('whydrivers').innerHTML=drs.length?drs.map(d=>{
       const det=d.detail||{};
       const chips=Object.entries(det).filter(([k,v])=>v!=null&&k!=='vc_ref_m2s')
@@ -810,8 +816,8 @@ async function tick(){
     const wnd=wv.wind||{};
     const evRows=[
       ['wind',wnd.known?`${Math.round(wnd.speed_kmh)} km/h from ${Math.round(wnd.from_deg??0)}° · ${esc(wnd.source||'')}${wnd.age_s!=null?' · '+ago(wnd.age_s):''}`:'unknown — cannot judge the smoke carry',true],
-      ['farm fires',evv.fires?(evv.fires.seen?`${evv.fires.belt_fires??'—'} in the belt · smoke lift ×${evv.fires.modifier??'—'} · blowing at delhi: ${evv.fires.carrying===null?'unknown':evv.fires.carrying}`:'feed cold'):'—',true],
-      ['air can clear',evv.ventilation&&evv.ventilation.vc_m2s!=null?`${fmt(evv.ventilation.vc_m2s)} m²/s of clearing room · ×${evv.ventilation.factor??'—'} on the map · ${esc(evv.ventilation.source||'')}`:'no read',true],
+      ['farm fires',evv.fires?(evv.fires.seen?`${evv.fires.belt_fires??'—'} in the belt · smoke lift ×${evv.fires.modifier??'—'} · drifting toward delhi: ${evv.fires.carrying===null?'unknown':evv.fires.carrying?'yes':'no'}`:'feed cold'):'—',true],
+      ['air can clear',evv.ventilation&&evv.ventilation.vc_m2s!=null?`${fmt(evv.ventilation.vc_m2s)} m²/s of clearing room · clears ×${evv.ventilation.factor??'—'} slower than a typical day · ${esc(evv.ventilation.source||'')}`:'no read',true],
       ['drift over 6h',evv.trend&&evv.trend.delta_ug!=null?`${evv.trend.delta_ug>0?'+':''}${evv.trend.delta_ug} µg/m³ over ${evv.trend.span_h}h · ${evv.trend.n_snapshots} recorded maps`:(evv.trend?`${evv.trend.n_snapshots} recorded maps in 6h`:'—'),true],
     ];
     $('whyeval').innerHTML=evRows.map(([k,v,m])=>`<dt>${k}</dt><dd class="${m?'':'sub'}">${v}</dd>`).join('');
@@ -840,8 +846,38 @@ async function tick(){
       $('whysub').textContent+=` · ${hp.length} recorded maps over ${wv.history.window_h}h — solid line: the air · dashed: clearing room · dotted: belt fires`;
     }else if(cv){cv.hidden=true;}
   }catch(e){$('whydrivers').innerHTML='<tr><td colspan="5" class="sub">why feed unavailable</td></tr>';}
-  const dn=donations||{},S=status||{},H=health||{},A=aqiPt||{};
+  let dn=donations||{},S=status||{},H=health||{},A=aqiPt||{};
   const CY=cityDoc||{};   /* /v2/city — the 'delhi today' summary (grap) */
+  /* guest view — /v2/city publishes the same anonymized aggregates the
+     gated donations feed reports (same store, days folded). when the
+     token is absent the public totals fill the same tiles; nothing is
+     invented — every number below is already served publicly */
+  if(!dn.totals&&CY.trips&&CY.trips.days){
+    const d0=CY.trips.days,dk0=Object.keys(d0).sort();
+    const s0=k=>dk0.reduce((a,d)=>a+(d0[d][k]||0),0);
+    const modes0={};dk0.forEach(d=>{const m=d0[d].modes||{};
+      for(const k in m)modes0[k]=(modes0[k]||0)+m[k]});
+    const nTr0=s0('trips'),km0=s0('km'),dU0=s0('dose_ug');
+    const cm0=s0('co2_moving_g'),ci0=s0('co2_idle_g'),cc0=s0('co2_cold_g'),
+          ct0=s0('co2_split_trips'),csum0=cm0+ci0+cc0;
+    dn={totals:{trips:nTr0,km:km0,dose_ug:dU0,
+      co2_kg_mid:s0('co2_kg_mid'),pm25_g_mid:s0('pm25_g_mid'),
+      switched:s0('switched'),
+      avg_dose_per_trip_ug:nTr0?+(dU0/nTr0).toFixed(1):null,
+      dose_ug_per_km:km0?+(dU0/km0).toFixed(2):null,
+      avg_km_per_trip:nTr0?+(km0/nTr0).toFixed(1):null,
+      dose_avoided_ug:s0('avoided_ug'),co2_avoided_kg:s0('co2_avoided_kg'),
+      co2_split:ct0&&csum0?{pct:{moving:Math.round(cm0/csum0*100),
+        idle:Math.round(ci0/csum0*100),cold:Math.round(cc0/csum0*100)},
+        trips:ct0}:null},
+      days:d0,cells_tracked:CY.trips.cells_tracked,
+      corridors_publishable:CY.trips.corridors_publishable,
+      window_s:((((CY.provenance||{}).trips)||{}).window_h||72)*3600,
+      devices_note:'',recent:[],ts:Date.now()/1000,
+      mode_share:Object.entries(modes0)
+        .map(([mode,n])=>({mode,trips:n,pct:nTr0?Math.round(n/nTr0*100):0}))
+        .sort((a,b)=>b.trips-a.trips)};
+  }
   const fireSt=A.fire||{};   /* served fire status — belt/modifier/wind live */
   /* public fill — /health + /aqi are public-safe: when the token is
      declined the field/routing truth still paints, honestly labelled.
@@ -866,9 +902,16 @@ async function tick(){
   }
   if(!S.routing&&H.routing&&H.routing.loaded)
     S.routing={loaded:true,edges:H.routing.edges,
-               edges_priced:H.routing.edges_priced};
+               edges_priced:H.routing.edges_priced,engine:H.engine};
   FIRES_DOC=firesDoc||FIRES_DOC||{};
-  const rows=(corridors&&corridors.rows)||[];
+  /* corridor rows — the gated feed carries field_pm25 per street; the
+     public /v2/city publishes the same k≥3 street cells without it
+     (the air-now column reads — honestly) */
+  const rows=((corridors&&corridors.rows)
+    ||(CY.corridors||[]).map(c=>({cell:c.cell,near:c.name,trips:c.trips,
+      devices:c.devices,avg_dose_ug:c.avg_dose_ug,
+      co2_g_per_100m:c.co2_g_per_100m,field_pm25:null})))
+    .filter(r=>r&&r.trips!=null);
   /* token-gated endpoints reject on purpose — counting them as 'feeds
      down' makes an honest gate look broken; only genuine failures count */
   const isGate=r=>r.status==='rejected'&&
@@ -920,27 +963,27 @@ async function tick(){
   const daily=(validation&&validation.daily)||{};
   const loso=(validation&&validation.weekly&&validation.weekly.loso)||{};
   const archR=(validation&&validation.weekly&&validation.weekly.archive_replay)||{};
+  /* the day's middle read — the gated rollup first, else the same
+     number the public /v2/city serves (median of the sampled points) */
+  const medV=daily.median_pm25!=null?daily.median_pm25
+    :((CY.pm25_stats&&CY.pm25_stats.median)!=null?CY.pm25_stats.median:null);
+  const medL=daily.median_pm25!=null
+    ?`delhi's air right now · middle reading${daily.date?' · '+daily.date:''}`
+    :`delhi's air right now · middle of ${(CY.pm25_stats&&CY.pm25_stats.n)||'—'} sampled points`;
   // headline error card: held-out LOSO when it has folds; otherwise the
   // archive replay mae is real evidence and clearly labelled as such —
   // an empty card here would undersell data the week block already shows.
-  /* public fallbacks so a guest never reads 'locked' where a public feed
-     already tells the truth: /v2/city carries the live median, /aqi the
-     live calibration check — labelled for what they actually are */
-  const cityStats=CY.pm25_stats||{},calPub=A.calibration||{};
-  const medV=daily.median_pm25!=null?daily.median_pm25
-    :(cityStats.median!=null?cityStats.median:null);
-  const medL=daily.median_pm25!=null
-    ?`delhi's air · full-day middle reading${daily.date?' · '+daily.date:''}`
-    :`delhi's air · middle cell reading · live now`;
+  // guests fall back to the public leave-one-out calibration /aqi serves.
+  const calM=(A.calibration||{});
   const medW=daily.median_pm25!=null
     ?'the middle reading across every live cell for the whole recorded day — half of delhi breathed worse than this'
     :'the middle reading across the sampled cells right now — half of delhi breathes worse than this';
   const maeV=loso.mae_ugm3!=null?loso.mae_ugm3
     :(archR.status==='ok'&&archR.mae_ugm3!=null?archR.mae_ugm3
-    :(calPub.mae_ug!=null?calPub.mae_ug:null));
+    :(calM.mae_ug!=null?calM.mae_ug:null));
   const maeL=loso.mae_ugm3!=null?'hidden-monitor test'
     :(archR.status==='ok'&&archR.mae_ugm3!=null?'replay of recorded hours'
-    :`live check · ${calPub.n_stations!=null?calPub.n_stations+' monitors':'public feed'}`);
+    :'live check · each monitor hidden in turn');
   /* every card wears a verdict word — 'good'/'live'/'quiet'/'watching'/
      'down' for ops health, the real cpcb band word for air stats.
      muted ramp only: good is the colourless one. */
@@ -960,7 +1003,7 @@ async function tick(){
      `the air map · how fresh · serving ${esc(sv)}`,'',f.age_s!=null,
      'how long since the air map was rebuilt from real readings — the fresher, the more every route trusts it',
      f.stale===true?['watching',VC.watching]:['good',VC.good]],
-    [f.samples!=null?`${fmt(f.samples)} <small>pts</small>`:null,
+    [f.samples!=null?`${fmt(f.samples)} <small>map points</small>`:null,
      `map detail · points fitted to ${fmt(f.station_readings)} monitors`,'',f.samples!=null,
      'how many map-points the air surface has — the engine reads air at ~500m granularity, not one city average',
      (f.samples||0)>0?['good',VC.good]:['down',VC.down]],
@@ -1044,7 +1087,8 @@ async function tick(){
       ['streets priced',(S.routing&&S.routing.edges_priced!=null?fmt(S.routing.edges_priced)
         :hrt.edges_priced!=null?fmt(hrt.edges_priced):'—')],
       ['fires',frN!=null?`${fmt(frN)} spotted · ${fmt(fireSt.belt_fires||0)} in the belt`:'—'],
-      ['next rebuild',ttl!=null&&H.field_refresh_in_s!=null?`in ${ago(H.field_refresh_in_s)}`:'—'],
+      ['next rebuild',(fld.refresh_in_s!=null?`in ${ago(fld.refresh_in_s)}`
+        :(H.field_refresh_in_s!=null?`in ${ago(H.field_refresh_in_s)}`:'—'))],
     ].map(([k,v])=>`<div class="vr"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   }catch(e){/* the hero degrades to its em-dash state — never a fake */}
 
@@ -1058,29 +1102,40 @@ async function tick(){
     ['built from',esc(f.source||'—'),true],
     ['last updated',`${ago(f.age_s)} ago ${freshBadge(f.stale)}`,true],
     ['map detail',`${fmt(f.samples)} map points · ${fmt(f.station_readings)} monitors read`,true],
-    ['last saved copy',f.snapshot_age_s!=null?ago(f.snapshot_age_s)+' ago':'—',true],
-    ['gap filling',esc(f.kriging||'—'),true],
-    ['honesty band (σ)',esc(f.sigma_coverage||'none — cells carry no honest uncertainty band'),true],
-    ['area covered',cov&&cov.cells!=null?`${fmt(cov.cells)} cells · within ~${cov.out_beyond_km??'—'} km of any street`:'—',true],
+    ...(f.snapshot_age_s!=null?[['last saved copy',ago(f.snapshot_age_s)+' ago',true]]:[]),
+    ['gap filling',f.kriging==='on'
+      ?'on — every gap between monitors is filled in, each carrying its honesty band'
+      :esc(f.kriging||'—'),true],
+    ['uncertainty band',f.sigma_coverage==='per-query'
+      ?'per query — every read carries its own ± range'
+      :esc(f.sigma_coverage||'none — cells carry no honest uncertainty band'),true],
+    ['area covered',cov&&cov.cells!=null?`${fmt(cov.cells)} cells${cov.out_beyond_km!=null?` · within ~${cov.out_beyond_km} km of any street`:' across the commute-shed'}`:'—',true],
     ['streets priced',S.routing&&S.routing.loaded
-      ?`${S.routing.engine?esc(S.routing.engine)+' · ':''}${fmt(S.routing.edges_priced)} of ${fmt(S.routing.edges)} priced by live air · repriced ${S.routing.reweight_age_s!=null?ago(S.routing.reweight_age_s)+' ago':'—'}`
+      ?`${S.routing.engine?esc(S.routing.engine)+' · ':''}${fmt(S.routing.edges_priced)} of ${fmt(S.routing.edges)} priced by live air${S.routing.reweight_age_s!=null?` · repriced ${ago(S.routing.reweight_age_s)} ago`:''}`
       :'warming up — builds on first plan',true],
     ['wind',wind.speed_kmh!=null?`${Math.round(wind.speed_kmh)} km/h from ${Math.round(wind.from_deg??0)}°`:'—',true],
-    ['other gases today',(S.species&&Object.keys(S.species).length)
-      ?`PM10 ${S.species.pm10?.mean??'—'} · NO₂ ${S.species.nitrogen_dioxide?.mean??'—'} · O₃ ${S.species.ozone?.mean??'—'} · CO ${S.species.carbon_monoxide?.mean??'—'} · SO₂ ${S.species.sulphur_dioxide?.mean??'—'} µg/m³${S.species.us_aqi?` · US AQI ${Math.round(S.species.us_aqi.mean)}`:''}`
-      :'pm2.5 only — the field serves no other gases right now',true],
+    ['other gases today',(()=>{
+      const sp=(S.species&&Object.keys(S.species).length)?S.species
+        :(CY.species&&Object.keys(CY.species).length?CY.species:null);
+      return sp
+        ?`PM10 ${sp.pm10?.mean??'—'} · NO₂ ${sp.nitrogen_dioxide?.mean??'—'} · O₃ ${sp.ozone?.mean??'—'} · CO ${sp.carbon_monoxide?.mean??'—'} · SO₂ ${sp.sulphur_dioxide?.mean??'—'} µg/m³${sp.us_aqi?` · US AQI ${Math.round(sp.us_aqi.mean)}`:''}`
+        :'pm2.5 only — the field serves no other gases right now'})(),true],
     /* the legal frame — the same /v2/city block the public hero reads;
        row absent on a cold field rather than claiming a stage */
     ...(CY.grap&&CY.grap.equivalent_stage!=null?[['emergency rules (grap)',
       (CY.grap.equivalent_stage
         ?`this air maps to GRAP stage ${['','I','II','III','IV'][CY.grap.equivalent_stage]} restrictions`
         :`below GRAP stage I — no restrictions map to this air`)
-      +` · index ${CY.grap.aqi} on the live field · computed here — caqm declares the official stage`,true]]:[]),
+      +` · index ${CY.grap.aqi} on the live field · computed here — the official stage is declared by india's air commission (caqm)`,true]]:[]),
     ['forecast',(S.forecast&&S.forecast.hours)
       ?`${S.forecast.hours}h ahead · ${fmt(S.forecast.aq_points??'—')} map points · fetched ${ago(S.forecast.age_s)} ago${S.forecast.live_anchor&&S.forecast.live_anchor.enabled?' · anchored to the live field':''}`
+      :(CY.next_hours&&CY.next_hours.length)
+      ?`the next ${CY.next_hours.length}h served publicly · the 120h model horizon unlocks for the operator`
       :'cold — warms on the first plan',true],
-    ['storage free',disk.free_pct!=null?`${disk.free_pct}%${disk.low?' · <span class="badge crit">low</span>':''}`:'—',true],
-    ['recipe',esc(p.field||'—'),false],
+    ...(gated?[]:[
+      ['storage free',disk.free_pct!=null?`${disk.free_pct}%${disk.low?' · <span class="badge crit">low</span>':''}`:'—',true],
+      ['recipe',esc(p.field||'—'),false],
+    ]),
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
     ||emptyMsg('field module unavailable on this box')
     :emptyMsg(gated?'locked — sign in as operator':'status feed unavailable');
@@ -1138,7 +1193,7 @@ async function tick(){
       $('timing').innerHTML=emptyMsg(gated
         ?'locked — sign in as operator':'no requests measured yet');
     }else{
-      trows.unshift(['how fast the api answers',`the server's own stopwatch · window ${esc(timing.window||'since boot')} · “9 in 10” is the covering bucket edge`,false]);
+      trows.unshift(['how fast the api answers',`the server's own stopwatch · window ${esc(timing.window||'since boot')} · “9 in 10” = the upper edge of the bracket it landed in`,false]);
       $('timing').innerHTML=trows.map(([k,v,main])=>
         `<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('');
     }
@@ -1169,15 +1224,17 @@ async function tick(){
   const windPub=H.wind||{},metA=aSt('met'),routA=aSt('routing'),locA=aSt('location'),firesH=hs.fires||{};
   const srows=[
     mk('city monitors · waqi',feeds.waqi!=null?feedState(feeds.waqi):(f.station_readings>0?'live':'down'),
-      f.station_readings!=null?fmt(f.station_readings)+' readings':'—',
-      f.age_s,'government monitors, republished via waqi — trusted 3× over the forecast in the blend',aSt('stations').stale),
+      f.station_readings!=null?fmt(f.station_readings)+' blended':'—',
+      f.age_s,'government monitors, republished via waqi — leads the blend · every reading trusted 3× over the forecast',aSt('stations').stale),
+    mk('city monitors · dpcc',feedState(feeds.dpcc),'—',null,
+      `delhi's own 5-minute pollution pages — ${feeds.dpcc==='ok'?'live: adds the monitors waqi misses':feeds.dpcc!=null?'tried this cycle':'rests — additive, never replaces waqi'}`,null),
     mk('city monitors · cpcb',feedState(feeds.cpcb),'—',feeds.cpcb?0:null,
-      `india's own feed — ${feeds.cpcb?'tried this cycle':'rests while waqi is winning the chain'}; the prod key isn't set yet`,null),
+      `india's central pollution board — ${feeds.cpcb?'tried this cycle':'rests while waqi+dpcc are winning the chain'}; a keyed attempt whose network route is refused from our region today`,null),
     mk('city monitors · openaq',feedState(feeds.openaq),'—',feeds.openaq?0:null,
-      'the fallback of last resort — runs only when waqi fails; its key is ready on the box',null),
+      'the fallback of last resort — runs only when nothing else contributes; the old key was revoked, it rests until a fresh one lands',null),
     mk('forecast grid · europe',f.samples>0?'live':'down',
       f.samples!=null?fmt(f.samples)+' pts':'—',f.age_s,
-      'the european atmosphere model — open, no key'+(aSt('model').n_points!=null?` · ${fmt(aSt('model').n_points)} points at last build`:''),aSt('model').stale),
+      'the european atmosphere model (cams · open-meteo) — open, no key'+(aSt('model').n_points!=null?` · ${fmt(aSt('model').n_points)} points at last build`:''),aSt('model').stale),
     mk('wind + air column',(windPub.speed_kmh!=null||metA.wind_ms!=null)?'live':'cold',
       windPub.speed_kmh!=null?`${fmt1(windPub.speed_kmh)} km/h @ ${Math.round(windPub.from_deg??0)}°`:(metA.wind_ms!=null?`${fmt1(metA.wind_ms)} m/s`:'—'),
       windPub.age_s!=null?windPub.age_s:metA.age_s,
@@ -1185,33 +1242,42 @@ async function tick(){
     mk('fires · nasa satellites',((fireSt.fires||firesH.fires||0)>0)?'live':'cold',
       `${fmt(fireSt.fires!=null?fireSt.fires:firesH.fires)} fires · ${fmt(fireSt.belt_fires||0)} in the belt`,
       fireSt.age_s!=null?fireSt.age_s:firesH.age_s,
-      `nasa's public fire list · smoke lift ×${fireSt.modifier!=null?fireSt.modifier:'—'} · ${esc(fireSt.status||'—')}`,aSt('fires').stale),
+      `nasa's public fire list · smoke lift ×${fireSt.modifier!=null?fireSt.modifier:'—'} · ${esc(fireSt.status||'—')}`,
+      /* the fires feed updates ~6-hourly — judge it by its own stale_after_s, not the 45m table default */
+      (aSt('fires').stale!=null?aSt('fires').stale
+        :(fireSt.age_s!=null?fireSt.age_s>(fireSt.stale_after_s||staleAfter):null))),
     mk('places + names · amazon',((hs.location&&hs.location.up===true)||locA.enabled===true)?'live':'down',
-      '—',null,'no key set — place search falls back to the open photon/osrm maps',null),
-    mk('streets · own router',routA.up===true?'live':routA.up===false?'down':'cold',
-      '—',routA.age_s,
-      'our own delhi road engine first, the public demo as fallback — timed by real plan calls, never pinged'+(routA.ms!=null?` · ${fmt(routA.ms)} ms last`:''),routA.stale),
+      '—',null,'no key set — place search falls back to the open maps (photon + osrm)',null),
+    mk('streets · own router',routA.up===true?'live':routA.up===false?'down':(H.routing&&H.routing.loaded?'live':'cold'),
+      (H.routing&&H.routing.edges_priced!=null)?`${fmt(H.routing.edges_priced)} priced`:'—',routA.age_s,
+      'our own delhi road engine first, the public demo router as fallback — timed by real plan calls, never pinged'+(routA.ms!=null?` · ${fmt(routA.ms)} ms last`:''),routA.stale),
   ];
   $('sources').innerHTML=srows.join('')||`<tr><td colspan="6">${emptyMsg('source probe returned nothing')}</td></tr>`;
 
   /* --- trip aggregates: donations + mode share + k≥3 corridors --- */
+  /* wire mode names → what a person calls them */
+  const MODE_N={'car':'car','auto':'auto rickshaw','walk':'walking',
+    'cycle':'cycling','metro':'metro','bus':'bus','2w':'two-wheeler',
+    'bike':'two-wheeler','unknown':'mode unknown','taxi':'taxi',
+    'driving_car':'car','driving_car_ac':'car · ac',
+    'driving_car_open':'car · windows down',
+    'driving_two_wheeler':'two-wheeler','auto_rickshaw':'auto rickshaw',
+    'walking':'walking','cycling':'cycling'};
   const days=dn.days||{};
   const dayKeys=Object.keys(days).sort();
   const share=dn.mode_share||[];
-  $('donations').innerHTML=donations==null
-    ?emptyMsg(gated?'locked — sign in as operator':'donations feed unavailable')
-    :(t.trips?`
+  $('donations').innerHTML=t.trips?`
       <dt>shared trips</dt><dd>${fmt(t.trips)} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}</dd>
       <dt>distance</dt><dd>${fmt1(t.km)} km · ${t.avg_km_per_trip??'—'} km per trip</dd>
       <dt>smoke inhaled</dt><dd>${fmt(t.dose_ug)} µg · anonymized totals only</dd>
       <dt>per trip / per km</dt><dd>${t.avg_dose_per_trip_ug??'—'} µg/trip · ${t.dose_ug_per_km??'—'} µg/km</dd>
       <dt>co₂ emitted</dt><dd>${fmt1(t.co2_kg_mid)} kg${t.pm25_g_mid!=null?` · ${fmt1(t.pm25_g_mid)} g tailpipe PM2.5`:''}</dd>
       <dt>picked cleaner</dt><dd>${fmt(t.switched)} trips chose the lower-smoke option</dd>
-      <dt>streets tracked</dt><dd>${fmt(dn.cells_tracked)} · ${fmt(dn.corridors_publishable)} shareable (3+ phones)</dd>
-      <dt>window</dt><dd class="sub">streets reset every ${Math.round((dn.window_s||0)/3600)}h · ${esc(dn.devices_note||'')}</dd>
+      <dt>street cells tracked</dt><dd>${fmt(dn.cells_tracked)} · ${fmt(dn.corridors_publishable)} shareable (3+ phones)</dd>
+      <dt>window</dt><dd class="sub">street counts reset every ${Math.round((dn.window_s||0)/3600)}h · ${esc(dn.devices_note||'')}</dd>
       <dt>by day</dt><dd class="sub">${dayKeys.slice(-7).map(d=>{
         const v=days[d];return `${esc(d)}: ${fmt(v.trips)} trips / ${fmt1(v.km)} km`}).join('<br>')}</dd>`
-    :emptyMsg('no shared trips yet — totals appear when the first anonymized trip lands. nothing is zero-filled.'));
+    :emptyMsg('no shared trips yet — totals appear when the first anonymized trip lands. nothing is zero-filled.');
   /* day-by-day bar strip — every recorded day, bars = shared trips,
      hover carries the day's dose+co2 (aggregate day counters only) */
   if(t.trips){
@@ -1227,13 +1293,14 @@ async function tick(){
      so nothing shown can collapse to one person's journey */
   const feed=dn.recent||[];
   $('feedlist').innerHTML=donations==null
-    ?emptyMsg(gated?'locked — sign in as operator':'donations feed unavailable')
+    ?(t.trips?'<div class="feed-h">busiest shared hours — groups of 3+ phones in the same hour — unlock for the operator</div>'
+      :emptyMsg(gated?'locked — sign in as operator':'donations feed unavailable'))
     :feed.length?
-    `<div class="feed-h">latest shared trips · busiest group-hours</div>`+feed.map(e=>{
+    `<div class="feed-h">latest shared trips · busiest hours · groups of 3+ phones</div>`+feed.map(e=>{
       const s=Math.max(0,Math.round(((dn.ts||Date.now()/1000)-(e.ts||0))));
       return `<div class="feed-row">
         <span class="f-t">${ago(s)} ago</span>
-        <span class="f-m">${esc(e.mode||'trip')}${e.trips>1?' <span style="color:var(--ink4)">×'+e.trips+'</span>':''}${e.switched?' <span style="color:var(--ink4)">· picked cleaner</span>':''}</span>
+        <span class="f-m">${esc(MODE_N[e.mode]||e.mode||'trip')}${e.trips>1?' <span style="color:var(--ink4)">×'+e.trips+'</span>':''}${e.switched?' <span style="color:var(--ink4)">· picked cleaner</span>':''}</span>
         <span class="f-d" style="color:${doseInk(e.dose_ug||0)}">${fmt1(e.dose_ug)} µg</span>
         <span class="f-k">${fmt1(e.km)} km</span>
         <span class="f-c">${e.co2_kg_mid?fmt1(e.co2_kg_mid)+' kg co₂':''}</span>
@@ -1241,7 +1308,7 @@ async function tick(){
     }).join('')
     :'';
   $('modeshare').innerHTML=share.length?`<div class="feed-h">how people travelled · share of shared trips</div>`+share.map(r=>
-    `<div class="share-row"><span class="m">${esc(r.mode)}</span>
+    `<div class="share-row"><span class="m">${esc(MODE_N[r.mode]||r.mode)}</span>
       <div class="share-track"><i style="width:${Math.min(100,r.pct||0)}%"></i></div>
       <span class="p">${r.pct!=null?r.pct+'%':'—'}</span>
       <span class="n">${fmt(r.trips)}</span></div>`).join('')
@@ -1251,7 +1318,7 @@ async function tick(){
   const cs=t.co2_split;
   $('co2split').innerHTML=cs&&cs.pct?`
     <div class="split">
-      <i style="width:${cs.pct.moving}%;background:rgba(60,110,190,.55)"></i>
+      <i style="width:${cs.pct.moving}%;background:rgba(101,112,127,.5)"></i>
       <i style="width:${cs.pct.idle}%;background:rgba(190,87,30,.65)"></i>
       <i style="width:${cs.pct.cold}%;background:rgba(138,45,62,.65)"></i>
     </div>
@@ -1277,7 +1344,7 @@ async function tick(){
         `forecast points · ${esc(f.source||'—')}`)
      +`<div class="arr">→</div>`
      +seg(sig!=null?`±${fmt1(sig)} <small>µg/m³</small>`:'—',
-        `gap-fill honesty · ${esc(f.kriging||'—')} · ${esc(f.engine||'—')} · measured at the city read`)
+        `the ± range stamped on every gap-filled read · gap-fill ${esc(f.kriging||'—')} · ${esc(f.engine||'—')} · measured at the city read`)
      +`<div class="arr">→</div>`
      +seg(rt.edges_priced!=null?fmt(rt.edges_priced):'—',
         `streets priced by live air${rt.edges!=null?` · of ${fmt(rt.edges)}`:''}`);
@@ -1396,12 +1463,13 @@ async function tick(){
     ['engine',esc(rt.engine||'—'),true],
     ['road map',rt.edges!=null?`${fmt(rt.edges)} streets${rt.nodes!=null?` · ${fmt(rt.nodes)} junctions`:''}`:'—',true],
     ['priced by live air',rt.edges_priced!=null?fmt(rt.edges_priced):'—',true],
-    ['air over the map',rt.field_mean!=null?fmt1(rt.field_mean)+' µg/m³':'—',true],
-    ['last repriced',rt.reweight_age_s!=null?`${ago(rt.reweight_age_s)} ago · every ${ago(rt.reweight_ttl_s)}`:'—',true],
-    ['road data from',rt.graph_pbfs?rt.graph_pbfs.map(esc).join(' + '):'—',false],
-    ['map fingerprint',esc(rt.graph_sha||'—'),false],
-    ['trip ledger',esc(S.trips_backend||'—')+(S.ledger&&S.ledger.backend!=null?` · ledger ${esc(S.ledger.backend)} · ${fmt(S.ledger.devices_tracked)} device tokens`:''),true],
-    ...(gated?[['internals','sign in to see road-map internals',false]]:[])
+    ...(gated?[['internals','sign in to see road-map internals',false]]:[
+      ['air over the map',rt.field_mean!=null?fmt1(rt.field_mean)+' µg/m³':'—',true],
+      ['last repriced',rt.reweight_age_s!=null?`${ago(rt.reweight_age_s)} ago · every ${ago(rt.reweight_ttl_s)}`:'—',true],
+      ['road data from',rt.graph_pbfs?rt.graph_pbfs.map(esc).join(' + '):'—',false],
+      ['map fingerprint',esc(rt.graph_sha||'—'),false],
+      ['trip ledger',esc(S.trips_backend||'—')+(S.ledger&&S.ledger.backend!=null?` · ledger ${esc(S.ledger.backend)} · ${fmt(S.ledger.devices_tracked)} anonymized phones`:''),true],
+    ])
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
     :emptyMsg('route engine warming up — builds on the first plan');
 
@@ -1410,14 +1478,14 @@ async function tick(){
   const cal=A.calibration||{};
   const crows2=[];
   if(cal.method)crows2.push(['live check',
-    `${esc(cal.method)} · misses by ${cal.mae_ug} · rmse ${cal.rmse_ug} · bias ${cal.mean_bias_ug>0?'+':''}${cal.mean_bias_ug} µg/m³ (${cal.n_stations} monitors)`,true]);
+    `each monitor hidden in turn, then predicted — misses by ${cal.mae_ug} µg/m³ on average · big-miss score (rmse) ${cal.rmse_ug} · bias ${cal.mean_bias_ug>0?'+':''}${cal.mean_bias_ug} µg/m³ · ${cal.n_stations} monitors`,true]);
   const wk2=validation&&validation.weekly,arch2=wk2&&wk2.archive_replay||{},loso2=wk2&&wk2.loso||{},daily2=validation&&validation.daily||{};
   if(wk2){
     crows2.push(['hidden-monitor test (weekly)',loso2.status==='ok'
-      ?`misses by ${loso2.mae_ugm3} · rmse ${loso2.rmse_ugm3} · bias ${loso2.bias_ugm3>0?'+':''}${loso2.bias_ugm3} µg/m³ (${loso2.n} hidden)`
+      ?`misses by ${loso2.mae_ugm3} µg/m³ on average · big-miss score ${loso2.rmse_ugm3} · bias ${loso2.bias_ugm3>0?'+':''}${loso2.bias_ugm3} µg/m³ · ${loso2.n} hidden`
       :esc(loso2.status||'—'),true]);
     crows2.push(['replay of recorded hours',arch2.status==='ok'
-      ?`misses by ${arch2.mae_ugm3} · rmse ${arch2.rmse_ugm3} · bias ${arch2.bias_ugm3>0?'+':''}${arch2.bias_ugm3} µg/m³ (${fmt(arch2.pairs)} checks)`
+      ?`misses by ${arch2.mae_ugm3} µg/m³ on average · big-miss score ${arch2.rmse_ugm3} · bias ${arch2.bias_ugm3>0?'+':''}${arch2.bias_ugm3} µg/m³ · ${fmt(arch2.pairs)} checks`
       :esc(arch2.status||'—'),true]);
     crows2.push(['tested week',esc(wk2.week||'—')+' · generated '+esc((wk2.generated||'').replace('T',' ').replace('+00:00','Z')),false]);
   }
@@ -1465,12 +1533,12 @@ function paintMeth(){
   const f=(G_STATUS&&G_STATUS.field)||{};
   const nSt=f.station_readings??'—',nSamp=f.samples??'—';
   const METH={
-    pm2_5:`<b>${fmt(nSt)} government monitors</b> report an official index → converted back into real µg/m³ → smoothed monitor-by-monitor → blended with ${fmt(nSamp)} forecast points from the european atmosphere model → the forecast is pulled toward the real readings → the gaps between monitors get filled in → the ${fmt(FM_FEATS.length)} cells above.<br>the honesty band: ±2σ measured right 95.2% of the time across 3,550 hidden-monitor checks. shared trips re-weight the cells they cross.`,
-    pm10:`forecast layer + the pm2.5 monitor correction added on top — pm10 = pm2.5 + coarse dust; monitors only measure the fine fraction, the coarse part stays modelled.`,
-    nitrogen_dioxide:`forecast layer only — our monitors measure pm2.5, nothing else; a cell's confidence fades with distance to the nearest forecast point.`,
-    ozone:`forecast layer only — no monitor evidence for this gas; confidence fades by distance to a forecast point.`,
-    carbon_monoxide:`forecast layer only — no monitor evidence for this gas; confidence fades by distance to a forecast point.`,
-    sulphur_dioxide:`forecast layer only — no monitor evidence for this gas; confidence fades by distance to a forecast point.`,
+    pm2_5:`<b>${fmt(nSt)} government monitors</b> report an official index → converted back into real µg/m³ → smoothed monitor-by-monitor → blended with ${fmt(nSamp)} forecast points from the european atmosphere model → the forecast is pulled toward the real readings → the gaps between monitors get filled in → the ${fmt(FM_FEATS.length)} cells above.<br>the honesty band: every cell carries its own ± range — how sure each fill is; the self-grade card below scores whether those bands held. shared trips re-weight the cells they cross.`,
+    pm10:`forecast layer plus whatever pm10 monitors report — pm10 = pm2.5 + the coarse dust fraction; most monitors measure the fine fraction only, so the coarse part stays mostly modelled.`,
+    nitrogen_dioxide:`forecast layer, corrected where a monitor reports this gas — most delhi monitors measure pm2.5 only, so this layer stays mostly the model; a cell's confidence fades with distance to the nearest forecast point.`,
+    ozone:`forecast layer, corrected where a monitor reports this gas — most monitors measure pm2.5 only; confidence fades by distance to a forecast point.`,
+    carbon_monoxide:`forecast layer, corrected where a monitor reports this gas — most monitors measure pm2.5 only; confidence fades by distance to a forecast point.`,
+    sulphur_dioxide:`forecast layer, corrected where a monitor reports this gas — most monitors measure pm2.5 only; confidence fades by distance to a forecast point.`,
     us_aqi:`our own pm2.5 map run through the US EPA's official breakpoints — delhi's index is pm2.5-driven; same cells, one story. confidence rides the pm2.5 map's.`
   };
   let hi=0,med=0,lo=0;
@@ -1937,7 +2005,7 @@ async function paintDMap(){
   const gridless=p!=='pm2_5'&&p!=='us_aqi'&&!(DM_GRID[p]&&DM_GRID[p].length);
   if(cap)cap.innerHTML=gridless
     ?`${label} — the field serves no ${label} cells right now`
-    :`${fmt(feats.length)} boundaries · ${fmt(liveN)} live${thinN?` · ${fmt(thinN)} thin (centroid read)` :''} · fills = ${p==='us_aqi'?'us epa':'cpcb national'} aqi bands for ${esc(label)} · value = mean of the covered cells inside each border · click pins a card`;
+    :`${fmt(feats.length)} boundaries · ${fmt(liveN)} live${thinN?` · ${fmt(thinN)} thin (centroid read)` :''} · fills = ${p==='us_aqi'?'the us aqi scale':"india's national aqi bands"} for ${esc(label)} · value = mean of the covered cells inside each border · click pins a card`;
 }
 function dmHit(e){
   const cv=$('distmap');if(!cv||!DM_BBOX)return{row:null,x:0,y:0};
@@ -2043,9 +2111,11 @@ function paintShared(dn,S,rows,G){
    s3://{bucket}/archive/ + the local mirror). every number on this
    strip comes from archive.status() — counts of real snapshot files,
    never an estimate --- */
+let ARC_GATED=false;   /* true when the operator feed already filled the tiles */
 function paintArchive(S){
   const el=$('archive');if(!el)return;
   const a=(S&&S.archive)||{};
+  ARC_GATED=a.snapshots_total!=null;
   const td=a.today||{};
   const last=a.last||{};
   const tiles=[
@@ -2068,10 +2138,10 @@ function paintArchive(S){
         :(last.ok===false?(last.skipped?'skipped — nothing to record':(last.error?'failed':null)):null),
       last.backend?`stored via ${last.backend}${last.uri?' · '+last.uri:''}`:(last.note||'')],
   ];
-  el.innerHTML=tiles.map(([l,v,sub])=>
+  el.innerHTML=tiles.map(([l,v,sub],i)=>
     `<div class="card"><div class="kchip">${l}</div>
-     <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'nothing to show yet'}</div>
-     <div class="cap">${sub||''}</div></div>`).join('')+
+     <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25" id="arcv${i}">${v||(ARC_GATED?'nothing to show yet':'reading…')}</div>
+     <div class="cap" id="arcc${i}">${sub||''}</div></div>`).join('')+
     /* recorded today — one square per ist hour, coloured by that
        hour's mean band; filled lazily from /v2/archive (public read) */
     `<div class="card" style="grid-column:1/-1">
@@ -2131,6 +2201,25 @@ async function archStrip(){
     return;
   }
   const cov=d.coverage||{},wm=cov.with_model||[];
+  /* when the operator feed is locked the public payload carries the
+     same counts — fill the four tiles it couldn't */
+  if(!ARC_GATED){
+    const ar=d.archive||{};
+    const setv=(i,h)=>{const n=$('arcv'+i);if(n){n.classList.remove('na');n.innerHTML=h}};
+    const setc=(i,h)=>{const n=$('arcc'+i);if(n)n.innerHTML=h};
+    setv(0,`${fmt(cov.recorded_count)} <small>/ ${24-(cov.pending||[]).length} ist</small>`);
+    setc(0,(cov.gaps||[]).length
+      ?`missing hours: ${cov.gaps.map(h=>String(h).padStart(2,'0')+':00').join(' · ')}`
+      :'every elapsed hour so far has a real saved map');
+    setv(1,ar.since_ist?`${ar.since_ist.slice(0,10)} · ${ar.since_ist.slice(11,16)} ist`:'—');
+    setc(1,'the air map has been saved hourly since then');
+    setv(2,fmt(ar.total_snapshots));
+    setc(2,d.storage&&d.storage.bucket
+      ?`stored in the cloud (s3://${d.storage.bucket}/archive/) · mirrored locally`
+      :'local copies only — cloud bucket unset');
+    setv(3,ar.last_ist?`${ar.last_ist.slice(11,16)} ist`:'—');
+    setc(3,'the most recent hourly save');
+  }
   const meanOf=e=>{let s=0,n=0;
     for(const c of e.cells||[])if(c[2]!=null){s+=c[2];n++}
     return n?s/n:null};
@@ -2461,7 +2550,7 @@ function bootStrip(){
         const MUTED=['#7AAB59','#C8B25A','#D58C4A','#B85442','#8F3C49','#6E3C54'];
         numV.style.color=word.style.color=MUTED[i];
         word.textContent='pm2.5 · '+CPCB_BANDS[i][2];
-        line.textContent='live · field mean over the ncr lattice';
+        line.textContent='live · field mean over delhi ncr';
         foot.textContent='the same field, watched';
       },rm?0:500);
     }else{

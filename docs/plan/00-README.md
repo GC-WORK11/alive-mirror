@@ -33,6 +33,6 @@ A Delhi map app that, for every trip, shows how much smoke you will breathe and 
 - Coordinator works from a plan; no subagents for this planning phase.
 
 ## Open items only the owner can unblock
-1. **Live station data key.** OpenAQ v3 returns 401 without a key [V]; our old key is dead. Either regenerate the OpenAQ key (explore.openaq.org → account) or register a data.gov.in key (for CPCB hourly). Without one, the live index runs on the CAMS model + the public OpenAQ S3 archive (hours old), and we must say so on screen.
+1. ~~**Live station data key.**~~ **Resolved differently (2026-10-06):** WAQI (`alive108/waqi` secret) + DPCC adapters now serve 54 live instruments — no OpenAQ key needed for the live feed. OpenAQ v3 still returns 401 without a key [V]; a fresh key would widen coverage, and data.gov.in remains TCP-refused from ap-south-1 (`docs/plan/handoff.md`).
 2. **Event-date rule.** The rules say repo history must match Oct 8–11 and old projects are disqualified "even if you rewrote it" [R: memory of rules page, Oct 2]. Everything built before Oct 8 is at risk. The plan assumes the owner re-confirms the rule text and decides how to handle it; we do not hide history.
 3. **Amazon Location spend.** Free-tier allowance is 500k map tiles, 10k suggest, 20k geocode, 10k routes per month for 3 months [V: aws.amazon.com/location/pricing]. Demo traffic fits; a public launch would not. Owner approves the spend cap.

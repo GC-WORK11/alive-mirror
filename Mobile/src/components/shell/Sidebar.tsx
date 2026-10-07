@@ -257,7 +257,7 @@ function SidebarInner({
       style={({ pressed }) => [s.gridTile, pressed && !!p.onPress && s.gridTileDown]}>
       <View style={s.tileTop}>
         <View style={s.tileIcon}>
-          <Icon name={p.glyph} color={V2T.accent} size={19} filled={p.open} />
+          <Icon name={p.glyph} color={V2T.text2} size={19} filled={p.open} />
         </View>
         {p.corner}
         {p.chevron && !p.corner && (
@@ -270,7 +270,7 @@ function SidebarInner({
         {p.label}
       </Text>
       <Text {...DYNAMIC_TYPE} style={[s.tileValue, { fontFamily: fam(lang, "med") },
-        p.valueAccent && { color: V2T.accent }]} numberOfLines={1}>
+        p.valueAccent && { color: V2T.text2 }]} numberOfLines={1}>
         {p.value}
       </Text>
     </Pressable>
@@ -370,7 +370,7 @@ function SidebarInner({
         <View style={[s.header, { paddingTop: insets.top + 14 }]}>
           <View style={s.brandRow}>
             <View style={s.mark}>
-              <Icon name="wind" color={V2T.accent} size={15} />
+              <Icon name="wind" color={V2T.text2} size={15} />
             </View>
             <Text {...DYNAMIC_TYPE} style={s.wordmark}>ALIVE<Text {...DYNAMIC_TYPE} style={{ color: V2T.accent }}>-108</Text></Text>
           </View>
@@ -517,7 +517,7 @@ function SidebarInner({
                   <Pressable hitSlop={8} onPress={() => { tick(); onTripReceipt(recent[0]); }}
                     accessibilityRole="button" accessibilityLabel={t("ledgerAllTime", lang)}
                     style={({ pressed }) => [s.allBtn, pressed && { opacity: 0.65 }]}>
-                    <Icon name="history" color={V2T.accent} size={13} />
+                    <Icon name="history" color={V2T.text2} size={13} />
                     <Text {...DYNAMIC_TYPE} style={[s.allBtnTxt, { fontFamily: fam(lang, "med") }]}>{t("ledgerAllTime", lang)}</Text>
                   </Pressable>
                 )}
@@ -531,9 +531,7 @@ function SidebarInner({
             {card([
               // language — first-class segmented toggle (doc 02 §sidebar-7)
               <View key="lang" style={s.row}>
-                <View style={s.langBadge}>
-                  <Text {...DYNAMIC_TYPE} style={s.langBadgeTxt}>अA</Text>
-                </View>
+                <Icon name="translate" color={V2T.text2} size={22} filled />
                 <Text {...DYNAMIC_TYPE} style={[s.rowLabel, s.rowMid, { fontFamily: fam(lang, "med") }]}>
                   {t("settingsLanguage", lang)}
                 </Text>
@@ -642,21 +640,21 @@ const s = StyleSheet.create({
     /* solid paper drawer — at 95% glass the home's dose hero/eyebrows
        ghosted through behind the trip rows; the deep scrim dims,
        the pane is opaque */
-    backgroundColor: V2T.bg, borderRightWidth: 1, borderRightColor: V2T.hairline,
-    ...V2Elev.pop,
+    backgroundColor: V2T.bg,
+    /* no shadow: parked off-screen it bled a grey seam down the home's
+       left edge; the scrim alone separates the open pane */
   },
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingBottom: 14,
-    borderBottomWidth: 1, borderBottomColor: V2T.glassLine,
+    paddingHorizontal: 18, paddingBottom: 14,
   },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   mark: {
     width: 32, height: 32, borderRadius: 11, backgroundColor: V2T.accentWash,
     alignItems: "center", justifyContent: "center",
   },
-  wordmark: { fontFamily: F.semi, fontSize: V2Type.secondary, color: V2T.text, letterSpacing: 2.4 },
+  wordmark: { fontFamily: F.semi, fontSize: V2Type.title, color: V2T.text, letterSpacing: -0.3 },
   closeBtn: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: V2T.surface2,
     alignItems: "center", justifyContent: "center",
@@ -685,9 +683,9 @@ const s = StyleSheet.create({
   gridTileDown: { backgroundColor: V2T.accentWash, borderColor: `${V2T.accentInk}33` },
   tileTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   tileIcon: {
-    width: 36, height: 36, borderRadius: 12,
-    backgroundColor: V2T.accentWash,
-    alignItems: "center", justifyContent: "center",
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "transparent",
+    alignItems: "flex-start", justifyContent: "center",
   },
   tileCorner: { padding: 4, marginTop: -4, marginRight: -4 },
   tileLabel: { fontSize: V2Type.label, color: V2T.text3, marginTop: 10 },
@@ -791,11 +789,6 @@ const s = StyleSheet.create({
   seg: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: V2Radius.pill },
   segOn: { backgroundColor: V2T.text },
   segTxt: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.text3 },
-  langBadge: {
-    width: 26, height: 26, borderRadius: 8, backgroundColor: V2T.accentWash,
-    alignItems: "center", justifyContent: "center",
-  },
-  langBadgeTxt: { fontFamily: F.semi, fontSize: 11, color: V2T.text2 },
 
   howBody: {
     fontSize: V2Type.secondary, color: V2T.text2, lineHeight: 22,

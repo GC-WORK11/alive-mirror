@@ -378,13 +378,13 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
         accessibilityRole="button"
         accessibilityState={{ selected }}
         style={s.cardRow}>
-        {/* the mode tile — the option's identity in its own colour;
-            selection re-inks it, never re-fills the card */}
+        {/* the mode glyph is neutral ink; only the selected option takes
+            the forest accent */}
         <View style={[s.modeWell, {
-          backgroundColor: selected ? V2T.accentTint : V2T.accentWash,
+          backgroundColor: selected ? V2T.accentTint : "transparent",
         }]}>
           <Icon name={vehicleGlyph(o.mode)}
-            color={V2T.accentInk}
+            color={selected ? V2T.accent : V2T.text2}
             size={24} filled />
         </View>
         <View style={s.cardMid}>
@@ -565,7 +565,7 @@ function CompareSheetInner({
                retry can't fix geography, the CTA is 'change the trip' */
             <View style={s.stateWrap}>
               <View style={s.stateIcon}>
-                <Icon name="pin" color={V2T.accent} size={20} />
+                <Icon name="pin" color={V2T.text2} size={20} />
               </View>
               <Text {...DYNAMIC_TYPE} style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>
                 {t("plan_outside_title", lang)}
@@ -581,7 +581,7 @@ function CompareSheetInner({
           ) : (
           <View style={s.stateWrap}>
             <View style={s.stateIcon}>
-              <Icon name="info" color={V2T.accent} size={20} />
+              <Icon name="info" color={V2T.text2} size={20} />
             </View>
             <Text {...DYNAMIC_TYPE} style={[s.stateTitle, { fontFamily: fam(lang, "med") }]}>
               {t(planError.kind === "network" ? "plan_failed" : "plan_failed_server", lang)}
@@ -629,7 +629,7 @@ function CompareSheetInner({
               {depart?.ug_saved_vs_now != null && depart.ug_saved_vs_now > 8 && (
                 <PressSpring><Pressable onPress={() => { tap(); onRemind(); }} style={s.departRow}
                   accessibilityRole="button">
-                  <Icon name={notified ? "bell" : "clock"} color={V2T.accent} size={16} filled={notified} />
+                  <Icon name={notified ? "bell" : "clock"} color={V2T.text2} size={16} filled={notified} />
                   <Text {...DYNAMIC_TYPE} style={[s.departTxt, { fontFamily: fam(lang, "med") }]}>
                     {notified
                       ? t("wellPing", lang)
@@ -794,7 +794,6 @@ const s = StyleSheet.create({
     marginHorizontal: 14, marginTop: 8, marginBottom: 2, minHeight: 46,
     paddingHorizontal: 13, paddingVertical: 10, borderRadius: V2Radius.row,
     backgroundColor: V2T.accentWash,
-    borderWidth: 1, borderColor: `${V2T.accentInk}3D`,
   },
   departTxt: { fontSize: V2Type.label, color: V2T.accentInk, flex: 1 },
   refineRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 2 },
@@ -820,7 +819,7 @@ const s = StyleSheet.create({
      crossfading overlay so picking a card lands instead of snapping) */
   selFill: {
     borderRadius: V2Radius.card - 1,
-    backgroundColor: V2T.accentWash, borderWidth: 1.5, borderColor: V2T.accent,
+    backgroundColor: V2T.accentWash,
   },
   cardRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
@@ -919,14 +918,14 @@ const s = StyleSheet.create({
   stateWrap: { paddingVertical: 24, paddingHorizontal: 24, alignItems: "center" },
   stateIcon: {
     width: 52, height: 52, borderRadius: 26, marginBottom: 10,
-    backgroundColor: V2T.surface, borderWidth: 1, borderColor: V2T.glassLine,
+    backgroundColor: V2T.surface2,
     alignItems: "center", justifyContent: "center",
   },
   stateTitle: { fontSize: V2Type.secondary, color: V2T.text, textAlign: "center" },
   stateSub: { fontSize: V2Type.label, color: V2T.text3, textAlign: "center", marginTop: 6 },
   retryBtn: {
     marginTop: 14, minHeight: 44, justifyContent: "center",
-    backgroundColor: V2T.accent, borderRadius: V2Radius.card,
+    backgroundColor: V2T.text, borderRadius: V2Radius.card,
     paddingHorizontal: 26, paddingVertical: 12,
   },
   retryTxt: { fontSize: V2Type.secondary, color: V2T.bg }, // accent fill → light text

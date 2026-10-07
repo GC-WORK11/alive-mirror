@@ -55,6 +55,7 @@ AQ_VARS = "pm2_5,pm10,nitrogen_dioxide"
 MET_VARS = "boundary_layer_height,wind_speed_10m,wind_direction_10m"
 FORECAST_DAYS = 5  # API gives 120 hourly slots starting 00:00 UTC today
 CACHE_TTL = 1800  # 30 min — forecast cycles update ~hourly
+RETRY_S = 60.0    # failed-fetch cooldown — see refresh()
 
 # Live-anchor tuning. ANCHOR_TAU_H is the e-folding horizon of the
 # nowcast correction — persistence information decays over ~6-12 h in
@@ -159,6 +160,7 @@ class ForecastField:
         self._aq: list = []
         self._met: list = []
         self._fetched_at: float = 0.0
+        self._next_attempt: float = 0.0  # failed-fetch retry gate
         self._lock = asyncio.Lock()
         self._live = _live_field_pm25 if live is _FIELD_ANCHOR else live
 
@@ -172,6 +174,11 @@ class ForecastField:
         async with self._lock:
             if not force and time.time() - self._fetched_at < CACHE_TTL and self._aq:
                 return
+            # A dead upstream re-paid the two bulk fetches inside every
+            # request (_fetched_at never stamps); cap retries per window.
+            if not force and time.time() < self._next_attempt:
+                return
+            self._next_attempt = time.time() + RETRY_S
             pts = _grid_points()
             lats = ",".join(str(p[0]) for p in pts)
             lons = ",".join(str(p[1]) for p in pts)

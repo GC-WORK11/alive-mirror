@@ -1,5 +1,9 @@
 # Claims audit — every number & claim that faces the user
 
+_Audit pass dated 2026-10-03, reconciled 2026-10-05 (numbers-integrity
+lane). Drifted figures re-verified 2026-10-06 — see
+`docs/plan/NUMBERS.md` §2 for the current ledger._
+
 Audit against `docs/plan/10-claims-ledger.md` (say/never-say) and
 `docs/plan/02-consumer-ux.md` §3 (vocab: never AQI/PM2.5/µg/dose/BS on
 surface screens; technical terms only behind "How we got this") and

@@ -61,12 +61,8 @@ airfield variant; returns [] when the flag is off or the source fails —
 the modelled field stands alone exactly like the other feeds.
 """
 import asyncio
-import base64
 import concurrent.futures
-import gzip
 import html as _html
-import json
-import math
 import os
 import re
 import sys

@@ -57,9 +57,12 @@ to match exactly what is deployed.
 ## 6. Optional extras if you find them
 
 - NASA FIRMS key: firms.modaps.eosdis.nasa.gov → "Get an SMS API key"
-  (Earthdata login) — drop it here and the live fire layer upgrades.
+  (Earthdata login) — drop it here and the live fire layer upgrades
+  beyond the keyless firms-public-csv feed already serving today.
 - data.gov.in API key — would add the 115 Delhi MoRTH black spots to
-  the safety layer (the OpenAQ feed already covers CPCB stations).
+  the safety layer (the CPCB-station side is already covered live by
+  the WAQI + DPCC feeds — 54 instruments; the data.gov.in station path
+  itself is TCP-refused from ap-south-1 — `docs/plan/handoff.md`).
 
 ## What the judges can click (public, no install)
 

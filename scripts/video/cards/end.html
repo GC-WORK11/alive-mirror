@@ -1,24 +1,67 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><style>
-  html,body{margin:0;height:100%;background:#14181f}
-  body{display:flex;align-items:center;justify-content:center;
-    font-family:Georgia,'Times New Roman',serif;color:#f2f4f8}
-  .box{text-align:center;max-width:1200px}
-  h1{font-size:64px;font-weight:400;margin:0 0 34px}
-  .repo{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:26px;color:#2dd4bf;margin-bottom:40px}
-  .line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:17px;color:#8a93a3;line-height:1.9}
+  /* end card — same paper register; the sign-off carries the repo, the live
+     URL, the AWS inventory, and the AI-tool disclosure the rules require. */
+  :root{
+    --paper:#FAFAF7; --surf2:#F3F2EC;
+    --ink:#16181D; --ink2:#4A4E57; --ink3:#6E7278;
+    --line:#E4E1D8; --hairline:#D8D5C9;
+    --acc:#3A6844; --accInk:#2B4E32; --accWash:#EAF0E4; --accTint:#DCE7D1;
+    --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
+           "Segoe UI",Inter,system-ui,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
+  }
+  html,body{margin:0;height:100%;background:var(--paper)}
+  body{color:var(--ink);font-family:var(--sans);
+    display:flex;flex-direction:column}
+  .bar{border-bottom:1px solid var(--line);display:flex;
+    align-items:baseline;justify-content:space-between;
+    padding:26px 56px}
+  .wm{font-family:var(--mono);font-size:15px;font-weight:600;
+    letter-spacing:.22em}
+  .wm i{font-style:normal;color:var(--acc)}
+  .nav{font-family:var(--mono);font-size:12.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink2)}
+  .main{flex:1;display:flex;flex-direction:column;justify-content:center;
+    padding:0 120px 20px}
+  h1{font-family:var(--serif);font-weight:400;font-size:88px;
+    line-height:1.06;letter-spacing:-.026em;margin:0;max-width:18ch}
+  h1 em{font-style:italic;color:var(--ink2)}
+  .grid{margin-top:56px;max-width:1500px}
+  .g{display:flex;gap:18px;align-items:baseline;padding:15px 0;
+    border-top:1px solid var(--hairline)}
+  .g:last-child{border-bottom:1px solid var(--hairline)}
+  .k{font-family:var(--mono);font-size:13px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink3);min-width:150px}
+  .v{font-family:var(--mono);font-size:17px;color:var(--ink);
+    letter-spacing:.02em}
+  .v a{color:var(--accInk);text-decoration:none}
+  .foot{padding:22px 56px;font-family:var(--mono);font-size:13px;
+    color:var(--ink3);letter-spacing:.08em;display:flex;
+    justify-content:space-between}
 </style></head><body>
-  <div class="box">
-    <h1>exposure and emissions, measured end-to-end</h1>
-    <div class="repo">github.com/<owner>/Delhi-Air-108</div>
-    <div class="line">
-      live on AWS — ECS Fargate · Network Load Balancer · DynamoDB ·
-      S3 · CodeBuild · Secrets Manager<br>
-      data: open-meteo/CAMS · WAQI instruments · NASA FIRMS · OSM ·
-      Delhi GTFS<br>
-      AI tools used: Devin (Cognition AI)
+  <div class="bar">
+    <span class="wm">ALIVE<i>·</i>108</span>
+    <span class="nav">your lungs&rsquo; ledger for delhi</span>
+  </div>
+  <div class="main">
+    <h1>What you breathed — <em>and what you didn&rsquo;t.</em></h1>
+    <div class="grid">
+      <div class="g"><span class="k">live</span>
+        <span class="v">65.2.28.40 &nbsp;·&nbsp; api + dashboards, ap-south-1</span></div>
+      <div class="g"><span class="k">code</span>
+        <span class="v">github.com/<owner>/Delhi-Air-108</span></div>
+      <div class="g"><span class="k">aws</span>
+        <span class="v">ECS Fargate · NLB + Elastic IP · CodeBuild → ECR ·
+          DynamoDB · S3 · Secrets Manager · EventBridge</span></div>
+      <div class="g"><span class="k">data</span>
+        <span class="v">Open-Meteo / CAMS · WAQI + DPCC instruments ·
+          NASA FIRMS · OpenStreetMap · Delhi GTFS · OpenAQ archive</span></div>
     </div>
+  </div>
+  <div class="foot">
+    <span>ai tools used: Devin (Cognition AI)</span>
+    <span>aws × wemakedevs · environmental hacks · track 01 — air</span>
   </div>
 </body></html>

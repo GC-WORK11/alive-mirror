@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  /* honesty-ledger card — the close beat: the numbers we measured on
+     ourselves, set as the product sets them (serif numeral owns the row,
+     mono mini-label, sec-tick square, hairline dividers). Figures are the
+     verified lane-report values; they are fixed, not drifting. */
+  :root{
+    --paper:#FAFAF7; --surf2:#F3F2EC;
+    --ink:#16181D; --ink2:#4A4E57; --ink3:#6E7278;
+    --line:#E4E1D8; --hairline:#D8D5C9;
+    --acc:#3A6844; --accInk:#2B4E32; --accWash:#EAF0E4; --accTint:#DCE7D1;
+    --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
+           "Segoe UI",Inter,system-ui,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
+  }
+  html,body{margin:0;height:100%;background:var(--paper)}
+  body{color:var(--ink);font-family:var(--sans);
+    display:flex;flex-direction:column}
+  .main{flex:1;display:flex;flex-direction:column;justify-content:center;
+    padding:0 140px}
+  .eyebrow{align-self:flex-start;display:inline-flex;align-items:center;gap:9px;
+    font-family:var(--mono);font-size:15px;letter-spacing:.24em;
+    text-transform:uppercase;color:var(--accInk);
+    background:var(--accWash);border:1px solid var(--accTint);
+    border-radius:8px;padding:7px 14px}
+  .eyebrow .sq{width:7px;height:7px;background:var(--acc);border-radius:2px}
+  .rows{margin-top:52px;border-top:1px solid var(--hairline)}
+  .row{display:flex;align-items:baseline;gap:44px;
+    padding:30px 0;border-bottom:1px solid var(--hairline)}
+  .n{font-family:var(--serif);font-size:64px;letter-spacing:-.02em;
+    min-width:430px;font-weight:400}
+  .n span{font-size:34px;color:var(--ink2)}
+  .d{font-size:21px;color:var(--ink2);max-width:62ch;line-height:1.4}
+  .d b{color:var(--ink);font-weight:600}
+  .cap{margin-top:34px;font-family:var(--mono);font-size:13.5px;
+    color:var(--ink3);letter-spacing:.08em}
+</style></head><body>
+  <div class="main">
+    <span class="eyebrow"><span class="sq"></span>what we measured on ourselves</span>
+    <div class="rows">
+      <div class="row"><div class="n">22.8 → 10.5 <span>µg/m³</span></div>
+        <div class="d">error at stations our field <b>couldn’t see</b> —
+          then we ingested them and re-ran the same holdout.</div></div>
+      <div class="row"><div class="n">6.2 <span>µg/m³</span></div>
+        <div class="d">mean error against <b>all 30 government stations</b>,
+          re-run a day later on the identical method — nothing tuned,
+          nothing excluded.</div></div>
+      <div class="row"><div class="n">k ≥ 3</div>
+        <div class="d">or a street <b>never publishes</b> — trips stay on the
+          phone; only counters leave.</div></div>
+    </div>
+    <div class="cap">independent holdout · 30 DPCC stations · 60 probes ·
+      aggregates only, at rest and on the wire</div>
+  </div>
+</body></html>

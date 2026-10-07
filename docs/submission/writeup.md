@@ -269,9 +269,11 @@ decomposed to a verified spatial gradient, not a scaling bug
   rows exist anywhere.
 - **Secrets Manager** holds the admin token + upstream keys — nothing in the
   repo.
-- **EventBridge Scheduler** (`alive108` group) drives the 15-minute
-  field-rebuild cadence plus a daily rollup and a weekly validation schedule
-  [`infra/provision.sh`].
+- **EventBridge Scheduler** (`alive108` group) drives a daily rollup and a
+  validation schedule (00:30 IST / 20:30 IST — enabled live, run as one-off
+  Fargate tasks [`infra/schedules/`]). The 15-minute field-rebuild cadence
+  runs in-app (`ALIVE_INGEST_IN_APP=1` loop — the `alive108-ingest-15min`
+  schedule stays disabled, `docs/plan/handoff.md`).
 - **CloudWatch + Budgets** — a field-age alarm (missing data breaches, not
   just errors), the ops dashboard, and a $50/month budget alarm.
 - **OpenAQ's public S3 archive** is the decade climatology source

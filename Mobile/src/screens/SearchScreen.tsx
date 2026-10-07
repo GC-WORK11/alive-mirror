@@ -436,7 +436,7 @@ function SearchSheetInner({
                 <>
                   <PlaceRow
                     lang={lang}
-                    glyph={<Icon name="home" color={V2T.accent} size={20} />}
+                    glyph={<Icon name="home" color={V2T.text2} size={20} />}
                     title={t("home", lang)}
                     subtitle={store.home.name}
                     distLabel={distLabel(store.home)}
@@ -522,7 +522,7 @@ function SearchSheetInner({
             accessibilityLabel={t("yourLocation", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: "rgba(255,255,255,0.55)" }]}
           >
-            <Icon name="locate" color={V2T.accent} size={18} />
+            <Icon name="locate" color={V2T.text2} size={18} />
             <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
               {t("yourLocation", lang)}
             </Text>
@@ -535,7 +535,7 @@ function SearchSheetInner({
             accessibilityHint={t("mapPickHint", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: "rgba(255,255,255,0.55)" }]}
           >
-            <Icon name="pin" color={V2T.accent} size={18} />
+            <Icon name="pin" color={V2T.text2} size={18} />
             <Text {...DYNAMIC_TYPE} style={[ss.actionTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
               {t("chooseOnMap", lang)}
             </Text>
@@ -668,7 +668,7 @@ const ss = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 13,
-    backgroundColor: V2T.surface2,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -695,9 +695,7 @@ const ss = StyleSheet.create({
   actionBar: {
     flexDirection: "row",
     alignItems: "stretch",
-    borderTopWidth: 1,
-    borderColor: V2T.glassLine,
-    backgroundColor: V2T.glass,
+    backgroundColor: V2T.surface,
     // paddingBottom from useSafeAreaInsets inline
   },
   actionBtn: {

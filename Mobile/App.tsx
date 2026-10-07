@@ -22,7 +22,7 @@ import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
 import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
-import { v2StyleUrl } from "./src/map/style";
+import { latinLabels, v2StyleUrl } from "./src/map/style";
 import { camDur } from "./src/map/cam";
 import { ReportsLayer, reconcileReportSlots, REPORT_POOL, type ReportSlot } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
@@ -59,7 +59,7 @@ import {
 } from "./src/components/shell/settings";
 import { loadTrips, type Trip } from "./src/store/ledger";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
-import { approx, modeLabel, placeNameLabel, t } from "./src/i18n/strings";
+import { approx, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
 import { PERF_ON, bump, mark, report } from "./src/perf";
 
@@ -69,6 +69,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // Bundled light style — resolves local delhi.pmtiles / EXPO_PUBLIC_TILES_URL,
 // else hosted OpenFreeMap vector tiles through the same light style object.
 const STYLE_URL = v2StyleUrl();
+const STYLE_EN = latinLabels(STYLE_URL);
 
 // liberty ships a few vector tiles MLRN can't parse — a native dev-only
 // console warning; nothing in our layers is involved
@@ -103,13 +104,14 @@ type TrackChangeEvent = Parameters<NonNullable<React.ComponentProps<typeof Camer
    re-diff the Map + Camera + layers + markers per render. All props are
    stable identities, so unrelated app state no longer touches it. */
 const MapTree = React.memo(function MapTree({
-  compassPosition, logoPosition, attributionPosition,
+  lang, compassPosition, logoPosition, attributionPosition,
   onPress, onLongPress, camRef,
   trackUserLocation, onTrackUserLocationChange,
   hasLoc, corridors, reportSlots, fires, spots, layers,
   options, selected, strips,
   fromPin, toPin, fromSet, toSet, pinReady,
 }: {
+  lang: Lang;
   compassPosition: { top: number; right: number };
   logoPosition: { bottom: number; left: number };
   attributionPosition: { bottom: number; right: number };
@@ -135,7 +137,7 @@ const MapTree = React.memo(function MapTree({
 }) {
   bump("app.MapTree");
   return (
-    <Map mapStyle={STYLE_URL} style={StyleSheet.absoluteFill}
+    <Map mapStyle={lang === "hi" ? STYLE_URL : STYLE_EN} style={StyleSheet.absoluteFill}
       /* PERF-gated milestones in the cold-open path: style load is the
          bundled-light parse, rendered-full is first frame incl. tiles
          (hosted OpenFreeMap = network; bundled pmtiles = local) */
@@ -734,6 +736,7 @@ function AppInner() {
     /* key pins the instance across the fontsLoaded tree-shape flip —
        without it the map unmounts/remounts and the tile load restarts */
     <MapTree key="map"
+      lang={lang}
       compassPosition={compassPosition}
       logoPosition={logoPosition}
       attributionPosition={attributionPosition}
@@ -869,7 +872,7 @@ function AppInner() {
           onPress={() => { tick(); setMapPickArmed(false); }}
           accessibilityRole="button" accessibilityLabel={t("mapPickHint", lang)}
         >
-          <Icon name="pin" color={V2T.accent} size={14} />
+          <Icon name="pin" color={V2T.text2} size={14} />
           <Text {...DYNAMIC_TYPE} style={[s.pickHintTxt, { fontFamily: fam(lang, "med") }]}>
             {t("mapPickHint", lang)}
           </Text>
@@ -1085,16 +1088,14 @@ const s = StyleSheet.create({
     position: "absolute", alignSelf: "center",
     ...V2Elev.float,
     backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: V2T.glassLine,
   },
   offlineTxt: { fontSize: V2Type.label, color: V2T.text2 },
   pickHintWrap: {
     position: "absolute", alignSelf: "center",
     flexDirection: "row", alignItems: "center", gap: 6,
     ...V2Elev.float,
-    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
+    backgroundColor: V2T.surface, borderRadius: V2Radius.row,
     paddingHorizontal: 12, paddingVertical: 7,
-    borderWidth: 1, borderColor: V2T.accent,
   },
   pickHintTxt: { fontSize: V2Type.label, color: V2T.text },
   freshWrap: { position: "absolute", left: 16 },

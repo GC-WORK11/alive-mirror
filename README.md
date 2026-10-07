@@ -19,7 +19,7 @@ You type FROM → TO. The server returns real options — road modes via a route
 │ live trip — dose + emission counters tick locally at 1 Hz off    │
 │             the route strip; no per-second network               │
 └──────────────┬───────────────────────────────────────────────────┘
-               │ HTTPS
+               │ HTTP (NLB :80 — no TLS terminator today)
 ┌──────────────▼────────────── AWS ap-south-1 ─────────────────────┐
 │ NLB → FastAPI on ECS Fargate                                     │
 │                                                                  │
@@ -34,7 +34,8 @@ You type FROM → TO. The server returns real options — road modes via a route
 │  /v2/strip   field sampled along a route → the live counters     │
 │  /v2/trip    anonymous trip summary in (no user table)           │
 │  /v2/ledger  per-device dose/emission history (token-keyed)      │
-│  /v2/city · /v2/districts  13-district NCR choropleth            │
+│  /v2/city · /v2/districts  NCR choropleth (29 rows: 16 district │
+│              cells incl Delhi NCT + 13 Delhi sub-areas)          │
 │  /admin      ops board — corridors, species layers, api timing   │
 │                                                                  │
 │  alive_core: C++20 pybind11 module — search index, field         │
@@ -48,7 +49,10 @@ You type FROM → TO. The server returns real options — road modes via a route
 │  the C++ import fails the API still serves, just slower; both    │
 │  engines are asserted bit-identical in tests.                    │
 └──┬──────────────────────────────────┬────────────────────────────┘
-   │ ~every 15 min (EventBridge)       │ aggregates only
+   │ every 15 min (in-app ingest loop; │ aggregates only
+   │ EventBridge runs the daily rollup │
+   │ + validation jobs on one-off      │
+   │ tasks — `infra/schedules/*`)      │
    ▼                                  ▼
 ┌───────────────────────────┐  ┌────────────────────────────┐
 │ air index (airindex.py)   │  │ DynamoDB alive108-agg      │
@@ -57,9 +61,8 @@ You type FROM → TO. The server returns real options — road modes via a route
 │ BLH → QC → Kalman →       │  │ TTL 30 d. No user rows.    │
 │ kriging ±σ → snapshot→S3  │  └────────────────────────────┘
 └───────────────────────────┘
-  *stations need OPENAQ_API_KEY — without it the field still
-   builds (model + lagged public archive) and says so in its
-   provenance block. See "What it does not claim".
+  *stations live today: 54 instruments via the WAQI + DPCC feeds
+   (`/health.sources.stations` — OpenAQ stays a dormant keyed path).
 ```
 
 ## Measured numbers
@@ -89,7 +92,7 @@ This section is a feature, not a disclaimer.
 
 - **Phones measure nothing.** The app traverses a model field; it never says "your phone measured the air." User traversals adjust *dose estimates*, never the underlying field.
 - **Emissions are class-level estimates.** "Vehicles like yours (2016 petrol car, BS-IV): ~1.1–1.6 kg CO₂" — a band from published factors, never "your car emitted 42.0 g." Per-vehicle truth is unknowable; PUC doesn't measure PM.
-- **Stations: WAQI is live; OpenAQ/CPCB still pending.** The field ingests 24 live WAQI instruments across NCR today (count on `/health.sources.stations`). OpenAQ v3 needs `OPENAQ_API_KEY` — without it those feeds stay dark and the provenance block says so; no CPCB public JSON endpoint is reachable from the deployment network (documented in `server/data/field_validation.md`).
+- **Stations: WAQI + DPCC are live (54 instruments); OpenAQ/CPCB-keyed still pending.** The field ingests 24 WAQI + 30 DPCC instruments across NCR today (count on `/health.sources.stations`, `source: "waqi+dpcc"` — live-verified 2026-10-06). OpenAQ v3 needs `OPENAQ_API_KEY` — without it that feed stays dark and the provenance block says so; no CPCB public JSON endpoint is reachable from the deployment network (documented in `server/data/field_validation.md`).
 - **Amazon Location is optional.** With `ALIVE_LOCATION_KEY` you get T2 suggestions, traffic-aware routes, and Amazon reverse-geocode as a middle tier. Without it the app still works: bundled gazetteer + C++ search, public OSRM demo routing, gazetteer-first reverse.
 - **The field is honest about its own error.** It over-reads in clean air (+51.6% bias on the validated window); the LOO calibration and σ bands are served next to the data, not hidden.
 - **No outcome claims.** We can count "N trips switched to a lower-smoke option" — a countable behaviour — but not "Delhi got cleaner because of ALive."
@@ -145,15 +148,15 @@ Phases per `docs/plan/09-build-sequence.md` — honest checkboxes.
 
 | Phase | State | Notes |
 |---|---|---|
-| 0 · Foundations + AWS | ✔ built | NLB + ECS Fargate Spot + ECR + DynamoDB + Secrets Manager live; `$0` October actuals; 3 EventBridge schedules kept disabled until station keys land |
+| 0 · Foundations + AWS | ✔ built | NLB + ECS Fargate Spot + ECR + DynamoDB + Secrets Manager live; `$0` October actuals; EventBridge rollup-daily + validate enabled (ingest-15min stays disabled — the in-app loop owns it) |
 | 1 · Instant search | ✔ built | C++ index over 120k rows, fuzzy/compounds/Hinglish/sectors/aliases, 67/67 acceptance, p50 <1 ms engine |
 | 2 · Map + shell | ✔ built | light bilingual (hi/en) 62-layer basemap, housenumber/POI tiers, sidebar + design tokens |
 | 3 · Plan: breath + smoke-out | ✔ built | `/v2/plan` options + least-inhalation engine rows + corridor alternatives + legality; `engine_dose_ug` on the wire |
 | 4 · Live trip | ✔ built | `/v2/strip` + `/v2/trip`, turn nav chrome, voice cues wired (Android-verified path; iOS sim has an upstream render race — `docs/demo-day.md`), reroute served |
-| 5 · Air index + city + admin | ✔ built | krige field + σ bands, ingest workers, rollup, 13-district choropleth, species layers, api timing, corridors CO₂/100 m, PUC calibration; stations await the OpenAQ key |
+| 5 · Air index + city + admin | ✔ built | krige field + σ bands, ingest workers, rollup, NCR district + sub-area choropleth (29 rows), species layers, api timing, corridors CO₂/100 m, PUC calibration; 54 stations live via WAQI + DPCC (OpenAQ dormant) |
 | 6 · Polish + proof + submission | ◐ in progress | benchmarks above; README (this file); videos shipped; store signing on owner |
 
-**Only the owner can unblock:** the OpenAQ (or data.gov.in) station key, the Amazon Location spend cap/key, a release-signing keystore for the APK (the shipped build is debug-signed and sideloads fine), real-phone Delhi test drives, and an Apple developer account (iOS stays simulator-only).
+**Only the owner can unblock:** a wider station key (OpenAQ would add instruments beyond the 54 live WAQI + DPCC; the data.gov.in path is TCP-refused even from ap-south-1 — documented in `docs/plan/handoff.md`), the Amazon Location spend cap/key, a release-signing keystore for the APK (the shipped build is debug-signed and sideloads fine), real-phone Delhi test drives, and an Apple developer account (iOS stays simulator-only).
 
 **Hackathon note.** Event rules require repo history inside the Oct 8–11 window. `scripts/public-repo.sh` squashes this private repo to one baseline commit on the day and pushes to the public repo; later commits land inside the window. We don't hide history — see `docs/plan/00-README.md` open items.
 

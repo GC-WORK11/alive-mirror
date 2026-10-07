@@ -147,7 +147,7 @@ validation corpus in `server/data/field_validation.md`.
 ## Architecture
 
 ```
-Mobile app (Expo, Android+iOS) ──┐         ┌─ EventBridge: every 15 min ─┐
+Mobile app (Expo, Android+iOS) ──┐         ┌─ in-app ingest: every 15 min ┐
   · dose ledger ON-DEVICE        │         │  24 WAQI + 30 DPCC stations │
   · only k≥3 aggregates leave ───┤ HTTP :80│  + CAMS + NASA FIRMS + wind │
 Web surfaces / judges ──────────┤         │  → krige field → S3 snapshot │

@@ -1,5 +1,16 @@
 # realtime-status — what's actually live right now
 
+> **Superseded (2026-10-06, docs-truth pass):** this is a 2026-10-03
+> snapshot — major deltas since: stations live via **WAQI + DPCC (54
+> instruments, `/health.sources.stations`)**, routing runs on a
+> **self-hosted OSRM sidecar** (`OSRM_URL=127.0.0.1:5000`; the public
+> demo is a flagged fallback), the dosimeter surfaces (`/v2/day`,
+> `/v2/outlook`, `/v2/reach`, `/v2/why`, `/v2/skill`, `/v2/archive`,
+> `/v2/city/moves`, `/community`) shipped after this was written, and
+> `POST /observe` now answers **410 Gone**. Canonical ledger:
+> `docs/plan/NUMBERS.md` (re-verified ~23:30 UTC 2026-10-06, build
+> `ce01ec5c`).
+
 Written 2026-10-03, verified the same day by `server/tests/test_e2e_live.py`
 (a real uvicorn boot on a test port, `ALIVE_INGEST_IN_APP=1`, zero mocks —
 run log below). [V] = observed this session against the live box.

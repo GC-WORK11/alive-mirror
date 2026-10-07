@@ -17,7 +17,6 @@ import { jank } from "./perf";
 const WIN_H = () => Dimensions.get("window").height;
 
 /** Selected-row tint — accent-tint glass (milky morphism, Oct '26). */
-const SEL_TINT = V2T.glassSel;
 
 /** AlertBanner severities — flat washes keyed to the register (sage for
  *  plain info; the CPCB ramp where the tone carries data weight). Borders
@@ -82,11 +81,14 @@ export function BreathEdge({ color, radius = 24 }: { color: string; radius?: num
     return () => loop.stop();
   }, [v, reduce]);
   if (reduce) return null;
+  /* design-v4: the breath is light, not a line — the band's own ink
+     swells through the whole field (0→7%) and settles, like a held
+     breath. No outline ever rings the hero. */
   return (
     <Animated.View pointerEvents="none"
       style={[StyleSheet.absoluteFill, {
-        borderRadius: radius, borderWidth: 1.5, borderColor: color,
-        opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.32] }),
+        borderRadius: radius, backgroundColor: color,
+        opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0, 0.07] }),
       }]} />
   );
 }
@@ -335,8 +337,6 @@ const us = StyleSheet.create({
     ...V2Elev.sheet,
     backgroundColor: V2T.glass, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
     borderCurve: "continuous",
-    borderTopWidth: 1, borderTopColor: V2T.glassEdge,
-    borderWidth: 1, borderColor: V2T.glassLine,
     overflow: "hidden",
   },
   /* the X must fit INSIDE the row — 24px control at top:4 overflows a
@@ -351,10 +351,9 @@ const us = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     marginHorizontal: 16, marginVertical: 4,
     paddingVertical: 11, paddingHorizontal: 14, minHeight: 56,
-    backgroundColor: V2T.glassSoft, borderRadius: V2Radius.row, borderCurve: "continuous",
-    borderWidth: 1, borderColor: V2T.glassLine,
+    backgroundColor: V2T.surface2, borderRadius: V2Radius.row, borderCurve: "continuous",
   },
-  modeRowSel: { backgroundColor: SEL_TINT, borderColor: V2T.accent },
+  modeRowSel: { backgroundColor: V2T.surface, ...V2Elev.card },
   modeLabel: { fontFamily: F.med, fontSize: V2Type.body, color: V2T.text, flexShrink: 1 },
   bestTag: { fontFamily: F.med, fontSize: V2Type.label, color: V2T.accent, marginLeft: 8 },
   modeMeta: { fontFamily: F.reg, fontSize: V2Type.label, color: V2T.text3, marginTop: 1 },
@@ -376,7 +375,6 @@ const us = StyleSheet.create({
     ...V2Elev.float,
     width: 46, height: 46, borderRadius: 23, backgroundColor: V2T.glassFaint,
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: V2T.glassLine,
   },
   mapBtnOn: { backgroundColor: V2T.accent, borderColor: V2T.accent },
 
@@ -384,7 +382,6 @@ const us = StyleSheet.create({
     flexDirection: "row", alignItems: "center", backgroundColor: V2T.surface2,
     paddingHorizontal: 12, paddingVertical: 9, borderRadius: V2Radius.row,
     borderCurve: "continuous", gap: 8,
-    borderWidth: 1, borderColor: V2T.line,
   },
   alertTxt: { flex: 1, fontFamily: F.med, fontSize: V2Type.label, color: V2T.text },
 

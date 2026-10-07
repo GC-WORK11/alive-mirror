@@ -39,6 +39,12 @@ CACHE_TTL = 900  # 15 min — CAMS updates hourly; shorter adds nothing
 # on live after a short upstream blip. One small GET; the value stays
 # honestly unknown until a real fetch lands.
 WIND_RETRY_S = 90.0
+# Failed-fetch cooldown: a dead upstream used to re-run the whole
+# ~50-request grid fetch inside EVERY request (samples empty ->
+# _fetched_at never stamps -> next call re-pays it). Retry the real
+# fetch at most once per window on the non-force path instead; status
+# still reports the field's true age, never a fabricated success.
+FETCH_RETRY_S = 60.0
 
 # --- snapshot serving (warm start from the built air index) ---------------
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -186,6 +192,7 @@ class AirField:
         self._load_warn_names: list = []       # basenames of recent skips
         self._lru: dict = {}                   # exact-key memo: (lat,lon)->cell|None
         self._next_snap_scan: float = 0.0      # lazy reload gate inside refresh()
+        self._next_attempt: float = 0.0        # failed-fetch retry gate
 
     def _smooth(self, key: str, lat: float, lon: float, v: float) -> float:
         """Scalar Kalman filter per station — instruments spike on a gust
@@ -228,9 +235,14 @@ class AirField:
                 pass
         if not force and time.time() - self._fetched_at < CACHE_TTL and self._samples:
             return
+        if not force and time.time() < self._next_attempt:
+            return
         async with self._lock:
             if not force and time.time() - self._fetched_at < CACHE_TTL and self._samples:
                 return
+            if not force and time.time() < self._next_attempt:
+                return
+            self._next_attempt = time.time() + FETCH_RETRY_S
             pts = _grid_points()
             sem = asyncio.Semaphore(10)
             results = []

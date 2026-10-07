@@ -85,7 +85,6 @@ function JourneyRow({
   lang,
   icon,
   iconColor = V2T.text2,
-  well = V2Tint.forest,
   kicker,
   title,
   subs,
@@ -102,9 +101,11 @@ function JourneyRow({
   children?: React.ReactNode;
 }) {
   return (
-    <View style={[ss.jRow, { backgroundColor: well.wash }]}>
-      <View style={[ss.jIcon, { backgroundColor: `${well.ink}1C` }]}>
-        <Icon name={icon} color={iconColor === V2T.text2 ? well.ink : iconColor} size={19} />
+    /* one surface for every stage — the stage is told by its words,
+       not a tint per row */
+    <View style={[ss.jRow, { backgroundColor: V2T.surface }]}>
+      <View style={ss.jIcon}>
+        <Icon name={icon} color={iconColor} size={22} filled />
       </View>
       <View style={ss.jText}>
         {kicker ? (
@@ -534,14 +535,14 @@ const ss = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: V2T.accent,
+    backgroundColor: V2T.text3,
     marginTop: 8,
     marginRight: 12,
   },
   factTxt: { flex: 1, fontSize: V2Type.secondary, color: V2T.text2, lineHeight: 22 },
 
-  // p3 — equal-size choice buttons. Share fills accent with light text
-  // (V2T.bg on accent ≈ 5.2:1 — text2-on-accent failed at ~1.9:1); keep is
+  // p3 — equal-size choice buttons. Share fills ink with light text
+  // (V2T.bg on ink ≫ 7:1); keep is
   // a solid surface button, not a ghosted link. Equal weight, no nudge.
   choiceCol: { gap: 12, marginTop: 28 },
   choiceBtn: {
@@ -552,7 +553,7 @@ const ss = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
-  choiceShare: { backgroundColor: V2T.accent },
+  choiceShare: { backgroundColor: V2T.text },
   choiceKeep: {
     backgroundColor: V2T.surface2,
   },

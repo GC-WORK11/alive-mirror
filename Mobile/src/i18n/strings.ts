@@ -162,7 +162,7 @@ const en = {
   settingsNearestInstrument: "right now: a real monitoring instrument read ~{n} km from you — that's the map's honesty, not a model guess.",
   settingsNotifications: "Notifications",
   /** cigarette-equivalence framing — opt-in, off by default */
-  settingsShowCig: "show cigarette comparison",
+  settingsShowCig: "Cigarette comparison",
   settingsShowCigHint: "off by default — your dose stays in µg",
   /** dose readout in µg — every surface the cigarette number used to sit on */
   doseUg: "{n} µg",
@@ -200,7 +200,7 @@ const en = {
   // "Delhi today" — the consumer city view (docs/plan/07 §1)
   delhiTitle: "Delhi today",
   cityLoading: "reading Delhi's air…",
-  cityHeroLead: "a {w} day of Delhi air",
+  cityHeroLead: "a day of Delhi air",
   cityHeroUnit: "cigarettes of smoke",
   /** hero unit when the cigarette metaphor is off — the same figure in µg */
   cityHeroUnitUg: "µg of fine smoke (PM2.5) inhaled today",
@@ -211,6 +211,9 @@ const en = {
   citySpeciesNote: "city average, µg/m³ — measured every 15 minutes",
   cityTypicalLine:
     "running {pct}% of the 10-year average of {med} µg/m³ for this hour",
+  whoRef: "WHO {n}",
+  cityTypicalBelow: "{p}% below the 10-year average for this hour ({med} µg/m³)",
+  cityTypicalAbove: "{p}% above the 10-year average for this hour ({med} µg/m³)",
   cityForecastTitle: "the next 12 hours",
   cityForecastNote: "satellite forecast matched to live readings, µg/m³",
   cityForecastNow: "now",
@@ -304,7 +307,7 @@ const en = {
   notify_chan_departure: "leave-time reminders",
   notify_chan_brief: "morning air brief",
   setCurrentDest: "save current destination",
-  setPlace: "set",
+  setPlace: "add",
   onLabel: "on",
   offLabel: "off",
   unitsKm: "km",
@@ -498,6 +501,9 @@ const en = {
   // "don't go out" — always the cheaper-for-lungs version of the same plan.
   dayTitle: "your day",
   weekTitle: "your week",
+  /* the week strip's tap-a-day detail when the tapped day was never
+     counted — the honest empty, not a zero */
+  weekDayThin: "not counted — no covered hours on the phone that day",
   dayNow: "now",
   /* the sparse hero — ambient truth labelled, never a fake personal
      number (docs/lanes/hero-sparse): the field at the device's cell is
@@ -524,11 +530,11 @@ const en = {
      + series (decisions[].label tells us which grammar the server
      picked). Mirrors server/v2/day.py:_decisions so wire English never
      reaches the hi UI. */
-  moveDec_cleanWindow: "{w} window {win} IST (avg {c} µg/m³ vs day {m})",
-  moveDec_noClean: "no clean slot left today — lightest is {n} µg/m³",
+  moveDec_cleanWindow: "{w} hours {win} — around {c} µg/m³, against {m} across the day",
+  moveDec_noClean: "no clean hours left today — the lightest is {n} µg/m³",
   moveDec_short: "only ~{n}h of today left on the card — {b} throughout",
   moveDec_flat: "no meaningful window today — {b} air all day ({lo}–{hi} µg/m³)",
-  moveDec_jagged: "no sustained window today — lightest reads {lo} µg/m³, heaviest {hi}",
+  moveDec_jagged: "no steady window today — from {lo} to {hi} µg/m³",
   /* CPCB band words (districts.cpcb_band) — only ever used inside
      "…{b} air / …{b} हवा" sentences, so hi forms agree with हवा */
   band_good: "good",
@@ -539,12 +545,12 @@ const en = {
   band_severe: "severe",
   /* felt words — the band spoken like a person, not a scale
      (the minimal meaning layer: colour + one word, no glossary) */
-  felt_easy: "easy",
-  felt_fine: "fine",
-  felt_fair: "fair",
-  felt_heavy: "heavy",
-  felt_rough: "rough",
-  felt_harsh: "harsh",
+  felt_easy: "good",
+  felt_fine: "satisfactory",
+  felt_fair: "moderate",
+  felt_heavy: "poor",
+  felt_rough: "very poor",
+  felt_harsh: "severe",
   // the days ahead — /v2/outlook's own fold, rendered as served
   dayOutlookTitle: "the days ahead",
   dayLbl_today: "today",
@@ -609,9 +615,17 @@ const en = {
   homeWeekCity: "Delhi's next days",
   homeWeekSparse: "your week starts counting today",
   moveTitle: "the move",
-  homeLinkMap: "the air map",
+  homeLinkMap: "Air map",
   homeLinkCity: "Delhi today",
-  homeLinkTrips: "your trips",
+  homeLinkTrips: "Your trips",
+  /* design-v4 hero — one number, one felt word, one reference */
+  homeAirNowLead: "the air around you",
+  refWhoOver: "{x}× the WHO daily limit",
+  refWhoUnder: "within the WHO daily limit",
+  refBudget: "{p}% of your daily budget",
+  refYesterdayMore: "{n} µg more than yesterday",
+  refYesterdayLess: "{n} µg less than yesterday",
+  cityName: "Delhi",
   /* vehicle sheet — class-group titles, spec captions, the honest
      caption (landed from VehicleSheet's LOCAL table) */
   veh_grp_own: "your own",
@@ -782,7 +796,7 @@ const hi: Record<StringKey, string> = {
   dataFromModelOnly: "सैटेलाइट से अंदाज़ा — लाइव स्टेशन फिर जुड़ रहे हैं",
   delhiTitle: "आज की दिल्ली",
   cityLoading: "दिल्ली की हवा पढ़ रहे हैं…",
-  cityHeroLead: "दिल्ली की हवा का एक {w} दिन",
+  cityHeroLead: "दिल्ली की हवा का एक दिन",
   cityHeroUnit: "सिगरेट के बराबर धुआँ",
   cityHeroUnitUg: "आज साँस में लिया बारीक धुआँ (PM2.5) — µg",
   cityHeroRange: "शायद {lo} से {hi} के बीच",
@@ -792,6 +806,9 @@ const hi: Record<StringKey, string> = {
   citySpeciesNote: "शहर का औसत, µg/m³ — हर 15 मिनट ताज़ा",
   cityTypicalLine:
     "इस समय के 10-वर्ष औसत {med} µg/m³ की तुलना में {pct}%",
+  whoRef: "WHO {n}",
+  cityTypicalBelow: "इस समय के 10-वर्ष औसत ({med} µg/m³) से {p}% कम",
+  cityTypicalAbove: "इस समय के 10-वर्ष औसत ({med} µg/m³) से {p}% ज़्यादा",
   cityForecastTitle: "अगले 12 घंटे",
   cityForecastNote: "सैटेलाइट पूर्वानुमान, लाइव रीडिंग से जोड़ा, µg/m³",
   cityForecastNow: "अभी",
@@ -1079,6 +1096,7 @@ const hi: Record<StringKey, string> = {
   placeDroppedPin: "गिराई गई पिन",
   dayTitle: "आज का दिन",
   weekTitle: "आपका हफ़्ता",
+  weekDayThin: "नहीं गिना गया — उस दिन फ़ोन ने कोई घंटा कवर नहीं किया",
   dayNow: "अभी",
   daySparseAir: "आज की हवा आपके यहाँ: ~{n} µg/m³",
   daySparseWait: "आज की पहली हवा रीडिंग का इंतज़ार",
@@ -1111,12 +1129,12 @@ const hi: Record<StringKey, string> = {
   band_poor: "ख़राब",
   band_veryPoor: "बहुत ख़राब",
   band_severe: "गंभीर",
-  felt_easy: "हल्की",
-  felt_fine: "ठीक",
-  felt_fair: "मामूली",
-  felt_heavy: "भारी",
-  felt_rough: "कड़ी",
-  felt_harsh: "कठोर",
+  felt_easy: "अच्छी",
+  felt_fine: "संतोषजनक",
+  felt_fair: "मध्यम",
+  felt_heavy: "ख़राब",
+  felt_rough: "बहुत ख़राब",
+  felt_harsh: "गंभीर",
   // the days ahead — /v2/outlook का अपना मोड़, जैसा मिला वैसा
   dayOutlookTitle: "आने वाले दिन",
   dayLbl_today: "आज",
@@ -1179,6 +1197,13 @@ const hi: Record<StringKey, string> = {
   homeLinkMap: "हवा का नक्शा",
   homeLinkCity: "आज की दिल्ली",
   homeLinkTrips: "आपकी यात्राएँ",
+  homeAirNowLead: "आपके आसपास की हवा",
+  refWhoOver: "WHO की दैनिक सीमा का {x}×",
+  refWhoUnder: "WHO की दैनिक सीमा के भीतर",
+  refBudget: "आपके दैनिक बजट का {p}%",
+  refYesterdayMore: "कल से {n} µg ज़्यादा",
+  refYesterdayLess: "कल से {n} µg कम",
+  cityName: "दिल्ली",
   veh_grp_own: "अपनी गाड़ी",
   veh_grp_shared: "साझा सवारी",
   veh_grp_noengine: "बिना इंजन",

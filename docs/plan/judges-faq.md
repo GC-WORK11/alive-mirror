@@ -52,9 +52,9 @@ curl -s http://65.2.28.40/v2/skill
 
 ```bash
 curl -s http://65.2.28.40/health | python3 -c 'import json,sys;print(json.load(sys.stdin)["sources"])'
-#   model:  up, 70 samples, "waqi-stations+open-meteo/cams"
-#   stations: up, 24 WAQI instruments
-#   fires:  up, 79 NASA FIRMS detections (age ~28 min)
+#   model:  up, ~100 samples, "waqi+dpcc-stations+open-meteo/cams"
+#   stations: up, 54 instruments (24 WAQI + 30 DPCC — re-read 2026-10-06)
+#   fires:  up, 67 NASA FIRMS detections (drifts daily — 79 at an earlier read)
 #   engine: "alive_core" — our own C++ kriging build, not a proxy
 ```
 
@@ -232,14 +232,17 @@ recorded archive that grades the model."
 - The WAQI feed is a US-EPA *sub-index*, not µg/m³ — we invert it
   through the EPA breakpoint table, Kalman-smooth and de-bias it
   (`server/ingest_waqi.py:21-22,137-142`). "Wrapper" can't invert.
-- `/health` `sources.model.source` = `waqi-stations+open-meteo/cams` —
-  three feeds fused, plus 79 FIRMS fire detections feeding a ×1.09
-  smoke modifier that's echoed inside the plan doses themselves.
+- `/health` `sources.model.source` = `waqi+dpcc-stations+open-meteo/cams` —
+  the fused feeds, plus ~67 FIRMS fire detections feeding a smoke
+  modifier (×1.08–1.24 across today's reads) that's echoed inside the
+  plan doses themselves.
 - The engine is ours: `engine:"alive_core"` (C++/Eigen;
   `server/core/bindings.cpp`), routing over 1,070,459 real edges
   (`/health.routing`).
-- And the decade product under the "typical" comparisons: 9.04M OpenAQ
-  measurements → 125-station climatology gz, named in
+- And the decade product under the "typical" comparisons: the OpenAQ
+  public-archive climatology — 125 stations × ~10 years of hourly
+  readings (the "9.04M measurements" figure was the raw-row count,
+  never independently re-verified), named in
   `/health.history.source`.
 
 ## 10. "Your community map shows 22 trips. That's nothing."
@@ -326,15 +329,16 @@ we don't have 5 pairs yet, and the archive has an honest gap in hour
 ```bash
 curl -s http://65.2.28.40/v2/skill | python3 -c 'import json,sys;
 [print(h["h"],h["status"],h.get("n")) for h in json.load(sys.stdin)["horizons"]]'
-#   h0 thin(1) · h1 ok(5) · h2 ok(5) · h3 thin(4) · h4 thin(3) ·
-#   h5 thin(2) · h6..h11 thin — the card only scores what it has
+#   example output stamped when thin horizons existed; tonight
+#   (2026-10-06) all h+0..h+11 grade `ok` on 210 pairs — run it fresh
 curl -s http://65.2.28.40/v2/archive | python3 -c 'import json,sys;print(json.load(sys.stdin)["coverage"])'
-#   recorded [0,1,2,3] · gaps [4] · pending [5..23] — never back-filled
+#   recorded [1,3,4] · gaps [0,2] · pending [5..23] tonight — never back-filled
 ```
 
 Also live tonight: `nh3: null` in `/aqi` (the feed doesn't serve it —
-empty, not zero-filled), and CPCB dormant in `/health.sources.stations`
-(the adapter exists but stays off without a key — the sources table
+empty, not zero-filled). OpenAQ stays dormant in
+`/health.sources.stations` (the adapter exists but stays off without a
+key — WAQI + DPCC carry 54 instruments tonight — the sources table
 names what is up instead of padding).
 
 ## 16. "Fine — what's the moat if I copy the UI tomorrow?"
@@ -363,12 +367,12 @@ imitate; a verified pipeline isn't.
 | day windows | `GET /v2/day` | heavy 22:30→day end ~159 · cleanest 12:30–18:30 ~45 · mean ~105 |
 | leave-later | `GET /depart` | now 29.2 → best +12 h 14.4 µg (51% less) |
 | breath-of-the-city | `GET /v2/city` | 885 µg/day ≈ 2.8 cig; −44.8% vs decade norm for this hour |
-| stations / samples | `GET /health` | 24 WAQI + 70 model samples; field age ~13 min |
+| stations / samples | `GET /health` | 54 instruments (24 WAQI + 30 DPCC) + ~100 model samples tonight; field age ~10 min |
 | engine | `GET /health` | `alive_core`; 1,070,459 edges / 903,058 priced |
-| self-grade | `GET /v2/skill` | 21 pairs; h+1 MAE 16.3 / band-hit 80% hour |
+| self-grade | `GET /v2/skill` | 210 pairs tonight — all h+0..h+11 `ok` (h+1 MAE 8.5); an earlier read saw 21 pairs/h+1 16.3 |
 | reach | `GET /v2/reach` | walk@25 µg → 3,168 edges / 139 km in 11 ms; car@25 → capped, `edge_partial` |
 | community | `GET /community` `/v2/city/moves` | 22 trips / 14 contributors; 12 of 54 corridors publishable, k=3 |
-| archive | `GET /v2/archive` | 8 snapshots since Oct-5 20:00 IST; honest gap at hour 4 |
+| archive | `GET /v2/archive` | recorded[1,3,4], gaps[0,2] tonight — grows hourly; honest gaps stay unbackfilled |
 | outside-area | `POST /v2/plan` to Mumbai | typed `outside_service_area`, 0.1 ms |
 | reroute | `POST /v2/reroute` | fresh option set + route_id, 21 options |
-| field species | `GET /aqi` | pm2.5 76.4 bz / 70.1 ambient · pm10 · no2 · o3 · co · so2 · dust · aod; nh3 honestly null |
+| field species | `GET /aqi` | pm2.5 68.9 bz / 63.8 ambient tonight · pm10 · no2 · o3 · co · so2 · dust · aod; nh3 honestly null |

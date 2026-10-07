@@ -134,3 +134,21 @@ export function v2StyleUrl(): V2MapStyleInput {
   }
   return v2Style;
 }
+
+const LATIN_NAME = ["coalesce", ["get", "name:latin"], ["get", "name_en"], ["get", "name"], ["get", "ref"]];
+
+/** English-default labels: every bilingual (latin + name:hi) text-field
+ *  collapses to its latin name, so no Devanagari reaches the English map.
+ *  URL inputs pass through untouched (nothing to rewrite client-side). */
+export function latinLabels(input: V2MapStyleInput): V2MapStyleInput {
+  if (typeof input === "string") return input;
+  return {
+    ...input,
+    layers: input.layers.map((l) => {
+      const layout = (l as { layout?: Record<string, unknown> }).layout;
+      const tf = layout?.["text-field"];
+      if (!layout || tf == null || !JSON.stringify(tf).includes("name:hi")) return l;
+      return { ...l, layout: { ...layout, "text-field": LATIN_NAME } } as LayerSpecification;
+    }),
+  };
+}

@@ -43,7 +43,7 @@ can't leak what we never take.
 
 ## The ladder
 
-- **L0 — exists**: live field (24 stations + model + fires), C++ engine,
+- **L0 — exists**: live field (54 instruments — 24 WAQI + 30 DPCC — + model + fires), C++ engine,
   dose-priced routing, departure curves, k≥3 community, honest bands.
 - **L1 — your day, reconstructed**: on-device timeline × field history →
   "your day in dose" — where each µg accumulated. The ledger grows a

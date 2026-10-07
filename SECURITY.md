@@ -14,7 +14,7 @@ What we defend against, in order:
    raw GPS at rest no matter what they send.
 2. **Bulk abuse / scraping.** Per-client rate limiting (token bucket) with
    tighter budgets on endpoints that fan out to paid upstreams
-   (`/v2/plan`, `/v2/reroute`) or accept uploads (`/v2/trip`, `/observe`,
+   (`/v2/plan`, `/v2/reroute`) or accept uploads (`/v2/trip`,
    `/report`). 429s carry honest `Retry-After` headers.
 3. **Memory-exhaustion uploads.** Request bodies are capped (default 2 MiB —
    trip traces are the largest legitimate upload). Oversized bodies are
@@ -27,14 +27,15 @@ What we defend against, in order:
 ## Identity & tokens
 
 - No accounts, names, phone numbers, or emails — none are collected.
-- Devices send a random anonymous token (`"anon-"` + 8 base36 chars),
-  generated once on-device; a new one is created only if app data is
+- Devices send a random anonymous token (`"anon-"` + 16 hex chars —
+  64-bit CSPRNG via `expo-crypto`, `Mobile/src/community.ts:8-11`),
+  rotated every 30 days and regenerated if app data is
   deleted. It is never linked to anything.
 - On the `/v2/trip` path tokens are **SHA-256 truncated-hashed before
   they touch any store or bucket map** — including the rate limiter, so
-  raw tokens never sit in server memory structures either. The dormant
-  `/observe` endpoint predates this and still stores the raw token per
-  row (`server/community.py`) — no shipped client posts to it today.
+  raw tokens never sit in server memory structures either. The retired
+  `/observe` endpoint (raw-coords, pre-pipeline) now answers
+  **410 Gone** — nothing new can be written through it
 
 ## What is stored
 

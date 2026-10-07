@@ -33,6 +33,7 @@ FIRE_BELT_BBOX = (73.5, 28.5, 77.5, 31.5)
 RING_BBOX = (75.75, 27.20, 78.75, 30.05)
 DELHI = (77.2090, 28.6139)  # lon, lat for wind check
 CACHE_S = 6 * 3600           # task spec: 6h cache for the overlay
+RETRY_S = 60.0               # failed-fetch cooldown — see refresh()
 
 # The honest stale marker for this feed: refreshes are TTL-gated to
 # CACHE_S, so a healthy feed can legitimately serve data ~6h old (the
@@ -125,6 +126,7 @@ class FireField:
         self._wind_deg: Optional[float] = None
         self._status = "cold"
         self._source = None
+        self._next_attempt = 0.0  # failed-fetch retry gate
 
     async def _refresh_keyed(self, client: httpx.AsyncClient, key: str) -> bool:
         """FIRMS area API (needs the free MAP_KEY). Belt-belt bbox only."""
@@ -171,6 +173,11 @@ class FireField:
     async def refresh(self, client: httpx.AsyncClient, force: bool = False) -> None:
         if not force and time.time() - self._fetched_at < CACHE_S and self._fires is not None:
             return
+        # Retry gate: a dead upstream used to re-run the multi-CSV fetch
+        # inside every request (fetched_at only stamps on success).
+        if not force and time.time() < self._next_attempt:
+            return
+        self._next_attempt = time.time() + RETRY_S
         key = os.environ.get("FIRMS_MAP_KEY")
         try:
             ok = await (self._refresh_keyed(client, key) if key

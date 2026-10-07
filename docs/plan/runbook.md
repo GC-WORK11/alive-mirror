@@ -40,11 +40,18 @@ export ALIVE_MONTHLY_BUDGET_USD=50 OPS_EMAIL=ops@example.com
 **Step 3 — real data keys.** *Gate [B2]: scaffolds hold `{"api_key":"REPLACE_ME"}`;
 until real values land, ingest runs degraded (CAMS model + stale OpenAQ
 archive) and `/health` must say so.*
+
+> **Update 2026-10-06:** stations are live — `alive108/waqi` (24 instruments)
+> and the DPCC adapter (30) feed the field without OpenAQ; `alive108/cpcb`
+> is a dead path (data.gov.in TCP-refused). The task also needs
+> `alive108/admin-token` for `/admin/api` — both wired by
+> `scripts/deploy.sh`'s secrets block.
+
 ```bash
 aws secretsmanager put-secret-value --region ap-south-1 \
   --secret-id alive108/openaq --secret-string '{"api_key":"<REAL_OPENAQ_V3_KEY>"}'
 aws secretsmanager put-secret-value --region ap-south-1 \
-  --secret-id alive108/cpcb  --secret-string '{"api_key":"<REAL_DATA_GOV_IN_KEY>"}'
+  --secret-id alive108/waqi  --secret-string '{"api_key":"<REAL_AQICN_TOKEN>"}'
 # → {"VersionId": "…"} each. Keys never enter git — this script included.
 ```
 
@@ -88,8 +95,10 @@ Pipeline (`scripts/deploy.sh`; `server/deploy-aws.sh` is a thin wrapper):
    local or CodeBuild — pushes `:<8-char sha>` **and** `:latest`; the ECS
    task def pins the sha tag (`:latest` is a moving convenience tag only).
 2. **Task def.** New `alive108` revision: image + env (`AIR_BUCKET`,
-   `AGG_TABLE`, `BUILD_SHA`, …) + secret `OPENAQ_API_KEY` ←
-   `secretsmanager:alive108/openaq`.
+   `AGG_TABLE`, `ALIVE_DPCC_INGEST=1`, `ALIVE_PMTILES`, `BUILD_SHA`, …)
+   + secrets `OPENAQ_API_KEY`, `WAQI_API_KEY`, `ALIVE_ADMIN_TOKEN` ←
+   `secretsmanager:alive108/openaq` / `alive108/waqi` / `alive108/admin-token`
+   (`scripts/deploy.sh` L195-215).
 3. **Redeploy.** `ecs update-service --force-new-deployment`, then
    `ecs wait services-stable`.
 4. **NLB fix.** The NLB does **not** follow ECS — after a redeploy it keeps
@@ -153,8 +162,11 @@ aws elbv2 describe-target-health --target-group-arn $TG   # wait for "healthy"
 
 - **Secrets Manager `alive108/openaq`** — OpenAQ v3 key. Injected into the
   container as env `OPENAQ_API_KEY` (execution role has
-  `secretsmanager:GetSecretValue` on `alive108/*`). **`alive108/cpcb`** —
-  data.gov.in/CPCB hourly feed key, read by the worker only. Both are
+  `secretsmanager:GetSecretValue` on `alive108/*`). **`alive108/waqi`** —
+  aqicn token feeding the live WAQI instruments; **`alive108/admin-token`**
+  — Bearer for `/admin/api`. **`alive108/cpcb`** —
+  data.gov.in/CPCB hourly feed key, read by the worker only (dead path —
+  data.gov.in TCP-refused). All are
   scaffolded by `provision.sh` with `{"api_key":"REPLACE_ME"}` placeholders —
   real values go in via `put-secret-value` (§0 step 3). Rotate: update the
   secret value, `SKIP_BUILD=1 ./scripts/deploy.sh`. Never commit keys — the
