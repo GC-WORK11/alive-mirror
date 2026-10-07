@@ -1,0 +1,425 @@
+{
+ "t_utc": "2026-10-07T00:00:31+00:00",
+ "t_ist": "2026-10-07T05:30:31+05:30",
+ "cells": [
+  {
+   "station": "Narela",
+   "lat": 28.8429,
+   "lon": 77.094,
+   "our": {
+    "pm25": 96.4,
+    "pm25_ambient": 89.3,
+    "pm25_lo": 53.1,
+    "pm25_hi": 139.7,
+    "us_aqi": 168,
+    "nearest_sample_km": 1.0,
+    "smoke_modifier": 1.08,
+    "field_age_s": 674,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 85.0,
+    "pm25_time_ist": "05:05:00",
+    "pm10": 177.0,
+    "stale_min": 25.5,
+    "page_station": "Narela"
+   },
+   "diff_ug": 4.3
+  },
+  {
+   "station": "Pooth Khurd, Bawana",
+   "lat": 28.7768,
+   "lon": 77.051,
+   "our": {
+    "pm25": 67.1,
+    "pm25_ambient": 62.2,
+    "pm25_lo": 34.2,
+    "pm25_hi": 100.1,
+    "us_aqi": 154,
+    "nearest_sample_km": 0.5,
+    "smoke_modifier": 1.08,
+    "field_age_s": 677,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 86.0,
+    "pm25_time_ist": "05:05:00",
+    "pm10": 146.0,
+    "stale_min": 25.5,
+    "page_station": "Pooth Khurd, Bawana"
+   },
+   "diff_ug": -23.8
+  },
+  {
+   "station": "Jahangirpuri",
+   "lat": 28.7328,
+   "lon": 77.1706,
+   "our": {
+    "pm25": 58.9,
+    "pm25_ambient": 54.5,
+    "pm25_lo": 32.2,
+    "pm25_hi": 85.6,
+    "us_aqi": 148,
+    "nearest_sample_km": 0.0,
+    "smoke_modifier": 1.08,
+    "field_age_s": 679,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 105.0,
+    "pm25_time_ist": "05:05:00",
+    "pm10": 183.0,
+    "stale_min": 25.5,
+    "page_station": "Jahangirpuri"
+   },
+   "diff_ug": -50.5
+  },
+  {
+   "station": "Rohini",
+   "lat": 28.7431,
+   "lon": 77.1166,
+   "our": {
+    "pm25": 57.2,
+    "pm25_ambient": 53.0,
+    "pm25_lo": 28.4,
+    "pm25_hi": 86.0,
+    "us_aqi": 144,
+    "nearest_sample_km": 1.0,
+    "smoke_modifier": 1.08,
+    "field_age_s": 680,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 51.0,
+    "pm25_time_ist": "05:15:00",
+    "pm10": 105.0,
+    "stale_min": 15.5,
+    "page_station": "Rohini"
+   },
+   "diff_ug": 2.0
+  },
+  {
+   "station": "Mundka",
+   "lat": 28.6828,
+   "lon": 77.0307,
+   "our": {
+    "pm25": 61.5,
+    "pm25_ambient": 56.9,
+    "pm25_lo": 31.6,
+    "pm25_hi": 91.4,
+    "us_aqi": 152,
+    "nearest_sample_km": 0.1,
+    "smoke_modifier": 1.08,
+    "field_age_s": 683,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 55.0,
+    "pm25_time_ist": "05:25:00",
+    "pm10": 133.0,
+    "stale_min": 5.5,
+    "page_station": "Mundka"
+   },
+   "diff_ug": 1.9
+  },
+  {
+   "station": "Punjabi Bagh",
+   "lat": 28.6683,
+   "lon": 77.1167,
+   "our": {
+    "pm25": 71.9,
+    "pm25_ambient": 66.6,
+    "pm25_lo": 39.8,
+    "pm25_hi": 104.0,
+    "us_aqi": 157,
+    "nearest_sample_km": 0.0,
+    "smoke_modifier": 1.08,
+    "field_age_s": 685,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 61.0,
+    "pm25_time_ist": "05:10:00",
+    "pm10": 110.0,
+    "stale_min": 20.5,
+    "page_station": "Punjabi Bagh"
+   },
+   "diff_ug": 5.6
+  },
+  {
+   "station": "Mandir Marg",
+   "lat": 28.6364,
+   "lon": 77.2016,
+   "our": {
+    "pm25": 62.7,
+    "pm25_ambient": 58.1,
+    "pm25_lo": 45.5,
+    "pm25_hi": 79.9,
+    "us_aqi": 152,
+    "nearest_sample_km": 0.0,
+    "smoke_modifier": 1.08,
+    "field_age_s": 687,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 56.0,
+    "pm25_time_ist": "05:05:00",
+    "pm10": 99.0,
+    "stale_min": 25.5,
+    "page_station": "Mandir Marg"
+   },
+   "diff_ug": 2.1
+  },
+  {
+   "station": "Major Dhyan Chand Nat. Stadium",
+   "lat": 28.612,
+   "lon": 77.2372,
+   "our": {
+    "pm25": 46.2,
+    "pm25_ambient": 42.8,
+    "pm25_lo": 32.9,
+    "pm25_hi": 59.6,
+    "us_aqi": 119,
+    "nearest_sample_km": 0.1,
+    "smoke_modifier": 1.08,
+    "field_age_s": 689,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 30.0,
+    "pm25_time_ist": "05:25:00",
+    "pm10": 79.0,
+    "stale_min": 5.5,
+    "page_station": "Major Dhyan Chand National Stadium"
+   },
+   "diff_ug": 12.8
+  },
+  {
+   "station": "Anand Vihar",
+   "lat": 28.6469,
+   "lon": 77.3159,
+   "our": {
+    "pm25": 45.9,
+    "pm25_ambient": 42.5,
+    "pm25_lo": 23.0,
+    "pm25_hi": 68.8,
+    "us_aqi": 118,
+    "nearest_sample_km": 0.0,
+    "smoke_modifier": 1.08,
+    "field_age_s": 690,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 41.0,
+    "pm25_time_ist": "05:25:00",
+    "pm10": 67.0,
+    "stale_min": 5.5,
+    "page_station": "Anand Vihar"
+   },
+   "diff_ug": 1.5
+  },
+  {
+   "station": "Nehru Nagar",
+   "lat": 28.5676,
+   "lon": 77.2503,
+   "our": {
+    "pm25": 41.8,
+    "pm25_ambient": 38.7,
+    "pm25_lo": 20.3,
+    "pm25_hi": 63.2,
+    "us_aqi": 109,
+    "nearest_sample_km": 0.2,
+    "smoke_modifier": 1.08,
+    "field_age_s": 692,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 41.0,
+    "pm25_time_ist": "05:05:00",
+    "pm10": 100.0,
+    "stale_min": 25.5,
+    "page_station": "Nehru Nagar"
+   },
+   "diff_ug": -2.3
+  },
+  {
+   "station": "R.K. Puram",
+   "lat": 28.5633,
+   "lon": 77.1869,
+   "our": {
+    "pm25": 55.4,
+    "pm25_ambient": 51.3,
+    "pm25_lo": 28.6,
+    "pm25_hi": 82.1,
+    "us_aqi": 140,
+    "nearest_sample_km": 0.1,
+    "smoke_modifier": 1.08,
+    "field_age_s": 694,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 53.0,
+    "pm25_time_ist": "05:15:00",
+    "pm10": 73.0,
+    "stale_min": 15.5,
+    "page_station": "R K Puram"
+   },
+   "diff_ug": -1.7
+  },
+  {
+   "station": "Najafgarh",
+   "lat": 28.6137,
+   "lon": 76.9855,
+   "our": {
+    "pm25": 75.1,
+    "pm25_ambient": 69.5,
+    "pm25_lo": 29.2,
+    "pm25_hi": 121.0,
+    "us_aqi": 158,
+    "nearest_sample_km": 7.4,
+    "smoke_modifier": 1.08,
+    "field_age_s": 696,
+    "field_built_at": "2026-10-06T23:49:18+00:00",
+    "field_samples": 101,
+    "station_readings": 54,
+    "stations_status": {
+     "waqi": "ok",
+     "dpcc": "ok"
+    },
+    "wind_kmh": 6.6,
+    "wind_from_deg": 127.0
+   },
+   "dpcc": {
+    "pm25": 77.0,
+    "pm25_time_ist": "05:15:00",
+    "pm10": 151.0,
+    "stale_min": 15.5,
+    "page_station": "Najafgarh"
+   },
+   "diff_ug": -7.5
+  }
+ ],
+ "why": {
+  "line": "the air is barely moving \u2014 the day's pollution is sitting over the city",
+  "drivers": [
+   "stagnation"
+  ],
+  "fires_claimed": false,
+  "carrying": false,
+  "belt_fires": 15,
+  "n_fires": 67,
+  "modifier": 1.08,
+  "feed_age_s": 13331,
+  "wind": {
+   "speed_kmh": 6.6,
+   "from_deg": 127.0,
+   "age_s": 674,
+   "source": "field",
+   "known": true
+  },
+  "ventilation": {
+   "vc_m2s": 390.2,
+   "blh_m": 218.0,
+   "wind_ms": 1.79,
+   "factor": 7.69,
+   "source": "forecast",
+   "age_s": 692,
+   "vc_ref_m2s": 3000.0
+  },
+  "trend": {
+   "delta_ug": -0.4,
+   "span_h": 5.8,
+   "to_pm25": 59.4
+  },
+  "generated_at": "2026-10-07T00:00:31+00:00"
+ },
+ "fires_claim_consistent": true
+}
