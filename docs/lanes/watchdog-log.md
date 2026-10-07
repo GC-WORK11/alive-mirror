@@ -68,3 +68,17 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
 - Deploy-latency note: the c1f22da docs commit pushed 12:37 never surfaced as build_sha
   (>55 min) while c86074ff took ~14 min — pipeline appears to batch/dedupe doc-only
   pushes; app sha is not a reliable per-commit ticker. Watching for any later bump.
+
+### 2026-10-07 13:55 — SHA TRANSITION `c86074ff → ffddab93`
+- Landed: **landing v7** (ffddab9 — current-UI hero + chooser film-strip section),
+  privacy k≥3 gate on contributors_detail day-rows (af653e5), offline-pack map fix (54a296e),
+  plus lane docs. Real app-code deploy — full sweep run.
+- Field cycle unbroken (364→18 s across cutover, refresh on schedule at 13:55).
+- Sweep — all pass:
+  - Routes 200: `/` `/landing` `/admin` `/city` `/v2/city` `/community`; `/v2/usage` guest 401.
+  - Landing 118.6 KB (was 115.8); film-strip/chooser/webp markers present; real script
+    65,857 B byte-identical, `node --check` PARSE-OK.
+  - Chrome live-verify ~14:04: boot clears, 47.2 µg/m³ SATISFACTORY paints, dose row live,
+    "The city, kept." hourly chart + district tiles live (Outer North Delhi 104 / Rohtak 100 /
+    N West Delhi 100 / Sonipat 97), footer reads BUILD FFDDAB93.
+- CloudWatch 14:02: all 3 alarms `OK`. `/community` steady.
