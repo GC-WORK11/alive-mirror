@@ -22,10 +22,13 @@ export const API_BASE: string =
 export type ServerTiers = {
   t1: PlaceResult[];
   t2: PlaceResult[];
+  /** t3 — public-OSM geocoder fallback (Photon). Labeled rows that ride
+      behind our own tiers; never shadows t0/t1/t2 in the merge order. */
+  t3: PlaceResult[];
   tookMs: number | null;
 };
 
-export const EMPTY_TIERS: ServerTiers = { t1: [], t2: [], tookMs: null };
+export const EMPTY_TIERS: ServerTiers = { t1: [], t2: [], t3: [], tookMs: null };
 
 type RawRow = {
   name?: string;
@@ -124,8 +127,91 @@ export async function fetchTiers(
   return {
     t1: t1raw.map((r) => toPlace(r, "t1")).filter((r): r is PlaceResult => r !== null),
     t2: t2raw.map((r) => toPlace(r, "t2")).filter((r): r is PlaceResult => r !== null),
+    t3: [],
     tookMs,
   };
+}
+
+/* ---------------------------------------------------------------------------
+ * t3 — Photon public geocoder (photon.komoot.io), the ₹0 honest network
+ * fallback. OSM-derived like our own corpus, free for this request volume,
+ * and it natively understands 'X near Y' + address parts our bundled index
+ * can't reach. Rows are labeled '· OpenStreetMap' in the subtitle so the
+ * panel never passes a network answer off as a bundled one. Throttled to
+ * one call per PHOTON_MIN_MS per screen, >=3 chars, NCR-bounded.
+ * ------------------------------------------------------------------------- */
+
+const PHOTON_URL = "https://photon.komoot.io/api/";
+const PHOTON_MIN_MS = 700;
+const PHOTON_MIN_CHARS = 3;
+let lastPhotonAt = 0;
+
+type PhotonFeature = {
+  geometry?: { coordinates?: [number, number] };
+  properties?: {
+    name?: string; street?: string; housenumber?: string;
+    locality?: string; district?: string; city?: string; state?: string;
+    postcode?: string; osm_key?: string; osm_value?: string; type?: string;
+  };
+};
+
+export async function fetchPhoton(
+  q: string,
+  loc: LatLon | null | undefined,
+  signal: AbortSignal,
+  limit = 6,
+): Promise<PlaceResult[]> {
+  const now = Date.now();
+  if (now - lastPhotonAt < PHOTON_MIN_MS) return [];
+  lastPhotonAt = now;
+  const bias = loc ?? DELHI_CENTER;
+  const url =
+    `${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=${limit}` +
+    `&lat=${bias.lat}&lon=${bias.lon}` +
+    // bbox = minLon,minLat,maxLon,maxLat — the NCR box, server-style
+    `&bbox=76.75,28.15,77.95,28.98`;
+  const inner = new AbortController();
+  const onAbort = () => inner.abort();
+  if (signal.aborted) inner.abort();
+  else signal.addEventListener("abort", onAbort);
+  const timer = setTimeout(() => inner.abort(), SEARCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      signal: inner.signal,
+      headers: { Accept: "application/json" },
+    });
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
+  if (!res.ok) throw new Error(`photon http ${res.status}`);
+  const j = (await res.json()) as { features?: PhotonFeature[] };
+  const out: PlaceResult[] = [];
+  for (const f of j.features ?? []) {
+    const c = f.geometry?.coordinates;
+    const p = f.properties;
+    if (!c || typeof c[0] !== "number" || typeof c[1] !== "number") continue;
+    const name = (p?.name ?? "").trim()
+      || [p?.housenumber, p?.street].filter(Boolean).join(" ").trim()
+      || (p?.type ?? "").trim();
+    if (!name) continue;
+    // resolved address like Google shows it: house + street, area, city
+    const addr = [p?.housenumber, p?.street].filter(Boolean).join(" ").trim();
+    const area = [p?.locality, p?.district, p?.city].filter(Boolean).join(", ").trim();
+    const sub = [addr && addr !== name ? addr : "", area]
+      .filter(Boolean).join(", ");
+    out.push({
+      name,
+      subtitle: `${sub ? `${sub} · ` : ""}OpenStreetMap`,
+      lat: c[1],
+      lon: c[0],
+      kind: p?.osm_value ?? p?.type ?? "place",
+      outside_ncr: !inNcr(c[1], c[0]),
+      tier: "t3",
+    });
+  }
+  return out;
 }
 
 /** Merge server tiers + dedupe by normalized name within ~75 m
@@ -175,8 +261,13 @@ export class ServerSearch {
       this.ctrl?.abort();
       const ctrl = new AbortController();
       this.ctrl = ctrl;
+      const photon = text.length >= PHOTON_MIN_CHARS
+        ? fetchPhoton(text, loc, ctrl.signal).catch(() => [] as PlaceResult[])
+        : Promise.resolve([] as PlaceResult[]);
       fetchTiers(text, loc, ctrl.signal)
-        .then((tiers) => {
+        .then(async (tiers) => {
+          if (seq !== this.seq) return;
+          tiers.t3 = await photon;
           if (seq === this.seq) onResults(tiers, text);
         })
         .catch((err: unknown) => {
@@ -187,8 +278,11 @@ export class ServerSearch {
           if (err instanceof Error && err.name === "AbortError"
               && ctrl.signal.aborted) return;
           // dead network still leaves T0 on screen — deliver empty tiers so
-          // the UI can stop waiting
-          onResults(EMPTY_TIERS, text);
+          // the UI can stop waiting. t3 may still have landed: deliver it
+          // rather than drop a real answer to a flaky own-server roundtrip
+          photon
+            .then((t3) => { if (seq === this.seq) onResults({ ...EMPTY_TIERS, t3 }, text); })
+            .catch(() => { if (seq === this.seq) onResults(EMPTY_TIERS, text); });
         });
     };
     if (firstChar) fire();

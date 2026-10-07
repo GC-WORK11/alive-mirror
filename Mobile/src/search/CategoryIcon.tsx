@@ -31,6 +31,7 @@ const MAP: [RegExp, Glyph][] = [
   [/park|garden|forest|nature/, "park"],
   [/museum|gallery/, "museum"],
   [/landmark|monument|historic|attraction|memorial|fort/, "monument"],
+  [/address|housenumber|housename|residential/, "home"],
   [/fire/, "flame"],
 ];
 

@@ -267,7 +267,7 @@ function AppInner() {
     planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
     pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
-    strips, reloadTrips,
+    strips, reloadTrips, locNotice, setLocNotice,
   } = flow;
   useEffect(() => {
     if (!from) return;
@@ -735,7 +735,15 @@ function AppInner() {
     : { top: insets.top + 76, right: 12 }), [phase, insets.top]);
   const logoPosition = useMemo(() => ({ bottom: insets.bottom + 72, left: 10 }), [insets.bottom]);
   const attributionPosition = useMemo(() => ({ bottom: insets.bottom + 72, right: 10 }), [insets.bottom]);
-  const searchUserLoc = useMemo(() => (from ? { lat: from.lat, lon: from.lon } : null), [from]);
+  /* search bias is the REAL GPS fix — never 'from', which used to feed
+     the bias a fabricated 'central Delhi' fallback and rank results for
+     a place the user wasn't in (owner: 'live location ain't working').
+     'from' only fills in when no real fix exists yet. */
+  const searchUserLoc = useMemo(
+    () => (userPos ? { lat: userPos.lat, lon: userPos.lon }
+      : from ? { lat: from.lat, lon: from.lon } : null),
+    [userPos, from],
+  );
 
   const onMapPress = useCallback(async (f: MapPressEvent) => {
     if (!mapPickArmed) return;
@@ -768,12 +776,17 @@ function AppInner() {
      (testday-ios z-order wart). Mirrors onDelhiTodayOpen/onFullSettings
      closing the drawer beneath their own surface. */
   const openSidebar = useCallback(() => { setLayersOpen(false); setSidebarOpen(true); }, []);
-  const openSearch = useCallback(() => { setEditWhich("to"); setPhase("search"); }, [setEditWhich, setPhase]);
+  const openSearch = useCallback(() => {
+    setLocNotice(null);
+    setEditWhich("to");
+    setPhase("search");
+  }, [setEditWhich, setPhase, setLocNotice]);
   const closeCompareToHome = useCallback(() => { setHomeOpen(true); clearRoute(); }, [clearRoute]);
   const onSearchClose = useCallback(() => {
+    setLocNotice(null);
     if (placePickSlot) { setPlacePickSlot(null); setSidebarOpen(true); }
     setPhase(to ? "compare" : "idle");
-  }, [placePickSlot, setPhase, to]);
+  }, [placePickSlot, setPhase, setLocNotice, to]);
   const onSearchSelect = useCallback(async (sel: SearchSelection) => {
     if (sel.type === "place") {
       if (placePickSlot) {
@@ -808,9 +821,15 @@ function AppInner() {
       setPhase("idle");
       setSidebarOpen(true);
     } else if (pos) pick({ name: t("yourLocation", lang), subtitle: "",
-      lat: pos.coords.latitude, lon: pos.coords.longitude }, "from");
-    else setPhase(to ? "compare" : "idle");
-  }, [placePickSlot, patchSettings, setPhase, pick, lang, to]);
+      lat: pos.coords.latitude, lon: pos.coords.longitude }, editWhich);
+    else {
+      /* the failed fix used to close the sheet and show NOTHING (the
+         'live location ain't working' silent no-op) — stay open and
+         say it failed so typing a place keeps the flow moving. */
+      setLocNotice(t("locPickFailed", lang));
+      setPhase("search");
+    }
+  }, [placePickSlot, patchSettings, setPhase, pick, editWhich, lang, to, setLocNotice]);
   const onLocate = useCallback(() => {
     if (follow) { setFollow(false); return; }
     /* warm the fused provider before engaging follow — MapLibre's
@@ -940,6 +959,8 @@ function AppInner() {
         visible={phase === "search"}
         lang={lang}
         userLocation={searchUserLoc}
+        mode={editWhich}
+        notice={locNotice}
         onClose={onSearchClose}
         onSelect={onSearchSelect} />
       {phase === "idle" && (

@@ -222,11 +222,19 @@ function SearchSheetInner({
   onClose,
   userLocation,
   lang,
+  mode = "to",
+  notice = null,
 }: {
   onSelect: (sel: SearchSelection) => void;
   onClose: () => void;
   userLocation?: LatLon | null;
   lang: Lang;
+  /** 'from' = the origin slot asked for a pick — placeholder + the
+      'Your location' row read accordingly. */
+  mode?: "to" | "from";
+  /** honest one-line notice under the bar (e.g. a failed GPS fix) —
+      rendered, never silently swallowed. */
+  notice?: string | null;
 }) {
   const [q, setQ] = useState("");
   const [t0rows, setT0rows] = useState<PlaceResult[]>([]);
@@ -330,9 +338,10 @@ function SearchSheetInner({
     [armed],
   );
 
-  /* T0 section + deduped server rows below the hairline (doc 04 §2 merge) */
+  /* T0 section + deduped server rows below the hairline (doc 04 §2
+     merge): t1/t2 our server, t3 the labeled public-OSM fallback. */
   const merged = useMemo(
-    () => mergeResults(t0rows, tiers?.t1 ?? [], tiers?.t2 ?? []),
+    () => mergeResults(t0rows, tiers?.t1 ?? [], tiers?.t2 ?? [], tiers?.t3 ?? []),
     [t0rows, tiers],
   );
   const serverRows = useMemo(
@@ -391,7 +400,7 @@ function SearchSheetInner({
           value={q}
           onChangeText={onChange}
           onSubmitEditing={submit}
-          placeholder={t("searchPlaceholder", lang)}
+          placeholder={t(mode === "from" ? "searchFromPlaceholder" : "searchPlaceholder", lang)}
           placeholderTextColor={V2T.text2} // text3-on-surface2 = 4.33:1 < AA
           /* no autoFocus and no .focus() anywhere — the keyboard rises
              only when the user taps the field (see mount effect) */
@@ -416,6 +425,16 @@ function SearchSheetInner({
           </Pressable>
         )}
       </View>
+
+      {/* honest inline notice (e.g. 'couldn't get your location') — the
+          failed-GPS path used to close the sheet and show NOTHING */}
+      {notice ? (
+        <View style={ss.noticeRow}>
+          <Text {...DYNAMIC_TYPE} style={[ss.noticeTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={2}>
+            {notice}
+          </Text>
+        </View>
+      ) : null}
 
       {bodyReady && (
       <KeyboardAvoidingView
@@ -557,12 +576,16 @@ function SearchScreenInner({
   onClose,
   userLocation,
   lang = "en",
+  mode,
+  notice,
 }: {
   visible: boolean;
   onSelect: (sel: SearchSelection) => void;
   onClose: () => void;
   userLocation?: LatLon | null;
   lang?: Lang;
+  mode?: "to" | "from";
+  notice?: string | null;
 }) {
   bump("scr.Search");
   /* Android hardware back must close the sheet — Modal used to provide this;
@@ -604,6 +627,8 @@ function SearchScreenInner({
           onClose={onClose}
           userLocation={userLocation}
           lang={lang}
+          mode={mode}
+          notice={notice}
         />
       </Animated.View>
     </View>
@@ -640,6 +665,16 @@ const ss = StyleSheet.create({
     borderRadius: V2Radius.pill,
   },
   barBtn: { padding: 6 },
+  noticeRow: {
+    marginHorizontal: 14,
+    marginTop: 2,
+    marginBottom: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: V2Radius.row,
+    backgroundColor: V2T.surface2,
+  },
+  noticeTxt: { color: V2T.text2, fontSize: V2Type.label },
   input: {
     flex: 1,
     color: V2T.text,

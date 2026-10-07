@@ -71,6 +71,9 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
   const [editWhich, setEditWhich] = useState<Which>("to");
+  /* honest one-line notice on the search sheet (e.g. a failed GPS fix).
+     Set when a location attempt dies; cleared on close or a real pick. */
+  const [locNotice, setLocNotice] = useState<string | null>(null);
   const [options, setOptionsState] = useState<V2Option[]>([]);
   const [selected, setSelectedState] = useState(0);
   /* The pick lives in refs written synchronously at the call site —
@@ -150,6 +153,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     Keyboard.dismiss();
     if ((which ?? editWhich) === "from") {
       setFrom(p);
+      setLocNotice(null);
       setPhase(to ? "compare" : "search");
       setEditWhich("to");
       return;
@@ -157,11 +161,24 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     setTo(p);
     if (!from) {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
-      setFrom(pos
-        ? { name: t("placeCurrentLocation", lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude }
-        : { name: t("placeCentralDelhi", lang), subtitle: "", lat: DELHI[1], lon: DELHI[0] });
+      if (pos) {
+        setFrom({ name: t("placeCurrentLocation", lang), subtitle: "",
+          lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setPhase("compare");
+      } else {
+        /* NEVER fabricate an origin — the old path silently plotted
+           'Central Delhi' as the start point and routed from there, the
+           exact 'hardcoded garbage' the owner hit. A plan with no real
+           origin can't run honestly: send the user back to search with
+           the 'from' slot armed and say what failed. */
+        setLocNotice(t("locPickFailed", lang));
+        setEditWhich("from");
+        setPhase("search");
+        return;
+      }
+    } else {
+      setPhase("compare");
     }
-    setPhase("compare");
     /* NO pick-time flyTo: the camera moves exactly once per plan — the
        fitBounds in show() below. A fast engine-first answer used to fire
        fitBounds while this flyTo was mid-flight; MapLibre cancelling an
@@ -484,6 +501,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
-    strips, reloadTrips,
+    strips, reloadTrips, locNotice, setLocNotice,
   };
 }

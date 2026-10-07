@@ -4,6 +4,8 @@
 
 const en = {
   searchPlaceholder: "Where to?",
+  searchFromPlaceholder: "Where from?",
+  locPickFailed: "couldn't get your location — type a place instead",
   chooseOnMap: "Choose on map",
   yourLocation: "Your location",
   recents: "Recent",
@@ -1099,6 +1101,8 @@ export const feltKeyForBand = (idx: number | null): StringKey =>
 
 const hi: Record<StringKey, string> = {
   searchPlaceholder: "कहाँ जाना है?",
+  searchFromPlaceholder: "कहाँ से?",
+  locPickFailed: "आपकी लोकेशन नहीं मिली — कोई जगह लिखें",
   chooseOnMap: "नक्शे पर चुनें",
   yourLocation: "आपकी लोकेशन",
   recents: "हाल की जगहें",
