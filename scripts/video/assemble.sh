@@ -131,10 +131,16 @@ else
   echo "file '$W/80_aws.mp4'" >> "$LIST"
   echo "aws console slot = placeholder (25s)"
 fi
-addoff "$D/50_admin.mp4"    50_admin_tail   8 11  # scorecard + archive strip (tape tail)
+addoff "$D/65_community.mp4" 65_community   8  5  # shared-ledger stats + k>=3 street table
 echo "file '$W/97_close.mp4'" >> "$LIST"       # honesty ledger card
 echo "file '$W/99_end.mp4'" >> "$LIST"         # repo + live URL + AWS + AI disclosure
 
 ffmpeg -y -v error -f concat -safe 0 -i "$LIST" -c copy "$OUT"
+# silent AAC track — beats are pixel-only by design; VO drops in later,
+# but a present audio stream keeps players/platforms from flagging the file
+ffmpeg -y -v error -i "$OUT" -f lavfi -i anullsrc=r=44100:cl=mono \
+  -c:v copy -c:a aac -b:a 64k -shortest -movflags +faststart "$OUT.audio.mp4" \
+  && mv "$OUT.audio.mp4" "$OUT"
 echo "== $OUT =="
 ffprobe -v error -show_entries format=duration,size -of default=nw=1 "$OUT"
+ffprobe -v error -show_entries stream=codec_name,codec_type -of csv=p=0 "$OUT"

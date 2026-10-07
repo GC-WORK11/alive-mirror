@@ -70,7 +70,8 @@ build ≠ task-def tag → say the ECR image tag.
 | city | `40_city.mp4` | taped on 4eb9e1e8 |
 | dosegap | `30_dosegap.mp4` | taped on 4eb9e1e8 |
 | journey / receipt / ledger / settings | `25` / `26` / `27` / `28` | canonical APK tape `c3bb731` (video-v8 report — every beat PASS, 0 crashes) |
-| admin tail | `50_admin.mp4` | taped on 4eb9e1e8; assemble cuts `-ss 11`, 8 s tail |
+| close beat | `65_community.mp4` | web, `ce01ec5c`; assemble cuts `-ss 5`, 8 s (stats card + k≥3 table) |
+| admin tail | `50_admin.mp4` | spare — needs `~/.alive_admin_token` on the capture box |
 | **AWS console** | `80_aws.mov` | **owner films T-morning** — `docs/plan/aws-console-shotlist.md` (needs his AWS login); 25 s placeholder card otherwise |
 | cold / title / close / end | `scripts/video/cards/` | rendered fresh by assemble.sh with live `@@` injection |
 
@@ -88,6 +89,33 @@ the pipeline is safe to dry-run anywhere.
   6 px accent square + mono uppercase)
 - every card passes the "would a template do this" test: off-grid composition
   (chipped title bar, hanging footer rules, left-ruled ledger rows on close)
+
+## Draft cut — assembled and frame-verified (2026-10-07 ~05:45 IST)
+
+`~/video/cut7.mp4` — **158.0 s (2:38)**, h264 1920×1080@30 + silent AAC
+(beats are pixel-only by design; assemble.sh now muxes a silent track so the
+file probes `aac,audio` — VO drops in on top later). AWS slot = the paper
+placeholder card — by design; owner film drops into `80_aws` and re-assembling
+takes ~40 s.
+
+Fresh web tape this lane (the box had no prior tapes; beat files were pulled
+from lane-report attachments for the app beats): `10_hero` 12.9 s,
+`30_dosegap` 22.6 s, `40_city` 36.2 s, `65_community` 13.5 s — all on build
+`ce01ec5c` via `cdp_rec.py --rec screencast` against the live NLB.
+
+Frame-verified in the cut: cold card injected "about **2.6** cigarettes / 814
+µg" (live, drifted from 2.49 since the report — the `@@` injection caught it,
+proof it can't disagree with tape) · title `ce01ec5c` · city choropleth + day
+tiles · app India Gate search mid-arc · AWS placeholder · community
+shared-ledger + k≥3 caption · close card 22.8→10.5/6.2/k≥3 · end card AWS +
+AI-disclosure rows.
+
+Two script edits forced by reality: **close beat 9a swapped `/admin` →
+`/community`** (no `~/.alive_admin_token` on this box — and the community
+page's own "at least 3 different phones" line states the k≥3 floor better
+than the admin scorecard could); **city + dosegap VO numbers rewritten to the
+taped values** (walk ≤50 µg → 683.3 km; ladder 11.4/33.3/38.6/161.9/382.2 µg)
+— narration always says what the screen shows.
 
 ## Oct-8 open items (in order)
 

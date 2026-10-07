@@ -22,14 +22,14 @@ drifting number. Never say anything the screen can't defend.
 |---|------|----------|-----|-----------|--------|
 | 0 | cold open | 0:00 → 0:07 | 7 s | felt-line card (`cards/cold.html`) — "It's 7 a.m. in Delhi. The air outside your door costs about 2.5 cigarettes today." | NEW card, numbers injected live at assemble |
 | 1 | title | 0:07 → 0:11 | 4 s | `cards/title.html` — wordmark + tagline + live build sha | NEW card (restyled) |
-| 2 | hero — the field | 0:11 → 0:23 | 12 s | landing `/` hero: statusline chips, live PM2.5 field, watch-the-day scrub h+0→h+10→now | `10_hero.mp4` (taped, build `4eb9e1e8`) — re-tape if field looks flat |
-| 3 | city — the ledger | 0:23 → 0:43 | 20 s | `/city`: why-line, district choropleth, reach solve + ink veil, day tiles, corridor table | `40_city.mp4` (taped, `4eb9e1e8`) |
-| 4 | trip plan — the dose gap | 0:43 → 1:23 | 40 s | web a→b ladder (`30_dosegap.mp4`, 18 s) → app compare→pick→nav (`25_journey.mp4`, 22 s) | both taped (`5fd2990`/`c3bb731` APK) |
+| 2 | hero — the field | 0:11 → 0:23 | 12 s | landing `/` hero: statusline chips, live PM2.5 field, watch-the-day scrub h+0→h+10→now | `10_hero.mp4` (taped, build `ce01ec5c`) |
+| 3 | city — the ledger | 0:23 → 0:43 | 20 s | `/city`: why-line, district choropleth, reach solve + ink veil, day tiles, corridor table | `40_city.mp4` (taped, `ce01ec5c`) |
+| 4 | trip plan — the dose gap | 0:43 → 1:23 | 40 s | web a→b ladder (`30_dosegap.mp4`, 18 s) → app compare→pick→nav (`25_journey.mp4`, 22 s) | both taped (`ce01ec5c` web / `c3bb731` APK) |
 | 5 | receipt | 1:23 → 1:31 | 8 s | "You're here." receipt card | `26_receipt.mp4` (`c3bb731`) |
 | 6 | ledger | 1:31 → 1:39 | 8 s | trips ledger + 7-day bar | `27_ledger.mp4` (`c3bb731`) |
 | 7 | settings provenance | 1:39 → 1:48 | 9 s | drawer → Settings → About → "a real instrument ~2 km from you" | `28_today.mp4` (`c3bb731`) |
-| 8 | AWS console | 1:48 → 2:13 | 25 s | owner-filmed: ECS ACTIVE 1/1 → task-def image URI → CloudWatch tail → NLB healthy → DynamoDB `alive108-agg` | **owner tapes** — `docs/plan/aws-console-shotlist.md` |
-| 9 | honesty close | 2:13 → 2:35 | 22 s | `/admin` scorecard tail (8 s) → `cards/close.html` honesty ledger (11 s) → settle | `50_admin.mp4` tail + NEW card |
+| 8 | AWS console | 1:48 → 2:13 | 25 s | owner-filmed: ECS ACTIVE 1/1 → task-def image URI → CloudWatch tail → NLB healthy → DynamoDB `alive108-agg` | **owner tapes** — `docs/plan/aws-console-shotlist.md`; placeholder card in the draft |
+| 9 | honesty close | 2:13 → 2:35 | 22 s | `/community` shared-ledger card + k≥3 table (8 s) → `cards/close.html` honesty ledger (11 s) → settle | `65_community.mp4` (`ce01ec5c`, -ss 5) + NEW card |
 | 10 | end card | 2:35 → 2:42 | 7 s | `cards/end.html` — repo, live URL, AWS inventory, AI disclosure | NEW card (restyled) |
 
 **Total ≈ 2:42** — 18 s of headroom under the cap. Protect beat 8 (AWS)
@@ -66,10 +66,10 @@ above everything; if long, trim in this order: city day-tiles dwell
 
 ### 2 · Hero — the live field (0:11–0:23)
 
-- **Screen:** `10_hero.mp4` — landing top fold: LIVE hero stat tile
-  ("N cigarettes a day — a day of breathing today's field"), statusline
-  chips ("54 stations live · field ~9 min fresh · 903k edges priced"),
-  the PM2.5 cell map, then watch-the-day scrub h+2→h+10→now.
+- **Screen:** `10_hero.mp4` — landing top fold: statusline chips on
+  tape "54 STATIONS LIVE · FIELD 15 MIN FRESH · MEDIAN 50 µg/m³ · WIND
+  7 KM/H · 903K EDGES PRICED", the PM2.5 cell map, watch-the-day
+  scrub h+2→h+10→now, measured/interpolated/thin caption.
 - **VO:** "A live pollution field over Delhi — rebuilt every fifteen
   minutes from fifty-four government instruments — that you can scrub
   an hour at a time."
@@ -84,16 +84,19 @@ above everything; if long, trim in this order: city day-tiles dwell
 - **Screen:** `40_city.mp4` — `/city` hero + "why tonight" chip
   (tonight's live read: *"the air is barely moving — the day's pollution
   is sitting over the city"* — stagnation, fires refused on the
-  easterly wind), district choropleth, then the reach solve: a 25 µg
-  walk budget paints the ink-vein road frontier, caption "every ink line
-  is a real road — solved by the engine", day tiles, corridor table.
+  easterly wind), district choropleth, then the reach solve: the page's
+  own **walk ≤50 µg** budget paints the ink-vein road frontier, caption
+  on tape *"683.3 km of roads reachable · 12,418 road segments drawn"*
+  + "every ink line is a real road — solved by the engine", day tiles,
+  corridor table.
 - **VO:** "Delhi's day, kept as a ledger. Ask it where your lungs can
-  go — a twenty-five-microgram walking budget from Connaught Place
-  settles about a hundred and ninety kilometres of street. Every line
-  is a real road — not a smoothed circle."
-- **Claims:** `/v2/reach` walk≤25 µg → **4,279 edges / 191.4 km** live
-  now (drifts; ~136 km at the last doc pass); bounded Dijkstra on the
-  same engine — `server/v2/reach.py`. **[T-45]**
+  go — a fifty-microgram walking budget from the centre settles nearly
+  seven hundred kilometres of street. Every line is a real road — not
+  a smoothed circle."
+- **Claims:** the tape itself — `/city` reach solve completed on
+  camera (683.3 km / 12,418 segments). API cross-check `/v2/reach`
+  walk≤25 µg → 4,279 edges / 191.4 km live (the stricter budget the
+  script doesn't say). Bounded Dijkstra — `server/v2/reach.py`. **[T-45]**
 
 ### 4 · Trip plan — the dose gap (0:43–1:23) — the money shot
 
@@ -102,17 +105,17 @@ both honest — don't mix them in one sentence.
 
 **4a — the ladder, web a→b (0:43–1:01, `30_dosegap.mp4`)**
 
-- **Screen:** a→b armed on the landing field map, Connaught Place →
-  Gurugram priced corridor, mode ladder, depart line.
+- **Screen:** a→b armed on the landing field map, priced corridor
+  drawn (31.6 km), then the five-mode ladder on tape: **Car (AC)
+  11.4 µg (3.5–19.3) · Bike 33.3 · Auto 38.6 · Bicycle 161.9 ·
+  On foot 382.2** — "5 options priced in 2.5 s" + depart line
+  "leave ~08:00 — 11% less dose than now".
 - **VO:** "Same city, same minutes — the mode decides the dose.
-  Connaught Place to Gurugram: a sealed car, about nine micrograms.
-  An auto, twenty-five. The metro, sixty-three — the clean coach pays
-  for the walks at both ends. On foot, two hundred and eighty-two."
-- **Claims (`POST /v2/plan` live now):** car 8.5 · car-open 15.5 ·
-  bike 19.6 · bus 22.3 · auto 25.2 · metro+walk 62.7 · cycle 125.2 ·
-  walk 282.5 µg — **33.2×** on the breathing-zone basis
-  (`smoke_modifier` 1.08 on the wire). 31–45× across ODs this week —
-  "about thirty-three" is the honest phrasing. **[T-45]**
+  A sealed car: about eleven micrograms. An auto: thirty-nine.
+  On foot: nearly four hundred. Same trip — different lungs."
+- **Claims:** ladder read off the tape (`ce01ec5c`, 33.5× foot/car);
+  `POST /v2/plan` CP→Gurugram live shows the same structure
+  (8.5–282.5 µg, 33×). **[T-45]**
 
 **4b — the phone does it (1:01–1:23, `25_journey.mp4`)**
 
@@ -180,15 +183,21 @@ both honest — don't mix them in one sentence.
 
 ### 9 · Honesty close (2:13–2:35)
 
-**9a — the scorecard (2:13–2:21, tail of `50_admin.mp4`)**
+**9a — what leaves a phone (2:13–2:21, `65_community.mp4` -ss 5)**
 
-- **Screen:** `/admin` — the model-grades-itself card (`/v2/skill`:
-  tonight 210 pairs, h+0 MAE 4.2, error widening with horizon) and the
-  archive strip (hourly field snapshots since Oct 5, gaps admitted).
-- **VO:** "And it grades itself — the forecast we served against the
-  hour we recorded, every hour, on the wire."
-- **Claims:** `/v2/skill` live; archive `basis:"recorded"`, gaps never
-  backfilled (`server/archive.py`).
+- **Screen:** `/community` — the shared-ledger card ("14 phones sharing
+  · 22 trips all-time · 726 µg dodged all-time" — *"all added together,
+  never per person"*) over the corridor table + its own caption:
+  *"at least 3 different phones have crossed it"* — the k≥3 floor,
+  on the page's own words.
+- **VO:** "And what leaves a phone is a counter — all added together,
+  never per person. A street only publishes once three phones have
+  crossed it."
+- **Claims:** the page's literal copy + `server/community.py`
+  `_K_MIN_DEVICES=3` (12/54 corridors publishable tonight, the rest
+  suppressed — `min_k:3` on the wire). The self-grade line
+  ("219 pairs … missed by 30.9 µg/m³") is separately on the dosegap
+  tape footer if a judge asks.
 
 **9b — the honesty ledger (2:21–2:35, `cards/close.html`)**
 
@@ -224,13 +233,13 @@ both honest — don't mix them in one sentence.
 |---|---|---|
 | "two and a half cigarettes" | 2.49 mid (hi 6.29) · 787 µg | `GET /v2/city → breath` — landing hero renders same math |
 | "fifty-four instruments / every fifteen minutes" | 54 (24 WAQI + 30 DPCC) · refresh 900 s | `GET /health → sources.stations`, `field_refresh_in_s`; `infra/provision.sh` |
-| "about a hundred and ninety kilometres" | 191.4 km / 4,279 edges | `GET /v2/reach?mode=walk&budget_ug=25` |
-| "nine … twenty-five … sixty-three … two hundred and eighty-two … thirty-three times" | 8.5 / 25.2 / 62.7 / 282.5 µg → 33.2× | `POST /v2/plan` CP→Gurugram (smoke_modifier 1.08 on wire) |
+| "nearly seven hundred kilometres of street" | tape: walk ≤50 µg → 683.3 km / 12,418 segments | `40_city.mp4` solve caption (API `/v2/reach` ≤25 µg → 191.4 km tonight) |
+| "eleven … thirty-nine … four hundred" | tape: 11.4 / 38.6 / 382.2 µg (33.5×) | `30_dosegap.mp4` ladder (API `POST /v2/plan` → 8.5–282.5, 33×) |
 | "point six micrograms, ninety-eight times less" | tape values (`c3bb731` beat 26) | `docs/lanes/video-v8-report.md` beat table |
 | "a real instrument about two kilometres away" | 1.8 km at CP | `GET /aqi → nearest_sample_km` + v8 tape line |
 | "twenty-two-eight … ten-point-five … six-point-two" | fixed (Oct-6/7 holdouts) | `docs/lanes/holdout-reverify-report.md` |
 | "three distinct devices" | `min_k:3`; 12/54 publishable | `GET /v2/city/moves`; `server/community.py` |
-| "grades itself … every hour" | `/v2/skill` live, ~210 pairs | `docs/lanes/judge-proof.md` #9; admin scorecard |
+| "all added together, never per person … three phones" | 14 phones · 22 trips · 726 µg dodged; `min_k:3`, 12/54 publishable | `65_community.mp4` page copy; `GET /community`; `server/community.py` |
 | "built by CodeBuild … Fargate … NLB … DynamoDB … Secrets Manager" | deployed, not claimed | `docs/18-aws-architecture.md`; console beat films it |
 
 ## Film-morning checklist (in order)
@@ -250,12 +259,13 @@ both honest — don't mix them in one sentence.
 
 | beat file | taped on | status |
 |---|---|---|
-| `10_hero.mp4` | web, `4eb9e1e8` | ✅ usable — re-tape only if the field is flat on film morning |
-| `40_city.mp4` | web, `4eb9e1e8` | ✅ usable |
-| `30_dosegap.mp4` | web, `4eb9e1e8` | ✅ usable — ladder drift covered by "about" phrasing |
+| `10_hero.mp4` | web, `ce01ec5c` | ✅ usable — re-tape only if the field is flat on film morning |
+| `40_city.mp4` | web, `ce01ec5c` | ✅ usable — reach solve completed on tape (683 km / 12,418 segments) |
+| `30_dosegap.mp4` | web, `ce01ec5c` | ✅ usable — ladder drift covered by "about" phrasing |
 | `25_journey.mp4` | APK `c3bb731` | ✅ canonical app take |
 | `26_receipt.mp4` / `27_ledger.mp4` / `28_today.mp4` | APK `c3bb731` | ✅ canonical |
-| `50_admin.mp4` | web, `4eb9e1e8` | ✅ usable — close beat takes the **tail** (scorecard + archive strip), `-ss ~11` |
+| `65_community.mp4` | web, `ce01ec5c` | ✅ close beat takes `-ss 5` for 8 s (shared-ledger stats card + k≥3 street table) |
+| `50_admin.mp4` | web, `4eb9e1e8` | spare — needs `~/.alive_admin_token` on the capture box; only if the token is available film morning |
 | `80_aws` | — | ⏳ **owner tapes on film morning** (console needs his login) |
 | `cards/title.html` `cold.html` `close.html` `end.html` | — | ✅ this lane — paper register, live placeholders injected |
-| bench: `05_landing`, `20_home`, `22_doors`, `65_community`, `90_close` | mixed | spares if a beat under-runs or needs an alt take |
+| bench: `05_landing`, `20_home`, `22_doors`, `50_admin`, `90_close` | mixed | spares if a beat under-runs or needs an alt take |
