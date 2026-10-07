@@ -1231,3 +1231,26 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   reroute on the wire (58632f3 live). NSURLCache purge in bundle.
 - Same-unit sibling `ug_saved_vs_worst` audited: genuinely µg,
   server-only consumer (decide.py >5µg threshold) — clean.
+
+## cont.64 — 2026-10-08 ~01:45 UTC (deployed b12c6b3c)
+
+- **Deploy `b12c6b3c` LIVE + verified**: /health sha match; landing-v5
+  serving at root — verified visually: "ledger for your lungs" lede,
+  live 61.0µg MODERATE + 2.8-cig equivalence, 52-station stats band,
+  measure/interpolate/dose mechanics w/ real LOO (95.2% of 3,550
+  held-out hrs inside ±2σ), designed privacy object (k≥3), live field
+  map + "WATCH THE DAY" forecast + self-graded accuracy (27.0µg miss,
+  263 pairs), 29-district board worst-first, close = thesis line.
+  Footer stamps build sha B12C6B3C = deploy.
+- **Lane C testday-android PASS (a5b9c88)**: wipe FS audit zero residue
+  + no resurrection, consent-off pcap zero telemetry, alerts master +
+  4 kinds + live stagnation banner, daysum parity exact, BandScale,
+  12/12 Where-to taps 0 kills, Hindi. Findings→fixed: #1 IME over
+  wizard/compare (b12c6b3: phase-exit dismiss + VehicleSheet open-edge),
+  #2 stale out-of-NCR last-known /aqi (c0d200c: drop fix, read centroid).
+- **69cde82** (Max rescoped lane): departSavedPct helper extracted;
+  CompareSheet reads helper not raw alias; depart.test.ts pins
+  served-13→13 (no ~33 recompute); demo script re-pinned to served
+  values (India Gate→Huda metro OD 23 opts ~34x; T-45 checklist +
+  ≥90s iOS cold-launch line).
+- Board: android-drive re-verifying IME fix + demo APK at HEAD.
