@@ -62,14 +62,61 @@
   .tokbtn:hover{border-color:var(--accent)}
 
   .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 70px}
-  .statusline{padding:16px 0 4px;font-family:var(--mono);font-size:10.5px;
+  .statusline{padding:14px 0 4px;font-family:var(--mono);font-size:10px;
               letter-spacing:.1em;color:var(--ink3);text-transform:uppercase;
               line-height:1.9}
   .statusline b{color:var(--ink2);font-weight:400}
   .statusline .err{color:var(--brick);letter-spacing:.06em;text-transform:none}
 
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 8px}
-  @media(max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
+  /* the hero — 'is it alive' answered in one designed surface: the city's
+     live air owns the page (one serif numeral, band word as the only air
+     colour), a vitals rail carries the proof the system is running.
+     everything on it maps to a public feed (/v2/city · /aqi · /health) */
+  .hero{position:relative;display:grid;grid-template-columns:1.3fr .7fr;
+        gap:22px;background:var(--surface);border:1px solid var(--line);
+        border-radius:20px;padding:clamp(20px,3.2vw,34px) clamp(16px,3vw,30px);
+        margin:14px 0 8px;overflow:hidden}
+  .hero-kick{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;
+             text-transform:uppercase;color:var(--ink4);display:flex;
+             align-items:center;gap:10px;flex-wrap:wrap}
+  .hero-kick .lv{color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px}
+  .hero-kick .lv i{width:6px;height:6px;border-radius:2px;background:var(--accent)}
+  .hero-fig{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:8px}
+  .hero-num{font-family:var(--serif);font-weight:400;color:var(--ink);
+            font-size:clamp(60px,8.2vw,104px);line-height:.98;letter-spacing:-.032em;
+            font-variant-numeric:tabular-nums}
+  .hero-num.na{color:var(--ink4);font-size:clamp(30px,4vw,46px)}
+  .hero-unit{font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+             color:var(--ink3)}
+  .hero-band{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+             text-transform:uppercase;padding:4px 11px;border-radius:7px;
+             white-space:nowrap}
+  .hero-line{font-size:14.5px;line-height:1.7;color:var(--ink2);
+             margin-top:12px;max-width:56ch;font-weight:400}
+  .hero-line b{color:var(--ink);font-weight:600}
+  .hero-note{font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+             color:var(--ink3);margin-top:9px;line-height:1.8}
+  .hero-vitals{border-left:1px solid var(--line);padding-left:20px;
+               align-self:center;display:flex;flex-direction:column;gap:8px}
+  .hero-vitals .vr{display:flex;justify-content:space-between;align-items:baseline;
+                   gap:14px}
+  .hero-vitals dt{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+                  text-transform:uppercase;color:var(--ink4);flex:none}
+  .hero-vitals dd{color:var(--ink);font-size:11.5px;font-weight:400;
+                  font-variant-numeric:tabular-nums;text-align:right}
+  .hero-vitals dd.sub{color:var(--ink2)}
+  @media(max-width:860px){.hero{grid-template-columns:1fr;gap:16px}
+    .hero-vitals{border-left:none;border-top:1px solid var(--line);
+                 padding-left:0;padding-top:14px;display:grid;
+                 grid-template-columns:1fr 1fr;gap:7px 18px}
+    .hero-vitals .vr{display:block}
+    .hero-vitals dd{text-align:left}}
+  @media(max-width:400px){.hero-vitals{grid-template-columns:1fr}}
+
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 8px}
+  .grid--fit{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  @media(max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}
+    .grid--fit{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}}
   @media(max-width:480px){.grid{grid-template-columns:1fr 1fr;gap:8px}}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
         padding:14px 16px 13px;display:flex;flex-direction:column}
@@ -98,27 +145,27 @@
   .accent{color:var(--accent-ink)} .brick{color:var(--brick)} .wine{color:var(--wine)}
 
   h2{font-family:var(--mono);font-size:10px;text-transform:uppercase;
-     letter-spacing:.22em;color:var(--ink3);margin:30px 0 10px;font-weight:400;
+     letter-spacing:.22em;color:var(--ink3);margin:38px 0 12px;font-weight:400;
      display:flex;justify-content:flex-start;align-items:center;gap:10px;
      flex-wrap:wrap}
   /* the register's section tick — every block wears the accent square */
   h2::before{content:"";width:6px;height:6px;background:var(--accent);
      border-radius:2px;flex:none}
-  h2 em{font-style:normal;color:var(--ink4);letter-spacing:.08em;
-     margin-left:auto}
+  h2 em{font-style:normal;color:var(--ink4);letter-spacing:.07em;
+     flex-basis:100%;margin:7px 0 0 16px;line-height:1.75;max-width:96ch;
+     text-transform:none}
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;
          overflow:hidden}
-  /* soul pass — the field-state panel breathes: the card that holds
-     what the router reads right now takes the app's living edge (a
-     4.4s sine opacity loop on an accent-ink ring). the page's one
-     breathing element; skipped under reduce-motion. */
+  /* the page's one breathing element — the hero card holds the live air
+     itself, so it wears the app's living edge (a 4.4s sine opacity loop
+     on an accent-ink ring). skipped under reduce-motion. */
   @keyframes breath{0%,100%{opacity:.12}50%{opacity:.32}}
-  .panel.breathe{position:relative}
-  .panel.breathe::after{content:"";position:absolute;inset:0;
+  .breathe{position:relative}
+  .breathe::after{content:"";position:absolute;inset:0;
          pointer-events:none;border-radius:inherit;
          border:1.5px solid var(--accent-ink);
          animation:breath 4.4s ease-in-out infinite}
-  @media(prefers-reduced-motion:reduce){.panel.breathe::after{display:none}}
+  @media(prefers-reduced-motion:reduce){.breathe::after{display:none}}
   .scrollx{overflow-x:auto}
   /* phones: wide tables clip mid-word with no hint they scroll — local cover
      + scroll shadow peeks only while more columns sit past that edge */
@@ -368,16 +415,25 @@
   @media(max-width:760px){.prov .seg{min-width:44%;border-top:1px solid var(--hair)}
     .prov .seg:nth-child(-n+2){border-top:none}}
 
-  /* 02 · the fires view — real FIRMS detections over the ~150 km ring;
-     same canvas discipline as the field map */
+  /* the fires view — real FIRMS detections over the ~150 km ring;
+     same canvas discipline as the field map. desktop reads stat-rail
+     + map so the section doesn't run the page's full height */
+  .firepanel{display:grid;grid-template-columns:minmax(220px,280px) 1fr;
+             gap:16px;align-items:start}
+  @media(max-width:900px){.firepanel{grid-template-columns:1fr}}
   canvas#firemap{width:100%;display:block;aspect-ratio:0.924;
                  background:var(--surface2,#efede7)}
   .firebar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;
            padding:2px 0 12px;font-family:var(--mono);font-size:10px;
            letter-spacing:.08em;color:var(--ink2)}
+  .firepanel .firebar{flex-direction:column;align-items:flex-start;gap:4px;
+                      padding:0}
   .firebar b{font-family:var(--serif);font-size:19px;font-weight:400;
              color:var(--ink);letter-spacing:-0.01em}
   .firebar .sep{color:var(--ink4)}
+  /* rail mode: the '·' stays a real (invisible, zero-height) flex item —
+     display:none would merge the text runs either side into one line */
+  .firepanel .firebar .sep{visibility:hidden;height:0;overflow:hidden}
 
   /* panel title — one line that names the tile for a cold reader,
      same mono caption language as .feed-h/.sub */
@@ -482,7 +538,7 @@
 
 <div class="wrap">
   <noscript>
-    <style>#stamp,#stats,#distmap,#fieldmap,#firemap{display:none}
+    <style>#stamp,#stats,#statsr,#hero,#distmap,#fieldmap,#firemap{display:none}
       h2,#field,#scorecard,#timing,#sources,#donations,#feedlist,#pipe,#corridors,#sharedpic,#archive,#prov,#firebar,#firemap-sub,#dosemath,#doseformula,#routingcard{display:none}</style>
     <p style="margin:18px 0;font-family:var(--mono);font-size:10.5px;
       letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);line-height:1.9">
@@ -491,45 +547,38 @@
   <div class="sub" style="padding:14px 2px 0">the engine room — how sensor readings become the air map that prices every route · every number below is measured live, nothing invented</div>
   <div class="statusline" id="stamp">connecting…</div>
 
+  <!-- the demo's first beat — 'is it alive' — one hero numeral owns the
+       page: delhi's live air mean from /v2/city, its CPCB band word as
+       the only colour, and the vitals rail that proves the system runs -->
+  <section class="hero breathe" id="hero">
+    <div class="hero-main">
+      <div class="hero-kick">delhi's air · right now <span class="lv" id="hero-lv"><i></i>connecting</span></div>
+      <div class="hero-fig">
+        <span class="hero-num na" id="hero-num">—</span>
+        <span class="hero-unit">µg/m³ · pm2.5</span>
+        <span class="hero-band" id="hero-band" hidden></span>
+      </div>
+      <p class="hero-line" id="hero-line"></p>
+      <p class="hero-note" id="hero-note"></p>
+    </div>
+    <dl class="hero-vitals" id="hero-vitals"></dl>
+  </section>
+
   <div class="grid" id="stats"></div>
 
-  <h2>01 · the air right now <em>how monitor readings become the air map — monitors measure, we fill the gaps between them (each fill shows how sure it is), then every road in delhi gets a smoke price</em></h2>
+  <h2>01 · what it's made of <em>monitors measure, the forecast fills the gaps between them (each fill shows how sure it is), then every road in delhi gets a smoke price — each stage names its source and freshness</em></h2>
   <div class="panel">
     <div class="prov" id="prov"></div>
     <div class="pipe" id="pipe"></div>
   </div>
-
-  <h2>02 · the fire belt <em>real fires spotted by satellite around delhi — bigger dot = more heat; fires upwind in the north-west belt are what actually push the city's smoke up</em></h2>
-  <div class="panel" style="padding:14px">
-    <div class="firebar" id="firebar"><span class="muted">connecting…</span></div>
-    <div class="fmwrap"><canvas id="firemap" role="img"
-      aria-label="nasa satellite fires over the ~150 km ring around delhi — bigger dot means more heat, ringed fires sit inside the upwind smoke belt"></canvas></div>
-    <div class="sub" id="firemap-sub" style="margin-top:8px">connecting…</div>
-  </div>
-
-  <h2>03 · what the sensors see <em>every feed the engine trusts, honestly labelled — how much it sees, how old, and whether it's live, idle, or down right now</em></h2>
-  <div class="panel scrollx"><table>
+  <div class="panel scrollx" style="margin-top:10px"><table>
     <thead><tr><th>the feed</th><th>state</th><th class="num">readings</th><th class="num">age</th><th>what it is</th><th>freshness</th></tr></thead>
     <tbody id="sources"></tbody></table></div>
   <div class="sub" style="margin:8px 2px 0">how monitors feed the map: waqi is asked first, then india's cpcb, then openaq — whichever answers first feeds the city, and the rest honestly report as idle. no feed is ever shown green when it isn't.</div>
 
-  <h2>04 · trips being planned <em>streets that ≥3 different phones crossed in 72h — the only level where shared-trip data can be shown without exposing a single person</em></h2>
-  <div class="panel"><div class="scrollx"><table>
-    <thead><tr><th></th><th>street cell</th><th>near</th><th class="num">trips</th><th class="num">phones</th><th class="num" title="the mean smoke each crossing breathed">smoke inhaled</th><th class="num" title="co₂ emitted per 100 m of street">co₂/100m</th><th class="num" title="the air over this street right now">air now</th></tr></thead>
-    <tbody id="corridors"></tbody></table></div>
-    <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">each row = one street cell that ≥3 different phones crossed in 72h — shared trips, anonymized so no single person can be picked out · smoke inhaled = the mean PM2.5 each crossing breathed · air now = what the air reads over that street right now</div></div>
-
-  <h2>05 · how the numbers are made <em>the guts, honestly exposed — how much each way of travelling breathes per minute, what the route engine is doing, how fast the api answers, how wrong the map is</em></h2>
-  <div class="cols cols3">
-    <div class="panel"><div class="panel-h">dose math — what one minute of each mode breathes</div><div class="scrollx"><table>
-      <thead><tr><th>how you travel</th><th class="num" title="how many times dirtier the air inside is vs the street">cabin ×</th><th class="num" title="how hard you breathe on it">breathing l/min</th></tr></thead>
-      <tbody id="dosemath"></tbody></table></div>
-      <div class="sub" id="doseformula" style="padding:10px 14px 12px;border-top:1px solid var(--hair)"></div></div>
-    <div class="panel"><div class="panel-h">the route engine's live state</div><dl class="kv" id="routingcard"></dl></div>
-    <div class="panel"><div class="panel-h">how fast the api answers — the server's own stopwatch</div><dl class="kv" id="timing"></dl></div>
-  </div>
-  <div class="cols" style="margin-top:10px">
-    <div class="panel breathe"><div class="panel-h">field state — what the route engine reads right now</div><dl class="kv" id="field"></dl></div>
+  <h2>02 · is it honest <em>the map grades itself against monitors it never saw — the live check, the causal read, and the guts (dose math, route engine, api speed) honestly exposed; a check that can't run is named, not hidden</em></h2>
+  <div class="cols">
+    <div class="panel"><div class="panel-h">field state — what the route engine reads right now</div><dl class="kv" id="field"></dl></div>
     <div class="panel"><div class="panel-h">how wrong the map is — checked against monitors it never saw</div><dl class="kv" id="scorecard"></dl></div>
   </div>
 
@@ -550,7 +599,24 @@
     </div>
   </div>
 
-  <h2>06 · district by district <em>each area boundary filled by its live air level right now — darker means worse; click one for its full card</em></h2>
+  <div class="cols cols3" style="margin-top:10px">
+    <div class="panel"><div class="panel-h">dose math — what one minute of each mode breathes</div><div class="scrollx"><table>
+      <thead><tr><th>how you travel</th><th class="num" title="how many times dirtier the air inside is vs the street">cabin ×</th><th class="num" title="how hard you breathe on it">breathing l/min</th></tr></thead>
+      <tbody id="dosemath"></tbody></table></div>
+      <div class="sub" id="doseformula" style="padding:10px 14px 12px;border-top:1px solid var(--hair)"></div></div>
+    <div class="panel"><div class="panel-h">the route engine's live state</div><dl class="kv" id="routingcard"></dl></div>
+    <div class="panel"><div class="panel-h">how fast the api answers — the server's own stopwatch</div><dl class="kv" id="timing"></dl></div>
+  </div>
+
+  <h2>03 · the fire belt <em>real fires spotted by satellite around delhi — bigger dot = more heat; fires upwind in the north-west belt are what actually push the city's smoke up</em></h2>
+  <div class="panel firepanel" style="padding:14px">
+    <div class="firebar" id="firebar"><span class="muted">connecting…</span></div>
+    <div class="fmwrap"><canvas id="firemap" role="img"
+      aria-label="nasa satellite fires over the ~150 km ring around delhi — bigger dot means more heat, ringed fires sit inside the upwind smoke belt"></canvas>
+      <div class="sub" id="firemap-sub" style="margin-top:8px">connecting…</div></div>
+  </div>
+
+  <h2>04 · district by district <em>each area boundary filled by its live air level right now — darker means worse; click one for its full card</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="dtsel"></div>
     <div class="dmwrap"><canvas id="distmap" role="img"
@@ -560,7 +626,7 @@
     <div class="sub" id="distmap-sub" style="margin-top:8px">connecting…</div>
   </div>
 
-  <h2>07 · the live air map <em>the actual map the route engine reads — every coloured cell is a real filled-in PM2.5 value; hover any point for its reading, drag the bar for the next 12 hours</em></h2>
+  <h2>05 · the live air map <em>the actual map the route engine reads — every coloured cell is a real filled-in PM2.5 value; hover any point for its reading, drag the bar for the next 12 hours</em></h2>
   <div class="panel" style="padding:14px">
     <div class="fmsel" id="fmsel"></div>
     <div class="fmscrub" id="fmscrub">
@@ -573,8 +639,13 @@
     <div class="meth" id="meth" hidden></div>
   </div>
 
-  <h2>08 · what riders share <em>what all the donated trips add up to — anonymized city-level totals only; a tile stays empty until enough people share that no one can be picked out</em></h2>
-  <div class="cols">
+  <h2>06 · what riders share <em>streets that ≥3 different phones crossed + what all the donated trips add up to — anonymized totals only; nothing shown can collapse to one person</em></h2>
+  <div class="grid grid--fit" id="statsr"></div>
+  <div class="panel"><div class="scrollx"><table>
+    <thead><tr><th></th><th>street cell</th><th>near</th><th class="num">trips</th><th class="num">phones</th><th class="num" title="the mean smoke each crossing breathed">smoke inhaled</th><th class="num" title="co₂ emitted per 100 m of street">co₂/100m</th><th class="num" title="the air over this street right now">air now</th></tr></thead>
+    <tbody id="corridors"></tbody></table></div>
+    <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">each row = one street cell that ≥3 different phones crossed in 72h — shared trips, anonymized so no single person can be picked out · smoke inhaled = the mean PM2.5 each crossing breathed · air now = what the air reads over that street right now</div></div>
+  <div class="cols" style="margin-top:10px">
     <div class="panel">
       <dl class="kv" id="donations"></dl>
       <div class="feedlist" id="feedlist"></div>
@@ -585,7 +656,7 @@
     <div class="gtiles" id="sharedpic"></div>
   </div>
 
-  <h2>09 · the archive <em>the same air map you saw live, saved every hour into permanent storage — delhi's air is a recorded history now, not just a forecast</em></h2>
+  <h2>07 · the archive <em>the same air map you saw live, saved every hour into permanent storage — delhi's air is a recorded history now, not just a forecast</em></h2>
   <div class="gtiles" id="archive"></div>
 
   <footer>
@@ -615,6 +686,13 @@ function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;
   return `rgba(${p0.map((v,j)=>Math.round(v+(p1[j]-v)*f))},${a})`}
 const doseT=u=>Math.min(1,(u||0)/320);   /* display ramp saturates ~320 µg inhaled per trip */
 const doseInk=u=>{const t=doseT(u);return t<0.08?'var(--ink3)':t<0.4?'var(--bronze)':t<0.75?'var(--brick)':'var(--wine)'};
+/* register washes are solid blends toward white, never alpha — the hero
+   band chip wears the same math (wash .82, ink pulled ~55% toward ink) */
+const _hx=h=>{const n=parseInt(String(h).replace('#',''),16);
+  return [(n>>16)&255,(n>>8)&255,n&255]};
+const mixHex=(a,b,t)=>{const A=_hx(a),B=_hx(b);
+  return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`};
+const bandWash=c=>mixHex(c,'#FFFFFF',.82),bandInk=c=>mixHex(c,'#14181F',.55);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const emptyMsg=(t)=>`<div class="empty-state"><b>nothing to show yet</b>${t}</div>`;
 /* honest freshness: tri-state — 'stale' when past the field alarm rule,
@@ -819,12 +897,15 @@ async function tick(){
   G_STATUS=S;   /* methodology cards read live counts from the status feed */
   const f=S.field||{};
   const sv=f.serving||'none';
+  const svBadge=sv==='live'?'<span class="badge live">live</span>'
+    :sv==='snapshot'?'<span class="badge">snapshot</span>'
+    :'<span class="badge crit">no field</span>';
   if(S.field){
+    /* the hero + vitals rail carry the counts — the stamp stays the
+       honest ticker: uptime, the 'as of' read, and the gate notice */
     $('stamp').innerHTML=
       (S.uptime_s!=null?`engine up <b>${ago(S.uptime_s)}</b> · `:'')+
-      `map <b>${sv==='live'?'live':esc(sv)}</b> · last rebuilt <b>${ago(f.age_s)}</b> ago · `+
-      `<b>${f.station_readings??'—'}</b> monitors reporting · `+
-      `<b>${fmt(f.samples)}</b> map points computed (${esc(f.source||'—')})`+
+      `updated <b>${timeIST(LAST_OK)}</b>`+
       (gated?` · <span class="err">guest view</span> — operator sign-in unlocks the internals; everything below is live public truth`:'');
   }else{
     /* the one honest line for the token need — the pill above the
@@ -842,9 +923,24 @@ async function tick(){
   // headline error card: held-out LOSO when it has folds; otherwise the
   // archive replay mae is real evidence and clearly labelled as such —
   // an empty card here would undersell data the week block already shows.
+  /* public fallbacks so a guest never reads 'locked' where a public feed
+     already tells the truth: /v2/city carries the live median, /aqi the
+     live calibration check — labelled for what they actually are */
+  const cityStats=CY.pm25_stats||{},calPub=A.calibration||{};
+  const medV=daily.median_pm25!=null?daily.median_pm25
+    :(cityStats.median!=null?cityStats.median:null);
+  const medL=daily.median_pm25!=null
+    ?`delhi's air · full-day middle reading${daily.date?' · '+daily.date:''}`
+    :`delhi's air · middle cell reading · live now`;
+  const medW=daily.median_pm25!=null
+    ?'the middle reading across every live cell for the whole recorded day — half of delhi breathed worse than this'
+    :'the middle reading across the sampled cells right now — half of delhi breathes worse than this';
   const maeV=loso.mae_ugm3!=null?loso.mae_ugm3
-    :(archR.status==='ok'&&archR.mae_ugm3!=null?archR.mae_ugm3:null);
-  const maeL=loso.mae_ugm3!=null?'hidden-monitor test':'replay of recorded hours';
+    :(archR.status==='ok'&&archR.mae_ugm3!=null?archR.mae_ugm3
+    :(calPub.mae_ug!=null?calPub.mae_ug:null));
+  const maeL=loso.mae_ugm3!=null?'hidden-monitor test'
+    :(archR.status==='ok'&&archR.mae_ugm3!=null?'replay of recorded hours'
+    :`live check · ${calPub.n_stations!=null?calPub.n_stations+' monitors':'public feed'}`);
   /* every card wears a verdict word — 'good'/'live'/'quiet'/'watching'/
      'down' for ops health, the real cpcb band word for air stats.
      muted ramp only: good is the colourless one. */
@@ -856,7 +952,10 @@ async function tick(){
   const bandV=pm=>{let i=0;while(i<PM25BREAKS.length&&pm>PM25BREAKS[i])i++;
     return [BWORDS[i],MUTEDB[i]]};
   const ageTxt=f.age_s!=null?ago(f.age_s):null;
-  const cards=[
+  /* the card grammar now splits by what it proves — air vitals sit under
+     the hero (public feeds, always live), rider totals live inside 'what
+     riders share' where an honest-empty reads as 'nothing shared yet' */
+  const cardsA=[
     [f.age_s!=null?`${ageTxt}`:null,
      `the air map · how fresh · serving ${esc(sv)}`,'',f.age_s!=null,
      'how long since the air map was rebuilt from real readings — the fresher, the more every route trusts it',
@@ -865,6 +964,14 @@ async function tick(){
      `map detail · points fitted to ${fmt(f.station_readings)} monitors`,'',f.samples!=null,
      'how many map-points the air surface has — the engine reads air at ~500m granularity, not one city average',
      (f.samples||0)>0?['good',VC.good]:['down',VC.down]],
+    [medV!=null?`${fmt1(medV)} <small>µg/m³</small>`:null,
+     medL,'',medV!=null,medW,
+     medV!=null?bandV(medV):null],
+    [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
+     `how wrong the map is · ${maeL}${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null,
+     'the honesty score: how far the filled-in map misses a real monitor it was never shown — lower is truer',
+     maeV!=null?(maeV<=30?['good',VC.good]:maeV<=60?['watching',VC.watching]:['down',VC.down]):null]];
+  const cardsR=[
     [t.trips?fmt(t.trips):null,'trips people shared · all time','',!!t.trips,
      'real journeys users chose to share — anonymized totals only, never a person',
      t.trips?['live',VC.live]:['quiet',VC.quiet]],
@@ -874,10 +981,6 @@ async function tick(){
     [t.switched?fmt(t.switched):null,'cleaner choices made','accent',t.switched>0,
      'trips where someone picked the lower-smoke option the app showed',
      t.switched?['live',VC.live]:['quiet',VC.quiet]],
-    [daily.median_pm25!=null?`${fmt1(daily.median_pm25)} <small>µg/m³</small>`:null,
-     `delhi's air right now · middle reading${daily.date?' · '+daily.date:''}`,'',daily.median_pm25!=null,
-     'the middle reading across every live cell — half of delhi breathes worse than this right now',
-     daily.median_pm25!=null?bandV(daily.median_pm25):null],
     [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
      `smoke inhaled · all shared trips · ~${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg each</span>`,'accent',t.dose_ug>0,
      'total PM2.5 mass actually inhaled across every shared trip — the number nobody else measures',
@@ -885,25 +988,71 @@ async function tick(){
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
      `co₂ from shared rides · mid estimate`,'accent',t.co2_kg_mid>0,
      'what the shared rides emitted — midpoint between the low and high emission factors',
-     t.co2_kg_mid>0?['counted',VC.good]:['quiet',VC.quiet]],
-    [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
-     `how wrong the map is · ${maeL}${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null,
-     'the honesty score: how far the filled-in map misses a real monitor it was never shown — lower is truer',
-     maeV!=null?(maeV<=30?['good',VC.good]:maeV<=60?['watching',VC.watching]:['down',VC.down]):null]];
-  $('stats').innerHTML=cards.map(([v,l,cl,ok,what,verd])=>
+     t.co2_kg_mid>0?['counted',VC.good]:['quiet',VC.quiet]]];
+  const cardHtml=([v,l,cl,ok,what,verd])=>
     `<div class="card"><div class="kchip${ok&&cl?' '+cl:''}">${l}${verd?`<span class="vword" style="--vc:${verd[1]}">${verd[0]}</span>`:''}</div>`+
-    `<div class="num ${ok?cl||'':'na'}">${ok?v:'nothing to show yet'}</div>`+
+    `<div class="num ${ok?cl||'':'na'}">${ok?v:(gated?'locked — sign in':'nothing to show yet')}</div>`+
     (what?`<div class="cap">${what}</div>`:'')+
-    `</div>`).join('');
+    `</div>`;
+  $('stats').innerHTML=cardsA.map(cardHtml).join('');
+  $('statsr').innerHTML=cardsR.map(cardHtml).join('');
+
+  /* --- the hero — 'is it alive' in one read. the numeral is the city's
+     own field mean (/v2/city pm25_stats.mean — the same number the boot
+     strip resolves to); the band word is the only colour allowed; the
+     vitals rail is the proof the system is actually running. every row
+     traces a served field — nothing here is computed on-page except the
+     wash math on the band chip --- */
+  try{
+    const ps=CY.pm25_stats||{},typ=CY.typical||{},fld=CY.field||{},
+          grp=CY.grap||{},hrt=H.routing||{},fw=CY.wind||f.wind||{},
+          lv=ps.mean!=null;
+    $('hero-num').textContent=lv?fmt1(ps.mean):'—';
+    $('hero-num').className='hero-num'+(lv?'':' na');
+    const bd=$('hero-band');
+    if(lv){const [w,c]=bandV(ps.mean);
+      bd.hidden=false;bd.textContent=w;
+      bd.style.background=bandWash(c);bd.style.color=bandInk(c);
+      bd.style.border='1px solid '+mixHex(c,'#FFFFFF',.6);
+    }else bd.hidden=true;
+    const lvEl=$('hero-lv');
+    lvEl.innerHTML=lv?'<i></i>live':'— offline';
+    lvEl.style.color=lv?'':'var(--ink4)';
+    $('hero-line').innerHTML=lv
+      ?`the mean across <b>${fmt(ps.n)} sampled cells</b> — median ${fmt1(ps.median)} · worst ${fmt1(ps.max)} µg/m³`+
+       (ps.above_who24h_15!=null
+         ?` — <b>${ps.above_who24h_15>=99.5?'every cell':ps.above_who24h_15+'%'}</b> above the WHO 24-hour guideline`:'')+
+       (grp.aqi!=null?` · indian aqi ${Math.round(grp.aqi)}`:'')
+      :'the city feed is unreachable — this page retries every 30 seconds and never fills a number in.';
+    const noteBits=[];
+    if(typ.vs_now_pct!=null&&typ.median!=null)
+      noteBits.push(`${Math.abs(Math.round(typ.vs_now_pct))}% ${typ.vs_now_pct<0?'below':'above'} a typical ${['','jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][typ.month]||'this-month'} day (≈${fmt1(typ.median)} µg/m³)`);
+    if(grp.equivalent_stage!=null)
+      noteBits.push(grp.equivalent_stage
+        ?`maps to GRAP stage ${['','I','II','III','IV'][grp.equivalent_stage]||grp.equivalent_stage} — computed here, caqm declares the official one`
+        :`below emergency-rules stage I — computed here, caqm declares the official one`);
+    if(fw.speed_kmh!=null)
+      noteBits.push(`wind ${fmt1(fw.speed_kmh)} km/h from ${Math.round(fw.from_deg??0)}°`);
+    $('hero-note').textContent=noteBits.join(' · ');
+    const ttl=(CY.field&&CY.field.refresh_ttl_s)||null;
+    const frN=fireSt.fires!=null?fireSt.fires:null;
+    $('hero-vitals').innerHTML=[
+      ['the map is',S.field?svBadge:(AFLD.samples!=null?'<span class="badge live">live</span>':'<span class="badge">unknown</span>')],
+      ['last rebuilt',f.age_s!=null?ago(f.age_s)+' ago'+(ttl?` · every ~${Math.round(ttl/60)}m`:''):'—'],
+      ['instruments',f.station_readings!=null?`${fmt(f.station_readings)} live · ${esc(f.stations_src||'govt feeds')}`:'—'],
+      ['map points',f.samples!=null?fmt(f.samples):'—'],
+      ['streets priced',(S.routing&&S.routing.edges_priced!=null?fmt(S.routing.edges_priced)
+        :hrt.edges_priced!=null?fmt(hrt.edges_priced):'—')],
+      ['fires',frN!=null?`${fmt(frN)} spotted · ${fmt(fireSt.belt_fires||0)} in the belt`:'—'],
+      ['next rebuild',ttl!=null&&H.field_refresh_in_s!=null?`in ${ago(H.field_refresh_in_s)}`:'—'],
+    ].map(([k,v])=>`<div class="vr"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  }catch(e){/* the hero degrades to its em-dash state — never a fake */}
 
   /* --- source health: what is serving, and how fresh it is --- */
   const p=S.provenance||{};
   const wind=f.wind||{};
   const cov=f.coverage||null;
   const disk=S.disk||{};
-  const svBadge=sv==='live'?'<span class="badge live">live</span>'
-    :sv==='snapshot'?'<span class="badge">snapshot</span>'
-    :'<span class="badge crit">no field</span>';
   $('field').innerHTML=S.field?[
     ['the map is',svBadge,true],
     ['built from',esc(f.source||'—'),true],
