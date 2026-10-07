@@ -43,7 +43,7 @@ import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen, type SharingChoice } from "./src/screens/OnboardingScreen";
 import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 import { loadWelcomeSeen, markWelcomeSeen } from "./src/store/welcome";
-import { HomeScreen, DayPeek, useDayData } from "./src/screens/HomeScreen";
+import { HomeScreen, DayPeek, useDayData, type AmbientMeta } from "./src/screens/HomeScreen";
 import { recordSample, setCheckin } from "./src/store/daylog";
 import { loadConsent, saveConsent } from "./src/store/consent";
 import { contributorId } from "./src/community";
@@ -340,6 +340,12 @@ function AppInner() {
      user's cell — the "how accurate at my home" answer, surfaced once
      in settings' numbers explainer (null when the field is model-only) */
   const [nearestKm, setNearestKm] = useState<number | null>(null);
+  /* the ambient read's provenance — where it was read (the user's own
+     GPS or the Delhi-centre fallback), how far the nearest real
+     instrument sat, its AQI equivalent, and whether the point is past
+     the field's edge. The home hero's honesty lines render from this
+     (home-truth: a number you can't verify reads as a wrong number). */
+  const [ambientMeta, setAmbientMeta] = useState<AmbientMeta | null>(null);
   const [introSeen, setIntroSeen] = useHeldState<boolean | null>(null);
   /* welcome_seen_v1 — the first-breath cinematic; null until the flag
      reads so a returning user never flashes the overlay for a frame */
@@ -435,6 +441,17 @@ function AppInner() {
           const nk = typeof j?.nearest_sample_km === "number" && isFinite(j.nearest_sample_km)
             ? j.nearest_sample_km : null;
           setNearestKm((prev) => (prev === nk ? prev : nk));
+          const ua = typeof j?.us_aqi === "number" && isFinite(j.us_aqi)
+            ? j.us_aqi : null;
+          setAmbientMeta((prev) => {
+            const nx: AmbientMeta = {
+              km: nk, atGps: pos != null, usAqi: ua,
+              beyondEdge: j?.beyond_field_edge === true,
+            };
+            return prev != null && prev.km === nx.km && prev.atGps === nx.atGps
+              && prev.usAqi === nx.usAqi && prev.beyondEdge === nx.beyondEdge
+              ? prev : nx;
+          });
           /* same value → no re-render — the 60 s poll usually repeats
              the same ambient sample until the field ticks */
           setAmbientUg((prev) => (prev === amb ? prev : amb));
@@ -966,6 +983,7 @@ function AppInner() {
       <HomeScreen
         visible={homeOpen && phase === "idle" && !mapPickArmed}
         data={dayData} lang={lang} settings={settings} ambientUg={ambientUg}
+        ambientMeta={ambientMeta} fieldAgeS={mapField?.age_s} fieldStale={mapField?.stale}
         onMenu={openSidebar}
         onGo={openSearch}
         onMap={onHomeMap}

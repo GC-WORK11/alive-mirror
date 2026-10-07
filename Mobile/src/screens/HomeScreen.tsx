@@ -70,7 +70,6 @@ import {
 import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
 import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon, type Glyph } from "../icons";
-import { freshnessTone } from "../components/FreshnessChip";
 import { holdMapDraw } from "../map/drawHold";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tap, tick } from "../haptics";
@@ -106,6 +105,13 @@ import { CheckinSheet } from "../components/shell/CheckinSheet";
 import { BandScale } from "../components/BandScale";
 import { HourArc } from "../components/shell/HourArc";
 import { WeekStrip, type WeekDay } from "../components/shell/WeekStrip";
+import { WeekSheet } from "../components/shell/WeekSheet";
+import {
+  compactHours,
+  dayLabel,
+  fieldAgeLine,
+  outlookCaption,
+} from "../components/shell/daywords";
 import { bump, jank } from "../perf";
 
 /* ---------------- the hook: one assemble of the day's data --------------- */
@@ -348,23 +354,6 @@ function SparseAirArcInner({ series, color }: { series: (number | null)[]; color
 
 const SparseAirArc = React.memo(SparseAirArcInner);
 
-/** the 'as of' line the forecast cards share: the served field's own
- *  age in the freshness chip's tone language — stale says stale, fresh
- *  states the age, unknown says nothing (a card must not imply
- *  freshness it can't show). */
-function fieldAgeLine(
-  ageS: number | null | undefined,
-  stale: boolean | null | undefined,
-  lang: Lang,
-): string | null {
-  const tone = freshnessTone(ageS, stale);
-  if (tone === "unknown") return null;
-  const n = Math.max(0, Math.floor((ageS ?? 0) / 60));
-  return tone === "stale"
-    ? t("dayMorningStale", lang, { n })
-    : t("howWe_fieldAge", lang, { n });
-}
-
 /* The CPCB band words live in strings.ts (band_*); index = the band the
  *  client already computes on a mid (theme.bandIdx — same CPCB breaks
  *  the server's districts.cpcb_band applies). */
@@ -554,72 +543,6 @@ const MoveCard = React.memo(MoveCardInner);
 const nowHour = () => new Date().getHours();
 
 /* ---------------- the days ahead ---------------- */
-
-/** Served day label ("today" | "tomorrow" | weekday) → localized key.
- *  Unknown labels pass through — a name is honest even untranslated. */
-const DAY_LABEL_KEYS: Record<string, StringKey> = {
-  today: "dayLbl_today",
-  tomorrow: "dayLbl_tomorrow",
-  monday: "dayLbl_monday",
-  tuesday: "dayLbl_tuesday",
-  wednesday: "dayLbl_wednesday",
-  thursday: "dayLbl_thursday",
-  friday: "dayLbl_friday",
-  saturday: "dayLbl_saturday",
-  sunday: "dayLbl_sunday",
-};
-const dayLabel = (label: string, lang: Lang): string => {
-  const k = DAY_LABEL_KEYS[label.trim().toLowerCase()];
-  return k ? t(k, lang) : label;
-};
-
-/** Compact the served heavy-hour labels ("21:30" hourly starts) into
- *  ranges: ["21:30","22:30","23:30"] → "21:30–00:30"; singles stay raw.
- *  A day's hours never wrap midnight, so h+1 always means the next slot. */
-function compactHours(labels: string[]): string {
-  const hrs = labels
-    .map((l) => (/^\d{1,2}:\d{2}/.test(l) ? { h: parseInt(l, 10), raw: l } : null))
-    .filter((x): x is { h: number; raw: string } => x !== null);
-  if (!hrs.length) return "";
-  const out: string[] = [];
-  let i = 0;
-  while (i < hrs.length) {
-    let j = i;
-    while (j + 1 < hrs.length && hrs[j + 1].h === hrs[j].h + 1) j++;
-    if (j > i) {
-      const endH = `${(hrs[j].h + 1) % 24}`.padStart(2, "0");
-      out.push(`${hrs[i].raw}–${endH}:${hrs[j].raw.slice(3)}`);
-    } else {
-      out.push(hrs[i].raw);
-    }
-    i = j + 1;
-  }
-  return out.join(", ");
-}
-
-/** The card's caption. English gets the wire line verbatim — it is already
- *  honest about partial days and flat weeks. Hindi rebuilds the same
- *  sentence from the served fields so wire English doesn't leak; anything
- *  unexpected falls back to the served text untouched. */
-function outlookCaption(o: Outlook, lang: Lang): string {
-  if (!o.verdict) return "";
-  if (lang === "en") return o.verdict;
-  if (o.best_day) {
-    const b = o.best_day;
-    const w = t(b.pm25_mid > CLEAN_UG ? "dayOutlookLeastBad" : "dayOutlookCleanest", lang);
-    const s = t("dayOutlookVerdict", lang, {
-      d: dayLabel(b.label, lang), w,
-      c: Math.round(b.pm25_mid),
-      g: Math.round(b.pm25_mid - b.delta_vs_mean),
-    });
-    return b.n_hours < 12 ? s + t("dayOutlookVerdictPartial", lang, { n: b.n_hours }) : s;
-  }
-  if (o.flat && o.days.length) {
-    const mean = Math.round(o.days.reduce((s, d) => s + d.pm25_mid, 0) / o.days.length);
-    return t("dayOutlookFlatVerdict", lang, { c: mean, n: o.days.length });
-  }
-  return o.verdict;
-}
 
 function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: Lang }) {
   bump("home.DaysAhead");
@@ -873,7 +796,7 @@ function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
         })}
       </View>
       <Text {...DYNAMIC_TYPE} style={[ss.finePrint, { fontFamily: fam(lang, "reg") }]}>
-        {t("budgetProfileQ", lang)}
+        {t("budgetProfileQ", lang, { b: budget })}
       </Text>
     </View>
   );
@@ -1012,8 +935,31 @@ const HomeHeader = React.memo(HomeHeaderInner);
  *  outside reference a stranger already trusts. */
 const WHO_DAILY_UG = 15;
 
-function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
+/** What the app's /aqi poll knows about the ambient number beyond its
+ *  value — the hero's honesty lines are honest only with it. */
+export type AmbientMeta = {
+  /** km to the nearest real instrument behind the field (null = the
+      field was model-only this read) */
+  km: number | null;
+  /** true when the read queried the user's own GPS fix — false means
+      the Delhi-centre fallback answered (location off/no fix yet) */
+  atGps: boolean;
+  /** the US-AQI equivalent of the same air — the number other apps
+      quote, served so the figure can prove itself */
+  usAqi: number | null;
+  /** the point sits past the monitored field's edge — the number is
+      the nearest edge's evidence, not a local read */
+  beyondEdge: boolean;
+};
+
+function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fieldStale, lang }: {
   data: DayData | null; budgetUg: number; ambientUg: number | null; lang: Lang;
+  /** provenance of the ambient read — the hero's "where from" lines */
+  ambientMeta?: AmbientMeta | null;
+  /** the live field's own age/stale verdict (the /aqi block) — the air
+      number's 'as of'; null when no read has landed yet */
+  fieldAgeS?: number | null;
+  fieldStale?: boolean | null;
 }) {
   bump("home.HeroBlock");
   if (!data) {
@@ -1029,8 +975,18 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   const rec = data.rec;
   const ug = rec.totalUg;
   const tier = doseTierIdx(ug, budgetUg);
+  /* the number in the eyebrow slot is EITHER the live /aqi point read at
+     the device's own position OR the forecast cell's near-term mid —
+     never one labelled as the other (home-truth: the owner caught the
+     unlabeled forecast fallback reading as "the air around you") */
   const airNow = ambientUg ?? data.curve?.series.find((v) => v != null) ?? null;
+  const airSrc = ambientUg != null ? "live"
+    : data.curve?.series.some((v) => v != null) ? "forecast" : null;
   const airNowIdx = bandIdx(airNow);
+  /* the ambient read's own 'as of' — the /aqi field block's age, not
+     the day-curve's cached stamp */
+  const airAgeLine = airSrc === "live"
+    ? fieldAgeLine(fieldAgeS, fieldStale, lang) : null;
   const h = Math.floor(rec.coveredMin / 60), m = rec.coveredMin % 60;
   const maxW = Math.max(...data.week.map((w) => w.ug), 1);
   const weekCounted = data.week.filter((w) => w.ug > 0).length >= 2;
@@ -1060,7 +1016,10 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
   return (
     <View style={ss.hero}>
       <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "med") }]}>
-        {t(counted ? "homeBreathed" : "homeAirNowLead", lang)}
+        {counted ? t("homeBreathed", lang)
+          : airSrc === "forecast" ? t("homeAirForecast", lang)
+          : ambientMeta?.atGps === false ? t("homeAirNowCity", lang)
+          : t("homeAirNowLead", lang)}
       </Text>
       {counted ? (
         <View style={ss.heroNumRow}>
@@ -1096,6 +1055,17 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
           {felt}
         </Text>
       )}
+      {/* what the number IS — plain words, so the figure can't be read
+          as "AQI or mixed index" (owner's own complaint); the AQI
+          equivalent rides along when the server serves one */}
+      {!counted && airNow != null && (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroRef, NUM, { fontFamily: fam(lang, "reg") }]}>
+          {airSrc === "forecast" ? t("homeAirWhatFc", lang)
+            : ambientMeta?.usAqi != null
+              ? t("homeAirWhatAqi", lang, { a: Math.round(ambientMeta.usAqi) })
+              : t("homeAirWhat", lang)}
+        </Text>
+      )}
       {ref != null && (
         <Text {...DYNAMIC_TYPE} style={[ss.heroRef, NUM, { fontFamily: fam(lang, "reg") }]}>
           {ref}{ref2 ? `  ·  ${ref2}` : ""}
@@ -1112,7 +1082,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
       {!counted && !!data.curve?.series.some((v) => v != null) && (
         <SparseAirArc series={data.curve.series} color={ink} />
       )}
-      {counted ? (
+      {counted && (
         <View style={ss.heroStatRow}>
           <Text {...DYNAMIC_TYPE} style={[ss.heroStat, NUM, { fontFamily: fam(lang, "reg") }]}>
             {h > 0 ? t("dayCovered", lang, { h, m }) : t("dayCoveredMin", lang, { m })}
@@ -1126,7 +1096,8 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
             </View>
           )}
         </View>
-      ) : (
+      )}
+      {!counted && (
         /* progress to the first counted day — the same gate the personal
            number answers to, filling as the phone logs real reads */
         <View style={ss.sparseProgRow}>
@@ -1139,6 +1110,31 @@ function HeroBlockInner({ data, budgetUg, ambientUg, lang }: {
             {t("daySparseCount", lang)}
           </Text>
         </View>
+      )}
+      {/* the ambient number's provenance — where it was read + how fresh
+          (a number you can't verify reads as a wrong number) */}
+      {!counted && airSrc === "live" && ambientMeta != null && (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroProv, { fontFamily: fam(lang, "reg") }]}>
+          {ambientMeta.atGps === false
+            ? t("homeAirCityHint", lang)
+            : ambientMeta.beyondEdge
+              ? t("homeAirEdge", lang)
+              : ambientMeta.km != null
+                ? t("homeAirMeta", lang, { k: ambientMeta.km })
+                : null}
+        </Text>
+      )}
+      {!counted && airAgeLine != null && (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroProv, { fontFamily: fam(lang, "reg") }]}>
+          {airAgeLine}
+        </Text>
+      )}
+      {/* the dose number's own gloss — µg is a weight your lungs took
+          in, counted only where real reads landed */}
+      {counted && (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroProv, { fontFamily: fam(lang, "reg") }]}>
+          {t("homeDoseWhat", lang)}
+        </Text>
       )}
       {weekCounted && (
         <View style={ss.heroWeekRow}>
@@ -1328,9 +1324,12 @@ function MoodCanvasInner({ color }: { color: string }) {
 
 const MoodCanvas = React.memo(MoodCanvasInner);
 
-function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
+function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAgeS, fieldStale, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
   data: DayData | null; lang: Lang; settings: ShellSettings;
   ambientUg: number | null;
+  ambientMeta?: AmbientMeta | null;
+  fieldAgeS?: number | null;
+  fieldStale?: boolean | null;
   onGo: () => void; onMenu: () => void;
   onMap: () => void; onCity: () => void; onTrips: () => void;
   onProfile: (p: ShellSettings["profile"]) => void;
@@ -1338,6 +1337,9 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
 }) {
   bump("home.HomeSheet");
   const budget = PROFILE_BUDGET_UG[settings.profile];
+  /* the lungs' calendar sheet — the week strip's tap target (the picked
+     day key; null = closed) */
+  const [weekDay, setWeekDay] = useState<string | null>(null);
   /* the air is the canvas (docs/20): the whole screen breathes today's
      outside band as a whisper at the top, settling to paper — the
      environment itself is the data, cards float in paper on it */
@@ -1363,7 +1365,8 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
             arrive staggered below. The ONE primary CTA stays out of
             this scroll — it is the fixed header row above. */}
         <FadeIn delay={0}>
-          <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg} lang={lang} />
+          <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg}
+            ambientMeta={ambientMeta} fieldAgeS={fieldAgeS} fieldStale={fieldStale} lang={lang} />
         </FadeIn>
         <FadeIn delay={70}>
           <IncidentsCard lang={lang} />
@@ -1381,7 +1384,7 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
         )}
         {data && (
           <FadeIn delay={190}>
-            <WeekStrip week={data.week} budgetUg={budget} lang={lang} />
+            <WeekStrip week={data.week} budgetUg={budget} lang={lang} onOpen={setWeekDay} />
           </FadeIn>
         )}
         <FadeIn delay={210}>
@@ -1396,6 +1399,12 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
             lang={lang} onProfile={onProfile} />
         </FadeIn>
       </ScrollView>
+      {/* the lungs' calendar — mounted over the scroll so a strip tap
+          rises as its own sheet */}
+      {weekDay != null && data != null && (
+        <WeekSheet day={weekDay} week={data.week} outlook={data.outlook}
+          budgetUg={budget} lang={lang} onClose={() => setWeekDay(null)} />
+      )}
     </View>
   );
 }
@@ -1406,12 +1415,15 @@ const HomeSheet = React.memo(HomeSheetInner);
  *  over the always-live map; `visible` false slides it back down and
  *  unmounts after the exit timing (the same JS-driver pattern as the
  *  old day sheet — RN Modal's native present/dismiss segfaults this stack). */
-function HomeScreenInner({ visible, data, lang, settings, ambientUg, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
+function HomeScreenInner({ visible, data, lang, settings, ambientUg, ambientMeta, fieldAgeS, fieldStale, onGo, onMenu, onMap, onCity, onTrips, onProfile, onCheckin }: {
   visible: boolean;
   data: DayData | null;
   lang: Lang;
   settings: ShellSettings;
   ambientUg: number | null;
+  ambientMeta?: AmbientMeta | null;
+  fieldAgeS?: number | null;
+  fieldStale?: boolean | null;
   onGo: () => void;
   onMenu: () => void;
   onMap: () => void;
@@ -1451,6 +1463,7 @@ function HomeScreenInner({ visible, data, lang, settings, ambientUg, onGo, onMen
       <StatusBar style="dark" />
       <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
         <HomeSheet data={data} lang={lang} settings={settings} ambientUg={ambientUg}
+          ambientMeta={ambientMeta} fieldAgeS={fieldAgeS} fieldStale={fieldStale}
           onGo={onGo} onMenu={onMenu} onMap={onMap} onCity={onCity} onTrips={onTrips}
           onProfile={onProfile} onCheckin={onCheckin} />
       </Animated.View>
@@ -1496,6 +1509,9 @@ const ss = StyleSheet.create({
   heroUg: { color: V2T.text2, fontSize: V2Type.body, paddingBottom: 22 },
   heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, marginTop: -6 },
   heroRef: { color: V2T.text2, fontSize: V2Type.secondary, marginTop: 4, lineHeight: 21 },
+  /* the provenance/footnote line under a hero number — whispered, never
+     competing with the felt word */
+  heroProv: { color: V2T.text4, fontSize: V2Type.label, marginTop: 6, lineHeight: 18 },
   heroScale: { marginTop: 10, alignSelf: "stretch" as const, maxWidth: 210 },
   heroThin: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
   sparseArc: { marginTop: 18, marginHorizontal: -6 },

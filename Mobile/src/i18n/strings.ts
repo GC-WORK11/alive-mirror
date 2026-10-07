@@ -593,10 +593,13 @@ const en = {
   // dosimeter — the day stack (alive-depth L1–L4). Copy rule: never
   // "don't go out" — always the cheaper-for-lungs version of the same plan.
   dayTitle: "your day",
-  weekTitle: "your week",
-  /* the week strip's tap-a-day detail when the tapped day was never
-     counted — the honest empty, not a zero */
-  weekDayThin: "not counted — no hours logged that day",
+  /* the weekly calendar's name — the lungs, not a ledger (owner's
+     wording: "your lungs' calendar") */
+  weekTitle: "your lungs' calendar",
+  /* the week detail when the picked day's coverage is too thin to tell
+     its story — a small count may still sit in the cell, so the line
+     says thin, not zero */
+  weekDayThin: "a thin read — too few hours logged to tell this day's story",
   dayNow: "now",
   /* the sparse hero — ambient truth labelled, never a fake personal
      number (docs/lanes/hero-sparse): the field at the device's cell is
@@ -684,10 +687,12 @@ const en = {
   lensFacetBreath: "breathing",
   lensFacetEyes: "eye-burn",
   lensFacetEnergy: "low-energy",
-  budgetTitle: "your daily budget",
-  budgetWithin: "{r} µg left of {b} today",
-  budgetOver: "{o} µg over your {p} budget today",
-  budgetProfileQ: "a ceiling you set — not a medical line",
+  /* the dose ceiling in street words — "budget" read as money jargon
+     (owner's complaint); the limit framing survives, the word doesn't */
+  budgetTitle: "your daily limit",
+  budgetWithin: "{r} µg left of the {b} µg you set for today",
+  budgetOver: "{o} µg over your {p} limit today",
+  budgetProfileQ: "{b} µg is the most fine dust you want to breathe in a day — a line you set, not a medical rule",
   profileGeneral: "general",
   profileSensitive: "sensitive",
   profileChild: "child",
@@ -721,7 +726,7 @@ const en = {
   homeAirNowLead: "the air around you",
   refWhoOver: "{x}× the WHO daily limit",
   refWhoUnder: "within the WHO daily limit",
-  refBudget: "{p}% of your daily budget",
+  refBudget: "{p}% of your daily limit",
   refYesterdayMore: "{n} µg more than yesterday",
   refYesterdayLess: "{n} µg less than yesterday",
   cityName: "Delhi",
@@ -1035,6 +1040,29 @@ const en = {
   wel_neverFaked: "nothing served — never faked",
   wel_thenBreathe: "then — what you breathe",
   wel_delhiBreathes: "what delhi breathes",
+  /* home-truth: the ambient number's plain-word gloss + provenance —
+     the owner asked "what is it even showing, AQI or mixed index?"
+     and "verified with my live location it's WRONG". The number is a
+     PM2.5 point read in µg/m³; these lines say so and say where from */
+  homeAirWhat: "PM2.5 — fine dust per cubic metre of air, right now",
+  homeAirWhatFc: "expected PM2.5 per m³ of air — the forecast cell, not a live read",
+  homeAirWhatAqi: "PM2.5 dust per m³ of air · same air = AQI {a} on other apps",
+  homeAirNowCity: "the air near central Delhi",
+  homeAirForecast: "the air expected near you",
+  homeAirMeta: "read at your location · nearest live monitor ~{k} km away",
+  homeAirEdge: "closest live monitors cover Delhi's core — this is their nearest read",
+  homeAirCityHint: "location is off or hasn't locked yet — turn it on for the air where you actually are",
+  homeDoseWhat: "µg = micrograms of fine dust your lungs took in — counted only when the app was with you",
+  /* the lungs' calendar sheet */
+  weekOpen: "open your lungs' calendar",
+  weekSheetSub: "tap a day to open its story",
+  weekCountedFine: "days counted",
+  weekDayDose: "you breathed ≈{n} µg that day",
+  weekDayPct: "{p}% of the daily limit you set",
+  weekAheadTitle: "the air ahead",
+  weekAheadSub: "what the forecast says is coming — the days haven't happened yet",
+  weekAheadUnit: "µg/m³ — expected fine dust per cubic metre of air",
+  weekSheetFine: "only real readings land here — a blank day is a day the app wasn't with you, never a zero",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -1553,8 +1581,8 @@ const hi: Record<StringKey, string> = {
   a11yClearSaved: "सहेजी जगह हटाएँ",
   placeDroppedPin: "गिराई गई पिन",
   dayTitle: "आज का दिन",
-  weekTitle: "आपका हफ़्ता",
-  weekDayThin: "नहीं गिना गया — उस दिन फ़ोन ने कोई घंटा कवर नहीं किया",
+  weekTitle: "आपके फेफड़ों का कैलेंडर",
+  weekDayThin: "पतली गिनती — इस दिन की कहानी के लिए बहुत कम घंटे गिने गए",
   dayNow: "अभी",
   daySparseAir: "आज की हवा आपके यहाँ: ~{n} µg/m³",
   daySparseWait: "आज की पहली हवा रीडिंग का इंतज़ार",
@@ -1633,10 +1661,10 @@ const hi: Record<StringKey, string> = {
   lensFacetBreath: "साँस",
   lensFacetEyes: "आँखों का जलना",
   lensFacetEnergy: "कम ताक़त",
-  budgetTitle: "आपका दैनिक बजट",
-  budgetWithin: "आज {b} में से {r} µg बाक़ी",
-  budgetOver: "आज आपके {p} बजट से {o} µg ज़्यादा",
-  budgetProfileQ: "आपकी तय सीमा — कोई चिकित्सा रेखा नहीं",
+  budgetTitle: "आपकी दैनिक सीमा",
+  budgetWithin: "आज आपकी {b} µg सीमा में से {r} µg बाक़ी",
+  budgetOver: "आज आपकी {p} सीमा से {o} µg ज़्यादा",
+  budgetProfileQ: "{b} µg एक दिन में आप कितनी बारीक धूल साँस में लेना चाहते हैं — आपकी ख़ुद की लकीर, कोई डॉक्टरी नियम नहीं",
   profileGeneral: "सामान्य",
   profileSensitive: "संवेदनशील",
   profileChild: "बच्चा",
@@ -1662,7 +1690,7 @@ const hi: Record<StringKey, string> = {
   homeAirNowLead: "आपके आसपास की हवा",
   refWhoOver: "WHO की दैनिक सीमा का {x}×",
   refWhoUnder: "WHO की दैनिक सीमा के भीतर",
-  refBudget: "आपके दैनिक बजट का {p}%",
+  refBudget: "आपकी दैनिक सीमा का {p}%",
   refYesterdayMore: "कल से {n} µg ज़्यादा",
   refYesterdayLess: "कल से {n} µg कम",
   cityName: "दिल्ली",
@@ -1956,6 +1984,26 @@ const hi: Record<StringKey, string> = {
   wel_neverFaked: "कुछ नहीं दिखाया — कभी नहीं बनाया गया",
   wel_thenBreathe: "फिर — आप क्या साँस लेते हैं",
   wel_delhiBreathes: "दिल्ली क्या साँस लेती है",
+  /* home-truth: ambient number gloss + provenance */
+  homeAirWhat: "PM2.5 — हवा के एक घन मीटर में बारीक धूल, इसी वक़्त",
+  homeAirWhatFc: "अनुमानित PM2.5 प्रति m³ हवा — लाइव रीडिंग नहीं, पूर्वानुमान का सेल",
+  homeAirWhatAqi: "हवा के प्रति m³ में PM2.5 धूल · यही हवा = बाकी ऐप्स पर AQI {a}",
+  homeAirNowCity: "मध्य दिल्ली के पास की हवा",
+  homeAirForecast: "आपके पास होने वाली हवा",
+  homeAirMeta: "आपकी लोकेशन पर पढ़ा गया · नज़दीकी लाइव मॉनिटर ~{k} किमी दूर",
+  homeAirEdge: "नज़दीकी लाइव मॉनिटर दिल्ली के कोर तक ही पहुँचते हैं — यह उनका सबसे नज़दीकी पढ़ाई है",
+  homeAirCityHint: "लोकेशन बंद है या अभी लॉक नहीं हुई — जहाँ आप असल में हैं वहाँ की हवा के लिए उसे चालू करें",
+  homeDoseWhat: "µg = आपके फेफड़ों में उतरी बारीक धूल का वज़न — सिर्फ़ तब गिना जाता है जब ऐप आपके साथ था",
+  /* the lungs' calendar sheet */
+  weekOpen: "आपके फेफड़ों का कैलेंडर खोलें",
+  weekSheetSub: "किसी दिन की कहानी खोलने के लिए उसे टैप करें",
+  weekCountedFine: "दिन गिने गए",
+  weekDayDose: "उस दिन आपने ≈{n} µg साँस में लिया",
+  weekDayPct: "आपकी तय दैनिक सीमा का {p}%",
+  weekAheadTitle: "आगे की हवा",
+  weekAheadSub: "पूर्वानुमान क्या कहता है — ये दिन अभी हुए नहीं",
+  weekAheadUnit: "µg/m³ — हवा के एक घन मीटर में अनुमानित बारीक धूल",
+  weekSheetFine: "यहाँ सिर्फ़ असली रीडिंग उतरती हैं — खाली दिन मतलब ऐप आपके साथ नहीं था, कभी शून्य नहीं",
 };
 
 export type Lang = "en" | "hi";
