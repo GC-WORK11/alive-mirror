@@ -82,3 +82,15 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
     "The city, kept." hourly chart + district tiles live (Outer North Delhi 104 / Rohtak 100 /
     N West Delhi 100 / Sonipat 97), footer reads BUILD FFDDAB93.
 - CloudWatch 14:02: all 3 alarms `OK`. `/community` steady.
+
+### 2026-10-07 14:08 — SHA TRANSITION `ffddab93 → 7c68c8bc` (docs-only HEAD)
+- Sweep pass: all routes 200, `/v2/usage` 401, cause_note populated. Landing payload
+  byte-identical to ffddab93 (v7 untouched by the docs roll).
+
+### 2026-10-07 14:32 — freeze window (~20:00 IST), 11 cycles, 46 samples
+- Field refresh #11 landed on schedule 14:23 (797→22 s). `field_stale` never true all watch.
+- Stations 54, cause_note populated (parali note currently "not carrying" — wind oscillating
+  through the evening; ventilation flagged low at 467 m²/s in the note fields).
+- Latest repo state at freeze: prod `7c68c8bc`; deploy5 report pins rollback at c86074ff;
+  APK freeze re-cut in progress on another lane (docs mention it, no prod impact yet).
+- Zero stalls, zero alarms, zero broken surfaces across the whole pre-freeze window.
