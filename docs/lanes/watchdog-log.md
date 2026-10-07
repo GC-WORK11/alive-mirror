@@ -94,3 +94,30 @@ CloudWatch alarms `alive108-field-age` / `alive108-field-emitter-dead` / `alive1
 - Latest repo state at freeze: prod `7c68c8bc`; deploy5 report pins rollback at c86074ff;
   APK freeze re-cut in progress on another lane (docs mention it, no prod impact yet).
 - Zero stalls, zero alarms, zero broken surfaces across the whole pre-freeze window.
+
+## Watch closed — 2026-10-07 14:59 UTC (20:29 IST)
+
+**Window:** 10:56–14:59 UTC (~4 h) · **81 samples** @ ~3 min · **uptime 100%** (every probe HTTP 200).
+
+**Field generator (the demo-killer watch):** 13 refresh cycles observed, all on ~15 min
+cadence. Max `field_age_s` seen 928 s — never approached the ~1200 s stall line;
+`field_stale` never true. The field never froze.
+
+**Sha transitions seen: 4**
+| # | Time (UTC) | From → To | Contents | Sweep |
+|---|-----------|-----------|----------|-------|
+| 1 | 11:42 | 698cf808 → 43913dc0 | landing-perf (webp hero, fetch dedupe, /v2/city cache) | PASS incl. Chrome boot verify |
+| 2 | 12:31 | 43913dc0 → c86074ff | docs-only | PASS |
+| 3 | 13:55 | c86074ff → ffddab93 | **landing v7 + k≥3 privacy fix + offline-map fix** | PASS incl. Chrome boot verify (footer BUILD FFDDAB93) |
+| 4 | 14:08 | ffddab93 → 7c68c8bc | docs-only (prod pinned here through freeze) | PASS |
+
+**Alarms:** `alive108-field-age`, `alive108-field-emitter-dead`, `alive108-target-down`
+checked ~hourly — `OK` every check, zero transitions.
+
+**Anomalies:** none requiring action. One transient stations dip 52→46 (11:14–11:24)
+self-recovered; deploy-latency for doc-only pushes is batchy (noted for lanes using
+build_sha as a deploy ticker). cause_note stayed populated all watch; story rotated
+(carrying true → false) as wind shifted — feature working, not a defect.
+
+**Freeze:** prod stable on `7c68c8bc`; APK freeze re-cut landed repo-side only — no
+prod deploy since 14:08, freeze holds.
