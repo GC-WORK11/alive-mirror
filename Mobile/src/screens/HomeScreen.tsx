@@ -100,6 +100,8 @@ import {
   type Outlook,
 } from "../api/outlook";
 import { PROFILE_BUDGET_UG, type ShellSettings } from "../components/shell/settings";
+import { fetchCity } from "../api/city";
+import { causeNote, type CauseNoteFields } from "../store/events-core";
 import { CheckinSheet } from "../components/shell/CheckinSheet";
 import { BandScale } from "../components/BandScale";
 import { HourArc } from "../components/shell/HourArc";
@@ -1228,6 +1230,52 @@ function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
 
 const DoorRow = React.memo(DoorRowInner);
 
+/** Local pollution incidents — the measured cause_note the "Delhi
+ *  today" sheet carries under its hero (GET /v2/city's why block →
+ *  belt fires, ventilation, recorded trend; the same fields rebuild
+ *  hi without wire English). Sits above the doors so the day's
+ *  drivers land before the city view opens — the owner's ask
+ *  ("parali and all — before Delhi Today"). fetchCity is the shared
+ *  15-min last-good cache, so the card costs no extra wire. Renders
+ *  nothing until a real note arrives — no skeleton, no fake. */
+function IncidentsCardInner({ lang }: { lang: Lang }) {
+  bump("home.Incidents");
+  const [line, setLine] = useState<string | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchCity(ctrl.signal).then((d) => {
+      const w = d.why;
+      if (ctrl.signal.aborted) return;
+      /* same grammar as DelhiToday's noteLine — en keeps the wire
+         line; hi rebuilds from the measured fields, never wire
+         English */
+      setLine(!w ? ""
+        : lang === "en" ? (w.cause_note ?? "")
+        : w.cause_note_fields
+          ? causeNote(w.cause_note_fields as CauseNoteFields, lang)
+          : "");
+    }).catch(() => setLine(""));
+    return () => ctrl.abort();
+  }, [lang]);
+  if (!line) return null;
+  return (
+    <View style={ss.incidentCard}>
+      <View style={ss.incidentHead}>
+        <Icon name="flame" color={V2T.text3} size={15} />
+        <Text {...DYNAMIC_TYPE} style={[ss.incidentTitle, { fontFamily: fam(lang, "med") }]}>
+          {t("incidentsTitle", lang)}
+        </Text>
+      </View>
+      <Text {...DYNAMIC_TYPE} style={[ss.incidentLine, { fontFamily: fam(lang, "reg") }]}>
+        {line}
+        <Text style={ss.incidentTag}>{` · ${t("noteMeasured", lang)}`}</Text>
+      </Text>
+    </View>
+  );
+}
+
+const IncidentsCard = React.memo(IncidentsCardInner);
+
 /** The screen answers the number: today's band floods the top of the
  *  page and settles into paper. A band change cross-fades (900 ms,
  *  ease-in-out) instead of snapping, and the wash breathes on a slow
@@ -1316,6 +1364,9 @@ function HomeSheetInner({ data, lang, settings, ambientUg, onGo, onMenu, onMap, 
             this scroll — it is the fixed header row above. */}
         <FadeIn delay={0}>
           <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg} lang={lang} />
+        </FadeIn>
+        <FadeIn delay={70}>
+          <IncidentsCard lang={lang} />
         </FadeIn>
         <FadeIn delay={90}>
           <DoorRow lang={lang} ambientUg={ambientUg} onMap={onMap} onCity={onCity} onTrips={onTrips} />
@@ -1495,6 +1546,21 @@ const ss = StyleSheet.create({
   },
   doorListSep: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.hairline, marginLeft: 56 },
   doorListLabel: { flex: 1, fontSize: V2Type.body, color: V2T.text },
+
+  /* the incidents card — a paper card like the doors, one quiet
+     label + the measured line; no band colour — nothing here
+     encodes a band, so colour would only decorate */
+  incidentCard: {
+    ...V2Elev.card,
+    backgroundColor: V2T.surface,
+    borderRadius: 24, borderCurve: "continuous",
+    paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14,
+    marginTop: 10,
+  },
+  incidentHead: { flexDirection: "row", alignItems: "center", gap: 7 },
+  incidentTitle: { color: V2T.text3, fontSize: V2Type.label },
+  incidentLine: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
+  incidentTag: { color: V2T.text3, fontSize: V2Type.label },
 
   card: {
     ...V2Elev.card,

@@ -232,6 +232,10 @@ const en = {
   cityForecastNow: "now",
   cityStreetsTitle: "streets travellers crossed",
   cityEmptyStreets: "nothing to show yet — a street appears after 3+ travellers cross it in 3 days",
+  /* fresh-install empty state — until this phone has one real trip the
+     traveller aggregates stay hidden (they read as "where I travelled") */
+  cityNoOwnTrips: "no trips yet — go live your day, we'll count it here",
+  cityNoOwnTripsSub: "the streets and totals in this view are counted from trips other people share",
   cityHeavier: "heavier",
   cityLighter: "lighter",
   cityTrips: "{n} {tripNoun}",
@@ -710,6 +714,9 @@ const en = {
   homeLinkMap: "Air map",
   homeLinkCity: "Delhi today",
   homeLinkTrips: "Your trips",
+  /* the local-incidents card — sits above the doors on home, same
+     measured cause_note the Delhi today sheet carries under its hero */
+  incidentsTitle: "in Delhi's air right now",
   /* design-v4 hero — one number, one felt word, one reference */
   homeAirNowLead: "the air around you",
   refWhoOver: "{x}× the WHO daily limit",
@@ -1187,6 +1194,8 @@ const hi: Record<StringKey, string> = {
   cityForecastNow: "अभी",
   cityStreetsTitle: "जिन सड़कों से यात्री गुज़रे",
   cityEmptyStreets: "अभी दिखाने को कुछ नहीं — 3+ यात्रियों के 3 दिन में गुज़रने पर सड़क दिखती है",
+  cityNoOwnTrips: "अभी तक कोई यात्रा नहीं — अपना दिन जियो, हम इसे यहाँ गिनेंगे",
+  cityNoOwnTripsSub: "यहाँ की सड़कें और आँकड़े दूसरों की साझा की गई यात्राओं से गिने जाते हैं",
   cityHeavier: "ज़्यादा धुआँ",
   cityLighter: "कम धुआँ",
   cityTrips: "{n} {tripNoun}",
@@ -1649,6 +1658,7 @@ const hi: Record<StringKey, string> = {
   homeLinkMap: "हवा का नक्शा",
   homeLinkCity: "आज की दिल्ली",
   homeLinkTrips: "आपकी यात्राएँ",
+  incidentsTitle: "दिल्ली की हवा में अभी",
   homeAirNowLead: "आपके आसपास की हवा",
   refWhoOver: "WHO की दैनिक सीमा का {x}×",
   refWhoUnder: "WHO की दैनिक सीमा के भीतर",

@@ -50,6 +50,7 @@ import {
 } from "../api/city";
 import { CityMoves } from "../components/CityMoves";
 import { causeNote, type CauseNoteFields } from "../store/events-core";
+import { loadTrips } from "../store/ledger";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import { bump, jank } from "../perf";
@@ -213,6 +214,14 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
   const [data, setData] = useState<CityPayload | null>(null);
   const [moves, setMoves] = useState<CityMovesPayload | null>(null);
   const [failed, setFailed] = useState(false);
+  /* trips on THIS phone — null while the ledger read is still out.
+     The traveller aggregates below are counted from trips OTHER
+     phones shared; on a fresh install they read as the app's record
+     of your own day ("it says I travelled" — owner, Oct 7). Until
+     this ledger holds one real trip the honest thing is the empty
+     state, and while it's still being read nothing renders — the
+     aggregate must never flash for a beat and vanish. */
+  const [own, setOwn] = useState<number | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
   const [nonce, setNonce] = useState(0);
   const insets = useSafeAreaInsets();
@@ -236,6 +245,9 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
         setFailed(true);
       });
     fetchCityMoves(ctrl.signal).then(setMoves).catch(() => {});
+    loadTrips()
+      .then((ts) => { if (!ctrl.signal.aborted) setOwn(ts.length); })
+      .catch(() => { if (!ctrl.signal.aborted) setOwn(0); });
     return () => ctrl.abort();
   }, [nonce]);
 
@@ -538,6 +550,21 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
               );
             })()}
 
+            {/* the traveller aggregates — measured streets, the day's
+                totals, how Delhi moves — all counted from shared trips.
+                own === 0 keeps them off a fresh install; own === null
+                keeps them off until the ledger answers. */}
+            {own === null ? null : own === 0 ? (
+              <View style={ss.ownEmpty}>
+                <Text {...DYNAMIC_TYPE} style={[ss.ownEmptyLine, { fontFamily: fam(lang, "reg") }]}>
+                  {t("cityNoOwnTrips", lang)}
+                </Text>
+                <Text {...DYNAMIC_TYPE} style={[ss.ownEmptySub, { fontFamily: fam(lang, "reg") }]}>
+                  {t("cityNoOwnTripsSub", lang)}
+                </Text>
+              </View>
+            ) : (
+            <>
             {/* measured streets — k>=3 aggregates, heaviest first */}
             <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
               {t("cityStreetsTitle", lang)}
@@ -601,6 +628,8 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
             {/* how Delhi actually moves — real donated aggregates (k≥3),
                 honest insufficient-data state inside the card */}
             <CityMoves data={moves} lang={lang} />
+            </>
+            )}
 
             {/* why this is an estimate — the machinery lives here */}
             <Pressable
@@ -829,6 +858,18 @@ const ss = StyleSheet.create({
     marginTop: 4,
     lineHeight: 21,
   },
+  /* the fresh-install empty state — a quiet well, not a card
+     (emptiness reads as stillness, never a coloured block) */
+  ownEmpty: {
+    marginHorizontal: 18,
+    marginTop: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 20,
+    backgroundColor: V2T.surface2,
+  },
+  ownEmptyLine: { color: V2T.text, fontSize: V2Type.secondary, lineHeight: 21 },
+  ownEmptySub: { color: V2T.text3, fontSize: V2Type.label, lineHeight: 19, marginTop: 6 },
   cRow: {
     flexDirection: "row",
     alignItems: "center",
