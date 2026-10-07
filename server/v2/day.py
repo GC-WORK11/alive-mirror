@@ -228,9 +228,15 @@ def _window(run, mean, mids, hours, open_end: bool) -> dict:
 
 def _end_label(hour_entry: dict) -> str:
     """IST clock label of a slot's END (its start + 1 h)."""
-    return (datetime.fromisoformat(hour_entry["start"])
-            + timedelta(hours=1)).astimezone(_IST).strftime("%H:%M") \
-        if hour_entry.get("start") else hour_entry["ist_label"]
+    if not hour_entry.get("start"):
+        return hour_entry["ist_label"]
+    dt = datetime.fromisoformat(hour_entry["start"])
+    if dt.tzinfo is None:
+        # 'start' is the forecast's naive-UTC label — a bare astimezone
+        # would read it as host-local time (right only on UTC boxes);
+        # same pin _resolve_slot applies
+        dt = dt.replace(tzinfo=timezone.utc)
+    return (dt + timedelta(hours=1)).astimezone(_IST).strftime("%H:%M")
 
 
 def _fmt_window(w: dict) -> str:

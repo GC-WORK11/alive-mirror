@@ -1286,17 +1286,19 @@ async function tick(){
   /* --- api speed, measured — the server's own stopwatch, bucketed --- */
   try{
     const trs=(timing&&timing.routes)||[];
-    const order=['/v2/plan','/plan','/aqi','/v2/search','/v2/reverse','/grid',
-                 '/v2/districts','/v2/trip/donate','/depart'];
+    const order=['/v2/plan','/route','/aqi','/v2/search','/v2/reverse','/grid',
+                 '/v2/districts','/v2/trip','/depart'];
     const shown=order.map(rt=>trs.find(r=>r.path===rt)).filter(Boolean)
       .slice(0,6);
     const other=trs.length-shown.length;
     const fmtMs=v=>v==null?'—':(v>=1000?(v/1000).toFixed(1)+'s':Math.round(v)+'ms');
-    /* route paths read as what the caller asked for, not the wire name */
-    const PNAMES={'/v2/plan':'plan a trip','/plan':'plan a trip',
+    /* route paths read as what the caller asked for, not the wire name —
+       keys must be route templates: the metrics label is path_format,
+       and unmatched paths collapse to 'unmatched' before reaching here */
+    const PNAMES={'/v2/plan':'plan a trip','/route':'plan a trip',
       '/aqi':'air at a point','/v2/search':'find a place',
       '/v2/reverse':'name a point','/grid':'the air map',
-      '/v2/districts':'district list','/v2/trip/donate':'trip donations',
+      '/v2/districts':'district list','/v2/trip':'trip donations',
       '/depart':'when to leave'};
     const trows=shown.map(r=>{
       const p90=r.p90_le_ms==null?'>5s+':`≤${fmtMs(r.p90_le_ms)}`;
