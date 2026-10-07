@@ -158,7 +158,8 @@ function OnboardingSheet({
     Animated.timing(anim, {
       toValue: 1,
       duration: 200,
-      // JS driver — same RN 0.86 native-detach guard as ui.tsx Sheet
+      // native driver — pure opacity timing; none of Sheet's mixed-graph
+      // detach risk (that JS-driver guard is about drag transforms)
       useNativeDriver: true,
     }).start();
   }, [step, reduceMotion, anim]);
