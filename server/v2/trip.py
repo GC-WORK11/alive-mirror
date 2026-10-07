@@ -260,6 +260,19 @@ async def post_trip(body: dict):
     if dur is not None and not (dur > 0.0
                               and dist / (dur / 3600.0) <= MAX_SPEED_KMH):
         raise HTTPException(422, "implausible duration_s for distance_km")
+    # Geographic admission bound (judge-attack + server-audit: donations
+    # minted corridor cells for any in-range lat/lon on Earth). Every
+    # `kept` point becomes a corridor cell, so the smallest honest bound
+    # checks the whole kept set — endpoints AND the middle — against the
+    # same in_service_area the dose endpoints use (NCR bbox + ~220 km
+    # margin, airfield.SERVICE_MARGIN_DEG). A traversal past that box is
+    # not Delhi data: the field cannot dose it, so it cannot donate it.
+    # `kept` empty → no cells can be minted → nothing to bound (the
+    # summary-only donation path stays as it was).
+    if kept:
+        from airfield import in_service_area, OUT_OF_AREA
+        if not all(in_service_area(la, lo) for la, lo in kept):
+            raise HTTPException(422, OUT_OF_AREA)
     dupe = _seen_dupe(_dupe_key(token_hash, cells, summary))
     # endpoint areas for the admin global layer — the trimmed first/last
     # kept point snapped to its district/sub-district NAME (a string,
