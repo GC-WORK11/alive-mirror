@@ -9,9 +9,10 @@ HTTP :80 only — never `https://`, never `:8000`. Prod build `7c68c8bc`
 
 ## 1. THE BINARY
 
-- Install the **newest `alive108-<sha>.apk` — see `docs/lanes/apk-recut-report.md`
-  + the shasum verify line** (freeze re-cut is in flight; the report lands with
-  the sha + link — `shasum -a 256` the file against it before installing).
+- **`alive108-ef5d95f.apk` — the canonical freeze-cut** (`apk-recut-report.md`):
+  https://app.devin.ai/attachments/0febc48c-996a-420e-9d84-a426a05d163a/alive108-ef5d95f.apk
+  verify before install: `shasum -a 256` must print
+  `de15ae62e5a3a886a7410148c214535ca9cf0829904499f00eb9c40ff401705a`.
 - **Delete first:** `70914c0` (pre-fix v10) and `c3f7e9e` (old freeze — its r1
   pack warms zero tiles). Never install `c3bb731` / `0b11123` (30–40 commits behind).
 - **Then open it once.** First boot fires the notification-permission dialog
@@ -30,9 +31,9 @@ HTTP :80 only — never `https://`, never `:8000`. Prod build `7c68c8bc`
 ## 3. THE VIDEO PROOF
 
 - **Chooser beat:** `chooser.mp4` = freeze-dryrun session attachment
-  `afbb89341aba489f936fa89ad7907460` (pinned in `docs/lanes/landing-v7-report.md`);
-  extracted frames in `docs/lanes/landing-v7-shots/` (`choose-ff-8.5.png`,
-  `choose-ff-10.5.png`, `choose-f-14.png`, `choose-strip-src.png`).
+  `afbb89341aba489f936fa89ad7907460` (pinned in `landing-v7-report.md`); frames
+  in `docs/lanes/landing-v7-shots/` (`choose-ff-8.5/10.5.png`, `choose-f-14.png`,
+  `choose-strip-src.png`).
 - **Rehearsal-v2, real Android:** shots `docs/lanes/demo-rehearsal-v2-shots/`
   (9 PNGs); videos indexed in `docs/lanes/demo-rehearsal-v2-report.md`
   (01-welcome, 03-chooser, 04-chooser-clean, 05-depart, 06-community-settings).
@@ -63,11 +64,11 @@ signature chooser beat plays behind a sheet.
 ## 6. KNOWN HONEST HOLES
 
 - **Offline pack:** verified on Android — 744 region_tiles @ `2607ce0`
-  (`docs/lanes/offline-pack-android-verify.md`) — but reaches the phone **only
-  via the re-cut APK**; older installs warm zero tiles → ambient cache + the
-  T-45 pan is the plan if venue wifi dies. Both dead → air-gapped still demos:
-  bundled gazetteer, a planned nav leg, receipt, ledger, day log; only a *new*
-  plan honestly refuses → cut to `cut1.mp4`/`cut2.mp4`.
+  (`offline-pack-android-verify.md`) and the r2 pack rides in `ef5d95f`
+  (airplane-mode PASS, `apk-recut-report.md`). Older installs still warm zero
+  tiles → on any other APK, ambient cache + the T-45 pan is the plan if venue
+  wifi dies. Both dead → air-gapped still demos: bundled gazetteer, planned
+  nav leg, receipt, ledger, day log; only a *new* plan refuses → `cut1/cut2.mp4`.
 - **Community counts are wire/web-only:** `contributors` / `avoided_ug_all`
   live at `curl $NLB/community` and the admin board, not on any app surface
   (rehearsal F3) — show the JSON, don't hunt the screen.
