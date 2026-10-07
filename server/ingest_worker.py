@@ -285,9 +285,13 @@ def _emit_metrics(field: dict) -> dict:
     datum = [
         {"MetricName": "StationsUsed", "Value": field["qc"]["stations_used"],
          "Unit": "Count"},
-        {"MetricName": "FieldAgeSeconds", "Value": max(ages) if ages else 0,
-         "Unit": "Seconds"},
     ]
+    if ages:
+        # empty ages = provenance without fetched_at (injected/degraded
+        # inputs) — emitting 0 would dress that as fresh, so emit nothing;
+        # the emitter-dead alarm covers silence instead of a fake reading
+        datum.append({"MetricName": "FieldAgeSeconds",
+                      "Value": max(ages), "Unit": "Seconds"})
     if field["stats"].get("mean_sigma") is not None:
         datum.append({"MetricName": "MeanSigma",
                       "Value": field["stats"]["mean_sigma"], "Unit": "None"})

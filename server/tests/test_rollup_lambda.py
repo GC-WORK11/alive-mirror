@@ -322,3 +322,38 @@ def test_handler_routes_and_400s(offline, monkeypatch):
     r = rollup_lambda.handler(None)
     assert r["statusCode"] == 200
     assert json.loads(r["body"])["date"] == "2026-09-02"
+
+
+def test_emit_metrics_skips_field_age_when_no_ages(monkeypatch):
+    """Provenance without fetched_at (injected/degraded inputs) must not
+    emit FieldAgeSeconds=0 — a zero dresses unknown staleness as fresh.
+    No ages -> no datum; silence is the alarm's job, not a fake read."""
+    sent = []
+
+    class _CW:
+        def put_metric_data(self, Namespace=None, MetricData=None):
+            sent.append(MetricData)
+            return {}
+
+    class _B3:
+        @staticmethod
+        def client(name):
+            assert name == "cloudwatch"
+            return _CW()
+
+    monkeypatch.setattr(ingest_worker, "_aws_ready",
+                        lambda: (_B3, "ok"))
+    field = {"provenance": {"model": {"age_s": None},
+                            "stations": {"age_s": None}},
+             "qc": {"stations_used": 3},
+             "stats": {"mean_sigma": 1.5}}
+    out = ingest_worker._emit_metrics(field)
+    names = [d["MetricName"] for d in sent[-1]]
+    assert out["emitted"] is True
+    assert "FieldAgeSeconds" not in names
+    assert "StationsUsed" in names
+
+    field["provenance"]["stations"]["age_s"] = 612.0
+    out = ingest_worker._emit_metrics(field)
+    names = {d["MetricName"]: d["Value"] for d in sent[-1]}
+    assert names["FieldAgeSeconds"] == 612.0
