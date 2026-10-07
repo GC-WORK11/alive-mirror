@@ -16,6 +16,7 @@ export {
   onQueueChange,
   queueSize,
   droppedTotal,
+  outboxGeneration,
   MAX_QUEUE,
   type TripDonation,
   type FlushReport,
