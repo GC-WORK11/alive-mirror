@@ -19,11 +19,9 @@ and the dose math are real enough to decide with.
 Built for the AWS × WeMakeDevs Environmental Hacks hackathon, Track 01 (Air),
 Oct 8–11, 2026. Delhi-only by design.
 
-<!-- SCREENSHOT 1 — PENDING CAPTURE: `/` dosimeter landing — "a personal
-     dosimeter for Delhi air" hero over the live pollution field with the
-     "watch the day" scrubber. File: docs/assets/readme/hero-landing.png
-     (docs/assets/readme/ is not yet populated — capture on demo morning) -->
-![ALive-108 landing — a dosimeter, not a lookup](docs/assets/readme/hero-landing.png)
+<!-- SCREENSHOT 1 — `/` dosimeter landing, captured 2026-10-06 (web-overhaul-v2
+     lane, docs/lanes/web-nits-shots/after/) -->
+![ALive-108 landing — a dosimeter, not a lookup](../lanes/web-nits-shots/after/landing-1280-hero.png)
 
 ## What it does (60 seconds)
 
@@ -67,10 +65,9 @@ meaningful heavy or clean window (`decisions` names it: "no meaningful
 window today", day mean ~76, hours 71→82)
 — the card says when the doors should be open.
 
-<!-- SCREENSHOT 2 — PENDING CAPTURE: `/city` lung-reach veil — "where can
-     your lungs go?" frontier over streets + the district ledger.
-     File: docs/assets/readme/city-reach.png -->
-![/city — a 25 µg walking budget from Connaught Place: ~136 km of street](docs/assets/readme/city-reach.png)
+<!-- SCREENSHOT 2 — `/city` lung-reach veil + district ledger, captured
+     2026-10-06 (web-overhaul-v2 lane) -->
+![/city — the lung-reach veil and district ledger](../lanes/web-overhaul-v2-shots/after-city.png)
 
 *(reach edge-lengths are over directed edges — a two-way street counts in
 both directions; 3,105 edges ≈ 136 km at 25 µg, 10,436 ≈ 551 km at 50 µg —
@@ -91,17 +88,16 @@ factors), and a privacy-floored community layer — streets publish only
 after **3 different devices** cross them, and donations fold to aggregates
 at ingest.
 
-<!-- SCREENSHOT 3 — PENDING CAPTURE: `/admin` engine room — pipeline
-     provenance, sources trust table, FIRMS detections on the field map.
-     File: docs/assets/readme/admin-engine.png -->
-![/admin — the engine room: every number has a source](docs/assets/readme/admin-engine.png)
+<!-- SCREENSHOT 3 — `/admin` engine room, captured 2026-10-06
+     (web-overhaul-v2 lane) -->
+![/admin — the engine room: every number has a source](../lanes/web-overhaul-v2-shots/after-admin.png)
 
 The Android app is real and captured — shipped-build screenshots live in
 `docs/assets/cloud-build/` (home map, route options, search, receipts):
 
 | | |
 |---|---|
-| ![home map](docs/assets/cloud-build/android-home-map.png) | ![plan options](docs/assets/cloud-build/android-plan-options.png) |
+| ![home map](../assets/cloud-build/android-home-map.png) | ![plan options](../assets/cloud-build/android-plan-options.png) |
 
 ## Try it — a judge's quickstart (public, GET-only)
 
