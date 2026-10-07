@@ -18,8 +18,10 @@ under denied + under quiet-hours → map-pick for the armed "from" slot.
 1. **Map pick overwrote the destination.** `App.tsx onMapPress` passed every
    pick to `pick(…, "to")`. A "Where from?" map pick overwrote `to` and bounced
    the user back to the still-empty origin. Now fills the armed `editWhich`
-   slot. Evidence: `lifecycle-shots/mappick-from.png` — the map tap filled
-   `from`, `Coronation Memorial` kept its slot, compare loaded.
+   slot — the offline-verify lane landed the identical fix concurrently
+   (`e147dbd`, "catalogue #1"); this lane's device evidence stands:
+   `lifecycle-shots/mappick-from.png` — the map tap filled `from`,
+   `Coronation Memorial` kept its slot, compare loaded.
 2. **Locate crosshair was a dead tap under denied location.** `onLocate`
    silently no-oped. Now a `locDenied` pill says it plainly and opens iOS
    Settings via `Linking.openSettings()`. Evidence:
