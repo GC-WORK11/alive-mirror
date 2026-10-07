@@ -4,6 +4,10 @@
 <title>ALIVE·108 — everyone's trips, merged</title>
 <meta name="description" content="Delhi riders share their trips; this page adds them up street by street. No sign-up, no names — a ride's first and last 300 m are cut on the phone before it sends anything, and a street appears only after 3 different phones cross it. We can't leak what we never take.">
 <meta name="theme-color" content="#fafaf7">
+<meta property="og:title" content="ALIVE·108 — everyone's trips, merged">
+<meta property="og:description" content="Delhi riders share their trips; this page adds them up street by street — totals only, never named, a street needs 3 phones to appear.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -40,25 +44,25 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   font-weight:600;text-decoration:none}
 .wm i{font-style:normal;color:var(--sage)}
 .top nav{display:flex;gap:26px}
-.top nav a{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink2);text-decoration:none}
 .top nav a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px;text-decoration-thickness:1px}
 @media(max-width:640px){.top nav{gap:16px}
-  .top nav a{font-size:9px;letter-spacing:.12em;padding:14px 0}
+  .top nav a{font-size:11px;letter-spacing:.12em;padding:14px 0}
   .links{gap:12px 36px}
   .links .tlink{padding-top:12px;padding-bottom:12px}}
 
 .hero{padding:96px 0 64px}
 @media(max-width:640px){.hero{padding:64px 0 40px}
-  .eyebrow{font-size:10px;letter-spacing:.18em}}
+  .eyebrow{font-size:11px;letter-spacing:.18em}}
 .eyebrow{display:flex;align-items:center;gap:10px;
   font-family:var(--mono);font-size:11px;letter-spacing:.3em;
   text-transform:uppercase;color:var(--ink3)}
 .eyebrow .sq{width:5px;height:5px;background:var(--sage);flex:none}
-h1{font-family:var(--serif);font-weight:400;font-size:clamp(40px,6.8vw,72px);
-  line-height:1.04;letter-spacing:-.028em;margin-top:28px;max-width:16ch}
-h1 em{font-style:italic;color:var(--ink2)}
+h1{font-family:var(--sans);font-weight:500;font-size:clamp(40px,6.8vw,72px);
+  line-height:1.04;letter-spacing:-.03em;margin-top:28px;max-width:16ch}
+h1 em{font-style:normal;color:var(--ink2)}
 .sub{margin-top:30px;max-width:560px;font-size:16px;line-height:1.72;
   color:var(--ink2)}
 .sub b{color:var(--ink);font-weight:500}
@@ -70,12 +74,13 @@ h1 em{font-style:italic;color:var(--ink2)}
   gap:12px}
 @media(max-width:700px){.pipe{grid-template-columns:1fr}}
 .pt{background:var(--surf2);border-radius:14px;padding:16px 18px 15px;
-  display:flex;flex-direction:column;gap:6px}
-.pt .n{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
-  color:var(--accInk);background:var(--accWash);
-  border:1px solid var(--accTint);border-radius:6px;padding:3px 8px;
-  align-self:flex-start}
-.pt b{font-family:var(--serif);font-weight:400;font-size:17.5px;
+  display:flex;flex-direction:column;gap:6px;
+  box-shadow:0 1px 3px -1px rgba(22,24,29,.08)}
+.pt .n{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  color:var(--ink2);background:var(--paper);
+  border-radius:6px;padding:3px 8px;align-self:flex-start;
+  box-shadow:0 1px 2px rgba(22,24,29,.06)}
+.pt b{font-weight:500;font-size:16.5px;
   letter-spacing:-.01em;color:var(--ink);margin-top:2px}
 .pt .d{font-size:12px;line-height:1.6;color:var(--ink2)}
 
@@ -86,7 +91,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 .tlink.dim{color:var(--ink2);border-bottom-color:var(--line2);font-weight:400}
 .tlink.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
 .statusline{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;
   color:var(--ink3);text-transform:uppercase;display:flex;gap:8px 26px;
   flex-wrap:wrap;font-variant-numeric:tabular-nums}
 .statusline b{color:var(--ink);font-weight:600;text-transform:none}
@@ -96,9 +101,9 @@ h1 em{font-style:italic;color:var(--ink2)}
 .ledger{border-top:1px solid var(--line);padding:60px 0 20px}
 .sec-head{display:flex;justify-content:space-between;align-items:baseline;
   margin-bottom:40px;gap:16px}
-.sec-head h2{font-family:var(--serif);font-weight:400;font-size:29px;
-  letter-spacing:-.01em}
-.sec-head .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+.sec-head h2{font-weight:500;font-size:28px;
+  letter-spacing:-.02em}
+.sec-head .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink3);white-space:nowrap}
 @media(max-width:560px){.sec-head .lbl{display:none}}
 /* soul pass — the totals card wears the app's clay-wash ledger
@@ -107,14 +112,14 @@ h1 em{font-style:italic;color:var(--ink2)}
    card's own edge is the line */
 .lgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 56px;
   background:#E8DDDA;border:1px solid #D0BBB6;border-radius:16px;
-  padding:4px 22px 10px}
+  padding:4px 22px 10px;box-shadow:0 2px 10px -6px rgba(22,24,29,.12)}
 @media(min-width:561px){.lgrid>.lrow:nth-child(-n+2){border-top:none}}
 @media(max-width:560px){.lgrid{grid-template-columns:1fr}
   .lgrid>.lrow:first-child{border-top:none}}
 .lrow{display:flex;align-items:baseline;justify-content:space-between;gap:18px;
   padding:20px 0;border-top:1px solid var(--line)}
 .lgrid .lrow{border-top-color:#DCC8C3}
-.lrow .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+.lrow .k{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
   text-transform:uppercase;color:var(--ink3);line-height:1.7;max-width:30ch}
 .lrow .k .w{display:block;margin-top:6px;font-family:var(--sans);
   font-size:11.5px;letter-spacing:.01em;text-transform:none;
@@ -125,7 +130,7 @@ h1 em{font-style:italic;color:var(--ink2)}
 .lrow .v{font-family:var(--serif);font-size:34px;font-weight:400;
   letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;
   white-space:nowrap}
-.lrow .v small{font-family:var(--mono);font-size:10px;color:var(--ink3);
+.lrow .v small{font-family:var(--mono);font-size:11px;color:var(--ink3);
   letter-spacing:.08em}
 .lrow .v.na{font-family:var(--mono);font-size:11px;letter-spacing:.12em;
   color:var(--ink3);text-transform:uppercase}
@@ -133,21 +138,21 @@ h1 em{font-style:italic;color:var(--ink2)}
 /* corridors — the same ledger rhythm as a table */
 .corridors{padding:64px 0 20px}
 table{width:100%;border-collapse:collapse}
-th{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;
+th{font-family:var(--mono);font-size:11px;letter-spacing:.2em;
   text-transform:uppercase;color:var(--ink3);font-weight:400;
   text-align:left;padding:0 12px 12px}
 th.num,td.num{text-align:right}
 td{padding:14px 12px;border-top:1px solid var(--line);font-size:13.5px;
   color:var(--ink2);vertical-align:baseline}
-td.rank{font-family:var(--mono);font-size:10px;color:var(--ink3);width:30px}
+td.rank{font-family:var(--mono);font-size:11px;color:var(--ink3);width:30px}
 td.cell{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
 td.num{color:var(--ink);font-variant-numeric:tabular-nums}
 td .empty{color:var(--ink4);font-size:13px}
 td.cell .st{display:block;font-family:var(--sans);font-size:13px;
   color:var(--ink)}
 td.cell .co{display:block;margin-top:3px;font-family:var(--mono);
-  font-size:9.5px;letter-spacing:.06em;color:var(--ink3)}
-td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+  font-size:11px;letter-spacing:.06em;color:var(--ink3)}
+td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
   color:var(--ink3);text-transform:uppercase}
 .scrollx{overflow-x:auto}
 /* phones: wide tables clip mid-word with no hint they scroll — local cover
@@ -167,19 +172,19 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
 .rline{display:flex;gap:16px;align-items:baseline;padding:13px 0;
   border-top:1px solid var(--line);font-size:13px;color:var(--ink2)}
 .rline:last-child{border-bottom:1px solid var(--line)}
-.rline .rk{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+.rline .rk{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ink3);flex:none;width:110px}
-.rline .rn{font-family:var(--mono);font-size:10px;color:var(--ink3);
+.rline .rn{font-family:var(--mono);font-size:11px;color:var(--ink3);
   margin-left:auto;white-space:nowrap}
 .rline .empty{color:var(--ink4)}
-.tnote{margin-top:16px;font-family:var(--mono);font-size:9.5px;
+.tnote{margin-top:16px;font-family:var(--mono);font-size:11px;
   letter-spacing:.1em;line-height:1.9;text-transform:uppercase;
   color:var(--ink3);max-width:74ch}
 
 .foot{border-top:1px solid var(--line)}
 .foot-in{max-width:960px;margin:0 auto;padding:24px 32px 42px;
   display:flex;justify-content:space-between;gap:12px 28px;flex-wrap:wrap;
-  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;
   color:var(--ink3);text-transform:uppercase}
 .foot a{color:var(--ink2);text-decoration:none}
 .foot a:hover{color:var(--ink);text-decoration:underline;
@@ -229,7 +234,7 @@ td.mode{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
     <style>
       #status,#lgrid,#corridors,#reports{display:none}
     </style>
-    <p style="margin-top:26px;font-family:var(--mono);font-size:10.5px;
+    <p style="margin-top:26px;font-family:var(--mono);font-size:11px;
       letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
       line-height:1.9">
       the count, the streets and the live flags need javascript —
@@ -296,6 +301,9 @@ const F1=n=>n==null?'—':(+n).toFixed(1);
    a bare '517m' that reads as metres or millions */
 const agoMin=m=>m==null?'—':m<90?Math.round(m)+' min'
   :m<60*48?(m/60).toFixed(m<600?1:0)+' h':Math.round(m/1440)+' d';
+/* OSM names arrive raw — 'hanuman lane' — title-case the way the app
+   does before they land in a table */
+const tName=s=>String(s||'').replace(/(^|[\s\-/'(])([a-z])/g,(m,p1,p2)=>p1+p2.toUpperCase());
 
 /* one ledger row per honest number — an absent feed renders '—'
    with its label, never an invented figure. every stat carries its
@@ -362,7 +370,7 @@ async function load(){
   const rows=(c&&c.top_corridors||[]).map((r,i)=>
     `<tr><td class="rank">${String(i+1).padStart(2,'0')}</td>
      <td class="cell">${r.name
-       ?`<span class="st">${esc(r.name)}</span><span class="co">${(+r.lat).toFixed(3)}°N · ${(+r.lon).toFixed(3)}°E</span>`
+       ?`<span class="st">${esc(tName(r.name))}</span><span class="co">${(+r.lat).toFixed(3)}°N · ${(+r.lon).toFixed(3)}°E</span>`
        :`${(+r.lat).toFixed(3)}°N · ${(+r.lon).toFixed(3)}°E`}</td>
      <td class="num">${IN(r.samples)}</td>
      <td class="num">${IN(r.devices)}</td>

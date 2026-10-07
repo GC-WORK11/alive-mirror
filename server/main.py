@@ -1374,11 +1374,21 @@ async def fires():
     return FIRES.fires_geojson()
 
 
+_UNFURL_UAS = ("slackbot", "twitterbot", "facebookexternalhit",
+               "discordbot", "whatsapp", "linkedinbot", "telegrambot",
+               "googlebot", "bingbot", "duckduckbot", "embedly",
+               "redditbot", "pinterest", "vkshare")
+
+
 @app.get("/community")
 async def community_totals(request: Request):
     """Browsers get the community page; API clients (fetch's `*/*`, the
-    app) keep the JSON totals."""
-    if "text/html" in request.headers.get("accept", ""):
+    app) keep the JSON totals. Link unfurlers also send `*/*` — without
+    the UA check a shared link expanded to raw JSON, so crawlers get the
+    HTML (its og:/twitter: meta is what renders the card)."""
+    ua = request.headers.get("user-agent", "").lower()
+    if "text/html" in request.headers.get("accept", "") or \
+            any(b in ua for b in _UNFURL_UAS):
         from fastapi.responses import FileResponse
         return FileResponse(os.path.join(os.path.dirname(__file__), "community.html"))
     return community.totals()
