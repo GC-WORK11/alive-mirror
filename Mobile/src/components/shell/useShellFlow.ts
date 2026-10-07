@@ -18,6 +18,7 @@ import {
 import { planEngineFirst, planOptions, type FieldStatus } from "../../api/plan";
 import { fetchStrip } from "../../api/strip";
 import { camDur } from "../../map/cam";
+import { holdMapDrawThen, whenMapDrawFree } from "../../map/drawHold";
 import { departCurveResult, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
 import { t } from "../../i18n/strings";
@@ -51,7 +52,13 @@ export type Which = "to" | "from";
 export type PlanError = { kind: "network" | "server" | "outside"; detail?: string };
 
 export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean, lang: "en" | "hi" = "en") {
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhaseState] = useState<Phase>("idle");
+  /* every phase flip mounts or unmounts an overlay over the map — the
+     setter commits inside a draw-hold so the map's pump is throttled
+     before the sheet it precedes lands (mount-vs-draw SIGSEGV class;
+     src/map/drawHold.ts). One wrap covers every caller. */
+  const setPhase = useCallback((p: SetStateAction<Phase>) =>
+    holdMapDrawThen(() => setPhaseState(p)), []);
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
   const [editWhich, setEditWhich] = useState<Which>("to");
@@ -152,7 +159,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        in-flight transition is the "handler to 0" render-thread SIGSEGV
        seen at plan:first. The sheet's "checking every way there…" covers
        the hold. */
-  }, [editWhich, from, to, lang]);
+  }, [editWhich, from, to, lang, setPhase]);
 
   /* ---- routes: destination+origin set → /v2/plan + legacy /depart ---- */
   useEffect(() => {
@@ -210,7 +217,9 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
             // camera move per plan — a camera anim inside a sheet-mount
             // frame is the same render-thread spike class
             setTimeout(() => {
-              if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: camDur(700) });
+              if (!cancelled) whenMapDrawFree(() => {
+                if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: camDur(700) });
+              });
             }, 500);
           }
         };
@@ -327,7 +336,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     setSteps(null); setStepsOpen(false); setStrips({});
     setPlanError(null); setPlanField(null); setPlanDegraded([]);
     setPhase("idle"); setFollow(false);
-  }, [setOptions]);
+  }, [setOptions, setPhase]);
 
   /* ---- navigation phase transitions; the live engine (src/nav) owns
      the watcher, strip, counters, off-route + arrival — nothing here
@@ -344,10 +353,12 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        class on the virtualized-GPU iOS sim (ci15 telemetry). Defer the
        camera work a beat so the close commit lands alone. */
     setTimeout(() => {
-      camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: camDur(700) });
-      camRef.current?.setStop({ pitch: 55, duration: camDur(800) });
+      whenMapDrawFree(() => {
+        camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: camDur(700) });
+        camRef.current?.setStop({ pitch: 55, duration: camDur(800) });
+      });
     }, 80);
-  }, [options, selected, from, to, camRef]);
+  }, [options, selected, from, to, camRef, setPhase]);
 
   const exitNav = useCallback(() => {
     /* arrival-Done (and the nav X) means the trip is OVER — going back to
@@ -362,8 +373,9 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        so nothing piles inside the teardown window (ci15: the last
        residual-SIGSEGV hot spot, 3× at Done). */
     setTimeout(() => setFollow(false), 300);
-    setTimeout(() => camRef.current?.setStop({ pitch: 0, duration: camDur(700) }), 400);
-  }, [camRef]);
+    setTimeout(() => whenMapDrawFree(() =>
+      camRef.current?.setStop({ pitch: 0, duration: camDur(700) })), 400);
+  }, [camRef, setPhase]);
 
   /* ---- ledger: only a COMPLETED trip is logged (claims audit — logging
      on option view fabricated trips + inflated every avoided-µg total).

@@ -24,6 +24,7 @@ import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import { latinLabels, v2StyleUrl } from "./src/map/style";
 import { camDur } from "./src/map/cam";
+import { holdMapDraw, useHeldState, useMapDrawHeld } from "./src/map/drawHold";
 import { ReportsLayer, reconcileReportSlots, REPORT_POOL, type ReportSlot } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
 import { RouteTintSource } from "./src/components/RouteTint";
@@ -106,7 +107,7 @@ type TrackChangeEvent = Parameters<NonNullable<React.ComponentProps<typeof Camer
    stable identities, so unrelated app state no longer touches it. */
 const MapTree = React.memo(function MapTree({
   lang, compassPosition, logoPosition, attributionPosition,
-  onPress, onLongPress, camRef,
+  onPress, onLongPress, camRef, drawHeld,
   trackUserLocation, onTrackUserLocationChange,
   hasLoc, corridors, reportSlots, fires, spots, layers,
   options, selected, strips,
@@ -135,10 +136,17 @@ const MapTree = React.memo(function MapTree({
   fromSet: boolean;
   toSet: boolean;
   pinReady: boolean;
+  drawHeld: boolean;
 }) {
   bump("app.MapTree");
   return (
     <Map mapStyle={lang === "hi" ? STYLE_URL : STYLE_EN} style={StyleSheet.absoluteFill}
+      /* mount-vs-draw hold (src/map/drawHold.ts): while an overlay
+         mounts/unmounts over the map the render pump drops to 2 fps so
+         the commit can't intersect a wall of in-flight draws — the
+         sim-only SIGSEGV class; -1 restores the MapLibre default on
+         hardware and outside every window. */
+      preferredFramesPerSecond={drawHeld ? 2 : -1}
       /* PERF-gated milestones in the cold-open path: style load is the
          bundled-light parse, rendered-full is first frame incl. tiles
          (hosted OpenFreeMap = network; bundled pmtiles = local) */
@@ -250,37 +258,50 @@ function AppInner() {
     return () => clearTimeout(t);
   }, [phase]);
 
+  /* the draw-hold windows: phase flips and overlay flags are held at
+     their setters (useHeldState / the wrapped setPhase), this net
+     catches what setters can't see — option rows / the error state
+     landing on fetch completion mid-sheet. The prop feeds MapTree's
+     preferredFramesPerSecond. */
+  const drawHeld = useMapDrawHeld();
+  const optionsCount = options.length;
+  useEffect(() => { holdMapDraw(); }, [phase, optionsCount]);
+
   const [reportSlots, setReportSlots] = useState<(ReportSlot | null)[]>(
     () => Array<ReportSlot | null>(REPORT_POOL).fill(null));
   const [fires, setFires] = useState<GeoJSON.FeatureCollection | null>(null);
   const [spots, setSpots] = useState<GeoJSON.FeatureCollection | null>(null);
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ fires: false, spots: false, corridors: false });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [layersOpen, setLayersOpen] = useState(false);
-  const [mapPickArmed, setMapPickArmed] = useState(false);
-  const [vehicleOpen, setVehicleOpen] = useState(false);
+  /* overlay mount/unmount flags — every setter commits inside a
+     draw-hold so the map's pump is throttled before the sheet it
+     precedes lands (drawHold.ts; plain useState for data, useHeldState
+     for anything that mounts a view over the map) */
+  const [sidebarOpen, setSidebarOpen] = useHeldState(false);
+  const [layersOpen, setLayersOpen] = useHeldState(false);
+  const [mapPickArmed, setMapPickArmed] = useHeldState(false);
+  const [vehicleOpen, setVehicleOpen] = useHeldState(false);
   /* needsVehicle flips inside the same commit as the first option rows —
      mounting the wizard there makes its enter-spring share a frame with
      RouteTint + the camera fit (the sim's documented render-thread
      SIGSEGV window). Arm it once the one camera move per plan has run
      out (options+500 ms start + 700 ms anim + margin). */
-  const [wizArmed, setWizArmed] = useState(false);
+  const [wizArmed, setWizArmed] = useHeldState(false);
   useEffect(() => {
     if (!needsVehicle) return;
     const t = setTimeout(() => setWizArmed(true), 1350);
     return () => { clearTimeout(t); setWizArmed(false); };
   }, [needsVehicle]);
-  const [delhiOpen, setDelhiOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [delhiOpen, setDelhiOpen] = useHeldState(false);
+  const [settingsOpen, setSettingsOpen] = useHeldState(false);
   const [placePickSlot, setPlacePickSlot] = useState<"home" | "work" | null>(null);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [ledgerOpen, setLedgerOpen] = useHeldState(false);
   /* home IS the dosimeter: the app rests on the day surface; the map +
      journey is a destination reached through the "where to?" bar. homeOpen
      = the day covers the idle map; false = the user is browsing the map
      surface itself (the peek card + BACK are the doors home). dayNonce
      re-assembles the local reconstruction each time a fresh ambient read
      lands. */
-  const [homeOpen, setHomeOpen] = useState(true);
+  const [homeOpen, setHomeOpen] = useHeldState(true);
   const [dayNonce, setDayNonce] = useState(0);
   const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null);
   const [hasLoc, setHasLoc] = useState(false);
@@ -296,10 +317,10 @@ function AppInner() {
      user's cell — the "how accurate at my home" answer, surfaced once
      in settings' numbers explainer (null when the field is model-only) */
   const [nearestKm, setNearestKm] = useState<number | null>(null);
-  const [introSeen, setIntroSeen] = useState<boolean | null>(null);
+  const [introSeen, setIntroSeen] = useHeldState<boolean | null>(null);
   /* welcome_seen_v1 — the first-breath cinematic; null until the flag
      reads so a returning user never flashes the overlay for a frame */
-  const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
+  const [welcomeSeen, setWelcomeSeen] = useHeldState<boolean | null>(null);
   const net = useNetStatus();
 
   const [fontsLoaded] = useFonts({
@@ -422,7 +443,7 @@ function AppInner() {
      may gate the value moment either way. Donation can't fire in the
      gap — POST /v2/trip only runs on trip arrival, gated by
      settings.share, which this sheet itself writes. */
-  const [gateReady, setGateReady] = useState(false);
+  const [gateReady, setGateReady] = useHeldState(false);
   useEffect(() => {
     if (gateReady || introSeen !== false) return;
     const t = setTimeout(() => setGateReady(true), ambientUg != null ? 4000 : 9000);
@@ -762,7 +783,8 @@ function AppInner() {
       strips={strips}
       fromPin={fromPin} toPin={toPin}
       fromSet={!!from} toSet={!!to}
-      pinReady={pinReady} />
+      pinReady={pinReady}
+      drawHeld={drawHeld} />
   );
 
   /* mount the map under the splash: the native style parse + tile fetch
@@ -975,6 +997,7 @@ const NavSession = React.memo(function NavSession({
   const [receiptReady, setReceiptReady] = useState(false);
   useEffect(() => {
     if (!summary) return;
+    holdMapDraw();   // the receipt mount lands inside the hold window
     const raf = requestAnimationFrame(() => setReceiptReady(true));
     return () => cancelAnimationFrame(raf);
   }, [summary]);

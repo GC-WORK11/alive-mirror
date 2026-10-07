@@ -342,7 +342,10 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
     if (reduce) { selV.setValue(selected ? 1 : 0); return; }
     Animated.spring(selV, {
       toValue: selected ? 1 : 0, damping: 18, stiffness: 260, mass: 0.7,
-      useNativeDriver: true,
+      /* JS driver — this spring also fires on auto-select when the plan
+         options land, i.e. inside the mount window; keep it off the
+         native anim graph like every other in-sheet spring. */
+      useNativeDriver: false,
     }).start();
   }, [selected, selV, reduce]);
   const d = o.dose;
