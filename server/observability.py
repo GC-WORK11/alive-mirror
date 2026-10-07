@@ -455,8 +455,8 @@ class RequestLoggingMiddleware:
         if tier_ms:
             record["tier_ms"] = {k: round(v, 2) for k, v in
                                  sorted(tier_ms.items())}
-        assert not (set(record) & LOG_DENYLIST), \
-            "log record violated the privacy denylist"
+        if set(record) & LOG_DENYLIST:
+            raise RuntimeError("log record violated the privacy denylist")
         self.log.info(scrub_log_line(
             json.dumps(record, sort_keys=True, separators=(",", ":"))))
 

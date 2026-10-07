@@ -37,7 +37,7 @@ import os
 import sys
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 # Archive status enumeration runs off the event loop, and off the
 # shared default executor too — that pool is squatted by the cold-boot
@@ -511,8 +511,9 @@ async def corridors(limit: int = 25):
     """
     lim = max(1, min(int(limit or 25), 200))
     raw = TRIPS.corridors(limit=lim) or []
-    assert all(int(r.get("devices") or 0) >= K_MIN for r in raw), \
-        "k>=3 invariant violated upstream — refusing to publish"
+    if not all(int(r.get("devices") or 0) >= K_MIN for r in raw):
+        raise HTTPException(
+            500, "k>=3 invariant violated upstream — refusing to publish")
     field = None
     try:
         from airfield import FIELD
@@ -733,8 +734,9 @@ async def global_view():
         g = {}
     areas = g.get("areas") or []
     od = g.get("od_pairs") or []
-    assert all(int(r.get("devices") or 0) >= K_MIN for r in areas + od), \
-        "k>=3 invariant violated upstream — refusing to publish"
+    if not all(int(r.get("devices") or 0) >= K_MIN for r in areas + od):
+        raise HTTPException(
+            500, "k>=3 invariant violated upstream — refusing to publish")
     return {
         "ts": time.time(),
         "k_min": K_MIN,

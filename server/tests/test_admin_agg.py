@@ -10,7 +10,7 @@ import asyncio
 import time
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 import admin_agg
@@ -170,9 +170,10 @@ def test_corridors_k_suppression_passthrough():
                         "co2_g_per_100m", "co2_trips", "field_pm25"}
 
 
-def test_corridors_assert_tripwire(monkeypatch):
+def test_corridors_k_floor_tripwire(monkeypatch):
     """If the store ever regresses and leaks a k<3 row, the endpoint must
-    fail loud (AssertionError) — never render it."""
+    fail loud (a real exception → structured 500) — never render it, and
+    never depend on `assert` surviving `python -O`."""
     class BrokenStore:
         def corridors(self, limit=20):
             return [{"cell": "x", "trips": 5, "devices": 2,
@@ -183,8 +184,24 @@ def test_corridors_assert_tripwire(monkeypatch):
                     "corridors_publishable": 0}
 
     monkeypatch.setattr(admin_agg, "TRIPS", BrokenStore())
-    with pytest.raises(AssertionError):
+    with pytest.raises(HTTPException) as e:
         asyncio.run(admin_agg.corridors())
+    assert e.value.status_code == 500
+    r = client.get("/admin/api/corridors")
+    assert r.status_code == 500 and "k>=3" in r.json()["detail"]
+
+
+def test_global_k_floor_tripwire(monkeypatch):
+    """Same tripwire on /global — a k<3 area or od_pair row fails the
+    endpoint loud, never publishes."""
+    class BrokenStore:
+        def global_aggregates(self):
+            return {"areas": [{"name": "x", "devices": 2}],
+                    "od_pairs": []}
+
+    monkeypatch.setattr(admin_agg, "TRIPS", BrokenStore())
+    r = client.get("/admin/api/global")
+    assert r.status_code == 500 and "k>=3" in r.json()["detail"]
 
 
 # --- donations ----------------------------------------------------------------

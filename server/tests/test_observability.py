@@ -196,6 +196,17 @@ def test_no_tokens_or_coords_in_emitted_logs(rig):
     assert '"path":"/v2/trip"' in blob
 
 
+def test_denylist_tripwire_is_a_real_exception(monkeypatch):
+    """The last-defence denylist check is no longer an `assert` — a
+    record field landing on LOG_DENYLIST raises RuntimeError, which
+    survives `python -O` and fails loud."""
+    mw = observability.RequestLoggingMiddleware(
+        lambda s, r, n: None, logger=logging.getLogger("alive.request.test"))
+    monkeypatch.setattr(observability, "LOG_DENYLIST", frozenset({"path"}))
+    with pytest.raises(RuntimeError):
+        mw._emit("rid", "GET", "/x", "/x", 200, 1.0, {})
+
+
 def test_log_record_fields_are_allowlisted(rig):
     client, cap, _reg = rig
     client.get("/v2/search", params={"lat": 1.23})
