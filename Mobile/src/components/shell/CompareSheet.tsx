@@ -476,12 +476,16 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
 
 function CompareSheetInner({
   options, selected, onSelect, depart, departCurve, notified, onRemind,
+  remindEnabled = true,
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
   showCig = false, refining = false, degraded,
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
+  /** settings.remind — the master switch; off hides the offer row so a
+      disabled preference can't ghost-offer a ping (App.tsx wiring) */
+  remindEnabled?: boolean;
   /** full 24h dose curve — mounts the leave-later graph when present */
   departCurve?: DepartCurve | null;
   loading: boolean; steps: Step[] | null; stepsOpen: boolean;
@@ -636,7 +640,7 @@ function CompareSheetInner({
                   </Text>
                 </View>
               )}
-              {depart && departSaved != null && departSaved > 8 && (
+              {remindEnabled && depart && departSaved != null && departSaved > 8 && (
                 <PressSpring><Pressable onPress={() => { tap(); onRemind(); }} style={s.departRow}
                   accessibilityRole="button">
                   <Icon name={notified ? "bell" : "clock"} color={V2T.text2} size={16} filled={notified} />

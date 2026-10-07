@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject, type SetState
 import { Keyboard, Platform, UIManager } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
-import { requestPerms, scheduleDeparture, scheduleDailyBrief } from "../../notify";
+import { requestPerms, scheduleDeparture, scheduleDailyBrief, cancelDeparture } from "../../notify";
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
 import type { CommunityTotals } from "../../community";
 import {
@@ -459,6 +459,14 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     if (await scheduleDeparture({ fireAt: fire, savedPct: pct })) setNotified(true);
   }, [depart, notified]);
 
+  /* the master switch (settings.remind) off — the OS ping must die AND
+     the armed indicator reset, or a later re-on would claim a cancelled
+     ping is still coming */
+  const disarmDepart = useCallback(() => {
+    void cancelDeparture();
+    setNotified(false);
+  }, []);
+
   const reloadTrips = useCallback(() => { loadTrips().then(setTrips).catch(() => {}); }, []);
 
   /* doc 02 §S5: the vehicle question belongs on first private-mode pick —
@@ -475,7 +483,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     loadingRoute, refining, planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle,
     steps, stepsOpen, setStepsOpen, navDose,
-    pick, clearRoute, startNav, exitNav, remind, armDailyBrief, armAirEvents,
+    pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
     strips, reloadTrips,
   };
 }

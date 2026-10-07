@@ -63,6 +63,7 @@ import {
 } from "./src/components/shell/settings";
 import { loadTrips, type Trip } from "./src/store/ledger";
 import { checkAirEvents, resetEventsStore } from "./src/store/events";
+import { cancelDailyBrief } from "./src/notify";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
 import { approx, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
@@ -250,7 +251,7 @@ function AppInner() {
     community, setCommunity, follow, setFollow, loadingRoute, refining,
     planError, planDegraded, retryPlan, planField, departCurve,
     vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
-    pick, clearRoute, startNav, exitNav, remind, armDailyBrief, armAirEvents,
+    pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
     strips, reloadTrips,
   } = flow;
   useEffect(() => {
@@ -554,6 +555,10 @@ function AppInner() {
     if ("share" in p) {
       saveConsent({ sharing: p.share ? "on" : "off", ts: Date.now() }).catch(() => {});
     }
+    /* toggles must reach the OS too — a scheduled ping survives the
+       persisted flag, so "off" without the cancel still pings tomorrow */
+    if (p.remind === false) disarmDepart();
+    if (p.brief === false) void cancelDailyBrief();
     // drawer chip -> profile: a coarse pick that changes BUCKET starts a
     // fresh profile (fuel/year are class-specific, honestly unknown).
     // A profile already inside the same bucket is left alone — otherwise
@@ -606,6 +611,9 @@ function AppInner() {
           headers: { "X-Device-Token": tok },
         }).catch(() => {});
       }
+      /* pending OS pings carry the wiped trip/brief — delete-my-data
+         must disarm them, not just the files */
+      disarmDepart(); void cancelDailyBrief();
       clearAllData();
       resetEventsStore();   // events.json baselines + dedupe — same wipe
       setTrips([]); setVehicleProfile(null);
@@ -892,7 +900,8 @@ function AppInner() {
       {phase === "compare" && (
         <CompareSheet options={options} selected={selected} onSelect={setSelected}
           depart={depart} departCurve={departCurve} notified={notified}
-          onRemind={remind} loading={loadingRoute} refining={refining}
+          onRemind={remind} remindEnabled={settings.remind}
+          loading={loadingRoute} refining={refining}
           steps={steps} stepsOpen={stepsOpen} onToggleSteps={onToggleSteps}
           onStart={startNav} onClose={closeCompareToHome} lang={lang}
           vehicle={vehicle} onVehiclePress={onVehiclePress}
