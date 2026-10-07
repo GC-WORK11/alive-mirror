@@ -54,7 +54,7 @@ import { LayersButton } from "./src/components/shell/LayersButton";
 import { LayersSheet, type LayerKey } from "./src/components/shell/LayersSheet";
 import { Sidebar } from "./src/components/shell/Sidebar";
 import { useShellFlow } from "./src/components/shell/useShellFlow";
-import { API, DELHI, fetchJson, reverseName } from "./src/components/shell/net";
+import { API, DELHI, fetchJson, inNcr, reverseName } from "./src/components/shell/net";
 import {
   DEFAULT_SETTINGS, PROFILE_BUDGET_UG, clearAllData, loadSettings, saveSettings, type SavedPlace, type ShellSettings,
 } from "./src/components/shell/settings";
@@ -386,6 +386,12 @@ function AppInner() {
            only stall the first real number — read the Delhi centroid
            (the field is city-wide anyway) and upgrade once positioned. */
         let pos = await Location.getLastKnownPositionAsync().catch(() => null);
+        /* a cached fix can be continents stale (emulator seed, travel
+           since the last open) — an out-of-NCR last-known buys only a
+           guaranteed out-of-area read and a bogus userPos; the centroid
+           serves the real city field until a fresh fix lands
+           (testday-android finding #2). */
+        if (pos && !inNcr(pos.coords.latitude, pos.coords.longitude)) pos = null;
         if (freshGps && (!pos || Date.now() - pos.timestamp > 15 * 60 * 1000)) {
           pos = await Location.getCurrentPositionAsync(
             { accuracy: Location.Accuracy.Balanced }).catch(() => null);
