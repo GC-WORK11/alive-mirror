@@ -4,8 +4,7 @@
 // { k, t, ttl, v }. Lives in Paths.document — last-good data must
 // survive the OS purging Paths.cache when storage is tight.
 //
-// Two read modes, because "last known air" is still honest data:
-//   cacheGet  — standard TTL semantics: past ttlMs is a miss
+// One read mode, because "last known air" is still honest data:
 //   cachePeek — last-good semantics: returns whatever is on disk and
 //               flags `fresh` so the caller can dim/label it
 // Every hit carries ageS so the UI can say how old the number is.
@@ -70,12 +69,6 @@ async function read<T>(key: string): Promise<CacheHit<T> | null> {
   } catch {
     return null;
   }
-}
-
-/** Standard TTL read: null when missing OR past its freshness window. */
-export async function cacheGet<T>(key: string): Promise<CacheHit<T> | null> {
-  const hit = await read<T>(key);
-  return hit != null && hit.fresh ? hit : null;
 }
 
 /** Last-good read: whatever is on disk, `fresh` flag included.

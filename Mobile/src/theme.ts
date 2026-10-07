@@ -140,9 +140,6 @@ const hexMix = (a: string, b: string, t: number): string => {
 };
 /** ~10% band on surface — cell/tile fills, selected whispers */
 export const bandWashIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.90);
-/** ~18% band — pastel card surfaces that carry the day's colour
- *  (the overhaul's tinted-hero grammar: a card CAN wear its band) */
-export const bandWashMidIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.82);
 /** ~26% band — tile fills where the band itself must scan at a glance
  *  (the days-ahead row: five 10% washes read identical on paper) */
 export const bandWashDeepIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.74);

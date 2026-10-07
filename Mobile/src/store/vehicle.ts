@@ -191,5 +191,3 @@ export function vehicleLabel(p: VehicleProfile | null, lang: Lang = "en"): strin
   ].filter(Boolean);
   return parts.join(" ");
 }
-
-export { CLASSES as VEHICLE_CLASSES, YEARS as YEAR_BANDS };

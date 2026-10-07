@@ -23,8 +23,6 @@ export type NetStatus = {
   staleAgeS: number | null;
   /** trip donations waiting to send */
   pending: number;
-  /** pill text for the UI — "" means no pill (we're live) */
-  label: string;
   /** kick a reachability probe (e.g. a "retry" tap) */
   refresh: () => Promise<boolean>;
 };
@@ -71,16 +69,6 @@ function ensureWired(): void {
   wireAutoFlush(); // outbox flushes itself the moment anything gets through
 }
 
-function labelFor(s: Snapshot): string {
-  if (s.state === "online") return "";
-  const pendingBit = s.pending > 0 ? ` · ${s.pending} saved to send` : "";
-  if (s.state === "stale") {
-    const age = s.staleAgeS != null ? ` · updated ${Math.max(1, Math.round(s.staleAgeS / 60))} min ago` : "";
-    return `offline — showing last known air${age}${pendingBit}`;
-  }
-  return `offline${pendingBit}`;
-}
-
 /** The integrator's pill state. `probeMs` is how often we re-check
  * /health *while offline or serving stale* — no polling when live
  * (requests themselves carry the signal). */
@@ -96,5 +84,5 @@ export function useNetStatus(probeMs = 20000): NetStatus {
     return () => clearInterval(iv);
   }, [probeMs]);
 
-  return { ...s, label: labelFor(s), refresh: () => probe(API) };
+  return { ...s, refresh: () => probe(API) };
 }
