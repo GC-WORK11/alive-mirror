@@ -60,6 +60,10 @@ except ImportError:  # imported as server.admin_agg from the repo root
     from server.v2.store import LEDGER, TRIPS  # type: ignore
 
 router = APIRouter(prefix="/admin/api", tags=["admin-aggregates"])
+# the usage tab's data surface — same aggregate-only contract, mounted
+# under /v2 (the path the admin page calls), gated by the same
+# _admin_guard the integrator applies in main.py
+usage_router = APIRouter(tags=["admin-usage"])
 
 K_MIN = 3                      # doc 07 §3 display threshold (store-enforced)
 CORRIDOR_WINDOW_S = 72 * 3600  # corridor freshness window (same constant)
@@ -258,6 +262,7 @@ async def index():
             "/admin/api/model",
             "/admin/api/timing",
             "/admin/api/global",
+            "/v2/usage",
         ],
     }
 
@@ -775,4 +780,235 @@ async def validation():
         "weekly": weekly,
         "daily": daily,
         "report_md": report_md,
+    }
+
+
+# --- /v2/usage — the admin 'usage' tab ---------------------------------------
+# Serves on the usage_router (mounted at /v2/usage with the same
+# _admin_guard as this router). Answers "who uses it" the only way the
+# privacy contract allows: every number is a scalar aggregate over the
+# stores that already exist — never per device, never per trip.
+
+
+def _median(vals: list):
+    """True median (mean of the two middle values on even counts) —
+    None when the list is empty, never a fake middle."""
+    if not vals:
+        return None
+    s = sorted(vals)
+    n = len(s)
+    if n % 2:
+        return round(s[n // 2], 1)
+    return round((s[n // 2 - 1] + s[n // 2]) / 2.0, 1)
+
+
+@usage_router.get("/v2/usage")
+async def usage():
+    """Usage rollup for the admin 'usage' tab — aggregate-only.
+
+    Blocks, each reading a real store (null + basis note when its source
+    can't answer — a number is never invented):
+
+      devices   — distinct hashed tokens in the device ledger, by last-
+                  donation recency (24 h / 7 d / all-time). A phone mints
+                  its token at install but the server only learns it on
+                  a donation: these are 'devices that shared', and true
+                  installs stay unknowable server-side — reported as
+                  such, not estimated.
+      trips     — donated-trip sums (day counters) + a rolling 24 h
+                  window from the retained hour aggregates.
+      dose      — mean over all donated trips + a true median over the
+                  ledger's retained per-trip rows. The medians' basis is
+                  disclosed: ledgered trips only (donations without a
+                  token never reach it).
+      corridors — tracked vs publishable cells (the k>=3 set).
+      feedback  — authored star reviews (community.reviews_summary —
+                  its own k>=3 gate applies to note bodies) + active
+                  hazard flags counted by kind.
+
+    The k-anonymity contract is structural here: nothing dimensional
+    below a city total is served, so there is no sub-k row to leak —
+    distinct-device figures are counts, not identities.
+    """
+    try:
+        agg = TRIPS.city_aggregates() or {}
+    except Exception:  # noqa: BLE001 - degrade, dashboard must live
+        agg = {}
+    days = agg.get("days") or {}
+
+    tot_trips = tot_km = tot_dose = tot_sw = 0
+    tot_co2 = 0.0
+    for v in days.values():
+        tot_trips += int(v.get("trips") or 0)
+        tot_km += float(v.get("km") or 0.0)
+        tot_dose += float(v.get("dose_ug") or 0.0)
+        tot_sw += int(v.get("switched") or 0)
+        tot_co2 += float(v.get("co2_kg_mid") or 0.0)
+    last_ts = max((float(v.get("last_ts") or 0.0)
+                   for v in days.values()), default=0.0)
+
+    now = time.time()
+    today_key = time.strftime("%Y-%m-%d", time.gmtime(now))
+    td = days.get(today_key) or {}
+    today = ({
+        "day": today_key,
+        "trips": int(td.get("trips") or 0),
+        "km": round(float(td.get("km") or 0.0), 1),
+        "dose_ug": round(float(td.get("dose_ug") or 0.0), 1),
+        "switched": int(td.get("switched") or 0),
+        "modes": dict(td.get("modes") or {}),
+    } if td else None)
+
+    # rolling 24 h — the retained UTC-hour aggregates (72 h deep), all
+    # buckets inside the window, devices unioned exactly across them
+    last_24h = None
+    try:
+        hw = TRIPS.hours_window(86400, now=now)
+        if hw is not None:
+            last_24h = hw
+    except AttributeError:
+        last_24h = None                # backend without the read
+    except Exception:  # noqa: BLE001
+        last_24h = None
+    try:
+        per_hour = TRIPS.trips_per_hour(24)
+    except Exception:  # noqa: BLE001
+        per_hour = None
+
+    # devices — the ledger's distinct hashed tokens. `device_windows`
+    # returns None when the backend couldn't complete the scan: surface
+    # that honestly instead of a wrong count.
+    devices = None
+    try:
+        devices = LEDGER.device_windows(now=now)
+    except AttributeError:
+        try:
+            devices = {"total": LEDGER.devices(),
+                       "seen_24h": None, "seen_7d": None}
+        except Exception:  # noqa: BLE001
+            devices = None
+    except Exception:  # noqa: BLE001
+        devices = None
+
+    # dose distribution — mean over every donated trip; median over the
+    # ledger's retained per-trip rows (its own disclosed population)
+    dose_vals = None
+    try:
+        dose_vals = LEDGER.dose_values()
+    except AttributeError:
+        dose_vals = None
+    except Exception:  # noqa: BLE001
+        dose_vals = None
+    median = _median(dose_vals) if dose_vals else None
+
+    # feedback — the two real authored channels: star reviews (aggregate
+    # summary; note bodies keep their own k>=3 gate) and hazard flags
+    # counted by kind. No other feedback store exists — /v2/feedback
+    # posts land in community._reviews and nowhere else.
+    reviews = None
+    try:
+        import community
+        reviews = community.reviews_summary()
+    except Exception:  # noqa: BLE001
+        reviews = None
+    reports = None
+    try:
+        live = community.live_reports()
+        kinds = {}
+        for r in live:
+            k = str(r.get("kind") or "?")
+            kinds[k] = kinds.get(k, 0) + 1
+        reports = {"active": len(live), "kinds": kinds,
+                   "ttl_h": 6,
+                   "basis": ("user hazard flags (dust/smoke/burning/"
+                             "clean) — counts by kind only; pins never "
+                             "leave this surface; each expires in 6 h")}
+    except Exception:  # noqa: BLE001
+        reports = None
+
+    # per-day mean series for the breathing curve — same day counters
+    # the donations endpoint already publishes, mean null on zero-trip
+    # days rather than a fake zero
+    daily = []
+    for day in sorted(days)[-14:]:
+        v = days[day]
+        tr = int(v.get("trips") or 0)
+        daily.append({
+            "day": day, "trips": tr,
+            "mean_ug": (round(float(v.get("dose_ug") or 0.0) / tr, 1)
+                        if tr else None)})
+
+    return {
+        "ts": now,
+        "k_min": K_MIN,
+        "privacy": ("aggregate-only — every figure is a city-level "
+                    "scalar over the donation stores; no per-device "
+                    "data exists server-side to serve (docs/plan/07 §3)"),
+        "stores": {"trips": getattr(TRIPS, "backend", "memory"),
+                   "ledger": getattr(LEDGER, "backend", "memory")},
+        "devices": devices if devices is not None else {
+            "total": None, "seen_24h": None, "seen_7d": None,
+            "unavailable": True},
+        "devices_basis": ("distinct hashed device tokens in the donation "
+                          "ledger by last-donation recency — a phone "
+                          "mints its token at install but the server only "
+                          "learns it when a trip donation or a ledger "
+                          "read carries it, so this counts 'devices that "
+                          "shared', never installs and never a person"),
+        "installs": None,
+        "installs_note": ("true install count is unknowable server-side "
+                          "by design — no install ever registers with "
+                          "the api; the device-token count above is the "
+                          "honest floor under it"),
+        "trips": {
+            "total": tot_trips,
+            "km": round(tot_km, 1),
+            "dose_ug": round(tot_dose, 1),
+            "co2_kg_mid": round(tot_co2, 2),
+            "switched": tot_sw,
+            "days_tracked": len(days),
+            "today": today,
+            "last_24h": last_24h,
+            "last_24h_note": (None if last_24h is not None else
+                              "hour aggregates unavailable on this "
+                              "backend — rolling window not reported"),
+            "per_hour": per_hour,
+            "per_hour_note": ("donations per UTC hour, oldest→newest, "
+                              "last 24 hour buckets"),
+            "latest_donation_age_min": (
+                round((now - last_ts) / 60, 1) if last_ts else None),
+        },
+        "dose": {
+            "mean_ug_per_trip": (round(tot_dose / tot_trips, 1)
+                                 if tot_trips else None),
+            "median_ug_per_trip": median,
+            "median_n": len(dose_vals) if dose_vals else 0,
+            "median_basis": ("true median over the device ledger's "
+                             "retained per-trip rows (≤300 kept per "
+                             "device, ~90 d retention on dynamodb) — "
+                             "donations without a device token never "
+                             "reach the ledger, so they are outside "
+                             "this median; the mean above covers every "
+                             "donated trip"),
+            "mean_ug_per_km": (round(tot_dose / tot_km, 2)
+                               if tot_km else None),
+            "daily": daily,
+        },
+        "corridors": {
+            "tracked": agg.get("cells_tracked", 0),
+            "publishable": agg.get("corridors_publishable", 0),
+            "window_h": CORRIDOR_WINDOW_S // 3600,
+            "k_min": K_MIN,
+        },
+        "feedback": {
+            "reviews": reviews,
+            "reviews_note": (None if reviews is not None else
+                             "reviews store unavailable on this task"),
+            "hazard_reports": reports,
+            "basis": ("what riders authored — /v2/feedback reviews "
+                      "(stars + note, no token stored) plus hazard "
+                      "flags; note bodies publish only at >=3 reviews; "
+                      "there is no other feedback channel"),
+        },
+        "empty": tot_trips == 0 and not (devices and devices.get("total")),
     }

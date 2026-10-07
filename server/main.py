@@ -1860,6 +1860,10 @@ except Exception:
 if _admin_agg is not None:
     app.include_router(_admin_agg.router,
                        dependencies=[Depends(_admin_guard)])
+    # /v2/usage — the admin 'usage' tab's aggregate rollup; same gate as
+    # /admin/api/* (Bearer token when set, loopback-only otherwise)
+    app.include_router(_admin_agg.usage_router,
+                       dependencies=[Depends(_admin_guard)])
 
 try:  # /metrics + request logging
     import observability as _obs
