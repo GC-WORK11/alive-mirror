@@ -1159,3 +1159,43 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   LICENSE + .env.example). ios-cold-drive slept after its wave.
 - Owner pending calls: TLS (domain+ACM :443 vs honest-answer card),
   EventBridge enable (rollup-daily+validate-weekly vs in-app+doc).
+
+### cont.61 — Oct 7 ~05:15 UTC (segments contract landed; deploy a1dca1ec in flight)
+- **Route-render pair landed** (Max-org lane, work-1's board):
+  `c152760` /v2/plan options now carry `segments[]` — served geometry
+  cut into ~12 vertex-boundary spans, one priced-field PM2.5 read per
+  span midpoint on the SAME dose chain (no new math), CPCB band per
+  span, null→"No data" never faked; declared V2PlanSegment in
+  Bridge/contract.ts. `dc6796a` mobile CPCB ramp + seam (old-server
+  fallback), `495957b` staggered settle + tap-swap (no unmounts),
+  `f932acc` camera-follow 600ms ease inside the commit cadence.
+  My route-segments lane re-scoped: review theirs + safe-path audit
+  (no jungle routes) — collision avoided.
+- **Suite 1203 passed** at HEAD incl. +4 segment tests.
+- **repo-hygiene landed `5fc3a5b`+**: secrets audit across ALL 1,219
+  public commits = ZERO real credentials (test fakes + stock debug
+  keystore only). MIT LICENSE, README re-measured (untraceable p50
+  claim → measured 0.320ms on 120,351-entry index), .env.example,
+  docs/README index, 6 dead links fixed.
+- **audit-writeup verdict: no fabrication** (51 claims checked).
+  P2 fixes applied in `a1dca1e`: lede "no uploads"→"nothing personal
+  leaves the phone"; plaintext HTTP named with the armed line;
+  EventBridge cite repointed infra/schedules→handoff.md (committed
+  JSONs are DISABLED templates — the cite was a self-own); /v2/skill
+  self-grade framed; drifted counts restamped (53-54 stns, 22
+  contributors/40 obs/1,028.5µg, 12/55 corridors, ~98 samples,
+  "5 days" not "120 hours", 16-24 options, strided-90k veil).
+- **Donation pipeline code-verified end-to-end**: client pre-trim +
+  server re-trim + wipeGen guard + bounded dedupe + implied-C≤900 +
+  geo admission + token-hash — tight at every layer.
+- **safefile everywhere `7f7276d`**: settings/vehicle/places/outbox
+  converted to atomic writes + .bak; purgeJsonDoc scrubs .tmp/.bak.
+- **warm_task.py proven on new deploy**: 22.6s all-layers warm,
+  tiles 22.7MB z0-14 live.
+- oct7-test-plan updated (`f21b348`): Lane B/C now cover wipe
+  completeness, alert kinds+reflect toggle, daysum week-strip parity,
+  BandScale, Android touch-taps on Where-to.
+- Deploy `a1dca1ec` in flight (segments + all above).
+- Board: route-segments fc54326b (re-scoped), wipe-verify 3b1586e9,
+  android-drive 53a85a60 (Lane C oct7 plan on shipped APK),
+  repo-hygiene slept. Slot held for incoming findings.
