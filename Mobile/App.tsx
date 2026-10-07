@@ -469,7 +469,10 @@ function AppInner() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       if (pos && !cancelled) {
         setUserPos({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        setFrom({ name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
+        /* prev ?? — a fast user can type a real place inside the ~1-2 s
+           permission→fix window on a warm boot; the GPS answer must not
+           clobber a from the user already chose */
+        setFrom((prev) => prev ?? { name: t("placeCurrentLocation", settings.lang), subtitle: "", lat: pos.coords.latitude, lon: pos.coords.longitude });
         // wait for the initial style/tile load to settle before animating —
         // flyTo during first-load is a render-thread spike on the iOS sim
         setTimeout(() => camRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 15, duration: camDur(900) }), 600);
