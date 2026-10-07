@@ -15,7 +15,7 @@
  *  opts into the enveloped {v,sum,d} form (FNV-1a over the payload) —
  *  used by daysum.json, which nothing else reads. Both forms get the
  *  same atomic+backup writes. */
-import { File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 
 /** FNV-1a — the same hash api/cache.ts uses for key filenames. */
 export function fnv1a(s: string): string {
@@ -83,4 +83,51 @@ export function purgeJsonDoc(name: string): void {
       if (f.exists) f.delete();
     } catch {}
   }
+}
+
+/** "Delete my data" — fetch() response bodies also persist on disk,
+ *  outside Documents/: NSURLCache's store under
+ *  Library/Caches/<bundle>/{fsCachedData/,Cache.db*} and the shared
+ *  Library/HTTPStorages jar. Those bodies are personal data — geocode
+ *  replies carry the query text plus the caller's live-position bias,
+ *  route replies carry origin/destination coords and labels, and
+ *  request URLs/headers bake in the anonymous contributor id. Wiping
+ *  Documents alone leaves them recoverable until iOS evicts the cache.
+ *  Removes exactly the URL-cache artifacts inside the app's cache dir
+ *  (shader/font caches are left alone) and the app's HTTPStorages jar;
+ *  the OS recreates them empty on the next request. Best-effort like
+ *  every purge here — an undeletable entry stays, which a cache is
+ *  allowed to do anyway. Verified on iOS sim (wipe-verify lane). */
+export function purgeUrlCaches(): void {
+  try {
+    for (const entry of new Directory(Paths.cache).list()) {
+      if (!(entry instanceof Directory)) continue;
+      let names: Set<string>;
+      try {
+        names = new Set(entry.list().map((e) => e.name));
+      } catch {
+        continue;
+      }
+      if (!names.has("fsCachedData") && ![...names].some((n) => n.startsWith("Cache.db"))) {
+        continue;
+      }
+      /* <caches>/<bundle>/ — the app's URL-cache home. Delete only the
+         URL-cache artifacts, not sibling OS caches (metal shaders etc). */
+      for (const e of entry.list()) {
+        if (e.name === "fsCachedData" || e.name.startsWith("Cache.db")) {
+          try {
+            e.delete();
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+  try {
+    const lib = new Directory(Paths.cache).parentDirectory; // …/Library
+    for (const jar of new Directory(lib, "HTTPStorages").list()) {
+      try {
+        jar.delete();
+      } catch {}
+    }
+  } catch {}
 }

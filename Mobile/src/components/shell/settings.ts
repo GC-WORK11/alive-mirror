@@ -7,7 +7,7 @@ import type { Lang } from "../../i18n/strings";
 import { resetLedgerCache } from "../../store/ledger";
 import { resetDaylogCache } from "../../store/daylog";
 import { resetDaySum } from "../../store/daysum";
-import { purgeJsonDoc, readJsonDoc, writeJsonDoc } from "../../store/safefile";
+import { purgeJsonDoc, purgeUrlCaches, readJsonDoc, writeJsonDoc } from "../../store/safefile";
 import { clearConsent } from "../../store/consent";
 import { clearWelcomeSeen } from "../../store/welcome";
 import { clearVehicle } from "../../store/vehicle";
@@ -124,6 +124,11 @@ export function clearAllData(): void {
   purgeJsonDoc("ledger.json");
   purgeJsonDoc("daylog.json");
   purgeJsonDoc(NAME); // settings.json
+  /* fetch() bodies also sit on disk: NSURLCache's fsCachedData + Cache.db
+     and the HTTPStorages jar carry geocode/route payloads (and the anon
+     contributor id in request URLs). "Deleting actually deletes" has to
+     reach them too — verified against the real sim container (wipe-verify). */
+  purgeUrlCaches();
   for (const name of ["contributor.txt", "intro_seen.txt", "events.json"]) {
     try {
       const f = new File(Paths.document, name);
