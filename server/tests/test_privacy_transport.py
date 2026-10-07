@@ -88,3 +88,31 @@ def test_ledger_header_wins_over_query():
     r = c.get("/v2/ledger", params={"token": "other-device"},
               headers={"X-Device-Token": _TOK})
     assert len(r.json()["trips"]) == 1
+
+
+# --- the back-compat marker ---------------------------------------------------
+def test_ledger_query_token_response_admits_the_transport():
+    """A ?token= response marks itself token_via:"query" — the
+    deprecation is honest on the wire, not silent."""
+    _seed()
+    r = c.get("/v2/ledger", params={"token": _TOK})
+    assert r.status_code == 200 and r.json()["token_via"] == "query"
+
+
+def test_ledger_header_response_unmarked():
+    _seed()
+    r = c.get("/v2/ledger", headers={"X-Device-Token": _TOK})
+    assert r.status_code == 200 and "token_via" not in r.json()
+
+
+def test_ledger_delete_query_token_marked():
+    _seed()
+    r = c.delete("/v2/ledger", params={"token": _TOK})
+    assert r.status_code == 200
+    assert r.json()["deleted"] == 1 and r.json()["token_via"] == "query"
+
+
+def test_ledger_delete_header_unmarked():
+    _seed()
+    r = c.delete("/v2/ledger", headers={"X-Device-Token": _TOK})
+    assert r.status_code == 200 and "token_via" not in r.json()

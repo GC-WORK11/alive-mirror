@@ -677,6 +677,9 @@ export interface V2LedgerResponse {
             co2_kg_mid: number; pm25_g_mid: number };
   devices_tracked: number;
   privacy: string;
+  token_via?: "query";          // present only on the deprecated ?token=
+                                // back-compat path — X-Device-Token header
+                                // is the supported transport
 }
 
 export interface V2Place {
