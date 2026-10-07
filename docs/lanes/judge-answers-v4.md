@@ -17,10 +17,10 @@ to say plainly.
 
 Every figure re-verified against live prod
 (`alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com`, build
-**`e0aca004`** — which is `base/v2` commit `e0aca004`, a few docs/deadcode
-commits behind HEAD, i.e. **prod already carries every code fix tonight
-except the `stations_climatology` rename `70914c0`**) on
-**2026-10-07 ~06:50 UTC (~12:20 IST)**. Numbers drift with
+**`70914c00`** — rolled mid-write from `e0aca004`; the live probe below
+was taken on `e0aca004` ~06:50 UTC and re-checked on `70914c00` ~06:57,
+which now also serves the `stations_climatology` rename) on
+**2026-10-07 ~06:50–06:57 UTC (~12:20–12:27 IST)**. Numbers drift with
 the field — say "about ~N" and re-run `scripts/verify_numbers.sh` at T-45.
 
 ---
@@ -220,11 +220,12 @@ stamped — v3's "not landed yet" was true when written;
 `server/tests/test_v2_hardening.py`; `docs/lanes/fix-trip-bounds-report.md`.
 Rate limiter: `server/middleware.py` — `_client_key` sha256s `ip:<socket
 peer>`; XFF honored only inside `ALIVE_TRUSTED_PROXIES` CIDRs (empty by
-default, correct for the L4 NLB). **Live-verified on `e0aca004` this
-hour:** a 150-request parallel burst with a unique `X-Forwarded-For` +
-`X-Device-Token` per request got **75×200/75×429 — statistically
-identical to the unmarked control (74/76)**; the pentest's original
-reproduction on the pre-fix image got 200×200. k≥3 gate + median-of-≥3
+default, correct for the L4 NLB). **Live-verified on prod this
+hour (both builds):** a 150-request parallel burst with a unique
+`X-Forwarded-For` + `X-Device-Token` per request got **75×200/75×429 on
+`e0aca004` and 91/59 on `70914c00` — statistically identical to the
+unmarked control**; the pentest's original reproduction on the pre-fix
+image got 200×200. k≥3 gate + median-of-≥3
 fresh traversals still stand behind it (`community.py:702-731`), and
 corridor cells still "weigh like model points (1×), never stations (3×)".
 
@@ -303,9 +304,11 @@ and the limiter fix is **live-verified on prod an hour ago** — a
 HIGHs + the full clean list (secrets in bundle: none; on-device stores:
 by-design under purge contract; CORS*: header-only auth so no CSRF
 surface; error paths: shaped 422s, no tracebacks). Live re-verification
-this session on `e0aca004`: 150-req parallel burst w/ rotating
-XFF+device-token → 75×200/75×429; unmarked control 74/76 (the pre-fix
-image returned 200×200 to the same probe). Also landed: constant-time
+this session: 150-req parallel burst w/ rotating
+XFF+device-token → 75×200/75×429 on `e0aca004` and 91×200/59×429 after
+the mid-write roll to `70914c00` — spoof-immunity held across the
+deploy; unmarked control was statistically identical (74/76). The
+pre-fix image returned 200×200 to the same probe. Also landed: constant-time
 `hmac.compare_digest` admin token; release-build `console.debug` gated on
 `__DEV__`; build-bucket `put-public-access-block` in `deploy.sh`; a nav
 dose-inflation bug (`counters.ts` derived-speed fallback) fixed as a
@@ -479,11 +482,12 @@ P3, and it landed while this card was being written**: sibling lane
 `70914c0` renamed it to `history.stations_climatology` in
 `history.summary()` (one-line wire change; consumers were `main.py:376`
 + `admin_agg.py:56`; `verify_numbers.sh` already reads the new key).
-**Prod `e0aca004` still serves the old `history.stations:125`** — the
-rename reaches the wire on the next deploy, which the freeze rule now
-pushes to after the demo. Armed line meanwhile: "125 is the climatology
-archive that backs the 'vs typical' baseline; 53 is tonight's live
-instruments — the field paints from the 53."
+**Already live on prod**: the deploy to `70914c00` mid-write put
+`stations_climatology:125` on the wire (verified ~06:57 UTC) — the key
+now disambiguates itself. Armed line if a judge still asks about the
+two counts: "125 is the climatology archive that backs the 'vs typical'
+baseline; 53 is tonight's live instruments — the field paints from the
+53."
 
 ---
 
@@ -512,14 +516,14 @@ instruments — the field paints from the 53."
 | corridors | **12 publishable / 55 tracked**, min_k 3 (72 h) | `/v2/city/moves` |
 | archive | recorded **[1,3–12]**, gaps **{0,2}**, rest pending | `/v2/archive` |
 | usage endpoint | `GET /v2/usage` → **401 `{"detail":"admin token required"}`** for guests — live + correctly gated | live probe |
-| rate limiter | defaults 10 rps/burst 30; plan+reroute 2/6; trip+observe+report 1/5; `/health` exempt — **XFF/token spoof immunity live-verified** (150-burst 75×200/75×429 ≈ unmarked 74/76) | `middleware.py` + live probe |
+| rate limiter | defaults 10 rps/burst 30; plan+reroute 2/6; trip+observe+report 1/5; `/health` exempt — **XFF/token spoof immunity live-verified on both builds** (150-burst: 75×200/75×429 @e0aca004, 91/59 @70914c00 ≈ unmarked 74/76) | `middleware.py` + live probe |
 | plan demo OD (IG→"huda city centre", 24.7 km) | **23 options**: car-AC **9.0** (3.9–14.1) / walk **310.5** → **34.5×**; metro+walk **61.6 present** (car beats ~6.9×); `took_ms ~5,950` fresh | sanctioned `POST /v2/plan` |
 | plan alternate OD (IG→Huda proper, 31.3 km) | 20 options, no metro row — OD/service-hours dependent | same |
 | depart demo OD (car) | now **31.5** → best **30.7 @+5 h** → worst **57.3 @+23 h**; `pct_less_vs_now` **3** → leave-later row **absent** (gate >8) | `/depart` |
 | latencies | GETs ~0.3–0.5 s; plan fresh-OD `took_ms` ~5.9–6.5 s server (reprice), warm ~50–660 ms; first `/v2/reach` one-time ~+200 ms raster | curl + wire |
 | spend | **~$46/mo** (Fargate Spot + small data) — last credentialed verify Oct-6; T-45 CLI understudy re-checks | docs/demo-script beat 6 |
 | task shape | 1 task × 1 vCPU / 3 GB (API ≈2 GB after OSRM sidecar); RSS ~0.95 GB → ~1 GB headroom; **~8–15 concurrent users** honest posture | `deploy.sh` + `lowram-report.md` |
-| builds | prod **`e0aca004`** == commit `e0aca004` (behind HEAD — contains every code fix except the `stations_climatology` rename `70914c0`, still `history.stations:125` on the wire) | `/health.build_sha` + `git merge-base` |
+| builds | prod **`70914c00`** (rolled ~06:55 from `e0aca004` — carries every code fix incl. the rename; HEAD is now only docs ahead) | `/health.build_sha` + `git merge-base` |
 
 ---
 
@@ -539,7 +543,7 @@ instruments — the field paints from the 53."
 | **NEW** "It falls over under a demo load" | `lowram-report.md`: ~0.95 GB working set vs ~2 GB budget, per-request RSS delta 0, every hot cache bounded; CPU-bound honest posture ~8–15 concurrent — the limiter queues, RAM flat |
 | **NEW** "The app crashes on cold open" | `sigsegv-coldfix-report.md`: root-caused (off-JS-thread jsi destructors → Hermes corruption), sim-only fix `3c24a5e`, gate 34/34 clean; independent verify 22/24 — say "root-caused and sim-gated, hardware untouched"; Android zero-crash oracle |
 | **NEW** "The route paint isn't the field" | `demo-exchange-max.md`: 12/12 segment spans within ±5% of `/aqi` at midpoints (0.96–1.10); contract.ts == wire byte-shape; live drift observed mid-audit (real donations landing) |
-| **NEW** "`/health` contradicts itself — 53 vs 125" | populations, not a dup-key bug: `sources.stations.count` = live instruments vs `history.stations` = climatology archive; renamed `stations_climatology` at HEAD (`70914c0`), reaches prod on the post-freeze deploy |
+| **NEW** "`/health` contradicts itself — 53 vs 125" | populations, not a dup-key bug: `sources.stations.count` = live instruments vs `history.stations` = climatology archive; already renamed `stations_climatology` on prod (`70914c00` live) |
 | **NEW** "Numbers don't match their siblings" | rolling-deploy skew is the only true source of this (audit watched build flip mid-pass) → freeze rule: no deploys inside the demo window, `build_sha`==HEAD check at T-45 |
 
 ---
