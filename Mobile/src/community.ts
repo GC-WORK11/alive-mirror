@@ -50,13 +50,14 @@ export type CorridorCell = {
 
 export type CommunityTotals = {
   obs_total: number;
-  obs_24h: number;
+  obs_today: number;
+  today?: string;                 // the UTC day-key the today bucket covers
   contributors: number;
-  km_24h: number;
-  dose_ug_24h: number;
-  avoided_ug_24h: number;
+  km_today: number;
+  dose_ug_today: number;
+  avoided_ug_today: number;
   avoided_ug_all: number;
   active_reports: number;
-  modes_24h: Record<string, number>;
+  modes_today: Record<string, number>;
   top_corridors?: CorridorCell[];
 };
