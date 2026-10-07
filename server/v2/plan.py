@@ -1070,8 +1070,13 @@ def _transit_option(j: dict, vehicle, profile, origin, dest) -> dict:
     dur = float(j.get("duration_s") or 0.0)
     tmode = j.get("mode") or "metro"
     emode = "bus" if tmode == "bus" else "metro"
+    # generic 'Bus' lines (feed-internal ids transit_v2 suppressed)
+    # dedupe out — "Bus Bus" reads as broken; a route-numberless leg
+    # is just 'Bus'
+    names = [n for n in dict.fromkeys(j.get("lines") or [])
+             if n not in ("?", "Bus")]
     label = ("Metro + walk" if emode == "metro"
-             else "Bus " + " → ".join(j.get("lines") or [])).strip()
+             else ("Bus " + " → ".join(names) if names else "Bus")).strip()
     stations = None
     rides = [l for l in legs if l.get("type") != "walk"]
     if rides:

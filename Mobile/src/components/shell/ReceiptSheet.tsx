@@ -34,7 +34,7 @@ import React, { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMonoText, famSerif } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
-import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
+import { approx, doseUgRound, smokeFraction, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE, a11y, slop, useReduceMotion } from "../../a11y";
 import { PressSpring } from "../PressSpring";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -223,7 +223,7 @@ function ReceiptSheetInner({
   /* show_cig demotes the metaphor to a secondary line — the equivalence
      stays available under the µg hero, never as the headline number */
   const cigTxt = showCig && cigs != null
-    ? t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })
+    ? (cigs < 0.01 ? t("cigsTrace", lang) : t("nav_cigs", lang, { n: approx(cigs) }))
     : null;
   /* the ×less comparison and the "would have added" line both measure
      against the FULL-route worst option — on an ended-early trip the
@@ -231,12 +231,24 @@ function ReceiptSheetInner({
      inflated (a 0.4 km stub claims "30× less than foot"). Suppress both
      until the trip actually runs the corridor. */
   const fullRun = data.endedEarly !== true;
+  /* "about a third of walking" — plain fraction when the ratio lands
+     on one, ×-form as the honest fallback (smokeFraction returns null
+     for awkward ratios like 7.3×) */
+  const frac = ratio != null && ratio > 1.05 && fullRun
+    ? smokeFraction(ratio, lang)
+    : null;
   const ratioTxt = ratio != null && ratio > 1.05 && fullRun
-    ? (data.worstLabel
-        ? data.worstMode === "walk"
-          ? t("receipt_lessVsWalk", lang, { n: ratio })
-          : t("receipt_lessVs", lang, { n: ratio, m: data.worstLabel })
-        : t("receipt_lessVsWorst", lang, { n: ratio }))
+    ? (frac != null
+        ? (data.worstLabel
+            ? data.worstMode === "walk"
+              ? t("receipt_fracWalk", lang, { f: frac })
+              : t("receipt_fracVs", lang, { f: frac, m: data.worstLabel })
+            : t("receipt_fracWorst", lang, { f: frac }))
+        : (data.worstLabel
+            ? data.worstMode === "walk"
+              ? t("receipt_lessVsWalk", lang, { n: ratio })
+              : t("receipt_lessVs", lang, { n: ratio, m: data.worstLabel })
+            : t("receipt_lessVsWorst", lang, { n: ratio })))
     : null;
   const scaleA11y = [breathedTxt, ratioTxt, cigTxt].filter(Boolean).join(". ");
 
@@ -284,8 +296,10 @@ function ReceiptSheetInner({
       ) : (
         <>
           <Text style={[s.heroNum, NUM, { fontFamily: famSerif(lang, "semi") }]} {...DYNAMIC_TYPE}>
+            {/* 'about' hangs AFTER the number as a dangler (audit #26) —
+                it leads the read: 'about ≈ 0.4 µg' is the sentence */}
+            <Text {...DYNAMIC_TYPE} style={s.est}>{t("receipt_estShort", lang)} </Text>
             {t("doseUg", lang, { n: approx(doseUgRound(dose.mid)) })}
-            <Text {...DYNAMIC_TYPE} style={s.est}>  {t("receipt_estShort", lang)}</Text>
           </Text>
           {dose.hi - dose.lo >= 1 && (
             <Text style={[s.bandTxt, NUM, { fontFamily: famMonoText(lang) }]} {...DYNAMIC_TYPE}>

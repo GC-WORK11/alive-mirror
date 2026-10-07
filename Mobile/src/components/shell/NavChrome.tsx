@@ -14,7 +14,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { approx, doseUgRound, t, type Lang } from "../../i18n/strings";
+import { approx, clockLabel, doseUgRound, t, type Lang } from "../../i18n/strings";
 import { confirm, tap } from "../../haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Band } from "../../nav/strip";
@@ -45,10 +45,10 @@ export type NavView = {
   snapped?: [number, number] | null;
 };
 
-const clock = (etaS: number) => {
-  const d = new Date(Date.now() + Math.max(0, etaS) * 1000);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
+/* arrival wall-time in the app's one clock convention — 12h,
+   '4:42 pm', the same form the ledger/receipt surfaces print */
+const clock = (etaS: number, lang: Lang) =>
+  clockLabel(Date.now() + Math.max(0, etaS) * 1000, lang);
 
 /** Trip-remaining distance as a plain number string — the template
  *  carries the unit. km at 1dp ≥950 m; below that it reads metres
@@ -243,8 +243,8 @@ function NavChromeInner({
         leftIsKm(leftM)
           ? { min, km: kmNum(leftM) }
           : { min, m: leftMNum(leftM) })}
-      · ${t("arriveAt", lang, { t: clock(nav.etaS) })}`
-    : `${Math.round(option.duration_min)} ${t("minUnit", lang)} · ${option.distance_km ?? 0} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: clock(option.duration_min * 60) })}`;
+      · ${t("arriveAt", lang, { t: clock(nav.etaS, lang) })}`
+    : `${Math.round(option.duration_min)} ${t("minUnit", lang)} · ${option.distance_km ?? 0} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: clock(option.duration_min * 60, lang) })}`;
 
   /* instruction swap: only the sentence/arrow change earns motion — the
      1 Hz distance tick under it must not re-animate the card. Fade+rise
@@ -274,8 +274,10 @@ function NavChromeInner({
       text: (() => {
         const lo = Math.round(Math.max(0, nav.dose.lo)); const hi = Math.round(Math.max(0, nav.dose.hi));
         const base = lo === hi ? `${lo} µg` : `${lo}–${hi} µg`;
+        /* under 1% of one the '≈ 0.01 cigarettes' clamp is fake
+           precision — felt words, same rule as the ledger's trace */
         return showCig && cigs != null
-          ? `${base} · ${t("nav_cigs", lang, { n: approx(cigs > 0 && cigs < 0.01 ? 0.01 : cigs) })}`
+          ? `${base} · ${cigs < 0.01 ? t("cigsTrace", lang) : t("nav_cigs", lang, { n: approx(cigs) })}`
           : base;
       })(),
     }
@@ -472,7 +474,9 @@ const s = StyleSheet.create({
     position: "absolute", top: -1, width: 3, height: 5,
     marginLeft: -1.5, borderRadius: 1.5,
   },
-  cellBand: { fontSize: V2Type.micro, color: V2T.text3, marginTop: 5 },
+  /* the band's own sub-line needed air of its own — 5px to the value
+     and nothing below sat it against the meta hairline (audit #25) */
+  cellBand: { fontSize: V2Type.micro, color: V2T.text3, marginTop: 5, marginBottom: 7 },
   metaRow: {
     borderTopWidth: 1, borderTopColor: V2T.line,
     paddingVertical: 8, paddingHorizontal: 14,

@@ -11,7 +11,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { NUM, V2T, V2Type, bandColor, famMono } from "../../theme";
-import { doseUgRound, t, type Lang } from "../../i18n/strings";
+import { doseUgRound, hourLabel, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { tick } from "../../haptics";
 import { bump } from "../../perf";
@@ -56,12 +56,17 @@ function HourArcInner({ rec, lang, nh }: {
     hideT.current = setTimeout(() => { lastH.current = null; setScrubH(null); }, 5000);
   }, []);
   const scrub = scrubH != null ? rec.arc.find((h) => h.hour === scrubH) : null;
+  /* {h} carries a clock word ('2pm', not '14:00') — one clock convention
+     across every surface; the axis ticks keep bare indices (they mark
+     position in the day, not the wall clock) */
+  const scrubClk = scrub == null ? ""
+    : hourLabel(new Date(2000, 0, 1, scrub.hour, 0), lang);
   const scrubLine = scrub == null ? " "
     : scrub.covered && scrub.dose_ug > 0
-      ? t("dayArcDose", lang, { n: doseUgRound(scrub.dose_ug), h: scrub.hour })
+      ? t("dayArcDose", lang, { n: doseUgRound(scrub.dose_ug), h: scrubClk })
       : scrub.conc != null
-        ? t("dayArcAir", lang, { c: Math.round(scrub.conc), h: scrub.hour })
-        : t("dayArcFlat", lang, { h: scrub.hour });
+        ? t("dayArcAir", lang, { c: Math.round(scrub.conc), h: scrubClk })
+        : t("dayArcFlat", lang, { h: scrubClk });
   return (
     <View>
       <View ref={arcRef} style={ss.arcWrap}

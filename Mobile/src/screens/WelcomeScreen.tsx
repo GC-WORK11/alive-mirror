@@ -34,9 +34,10 @@ import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { API, fetchJson } from "../components/shell/net";
 import { tick } from "../haptics";
 
-/* the projector canvas — near-black, not the app's ink; one warm step off
-   true black so the band hue still reads as muted, never neon */
-const ROOM = "#0E1013";
+/* the projector canvas — near-black, warm-shifted toward the app's paper
+   (the blue-tinged #0E1013 felt cold before a warm screen — audit #35);
+   still far enough from black that the band hue reads muted, never neon */
+const ROOM = "#14110E";
 const PAPER = "#F2F0E9";                    // type ink on the dark canvas
 const DIM = "rgba(242,240,233,0.42)";       // eyebrow / provenance ink
 const FAINT = "rgba(242,240,233,0.10)";     // the digit field

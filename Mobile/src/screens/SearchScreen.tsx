@@ -7,7 +7,7 @@
 // always one tap away. Every visible string goes through t() (or the LOCAL
 // staging table below); every colour through V2T. No blur, no gradients.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   BackHandler,
@@ -139,7 +139,12 @@ function PlaceRow({
         {outsideNote ? (
           <Text {...DYNAMIC_TYPE} style={[ss.rowOutside, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{outsideNote}</Text>
         ) : subtitle ? (
-          <Text {...DYNAMIC_TYPE} style={[ss.rowSub, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>{subtitle}</Text>
+          /* shrink rather than cut — a 'park · India Gate' subtitle
+             ellipsizing to 'park · I…' loses the anchor entirely on a
+             narrow phone (audit #18) */
+          <Text {...DYNAMIC_TYPE} numberOfLines={1} adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            style={[ss.rowSub, { fontFamily: fam(lang, "reg") }]}>{subtitle}</Text>
         ) : null}
       </View>
       {distLabel ? <Text {...DYNAMIC_TYPE} style={[ss.rowDist, NUM, { fontFamily: famMono(lang, "reg") }]}>{distLabel}</Text> : null}
@@ -237,6 +242,11 @@ function SearchSheetInner({
   notice?: string | null;
 }) {
   const [q, setQ] = useState("");
+  /* the row list renders off the deferred query — a keystroke's urgent
+     commit then repaints just the pill, not ~25 rows of regex-split
+     titles, so React never stalls long enough for the native field to
+     drop the next character (audit #17's actual mechanism) */
+  const qDeferred = useDeferredValue(q);
   const [t0rows, setT0rows] = useState<PlaceResult[]>([]);
   const [tiers, setTiers] = useState<ServerTiers | null>(null);
   const [store, setStore] = useState<PlaceStore>({ recents: [], home: null, work: null });
@@ -269,18 +279,29 @@ function SearchSheetInner({
 
   const onChange = useCallback(
     (text: string) => {
+      /* the controlled value must echo NOW — if JS is mid-work when the
+         echo lands, the native field gets the last committed text
+         re-asserted over the in-flight keystroke and characters vanish
+         (audit #17: "india g" → "india" → "indiate"). The list work —
+         the synchronous t0 query + the list swaps — marks non-urgent
+         so the echo always wins the next render. */
       setQ(text);
-      setArmed(null);   // the list just rebuilt — the armed row may be gone
       const trimmed = text.trim();
+      startTransition(() => {
+        setArmed(null);   // the list just rebuilt — the armed row may be gone
+        if (!trimmed) {
+          setT0rows([]);
+          setTiers(null);
+          return;
+        }
+        // T0 paints synchronously — near-same frame as the keystroke.
+        setT0rows(t0query(text, loc, T0_LIMIT));
+        setTiers(null); // waiting on the server tiers again
+      });
       if (!trimmed) {
-        setT0rows([]);
-        setTiers(null);
         search.setQuery("", loc, () => {});
         return;
       }
-      // T0 paints synchronously — same frame as the keystroke.
-      setT0rows(t0query(text, loc, T0_LIMIT));
-      setTiers(null); // waiting on the server tiers again
       search.setQuery(trimmed, loc, (res) => setTiers(res));
     },
     [loc, search],
@@ -348,7 +369,7 @@ function SearchSheetInner({
     () => merged.filter((p) => p.tier !== "t0" && !t0rows.some((l) => samePlace(l, p))),
     [merged, t0rows],
   );
-  const typing = q.trim().length > 0;
+  const typing = qDeferred.trim().length > 0;
   const pending = tiers === null;
   const empty = typing && !pending && merged.length === 0;
 
@@ -357,29 +378,122 @@ function SearchSheetInner({
     if (merged[0]) pick(merged[0]);
   }, [merged, pick]);
 
-  const renderPlace = (p: PlaceResult, key: string) => (
-    <View key={key}>
-      <PlaceRow
-        lang={lang}
-        query={q}
-        glyph={categoryGlyph(p.kind, V2T.text2)}
-        title={p.name}
-        subtitle={p.subtitle != null ? localizeKind(p.subtitle, lang) : undefined}
-        distLabel={distLabel(p)}
-        outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
-        dim={p.outside_ncr}
-        armed={armedFor(p)}
-        onPress={() => pick(p)}
-        onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
-      />
-      {armedFor(p) && (
-        <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
-      )}
-    </View>
+  const renderPlace = useCallback(
+    (p: PlaceResult, key: string) => (
+      <View key={key}>
+        <PlaceRow
+          lang={lang}
+          query={qDeferred}
+          glyph={categoryGlyph(p.kind, V2T.text2)}
+          title={p.name}
+          subtitle={p.subtitle != null ? localizeKind(p.subtitle, lang) : undefined}
+          distLabel={distLabel(p)}
+          outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
+          dim={p.outside_ncr}
+          armed={armedFor(p)}
+          onPress={() => pick(p)}
+          onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
+        />
+        {armedFor(p) && (
+          <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+        )}
+      </View>
+    ),
+    [lang, qDeferred, distLabel, armedFor, pick, saveSlot, store],
   );
 
   const hasSaved = !!(store.home || store.work);
   const hasRecents = store.recents.length > 0;
+
+  /* both list branches are memoized element TREES — the urgent keystroke
+     commit reuses the identical element objects, so reconciliation bails
+     at the subtree root and none of ~25 rows' render/regex work runs on
+     the echo path (audit #17). Rows only rebuild when their own inputs
+     move: the merged results, the armed strip, or the deferred query. */
+  const savedRecentsEl = useMemo(() => (
+    <>
+      {hasSaved && <SectionLabel lang={lang}>{t("sidebarSavedPlaces", lang)}</SectionLabel>}
+      {store.home && (
+        <>
+          <PlaceRow
+            lang={lang}
+            glyph={<Icon name="home" color={V2T.text2} size={20} />}
+            title={t("home", lang)}
+            subtitle={store.home.name}
+            distLabel={distLabel(store.home)}
+            armed={armedRemove("home")}
+            onPress={() => pick(store.home!)}
+            onLongPress={() => { tick(); setArmed(armedRemove("home") ? null : { place: store.home!, removeSlot: "home" }); }}
+          />
+          {armedRemove("home") && (
+            <SaveStrip place={store.home} removeSlot="home" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+          )}
+        </>
+      )}
+      {store.work && (
+        <>
+          <PlaceRow
+            lang={lang}
+            glyph={<Icon name="work" color={V2T.text2} size={20} />}
+            title={t("work", lang)}
+            subtitle={store.work.name}
+            distLabel={distLabel(store.work)}
+            armed={armedRemove("work")}
+            onPress={() => pick(store.work!)}
+            onLongPress={() => { tick(); setArmed(armedRemove("work") ? null : { place: store.work!, removeSlot: "work" }); }}
+          />
+          {armedRemove("work") && (
+            <SaveStrip place={store.work} removeSlot="work" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+          )}
+        </>
+      )}
+      {hasRecents && <SectionLabel lang={lang}>{t("recents", lang)}</SectionLabel>}
+      {store.recents.map((p, i) => (
+        <View key={`recent-${i}`}>
+          <PlaceRow
+            lang={lang}
+            glyph={<Icon name="clock" color={V2T.text2} size={20} />}
+            title={p.name}
+            subtitle={p.subtitle != null ? localizeKind(p.subtitle, lang) : undefined}
+            distLabel={distLabel(p)}
+            outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
+            dim={p.outside_ncr}
+            armed={armedFor(p)}
+            onPress={() => pick(p)}
+            onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
+          />
+          {armedFor(p) && (
+            <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
+          )}
+        </View>
+      ))}
+      {!hasSaved && !hasRecents && (
+        <View accessibilityLiveRegion="polite">
+          <Quiet glyph="search" title={t("emptySearchHint", lang)} lang={lang} />
+        </View>
+      )}
+    </>
+  ), [hasSaved, hasRecents, store, lang, pick, saveSlot, armedFor, armedRemove, distLabel]);
+
+  const resultsEl = useMemo(() => (
+    <>
+      {merged.length > 0 && <SectionLabel lang={lang}>{t("resultsHeader", lang)}</SectionLabel>}
+      {t0rows.map((p, i) => renderPlace(p, `t0-${i}`))}
+      {(pending || serverRows.length > 0) && t0rows.length > 0 && <View style={ss.hairline} />}
+      {pending ? (
+        <View style={ss.statusRow} accessibilityLiveRegion="polite">
+          <Text {...DYNAMIC_TYPE} style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>{t("searching", lang)}</Text>
+        </View>
+      ) : (
+        serverRows.map((p, i) => renderPlace(p, `srv-${p.tier}-${i}`))
+      )}
+      {empty && (
+        <View accessibilityLiveRegion="polite">
+          <Quiet glyph="search" title={t("noPlaceFound", lang)} lang={lang} />
+        </View>
+      )}
+    </>
+  ), [merged, t0rows, serverRows, pending, empty, lang, renderPlace]);
 
   return (
     <View style={[ss.root, { marginTop: insets.top + 8 }]}>
@@ -448,88 +562,7 @@ function SearchSheetInner({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={ss.listContent}
         >
-          {!typing ? (
-            <>
-              {hasSaved && <SectionLabel lang={lang}>{t("sidebarSavedPlaces", lang)}</SectionLabel>}
-              {store.home && (
-                <>
-                  <PlaceRow
-                    lang={lang}
-                    glyph={<Icon name="home" color={V2T.text2} size={20} />}
-                    title={t("home", lang)}
-                    subtitle={store.home.name}
-                    distLabel={distLabel(store.home)}
-                    armed={armedRemove("home")}
-                    onPress={() => pick(store.home!)}
-                    onLongPress={() => { tick(); setArmed(armedRemove("home") ? null : { place: store.home!, removeSlot: "home" }); }}
-                  />
-                  {armedRemove("home") && (
-                    <SaveStrip place={store.home} removeSlot="home" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
-                  )}
-                </>
-              )}
-              {store.work && (
-                <>
-                  <PlaceRow
-                    lang={lang}
-                    glyph={<Icon name="work" color={V2T.text2} size={20} />}
-                    title={t("work", lang)}
-                    subtitle={store.work.name}
-                    distLabel={distLabel(store.work)}
-                    armed={armedRemove("work")}
-                    onPress={() => pick(store.work!)}
-                    onLongPress={() => { tick(); setArmed(armedRemove("work") ? null : { place: store.work!, removeSlot: "work" }); }}
-                  />
-                  {armedRemove("work") && (
-                    <SaveStrip place={store.work} removeSlot="work" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
-                  )}
-                </>
-              )}
-              {hasRecents && <SectionLabel lang={lang}>{t("recents", lang)}</SectionLabel>}
-              {store.recents.map((p, i) => (
-                <View key={`recent-${i}`}>
-                  <PlaceRow
-                    lang={lang}
-                    glyph={<Icon name="clock" color={V2T.text2} size={20} />}
-                    title={p.name}
-                    subtitle={p.subtitle != null ? localizeKind(p.subtitle, lang) : undefined}
-                    distLabel={distLabel(p)}
-                    outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
-                    dim={p.outside_ncr}
-                    armed={armedFor(p)}
-                    onPress={() => pick(p)}
-                    onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
-                  />
-                  {armedFor(p) && (
-                    <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
-                  )}
-                </View>
-              ))}
-              {!hasSaved && !hasRecents && (
-                <View accessibilityLiveRegion="polite">
-                  <Quiet glyph="search" title={t("emptySearchHint", lang)} lang={lang} />
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              {merged.length > 0 && <SectionLabel lang={lang}>{t("resultsHeader", lang)}</SectionLabel>}
-              {t0rows.map((p, i) => renderPlace(p, `t0-${i}`))}
-              {(pending || serverRows.length > 0) && t0rows.length > 0 && <View style={ss.hairline} />}
-              {pending ? (
-                <View style={ss.statusRow} accessibilityLiveRegion="polite">
-                  <Text {...DYNAMIC_TYPE} style={[ss.waiting, { fontFamily: fam(lang, "reg") }]}>{t("searching", lang)}</Text>
-                </View>
-              ) : (
-                serverRows.map((p, i) => renderPlace(p, `srv-${p.tier}-${i}`))
-              )}
-              {empty && (
-                <View accessibilityLiveRegion="polite">
-                  <Quiet glyph="search" title={t("noPlaceFound", lang)} lang={lang} />
-                </View>
-              )}
-            </>
-          )}
+          {typing ? resultsEl : savedRecentsEl}
         </ScrollView>
 
         {/* action bar — pinned above the keyboard; "Choose on map" is always

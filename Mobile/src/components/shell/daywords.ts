@@ -7,7 +7,7 @@ import {
   CLEAN_UG,
   type Outlook,
 } from "../../api/outlook";
-import { t, type Lang, type StringKey } from "../../i18n/strings";
+import { t, wireClockLabel, type Lang, type StringKey } from "../../i18n/strings";
 
 /** the 'as of' line the forecast cards share: the served field's own
  *  age in the freshness chip's tone language — stale says stale, fresh
@@ -48,8 +48,10 @@ export const dayLabel = (label: string, lang: Lang): string => {
 
 /** Compact the served heavy-hour labels ("21:30" hourly starts) into
  *  ranges: ["21:30","22:30","23:30"] → "21:30–00:30"; singles stay raw.
- *  A day's hours never wrap midnight, so h+1 always means the next slot. */
-export function compactHours(labels: string[]): string {
+ *  A day's hours never wrap midnight, so h+1 always means the next slot.
+ *  The joined ranges then run through wireClockLabel so the wire's 24h
+ *  clocks come out in the app's 12h convention ("9:30pm–12:30am"). */
+export function compactHours(labels: string[], lang: Lang): string {
   const hrs = labels
     .map((l) => (/^\d{1,2}:\d{2}/.test(l) ? { h: parseInt(l, 10), raw: l } : null))
     .filter((x): x is { h: number; raw: string } => x !== null);
@@ -67,8 +69,20 @@ export function compactHours(labels: string[]): string {
     }
     i = j + 1;
   }
-  return out.join(", ");
+  return wireClockLabel(out.join(", "), lang);
 }
+
+/** The served "YYYY-MM-DD" → a local date word in the user's language —
+ *  "2026-10-09" reads as protocol where a person expects a day. A token
+ *  that doesn't parse passes through untouched. */
+export const shortDate = (iso: string, lang: Lang): string => {
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
+    day: "numeric",
+    month: "short",
+  });
+};
 
 /** The card's caption. English gets the wire line verbatim — it is already
  *  honest about partial days and flat weeks. Hindi rebuilds the same

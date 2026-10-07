@@ -33,7 +33,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { NUM, V2T, V2Type, fam, famMono, famMonoText } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
-import { t, type Lang } from "../i18n/strings";
+import { clockTight, hourLabel, t, type Lang } from "../i18n/strings";
 
 export type DepartDatum = {
   hour: number;                      // hours ahead of now (0 = leave now)
@@ -63,11 +63,10 @@ const TICK_W = 48;
 
 /** naive-UTC ISO → device-local "HH:MM" (same frame as CompareSheet.hourLabel
     and the arrival/ETA clocks — IST users see IST, non-IST stays consistent) */
-const clockOf = (iso: string | null | undefined): string | null => {
+const dateOf = (iso: string | null | undefined): Date | null => {
   if (!iso) return null;
   const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
-  if (isNaN(d.getTime())) return null;
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return isNaN(d.getTime()) ? null : d;
 };
 
 export function DepartGraph({
@@ -209,7 +208,9 @@ export function DepartGraph({
                 {d.hour === nowHour ? t("departNow", lang) : t("hourTick", lang, { n: d.hour })}
               </Text>
               <Text {...DYNAMIC_TYPE} style={[s.tickClock, NUM, { fontFamily: famMono(lang, "reg") }]} numberOfLines={1}>
-                {clockOf(d.start) ?? " "}
+                {/* hour-word ticks — "9pm" / "9 बजे"; a :30 slot still
+                    gets its minutes (hourLabel falls back tight) */}
+                {dateOf(d.start) ? hourLabel(dateOf(d.start)!, lang) : " "}
               </Text>
             </View>
           );
@@ -224,7 +225,7 @@ export function DepartGraph({
         {detail && (
           <Text {...DYNAMIC_TYPE} style={[s.capTxt, s.capVal, NUM, { fontFamily: famMonoText(lang, "reg") }]}>
             {`${detail.hour === nowHour ? t("departNow", lang) : t("hourTick", lang, { n: detail.hour })}` +
-              `${clockOf(detail.start) ? ` · ${clockOf(detail.start)}` : ""} ≈ ${Math.round(detail.dose_mid)} µg`}
+              `${dateOf(detail.start) ? ` · ${clockTight(dateOf(detail.start)!, lang)}` : ""} ≈ ${Math.round(detail.dose_mid)} µg`}
           </Text>
         )}
       </View>

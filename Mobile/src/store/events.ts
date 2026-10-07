@@ -43,7 +43,7 @@ import { fetchDayCurve } from "../api/dayfield";
 import { fetchOutlook } from "../api/outlook";
 import { loadConsent } from "./consent";
 import { notifyAirEvent, requestPerms, type AirEventKind } from "../notify";
-import { t, type Lang } from "../i18n/strings";
+import { t, wireClockLabel, type Lang } from "../i18n/strings";
 import { loadTrips } from "./ledger";
 import {
   BASELINE_MAX_AGE_MS, BAND_MIN_IDX, BELT_JUMP_ABS, BELT_JUMP_REL,
@@ -146,9 +146,10 @@ const labelToMin = (lab: string | null | undefined): number | null => {
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 };
 
-const GRAP_ROMAN = ["", "I", "II", "III", "IV"];
-const grapRoman = (stage: number): string =>
-  GRAP_ROMAN[Math.min(4, Math.max(1, stage))];
+/* GRAP stages read as plain numerals — "stage 2 of 4" is what a
+   person says; "II" is officialdom (jargon-sweep) */
+const grapStageLabel = (stage: number): string =>
+  `${Math.min(4, Math.max(1, stage))}`;
 
 /* ---- the check — one call per ambient poll (~60 s, foreground only).
    Single-flight: a slow /v2/why must never stack a second detector that
@@ -325,7 +326,7 @@ export async function checkAirEvents(opts: {
       if (s.alerts_band && dc?.server?.grapStage != null &&
           dc.server.grapStage >= SEVERE_MIN_STAGE) {
         await fire("severe", dc.server.grapStage, {
-          s: grapRoman(dc.server.grapStage),
+          s: grapStageLabel(dc.server.grapStage),
           a: dc.server.grapAqi ?? "",
           note: noteFor([]),
         });
@@ -346,7 +347,7 @@ export async function checkAirEvents(opts: {
             const kind: AirEventKind = move === "up" ? "grap_up"
               : move === "clear" ? "grap_clear" : "grap_down";
             await fire(kind, stage, {
-              s: stage > 0 ? grapRoman(stage) : "",
+              s: stage > 0 ? grapStageLabel(stage) : "",
               a: dc.server.grapAqi ?? "",
               note: noteFor([]),
             });
@@ -367,8 +368,11 @@ export async function checkAirEvents(opts: {
         const nowM = istMinutesNow();
         if (startM != null && endM != null &&
             nowM >= startM - WINDOW_LEAD_MIN && nowM < endM) {
+          /* the served window labels are 24h wire clocks — render them
+             in the app's clock words before they reach a notification */
           await fire("window", startM, {
-            win: `${dc.server.cleanLabel}–${dc.server.cleanEndLabel ?? ""}`,
+            win: wireClockLabel(
+              `${dc.server.cleanLabel}–${dc.server.cleanEndLabel ?? ""}`, lang),
             n: Math.round(dc.server.clean.conc),
           });
         }
@@ -389,7 +393,8 @@ export async function checkAirEvents(opts: {
           move === "heavy" ? "outlook_heavy" : "outlook_light";
         const win = tmwRow.cleanest_window?.start_label
           ? t("notifyOutlookWin", lang, {
-              w: `${tmwRow.cleanest_window.start_label}–${tmwRow.cleanest_window.end_label ?? ""}`,
+              w: wireClockLabel(
+                `${tmwRow.cleanest_window.start_label}–${tmwRow.cleanest_window.end_label ?? ""}`, lang),
             })
           : "";
         await fire(kind, Math.round(tmwRow.pm25_mid), {

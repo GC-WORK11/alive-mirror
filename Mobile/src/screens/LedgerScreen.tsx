@@ -39,7 +39,7 @@ import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Tint, V2Type, fam, famMono, famMonoText, famSerif } from "../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
-import { doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
+import { clockLabel, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
 import { Icon, vehicleGlyph } from "../icons";
 import {
   clearTrips,
@@ -52,13 +52,15 @@ import { bump, jank } from "../perf";
 
 /* ---------- formatting ---------- */
 
-// cigarettes: "≈ 0.12" estimates, honest "<0.01" instead of a fake 0
-// (doc 10 cig equivalence). The ≈ lives here so templates don't have to
-// guess whether the number is a point estimate or an upper bound —
-// "≈ <0.01" was the collision this avoids.
-const fmtCig = (ug: number) => {
+// cigarettes: "≈ 0.12" estimates; under 1% of one the exact decimal is
+// fake precision — the felt 'trace' line instead (doc 10 cig
+// equivalence). The ≈ lives inside tripsCigs so the approximation mark
+// never collides with a bound.
+const cigLine = (ug: number, lang: Lang) => {
   const c = ug / CIG_UG;
-  return c >= 0.01 ? `≈ ${c.toFixed(2)}` : "<0.01";
+  return c >= 0.01
+    ? t("tripsCigs", lang, { n: `≈ ${c.toFixed(2)}` })
+    : t("cigsTrace", lang);
 };
 const fmtUg = (ug: number) => `${doseUgRound(ug)}`;
 /** µg readout with the estimate mark — the surface number while the
@@ -72,16 +74,10 @@ const dayLabel = (ts: number, lang: Lang) =>
     day: "numeric",
     month: "short",
   });
-/* "H:MM am" by hand — hi-IN's toLocaleTimeString leaks a Latin "am"/"pm"
-   on Android ICU (iOS renders Devanagari पूर्वाह्न/अपराह्न). Composing the
-   marker from daypart_* keeps both platforms in the same script. */
-const timeLabel = (ts: number, lang: Lang) => {
-  const d = new Date(ts);
-  const h24 = d.getHours();
-  const h12 = ((h24 + 11) % 12) + 1;
-  const mm = `${d.getMinutes()}`.padStart(2, "0");
-  return `${h12}:${mm} ${t(h24 < 12 ? "daypart_am" : "daypart_pm", lang)}`;
-};
+/* clocks render through the shared clockLabel — the app's one 12h
+   convention (LedgerScreen's hand-built copy pre-dated it; hi-IN's
+   toLocaleTimeString leaking Latin "am"/"pm" on Android is why the
+   marker composes from daypart_* there). */
 
 /** Stable row id — the same ts+route+mode tuple deleteTrip matches on. */
 const tripKey = (tr: Trip) => `${tr.ts}|${tr.from}|${tr.to}|${tr.vehicle}`;
@@ -138,7 +134,7 @@ function TripDetail({
               ? t("tripsDoseBand", lang, { lo: fmtUg(lo), hi: fmtUg(hi) })
               : t("tripsDoseDetail", lang, { n: fmtUg(tr.dose_ug) })}
             {/* cigarette equivalence stays opt-in and secondary */}
-            {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(tr.dose_ug) })}` : ""}
+            {showCig ? ` · ${cigLine(tr.dose_ug, lang)}` : ""}
           </Text>
         </View>
       </View>
@@ -157,7 +153,7 @@ function TripDetail({
       {tr.avoided_ug > 0 && (
         <Text {...DYNAMIC_TYPE} style={[ss.dSaved, { fontFamily: fam(lang, "reg") }]}>
           {t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
-          {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(tr.avoided_ug) })}` : ""}
+          {showCig ? ` · ${cigLine(tr.avoided_ug, lang)}` : ""}
         </Text>
       )}
 
@@ -213,7 +209,7 @@ const TripCard = React.memo(function TripCard({
         accessibilityLabel={`${placeNameLabel(tr.from, lang)} → ${placeNameLabel(tr.to, lang)}, ${modeLabel(tr.vehicle, tr.label, lang)}, ${dayLabel(
           tr.ts,
           lang,
-        )} ${timeLabel(tr.ts, lang)}`}
+        )} ${clockLabel(tr.ts, lang)}`}
         accessibilityHint={t("ledgerShowTrip", lang)}
         accessibilityState={{ expanded: open }}
         style={({ pressed }) => [
@@ -237,7 +233,7 @@ const TripCard = React.memo(function TripCard({
             style={[ss.tripMeta, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}
           >
-            {modeLabel(tr.vehicle, tr.label, lang)} · {timeLabel(tr.ts, lang)}
+            {modeLabel(tr.vehicle, tr.label, lang)} · {clockLabel(tr.ts, lang)}
           </Text>
           {tr.avoided_ug > 0 && (
             <Text {...DYNAMIC_TYPE}
@@ -245,7 +241,7 @@ const TripCard = React.memo(function TripCard({
               numberOfLines={2}
             >
               {t("tripsSavedVsUg", lang, { n: fmtDoseUg(tr.avoided_ug) })}
-              {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(tr.avoided_ug) })}` : ""}
+              {showCig ? ` · ${cigLine(tr.avoided_ug, lang)}` : ""}
             </Text>
           )}
         </View>
@@ -533,7 +529,7 @@ function LedgerSheetInner({ onClose, lang, showCig, onTripsChanged }: {
                 style={[ss.sumFoot, { fontFamily: fam(lang, "reg") }]}
               >
                 {t("ledgerAllTime", lang)} · {t("ledgerEstNote", lang)}
-              {showCig ? ` · ${t("tripsCigs", lang, { n: fmtCig(allUg) })}` : ""}
+              {showCig ? ` · ${cigLine(allUg, lang)}` : ""}
               </Text>
               {weekTrips > 0 && (
                 <View style={ss.weekRow}>
@@ -552,7 +548,7 @@ function LedgerSheetInner({ onClose, lang, showCig, onTripsChanged }: {
                     {" · "}
                     {t("doseUg", lang, { n: fmtDoseUg(week.weekUg) })}
                     {showCig
-                      ? ` · ${t("tripsCigs", lang, { n: fmtCig(week.weekUg) })}`
+                      ? ` · ${cigLine(week.weekUg, lang)}`
                       : ""}
                     {weekEmitKg > 0
                       ? ` · ${t("tripsOutDetail", lang, { n: fmtKg(weekEmitKg) })}`

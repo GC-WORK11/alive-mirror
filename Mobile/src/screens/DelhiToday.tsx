@@ -181,20 +181,25 @@ const whyBitKey = (d: { kind: string; direction?: string }): StringKey | null =>
   if (d.kind === "stagnation") return "whyBit_stagnation";
   return null; // unknown kinds pass through raw, as the server does
 };
+/* BOTH languages rebuild the line from drivers[] — the wire is
+   English-composed, and trusting it for en leaves server grammar
+   (engineering units, decimals) a leak path into the UI; the bits
+   join as prose (' and ', not '+' — audit #15). The wire stays as
+   the no-drivers fallback for serves that predate the fields. */
 function whyLine(
   why: NonNullable<CityPayload["why"]>,
   wind: CityPayload["wind"],
   lang: Lang,
 ): string {
-  if (lang === "en" || !why.line) return why.line ?? "";
   const drivers = why.drivers ?? [];
-  if (!drivers.length) return t("whyNoDriver", lang);
+  if (!drivers.length) return why.line ?? "";
   const dir = t(whyCompass(wind?.from_deg), lang);
   const parts = drivers.slice(0, 2).map((d) => {
     const k = whyBitKey(d);
-    return k ? (k === "whyBit_stubble" ? t(k, lang, { dir }) : t(k, lang)) : d.kind;
-  });
-  return parts.join(" + ");
+    if (k === "whyBit_stubble") return t(k, lang, { dir });
+    return k ? t(k, lang) : null;
+  }).filter((p): p is string => p != null);
+  return parts.length ? parts.join(t("whyJoin", lang)) : (why.line ?? "");
 }
 
 /* The cause_note — the parali/news line under the hero. BOTH languages
@@ -392,7 +397,11 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                   <Text {...DYNAMIC_TYPE}
                     style={[ss.heroRange, NUM, { fontFamily: famMonoText(lang, "reg") }]}
                   >
-                    {`${fmtCig(cig.mid)} ${t("cityHeroUnit", lang)}`}
+                    {/* under 1% of one the decimal is fake precision —
+                        felt words, same rule as the ledger's trace */}
+                    {cig.mid >= 0.01
+                      ? `${fmtCig(cig.mid)} ${t("cityHeroUnit", lang)}`
+                      : t("cigsTrace", lang)}
                   </Text>
                 )}
                 {/* why tonight — the field's causal read lives inside
@@ -457,7 +466,10 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
               const tiles: { label: string; val: string; who: number | null; over: boolean; whoTxt?: string }[] = [];
               const push = (key: string, label: string, who: number | null) => {
                 const v = sp[key];
-                if (v) tiles.push({ label, val: `${v.mean}`, who, over: who != null && v.mean > who });
+                /* served means carry a decimal the instrument never
+                   earned ('285.2 µg/m³' on a ±40% field) — whole
+                   numbers are the honest precision (jargon-sweep) */
+                if (v) tiles.push({ label, val: `${Math.round(v.mean)}`, who, over: who != null && v.mean > who });
               };
               push("pm10", "PM10", 45);
               push("nitrogen_dioxide", "NO\u2082", 25);
@@ -672,8 +684,11 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 {pm ? (
                   <WhyLine
                     text={t("cityBasisPm25Ug", lang, {
-                      lo: pm.lo,
-                      hi: pm.hi,
+                      /* the kriged band's served edges carry decimals
+                         ('0–237.5') — display-round like every other
+                         surface (jargon-sweep) */
+                      lo: Math.round(pm.lo),
+                      hi: Math.round(pm.hi),
                     })}
                     lang={lang}
                   />

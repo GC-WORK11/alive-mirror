@@ -831,8 +831,12 @@ function AppInner() {
   const compassPosition = useMemo(() => (phase === "nav"
     ? { top: insets.top + 108, right: 12 }
     : { top: insets.top + 76, right: 12 }), [phase, insets.top]);
-  const logoPosition = useMemo(() => ({ bottom: insets.bottom + 72, left: 10 }), [insets.bottom]);
-  const attributionPosition = useMemo(() => ({ bottom: insets.bottom + 72, right: 10 }), [insets.bottom]);
+  const logoPosition = useMemo(() => ({ bottom: insets.bottom + 164, left: 10 }), [insets.bottom]);
+  /* the DayPeek card owns the whole strip at bottom+72 (~85 pt tall) —
+     the OSM attribution used to sit at the same offset, drowned under
+     it and untappable (audit #6). It now floats just above the card;
+     when the peek isn't mounted it just reads slightly higher. */
+  const attributionPosition = useMemo(() => ({ bottom: insets.bottom + 164, right: 10 }), [insets.bottom]);
   /* search bias is the REAL GPS fix — never 'from', which used to feed
      the bias a fabricated 'central Delhi' fallback and rank results for
      a place the user wasn't in (owner: 'live location ain't working').
@@ -965,7 +969,9 @@ function AppInner() {
     message: shareTripMsg(lang, placeNameLabel(tr.from, lang), placeNameLabel(tr.to, lang),
       tr.dose_ug != null
         ? (settings.show_cig
-            ? t("nav_cigs", lang, { n: Math.max(0.01, Math.round((cigOf(tr.dose_ug) ?? 0) * 100) / 100) })
+            ? ((cigOf(tr.dose_ug) ?? 0) < 0.01
+                ? t("cigsTrace", lang)
+                : t("nav_cigs", lang, { n: Math.round((cigOf(tr.dose_ug) ?? 0) * 100) / 100 }))
             : t("doseUg", lang, { n: doseUgRound(tr.dose_ug) }))
         : null,
       tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : null),
@@ -1348,7 +1354,9 @@ const NavSession = React.memo(function NavSession({
             to ? placeNameLabel(to.name, lang) : "?",
             summary.doseUg.mid != null
               ? (showCig
-                  ? t("nav_cigs", lang, { n: Math.max(0.01, Math.round((cigOf(summary.doseUg.mid) ?? 0) * 100) / 100) })
+                  ? ((cigOf(summary.doseUg.mid) ?? 0) < 0.01
+                      ? t("cigsTrace", lang)
+                      : t("nav_cigs", lang, { n: Math.round((cigOf(summary.doseUg.mid) ?? 0) * 100) / 100 }))
                   : t("doseUg", lang, { n: doseUgRound(summary.doseUg.mid) }))
               : null,
             summary.co2Kg.mid != null ? `${t("nav_kg", lang, { n: `~${summary.co2Kg.mid.toFixed(1)}` })} CO₂` : null),

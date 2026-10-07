@@ -67,7 +67,7 @@ import {
   famMonoText,
   famSerif,
 } from "../theme";
-import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
+import { approx, clockLabel, doseUgRound, feltKeyForBand, hourLabel, t, wireClockLabel, type Lang, type StringKey } from "../i18n/strings";
 import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import { holdMapDraw } from "../map/drawHold";
@@ -112,6 +112,7 @@ import {
   dayLabel,
   fieldAgeLine,
   outlookCaption,
+  shortDate,
 } from "../components/shell/daywords";
 import { bump, jank } from "../perf";
 
@@ -243,12 +244,9 @@ function BandDot({ conc, color, size = 7 }: { conc: number | null; color?: strin
   );
 }
 
-/* en keeps the am/pm Delhiites write; hi gets "बजे" so the move-card
-   window labels never leak Latin letters into a Devanagari card */
-const fmtHr = (h: number, lang: Lang) =>
-  lang === "hi"
-    ? `${((h + 11) % 12) + 1} बजे`
-    : `${((h + 11) % 12) + 1}${h % 24 < 12 ? "am" : "pm"}`;
+/* an absolute wall-clock hour → the shared hour-word label ("9pm" /
+   "9 बजे") — the move card's local clock predated the clock helpers */
+const fmtHr = (h: number, lang: Lang) => hourLabel(h * 3600000, lang);
 
 /* ---------------- the move (the morning card, promoted) ---------------- */
 
@@ -400,7 +398,10 @@ function decisionLine(
       /* the server's 'cleanest'/'least-bad' word — same 60 µg/m³ cut the
          outlook caption already applies */
       const w = t(srv.clean.conc > CLEAN_UG ? "dayOutlookLeastBad" : "dayOutlookCleanest", lang);
-      const win = `~${srv.cleanLabel ?? ""}-${srv.cleanEndLabel ?? ""}`;
+      /* served window labels are 24h wire clocks — print them in the
+         app's 12h convention ("~6am–9am") */
+      const win = wireClockLabel(
+        `~${srv.cleanLabel ?? ""}-${srv.cleanEndLabel ?? ""}`, lang);
       return t("moveDec_cleanWindow", lang, {
         w, win, c: Math.round(srv.clean.conc), m: Math.round(mean),
       });
@@ -470,12 +471,20 @@ function MoveCardInner({ curve, outside, lang }: {
   const heavy = srv ? srv.heavy : a.heavy;
   const clean = srv ? srv.clean : a.clean;
   const flat = srv ? (!srv.heavy && !srv.clean) : a.flat;
-  const heavyF = srv?.heavyLabel ?? (heavy ? fmtHr(heavy.from + nowHour(), lang) : "");
-  const heavyT = srv?.heavyEndLabel ??
-    (srv?.heavyLabel ? "" : heavy ? fmtHr(heavy.to + nowHour(), lang) : "");
-  const cleanF = srv?.cleanLabel ?? (clean ? fmtHr(clean.from + nowHour(), lang) : "");
-  const cleanT = srv?.cleanEndLabel ??
-    (srv?.cleanLabel ? "" : clean ? fmtHr(clean.to + nowHour(), lang) : "");
+  /* served window labels arrive as 24h wire clocks — render them in
+     the same 12h words the client-computed ones use */
+  const heavyF = srv?.heavyLabel
+    ? wireClockLabel(srv.heavyLabel, lang)
+    : (heavy ? fmtHr(heavy.from + nowHour(), lang) : "");
+  const heavyT = srv?.heavyEndLabel
+    ? wireClockLabel(srv.heavyEndLabel, lang)
+    : (srv?.heavyLabel ? "" : heavy ? fmtHr(heavy.to + nowHour(), lang) : "");
+  const cleanF = srv?.cleanLabel
+    ? wireClockLabel(srv.cleanLabel, lang)
+    : (clean ? fmtHr(clean.from + nowHour(), lang) : "");
+  const cleanT = srv?.cleanEndLabel
+    ? wireClockLabel(srv.cleanEndLabel, lang)
+    : (srv?.cleanLabel ? "" : clean ? fmtHr(clean.to + nowHour(), lang) : "");
   const dec = srv?.decisions?.[0] ?? null;
   /* the felt decision — the served line localized (wire English must not
      leak into the hi UI); when the server named none, derive from the
@@ -519,7 +528,7 @@ function MoveCardInner({ curve, outside, lang }: {
             <View style={ss.winChip}>
               <BandDot conc={heavy.conc} />
               <Text {...DYNAMIC_TYPE} style={[ss.winChipTxt, NUM, { fontFamily: mtext(lang) }]}>
-                {t("dayMorningHeavy", lang, {
+                {t(heavyT ? "dayMorningHeavy" : "dayMorningHeavyFrom", lang, {
                   f: heavyF,
                   t: heavyT,
                   c: Math.round(heavy.conc),
@@ -531,7 +540,7 @@ function MoveCardInner({ curve, outside, lang }: {
             <View style={ss.winChip}>
               <BandDot conc={clean.conc} />
               <Text {...DYNAMIC_TYPE} style={[ss.winChipTxt, NUM, { fontFamily: mtext(lang) }]}>
-                {t("dayMorningClean", lang, {
+                {t(cleanT ? "dayMorningClean" : "dayMorningCleanFrom", lang, {
                   f: cleanF,
                   t: cleanT,
                   c: Math.round(clean.conc),
@@ -571,7 +580,11 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
   const open = days.find((d) => d.date_ist === openKey) ?? null;
   const anyLo = days.some((d) => d.confidence === "lo");
   const caption = outlookCaption(outlook, lang);
-  const ageLine = fieldAgeLine(outlook.fieldAgeS, outlook.fieldStale, lang);
+  /* the hero's air-age line already anchors this field's freshness on
+     home — repeat it only when it changes what a plan relies on
+     (stale), never as an echo (audit #14's double statement) */
+  const ageLine = outlook.fieldStale
+    ? fieldAgeLine(outlook.fieldAgeS, outlook.fieldStale, lang) : null;
   return (
     <View style={ss.card}>
       <View style={ss.oaHead}>
@@ -641,7 +654,7 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
       {open && (
         <View style={ss.oaDetail}>
           <Text {...DYNAMIC_TYPE} style={[ss.oaDetailHead, { fontFamily: mtext(lang, "med") }]}>
-            {dayLabel(open.label, lang)} · {open.date_ist}
+            {dayLabel(open.label, lang)} · {shortDate(open.date_ist, lang)}
           </Text>
           {open.partial && (
             <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, { fontFamily: fam(lang, "reg") }]}>
@@ -654,9 +667,10 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
             <View style={ss.mRow}>
               <BandDot conc={open.cleanest_window.pm25_mid ?? null} />
               <Text {...DYNAMIC_TYPE} style={[ss.mLine, NUM, { fontFamily: mtext(lang) }]}>
-                {t("dayMorningClean", lang, {
-                  f: open.cleanest_window.start_label ?? "",
-                  t: open.cleanest_window.end_label ?? "—",
+                {t(open.cleanest_window.end_label
+                  ? "dayMorningClean" : "dayMorningCleanFrom", lang, {
+                  f: wireClockLabel(open.cleanest_window.start_label ?? "", lang),
+                  t: wireClockLabel(open.cleanest_window.end_label ?? "", lang),
                   c: Math.round(open.cleanest_window.pm25_mid ?? 0),
                 })}
               </Text>
@@ -671,7 +685,7 @@ function DaysAheadCardInner({ outlook, lang }: { outlook: Outlook | null; lang: 
           )}
           {open.cleanest_window && open.heavy_hours_ist.length > 0 && (
             <Text {...DYNAMIC_TYPE} style={[ss.oaDetailNote, NUM, { fontFamily: mtext(lang) }]}>
-              {t("dayOutlookHeavyHours", lang, { h: compactHours(open.heavy_hours_ist) })}
+              {t("dayOutlookHeavyHours", lang, { h: compactHours(open.heavy_hours_ist, lang) })}
             </Text>
           )}
           {open.pm25_lo != null && open.pm25_hi != null && (
@@ -846,6 +860,7 @@ function DayPeekInner({ data, lang, onOpen, ambientUg, budgetUg = 216 }: {
   return (
     <Pressable onPress={() => { tap(); onOpen(); }}
       accessibilityRole="button" accessibilityLabel={t("peekTitle", lang)}
+      accessibilityHint={t("peekOpenHint", lang)}
       style={({ pressed }) => [
         ss.peek,
         ambIdx != null && {
@@ -907,15 +922,14 @@ const WEEKDAY_EN = ["sunday", "monday", "tuesday", "wednesday", "thursday", "fri
 
 function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
   const insets = useSafeAreaInsets();
-  /* a clock that tells the time — the header re-reads it every 30 s
-     (the memoized header froze at mount before) */
+  /* a clock that tells the time — the header re-reads it each second
+     (a 30 s tick let the greeting lag a half-minute after every
+     minute's rollover — audit #12) */
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const iv = setInterval(() => setNow(new Date()), 30000);
+    const iv = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(iv);
   }, []);
-  const hh = `${now.getHours()}`.padStart(2, "0");
-  const mm = `${now.getMinutes()}`.padStart(2, "0");
   const hr = now.getHours();
   const greetKey: StringKey = hr < 5 || hr >= 21 ? "homeGreetNight"
     : hr < 12 ? "homeGreetMorning" : hr < 17 ? "homeGreetAfternoon" : "homeGreetEvening";
@@ -929,7 +943,7 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
           {title}
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.brandSub, NUM, { fontFamily: fam(lang, "reg") }]}>
-          {t("cityName", lang)} · {cap(dayLabel(WEEKDAY_EN[now.getDay()], lang))} {hh}:{mm}
+          {t("cityName", lang)} · {cap(dayLabel(WEEKDAY_EN[now.getDay()], lang))} · {clockLabel(now, lang)}
         </Text>
       </View>
       <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}

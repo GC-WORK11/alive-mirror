@@ -8,7 +8,7 @@
  * the daily actions are a 2-col tile grid, vehicle choice expands into
  * an icon grid under its own tile. Sections rise in with a stagger on
  * open; every tile gives press feedback. */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Animated, BackHandler, Dimensions, LayoutAnimation, Pressable,
   ScrollView, StyleSheet, Switch, Text, View,
@@ -109,12 +109,23 @@ function SidebarInner({
   const [section, setSection] = useState<Section>(null);
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const scrollRef = useRef<ScrollView>(null);
   const toggle = (k: Section) => {
     /* option grid mounts/unmounts under the tile — ease it open like the
        settings expanders (off under reduce-motion) */
     if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSection((s) => (s === k ? null : k));
   };
+  /* the list-end expanders mount their panel below the visible fold —
+     a tap that answers off-screen reads as dead (audit #28). Scroll on
+     section change; the two-stage call tracks LayoutAnimation's growing
+     content. */
+  useEffect(() => {
+    if (section !== "how" && section !== "settings") return;
+    const a = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: !reduceMotion }), 120);
+    const b = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: !reduceMotion }), 340);
+    return () => { clearTimeout(a); clearTimeout(b); };
+  }, [section, reduceMotion]);
 
   // drawer stays mounted off-canvas; the wrapper swallows touches when closed
   // NB: JS driver — RN 0.86's native-animated detach path segfaults the
@@ -381,7 +392,7 @@ function SidebarInner({
           </Pressable>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 20 }]}>
+        <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 20 }]}>
           {/* 1 — Today: breathed / put-out as twin hero tiles
               (doc 02 §sidebar-1 — both numbers, never fake) */}
           {st.todayUg > 0 && (
@@ -407,7 +418,10 @@ function SidebarInner({
                   )}
                   {showCig && todayCig > 0 && (
                     <Text {...DYNAMIC_TYPE} style={[s.statCmp, { fontFamily: fam(lang, "reg") }]}>
-                      {t("tripsCigs", lang, { n: approx(todayCig > 0 && todayCig < 0.01 ? 0.01 : todayCig) })}
+                      {/* under 1% of one the '≈ 0.01' clamp is fake
+                          precision — felt words, same rule as the
+                          ledger's trace */}
+                      {todayCig < 0.01 ? t("cigsTrace", lang) : t("tripsCigs", lang, { n: approx(todayCig) })}
                     </Text>
                   )}
                 </View>
@@ -448,7 +462,7 @@ function SidebarInner({
                   {" · "}
                   {t("doseUg", lang, { n: approx(doseUgRound(week.weekUg)) })}
                   {showCig
-                    ? ` · ${t("tripsCigs", lang, { n: approx(week.weekCigEq > 0 && week.weekCigEq < 0.01 ? 0.01 : week.weekCigEq) })}`
+                    ? ` · ${week.weekCigEq < 0.01 ? t("cigsTrace", lang) : t("tripsCigs", lang, { n: approx(week.weekCigEq) })}`
                     : ""}
                 </Text>
               </View>

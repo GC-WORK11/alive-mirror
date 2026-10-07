@@ -101,7 +101,14 @@ def line_name(kind: str, short: str, long: str) -> str:
         # DMRC long names: "BLUE_Dwarka to Noida" -> "Blue"
         return (long or short or "").split("_")[0].title() or "Metro"
     nm = (short or long or "?").strip()
-    return re.sub(r"(UP|DOWN)$", "", nm) or nm   # DTC "347AUP" -> "347A"
+    nm = re.sub(r"(UP|DOWN)$", "", nm) or nm   # DTC "347AUP" -> "347A"
+    # feed-internal line ids ('CGOCOMPLEX-2', 'LNWST-1') aren't names a
+    # rider can board by — a bare 'Bus' is the honest option label
+    # (all-caps token >=9 chars: real route numbers like '347ACL' and
+    # short board names like 'HOHO' both survive)
+    if re.match(r"^[A-Z0-9_-]{9,}$", nm):
+        return "Bus"
+    return nm
 
 
 def _read(path: str) -> Iterable[dict]:

@@ -104,7 +104,7 @@ describe("reconstructDay — live-field fixture", () => {
     assert.deepEqual(rec.parts.map((p) => Math.round(p.ug * 100) / 100),
       [18.85, 17.6, 15.65, 10.35]);
     assert.ok(labels[1].includes("→"), "trip part carries the route names");
-    assert.equal(labels[0], "08:00–08:25");
+    assert.equal(labels[0], "8:00am–8:25am");
   });
 });
 

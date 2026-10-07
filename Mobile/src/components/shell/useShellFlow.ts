@@ -21,7 +21,7 @@ import { camDur } from "../../map/cam";
 import { holdMapDrawThen, whenMapDrawFree } from "../../map/drawHold";
 import { departCurveResult, departSavedPct, type DepartCurve } from "../../api/depart";
 import type { RouteStrip } from "../../nav/strip";
-import { flattenCoords } from "../../nav/offroute";
+import { flattenCoords, havM } from "../../nav/offroute";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr } from "./net";
 import { isTransit, preserveIdx } from "./types";
@@ -152,6 +152,15 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const pick = useCallback(async (p: Place, which?: Which) => {
     Keyboard.dismiss();
     if ((which ?? editWhich) === "from") {
+      /* a start within a street of the destination has no route to
+         compare (audit #19/#20's 50 m pins) — say so, stay in search */
+      if (to) {
+        const d = havM(p.lat, p.lon, to.lat, to.lon);
+        if (d < 50) {
+          setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+          return;
+        }
+      }
       setFrom(p);
       setLocNotice(null);
       setPhase(to ? "compare" : "search");
@@ -162,6 +171,15 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     if (!from) {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
       if (pos) {
+        /* a destination within a street of where you stand is the
+           no-route case — 'Your location' tapped as a destination did
+           exactly this and got a compare screen for nothing (audit #19) */
+        const d = havM(pos.coords.latitude, pos.coords.longitude, p.lat, p.lon);
+        if (d < 50) {
+          setTo(null);
+          setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+          return;
+        }
         setFrom({ name: t("placeCurrentLocation", lang), subtitle: "",
           lat: pos.coords.latitude, lon: pos.coords.longitude });
         setPhase("compare");
@@ -177,6 +195,12 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         return;
       }
     } else {
+      const d = havM(from.lat, from.lon, p.lat, p.lon);
+      if (d < 50) {
+        setTo(null);
+        setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+        return;
+      }
       setPhase("compare");
     }
     /* NO pick-time flyTo: the camera moves exactly once per plan — the

@@ -105,7 +105,7 @@ function WeekStripInner({ week, budgetUg, lang, onOpen }: {
             <Pressable key={w.day}
               onPress={() => { tick(); onOpen?.(w.day); }}
               accessibilityRole="button"
-              accessibilityLabel={`${letter} ${doseUgRound(w.ug)}`}
+              accessibilityLabel={`${letter}, ${w.ug > 0 ? `${approx(doseUgRound(w.ug))} µg` : t("weekNoReads", lang)}`}
               style={({ pressed }) => [
                 ss.cell,
                 { backgroundColor: cellBg, borderColor: cellEdge },

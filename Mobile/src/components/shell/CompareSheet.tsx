@@ -30,7 +30,7 @@ import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { CountUp, Sheet } from "../../ui";
 import { PressSpring } from "../PressSpring";
-import { approx, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
+import { approx, clockLabel, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 
 import { departSavedPct, type DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
@@ -45,10 +45,9 @@ import { isTransit } from "./types";
 import type { Band, Depart, Emissions, Step, V2Option } from "./types";
 import { bump } from "../../perf";
 
-const arrivalLabel = (durationMin: number) => {
-  const d = new Date(Date.now() + durationMin * 60000);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
+/* arrival wall-time — the app's one 12h clock convention */
+const arrivalLabel = (durationMin: number, lang: Lang) =>
+  clockLabel(Date.now() + durationMin * 60000, lang);
 
 /* naive-UTC `start` → device-local clock — every other clock in the app
    (arrival, ETA chip) renders device-local too, so the strip stays in the
@@ -58,8 +57,8 @@ const hourLabel = (iso: string | null, ahead: number, lang: Lang) => {
   if (iso) {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
     if (!isNaN(d.getTime())) {
-      const hhmm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-      return `${d.getDate() !== new Date().getDate() ? t("departTomorrow", lang) + " " : ""}${hhmm}`;
+      const clk = clockLabel(d, lang);
+      return `${d.getDate() !== new Date().getDate() ? t("departTomorrow", lang) + " " : ""}${clk}`;
     }
   }
   return `+${ahead}h`;
@@ -463,7 +462,7 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
         : t("compare_moreVs", lang, { n: doseGap, m: lightestWord }))
     : null;
   const meta = (o.distance_km != null ? `${o.distance_km} ${t("unitsKm", lang)} · ` : "")
-    + t("arriveAt", lang, { t: arrivalLabel(o.duration_min) })
+    + t("arriveAt", lang, { t: arrivalLabel(o.duration_min, lang) })
     + (o.stations ? ` · ${o.stations.board}→${o.stations.alight}` : "");
   const tag = o.tag ? (TAG_KEY[o.tag.toLowerCase()] ? t(TAG_KEY[o.tag.toLowerCase()], lang) : o.tag) : null;
   /* the mode label carries a wire suffix (" · least-smoke alt 2",
@@ -740,6 +739,14 @@ function CompareSheetInner({
                   </Text>
                 </View>
               )}
+              {/* a trip measured in metres doesn't have a 'when to
+                  leave' — under ~500 m the depart surface would read
+                  like the choice matters (audit #23's 50 m pin) */}
+              {(() => {
+                const km = sel?.distance_km;
+                return km == null || km >= 0.5;
+              })() && (
+                <>
               {remindEnabled && depart && departSaved != null && departSaved > 8 && (
                 <PressSpring><Pressable onPress={() => { tap(); onRemind(); }} style={s.departRow}
                   accessibilityRole="button">
@@ -760,6 +767,8 @@ function CompareSheetInner({
                     bestHour={departCurve.best?.hour ?? 0} lang={lang} />
                 </View>
               ) : null}
+                </>
+              )}
               {anyBars && (
                 <View style={s.legend}>
                   <View style={s.legendItem}>

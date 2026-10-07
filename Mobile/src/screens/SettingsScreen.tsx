@@ -341,17 +341,13 @@ function SettingsSheetInner({
             "settingsShowCigHint",
           )}
           <View style={ss.hairline} />
-          <View style={ss.row}>
-            <Text
-              {...DYNAMIC_TYPE}
-              style={[ss.rowLabel, ss.rowMid, { fontFamily: fam(lang, "med") }]}
-            >
-              {t("settingsUnits", lang)}
+          {/* distances are metric — a fact, not a choice. The old
+              label+value row was shaped exactly like the toggle rows
+              beside it and read as a dead control (audit #31) */}
+          <View style={ss.explainWrap}>
+            <Text {...DYNAMIC_TYPE} style={[ss.explain, { fontFamily: fam(lang, "reg") }]}>
+              {t("settingsUnitsInfo", lang)}
             </Text>
-            <View>
-              <Text {...DYNAMIC_TYPE} style={[ss.value, { fontFamily: fam(lang, "reg") }]}>{t("unitsKm", lang)}</Text>
-              <Text {...DYNAMIC_TYPE} style={[ss.hint, { fontFamily: fam(lang, "reg") }]}>{t("settingsUnitsHint", lang)}</Text>
-            </View>
           </View>
         </View>
 

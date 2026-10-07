@@ -14,7 +14,7 @@
 import { afterFirstFrame } from "../startup/idle";
 import { readJsonDoc, writeJsonDoc } from "./safefile";
 import type { Trip } from "./ledger";
-import { modeLabel, placeNameLabel, type Lang } from "../i18n/strings";
+import { clockTight, modeLabel, placeNameLabel, type Lang } from "../i18n/strings";
 
 /* on-disk: <document>/daylog.json via safefile — bare {samples,checkins}
    object (drive lanes read it raw), atomic rename + .bak */
@@ -302,11 +302,9 @@ export function reconstructDay(
   for (const sg of segs) {
     const ug = ((sg.c0 + sg.c1) / 2) * VE_REST_M3H * ((sg.t1 - sg.t0) / 3600000);
     if (ug < 2) continue;
-    const f = (ts: number) => {
-      const d = new Date(ts);
-      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    };
-    parts.push({ label: `${f(sg.t0)}–${f(sg.t1)}`, ug });
+    /* the stay window prints in the app's one clock convention —
+       '9:30am–1:15pm', the same form the ledger prints */
+    parts.push({ label: `${clockTight(sg.t0, lang)}–${clockTight(sg.t1, lang)}`, ug });
   }
   parts.sort((a, b) => b.ug - a.ug);
 

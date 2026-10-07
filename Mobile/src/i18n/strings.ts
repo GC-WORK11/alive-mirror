@@ -6,6 +6,7 @@ const en = {
   searchPlaceholder: "Where to?",
   searchFromPlaceholder: "Where from?",
   locPickFailed: "couldn't get your location — type a place instead",
+  pickTooClose: "that's about {n} m away — basically here; no route needed",
   chooseOnMap: "Choose on map",
   yourLocation: "Your location",
   recents: "Recent",
@@ -140,6 +141,9 @@ const en = {
   settingsVoice: "Voice",
   settingsLanguage: "Language",
   settingsUnits: "Units",
+  /* the units row reworded as information, not a dead-looking control
+     (audit #31) — one declarative line instead of a toggle-shaped row */
+  settingsUnitsInfo: "distances in km — metric only",
   settingsShareData: "Share anonymous trip data",
   settingsDeleteData: "Delete my data",
   // settings screen (S-settings)
@@ -162,7 +166,7 @@ const en = {
      checks run on the foreground poll — there's no background task, so
      the hint says "while the app is open" rather than promise always-on. */
   settingsAlerts: "Air alerts",
-  settingsAlertsHint: "real events only — smoke building, air turning worse, clean windows · checked while the app is open",
+  settingsAlertsHint: "the master switch for the alerts below — real events only, checked while the app is open",
   settingsAlertsFires: "smoke & fires",
   settingsAlertsFiresHint: "when the burn belt northwest of Delhi lights up",
   settingsAlertsBand: "air turning worse",
@@ -226,7 +230,10 @@ const en = {
   cityNoField: "no live air reading right now",
   cityStale: "older data — reconnecting",
   citySpeciesTitle: "the other things in the air",
-  citySpeciesNote: "dust & gases — city average in µg/m³ · measured every 15 minutes",
+  /* the US AQI tile's reason for existing lives here (audit): it's
+     the index people know from other apps — a comparison, not a
+     second measurement */
+  citySpeciesNote: "dust & gases — city average in µg/m³, every 15 min · US AQI is the index other air apps quote",
   cityTypicalLine:
     "{pct}% of this hour's 10-year average ({med} µg/m³)",
   whoRef: "WHO limit {n}",
@@ -248,6 +255,9 @@ const en = {
      rebuilds it from drivers[].kind + wind.from_deg, mirroring
      server/v2/why.py:_line (top-2 drivers joined " + "-style) */
   whyNoDriver: "local background — no single driver stands out",
+  /* two why-bits join as prose, not math ('+ ' mid-sentence read as
+     jargon — audit #15) */
+  whyJoin: " and ",
   whyBit_stubble: "stubble smoke drifting in on the {dir} wind",
   whyBit_stagnation: "the air is barely moving — the day's pollution is sitting over the city",
   whyBit_trendRising: "levels still climbing",
@@ -344,11 +354,13 @@ const en = {
   notifyBandTitle: "the air just turned {word}",
   notifyBandBody: "around you ~{n} µg/m³ — was {was} at the last read{note}",
   notifyWindowTitle: "easiest hours ahead",
-  notifyWindowBody: "today's lightest air ~{win} IST · about {n} µg/m³",
+  /* the win slot already carries a rendered clock — the IST suffix on
+     top was jargon; device-local time needs no zone tag */
+  notifyWindowBody: "today's lightest air ~{win} · about {n} µg/m³",
   notifyStagTitle: "the air is sitting over the city",
   notifyStagBody: "{f}× stiller than usual — the day's smoke will linger{note}",
   notifySevereTitle: "severe air in Delhi today",
-  notifySevereBody: "today's air reads like GRAP stage {s} — our estimate, not the official call; a mask outside is worth it{note}",
+  notifySevereBody: "today's air reads like GRAP stage {s} of 4 — our estimate, not the official call; a mask outside is worth it{note}",
   /* notify-v2 — cause-aware kinds. {cause} names only drivers the server
      already admitted (present tense — it describes now, never a forecast
      of tomorrow's met); {a}/{b} are served µg/m³ ends, {s}/{a} the stage
@@ -361,9 +373,9 @@ const en = {
   notifyTrendDownTitle: "the city's air is easing",
   notifyTrendDownBody: "{a} → {b} µg/m³ over {h}h{cause} — off the earlier high{note}",
   notifyGrapUpTitle: "the day moved up a GRAP step",
-  notifyGrapUpBody: "today's air reads like stage {s} (AQI ~{a}) — our estimate, not the official call{note}",
+  notifyGrapUpBody: "today's air reads like stage {s} of 4 (AQI ~{a}) — our estimate, not the official call{note}",
   notifyGrapDownTitle: "the day eased a GRAP step",
-  notifyGrapDownBody: "today's air reads like stage {s} (AQI ~{a}) — still our estimate{note}",
+  notifyGrapDownBody: "today's air reads like stage {s} of 4 (AQI ~{a}) — still our estimate{note}",
   notifyGrapClearTitle: "the day eased off the GRAP map",
   notifyGrapClearBody: "today's air no longer reads like a stage (AQI ~{a}) — still our estimate{note}",
   notifyOutlookHeavyTitle: "tomorrow reads heavier",
@@ -404,8 +416,11 @@ const en = {
   unitsM: "m",
   unitsKg: "kg",
   settingsUnitsHint: "metric only",
-  morningAlert: "morning air alert",
-  shareDataHint: "anonymous — it builds Delhi's air map; one tap to stop",
+  morningAlert: "Morning air alert",
+  /* status under settingsShareExplain — state + how to undo, no
+     re-explain (two stacked lines saying the same thing twice was
+     audit slop #29) */
+  shareDataHint: "on — one tap to stop anytime",
   deleteConfirmTitle: "delete my data?",
   deleteConfirmBody: "your trips, settings and anonymous id are removed from this phone",
   deleteConfirmYes: "delete",
@@ -508,6 +523,9 @@ const en = {
   nav_breathe: "smoke you breathe",
   nav_putOut: "smoke your ride puts out",
   nav_cigs: "{n} cigarettes",
+  /* under 1% of one the exact decimal lies ('<0.01 cigarettes') —
+     felt words instead (jargon-sweep): */
+  cigsTrace: "a trace of a cigarette",
   nav_kg: "{n} kg",
   nav_g: "{n} g",
   nav_left: "{min} min · {km} km left",
@@ -520,22 +538,29 @@ const en = {
   nav_noSignal: "locating you…",
   strip_unavailable: "live air update lost — counters paused",
   receipt_breathed: "you breathed {n} cigarettes",
-  receipt_lessVs: "{n}× less than by {m}",
-  receipt_lessVsWalk: "{n}× less than on foot",
+  /* '×less' framed on what the number multiplies — plain-words smoke,
+     not math-school 'times less than' (jargon-sweep flag) */
+  receipt_lessVs: "about {n}× less smoke than by {m}",
+  receipt_lessVsWalk: "about {n}× less smoke than on foot",
   receipt_moreVs: "{n}× more than by {m}",
   receipt_putOutKg: "your ride put out {n} kg",
   receipt_altPutOut: "{m} would have put out {n} kg",
   receipt_estLike: "estimated for this kind of ride",
   receipt_pmBand: "includes {lo}–{hi} g of fine dust (PM2.5)",
   receipt_pmBandOne: "includes {x} g of fine dust (PM2.5)",
-  receipt_pmBandTiny: "includes <0.01 g of fine dust (PM2.5)",
+  receipt_pmBandTiny: "includes a trace of fine dust (PM2.5)",
   receipt_donated: "added anonymously to Delhi's air map",
   receipt_queued: "saved — will send when back online",
   receipt_private: "kept on this phone only",
   receipt_noDose: "no smoke estimate for this trip",
-  receipt_lessVsWorst: "{n}× less than the smokiest option",
+  receipt_lessVsWorst: "about {n}× less smoke than the smokiest option",
   receipt_putOutNone: "your ride put out nothing — no exhaust",
   receipt_estShort: "about",
+  /* plain-fraction forms of the ×less comparison (jargon-sweep) —
+     "a third of walking" is how you'd say it, "0.43× less" isn't */
+  receipt_fracWalk: "about {f} of walking",
+  receipt_fracVs: "about {f} of {m}",
+  receipt_fracWorst: "about {f} of the smokiest option",
   departNow: "now",
   receipt_distance: "distance",
   receipt_duration: "time",
@@ -567,7 +592,8 @@ const en = {
   emit_innerFleet: "{f} {c}, Delhi average — {b}",
   emit_innerYear: "{y} {f} {c}, {b}",
   emit_innerEv: "electric {c}, includes grid electricity",
-  emit_perPax: ", per passenger (÷{o})",
+  /* the ÷-notation died with the audit — riders, in words */
+  emit_perPax: ", per rider ({o} aboard)",
   emit_pucTuned: " — tuned to your PUC certificate",
   emit_basisPerVkm: "per km driven",
   emit_basisPerPaxKm: "per km per passenger",
@@ -626,12 +652,17 @@ const en = {
   dayCovered: "{h}h {m}m counted",
   dayCoveredMin: "{m}m counted",
   dayPartsTitle: "where it accumulated",
-  dayArcDose: "≈{n} µg · {h}:00",
-  dayArcAir: "{h}:00 · air ~{c}",
-  dayArcFlat: "{h}:00",
+  /* {h} is a whole clock word now ('2pm' / '2 बजे') — no :00 tail */
+  dayArcDose: "≈{n} µg · {h}",
+  dayArcAir: "{h} · air ~{c}",
+  dayArcFlat: "{h}",
   dayMorningFlat: "a flat day — any hour sits about as light as the next",
   dayMorningHeavy: "heaviest ~{f}–{t} (≈{c} µg/m³)",
+  /* the window runs past the forecast's edge — 'heaviest ~8pm–' with
+     a dangling dash reads clipped; 'onward' is the honest shape */
+  dayMorningHeavyFrom: "heaviest from ~{f} onward (≈{c} µg/m³)",
   dayMorningClean: "lightest ~{f}–{t} (≈{c} µg/m³)",
+  dayMorningCleanFrom: "lightest from ~{f} onward (≈{c} µg/m³)",
   dayMorningMove: "the same plan at {f} breathes ~{x}× lighter than at {g}",
   dayMorningStale: "last air reading {n} min ago",
   dayMorningNoCell: "outside the air map — no hour-by-hour read here",
@@ -717,6 +748,10 @@ const en = {
   profileSensitive: "sensitive",
   profileChild: "child",
   peekTitle: "your day so far",
+  peekOpenHint: "opens your day",
+  /* a week-strip day with nothing logged — the talkback line says so
+     instead of announcing a bare zero (audit #13) */
+  weekNoReads: "nothing logged",
   peekEmpty: "no reads yet — open the map, take a trip, this fills in",
   peekAmbient: "now ~{n} µg/m³",
   /* compare sheet — the gap line under a heavier option's dose */
@@ -738,7 +773,9 @@ const en = {
   moveTitle: "the move",
   homeLinkMap: "Air map",
   homeLinkCity: "Delhi today",
-  homeLinkTrips: "Your trips",
+  /* door label = screen title — the ledger calls itself 'Trips'
+     (sidebarTrips); the door's 'Your trips' was a label mismatch (audit) */
+  homeLinkTrips: "Trips",
   /* the local-incidents card — sits above the doors on home, same
      measured cause_note the Delhi today sheet carries under its hero */
   incidentsTitle: "in Delhi's air right now",
@@ -775,10 +812,12 @@ const en = {
   /* sidebar trip-row recency — compact suffixes; hi keeps the same
      Devanagari abbreviations the day counters use (घं/मि per hourTick,
      dayCovered) so no Latin letters leak into a Hindi row */
-  agoNow: "now",
-  agoMin: "{n}m",
-  agoHr: "{n}h",
-  agoDay: "{n}d",
+  /* time-ago is a full phrase — bare "10m" sits beside mode words and
+     reads as a DURATION ('Bicycle · 10 min'), not 'ago' (audit #27) */
+  agoNow: "just now",
+  agoMin: "{n} min ago",
+  agoHr: "{n} hr ago",
+  agoDay: "{n} d ago",
 
   /* --- offline gazetteer kind labels (search/t0.ts kindLabel) ---
      The corpus's own vocabulary — the en value IS the label the
@@ -1114,7 +1153,10 @@ const en = {
   aqiScale: "0–500 scale",
   /** the city hero's ambient reference — names itself so the inhaled-µg
       hero figure and the ambient µg/m³ never read as one number */
-  cityHeroAirNow: "air now ~{n} µg/m³",
+  /* scope the number: this is the CITY's mean — the home screen's
+     air number is the field at your spot; same word, different scope
+     (audit #16 'two air numbers') */
+  cityHeroAirNow: "city average now ~{n} µg/m³",
   /** moves corridor count when the served window is a whole number of
       days — "3 days" where "72 hours" used to sit */
   movesCorridorNDays: "{n} {streetNoun} measured over the last {d} days",
@@ -1144,6 +1186,7 @@ const hi: Record<StringKey, string> = {
   searchPlaceholder: "कहाँ जाना है?",
   searchFromPlaceholder: "कहाँ से?",
   locPickFailed: "आपकी लोकेशन नहीं मिली — कोई जगह लिखें",
+  pickTooClose: "वहाँ बस {n} मीटर है — लगभग यहीं, रास्ते की ज़रूरत नहीं",
   chooseOnMap: "नक्शे पर चुनें",
   yourLocation: "आपकी लोकेशन",
   recents: "हाल की जगहें",
@@ -1256,6 +1299,7 @@ const hi: Record<StringKey, string> = {
   settingsVoice: "आवाज़",
   settingsLanguage: "भाषा",
   settingsUnits: "इकाइयाँ",
+  settingsUnitsInfo: "दूरी km में — सिर्फ़ मीट्रिक",
   settingsShareData: "गुमनाम यात्रा डेटा शेयर करें",
   settingsDeleteData: "मेरा डेटा मिटाएँ",
   settingsRate: "ALive·108 को रेट करें",
@@ -1278,7 +1322,7 @@ const hi: Record<StringKey, string> = {
   cityNoField: "अभी हवा की लाइव रीडिंग नहीं",
   cityStale: "पुराना डेटा — फिर जुड़ रहा है",
   citySpeciesTitle: "हवा में और क्या-क्या है",
-  citySpeciesNote: "शहर का औसत, µg/m³ — हर 15 मिनट ताज़ा",
+  citySpeciesNote: "धूल और गैसें — शहर का औसत µg/m³ में, हर 15 मिनट में ताज़ा · US AQI वही सूचकांक है जो ज़्यादातर ऐप दिखाते हैं",
   cityTypicalLine:
     "इस समय के 10-वर्ष औसत {med} µg/m³ की तुलना में {pct}%",
   whoRef: "WHO सीमा {n}",
@@ -1296,6 +1340,7 @@ const hi: Record<StringKey, string> = {
   cityTrips: "{n} {tripNoun}",
   /* "why tonight" — drivers[].kind से rebuild (server/v2/why.py:_line) */
   whyNoDriver: "स्थानीय धुआँ — कोई एक वजह सामने नहीं",
+  whyJoin: " और ",
   whyBit_stubble: "पराली का धुआँ {dir} की हवा से बहता आ रहा है",
   whyBit_stagnation: "हवा ज़रा भी नहीं चल रही — दिन का धुआँ शहर के ऊपर ठहरा है",
   whyBit_trendRising: "धुआँ बढ़ता ही जा रहा है",
@@ -1345,7 +1390,7 @@ const hi: Record<StringKey, string> = {
   settingsDepartRemindHint: "आपकी यात्रा का हल्का समय मिले तो रिमाइंडर सुझाते हैं — बजता है सिर्फ़ आपके टैप पर",
   /* हवा के अलर्ट — events इंजन (store/events.ts) की टॉगल */
   settingsAlerts: "हवा के अलर्ट",
-  settingsAlertsHint: "सिर्फ़ असली घटनाएँ — धुआँ बढ़े, हवा बिगड़े, या साफ़ घड़ी खुले · ऐप खुला हो तभी जाँच",
+  settingsAlertsHint: "नीचे के चारों अलर्ट का मास्टर स्विच — सिर्फ़ असली घटनाएँ · ऐप खुला हो तभी जाँच",
   settingsAlertsFires: "धुआँ और आग",
   settingsAlertsFiresHint: "उत्तर-पश्चिम की बेल्ट में आग बढ़े तो",
   settingsAlertsBand: "हवा का बिगड़ना",
@@ -1406,11 +1451,11 @@ const hi: Record<StringKey, string> = {
   notifyBandTitle: "हवा अभी {word} हुई",
   notifyBandBody: "आसपास ~{n} µg/m³ — पिछली रीडिंग में {was} थी{note}",
   notifyWindowTitle: "आसान घड़ी आ रही है",
-  notifyWindowBody: "आज की सबसे हल्की हवा ~{win} IST · करीब {n} µg/m³",
+  notifyWindowBody: "आज की सबसे हल्की हवा ~{win} · करीब {n} µg/m³",
   notifyStagTitle: "हवा शहर के ऊपर ठहरी है",
   notifyStagBody: "हवा {f}× ज़्यादा ठहरी — दिन का धुआँ रुका रहेगा{note}",
   notifySevereTitle: "दिल्ली में आज बुरी हवा",
-  notifySevereBody: "आज की हवा GRAP स्टेज {s} जैसी है — हमारा अनुमान, आधिकारिक घोषणा नहीं; बाहर मास्क सही रहेगा{note}",
+  notifySevereBody: "आज की हवा GRAP स्टेज {s}/4 जैसी है — हमारा अनुमान, आधिकारिक घोषणा नहीं; बाहर मास्क सही रहेगा{note}",
   notifyCauseSmoke: " — {dir} हवा पर आता पराली-धुआँ",
   notifyCauseStag: " — हवा ठहरी है, धुआँ छटने के लिए हिली नहीं",
   notifyCauseSmokeStag: " — {dir} हवा पर पराली-धुआँ, और ठहरी हवा साथ में",
@@ -1419,9 +1464,9 @@ const hi: Record<StringKey, string> = {
   notifyTrendDownTitle: "शहर की हवा हल्की हो रही है",
   notifyTrendDownBody: "{h} घंटे में {a} → {b} µg/m³{cause} — पहले के भार से उतरती{note}",
   notifyGrapUpTitle: "दिन की हवा एक GRAP स्टेप ऊपर गई",
-  notifyGrapUpBody: "आज की हवा स्टेज {s} जैसी है (AQI ~{a}) — हमारा अनुमान, आधिकारिक घोषणा नहीं{note}",
+  notifyGrapUpBody: "आज की हवा स्टेज {s}/4 जैसी है (AQI ~{a}) — हमारा अनुमान, आधिकारिक घोषणा नहीं{note}",
   notifyGrapDownTitle: "दिन की हवा एक GRAP स्टेप नीचे आई",
-  notifyGrapDownBody: "आज की हवा स्टेज {s} जैसी है (AQI ~{a}) — फिर भी हमारा ही अनुमान{note}",
+  notifyGrapDownBody: "आज की हवा स्टेज {s}/4 जैसी है (AQI ~{a}) — फिर भी हमारा ही अनुमान{note}",
   notifyGrapClearTitle: "दिन की हवा GRAP नक्शे से बाहर",
   notifyGrapClearBody: "आज की हवा किसी स्टेज जैसी नहीं (AQI ~{a}) — फिर भी हमारा ही अनुमान{note}",
   notifyOutlookHeavyTitle: "कल की हवा भारी दिख रही है",
@@ -1484,7 +1529,7 @@ const hi: Record<StringKey, string> = {
   unitsKg: "किग्रा",
   settingsUnitsHint: "सिर्फ़ मीट्रिक",
   morningAlert: "सुबह का हवा-अलर्ट",
-  shareDataHint: "गुमनाम — इससे दिल्ली का हवा-नक्शा बनता है; एक टैप से बंद",
+  shareDataHint: "चालू — एक टैप से कभी भी बंद",
   deleteConfirmTitle: "मेरा डेटा मिटाएँ?",
   deleteConfirmBody: "आपकी यात्राएँ, सेटिंग्स और गुमनाम आईडी इस फ़ोन से हट जाएँगे",
   deleteConfirmYes: "मिटाएँ",
@@ -1569,6 +1614,7 @@ const hi: Record<StringKey, string> = {
   nav_breathe: "आपके साँस का धुआँ",
   nav_putOut: "आपकी गाड़ी का धुआँ",
   nav_cigs: "{n} सिगरेट",
+  cigsTrace: "सिगरेट का नामो-निशान",
   nav_kg: "{n} किग्रा",
   nav_g: "{n} ग्रा",
   nav_left: "{min} मिनट · {km} किमी बाकी",
@@ -1581,22 +1627,25 @@ const hi: Record<StringKey, string> = {
   nav_noSignal: "आपकी लोकेशन ढूँढ रहे हैं…",
   strip_unavailable: "लाइव हवा-अपडेट नहीं मिला — काउंटर रुके हैं",
   receipt_breathed: "आपने {n} सिगरेट के बराबर धुआँ साँस में लिया",
-  receipt_lessVs: "{m} से {n}× कम",
-  receipt_lessVsWalk: "पैदल से {n}× कम",
+  receipt_lessVs: "{m} की तुलना में ~{n}× कम धुआँ",
+  receipt_lessVsWalk: "पैदल की तुलना में ~{n}× कम धुआँ",
   receipt_moreVs: "{m} से {n}× ज़्यादा",
   receipt_putOutKg: "आपकी गाड़ी ने {n} किग्रा छोड़ा",
   receipt_altPutOut: "{m} ने {n} किग्रा छोड़ा होता",
   receipt_estLike: "इस तरह की सवारी का अनुमान",
   receipt_pmBand: "जिसमें {lo}–{hi} ग्रा बारीक धूल (PM2.5)",
   receipt_pmBandOne: "जिसमें {x} ग्रा बारीक धूल (PM2.5)",
-  receipt_pmBandTiny: "जिसमें <0.01 ग्रा बारीक धूल (PM2.5)",
+  receipt_pmBandTiny: "जिसमें बारीक धूल (PM2.5) का नामो-निशान",
   receipt_donated: "दिल्ली के हवा-नक्शे में गुमनाम रूप से जुड़ा",
   receipt_queued: "सहेजा गया — नेटवर्क लौटने पर भेजा जाएगा",
   receipt_private: "सिर्फ़ इस फ़ोन पर रखा गया",
   receipt_noDose: "इस यात्रा के लिए धुएँ का अंदाज़ा नहीं",
-  receipt_lessVsWorst: "सबसे धुआँदार विकल्प से {n}× कम",
+  receipt_lessVsWorst: "सबसे धुआँदार विकल्प से ~{n}× कम धुआँ",
   receipt_putOutNone: "आपकी गाड़ी ने कुछ नहीं छोड़ा — कोई एग्ज़ॉस्ट नहीं",
   receipt_estShort: "अनुमान",
+  receipt_fracWalk: "पैदल की तुलना में लगभग {f} धुआँ",
+  receipt_fracVs: "{m} की तुलना में लगभग {f} धुआँ",
+  receipt_fracWorst: "सबसे धुआँदार विकल्प की तुलना में लगभग {f} धुआँ",
   departNow: "अब",
   receipt_distance: "दूरी",
   receipt_duration: "समय",
@@ -1624,7 +1673,7 @@ const hi: Record<StringKey, string> = {
   emit_innerFleet: "{f} {c}, दिल्ली औसत — {b}",
   emit_innerYear: "{y} {f} {c}, {b}",
   emit_innerEv: "इलेक्ट्रिक {c}, ग्रिड बिजली सहित",
-  emit_perPax: ", प्रति यात्री (÷{o})",
+  emit_perPax: ", प्रति यात्री ({o} सवार)",
   emit_pucTuned: " — आपके PUC प्रमाणपत्र पर ट्यून किया",
   emit_basisPerVkm: "गाड़ी के प्रति किमी",
   emit_basisPerPaxKm: "यात्री के प्रति किमी",
@@ -1664,12 +1713,14 @@ const hi: Record<StringKey, string> = {
   dayCovered: "{h} घंटे {m} मिनट गिने",
   dayCoveredMin: "{m} मिनट गिने",
   dayPartsTitle: "कहाँ जुड़ा",
-  dayArcDose: "≈{n} µg · {h}:00",
-  dayArcAir: "{h}:00 · हवा ~{c}",
-  dayArcFlat: "{h}:00",
+  dayArcDose: "≈{n} µg · {h}",
+  dayArcAir: "{h} · हवा ~{c}",
+  dayArcFlat: "{h}",
   dayMorningFlat: "सपाट दिन — किसी भी घड़ी में हवा लगभग बराबर है",
   dayMorningHeavy: "सबसे भारी ~{f}–{t} (≈{c} µg/m³)",
+  dayMorningHeavyFrom: "~{f} के बाद सबसे भारी (≈{c} µg/m³)",
   dayMorningClean: "सबसे हल्का ~{f}–{t} (≈{c} µg/m³)",
+  dayMorningCleanFrom: "~{f} के बाद सबसे हल्का (≈{c} µg/m³)",
   dayMorningMove: "वही काम {f} बजे करने से {g} बजे के मुक़ाबले ~{x}× हल्की साँस",
   dayMorningStale: "आख़िरी हवा रीडिंग {n} मिनट पहले",
   dayMorningNoCell: "हवा-नक्शे से बाहर — यहाँ घंटे-दर-घंटे रीडिंग नहीं",
@@ -1743,6 +1794,8 @@ const hi: Record<StringKey, string> = {
   profileSensitive: "संवेदनशील",
   profileChild: "बच्चा",
   peekTitle: "आपका दिन अब तक",
+  peekOpenHint: "आपका दिन खोलता है",
+  weekNoReads: "कुछ दर्ज नहीं",
   peekEmpty: "अभी कोई रीडिंग नहीं — नक्शा खोलें, एक यात्रा करें, यहाँ भर जाएगा",
   peekAmbient: "अभी ~{n} µg/m³",
   /* compare sheet — the gap line under a heavier option's dose */
@@ -1759,7 +1812,7 @@ const hi: Record<StringKey, string> = {
   moveTitle: "आज का फ़ैसला",
   homeLinkMap: "हवा का नक्शा",
   homeLinkCity: "आज की दिल्ली",
-  homeLinkTrips: "आपकी यात्राएँ",
+  homeLinkTrips: "यात्राएँ",
   incidentsTitle: "दिल्ली की हवा में अभी",
   homeAirNowLead: "आपके आसपास की हवा",
   refWhoOver: "WHO की दैनिक सीमा का {x}×",
@@ -1789,9 +1842,9 @@ const hi: Record<StringKey, string> = {
   veh_cap_y_2021plus: "BS-VI दौर",
   veh_cap_y_notsure: "दिल्ली का औसत लेंगे",
   agoNow: "अभी",
-  agoMin: "{n} मिनट",
-  agoHr: "{n} घंटे",
-  agoDay: "{n} दिन",
+  agoMin: "{n} मिनट पहले",
+  agoHr: "{n} घंटे पहले",
+  agoDay: "{n} दिन पहले",
 
   /* offline gazetteer kind labels — en block carries the corpus's own
      words; the typed dict pins this table to the same key set */
@@ -2100,7 +2153,7 @@ const hi: Record<StringKey, string> = {
   fieldAgeCompact: "{n} मिनट पुरानी",
   fieldAgeNone: "कोई रीडिंग नहीं",
   aqiScale: "0–500 स्केल",
-  cityHeroAirNow: "अभी हवा ~{n} µg/m³",
+  cityHeroAirNow: "इस समय शहर का औसत ~{n} µg/m³",
   movesCorridorNDays: "पिछले {d} दिनों में {n} {streetNoun} नापी गईं",
   cityBasisPrivacyDays: "कोई सड़क तभी दिखती है जब {d} दिनों में {k} अलग यात्री उससे गुज़रें — कोई अलग से पहचाना नहीं जा सकता",
   bandUpTo: "{n} तक",
@@ -2185,6 +2238,76 @@ export const approx = (n: number | string): string =>
  *  one decimal stays (≈ 1.6, not ≈ 2), 10+ rounds whole. */
 export const doseUgRound = (ug: number): number =>
   ug >= 10 ? Math.round(ug) : Math.round(ug * 10) / 10;
+
+/* ── clock words: ONE convention for every displayed time (the audit's
+   12h/24h split — LedgerScreen's "4:42 pm" vs nav/compare "16:42").
+   Displayed clocks are 12h: "4:42 pm" / "4:42 अपराह्न"; hour-only
+   slots read "4pm" / "4 बजे". hi dayparts come from the daypart_*
+   keys — hi-IN toLocaleTimeString leaks Latin on Android ICU. */
+export const clockLabel = (d: Date | number, lang: Lang): string => {
+  const dt = typeof d === "number" ? new Date(d) : d;
+  const h24 = dt.getHours();
+  const h12 = ((h24 + 11) % 12) + 1;
+  const mm = `${dt.getMinutes()}`.padStart(2, "0");
+  return `${h12}:${mm} ${t(h24 < 12 ? "daypart_am" : "daypart_pm", lang)}`;
+};
+
+/** the tight form for ticks/ranges — en drops the space ("4:42pm");
+ *  hi keeps it (Devanagari needs the word boundary). */
+export const clockTight = (d: Date | number, lang: Lang): string =>
+  lang === "en" ? clockLabel(d, lang).replace(" ", "") : clockLabel(d, lang);
+
+/** hour-only label — "4pm" / "4 बजे"; a :30 slot falls back to the
+ *  tight clock so a stray minute never gets silently rounded away. */
+export const hourLabel = (d: Date | number, lang: Lang): string => {
+  const dt = typeof d === "number" ? new Date(d) : d;
+  const h24 = dt.getHours();
+  const h12 = ((h24 + 11) % 12) + 1;
+  if (dt.getMinutes() !== 0) return clockTight(dt, lang);
+  return lang === "hi" ? `${h12} बजे` : `${h12}${h24 < 12 ? "am" : "pm"}`;
+};
+
+/** served "HH:MM" tokens → the display clock, inside any string:
+ *  "06:00–09:00 IST" → "6:00am–9:00am". The wire's IST suffix drops —
+ *  the device clock is already local; 'IST' is jargon on a consumer
+ *  face. A token that isn't a real clock time passes through. */
+export const wireClockLabel = (s: string, lang: Lang): string =>
+  s
+    .replace(/\b(\d{1,2}):(\d{2})\b/g, (_m, h, min) => {
+      const hh = Number(h), mm = Number(min);
+      if (hh > 23 || mm > 59) return `${h}:${min}`;
+      const h12 = ((hh + 11) % 12) + 1;
+      return lang === "hi"
+        ? `${h12}:${min} ${t(hh < 12 ? "daypart_am" : "daypart_pm", lang)}`
+        : `${h12}:${min}${hh < 12 ? "am" : "pm"}`;
+    })
+    .replace(/\s*IST\b/g, "");
+
+/* "2.3× less" is wire-math; "a third of" is how you'd say it to a
+   friend (jargon-sweep receipt_lessVs flag). Maps the dose:worst
+   ratio onto the nearest common fraction word — ratios landing
+   between common fractions (7.3×, 11×) return null and keep the
+   honest × form; a fake "a seventh of" reads worse than the number. */
+const SMOKE_FRACS: [number, string, string][] = [
+  [2, "half", "आधा"],
+  [3, "a third", "तिहाई"],
+  [4, "a quarter", "चौथाई"],
+  [5, "a fifth", "पाँचवाँ हिस्सा"],
+  [6, "a sixth", "छठा हिस्सा"],
+  [8, "an eighth", "आठवाँ हिस्सा"],
+  [10, "a tenth", "दसवाँ हिस्सा"],
+];
+export const smokeFraction = (ratio: number, lang: Lang): string | null => {
+  if (!(ratio > 1)) return null;
+  let best: [number, string, string] | null = null;
+  let bestD = Infinity;
+  for (const row of SMOKE_FRACS) {
+    const d = Math.abs(1 / ratio - 1 / row[0]);
+    if (d < bestD) { best = row; bestD = d; }
+  }
+  if (!best || bestD > 0.13 * (1 / best[0])) return null;
+  return lang === "hi" ? best[2] : best[1];
+};
 
 const PLACE_SENTINEL: Record<string, keyof typeof en> = {
   "your location": "placeCurrentLocation",
