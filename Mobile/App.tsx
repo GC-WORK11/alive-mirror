@@ -34,6 +34,9 @@ import { RouteTintSource } from "./src/components/RouteTint";
 import { fieldSources, type FieldStatus } from "./src/api/plan";
 import { FiresLayer, BlackspotsLayer } from "./src/components/HazardLayers";
 import { CorridorLayer } from "./src/components/CorridorLayer";
+import { AirFieldLayer, type AirStation } from "./src/components/AirFieldLayer";
+import { AirMapCard } from "./src/components/AirMapCard";
+import { fetchAirField, airFieldEpoch } from "./src/api/airfield";
 import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
 import { VehicleSheet } from "./src/screens/VehicleSheet";
@@ -103,6 +106,9 @@ const INIT_VIEW = { center: DELHI, zoom: 12.5 } as const;
    tight NCR box — a destination in Agra/Jaipur must stay on
    screen or the outside-area notice can't be understood */
 const MAX_BOUNDS: [number, number, number, number] = [74.75, 26.15, 79.95, 30.98];
+/* top-of-map clearance for pills that used to sit under the route bar —
+   the AirMapCard owns that slot on the air-map surface now */
+const AIR_CARD_CLEARANCE = 76;
 /* event payload types derived from the components' own prop signatures —
    never hand-name maplibre event types */
 type MapPressEvent = Parameters<NonNullable<React.ComponentProps<typeof Map>["onPress"]>>[0];
@@ -128,6 +134,7 @@ const MapTree = React.memo(function MapTree({
   onPress, onLongPress, camRef, drawHeld,
   trackUserLocation, onTrackUserLocationChange,
   hasLoc, corridors, reportSlots, fires, spots, layers,
+  field, stations,
   options, selected, strips,
   fromPin, toPin, fromSet, toSet, pinReady,
 }: {
@@ -146,6 +153,8 @@ const MapTree = React.memo(function MapTree({
   fires: GeoJSON.FeatureCollection | null;
   spots: GeoJSON.FeatureCollection | null;
   layers: Record<LayerKey, boolean>;
+  field: GeoJSON.FeatureCollection | null;
+  stations: AirStation[] | null;
   options: V2Option[];
   selected: number;
   strips: Parameters<typeof RouteTintSource>[0]["strips"];
@@ -198,6 +207,11 @@ const MapTree = React.memo(function MapTree({
       {/* all map children stay mounted for the app's life — a mid-draw
           removeSource/removeAnnotation is the upstream sim SIGSEGV;
           the toggles only swap data in and out (see each component) */}
+      {/* the air map's own surface — the served PM2.5 field, painted
+          under the road/label stack; the band colours + every number
+          are the field's real reads, and the rings are the actual
+          instrument sites the blend is anchored to */}
+      <AirFieldLayer field={field} stations={stations} />
       <CorridorLayer corridors={corridors} on={layers.corridors} />
       <ReportsLayer slots={reportSlots} />
       <FiresLayer fires={fires} on={layers.fires} />
@@ -333,6 +347,10 @@ function AppInner() {
      can keep counting after the polls start failing (frozen age_s on a
      dead network lies "9 min" forever) */
   const [aqiField, setAqiField] = useState<{ data: FieldStatus; at: number } | null>(null);
+  /* the served PM2.5 field itself — the air map's painted surface.
+     Held in state keyed by the field's own epoch so a 60 s poll tick
+     never re-diffuses an identical serve into the native map */
+  const [fieldGeo, setFieldGeo] = useState<GeoJSON.FeatureCollection | null>(null);
   /* the day's ambient read — feeds the peek card's "now ~N µg/m³" so the
      idle map feels the air, not just the sampled totals */
   const [ambientUg, setAmbientUg] = useState<number | null>(null);
@@ -390,6 +408,19 @@ function AppInner() {
        a server-side refresh). */
     loadTrips().then(setTrips).catch(() => {});
     loadSettings().then(setSettings).catch(() => {});
+    /* the air map's surface rides the same warm-at-boot path as /aqi —
+       fetched before the door to it is ever tapped, so opening the air
+       map never waits on the network. 10 min < the field's own ~15 min
+       cadence; a repeated serve with the same epoch is skipped (the
+       GeoJSON identity the map memo depends on stays put). */
+    const fieldPull = () => fetchAirField().then((r) => {
+      if (r.ok && r.data.fc.features.length) {
+        const ep = airFieldEpoch(r.data.fc);
+        setFieldGeo((prev) => (prev && airFieldEpoch(prev) === ep ? prev : r.data.fc));
+      }
+    }).catch(() => {});
+    fieldPull();
+    const fieldIv = setInterval(fieldPull, 10 * 60 * 1000);
     /* the OS permission dialog no longer fires at boot — on a cold install
        it landed on top of the first open before any value or context, and
        it still waited behind consent. It lives in the introSeen-gated
@@ -460,7 +491,7 @@ function AppInner() {
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
     loadWelcomeSeen().then(setWelcomeSeen).catch(() => setWelcomeSeen(true));
-    return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); };
+    return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); clearInterval(fieldIv); };
   }, [setFrom, setTrips, settings.lang]);
 
   /* first-open ordering: the consent sheet is required on every cold
@@ -653,6 +684,18 @@ function AppInner() {
             > (aqiField.data.stale_after_s ?? 2700) }
     : null), [planField, aqiField]);
 
+  /* the field block re-issues every 60 s poll (age_s ticks, so the JSON
+     dedupe never holds it) — but the stations list itself only moves
+     when the feed actually changes. Memoize by content so MapTree's
+     boundary stays honest: same array content, same identity. */
+  const stationsJson = aqiField?.data?.stations ? JSON.stringify(aqiField.data.stations) : null;
+  const fieldStations = useMemo(
+    () => (stationsJson ? (JSON.parse(stationsJson) as AirStation[]) : null),
+    [stationsJson]);
+  /* the air map IS this surface — the map under the home sheet is
+     browsing, this is the reading */
+  const airMapOpen = phase === "idle" && !homeOpen;
+
   /* ---- memo'd subtree props: every handler below must keep identity
      across poll renders or the memo boundaries are theatre ---- */
   const compassPosition = useMemo(() => (phase === "nav"
@@ -825,6 +868,7 @@ function AppInner() {
       corridors={community?.top_corridors ?? null}
       reportSlots={reportSlots}
       fires={fires} spots={spots} layers={layers}
+      field={fieldGeo} stations={fieldStations}
       options={deferredOptions}
       selected={selected}
       strips={strips}
@@ -844,19 +888,20 @@ function AppInner() {
       <StatusBar style="dark" />
       {mapTree}
 
-      {/* rest state chrome: search bar + locate + layers (doc 02 §S1).
-          The pill yields while the home sheet is open — it renders before
-          HomeScreen in tree order, so under the hero it sat occluded:
-          looked alive, answered no taps (android-drive finding). The
-          home screen's own "go somewhere" CTA covers search there. */}
-      {phase !== "nav" && !(phase === "idle" && homeOpen) && (
+      {/* the from/to route component has no seat on the air map —
+          owner's order ("REMOVE the 'from' component"): this surface is
+          the field + the instruments' numbers, not a trip planner.
+          The pill survives ONLY inside an active journey (compare)
+          where it names the destination and closes the plan; every
+          entry point to planning stays on the home sheet's own CTA. */}
+      {phase === "compare" && (
         <View style={[s.pillWrap, { top: insets.top + 10 }]}>
           <SearchBar
-            label={phase === "compare" && to ? to.name : undefined}
+            label={to ? to.name : undefined}
             lang={lang}
             onMenu={openSidebar}
             onPress={openSearch}
-            onClear={phase === "compare" ? closeCompareToHome : undefined} />
+            onClear={closeCompareToHome} />
         </View>
       )}
       <SearchScreen
@@ -867,6 +912,18 @@ function AppInner() {
         onSelect={onSearchSelect} />
       {phase === "idle" && (
         <>
+          {/* the air map's legend — floats in the slot the route pill
+              used to own, tap-through so the field under it still
+              answers the pan */}
+          {!homeOpen && (
+            <View style={[s.airCardWrap, { top: insets.top + 10 }]} pointerEvents="none">
+              <AirMapCard lang={lang}
+                stations={fieldStations?.length ?? null}
+                fieldAgeS={mapField?.age_s ?? null}
+                stale={mapField?.stale}
+                hasField={!!fieldGeo?.features?.length} />
+            </View>
+          )}
           <View style={[s.locateWrap, { bottom: insets.bottom + 16 }]}>
             <LocateButton active={follow} onPress={onLocate} lang={lang} />
           </View>
@@ -887,10 +944,10 @@ function AppInner() {
       {/* SEAM(breath-chip): optional "breathing heavier/lighter" chip while moving
           (doc 02 §S1) — needs a real trailing-30min baseline; not yet wired. */}
 
-      {/* freshness chip — real field age on the map screen: the /v2/plan
-          field block during compare, else the polled /aqi field block.
-          Stale shows as stale; no field → nothing claims freshness. */}
-      {phase !== "nav" && phase !== "search" && !homeOpen && mapField && (
+      {/* freshness chip — on the compare surface it still names the
+          plan field's age; on the air map the same truth lives inside
+          the AirMapCard now (no double-telling the field's age) */}
+      {phase === "compare" && mapField && (
         <View style={[s.freshWrap, { top: insets.top + 62 }]} pointerEvents="box-none">
           <FreshnessChip
             ageS={mapField.age_s} stale={mapField.stale}
@@ -930,7 +987,7 @@ function AppInner() {
           nav the +92 slot belongs to the engine's own status pills
           (reroute / outside-field / strip-unavailable). */}
       {(net.state !== "online" || apiOk === false) && (
-        <Pressable style={[s.offlineWrap, { top: insets.top + 66 }]} onPress={() => { tick(); void net.refresh(); }}
+        <Pressable style={[s.offlineWrap, { top: insets.top + 66 + (airMapOpen ? AIR_CARD_CLEARANCE : 0) }]} onPress={() => { tick(); void net.refresh(); }}
           accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
           <Text {...DYNAMIC_TYPE} style={[s.offlineTxt, { fontFamily: fam(lang, "med") }]}>
             {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
@@ -949,7 +1006,8 @@ function AppInner() {
       {mapPickArmed && (
         <Pressable
           style={[s.pickHintWrap, {
-            top: insets.top + 66 + ((net.state !== "online" || apiOk === false) ? 36 : 0),
+            top: insets.top + 66 + (airMapOpen ? AIR_CARD_CLEARANCE : 0)
+              + ((net.state !== "online" || apiOk === false) ? 36 : 0),
           }]}
           onPress={() => { tick(); setMapPickArmed(false); }}
           accessibilityRole="button" accessibilityLabel={t("mapPickHint", lang)}
@@ -1167,6 +1225,8 @@ const s = StyleSheet.create({
   // top/bottom come from useSafeAreaInsets inline — status bar, notch and
   // the gesture pill differ per device (no fixed 54/40 on real hardware)
   pillWrap: { position: "absolute", left: 16, right: 16 },
+  /* the air map's legend — narrow, left-anchored, tap-through */
+  airCardWrap: { position: "absolute", left: 16, right: 96, alignItems: "flex-start" },
   locateWrap: { position: "absolute", right: 14 },
   layersWrap: { position: "absolute", left: 14 },
   offlineWrap: {

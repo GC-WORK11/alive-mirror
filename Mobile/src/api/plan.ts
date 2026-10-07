@@ -53,6 +53,11 @@ export type FieldStatus = {
   engine?: string;              // "alive_core" | "python" — which engine serves
   sigma_coverage?: string;      // "full" | "none" | "partial:N/M" | "per-query"
   load_warnings?: number;       // corrupt snapshot files skipped at load
+  /** the live instrument sites the blend is anchored to — lat/lon/name
+      only (the wire carries no per-station value; the field IS their
+      blended read). The air map paints these as the station rings. */
+  stations?: { lat: number; lon: number; name?: string | null }[];
+  stations_src?: string;        // "waqi+dpcc"-style feed provenance
 };
 
 /** PlanResult with `field` typed to what the server really sends —
