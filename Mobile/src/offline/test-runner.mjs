@@ -23,22 +23,85 @@ globalThis.__DEV__ = true;
 
 registerHooks({
   resolve(specifier, context, next) {
-    if (specifier === "expo-file-system") {
+    /* specifier may carry a ?case=N query — cache-bust imports let a test
+       re-load tileWarm.ts (and the stubs it transitively pulls) as a fresh
+       module so per-launch state like `started` resets between cases. */
+    const bare = specifier.split("?")[0];
+    const parent = context.parentURL ?? "";
+    const pq = parent.includes("?") ? parent.slice(parent.indexOf("?")) : "";
+    if (bare === "expo-file-system") {
       return { url: "offtest:expo-file-system", shortCircuit: true };
     }
-    if (specifier === "react-native") {
+    if (bare === "react-native") {
       return { url: "offtest:react-native", shortCircuit: true };
     }
+    /* tileWarm.ts deps — stubbed only when imported from tileWarm; other
+       files keep resolving the real modules. The parent query propagates
+       so each fresh tileWarm gets fresh stub globals. */
+    if (bare === "@maplibre/maplibre-react-native" && parent.includes("/map/tileWarm.ts")) {
+      return { url: "offtest:maplibre" + pq, shortCircuit: true };
+    }
+    if (bare === "../search/client" && parent.includes("/map/tileWarm.ts")) {
+      return { url: "offtest:search-client" + pq, shortCircuit: true };
+    }
+    if (bare === "./style" && parent.includes("/map/tileWarm.ts")) {
+      return { url: "offtest:map-style" + pq, shortCircuit: true };
+    }
     try {
-      return next(specifier, context);
+      const r = next(bare, context);
+      if (specifier.includes("?") && r.url) r.url += specifier.slice(specifier.indexOf("?"));
+      return r;
     } catch (err) {
-      if (specifier.startsWith("./") || specifier.startsWith("../")) {
-        return next(specifier + ".ts", context);
+      if (bare.startsWith("./") || bare.startsWith("../")) {
+        const r = next(bare + ".ts", context);
+        if (specifier.includes("?") && r.url) r.url += specifier.slice(specifier.indexOf("?"));
+        return r;
       }
       throw err;
     }
   },
   load(url, context, next) {
+    const bare = url.split("?")[0];
+    if (bare === "offtest:maplibre") {
+      return {
+        format: "module",
+        shortCircuit: true,
+        /* OfflineManager spy — packs seeded, calls recorded into
+           globalThis.__offtest_ml. Methods read the global lazily so a
+           test can swap the whole state object between cases. */
+        source:
+          "const S = () => (globalThis.__offtest_ml ??= { packs: [], created: [], deleted: [], maxAmbient: null });" +
+          "export const OfflineManager = {" +
+          "  async setMaximumAmbientCacheSize(n) { S().maxAmbient = n; }," +
+          "  async getPacks() { return S().packs.slice(); }," +
+          "  async deletePack(id) { S().deleted.push(id); S().packs = S().packs.filter((p) => p.id !== id); }," +
+          "  async createPack(opts) {" +
+          "    if (S().failCreate) throw new Error('offline db unavailable');" +
+          "    S().created.push(opts);" +
+          "    return { id: 'pack-' + S().created.length, metadata: opts.metadata };" +
+          "  }," +
+          "};" +
+          "export default {};",
+      };
+    }
+    if (bare === "offtest:search-client") {
+      return {
+        format: "module",
+        shortCircuit: true,
+        source:
+          "export const API_BASE = globalThis.__offtest_api_base ?? 'http://api.test';",
+      };
+    }
+    if (bare === "offtest:map-style") {
+      return {
+        format: "module",
+        shortCircuit: true,
+        /* the bundled-style sentinel — identity is what tileWarm's gate
+           compares, so one object per process via the global slot */
+        source:
+          "export const v2Style = (globalThis.__offtest_v2style ??= { version: 8, marker: 'bundled' });",
+      };
+    }
     if (url === "offtest:expo-file-system") {
       return {
         format: "module",

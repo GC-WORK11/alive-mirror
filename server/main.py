@@ -1840,6 +1840,25 @@ async def delhi_subdistricts_geojson():
                         headers=_STATIC_CACHE)
 
 
+@app.get("/v2-light.json")
+async def v2_light_style():
+    """The app's bundled basemap style (server/static/v2-light.json), served
+    so the mobile offline pack can pass an http(s) style_url to
+    OfflineManager.createPack — MapLibre Native's fetcher can't load the
+    file:// URL the app used to hand it, so the region never downloaded.
+    Byte-identical copy of Mobile/src/map/v2-light.json; the parity test
+    keeps the two from drifting."""
+    from fastapi.responses import FileResponse
+    import os
+    path = os.path.join(os.path.dirname(__file__), "static", "v2-light.json")
+    if not os.path.exists(path):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "basemap style not bundled"},
+                            status_code=404)
+    return FileResponse(path, media_type="application/json",
+                        headers=_STATIC_CACHE)
+
+
 @app.get("/reverse")
 async def reverse(lat: float, lon: float):
     """Best-matching named place near a point — AWS Location primary, Photon
