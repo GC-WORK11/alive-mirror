@@ -378,13 +378,13 @@ function OptionCard({ o, i, selected, worstIn, worstOut, minDose, showYours, ope
         accessibilityRole="button"
         accessibilityState={{ selected }}
         style={s.cardRow}>
-        {/* the mode tile — the option's identity in its own colour;
-            selection re-inks it, never re-fills the card */}
+        {/* the mode glyph is neutral ink; only the selected option takes
+            the forest accent */}
         <View style={[s.modeWell, {
-          backgroundColor: selected ? V2T.accentTint : V2T.accentWash,
+          backgroundColor: selected ? V2T.accentTint : "transparent",
         }]}>
           <Icon name={vehicleGlyph(o.mode)}
-            color={V2T.accentInk}
+            color={selected ? V2T.accent : V2T.text2}
             size={24} filled />
         </View>
         <View style={s.cardMid}>

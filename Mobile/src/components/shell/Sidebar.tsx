@@ -270,7 +270,7 @@ function SidebarInner({
         {p.label}
       </Text>
       <Text {...DYNAMIC_TYPE} style={[s.tileValue, { fontFamily: fam(lang, "med") },
-        p.valueAccent && { color: V2T.accent }]} numberOfLines={1}>
+        p.valueAccent && { color: V2T.text2 }]} numberOfLines={1}>
         {p.value}
       </Text>
     </Pressable>

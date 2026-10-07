@@ -501,13 +501,8 @@ function MoveCardInner({ curve, outside, lang }: {
       {!flat && (
         <>
           {heavy && (
-            /* window chips — the heavy/clean evidence as tinted pills,
-               each washed in its own band so the card's two facts read
-               as components, not fine print */
-            <View style={[ss.winChip, {
-              backgroundColor: bandWashIdx(bandIdx(heavy.conc) ?? 0),
-              borderColor: `${bandInkIdx(bandIdx(heavy.conc) ?? 0)}2E`,
-            }]}>
+            /* the heavy/clean windows — the band lives in the dot only */
+            <View style={ss.winChip}>
               <BandDot conc={heavy.conc} />
               <Text {...DYNAMIC_TYPE} style={[ss.winChipTxt, NUM, { fontFamily: mtext(lang) }]}>
                 {t("dayMorningHeavy", lang, {
@@ -519,10 +514,7 @@ function MoveCardInner({ curve, outside, lang }: {
             </View>
           )}
           {clean && (
-            <View style={[ss.winChip, {
-              backgroundColor: bandWashIdx(bandIdx(clean.conc) ?? 0),
-              borderColor: `${bandInkIdx(bandIdx(clean.conc) ?? 0)}2E`,
-            }]}>
+            <View style={ss.winChip}>
               <BandDot conc={clean.conc} />
               <Text {...DYNAMIC_TYPE} style={[ss.winChipTxt, NUM, { fontFamily: mtext(lang) }]}>
                 {t("dayMorningClean", lang, {
@@ -847,7 +839,7 @@ function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
       <View style={ss.budgetBar}>
         <View style={[ss.budgetFill, {
           width: `${frac * 100}%`,
-          backgroundColor: over > 0 ? V2T.breath2 : V2T.accent,
+          backgroundColor: doseDotColor(totalUg, budget),
         }]} />
       </View>
       <Text {...DYNAMIC_TYPE} style={[ss.budgetLine, NUM, { fontFamily: mtext(lang) }]}>
@@ -1500,8 +1492,7 @@ const ss = StyleSheet.create({
   sparkHr: { position: "absolute", top: 0, width: 44, color: V2T.text3, fontSize: V2Type.micro, textAlign: "center" },
   winChip: {
     flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8,
-    borderRadius: V2Radius.pill,
-    paddingHorizontal: 12, paddingVertical: 7, alignSelf: "flex-start",
+    paddingVertical: 4, alignSelf: "flex-start",
   },
   winChipTxt: { color: V2T.text, fontSize: V2Type.label },
   mRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },

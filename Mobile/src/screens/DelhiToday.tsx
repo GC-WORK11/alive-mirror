@@ -37,7 +37,6 @@ import {
   V2Elev,
   V2Radius,
   V2T,
-  V2Tint,
   V2Type,
 } from "../theme";
 import { approx, doseUgRound, feltKeyForBand, t, type Lang, type StringKey } from "../i18n/strings";
@@ -108,10 +107,10 @@ function Chip({
   );
 }
 
-function CorridorRow({ c, lang }: { c: CityCorridor; lang: Lang }) {
+function CorridorRow({ c, first, lang }: { c: CityCorridor; first: boolean; lang: Lang }) {
   const heavy = c.relative === "heavier";
   return (
-    <View style={ss.cRow}>
+    <View style={[ss.cRow, !first && ss.speciesSep]}>
       <View style={ss.cGlyph}>
         <Icon name="pin" color={V2T.text2} size={18} />
       </View>
@@ -340,14 +339,17 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                     : t("refWhoUnder", lang)}
                   {` · ~${Math.round(pm.mid)} µg/m³`}
                 </Text>
-                <Text {...DYNAMIC_TYPE}
-                  style={[ss.heroRange, NUM, { fontFamily: famMonoText(lang, "reg") }]}
-                >
-                  {t("cityHeroRange", lang, {
-                    lo: Math.round(inhaled.lo),
-                    hi: Math.round(inhaled.hi),
-                  })}
-                </Text>
+                {/* a band that starts at 0 says nothing a stranger can use */}
+                {Math.round(inhaled.lo) > 0 && (
+                  <Text {...DYNAMIC_TYPE}
+                    style={[ss.heroRange, NUM, { fontFamily: famMonoText(lang, "reg") }]}
+                  >
+                    {t("cityHeroRange", lang, {
+                      lo: Math.round(inhaled.lo),
+                      hi: Math.round(inhaled.hi),
+                    })}
+                  </Text>
+                )}
                 {showCig && cig != null && (
                   <Text {...DYNAMIC_TYPE}
                     style={[ss.heroRange, NUM, { fontFamily: famMonoText(lang, "reg") }]}
@@ -512,9 +514,11 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 {t("cityEmptyStreets", lang)}
               </Text>
             ) : (
-              corridors.map((c) => (
-                <CorridorRow key={c.cell} c={c} lang={lang} />
-              ))
+              <View style={ss.speciesGrid}>
+                {corridors.map((c, i) => (
+                  <CorridorRow key={c.cell} c={c} first={i === 0} lang={lang} />
+                ))}
+              </View>
             )}
 
             {/* what ALive travellers did today — city totals only;
@@ -793,18 +797,10 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     minHeight: 58,
-    paddingHorizontal: 14,
     paddingVertical: 10,
-    marginHorizontal: 18,
-    marginTop: 6,
-    borderRadius: V2Radius.row,
-    backgroundColor: V2T.surface2,
   },
   cGlyph: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: V2Tint.clay.wash,
+    width: 24,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
