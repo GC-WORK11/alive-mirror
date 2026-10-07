@@ -27,6 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # f9ea5ae P0: one bare ' inside a single-quoted literal killed the
+      # whole 54KB landing script on prod — node --check every inline
+      # <script> before paying for the suite (ubuntu-latest ships node).
+      - name: Inline script syntax gate
+        run: python3 scripts/check_inline_scripts.py
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
