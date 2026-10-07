@@ -115,6 +115,22 @@ export type V2WhyDriver = {
   direction?: string;
   detail?: { factor?: number; wind_from_deg?: number; belt_fires?: number };
 };
+/** the note's raw ingredients — server composes it in why.py alongside
+    cause_note; the app re-localizes from this, never from the English. */
+export type CauseNoteFields = {
+  basis?: string | null;
+  belt_fires?: number | null;
+  belt_delta?: number | null;
+  belt_delta_h?: number | null;
+  carrying?: boolean | null;
+  wind_from_deg?: number | null;
+  wind_kmh?: number | null;
+  vc_m2s?: number | null;
+  stag_factor?: number | null;
+  trend_from?: number | null;
+  trend_to?: number | null;
+  trend_span_h?: number | null;
+};
 export type V2Why = {
   drivers?: V2WhyDriver[];
   evaluated?: {
@@ -123,8 +139,13 @@ export type V2Why = {
       belt_fires?: number | null;
       n_fires?: number | null;
       carrying?: boolean | null;
+      feed_status?: string | null;
       feed_age_s?: number | null;
       feed_stale_after_s?: number | null;
+    } | null;
+    ventilation?: {
+      vc_m2s?: number | null;
+      factor?: number | null;
     } | null;
     trend?: {
       delta_ug?: number | null;
@@ -137,6 +158,21 @@ export type V2Why = {
   } | null;
   /** the served boundary wind — {from_deg,speed_kmh,age_s,source,known} */
   wind?: { from_deg?: number | null; speed_kmh?: number | null; known?: boolean } | null;
+  /** the driver sparkline — per recorded build belt/pm2.5/vc (why.py
+      _history); the belt series backs the note's "jumped" delta */
+  history?: {
+    window_h?: number;
+    points?: {
+      t?: number;
+      pm25?: number | null;
+      vc_m2s?: number | null;
+      belt_fires?: number | null;
+    }[] | null;
+  } | null;
+  /** server-composed English news line (cause_note) + its ingredients —
+      consumers rephrase via causeNote() on the fields, not this text */
+  cause_note?: string | null;
+  cause_note_fields?: CauseNoteFields | null;
 };
 
 export const feedLive = (f: NonNullable<NonNullable<V2Why["evaluated"]>["fires"]>): boolean =>
@@ -209,6 +245,139 @@ export function causeClause(
   const key: StringKey = smoke && stag ? "notifyCauseSmokeStag"
     : smoke ? "notifyCauseSmoke" : "notifyCauseStag";
   return t(key, lang, { dir });
+}
+
+/* ---- the cause_note — the parali/news line, re-localized ------------
+   Server composes the canonical English in why.py and ships the raw
+   ingredients as cause_note_fields; the app re-renders the same
+   grammar through i18n so Hindi never shows wire English. Every gate
+   below mirrors the server's own admission floors — the note names
+   nothing the explainer wouldn't. */
+
+/** server STAG_FACTOR_MIN — below it "barely mixing" isn't claimed. */
+export const NOTE_STAG_MIN = 1.25;
+/** server HISTORY_MIN_SPAN_S — the belt "jumped" read needs ≥3h of
+    recorded builds behind it. */
+export const NOTE_BELT_SPAN_MIN_S = 3 * 3600;
+/** under this a belt move could be FIRMS re-count noise (why.py). */
+export const NOTE_DELTA_MIN = 5;
+
+/** Normalize a /v2/why payload (or the city's cause_note_fields) to
+    the note's ingredient set. The belt delta is re-derived from the
+    served history series — live count vs the oldest in-window build —
+    so the note works against a server that predates the fields key. */
+export function causeFieldsFromWhy(why: V2Why | null | undefined): CauseNoteFields {
+  const ev = why?.evaluated ?? {};
+  const f = ev.fires ?? {};
+  const v = ev.ventilation ?? {};
+  const tr = ev.trend ?? {};
+  const belt = typeof f.belt_fires === "number" && Number.isFinite(f.belt_fires)
+    ? f.belt_fires : null;
+  /* belt "jumped" — the served history's own belt series, oldest build
+     vs the live count; only while the feed itself is live (a recorded
+     fallback vs a recorded build compares the same number twice) */
+  let beltDelta: number | null = null;
+  let beltDeltaH: number | null = null;
+  /* strict "live" — same gate as the server: no feed_status word means
+     the "jumped" read can't be claimed (a recorded count vs a recorded
+     build would compare the same number twice) */
+  if (belt != null && f.feed_status === "live" && feedLive(f)) {
+    const rows = (why?.history?.points ?? []).filter(
+      (p): p is { t: number; belt_fires: number } =>
+        typeof p?.t === "number" && typeof p?.belt_fires === "number");
+    if (rows.length >= 2) {
+      const span = rows[rows.length - 1].t - rows[0].t;
+      const d = belt - rows[0].belt_fires;
+      if (span >= NOTE_BELT_SPAN_MIN_S && Math.abs(d) >= NOTE_DELTA_MIN) {
+        beltDelta = d;
+        beltDeltaH = Math.round((span / 3600) * 10) / 10;
+      }
+    }
+  }
+  const stagF = typeof v.factor === "number" ? v.factor : null;
+  const stag = stagF != null && stagF >= NOTE_STAG_MIN;
+  const d = typeof tr.delta_ug === "number" ? tr.delta_ug : null;
+  const trendAdm = d != null && Math.abs(d) >= TREND_REPING_UG
+    && typeof tr.from_pm25 === "number" && typeof tr.to_pm25 === "number";
+  return {
+    basis: "measured",
+    belt_fires: belt,
+    belt_delta: beltDelta,
+    belt_delta_h: beltDeltaH,
+    carrying: f.carrying ?? null,
+    wind_from_deg: why?.wind?.from_deg ?? null,
+    wind_kmh: why?.wind?.speed_kmh ?? null,
+    vc_m2s: stag ? (v.vc_m2s ?? null) : null,
+    stag_factor: stag ? stagF : null,
+    trend_from: trendAdm ? tr.from_pm25 ?? null : null,
+    trend_to: trendAdm ? tr.to_pm25 ?? null : null,
+    trend_span_h: trendAdm ? (tr.span_h ?? tr.window_h ?? null) : null,
+  };
+}
+
+/** The plain-words news line — "44 fires in the Punjab–Haryana belt,
+    up from 20 over ~5h — a NW wind at 9 km/h is carrying it toward
+    Delhi · air barely mixing…". Built only from admitted fields; the
+    honest empty answer is "local background". `skip` drops clauses a
+    caller already said (the fires ping narrates its own belt+carry). */
+export function causeNote(
+  fields: CauseNoteFields | null | undefined,
+  lang: Lang,
+  opts?: { skip?: string[] },
+): string {
+  if (!fields) return "";
+  const skip = new Set(opts?.skip ?? []);
+  const bits: string[] = [];
+  const belt = typeof fields.belt_fires === "number" ? fields.belt_fires : null;
+  if (belt != null && !skip.has("belt")) {
+    if (belt >= BELT_MIN) {
+      let bit = t("noteBelt", lang, { n: belt });
+      if (fields.belt_delta != null && fields.belt_delta_h != null &&
+          Math.abs(fields.belt_delta) >= NOTE_DELTA_MIN) {
+        bit += t(fields.belt_delta > 0 ? "noteBeltUp" : "noteBeltDown",
+                 lang, {
+                   a: Math.round(belt - fields.belt_delta),
+                   h: Math.round(fields.belt_delta_h * 10) / 10 });
+      }
+      if (!skip.has("carry")) {
+        const dir = t(`whyDir_${compass(fields.wind_from_deg)}` as StringKey, lang);
+        bit += fields.carrying === true
+          ? (fields.wind_kmh != null
+             ? t("noteCarryYes", lang, { dir, kmh: fields.wind_kmh })
+             : t("noteCarryYesNoKmh", lang, { dir }))
+          : fields.carrying === false
+          ? t("noteCarryNo", lang)
+          : t("noteCarryUnknown", lang);
+      }
+      bits.push(bit);
+    } else {
+      bits.push(belt > 0
+        ? t("noteBeltQuiet", lang, { n: belt })
+        : t("noteBeltQuiet0", lang));
+    }
+  }
+  if (fields.stag_factor != null && !skip.has("stag")) {
+    bits.push(fields.vc_m2s != null
+      ? t("noteStagVc", lang, { vc: Math.round(fields.vc_m2s).toLocaleString("en-IN") })
+      : t("noteStag", lang));
+  }
+  const rising = fields.trend_from != null && fields.trend_to != null &&
+    fields.trend_to > fields.trend_from;
+  if (fields.trend_from != null && fields.trend_to != null && !skip.has("trend")) {
+    bits.push(t("noteTrend", lang, {
+      a: Math.round(fields.trend_from * 10) / 10,
+      b: Math.round(fields.trend_to * 10) / 10,
+      h: Math.round((fields.trend_span_h ?? 0) * 10) / 10,
+    }));
+  }
+  /* the verdict tail — only what the physics itself backs: inflow
+     meeting still air, or an admitted climb still on */
+  if (fields.carrying === true && fields.stag_factor != null) {
+    bits.push(t("noteTailInflow", lang));
+  } else if (rising) {
+    bits.push(t("noteTailClimb", lang));
+  }
+  return bits.length ? bits.join(" · ") : t("noteBackground", lang);
 }
 
 /* ---- GRAP-equivalent stage transitions --------------------------------

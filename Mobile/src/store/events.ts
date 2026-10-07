@@ -48,8 +48,8 @@ import {
   BASELINE_MAX_AGE_MS, BAND_MIN_IDX, BELT_JUMP_ABS, BELT_JUMP_REL,
   BELT_MIN, SEVERE_MIN_STAGE, STAG_FACTOR_PING,
   WHY_MIN_MS, WINDOW_LEAD_MIN,
-  causeClause, feedLive, fired, grapMove, outlookMove,
-  outlookWindowOpen, reflectSummary, trendShift, utcDay,
+  causeClause, causeFieldsFromWhy, causeNote, feedLive, fired, grapMove,
+  outlookMove, outlookWindowOpen, reflectSummary, trendShift, utcDay,
   type SeenMark, type V2Why,
 } from "./events-core";
 
@@ -190,6 +190,33 @@ export async function checkAirEvents(opts: {
       }
     };
 
+    /* ---- remote reads: /v2/why carries the fires feed + the driver list;
+       /v2/day carries the served windows + the GRAP-equivalent stage;
+       /v2/outlook carries tomorrow's fold. why is throttled and runs
+       FIRST so every ping below can carry the news note; the day
+       curve + outlook share the 15-min last-good cache. ---- */
+    const wantWhy = s.alerts_fires || s.alerts_band;
+    const wantDay = s.alerts_windows || s.alerts_band;
+    let why: V2Why | null = null;
+    if (wantWhy && now.getTime() - lastWhyAt >= WHY_MIN_MS) {
+      lastWhyAt = now.getTime();         // stamped before the await — a slow
+      why = await fetchJson(`${API}/v2/why?lat=${opts.lat}&lon=${opts.lon}`, 9000)
+        .then((j) => (j && typeof j === "object" ? (j as V2Why) : null))
+        .catch(() => null);
+    }
+
+    /* the cause_note — the parali/news line appended to a ping as
+       {note}: every figure a measured field (belt detections, carry
+       wind, ventilation, recorded city mean — never a news feed).
+       Empty when the explainer didn't run this poll: a notification
+       never pads with nothing. `skip` drops clauses the ping's own
+       body already narrates. */
+    const noteFor = (skip: string[]): string => {
+      if (!why) return "";
+      const s = causeNote(causeFieldsFromWhy(why), lang, { skip });
+      return s ? ` · ${s}` : "";
+    };
+
     /* ---- band worsens: the ambient read around the user crossed a CPCB
        threshold upward since the last read (poor and worse). The baseline
        is the previous bandIdx, refreshed every poll — no baseline, no
@@ -201,27 +228,15 @@ export async function checkAirEvents(opts: {
       if (idx != null && prev != null && fresh && idx > prev && idx >= BAND_MIN_IDX) {
         /* idx/prev go over verbatim — notify.ts names them through
            feltKeyForBand so the felt words stay single-sourced. */
-        await fire("band", idx, { idx, prev, n: Math.round(opts.ambientUg) });
+        await fire("band", idx, {
+          idx, prev, n: Math.round(opts.ambientUg), note: noteFor([]),
+        });
       }
       if (idx != null && idx !== prev) {
         st.bandIdx = idx;
         st.bandAt = now.getTime();
         dirty = true;
       }
-    }
-
-    /* ---- remote reads: /v2/why carries the fires feed + the driver list;
-       /v2/day carries the served windows + the GRAP-equivalent stage;
-       /v2/outlook carries tomorrow's fold. why is throttled; the day
-       curve + outlook share the 15-min last-good cache. ---- */
-    const wantWhy = s.alerts_fires || s.alerts_band;
-    const wantDay = s.alerts_windows || s.alerts_band;
-    let why: V2Why | null = null;
-    if (wantWhy && now.getTime() - lastWhyAt >= WHY_MIN_MS) {
-      lastWhyAt = now.getTime();         // stamped before the await — a slow
-      why = await fetchJson(`${API}/v2/why?lat=${opts.lat}&lon=${opts.lon}`, 9000)
-        .then((j) => (j && typeof j === "object" ? (j as V2Why) : null))
-        .catch(() => null);
     }
 
     /* fires spike — the NW burn belt lit up vs the stored baseline. The
@@ -243,7 +258,10 @@ export async function checkAirEvents(opts: {
           const shared = [st.seen.fires, st.seen.fires_nc]
             .filter((m): m is SeenMark => !!m && m.day === day)
             .sort((a, b) => b.level - a.level)[0];
-          await fire(kind, belt, { a: prev, b: belt }, shared);
+          /* "belt" is the ping's own count clause — the note adds the
+             rest of the picture (stillness, trend, the verdict tail). */
+          await fire(kind, belt, {
+            a: prev, b: belt, note: noteFor(["belt"]) }, shared);
         }
         if (belt !== prev) {
           st.beltFires = belt;
@@ -264,8 +282,10 @@ export async function checkAirEvents(opts: {
         const factor = typeof stag.detail?.factor === "number" ? stag.detail.factor : 0;
         if (factor >= STAG_FACTOR_PING) {
           const score = typeof stag.score === "number" ? stag.score : 1;
+          /* "stag" is the ping's own clause — the note adds belt+trend. */
           await fire("stagnation", Math.round(score * 100), {
             f: Math.max(1, Math.round(factor)),
+            note: noteFor(["stag"]),
           });
         }
       }
@@ -282,6 +302,7 @@ export async function checkAirEvents(opts: {
             b: Math.round(tr.to),
             h: Math.round(tr.spanH * 10) / 10,
             cause: causeClause(why, lang, ["trend"]),
+            note: noteFor(["trend"]),
           });
       }
     }
@@ -297,6 +318,7 @@ export async function checkAirEvents(opts: {
         await fire("severe", dc.server.grapStage, {
           s: grapRoman(dc.server.grapStage),
           a: dc.server.grapAqi ?? "",
+          note: noteFor([]),
         });
       }
       /* grap stage moves — a shift either way is its own claim (into
@@ -317,6 +339,7 @@ export async function checkAirEvents(opts: {
             await fire(kind, stage, {
               s: stage > 0 ? grapRoman(stage) : "",
               a: dc.server.grapAqi ?? "",
+              note: noteFor([]),
             });
           }
         }
@@ -365,6 +388,7 @@ export async function checkAirEvents(opts: {
           b: Math.round(tmwRow.pm25_mid),
           cause: why ? causeClause(why, lang, ["trend"]) : "",
           win,
+          note: noteFor(["trend"]),
         });
       }
     }

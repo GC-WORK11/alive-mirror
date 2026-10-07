@@ -91,6 +91,12 @@ export type CityPayload = {
   /** "Why tonight" — the causal read line (Bridge contract: null when the
       explainer can't run — the number stands alone before it guesses). */
   why?: { line: string | null;
+          /** The parali/news line — plain-words context built only from
+              measured fields (belt detections, carry wind, ventilation,
+              recorded city mean). Canonical English; `cause_note_fields`
+              carries the ingredient set for re-localization. */
+          cause_note?: string | null;
+          cause_note_fields?: Record<string, unknown> | null;
           drivers: { kind: string; weight: string; score: number;
                      evidence: string; direction?: string }[];
           why_url: string } | null;

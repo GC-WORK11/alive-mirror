@@ -49,6 +49,7 @@ import {
   type CityPayload,
 } from "../api/city";
 import { CityMoves } from "../components/CityMoves";
+import { causeNote, type CauseNoteFields } from "../store/events-core";
 import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { tick } from "../haptics";
 import { bump, jank } from "../perf";
@@ -193,6 +194,16 @@ function whyLine(
     return k ? (k === "whyBit_stubble" ? t(k, lang, { dir }) : t(k, lang)) : d.kind;
   });
   return parts.join(" + ");
+}
+
+/* The cause_note — the parali/news line under the hero. en keeps the
+   wire line; hi rebuilds from cause_note_fields through i18n so wire
+   English never reaches the hi UI. An old server with no fields just
+   leaves the line absent. */
+function noteLine(why: NonNullable<CityPayload["why"]>, lang: Lang): string {
+  if (lang === "en") return why.cause_note ?? "";
+  const f = why.cause_note_fields;
+  return f ? causeNote(f as CauseNoteFields, lang) : "";
 }
 
 /* ---------- sheet (mounted only while visible → fresh state each open) --- */
@@ -376,6 +387,14 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 {data.why?.line ? (
                   <Text {...DYNAMIC_TYPE} style={[ss.whyHero, { fontFamily: famSerif(lang, "reg") }]}>
                     {whyLine(data.why, data.wind, lang)}
+                  </Text>
+                ) : null}
+                {/* the parali/news note — measured fields in plain words;
+                    the tag says where it came from, never a news feed */}
+                {data.why && noteLine(data.why, lang) ? (
+                  <Text {...DYNAMIC_TYPE} style={[ss.whyNote, { fontFamily: fam(lang, "reg") }]}>
+                    {noteLine(data.why, lang)}
+                    <Text style={ss.whyNoteTag}>{` · ${t("noteMeasured", lang)}`}</Text>
                   </Text>
                 ) : null}
               </View>
@@ -901,4 +920,11 @@ const ss = StyleSheet.create({
     marginTop: 10,
     fontStyle: "italic",
   },
+  whyNote: {
+    color: V2T.text2,
+    fontSize: V2Type.label,
+    lineHeight: 19,
+    marginTop: 8,
+  },
+  whyNoteTag: { color: V2T.text3 },
 });

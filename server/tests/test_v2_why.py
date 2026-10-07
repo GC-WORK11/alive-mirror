@@ -566,3 +566,125 @@ def test_admin_html_has_drivers_table():
                              "admin.html")).read()
     assert 'id="whydrivers"' in html and "/v2/why" in html \
         and 'id="whyeval"' in html
+
+
+# ------------------------------------------------------------- cause_note
+
+def _ev(belt=44, frp=120.0, carrying=True, feed_status="live",
+        factor=1.86, vc=1612.0, delta=-15.6):
+    """A frozen evaluated{} — the fields _cause_note reads."""
+    return {
+        "fires": {"seen": feed_status == "live", "belt_fires": belt,
+                  "belt_frp_mw": frp, "n_fires": belt * 3,
+                  "modifier": 1.06, "feed": "firms-public-csv",
+                  "feed_status": feed_status, "carrying": carrying},
+        "ventilation": {"vc_m2s": vc, "factor": factor},
+        "trend": {"delta_ug": delta, "from_pm25": 64.8, "to_pm25": 64.8 - delta,
+                  "span_h": 6.0},
+    }
+
+
+def _wind(deg=315.0, kmh=9.0):
+    return {"from_deg": deg, "speed_kmh": kmh}
+
+
+def _series_belt(rows):
+    """rows: [(hours_ago, belt_fires)]"""
+    return [{"t": NOW - h * 3600, "pm25": 80.0, "vc_m2s": 2000.0,
+             "belt_fires": b, "modifier": 1.0} for h, b in rows]
+
+
+def test_belt_delta_gates():
+    f_live = _ev()["fires"]
+    f_cold = _ev(feed_status="cold")["fires"]
+    series = _series_belt([(5.0, 20), (1.0, 40)])
+    assert v2why._belt_delta(f_live, series) == (24, 4.0)
+    # cold feed vs recorded builds compares the same number twice
+    assert v2why._belt_delta(f_cold, series) is None
+    # <2 belt rows / <3h span — nothing to compare against
+    assert v2why._belt_delta(f_live, _series_belt([(1.0, 40)])) is None
+    assert v2why._belt_delta(
+        f_live, _series_belt([(1.5, 20), (0.5, 40)])) is None
+
+
+def test_cause_note_full_carrying_inflow():
+    """The parali build: belt count + jump + carry + stillness + trend,
+    every figure a served field."""
+    ev = _ev(belt=44, delta=-15.6)
+    ev["trend"]["to_pm25"] = 49.2
+    text, f = v2why._cause_note(ev, _wind(), _series_belt([(5.0, 20), (1.0, 40)]))
+    assert "44 fires in the Punjab–Haryana belt" in text
+    assert "up from 20 over ~4 h" in text
+    assert "carrying it toward Delhi" in text
+    assert "air barely mixing" in text and "1,612" in text
+    assert "64.8 → 49.2" in text
+    assert text.endswith("smoke inflow meeting still air")
+    assert f["basis"] == "measured" and f["belt_delta"] == 24
+    assert f["carrying"] is True and f["wind_from_deg"] == 315.0
+
+
+def test_cause_note_blocked_wind_says_so():
+    text, f = v2why._cause_note(
+        _ev(carrying=False), _wind(deg=150.0), _series_belt([(5.0, 20), (1.0, 40)]))
+    assert "isn't carrying it this way" in text
+    assert "carrying it toward Delhi" not in text
+    assert f["carrying"] is False
+
+
+def test_cause_note_cold_feed_no_belt_jump():
+    """Recorded fallback: belt count still reads, the 'jumped' claim
+    drops — it would compare a recorded count against itself."""
+    ev = _ev(feed_status="cold")
+    ev["fires"]["seen"] = True
+    text, f = v2why._cause_note(ev, _wind(), _series_belt([(5.0, 20), (1.0, 40)]))
+    assert "44 fires" in text and "up from" not in text
+    assert f["belt_delta"] is None
+
+
+def test_cause_note_quiet_belt_and_background():
+    text, _ = v2why._cause_note(
+        _ev(belt=3, factor=1.0, delta=0.0), _wind(), [])
+    assert text.startswith("a quiet belt — 3 fires")
+    text2, _ = v2why._cause_note(
+        _ev(belt=0, factor=1.0, delta=0.0), _wind(), [])
+    assert "a quiet belt right now" in text2
+    # nothing at all → the honest empty answer, not silence
+    text3, _ = v2why._cause_note(
+        {"fires": {}, "ventilation": {}, "trend": {}}, _wind(), [])
+    assert text3 == "local background — no big driver in play right now"
+
+
+def test_cause_note_floors_hold():
+    """Below the explainers' own bars the note stays quiet: 3 fires is
+    a quiet belt, factor 1.1 isn't 'barely mixing', ±6 µg isn't a move,
+    and a belt delta under the re-count floor isn't a 'jump'."""
+    ev = _ev(belt=9, factor=1.1, delta=6.0)
+    text, f = v2why._cause_note(ev, _wind(), _series_belt([(5.0, 11), (1.0, 10)]))
+    assert "9 fires" in text and "air barely mixing" not in text
+    assert "city mean" not in text
+    assert f["stag_factor"] is None and f["trend_to"] is None
+    # |delta|=2 < _NOTE_DELTA_MIN — FIRMS re-count noise, not a move
+    assert "up from" not in text and "down from" not in text
+    assert f["belt_delta"] is None
+
+
+def test_endpoint_serves_cause_note(snap_root, wind_nw, cold_forecast,
+                                    monkeypatch):
+    import fires
+    monkeypatch.setattr(fires, "FIRES", _Fires(belt=61, frp=6.5))
+    _write_series(snap_root, [(5.0, 60, 3000, 20, 1.1),
+                            (3.0, 80, 2800, 25, 1.2),
+                            (1.0, 130, 2000, 40, 1.5),
+                            (0.5, 140, 1800, 45, 1.6)])
+    body = client.get("/v2/why").json()
+    note = body["cause_note"]
+    assert "61 fires in the Punjab–Haryana belt" in note
+    assert "carrying it toward Delhi" in note
+    f = body["cause_note_fields"]
+    assert f["basis"] == "measured" and f["belt_fires"] == 61
+
+
+def test_city_html_has_parali_tile():
+    html = open(os.path.join(os.path.dirname(__file__), "..",
+                             "city.html")).read()
+    assert 'id="noteline"' in html and "cause_note" in html

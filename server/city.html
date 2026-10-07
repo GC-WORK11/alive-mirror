@@ -460,6 +460,8 @@
       <span class="wtxt" id="whytxt"></span></div>
     <div class="whyline" id="grapline" hidden><span class="wtag">grap</span>
       <span class="wtxt" id="graptxt"></span></div>
+    <div class="whyline" id="noteline" hidden><span class="wtag">parali watch</span>
+      <span class="wtxt" id="notetxt"></span></div>
   </div>
 
   <noscript>
@@ -1551,6 +1553,16 @@ async function load(){
           +` · computed here, not the official caqm call`;
         gl.hidden=false;
       }else{gl.hidden=true}
+    }
+    /* the parali/news line — the belt's fires + the carrying wind + the
+       day's drivers in plain words. Every figure is a measured field
+       (no free licensable news feed exists); 'measured, not reported'
+       says so on the card. Empty = nothing claimed. */
+    const noteLn=(cy.why&&cy.why.cause_note)||'';
+    const nl=document.getElementById('noteline');
+    if(nl){
+      if(noteLn){setTxt('notetxt',noteLn+' · measured, not reported');nl.hidden=false}
+      else{nl.hidden=true}
     }
     if(a.wind&&a.wind.speed_kmh!=null)windNow=a.wind;  /* null wind = unknown, keep last */
     /* 'connecting…' resolves to whichever feed actually answered —

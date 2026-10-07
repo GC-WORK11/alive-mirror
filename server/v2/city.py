@@ -459,6 +459,10 @@ async def city():
         full = await build_why(28.6139, 77.2090)
         why_block = {
             "line": full.get("line"),
+            # the parali/news line + the raw ingredients for clients
+            # that re-localize it (the app's Hindi rebuild)
+            "cause_note": full.get("cause_note"),
+            "cause_note_fields": full.get("cause_note_fields"),
             "drivers": [{"kind": d.get("kind"), "weight": d.get("weight"),
                          "score": d.get("score"),
                          "evidence": d.get("evidence")}

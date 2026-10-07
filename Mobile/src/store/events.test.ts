@@ -17,8 +17,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  causeClause, feedLive, fired, grapMove, outlookMove,
-  outlookWindowOpen, reflectSummary, trendShift,
+  causeClause, causeFieldsFromWhy, causeNote, feedLive, fired, grapMove,
+  outlookMove, outlookWindowOpen, reflectSummary, trendShift,
   type V2Why,
 } from "./events-core";
 import type { Trip } from "./ledger";
@@ -257,5 +257,107 @@ describe("feedLive — a stale feed can't back a live claim", () => {
   it("no staleness bounds reported → can't call it stale", () => {
     assert.equal(feedLive({}), true);
     assert.equal(feedLive({ feed_age_s: 99999 }), true);
+  });
+});
+
+/* --------------------------------------------------------- causeNote --- */
+describe("causeFieldsFromWhy + causeNote — the parali/news line", () => {
+  const beltPts = (rows: [number, number][], now = NOON) =>
+    ({ window_h: 6, points: rows.map(([h, b]) =>
+        ({ t: now - h * 3600_000 / 1000, belt_fires: b })) });
+
+  it("carrying build → belt + jump + carry + stillness + tail", () => {
+    const w = why({
+      evaluated: {
+        fires: { belt_fires: 44, carrying: true, feed_status: "live" },
+        ventilation: { factor: 1.86, vc_m2s: 1612 },
+        trend: { delta_ug: -15.6, from_pm25: 64.8, to_pm25: 49.2, span_h: 6 },
+      },
+      wind: { from_deg: 315, speed_kmh: 9 },
+      history: beltPts([[5, 20], [1, 40]]),
+    });
+    const f = causeFieldsFromWhy(w);
+    assert.equal(f.belt_delta, 24);
+    assert.equal(f.basis, "measured");
+    const s = causeNote(f, "en");
+    assert.match(s, /44 fires in the Punjab–Haryana belt/);
+    assert.match(s, /up from 20 over ~4h/);
+    assert.match(s, /north-west wind at 9 km\/h is carrying it toward Delhi/);
+    assert.match(s, /air barely mixing/);
+    assert.match(s, /64\.8 → 49\.2/);
+    assert.match(s, /smoke inflow meeting still air$/);
+  });
+
+  it("wind not carrying → says so plainly", () => {
+    const w = why({
+      evaluated: { fires: { belt_fires: 44, carrying: false, feed_status: "live" } },
+      wind: { from_deg: 150, speed_kmh: 9 },
+      history: beltPts([[5, 20], [1, 40]]),
+    });
+    const s = causeNote(causeFieldsFromWhy(w), "en");
+    assert.match(s, /isn't carrying it this way/);
+  });
+
+  it("cold feed → count still reads, 'jumped' never claimed", () => {
+    const w = why({
+      evaluated: { fires: { belt_fires: 44, carrying: true, feed_status: "cold" } },
+      wind: { from_deg: 315, speed_kmh: 9 },
+      history: beltPts([[5, 20], [1, 40]]),
+    });
+    const f = causeFieldsFromWhy(w);
+    assert.equal(f.belt_delta, null);        // recorded vs recorded = same number twice
+    const s = causeNote(f, "en");
+    assert.match(s, /44 fires/);
+    assert.doesNotMatch(s, /up from|down from/);
+  });
+
+  it("below the bars → quiet words or honest background", () => {
+    const quiet = causeNote(causeFieldsFromWhy(why({
+      evaluated: { fires: { belt_fires: 3, feed_status: "live" } },
+      history: beltPts([[5, 3], [1, 3]]),
+    })), "en");
+    assert.match(quiet, /a quiet belt — 3 fires/);
+    const empty = causeNote(causeFieldsFromWhy(why({ evaluated: {} })), "en");
+    assert.match(empty, /local background/);
+  });
+
+  it("re-count floor: |Δbelt|<5 is FIRMS noise, not a 'jump'", () => {
+    const f = causeFieldsFromWhy(why({
+      evaluated: { fires: { belt_fires: 44, feed_status: "live" } },
+      history: beltPts([[5, 42], [1, 43]]),   // Δ=+2 vs oldest build
+    }));
+    assert.equal(f.belt_delta, null);
+    const s = causeNote(f, "en");
+    assert.doesNotMatch(s, /up from|down from/);
+  });
+
+  it("skip drops a clause the ping already narrated", () => {
+    const w = why({
+      evaluated: {
+        fires: { belt_fires: 44, carrying: true, feed_status: "live" },
+        ventilation: { factor: 1.86, vc_m2s: 1612 },
+      },
+      wind: { from_deg: 315, speed_kmh: 9 },
+      history: beltPts([[5, 20], [1, 40]]),
+    });
+    const s = causeNote(causeFieldsFromWhy(w), "en", { skip: ["belt"] });
+    assert.doesNotMatch(s, /fires|carrying/);
+    assert.match(s, /air barely mixing/);
+  });
+
+  it("hi renders localized — no wire English leaks", () => {
+    const w = why({
+      evaluated: { fires: { belt_fires: 44, carrying: true, feed_status: "live" } },
+      wind: { from_deg: 315, speed_kmh: 9 },
+      history: beltPts([[5, 20], [1, 40]]),
+    });
+    const s = causeNote(causeFieldsFromWhy(w), "hi");
+    assert.match(s, /पंजाब–हरियाणा बेल्ट में 44 आग/);
+    assert.doesNotMatch(s, /[a-zA-Z] fires|carrying|Delhi/);
+  });
+
+  it("null fields → empty string (a notification never pads)", () => {
+    assert.equal(causeNote(null, "en"), "");
+    assert.equal(causeNote(undefined, "hi"), "");
   });
 });

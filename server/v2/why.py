@@ -663,6 +663,121 @@ def _line(drivers: list, wind: dict) -> str:
     return " + ".join(parts)
 
 
+# ------------------------------------------------------------- cause_note
+#
+# The "news" layer — parali watch in plain words. Every figure below is
+# lifted verbatim from the evaluated blocks drivers were admitted on
+# (belt count, carry gate, ventilation, recorded trend) — the note can
+# never claim an ingredient that failed its own check. What a single
+# reading can't say on its own — "fires JUMPED" — the recorded builds
+# can: live belt vs the oldest in-window build count.
+# `fields` ships the same ingredients so a consumer (the app's Hindi
+# rebuild, the /community line) rephrases the note without parsing
+# English.
+
+def _belt_delta(fires_ev: dict, series: list) -> Optional[tuple]:
+    """Live belt count vs the oldest in-window recorded build.
+    Only meaningful while the feed itself is live — a recorded-fallback
+    count vs a recorded build compares the same number twice.
+    -> (delta, span_h) or None."""
+    if fires_ev.get("feed_status") != "live":
+        return None
+    belt = fires_ev.get("belt_fires")
+    if not isinstance(belt, (int, float)):
+        return None
+    rows = [s for s in series if s.get("belt_fires") is not None]
+    if len(rows) < 2:
+        return None
+    span = rows[-1]["t"] - rows[0]["t"]
+    if span < HISTORY_MIN_SPAN_S:
+        return None
+    return belt - rows[0]["belt_fires"], round(span / 3600.0, 1)
+
+
+# under this the delta could be FIRMS re-count noise, not a move
+_NOTE_DELTA_MIN = 5
+
+
+def _cause_note(evaluated: dict, wind: dict, series: list) -> tuple:
+    """-> (text, fields). `fields` is the compact ingredient set a
+    consumer re-localizes from; text is the canonical English line."""
+    fires = evaluated.get("fires") or {}
+    vent = evaluated.get("ventilation") or {}
+    trend = evaluated.get("trend") or {}
+    belt = fires.get("belt_fires")
+    carrying = fires.get("carrying")
+    belt_delta = belt_delta_h = None
+    _d = _belt_delta(fires, series)
+    if _d and abs(_d[0]) >= _NOTE_DELTA_MIN:
+        belt_delta, belt_delta_h = _d
+    stag_factor = vent.get("factor")
+    stag = isinstance(stag_factor, (int, float)) \
+        and stag_factor >= STAG_FACTOR_MIN
+    delta = trend.get("delta_ug")
+    trend_adm = isinstance(delta, (int, float)) \
+        and abs(delta) >= TREND_MIN_DELTA_UG \
+        and trend.get("from_pm25") is not None \
+        and trend.get("to_pm25") is not None
+    fields = {
+        "basis": "measured",
+        "belt_fires": belt,
+        "belt_delta": belt_delta,
+        "belt_delta_h": belt_delta_h,
+        "carrying": carrying,
+        "wind_from_deg": wind.get("from_deg"),
+        "wind_kmh": wind.get("speed_kmh"),
+        "vc_m2s": vent.get("vc_m2s") if stag else None,
+        "stag_factor": stag_factor if stag else None,
+        "trend_from": trend.get("from_pm25") if trend_adm else None,
+        "trend_to": trend.get("to_pm25") if trend_adm else None,
+        "trend_span_h": trend.get("span_h") if trend_adm else None,
+    }
+
+    bits = []
+    if fires.get("seen") and isinstance(belt, (int, float)):
+        if belt >= SMOKE_MIN_BELT:
+            bit = f"{belt:g} fires in the Punjab–Haryana belt"
+            if belt_delta is not None:
+                bit += (f", {'up' if belt_delta > 0 else 'down'} from "
+                        f"{belt - belt_delta:g} over ~{belt_delta_h:g} h")
+            comp = _compass(wind.get("from_deg"))
+            kmh = wind.get("speed_kmh")
+            if carrying is True:
+                bit += " — " + (
+                    f"a {comp} wind at {kmh:g} km/h is"
+                    if kmh is not None else f"a {comp} wind is")
+                bit += " carrying it toward Delhi"
+            elif carrying is False:
+                bit += " — the wind isn't carrying it this way right now"
+            else:
+                bit += " — wind unknown, can't tell if it's coming"
+            bits.append(bit)
+        elif belt > 0:
+            bits.append(f"a quiet belt — {belt:g} fires burning")
+        else:
+            bits.append("a quiet belt right now")
+    if stag:
+        vc = vent.get("vc_m2s")
+        bits.append(
+            f"air barely mixing — ventilation {round(vc):,} m²/s "
+            f"vs ~{int(VC_REF_M2S):,} typical" if vc is not None
+            else "air barely mixing")
+    if trend_adm:
+        bits.append(
+            f"city mean {trend['from_pm25']:g} → {trend['to_pm25']:g} "
+            f"µg/m³ over {trend.get('span_h') or 0:g} h")
+    # the verdict tail — only the moves the physics itself backs: inflow
+    # meeting still air, or an admitted climb still on. "worsening" is
+    # never said ahead of those.
+    if carrying is True and stag:
+        bits.append("smoke inflow meeting still air")
+    elif trend_adm and delta > 0:
+        bits.append("the climb is still on")
+    text = " · ".join(bits) or \
+        "local background — no big driver in play right now"
+    return text, fields
+
+
 def _history(series: list, meta: Optional[dict] = None) -> Optional[dict]:
     """The bonus sparkline — each driver's recorded contribution per
     build. Ships only when the record genuinely covers ~3+ hours.
@@ -717,6 +832,8 @@ async def build_why(lat: float, lon: float) -> dict:
         for i, d in enumerate(drivers):
             d["weight"] = "primary" if i == 0 else "secondary"
 
+        cause_note, cause_note_fields = _cause_note(evaluated, wind, series)
+
         now = time.time()
         out = {
             "generated_at": datetime.fromtimestamp(
@@ -731,6 +848,11 @@ async def build_why(lat: float, lon: float) -> dict:
             "scope": "city — fires/stagnation/trend are city-scale "
                      "drivers; lat/lon localizes the ventilation read",
             "line": _line(drivers, wind),
+            # the parali/news read — the same drivers as numbers +
+            # carry verdict; "measured, not reported" (no news feed:
+            # every figure is an observed field or a recorded build)
+            "cause_note": cause_note,
+            "cause_note_fields": cause_note_fields,
             "drivers": drivers,
             "evaluated": evaluated,
             "cannot_tell": cannot_tell,

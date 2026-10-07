@@ -739,6 +739,13 @@ export interface V2CityResponse {
       Null when the explainer can't run — the hero figure stands alone
       before it guesses. Full detail: GET /v2/why. */
   why?: { line: string | null;
+          /** The parali/news line — the belt's fires + carrying wind +
+              the day's drivers in plain words, every figure a measured
+              field (measured-data-as-news; no external feed exists that
+              is both free and licensable). `cause_note_fields` is the
+              ingredient set a client re-localizes from. */
+          cause_note?: string | null;
+          cause_note_fields?: Record<string, unknown> | null;
           drivers: { kind: string; weight: string; score: number;
                      evidence: string }[];
           why_url: string } | null;
