@@ -1293,3 +1293,34 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
 - **Owner calls still open**: ASCII restore; TLS domain+ACM / honest
   card; EventBridge enable / in-app+doc; donation anti-abuse attestation
   (pentest MED — needs device attestation, owner decision).
+
+## cont.66 — 2026-10-08 ~06:15 UTC (verify arc closed, prod 70914c00)
+
+- **Deploys `dc6d0cc2` → `e0aca004` → `70914c00`** all LIVE + verified:
+  usage endpoint+tab, low-RAM batch (TripAggregates 72h eviction, lazy
+  gazetteer), server+Mobile dead-code drop, my `history.stations`→
+  `stations_climatology` rename, deploy-freeze rule in demo-day.md.
+- **Rate limiter wire-proof**: 12 parallel POST /v2/plan unique spoofed
+  XFFs → exactly 6×200 + 6×429 (tight class 2rps/6burst). Socket-peer
+  keying confirmed — forged headers mint zero buckets.
+- **SIGSEGV root-fix `3c24a5e` independently re-verified**: cold-drive's
+  exact 8-touch harness on post-fix HEAD — 22/24 mounts survive (0/8
+  pre-fix baseline; their box 34/34). Residual = cold-boot first-tap
+  only (~14% of cold, 0% warm). Verdict: substantially confirmed, not
+  proven zero on this rig. Demo rule hardened: pre-warm ~30s + open/
+  close search sheet once; hardware check stays mandatory.
+- **/v2/usage + admin tab verified rendered** — operator sign-in shows
+  real aggregates (23 devices-that-shared, 41 trips, 179.5km, 2.6µg/trip
+  mean, mode-share bars, 2kg CO₂ avoided); guest sees honest-locked
+  state, no 401 nag. Owner screenshot sent.
+- **"Dup stations key" scare → NOT a bug**: .sources.stations.count=53
+  (live, correct) vs .history.stations=125 (climatology, different
+  parent). Renamed anyway → stations_climatology; live on the wire.
+- **Demo APK re-cut triggered** on android-drive: delivered APK @3589209
+  was stale — aea1c68 counters.ts fix (GNSS-jump→4.5× dose/CO₂ spike)
+  missed it. Rebuild at HEAD + re-verify with forced GPS jumps.
+- **Demo-exchange audit (Max, fb4a993)**: "the demo is real" — all
+  surfaces byte-identical to HEAD, numbers match, gradient honest.
+- **Board**: me + android-drive (APK re-cut ~1.5h). ios-cold-drive slept.
+- **Owner calls still open**: ASCII restore; TLS; EventBridge; donation
+  attestation.
