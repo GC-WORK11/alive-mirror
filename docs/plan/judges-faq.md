@@ -271,7 +271,7 @@ false precision."
 
 **Proof:** measured ±2σ coverage 95.2% on 3,550 held-out
 station-hours (`server/data/field_validation.md`), LOO calibration
-`MAE 46.1, mean bias +0.3` (`server/data/field_calibration.json`),
+`MAE 8.8, mean bias +0.2` (`server/data/field_calibration.json`),
 and the live `/aqi` at Connaught Place tonight honestly reports
 `nearest_sample_km: 1.8` with a 59.5–93.4 band — wider where sensors
 are farther. Live self-grade at `/v2/skill` (Q2).
@@ -366,7 +366,7 @@ imitate; a verified pipeline isn't.
 | options per plan | same | 24 rows incl. metro+walk + corridor alternates |
 | day windows | `GET /v2/day` | heavy 22:30→day end ~159 · cleanest 12:30–18:30 ~45 · mean ~105 |
 | leave-later | `GET /depart` | now 29.2 → best +12 h 14.4 µg (51% less) |
-| breath-of-the-city | `GET /v2/city` | 885 µg/day ≈ 2.8 cig; −44.8% vs decade norm for this hour |
+| breath-of-the-city | `GET /v2/city` | 885 µg/day ≈ 2.8 cig; running about a third to a half below the typical October hour (−44.8% at the 2026-10-05 stamp — `vs_now_pct` is arithmetic vs climatology, it drifts hour to hour; re-read live) |
 | stations / samples | `GET /health` | 54 instruments (24 WAQI + 30 DPCC) + ~100 model samples tonight; field age ~10 min |
 | engine | `GET /health` | `alive_core`; 1,070,459 edges / 903,058 priced |
 | self-grade | `GET /v2/skill` | 210 pairs tonight — all h+0..h+11 `ok` (h+1 MAE 8.5); an earlier read saw 21 pairs/h+1 16.3 |

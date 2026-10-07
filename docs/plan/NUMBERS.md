@@ -70,7 +70,7 @@ Baseline for the demo OD: **Connaught Place (28.6315, 77.2167) → Gurugram
 |---|---|---|
 | held-out validation | **3,550 pairs / 85 stations**: MAE **22.0**, RMSE **29.3**, bias **+15.5 µg (+51.6%)** | `server/data/field_validation.md` headline |
 | σ-band coverage | **95.2% measured vs 95.4% nominal** @ ±2σ (median \|err\|/σ = 0.94) | same file |
-| LOO live-instrument calibration | MAE **46.1 µg/m³**, bias **+0.3**, n=**94** stations | `server/data/field_calibration.json`; also served live in `/aqi.calibration` |
+| LOO live-instrument calibration | MAE **8.8 µg/m³**, bias **+0.2**, n=**70** instruments (WAQI+DPCC, krige refit per held-out station; RMSE 12.7, median abs 8.8%) | `server/data/field_calibration.json`; also served live in `/aqi.calibration` |
 | "9M station-hours" | build-log count from `history_builder.py` (`nrows`) — **not re-derivable from the committed quantile artifact**; the honest line is "125 stations × 10 years of archive, medians by month×hour" | `delhi_climatology.json.gz` |
 | benches (C++ vs Python) | search ~88× p50 · dose ~13× p50 · emission ~3.3× · lookups ~6.8× | `docs/plan/bench-results.md` — static artifact, re-runnable via `tools/bench_*.py` |
 | cost | ~$46/mo worst case; ~$36 event window | `docs/18*` — artifact estimate |

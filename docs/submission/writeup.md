@@ -189,7 +189,7 @@ path [`docs/plan/demo-script.md` numbers sheet].
 | Held-out uncertainty-band coverage | **95.2 %** at ±2σ over **3,550 station-hours / 85 stations** (nominal 95.4 %) — σ is measured, not tuned | `server/data/field_validation.md` |
 | Independent holdout vs 30 govt DPCC stations | pre-ingest: MAE 27.1 (blind sites 22.8) → post-ingest **MAE 6.2** (blind sites 10.5), all 30 at `nearest_sample_km=0.0` | `docs/lanes/accuracy-holdout-report.md`, `holdout-reverify-report.md` |
 | Live instruments feeding the field | **54 stations** — 24 WAQI + 30 DPCC (`source:"waqi+dpcc"` on the wire since Oct 6) + ~70 model samples, field age ~8 min, 15-min refresh visible | `GET /aqi`, `GET /health` |
-| LOO calibration vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 | `GET /aqi → calibration` |
+| LOO calibration vs live instruments | MAE 8.8 µg/m³, bias +0.2, n=70 (WAQI+DPCC, krige refit per held-out station) | `GET /aqi → calibration` |
 | Archive replay (clean-air window) | MAE 22.0 µg/m³, bias +51.6 % — we publish that we over-read in clean air | `server/data/field_validation.md` |
 | Plan latency | ~0.8 s warm measured today; fresh unseen ODs ~2–8 s | `POST /v2/plan → took_ms` |
 | Reach latency | ~1–2 s wire on walk budgets ≤50 µg; ~5–10 s for a ~890k-edge car reach (partial — 2M-state cap) | `GET /v2/reach` |

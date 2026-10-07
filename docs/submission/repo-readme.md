@@ -211,8 +211,9 @@ outside demo windows.
   different, deliberately harder number: a weekly leave-one-station-out
   **spatial** holdout on this week's field (n=24, ~79%) — predicting a
   station the model never saw.
-- LOO calibration vs live instruments: MAE 46.1 µg/m³, bias +0.3, n=94 —
-  served on the wire at `/aqi → calibration`.
+- LOO calibration vs live instruments: MAE 8.8 µg/m³, bias +0.2, n=70
+  WAQI+DPCC instruments (krige refit per held-out station) — served on
+  the wire at `/aqi → calibration`.
 - Archive replay on clean air: MAE 22.0, bias +51.6 % — we publish that we
   over-read in clean air. The σ band is calibrated to cover it.
 - Engine parity is tested, not claimed: `server/tests/test_reach.py`

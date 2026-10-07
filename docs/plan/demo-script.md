@@ -103,7 +103,7 @@ aws ecs describe-services --cluster alive108 --service alive108 \
 
 **Honesty**
 - band coverage **95.2% @±2σ over 3,550 held-out station-hours, 85 stations** (`σ=√(krige_sd²+(0.12·µ)²) × SIGMA_CAL 3.2`; MAE 22.0, bias +51.6% on clean-air window — source: `server/data/field_validation.md`)
-- LOO calibration: MAE **46.1 µg/m³**, bias **+0.3**, n=94 live instruments (pre-refresh audit — keep labelled as such if quoted)
+- LOO calibration: MAE **8.8 µg/m³**, bias **+0.2**, n=70 live WAQI+DPCC instruments (krige refit per held-out station — served live at `/aqi.calibration`)
 - grid confidence: hi 33% / med 62% / lo 4% — thin cells paint honest (drifts a few pts with the field)
 - edge /aqi 11.1 km from nearest sample (NE corner): band widens 10.7–97.7 · Mumbai → typed `outside_service_area`, zero fabricated route · in-bounds budget timeout → `options:[] + error:"planner timed out"`, degraded arm named
 - `/community`: 22 obs · 14 contributors · 4.6 km/24 h · 725.9 µg avoided all-time (392.4 in 24 h) · corridors publish only at k≥3 devices — suppression mechanism on the wire (`mode_share_suppressed_trips`)

@@ -14,7 +14,7 @@ hour to leave. Not an AQI map. A dose engine.
 
 | Shown as | Source | Honesty |
 |---|---|---|
-| Live PM2.5 field at any NCR point | Open-Meteo CAMS grid + **54 live instruments** (24 WAQI + 30 DPCC — `/health.sources.stations`, `source:"waqi+dpcc"`, live 2026-10-06; the OpenAQ v3 path is dormant) at 3× weight, IDW p=2, wind-advected, model samples de-biased per-instrument | `field` block: sample count + age; `calibration` block: measured LOO error (MAE 46 µg, bias +0.3, n=94 — artifact predates the DPCC feed; its `n_stations` counts OpenAQ-era instruments) |
+| Live PM2.5 field at any NCR point | Open-Meteo CAMS grid + **54 live instruments** (24 WAQI + 30 DPCC — `/health.sources.stations`, `source:"waqi+dpcc"`, live 2026-10-06; the OpenAQ v3 path is dormant) at 3× weight, IDW p=2, wind-advected, model samples de-biased per-instrument | `field` block: sample count + age; `calibration` block: measured LOO error (MAE 8.8 µg, bias +0.2, n=70 — rebuilt over the live WAQI+DPCC feed, krige refit per held-out station) |
 | Inhaled dose per mode (µg) | dose = breathing-zone conc × ventilation × time; breathing-zone = field × microenv | microenv/ventilation ratios are published measurements (Delhi commuter studies); shown under "why?" |
 | Car/road durations | OSRM road network — self-hosted `osrm-routed` sidecar in the Fargate task (`OSRM_URL=127.0.0.1:5000`) | `osrm` |
 | Walk/cycle/bus durations | distance ÷ typical Delhi urban speed (walk 5, cycle 15 km/h; bus/auto/bike scale car time) | flagged `estimated` when they fall back to the public OSRM demo (driving graph only) |
@@ -57,9 +57,10 @@ Car AC ~3 µg vs On foot ~90 µg — ~30× — and why "leave at 12:30" can
 cut the same auto trip ~86%: Delhi's boundary layer collapses
 overnight and traps pollution; afternoon ventilation disperses it.
 
-**Error is published, not hidden.** Leave-one-out over the 94 live
-instruments reads MAE 46 µg/m³ — bounded by co-located stations
-disagreeing (one site read 72 and 268 simultaneously). CAMS alone
-under-reads Delhi 2–8× at hotspots; `_debias()` corrects each model
-sample by the IDW-smoothed local instrument ratio before
-interpolation. `/aqi` serves the numbers under `calibration`.
+**Error is published, not hidden.** Leave-one-out over the 70 live
+WAQI+DPCC instruments — a krige refit per held-out station — reads
+MAE 8.8 µg/m³; at an instrument the field reads the instrument
+itself. CAMS alone under-reads Delhi 2–8× at hotspots; `_debias()`
+corrects each model sample by the IDW-smoothed local instrument
+ratio before interpolation. `/aqi` serves the numbers under
+`calibration`.

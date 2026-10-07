@@ -77,7 +77,7 @@ Everything below traces to a file in this repo. Where a row says "bench", the pr
 | Search corpus | 124,311 bundled gazetteer rows; 97,447 OSM-NCR corpus entries (incl. 16,949 real address rows — housenumbers + street interpolations) | `server/data/corpus/STATS.md` |
 | Search acceptance | 67/67 fixed queries in top-3 (name, typo, compound, sector, alias) | `server/data/corpus/STATS.md`, `tests/search_queries.txt`, `server/tests/test_query_tolerance.py` |
 | Search latency | C++ index p50 0.86 ms / p95 2.51 ms on 120k rows; live HTTP p50 ~3–7 ms | `docs/plan/bench-results.md`, live bench |
-| Field leave-one-out vs live instruments | MAE 46.1 µg/m³, bias +0.3, n=94 stations | `server/data/field_calibration.json` |
+| Field leave-one-out vs live instruments | MAE 8.8 µg/m³, bias +0.2, n=70 WAQI+DPCC instruments (krige refit per held-out station) | `server/data/field_calibration.json` |
 | Field vs station archive (3,550 pairs, 85 stations) | MAE 22.0 µg/m³, bias +15.5 µg (+51.6%) — **over-reads in clean post-monsoon air** | `server/data/field_validation.md` |
 | Served field size | 14,628 grid cells in the benched snapshot | `docs/plan/bench-results.md` |
 | Mode exposure ratios | walking ≈28×, rickshaw ≈5× the metro per km inhaled PM2.5 — measured on Delhi roads (published studies) | `docs/plan/10-claims-ledger.md`, `server/exposure.py` header |
