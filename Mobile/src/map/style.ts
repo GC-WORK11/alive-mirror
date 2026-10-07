@@ -58,11 +58,32 @@ export const v2Style = {
   layers: allLayers.filter((l) => !GESTURE_LABEL_IDS.has(l.id)),
 };
 
+/* MLRN divergence: a few spec-scalar layout props are array-typed on the
+   React side (`iconPadding: number[]` — the Android setter reads a float
+   array and FATALs on a bare Double: UnexpectedNativeTypeException at
+   first map mount, offline-verify Android crash). The bundled JSON keeps
+   the spec scalar (correct — the served style + native parser want it);
+   the React-mounted copies wrap it so the same value reaches the layer. */
+const RN_ARRAY_LAYOUT_PROPS = new Set([
+  "icon-padding", "icon-text-fit-padding",
+  "icon-offset", "icon-translate", "text-offset", "text-translate",
+]);
+const rnSpec = (l: LayerSpecification): LayerSpecification => {
+  const layout = (l as { layout?: Record<string, unknown> }).layout;
+  if (!layout) return l;
+  let out: Record<string, unknown> | null = null;
+  for (const k of RN_ARRAY_LAYOUT_PROPS) {
+    const v = layout[k];
+    if (typeof v === "number") (out ??= { ...layout })[k] = [v];
+  }
+  return out ? ({ ...l, layout: out } as LayerSpecification) : l;
+};
+
 /** The stripped set, mounted by the map tree as React layers so their
  *  visibility can flip mid-session. Original JSON order preserved —
  *  collision priority among them is unchanged. */
 export const gestureLabelLayers: LayerSpecification[] =
-  allLayers.filter((l) => GESTURE_LABEL_IDS.has(l.id));
+  allLayers.filter((l) => GESTURE_LABEL_IDS.has(l.id)).map(rnSpec);
 
 export type V2MapStyleInput = string | StyleSpecification;
 
