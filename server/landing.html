@@ -74,102 +74,90 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .top nav a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px;text-decoration-thickness:1px}
 @media(max-width:640px){.top nav{gap:16px}
-  .top nav a{font-size:9px;letter-spacing:.12em;padding:14px 0}
-  .links{gap:10px}.door{flex:1;min-width:0}}
+  .top nav a{font-size:9px;letter-spacing:.12em;padding:14px 0}}
 
-/* hero — headline + hero stat tile + doors + the real product shot.
-   one hero per viewport: the numeral owns this one. */
-.hero{padding:88px 0 56px}
-.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 288px;
-  gap:56px;align-items:start}
-@media(max-width:840px){.hero-grid{grid-template-columns:1fr;gap:48px}}
-@media(max-width:640px){.hero{padding:56px 0 40px}
-  .eyebrow{letter-spacing:.16em;flex-wrap:wrap;row-gap:4px}}
-@media(max-width:480px){.eyebrow{letter-spacing:.12em}}
-.shot{margin:6px 0 0;max-width:288px;width:100%;
-  border:1px solid var(--line2);border-radius:34px;overflow:hidden;
-  background:#fff;box-shadow:0 24px 56px -32px rgba(22,24,29,.28),
-    0 4px 14px -6px rgba(22,24,29,.10);
-  transition:transform .5s cubic-bezier(.22,1,.36,1),
-    box-shadow .5s cubic-bezier(.22,1,.36,1)}
-.shot:hover{transform:rotate(-1.4deg) translateY(-4px);
-  box-shadow:0 34px 72px -34px rgba(22,24,29,.34),
-    0 6px 18px -6px rgba(22,24,29,.12)}
+/* hero — the readout. the zone wears the day's live band as a tonal
+   wash (colour = the data, not decoration); one question, one numeral,
+   one move. v3 register (docs/20): light grotesque numeral on the field,
+   no hairline hero card, no icon-well doors. */
+.hero{background:var(--hw,var(--paper));border-bottom:1px solid var(--line);
+  transition:background .8s ease}
+.hero .col{padding-top:82px;padding-bottom:62px}
+.hero-grid{display:block}
+.hero-copy{max-width:680px}
+@media(prefers-reduced-motion:reduce){.hero{transition:none}}
+@media(max-width:640px){.hero .col{padding-top:54px;padding-bottom:48px}}
+/* the app artifact — moved out of the hero into the how section; the
+   field map, not a framed screenshot, is this page's product visual */
+.shot{margin:0;max-width:236px;width:100%;
+  border:1px solid var(--line2);border-radius:26px;overflow:hidden;
+  background:#fff;box-shadow:0 20px 44px -34px rgba(22,24,29,.3)}
 .shot img{display:block;width:100%;height:auto}
 .shot figcaption{padding:11px 16px 12px;border-top:1px solid var(--line);
   font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ink3)}
-@media(max-width:840px){.shot{margin-left:auto;margin-right:auto}}
-@media(prefers-reduced-motion:reduce){.shot{transition:none}
-  .shot:hover{transform:none}}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;
-  font-family:var(--mono);font-size:10px;letter-spacing:.24em;
-  text-transform:uppercase;color:var(--accInk);
-  background:var(--accWash);border:1px solid var(--accTint);
-  border-radius:8px;padding:5px 11px}
-.eyebrow .sq{width:6px;height:6px;background:var(--acc);flex:none;
+@media(max-width:840px){.shot{margin-top:44px}}
+.eyebrow{display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink2)}
+.eyebrow .sq{width:7px;height:7px;background:var(--acc);flex:none;
   border-radius:2px}
-h1{font-family:var(--serif);font-weight:400;font-size:clamp(44px,7.2vw,88px);
-  line-height:1.03;letter-spacing:-.028em;margin-top:28px;max-width:12ch}
-h1 em{font-style:italic;color:var(--ink2)}
-/* the hero stat tile — the one live figure a cold reader remembers:
-   accent chip on top, huge serif numeral, label beside it, provenance
-   shrunk to a one-line caption. */
-/* soul pass — the hero tile wears the day's live band: --hw deep band
-   wash (74% white, the app's bandWashDeepIdx), --ht a band-edge
-   hairline, --he the band ink that breathes. All set from /v2/city's
-   field mean in JS; the accent wash is the no-field fallback. */
-.hnum{margin-top:30px;display:flex;align-items:center;gap:22px;
-  max-width:560px;flex-wrap:wrap;background:var(--hw,var(--accWash));
-  border:1px solid var(--ht,var(--accTint));border-radius:18px;
-  padding:20px 24px 18px;position:relative}
-.hnum-v{font-family:var(--serif);font-weight:400;
-  font-size:clamp(56px,6vw,80px);line-height:.95;letter-spacing:-.02em;
+h1{font-family:var(--sans);font-weight:500;
+  font-size:clamp(30px,4.6vw,50px);line-height:1.1;
+  letter-spacing:-.03em;margin-top:26px;max-width:22ch}
+h1 em{font-style:normal;color:var(--ink2)}
+/* the readout — the numeral floats on the zone's band wash; a fine
+   band-inked rule under it breathes (the app's BreathEdge, kept as a
+   baseline instead of a card ring). all set live from /v2/city's field
+   mean in JS; --hb the true band hue for the square dot. */
+.hnum{margin-top:40px;display:flex;align-items:flex-end;gap:30px;
+  flex-wrap:wrap;padding-bottom:24px;position:relative}
+@keyframes breath{0%,100%{opacity:.10}50%{opacity:.30}}
+.hnum::after{content:"";position:absolute;left:0;right:0;bottom:0;
+  height:1.5px;background:var(--he,var(--acc));opacity:0;pointer-events:none}
+.hnum.breathe::after{animation:breath 4.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.hnum.breathe::after{animation:none;opacity:.18}}
+.hnum-n{display:flex;align-items:baseline;gap:12px}
+.hnum-v{font-family:var(--sans);font-weight:250;
+  font-size:clamp(92px,15vw,168px);line-height:.9;letter-spacing:-.045em;
   font-variant-numeric:tabular-nums;color:var(--nv,var(--ink))}
-.hnum-t{font-size:15px;line-height:1.55;color:var(--ink);max-width:300px}
-.hnum-chip{display:inline-block;margin-bottom:8px;
-  font-family:var(--mono);font-size:9px;letter-spacing:.16em;
-  text-transform:uppercase;background:var(--acc);color:#fff;
-  padding:3px 8px;border-radius:6px}
-.hnum-t i{display:block;margin-top:7px;font-style:normal;
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+.hnum-n .u{font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  color:var(--ink2)}
+.hnum-side{min-width:230px;max-width:330px;padding-bottom:10px}
+.hnum-band{display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--ni,var(--accInk))}
-/* the card breathes — a dosimeter is a breathing thing. the app's
-   BreathEdge as CSS: a 4.4s sine opacity loop on a 1.5px band-ink ring,
-   subtle enough to be felt not watched. the page's only ambient motion;
-   skipped under reduce-motion. */
-@keyframes breath{0%,100%{opacity:.12}50%{opacity:.32}}
-.hnum::after{content:"";position:absolute;inset:0;pointer-events:none;
-  border-radius:inherit;border:1.5px solid transparent}
-.hnum.breathe::after{border-color:var(--he,var(--accInk));
-  animation:breath 4.4s ease-in-out infinite}
-@media(prefers-reduced-motion:reduce){.hnum.breathe::after{display:none}}
-.sub{margin-top:26px;max-width:540px;font-size:16px;line-height:1.7;
+.hnum-band .bsq{width:8px;height:8px;border-radius:2px;flex:none;
+  background:var(--hb,var(--acc))}
+.hnum-t{display:block;margin-top:10px;font-size:15px;line-height:1.55;
+  color:var(--ink)}
+.hnum-t b{font-weight:600}
+.hnum-s{display:block;margin-top:9px;font-style:normal;
+  font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ni,var(--ink3));line-height:1.9}
+.sub{margin-top:30px;max-width:560px;font-size:16px;line-height:1.68;
   color:var(--ink2)}
 .sub b{color:var(--ink);font-weight:600}
-/* feature doors — pastel tiles with a solid icon block; every door
-   wears the one forest accent family */
-.links{margin-top:30px;display:flex;gap:12px;flex-wrap:wrap}
-/* one accent (owner mandate): every functional door/well/chip wears
-   the forest family — the band ramp stays for hues that mean air */
-.door{display:flex;align-items:center;gap:12px;min-width:218px;
-  padding:12px 18px 12px 12px;border-radius:15px;text-decoration:none;
-  color:var(--ink);background:var(--accWash);border:1px solid var(--accTint);
-  transition:transform .3s cubic-bezier(.22,1,.36,1),
-    box-shadow .3s cubic-bezier(.22,1,.36,1)}
-.door .dic{width:36px;height:36px;flex:none;border-radius:10px;
-  background:var(--acc);display:flex;align-items:center;justify-content:center}
-.door .dic svg{display:block}
-.door .dl b{display:block;font-size:13.5px;font-weight:600;
-  letter-spacing:-.01em}
-.door .dl i{display:block;margin-top:3px;font-style:normal;
-  font-family:var(--mono);font-size:9px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accInk)}
-.door .darr{margin-left:auto;color:var(--accInk);font-size:15px}
-.door:hover{transform:translateY(-2px);
-  box-shadow:0 12px 24px -12px rgba(43,78,50,.35)}
-@media(prefers-reduced-motion:reduce){.door{transition:none}
-  .door:hover{transform:none}}
+/* links — quiet mono text links. the icon-in-a-coloured-tile door was
+   the catalog tell (docs/20); an underlined word + arrow is the
+   affordance. */
+.links{margin-top:36px;display:flex;gap:36px;flex-wrap:wrap;
+  align-items:center}
+.go{display:inline-flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink);text-decoration:none;
+  padding-bottom:4px;border-bottom:1px solid var(--ink)}
+.go .arr{display:inline-block;
+  transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.go:hover .arr{transform:translateX(4px)}
+.go.dim{color:var(--ink2);border-bottom-color:var(--line2)}
+.go.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
+@media(max-width:640px){.eyebrow{letter-spacing:.12em;flex-wrap:wrap;
+    row-gap:6px}
+  .hnum{gap:20px}.hnum-side{padding-bottom:0}
+  .links{gap:22px}}
+@media(prefers-reduced-motion:reduce){.go .arr{transition:none}
+  .go:hover .arr{transform:none}}
 /* ops status — a chip row, not a sentence */
 .statusline{margin-top:46px;display:flex;gap:8px;flex-wrap:wrap;
   font-family:var(--mono);font-size:10px;letter-spacing:.12em;
@@ -419,38 +407,33 @@ h1 em{font-style:italic;color:var(--ink2)}
 @media(max-width:640px){
   .day-head .lbl,.dist-head .lbl{display:block;line-height:1.9}}
 
-/* how — the never-existed thesis, then three pastel step tiles
-   (mint / apricot / sand — the KakaoBank stack, register-washed) */
+/* how — the proof line, then three numbered rows. rows read editorial;
+   the uniform pastel card trio was a kit tell (docs/20). */
 .how{border-top:1px solid var(--line)}
-.how .col{padding-top:64px;padding-bottom:80px}
-.why{font-family:var(--serif);font-weight:400;font-size:21px;
-  line-height:1.55;letter-spacing:-.008em;color:var(--ink);
-  max-width:44ch;margin:0 0 48px}
+.how .col{padding-top:66px;padding-bottom:84px}
+.how-grid{display:grid;grid-template-columns:minmax(0,1fr) 236px;
+  gap:64px;align-items:start}
+.why{font-size:19px;line-height:1.55;letter-spacing:-.008em;
+  color:var(--ink);max-width:42ch;margin:0 0 46px}
 .why b{font-weight:600;white-space:nowrap}
-.how-head{display:flex;justify-content:space-between;align-items:baseline;
-  margin-bottom:30px;gap:16px}
-.how h2{font-family:var(--serif);font-weight:400;font-size:29px;
-  letter-spacing:-.01em}
-.how-head a{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink2);text-decoration:none;
-  border-bottom:1px solid var(--line2);padding-bottom:2px;white-space:nowrap}
-.how-head a:hover{color:var(--ink);border-bottom-color:var(--ink)}
-.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.step{border-radius:16px;padding:20px 20px 18px;
-  border:1px solid rgba(22,24,29,.07)}
-.step.s1,.step.s2,.step.s3{background:var(--accWash)}
-.step .n{display:inline-block;font-family:var(--mono);font-size:10px;
-  color:var(--ink2);letter-spacing:.14em;
-  background:rgba(255,255,255,.65);border-radius:6px;padding:3px 8px}
-.step .t{display:block;margin-top:14px;font-family:var(--serif);
-  font-size:19px;letter-spacing:-.01em;color:var(--ink)}
-.step .d{display:block;margin-top:8px;font-size:13px;line-height:1.62;
-  color:var(--ink2)}
-.step .calib{display:block;margin-top:9px;font-family:var(--mono);font-size:9px;
-  letter-spacing:.05em;line-height:1.7;color:var(--ink3);text-transform:none}
-.step .calib a{color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--line2)}
-.step .calib a:hover{border-bottom-color:var(--ink)}
-@media(max-width:720px){.steps{grid-template-columns:1fr}}
+.how-head{margin-bottom:12px}
+.how h2{font-family:var(--mono);font-weight:500;font-size:10.5px;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3)}
+.steps{border-top:1px solid var(--ink)}
+.step{display:grid;grid-template-columns:40px 118px minmax(0,1fr);
+  column-gap:20px;padding:20px 0;border-bottom:1px solid var(--line)}
+.step .n{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  color:var(--ink3);padding-top:4px}
+.step .t{display:block;font-weight:600;font-size:15.5px;
+  letter-spacing:-.01em;color:var(--ink);padding-top:1px}
+.step .d{display:block;font-size:13.5px;line-height:1.65;color:var(--ink2)}
+.step .d a{color:var(--ink);text-decoration:none;
+  border-bottom:1px solid var(--line2)}
+.step .d a:hover{border-bottom-color:var(--ink)}
+@media(max-width:840px){.how-grid{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .step{grid-template-columns:34px minmax(0,1fr)}
+  .step .d{grid-column:2}}
 
 /* footer */
 .foot{border-top:1px solid var(--line)}
@@ -494,8 +477,8 @@ h1 em{font-style:italic;color:var(--ink2)}
   color:rgba(242,240,233,.10);pointer-events:none;
   transition:opacity .3s ease}
 #boot.resolved .bt-digits{opacity:.4}
-#boot .bt-num{font-family:var(--serif);font-weight:300;
-  font-size:clamp(64px,15vw,128px);letter-spacing:-.02em;
+#boot .bt-num{font-family:var(--sans);font-weight:300;
+  font-size:clamp(64px,15vw,128px);letter-spacing:-.03em;
   line-height:1;opacity:0;transform:translateY(8px);
   transition:opacity .3s ease,transform .3s ease,color .12s linear}
 #boot .bt-num .u{font-family:var(--mono);font-size:11px;
@@ -542,40 +525,28 @@ h1 em{font-style:italic;color:var(--ink2)}
   </nav>
 </div></header>
 
-<section class="hero"><div class="col"><div class="hero-grid">
+<section class="hero" id="heroZone"><div class="col"><div class="hero-grid">
   <div class="hero-copy">
     <div class="eyebrow rise" style="--d:0ms" id="eyebrow"><span class="sq"></span>delhi ncr — a dosimeter without hardware</div>
-    <h1 class="rise" style="--d:70ms">A ledger for <em>your lungs.</em></h1>
+    <h1 class="rise" style="--d:70ms">What did you <em>breathe</em> today?</h1>
     <div class="hnum rise" style="--d:140ms" id="hnum" role="status">
-      <div><span class="hnum-chip">live</span><br>
-      <b class="hnum-v" id="hnumV">—</b></div>
-      <span class="hnum-t"><span id="hnumT">cigarettes a day — what
-      breathing today's field adds up to.</span><i id="hnumS">reading the
-      live field…</i></span>
+      <div class="hnum-n"><b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span></div>
+      <div class="hnum-side">
+        <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the field, live</span></span>
+        <span class="hnum-t" id="hnumT">a day of breathing today's field — reading…</span>
+        <i class="hnum-s" id="hnumS">reading the live field…</i>
+      </div>
     </div>
-    <p class="sub rise" style="--d:200ms">A personal dosimeter, no hardware:
-    the field below — rebuilt hourly from <b id="stnHero">24</b> live
-    stations — is the sensor, and the app knows what you breathed. It
-    totals your trips in µg, on your phone, where the ledger stays.
-    a→b routing is one proof — the engine priced
-    <b><span id="pricedcount">0.90</span>&nbsp;million</b> of Delhi's
-    <b><span id="edgecount">1.07</span>&nbsp;million</b> road edges under
-    this hour's field.</p>
+    <p class="sub rise" style="--d:200ms">A personal dosimeter for Delhi —
+    no hardware. The field below, rebuilt every 15 minutes from
+    <b id="stnHero">54</b> instruments, is the sensor, and the app knows
+    what you breathed — a ledger kept on your phone, where only k≥3
+    aggregates ever leave.</p>
     <div class="links rise" style="--d:260ms">
-      <a class="door" href="/city"><span class="dic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.2c-2.9 0-5.2 2.3-5.2 5.1 0 3.7 4.3 7.5 5.2 8.2.9-.7 5.2-4.5 5.2-8.2 0-2.8-2.3-5.1-5.2-5.1z" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="9" cy="7.4" r="1.9" fill="#fff"/></svg></span>
-        <span class="dl"><b>Open the live field</b><i>the city, this hour</i></span>
-        <span class="darr">→</span></a>
-      <a class="door" href="/community"><span class="dic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff"/><rect x="10.5" y="2.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="2.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".72"/><rect x="10.5" y="10.5" width="5" height="5" rx="1.2" fill="#fff" fill-opacity=".38"/></svg></span>
-        <span class="dl"><b>Community</b><i>k≥3 aggregates only</i></span>
-        <span class="darr">→</span></a>
+      <a class="go" href="/city">open the live field<span class="arr">→</span></a>
+      <a class="go dim" href="/community">community — k≥3 aggregates only<span class="arr">→</span></a>
     </div>
   </div>
-  <figure class="shot rise" style="--d:320ms">
-    <img src="/app-hero.png" width="552" height="1200"
-      alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
-    <figcaption>the app on android, live — real route, real field<br>
-    only k≥3 aggregates ever leave it</figcaption>
-  </figure>
 </div></div></section>
 
 <section class="field-sec"><div class="col">
@@ -654,33 +625,37 @@ h1 em{font-style:italic;color:var(--ink2)}
   </div>
 </div></section>
 
-<section class="how"><div class="col">
-  <p class="why">Nothing else can add up your day in Delhi — nobody
-  else rebuilds a calibrated field hourly, prices
-  <b><span id="pricedcount2">0.90</span>&nbsp;million</b> road edges
-  against it, and totals the dose on your phone, where it stays.</p>
-  <div class="how-head">
-    <h2>Measure, interpolate, dose.</h2>
+<section class="how"><div class="col"><div class="how-grid">
+  <div>
+    <div class="how-head"><h2>how it works</h2></div>
+    <p class="why">Dose-priced routing is the proof the field can decide —
+    the engine priced <b><span id="pricedcount">0.90</span>&nbsp;million</b>
+    of <b><span id="edgecount">1.07</span>&nbsp;million</b> road edges under
+    this hour's field.</p>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><span class="t">measure</span>
+        <p class="d">WAQI and DPCC instruments across the NCR report every
+        15 minutes; AQI sub-indices are inverted back to µg/m³ before
+        anything touches them.</p></div>
+      <div class="step"><span class="n">02</span><span class="t">interpolate</span>
+        <p class="d">Ordinary kriging draws the field — a surface, not a
+        guess — and every cell keeps its own error band. 95.2% of 3,550
+        held-out station-hours landed inside ±2σ.
+        <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">the method ↗</a></p></div>
+      <div class="step"><span class="n">03</span><span class="t">dose</span>
+        <p class="d">Concentration × ventilation × minutes, summed along
+        the road you take — a C++ engine priced
+        <b><span id="pricedcount2">0.90</span>&nbsp;million</b> edges on it
+        to rank routes; the app runs the same sum over your trips,
+        on-device.</p></div>
+    </div>
   </div>
-  <div class="steps">
-    <div class="step s1"><span class="n">01</span><span class="t">measure</span>
-      <p class="d">WAQI and CPCB instruments across NCR report EPA
-      sub-indices — we invert the breakpoint table back to µg/m³ before
-      anything touches them.</p></div>
-    <div class="step s2"><span class="n">02</span><span class="t">interpolate</span>
-      <p class="d">Ordinary kriging turns point readings into a continuous
-      field with a real variance per cell. The band is calibrated — 95.2%
-      coverage at ±2σ, measured on 3,550 held-out station-hours.
-      <span class="calib">method: σ = √(krige_sd² + (0.12·µ)²) × 3.2 total-error
-      inflation, leave-one-out over CAAQMS station hours vs the OpenAQ archive
-      — <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">field_validation.md</a></span></p></div>
-    <div class="step s3"><span class="n">03</span><span class="t">dose</span>
-      <p class="d">The math is one integral — concentration × ventilation ×
-      minutes, summed along the path. A C++ engine runs it over every road
-      edge to price a route; the app runs it over your trips and receipts
-      the total. The number you see is the number the engine minimized.</p></div>
-  </div>
-</div></section>
+  <figure class="shot rise" style="--d:120ms">
+    <img src="/app-hero.png" width="552" height="1200"
+      alt="the app: dose-tinted route options over Connaught Place, depart-time strip reading leave 17:30 → breathe ~47% less">
+    <figcaption>the app on android, live — real route, real field</figcaption>
+  </figure>
+</div></div></section>
 
 <footer class="foot"><div class="foot-in">
   <span>alive·108 — delhi ncr</span>
@@ -1501,30 +1476,38 @@ async function heroCity(){
     const d=await api('/v2/city');
     const b=d.breath||{};
     const cig=(b.cigarettes||{}).mid, ug=(b.day_inhaled_ug||{}).mid;
-    /* soul pass — the tile deepens into the day's live band and its
-       edge breathes (deep wash + band-edge hairline + band-ink ring +
-       band-inked numeral, all off the field's own mean) */
+    /* the hero numeral is the field mean itself — the dosimeter's own
+       reading (µg-first framing; cigarettes stay a qualifier, never the
+       headline). the zone washes to the day's live band, the rule under
+       the readout breathes in band ink, the small square keeps the true
+       hue — all off pm25_stats.mean. */
     const mean=d.pm25_stats&&d.pm25_stats.mean;
     if(mean!=null){
       const bi=bandIdx(mean,SPECS.pm2_5.breaks),el=$('hnum'),bx=bandHex(bi);
-      el.style.setProperty('--hw',`var(--bd${bi})`);
-      el.style.setProperty('--ht',washHex(bx,.60));
+      $('heroZone').style.setProperty('--hw',`var(--bw${bi})`);
       el.style.setProperty('--he',inkHex(bx));
       el.style.setProperty('--nv',`var(--bi${bi})`);
       el.style.setProperty('--ni',`var(--bi${bi})`);
+      el.style.setProperty('--hb',bx);
+      $('hnumW').textContent=`pm2.5 · ${BAND_NAME[bi]}`;
+      $('hnumV').textContent=mean>=100?`${Math.round(mean)}`:F1(mean);
       el.classList.add('breathe');
-    }
-    if(cig!=null&&cig>0){
-      $('hnumV').textContent=F1(cig);
-      $('hnumT').innerHTML=`cigarettes a day — a day of breathing today's
-        field${ug!=null?`, ≈<b>${fmt(ug)} µg</b> inhaled`:''}.`;
+      /* the felt line: cigarettes as the translation, never the figure */
+      if(cig!=null&&cig>0){
+        $('hnumT').innerHTML=`a day of breathing today's field ≈`
+          +` <b>${F1(cig)} cigarettes</b>`;
+      }else{
+        $('hnumT').innerHTML=`a day of breathing today's field`
+          +`${ug!=null?` ≈ <b>${fmt(ug)} µg</b> inhaled`:''}`;
+      }
       /* the basis line uppercases — µ must opt out or µg becomes "mg" */
       const noT='<span style="text-transform:none">µg/m³</span>';
-      $('hnumS').innerHTML=`live · field-weighted over the ncr lattice`
-        +` · ~14.4 m³ breathed a day · 22 ${noT}-day ≈ 1 cigarette`
-        +`${(b.cigarettes||{}).hi!=null?` · worst pockets ${F1(b.cigarettes.hi)}` :''}`;
+      $('hnumS').innerHTML=`live · field mean over the ncr lattice`
+        +`${(b.cigarettes||{}).hi!=null?` · worst ≈${F1(b.cigarettes.hi)} cig` :''}`
+        +` · 22 ${noT}-day ≈ 1 cig`;
     }else{
       $('hnumV').textContent='—';
+      $('hnumW').textContent='pm2.5 — the field';
       $('hnumT').textContent='the breath figure came back empty — no fake number shown';
       $('hnumS').textContent='the field below still reads live';
     }
