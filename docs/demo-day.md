@@ -586,7 +586,15 @@ engine repriced, engine rows ~7 s later; a fully cold task needs
 sweep) — run this the moment a new task registers healthy, never
 cold-call the first demo plan.
 
-### FARGATE_SPOT → on-demand for demo morning (do NOT pre-run; owner executes)
+### FARGATE_SPOT → on-demand — OPTIONAL, skipped by default (₹0 budget, owner call 2026-10-07)
+
+**Default is now: stay on FARGATE_SPOT.** Reclaim is rare, a replacement
+task serves in ~4 min on builds ≥ c3d9c11 (transit bake), and the budget
+is zero — verified capacity under real load 2026-10-07: 8 parallel `/aqi`
+~0.47 s, 3 parallel `/v2/plan` ~2.5 s, all 200 on the 1 vCPU/3 GB task.
+The block below stays as the escape hatch: run it only if a reclaim
+lands on demo morning OR the owner decides the ~₹50-100/day on-demand
+cost is worth the peace of mind for the video shoot.
 
 The service runs `capacityProviderStrategy: FARGATE_SPOT weight=1 base=1`
 (re-verified `describe-services` 2026-10-06 ~05:10 UTC via boto3 —
