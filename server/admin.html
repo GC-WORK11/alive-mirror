@@ -335,7 +335,7 @@
   .share-row .n{font-family:var(--mono);font-size:11px;color:var(--ink4);
                 text-align:right}
 
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-items:start}
   .cols3{grid-template-columns:1fr 1fr 1fr}
   @media(max-width:1200px){.cols3{grid-template-columns:1fr 1fr}}
   @media(max-width:900px){.cols,.cols3{grid-template-columns:1fr}}
@@ -930,10 +930,10 @@ async function tick(){
     const evv=wv.evaluated||{};
     const wnd=wv.wind||{};
     const evRows=[
-      ['wind',wnd.known?`${Math.round(wnd.speed_kmh)} km/h from ${Math.round(wnd.from_deg??0)}° · ${esc(wnd.source||'')}${wnd.age_s!=null?' · '+ago(wnd.age_s):''}`:'unknown — cannot judge the smoke carry',true],
+      ['wind',wnd.known?`${Math.round(wnd.speed_kmh)} km/h from ${Math.round(wnd.from_deg??0)}° · ${esc(wnd.source||'')}${wnd.age_s!=null?' · '+ago(wnd.age_s)+' ago':''}`:'unknown — cannot judge the smoke carry',true],
       ['farm fires',evv.fires?(evv.fires.seen?`${evv.fires.belt_fires??'—'} in the belt · smoke lift ×${evv.fires.modifier??'—'} · drifting toward delhi: ${evv.fires.carrying===null?'unknown':evv.fires.carrying?'yes':'no'}`:'feed cold'):'—',true],
       ['air can clear',evv.ventilation&&evv.ventilation.vc_m2s!=null?`${fmt(evv.ventilation.vc_m2s)} m²/s of clearing room · clears ×${evv.ventilation.factor??'—'} slower than a typical day · ${esc(evv.ventilation.source||'')}`:'no read',true],
-      ['drift over 6h',evv.trend&&evv.trend.delta_ug!=null?`${evv.trend.delta_ug>0?'+':''}${evv.trend.delta_ug} µg/m³ over ${evv.trend.span_h}h · ${evv.trend.n_snapshots} recorded maps`:(evv.trend?`${evv.trend.n_snapshots} recorded maps in 6h`:'—'),true],
+      ['drift over 6h',evv.trend&&evv.trend.delta_ug!=null?`${evv.trend.delta_ug>0?'+':''}${evv.trend.delta_ug} µg/m³ over ${evv.trend.span_h}h · ${evv.trend.n_snapshots} recorded map${evv.trend.n_snapshots===1?'':'s'}`:(evv.trend?`${evv.trend.n_snapshots} recorded map${evv.trend.n_snapshots===1?'':'s'} in 6h`:'—'),true],
     ];
     $('whyeval').innerHTML=evRows.map(([k,v,m])=>`<dt>${k}</dt><dd class="${m?'':'sub'}">${v}</dd>`).join('');
     const cts=wv.cannot_tell||[];
@@ -958,7 +958,7 @@ async function tick(){
       draw('belt_fires','rgba(161,102,47,.9)',[2,2]);
       draw('vc_m2s','rgba(101,112,127,.9)',[4,3]);
       draw('pm25','rgba(163,68,70,1)',[]);
-      $('whysub').textContent+=` · ${hp.length} recorded maps over ${wv.history.window_h}h — solid line: the air · dashed: clearing room · dotted: belt fires`;
+      $('whysub').textContent+=` · ${hp.length} recorded map${hp.length===1?'':'s'} over ${wv.history.window_h}h — solid line: the air · dashed: clearing room · dotted: belt fires`;
     }else if(cv){cv.hidden=true;}
   }catch(e){$('whydrivers').innerHTML='<tr><td colspan="5" class="sub">why feed unavailable</td></tr>';}
   let dn=donations||{},S=status||{},H=health||{},A=aqiPt||{};
@@ -1303,7 +1303,7 @@ async function tick(){
     const trows=shown.map(r=>{
       const p90=r.p90_le_ms==null?'>5s+':`≤${fmtMs(r.p90_le_ms)}`;
       return [`${esc(PNAMES[r.path]||r.path)}`,
-        `${fmtMs(r.mean_ms)} avg · 9 in 10 under ${p90} · ${fmt(r.n)} calls`,true];
+        `${fmtMs(r.mean_ms)} avg · 9 in 10 ${p90} · ${fmt(r.n)} calls`,true];
     });
     if(other>0)trows.push(['everything else',`${other} more routes tracked`,false]);
     if(!trs.length){
@@ -1345,9 +1345,9 @@ async function tick(){
       f.age_s,'government monitors, republished via waqi — leads the blend · every reading trusted 3× over the forecast',aSt('stations').stale),
     mk('city monitors · dpcc',feedState(feeds.dpcc),'—',null,
       `delhi's own 5-minute pollution pages — ${feeds.dpcc==='ok'?'live: adds the monitors waqi misses':feeds.dpcc!=null?'tried this cycle':'rests — additive, never replaces waqi'}`,null),
-    mk('city monitors · cpcb',feedState(feeds.cpcb),'—',feeds.cpcb?0:null,
+    mk('city monitors · cpcb',feedState(feeds.cpcb),'—',null,
       `india's central pollution board — ${feeds.cpcb?'tried this cycle':'rests while waqi+dpcc are winning the chain'}; a keyed attempt whose network route is refused from our region today`,null),
-    mk('city monitors · openaq',feedState(feeds.openaq),'—',feeds.openaq?0:null,
+    mk('city monitors · openaq',feedState(feeds.openaq),'—',null,
       'the fallback of last resort — runs only when nothing else contributes; the old key was revoked, it rests until a fresh one lands',null),
     mk('forecast grid · europe',f.samples>0?'live':'down',
       f.samples!=null?fmt(f.samples)+' pts':'—',f.age_s,
@@ -1578,7 +1578,7 @@ async function tick(){
       ['last repriced',rt.reweight_age_s!=null?`${ago(rt.reweight_age_s)} ago · every ${ago(rt.reweight_ttl_s)}`:'—',true],
       ['road data from',rt.graph_pbfs?rt.graph_pbfs.map(esc).join(' + '):'—',false],
       ['map fingerprint',esc(rt.graph_sha||'—'),false],
-      ['trip ledger',esc(S.trips_backend||'—')+(S.ledger&&S.ledger.backend!=null?` · ledger ${esc(S.ledger.backend)} · ${fmt(S.ledger.devices_tracked)} anonymized phones`:''),true],
+      ['trip ledger',esc(S.trips_backend||'—')+(S.ledger&&S.ledger.backend!=null?`${S.ledger.backend!==S.trips_backend?` · ledger ${esc(S.ledger.backend)}`:''} · ${fmt(S.ledger.devices_tracked)} anonymized phones`:''),true],
     ])
   ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
     :emptyMsg('route engine warming up — builds on the first plan');
@@ -1588,19 +1588,25 @@ async function tick(){
   const cal=A.calibration||{};
   const crows2=[];
   if(cal.method)crows2.push(['live check',
-    `each monitor hidden in turn, then predicted — misses by ${cal.mae_ug} µg/m³ on average · big-miss score (rmse) ${cal.rmse_ug} · bias ${cal.mean_bias_ug>0?'+':''}${cal.mean_bias_ug} µg/m³ · ${cal.n_stations} monitors`,true]);
+    `each monitor hidden in turn, then predicted — misses by ${cal.mae_ug} µg/m³ on average · big-miss score (rmse) ${cal.rmse_ug} µg/m³ · bias ${cal.mean_bias_ug>0?'+':''}${cal.mean_bias_ug} µg/m³ · ${cal.n_stations} monitors`,true]);
   const wk2=validation&&validation.weekly,arch2=wk2&&wk2.archive_replay||{},loso2=wk2&&wk2.loso||{},daily2=validation&&validation.daily||{};
+  /* a failed check reports 'unavailable: ValueError: …' off the wire —
+     keep the honest 'couldn't run', drop the stack-trace accent */
+  const chk=s=>{const m=/^unavailable:\s*(\w+Error)/.exec(s||'');
+    return m?`unavailable — check couldn't run (${m[1]})`:s};
   if(wk2){
     crows2.push(['hidden-monitor test (weekly)',loso2.status==='ok'
-      ?`misses by ${loso2.mae_ugm3} µg/m³ on average · big-miss score ${loso2.rmse_ugm3} · bias ${loso2.bias_ugm3>0?'+':''}${loso2.bias_ugm3} µg/m³ · ${loso2.n} hidden`
-      :esc(loso2.status||'—'),true]);
+      ?`misses by ${loso2.mae_ugm3} µg/m³ on average · big-miss score ${loso2.rmse_ugm3} µg/m³ · bias ${loso2.bias_ugm3>0?'+':''}${loso2.bias_ugm3} µg/m³ · ${loso2.n} hidden`
+      :esc(chk(loso2.status||'—')),true]);
     crows2.push(['replay of recorded hours',arch2.status==='ok'
-      ?`misses by ${arch2.mae_ugm3} µg/m³ on average · big-miss score ${arch2.rmse_ugm3} · bias ${arch2.bias_ugm3>0?'+':''}${arch2.bias_ugm3} µg/m³ · ${fmt(arch2.pairs)} checks`
-      :esc(arch2.status||'—'),true]);
-    crows2.push(['tested week',esc(wk2.week||'—')+' · generated '+esc((wk2.generated||'').replace('T',' ').replace('+00:00','Z')),false]);
+      ?`misses by ${arch2.mae_ugm3} µg/m³ on average · big-miss score ${arch2.rmse_ugm3} µg/m³ · bias ${arch2.bias_ugm3>0?'+':''}${arch2.bias_ugm3} µg/m³ · ${fmt(arch2.pairs)} checks`
+      :esc(chk(arch2.status||'—')),true]);
+    crows2.push(['tested week',esc(wk2.week||'—')+(wk2.generated
+      ?' · generated '+esc(`${new Date(wk2.generated).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'})} ${timeIST(new Date(wk2.generated))}`)
+      :''),false]);
   }
   if(daily2.date){
-    crows2.push(['yesterday, in full',`${esc(daily2.date)} · ${fmt(daily2.n_cells)} cells · ${fmt(daily2.n_snapshots)} snapshots`,true],
+    crows2.push(['yesterday, in full',`${esc(daily2.date)} · ${fmt(daily2.n_cells)} cells · ${fmt(daily2.n_snapshots)} snapshot${daily2.n_snapshots===1?'':'s'}`,true],
       ['above the who limit',daily2.pct_cells_gt15_who!=null?`${daily2.pct_cells_gt15_who}% of cells`:'—',true],
       ['above the cpcb limit',daily2.pct_cells_gt60_cpcb!=null?`${daily2.pct_cells_gt60_cpcb}% of cells`:'—',true]);
   }
@@ -2305,12 +2311,12 @@ function paintArchive(S){
   const tiles=[
     ['hours saved today',
       td.hours_recorded!=null
-        ?`${fmt(td.hours_recorded)} <small>/ ${td.hours_elapsed!=null?td.hours_elapsed:24} ist</small>`:null,
+        ?`${fmt(td.hours_recorded)} <small>of ${td.hours_elapsed!=null?td.hours_elapsed:24} IST</small>`:null,
       td.gaps&&td.gaps.length
         ?`missing hours: ${td.gaps.map(h=>String(h).padStart(2,'0')+':00').join(' · ')}`
         :(td.hours_recorded!=null?'every hour so far has a real saved map':'waiting on the first save')],
     ['recording since',
-      a.since_ist?`${a.since_ist.slice(0,10)} · ${a.since_ist.slice(11,16)} ist`:null,
+      a.since_ist?`${a.since_ist.slice(0,10)} · ${a.since_ist.slice(11,16)} IST`:null,
       'the air map has been saved hourly since then'],
     ['saved maps · all time',
       a.snapshots_total!=null?fmt(a.snapshots_total):null,
@@ -2318,7 +2324,7 @@ function paintArchive(S){
         ?`stored in the cloud (s3://${a.storage.bucket}/archive/) · mirrored locally`
         :'local copies only — cloud bucket unset'],
     ['last save',
-      last.captured_ist?`${last.captured_ist.slice(11,16)} ist · ${last.cells!=null?fmt(last.cells)+' cells':''}`
+      last.captured_ist?`${last.captured_ist.slice(11,16)} IST · ${last.cells!=null?fmt(last.cells)+' cells':''}`
         :(last.ok===false?(last.skipped?'skipped — nothing to record':(last.error?'failed':null)):null),
       last.backend?`stored via ${last.backend}${last.uri?' · '+last.uri:''}`:(last.note||'')],
   ];
@@ -2360,7 +2366,7 @@ async function skillCard(){
   const thin=hs.filter(x=>x.status==='thin'&&x.n>0);
   if(d.status!=='ok'){
     wrap.innerHTML='';
-    cap.textContent=`${fmt(d.pairs||0)} real forecast-vs-recorded checks on file so far${cv.since_ist?` — recording since ${cv.since_ist.slice(0,10)} ${cv.since_ist.slice(11,16)} ist`:''} — a score needs ${d.min_pairs||5}+ graded hours; the table fills in as the archive grows`;
+    cap.textContent=`${fmt(d.pairs||0)} real forecast-vs-recorded checks on file so far${cv.since_ist?` — recording since ${cv.since_ist.slice(0,10)} ${cv.since_ist.slice(11,16)} IST`:''} — a score needs ${d.min_pairs||5}+ graded hours; the table fills in as the archive grows`;
     return;
   }
   /* th uppercases — µ opts out of the transform or "µg/m³" reads "mg/m³" */
@@ -2391,17 +2397,17 @@ async function archStrip(){
     const ar=d.archive||{};
     const setv=(i,h)=>{const n=$('arcv'+i);if(n){n.classList.remove('na');n.innerHTML=h}};
     const setc=(i,h)=>{const n=$('arcc'+i);if(n)n.innerHTML=h};
-    setv(0,`${fmt(cov.recorded_count)} <small>/ ${24-(cov.pending||[]).length} ist</small>`);
+    setv(0,`${fmt(cov.recorded_count)} <small>of ${24-(cov.pending||[]).length} IST</small>`);
     setc(0,(cov.gaps||[]).length
       ?`missing hours: ${cov.gaps.map(h=>String(h).padStart(2,'0')+':00').join(' · ')}`
       :'every elapsed hour so far has a real saved map');
-    setv(1,ar.since_ist?`${ar.since_ist.slice(0,10)} · ${ar.since_ist.slice(11,16)} ist`:'—');
+    setv(1,ar.since_ist?`${ar.since_ist.slice(0,10)} · ${ar.since_ist.slice(11,16)} IST`:'—');
     setc(1,'the air map has been saved hourly since then');
     setv(2,fmt(ar.total_snapshots));
     setc(2,d.storage&&d.storage.bucket
       ?`stored in the cloud (s3://${d.storage.bucket}/archive/) · mirrored locally`
       :'local copies only — cloud bucket unset');
-    setv(3,ar.last_ist?`${ar.last_ist.slice(11,16)} ist`:'—');
+    setv(3,ar.last_ist?`${ar.last_ist.slice(11,16)} IST`:'—');
     setc(3,'the most recent hourly save');
   }
   const meanOf=e=>{let s=0,n=0;
@@ -2411,7 +2417,7 @@ async function archStrip(){
     const st=e.status,rec=st==='recorded';
     const m=rec?meanOf(e):null;
     const col=m==null?null:(dmBand(dmAqi('pm2_5',m),'pm2_5')||[])[3];
-    const tt=`${e.ist_label} ist — ${rec
+    const tt=`${e.ist_label} IST — ${rec
       ?`recorded · mean pm2.5 ${fmt1(m)} µg/m³`+(e.model?' · forecast on record':'')
       :st==='gap'?'no record':st==='unreadable'?'saved map unreadable':'not due yet'}`;
     return `<span class="ah ${rec?'':st==='gap'?'gap':st==='unreadable'?'bad':'pend'}"
@@ -2421,9 +2427,9 @@ async function archStrip(){
   `<span class="ahm">${(cov.recorded||[]).length} recorded`+
     `${(cov.gaps||[]).length?` · ${cov.gaps.length} gap${cov.gaps.length===1?'':'s'}`:''}`+
     `${wm.length?` · ${wm.length} with a forecast (${wm.map(h=>String(h).padStart(2,'0')).join('·')}h)`  :''}`+
-    ` · 00 → 23 ist</span>`;
+    ` · 00 → 23 IST</span>`;
   cap.textContent=`${d.day} · ${cov.recorded_count||0} of ${24-(cov.pending||[]).length} elapsed hours recorded`+
-    `${d.archive.since_ist?` · recording since ${d.archive.since_ist.slice(0,10)} ${d.archive.since_ist.slice(11,16)} ist`:''}`;
+    `${d.archive.since_ist?` · recording since ${d.archive.since_ist.slice(0,10)} ${d.archive.since_ist.slice(11,16)} IST`:''}`;
 }
 /* forecast scrub — /grid?h=N re-serves the cams horizon anchored to the
    live field; pm2.5 only (other species have no forecast surface) */
