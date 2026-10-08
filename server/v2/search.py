@@ -202,7 +202,12 @@ def _merge(t1: list, t2: list, qn: str, blat: float, blon: float) -> list:
                                 else 1_000_000_000),
                                r.get("distance_m") or 9e9,
                                0 if "t1" in r.get("sources", []) else 1))
-    for r in merged:
+    # _t1_pos is merge-time scratch — strip it from BOTH source lists,
+    # not just merged: a row that loses the dedupe stays in t1_rows and
+    # the endpoint returns that array raw (contract: no _t1_pos on the
+    # wire). The 400 m admin rule collapses intra-t1 dupes the 75 m
+    # rule never reached, so this leaks now where it couldn't before.
+    for r in t1 + t2:
         r.pop("_t1_pos", None)
     return merged
 

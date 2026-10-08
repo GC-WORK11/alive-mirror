@@ -2,6 +2,7 @@
 /* t0 engine harness — NOT shipped; dev verification for the search lane.
    Run: node src/search/test-t0.mjs */
 import { registerHooks, createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 globalThis.__DEV__ = false;
 // t0.ts uses Metro's require() for the bundled JSON — give it a real one
@@ -19,9 +20,20 @@ registerHooks({
   },
 });
 
-const { query } = await import("./t0.ts");
+const { query, __t0 } = await import("./t0.ts");
 const { parseQuery } = await import("./parse.ts");
 const { fold, foldName } = await import("./text.ts");
+
+/* index-prebuild changed the contract: query() NEVER sync-builds — it
+   answers [] until the index lands on the scheduler. Hydrate the SHIPPED
+   chunked index (assets/t0-index/, the path the app actually runs) so the
+   rankings below are the prebuilt path's real ones. */
+{
+  const mod = await import(pathToFileURL(
+    fileURLToPath(new URL("../../assets/t0-index/chunks.js", import.meta.url)),
+  ).href);
+  __t0.hydrate(mod.default ?? mod);
+}
 
 const LOC = { lat: 28.68, lon: 77.29 }; // Shahdara-ish, owner's turf
 const show = (q, loc = LOC) => {

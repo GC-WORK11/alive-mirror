@@ -364,6 +364,15 @@ const typeBonus = (c: string): number => {
 
 const weight = (e: Entry) => e.wt;
 
+/* The ONE rank-weight formula — indexRow (lazy build) and hydrateNext
+   (prebuilt chunks) must never drift: chunks ship c/w/k and recompute
+   on merge (typeBonus is memoized, so a re-run costs ~720 regex evals
+   total, not 124k). union-regression-v2: hydrateNext dropped wt when
+   boot-storm added it — every prebuilt query scored NaN and areaNear
+   returned null. */
+const rankWeight = (c: string, w: number, k: number): number =>
+  typeBonus(c) + w * 0.5 + k * 2;
+
 /* Kinds that name an AREA — they anchor "near Y" resolution and supply
    the locality half of a subtitle ("street · Shahdara"). */
 const AREA_KINDS = new Set([
@@ -441,7 +450,7 @@ function indexRow(g: Raw): void {
     nrm, toks,
     ftoks: toks.map(fold).filter(Boolean),
     fskel: foldName(nrm),
-    wt: typeBonus(g.c) + g.w * 0.5 + g.k * 2,
+    wt: rankWeight(g.c, g.w, g.k),
   };
   const id = ENTRIES!.push(e) - 1;
 
@@ -616,6 +625,7 @@ function hydrateNext(): boolean {
     entries.push({
       n: a[0], c: a[1], lat: a[2], lon: a[3], w: a[4], k: a[5],
       nrm: a[6], toks: a[7], ftoks: a[8], fskel: a[9],
+      wt: rankWeight(a[1], a[4], a[5]),
     });
   const set = (m: Map<string, number[]>, rows: [string, number[]][]) => {
     for (const [k, v] of rows) m.set(k, v);
