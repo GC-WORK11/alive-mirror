@@ -1020,6 +1020,63 @@ const toResult = (e: Entry, sub?: string): PlaceResult => ({
   tier: "t0",
 });
 
+/* ---------------------------------------------------------------------------
+ * "shops & places here" — the address→shops browse mode (owner's spec:
+ * 'type full address → show me the shop that comes in that address').
+ * When the resolved anchor is an area/address row — not a specific
+ * place — the top POI rows inside ~800 m are the browsable answer.
+ * Real corpus rows only; the count the sheet shows IS the count found.
+ * ------------------------------------------------------------------------- */
+
+/* kinds that are roads / areas / infrastructure — never a browsable
+ * 'place here' row (they are the anchor, not the answer). */
+const BROWSE_BAD = /^(?:motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian|service|link|street|road|footway|path|track|steps|cycleway|corridor|bridge|flyover|underpass|tunnel|junction|crossing|intersection|roundabout|address|housenumber|housename|house|interpolation|plot|locality|neighborhood|neighbourhood|suburb|village|hamlet|district|subdistrict|quarter|macrohood|administrative|sector|block|place|town|city|county|municipality|estate|colony|tehsil|platform|stop|stop_position|stop_area|entrance|gate|lift_gate|substation|transformer|water_works|water_utility|pumping_station|wastewater_plant|canal|drain|ditch|stream|river|water|reservoir|wetland|grass|farmland|natural|landuse|power|barrier|shed|storage_tank|water_tower|water_well|monitoring_station|bunker|guardhouse|military|barracks|prison|landfill|waste_transfer_station|recycling|geographic_entities|land_feature|mountain|public_utility|natural_gas_utility_provider|electric_utility_provider|industrial|parking|parking_space|parking_entrance)$/;
+
+/** anchor kinds that mean 'an area or an address', not one navigable
+ * place — the trigger for the browse-here section. */
+const BROWSE_ANCHOR = new Set([
+  ...AREA_KINDS,
+  "address", "housenumber", "housename", "house", "interpolation",
+  "plot", "street", "road", "residential", "tertiary", "unclassified",
+  "secondary", "primary", "trunk", "motorway", "link", "living_street",
+  "pedestrian", "junction", "crossing", "tehsil", "municipality",
+  "county",
+]);
+export const isBrowseAnchor = (c: string): boolean => BROWSE_ANCHOR.has(c);
+
+/** Top POI rows inside `radiusM` of an area/address anchor, ranked by
+ * the index's own fused weight (type bonus + w + k) minus a distance
+ * pull. Same-name rows ~200 m apart stay distinct (real same-name
+ * neighbours exist); closer same-name rows collapse as one place. */
+export function nearbyPOIs(anchor: LatLon, radiusM = 800, cap = 15): PlaceResult[] {
+  if (!ready()) return [];
+  const entries = ENTRIES!, geo = GEO!;
+  const cells = Math.ceil(radiusM / 196);   // GEO_CELL ≈ 196 m on lon
+  const bi = Math.floor(anchor.lat / GEO_CELL), bj = Math.floor(anchor.lon / GEO_CELL);
+  const out: { e: Entry; s: number }[] = [];
+  for (let di = -cells; di <= cells; di++)
+    for (let dj = -cells; dj <= cells; dj++)
+      for (const i of geo.get(`${bi + di},${bj + dj}`) ?? []) {
+        const e = entries[i];
+        if (BROWSE_BAD.test(e.c)) continue;
+        const d = distKm(e, anchor) * 1000;
+        if (d > radiusM) continue;
+        out.push({ e, s: e.wt - d / 300 });
+      }
+  out.sort((a, b) => b.s - a.s);
+  const res: PlaceResult[] = [];
+  for (const { e } of out) {
+    const dup = res.some(
+      (r) => r.name === e.n
+        && Math.hypot((r.lat - e.lat) * 110.6, (r.lon - e.lon) * 99.4) * 1000 < 200,
+    );
+    if (dup) continue;
+    res.push(toResult(e));
+    if (res.length >= cap) break;
+  }
+  return res;
+}
+
 /** On-device search: staged prefix/fold/fuzzy lookup over the bundled
  * gazetteer, unit + near-anchor resolution on top. Typical <5 ms once
  * the index is ready.

@@ -31,6 +31,8 @@ import { Icon } from "../icons";
 import { Quiet } from "../ui";
 import {
   distKm,
+  isBrowseAnchor,
+  nearbyPOIs,
   normalize,
   onIndexReady,
   query as t0query,
@@ -260,6 +262,10 @@ function SearchSheetInner({
   const qRef = useRef("");
   const locRef = useRef<LatLon | null | undefined>(undefined);
   const [t0rows, setT0rows] = useState<PlaceResult[]>([]);
+  /* ref mirror of the t0 row count — the ServerSearch weak-gate reads
+     how much the bundled index answered when deciding whether the web
+     tier gets its shot (state isn't readable inside its callback). */
+  const t0CountRef = useRef(0);
   const [tiers, setTiers] = useState<ServerTiers | null>(null);
   const [store, setStore] = useState<PlaceStore>({ recents: [], home: null, work: null });
   // armed = the row whose long-press save/remove strip is showing
@@ -282,7 +288,11 @@ function SearchSheetInner({
     const offReady = onIndexReady(() => {
       mark("search.idxReady");
       const t = qRef.current.trim();
-      if (t) setT0rows(t0query(t, locRef.current, T0_LIMIT));
+      if (t) {
+        const rows = t0query(t, locRef.current, T0_LIMIT);
+        t0CountRef.current = rows.length;
+        setT0rows(rows);
+      }
     });
     const raf = requestAnimationFrame(() => setBodyReady(true));
     /* NO programmatic focus ever: every timed focus() variant still
@@ -314,19 +324,23 @@ function SearchSheetInner({
       startTransition(() => {
         setArmed(null);   // the list just rebuilt — the armed row may be gone
         if (!trimmed) {
+          t0CountRef.current = 0;
           setT0rows([]);
           setTiers(null);
           return;
         }
         // T0 paints synchronously — near-same frame as the keystroke.
-        setT0rows(t0query(text, loc, T0_LIMIT));
+        const rows = t0query(text, loc, T0_LIMIT);
+        t0CountRef.current = rows.length;
+        setT0rows(rows);
         setTiers(null); // waiting on the server tiers again
       });
       if (!trimmed) {
         search.setQuery("", loc, () => {});
         return;
       }
-      search.setQuery(trimmed, loc, (res) => setTiers(res));
+      search.setQuery(trimmed, loc, (res) => setTiers(res),
+        { localCount: () => t0CountRef.current });
     },
     [loc, search],
   );
@@ -437,6 +451,18 @@ function SearchSheetInner({
       });
     return null;
   }, [merged, parsed, lang]);
+  /* 'shops & places here' — the address→shops mode (owner's spec: type
+     a full address, see the shops that come in it). Fires when the
+     strongest answer is an area/address row and the user hasn't picked
+     yet; the section count is the real rows found inside ~800 m, rows
+     already answering the query above are not repeated. */
+  const hereRows = useMemo(() => {
+    const top = merged[0];
+    if (!top || !isBrowseAnchor(top.kind)) return [] as PlaceResult[];
+    return nearbyPOIs({ lat: top.lat, lon: top.lon })
+      .filter((h) => !merged.some((m) => sameNamedPlace(h, m)));
+  }, [merged]);
+
   const typing = qDeferred.trim().length > 0;
   const pending = tiers === null;
   const empty = typing && !pending && merged.length === 0;
@@ -571,8 +597,14 @@ function SearchSheetInner({
           <Quiet glyph="search" title={t("noPlaceFound", lang)} lang={lang} />
         </View>
       )}
+      {hereRows.length > 0 && (
+        <>
+          <SectionLabel lang={lang}>{t("shopsHere", lang, { n: String(hereRows.length) })}</SectionLabel>
+          {hereRows.map((p, i) => renderPlace(p, `here-${i}`))}
+        </>
+      )}
     </>
-  ), [merged, t0rows, serverRows, pending, empty, substLine, lang, renderPlace]);
+  ), [merged, t0rows, serverRows, pending, empty, substLine, hereRows, lang, renderPlace]);
 
   return (
     <View style={[ss.root, { marginTop: insets.top + 8 }]}>

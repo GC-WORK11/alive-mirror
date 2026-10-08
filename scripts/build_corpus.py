@@ -176,7 +176,7 @@ GEONAMES_CAT = {
 
 # Confidence (k) per source for the mobile gazetteer.
 SOURCE_K = {"osm": 0.90, "wikidata": 0.92, "geonames": 0.88,
-            "synthetic": 0.80, "bundled": 0.97}
+            "overture": 0.85, "synthetic": 0.80, "bundled": 0.97}
 
 # Extra tags that turn into aliases.
 ALIAS_TAGS = (
@@ -197,7 +197,7 @@ MOBILE_W = {
     "hospital": 9, "mall": 9, "university": 9, "bus_station": 9,
     "market": 8, "cinema": 8, "hotel": 7, "restaurant": 6, "cafe": 6,
     "street": 4, "building": 3, "address": 2, "interpolation": 2,
-    "poi": 5,
+    "poi": 5, "overture": 4,
     # aux-source + widened-OSM categories
     "city": 9, "town": 7, "village": 6, "locality": 7, "district": 6,
     "neighbourhood": 7, "suburb": 7, "monument": 8, "museum": 7,
@@ -1146,11 +1146,15 @@ def merge_aux(entries: dict, stats: dict, aux_dir: str = AUX_DIR) -> dict:
     if not os.path.isdir(aux_dir):
         return astats
     for fn in sorted(os.listdir(aux_dir)):
-        if not fn.endswith(".jsonl"):
+        if fn.endswith(".jsonl"):
+            opener = open
+        elif fn.endswith(".jsonl.gz"):
+            opener = gzip.open
+        else:
             continue
         path = os.path.join(aux_dir, fn)
         rows = added = deduped = 0
-        with open(path, encoding="utf-8") as f:
+        with opener(path, mode="rt", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -1382,7 +1386,12 @@ def write_outputs(entries, stats, source_desc: str, extra_stats: dict):
     a(f"- script: `scripts/build_corpus.py` (pyosmium)")
     a(f"- extraction bbox: lon {EXTRACT_BBOX[0]}-{EXTRACT_BBOX[1]}, lat {EXTRACT_BBOX[2]}-{EXTRACT_BBOX[3]}")
     a(f"- strict NCR bbox (flag-only): lon {NCR_BBOX[0]}-{NCR_BBOX[1]}, lat {NCR_BBOX[2]}-{NCR_BBOX[3]}")
-    a(f"- nodes scanned: {stats['nodes_scanned']:,}  |  ways scanned: {stats['ways_scanned']:,}")
+    if stats.get("remerge"):
+        a("- mode: **remerge-aux** — OSM PBF pass skipped; "
+          "base = previous committed corpus rows")
+    else:
+        a(f"- nodes scanned: {stats['nodes_scanned']:,}  |  "
+          f"ways scanned: {stats['ways_scanned']:,}")
     a(f"- **entries emitted: {len(entries):,}**\n")
     a("## Entries per source (rows may carry >1 source after dedupe)\n")
     a("| source | entries |\n|---|---|")
@@ -1460,8 +1469,11 @@ def emit_mobile(entries, target: int, gaz_path: str = GAZETTEER_PATH,
             "lat": e["lat"],
             "lon": e["lon"],
             "w": w,
-            # source-aware confidence; bundled gazetteer stays ~0.97+
-            "k": SOURCE_K.get(e.get("source", "osm"), 0.85),
+            # source-aware confidence; bundled gazetteer stays ~0.97+.
+            # a row carrying its own `k` (Overture confidence -> ship
+            # confidence) wins over the per-source default.
+            "k": float(e.get("k") or
+                       SOURCE_K.get(e.get("source", "osm"), 0.85)),
         })
         taken.add(key)
         added += 1
@@ -1868,6 +1880,96 @@ def write_report(stats, gstats, astats, sstats, source_desc,
         f.write("\n".join(L))
 
 
+def remerge_aux(args) -> int:
+    """Rebuild the corpus from the committed file + aux/*.jsonl only — no
+    OSM PBF re-parse.  Rows the aux/synthetic layers contributed are
+    dropped first (overture-only rows, synthetic:true rows, and stale
+    'overture' flags + aux fields on merged rows) so re-runs are
+    idempotent; merge_aux + merge_synthetic then re-merge cleanly."""
+    if not os.path.exists(OUT_JSONL):
+        sys.exit("remerge needs an existing corpus — run a full build first")
+    aliases = load_aliases()
+    stats = {"nodes_scanned": 0, "ways_scanned": 0, "deduped": 0,
+             "empty_name_dropped": 0, "outside_ncr_bbox": 0,
+             "remerge": True}
+    entries_map = {}
+    src_counts = {}
+    dropped_ov = dropped_syn = 0
+    with gzip.open(OUT_JSONL, "rt", encoding="utf-8") as f:
+        for line in f:
+            e = json.loads(line)
+            srcs = e.get("sources", [e.get("source", "osm")])
+            if set(srcs) <= {"overture"}:
+                dropped_ov += 1
+                continue
+            if e.get("synthetic"):
+                dropped_syn += 1
+                continue
+            if "overture" in srcs:
+                e["sources"] = [s for s in srcs if s != "overture"]
+                e["source"] = e["sources"][0]
+                e.pop("conf", None)
+                e.pop("k", None)
+            entries_map[dedupe_key(e)] = e
+            for s in srcs:
+                src_counts[s] = src_counts.get(s, 0) + 1
+    n_osm = src_counts.get("osm", 0)
+    print(f"remerge base: {len(entries_map):,} committed rows "
+          f"(dropped {dropped_ov:,} overture-only + {dropped_syn:,} "
+          f"synthetic — both regenerate)", flush=True)
+    print("  re-merging aux/*.jsonl ...", flush=True)
+    astats = merge_aux(entries_map, stats)
+    print(f"    {astats}", flush=True)
+    print("  regenerating attested sector/block rows ...", flush=True)
+    sstats = merge_synthetic(entries_map, stats)
+    print(f"    {sstats}", flush=True)
+
+    entries = list(entries_map.values())
+    prev_total = len(entries_map) + dropped_ov + dropped_syn
+    src = "remerge(committed+aux)"
+    extra = {
+        "remerge": (f"base {len(entries_map) - astats['added'] - sstats['added']:,} "
+                    f"committed rows; dropped {dropped_ov:,} overture-only + "
+                    f"{dropped_syn:,} synthetic rows before re-merge"),
+        "aux/*.jsonl": (f"{astats['rows']:,} rows -> +{astats['added']:,} new "
+                        f"({astats['deduped_into']:,} deduped in); "
+                        f"{', '.join(astats['files'])}"),
+        "synthetic": (f"{sstats['attested']:,} attested -> "
+                      f"+{sstats['added']:,} rows "
+                      f"({sstats['merged_nearby']:,} folded)"),
+    }
+    lines = write_outputs(entries, stats, src, extra)
+
+    rows_with = run_score(entries, aliases, True)
+    rows_without = run_score(entries, aliases, False)
+    hits_with = append_score_stats(lines, rows_with, rows_without)
+    hits_without = sum(r["hit"] for r in rows_without)
+
+    mobile = None
+    if args.emit_mobile:
+        mobile = emit_mobile(entries, args.mobile_target)
+        lines.append("\n## Mobile gazetteer emit\n")
+        lines.append(f"- output: `{os.path.relpath(mobile['path'], REPO)}` "
+                     f"({mobile['size_mb']:.1f} MB)")
+        lines.append(f"- bundled gazetteer kept: {mobile['existing']:,}")
+        lines.append(f"- new corpus rows added: {mobile['added']:,} "
+                     f"(skipped {mobile['skipped_dupes']:,} name+75 m dupes)")
+        lines.append(f"- **total: {mobile['total']:,}** "
+                     f"(target {args.mobile_target:,})")
+
+    # honest geonames line for the report: rows are already in the base
+    gstats = {"in_box": src_counts.get("geonames", 0),
+              "deduped_into": 0, "added": 0} \
+        if src_counts.get("geonames") else None
+    write_report(stats, gstats, astats, sstats, src, entries,
+                 hits_with, hits_without, mobile, prev_total=prev_total,
+                 n_osm=n_osm)
+    with open(OUT_STATS, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print("\n".join(lines))
+    return 0
+
+
 def corpus_stats():
     """--stats: summarize the existing corpus file."""
     from collections import Counter
@@ -1908,7 +2010,14 @@ def main():
     ap.add_argument("--mobile-target", type=int, default=150000)
     ap.add_argument("--osm-only", action="store_true",
                     help="skip GeoNames/aux/synthetic merge (baseline OSM run)")
+    ap.add_argument("--remerge-aux", action="store_true",
+                    help="re-merge aux/*.jsonl + synthetic onto the committed "
+                         "corpus — no OSM PBF re-parse (use after adding a "
+                         "new aux source, e.g. scripts/fetch_overture.py)")
     args = ap.parse_args()
+
+    if args.remerge_aux:
+        return remerge_aux(args)
 
     aliases = load_aliases()
 

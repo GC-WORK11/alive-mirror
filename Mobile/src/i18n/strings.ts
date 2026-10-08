@@ -643,6 +643,9 @@ const en = {
      the top hit stands in for a named place that missed */
   searchSubstCategory: "nearby alternative — \"{name}\" not found",
   searchSubstArea: "area only — \"{unit}\" not found",
+  /* 'shops & places here' — the address→shops browse section shown when
+     the strongest answer is an area/address (n = real rows found). */
+  shopsHere: "shops & places here ({n})",
   noPlaceFound: "no place found — try a landmark",
   emptySearchHint: "type a place or landmark — or choose on the map",
   mapPickHint: "tap the map to drop a pin there",
@@ -1782,6 +1785,7 @@ const hi: Record<StringKey, string> = {
   resultsHeader: "नतीजे",
   searchSubstCategory: "नज़दीकी विकल्प — \"{name}\" नहीं मिला",
   searchSubstArea: "सिर्फ़ इलाक़ा — \"{unit}\" नहीं मिला",
+  shopsHere: "यहाँ की दुकानें और जगहें ({n})",
   noPlaceFound: "कोई जगह नहीं मिली — कोई लैंडमार्क लिखकर देखें",
   emptySearchHint: "जगह या लैंडमार्क लिखें — या नक्शे पर चुनें",
   mapPickHint: "नक्शे पर टैप करके पिन लगाएँ",

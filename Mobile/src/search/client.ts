@@ -146,18 +146,27 @@ export async function fetchTiers(
 }
 
 /* ---------------------------------------------------------------------------
- * t3 — Photon public geocoder (photon.komoot.io), the ₹0 honest network
- * fallback. OSM-derived like our own corpus, free for this request volume,
- * and it natively understands 'X near Y' + address parts our bundled index
- * can't reach. Rows are labeled '· OpenStreetMap' in the subtitle so the
+ * t3 — public free geocoders, the ₹0 honest network fallback: Photon
+ * (photon.komoot.io — faster, GeoJSON) first, one Nominatim shot when
+ * Photon errors or answers empty. OSM-derived like our own corpus and it
+ * natively understands 'X near Y' + address parts our bundled index can't
+ * reach. Rows are labeled 'from the web · live' in the subtitle so the
  * panel never passes a network answer off as a bundled one. Throttled to
- * one call per PHOTON_MIN_MS per screen, >=3 chars, NCR-bounded.
+ * one web call per WEB_MIN_MS (Nominatim's 1 req/s policy is the strict
+ * tier), >=3 chars, NCR-bounded, and gated on WEAK local coverage — a
+ * healthy own-index answer never spends a public-API call. It also never
+ * rides inside the t1/t2 delivery path: rows stream in on a second
+ * callback so a slow public geocoder can't hold back our own tiers.
  * ------------------------------------------------------------------------- */
 
 const PHOTON_URL = "https://photon.komoot.io/api/";
-const PHOTON_MIN_MS = 700;
-const PHOTON_MIN_CHARS = 3;
-let lastPhotonAt = 0;
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+const WEB_MIN_MS = 1000;
+const WEB_MIN_CHARS = 3;
+/** t0+t1+t2 rows at/above which the web tier stays off. */
+const WEB_WEAK_MAX = 3;
+const WEB_LIVE = "from the web · live";
+let lastWebAt = 0;
 
 type PhotonFeature = {
   geometry?: { coordinates?: [number, number] };
@@ -174,9 +183,6 @@ export async function fetchPhoton(
   signal: AbortSignal,
   limit = 6,
 ): Promise<PlaceResult[]> {
-  const now = Date.now();
-  if (now - lastPhotonAt < PHOTON_MIN_MS) return [];
-  lastPhotonAt = now;
   const bias = loc ?? DELHI_CENTER;
   const url =
     `${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=${limit}` +
@@ -216,7 +222,7 @@ export async function fetchPhoton(
       .filter(Boolean).join(", ");
     out.push({
       name,
-      subtitle: `${sub ? `${sub} · ` : ""}OpenStreetMap`,
+      subtitle: `${sub ? `${sub} · ` : ""}${WEB_LIVE}`,
       lat: c[1],
       lon: c[0],
       kind: p?.osm_value ?? p?.type ?? "place",
@@ -225,6 +231,109 @@ export async function fetchPhoton(
     });
   }
   return out;
+}
+
+/* Nominatim — the second web shot. Public endpoint: honest UA + contact
+ * style tag (their usage policy), JSON v2 with addressdetails so the
+ * subtitle can show a real house/street/area breakdown like Photon's. */
+type NomRow = {
+  display_name?: string;
+  name?: string;
+  lat?: string;
+  lon?: string;
+  type?: string;
+  class?: string;
+  address?: {
+    house_number?: string; road?: string; neighbourhood?: string;
+    suburb?: string; city?: string; state?: string;
+  };
+};
+
+export async function fetchNominatim(
+  q: string,
+  loc: LatLon | null | undefined,
+  signal: AbortSignal,
+  limit = 6,
+): Promise<PlaceResult[]> {
+  const bias = loc ?? DELHI_CENTER;
+  const url =
+    `${NOMINATIM_URL}?q=${encodeURIComponent(q)}&format=jsonv2&limit=${limit}` +
+    // viewbox = left(lonMin),top(latMax),right(lonMax),bottom(latMin)
+    `&viewbox=${NCR_BOUNDS[0]},${NCR_BOUNDS[3]},${NCR_BOUNDS[2]},${NCR_BOUNDS[1]}` +
+    `&lat=${bias.lat}&lon=${bias.lon}&accept-language=en,hi&addressdetails=1`;
+  const inner = new AbortController();
+  const onAbort = () => inner.abort();
+  if (signal.aborted) inner.abort();
+  else signal.addEventListener("abort", onAbort);
+  // tighter than the server tier — a public geocoder that hasn't answered
+  // in ~1.5 s isn't going to beat 'weak local' honestly anyway
+  const timer = setTimeout(() => inner.abort(), 1500);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      signal: inner.signal,
+      headers: {
+        Accept: "application/json",
+        // honest identification per nominatim.openstreetmap.org policy
+        "User-Agent": "ALive-108 Delhi-NCR air quality app (search fallback)",
+      },
+    });
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
+  if (!res.ok) throw new Error(`nominatim http ${res.status}`);
+  const j = (await res.json()) as NomRow[];
+  const out: PlaceResult[] = [];
+  for (const r of Array.isArray(j) ? j : []) {
+    const lat = parseFloat(r.lat ?? "");
+    const lon = parseFloat(r.lon ?? "");
+    if (!isFinite(lat) || !isFinite(lon)) continue;
+    const parts = (r.display_name ?? r.name ?? "")
+      .split(",").map((s) => s.trim()).filter(Boolean);
+    const name = parts[0] ?? "";
+    if (!name) continue;
+    const a = r.address;
+    const area = [a?.neighbourhood ?? a?.suburb, a?.city ?? a?.state]
+      .filter(Boolean).join(", ");
+    const sub = area || parts.slice(1, 3).join(", ");
+    out.push({
+      name,
+      subtitle: `${sub ? `${sub} · ` : ""}${WEB_LIVE}`,
+      lat,
+      lon,
+      kind: r.type ?? r.class ?? "place",
+      outside_ncr: !inNcr(lat, lon),
+      tier: "t3",
+    });
+  }
+  return out;
+}
+
+/** The web fallback chain: one throttled call slot. Photon answers first
+ * (or fails fast — a dropped network packet throws immediately, no
+ * timeout wait), then a single Nominatim shot. Offline both throw and
+ * the tier honestly delivers nothing. */
+export async function fetchWeb(
+  q: string,
+  loc: LatLon | null | undefined,
+  signal: AbortSignal,
+  limit = 6,
+): Promise<PlaceResult[]> {
+  const now = Date.now();
+  if (now - lastWebAt < WEB_MIN_MS) return [];
+  lastWebAt = now;
+  try {
+    const r = await fetchPhoton(q, loc, signal, limit);
+    if (r.length) return r;
+  } catch {
+    /* photon unreachable — take the nominatim shot */
+  }
+  try {
+    return await fetchNominatim(q, loc, signal, limit);
+  } catch {
+    return [];
+  }
 }
 
 /** Admin-area rows name the place they contain — the OSM "Connaught
@@ -277,7 +386,12 @@ export class ServerSearch {
 
   /** Feed the raw text field contents. First character of a fresh query
    * fires immediately; subsequent edits debounce. */
-  setQuery(q: string, loc: LatLon | null | undefined, onResults: OnServerResults): void {
+  setQuery(
+    q: string,
+    loc: LatLon | null | undefined,
+    onResults: OnServerResults,
+    opts?: { localCount?: () => number },
+  ): void {
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -294,14 +408,27 @@ export class ServerSearch {
       this.ctrl?.abort();
       const ctrl = new AbortController();
       this.ctrl = ctrl;
-      const photon = text.length >= PHOTON_MIN_CHARS
-        ? fetchPhoton(text, loc, ctrl.signal).catch(() => [] as PlaceResult[])
-        : Promise.resolve([] as PlaceResult[]);
+      const localCount = opts?.localCount?.() ?? 0;
+
+      /* the web tier never rides inside the t1/t2 path: own-server rows
+         deliver on the first callback, and — only when total coverage is
+         weak — the public geocoders answer on a SECOND callback. */
+      const web = (base: ServerTiers) => {
+        if (text.length < WEB_MIN_CHARS) return;
+        if (localCount + base.t1.length + base.t2.length >= WEB_WEAK_MAX) return;
+        fetchWeb(text, loc, ctrl.signal)
+          .then((t3) => {
+            if (seq !== this.seq || t3.length === 0) return;
+            onResults({ t1: base.t1, t2: base.t2, t3, tookMs: base.tookMs }, text);
+          })
+          .catch(() => {});
+      };
+
       fetchTiers(text, loc, ctrl.signal)
-        .then(async (tiers) => {
+        .then((tiers) => {
           if (seq !== this.seq) return;
-          tiers.t3 = await photon;
-          if (seq === this.seq) onResults(tiers, text);
+          onResults(tiers, text);   // t1/t2 land the moment our server answers
+          web(tiers);
         })
         .catch((err: unknown) => {
           if (seq !== this.seq) return;
@@ -311,11 +438,9 @@ export class ServerSearch {
           if (err instanceof Error && err.name === "AbortError"
               && ctrl.signal.aborted) return;
           // dead network still leaves T0 on screen — deliver empty tiers so
-          // the UI can stop waiting. t3 may still have landed: deliver it
-          // rather than drop a real answer to a flaky own-server roundtrip
-          photon
-            .then((t3) => { if (seq === this.seq) onResults({ ...EMPTY_TIERS, t3 }, text); })
-            .catch(() => { if (seq === this.seq) onResults(EMPTY_TIERS, text); });
+          // the UI can stop waiting, then let the web tier take its shot
+          onResults(EMPTY_TIERS, text);
+          web(EMPTY_TIERS);
         });
     };
     if (firstChar) fire();

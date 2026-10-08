@@ -2,9 +2,9 @@
 // Regenerate after any gazetteer change: cd Mobile && npm run build:t0
 module.exports = {
   v: 1,
-  gaz_sha256: "ba1d38a39241b16dd7c576f8461782c676d74f0ab971d916f39a91b3652712ac",
-  gaz_rows: 132932,
-  chunks: 39,
+  gaz_sha256: "b1ec42c86fdf546e79d4cd2b6f1df92836e92a6a41d08188189e5d022ad97da4",
+  gaz_rows: 210000,
+  chunks: 62,
   load(i) {
     switch (i) {
       case 0: return require("./c0.json");
@@ -46,6 +46,29 @@ module.exports = {
       case 36: return require("./c36.json");
       case 37: return require("./c37.json");
       case 38: return require("./c38.json");
+      case 39: return require("./c39.json");
+      case 40: return require("./c40.json");
+      case 41: return require("./c41.json");
+      case 42: return require("./c42.json");
+      case 43: return require("./c43.json");
+      case 44: return require("./c44.json");
+      case 45: return require("./c45.json");
+      case 46: return require("./c46.json");
+      case 47: return require("./c47.json");
+      case 48: return require("./c48.json");
+      case 49: return require("./c49.json");
+      case 50: return require("./c50.json");
+      case 51: return require("./c51.json");
+      case 52: return require("./c52.json");
+      case 53: return require("./c53.json");
+      case 54: return require("./c54.json");
+      case 55: return require("./c55.json");
+      case 56: return require("./c56.json");
+      case 57: return require("./c57.json");
+      case 58: return require("./c58.json");
+      case 59: return require("./c59.json");
+      case 60: return require("./c60.json");
+      case 61: return require("./c61.json");
       default: return null;
     }
   },
