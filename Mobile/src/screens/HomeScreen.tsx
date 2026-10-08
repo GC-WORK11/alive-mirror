@@ -1626,7 +1626,6 @@ const ss = StyleSheet.create({
     backgroundColor: V2T.surface,
     borderRadius: 24, borderCurve: "continuous",
     paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14,
-    marginTop: 10,
   },
   incidentHead: { flexDirection: "row", alignItems: "center", gap: 7 },
   incidentTitle: { color: V2T.text3, fontSize: V2Type.label },

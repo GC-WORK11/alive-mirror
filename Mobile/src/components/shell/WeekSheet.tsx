@@ -138,7 +138,7 @@ function WeekSheetInner({ day, week, outlook, budgetUg, lang, onClose }: {
           </View>
           <Pressable onPress={() => { tick(); onClose(); }} hitSlop={12}
             accessibilityRole="button" accessibilityLabel={t("done", lang)}
-            style={({ pressed }) => [ws.closeBtn, pressed && { opacity: 0.6 }]}>
+            style={({ pressed }) => [ws.closeBtn, pressed && { opacity: 0.55 }]}>
             <Icon name="close" color={V2T.text3} size={16} />
           </Pressable>
         </View>

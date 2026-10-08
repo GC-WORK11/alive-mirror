@@ -967,7 +967,7 @@ const s = StyleSheet.create({
     paddingVertical: 13, paddingHorizontal: 14, minHeight: 68,
   },
   modeWell: {
-    width: 44, height: 44, borderRadius: 15,
+    width: 44, height: 44, borderRadius: V2Radius.row,
     alignItems: "center", justifyContent: "center",
   },
   cardMid: { flex: 1 },

@@ -257,7 +257,7 @@ function SettingsSheetInner({
         <Pressable
           onPress={onClose}
           {...a11y(t("settingsClose", lang), undefined, "button", { lang })}
-          style={({ pressed }) => [ss.headerBtn, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [ss.headerBtn, pressed && { opacity: 0.55 }]}
         >
           <View style={{ transform: [{ rotate: "180deg" }] }}>
             <Icon name="chevron" color={V2T.text2} size={20} />

@@ -687,8 +687,6 @@ const ss = StyleSheet.create({
     alignItems: "center",
     height: 56,
     paddingHorizontal: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: V2T.glassLine,
   },
   // ≥44pt touch target on both ends of the bar
   barBtn: {
@@ -778,7 +776,7 @@ const ss = StyleSheet.create({
   modeBox: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: V2Radius.row,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -838,7 +836,7 @@ const ss = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 26,
-    backgroundColor: V2Tint.forest.wash,
+    backgroundColor: V2T.surface2,
     alignItems: "center",
     justifyContent: "center",
   },

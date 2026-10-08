@@ -387,7 +387,7 @@ function SidebarInner({
           </View>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button"
             accessibilityLabel={t("settingsClose", lang)}
-            style={({ pressed }) => [s.closeBtn, pressed && { opacity: 0.6 }]}>
+            style={({ pressed }) => [s.closeBtn, pressed && { opacity: 0.55 }]}>
             <Icon name="close" color={V2T.text2} size={14} />
           </Pressable>
         </View>
