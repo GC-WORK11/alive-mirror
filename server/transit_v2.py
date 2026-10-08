@@ -115,8 +115,8 @@ def line_name(kind: str, short: str, long: str) -> str:
     # >=9 bound keeps real route numbers like '347ACL' and board names
     # like 'HOHO' safe — or a short LETTERS-NUMBER slug like 'LNWST-1'
     # (the >=4-letter bound lets 'OMS'/'TMS' through).
-    if (re.match(r"^[A-Z0-9_-]{9,}$", nm)
-            or re.match(r"^[A-Z]{4,}-[0-9]+$", nm)):
+    if (re.match(r"^[A-Z0-9_.-]{9,}$", nm)
+            or re.match(r"^[A-Z]{4,}[.-][0-9]+$", nm)):
         return "Bus"
     return nm
 

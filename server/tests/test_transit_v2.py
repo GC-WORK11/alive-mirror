@@ -322,3 +322,22 @@ def test_default_feeds_reads_cache_dir(tmp_path, monkeypatch):
     feeds = tv.default_feeds()
     assert set(feeds) == {"metro"}
     assert tv.plan_transit(28.600, 77.150, 28.600, 77.210, at(8, 1))
+
+
+@pytest.mark.parametrize("raw,expected", [
+    # feed-id slug shapes suppress to a boardable 'Bus' — the dotted
+    # variant 'AIRPORTEXP.-4' was served on prod as 'Bus AIRPORTEXP.-4'
+    ("0AIRPORTEXP-4(NS)", "Bus"), ("0AIRPORTEXP.-4(NS)", "Bus"),
+    ("AIRPORTEXP.-4", "Bus"), ("CGOCOMPLEX-2", "Bus"), ("LNWST-1", "Bus"),
+    ("EXPRESS-20A", "Bus"),
+    # real names and short board names survive
+    ("0OMS(-)(NS)", "OMS"), ("0TMS(+)(NS)", "TMS"), ("347ACL", "347ACL"),
+    ("347AUP", "347A"), ("101UP", "101"), ("HOHO", "HOHO"),
+    ("Airport Express (Night)", "Airport Express (Night)"), ("0334", "0334"),
+])
+def test_line_name_suppresses_feed_ids(raw, expected):
+    assert tv.line_name("bus", raw, "") == expected
+
+
+def test_line_name_metro_pretty():
+    assert tv.line_name("metro", "", "BLUE_Dwarka to Noida") == "Blue"
