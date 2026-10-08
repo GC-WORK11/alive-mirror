@@ -67,7 +67,7 @@ import {
   famMonoText,
   famSerif,
 } from "../theme";
-import { approx, clockLabel, doseUgRound, feltKeyForBand, hourLabel, t, wireClockLabel, type Lang, type StringKey } from "../i18n/strings";
+import { approx, clockLabel, doseUgRound, feltKeyForBand, hourOfDay, t, wireClockLabel, type Lang, type StringKey } from "../i18n/strings";
 import { CountUp, FadeIn, Quiet, pressFx } from "../ui";
 import { Icon, type Glyph } from "../icons";
 import { holdMapDraw } from "../map/drawHold";
@@ -261,7 +261,7 @@ function BandDot({ conc, color, size = 7 }: { conc: number | null; color?: strin
 
 /* an absolute wall-clock hour → the shared hour-word label ("9pm" /
    "9 बजे") — the move card's local clock predated the clock helpers */
-const fmtHr = (h: number, lang: Lang) => hourLabel(h * 3600000, lang);
+const fmtHr = (h: number, lang: Lang) => hourOfDay(h, lang);
 
 /* ---------------- the move (the morning card, promoted) ---------------- */
 
@@ -650,7 +650,10 @@ function MoveCardInner({ curve, outside, lang }: {
 
 const MoveCard = React.memo(MoveCardInner);
 
-const nowHour = () => new Date().getHours();
+/* the move-card windows count Delhi wall hours — the device may sit
+   in any timezone, so 'now' is always Asia/Kolkata (same +330 min
+   convention as istParts in strings.ts / istMinutesNow in events.ts) */
+const nowHour = () => new Date(Date.now() + 330 * 60 * 1000).getUTCHours();
 
 /* ---------------- the days ahead ---------------- */
 
@@ -1022,7 +1025,10 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
     const iv = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(iv);
   }, []);
-  const hr = now.getHours();
+  /* greeting + weekday + clock all read the same Delhi instant — a
+     device in another timezone must not say 'good morning' at night
+     (e2e-sweep #6); clockLabel renders IST internally */
+  const hr = new Date(now.getTime() + 330 * 60 * 1000).getUTCHours();
   const greetKey: StringKey = hr < 5 || hr >= 21 ? "homeGreetNight"
     : hr < 12 ? "homeGreetMorning" : hr < 17 ? "homeGreetAfternoon" : "homeGreetEvening";
   const greet = t(greetKey, lang);
@@ -1035,7 +1041,7 @@ function HomeHeaderInner({ lang, onMenu }: { lang: Lang; onMenu: () => void }) {
           {title}
         </Text>
         <Text {...DYNAMIC_TYPE} style={[ss.brandSub, NUM, { fontFamily: fam(lang, "reg") }]}>
-          {t("cityName", lang)} · {cap(dayLabel(WEEKDAY_EN[now.getDay()], lang))} · {clockLabel(now, lang)}
+          {t("cityName", lang)} · {cap(dayLabel(WEEKDAY_EN[new Date(now.getTime() + 330 * 60 * 1000).getUTCDay()], lang))} · {clockLabel(now, lang)}
         </Text>
       </View>
       <Pressable onPress={() => { tick(); onMenu(); }} hitSlop={10}

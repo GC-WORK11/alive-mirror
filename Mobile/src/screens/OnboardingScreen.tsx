@@ -128,6 +128,13 @@ function OnboardingSheet({
    *  null until the choice page answers; skip before it lands the
    *  documented "on" default */
   const [sharing, setSharing] = useState<SharingChoice | null>(null);
+  /* exit takes a beat — onDone's flags commit through the draw-hold
+     (bounded, but not instant). Without a busy latch the buttons sat
+     live-and-silent in that window and read as dead on a cold boot
+     (e2e-sweep #3: post-wipe page-5 presses eaten). First press flips
+     the whole exit set to a labelled busy state; further presses are
+     honest no-ops. */
+  const [leaving, setLeaving] = useState(false);
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
 
@@ -159,6 +166,14 @@ function OnboardingSheet({
     const s = sharing ?? "on";
     if (!sharing) saveConsent({ seen: true, sharing: s, ts: Date.now() }).catch(() => {});
     onDone({ sharing: s, askLocation });
+  };
+
+  /** every exit press — haptic, latch busy, then finish once. */
+  const leave = (askLocation: boolean, bump: () => void) => {
+    if (leaving) return;
+    bump();
+    setLeaving(true);
+    finish(askLocation);
   };
 
   /** The consent tap — writes the record immediately, then the
@@ -200,11 +215,13 @@ function OnboardingSheet({
         <View style={{ flex: 1 }} />
         {step <= STEP_CHOICE && (
           <Pressable
-            onPress={() => { tick(); finish(true); }}
+            onPress={() => leave(true, tick)}
+            disabled={leaving}
             hitSlop={slop(10)}
             accessibilityRole="button"
+            accessibilityState={{ busy: leaving, disabled: leaving }}
             accessibilityLabel={t("onb_skip", lang)}
-            style={({ pressed }) => [ss.skipBtn, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [ss.skipBtn, (pressed || leaving) && { opacity: 0.6 }]}
           >
             <Text {...DYNAMIC_TYPE} style={[ss.skipTxt, { fontFamily: fam(lang, "med") }]}>
               {t("onb_skip", lang)}
@@ -399,13 +416,15 @@ function OnboardingSheet({
               </Text>
               <View style={ss.choiceCol}>
                 <Pressable
-                  onPress={() => { confirm(); finish(true); }}
+                  onPress={() => leave(true, confirm)}
+                  disabled={leaving}
                   accessibilityRole="button"
-                  accessibilityLabel={t("onb_locBtn", lang)}
+                  accessibilityState={{ busy: leaving, disabled: leaving }}
+                  accessibilityLabel={leaving ? t("onb_leaving", lang) : t("onb_locBtn", lang)}
                   style={({ pressed }) => [
                     ss.choiceBtn,
                     ss.locBtn,
-                    pressed && { opacity: 0.8 },
+                    (pressed || leaving) && { opacity: 0.8 },
                   ]}
                 >
                   <View style={ss.locBtnRow}>
@@ -414,15 +433,17 @@ function OnboardingSheet({
                       {...DYNAMIC_TYPE}
                       style={[ss.choiceShareTxt, { fontFamily: fam(lang, "semi") }]}
                     >
-                      {t("onb_locBtn", lang)}
+                      {leaving ? t("onb_leaving", lang) : t("onb_locBtn", lang)}
                     </Text>
                   </View>
                 </Pressable>
                 <Pressable
-                  onPress={() => { tick(); finish(false); }}
+                  onPress={() => leave(false, tick)}
+                  disabled={leaving}
                   accessibilityRole="button"
+                  accessibilityState={{ busy: leaving, disabled: leaving }}
                   accessibilityLabel={t("onb_locLater", lang)}
-                  style={({ pressed }) => [ss.locLaterBtn, pressed && { opacity: 0.6 }]}
+                  style={({ pressed }) => [ss.locLaterBtn, (pressed || leaving) && { opacity: 0.6 }]}
                 >
                   <Text
                     {...DYNAMIC_TYPE}

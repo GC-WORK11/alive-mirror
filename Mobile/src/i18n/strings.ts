@@ -522,6 +522,7 @@ const en = {
   onb_locBody: "ALive reads the air at your street and steers the map as you move. It stays on this phone.",
   onb_locBtn: "turn on location",
   onb_locLater: "not now",
+  onb_leaving: "a moment…",
   onb_pageOf: "page {n} of {m}",
   receiptSaved: "the smokiest way would have added {n} cigarettes",
   receiptSavedUg: "the smokiest way would have added {n} µg",
@@ -1745,6 +1746,7 @@ const hi: Record<StringKey, string> = {
   onb_locBody: "ALive आपकी सड़क की हवा पढ़ता है और नक्शे को आपके साथ चलाता है। लोकेशन इसी फ़ोन पर रहती है।",
   onb_locBtn: "लोकेशन चालू करें",
   onb_locLater: "अभी नहीं",
+  onb_leaving: "एक क्षण…",
   onb_pageOf: "पेज {n}, कुल {m}",
   receiptSaved: "सबसे धुआँदार रास्ता {n} सिगरेट ज़्यादा देता",
   receiptSavedUg: "सबसे धुआँदार रास्ता {n} µg ज़्यादा देता",
@@ -2481,12 +2483,23 @@ export const doseUgRound = (ug: number): number =>
    12h/24h split — LedgerScreen's "4:42 pm" vs nav/compare "16:42").
    Displayed clocks are 12h: "4:42 pm" / "4:42 अपराह्न"; hour-only
    slots read "4pm" / "4 बजे". hi dayparts come from the daypart_*
-   keys — hi-IN toLocaleTimeString leaks Latin on Android ICU. */
+   keys — hi-IN toLocaleTimeString leaks Latin on Android ICU.
+   Every clock is an Asia/Kolkata wall time — this is a Delhi product:
+   a non-IST device showing "good morning" at night is a lie (e2e-sweep
+   #6). The shift is the same convention events.ts uses: +330 min on
+   the instant, then UTC getters — Date objects/timestamps are read as
+   real instants, never as device-local wall clocks. */
+const IST_MS = 330 * 60 * 1000;
+const istParts = (t: number) => {
+  const ist = new Date(t + IST_MS);
+  return { h24: ist.getUTCHours(), min: ist.getUTCMinutes() };
+};
+
 export const clockLabel = (d: Date | number, lang: Lang): string => {
-  const dt = typeof d === "number" ? new Date(d) : d;
-  const h24 = dt.getHours();
+  const t0 = typeof d === "number" ? d : d.getTime();
+  const { h24, min } = istParts(t0);
   const h12 = ((h24 + 11) % 12) + 1;
-  const mm = `${dt.getMinutes()}`.padStart(2, "0");
+  const mm = `${min}`.padStart(2, "0");
   return `${h12}:${mm} ${t(h24 < 12 ? "daypart_am" : "daypart_pm", lang)}`;
 };
 
@@ -2495,20 +2508,37 @@ export const clockLabel = (d: Date | number, lang: Lang): string => {
 export const clockTight = (d: Date | number, lang: Lang): string =>
   lang === "en" ? clockLabel(d, lang).replace(" ", "") : clockLabel(d, lang);
 
-/** hour-only label — "4pm" / "4 बजे"; a :30 slot falls back to the
- *  tight clock so a stray minute never gets silently rounded away. */
+/** hour-only label of an INSTANT — "4pm" / "4 बजे"; a :30 slot falls
+ *  back to the tight clock so a stray minute never gets silently
+ *  rounded away. For a bare Delhi hour-of-day use hourOfDay. */
 export const hourLabel = (d: Date | number, lang: Lang): string => {
-  const dt = typeof d === "number" ? new Date(d) : d;
-  const h24 = dt.getHours();
+  const t0 = typeof d === "number" ? d : d.getTime();
+  const { h24, min } = istParts(t0);
   const h12 = ((h24 + 11) % 12) + 1;
-  if (dt.getMinutes() !== 0) return clockTight(dt, lang);
+  if (min !== 0) return clockTight(d, lang);
+  return lang === "hi" ? `${h12} बजे` : `${h12}${h24 < 12 ? "am" : "pm"}`;
+};
+
+/** Delhi hour-of-day → the same "4pm" / "4 बजे" word hourLabel writes.
+ *  h is a wall index (0–23, wraps outside), not an instant — the arc
+ *  cells and the move-card windows count Delhi hours, not timestamps. */
+export const hourOfDay = (h: number, lang: Lang): string => {
+  const whole = Math.floor(h);
+  const h24 = ((whole % 24) + 24) % 24;
+  const h12 = ((h24 + 11) % 12) + 1;
+  const min = Math.round((h - whole) * 60);
+  if (min > 0 && min < 60) {
+    const s = `${h12}:${`${min}`.padStart(2, "0")} ${t(h24 < 12 ? "daypart_am" : "daypart_pm", lang)}`;
+    return lang === "en" ? s.replace(" ", "") : s;
+  }
   return lang === "hi" ? `${h12} बजे` : `${h12}${h24 < 12 ? "am" : "pm"}`;
 };
 
 /** served "HH:MM" tokens → the display clock, inside any string:
- *  "06:00–09:00 IST" → "6:00am–9:00am". The wire's IST suffix drops —
- *  the device clock is already local; 'IST' is jargon on a consumer
- *  face. A token that isn't a real clock time passes through. */
+ *  "06:00–09:00 IST" → "6:00am–9:00am". Served tokens are already IST
+ *  wall times, so the rewrite is timezone-free; the wire's IST suffix
+ *  drops — 'IST' is jargon on a consumer face. A token that isn't a
+ *  real clock time passes through. */
 export const wireClockLabel = (s: string, lang: Lang): string =>
   s
     .replace(/\b(\d{1,2}):(\d{2})\b/g, (_m, h, min) => {

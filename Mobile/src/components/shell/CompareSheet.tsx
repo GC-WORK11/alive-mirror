@@ -49,16 +49,17 @@ import { bump, mark } from "../../perf";
 const arrivalLabel = (durationMin: number, lang: Lang) =>
   clockLabel(Date.now() + durationMin * 60000, lang);
 
-/* naive-UTC `start` → device-local clock — every other clock in the app
-   (arrival, ETA chip) renders device-local too, so the strip stays in the
-   same frame on a non-IST phone (IST users see identical labels). The old
-   +5.5h shift forced IST and hardcoded ":30" minutes. */
+/* naive-UTC `start` → the app's one IST clock — clockLabel renders
+   Asia/Kolkata wall time internally, so the slot, arrival and ETA clocks
+   all agree on any device timezone (e2e-sweep #6). The 'tomorrow' test
+   compares Delhi dates the same way. */
 const hourLabel = (iso: string | null, ahead: number, lang: Lang) => {
   if (iso) {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
     if (!isNaN(d.getTime())) {
       const clk = clockLabel(d, lang);
-      return `${d.getDate() !== new Date().getDate() ? t("departTomorrow", lang) + " " : ""}${clk}`;
+      const istDay = (t: number) => new Date(t + 330 * 60 * 1000).getUTCDate();
+      return `${istDay(d.getTime()) !== istDay(Date.now()) ? t("departTomorrow", lang) + " " : ""}${clk}`;
     }
   }
   return `+${ahead}h`;

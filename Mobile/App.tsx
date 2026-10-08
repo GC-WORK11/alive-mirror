@@ -1627,30 +1627,6 @@ function AppInner() {
           vehicle={vehicle} showCig={settings.show_cig} onTripDone={recordTrip} />
       )}
 
-      {/* offline/stale pill — real request outcomes drive it (offline/
-          status.ts): live data → no pill; last-good or nothing → labelled,
-          pending trip donations counted, tap re-probes. apiOk kept as the
-          belt-and-suspenders health check from before.
-          Mounts AFTER NavSession: z-order on this stack is sibling
-          mount-order (iOS) and elevation-then-mount-order (Android —
-          the D1 finding), so this slot puts the pill above the nav turn
-          card (same V2Elev.float rung, later mount) while every sheet
-          below still beats it — "above map chrome, below sheets". The
-          overlap with the turn card's lower edge is deliberate: during
-          nav the +92 slot belongs to the engine's own status pills
-          (reroute / outside-field / strip-unavailable). */}
-      {(net.state !== "online" || apiOk === false) && (
-        <Pressable style={[s.offlineWrap, { top: insets.top + 66 + (airMapOpen ? AIR_CARD_CLEARANCE : 0) }]} onPress={() => { tick(); void net.refresh(); }}
-          accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
-          <Text {...DYNAMIC_TYPE} style={[s.offlineTxt, { fontFamily: fam(lang, "med") }]}>
-            {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
-            {net.state === "stale" && net.staleAgeS != null
-              ? ` · ${t("updatedMinAgo", lang, { n: Math.max(1, Math.round(net.staleAgeS / 60)) })}`
-              : ""}
-            {net.pending > 0 ? ` · ${t("offlinePending", lang, { n: net.pending })}` : ""}
-          </Text>
-        </Pressable>
-      )}
       {/* "choose on map" armed state — without this the pick was
           invisible: the sheet closed and the next map tap just did
           something the user never asked it to. Tapping the hint
@@ -1724,6 +1700,29 @@ function AppInner() {
         onTrips={onHomeTrips}
         onProfile={onHomeProfile}
         onCheckin={onCheckin} />
+
+      {/* offline/stale pill — real request outcomes drive it (offline/
+          status.ts): live data → no pill; last-good or nothing → labelled,
+          pending trip donations counted, tap re-probes. apiOk kept as the
+          belt-and-suspenders health check from before.
+          Mounts AFTER HomeScreen: the resting surface is absoluteFill —
+          mounted before it, the pill painted UNDER home and could never
+          show on the screen people actually sit on (e2e-residual: the
+          offline film's missing pill). Elevation 26 beats home's 24 on
+          Android; every modal sheet still runs 30 so the order stays
+          "above home + map chrome, below sheets". */}
+      {(net.state !== "online" || apiOk === false) && (
+        <Pressable style={[s.offlineWrap, { top: insets.top + 66 + (airMapOpen ? AIR_CARD_CLEARANCE : 0) }]} onPress={() => { tick(); void net.refresh(); }}
+          accessibilityRole="button" accessibilityLabel={t("offline", lang)}>
+          <Text {...DYNAMIC_TYPE} style={[s.offlineTxt, { fontFamily: fam(lang, "med") }]}>
+            {net.state === "stale" ? t("offlineStale", lang) : t("offline", lang)}
+            {net.state === "stale" && net.staleAgeS != null
+              ? ` · ${t("updatedMinAgo", lang, { n: Math.max(1, Math.round(net.staleAgeS / 60)) })}`
+              : ""}
+            {net.pending > 0 ? ` · ${t("offlinePending", lang, { n: net.pending })}` : ""}
+          </Text>
+        </Pressable>
+      )}
       <Sidebar open={sidebarOpen} onClose={onSidebarClose} trips={trips} lang={lang}
         settings={settings} onSettings={patchSettings} onDeleteData={deleteAll}
         onPickPlace={onPickPlace}
@@ -1961,6 +1960,9 @@ const s = StyleSheet.create({
   offlineWrap: {
     position: "absolute", alignSelf: "center",
     ...V2Elev.float,
+    /* Android ranks siblings by elevation, not mount order — the pill
+       must clear HomeScreen's 24 yet stay under the modal sheets' 30 */
+    elevation: 26,
     backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row, paddingHorizontal: 12, paddingVertical: 6,
   },
   offlineTxt: { fontSize: V2Type.label, color: V2T.text2 },

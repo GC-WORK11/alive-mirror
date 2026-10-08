@@ -108,10 +108,31 @@ export function useNetStatus(probeMs = 20000): NetStatus {
 
   useEffect(() => {
     void probe(API); // ground truth once on mount — don't trust the default
+    /* cold boot on a dead network: the mount probe alone brings the
+       streak to 1 and — because silent fetches (shell fetchJson) don't
+       emit net events — nothing ever pushes it to the threshold, so the
+       pill used to sit hidden forever on exactly the surface it exists
+       for (e2e-residual: offline film's missing pill). While a streak is
+       accumulating but not yet tripped, keep probing on a short leash —
+       each failed probe emits "down", feeding the streak until the pill
+       earns its say or a real "up" clears it. */
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    const kick = () => {
+      if (retry) return;
+      retry = setTimeout(() => {
+        retry = null;
+        if (snap.state === "online" && failStreak > 0) void probe(API);
+      }, 4000);
+    };
+    const off = onNetEvent((e) => { if (e.type !== "up") kick(); });
     const iv = setInterval(() => {
-      if (snap.state !== "online") void probe(API);
+      if (snap.state !== "online" || failStreak > 0) void probe(API);
     }, probeMs);
-    return () => clearInterval(iv);
+    return () => {
+      clearInterval(iv);
+      if (retry) clearTimeout(retry);
+      off();
+    };
   }, [probeMs]);
 
   return { ...s, refresh: () => probe(API) };

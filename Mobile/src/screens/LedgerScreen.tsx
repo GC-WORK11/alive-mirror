@@ -26,7 +26,6 @@ import {
   Animated,
   BackHandler,
   FlatList,
-  LayoutAnimation,
   type ListRenderItem,
   Pressable,
   StyleSheet,
@@ -37,7 +36,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Tint, V2Type, fam, famMono, famMonoText, famSerif } from "../theme";
-import { DYNAMIC_TYPE, useReduceMotion } from "../a11y";
+import { DYNAMIC_TYPE } from "../a11y";
 import { tick } from "../haptics";
 import { clockLabel, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "../i18n/strings";
 import { Icon, vehicleGlyph } from "../icons";
@@ -309,7 +308,6 @@ function LedgerSheetInner({ onClose, lang, showCig, onTripsChanged }: {
   const [loaded, setLoaded] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     let alive = true;
@@ -395,12 +393,16 @@ function LedgerSheetInner({ onClose, lang, showCig, onTripsChanged }: {
   const toggleRow = useCallback(
     (key: string) => {
       tick();
-      /* the receipt detail mounts under the card head — ease the open
-         like the settings expanders (native path) */
-      if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      /* NO LayoutAnimation here — configureNext is global-next-commit, so
+         the TripDetail mount riding this commit gets easeInEaseOut applied
+         to a subtree being born inside a FlatList row: on Fabric that class
+         mounts the detail collapsed — a11y 'expanded' flipped while nothing
+         visibly changed (e2e-sweep #8). The chevron's own rotate plus the
+         pressed→open opacity step already carry the affordance; the rows
+         just appear, same contract as useShellFlow's engine→full swaps. */
       setOpenKey((k) => (k === key ? null : key));
     },
-    [reduceMotion],
+    [],
   );
 
   const removeTrip = useCallback((tr: Trip) => {

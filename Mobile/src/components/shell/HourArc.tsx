@@ -11,7 +11,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { NUM, V2T, V2Type, bandColor, famMono } from "../../theme";
-import { doseUgRound, hourLabel, t, type Lang } from "../../i18n/strings";
+import { doseUgRound, hourOfDay, t, type Lang } from "../../i18n/strings";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { tick } from "../../haptics";
 import { bump } from "../../perf";
@@ -24,7 +24,18 @@ function HourArcInner({ rec, lang, nh }: {
 }) {
   bump("home.HourArc");
   const max = Math.max(...rec.arc.map((h) => h.dose_ug), 0.5);
-  const nowH = nh ?? new Date().getHours();
+  /* the lit 'now' hour is a Delhi wall hour — the device may sit in any
+     timezone (same +330 min convention as strings.ts istParts). Lives
+     in state because Date.now() is impure in render; the minute tick
+     keeps the lit cell honest if the arc stays open across an hour. */
+  const [liveH, setLiveH] = useState(-1);
+  useEffect(() => {
+    const tick = () => setLiveH(new Date(Date.now() + 330 * 60 * 1000).getUTCHours());
+    const t0 = setTimeout(tick, 0);
+    const iv = setInterval(tick, 60000);
+    return () => { clearTimeout(t0); clearInterval(iv); };
+  }, []);
+  const nowH = nh ?? liveH;
   /* the arc is scrubbable — a horizontal drag lights the hour under the
      finger and reads its number, honestly: counted dose where the day
      was counted, the field's air where it wasn't, nothing where there
@@ -60,7 +71,7 @@ function HourArcInner({ rec, lang, nh }: {
      across every surface; the axis ticks keep bare indices (they mark
      position in the day, not the wall clock) */
   const scrubClk = scrub == null ? ""
-    : hourLabel(new Date(2000, 0, 1, scrub.hour, 0), lang);
+    : hourOfDay(scrub.hour, lang);
   const scrubLine = scrub == null ? " "
     : scrub.covered && scrub.dose_ug > 0
       ? t("dayArcDose", lang, { n: doseUgRound(scrub.dose_ug), h: scrubClk })
@@ -108,7 +119,17 @@ function HourArcInner({ rec, lang, nh }: {
           const barCol = bandColor(h.conc) ?? V2T.text3;
           return (
             <Pressable key={h.hour} style={ss.arcCol} onPress={press}
-              accessibilityRole="button" accessibilityLabel={`hour ${h.hour}`}>
+              accessibilityRole="button"
+              /* the same grammar the scrub readout speaks — an English
+                 'hour 14' under the hi locale was an a11y leak
+                 (e2e-sweep #9) */
+              accessibilityLabel={
+                h.covered && h.dose_ug > 0
+                  ? t("dayArcDose", lang, { n: doseUgRound(h.dose_ug), h: hourOfDay(h.hour, lang) })
+                  : h.conc != null
+                    ? t("dayArcAir", lang, { c: Math.round(h.conc), h: hourOfDay(h.hour, lang) })
+                    : t("dayArcFlat", lang, { h: hourOfDay(h.hour, lang) })
+              }>
               <View style={ss.arcBarCol}>
                 {h.covered && h.dose_ug > 0 ? (
                   <View style={[ss.arcBar, {
