@@ -1247,6 +1247,10 @@ function AppInner() {
     setIntroSeen(true);
   }, [patchSettings]);
 
+  /* stable for the tour's unmount detector — an inline lambda would churn
+     its done-callback identity every App commit */
+  const onTourDone = useCallback(() => setTourSeen(true), [setTourSeen]);
+
   const mapTree = (
     /* key pins the instance across the fontsLoaded tree-shape flip —
        without it the map unmounts/remounts and the tile load restarts */
@@ -1528,12 +1532,16 @@ function AppInner() {
         ambientUg={ambientUg} onDone={onOnboardDone} />
       {/* the first-run coach tour — mounts once after onboarding while
           the live home paints under it (scrim is touch-transparent; only
-          the caption card takes presses). Any nav-away (a door tap, the
-          map opening) unmounts it — presented is presented. */}
-      {tourSeen === false && introSeen === true && homeOpen
-        && !sidebarOpen && !settingsOpen && !ledgerOpen && !delhiOpen
-        && !layersOpen && !vehicleOpen && (
-        <CoachTour lang={lang} onDone={() => setTourSeen(true)} />
+          the caption card takes presses). The predicate is deliberately
+          THIN — introSeen && homeOpen: every gated sheet flag is a
+          deferred useHeldState commit, and any one of them flapping for
+          a single commit unmounts the tour for good (the seen-flag is
+          already on disk at mount, so a transient kill never re-arms).
+          Sheets that rise over it are brief — the card floats, taps
+          still pass, and real nav-away (the map door, a trip) still
+          dismisses through homeOpen. */}
+      {tourSeen === false && introSeen === true && homeOpen && phase === "idle" && (
+        <CoachTour lang={lang} onDone={onTourDone} />
       )}
 
 

@@ -197,11 +197,17 @@ export function CoachTour({ lang, onDone }: { lang: Lang; onDone: () => void }) 
   const [shown, setShown] = useState(false);
   const [idx, setIdx] = useState(0);
   const doneRef = useRef(false);
+  /* onDone through a ref: the caller passes an inline lambda, so its
+     identity churns every App commit — a [done]-dep cleanup refired on
+     every render and presented the tour on the FIRST state change after
+     mount. Empty deps = cleanup only on a real unmount. */
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
   const done = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
-    onDone();
-  }, [onDone]);
+    onDoneRef.current();
+  }, []);
   /* unmount = presented (nav-away through the live scrim, home exit, or
      the predicate flipping) — one-time is the contract either way */
   useEffect(() => () => done(), [done]);
