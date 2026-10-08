@@ -483,6 +483,9 @@ async def city():
             # that re-localize it (the app's Hindi rebuild)
             "cause_note": full.get("cause_note"),
             "cause_note_fields": full.get("cause_note_fields"),
+            # freshness the note can honestly wear — worst staleness of
+            # its ingredient reads; the page shows 'updated N min ago'
+            "story_age_s": full.get("story_age_s"),
             "drivers": [{"kind": d.get("kind"), "weight": d.get("weight"),
                          "score": d.get("score"),
                          "evidence": d.get("evidence")}

@@ -281,13 +281,13 @@ describe("causeFieldsFromWhy + causeNote — the parali/news line", () => {
     assert.equal(f.basis, "measured");
     const s = causeNote(f, "en");
     assert.match(s, /44 fires in the Punjab–Haryana belt/);
-    assert.match(s, /up from 20 over ~4h/);
-    assert.match(s, /north-west wind at 9 km\/h is carrying it toward Delhi/);
-    assert.match(s, /air barely mixing/);
+    assert.match(s, /up from 20 4h ago/);
+    assert.match(s, /north-west wind at 9 km\/h is carrying it our way/);
+    assert.match(s, /the air is barely moving/);
     // plain frame: pace percent (1.86× stiller → ~54%) + whole µg endpoints
     assert.match(s, /~54% of its usual pace/);
-    assert.match(s, /the city's average 65 → 49 µg\/m³/);
-    assert.match(s, /smoke inflow meeting still air$/);
+    assert.match(s, /average eased 65 → 49 µg\/m³/);
+    assert.match(s, /smoke coming in while the air sits still$/);
   });
 
   it("wind not carrying → says so plainly", () => {
@@ -297,7 +297,7 @@ describe("causeFieldsFromWhy + causeNote — the parali/news line", () => {
       history: beltPts([[5, 20], [1, 40]]),
     });
     const s = causeNote(causeFieldsFromWhy(w), "en");
-    assert.match(s, /isn't carrying it this way/);
+    assert.match(s, /carrying it away from us/);
   });
 
   it("cold feed → count still reads, 'jumped' never claimed", () => {
@@ -318,9 +318,9 @@ describe("causeFieldsFromWhy + causeNote — the parali/news line", () => {
       evaluated: { fires: { belt_fires: 3, feed_status: "live" } },
       history: beltPts([[5, 3], [1, 3]]),
     })), "en");
-    assert.match(quiet, /a quiet belt — 3 fires/);
+    assert.match(quiet, /the belt is quiet — 3 fires/);
     const empty = causeNote(causeFieldsFromWhy(why({ evaluated: {} })), "en");
-    assert.match(empty, /local background/);
+    assert.match(empty, /the usual local air/);
   });
 
   it("re-count floor: |Δbelt|<5 is FIRMS noise, not a 'jump'", () => {
@@ -344,7 +344,7 @@ describe("causeFieldsFromWhy + causeNote — the parali/news line", () => {
     });
     const s = causeNote(causeFieldsFromWhy(w), "en", { skip: ["belt"] });
     assert.doesNotMatch(s, /fires|carrying/);
-    assert.match(s, /air barely mixing/);
+    assert.match(s, /the air is barely moving/);
   });
 
   it("hi renders localized — no wire English leaks", () => {

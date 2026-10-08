@@ -452,11 +452,11 @@
         <span id="hWhat">fine dust (pm2.5) — the city's average right now</span>
         <i id="hRange"></i><i id="hDist"></i></div>
     </div>
-    <div class="dek"><p>Every district on the map is coloured by the
-      government air score (<b>AQI</b>), driven by <b>pm2.5</b> — the
-      fine dust that settles deep in lungs. Live government monitors
-      anchor it; the satellite model and shared trips fill the rest.</p></div>
-    <div class="whyline" id="whyline" hidden><span class="wtag">why tonight</span>
+    <div class="dek"><p>Each district is coloured by the official air
+      score (<b>AQI</b>) — mostly <b>pm2.5</b>, the fine dust that
+      settles deep in lungs. Live government monitors anchor it; the
+      satellite model and shared trips fill the rest.</p></div>
+    <div class="whyline" id="whyline" hidden><span class="wtag">why now</span>
       <span class="wtxt" id="whytxt"></span></div>
     <div class="whyline" id="grapline" hidden><span class="wtag">grap</span>
       <span class="wtxt" id="graptxt"></span></div>
@@ -482,7 +482,7 @@
       <div class="m-wind" id="windtag">wind —</div>
       <div class="detail" id="detail"></div>
     </div>
-    <div class="m-tag"><b>districts coloured by the govt air score</b> · each district averages the map squares inside it<br>
+    <div class="m-tag"><b>districts coloured by the official air score</b> · each is the average of the air inside it<br>
       tap a district for its number</div>
     <div class="tl" id="tl" hidden>
       <button id="tlPlay" type="button" aria-pressed="false">▶ the hours ahead</button>
@@ -573,8 +573,8 @@
         <p>Delhi's government monitors were built to regulate the city,
         not to tell one commuter what they breathed. <b><span
         id="nstations">—</span> live instruments</b> feed this map — the
-        green squares on it — and each live reading counts triple next
-        to the European satellite model (CAMS) and every shared trip.</p>
+        green squares on it — each one outweighing the satellite model's
+        guess three to one, with every shared trip counted too.</p>
         <p>Where monitors are far apart, the estimate is less sure and
         the colours go quiet. <b>A district near the edge of coverage
         says so on its card instead of pretending precision.</b></p>
@@ -1575,9 +1575,9 @@ async function load(){
         const R=['','I','II','III','IV'][gp.equivalent_stage]||gp.equivalent_stage;
         document.getElementById('graptxt').innerHTML=
           (gp.equivalent_stage
-            ?`today's air maps to <em>GRAP stage ${R}</em> rules — aqi ${gp.aqi} on the city's live pm2.5`
-            :`today's air sits below <em>GRAP stage I</em> — aqi ${gp.aqi} on the city's live pm2.5`)
-          +` · computed here, not the official caqm call`;
+            ?`this air reads like <em>GRAP stage ${R}</em> — aqi ${gp.aqi} on the live city map`
+            :`today's air sits below <em>GRAP stage I</em> — aqi ${gp.aqi} on the live city map`)
+          +` · our read, not the official caqm call`;
         gl.hidden=false;
       }else{gl.hidden=true}
     }
@@ -1588,14 +1588,25 @@ async function load(){
     const noteLn=(cy.why&&cy.why.cause_note)||'';
     const nl=document.getElementById('noteline');
     if(nl){
-      if(noteLn){setTxt('notetxt',noteLn+' · measured, not reported');nl.hidden=false}
+      /* the story shows its age — the freshest claim it can make is the
+         staler of its ingredient reads (server story_age_s) */
+      const sa=cy.why&&cy.why.story_age_s;
+      const ageBit=sa==null?''
+        :` · updated ${sa<90?'just now':Math.round(sa/60)+' min ago'}`;
+      if(noteLn){setTxt('notetxt',noteLn+ageBit+' · measured, not reported');nl.hidden=false}
       else{nl.hidden=true}
     }
     if(a.wind&&a.wind.speed_kmh!=null)windNow=a.wind;  /* null wind = unknown, keep last */
     /* 'connecting…' resolves to whichever feed actually answered —
        never left hanging when a sibling endpoint came through */
+    /* the source token ('open-meteo/cams' etc) in words a reader
+       gets — the provenance detail stays in the admin console */
+    const srcWord=s=>/cams|meteo|model/i.test(s||'')?'the satellite model'
+      :/station|waqi|openaq|cpcb|dpcc/i.test(s||'')?'live stations'
+      :(s||'—');
     setTxt('src',a.field
-      ?`${a.field.source||'—'} · ${a.field.samples??'?'} points fitted · ${a.field.station_readings??'?'} live stations · gap-filling ${a.field.kriging==='on'?'on':'off'}`
+      ?`${srcWord(a.field.source)} · ${a.field.station_readings??'?'} live stations · ${a.field.samples??'?'} map squares`+
+       `${a.field.kriging==='on'?' · the gaps estimated between them':''}`
       :(cy?'shared-trips numbers live · station feed unreachable — retrying'
         :'station feed unreachable — retrying'));
     /* wind expires ~31 min server-side — the tag carries its age the
@@ -1607,7 +1618,7 @@ async function load(){
       :'wind —');
     if(!cy){   /* the ledger/corridor numbers all ride /v2/city */
       document.getElementById('corridors').innerHTML=
-        '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>'+
+        '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">fine dust per trip</th><th>vs typical</th></tr>'+
         '<tr><td colspan="5" style="color:var(--ink3)">the street feed is unreachable — retrying</td></tr>';
       /* the today card degrades honestly too */
       setTxt('hBand','live feed unreachable');
@@ -1695,7 +1706,7 @@ async function load(){
     }
     setTxt('nstations',a.field?.station_readings>0?a.field.station_readings:'no');
     liveStations=(cy.field&&Array.isArray(cy.field.stations))?cy.field.stations:[];
-    setTxt('fieldmeta',`map rebuilt ${Math.round((a.field?.age_s||0)/60)} min ago · nearest map square ${a.nearest_sample_km??'—'} km away · ${a.calibration?.mae_ug?`typical error ±${a.calibration.mae_ug} µg/m³`:'not yet calibrated'}`);
+    setTxt('fieldmeta',`map rebuilt ${Math.round((a.field?.age_s||0)/60)} min ago · nearest read ~${a.nearest_sample_km??'—'} km away · ${a.calibration?.mae_ug?`usually within ±${a.calibration.mae_ug} µg/m³`:'error band not yet measured'}`);
     paintTicker(a,cy,t,ad,(dd&&dd.districts||[]).filter(d=>d.aqi!=null).length);
     paintMini();
     const rows=(ad.corridors||[]).map((c,i)=>
@@ -1705,7 +1716,7 @@ async function load(){
        <td class="num"><span class="dose-chip">${IN(Math.round(c.avg_dose_ug))} µg</span></td>
        <td><span class="modep">${c.relative?c.relative+' than typical':'—'}</span></td></tr>`).join('');
     document.getElementById('corridors').innerHTML=
-      '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">pm2.5 per trip</th><th>vs typical</th></tr>'+
+      '<tr><th></th><th>street stretch</th><th style="text-align:right">trips</th><th style="text-align:right">fine dust per trip</th><th>vs typical</th></tr>'+
       (rows||'<tr><td colspan="5" style="color:var(--ink4)">no street has enough phones yet — this fills in as delhi moves</td></tr>');
     /* the served set is the publishable store's heaviest+lightest ends —
        say so when it isn't the whole count the stat above claims */

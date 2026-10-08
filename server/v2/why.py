@@ -21,7 +21,7 @@ already owns — nothing is observed twice, nothing is invented:
 
 A driver that can't be observed can't be claimed: each ingredient that
 fails freshness or coverage lands in `cannot_tell`, and when nothing
-clears the bar the honest answer is "local background — no single
+clears the bar the honest answer is "the usual local air — no single
 driver stands out".
 
 `history` (the driver sparkline) ships only when >=MIN_HISTORY_POINTS
@@ -93,6 +93,15 @@ _SERIES_CACHE: dict = {"at": 0.0, "key": None, "rows": [], "meta": {}}
 
 _CARRY_WORDS = ((337.5, "N"), (292.5, "NW"), (247.5, "W"), (202.5, "SW"),
                 (157.5, "S"), (112.5, "SE"), (67.5, "E"), (22.5, "NE"))
+
+# 'a NW wind' reads like a weather chart; the note says it in words
+_DIR_WORDS = {"N": "northerly", "NE": "north-east", "E": "easterly",
+              "SE": "south-east", "S": "southerly", "SW": "south-west",
+              "W": "westerly", "NW": "north-west"}
+
+
+def _dir_word(deg: Optional[float]) -> str:
+    return _DIR_WORDS.get(_compass(deg) or "NW", "north-west")
 
 
 def _compass(deg: Optional[float]) -> Optional[str]:
@@ -646,21 +655,17 @@ _LINE_BITS = {
 def _line(drivers: list, wind: dict) -> str:
     """One spoken line — plain Delhiite English, never a fake cause."""
     if not drivers:
-        return "local background — no single driver stands out"
+        return "the usual local air — no single driver stands out"
     parts = []
     for d in drivers[:2]:
         key = (d["kind"] if d["kind"] != "trend"
                else f"trend_{d.get('direction', 'rising')}")
         bit = _LINE_BITS.get(key, d["kind"])
         if "{dir}" in bit:
-            compass = _compass(wind.get("from_deg")) or "north-west"
             # 'from the NW wind' reads better expanded on first use
-            bit = bit.format(dir={
-                "NW": "north-west", "N": "northerly", "W": "westerly",
-                "NE": "north-east", "SW": "south-west", "S": "southerly",
-                "SE": "south-east", "E": "easterly"}.get(compass, "NW"))
+            bit = bit.format(dir=_dir_word(wind.get("from_deg")))
         parts.append(bit)
-    return " + ".join(parts)
+    return " and ".join(parts)
 
 
 # ------------------------------------------------------------- cause_note
@@ -739,42 +744,44 @@ def _cause_note(evaluated: dict, wind: dict, series: list) -> tuple:
             bit = f"{belt:g} fires in the Punjab–Haryana belt"
             if belt_delta is not None:
                 bit += (f", {'up' if belt_delta > 0 else 'down'} from "
-                        f"{belt - belt_delta:g} over ~{belt_delta_h:g} h")
-            comp = _compass(wind.get("from_deg"))
+                        f"{belt - belt_delta:g} {belt_delta_h:g} hours back")
+            dirw = _dir_word(wind.get("from_deg"))
             kmh = wind.get("speed_kmh")
             if carrying is True:
                 bit += " — " + (
-                    f"a {comp} wind at {kmh:g} km/h is"
-                    if kmh is not None else f"a {comp} wind is")
-                bit += " carrying it toward Delhi"
+                    f"a {dirw} wind at {kmh:g} km/h is"
+                    if kmh is not None else f"a {dirw} wind is")
+                bit += " carrying it our way"
             elif carrying is False:
-                bit += " — the wind isn't carrying it this way right now"
+                bit += " — the wind is carrying it away from us"
             else:
-                bit += " — wind unknown, can't tell if it's coming"
+                bit += " — wind unread, can't tell if it's coming our way"
             bits.append(bit)
         elif belt > 0:
-            bits.append(f"a quiet belt — {belt:g} fires burning")
+            bits.append(f"the belt is quiet — {belt:g} fires burning")
         else:
-            bits.append("a quiet belt right now")
+            bits.append("the belt is quiet right now")
     if stag:
-        vc = vent.get("vc_m2s")
+        # the stillness in felt-words: how fast the air clears vs a
+        # typical day (raw m²/s ventilation only an engineer can read)
+        pace = max(1, round(100.0 / stag_factor))
         bits.append(
-            f"air barely mixing — ventilation {round(vc):,} m²/s "
-            f"vs ~{int(VC_REF_M2S):,} typical" if vc is not None
-            else "air barely mixing")
+            f"the air is barely moving — clearing at ~{pace}% of its "
+            "usual pace")
     if trend_adm:
         bits.append(
-            f"city mean {trend['from_pm25']:g} → {trend['to_pm25']:g} "
-            f"µg/m³ over {trend.get('span_h') or 0:g} h")
+            f"the city's average {'climbed' if delta > 0 else 'eased'} "
+            f"{trend['from_pm25']:g} → {trend['to_pm25']:g} µg/m³ "
+            f"in ~{trend.get('span_h') or 0:g} h")
     # the verdict tail — only the moves the physics itself backs: inflow
     # meeting still air, or an admitted climb still on. "worsening" is
     # never said ahead of those.
     if carrying is True and stag:
-        bits.append("smoke inflow meeting still air")
+        bits.append("smoke coming in while the air sits still")
     elif trend_adm and delta > 0:
         bits.append("the climb is still on")
     text = " · ".join(bits) or \
-        "local background — no big driver in play right now"
+        "the usual local air — no big driver in play right now"
     return text, fields
 
 
@@ -834,6 +841,14 @@ async def build_why(lat: float, lon: float) -> dict:
 
         cause_note, cause_note_fields = _cause_note(evaluated, wind, series)
 
+        # how fresh is the story — the staler ingredient sets the honest
+        # age a reader should see ('updated N min ago' on the news line)
+        _ages = [a for a in (
+            fires.get("age_s"), vent.get("age_s"), wind.get("age_s"),
+            evaluated["trend"].get("newest_age_s"))
+            if isinstance(a, (int, float))]
+        story_age_s = round(max(_ages)) if _ages else None
+
         now = time.time()
         out = {
             "generated_at": datetime.fromtimestamp(
@@ -853,6 +868,10 @@ async def build_why(lat: float, lon: float) -> dict:
             # every figure is an observed field or a recorded build)
             "cause_note": cause_note,
             "cause_note_fields": cause_note_fields,
+            # the freshest claim the note can make — worst staleness of
+            # the reads it was built from (fires feed, wind, mixing,
+            # recorded builds); surfaces as 'updated N min ago'
+            "story_age_s": story_age_s,
             "drivers": drivers,
             "evaluated": evaluated,
             "cannot_tell": cannot_tell,
@@ -860,7 +879,7 @@ async def build_why(lat: float, lon: float) -> dict:
             "history": _history(series, series_meta),
             "honesty": ("a driver that can't be observed isn't claimed — "
                         "checked-but-failed ingredients are under "
-                        "cannot_tell; 'local background' is the honest "
+                        "cannot_tell; 'the usual local air' is the honest "
                         "empty answer, not an error"),
         }
         if not out["point_in_area"]:

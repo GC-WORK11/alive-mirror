@@ -453,7 +453,7 @@ def test_endpoint_honest_empty(snap_root, wind_se, cold_forecast,
     assert r.status_code == 200
     body = r.json()
     assert body["drivers"] == []
-    assert body["line"] == "local background — no single driver stands out"
+    assert body["line"] == "the usual local air — no single driver stands out"
     assert any(c["kind"] == "stubble_smoke" for c in body["cannot_tell"])
     assert body["history"] is None
 
@@ -614,11 +614,11 @@ def test_cause_note_full_carrying_inflow():
     ev["trend"]["to_pm25"] = 49.2
     text, f = v2why._cause_note(ev, _wind(), _series_belt([(5.0, 20), (1.0, 40)]))
     assert "44 fires in the Punjab–Haryana belt" in text
-    assert "up from 20 over ~4 h" in text
-    assert "carrying it toward Delhi" in text
-    assert "air barely mixing" in text and "1,612" in text
+    assert "up from 20 4 hours back" in text
+    assert "carrying it our way" in text
+    assert "the air is barely moving" in text and "~54%" in text
     assert "64.8 → 49.2" in text
-    assert text.endswith("smoke inflow meeting still air")
+    assert text.endswith("smoke coming in while the air sits still")
     assert f["basis"] == "measured" and f["belt_delta"] == 24
     assert f["carrying"] is True and f["wind_from_deg"] == 315.0
 
@@ -626,8 +626,8 @@ def test_cause_note_full_carrying_inflow():
 def test_cause_note_blocked_wind_says_so():
     text, f = v2why._cause_note(
         _ev(carrying=False), _wind(deg=150.0), _series_belt([(5.0, 20), (1.0, 40)]))
-    assert "isn't carrying it this way" in text
-    assert "carrying it toward Delhi" not in text
+    assert "carrying it away from us" in text
+    assert "carrying it our way" not in text
     assert f["carrying"] is False
 
 
@@ -644,14 +644,14 @@ def test_cause_note_cold_feed_no_belt_jump():
 def test_cause_note_quiet_belt_and_background():
     text, _ = v2why._cause_note(
         _ev(belt=3, factor=1.0, delta=0.0), _wind(), [])
-    assert text.startswith("a quiet belt — 3 fires")
+    assert text.startswith("the belt is quiet — 3 fires")
     text2, _ = v2why._cause_note(
         _ev(belt=0, factor=1.0, delta=0.0), _wind(), [])
-    assert "a quiet belt right now" in text2
+    assert "the belt is quiet right now" in text2
     # nothing at all → the honest empty answer, not silence
     text3, _ = v2why._cause_note(
         {"fires": {}, "ventilation": {}, "trend": {}}, _wind(), [])
-    assert text3 == "local background — no big driver in play right now"
+    assert text3 == "the usual local air — no big driver in play right now"
 
 
 def test_cause_note_floors_hold():
@@ -660,8 +660,8 @@ def test_cause_note_floors_hold():
     and a belt delta under the re-count floor isn't a 'jump'."""
     ev = _ev(belt=9, factor=1.1, delta=6.0)
     text, f = v2why._cause_note(ev, _wind(), _series_belt([(5.0, 11), (1.0, 10)]))
-    assert "9 fires" in text and "air barely mixing" not in text
-    assert "city mean" not in text
+    assert "9 fires" in text and "barely moving" not in text
+    assert "city's average" not in text
     assert f["stag_factor"] is None and f["trend_to"] is None
     # |delta|=2 < _NOTE_DELTA_MIN — FIRMS re-count noise, not a move
     assert "up from" not in text and "down from" not in text
@@ -679,7 +679,7 @@ def test_endpoint_serves_cause_note(snap_root, wind_nw, cold_forecast,
     body = client.get("/v2/why").json()
     note = body["cause_note"]
     assert "61 fires in the Punjab–Haryana belt" in note
-    assert "carrying it toward Delhi" in note
+    assert "carrying it our way" in note
     f = body["cause_note_fields"]
     assert f["basis"] == "measured" and f["belt_fires"] == 61
 

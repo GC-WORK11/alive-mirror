@@ -269,10 +269,10 @@ const en = {
   cityHeavier: "heavier",
   cityLighter: "lighter",
   cityTrips: "{n} {tripNoun}",
-  /* "why tonight" — /v2/why composes the hero line in English; hi
+  /* "why now" — /v2/why composes the hero line in English; hi
      rebuilds it from drivers[].kind + wind.from_deg, mirroring
-     server/v2/why.py:_line (top-2 drivers joined " + "-style) */
-  whyNoDriver: "local background — no single driver stands out",
+     server/v2/why.py:_line (top-2 drivers joined " and "-style) */
+  whyNoDriver: "the usual local air — no single driver stands out",
   /* two why-bits join as prose, not math ('+ ' mid-sentence read as
      jargon — audit #15) */
   whyJoin: " and ",
@@ -310,7 +310,7 @@ const en = {
   tripNounMany: "trips",
   citySwitched: "{n} {tripNoun} took a lighter way",
   cityWhyTitle: "why this is an estimate",
-  cityBasisModel: "estimated from satellite + weather data over Delhi (CAMS/Open-Meteo), refreshed about every 15 min",
+  cityBasisModel: "estimated from satellite + weather over Delhi, refreshed about every 15 min",
   cityBasisStations: "{n} live stations counted in",
   cityBasisNoStations: "no live stations right now — satellite estimate only",
   cityBasisPm25: "fine smoke (PM2.5) {lo}–{hi} µg/m³ — the raw number behind the cigarettes",
@@ -414,20 +414,21 @@ const en = {
      Every number is a measured field — belt detections, carry wind,
      ventilation, recorded city mean — never a reported-news feed. */
   noteBelt: "{n} fires in the Punjab–Haryana belt",
-  noteBeltUp: ", up from {a} over ~{h}h",
-  noteBeltDown: ", down from {a} over ~{h}h",
-  noteCarryYes: " — a {dir} wind at {kmh} km/h is carrying it toward Delhi",
-  noteCarryYesNoKmh: " — a {dir} wind is carrying it toward Delhi",
-  noteCarryNo: " — the wind isn't carrying it this way right now",
-  noteCarryUnknown: " — wind unknown, can't tell if it's coming",
-  noteBeltQuiet: "a quiet belt — {n} fires burning",
-  noteBeltQuiet0: "a quiet belt right now",
-  noteStagVc: "air barely mixing — ventilation {vc} m²/s vs ~3,000 typical", /* superseded by noteStagPct (jargon-sweep) — kept for stale-surface compat */
-  noteStag: "air barely mixing",
-  noteTrend: "the city's average {a} → {b} µg/m³ over ~{h}h",
-  noteTailInflow: "smoke inflow meeting still air",
+  noteBeltUp: ", up from {a} {h}h ago",
+  noteBeltDown: ", down from {a} {h}h ago",
+  noteCarryYes: " — a {dir} wind at {kmh} km/h is carrying it our way",
+  noteCarryYesNoKmh: " — a {dir} wind is carrying it our way",
+  noteCarryNo: " — the wind is carrying it away from us",
+  noteCarryUnknown: " — wind unread, can't tell if it's coming our way",
+  noteBeltQuiet: "the belt is quiet — {n} fires burning",
+  noteBeltQuiet0: "the belt is quiet right now",
+  noteStagVc: "the air is barely moving — ventilation {vc} m²/s vs ~3,000 typical", /* superseded by noteStagPct (jargon-sweep) — kept for stale-surface compat */
+  noteStag: "the air is barely moving",
+  noteTrendUp: "the city's average climbed {a} → {b} µg/m³ in ~{h}h",
+  noteTrendDown: "the city's average eased {a} → {b} µg/m³ in ~{h}h",
+  noteTailInflow: "smoke coming in while the air sits still",
   noteTailClimb: "the climb is still on",
-  noteBackground: "local background — no big driver in play right now",
+  noteBackground: "the usual local air — no big driver in play right now",
   noteMeasured: "measured, not reported",
   setCurrentDest: "save current destination",
   setPlace: "add",
@@ -1194,7 +1195,7 @@ const en = {
      engineering units or internals (docs/lanes/jargon-sweep-report.md) */
   /** stagnation note's measure — the stillness factor as a percent of the
       air's usual clearing pace (was raw m²/s) */
-  noteStagPct: "air barely mixing — clearing at ~{p}% of its usual pace",
+  noteStagPct: "the air is barely moving — clearing at ~{p}% of its usual pace",
   /** freshness chip's tight form — "{n} min old" so a bare "12 min" never
       reads as a duration on the map/compare surface */
   fieldAgeCompact: "{n} min old",
@@ -1427,7 +1428,7 @@ const hi: Record<StringKey, string> = {
   tripNounMany: "यात्राएँ",
   citySwitched: "{n} {tripNoun} हल्के रास्ते पर",
   cityWhyTitle: "यह अनुमान क्यों है",
-  cityBasisModel: "दिल्ली के ऊपर सैटेलाइट + मौसम डेटा से अंदाज़ा (CAMS/Open-Meteo), हर ~15 मिनट में ताज़ा",
+  cityBasisModel: "दिल्ली के ऊपर सैटेलाइट + मौसम से अंदाज़ा, हर ~15 मिनट में ताज़ा",
   cityBasisStations: "{n} लाइव स्टेशन भी गिने गए",
   cityBasisNoStations: "अभी कोई लाइव स्टेशन नहीं — सिर्फ़ सैटेलाइट से अंदाज़ा",
   cityBasisPm25: "बारीक धुआँ (PM2.5) {lo}–{hi} µg/m³ — सिगरेट-गिनती के पीछे का आँकड़ा",
@@ -1544,13 +1545,14 @@ const hi: Record<StringKey, string> = {
   noteBeltDown: ", ~{h} घं में {a} से घटकर",
   noteCarryYes: " — {dir} हवा {kmh} km/h से इसे दिल्ली की ओर ला रही है",
   noteCarryYesNoKmh: " — {dir} हवा इसे दिल्ली की ओर ला रही है",
-  noteCarryNo: " — हवा अभी इसे इधर नहीं ला रही",
+  noteCarryNo: " — हवा इसे हमसे दूर ले जा रही है",
   noteCarryUnknown: " — हवा की दिशा पता नहीं, आएगा या नहीं कह नहीं सकते",
   noteBeltQuiet: "बेल्ट शांत — {n} आगें जल रही हैं",
   noteBeltQuiet0: "बेल्ट अभी शांत है",
   noteStagVc: "हवा मुश्किल से घुल रही — वेंटिलेशन {vc} m²/s बनाम ~3,000 सामान्य", /* superseded by noteStagPct (jargon-sweep) */
   noteStag: "हवा ज़रा भी नहीं घूम रही",
-  noteTrend: "शहर का औसत {a} → {b} µg/m³, ~{h} घं में",
+  noteTrendUp: "शहर का औसत {a} → {b} µg/m³ चढ़ा, ~{h} घं में",
+  noteTrendDown: "शहर का औसत {a} → {b} µg/m³ घटा, ~{h} घं में",
   noteTailInflow: "आता धुआँ ठहरी हवा में फँसा",
   noteTailClimb: "चढ़ाई जारी है",
   noteBackground: "यहाँ का सामान्य — अभी कोई बड़ी वजह नहीं",

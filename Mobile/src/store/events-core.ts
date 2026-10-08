@@ -316,10 +316,11 @@ export function causeFieldsFromWhy(why: V2Why | null | undefined): CauseNoteFiel
 }
 
 /** The plain-words news line — "44 fires in the Punjab–Haryana belt,
-    up from 20 over ~5h — a NW wind at 9 km/h is carrying it toward
-    Delhi · air barely mixing…". Built only from admitted fields; the
-    honest empty answer is "local background". `skip` drops clauses a
-    caller already said (the fires ping narrates its own belt+carry). */
+    up from 20 5h ago — a north-west wind at 9 km/h is carrying it our
+    way · the air is barely moving…". Built only from admitted fields;
+    the honest empty answer is "the usual local air". `skip` drops
+    clauses a caller already said (the fires ping narrates its own
+    belt+carry). */
 export function causeNote(
   fields: CauseNoteFields | null | undefined,
   lang: Lang,
@@ -366,8 +367,9 @@ export function causeNote(
   const rising = fields.trend_from != null && fields.trend_to != null &&
     fields.trend_to > fields.trend_from;
   if (fields.trend_from != null && fields.trend_to != null && !skip.has("trend")) {
-    /* whole µg/m³ — a decimal on a city mean is fake-exact */
-    bits.push(t("noteTrend", lang, {
+    /* whole µg/m³ — a decimal on a city mean is fake-exact; the verb
+       names the direction so the arrow isn't carrying it alone */
+    bits.push(t(rising ? "noteTrendUp" : "noteTrendDown", lang, {
       a: Math.round(fields.trend_from),
       b: Math.round(fields.trend_to),
       h: Math.round(fields.trend_span_h ?? 0),

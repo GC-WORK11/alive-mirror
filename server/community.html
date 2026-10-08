@@ -253,7 +253,7 @@ td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
 <section class="corridors"><div class="col">
   <div class="sec-head">
     <h2>The streets <em>enough phones have crossed.</em></h2>
-    <span class="lbl">est. from shared trips</span>
+    <span class="lbl">built from shared trips</span>
   </div>
   <p class="sintro">Each row is a stretch of about 500 m of street that
   at least 3 different phones have crossed in the last 3 days —
@@ -261,9 +261,8 @@ td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
   <div class="scrollx"><table id="corridors"></table></div>
   <p class="tnote">the 3-phones rule above is the whole trick — merged
     means no single commute can ever be traced back to a person.
-    pm2.5/trip = fine dust inhaled, averaged over shared trips through
-    the stretch (estimated, not a sensor) · co₂ = exhaust per 100 m,
-    averaged.</p>
+    fine dust = what's inhaled per trip through the stretch
+    (estimated, not a sensor) · exhaust = co₂ per 100 m, averaged.</p>
 </div></section>
 
 <section class="reports"><div class="col">
@@ -376,8 +375,8 @@ async function load(){
     </tr>`).join('');
   $('corridors').innerHTML=
     '<tr><th></th><th>street stretch</th><th class="num">trips</th>'+
-    '<th class="num">phones</th><th class="num">pm2.5 / trip</th>'+
-    '<th>main mode</th><th class="num">co₂ per 100 m</th></tr>'+
+    '<th class="num">phones</th><th class="num">fine dust / trip</th>'+
+    '<th>mostly</th><th class="num">exhaust per 100 m</th></tr>'+
     (rows||(c
       ?'<tr><td colspan="7"><span class="empty">no street has enough phones yet — your shared trip still counts in the totals above; this board fills in as delhi moves</span></td></tr>'
       :'<tr><td colspan="7"><span class="empty">street feed unreachable — retrying</span></td></tr>'));

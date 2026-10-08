@@ -2,10 +2,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Alive — a personal dosimeter for Delhi air</title>
-<meta name="description" content="A personal PM2.5 dosimeter without hardware — the field knows what Delhi breathed today; the app knows what you breathed. Dose-priced routing is one proof.">
+<meta name="description" content="A personal PM2.5 dosimeter without hardware — the field knows what Delhi breathed today; the app knows what you breathed. The map even picks the cleaner route.">
 <meta name="theme-color" content="#fafaf7">
 <meta property="og:title" content="Alive — a personal dosimeter for Delhi air">
-<meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and only k≥3 aggregates ever leave your phone.">
+<meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and nothing leaves your phone that isn't already a group count.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -797,8 +797,8 @@ h1.lede em{font-style:normal;color:var(--ink2)}
       <h1 class="lede rise" style="--d:70ms">A ledger for your <em>lungs</em>, kept on your phone.</h1>
       <p class="sub rise" style="--d:160ms">A personal dosimeter for Delhi —
       no hardware. <b id="stnHero">—</b> instruments across the NCR are the
-      sensor; the app does the counting on your phone, where only k≥3
-      aggregates ever leave.</p>
+      sensor; the app does the counting on your phone, and the only thing
+      that ever leaves is a count of three or more.</p>
     </div></div>
     <div class="hnum" id="hnum" role="status">
       <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the air map, live</span></span>
@@ -949,25 +949,24 @@ h1.lede em{font-style:normal;color:var(--ink2)}
     <h2 class="lead" data-rv>How a breath becomes a number.</h2>
     <div class="steps">
       <div class="step"><span class="n">01</span><span class="t">measure</span>
-        <p class="d">WAQI and DPCC instruments across the NCR report on
-        their own cadences — DPCC posts fresh pages about every 5
-        minutes and the map rebuilds roughly every 15; station
-        readings are converted back to µg/m³ before anything touches
-        them.</p></div>
+        <p class="d">WAQI and DPCC monitors across the NCR report on
+        their own clocks — DPCC posts about every 5 minutes and the
+        map rebuilds every 15 — and every reading lands in the same
+        unit (µg/m³) before anything touches it.</p></div>
       <div class="step"><span class="n">02</span><span class="t">interpolate</span>
-        <p class="d">Ordinary kriging — careful fill-in between stations —
-        draws the map, a surface, not a guess — and every cell keeps
-        its own error band. 95.2% of 3,550 held-out station-hours landed
-        inside ±2σ.
+        <p class="d">Careful fill-in between stations — kriging — draws
+        the map: a surface, not a guess, and every cell keeps its own
+        error band. We hid 3,550 real station readings and asked the
+        map to guess them — 95.2% landed inside that band.
         <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">the method ↗</a></p></div>
       <div class="step"><span class="n">03</span><span class="t">dose</span>
-        <p class="d">Concentration × breathing rate × minutes, summed along
-        the road you take — a C++ engine priced
-        <b><span id="pricedcount2">—</span>&nbsp;million</b> road segments on it
-        to rank routes; the app runs the same sum over your trips,
-        on-device.</p></div>
+        <p class="d">The dust in the air × how hard you're breathing ×
+        the minutes you're out — added up along the road. A C++ engine
+        priced <b><span id="pricedcount2">—</span>&nbsp;million</b> road
+        segments on it to rank routes; the app runs the same sum over
+        your trips, on-device.</p></div>
     </div>
-    <p class="why" data-rv>Dose-priced routing is the proof the map can
+    <p class="why" data-rv>Routing by breath is the proof the map can
     decide — the engine priced <b><span id="pricedcount">—</span>&nbsp;million</b>
     of <b><span id="edgecount">—</span>&nbsp;million</b> road segments under
     this hour's map.</p>
@@ -1028,14 +1027,14 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   <div class="links" data-rv>
     <a class="go" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app — android &amp; ios builds<span class="arr">→</span></a>
     <a class="go" href="/city">open the live field<span class="arr">→</span></a>
-    <a class="go dim" href="/community">community — k≥3 aggregates only<span class="arr">→</span></a>
+    <a class="go dim" href="/community">community — group counts only<span class="arr">→</span></a>
   </div>
 </div></section>
 
 <footer class="foot"><div class="foot-in">
   <span>alive — delhi ncr</span>
   <span id="buildTag">—</span>
-  <span>aggregates only · k≥3 · no profiles</span>
+  <span>group counts only · never one person · no profiles</span>
 </div></footer>
 
 <script>
@@ -2328,9 +2327,12 @@ async function whyTonight(){
     const ln=d.line;
     if(!ln)return;
     const nd=(d.drivers||[]).length;
+    const sa=d.story_age_s;
+    const age=sa==null?''
+      :` · updated ${sa<90?'just now':Math.round(sa/60)+' min ago'}`;
     $('whyLine').innerHTML=
-      `why tonight — <b>${ln}</b>${nd?` · ${nd} cause${nd>1?'s':''} seen`:' '
-      } · <a href="/v2/why?lat=28.6315&lon=77.2167">the evidence ↗</a>`;
+      `why now — <b>${ln}</b>${nd?` · ${nd} cause${nd>1?'s':''} seen`:' '
+      }${age} · <a href="/v2/why?lat=28.6315&lon=77.2167">the evidence ↗</a>`;
     $('whyLine').hidden=false;
   }catch(e){/* hidden — the explainer had nothing honest to say */}
 }
