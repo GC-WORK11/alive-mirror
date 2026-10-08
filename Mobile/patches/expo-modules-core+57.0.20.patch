@@ -1,6 +1,6 @@
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ios/Core/SharedObjects/SharedObjectRegistry.swift b/ios/Core/SharedObjects/SharedObjectRegistry.swift
---- a/ios/Core/SharedObjects/SharedObjectRegistry.swift	1985-10-26 01:15:00
-+++ b/ios/Core/SharedObjects/SharedObjectRegistry.swift	2026-10-07 13:07:23
+diff --git a/node_modules/expo-modules-core/ios/Core/SharedObjects/SharedObjectRegistry.swift b/node_modules/expo-modules-core/ios/Core/SharedObjects/SharedObjectRegistry.swift
+--- a/node_modules/expo-modules-core/ios/Core/SharedObjects/SharedObjectRegistry.swift
++++ b/node_modules/expo-modules-core/ios/Core/SharedObjects/SharedObjectRegistry.swift
 @@ -126,7 +126,20 @@
      // whichever ran last and lose the earlier runtimes' pairings.
      let nativeState = nativeObject.nativeState ?? {

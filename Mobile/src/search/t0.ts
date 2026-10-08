@@ -319,6 +319,7 @@ export function kindLabel(c: string): string {
 type Entry = {
   n: string; c: string; lat: number; lon: number; w: number; k: number;
   nrm: string; toks: string[]; ftoks: string[]; fskel: string;
+  wt: number;   // rank weight — computed once at index time (boot-storm)
 };
 
 let ENTRIES: Entry[] | null = null;
@@ -336,21 +337,32 @@ const GEO_CELL = 0.002; // ~221 m lat / ~196 m lon at 28.6°N
    landmark, which beats a locality, for the same match quality — plus
    the gazetteer's own w/k importance at HALF weight (the raw table was
    worship-heavy: hindu_place_of_worship w=9 vs address w=2 buried street
-   rows under temple rows for the same name). */
+   rows under temple rows for the same name).
+   boot-storm lane: this gauntlet ran ~10 regex .test() calls INSIDE the
+   cap() sort comparator — ~2 compares per posting id across ~3 M ids of
+   capped lists meant hundreds of millions of interpreted regex evals in
+   one macrotask (a ~2 min 100%-CPU storm on the iOS sim, cold-launch
+   death included). The kind vocabulary is ~720 strings, so the verdict
+   is memoized: each kind pays the regexes once, ever. */
+const _TB = new Map<string, number>();
 const typeBonus = (c: string): number => {
-  if (/^(address|housenumber|housename|house|street|residential|living_street|pedestrian|tertiary|unclassified|service|secondary|primary|trunk|motorway|link|crossing|junction)$/.test(c)) return 14;
-  if (/^(platform|stop_position|stop|bus_stop|subway_entrance|entrance|parking|parking_space|parking_entrance|gate|lift_gate|shed)$/.test(c)) return 2;
-  if (/^(monument|landmark|tourist_attraction|memorial|statue|artwork|fort|tomb|castle|ruins|archaeological_site|attraction)$/.test(c)) return 11;
-  if (/^(station|train_station|metro|subway|halt|rail|railway|bus_station|bus_depot|depot|terminal|terminus|isbt)$/.test(c)) return 10;
-  if (/^(locality|neighborhood|neighbourhood|suburb|village|hamlet|district|subdistrict|quarter|macrohood|administrative|sector|block|place|town|city|county|municipality|estate|colony)$/.test(c)) return 9;
-  if (/^(park|garden|playground|recreation_ground|pitch|dog_park|national_park|nature_reserve)$/.test(c)) return 7;
-  if (/worship|temple|mosque|church|gurudwara|gurdwara|shrine|ashram|monastery|dargah|religious|synagogue/.test(c)) return 5;
-  if (/^(historic_site|heritage)$/.test(c)) return 5;
-  if (/^(building|named|amenity|geonames|office|company|commercial|industrial)$/.test(c)) return 5;
-  return 8;   // real POI/shop/service kinds — the honest mid-tier
+  const hit = _TB.get(c);
+  if (hit !== undefined) return hit;
+  let b = 8;    // real POI/shop/service kinds — the honest mid-tier
+  if (/^(address|housenumber|housename|house|street|residential|living_street|pedestrian|tertiary|unclassified|service|secondary|primary|trunk|motorway|link|crossing|junction)$/.test(c)) b = 14;
+  else if (/^(platform|stop_position|stop|bus_stop|subway_entrance|entrance|parking|parking_space|parking_entrance|gate|lift_gate|shed)$/.test(c)) b = 2;
+  else if (/^(monument|landmark|tourist_attraction|memorial|statue|artwork|fort|tomb|castle|ruins|archaeological_site|attraction)$/.test(c)) b = 11;
+  else if (/^(station|train_station|metro|subway|halt|rail|railway|bus_station|bus_depot|depot|terminal|terminus|isbt)$/.test(c)) b = 10;
+  else if (/^(locality|neighborhood|neighbourhood|suburb|village|hamlet|district|subdistrict|quarter|macrohood|administrative|sector|block|place|town|city|county|municipality|estate|colony)$/.test(c)) b = 9;
+  else if (/^(park|garden|playground|recreation_ground|pitch|dog_park|national_park|nature_reserve)$/.test(c)) b = 7;
+  else if (/worship|temple|mosque|church|gurudwara|gurdwara|shrine|ashram|monastery|dargah|religious|synagogue/.test(c)) b = 5;
+  else if (/^(historic_site|heritage)$/.test(c)) b = 5;
+  else if (/^(building|named|amenity|geonames|office|company|commercial|industrial)$/.test(c)) b = 5;
+  _TB.set(c, b);
+  return b;
 };
 
-const weight = (e: Entry) => typeBonus(e.c) + e.w * 0.5 + e.k * 2;
+const weight = (e: Entry) => e.wt;
 
 /* Kinds that name an AREA — they anchor "near Y" resolution and supply
    the locality half of a subtitle ("street · Shahdara"). */
@@ -373,6 +385,7 @@ const AREA_KINDS = new Set([
    the scheduler. */
 let RAW: Raw[] | null = null;   // the require'd corpus, freed once built
 let cursor = 0;                  // next raw row to index
+let capIdx = 0;                  // next postings map to cap (tail slices)
 let built = false;
 let scheduled = false;
 const WARM_SLICE = 6000;         // ~15-30 ms a slice on-device
@@ -400,6 +413,7 @@ function indexRow(g: Raw): void {
     nrm, toks,
     ftoks: toks.map(fold).filter(Boolean),
     fskel: foldName(nrm),
+    wt: typeBonus(g.c) + g.w * 0.5 + g.k * 2,
   };
   const id = ENTRIES!.push(e) - 1;
 
@@ -443,6 +457,7 @@ function buildSlice(maxRows: number, maxMs = Infinity): boolean {
     AREA = new Map();
     GEO = new Map();
     cursor = 0;
+    capIdx = 0;
   }
   const raw = RAW, end = Math.min(cursor + maxRows, raw.length);
   const t0 = performance.now();
@@ -454,15 +469,22 @@ function buildSlice(maxRows: number, maxMs = Infinity): boolean {
     if (performance.now() - t0 > maxMs) return false;
   }
   if (cursor < raw.length) return false;
+  /* the posting-cap sorts ride the same slice discipline as the row
+     build — one map per call so a saturated rig parks between them.
+     The comparator reads the precomputed wt: the old weight() call
+     re-ran the typeBonus regex gauntlet twice per compare, which IS
+     the cold-boot ~2 min 100%-CPU storm this lane hunted (see the
+     memoized typeBonus note above). */
   const entries = ENTRIES!;
   const cap = (map: Map<string, number[]>) => {
     for (const ids of map.values())
       if (ids.length > PREFIX_CAP) {
-        ids.sort((a, b) => weight(entries[b]) - weight(entries[a]));
+        ids.sort((a, b) => entries[b].wt - entries[a].wt);
         ids.length = PREFIX_CAP;
       }
   };
-  cap(PREFIX!); cap(FPREFIX!); cap(FSKEL!);
+  const capSet = [PREFIX!, FPREFIX!, FSKEL!][capIdx++];
+  if (capSet) { cap(capSet); return false; }
 
   // free the multi-MB source array — the require()d JSON otherwise stays
   // pinned in Metro's module registry for the app lifetime (perf-r4)

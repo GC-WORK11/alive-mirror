@@ -1,6 +1,6 @@
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/CallbackWrapper.h b/ReactCommon/react/bridging/CallbackWrapper.h
---- a/ReactCommon/react/bridging/CallbackWrapper.h	1985-10-26 01:15:00
-+++ b/ReactCommon/react/bridging/CallbackWrapper.h	2026-10-07 11:50:08
+diff --git a/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h b/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h
+--- a/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h
++++ b/node_modules/react-native/ReactCommon/react/bridging/CallbackWrapper.h
 @@ -9,8 +9,14 @@
  
  #include <jsi/jsi.h>
@@ -62,9 +62,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
      allowRelease();
    }
  
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/LongLivedObject.cpp b/ReactCommon/react/bridging/LongLivedObject.cpp
---- a/ReactCommon/react/bridging/LongLivedObject.cpp	1985-10-26 01:15:00
-+++ b/ReactCommon/react/bridging/LongLivedObject.cpp	2026-10-07 11:50:08
+diff --git a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp
+--- a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp
++++ b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.cpp
 @@ -6,6 +6,7 @@
   */
  
@@ -148,9 +148,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
  }
  
  } // namespace facebook::react
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/LongLivedObject.h b/ReactCommon/react/bridging/LongLivedObject.h
---- a/ReactCommon/react/bridging/LongLivedObject.h	1985-10-26 01:15:00
-+++ b/ReactCommon/react/bridging/LongLivedObject.h	2026-10-07 11:50:08
+diff --git a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h
+--- a/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h
++++ b/node_modules/react-native/ReactCommon/react/bridging/LongLivedObject.h
 @@ -10,10 +10,18 @@
  #include <jsi/jsi.h>
  #include <memory>
@@ -209,9 +209,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
  };
  
  } // namespace facebook::react
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/bridging/Promise.h b/ReactCommon/react/bridging/Promise.h
---- a/ReactCommon/react/bridging/Promise.h	1985-10-26 01:15:00
-+++ b/ReactCommon/react/bridging/Promise.h	2026-10-07 11:50:08
+diff --git a/node_modules/react-native/ReactCommon/react/bridging/Promise.h b/node_modules/react-native/ReactCommon/react/bridging/Promise.h
+--- a/node_modules/react-native/ReactCommon/react/bridging/Promise.h
++++ b/node_modules/react-native/ReactCommon/react/bridging/Promise.h
 @@ -11,6 +11,10 @@
  #include <react/bridging/Function.h>
  #include <react/bridging/LongLivedObject.h>
@@ -238,9 +238,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
  
      // The shared state can retain the promise holder weakly now.
      state_->promiseHolder = promiseHolder;
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
---- a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp	1985-10-26 01:15:00
-+++ b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp	2026-10-07 11:50:08
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.cpp
 @@ -7,6 +7,13 @@
  
  #include "TurboModuleUtils.h"
@@ -316,9 +316,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    jsi::Object error(runtime_);
    error.setProperty(
        runtime_, "message", jsi::String::createFromUtf8(runtime_, message));
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
---- a/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h	1985-10-26 01:15:00
-+++ b/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h	2026-10-07 11:50:08
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/ReactCommon/TurboModuleUtils.h
 @@ -15,8 +15,10 @@
  
  namespace facebook::react {
@@ -331,9 +331,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
  
    void resolve(const jsi::Value &result);
    void reject(const std::string &message);
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/ReactCommon/react/runtime/hermes/HermesInstance.cpp b/ReactCommon/react/runtime/hermes/HermesInstance.cpp
---- a/ReactCommon/react/runtime/hermes/HermesInstance.cpp	1985-10-26 01:15:00
-+++ b/ReactCommon/react/runtime/hermes/HermesInstance.cpp	2026-10-07 15:01:08
+diff --git a/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp b/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp
+--- a/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp
++++ b/node_modules/react-native/ReactCommon/react/runtime/hermes/HermesInstance.cpp
 @@ -7,6 +7,11 @@
  
  #include "HermesInstance.h"

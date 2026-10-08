@@ -1,6 +1,7 @@
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/.generated/module.modulemap b/apple/.generated/module.modulemap
---- a/apple/.generated/module.modulemap	1969-12-31 16:00:00
-+++ b/apple/.generated/module.modulemap	2026-10-07 11:55:37
+diff --git a/node_modules/expo-modules-jsi/apple/.generated/module.modulemap b/node_modules/expo-modules-jsi/apple/.generated/module.modulemap
+new file mode 100644
+--- /dev/null
++++ b/node_modules/expo-modules-jsi/apple/.generated/module.modulemap
 @@ -0,0 +1,7 @@
 +module jsi {
 +  umbrella header "/Users/devin/repos/Delhi-Air-108/Mobile/ios/Pods/Headers/Public/React-jsi/jsi/jsi.h"
@@ -9,9 +10,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
 +  export *
 +  module * { export * }
 +}
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift	2026-10-07 13:38:46
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptActor.swift
 @@ -1,4 +1,5 @@
  import Foundation
 +internal import ExpoModulesJSI_Cxx
@@ -94,9 +95,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
      job.runSynchronously(on: self.asUnownedSerialExecutor())
    }
  
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift	2026-10-07 13:09:46
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptNativeState.swift
 @@ -80,11 +80,25 @@
      guard let context else {
        return
@@ -123,9 +124,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    }
  
    /// Sets a deallocator, a closure that is invoked when the underlying C++ pointee
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift	2026-10-07 13:38:04
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptPropNameID.swift
 @@ -6,6 +6,20 @@
    private weak let runtime: JavaScriptRuntime?
    internal let pointee: facebook.jsi.PropNameID
@@ -147,9 +148,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    /// Creates a PropNameID from existing `facebook.jsi.PropNameID`.
    internal init(_ runtime: JavaScriptRuntime, _ pointee: consuming facebook.jsi.PropNameID) {
      self.runtime = runtime
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift	2026-10-07 13:09:46
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
 @@ -114,6 +114,16 @@
      self.pointee = expo.iruntime(runtime)
      self.scheduler = expo.RuntimeScheduler(scheduler, fn)
@@ -224,9 +225,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    }
  
    return expo.HostFunctionClosure(context, call, deallocate)
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift	2026-10-07 13:27:14
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptValuesBuffer.swift
 @@ -76,6 +76,24 @@
    }
  
@@ -252,9 +253,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
      if ownsMemory {
        // Run the destructor for each `jsi::Value` so they release their strong refs to JS objects.
        // Without this, calling host functions through this buffer leaks every JS-object argument.
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift	2026-10-07 13:38:04
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArray.swift
 @@ -33,6 +33,20 @@
    /// - Note: This initializer creates a new JavaScript array object in the runtime's heap.
    ///   The array's length can be modified later using the `length` property.
@@ -276,9 +277,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    public init(_ runtime: JavaScriptRuntime, length: Int = 0) {
      self.init(runtime, facebook.jsi.Array(runtime.pointee, length))
    }
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift	2026-10-07 13:38:04
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptArrayBuffer.swift
 @@ -9,6 +9,20 @@
    internal weak let runtime: JavaScriptRuntime?
    internal let pointee: facebook.jsi.ArrayBuffer
@@ -300,9 +301,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    internal init(_ runtime: JavaScriptRuntime, _ arrayBuffer: consuming facebook.jsi.ArrayBuffer) {
      self.runtime = runtime
      self.pointee = arrayBuffer
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift	2026-10-07 13:39:16
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptBigInt.swift
 @@ -1,3 +1,4 @@
 +internal import ExpoModulesJSI_Cxx
  internal import jsi
@@ -329,9 +330,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
  
    /// Creates a BigInt from an existing JSI BigInt.
    internal init(_ runtime: JavaScriptRuntime, _ bigInt: consuming facebook.jsi.BigInt) {
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift	2026-10-07 13:38:04
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptError.swift
 @@ -15,6 +15,20 @@
    private weak let runtime: JavaScriptRuntime?
    nonisolated(unsafe) private let pointee: facebook.jsi.JSError
@@ -353,9 +354,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    internal init(_ runtime: JavaScriptRuntime, _ error: facebook.jsi.JSError) {
      self.runtime = runtime
      self.pointee = error
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift	2026-10-07 13:38:04
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptFunction.swift
 @@ -7,6 +7,20 @@
    internal weak let runtime: JavaScriptRuntime?
    internal let pointee: facebook.jsi.Function
@@ -377,9 +378,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    internal init(_ runtime: JavaScriptRuntime, _ pointee: consuming facebook.jsi.Function) {
      self.runtime = runtime
      self.pointee = pointee
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift	2026-10-07 13:41:15
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift
 @@ -9,6 +9,20 @@
    internal weak let runtime: JavaScriptRuntime?
    internal var pointee: facebook.jsi.Object
@@ -414,9 +415,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    }
  
    /// Creates a new object from existing JSI object.
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift	2026-10-07 13:39:16
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptTypedArray.swift
 @@ -18,6 +18,25 @@
  
    public let kind: Kind
@@ -443,9 +444,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    init(_ runtime: JavaScriptRuntime, _ object: consuming facebook.jsi.Object) {
      self.runtime = runtime
      self.kind = Kind(rawValue: Int(expo.getTypedArrayKind(runtime.pointee, object).rawValue))!
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift	2026-10-07 13:39:28
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptValue.swift
 @@ -10,6 +10,20 @@
    internal weak let runtime: JavaScriptRuntime?
    internal let pointee: facebook.jsi.Value
@@ -467,9 +468,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    /// Takes ownership of the given JSI value. Only runtime-free values (undefined, null, booleans and
    /// numbers) pass `nil` here.
    internal init(_ runtime: JavaScriptRuntime?, _ pointee: consuming facebook.jsi.Value) {
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift
---- a/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift	2026-10-07 13:39:16
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptWeakObject.swift
 @@ -1,5 +1,6 @@
  // Copyright 2025-present 650 Industries. All rights reserved.
  
@@ -498,9 +499,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
    internal init(_ runtime: JavaScriptRuntime, _ object: consuming facebook.jsi.WeakObject) {
      self.runtime = runtime
      self.pointee = object
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp b/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp
---- a/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp	2026-10-07 13:36:12
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/JSIUtils.cpp
 @@ -24,4 +24,8 @@
    return runtime;
  }
@@ -510,9 +511,9 @@ diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_m
 +}
 +
  } // namespace expo
-diff -ruN -x .DerivedData -x .build -x Products -x .xcframework-slices -x node_modules -x *.framework -x sdks a/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h b/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h
---- a/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h	1985-10-26 01:15:00
-+++ b/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h	2026-10-07 13:36:12
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/JSIUtils.h
 @@ -393,6 +393,57 @@
    return shared;
  }
