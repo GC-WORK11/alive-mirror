@@ -7,9 +7,12 @@
 - `/v2/playtime?near=LAT,LON` — rolling 24h curve → best/worst windows + sparse flags
 - `/grid /v2/city /v2/plan /city /community` — all 200
 
-## APK — install THIS one (v6, ec2ed08 — every feature + every fix incl. post-wipe freeze)
-- arm64 release: alive-ec2ed08-arm64.apk 108.7MB sha 95f467ca…8d07
-  https://app.devin.ai/attachments/a1c6257e-18fe-484f-806f-48736f7c8624/alive-ec2ed08-arm64.apk
+## APK — install THIS one (v7, 90bc055 — every feature + every fix + air-gate)
+- arm64 release: alive-90bc055-arm64.apk 108.3MB sha c6282daf…76fe3
+  https://app.devin.ai/attachments/9af3be9a-b067-48e1-adc5-7aaa1670b7e9/alive-90bc055-arm64.apk
+- universal (x86 emulators too): alive-90bc055-universal.apk 188.9MB sha 77654098…
+  https://app.devin.ai/attachments/b3773c76-a29a-41a0-b222-26b987429306/alive-90bc055-universal.apk
+- v7 = v6 (e2e-residual) + air-gate: plain basemap everywhere, PM2.5 field paints only on air intent; boot smoke all-pass on KVM AVD (cold 1563ms, zero crashes)
 - universal x86 fallback (v5, 270be81): 189.3MB sha 3ac840ac…0aba
   https://app.devin.ai/attachments/bd4aa94a-ed39-4835-af53-02c5ac91a0f2/alive-270be81-universal.apk
 - (v5 arm64 superseded — was missing the 5 residual fixes)
