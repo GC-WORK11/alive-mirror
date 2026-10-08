@@ -2008,8 +2008,10 @@ for _name in ("ios-choose-priced", "ios-choose-verdict",
                                              "image/webp"))
     app.get(f"/{_name}.png")(_ios_shot_route(f"{_name}.png"))
 
-# the v13 feature story's ledger/week captures ship webp-only.
-for _name in ("ios-feat-trips", "ios-feat-week"):
+# the v13 feature story's ledger/week captures ship webp-only, as do
+# the new stays/playtime/air-map frames captured for upcoming sections.
+for _name in ("ios-feat-trips", "ios-feat-week", "ios-feat-stays",
+              "ios-feat-playtime", "ios-feat-airmap"):
     app.get(f"/{_name}.webp")(_ios_shot_route(f"{_name}.webp",
                                              "image/webp"))
 
