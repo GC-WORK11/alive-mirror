@@ -2052,6 +2052,19 @@ async def hero_nature_webp():
         media_type="image/webp", headers=_STATIC_CACHE)
 
 
+@app.get("/hero-delhi-smog.webp")
+async def hero_delhi_smog_webp():
+    """The v14 hero's Delhi-smog photograph (server/static/
+    hero-delhi-smog.webp) — full-bleed beneath the lead/rail v14
+    register."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "hero-delhi-smog.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
 @app.get("/delhi_subdistricts.geojson")
 async def delhi_subdistricts_geojson():
     """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/
