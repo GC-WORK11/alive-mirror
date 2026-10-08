@@ -3,36 +3,35 @@
 Every claim verified in-repo on `base/v2`. If a doc disagrees, the lane report wins.
 
 `NLB = http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com` — HTTP :80
-only, never `https://`/`:8000`. Prod **`6bc2b808`** (deploy-7 — transit real
-names on the wire); truth = `curl -s $NLB/health` → `build_sha`.
+only, never `https://`/`:8000`. Prod **`63b7ed42`** (deploy-12, task def :217 —
+'Alive' rebrand + freshness-fix + city-taste live); truth = `curl -s
+$NLB/health` → `build_sha`.
 
-## 1. THE BINARY — ⚠️ RE-CUT REQUIRED
+## 1. THE BINARY — FINAL, 'Alive'-named
 
-- **Pinned freeze-cut** `alive108-ef5d95f.apk` (`docs/lanes/apk-recut-report.md`):
-  https://app.devin.ai/attachments/0febc48c-996a-420e-9d84-a426a05d163a/alive108-ef5d95f.apk
-  sha256 `de15ae62e5a3a886a7410148c214535ca9cf0829904499f00eb9c40ff401705a`.
-- **BUT it predates the Oct-7 fix wave — 19 Mobile commits ahead of it**
-  (`git log ef5d95f..HEAD -- Mobile/`): chooser-4-act `2590598`, visible air
-  field `677dc5d`+`e1e9d22`, search t0 `c583cab`, home-truth `3088716`,
-  delhi-today gate `7a2cedd`, no-welcome-film `4b8ac8a`, jargon `313ffe5`,
-  `edc4666` Android-launch fix… On this binary the stage script's phone
-  beats **do not exist** (v1 chooser, invisible field, welcome film, old
-  search).
-- **Re-cut at `e147dbd` or later — and never `d8c7b41..edc4666`** (the
-  map-perf tune alone crashes Android at launch; `edc4666` is its fix).
-  Delete first: `70914c0`, `c3f7e9e`. Never: `c3bb731`/`0b11123`.
-- **Open the final binary once before the hall** — the first-boot gauntlet
-  changed: ambient number beat → onboarding (consent page 3) → location ask;
-  **no welcome film**, notif permission is lazy (fires on the first real air
-  event after consent, or when you arm a reminder). The vehicle wizard still
-  covers the first plan — burn it.
+- **Final APK** `alive-63b7ed4.apk` (169,315,792 bytes, `docs/lanes/apk-final-v3-report.md`):
+  https://app.devin.ai/attachments/0e9cc7ab-ece9-4e1a-92a9-54fc1ccf1240/alive-63b7ed4.apk
+  sha256 `4fe61126c9f4af4413aad1beaf620f12d023686a1ab2a03f71098282abed36f0`.
+  Built at `63b7ed4` — includes the rename (app shows 'Alive', zero '108'),
+  coach-tour, walk-fixups, drawer/settings perf, local-store bounds,
+  air-map tap-to-read, 133k-row gazetteer, nav-gap honesty, freshness fixes.
+- **14/14 beats PASS on KVM**, zero crashes (743ms cold open; 'Alive' in OS
+  dialogs/drawer/share; offline pack 744 tiles → airplane renders; 6-min
+  soak clean). Drive videos `alive-v3-seg1..5.mp4` on the lane session.
+- **Delete every `alive108-*` build** — this is the only demo binary.
+- **First-boot gauntlet:** ambient number beat → 5-page onboarding → consent →
+  location ask → home → **5-stop coach-tour shows once** (skip persists).
+  Burn it once before the hall.
 
 ## 2. THE STAGE
 
-- prod API / truth: `$NLB` · landing (v7 live: shipped-app hero + chooser
-  film-strip): `$NLB/` · city board: `$NLB/city` · community ledger: `$NLB/community`
-- admin engine room: `$NLB/admin` — flow `docs/plan/admin-login.md`; token from
-  SM `alive108/admin-token` (ap-south-1), **never printed**.
+- prod API / truth: `$NLB` · landing (v8 'Alive' + 'get the app' CTA →
+  github releases): `$NLB/` · city board: `$NLB/city` · community ledger:
+  `$NLB/community`
+- admin engine room: `$NLB/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs` — moved to an
+  un-guessable path (admin-obscure `05a3b4b`); `/admin` now returns honest
+  404. Flow `docs/plan/admin-login.md`; token from SM `alive108/admin-token`
+  (ap-south-1), **never printed**.
 
 ## 3. THE VIDEO PROOF
 
@@ -82,9 +81,6 @@ signature chooser beat plays behind a sheet.
 
 ## 6. KNOWN HONEST HOLES
 
-- **Binary staleness (THE hole):** the pinned APK predates the wave — see §1.
-  If no re-cut lands, narrate the v1 chooser and skip the air-field /
-  raw-search / no-film claims.
 - **iOS SIGBUS: closed on sim, device unmeasured** (`849fd4a`,
   `sigbus-release-report.md`): YG-scavenge class root-caused,
   `withAllocInYoung(false)` → 40/40 repro-clean, all gates
