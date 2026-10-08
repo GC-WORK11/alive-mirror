@@ -1106,7 +1106,10 @@ function HeroBlockInner({ data, budgetUg, profileSet, ambientUg, ambientMeta, fi
                 ? t("homeAirPlaceModel", lang, { p: ambientMeta.place })
                 : t("homeAirModel", lang)))
     : null;
-  const provLine = [provBase, airAgeLine].filter(Boolean).join("  ·  ");
+  /* the air-reading age cites the ambient number — under a counted-day
+     dose numeral it would attribute the field's freshness to the dose */
+  const provLine = [provBase, counted ? null : airAgeLine]
+    .filter(Boolean).join("  ·  ");
   return (
     <View style={ss.hero}>
       <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "med") }]}>

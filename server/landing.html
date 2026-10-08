@@ -537,7 +537,7 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
 
 <!-- the field — the board's centre instrument -->
 <h2 class="blk">the field — live<em>the kriged pm2.5 surface over the real NCR boundaries — the same raster the app and the route engine read. tap a cell to inspect it, or pick two points and the engine prices the air between them, live.</em></h2>
-<section class="panel" id="fieldSec"><div class="panel-pad">
+<section class="panel" id="fieldSec"><div class="panel-pad"> (bug-hunter v2: 5 defects in new surfaces — dead #fieldSec anchor, GRAP 'stage 0' contradiction, counted-day air-age leak, spark hour-count, silent district strip)
   <div class="field-head">
     <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the air map, this hour</b></span></span>
     <span class="psel" id="msel" role="group" aria-label="tool"></span>
@@ -1523,7 +1523,7 @@ function sparkFill(hrs){
     `<circle class="nowdot" cx="${sx(0).toFixed(1)}" cy="${sy(vs[0]).toFixed(1)}" r="2.7"`+
       ` fill="rgb(${c[0]},${c[1]},${c[2]})" stroke="var(--ink)" stroke-width="1"/>`;
   $('sparkL').innerHTML=
-    `the next ${vs.length-1} hours — live forecast · <b>${F1(lo)}–${F1(hi)}</b>`+
+    `the next ${vs.length} hours — live forecast · <b>${F1(lo)}–${F1(hi)}</b>`+
     ` <span style="text-transform:none">µg/m³</span>`;
   $('vNext').textContent=`${F1(lo)}–${F1(hi)} µg/m³`;
   /* the curve draws itself once, on entry */
@@ -1632,8 +1632,15 @@ async function heroCity(){
       countIn($('hnumV'),mean);
       /* grap equivalent — the legal frame of this hour's mean */
       const g=d.grap;
-      if(g&&g.equivalent_stage!=null)
-        $('vGrap').textContent=`stage ${g.equivalent_stage} · aqi ${g.aqi}`;
+      if(g&&g.equivalent_stage!=null){
+        /* same frame as /city + the console: GRAP's legal stages are
+           I–IV — a served 0 is 'below stage i', never 'stage 0', and the
+           hover carries the honesty note every other surface states */
+        $('vGrap').textContent=g.equivalent_stage
+          ?`stage ${['','i','ii','iii','iv'][g.equivalent_stage]||g.equivalent_stage} · aqi ${g.aqi}`
+          :`below stage i · aqi ${g.aqi}`;
+        $('vGrap').title="computed from the live field — the official stage is caqm's call";
+      }
       /* the felt line — a day's breathing in the one unit a cold reader
          already feels */
       if(cig!=null&&cig>0){
@@ -1867,7 +1874,8 @@ Promise.all([
 async function loadDistricts(){
   try{const d=await api('/v2/districts');DIST=(d.districts||d)||[];
     if(Array.isArray(DIST)){$('distN').textContent=DIST.length;paintDChips()}}
-  catch(e){/* the strip keeps its honest-empty text */}
+  catch(e){/* unreachable → say so: the resting line, not a blank strip */
+    if(!DIST.length)paintDChips()}
 }
 async function status(){
   try{
