@@ -2009,6 +2009,19 @@ for _name in ("ios-choose-priced", "ios-choose-verdict",
     app.get(f"/{_name}.png")(_ios_shot_route(f"{_name}.png"))
 
 
+@app.get("/hero-haze.webp")
+async def hero_haze_webp():
+    """The v10 hero's Delhi smog-scape (server/static/hero-haze.webp) —
+    generated skyline dissolving into haze, drifting behind the live
+    field canvas."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "hero-haze.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
 @app.get("/delhi_subdistricts.geojson")
 async def delhi_subdistricts_geojson():
     """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/
