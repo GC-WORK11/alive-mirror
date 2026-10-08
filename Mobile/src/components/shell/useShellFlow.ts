@@ -7,7 +7,7 @@
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
  * /directions remain — /v2/plan carries no turn steps yet. */
 import { useCallback, useEffect, useRef, useState, type RefObject, type SetStateAction } from "react";
-import { Keyboard, Platform, UIManager } from "react-native";
+import { Dimensions, Keyboard, Platform, UIManager } from "react-native";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
 import { requestPerms, scheduleDeparture, scheduleDailyBrief, cancelDeparture } from "../../notify";
 import { loadTrips, logTrip, type Trip } from "../../store/ledger";
@@ -403,9 +403,15 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
               // let the compare sheet's enter spring finish before the
               // camera move — a camera anim inside a sheet-mount frame
               // is the same render-thread spike class
+              /* the compare sheet anchors bottom at detent "half" —
+                 reserve its real footprint so every staged candidate +
+                 endpoint ring draws in the visible band; the old fixed
+                 340 under-reserved ~100 pt and the chooser's lower half
+                 drew under the sheet (ios-vid nit). */
+              const bottom = Math.round(Dimensions.get("window").height * 0.5) + 24;
               setTimeout(() => {
                 if (!cancelled) whenMapDrawFree(() => {
-                  if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom: 340, left: 50, right: 50 }, duration: camDur(700) });
+                  if (!cancelled) camRef.current?.fitBounds(bounds, { padding: { top: 200, bottom, left: 50, right: 50 }, duration: camDur(700) });
                 });
               }, 500);
             }

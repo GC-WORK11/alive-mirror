@@ -1238,6 +1238,9 @@ const en = {
      air number is the field at your spot; same word, different scope
      (audit #16 'two air numbers') */
   cityHeroAirNow: "city average now ~{n} µg/m³",
+  /** the ambient band word printed under the INHALED-µg hero figure —
+      scoped to the air so the dose number never wears an air band */
+  cityHeroAirFelt: "the air outside — {w}",
   /** moves corridor count when the served window is a whole number of
       days — "3 days" where "72 hours" used to sit */
   movesCorridorNDays: "{n} {streetNoun} measured over the last {d} days",
@@ -2274,6 +2277,9 @@ const hi: Record<StringKey, string> = {
   fieldAgeNone: "कोई रीडिंग नहीं",
   aqiScale: "0–500 स्केल",
   cityHeroAirNow: "इस समय शहर का औसत ~{n} µg/m³",
+  /** देखें अंग्रेज़ी कुंजी की टिप्पणी — बाहर की हवा का बैंड-शब्द, साँस में
+      ली गई µg संख्या के नीचे */
+  cityHeroAirFelt: "बाहर की हवा — {w}",
   movesCorridorNDays: "पिछले {d} दिनों में {n} {streetNoun} नापी गईं",
   cityBasisPrivacyDays: "कोई सड़क तभी दिखती है जब {d} दिनों में {k} अलग यात्री उससे गुज़रें — कोई अलग से पहचाना नहीं जा सकता",
   bandUpTo: "{n} तक",

@@ -168,13 +168,37 @@ function drawFree() {
  *  sequences can't starve camera work). Inside the boot window an
  *  idle gap frees it early. Runs synchronously on hardware. */
 export function whenMapDrawFree(cb: () => void, capMs = 2600) {
-  if (Device.isDevice || drawFree()) { cb(); return; }
+  /* whatever runs here is an app-driven map op — mark the window so a
+     touch-attributed region event it emits can't read as a user drag */
+  const run = () => { noteMapTransition(); cb(); };
+  if (Device.isDevice || drawFree()) { run(); return; }
   const t0 = Date.now();
   const poll = () => {
-    if (drawFree() || Date.now() - t0 > capMs) cb();
+    if (drawFree() || Date.now() - t0 > capMs) run();
     else setTimeout(poll, POLL_MS);
   };
   setTimeout(poll, POLL_MS);
+}
+
+/* app-driven transition window — every overlay mount/unmount and every
+   programmatic camera op rides holdMapDrawThen / whenMapDrawFree, so the
+   marker arms inside both. Gesture handlers read it to tell a real drag
+   from transition noise: the bare-map nit — a tap's own
+   userInteraction=true region event arriving inside the nav-exit or
+   search-mount window latched the label drop (airfieldValues +
+   airStationNames + every basemap name) for seconds past the sheet. */
+let transitionUntil = 0;
+/** Mark an app-driven transition window of `ms` — read by gesture
+ *  handlers so transition-attributed camera events can't hide labels. */
+export function noteMapTransition(ms = 1600) {
+  const until = Date.now() + ms;
+  if (until > transitionUntil) transitionUntil = until;
+}
+/** Inside an app-driven transition? A userInteraction=true region event
+ *  here is noise (the tap that closed the sheet, the settle camera), not
+ *  a real drag — label-drop arming must skip it. */
+export function inMapTransition() {
+  return Date.now() < transitionUntil;
 }
 
 /** `setState` ordered AFTER the fps drop commits: the hold opens now
@@ -186,11 +210,12 @@ export function whenMapDrawFree(cb: () => void, capMs = 2600) {
  *  gap (bounded by BOOT_MOUNT_WAIT_MS) and lands under the longer cold
  *  hold — a mid-tile-flush mount is the residual crash. */
 export function holdMapDrawThen(cb: () => void, ms = MAP_DRAW_HOLD_MS) {
+  noteMapTransition();
   if (Device.isDevice) { cb(); return; }
   holdMapDraw(ms);
-  if (!bootWatchOpen()) { setTimeout(cb, 0); return; }
+  if (!bootWatchOpen()) { setTimeout(() => { noteMapTransition(); cb(); }, 0); return; }
   const t0 = Date.now();
-  const fire = () => { holdMapDraw(BOOT_MOUNT_HOLD_MS); cb(); };
+  const fire = () => { holdMapDraw(BOOT_MOUNT_HOLD_MS); noteMapTransition(); cb(); };
   const poll = () => {
     if (!mapBusy || Date.now() - t0 > BOOT_MOUNT_WAIT_MS) fire();
     else setTimeout(poll, BOOT_IDLE_POLL_MS);

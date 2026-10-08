@@ -6,7 +6,7 @@
 // (EXPO_PUBLIC_API_URL, else the emulator loopback aliases). Re-resolving
 // here would let this screen drift from the shell's backend.
 import { API_BASE } from "../search/client";
-import { cacheKeys } from "./cache";
+import { cacheKeys, cachePeek } from "./cache";
 import { fetchCached, linkSignals } from "../offline/net";
 
 export type CityBand = { lo: number; mid: number; hi: number };
@@ -130,6 +130,27 @@ export type CityPayload = {
 export const cityToday = (d: CityPayload): CityDayTotals | null =>
   d.trips?.today ?? null;
 
+/* last-good age fixup, shared by the stale wire path and the instant
+   peek: the payload's own "updated N min ago" was stamped when the
+   server built it — add the time it sat in cache so the chip doesn't
+   claim a 40-minute-old read is "10 min old". `stale` also relabels
+   the freshness chip — only for past-TTL serves; a peek inside its
+   TTL keeps the label the payload stamped. */
+const agedCity = (d: CityPayload, ageS: number, stale: boolean): CityPayload => {
+  const out = { ...d };
+  if (out.freshness) {
+    out.freshness = {
+      ...out.freshness,
+      field_age_s: out.freshness.field_age_s == null ? null : out.freshness.field_age_s + ageS,
+      age_min: out.freshness.age_min == null ? null : Math.round(out.freshness.age_min + ageS / 60),
+      label: stale ? "stale" : out.freshness.label,
+    };
+  } else if (out.field_age_s != null) {
+    out.field_age_s = out.field_age_s + ageS;
+  }
+  return out;
+};
+
 /** One shot at `${API_BASE}/v2/city`, last-good cached: offline → the
  * previous payload returns and the net-status pill labels it stale.
  * Caller owns the AbortSignal for cancel-not-cache semantics — aborts
@@ -148,24 +169,18 @@ export async function fetchCity(signal?: AbortSignal): Promise<CityPayload> {
     },
   });
   if (!r.ok) throw new Error("v2/city unreachable");
-  /* last-good: the payload's own "updated N min ago" was stamped when
-     the server built it — add the time it sat in cache so the chip
-     doesn't claim a 40-minute-old read is "10 min old". */
-  if (r.stale) {
-    const d = { ...r.data };
-    if (d.freshness) {
-      d.freshness = {
-        ...d.freshness,
-        field_age_s: d.freshness.field_age_s == null ? null : d.freshness.field_age_s + r.ageS,
-        age_min: d.freshness.age_min == null ? null : Math.round(d.freshness.age_min + r.ageS / 60),
-        label: "stale",
-      };
-    } else if (d.field_age_s != null) {
-      d.field_age_s = d.field_age_s + r.ageS;
-    }
-    return d;
-  }
+  if (r.stale) return agedCity(r.data, r.ageS, true);
   return r.data;
+}
+
+/** Instant last-good read for cold opens — whatever is on disk with
+ *  the same age fixup, or null when nothing was ever served. The
+ *  caller still fires fetchCity: the peek paints the sheet while the
+ *  wire lands, so a cold server rebuild stops blanking the surface
+ *  (only a first-launch cache-miss can still show the skeleton). */
+export async function peekCity(): Promise<CityPayload | null> {
+  const hit = await cachePeek<CityPayload>(cacheKeys.city());
+  return hit ? agedCity(hit.value, hit.ageS, !hit.fresh) : null;
 }
 
 /* ---- GET /v2/city/moves — "how Delhi moves" (server/v2/city.py) ----------
@@ -245,4 +260,11 @@ export async function fetchCityMoves(
   });
   if (!r.ok) throw new Error("v2/city/moves unreachable");
   return r.data;
+}
+
+/** Instant last-good read like peekCity — paints the moves card while
+ *  the wire lands. */
+export async function peekCityMoves(): Promise<CityMovesPayload | null> {
+  const hit = await cachePeek<CityMovesPayload>(MOVES_CACHE_KEY);
+  return hit ? hit.value : null;
 }

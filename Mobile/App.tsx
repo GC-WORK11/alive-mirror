@@ -32,8 +32,8 @@ import { warm as warmSearchIndex, localityAt } from "./src/search/t0";
 import { afterFirstFrame, noteUserInput } from "./src/startup/idle";
 import { camDur } from "./src/map/cam";
 import {
-  holdMapDraw, noteMapBusy, noteMapIdle, useHeldState, useMapDrawHeld,
-  whenMapDrawFree,
+  holdMapDraw, inMapTransition, noteMapBusy, noteMapIdle, useHeldState,
+  useMapDrawHeld, whenMapDrawFree,
 } from "./src/map/drawHold";
 import { ReportsLayer, reconcileReportSlots, REPORT_POOL, type ReportSlot } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
@@ -45,6 +45,7 @@ import { AirFieldLayer, type AirStation } from "./src/components/AirFieldLayer";
 import { AirMapCard } from "./src/components/AirMapCard";
 import { TapPin, TapReadout, type TapRead } from "./src/components/TapReadout";
 import { fetchAirField, airFieldEpoch, airFieldAgeS, sampleFieldAt } from "./src/api/airfield";
+import { fetchCity, fetchCityMoves } from "./src/api/city";
 import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
 import { PlaceSheet } from "./src/components/shell/PlaceSheet";
@@ -257,6 +258,11 @@ const MapTree = React.memo(function MapTree({
   const onRegionWillChange = useCallback(
     (e: NativeSyntheticEvent<ViewStateChangeEvent>) => {
       if (!e.nativeEvent?.userInteraction) return;
+      /* a userInteraction=true change inside an app-driven transition
+         (sheet mount/exit settle) is transition noise, not a drag —
+         arming the label drop here kept the map bare for seconds past
+         the nav-close and search-open sheets (ios-vid nit) */
+      if (inMapTransition()) return;
       mark("gest.will");
       setGesturing(true);
       if (gestureEndRef.current) clearTimeout(gestureEndRef.current);
@@ -652,6 +658,12 @@ function AppInner() {
     };
     void fieldBootRetry();
     const fieldIv = setInterval(fieldPull, 10 * 60 * 1000);
+    /* warm the DelhiToday caches alongside the field — the sheet paints
+       from a last-good peek instantly when the disk copy is hot, and
+       /v2/city/moves has no other warmer. Both are deduped inside
+       fetchCached so a home-screen fetch in flight just joins. */
+    fetchCity().catch(() => {});
+    fetchCityMoves().catch(() => {});
     /* the OS permission dialog no longer fires at boot — on a cold install
        it landed on top of the first open before any value or context, and
        it still waited behind consent. It lives in the introSeen-gated

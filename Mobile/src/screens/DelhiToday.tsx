@@ -44,7 +44,10 @@ import { BandScale } from "../components/BandScale";
 import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
-  fetchCityMoves, type CityMovesPayload,
+  fetchCityMoves,
+  peekCity,
+  peekCityMoves,
+  type CityMovesPayload,
   cityToday,
   type CityCorridor,
   type CityPayload,
@@ -264,6 +267,24 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
         });
       fetchCityMoves(ctrl.signal).then(setMoves).catch(() => {});
     };
+    /* paint last-good instantly, then let the wire land what it lands —
+       a cold server rebuild (~12-19 s while the trips rev bumped the
+       city cache) used to hold the whole sheet on a skeleton; now it
+       blanks only on a real first-launch cache miss. Wire failures
+       after a peek serve degrade to the labelled stale read, never
+       the failure card — same promise fetchCity already makes. */
+    if (!hasData.current) {
+      void peekCity().then((d) => {
+        if (d && !ctrl.signal.aborted && !hasData.current) {
+          hasData.current = true;
+          setData(d);
+          setFetchedAt(Date.now());
+        }
+      });
+      void peekCityMoves().then((m) => {
+        if (m && !ctrl.signal.aborted) setMoves((cur) => cur ?? m);
+      });
+    }
     pull();
     const iv = setInterval(pull, 60000);
     const ageIv = setInterval(() => setNowMs(Date.now()), 30000);
@@ -387,7 +408,11 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroFelt, { fontFamily: famSerif(lang, "med"), color: bandInkIdx(bandIdx(pm.mid) ?? 0) ?? V2T.text }]}
                 >
-                  {t(feltKeyForBand(bandIdx(pm.mid)), lang)}
+                  {/* the band word sits under a DOSE figure (inhaled µg)
+                      — scope it to the air it describes or '819 µg ·
+                      satisfactory' reads like the dose earned the band
+                      (the felt word also opens the lead line above). */}
+                  {t("cityHeroAirFelt", lang, { w: t(feltKeyForBand(bandIdx(pm.mid)), lang) })}
                 </Text>
                 <Text {...DYNAMIC_TYPE}
                   style={[ss.heroRef, NUM, { fontFamily: fam(lang, "reg") }]}
