@@ -2,16 +2,21 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { BackHandler, Linking, LogBox, Pressable, Share, StyleSheet, Text, ToastAndroid, View, type NativeSyntheticEvent } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
-import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
-import {
-  Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_500Medium, Fraunces_600SemiBold,
-} from "@expo-google-fonts/fraunces";
-import {
-  IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold,
-} from "@expo-google-fonts/ibm-plex-mono";
-import {
-  NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium, NotoSansDevanagari_600SemiBold,
-} from "@expo-google-fonts/noto-sans-devanagari";
+/* per-weight deep imports — a barrel import of @expo-google-fonts/<pkg>
+   registers every weight+italic as a require (50+ unused TTFs rode the
+   bundle for the 9 that load). Fraunces was already dead: imported but
+   never in useFonts (retired per docs/20) — the import is gone, not
+   just trimmed. */
+import { useFonts } from "expo-font";
+import { Inter_400Regular } from "@expo-google-fonts/inter/400Regular";
+import { Inter_500Medium } from "@expo-google-fonts/inter/500Medium";
+import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
+import { IBMPlexMono_400Regular } from "@expo-google-fonts/ibm-plex-mono/400Regular";
+import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono/500Medium";
+import { IBMPlexMono_600SemiBold } from "@expo-google-fonts/ibm-plex-mono/600SemiBold";
+import { NotoSansDevanagari_400Regular } from "@expo-google-fonts/noto-sans-devanagari/400Regular";
+import { NotoSansDevanagari_500Medium } from "@expo-google-fonts/noto-sans-devanagari/500Medium";
+import { NotoSansDevanagari_600SemiBold } from "@expo-google-fonts/noto-sans-devanagari/600SemiBold";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import {
@@ -622,7 +627,6 @@ function AppInner() {
       if (L.fires && Date.now() - firesAtRef.current > 15 * 60 * 1000) pullFires();
       if (L.corridors && Date.now() - communityAtRef.current > 15 * 60 * 1000) pullCommunity();
     }).catch(() => {});
-    poll();
     const iv = setInterval(poll, 60000);
     /* the map-screen freshness chip reads the served field's own status
        block — GET /aqi's `field` IS FIELD.status() verbatim (same keys
@@ -656,14 +660,24 @@ function AppInner() {
       if (++fieldBoot >= 3) return;           // three tries, then the 10-min cadence
       fieldT = setTimeout(fieldBootRetry, 7000);
     };
-    void fieldBootRetry();
     const fieldIv = setInterval(fieldPull, 10 * 60 * 1000);
     /* warm the DelhiToday caches alongside the field — the sheet paints
        from a last-good peek instantly when the disk copy is hot, and
        /v2/city/moves has no other warmer. Both are deduped inside
-       fetchCached so a home-screen fetch in flight just joins. */
-    fetchCity().catch(() => {});
-    fetchCityMoves().catch(() => {});
+       fetchCached so a home-screen fetch in flight just joins.
+       Boot-window deferral (perf-size lane): the /grid payload, the
+       city warmers and the report pins all parse+re-render on the JS
+       thread — measured storming the window between the /aqi response
+       and the hero's first numeral (~0.2–1.4 s of contention). None of
+       them feed the first paint — the map sits under the home sheet
+       until a tap — so they start after the first real frame plus a
+       beat and still land before a hand can reach the door. */
+    void afterFirstFrame().then(() => setTimeout(() => {
+      void fieldBootRetry();
+      fetchCity().catch(() => {});
+      fetchCityMoves().catch(() => {});
+      poll();
+    }, 1200));
     /* the OS permission dialog no longer fires at boot — on a cold install
        it landed on top of the first open before any value or context, and
        it still waited behind consent. It lives in the introSeen-gated
@@ -683,6 +697,7 @@ function AppInner() {
            only stall the first real number — read the Delhi centroid
            (the field is city-wide anyway) and upgrade once positioned. */
         let pos = await Location.getLastKnownPositionAsync().catch(() => null);
+        mark("loc.lastknown");
         /* a cached fix can be continents stale (emulator seed, travel
            since the last open) — an out-of-NCR last-known buys only a
            guaranteed out-of-area read and a bogus userPos; the centroid
@@ -768,7 +783,7 @@ function AppInner() {
     const aqiIv = setInterval(() => aqiPoll(), 60000);
     aqiPollRef.current = () => aqiPoll(true);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
-    loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
+    loadConsent().then((c) => { mark("consent.read"); setIntroSeen(c.seen); }).catch(() => setIntroSeen(false));
     loadTourSeen().then(setTourSeen).catch(() => setTourSeen(false));
     /* the welcome film is gone — the flag still lands once per install
        so the file's semantics (welcome_seen_v1.json exists ⇔ this
@@ -781,8 +796,10 @@ function AppInner() {
        search door is tapped the index is already a Map, so the sheet
        opens in ms instead of freezing on a multi-second sync build
        inside its mount effect (the owner's "10 seconds, hung" read).
-       The 900 ms delay keeps the slices behind the boot burst. */
-    void afterFirstFrame().then(() => setTimeout(() => warmSearchIndex(), 900));
+       The delay keeps the slices behind the boot burst — pushed past
+       the field warm (1200 ms) so the ~0.9 MB index-chunk requires
+       never contend with the hero's first numeral (perf-size lane). */
+    void afterFirstFrame().then(() => setTimeout(() => warmSearchIndex(), 2200));
     /* recents pre-warm — places.json is a few KB: filling the mem
        cache at first-idle means the sheet's rail is populated on the
        FIRST open, not one frame after it (instant-open gate) */

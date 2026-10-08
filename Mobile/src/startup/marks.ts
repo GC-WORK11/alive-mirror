@@ -50,11 +50,20 @@ const realFetch = globalThis.fetch;
 if (typeof realFetch === "function") {
   globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
     let isPlan = false;
+    let tag: string | null = null;
     try {
       const input = args[0];
       const url = typeof input === "string" ? input : (input as { url?: string } | null)?.url;
       isPlan = typeof url === "string" && url.includes("/v2/plan");
+      /* boot-path fetch taps (perf-size lane): /aqi feeds the home numeral,
+         /grid feeds the air field — both are read-only timestamps. */
+      if (typeof url === "string") {
+        if (url.includes("/aqi?")) tag = "aqi";
+        else if (url.includes("/grid?")) tag = "grid";
+        else if (url.includes("/v2/day?")) tag = "daycurve";
+      }
       if (isPlan) mark("plan:req");
+      if (tag) mark(`${tag}:req`);
     } catch {
       /* observation must never break a request */
     }
@@ -66,6 +75,12 @@ if (typeof realFetch === "function") {
           Promise.resolve(p).then(() => markOnce("plan:first")).catch(() => {});
         }
         Promise.resolve(p).then(() => mark("plan:resp"), () => mark("plan:fail")).catch(() => {});
+      }
+      if (tag) {
+        const t = tag;
+        Promise.resolve(p)
+          .then(() => mark(`${t}:resp`), () => mark(`${t}:fail`))
+          .catch(() => {});
       }
     } catch {
       /* observation must never break a request */

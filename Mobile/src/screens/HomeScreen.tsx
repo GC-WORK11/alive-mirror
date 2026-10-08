@@ -115,7 +115,7 @@ import {
   outlookCaption,
   shortDate,
 } from "../components/shell/daywords";
-import { bump, jank } from "../perf";
+import { bump, jank, mark } from "../perf";
 
 /* ---------------- the hook: one assemble of the day's data --------------- */
 
@@ -158,9 +158,11 @@ export function useDayData(
     let live = true;
     void (async () => {
       const [samples, checkins] = await Promise.all([allSamples(), getCheckins()]);
+      mark("day.disk");
       const now = Date.now();
       const today = dayKey(now);
       const rec = reconstructDay(today, samples, trips, now, lang);
+      mark("day.rec");
 
       /* week: today's rec is live; the six finished days come from the
          day-sum rollup — each was reconstructed once when its inputs
@@ -168,14 +170,22 @@ export function useDayData(
          re-deriving it from the full sample+trip history (pocket-engine
          lane: this used to cost one reconstructDay per finished day on
          EVERY refresh). */
-      const week: DayData["week"] = [];
+      /* daysum seals are keyed per-day and writes chain on writeTail —
+         parallel reads are safe, and the serial loop gated the hero's
+         first paint on up to 7 sequential rollup passes (perf-size
+         lane: measured 15–40 ms on a light install, larger on a real
+         one — every pass re-reads allSamples+trips before mem warms) */
+      const weekKeys: string[] = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
-        const k = dayKey(d.getTime());
-        const r = i === 0 ? rec : (await getDay(k, lang)).rec;
-        week.push({ day: k, ug: r.totalUg, rec: r });
+        weekKeys.push(dayKey(d.getTime()));
       }
+      const week: DayData["week"] = await Promise.all(weekKeys.map((k, i) =>
+        i === 6
+          ? Promise.resolve({ day: k, ug: rec.totalUg, rec })
+          : getDay(k, lang).then((r) => ({ day: k, ug: r.rec.totalUg, rec: r.rec }))));
+      mark("day.week");
 
       // the lens needs a dose per checkin's *previous* day, counted only
       // where coverage was real enough to say so — same rollup: up to
@@ -188,10 +198,13 @@ export function useDayData(
         d.setDate(d.getDate() - 1);
         keys.add(dayKey(d.getTime()));
       }
-      for (const k of keys) {
-        const r = (await getDay(k, lang)).rec;
+      const lensKeys = [...keys];
+      const lensDays = await Promise.all(lensKeys.map((k) => getDay(k, lang)));
+      for (const [i, k] of lensKeys.entries()) {
+        const r = lensDays[i].rec;
         if (r.coveredMin >= 30 || r.parts.length > 0) doseByDay[k] = r.totalUg;
       }
+      mark("day.lens");
 
       const outside = !inNcr(lat, lon);
       if (!live) return;
@@ -217,6 +230,7 @@ export function useDayData(
       }));
       if (outside || !withCurve) return;
       const [curve, outlook] = await Promise.all([fetchDayCurve(lat, lon), fetchOutlook(lat, lon)]);
+      mark("day.curve");
       if (!live) return;
       setData((prev) => (prev ? { ...prev, curve, outlook } : prev));
     })();
@@ -1072,6 +1086,9 @@ function HeroBlockInner({ data, budgetUg, profileSet, ambientUg, ambientMeta, fi
      yesterday when yesterday was counted). Sparse day: the air at your
      cell, its felt band, its multiple of the WHO daily guideline. */
   const counted = !rec.thin;
+  /* perf tap: first commit where the hero can show a real numeral
+     (dose counted, or a live air value to fall back to) */
+  if (counted || airNow != null) mark("hero.num");
   const idx = counted ? (tier ?? 0) : airNowIdx;
   const ink = idx != null ? (bandInkIdx(idx) ?? V2T.text) : V2T.text;
   const felt = idx != null ? t(feltKeyForBand(idx), lang) : null;
