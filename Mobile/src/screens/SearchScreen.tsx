@@ -32,6 +32,7 @@ import { Quiet } from "../ui";
 import {
   distKm,
   normalize,
+  onIndexReady,
   query as t0query,
   warm,
   type LatLon,
@@ -247,6 +248,10 @@ function SearchSheetInner({
      titles, so React never stalls long enough for the native field to
      drop the next character (audit #17's actual mechanism) */
   const qDeferred = useDeferredValue(q);
+  /* mirrors of q/loc for the onIndexReady replay — the readiness fire
+     isn't render-bound, so it reads the latest text through refs. */
+  const qRef = useRef("");
+  const locRef = useRef<LatLon | null | undefined>(undefined);
   const [t0rows, setT0rows] = useState<PlaceResult[]>([]);
   const [tiers, setTiers] = useState<ServerTiers | null>(null);
   const [store, setStore] = useState<PlaceStore>({ recents: [], home: null, work: null });
@@ -263,6 +268,14 @@ function SearchSheetInner({
   useEffect(() => {
     warm();
     getPlaces().then(setStore).catch(() => {});
+    /* index-prebuild: a keystroke that outran the index build answered
+       honestly-empty; when the index lands (prebuilt load or the lazy
+       fallback) replay the current text once so the queued ask gets its
+       rows — the "queue until ready" half of the no-sync-build rule. */
+    const offReady = onIndexReady(() => {
+      const t = qRef.current.trim();
+      if (t) setT0rows(t0query(t, locRef.current, T0_LIMIT));
+    });
     const raf = requestAnimationFrame(() => setBodyReady(true));
     /* NO programmatic focus ever: every timed focus() variant still
        segfaults this stack — runAfterInteractions only waits on RN's
@@ -272,10 +285,11 @@ function SearchSheetInner({
        gate present). Apple/Google Maps grammar instead: recents render
        on open with no keyboard; the field focuses natively on the
        user's own tap — a tap is itself proof the scene settled. */
-    return () => { cancelAnimationFrame(raf); search.dispose(); };
+    return () => { offReady(); cancelAnimationFrame(raf); search.dispose(); };
   }, [search]);
 
   const loc = userLocation ?? undefined;
+  useEffect(() => { locRef.current = loc; }, [loc]);
 
   const onChange = useCallback(
     (text: string) => {
@@ -286,6 +300,7 @@ function SearchSheetInner({
          the synchronous t0 query + the list swaps — marks non-urgent
          so the echo always wins the next render. */
       setQ(text);
+      qRef.current = text;
       const trimmed = text.trim();
       startTransition(() => {
         setArmed(null);   // the list just rebuilt — the armed row may be gone

@@ -15,6 +15,12 @@ Usage:
     tools/corpus-venv/bin/python scripts/build_mobile_gaz.py
     tools/corpus-venv/bin/python scripts/build_mobile_gaz.py --target 150000 \
         --out server/data/corpus/delhi-gazetteer-150k.json
+    tools/corpus-venv/bin/python scripts/build_mobile_gaz.py --install
+
+--install is the data-stamp step: it writes the emitted gazetteer over
+Mobile/assets/delhi-gazetteer.json AND regenerates the prebuilt t0 search
+index (Mobile/assets/t0-index.json via Mobile/scripts/build-t0-index.mjs)
+in the same run, so the shipped index can never rot behind the corpus.
 """
 
 from __future__ import annotations
@@ -37,6 +43,9 @@ def main() -> int:
     ap.add_argument("--gazetteer", default=bc.GAZETTEER_PATH,
                     help="bundled gazetteer to merge/dedupe against")
     ap.add_argument("--target", type=int, default=150000)
+    ap.add_argument("--install", action="store_true",
+                    help="also write the emit over the bundled asset and "
+                         "rebuild the prebuilt t0 index (one stamp step)")
     args = ap.parse_args()
 
     if not os.path.exists(args.corpus):
@@ -56,6 +65,21 @@ def main() -> int:
     print(f"bundled kept: {m['existing']:,} | new corpus rows added: "
           f"{m['added']:,} | name+75 m dupes skipped: {m['skipped_dupes']:,}")
     print(f"total: {m['total']:,} (target {args.target:,})")
+
+    if args.install:
+        import shutil
+        import subprocess
+        shutil.copyfile(args.out, bc.GAZETTEER_PATH)
+        print(f"installed -> {os.path.relpath(bc.GAZETTEER_PATH, bc.REPO)}")
+        # the index derives from the corpus: rebuild it in THIS step so a
+        # stale t0-index.json can never ship against fresher data
+        r = subprocess.run(
+            ["node", "scripts/build-t0-index.mjs", "--force"],
+            cwd=os.path.join(bc.REPO, "Mobile"), check=False)
+        if r.returncode != 0:
+            print("t0 index prebuild failed -- run `cd Mobile && "
+                  "npm run build:t0` manually", file=sys.stderr)
+            return r.returncode
     return 0
 
 

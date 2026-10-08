@@ -38,7 +38,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "lint": "expo lint",
-    "postinstall": "patch-package"
+    "build:t0": "node scripts/build-t0-index.mjs",
+    "check:t0": "node scripts/build-t0-index.mjs --check",
+    "postinstall": "patch-package && (node scripts/build-t0-index.mjs || echo \"postinstall: t0 index prebuild skipped — run npm run build:t0 before bundling\")"
   },
   "private": true
 }

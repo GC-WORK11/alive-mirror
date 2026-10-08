@@ -111,3 +111,9 @@ jobs:
 
       - name: Lint
         run: npx expo lint
+
+      # t0 index: freshness sig vs the bundled gazetteer + prebuilt/lazy
+      # parity + the no-sync-build rule (postinstall above already keeps
+      # the shipped asset from rotting)
+      - name: Search index tests
+        run: node src/search/test-runner.mjs
