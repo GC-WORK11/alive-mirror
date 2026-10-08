@@ -79,3 +79,32 @@ art stays photographic muted warm-grey.
 16-frame set sent to the lead session for the owner's verdict
 (awaiting visual verdict — pushed per deadline clause; iterate on any
 rejection).
+
+---
+
+## v11 — hero only (owner veto on the card hero)
+
+Verdict on v10: 'remove this boxy component … i want THIS: hero with
+calm image in the background delivering calmness — your slop corner
+number … isn't about the number or caption.' Refs: (a) nature-inspired
+— muted sage field, giant lowercase white display type over a
+photographic band, tiny corner labels; (b) 'Reconnect to what matters'
+— giant sentence, one pill, ghost wordmark fading at the bottom.
+
+Shipped (`ff976ec` base/v2, `ef4cedd` main+landing):
+- `server/static/hero-alive.webp` — generated 2560×1707 dawn Delhi
+  skyline (India Gate silhouette in calm mist, pale sage-cream),
+  72 KB, `preload` + 172 B inline LQIP under it → paints instantly.
+- Hero region rebuilt: `.hero-img` full-bleed `calc(100svh-…-22px)`,
+  no card/border/chips/numeral/captions; `h1.hword` "alive"
+  `clamp(92px,17.5vw,272px)` lowercase white + "the air Delhi
+  breathes — shown live." + one ghost pill `get the app →` + tiny
+  `delhi ncr` corner label. Scrim = single bottom gradient.
+- Live numeral/band/felt/ages: NOT deleted — moved to `.hero-data`
+  (display:none) so `$('hnumV')` etc. keep painting; zero script
+  changes. The number lives on in the nav chip.
+- `.fgiant` gains a bottom-edge mask — the ref-b ghost wordmark.
+- Test markers updated: `hero-grid`→`hero-img`, `public monitors`→
+  `the air Delhi breathes`.
+- Verified: 8/8 landing+inline tests; headless @1440/390 — 0 console
+  errors, no overflow, India Gate stays in frame on mobile.
