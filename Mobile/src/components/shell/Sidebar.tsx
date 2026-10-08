@@ -8,7 +8,7 @@
  * the daily actions are a 2-col tile grid, vehicle choice expands into
  * an icon grid under its own tile. Sections rise in with a stagger on
  * open; every tile gives press feedback. */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Animated, BackHandler, Dimensions, LayoutAnimation, Pressable,
   ScrollView, StyleSheet, Switch, Text, View,
@@ -47,12 +47,20 @@ const vehicleLabelKey = (v: string): Parameters<typeof t>[0] =>
 
 type Section = "vehicle" | "settings" | "how" | null;
 
+/* open/close reaches the section stagger through a context, not a prop:
+   the memoised body subtree then skips reconciliation on every flip —
+   only the seven Rise wrappers re-render, and their children are stable
+   elements so the ~300-row content bails out. One context read also
+   carries the hoisted useReduceMotion value (was: one subscription per
+   Rise). */
+const RiseCtx = React.createContext<{ open: boolean; reduce: boolean }>({ open: false, reduce: false });
+
 /** Staggered rise-in for a drawer section — each tile group fades and
  *  drifts up ~14px as the drawer opens. One-shot per open, JS driver
  *  (RN 0.86 native-detach guard — see ui.tsx Sheet). Skipped entirely
  *  under reduce-motion. */
-function Rise({ i, open, children }: { i: number; open: boolean; children: React.ReactNode }) {
-  const reduce = useReduceMotion();
+function Rise({ i, children }: { i: number; children: React.ReactNode }) {
+  const { open, reduce } = useContext(RiseCtx);
   const [v] = useState(() => new Animated.Value(0));
   const [ty] = useState(() => v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }));
   useEffect(() => {
@@ -71,11 +79,7 @@ function Rise({ i, open, children }: { i: number; open: boolean; children: React
   );
 }
 
-function SidebarInner({
-  open, onClose, trips, lang, settings, onSettings, onDeleteData,
-  onArmBrief, onNavigate, currentDest, onDelhiToday, onTripReceipt,
-  onFullSettings, onLang, onShare, onShareTrip, onPickPlace,
-}: {
+type SidebarProps = {
   open: boolean;
   onClose: () => void;
   trips: Trip[];
@@ -88,32 +92,36 @@ function SidebarInner({
   currentDest: SavedPlace | null;
   onDelhiToday?: () => void;        // SEAM(delhi-today): doc 07 consumer city view
   onTripReceipt?: (tr: Trip) => void; // opens the trips ledger (App wires the
-                                     // modal — the arg is kept for a future
-                                     // deep-link into one trip)
+                                    // modal — the arg is kept for a future
+                                    // deep-link into one trip)
   onFullSettings?: () => void;       // opens the dedicated SettingsScreen
   onLang?: (l: Lang) => void;        // SEAM(lang): dedicated language callback —
                                      // falls back to onSettings({lang}) when unwired
   onShare?: () => void;              // SEAM(share): system share of the app —
                                      // the row stays hidden until wired
   onShareTrip?: (tr: Trip) => void;  // SEAM(share-trip): share one trip's
-                                     // numbers — trailing affordance per row
+                                    // numbers — trailing affordance per row
   onPickPlace?: (slot: "home" | "work") => void; // SEAM(set-place): search-pick
-                                     // a place for an unset home/work slot
-}) {
-  bump("shell.Sidebar");
-  const [slide] = useState(() => new Animated.Value(-DRAWER_W));
-  /* stable interpolation node — inline re-creation trips RN 0.86's
-     animated-props detach path (see ui.tsx Sheet) */
-  const [scrimOp] = useState(() =>
-    slide.interpolate({ inputRange: [-DRAWER_W, 0], outputRange: [0, 1] }));
+                                    // a place for an unset home/work slot
+};
+
+/** The drawer's scrollable content — memoised on its data props so an
+ *  open/close flip re-renders only the shell (scrim, slide, header) and
+ *  the Rise wrappers reading the context; the body reconciles when the
+ *  data it shows actually changes. */
+const SidebarBody = React.memo(function SidebarBody({
+  onClose, trips, lang, settings, onSettings, onDeleteData,
+  onArmBrief, onNavigate, currentDest, onDelhiToday, onTripReceipt,
+  onFullSettings, onLang, onShare, onShareTrip, onPickPlace, reduce,
+}: Omit<SidebarProps, "open"> & { reduce: boolean }) {
+  bump("shell.SidebarBody");
   const [section, setSection] = useState<Section>(null);
   const insets = useSafeAreaInsets();
-  const reduceMotion = useReduceMotion();
   const scrollRef = useRef<ScrollView>(null);
   const toggle = (k: Section) => {
     /* option grid mounts/unmounts under the tile — ease it open like the
        settings expanders (off under reduce-motion) */
-    if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (!reduce) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSection((s) => (s === k ? null : k));
   };
   /* the list-end expanders mount their panel below the visible fold —
@@ -122,45 +130,10 @@ function SidebarInner({
      content. */
   useEffect(() => {
     if (section !== "how" && section !== "settings") return;
-    const a = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: !reduceMotion }), 120);
-    const b = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: !reduceMotion }), 340);
+    const a = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: !reduce }), 120);
+    const b = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: !reduce }), 340);
     return () => { clearTimeout(a); clearTimeout(b); };
-  }, [section, reduceMotion]);
-
-  // drawer stays mounted off-canvas; the wrapper swallows touches when closed
-  // NB: JS driver — RN 0.86's native-animated detach path segfaults the
-  // sheet flow (see ui.tsx Sheet for the same guard)
-  /* the live translateX comes off once the drawer has slid home — a
-     residual transform on the drawer's container swallowed drag gestures
-     on Android 15 while taps still landed (emulator drive, D1). Static
-     post-settle style is visually identical; closing re-arms it. */
-  const [openSettled, setOpenSettled] = useState(false);
-  const [wasOpen, setWasOpen] = useState(open);
-  if (open !== wasOpen) {
-    /* sanctioned render-phase reset — closing re-arms the spring */
-    setWasOpen(open);
-    setOpenSettled(false);
-  }
-  useEffect(() => {
-    jank(open ? "drawer.open" : "drawer.close");
-    Animated.spring(slide, {
-      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && open) setOpenSettled(true);
-    });
-  }, [open, slide]);
-
-  /* Android hardware BACK closes the drawer — this overlay has no Modal
-     onRequestClose, so without it BACK fell through and exited the app
-     (Android forensic find) */
-  useEffect(() => {
-    if (!open) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      onClose();
-      return true;
-    });
-    return () => sub.remove();
-  }, [open, onClose]);
+  }, [section, reduce]);
 
   const st = useMemo(() => ledgerStats(trips), [trips]);
   const week = useMemo(() => weekStats(trips, undefined, lang), [trips, lang]);
@@ -368,35 +341,11 @@ function SidebarInner({
   let rise = 0; // stagger order across the scroll content
 
   return (
-    <View style={[StyleSheet.absoluteFill, s.overlayZ]} pointerEvents={open ? "auto" : "none"}>
-      <Animated.View style={[s.scrim, {
-        opacity: scrimOp,
-      }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}
-          accessibilityRole="button" accessibilityLabel={t("settingsClose", lang)} />
-      </Animated.View>
-      <Animated.View style={[s.drawer, openSettled ? null : { transform: [{ translateX: slide }] }]}>
-        {/* fixed header — app mark + wordmark + close (stays put while
-            the list scrolls) */}
-        <View style={[s.header, { paddingTop: insets.top + 14 }]}>
-          <View style={s.brandRow}>
-            <View style={s.mark}>
-              <Icon name="wind" color={V2T.text2} size={15} />
-            </View>
-            <Text {...DYNAMIC_TYPE} style={s.wordmark}>ALIVE<Text {...DYNAMIC_TYPE} style={{ color: V2T.accent }}>-108</Text></Text>
-          </View>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button"
-            accessibilityLabel={t("settingsClose", lang)}
-            style={({ pressed }) => [s.closeBtn, pressed && { opacity: 0.55 }]}>
-            <Icon name="close" color={V2T.text2} size={14} />
-          </Pressable>
-        </View>
-
-        <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 20 }]}>
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 20 }]}>
           {/* 1 — Today: breathed / put-out as twin hero tiles
               (doc 02 §sidebar-1 — both numbers, never fake) */}
           {st.todayUg > 0 && (
-            <Rise i={rise++} open={open}>
+            <Rise i={rise++}>
               {sectionLabel(t("sidebarToday", lang), true)}
               <View style={s.tileRow}>
                 <View style={s.statTile}>
@@ -440,7 +389,7 @@ function SidebarInner({
 
           {/* 2 — This week: 7 thin bars + the honest rollup line */}
           {week.totalTrips > 0 && (
-            <Rise i={rise++} open={open}>
+            <Rise i={rise++}>
               {sectionLabel(t("sidebarThisWeek", lang), st.todayUg === 0)}
               <View style={s.tile}>
                 <View style={s.weekRow}>
@@ -471,7 +420,7 @@ function SidebarInner({
 
           {/* 3 — the district-tile wall: saved places + the two daily
               actions, four equal tiles in the admin 2-col rhythm */}
-          <Rise i={rise++} open={open}>
+          <Rise i={rise++}>
             {sectionLabel(t("sidebarSavedPlaces", lang), st.todayUg === 0 && week.totalTrips === 0)}
             <View style={s.tileRow}>{placeTile("home")}{placeTile("work")}</View>
             <View style={[s.tileRow, { marginTop: 10 }]}>
@@ -520,7 +469,7 @@ function SidebarInner({
           {/* 4 — Trips: tap → the ledger; "all saved trips" lands the
               full ledger too */}
           {recent.length > 0 && (
-            <Rise i={rise++} open={open}>
+            <Rise i={rise++}>
               <View style={s.tripsHead}>
                 <Text {...DYNAMIC_TYPE} style={[s.sectionLabel, { fontFamily: fam(lang, "semi"), marginBottom: 0, marginTop: 0 }]}>
                   {t("sidebarTrips", lang)}
@@ -539,7 +488,7 @@ function SidebarInner({
           )}
 
           {/* 5 — app group (language · sharing · settings · about) */}
-          <Rise i={rise++} open={open}>
+          <Rise i={rise++}>
             {card([
               // language — first-class segmented toggle (doc 02 §sidebar-7)
               <View key="lang" style={s.row}>
@@ -618,7 +567,7 @@ function SidebarInner({
 
           {/* destructive — a quiet row under the groups, not a card:
               reachable, low-key, out of the accidental-tap path */}
-          <Rise i={rise++} open={open}>
+          <Rise i={rise++}>
             <Pressable
               onPress={() =>
                 Alert.alert(t("deleteConfirmTitle", lang), t("deleteConfirmBody", lang), [
@@ -633,7 +582,102 @@ function SidebarInner({
               </Text>
             </Pressable>
           </Rise>
-        </ScrollView>
+    </ScrollView>
+  );
+});
+
+function SidebarInner(props: SidebarProps) {
+  const { open, onClose, lang } = props;
+  bump("shell.Sidebar");
+  const [slide] = useState(() => new Animated.Value(-DRAWER_W));
+  /* stable interpolation node — inline re-creation trips RN 0.86's
+     animated-props detach path (see ui.tsx Sheet) */
+  const [scrimOp] = useState(() =>
+    slide.interpolate({ inputRange: [-DRAWER_W, 0], outputRange: [0, 1] }));
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
+
+  // drawer stays mounted off-canvas; the wrapper swallows touches when closed
+  // NB: JS driver — RN 0.86's native-animated detach path segfaults the
+  // sheet flow (see ui.tsx Sheet for the same guard)
+  /* the live translateX comes off once the drawer has slid home — a
+     residual transform on the drawer's container swallowed drag gestures
+     on Android 15 while taps still landed (emulator drive, D1). Static
+     post-settle style is visually identical; closing re-arms it. */
+  const [openSettled, setOpenSettled] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    /* sanctioned render-phase reset — closing re-arms the spring */
+    setWasOpen(open);
+    setOpenSettled(false);
+  }
+  useEffect(() => {
+    jank(open ? "drawer.open" : "drawer.close");
+    Animated.spring(slide, {
+      toValue: open ? 0 : -DRAWER_W, damping: 22, stiffness: 220, useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && open) setOpenSettled(true);
+    });
+  }, [open, slide]);
+
+  /* Android hardware BACK closes the drawer — this overlay has no Modal
+     onRequestClose, so without it BACK fell through and exited the app
+     (Android forensic find) */
+  useEffect(() => {
+    if (!open) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [open, onClose]);
+
+  const riseCtx = useMemo(() => ({ open, reduce: reduceMotion }), [open, reduceMotion]);
+
+  return (
+    <View style={[StyleSheet.absoluteFill, s.overlayZ]} pointerEvents={open ? "auto" : "none"}>
+      <Animated.View style={[s.scrim, {
+        opacity: scrimOp,
+      }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}
+          accessibilityRole="button" accessibilityLabel={t("settingsClose", lang)} />
+      </Animated.View>
+      <Animated.View style={[s.drawer, openSettled ? null : { transform: [{ translateX: slide }] }]}>
+        {/* fixed header — app mark + wordmark + close (stays put while
+            the list scrolls) */}
+        <View style={[s.header, { paddingTop: insets.top + 14 }]}>
+          <View style={s.brandRow}>
+            <View style={s.mark}>
+              <Icon name="wind" color={V2T.text2} size={15} />
+            </View>
+            <Text {...DYNAMIC_TYPE} style={s.wordmark}>ALIVE<Text {...DYNAMIC_TYPE} style={{ color: V2T.accent }}>-108</Text></Text>
+          </View>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button"
+            accessibilityLabel={t("settingsClose", lang)}
+            style={({ pressed }) => [s.closeBtn, pressed && { opacity: 0.55 }]}>
+            <Icon name="close" color={V2T.text2} size={14} />
+          </Pressable>
+        </View>
+        <RiseCtx.Provider value={riseCtx}>
+          <SidebarBody
+            onClose={onClose}
+            trips={props.trips}
+            lang={lang}
+            settings={props.settings}
+            onSettings={props.onSettings}
+            onDeleteData={props.onDeleteData}
+            onArmBrief={props.onArmBrief}
+            onNavigate={props.onNavigate}
+            currentDest={props.currentDest}
+            onDelhiToday={props.onDelhiToday}
+            onTripReceipt={props.onTripReceipt}
+            onFullSettings={props.onFullSettings}
+            onLang={props.onLang}
+            onShare={props.onShare}
+            onShareTrip={props.onShareTrip}
+            onPickPlace={props.onPickPlace}
+            reduce={reduceMotion} />
+        </RiseCtx.Provider>
       </Animated.View>
     </View>
   );

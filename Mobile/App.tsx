@@ -1053,7 +1053,7 @@ function AppInner() {
      otherwise mounts later in JSX and floats ABOVE the open sidebar
      (testday-ios z-order wart). Mirrors onDelhiTodayOpen/onFullSettings
      closing the drawer beneath their own surface. */
-  const openSidebar = useCallback(() => { setLayersOpen(false); setSidebarOpen(true); }, []);
+  const openSidebar = useCallback(() => { mark("drawer.tap"); setLayersOpen(false); setSidebarOpen(true); }, []);
   const openSearch = useCallback(() => {
     mark("search.tap");
     setLocNotice(null);
@@ -1144,7 +1144,7 @@ function AppInner() {
   }, [setPhase]);
   const onDelhiTodayOpen = useCallback(() => { setSidebarOpen(false); setDelhiOpen(true); }, []);
   const onTripReceipt = useCallback(() => { setSidebarOpen(false); setLedgerOpen(true); }, []);
-  const onFullSettings = useCallback(() => { setSidebarOpen(false); setSettingsOpen(true); }, []);
+  const onFullSettings = useCallback(() => { mark("settings.tap"); setSidebarOpen(false); setSettingsOpen(true); }, []);
   const onNavigate = useCallback((p: SavedPlace) => pick({ ...p, subtitle: "" }, "to"), [pick]);
   const onLangChange = useCallback((l: "en" | "hi") => patchSettings({ lang: l }), [patchSettings]);
   const onShare = useCallback(() => Share.share({ message: t("shareAppBody", lang) }).catch(() => {}), [lang]);

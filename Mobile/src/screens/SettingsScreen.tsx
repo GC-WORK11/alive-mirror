@@ -43,7 +43,7 @@ import { a11y, DYNAMIC_TYPE, useReduceMotion } from "../a11y";
 import { notifPerm, type NotifPerm } from "../notify";
 import { tick } from "../haptics";
 import type { ShellSettings } from "../components/shell/settings";
-import { bump, jank } from "../perf";
+import { bump, jank, mark } from "../perf";
 
 /** Action seams that carry no persisted value — the parent owns what they open. */
 export type SettingsActionKey = "editVehicle";
@@ -703,6 +703,22 @@ function SettingsScreenInner({
      enter spring (the proven-safe pattern from Sheet/SearchScreen). */
   const [enter] = useState(() => new Animated.Value(0));
   const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
+  /* mount in two frames — SearchScreen's bodyReady convention: the
+     backdrop+spring commit first, the ~450-element form lands next
+     frame, so one giant mount commit can't stall the tap handler (or
+     race the map's draw thread on the rig). */
+  const [bodyReady, setBodyReady] = useState(false);
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    /* sanctioned render-phase reset — each open re-arms the two-stage */
+    setWasVisible(visible);
+    setBodyReady(false);
+  }
+  useEffect(() => {
+    if (!visible) return;
+    const raf = requestAnimationFrame(() => { setBodyReady(true); mark("settings.body"); });
+    return () => cancelAnimationFrame(raf);
+  }, [visible]);
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
@@ -716,7 +732,7 @@ function SettingsScreenInner({
     <View style={ss.backdrop}>
       <StatusBar style="dark" />
       <Animated.View style={{ flex: 1, opacity: enter, transform: [{ translateY: enterTy }] }}>
-        <SettingsSheet
+        {bodyReady && <SettingsSheet
           onClose={onClose}
           lang={lang}
           current={current}
@@ -725,7 +741,7 @@ function SettingsScreenInner({
           onArmAlerts={onArmAlerts}
           onDeleteData={onDeleteData}
           nearestKm={nearestKm}
-        />
+        />}
       </Animated.View>
     </View>
   );

@@ -41,7 +41,7 @@
  * render pipeline, not tile streaming. At BOOT_WATCH_MS steady-state
  * semantics resume. On hardware every branch below is dead code:
  * watchDone is born true. */
-import { useCallback, useState, useSyncExternalStore, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
 import * as Device from "expo-device";
 
 /* window length: covers a sheet's enter spring (~0.4 s) plus the deferred
@@ -199,9 +199,23 @@ export function holdMapDrawThen(cb: () => void, ms = MAP_DRAW_HOLD_MS) {
 }
 
 /** useState whose setter commits inside a draw-hold — for the flags that
- *  mount/unmount an overlay over the map. */
+ *  mount/unmount an overlay over the map.
+ *
+ *  A set that resolves to the current value mounts nothing — skip it
+ *  entirely instead of arming a hold window for a commit that will never
+ *  exist (e.g. openSidebar's unconditional setLayersOpen(false) when the
+ *  layers sheet wasn't up). pendRef tracks the last value this setter
+ *  accepted so a same-tick set→set still sees the pending one, not the
+ *  committed one. */
 export function useHeldState<T>(init: T | (() => T)): [T, (v: SetStateAction<T>) => void] {
   const [v, setV] = useState(init);
-  const set = useCallback((n: SetStateAction<T>) => holdMapDrawThen(() => setV(n)), []);
+  const pendRef = useRef(v);
+  useEffect(() => { pendRef.current = v; }, [v]);
+  const set = useCallback((n: SetStateAction<T>) => {
+    const next = typeof n === "function" ? (n as (p: T) => T)(pendRef.current) : n;
+    if (Object.is(next, pendRef.current)) return;
+    pendRef.current = next;
+    holdMapDrawThen(() => setV(next));
+  }, []);
   return [v, set];
 }
