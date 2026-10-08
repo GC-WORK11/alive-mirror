@@ -58,6 +58,8 @@
                 }
             ],
             "./plugins/withCleartext",
+            "./plugins/withBackupRules",
+            "./plugins/withBackupExclusion",
             [
                 "expo-build-properties",
                 {

@@ -12,6 +12,21 @@ import { Directory, File, Paths } from "expo-file-system";
 
 const DIR = new Directory(Paths.document, "alive-cache");
 
+/* Bounds — the store must stay cheap after years (owner ask). Before
+   eviction, plan entries (~100 m O/D pairs + vehicle signature) and
+   per-route strips accumulated one file per distinct key forever:
+   measured 255–420 KB per plan, ~7 KB per strip → a year of commuting
+   from varied spots would have grown this dir to tens of MB.
+   MAX_AGE: last-good stays last-good while it is plausible "recent
+   air" — beyond 30 days even a labeled number is just stale bytes. */
+const MAX_ENTRIES = 64;
+const MAX_BYTES = 12 * 1024 * 1024;
+const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+/* sweep is amortized: every Nth write, so reads (every request) never
+   pay for a directory listing and writes stay O(1) in the hot path. */
+const SWEEP_EVERY = 16;
+let writesSinceSweep = 0;
+
 type Envelope<T> = { k: string; t: number; ttl: number; v: T };
 
 export type CacheHit<T> = {
@@ -99,8 +114,67 @@ export async function cacheSet<T>(key: string, value: T, ttlMs: number, since?: 
     if (!f.exists) f.create({ intermediates: true });
     const env: Envelope<T> = { k: key, t: Date.now(), ttl: ttlMs, v: value };
     f.write(JSON.stringify(env));
+    if (++writesSinceSweep >= SWEEP_EVERY) {
+      writesSinceSweep = 0;
+      sweep();
+    }
   } catch {
     // cache is best-effort — a failed write must never break the caller
+  }
+}
+
+/** Metadata-only listing — LRU order without parsing a single body. */
+function listEntries(): { f: File; mtime: number; size: number }[] {
+  const out: { f: File; mtime: number; size: number }[] = [];
+  for (const e of DIR.list()) {
+    if (!(e instanceof File)) continue;
+    try {
+      const mtime = e.modificationTime;
+      out.push({
+        f: e,
+        mtime: typeof mtime === "number" ? mtime : 0,
+        size: typeof e.size === "number" ? e.size : 0,
+      });
+    } catch {}
+  }
+  out.sort((a, b) => a.mtime - b.mtime); // oldest first
+  return out;
+}
+
+/** Evict: entries past MAX_AGE_MS die first (in mtime order), then
+   oldest-first until entry-count and byte caps hold. Runs inside
+   cacheSet — the file just written is newest, so it survives. */
+function sweep(): void {
+  try {
+    const files = listEntries();
+    const now = Date.now();
+    let bytes = 0;
+    for (const e of files) bytes += e.size;
+    let left = files.length;
+    for (const e of files) {
+      const overCount = left > MAX_ENTRIES;
+      const overBytes = bytes > MAX_BYTES;
+      const tooOld = now - e.mtime > MAX_AGE_MS;
+      if (!overCount && !overBytes && !tooOld) break; // sorted oldest-first
+      try {
+        e.f.delete();
+        left--;
+        bytes -= e.size;
+      } catch {}
+    }
+  } catch {}
+}
+
+/** Directory size + entry count — settings diagnostics and the
+   storage audit read this; metadata only, no bodies parsed. */
+export function cacheStats(): { entries: number; bytes: number } {
+  try {
+    const files = listEntries();
+    let bytes = 0;
+    for (const e of files) bytes += e.size;
+    return { entries: files.length, bytes };
+  } catch {
+    return { entries: 0, bytes: 0 };
   }
 }
 

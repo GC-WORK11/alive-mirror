@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+  <include domain="file" path="."/>
+  <exclude domain="file" path="mbgl-offline.db"/>
+  <exclude domain="file" path="mbgl-offline.db-journal"/>
+  <exclude domain="file" path="mbgl-offline.db-wal"/>
+  <exclude domain="file" path="mbgl-offline.db-shm"/>
+  <exclude domain="file" path=".mapbox"/>
+  <exclude domain="file" path="delhi.pmtiles"/>
+  <exclude domain="file" path="alive-cache"/>
+  <exclude domain="file" path="perf_log.jsonl"/>
+  <exclude domain="file" path="ReactNativeDevSupport"/>
+  <include domain="sharedpref" path="."/>
+</full-backup-content>

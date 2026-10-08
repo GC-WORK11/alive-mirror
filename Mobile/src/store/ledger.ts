@@ -125,6 +125,12 @@ export async function logTrip(t: Trip): Promise<Trip[]> {
      trip — every completed ride lands as its own row. */
   const trips = await ensureMem();
   trips.push(t);
+  /* the cap used to live only in the write path — on a long-lived
+     session the mirror kept every row ever pushed this launch, so RAM
+     (and every stats()/loadTrips() read) grew unbounded while the file
+     on disk stayed at 500. Bound the mirror here so memory and disk
+     agree on what the ledger holds. */
+  if (trips.length > MAX_TRIPS) trips.splice(0, trips.length - MAX_TRIPS);
   scheduleWrite();
   fire(isoDay(t.ts));
   return trips.slice();

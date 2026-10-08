@@ -13,6 +13,7 @@
 		A230FF7AED16847DC1CD636D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FD08486D386A9C2D2F361069 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		CE599EFC9BDA5875590FB096 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9213FA9E95E39F102E85BBC1 /* ExpoModulesProvider.swift */; };
+		A77B108C0FF1CE5B4B1E1A10 /* AliveBackupExclusion.m in Sources */ = {isa = PBXBuildFile; fileRef = A77B108C0FF1CE5B4B1E1A11 /* AliveBackupExclusion.m */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -23,6 +24,7 @@
 		5A54BFA7323F6BC13FB9626C /* Pods-ALive108.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ALive108.debug.xcconfig"; path = "Target Support Files/Pods-ALive108/Pods-ALive108.debug.xcconfig"; sourceTree = "<group>"; };
 		600BA34E0A312FB0027E3413 /* Pods-ALive108.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ALive108.release.xcconfig"; path = "Target Support Files/Pods-ALive108/Pods-ALive108.release.xcconfig"; sourceTree = "<group>"; };
 		9213FA9E95E39F102E85BBC1 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-ALive108/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		A77B108C0FF1CE5B4B1E1A11 /* AliveBackupExclusion.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = AliveBackupExclusion.m; path = ALive108/AliveBackupExclusion.m; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = ALive108/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -64,6 +66,7 @@
 			isa = PBXGroup;
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
+				A77B108C0FF1CE5B4B1E1A11 /* AliveBackupExclusion.m */,
 				F11748442D0722820044C1D9 /* ALive108-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
@@ -362,6 +365,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
+				A77B108C0FF1CE5B4B1E1A10 /* AliveBackupExclusion.m in Sources */,
 				CE599EFC9BDA5875590FB096 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
