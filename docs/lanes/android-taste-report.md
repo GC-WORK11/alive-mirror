@@ -62,9 +62,9 @@ clean checkout too).
    beyond a value tweak.
 2. **Move-card title "the move"** is abstract for first-time users; a clearer
    label ("when to go"?) is a copy decision → owner call, not a taste fix.
-3. **Hindi layout watch list** (from strings audit, not driven): `nav_recenter`
-   (9→21 chars), `compare_yours`, `tripsEmpty`, `savedWork`, `boardMetro`,
-   `kind_*` chips — needs a Hindi-language drive to check truncation/wraps.
+3. ~~Hindi layout watch list~~ — **resolved by the Android drive** (rig child,
+   `a40–a44` shots): Devanagari clean on settings/home/delhi-today + scrolls,
+   no overflow anywhere including the longest string ("सबसे साफ़ घड़ी").
 4. **Push-notification banner styling** — the `[expo-notifications] Error reading
    persisted…` toast is dev-build noise, not shipping UI; no action.
 
@@ -73,7 +73,17 @@ clean checkout too).
 - `docs/lanes/android-taste-shots/` — `before-*/after-*` pairs (iOS sim, iPhone 17):
   `02-home` (fix 1 spacing), `03-sidebar`, `04-settings`, `05-trips-empty`
   (fixes 2+3 — the visible ones), `00-launch`/`01-onboard`.
-- Android (Pixel-class): rig child session shot the same catalog at origin HEAD;
-  its after-reshoot runs against the pushed fixes. Where both rigs show the same
-  rendering (they do for these value-only changes), iOS shots are representative.
+- **Android corroboration** (rig child `devin-101f225a70824f31a7ebbf79a96e2917`,
+  Pixel-class emulator, BEFORE at `7509482` / AFTER at `b1421d0`, 83 shots total
+  uploaded as session attachments):
+  - Fix 1 (incidents spacing) ✓ visible — card sits tight under the hero line
+    (its before-vs-after shots: `01-home-cold` vs `a27-home-top`; honest confound:
+    hero flipped ambient→dose variant mid-session).
+  - Fix 2 (Trips hairline) ✓ gone — `a19-trips-row`, `a20-trip-detail`.
+  - Fix 3 (empty well) — unreachable on Android (2 real trips accrued; didn't
+    wipe data). iOS `05-trips-empty` pair carries this verification.
+  - Fixes 4+6 (well radii) — present, corners tighter vs BEFORE (`a19`, `a09`).
+  - Fix 7 (press 0.55) — not still-capturable (transient state); no regression.
+  - No stray hairlines or off-palette washes anywhere on Android; shadow language
+    consistent with the law. SwiftShader → no basemap text (rig limitation).
 - Static audit trail: `~/taste-audit-findings.md` (grammar map + per-site grep log).
