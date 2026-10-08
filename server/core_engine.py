@@ -8,6 +8,7 @@ estimate semantics — and the parity suite (tests/test_core_parity.py,
 tests/test_parity_field.py) bit-checks C++ vs Python on the same inputs.
 """
 
+import itertools
 import math
 from typing import Optional
 
@@ -358,6 +359,38 @@ def _tok_wanted(etoks, t):
     return False
 
 
+def _unit_atom(t):
+    """letters, digits and designator words — the pieces a unit name
+    is built from ('b', '7', 'gali', 'beta'); ordinary words break
+    the run."""
+    return t.isdigit() or (len(t) == 1 and t.isalpha()) \
+        or t in _SUBPLACE_STRUCT
+
+
+def _unit_pairs(base, want):
+    """adjacent atom pairs on the unit side of the query — 'b 7' is
+    one unit ('B-7'), not a 'b' from one unit and a '7' from another.
+    computed on `base` so a used anchor token between them can never
+    fuse a fake pair."""
+    wantset = set(want)
+    return {(a, b) for a, b in itertools.pairwise(base)
+            if a in wantset and b in wantset
+            and _unit_atom(a) and _unit_atom(b)}
+
+
+def _unit_pairs_hold(dseq, etoks, pairs):
+    """every query pair must survive in the hit — adjacent in either
+    order after the same filler-strip, or fused ('b7', '7b').
+    'B-16 Gali Number 7' fails 'b 7': its pairs are (b,16)+(gali,7)."""
+    adj = set(itertools.pairwise(dseq))
+    for a, b in pairs:
+        if ((a, b) in adj or (b, a) in adj
+                or f"{a}{b}" in etoks or f"{b}{a}" in etoks):
+            continue
+        return False
+    return True
+
+
 def _anchor_candidates(toks, lat, lon, k=6):
     """every plausible anchor, not just the top-1 — 'udyog vihar' is a
     Delhi locality AND the Gurgaon phases the user usually means; the
@@ -536,8 +569,12 @@ def _subplace(toks, lat, lon, limit, hits=None):
                 if t not in used_a and t not in _WANT_DROP]
         if not want:
             return []
+        pairs = _unit_pairs(base, want)
         if all(_tok_wanted(atoks, t) for t in want):
-            return [_area_row(anchor)]  # the anchor IS the sub-place
+            aseq = [t for t in alive_core_ref.normalize(
+                anchor.get("display") or "") if t not in _DESIG_FILLER]
+            if _unit_pairs_hold(aseq, atoks, pairs):
+                return [_area_row(anchor)]  # the anchor IS the sub-place
         # 'inside the named place' — a locality's pockets sit close, a
         # city's sectors sit km out; scale the membership radius to the
         # anchor's measured extent, never beyond the metro ceiling
@@ -550,8 +587,14 @@ def _subplace(toks, lat, lon, limit, hits=None):
         # Noida passes)
         cand = []
         for h in hits or []:
-            ht = set(alive_core_ref.normalize(h.get("display") or ""))
+            hseq = [t for t in alive_core_ref.normalize(
+                h.get("display") or "") if t not in _DESIG_FILLER]
+            ht = set(hseq)
             if not all(_tok_wanted(ht, t) for t in want):
+                continue
+            # same unit atoms, same pairing — a scattered cover
+            # ('B-16' + 'Gali 7' for 'b 7') is a different unit
+            if not _unit_pairs_hold(hseq, ht, pairs):
                 continue
             if _foreign_place(
                     anchor,
@@ -581,9 +624,12 @@ def _subplace(toks, lat, lon, limit, hits=None):
         out = []
         for e, d in nearest(anchor["lat"], anchor["lon"],
                             max_m=radius, limit=4096):
-            etoks = set(
-                alive_core_ref.normalize(e.get("display") or ""))
+            eseq = [t for t in alive_core_ref.normalize(
+                e.get("display") or "") if t not in _DESIG_FILLER]
+            etoks = set(eseq)
             if not all(_tok_wanted(etoks, t) for t in want):
+                continue
+            if not _unit_pairs_hold(eseq, etoks, pairs):
                 continue
             # a row that declares a DIFFERENT sector number than the
             # anchored one is a wrong answer ('h block sector 62' can't
