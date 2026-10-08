@@ -92,3 +92,49 @@ feat-004, field, record, journal, footer, admin-gate; m390: hero, feat.
 
 Owner's visual verdict on v13. If he vetos: the knobs are in
 `docs/design/web-register.md` (type scale, cream tone, rail indices).
+
+---
+
+# v14 addendum — owner's verdict applied
+
+Owner rejected v13 verbatim: image doesn't suit pollution, phone bezels
+aren't devin.ai product shots, page too sparse for cognition. Same
+register, three fixes:
+
+## Changes
+
+- **Hero image → Delhi smog**: `server/static/hero-delhi-smog.webp`
+  (2048px, 56.6KB) — India Gate dissolved in golden-amber volumetric
+  haze; the pollution IS the subject. New 192B LQIP, preload kept.
+- **Product shots raw**: `.phone` bezel removed via override — shots sit
+  flat on the cream with 4px radius + 1px hairline + faint shadow,
+  devin.ai style. iOS sim chrome visible inside captures.
+- **Cognition density**: fixed left rail ≥1024px (alive mark, vertical
+  links, blue-bar `.cur` on home, mono live readout beneath);
+  content column `margin-left:216px`. Mobile keeps top stack.
+- **Intro**: sans headline "Alive reads the air over Delhi — and counts
+  what it does to you." + serif prose + `.btn` pair (/city solid,
+  /community) + unboxed live number in the same section.
+- **Headlines sans, prose serif** throughout (`.lead`→sans 500 −.018em,
+  `.prose` serif Georgia stack).
+- **Districts → ruled leaderboard**: `.dscroll` becomes vertical
+  `counter-increment:dr` numbered rows — rank · district shape · serif
+  name + mono state · band-colored aqi chip right. CSS-only override;
+  JS markup + popover untouched.
+- Duplicate `id="status"` removed (arithmetic copy dropped; live-number
+  keeps it).
+
+## Verify
+
+- `pytest tests/test_landing_serve.py tests/test_inline_scripts.py`
+  → 8/8 pass; `check_inline_scripts.py` clean.
+- CDP shots @1440 (hero/mid/mid2/bottom/fix/dist) + @390 (hero/mid):
+  rail paints, readout live (81.4 µg/m³ · map N min fresh), leaderboard
+  rows numbered, 0 console errors, no overflow.
+- Wired ids all still painted (visible live-number block + hidden
+  `.hero-data`); zero JS edits; zero download/github/admin strings.
+
+## Push
+
+- `base/v2` — landing.html + hero-delhi-smog.webp + this report.
+- `main` + `landing` — standalone index.html + hero-delhi-smog.webp.

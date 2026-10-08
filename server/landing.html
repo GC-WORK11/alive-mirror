@@ -4,7 +4,7 @@
 <title>Alive — what Delhi's air does to you</title>
 <meta name="description" content="Delhi's air is the worst in the world, and nobody tells you how much of it you actually breathe. Alive does — it reads the live air over Delhi and shows you what your lungs keep on every route, before you take it.">
 <meta name="theme-color" content="#fbfbfa">
-<link rel="preload" as="image" href="/hero-nature.webp" fetchpriority="high">
+<link rel="preload" as="image" href="/hero-delhi-smog.webp" fetchpriority="high">
 <meta property="og:title" content="Alive — what Delhi's air does to you">
 <meta property="og:description" content="It reads the live air over Delhi and shows you what your lungs keep on every route — and nothing leaves your phone that isn't already a group count.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fbfbfa'/%3E%3Ctext x='14' y='22.5' font-family='-apple-system,Helvetica' font-weight='800' font-size='17' fill='%2316181d' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8.5' r='3.4' fill='%233a6844'/%3E%3C/svg%3E">
@@ -73,8 +73,8 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   height:calc(100svh - 8px);min-height:560px;
   background:
     linear-gradient(180deg,rgba(247,246,245,.06) 40%,rgba(30,34,28,.30) 100%),
-    url('/hero-nature.webp') 50% 42%/cover no-repeat,
-    url('data:image/webp;base64,UklGRrYAAABXRUJQVlA4IKoAAABwBgCdASooABoAPp1AmEmlpCKhOrmYALATiWMApd/WA06rxQaKsJoUdtIllkYXPJwbHQaVk9+IyVgwHlAA/vi1jJbkVhYcCprHMADstPI8OCYTBs8n6Nj8StN4gQ+zpSlgNx2sR4XDDqarBzFx6jJk19lIr7rQu3/xTxUcGJrjlZpZqJlGdhV8bTSmY2q+9UBI9nYCvkpvcUzOOmspIFePEOPMlvs3uD/gAA==') 50% 42%/cover no-repeat,
+    url('/hero-delhi-smog.webp') 50% 42%/cover no-repeat,
+    url('data:image/webp;base64,UklGRrgAAABXRUJQVlA4IKwAAABwBgCdASooABoAPrVKn0mnJCKhMBqqqOAWiUAWI96n6gYO7a1Cduz3x5FhrbB5b/Bo7BVU0/UOj+C23AAA/tQb1/nj6u4gvu9esBBUyfVhUuDHQKk8hVyM6kqA68sF3EOxyQcDAwxG5LsTM4lPR3LKceo+P9QM0ucKP/jiYOMZw7XphKgZ5kFFFMRLo817bQ9/Lf0lKLhaYHWeD0czL77VxWk0PSNVWSPKtAAA') 50% 42%/cover no-repeat,
     #dfe3dc}
 .hero-type{position:absolute;left:clamp(20px,3vw,44px);
   bottom:clamp(26px,4.5vw,54px);z-index:2;max-width:640px}
@@ -474,6 +474,85 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 .psel button:hover{border-color:var(--ink2);color:var(--ink2)}
 .psel button.on{color:var(--ink);border-color:var(--ink)}
 
+
+/* ================= v14 — closer to the refs =================
+   rail nav on the left, grotesque headlines, serif prose, raw
+   product shots (no bezel), districts as a ruled leaderboard */
+
+/* --- left rail (desktop) / top-left stack (phone) --- */
+@media(min-width:1024px){
+  .top{position:fixed;top:0;left:0;bottom:auto;right:auto;z-index:6;
+    width:216px;padding:26px 0 0 26px;background:none}
+  .top-in{flex-direction:column;align-items:flex-start;gap:22px}
+  .top nav{flex-direction:column;gap:9px;align-items:flex-start}
+  .top nav a{font-size:13.5px}
+  .top nav a.cur{color:var(--ink);border-left:2px solid var(--acc);
+    padding-left:7px;margin-left:-9px}
+  #toplive{margin-left:0;margin-top:6px}
+  .stack{margin-left:216px}
+  .stack>section:not(.open):not(.noidx) .col{padding-left:58px;
+    max-width:960px;margin:0}
+  .stack>section:not(.open):not(.noidx) .col::before{left:14px}
+  .hero-img{height:calc(100svh - 0px)}
+  .foot .col{margin-left:0}
+}
+
+/* --- grotesque headlines, serif prose — the cognition split --- */
+.lead{font-family:var(--sans);font-weight:500;letter-spacing:-.018em;
+  font-size:clamp(21px,2.5vw,26px);line-height:1.22;color:var(--ink);
+  max-width:34ch;margin:0}
+.prose{font-family:var(--serif);font-size:15px;line-height:1.68;
+  color:var(--ink2);max-width:56ch;margin-top:16px}
+.prose b{color:var(--ink);font-weight:700}
+.prose a{color:var(--ink);text-decoration:underline;
+  text-underline-offset:3px}
+.feat .lead{font-family:var(--sans)}
+.feat .fp{font-family:var(--serif);font-size:15px;line-height:1.6;
+  color:var(--ink2);max-width:36ch}
+
+/* --- small bordered buttons, 30px, no shadows (cognition) --- */
+.btns{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;height:30px;padding:0 14px;
+  font-family:var(--sans);font-size:13px;font-weight:500;
+  border:1px solid var(--ink);border-radius:2px;color:var(--ink);
+  background:none;text-decoration:none}
+.btn:hover{background:rgba(22,24,29,.04)}
+.btn.solid{background:var(--ink);color:#fbfbf8;border-color:var(--ink)}
+.btn.solid:hover{background:#2a2d33}
+
+/* --- raw product shots — devin.ai keeps the ui flat, no bezel --- */
+.phone{border:0;background:none;box-shadow:none;border-radius:0;
+  padding:0;width:auto;max-width:min(340px,100%)}
+.phone img{border-radius:4px;border:1px solid var(--line2);
+  box-shadow:0 1px 0 rgba(22,24,29,.05)}
+.feat .pshot{margin:0}
+.feat{align-items:center}
+
+/* --- districts: chips -> ruled leaderboard (frontiercode rows) --- */
+.dscroll{flex-direction:column;gap:0;overflow:visible;counter-reset:dr}
+.dscroll::-webkit-scrollbar{display:none}
+.dchip{display:grid;grid-template-columns:22px 40px 1fr auto;
+  align-items:center;gap:14px;width:100%;border:0;
+  border-bottom:1px solid var(--line);border-radius:0;
+  padding:10px 2px;text-align:left;cursor:pointer}
+.dchip:first-child{border-top:1px solid var(--line)}
+.dchip::before{counter-increment:dr;content:counter(dr);
+  font-family:var(--mono);font-size:10px;color:var(--ink4)}
+.dchip .p-cut{width:34px;height:34px;display:block;margin:0}
+.dchip .daqi{justify-self:end;margin:0;white-space:nowrap;
+  font-size:10px;padding:2px 8px;border-radius:2px}
+.dchip>span{display:flex;flex-direction:column;gap:1px;min-width:0}
+.dchip .dn{font-family:var(--serif);font-size:14.5px;color:var(--ink)}
+.dchip .ds{font-family:var(--mono);font-size:10px;color:var(--ink3)}
+.dchip:hover{background:rgba(22,24,29,.03)}
+.dchip[aria-pressed="true"]{background:rgba(22,24,29,.045)}
+.dchip .db{display:none}
+.distwrap{margin-top:8px}
+
+/* --- tighter section rhythm (cognition packs more per screen) --- */
+.col{padding-top:clamp(34px,5.4vw,72px);padding-bottom:clamp(34px,5.4vw,72px)}
+.feat{gap:clamp(24px,4vw,60px)}
+
 /* reveal — quiet rise, once */
 [data-rv]{opacity:0;transform:translateY(12px);
   transition:opacity .7s cubic-bezier(.22,1,.36,1),
@@ -488,7 +567,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 <header class="top"><div class="top-in">
   <a class="wm" href="/">alive</a>
   <nav>
-    <a href="/">home</a>
+    <a class="cur" href="/">home</a>
     <a href="/city">the field</a>
     <a href="/city">delhi</a>
     <a href="/community">community</a>
@@ -522,8 +601,17 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 <!-- the live number, unboxed: plain text lines, hairline rules
      (unnumbered — it reads as the hero's continuation; the feature
      story carries indices 01-04) -->
-<section class="noidx"><div class="col">
-  <div class="lbl2"><i class="livedot"></i>right now, over delhi ncr</div>
+<section><div class="col">
+  <h2 class="lead">Alive reads the air over Delhi — and counts what it
+  does to you.</h2>
+  <p class="prose">Delhi's air is the worst in the world, and nobody
+  tells you how much of it you actually breathe. Alive does — it reads
+  the live field over the city and shows you what your lungs keep on
+  every route, before you take it. The number below is the city's air
+  right now; everything on this page is live or disclosed.</p>
+  <div class="btns"><a class="btn solid" href="/city">open the live
+  field</a><a class="btn" href="/community">the community</a></div>
+  <div class="lbl2" style="margin-top:34px"><i class="livedot"></i>right now, over delhi ncr</div>
   <div class="hnum" id="hnum" role="status">
     <div class="hnum-row">
       <b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span>
