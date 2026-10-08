@@ -2022,6 +2022,18 @@ async def hero_haze_webp():
         media_type="image/webp", headers=_STATIC_CACHE)
 
 
+@app.get("/hero-alive.webp")
+async def hero_alive_webp():
+    """The v11 hero's calm Delhi-dawn photograph (server/static/
+    hero-alive.webp) — full-bleed behind the giant 'alive' mark."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "hero-alive.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
 @app.get("/delhi_subdistricts.geojson")
 async def delhi_subdistricts_geojson():
     """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/
