@@ -33,8 +33,8 @@ REQUIRED = [
     "confSplit",
     "fieldAge",
     "buildTag",
-    "the air Delhi breathes",  # v11 hero line (copy law)
-    "the app knows what you breathed",
+    "Delhi's air, counted.",  # v13 hero headline (copy law)
+    "priced in lungs",          # v13: the feature story beat
 ]
 # owner-vetoed elements + placeholder guards
 FORBIDDEN = [
@@ -50,6 +50,8 @@ FORBIDDEN = [
 # landing-only bans (community legitimately links /admin in its nav)
 LANDING_FORBIDDEN = FORBIDDEN + [
     "/admin",  # owner: "admin is personal — nothing admin on the marketing page"
+    "github.com",  # v12 owner law: no repo/release links on the landing
+    "get the app",  # v12: launch ships no public download ask
 ]
 
 
