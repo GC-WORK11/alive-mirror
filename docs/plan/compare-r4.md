@@ -1,4 +1,4 @@
-# r4-compare — CompareSheet premium pass (ALive-108)
+# r4-compare — CompareSheet premium pass (Alive)
 
 Lane: `r4-compare` · owns `Mobile/src/components/shell/CompareSheet.tsx` only.
 Props interface unchanged — `App.tsx` wiring untouched.

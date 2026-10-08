@@ -56,10 +56,10 @@ above everything; if long, trim in this order: city day-tiles dwell
 
 ### 1 · Title (0:07–0:11)
 
-- **Screen:** `cards/title.html` — masthead hairline "ALIVE·108",
+- **Screen:** `cards/title.html` — masthead hairline "Alive",
   eyebrow chip "TRACK 01 · AIR — ENVIRONMENTAL HACKS", serif "A ledger
   for your lungs.", footer "live api 65.2.28.40 · live build `@@BUILD@@`".
-- **VO:** "This does." *(beat)* "ALive-108 — a personal dosimeter for
+- **VO:** "This does." *(beat)* "Alive — a personal dosimeter for
   Delhi air. No device."
 - The 4 s brand hold answers the cold open's punch line — the winner
   pattern is felt first, name second.
@@ -228,7 +228,7 @@ both honest — don't mix them in one sentence.
 - **Screen:** `cards/end.html` — serif "What you breathed — and what
   you didn't." + mono rows: live URL, repo, AWS inventory, data
   credits, "ai tools used: Devin (Cognition AI)".
-- **VO:** "ALive-108 — what you breathed, and what you didn't. Live,
+- **VO:** "Alive — what you breathed, and what you didn't. Live,
   and the code is public."
 
 ---

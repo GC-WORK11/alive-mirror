@@ -1,4 +1,4 @@
-# Accessibility audit — v2 dark shell (ALive-108)
+# Accessibility audit — v2 dark shell (Alive)
 
 **Scope:** `Mobile/src/**/*.tsx` + `Mobile/App.tsx`. **Method:** `python3 scripts/a11y_audit.py`
 (static JSX scan — interactive elements, labels, roles, touch-target sizes from

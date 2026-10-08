@@ -1,4 +1,4 @@
-"""Delhi-Air-108 backend — geocoding search + routing for Delhi NCR.
+"""Alive backend — geocoding search + routing for Delhi NCR.
 
 Real data only: search proxies Photon (OpenStreetMap autocomplete),
 routes come from OSRM on the real OSM road graph. No hardcoded places.
@@ -230,7 +230,7 @@ async def _lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Delhi-Air-108 API", lifespan=_lifespan)
+app = FastAPI(title="Alive API", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 # the field layer is the fattest payload on the service — 784-cell
 # GeoJSON compresses ~10x and every client sends Accept-Encoding.
@@ -255,7 +255,7 @@ def http() -> httpx.AsyncClient:
     global _http
     if _http is None or _http.is_closed:
         _http = httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=4.0),
-                                  headers={"User-Agent": "delhi-air-108/0.1 (hackathon)"})
+                                  headers={"User-Agent": "alive/0.1 (hackathon)"})
     return _http
 
 

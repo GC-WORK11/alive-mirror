@@ -172,7 +172,7 @@ async def main():
         check("admin field status", bool(j.get("field", {}).get("samples")))
 
         r = await c.get(ADMIN_MOUNT)
-        check("admin page html", r.status_code == 200 and "ALive-108" in r.text)
+        check("admin page html", r.status_code == 200 and "engine room" in r.text)
 
         j = (await c.get("/escape", params={"lat": KB[0], "lon": KB[1], "limit": 5})).json()
         best = j.get("best", [])

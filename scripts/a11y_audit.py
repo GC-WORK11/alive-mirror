@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""a11y_audit.py — static accessibility audit for the ALive-108 mobile shell.
+"""a11y_audit.py — static accessibility audit for the Alive mobile shell.
 
 Scans Mobile/**/*.tsx (src + root App.tsx) for:
   1. Pressable/Touchable* without an accessibility label

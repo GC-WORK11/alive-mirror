@@ -1,6 +1,6 @@
 # first-open cold-install tooling (iOS sim)
 
-Written for the ALive-108 first-open lane (Oct 2026). Android emulator cannot run
+Written for the Alive first-open lane (Oct 2026). Android emulator cannot run
 on the macOS VM, so all of this targets the iOS Simulator.
 
 ## measure_cold.sh

@@ -8,7 +8,7 @@
 #
 # Usage:
 #   ./scripts/public-repo.sh <new-public-repo-url> [--ref <branch>] [--dry-run] [--force]
-#   e.g.  ./scripts/public-repo.sh https://github.com/<owner>/alive-108.git
+#   e.g.  ./scripts/public-repo.sh https://github.com/<owner>/Alive.git
 #
 # Safe by construction: it never touches your working tree, index, checked-
 # out branch, or remote config. It writes ONE commit object holding the
@@ -153,7 +153,7 @@ fi
 
 # --- baseline commit ---------------------------------------------------------
 BASE=$(git commit-tree "$TIP^{tree}" \
-  -m "baseline: ALive-108 — Delhi air-dose engine + apps" \
+  -m "baseline: Alive — Delhi air-dose engine + apps" \
   -m "Dose engine (FastAPI) + consumer app (Android/iOS) + live public API
 on AWS for AWS x WeMakeDevs Environmental Hacks, Track 01 (Air).")
 info "baseline commit: $(git log -1 --format='%h — %s' "$BASE")  (tree identical to $REFNAME)"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-fetch_wikidata.py -- ALive-108 Delhi-NCR corpus, Wikidata source.
+fetch_wikidata.py -- Alive Delhi-NCR corpus, Wikidata source.
 
 Pulls every Wikidata item that has coordinates (P625) inside the NCR
 extraction box via the Wikidata Query Service `wikibase:box` geo index:
@@ -56,7 +56,7 @@ CORPUS_DIR = os.path.join(REPO, "server", "data", "corpus")
 OUT_PATH = os.path.join(CORPUS_DIR, "aux", "wikidata.jsonl")
 
 SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
-USER_AGENT = "alive-corpus/1.0 (ALive-108 Delhi-NCR gazetteer build; scripts/fetch_wikidata.py)"
+USER_AGENT = "alive-corpus/1.0 (Alive Delhi-NCR gazetteer build; scripts/fetch_wikidata.py)"
 
 # Must match EXTRACT_BBOX in scripts/build_corpus.py (minlon, maxlon, minlat, maxlat).
 EXTRACT_BBOX = (76.60, 77.70, 28.00, 29.00)

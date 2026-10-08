@@ -34,6 +34,6 @@ Caps at 500 entries.
 
 ## Why this is the product, not a feature
 
-Google Maps moves you. ALive-108 moves you *and keeps score on your
+Google Maps moves you. Alive moves you *and keeps score on your
 lungs*. The dose engine answers "which way"; the ledger answers
 "what did today cost me" — the reason to open the app daily.

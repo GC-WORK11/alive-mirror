@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_mobile_gaz.py -- ALive-108 T0 mobile gazetteer emitter.
+build_mobile_gaz.py -- Alive T0 mobile gazetteer emitter.
 
 Reads the merged corpus (server/data/corpus/delhi-corpus.jsonl.gz,
 built by scripts/build_corpus.py), dedupes it against the bundled

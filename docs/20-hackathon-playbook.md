@@ -1,4 +1,4 @@
-# ALive-108 — Hackathon Winning Playbook
+# Alive — Hackathon Winning Playbook
 
 Deep research for **Environmental Hacks** (Bharat Builds Tour × AWS Builder Center, Oct 8–11, 2026, Air track). Every claim cited. Read (a) for the rules of the game, (e) first if you're short on time — it's the kill-list.
 
@@ -65,7 +65,7 @@ Read across WeMakeDevs winners, Amazon's own hackathon advice, Devpost judge int
 
 The recurring winning formula (7 properties):
 
-1. **Category invention, not feature addition.** Winners define a category they alone occupy: Suraksha = "agentic elder-care companion," Beacon = "on-call agent," Magpie = "AI-native finance workspace." Waze did this deliberately — rebranded from "navigation app" to "commuting app"/"social navigation" and became "the world's first social navigation app" ($1.1B exit). ALive-108's category: **exposure-aware routing / dose navigation** — never say "AQI app" or "air quality app."
+1. **Category invention, not feature addition.** Winners define a category they alone occupy: Suraksha = "agentic elder-care companion," Beacon = "on-call agent," Magpie = "AI-native finance workspace." Waze did this deliberately — rebranded from "navigation app" to "commuting app"/"social navigation" and became "the world's first social navigation app" ($1.1B exit). Alive's category: **exposure-aware routing / dose navigation** — never say "AQI app" or "air quality app."
    - Source: https://www.meaningmakercreative.com/waze
 2. **A visceral, personal problem in the first 10 seconds.** Elder parents alone at home; payments failing at 3 AM. Ours: **Delhi air costs the average resident 8.2 years of life expectancy** (UChicago AQLI, Aug 2025 — the largest potential gain of any region on Earth) — and breathing Delhi's air ≈ **~20 cigarettes a day** (Berkeley Earth rule of thumb: 22 µg/m³ PM2.5 ≈ 1 cigarette/day).
    - Sources: https://aqli.epic.uchicago.edu/files/India%20FactSheet_2025_IndiaWV.pdf · https://indianexpress.com/article/cities/delhi/delhi-life-expectancy-air-pollution-chicago-report-10217807/ · https://shootismoke.app/ · https://www.digitaltrends.com/home/air-pollution-cigarettes/
@@ -92,7 +92,7 @@ The recurring winning formula (7 properties):
 
 ## (c) Our winning strategy
 
-### C.1 — Map ALive-108 onto the rubric
+### C.1 — Map Alive onto the rubric
 
 | Criterion | Our play |
 |---|---|
@@ -122,7 +122,7 @@ Cut list (video only — features stay in repo): /escape, /shift, most admin int
 ### C.3 — Writeup (submission form + Builder Center version)
 
 - Form writeup: problem → what the dose engine does → where AWS fits → AI tools used (disclose Devin per rules).
-- Builder Center long-form (AirPods prize + judge credibility): Beacon-style. Title it like a product thesis: *"ALive-108: routing Delhi's commutes by inhaled dose"* — sections: the 8.2-year problem, the dose engine, the AWS build, what fought back (NLB target-group race, Fargate ephemeral FS→S3, Maven 429 mirror, IST climatology gotcha), what's next.
+- Builder Center long-form (AirPods prize + judge credibility): Beacon-style. Title it like a product thesis: *"Alive: routing Delhi's commutes by inhaled dose"* — sections: the 8.2-year problem, the dose engine, the AWS build, what fought back (NLB target-group race, Fargate ephemeral FS→S3, Maven 429 mirror, IST climatology gotcha), what's next.
 
 ---
 
@@ -132,9 +132,9 @@ Ranking basis: legibility-to-a-skimming-judge, mechanism clarity (routing/dose),
 
 | # | Pitch | Verdict |
 |---|---|---|
-| **1** | **"Google Maps optimizes for minutes. ALive-108 optimizes for breaths."** | Best overall. Contrast-vs-incumbent in one line; invents the metric (dose ≈ breaths); judges get it in 2 seconds; works as video cold-open AND README header. |
+| **1** | **"Google Maps optimizes for minutes. Alive optimizes for breaths."** | Best overall. Contrast-vs-incumbent in one line; invents the metric (dose ≈ breaths); judges get it in 2 seconds; works as video cold-open AND README header. |
 | **2** | **"The first navigation app that routes around pollution, not just traffic."** | Category invention, Waze-style. States mechanism plainly. Slightly less punchy than #1 but the clearest one-sentence explainer — ideal writeup/video first line. |
-| **3** | **"AQI apps tell you the air is killing you. ALive-108 tells you where to walk."** | The wedge against the clone field — attacks the 200 AQI dashboards in the room. Action-vs-information framing is our real differentiation. Use in the video after the engine beat. |
+| **3** | **"AQI apps tell you the air is killing you. Alive tells you where to walk."** | The wedge against the clone field — attacks the 200 AQI dashboards in the room. Action-vs-information framing is our real differentiation. Use in the video after the engine beat. |
 | **4** | **"Delhi breathes in cigarettes. We built the map that routes around them."** | Fuses the visceral stat with the mechanism. Best emotional line; a hair long for a cold open — great as the close. |
 | **5** | **"Outsmart the smog, together."** | The Waze homage — "together" smuggles in the citizen-sensor moat. Elegant but mechanism-free; pair with #1 as tag/subtitle, or as the end-card line. |
 | **6** | **"Turning every Delhi commute into the sensor network the city never got."** | The moonshot/moat line — civic infrastructure framing impresses sponsor judges. Weak on what-it-does; use in the community beat + writeup, not the opener. |
@@ -159,7 +159,7 @@ Ordered by kill-potential. Each maps to a rule or pattern above.
 6. **Pitch currently leads with novelty-adjacent framing.** "Lung Ledger / cigarette-equivalents" alone = Sh*t! I Smoke (2018) territory — derivative to any judge who's seen it. Lead with **dose-aware routing** (the new capability), keep the ledger as the personal loop, the citizen sensor network as the moat. Fix in video script + writeup first lines.
 7. **Judges may be non-technical and they skim.** Devpost judge data: description + video are the first filter; most judges never open the repo deeply. README must carry: one-liner, 3 screenshots, live URL, APK/TestFlight link, "how AWS is used" section, setup that works. A repo that's a mystery loses to a repo that's a landing page.
 8. **No real-user proof.** We have zero organic users (community layer is simulated by our own traversals — honest, but thin). Mitigate honestly: show the community rollup *live* and frame it as "the flywheel every user feeds" rather than claiming adoption. Alternatively get 5 real Delhi friends to run real trips during Oct 8–10 — even small numbers beat none.
-9. **"ALive-108" name legibility.** Judges won't catch the 108-ambulance reference unless told. Say it once in the video ("named for Delhi's emergency helpline") or risk it reading as arbitrary.
+9. **"Alive" name legibility.** Judges won't catch the 108-ambulance reference unless told. Say it once in the video ("named for Delhi's emergency helpline") or risk it reading as arbitrary.
 10. **Deadline hour is TBD + server-side clock risk.** Schedule page still says hours are being finalized. Plan submission for **Oct 10 evening IST**, not Oct 11 — a TBD 11:59 PM IST cutoff you discover at 11:00 is a silent killer.
 11. **Optional-but-free: the DTU build day (Oct 10).** Feedback from the Amazon team in the room is the only pre-judging calibration available. If you're in Delhi and can spare the day, it's asymmetric upside; it's also where judge/mentor expectations get heard first-hand.
 

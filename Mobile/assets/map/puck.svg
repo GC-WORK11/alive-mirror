@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-  <!-- ALive-108 user puck — accuracy halo + heading beam + accent dot,
+  <!-- Alive user puck — accuracy halo + heading beam + accent dot,
        hand-drawn (SOURCES.md). Beam rotates around (24,24) by GNSS course.
        Runtime copy: UserPuck in Mobile/src/map/markers.tsx. -->
   <circle cx="24" cy="24" r="21" fill="#4C8DFF" opacity="0.16"/>

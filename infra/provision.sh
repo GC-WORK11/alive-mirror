@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ALive-108 infra provisioning — idempotent create-if-missing.
+# Alive infra provisioning — idempotent create-if-missing.
 #
 # Resources (all tagged Project=ALive-108, all in ${AWS_REGION:-ap-south-1}):
 #   S3 bucket alive108-air        private, AES256, optional Glacier@90d (--glacier)
@@ -68,7 +68,7 @@ else
     || { echo "no AWS credentials — aborting" >&2; exit 1; }
 fi
 
-echo "=== ALive-108 provision  region=$REGION account=$ACCOUNT dry_run=$DRY_RUN glacier=$GLACIER ==="
+echo "=== Alive provision  region=$REGION account=$ACCOUNT dry_run=$DRY_RUN glacier=$GLACIER ==="
 
 # run CMD...  — print the exact command; skip execution under --dry-run.
 run() {

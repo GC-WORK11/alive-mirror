@@ -1,4 +1,4 @@
-"""ALive-108 — kriging kernels, Python reference implementation.
+"""Alive — kriging kernels, Python reference implementation.
 
 Parity oracle for alive_core.KrigeField (server/core/src/krige.cpp) and the
 runtime fallback shape it replaces. Ordinary mode mirrors

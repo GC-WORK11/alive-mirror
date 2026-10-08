@@ -1,4 +1,4 @@
-# ALive-108 — master audit + forward plan (2026-10-04)
+# Alive — master audit + forward plan (2026-10-04)
 
 Every mandate the owner has given, from the first prompt to the latest,
 checked against code and **live AWS** (NLB :80, build `879d291f`, td:67).

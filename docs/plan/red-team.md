@@ -1,4 +1,4 @@
-# Red-team report — ALive-108 (lane: red-team, 2026-10-05/06 UTC)
+# Red-team report — Alive (lane: red-team, 2026-10-05/06 UTC)
 
 Adversarial pass over the live deployment
 (`alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com`, build `033aa866`,

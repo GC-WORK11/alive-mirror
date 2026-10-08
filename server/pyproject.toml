@@ -1,7 +1,7 @@
 [project]
 name = "alive108-api"
 version = "0.1.0"
-description = "ALive-108 dose engine API"
+description = "Alive dose engine API"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

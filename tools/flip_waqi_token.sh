@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ALive-108 — flip the WAQI API token end-to-end.
+# Alive — flip the WAQI API token end-to-end.
 #
 #   1. aws secretsmanager put-secret-value alive108/waqi {"api_key":"<token>"}
 #   2. aws ecs update-service --force-new-deployment (new task picks up

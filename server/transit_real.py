@@ -56,7 +56,7 @@ BUS_DIRECT_MAX = 3              # direct-route names to surface
 _HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(_HERE, "data", "gtfs")
 
-_UA = {"User-Agent": "alive108-delhi-air (github.com/<owner>/Delhi-Air-108)"}
+_UA = {"User-Agent": "alive-delhi-air (github.com/<owner>/Delhi-Air-108)"}
 
 # download sources, tried in order per feed. A source is (kind, url):
 #   zip    — plain GTFS zip

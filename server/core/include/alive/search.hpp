@@ -1,4 +1,4 @@
-// ALive-108 — T1 fuzzy search index (alive_core).
+// Alive — T1 fuzzy search index (alive_core).
 //
 // Query semantics — kept bit-identical with server/alive_core_ref.py
 // (the parity oracle). Any change here must be mirrored there.

@@ -18,7 +18,7 @@ sparsely cover NCR, so most streets have no measurement at all.
 
 ## Build
 
-ALive-108 is a consumer app (Android + iOS, one codebase) that puts an
+Alive is a consumer app (Android + iOS, one codebase) that puts an
 air price on every trip: pick FROM→TO and see the actual PM2.5 you'd
 inhale by car, auto, bus, metro, bike or on foot — ranked by a
 safety-first decision engine (50% dose + 30% mode crash-risk anchored

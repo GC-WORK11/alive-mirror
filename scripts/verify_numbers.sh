@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify_numbers.sh — numbers-integrity harness for ALive-108.
+# verify_numbers.sh — numbers-integrity harness for Alive.
 #
 # Re-derives every figure the product/docs/video quote from LIVE responses
 # (or the committed binary artifacts), prints CURRENT value next to what the
@@ -21,7 +21,7 @@ OUT="$(mktemp -d /tmp/verify_numbers.XXXXXX)"
 CP_LAT=28.6315; CP_LON=77.2167          # Connaught Place (demo anchor, scripts/smoke_live.sh)
 GG_LAT=28.495;  GG_LON=77.089           # Gurugram (demo OD destination)
 
-echo "== ALive-108 numbers integrity =="
+echo "== Alive numbers integrity =="
 echo "base: $BASE"
 echo "out : $OUT"
 

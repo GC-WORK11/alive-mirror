@@ -5,7 +5,7 @@
 ## What changed
 
 - **Fixed header** — app mark (accent `wind` glyph on a `surface2` tile) +
-  `ALIVE-108` wordmark (accent on `-108`) + round close button; hairline under
+  `Alive` wordmark + round close button; hairline under
   it, stays put while the list scrolls. Close keeps `settingsClose` a11y label.
 - **Grouped cards** — `Today` / `This week` / `Trips` stat sections then two
   unlabeled action cards: *navigate* (saved places · Delhi today · my vehicle)

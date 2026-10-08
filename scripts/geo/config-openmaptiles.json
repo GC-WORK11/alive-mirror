@@ -102,7 +102,7 @@
     "basezoom": 14,
     "include_ids": false,
     "combine_below": 14,
-    "name": "ALive-108 Delhi NCR (OpenMapTiles schema)",
+    "name": "Alive Delhi NCR (OpenMapTiles schema)",
     "version": "3.0",
     "description": "Delhi NCR vector tiles, OpenMapTiles-compatible schema, built by tilemaker",
     "compress": "gzip",
@@ -111,7 +111,7 @@
       "scheme": "xyz",
       "type": "baselayer",
       "format": "pbf",
-      "name": "ALive-108 Delhi NCR (OpenMapTiles schema)",
+      "name": "Alive Delhi NCR (OpenMapTiles schema)",
       "vector_layers": [
         {
           "id": "aerodrome_label",

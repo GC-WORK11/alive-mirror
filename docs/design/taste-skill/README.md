@@ -7,4 +7,4 @@ Owner asked for it to guide taste passes. Read the SKILL.md for the surface you 
 - `minimalist-skill/SKILL.md` — restraint discipline
 - `soft-skill/SKILL.md` — soft/premium feel
 
-ALive-108 design law still governs above all: warm-neutral base, CPCB band colors only where they mean air, sexy = choreography not effects, plain-words numbers.
+Alive design law still governs above all: warm-neutral base, CPCB band colors only where they mean air, sexy = choreography not effects, plain-words numbers.

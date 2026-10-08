@@ -42,7 +42,7 @@ verified evidence (every lane below pushed one — verify before believing, per 
 - **Deploy**: `scripts/deploy.sh` — image→ECR→ECS Fargate→NLB re-register→health verify.
   `deploy.sh rollback <sha>` redeploys an existing tag. Tags = 8-char sha + `:latest`.
   Known outage pattern baked in: redeploys orphan the old task IP — script re-registers.
-- **Alarms (all honest now)**: `alive108-field-age` (ns `ALive-108` — was `ALive108`,
+- **Alarms (all honest now)**: `alive108-field-age` (ns `Alive` — was `ALive108`,
   saw nothing for a day), `alive108-field-emitter-dead` (45min silence→breach),
   `alive108-target-down` (NLB HealthyHostCount<1, missing=breaching).
   SNS `alive108-ops` → owner's gmail — subscription CONFIRMED Oct 7.

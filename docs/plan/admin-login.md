@@ -49,7 +49,7 @@ http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4Yhaa
 
 1. Open `http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs`
    (the unlisted console URL — `/admin` 404s by design).
-2. A guest lands on the **gate card** — "ALIVE·108 / engine room ·
+2. A guest lands on the **gate card** — "Alive / engine room ·
    OPERATOR ONLY — it opens for the operator and nobody else."
 3. Paste the token → **SIGN IN**.
 4. The board renders and refreshes itself every 30 s; the masthead

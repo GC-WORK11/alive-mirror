@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Route-quality audit of the live ALive-108 API.
+"""Route-quality audit of the live Alive API.
 
 Drives a battery of diverse OD pairs through /v2/plan and scores the
 response for the properties the routing engine promises:

@@ -1,4 +1,4 @@
-"""ALive-108 — tick-level dose/emission kernels, Python reference.
+"""Alive — tick-level dose/emission kernels, Python reference.
 
 Parity oracle for the alive_core series kernels added on r5/core-cpp —
 the per-tick math the strip contract hands to clients (docs/plan/04 §5):

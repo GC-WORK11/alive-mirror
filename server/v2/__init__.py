@@ -1,4 +1,4 @@
-"""ALive-108 /v2 API — versioned surface per docs/plan/05 §3.
+"""Alive /v2 API — versioned surface per docs/plan/05 §3.
 
 Mounted by server/main.py under prefix /v2. Importable two ways:
 `import v2` when server/ is on sys.path (the deployed layout —

@@ -1,4 +1,4 @@
-"""Observability for ALive-108 — request logs, in-process metrics, errors.
+"""Observability for Alive — request logs, in-process metrics, errors.
 
 Three pieces, all dependency-light:
 

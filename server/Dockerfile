@@ -1,4 +1,4 @@
-# ALive-108 API — container image for ECS Fargate (also App Runner / local).
+# Alive API — container image for ECS Fargate (also App Runner / local).
 #
 # Build context is `server/` — scripts/deploy.sh runs
 # `docker build "$ROOT/server"` and CodeBuild receives

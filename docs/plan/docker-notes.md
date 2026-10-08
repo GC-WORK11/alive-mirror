@@ -1,4 +1,4 @@
-# Docker notes — ALive-108 API image
+# Docker notes — Alive API image
 
 ## Build / run
 

@@ -1,4 +1,4 @@
-# ALive-108 — local dev compose. Same image the deploy pipeline ships
+# Alive — local dev compose. Same image the deploy pipeline ships
 # (server/Dockerfile). Run from the repo root:
 #
 #   docker compose up --build          # API on http://localhost:8080

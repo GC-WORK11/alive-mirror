@@ -100,11 +100,11 @@ cat <<EOF
 
 git -C "$REPO_ROOT" fetch origin --tags
 # create + push the tag at the freeze commit:
-git tag -a $TAG $BUILD_SHA -m "ALive·108 demo build — $BUILD_SHA"
+git tag -a $TAG $BUILD_SHA -m "Alive demo build — $BUILD_SHA"
 git push origin $TAG
 # create the release (pre-release) with the filled body and the APK asset:
 gh release create $TAG "$APK_PATH" \\
-    --title "ALive·108 — demo build ($TAG)" \\
+    --title "Alive — demo build ($TAG)" \\
     --notes-file "$OUT" \\
     --prerelease
 
@@ -113,7 +113,7 @@ gh release create $TAG "$APK_PATH" \\
 1. Open https://github.com/<owner>/Delhi-Air-108/releases/new
 2. "Choose a tag" → type: $TAG → "Create new tag: $TAG on publish".
 3. $TARGET_LINE
-4. Title: ALive·108 — demo build ($TAG)
+4. Title: Alive — demo build ($TAG)
 5. Body: paste the contents of $OUT
      (already on your clipboard if pbcopy/xclip ran above)
 6. Attach binaries: drag in $APK_BASE

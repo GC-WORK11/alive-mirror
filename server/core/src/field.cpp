@@ -1,4 +1,4 @@
-// ALive-108 — field view + dose integrator. Bit-identical semantics with
+// Alive — field view + dose integrator. Bit-identical semantics with
 // server/alive_core_ref.py (see include/alive/field.hpp for the spec).
 
 #include "alive/field.hpp"

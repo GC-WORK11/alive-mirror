@@ -1,6 +1,6 @@
 # 29 · The Emissions Inference Problem — what a Delhi vehicle emits when every vehicle is different
 
-*Deep-research deliverable, 2026-10-03. Question under test: ALive-108 tracks the user's trip dose AND their vehicle's emissions live — but every vehicle in Delhi differs by age, fuel, BS class and PUC status. Can we honestly say "your trip emitted X"? All data paths verified live unless noted.*
+*Deep-research deliverable, 2026-10-03. Question under test: Alive tracks the user's trip dose AND their vehicle's emissions live — but every vehicle in Delhi differs by age, fuel, BS class and PUC status. Can we honestly say "your trip emitted X"? All data paths verified live unless noted.*
 
 ---
 

@@ -86,7 +86,7 @@ one baseline commit, run-date stamped, on a NEW public repo.*
       and pushes it as `main`; uncommitted/untracked files stay out of
       the public history automatically):
       `./scripts/public-repo.sh https://github.com/<owner>/<new-repo>.git`
-      → one commit "baseline: ALive-108…" → pushed to the new remote's
+      → one commit "baseline: Alive…" → pushed to the new remote's
       `main`. Needs git committer identity set + push auth (SSH key or
       PAT in the credential helper) — the script preflights identity
       and `git ls-remote`s the URL first.

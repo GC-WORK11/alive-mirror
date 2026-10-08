@@ -1,4 +1,4 @@
-# ALive-108 — THE DEMO KIT (the one file you open at the venue)
+# Alive — THE DEMO KIT (the one file you open at the venue)
 
 Every claim verified in-repo on `base/v2`. If a doc disagrees, the lane report wins.
 

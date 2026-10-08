@@ -8,7 +8,7 @@ break-tested (rehearsal notes at the bottom).
 ## Before you run (2 min)
 
 1. **Create the empty public repo on GitHub first.** No README, no .gitignore,
-   no license — it must be completely empty. Example name: `alive-108`.
+   no license — it must be completely empty. Example name: `Alive`.
 2. **Make sure GitHub auth works from this machine** — same auth you use to
    push to the private repo (SSH key, or PAT in your credential helper).
 3. Pull latest: `git fetch origin`
@@ -35,7 +35,7 @@ Expected output (abbrev.):
 ```
 >> baseline source: base/v2 @ <sha> <subject>
 >> checking remote: https://github.com/<owner>/<new-public-repo>.git
->> baseline commit: <sha> — baseline: ALive-108 — Delhi air-dose engine + apps  (tree identical to base/v2)
+>> baseline commit: <sha> — baseline: Alive — Delhi air-dose engine + apps  (tree identical to base/v2)
 To https://github.com/<owner>/<new-public-repo>.git
  * [new branch]      <sha> -> main
 >> done: <url> main = <sha>

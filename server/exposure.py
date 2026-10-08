@@ -1,4 +1,4 @@
-"""Dose engine — the differentiating math of ALive-108.
+"""Dose engine — the differentiating math of Alive.
 
 dose(µg) = Σ over route segments [ C(lat,lon) × microenv_ratio(mode)
                                    × VE(m³/min) × t(min) ]

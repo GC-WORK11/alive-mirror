@@ -139,7 +139,7 @@ function SettingsSheetInner({
   }, []);
   const insets = useSafeAreaInsets();
 
-  /* rate ALive·108 — quiet expander in the About card: 1–5 stars + an
+  /* rate Alive — quiet expander in the About card: 1–5 stars + an
      optional one-liner, POST /v2/feedback {stars, note, build}. Public,
      no token; the honest states are inline (no modal fanfare). */
   const [rateStars, setRateStars] = useState(0);
@@ -856,7 +856,7 @@ const ss = StyleSheet.create({
   segOn: { backgroundColor: V2T.text },
   segTxt: { fontSize: V2Type.label, color: V2T.text2 },
 
-  /* rate ALive·108 — stars + one-line note + send, inside the about card */
+  /* rate Alive — stars + one-line note + send, inside the about card */
   rateStars: { flexDirection: "row", gap: 12, paddingVertical: 6 },
   rateInput: {
     backgroundColor: V2T.surface2,

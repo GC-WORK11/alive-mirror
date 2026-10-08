@@ -58,7 +58,7 @@ Fire times land inside quiet hours → pushed to the quiet end.
 | `notify_chan_departure` | leave-time reminders | निकलने की याद-दहानी | — |
 | `notify_chan_brief` | morning air brief | सुबह की हवा-जानकारी | — |
 
-Killed in the rewrite: title "ALive-108" (brand, not information) and
+Killed in the rewrite: title "Alive" (brand, not information) and
 "PM2.5" (jargon, doc 02 §3). Claims stay honest per doc 10 — "less smoke" is
 the same relative claim the compare sheet makes, no new numbers.
 

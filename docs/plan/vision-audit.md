@@ -1,6 +1,6 @@
 # vision vs live — a brutal audit
 
-*Compiled from every owner prompt across all ALive-108 sessions, tail to head
+*Compiled from every owner prompt across all Alive sessions, tail to head
 (~25 sessions mined, 2026-10-01 → 2026-10-04). Each statement → honest status
 against the live deploy (`e849bf6f`, verified 2026-10-04).*
 
@@ -45,7 +45,7 @@ how the city moves, what it inhales, what it emits — with zero personal data.
 | 24 | optimised and fastly | **live** — epoch-keyed grid cache + boot warmer (first 40×40 call per epoch ~1.5s not ~7s), skip-identical-repaint | — |
 | 25 | Android: icons not cheap, milky morphism, distributed sidebar | **live** — Material Symbols Rounded, glass token ramp, JourneyDrawer rework; **Pixel_7 verify PASS all surfaces** (icons/milk/drawer/regressions); its 2 flags fixed same-day: emit_kg write (put-out-kg tile had readers, no writer) + stacked-sheet ghost-bleed (tile 0.62→0.84, pane→0.90) | perf vs llvmpipe inconclusive (no hardware GL on box) — physical phone is the real measure |
 | 26 | uncrashable | **mostly live** — Android E2E no crashes; iOS sim crash = sim-only GPU (documented, no .ips) | physical Android soak = owner |
-| 27 | terminate my lanes except pocket-rig | **done** — all ALive-108 lanes except live ones ended; Pocket Rig untouched | — |
+| 27 | terminate my lanes except pocket-rig | **done** — all Alive lanes except live ones ended; Pocket Rig untouched | — |
 | 28 | loop for days/12h, don't stop | **in progress** — this audit + landing + continued loop | — |
 | 29 | marketing landing page, 4-ref genre (supaste/devin/iphone/godly) | **live** — `/` + `/landing` cream-paper serif+italic, no SaaS chrome; verified on prod | — |
 | 30 | "ASCII aether shaders animation… not a cheap template… amaze me" | **live** — real 40×40 field as shader lattice; trace births routes from cells rotating 3 ODs; wind-drift on real /health wind; a01–an40 indexing + hottest tag; locality hover card; pull-quote; footer live stamps; dose card+trace share one fetch | landing.html has no pytest coverage — browser-verified only, by design |

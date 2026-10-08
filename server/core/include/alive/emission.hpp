@@ -1,4 +1,4 @@
-// ALive-108 — emission span integrator (alive_core, Phase 3).
+// Alive — emission span integrator (alive_core, Phase 3).
 //
 // Bit-identical port of the span walk in server/emissions.py::integrate
 // (the Python contract is alive_core_ref.integrate_emissions):

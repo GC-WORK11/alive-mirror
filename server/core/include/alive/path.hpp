@@ -1,4 +1,4 @@
-// ALive-108 — least-inhalation path engine (alive_core.PathEngine).
+// Alive — least-inhalation path engine (alive_core.PathEngine).
 //
 // Query semantics kept bit-identical with server/routegraph.py
 // PyPathEngine (the parity oracle). Any change must be mirrored there.

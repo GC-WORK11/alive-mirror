@@ -80,7 +80,7 @@ project's overall impression, not only the trophy.
 "We cannot clean Delhi's air with an app. But we can measure exactly
 what each commute costs your lungs, cut it by up to 30x on the same
 trip, and turn every journey into a shared sensor the city doesn't
-have. That is ALive-108."
+have. That is Alive."
 
 ## Intel from the organizer's own recap (builder.aws.com, Oct '26)
 

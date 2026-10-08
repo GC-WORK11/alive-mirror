@@ -1,4 +1,4 @@
-# AI tools disclosure — ALive-108
+# AI tools disclosure — Alive
 
 *Hackathon rules require AI tools to be listed in the writeup. This is the
 honest list, drafted from repo evidence — verify against your own memory

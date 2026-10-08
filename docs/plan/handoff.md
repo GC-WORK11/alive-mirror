@@ -1,4 +1,4 @@
-# ALive-108 — FULL HANDOFF (you are the new lead session; keep working for hours)
+# Alive — FULL HANDOFF (you are the new lead session; keep working for hours)
 
 Repo: <owner>/Delhi-Air-108. Working branch: base/v2. main is merged up to base/v2 as of this handoff. Work on base/v2: `git pull --rebase origin base/v2`, make small focused commits with `git commit -m`, `git push origin HEAD:base/v2`. Merge base/v2 → main (no-ff) at stable checkpoints after the tests pass. Never force-push. PR #4 (https://github.com/<owner>/Delhi-Air-108/pull/4) is the historical full-product PR. The owner wants direct pushes, no new PRs.
 
@@ -230,7 +230,7 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   + `GET /admin/api/reviews` (gated) + admin "their reviews" tile
   (avg/count/histogram/latest note or honest-empty; note bodies publish
   only at k≥3, hour-bucketed). 21 community tests green. App-side
-  Settings "rate alive·108" row handed to polish lane (1def589f awake).
+  Settings "rate Alive" row handed to polish lane (1def589f awake).
 - Suite running for main-merge gate; deploy of b676639 after green.
 
 ## handoff cont.6 — reviews tile feed fix + e849bf6f live (2026-10-04 ~10:40 IST)
@@ -242,7 +242,7 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
   "5★ · 1 review" + histogram + k-gate note ("bodies withheld until ≥3").
 - **Live `e849bf6f`**: stations 24/waqi, 75 fires, field 113s; landing `/`;
   grid warm ~1.5s; reviews tile renders real data.
-- **Polish lane landed `a876ec8`** (Settings "rate ALive·108" row → POST
+- **Polish lane landed `a876ec8`** (Settings "rate Alive" row → POST
   /v2/feedback) then terminated with its verify child — slots freed.
 - **Lanes**: `4890a49f` building fresh release APK on HEAD (last APK predates
   polish/emit_kg/review-row); `4a3551bc` attempting self-hosted OSRM restore
@@ -253,7 +253,7 @@ Loop: pick the top gap → fix with a test → run the affected tests (full suit
 
 ## handoff cont.7 — reviews verified e2e + cold-solve warm (2026-10-04 ~11:15 IST)
 
-- **Reviews e2e on iOS sim vs live API**: Settings → rate ALive·108 → 3★ +
+- **Reviews e2e on iOS sim vs live API**: Settings → rate Alive → 3★ +
   note → send → "thanks — that helps"; server /admin/api/global went
   count 1→2, avg 5.0→4.0, hist {3:1,5:1} matches the taps. k≥3 body gate
   still honestly withholding.
@@ -999,7 +999,7 @@ consistency, real-time updates, profile behavior, both platforms.
   JNU site 69.7 → +3km neighbor 61.3; IGNOU 31.6 → +3km 43.9.
 - **Bug I found+fixed in the adapter** (`84a959b`): every inner get now
   sends the browser _UA — the app's shared httpx client carries
-  `delhi-air-108/0.1` and ModSecurity 406s it (was: 0 stations via the
+  `alive/0.1` and ModSecurity 406s it (was: 0 stations via the
   real wiring path). Test fakes now 406 any non-Mozilla UA.
 - **Test fixes**: grab_async fixture test must pass `now=NOW`
   (`677f52b`); suite env-leak trap documented — OPENAQ_API_KEY/WAQI in
@@ -1339,7 +1339,7 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   GitHub Release asset** — agreed w/ coordinator, no per-commit churn.
 - **OPS-HOLES found + closed (real)**:
   - field-age alarm watched namespace `ALive108` — metric lives in
-    `ALive-108`. NEVER saw a datapoint; missing-data=breaching made it
+    `Alive`. NEVER saw a datapoint; missing-data=breaching made it
     permanently cry wolf. Recreated on correct ns, 900s×2 eval,
     notBreaching on gaps → now OK on real data.
   - `alive108-5xx-rate` watched Http5xx/RequestCount — metrics that
@@ -1359,7 +1359,7 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   no new lanes spawned here. Ops duties kept: deploy.sh, T-60 freeze
   hold, alarm watch, no-ff merges, verify_numbers, handoff doc.
 - **Alarm surgery complete + honest**: `alive108-field-age` re-created
-  on correct ns `ALive-108` (was `ALive108` — never saw a datapoint),
+  on correct ns `Alive` (was `ALive108` — never saw a datapoint),
   900s×2, missing=notBreaching → now OK on real data. Dead
   `alive108-5xx-rate` deleted (watched metrics that never existed).
   NEW `alive108-target-down` (NLB HealthyHostCount<1, 2×60s,

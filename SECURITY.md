@@ -1,6 +1,6 @@
-# Security & Privacy — ALive-108
+# Security & Privacy — Alive
 
-ALive-108 is a Delhi air-quality routing API. Its central privacy claim is
+Alive is a Delhi air-quality routing API. Its central privacy claim is
 structural, not a promise: **the server holds city-wide aggregates and
 anonymous road-cell counts — nothing that identifies a person or a home.**
 

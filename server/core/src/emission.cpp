@@ -1,4 +1,4 @@
-// ALive-108 — emission span integrator. Bit-identical semantics with
+// Alive — emission span integrator. Bit-identical semantics with
 // server/alive_core_ref.integrate_emissions (see include/alive/emission.hpp).
 
 #include "alive/emission.hpp"

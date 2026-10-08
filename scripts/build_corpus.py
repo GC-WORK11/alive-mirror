@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_corpus.py -- ALive-108 Delhi-NCR search corpus builder.
+build_corpus.py -- Alive Delhi-NCR search corpus builder.
 
 Pipeline:
   1. Download a Geofabrik OSM extract that covers Delhi into

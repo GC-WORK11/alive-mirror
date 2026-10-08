@@ -1,4 +1,4 @@
-# ALive-108 — Builder Center written submission
+# Alive — Builder Center written submission
 
 *Draft for the AWS × WeMakeDevs Environmental Hacks (Track 01 · Air) submission
 form and the Builder Center long-form post. Every number below was read off the
@@ -37,7 +37,7 @@ measurement that makes it answerable.
 
 ## The product
 
-**ALive-108 is a personal PM2.5 dosimeter without hardware.** Personal-exposure
+**Alive is a personal PM2.5 dosimeter without hardware.** Personal-exposure
 reconstruction — timeline × concentration surface → individual dose — is an
 established research method that nobody ships to consumers; Plume needed a
 device, we need nothing. The concentration field is already sampled per-cell

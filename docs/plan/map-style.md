@@ -1,4 +1,4 @@
-# Map style — v2 dark vector (ALive-108)
+# Map style — v2 dark vector (Alive)
 
 Self-contained MapLibre style JSON on the **OpenMapTiles v3 schema** —
 `Mobile/src/map/v2-dark.json`. 47 layers, validated with

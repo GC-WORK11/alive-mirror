@@ -1,4 +1,4 @@
-# ALive-108 — Ops handover (verified on this AWS account)
+# Alive — Ops handover (verified on this AWS account)
 
 **Purpose.** The second Devin account that owned ops is retired — this doc is
 the complete institutional memory for demo-day ops. A stranger with the IAM
@@ -123,8 +123,8 @@ Kill-switches: `OSRM_SIDECAR=0` (API-only, mem 2048), `SKIP_BUILD=1`,
 
 | Alarm | State | Watch | Breach condition | Missing data | Action |
 |---|---|---|---|---|---|
-| `alive108-field-age` | **OK** | `ALive-108` / `FieldAgeSeconds`, Maximum, 900 s × 2 | > 2700 s (field inputs stale >45 min) | notBreaching | SNS `alive108-ops` |
-| `alive108-field-emitter-dead` | **OK** | `ALive-108` / `FieldAgeSeconds`, Average, 900 s × 3 | ≤ −1 (dead-man) | **breaching** — silence = ingest worker dead | SNS `alive108-ops` |
+| `alive108-field-age` | **OK** | `Alive` / `FieldAgeSeconds`, Maximum, 900 s × 2 | > 2700 s (field inputs stale >45 min) | notBreaching | SNS `alive108-ops` |
+| `alive108-field-emitter-dead` | **OK** | `Alive` / `FieldAgeSeconds`, Average, 900 s × 3 | ≤ −1 (dead-man) | **breaching** — silence = ingest worker dead | SNS `alive108-ops` |
 | `alive108-target-down` | **OK** | `AWS/NetworkELB` / `HealthyHostCount`, Minimum, 60 s × 2, dims `net/alive108/2699c171ddded465` + `targetgroup/alive108-tg/f16024d974b4c0bf` | < 1 healthy target | **breaching** — right for a down-detector | SNS `alive108-ops` |
 
 **Metric truth (1 h of `get-metric-statistics`, verified):** `StationsUsed`
@@ -143,7 +143,7 @@ silence means emitter dead. `HealthyHostCount` min 1.0 throughout.
 
 **Known drift vs `infra/provision.sh` — do NOT blindly re-run it:**
 - provision.sh writes alarms on namespace `ALive108` — the live metrics are
-  `ALive-108` (`ingest_worker.py:47`). The live alarms were hand-fixed; the
+  `Alive` (`ingest_worker.py:47`). The live alarms were hand-fixed; the
   script's alarm section is stale.
 - provision.sh creates `alive108-5xx-rate` over `Http5xx`/`RequestCount` —
   those metrics don't exist; the alarm was **deleted** (always-OK false

@@ -76,7 +76,7 @@ def _big_client() -> httpx.AsyncClient:
     if _csv_client is None or _csv_client.is_closed:
         _csv_client = httpx.AsyncClient(
             timeout=httpx.Timeout(45.0, connect=8.0),
-            headers={"User-Agent": "delhi-air-108/0.1 (hackathon)"})
+            headers={"User-Agent": "alive/0.1 (hackathon)"})
     return _csv_client
 
 

@@ -242,7 +242,7 @@ def tilejson(request: Request):
     base = str(request.base_url).rstrip("/")
     tj = {
         "tilejson": "3.0.0",
-        "name": "ALive-108 Delhi NCR (OpenMapTiles schema)",
+        "name": "Alive Delhi NCR (OpenMapTiles schema)",
         "version": "1.0",
         "scheme": "xyz",
         "format": "pbf",

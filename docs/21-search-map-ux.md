@@ -1,6 +1,6 @@
-# Search & Map UX — how "instant" actually works, and the cheapest path to it for ALive-108
+# Search & Map UX — how "instant" actually works, and the cheapest path to it for Alive
 
-*Deep-research brief. Every claim is cited; recommendations are grounded in the current ALive-108 code (`Mobile/App.tsx`, `server/main.py`).*
+*Deep-research brief. Every claim is cited; recommendations are grounded in the current Alive code (`Mobile/App.tsx`, `server/main.py`).*
 
 ---
 

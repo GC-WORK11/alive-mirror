@@ -1,4 +1,4 @@
-// ALive-108 — kriging field kernels (alive_core, Phase-5).
+// Alive — kriging field kernels (alive_core, Phase-5).
 //
 // Ordinary + universal (regression) kriging over station observations and
 // covariates, with Eigen factorisation reused across estimates.

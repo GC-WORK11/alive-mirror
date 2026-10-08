@@ -1,4 +1,4 @@
-/** ALive-108 component primitives — v2 light design system (docs/plan/03).
+/** Alive component primitives — v2 light design system (docs/plan/03).
  * Sheets: surface + 1px line top edge, spring (damping 22, stiffness 220),
  * 3 detents (peek 15% · half 50% · full 92%). */
 import React, { useEffect, useMemo, useRef, useState } from "react";

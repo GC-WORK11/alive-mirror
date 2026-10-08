@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Search-layer unit-test runner (ALive-108, index-prebuild lane).
+ * Search-layer unit-test runner (Alive, index-prebuild lane).
  *
  *   cd Mobile && node src/search/test-runner.mjs
  *

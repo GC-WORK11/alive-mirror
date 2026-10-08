@@ -324,7 +324,7 @@ def fetch(api_key=None, client=None, bbox=BBOX, sleep=time.sleep) -> dict:
     own = client is None
     c = client or httpx.Client(
         timeout=httpx.Timeout(30.0, connect=8.0),
-        headers={"User-Agent": "alive108-ingest/0.1"})
+        headers={"User-Agent": "alive-ingest/0.1"})
     stats = {"requests": 0, "responses": 0, "retries_429": 0}
     try:
         try:

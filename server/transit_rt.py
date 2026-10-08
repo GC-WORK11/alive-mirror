@@ -39,7 +39,7 @@ import urllib.request
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(_HERE, "data", "gtfs")   # same cache transit_real fills
-_UA = {"User-Agent": "alive108-delhi-air (github.com/<owner>/Delhi-Air-108)"}
+_UA = {"User-Agent": "alive-delhi-air (github.com/<owner>/Delhi-Air-108)"}
 
 POLL_MIN_S = 15          # OTD regenerates the snapshot ~every 10 s
 FETCH_TIMEOUT_S = 10

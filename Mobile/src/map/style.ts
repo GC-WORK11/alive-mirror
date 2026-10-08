@@ -1,5 +1,5 @@
 /**
- * ALive-108 v2 light map style — OpenMapTiles schema, Google Maps palette
+ * Alive v2 light map style — OpenMapTiles schema, Google Maps palette
  * (pixel-sampled light palette: grey land, cyan water, green parks, yellow
  * arterials, white streets; docs/plan/map-style.md).
  *
@@ -119,7 +119,7 @@ export const roadGlowLayers: LayerSpecification[] = v2Style.layers.filter((l) =>
  *  chain is unreachable. */
 export const v2RasterStyle: StyleSpecification = {
   version: 8,
-  name: "ALive-108 raster fallback",
+  name: "Alive raster fallback",
   sources: {
     osm: {
       type: "raster",

@@ -1,6 +1,6 @@
-# ALive-108 Design Language Spec
+# Alive Design Language Spec
 
-**Purpose.** Rebuild the ALive-108 consumer app so a Delhi commuter who has never heard the letters "AQI" instantly understands it — and so no one looking at it can say "AI made that." The product is a map that tells you how much a trip makes you breathe. Everything else is chrome.
+**Purpose.** Rebuild the Alive consumer app so a Delhi commuter who has never heard the letters "AQI" instantly understands it — and so no one looking at it can say "AI made that." The product is a map that tells you how much a trip makes you breathe. Everything else is chrome.
 
 **The bar** (adapted from the anti-slop literature, sources §S18–21): if someone can look at a screen and say *"AI made that"* without hesitation, it has failed. Restraint without intent now reads as mediocre, not refined. Every choice below must be a choice, not a default.
 
@@ -19,7 +19,7 @@
 - **Traffic pill** on the map is a single line of plain words ("Mucho tráfico…") attached to where it happens — information placed at its location, not in a panel.
 - **One accent.** Google Maps UI chrome is essentially grayscale + action blue. Every color that survives is either semantic (traffic red/yellow/green on roads, transit line colors) or the single interactive blue.
 
-**Takeaway for ALive-108:** the map *is* the app; the UI is a pill and a sheet. Anything that doesn't fit those two surfaces doesn't ship. See the captured Delhi viewport: `google-maps-delhi.png` — note how little chrome exists: one pill, one chip row, two FABs (locate/layers), done.
+**Takeaway for Alive:** the map *is* the app; the UI is a pill and a sheet. Anything that doesn't fit those two surfaces doesn't ship. See the captured Delhi viewport: `google-maps-delhi.png` — note how little chrome exists: one pill, one chip row, two FABs (locate/layers), done.
 
 ### 1.2 Uber / Lyft — the picker
 
@@ -30,7 +30,7 @@
 - **Base / LPL rigor.** Uber's Base and Lyft's Product Language are token systems where color, type, elevation are *linted* (Lyft literally ships an "LPL Lint" Figma plugin that flags off-system values) [S7, S8]. The premium feel is largely *absence of variance*: one elevation language, one radius scale, prices always the same weight.
 - **Rows, not cards.** Options read as a ledger: hairline separators, consistent row height (~64px), price or ETA is the right-aligned column that your eye scans vertically to compare. Nothing is a floating card inside another card.
 
-**Takeaway for ALive-108:** our `/compare` list should read like Uber's picker — vehicle silhouette left, ETA big, meta quiet, and the **dose column** as the right-aligned scannable number (or bar). The 8 modes ranked by inhaled µg are the product's whole reason to exist; present them as a comparison *table*, not a card stack.
+**Takeaway for Alive:** our `/compare` list should read like Uber's picker — vehicle silhouette left, ETA big, meta quiet, and the **dose column** as the right-aligned scannable number (or bar). The 8 modes ranked by inhaled µg are the product's whole reason to exist; present them as a comparison *table*, not a card stack.
 
 ### 1.3 Apple Maps
 
@@ -46,7 +46,7 @@
 
 **What it does.** Waze's defensible advantage is crowd-sourced reports, and its failure mode is also instructive: the reporting affordance is buried behind an ambiguous orange speech-bubble icon, and every hazard reports through the same fiddle-deep menu — widely criticized as dangerous at speed [S11, S12]. Waze's *icon semantics*, though, are the best lesson in the set: every hazard has its own pictograph — police hat, pothole, crash, stalled car — so the map reads wordlessly at a glance. Community requests literally ask for "the icon to picture the hazard instead of a generic triangle" [S13].
 
-**Takeaway for ALive-108:** our `/report` picker (dust | smoke | burning | clean) must be one tap → four **pictographic** options (dust swirl, smoke plume, flame, leaf), and the map must show *that* pictograph at the location — never a generic dot. Waze proves: icon variety is meaning; icon sameness is noise. Keep Waze's semantics, drop its carnival styling.
+**Takeaway for Alive:** our `/report` picker (dust | smoke | burning | clean) must be one tap → four **pictographic** options (dust swirl, smoke plume, flame, leaf), and the map must show *that* pictograph at the location — never a generic dot. Waze proves: icon variety is meaning; icon sameness is noise. Keep Waze's semantics, drop its carnival styling.
 
 ### 1.5 Rapido / Ola — what Indians read instantly
 

@@ -1,4 +1,4 @@
-# What ALive-108 actually computes — and where every number comes from
+# What Alive actually computes — and where every number comes from
 
 This document is the provenance sheet. Every figure the app shows traces
 to a named source or a stated assumption. Where we estimate, the response

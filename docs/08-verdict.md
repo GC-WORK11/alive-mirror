@@ -1,4 +1,4 @@
-# 08 — The Brutally Honest Verdict: What ALive-108 Actually Is
+# 08 — The Brutally Honest Verdict: What Alive Actually Is
 
 Updated 2026-10-01 after deep verification pass. Every claim below has a source.
 
@@ -63,7 +63,7 @@ precision; we show the chain of evidence.
 
 ## The product (final definition)
 
-**ALive-108 = a dose engine, not a route finder.**
+**Alive = a dose engine, not a route finder.**
 
 For FROM → TO, it answers in one screen:
 

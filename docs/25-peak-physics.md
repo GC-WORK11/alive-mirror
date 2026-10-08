@@ -1,4 +1,4 @@
-# ALive-108 — Peak-Physics Feasibility Map
+# Alive — Peak-Physics Feasibility Map
 
 *Deep-research deliverable: the frontier beyond what is already shipped (kriged field + uncertainty bands, Kalman-smoothed stations, dose math, GTFS transit, wind-advected IDW, BLH stagnation factor in `/depart`). Question: what real mathematical/engineering machinery could a ~3-day build honestly ship that would make technical judges sit up.*
 

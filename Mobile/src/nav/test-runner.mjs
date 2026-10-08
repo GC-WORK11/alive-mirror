@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Nav engine unit-test runner (ALive-108, lane r4-testnav).
+ * Nav engine unit-test runner (Alive, lane r4-testnav).
  *
  *   cd Mobile && node src/nav/test-runner.mjs
  *

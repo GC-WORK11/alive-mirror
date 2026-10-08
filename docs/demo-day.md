@@ -1,4 +1,4 @@
-# ALive-108 — demo-day runbook (Oct 10, offline hall)
+# Alive — demo-day runbook (Oct 10, offline hall)
 
 **Last verified: 2026-10-07 ~11:00 UTC (~16:30 IST)** —
 the submission-sync re-pin on live build **`698cf808`** (image
@@ -168,7 +168,7 @@ Every number below was read
 off the running service — they drift with the field; re-check on the
 day. Nothing in the product is seeded or faked.
 
-*Product framing (the pivot — `docs/plan/alive-depth.md`): ALive-108 is a
+*Product framing (the pivot — `docs/plan/alive-depth.md`): Alive is a
 **personal PM2.5 dosimeter without hardware** — timeline × concentration
 field → your dose, reconstructed on-device; only consented k≥3 aggregates
 ever leave the phone. Routing is one feature inside it — the proof the

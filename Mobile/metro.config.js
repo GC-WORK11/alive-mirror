@@ -1,4 +1,4 @@
-// metro.config.js — ALive-108 perf/RAM lane (docs/plan/perf-ram.md).
+// metro.config.js — Alive perf/RAM lane (docs/plan/perf-ram.md).
 //
 // Expo SDK 57's getDefaultConfig already sets the Hermes/terser pipeline;
 // the only delta here is `inlineRequires: true`. Expo's default is `false`

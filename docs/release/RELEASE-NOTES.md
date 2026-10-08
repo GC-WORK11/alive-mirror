@@ -1,9 +1,9 @@
-<!-- Release BODY template for the ALive-108 GitHub Release.
+<!-- Release BODY template for the Alive GitHub Release.
      The <fill at freeze-cut> lines are filled by scripts/release_prep.sh
      → docs/release/RELEASE-NOTES.filled.md. Everything else is final copy —
      edit this file, never the filled one. -->
 
-# ALive·108 — demo build (Android APK)
+# Alive — demo build (Android APK)
 
 ```
 TAG:    <fill at freeze-cut>
@@ -15,7 +15,7 @@ SHA256: <fill at freeze-cut>
 
 ## What it is
 
-ALive·108 is a personal PM2.5 dosimeter for Delhi — no hardware. It
+Alive is a personal PM2.5 dosimeter for Delhi — no hardware. It
 reconstructs what you inhaled by crossing your own timeline with a live
 modelled concentration field, so every trip prices in two numbers maps
 don't show: the smoke you will breathe on each way there, and the smoke

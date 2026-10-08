@@ -1,5 +1,5 @@
 /**
- * ALive-108 accessibility toolkit — the contract for doc 03 §accessibility:
+ * Alive accessibility toolkit — the contract for doc 03 §accessibility:
  * dynamic type up to 130% without layout break, every control labelled,
  * colour never the only signal. Other components import from here; the
  * audit lane (scripts/a11y_audit.py) checks the same rules statically.

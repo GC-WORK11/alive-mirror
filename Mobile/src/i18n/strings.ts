@@ -21,10 +21,10 @@ const en = {
   removeHome: "Remove Home",
   removeWork: "Remove Work",
   share: "Share",
-  shareAppBody: "checking the smoke on my Delhi trips before I go — ALive-108",
+  shareAppBody: "checking the smoke on my Delhi trips before I go — Alive",
   /** share text carries BOTH numbers — breathed (exposure) + put out
       (emission) — the Air-track mission in one breath */
-  shareTripBody: "my trip {from} → {to}: I breathed about {dose} of smoke and my ride put out {co2} — estimated on ALive-108",
+  shareTripBody: "my trip {from} → {to}: I breathed about {dose} of smoke and my ride put out {co2} — estimated on Alive",
   outsideDelhi: "outside Delhi — no smoke estimate here",
   start: "Start",
   end: "End",
@@ -162,7 +162,7 @@ const en = {
   settingsDeleteData: "Delete my data",
   // settings screen (S-settings)
   settingsAbout: "About",
-  settingsRate: "rate ALive·108",
+  settingsRate: "rate Alive",
   settingsRateHint: "one line — what worked, what didn't",
   settingsRateNotePh: "a line about the app — optional",
   settingsRateSend: "send",
@@ -541,7 +541,7 @@ const en = {
   plan_failed_server: "the server couldn't route this trip",
   plan_retry: "try again",
   plan_outside_title: "this trip sits outside Delhi NCR",
-  plan_outside_body: "alive-108 only measures the air inside Delhi NCR — this trip leaves the air map, so its smoke can't be counted honestly.",
+  plan_outside_body: "Alive only measures the air inside Delhi NCR — this trip leaves the air map, so its smoke can't be counted honestly.",
   plan_outside_cta: "change the trip",
   plan_coverage_note: "smoke counted only for the Delhi NCR part",
   howWe_coverage: "the route leaves the smoke map — only the {pct}% inside it is counted, never stretched",
@@ -1217,7 +1217,7 @@ const en = {
   bandUpTo: "up to {n}",
   /* the share-text composer — clauses compose so a missing estimate never
      renders a bare "—" inside the sentence */
-  shareTripLine: "my trip {from} → {to}: {what} — estimated on ALive-108",
+  shareTripLine: "my trip {from} → {to}: {what} — estimated on Alive",
   shareClauseBreathe: "I breathed about {dose} of smoke",
   shareClausePutOut: "my ride put out {co2}",
 } as const;
@@ -1252,8 +1252,8 @@ const hi: Record<StringKey, string> = {
   removeHome: "घर हटाएँ",
   removeWork: "काम की जगह हटाएँ",
   share: "शेयर करें",
-  shareAppBody: "जाने से पहले अपनी दिल्ली यात्राओं का धुआँ-हिसाब — ALive-108",
-  shareTripBody: "मेरी यात्रा {from} → {to}: मैंने करीब {dose} धुआँ साँस में लिया और गाड़ी ने {co2} छोड़ा — ALive-108 पर अनुमानित",
+  shareAppBody: "जाने से पहले अपनी दिल्ली यात्राओं का धुआँ-हिसाब — Alive",
+  shareTripBody: "मेरी यात्रा {from} → {to}: मैंने करीब {dose} धुआँ साँस में लिया और गाड़ी ने {co2} छोड़ा — Alive पर अनुमानित",
   outsideDelhi: "दिल्ली से बाहर — धुएँ का अंदाज़ा नहीं मिलेगा",
   start: "शुरू करें",
   end: "खत्म करें",
@@ -1358,7 +1358,7 @@ const hi: Record<StringKey, string> = {
   settingsUnitsInfo: "दूरी km में — सिर्फ़ मीट्रिक",
   settingsShareData: "गुमनाम यात्रा डेटा शेयर करें",
   settingsDeleteData: "मेरा डेटा मिटाएँ",
-  settingsRate: "ALive·108 को रेट करें",
+  settingsRate: "Alive को रेट करें",
   settingsRateHint: "एक पंक्ति — क्या अच्छा लगा, क्या नहीं",
   settingsRateNotePh: "ऐप के बारे में एक पंक्ति — मर्ज़ी है",
   settingsRateSend: "भेजें",
@@ -1665,7 +1665,7 @@ const hi: Record<StringKey, string> = {
   plan_failed_server: "सर्वर रास्ता नहीं बना पाया",
   plan_retry: "फिर कोशिश करें",
   plan_outside_title: "यह यात्रा दिल्ली NCR से बाहर है",
-  plan_outside_body: "alive-108 सिर्फ़ दिल्ली NCR की हवा नापता है — यह यात्रा हवा-नक्शे से बाहर जाती है, इसलिए धुएँ का ईमानदार हिसाब नहीं बन सकता।",
+  plan_outside_body: "Alive सिर्फ़ दिल्ली NCR की हवा नापता है — यह यात्रा हवा-नक्शे से बाहर जाती है, इसलिए धुएँ का ईमानदार हिसाब नहीं बन सकता।",
   plan_outside_cta: "यात्रा बदलें",
   plan_coverage_note: "धुएँ का हिसाब सिर्फ़ NCR वाले हिस्से का है",
   howWe_coverage: "रास्ता धुएँ-नक्शे से बाहर जाता है — सिर्फ़ ढके हुए {pct}% की गिनती हुई, अनुमान नहीं लगाया गया",
@@ -2225,7 +2225,7 @@ const hi: Record<StringKey, string> = {
   movesCorridorNDays: "पिछले {d} दिनों में {n} {streetNoun} नापी गईं",
   cityBasisPrivacyDays: "कोई सड़क तभी दिखती है जब {d} दिनों में {k} अलग यात्री उससे गुज़रें — कोई अलग से पहचाना नहीं जा सकता",
   bandUpTo: "{n} तक",
-  shareTripLine: "मेरी यात्रा {from} → {to}: {what} — ALive-108 पर अनुमानित",
+  shareTripLine: "मेरी यात्रा {from} → {to}: {what} — Alive पर अनुमानित",
   shareClauseBreathe: "मैंने साँस में लिया करीब {dose} धुआँ",
   shareClausePutOut: "मेरी गाड़ी ने छोड़ा {co2}",
 };

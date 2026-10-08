@@ -1,6 +1,6 @@
 # docs/26 — The Honest Impact Ledger
 
-*Research deliverable: every impact claim ALive-108 can make at demo time,
+*Research deliverable: every impact claim Alive can make at demo time,
 ranked by how a skeptical judge can audit it. For each claim: is it provable,
 to what precision, the attack a sharp judge runs, and our honest answer.
 Per instructions: brutal. Anything we can't defend is on the kill list.*

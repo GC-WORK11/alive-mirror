@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Store-layer unit-test runner (ALive-108, lane ledger-audit).
+ * Store-layer unit-test runner (Alive, lane ledger-audit).
  *
  *   cd Mobile && node src/store/test-runner.mjs
  *

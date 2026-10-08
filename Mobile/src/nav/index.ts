@@ -1,5 +1,5 @@
 /**
- * src/nav — Phase-4 live navigation engine + arrival receipt (ALive-108).
+ * src/nav — Phase-4 live navigation engine + arrival receipt (Alive).
  *
  * EXPORT CONTRACT (integrator notes)
  * ----------------------------------

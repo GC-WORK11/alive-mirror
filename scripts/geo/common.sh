@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Common config for the ALive-108 Delhi geo pipeline. Source this.
+# Common config for the Alive Delhi geo pipeline. Source this.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

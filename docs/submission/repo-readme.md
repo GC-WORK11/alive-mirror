@@ -1,8 +1,8 @@
-# ALive-108 — a personal PM2.5 dosimeter for Delhi (no hardware)
+# Alive — a personal PM2.5 dosimeter for Delhi (no hardware)
 
 **Your lungs' ledger for Delhi: what you breathed today, where it cost you,
 and when tomorrow's air is worth going out in — no device, no uploads.**
-ALive-108 reconstructs personal exposure the way the research literature
+Alive reconstructs personal exposure the way the research literature
 does — timeline × concentration field → individual dose — but on the phone
 you already carry, not on a $200 gadget. Your day is reconstructed
 **on-device**; the only things that ever leave it are consented aggregates —
@@ -21,7 +21,7 @@ Oct 8–11, 2026. Delhi-only by design.
 
 <!-- SCREENSHOT 1 — `/` dosimeter landing, captured 2026-10-06 (web-overhaul-v2
      lane, docs/lanes/web-nits-shots/after/) -->
-![ALive-108 landing — a dosimeter, not a lookup](../lanes/web-nits-shots/after/landing-1280-hero.png)
+![Alive landing — a dosimeter, not a lookup](../lanes/web-nits-shots/after/landing-1280-hero.png)
 
 ## What it does (60 seconds)
 

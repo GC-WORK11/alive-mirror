@@ -1,4 +1,4 @@
-# ALive-108 — demo-morning runbook (the one checklist you hold)
+# Alive — demo-morning runbook (the one checklist you hold)
 
 *Written 2026-10-07 ~13:05 UTC, re-synced ~21:15 UTC for the **Oct-7
 owner fix wave** — every moving number below re-verified live on prod
@@ -270,7 +270,7 @@ canonical verbatim; this is the order + the honest number behind each):
 | 5 | 1:35–1:55 | **phone**: "your lungs' calendar" week sheet → "Delhi today" | "every trip lands in your lungs' calendar — seven real days, blank means the app wasn't with you, never a fake zero. Delhi today: the city's air is shared, but your trips are yours — until you've taken one it says so." |
 | 6 | 1:55–2:15 | **laptop**: `/` landing + `/community` + `/v2/city` + console gate→board | "the same field serves the public page — and every donated trip becomes a live sensor: forty-seven real donations, twenty-five contributors; a street only publishes after three different riders cross it — the privacy is in the math." ⟳ LIVE counts |
 | 7 | 2:15–2:35 | AWS console — ECS `alive108` | "real infrastructure: ECS Fargate behind an NLB — one task, healthy, Spot-priced; DynamoDB holds only aggregates." Read task-def off the console, never a memorized number. |
-| 8 | 2:35–2:50 | console field map — species pills → back to `/` | "we hold one rule: no fake precision — the band is *measured* (95.2% @2σ over 3,550 held-out station-hours). Click NO₂ — a different map, not a relabeled layer. Dose every 250 metres for the rider, emissions per mode for the city — ALive-108, the map that prices the air." |
+| 8 | 2:35–2:50 | console field map — species pills → back to `/` | "we hold one rule: no fake precision — the band is *measured* (95.2% @2σ over 3,550 held-out station-hours). Click NO₂ — a different map, not a relabeled layer. Dose every 250 metres for the rider, emissions per mode for the city — Alive, the map that prices the air." |
 
 **Do NOT improvise other ODs on stage.** The metro+walk row is only
 guaranteed on the demo OD (India Gate → Huda City Centre — verified

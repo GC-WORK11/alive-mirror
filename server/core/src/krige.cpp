@@ -1,4 +1,4 @@
-// ALive-108 — kriging field kernels. See include/alive/krige.hpp for the
+// Alive — kriging field kernels. See include/alive/krige.hpp for the
 // contract and the legacy/corrected variance notes.
 
 #include "alive/krige.hpp"

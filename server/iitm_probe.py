@@ -93,7 +93,7 @@ async def iitm_hourly_pm25(client: Optional[httpx.AsyncClient] = None) -> Option
     own = client is None
     if own:
         client = httpx.AsyncClient(timeout=_TIMEOUT,
-                                   headers={"User-Agent": "delhi-air-108/0.1 (probe)"})
+                                   headers={"User-Agent": "alive/0.1 (probe)"})
     try:
         for url in CANDIDATES:
             try:

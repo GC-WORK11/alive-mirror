@@ -1,4 +1,4 @@
-// ALive-108 design tokens — the shared paper/ink register (docs/plan/03
+// Alive design tokens — the shared paper/ink register (docs/plan/03
 // + server/landing.html, city.html, admin.html): light paper, serif display,
 // mono for every number, hairlines at ~10% ink, muted CPCB band palette as
 // the ONLY colour that means data. No gradients, no emoji.

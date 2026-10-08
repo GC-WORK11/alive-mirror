@@ -1,4 +1,4 @@
-# ALive-108 — Master Plan (v2, from scratch)
+# Alive — Master Plan (v2, from scratch)
 
 Written 2026-10-03. Replaces the build direction in docs/00–32 where they conflict; those docs stay as the research record. Everything in this folder is either **[V] verified** (we ran it / read the primary source this session), **[R] from our research docs** (cited there), or **[P] plan** (a decision, not a fact). Nothing here is a claim we can't defend.
 

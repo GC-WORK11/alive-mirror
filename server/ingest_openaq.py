@@ -322,7 +322,7 @@ def fetch(api_key: Optional[str] = None, client=None, bbox=BBOX,
     own = client is None
     c = client or httpx.Client(
         timeout=httpx.Timeout(30.0, connect=8.0),
-        headers={"User-Agent": "alive108-ingest-openaq/0.1"})
+        headers={"User-Agent": "alive-ingest-openaq/0.1"})
     headers = {"X-API-Key": key}
     try:
         locations = _fetch_locations(c, headers, bbox, sleep,

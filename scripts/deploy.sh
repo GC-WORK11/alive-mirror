@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ALive-108 deploy — image -> ECR -> ECS Fargate redeploy -> NLB auto-registration.
+# Alive deploy — image -> ECR -> ECS Fargate redeploy -> NLB auto-registration.
 #
 # NOTE: the service now carries the target group in its own loadBalancers
 # config — ECS registers each new task ENI itself (update 2026-10-03, the

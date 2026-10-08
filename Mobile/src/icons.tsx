@@ -1,5 +1,5 @@
 /**
- * ALive-108 icon set — Material Symbols Rounded geometry (Apache-2.0,
+ * Alive icon set — Material Symbols Rounded geometry (Apache-2.0,
  * google/material-design-icons symbols/web), rendered via react-native-svg.
  * Paths live on the 960-unit symbol grid (viewBox "0 -960 960 960");
  * outline at rest, <name>@fill when `filled` is passed and a fill cut

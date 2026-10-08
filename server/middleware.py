@@ -1,4 +1,4 @@
-"""Security middleware + input sanitation for the ALive-108 API.
+"""Security middleware + input sanitation for the Alive API.
 
 Pure-ASGI (Starlette-style) middlewares — no BaseHTTPMiddleware, so
 request bodies are never silently buffered and 429/413 rejections go

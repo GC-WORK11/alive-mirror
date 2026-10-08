@@ -1,4 +1,4 @@
-"""ALive-108 — T1 search index, Python reference implementation.
+"""Alive — T1 search index, Python reference implementation.
 
 This module is both:
   1. the parity oracle for the C++ `alive_core` module (CI asserts identical

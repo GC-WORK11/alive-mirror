@@ -1,4 +1,4 @@
-// ALive-108 — field view + dose integrator (alive_core, Phase 3).
+// Alive — field view + dose integrator (alive_core, Phase 3).
 //
 // Semantics kept bit-identical with server/alive_core_ref.py (the parity
 // oracle — see its "Phase 3" block for the contract spec):

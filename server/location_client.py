@@ -55,7 +55,7 @@ class LocationClient:
         if self._http is None or self._http.is_closed:
             self._http = httpx.AsyncClient(
                 timeout=_TIMEOUT,
-                headers={"User-Agent": "alive108-v2/0.1",
+                headers={"User-Agent": "alive-v2/0.1",
                          "Content-Type": "application/json"})
         return self._http
 

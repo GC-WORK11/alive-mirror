@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Offline-layer unit-test runner (ALive-108, lane fix-mobile-audit).
+ * Offline-layer unit-test runner (Alive, lane fix-mobile-audit).
  *
  *   cd Mobile && node src/offline/test-runner.mjs
  *

@@ -1,4 +1,4 @@
-# Privacy — ALive-108
+# Privacy — Alive
 
 One paragraph: **ALive has no accounts.** No names, no phone numbers, no
 email — there is literally no sign-up. The app works fully offline of any

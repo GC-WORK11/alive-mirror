@@ -1,4 +1,4 @@
-# Builder Center article — ALive-108 (draft for builder.aws.com)
+# Builder Center article — Alive (draft for builder.aws.com)
 
 ## Title options (pick one)
 
@@ -9,7 +9,7 @@
 
 ## Submission-form abstract (~120 words)
 
-ALive-108 is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 52 ground instruments, ~97 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rollup/validation jobs. We validated the field against 30 government DPCC stations it never ingests, published the misses, then closed the blind spots with a second ingest adapter — measured on prod: error at the formerly blind sites fell 22.8 → 10.5 µg/m³, all-30 agreement 27.1 → 6.2.
+Alive is a personal PM2.5 dosimeter for Delhi with no hardware: the phone reconstructs what you breathed — timeline × a live concentration field → dose, computed on-device; only consented k≥3 aggregates ever leave. On one measured commute, mode choice alone changed inhaled dose 33×. The field rebuilds every 15 minutes on ECS Fargate from 52 ground instruments, ~97 model samples, and NASA FIRMS fire detections, behind a Network Load Balancer, with S3 field artifacts, DynamoDB aggregates, Secrets Manager, CodeBuild deploys, and EventBridge-scheduled rollup/validation jobs. We validated the field against 30 government DPCC stations it never ingests, published the misses, then closed the blind spots with a second ingest adapter — measured on prod: error at the formerly blind sites fell 22.8 → 10.5 µg/m³, all-30 agreement 27.1 → 6.2.
 
 ---
 

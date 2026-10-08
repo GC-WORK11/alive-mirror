@@ -1,5 +1,5 @@
 version: 0.2
-# ALive-108 CodeBuild spec — MUST sit at the source zip root (deploy.sh
+# Alive CodeBuild spec — MUST sit at the source zip root (deploy.sh
 # archives `git archive HEAD:server`, so this file is the root).
 #
 # Tags pushed on every build (parity with scripts/deploy.sh local mode):

@@ -1,6 +1,6 @@
 {
   "version": 8,
-  "name": "ALive-108 v2 dark",
+  "name": "Alive v2 dark",
   "metadata": {
     "alive:doc": "docs/plan/map-style-r4.md — r4 palette pass (graphite land, ink-navy water)",
     "alive:tokens": "Mobile/src/theme.ts V2T",

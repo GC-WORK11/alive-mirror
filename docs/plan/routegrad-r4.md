@@ -1,6 +1,6 @@
 # routegrad-r4 — route-wise AQI gradient
 
-Lane: `r4-routegrad` (ALive-108). Route polylines shaded per ~250 m chunk by
+Lane: `r4-routegrad` (Alive). Route polylines shaded per ~250 m chunk by
 the live field's PM2.5 — the hero "which road do I breathe" visual.
 
 ## Files (this lane owns all of them — new files only)

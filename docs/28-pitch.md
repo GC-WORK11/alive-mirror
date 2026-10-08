@@ -1,4 +1,4 @@
-# ALive-108 — The Pitch: judge psychology, six 4-line candidates, the failure-proof 3:00
+# Alive — The Pitch: judge psychology, six 4-line candidates, the failure-proof 3:00
 
 *Deep-research deliverable. Reads alongside docs/20 (playbook), docs/11 (demo script v2), docs/22 (breakthroughs), docs/24 (design). Every external claim cited in §g; every product claim maps to shipped code or a named delta. Jargon rule: no "AQI / PM2.5 / µg / API / kriging" appears in any consumer-facing line below — those words live in the writeup and the why-expander, where technical judges go looking for them.*
 
@@ -12,7 +12,7 @@ Assembled from five named judges' own descriptions of their process (Devpost's p
 
 **The ten findings, ranked by consequence for us:**
 
-| # | Finding | Who said it | What it means for ALive-108 |
+| # | Finding | Who said it | What it means for Alive |
 |---|---|---|---|
 | 1 | **"Whether the demo ran" is the single largest score differentiator.** A working demo "removes doubt, and doubt is what a judge is actually managing under time pressure." Slides of an ambitious thing lose to a working narrow thing "almost every time." | Kurbaitaev (3× judge) [S2] | Our submission IS a video — the bar is not "runs live on stage" but "footage that is unambiguously the product working." Real taps, drifting numbers, status-bar clock visible. §(c). |
 | 2 | **Anchor first, story second.** "The teams that scored well opened with a plain declarative: this is a tool that does X for Y. The teams that lost ground opened with context." By the time the product appeared, "I had spent a third of the slot without knowing what I was looking at." | Kurbaitaev [S2]; Jono Bacon: "get your audience of judges sharing your frustration" [S3] | **Say what it is at 0:00, then the 8.2-year stat.** Current script (docs/11) opens with a mood line — the product name/category appears ~0:18. Fix in §(c). |
@@ -105,7 +105,7 @@ Constraints applied literally: exactly 4 lines; a Delhi rickshaw driver gets eve
 
 | Time | Beat | Pitch line | On screen | Failure class |
 |---|---|---|---|---|
-| 0:00–0:08 | **Anchor, then stat.** "This is ALive-108 — a Delhi map that prices every trip in breath, not minutes. Delhi's air takes years off a life." | #1 L1–2 | Live field drifting over the mono map | needs field+server |
+| 0:00–0:08 | **Anchor, then stat.** "This is Alive — a Delhi map that prices every trip in breath, not minutes. Delhi's air takes years off a life." | #1 L1–2 | Live field drifting over the mono map | needs field+server |
 | 0:08–0:38 | **Golden path.** Karol Bagh → India Gate; search, route painted by dose; the dose card: closed car ~3 vs on foot ~90 — "thirty times, live." | #2 | Phone/sim, real taps | **money shot — record first** |
 | 0:38–0:55 | **The physics one tap away.** Tap auto → route repaints crimson; why-expander (breathing-zone × exertion, live field). | #2 tail | why-expander | same take as above |
 | 0:55–1:18 | **The receipt + the ledger.** Auto-arrival receipt ("N µg · 🚬 · the smokiest way cost N more"); ledger: today's cigarettes + the ones you dodged. | #1 L4, #3 | nav → receipt → ledger | receipt needs a recorded nav run — shoot once, reuse |

@@ -650,7 +650,7 @@ function SidebarInner(props: SidebarProps) {
             <View style={s.mark}>
               <Icon name="wind" color={V2T.text2} size={15} />
             </View>
-            <Text {...DYNAMIC_TYPE} style={s.wordmark}>ALIVE<Text {...DYNAMIC_TYPE} style={{ color: V2T.accent }}>-108</Text></Text>
+            <Text {...DYNAMIC_TYPE} style={s.wordmark}>ALIVE</Text>
           </View>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button"
             accessibilityLabel={t("settingsClose", lang)}

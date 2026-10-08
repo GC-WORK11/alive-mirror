@@ -752,7 +752,7 @@ def fetch_inputs(now=None, client=None) -> dict:
     own = client is None
     c = client or httpx.Client(
         timeout=httpx.Timeout(30.0, connect=8.0),
-        headers={"User-Agent": "alive108-airindex/0.1"})
+        headers={"User-Agent": "alive-airindex/0.1"})
     t_fetch = time.time()
     # Per-source wall time — every bundle is returned, never raised, so a
     # slow leg used to hide inside one opaque multi-minute fetch block.

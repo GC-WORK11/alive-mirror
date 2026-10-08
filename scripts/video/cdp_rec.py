@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record one browser beat of the live ALive-108 product.
+"""Record one browser beat of the live Alive product.
 
 Drives the already-running Chrome over CDP (localhost:29229) and records
 the page while a JSON action list runs — so every frame on tape is real

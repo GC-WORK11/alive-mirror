@@ -1,4 +1,4 @@
-// ALive-108 — T1 fuzzy search index. Bit-identical semantics with
+// Alive — T1 fuzzy search index. Bit-identical semantics with
 // server/alive_core_ref.py (see include/alive/search.hpp for the spec).
 
 #include "alive/search.hpp"

@@ -255,7 +255,7 @@ def _latest_daily():
 async def index():
     """Surface map + the privacy contract, for humans and scrapers."""
     return {
-        "service": "alive108 admin aggregates",
+        "service": "alive admin aggregates",
         "ts": time.time(),
         "privacy": ("aggregate-only — k>=3 enforced by the trip store; "
                     "no per-device data exists server-side to serve"),

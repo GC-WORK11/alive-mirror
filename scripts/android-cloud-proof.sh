@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# android-cloud-proof.sh — reproduce the cloud Android runtime proof for ALive-108.
+# android-cloud-proof.sh — reproduce the cloud Android runtime proof for Alive.
 #
 # What it does, end to end:
 #   1. fixes /dev/kvm perms (needs sudo once)

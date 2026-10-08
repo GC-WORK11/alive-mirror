@@ -1,6 +1,6 @@
 # assets/map — marker art sources
 
-All artwork in this directory is **hand-drawn in-repo** for ALive-108
+All artwork in this directory is **hand-drawn in-repo** for Alive
 (geometry authored directly as SVG path data in `src/map/markers.tsx`; the
 .svg files here are byte-equivalent reference copies for design review and
 future raster exports). No third-party or unlicensed assets are used — the

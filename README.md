@@ -1,4 +1,4 @@
-# ALive-108
+# Alive
 
 **A personal PM2.5 dosimeter for Delhi — no hardware.** Your lungs' ledger: the app reconstructs what you breathed from a live modelled concentration field, so every trip prices in two numbers maps don't show — the smoke you will inhale, and the smoke your ride puts into the air — before you leave, live while you travel, and as a receipt when you arrive. The phone measures nothing itself, and only consented, anonymized **k≥3 aggregates** ever leave it.
 

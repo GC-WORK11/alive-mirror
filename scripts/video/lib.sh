@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared env + helpers for the ALive-108 video capture toolkit.
+# Shared env + helpers for the Alive video capture toolkit.
 # Every beat records real pixels of the live service — nothing faked.
 set -euo pipefail
 

@@ -1,4 +1,4 @@
-// ALive-108 — least-inhalation path engine. Parity oracle:
+// Alive — least-inhalation path engine. Parity oracle:
 // server/routegraph.py PyPathEngine — keep semantics bit-identical.
 
 #include "alive/path.hpp"

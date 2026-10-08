@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ALive-108 bounded load probe — demo-day lane.
+"""Alive bounded load probe — demo-day lane.
 
 HARD BOUNDS (per the lane mandate):
   * <=8 concurrent virtual clients, bursts <=30 s, whole run <=5 min

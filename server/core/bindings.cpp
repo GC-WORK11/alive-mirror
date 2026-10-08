@@ -459,7 +459,7 @@ namespace alive { void register_krige(pybind11::module_& m); }
 #endif
 
 PYBIND11_MODULE(alive_core, m) {
-  m.doc() = "ALive-108 C++ engine — T1 fuzzy place search index";
+  m.doc() = "Alive C++ engine — T1 fuzzy place search index";
 
 #ifdef ALIVE_CORE_WITH_EIGEN
   alive::register_krige(m);

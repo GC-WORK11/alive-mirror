@@ -1,4 +1,4 @@
-# ALive-108 — 3-minute demo video script (v2, matches shipped product)
+# Alive — 3-minute demo video script (v2, matches shipped product)
 
 Judging sees a recorded video, not a live demo. Every number below is a
 real verified response from the server (numbers drift with the live

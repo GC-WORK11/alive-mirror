@@ -1,5 +1,5 @@
 #!/bin/bash
-# Cold-open measurement for ALive-108 on iOS sim.
+# Cold-open measurement for Alive on iOS sim.
 # Usage: measure_cold.sh <run_label> [app_path]
 # Does: uninstall -> install -> record video + log stream -> launch -> 75s capture
 # Outputs: /tmp/cold_runs/<label>/ {video.mp4, frames/, appfiles.txt, logstream.txt, timing.txt}

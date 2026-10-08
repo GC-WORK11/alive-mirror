@@ -1,4 +1,4 @@
-# ALive-108 — session handoff (2026-10-04, refreshed)
+# Alive — session handoff (2026-10-04, refreshed)
 
 State of the world for whoever picks this up in Devin Cloud. Everything below is
 verified in-tree, not aspirational. **`main` is the trunk** — PR #4 merged
@@ -43,7 +43,7 @@ verified in-tree, not aspirational. **`main` is the trunk** — PR #4 merged
   dose `coverage` (0-1) flows to the wire; `/v2/city` adds `species{}` +
   `typical` (decade-norm from the openaq archive); fires warm at boot.
 
-## What ALive-108 is
+## What Alive is
 
 Delhi/NCR pollution-aware navigation: for every trip, show the smoke you will
 breathe and the emissions your vehicle produces — before, during, and after the

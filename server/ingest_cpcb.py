@@ -274,7 +274,7 @@ def fetch(resource_id: str = RESOURCE_ID, api_key=None, client=None,
     own = client is None
     c = client or httpx.Client(
         timeout=httpx.Timeout(30.0, connect=8.0),
-        headers={"User-Agent": "alive108-ingest-cpcb/0.1"})
+        headers={"User-Agent": "alive-ingest-cpcb/0.1"})
     records, errors, reasons, pages = [], [], [], 0
     stats = {"requests": 0}
     url = f"{API_BASE}/resource/{resource_id}"

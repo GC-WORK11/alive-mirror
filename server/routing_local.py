@@ -57,7 +57,7 @@ class LocalRouter:
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(8.0, connect=4.0),
-                headers={"User-Agent": "alive108-geo/0.1"})
+                headers={"User-Agent": "alive-geo/0.1"})
         return self._client
 
     def _url_for(self, profile: str) -> str:
