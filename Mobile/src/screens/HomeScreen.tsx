@@ -1391,6 +1391,9 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
         <TravelCta lang={lang} onGo={onGo} />
       </View>
       <ScrollView style={ss.flex}
+        /* perf-probe: rAF frames through each drag — the gfxinfo-style
+           jank% for the home scroll is these jank reports. */
+        onScrollBeginDrag={() => jank("scroll.home", 1200)}
         /* the audit's occlusion complaint was measured against a ~62 px
            bottom overlay; the CTA is a top header row now, but the 12 px
            bottom pad still sat the last card inside the home-indicator

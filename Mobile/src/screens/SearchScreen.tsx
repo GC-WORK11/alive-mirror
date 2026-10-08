@@ -43,7 +43,7 @@ import { mergeResults, sameNamedPlace, ServerSearch, type ServerTiers } from "..
 import { addRecent, getPlaces, setSaved, type PlaceStore, type SavedSlot } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
 import { confirm, tick } from "../haptics";
-import { bump, jank } from "../perf";
+import { bump, jank, mark } from "../perf";
 
 export type { SearchSelection } from "../search/t0";
 export type { PlaceResult } from "../search/t0";
@@ -273,6 +273,7 @@ function SearchSheetInner({
        fallback) replay the current text once so the queued ask gets its
        rows — the "queue until ready" half of the no-sync-build rule. */
     const offReady = onIndexReady(() => {
+      mark("search.idxReady");
       const t = qRef.current.trim();
       if (t) setT0rows(t0query(t, locRef.current, T0_LIMIT));
     });
@@ -299,6 +300,7 @@ function SearchSheetInner({
          (audit #17: "india g" → "india" → "indiate"). The list work —
          the synchronous t0 query + the list swaps — marks non-urgent
          so the echo always wins the next render. */
+      mark("search.key");
       setQ(text);
       qRef.current = text;
       const trimmed = text.trim();
@@ -384,6 +386,9 @@ function SearchSheetInner({
     () => merged.filter((p) => p.tier !== "t0" && !t0rows.some((l) => samePlace(l, p))),
     [merged, t0rows],
   );
+  /* perf: each committed non-empty list stamps a rows mark — pair with
+     search.key for keystroke→first-row latency in the perf log. */
+  useEffect(() => { if (merged.length > 0) mark("search.rows"); }, [merged]);
   const typing = qDeferred.trim().length > 0;
   const pending = tiers === null;
   const empty = typing && !pending && merged.length === 0;
@@ -656,6 +661,7 @@ function SearchScreenInner({
   useEffect(() => {
     if (visible) {
       enter.setValue(0);
+      mark("search.open");
       jank("enter.search");
       Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
     }

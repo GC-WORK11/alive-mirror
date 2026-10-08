@@ -49,13 +49,23 @@ let planMarked = false;
 const realFetch = globalThis.fetch;
 if (typeof realFetch === "function") {
   globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
-    const p = realFetch(...args);
+    let isPlan = false;
     try {
       const input = args[0];
       const url = typeof input === "string" ? input : (input as { url?: string } | null)?.url;
-      if (!planMarked && typeof url === "string" && url.includes("/v2/plan")) {
-        planMarked = true;
-        Promise.resolve(p).then(() => markOnce("plan:first")).catch(() => {});
+      isPlan = typeof url === "string" && url.includes("/v2/plan");
+      if (isPlan) mark("plan:req");
+    } catch {
+      /* observation must never break a request */
+    }
+    const p = realFetch(...args);
+    try {
+      if (isPlan) {
+        if (!planMarked) {
+          planMarked = true;
+          Promise.resolve(p).then(() => markOnce("plan:first")).catch(() => {});
+        }
+        Promise.resolve(p).then(() => mark("plan:resp"), () => mark("plan:fail")).catch(() => {});
       }
     } catch {
       /* observation must never break a request */

@@ -75,7 +75,7 @@ import { cancelDailyBrief } from "./src/notify";
 import { getVehicle, type VehicleClass, type VehicleProfile } from "./src/store/vehicle";
 import { approx, doseUgRound, modeLabel, placeNameLabel, t, type Lang } from "./src/i18n/strings";
 import { tap, tick } from "./src/haptics";
-import { PERF_ON, bump, mark, report } from "./src/perf";
+import { PERF_ON, bump, jank, mark, report } from "./src/perf";
 
 mark("app.eval");
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -153,6 +153,9 @@ const BasemapLabels = React.memo(function BasemapLabels({
   gesturing: boolean;
 }) {
   const specs = lang === "hi" ? gestureLabelLayers : gestureLabelLayersLatin;
+  /* perf: visibility flips stamp marks so the perf log carries the
+     gesture→hide / rest→restore windows around the label drop. */
+  useEffect(() => { mark(gesturing ? "labels.hide" : "labels.show"); }, [gesturing]);
   return (
     <>
       {specs.map((spec) => (
@@ -227,11 +230,13 @@ const MapTree = React.memo(function MapTree({
   const onRegionWillChange = useCallback(
     (e: NativeSyntheticEvent<ViewStateChangeEvent>) => {
       if (!e.nativeEvent?.userInteraction) return;
+      mark("gest.will");
       setGesturing(true);
       if (gestureEndRef.current) clearTimeout(gestureEndRef.current);
       gestureEndRef.current = setTimeout(() => setGesturing(false), 4500);
     }, []);
   const onRegionDidChange = useCallback(() => {
+    mark("gest.did");
     setGesturing(false);
     if (gestureEndRef.current) {
       clearTimeout(gestureEndRef.current);
@@ -590,6 +595,9 @@ function AppInner() {
             /* only re-render the dosimeter surfaces when a sample actually
                lands — the dedupe drops most 60 s polls (~8 min cadence) */
             if (await recordSample({ ts: Date.now(), lat, lon, amb: amb ?? bz!, bz })) {
+              /* perf-probe: the dose surface re-assembles on this bump —
+                 frames during the re-assemble are the reload-flash test */
+              jank("dose.tick", 1200); mark("dose.tick");
               setDayNonce((n) => n + 1);
             }
           }
@@ -921,6 +929,7 @@ function AppInner() {
      closing the drawer beneath their own surface. */
   const openSidebar = useCallback(() => { setLayersOpen(false); setSidebarOpen(true); }, []);
   const openSearch = useCallback(() => {
+    mark("search.tap");
     setLocNotice(null);
     setEditWhich("to");
     setPhase("search");

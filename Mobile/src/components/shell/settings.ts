@@ -8,6 +8,7 @@ import { resetLedgerCache } from "../../store/ledger";
 import { resetDaylogCache } from "../../store/daylog";
 import { resetDaySum } from "../../store/daysum";
 import { purgeJsonDoc, purgeUrlCaches, readJsonDoc, writeJsonDoc } from "../../store/safefile";
+import { mark } from "../../perf";
 import { clearConsent } from "../../store/consent";
 import { clearWelcomeSeen } from "../../store/welcome";
 import { clearVehicle } from "../../store/vehicle";
@@ -96,6 +97,7 @@ export async function loadSettings(): Promise<ShellSettings> {
 }
 
 export function saveSettings(s: ShellSettings): void {
+  mark("settings.save");
   mem = { ...s };
   writeTail = writeTail
     .then(() => {
@@ -103,6 +105,7 @@ export function saveSettings(s: ShellSettings): void {
       /* atomic + .bak — lang/alert prefs are read on frame-1; a torn
          file must not silently reset them */
       writeJsonDoc(NAME, mem); // last-state-wins per flush
+      mark("settings.write");
     })
     .catch(() => {});
 }

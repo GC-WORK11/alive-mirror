@@ -5,6 +5,7 @@
  *  and keep every field nullable where the server is honest about nulls
  *  (no field sigma → lo/hi null; no route → option absent). */
 import { API, postJson } from "../components/shell/net";
+import { mark } from "../perf";
 import type { Band, PlanResult, V2Option } from "../components/shell/types";
 import { cacheKeys } from "./cache";
 import { fetchCached } from "../offline/net";
@@ -189,6 +190,7 @@ function toOption(raw: unknown): V2Option | null {
  *  the net-status pill labels them stale. Throws only when the network
  *  fails AND nothing is cached — callers show the retry state. */
 export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<PlanResultFresh> {
+  mark("plan:req");
   const r = await fetchCached<PlanResultFresh>(`${API}/v2/plan`, {
     ttlMs: 15 * 60 * 1000,                       // field cadence is ~15 min
     key: cacheKeys.plan(req.from.lat, req.from.lon, req.to.lat, req.to.lon,
@@ -201,7 +203,8 @@ export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<
       return mapPlan(j);
     },
   });
-  if (!r.ok) throw new Error("plan failed");
+  if (!r.ok) { mark("plan:fail"); throw new Error("plan failed"); }
+  mark("plan:resp");
   /* last-good: the field block's stamped age froze at write time — add
      the cache sit so the map chip doesn't call a stale serve "9 min". */
   if (r.stale && r.data.field) {
@@ -222,8 +225,12 @@ export async function planOptions(req: PlanRequest, timeoutMs = 12000): Promise<
  *  least-inhalation engine rows (~engine time, no public-router wait).
  *  Never cached — the full plan replaces it moments later. */
 export async function planEngineFirst(req: PlanRequest, timeoutMs = 9000): Promise<PlanResultFresh> {
-  const j = (await postJson(`${API}/v2/plan`, { ...req, fast: true }, timeoutMs)) as Record<string, unknown>;
-  return mapPlan(j);
+  mark("plan:req");
+  try {
+    const j = (await postJson(`${API}/v2/plan`, { ...req, fast: true }, timeoutMs)) as Record<string, unknown>;
+    mark("plan:resp");
+    return mapPlan(j);
+  } catch (e) { mark("plan:fail"); throw e; }
 }
 
 /** Server `field` block → FieldStatus. Guards every key — the payload

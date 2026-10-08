@@ -43,7 +43,7 @@ import {
 import { VehicleSheet } from "../../screens/VehicleSheet";
 import { isTransit } from "./types";
 import type { Band, Depart, Emissions, Step, V2Option } from "./types";
-import { bump } from "../../perf";
+import { bump, mark } from "../../perf";
 
 /* arrival wall-time — the app's one 12h clock convention */
 const arrivalLabel = (durationMin: number, lang: Lang) =>
@@ -615,6 +615,9 @@ function CompareSheetInner({
   fieldAgeS?: number | null;
 }) {
   bump("shell.Compare");
+  /* perf: options landing while mounted = the chooser's first real rows —
+     pair with plan:req/plan:resp for request→chooser latency. */
+  useEffect(() => { if (options.length > 0) mark("plan.chooser"); }, [options]);
   const sel = options[selected];
   const [detailIdx, setDetailIdx] = useState<number | null>(null);
   const [vehSelf, setVehSelf] = useState<VehicleProfile | null>(null);
