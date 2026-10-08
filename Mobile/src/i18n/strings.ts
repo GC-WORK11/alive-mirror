@@ -774,7 +774,7 @@ const en = {
   /* the dose ceiling in street words — "budget" read as money jargon
      (owner's complaint); the limit framing survives, the word doesn't */
   budgetTitle: "your daily limit",
-  budgetWithin: "{r} µg left of the {b} µg you set for today",
+  budgetWithin: "{r} µg left of your {b} µg line for today",
   budgetOver: "{o} µg over your {p} limit today",
   budgetProfileQ: "{b} µg is the most fine dust you want to breathe in a day — a line you set, not a medical rule",
   profileGeneral: "general",
@@ -1162,7 +1162,7 @@ const en = {
      a person says out loud (numbers-sweep) */
   weekCountedFine: "{n} of {m} days counted",
   weekDayDose: "you breathed {n} µg that day",
-  weekDayPct: "{p}% of the daily limit you set",
+  weekDayPct: "{p}% of your daily limit",
   weekAheadTitle: "the air ahead",
   weekAheadSub: "what the forecast says is coming — the days haven't happened yet",
   weekAheadUnit: "µg/m³ — expected fine dust per cubic metre of air",
