@@ -915,3 +915,51 @@ def test_option_segments_field_empty_is_null_not_faked(monkeypatch):
         for s in o.get("segments") or []:
             assert s["pm25"] is None
             assert s["band"] == "No data"
+
+
+def test_route_deltas_baselines_and_honest_nulls():
+    # the judges' number: each option's delta prices its dose.mid
+    # against the honest baseline — route alts vs their mode default,
+    # defaults vs the purest same-mode alt, single-route modes vs the
+    # global fastest, the fastest vs itself (zeros)
+    opts = [
+        {"mode": "car", "label": "Car (AC) · default", "eta_s": 600,
+         "dose": {"mid": 12.0, "avg_conc_ugm3": 100.0},
+         "engine": "osrm", "alternative_index": None},
+        {"mode": "car", "label": "Car (AC) · least-smoke rd 1",
+         "eta_s": 780, "dose": {"mid": 9.0, "avg_conc_ugm3": 50.0},
+         "engine": "alive_core-path", "alternative_index": 1},
+        {"mode": "metro+walk", "label": "Metro", "eta_s": 900,
+         "dose": {"mid": 3.0, "avg_conc_ugm3": 40.0},
+         "engine": "transit"},
+        {"mode": "walk", "label": "Walk", "eta_s": 2400,
+         "dose": {"mid": 30.0, "avg_conc_ugm3": 95.0},
+         "engine": "osrm"},
+    ]
+    v2plan._route_deltas(opts)
+    car_def, car_alt, metro, walk = [o["delta"] for o in opts]
+    # the purest-route vs default-route comparison, both directions
+    assert car_alt["basis"] == "route" and car_alt["vs_label"].endswith("default")
+    assert car_alt["air_ug"] == -3.0 and car_alt["min_added"] == 3.0
+    assert car_alt["band_drop"] == 2        # 100→50 µg: two CPCB bands down
+    assert car_def["basis"] == "default" and "least-smoke" in car_def["vs_label"]
+    assert car_def["air_ug"] == 3.0 and car_def["min_added"] == -3.0
+    # single-route modes compare the mode-trade vs the global fastest
+    assert metro["basis"] == "fastest" and metro["min_added"] == 5.0
+    assert walk["basis"] == "fastest" and walk["min_added"] == 30.0
+    # the global fastest carries honest zeros
+    assert all(car_def[k] is not None for k in ("air_ug", "min_added"))
+    single = [opts[0]]                       # car default alone = fastest
+    v2plan._route_deltas(single)
+    assert single[0]["delta"]["basis"] == "self"
+    assert single[0]["delta"]["air_ug"] == 0.0
+
+
+def test_route_deltas_engine_only_rows_stay_null():
+    # fast:true paints engine rows with no eta — no baseline exists,
+    # and an unmade comparison must stay unmade (was an AttributeError)
+    rows = [{"mode": "car", "label": "Car (AC) · least-smoke rd",
+             "dose_ug": 9.0, "engine_dose_ug": 9.0,
+             "engine": "alive_core-path", "alternative_index": 1}]
+    v2plan._route_deltas(rows)
+    assert rows[0]["delta"] is None

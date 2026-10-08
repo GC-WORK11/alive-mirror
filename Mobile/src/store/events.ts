@@ -50,7 +50,7 @@ import {
   BELT_MIN, SEVERE_MIN_STAGE, STAG_FACTOR_PING,
   WHY_MIN_MS, WINDOW_LEAD_MIN,
   causeClause, causeFieldsFromWhy, causeNote, feedLive, fired, grapMove,
-  outlookMove, outlookWindowOpen, reflectSummary, trendShift, utcDay,
+  outlookMove, outlookToldDir, outlookWindowOpen, reflectSummary, trendShift, utcDay,
   type SeenMark, type V2Why,
 } from "./events-core";
 
@@ -391,19 +391,28 @@ export async function checkAirEvents(opts: {
       if (move && tmwRow && todayRow) {
         const kind: AirEventKind =
           move === "heavy" ? "outlook_heavy" : "outlook_light";
-        const win = tmwRow.cleanest_window?.start_label
-          ? t("notifyOutlookWin", lang, {
-              w: wireClockLabel(
-                `${tmwRow.cleanest_window.start_label}–${tmwRow.cleanest_window.end_label ?? ""}`, lang),
-            })
-          : "";
-        await fire(kind, Math.round(tmwRow.pm25_mid), {
-          a: Math.round(todayRow.pm25_mid),
-          b: Math.round(tmwRow.pm25_mid),
-          cause: why ? causeClause(why, lang, ["trend"]) : "",
-          win,
-          note: noteFor(["trend"]),
-        });
+        /* heavy and light are opposite words for the SAME claim — the
+           fold verdict — so they share the day's direction like the
+           fires ladder shares its mark: a same-day flip (stale→fresh
+           outlook, poll variance) is honest silence, never the
+           contradicting pair from the e2e-sweep. A same-direction
+           revision still clears the ±15 µg ladder inside fire(). */
+        const toldDir = outlookToldDir(st.seen, day);
+        if (toldDir == null || toldDir === move) {
+          const win = tmwRow.cleanest_window?.start_label
+            ? t("notifyOutlookWin", lang, {
+                w: wireClockLabel(
+                  `${tmwRow.cleanest_window.start_label}–${tmwRow.cleanest_window.end_label ?? ""}`, lang),
+              })
+            : "";
+          await fire(kind, Math.round(tmwRow.pm25_mid), {
+            a: Math.round(todayRow.pm25_mid),
+            b: Math.round(tmwRow.pm25_mid),
+            cause: why ? causeClause(why, lang, ["trend"]) : "",
+            win,
+            note: noteFor(["trend"]),
+          });
+        }
       }
     }
 

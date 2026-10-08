@@ -403,6 +403,91 @@ function DetailBlock({ o, fieldAgeS, showCig, veh, lang }: { o: V2Option; fieldA
   );
 }
 
+/* the judges' headline — '−38% air · +6 min' priced against the route
+ * a maps app would have sent anyway (the server-stamped delta). A
+ * verdict only rides on claims that hold: a cleared CPCB band or a
+ * material dose cut earns 'worth it for {who}'; a par or costlier
+ * detour says 'take the fast one' — that honesty IS the feature. */
+const DELTA_WHO: Record<string, StringKey> = {
+  car: "who_schoolRun",
+  car_open: "who_schoolRun",
+  bike: "who_rider",
+  auto: "who_commute",
+  cycle: "who_rideIn",
+  walk: "who_walkThere",
+  bus: "who_visitor",
+  "metro+walk": "who_visitor",
+};
+
+function deltaLine(o: V2Option, minDose: number, lang: Lang):
+    { text: string; tone: "good" | "warn" | "flat" } | null {
+  const dv = o.delta;
+  if (!dv) return null;
+  const pct = dv.air_pct;
+  const ug = dv.air_ug;
+  const min = dv.min_added;
+  /* air clause: pct is the honest drop vs the baseline; inside ±5% the
+     corridors read the same ('same air'); a missing % falls back to
+     the µg gap, and neither invents a claim */
+  const airPart = pct != null
+    ? (Math.abs(pct) <= 5
+        ? t("delta_sameAir", lang)
+        : t("delta_airPct", lang, { p: `${pct > 0 ? "+" : "−"}${Math.abs(Math.round(pct))}` }))
+    : ug != null && Math.abs(ug) >= 0.5
+      ? `${ug > 0 ? "+" : "−"}${Math.abs(ug).toFixed(1)} µg`
+      : null;
+  const timePart = min != null
+    ? (min > 0.5 ? `+${Math.round(min)} ${t("minUnit", lang)}`
+      : min < -0.5 ? t("delta_minQuicker", lang, { m: Math.round(-min) })
+      : t("delta_sameTime", lang))
+    : null;
+  const parts = [airPart, timePart].filter(Boolean).join(" · ");
+
+  if (dv.basis === "route") {
+    if (!parts) return null;
+    /* 'worth it' only when the corridor lands a lighter CPCB band
+       without a heavier dose, or the dose cut is a material third —
+       everything else is the honest 'take the fast one' */
+    const bandClear = (dv.band_drop ?? 0) >= 1;
+    const worth = (bandClear && (ug == null || ug <= 0.5))
+      || (pct != null && pct <= -25);
+    if (worth) {
+      return {
+        text: `${parts} — ${t("delta_worth", lang, { who: t(DELTA_WHO[o.mode] ?? "who_commute", lang) })}`,
+        tone: "good",
+      };
+    }
+    if (pct != null && pct > 5 && (min == null || min > -0.5))
+      return { text: `${parts} — ${t("delta_takeFast", lang)}`, tone: "warn" };
+    if (pct != null && Math.abs(pct) <= 5 && (min == null || min > 0.5))
+      return { text: `${parts} — ${t("delta_takeFast", lang)}`, tone: "flat" };
+    return { text: parts, tone: pct != null && pct < -5 ? "good" : "flat" };
+  }
+  if (dv.basis === "default") {
+    /* the default route's side of the same comparison — when it's
+       ALSO the cleaner corridor that win is honest data */
+    if (ug == null) return null;
+    if (ug <= 0) {
+      if (min != null && min > 0.5)
+        return { text: t("delta_defaultCleanSlow", lang, { m: Math.round(min) }), tone: "good" };
+      return { text: t("delta_defaultBoth", lang), tone: "good" };
+    }
+    if (pct == null) return null;
+    const p = `${Math.round(pct)}%`;
+    if (min != null && min < -0.5)
+      return { text: t("delta_defaultSaves", lang, { p: `+${p}`, m: Math.round(-min) }), tone: "flat" };
+    return { text: t("delta_defaultSlower", lang, { p: `+${p}`, m: Math.max(0, Math.round(min ?? 0)) }), tone: "flat" };
+  }
+  if (dv.basis === "self") {
+    return o.dose?.mid != null && minDose < Infinity && o.dose.mid === minDose
+      ? { text: t("delta_selfLightest", lang), tone: "good" }
+      : null;
+  }
+  /* basis "fastest" — a single-route mode vs the global fastest:
+     the mode-trade, plain */
+  return parts ? { text: parts, tone: "flat" } : null;
+}
+
 /** One ranked option — solid card. Tap selects; the ⓘ beside the bars
  *  (or a long-press anywhere on the card) opens the details panel. */
 function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours, open,
@@ -474,6 +559,12 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
   const lblBase = lblCut > 0 ? lbl.slice(0, lblCut) : lbl;
   const lblQual = (lblCut > 0 ? lbl.slice(lblCut) : "")
     + (showYours ? ` · ${t("compare_yours", lang)}` : "");
+  /* the delta headline — the judges' 'purest −38% air · +6 min' priced
+     against the honest baseline, verdicts only where they hold */
+  const dline = deltaLine(o, minDose, lang);
+  const deltaCol = dline?.tone === "good" ? V2T.accentInk
+    : dline?.tone === "warn" ? V2T.breath2
+    : V2T.text2;
   return (
     <PressSpring style={s.card}>
       <Animated.View pointerEvents="none"
@@ -510,6 +601,10 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
             {tag ? <Chip text={tag} accent={!safest} lang={lang} />
               : o.recommended && !safest ? <Chip text={t("compare_pick", lang)} lang={lang} /> : null}
           </View>
+          {dline ? (
+            <Text {...DYNAMIC_TYPE} style={[s.optDelta, { fontFamily: fam(lang, "med"), color: deltaCol }]}
+              numberOfLines={2}>{dline.text}</Text>
+          ) : null}
           <Text {...DYNAMIC_TYPE} style={[s.optMeta, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{meta}</Text>
           {felt ? (
@@ -983,6 +1078,7 @@ const s = StyleSheet.create({
   chipTxt: { fontSize: V2Type.label },
   chipTxtAccent: { color: V2T.accentInk },
   chipTxtPlain: { color: V2T.text2 },
+  optDelta: { fontSize: V2Type.label, marginTop: 2 },
   optMeta: { fontSize: V2Type.label, color: V2T.text3, marginTop: 2 },
   optReason: { fontSize: V2Type.label, color: V2T.text3, marginTop: 3 },
   optCoverage: { fontSize: V2Type.label, color: V2T.breath2, marginTop: 3 },

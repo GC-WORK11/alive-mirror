@@ -26,7 +26,7 @@ import { Icon } from "../../icons";
 import { Sheet } from "../../ui";
 import { PressSpring } from "../PressSpring";
 import { mark } from "../../perf";
-import { t, type Lang } from "../../i18n/strings";
+import { localizeKind, t, type Lang } from "../../i18n/strings";
 import type { Place } from "./types";
 import type { PlaceHint } from "./useShellFlow";
 
@@ -74,7 +74,7 @@ export function PlaceSheet({
             numberOfLines={2}>{place.name}</Text>
           {place.subtitle ? (
             <Text {...DYNAMIC_TYPE} style={[s.sub, { fontFamily: fam(lang, "reg") }]}
-              numberOfLines={1}>{place.subtitle}</Text>
+              numberOfLines={1}>{localizeKind(place.subtitle, lang)}</Text>
           ) : null}
         </View>
       </View>

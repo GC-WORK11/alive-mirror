@@ -49,6 +49,24 @@ export type Emissions = {
   non_exhaust?: { pm10_g?: Band | null; note?: string } | null;
 };
 
+/** The judges' number — 'the estimated exposure drop between the
+ *  purest route and the default one', with its time penalty. The
+ *  server stamps it per option (plan.py `_route_deltas`); every field
+ *  stays null when a real comparison can't be made.
+ *    route   — vs the same-mode default route (alternative rows)
+ *    default — this row IS the default: vs the same-mode purest alt
+ *              (negative air = the default is also the cleaner path)
+ *    fastest — vs the global fastest (single-route modes = mode-trade)
+ *    self    — the global fastest itself: honest zeros. */
+export type RouteDelta = {
+  basis: "route" | "default" | "fastest" | "self";
+  vs_label: string | null;
+  air_ug: number | null;        // option − baseline dose.mid (negative = breathes less)
+  air_pct: number | null;       // same as % of baseline mid
+  min_added: number | null;     // option − baseline eta, minutes (negative = faster)
+  band_drop: number | null;     // baseline CPCB band − option's: +N = lands a lighter category
+};
+
 /** One ranked option from POST /v2/plan (server/v2/plan.py `rank_options`).
  *  `vehicle`, `duration_min`, `geometry` mirror the legacy /decide fields so
  *  transition-era consumers (NavChrome, vehicleGlyph) compile unchanged. */
@@ -70,6 +88,7 @@ export type V2Option = {
   recommended: boolean;               // doc 06 §4 winner
   reason_line: string;                // server one-liner under the row
   route_id?: string | null;           // for GET /v2/strip (nav lane)
+  delta?: RouteDelta | null;          // exposure kept vs the honest baseline
   your_vehicle?: boolean;             // matches the declared S8 class
   /** least-inhalation engine rows ("alive_core-path"): corridor roads the
       path takes, and 1..N on corridor-diverse alternatives (absent on

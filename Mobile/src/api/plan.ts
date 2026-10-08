@@ -162,6 +162,24 @@ function toOption(raw: unknown): V2Option | null {
     recommended: o.recommended === true,
     reason_line: str(o.reason_line) ?? "",
     route_id: str(o.route_id),
+    /* the judges' number — 'purest vs default' exposure drop + time
+       penalty; nulls pass through untouched (a comparison the server
+       couldn't make honestly is never fabricated here either) */
+    delta: (() => {
+      if (!o.delta || typeof o.delta !== "object") return null;
+      const d = o.delta as Record<string, unknown>;
+      const basis = str(d.basis);
+      if (basis !== "route" && basis !== "default" &&
+          basis !== "fastest" && basis !== "self") return null;
+      return {
+        basis,
+        vs_label: str(d.vs_label),
+        air_ug: num(d.air_ug),
+        air_pct: num(d.air_pct),
+        min_added: num(d.min_added),
+        band_drop: num(d.band_drop),
+      };
+    })(),
     engine: str(o.engine),
     via_names: Array.isArray(o.via_names)
       ? o.via_names.filter((x): x is string => typeof x === "string" && x.length > 0)

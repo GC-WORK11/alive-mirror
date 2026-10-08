@@ -1253,6 +1253,120 @@ def rank_options(options: list) -> list:
     return options
 
 
+def _route_deltas(options: list) -> None:
+    """Stamp o["delta"] — the judges' number on the where-to chooser:
+    'the estimated exposure drop between the purest route and the
+    default one', with its time penalty. Nothing new is computed here —
+    the dose.mid each option already carries (field-integrated along
+    the path at travel speed) is the exposure kept; the delta just
+    prices it against the honest baseline:
+
+      route   — this row is an ALTERNATIVE inside its mode (an engine
+                least-smoke row or a router alt): vs the mode's default
+                route, the fastest non-alternative row a maps app
+                would have sent that rider on anyway.
+      default — this row IS a mode's default route: vs the same-mode
+                purest alternative, so the default row answers 'should
+                I take the detour' from its own side — negative air_ug
+                means the default is ALSO the cleaner path today.
+      fastest — the row's mode offers a single route (transit legs,
+                windows-down): vs the global fastest option — the
+                mode-trade, not a route optimization.
+      self    — this row IS the global fastest: honest zeros, it is
+                the default the deltas measure against.
+
+    Signs: air_ug/air_pct = option − baseline (negative = breathes
+    less); min_added = option − baseline eta (negative = faster).
+    A baseline or dose that isn't there keeps the field null — a
+    comparison that can't be made honestly is reported as unmade,
+    never borrowed from a sibling row."""
+    scored = [o for o in options if o.get("eta_s")]
+    fastest_opt = min(scored, key=lambda o: o["eta_s"], default=None)
+
+    # mode default = fastest row in the mode that ISN'T an alternative.
+    # Alternative = an engine least-smoke row (engine=='alive_core-path',
+    # the _engine_merge marker — alternative_index is None on alt_i=0 so
+    # it can't carry the check alone) or a router '· alt N' row.
+    def _is_alt(o) -> bool:
+        return (o.get("engine") == "alive_core-path"
+                or " · alt" in (o.get("label") or ""))
+    primaries: dict = {}
+    for o in scored:
+        if _is_alt(o):
+            continue
+        m = o.get("mode")
+        if m and (m not in primaries or o["eta_s"] < primaries[m]["eta_s"]):
+            primaries[m] = o
+
+    def _mid(o):
+        v = (o.get("dose") or {}).get("mid")
+        return float(v) if v is not None else None
+
+    # CPCB band index on a mean concentration — same five breaks the
+    # client bands on (theme.ts PM25_BREAKS), so "clears a band" reads
+    # identically on both ends of the wire
+    _PM25_BREAKS = (30.0, 60.0, 90.0, 120.0, 250.0)
+
+    def _conc_idx(o):
+        c = (o.get("dose") or {}).get("avg_conc_ugm3")
+        if c is None:
+            return None
+        i = 0
+        while i < len(_PM25_BREAKS) and c > _PM25_BREAKS[i]:
+            i += 1
+        return min(i, 5)
+
+    for o in options:
+        m = o.get("mode")
+        primary = primaries.get(m)
+        if o is primary:
+            # the default route's own delta — vs the purest same-mode
+            # alternative when one exists, else the global fastest
+            alts = [a for a in options if a is not o and a.get("mode") == m
+                    and _mid(a) is not None]
+            purest = min(alts, key=_mid, default=None)
+            if purest is not None:
+                base, basis = purest, "default"
+            elif o is fastest_opt:
+                base, basis = o, "self"
+            else:
+                base, basis = fastest_opt, "fastest"
+        elif primary is not None:
+            base, basis = primary, "route"
+        elif o is fastest_opt:
+            base, basis = o, "self"
+        else:
+            base, basis = fastest_opt, "fastest"
+
+        if basis == "self":
+            o["delta"] = {"basis": "self", "vs_label": o.get("label"),
+                          "air_ug": 0.0, "air_pct": 0.0, "min_added": 0.0,
+                          "band_drop": 0}
+            continue
+        if base is None:
+            # no scored option exists (e.g. a fast:true engine-first
+            # paint whose rows carry no eta) — an unmade comparison
+            # stays unmade, never borrowed
+            o["delta"] = None
+            continue
+        om, bm = _mid(o), _mid(base)
+        oi, bi = _conc_idx(o), _conc_idx(base)
+        o["delta"] = {
+            "basis": basis,
+            "vs_label": base.get("label"),
+            "air_ug": round(om - bm, 1) if om is not None and bm is not None else None,
+            "air_pct": (round((om - bm) / bm * 100.0, 1)
+                        if om is not None and bm not in (None, 0.0) else None),
+            "min_added": (round((o["eta_s"] - base["eta_s"]) / 60.0, 1)
+                          if o.get("eta_s") and base.get("eta_s") else None),
+            # baseline's corridor band − option's, same CPCB breaks the
+            # client uses: +N = the alternative lands a LIGHTER category
+            # ('clears a band' in the chooser verdict); null when either
+            # read is missing
+            "band_drop": (bi - oi) if bi is not None and oi is not None else None,
+        }
+
+
 # --- endpoints ------------------------------------------------------------------
 # Hard per-request budget: every upstream call in the option path is
 # bounded individually, but a pathological stack (local + public OSRM
@@ -2128,6 +2242,7 @@ async def plan(body: dict):
         options, opt_err, missing = await _options_bounded(
             flat, flon, tlat, tlon, vehicle, profile, depart_at)
     rank_options(options)
+    _route_deltas(options)
     resp = {
         "from": {"lat": flat, "lon": flon},
         "to": {"lat": tlat, "lon": tlon},
@@ -2240,6 +2355,7 @@ async def reroute(body: dict):
     options, opt_err, missing = await _options_bounded(
         flat, flon, tlat, tlon, vehicle, profile, depart_at)
     rank_options(options)
+    _route_deltas(options)
     if not options:
         out = {"route_id": None, "options": [], "option": None,
                "rerouted_from": rid,

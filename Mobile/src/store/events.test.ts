@@ -18,7 +18,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   causeClause, causeFieldsFromWhy, causeNote, feedLive, fired, grapMove,
-  outlookMove, outlookWindowOpen, reflectSummary, trendShift,
+  outlookMove, outlookToldDir, outlookWindowOpen, reflectSummary, trendShift,
   type V2Why,
 } from "./events-core";
 import type { Trip } from "./ledger";
@@ -239,6 +239,18 @@ describe("fired — per-day re-ping ladders", () => {
   it("outlook re-pings only on a real forecast revision (±15µg)", () => {
     assert.equal(fired(mark(140), "outlook_heavy", 150, DAY), false);
     assert.equal(fired(mark(140), "outlook_heavy", 160, DAY), true);
+  });
+  it("outlookToldDir: heavy and light are one claim — the day's direction", () => {
+    /* e2e-sweep P1-2: 'tomorrow ~102 vs ~71' pinged at 17:00, a
+       stale→fresh flip pinged 'tomorrow ~183 vs ~216' ~3 min later —
+       opposite directions, same verdict. toldDir reads which word the
+       evening already claimed so the caller can hold its silence. */
+    assert.equal(outlookToldDir({ outlook_heavy: mark(102) }, DAY), "heavy");
+    assert.equal(outlookToldDir({ outlook_light: mark(183) }, DAY), "light");
+    assert.equal(outlookToldDir({}, DAY), null);
+    /* a mark from another day doesn't claim today */
+    assert.equal(outlookToldDir(
+      { outlook_heavy: mark(102, "2026-10-06") }, DAY), null);
   });
   it("reflect fires once a day, full stop", () => {
     assert.equal(fired(undefined, "reflect", 1, DAY), true);

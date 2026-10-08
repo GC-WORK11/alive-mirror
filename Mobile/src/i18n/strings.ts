@@ -1033,6 +1033,7 @@ const en = {
   kind_railway: "railway",
   kind_railwayStation: "railway station",
   kind_religiousSite: "religious site",
+  kind_rentalService: "rental service",
   kind_residentialArea: "residential area",
   kind_restaurant: "restaurant",
   kind_retail: "retail",
@@ -1212,6 +1213,31 @@ const en = {
      picker's before-line, the day strip's eyebrow + best-window caption */
   compare_feltMore: "~{x}× more inhaled than {m}",
   compare_moreVs: "+{n} µg more than {m}",
+
+  /* routes-delta pass (lane routes-delta) — the judges' number on the
+     chooser, priced honestly against the route a maps app would have
+     sent anyway: '−38% air · +6 min' when the detour buys air, 'same
+     air — take the fast one' when it doesn't, 'heavier — take the fast
+     one' when it costs both. 'worth it for {who}' only fires where the
+     drop clears a CPCB band or the dose cut is material — that honesty
+     is the feature. */
+  delta_airPct: "{p}% air",
+  delta_sameAir: "same air",
+  delta_minQuicker: "{m} min quicker",
+  delta_sameTime: "same time",
+  delta_worth: "worth it for {who}",
+  delta_takeFast: "take the fast one",
+  delta_defaultSaves: "the default · {p} air vs the purest — saves {m} min",
+  delta_defaultSlower: "the default · {p} air vs the purest — {m} min slower",
+  delta_defaultBoth: "the default — fastest AND the lighter air today",
+  delta_defaultCleanSlow: "the default · the lighter air, {m} min slower",
+  delta_selfLightest: "the default — fastest, and the lightest air today",
+  who_schoolRun: "the school run",
+  who_rider: "a delivery rider",
+  who_commute: "the commute",
+  who_rideIn: "the ride in",
+  who_walkThere: "the walk there",
+  who_visitor: "a visitor",
   receipt_notStarted: "ended before it really started",
   receipt_notStartedSub: "under 100 m — nothing counted",
   veh_now: "right now: {v}",
@@ -2129,6 +2155,7 @@ const hi: Record<StringKey, string> = {
   kind_railway: "रेलवे",
   kind_railwayStation: "रेलवे स्टेशन",
   kind_religiousSite: "धार्मिक जगह",
+  kind_rentalService: "किराये की सेवा",
   kind_residentialArea: "रिहाइशी इलाका",
   kind_restaurant: "रेस्टोरेंट",
   kind_retail: "खुदरा दुकान",
@@ -2295,6 +2322,25 @@ const hi: Record<StringKey, string> = {
      design note) */
   compare_feltMore: "{m} से ~{x}× ज़्यादा धुआँ",
   compare_moreVs: "{m} से {n} µg ज़्यादा",
+
+  /* routes-delta जोड़ — डिफ़ॉल्ट रास्ते की तुलना में ईमानदार कीमत */
+  delta_airPct: "{p}% हवा",
+  delta_sameAir: "हवा लगभग वही",
+  delta_minQuicker: "{m} मिनट जल्दी",
+  delta_sameTime: "उतना ही समय",
+  delta_worth: "{who} के लिए सार्थक",
+  delta_takeFast: "तेज़ रास्ता लें",
+  delta_defaultSaves: "डिफ़ॉल्ट · सबसे साफ़ रास्ते से {p} हवा — {m} मिनट बचत",
+  delta_defaultSlower: "डिफ़ॉल्ट · सबसे साफ़ रास्ते से {p} हवा — {m} मिनट धीमा",
+  delta_defaultBoth: "डिफ़ॉल्ट — आज सबसे तेज़ और सबसे हल्की हवा दोनों",
+  delta_defaultCleanSlow: "डिफ़ॉल्ट · हवा सबसे हल्की, {m} मिनट धीमा",
+  delta_selfLightest: "डिफ़ॉल्ट — सबसे तेज़, और आज सबसे हल्की हवा",
+  who_schoolRun: "स्कूल के चक्कर",
+  who_rider: "डिलीवरी राइडर",
+  who_commute: "रोज़ के सफ़र",
+  who_rideIn: "साइकिल से आने-जाने",
+  who_walkThere: "पैदल जाने",
+  who_visitor: "शहर घूमने आए मेहमान",
   receipt_notStarted: "शुरू होने से पहले ही ख़त्म",
   receipt_notStartedSub: "100 मी से कम — कुछ गिना नहीं गया",
   veh_now: "अभी: {v}",
@@ -2638,8 +2684,12 @@ const KIND_SYNONYMS: Record<string, StringKey> = {
  *  verbatim instead of being erased. */
 export function localizeKind(label: string, lang: Lang): string {
   const norm = (s: string) => s.trim().toLowerCase().replace(/_/g, " ");
+  /* a gazetteer namespace is provenance, never a word — "overture:
+     rental_service" leaked raw into recents (e2e-sweep P2-4); the
+     cleaned tail is what the kind table and the reader both key on */
+  const bare = (s: string) => norm(s).replace(/^[a-z]+:/, "");
   const one = (s: string): string | null => {
-    const key = KIND_LABEL[norm(s)] ?? KIND_SYNONYMS[norm(s)];
+    const key = KIND_LABEL[bare(s)] ?? KIND_SYNONYMS[bare(s)];
     return key ? t(key, lang) : null;
   };
   const direct = one(label);
@@ -2649,5 +2699,9 @@ export function localizeKind(label: string, lang: Lang): string {
     if (segs.some((s) => one(s) !== null))
       return segs.map((s) => one(s) ?? s.trim()).join(" · ");
   }
+  const stripped = bare(label);
+  if (stripped !== norm(label))
+    return lang === "hi" && /^[a-z][a-z ]*$/.test(stripped)
+      ? t("kind_place", "hi") : stripped;
   return lang === "hi" && /^[a-z][a-z ]*$/.test(label) ? t("kind_place", "hi") : label;
 }

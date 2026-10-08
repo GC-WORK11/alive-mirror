@@ -427,6 +427,21 @@ export function outlookMove(
 export const outlookWindowOpen = (istMinutes: number): boolean =>
   istMinutes >= OUTLOOK_EVE_FROM_IST * 60 && istMinutes < OUTLOOK_EVE_TO_IST * 60;
 
+/** the fold's direction already told today — heavy and light are
+    opposite words for the SAME claim (the verdict), so whichever mark
+    carries this UTC day names the direction the evening already
+    claimed. A flipped verdict measured against this is suppressed in
+    the caller (e2e-sweep P1-2: a stale→fresh outlook flip emitted
+    BOTH directions ~3 min apart — the day's one claim can't
+    contradict itself; a new UTC day resets it). */
+export function outlookToldDir(
+  seen: Partial<Record<string, SeenMark>>, day: string,
+): "heavy" | "light" | null {
+  if (seen.outlook_heavy?.day === day) return "heavy";
+  if (seen.outlook_light?.day === day) return "light";
+  return null;
+}
+
 /* ---- yesterday on the road — the ledger's own rows --------------------- */
 export type ReflectSummary = {
   /** trips logged yesterday (local day) */

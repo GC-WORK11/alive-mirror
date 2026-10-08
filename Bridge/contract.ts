@@ -453,6 +453,36 @@ export interface V2PlanSegment {
   dist_m: number;
 }
 
+export interface V2RouteDelta {
+  /** the baseline the delta is measured against:
+      route   — the row is an alternative inside its mode (engine
+                least-smoke row or router alt): vs the mode's default
+                route (fastest non-alternative same-mode row) — the
+                "purest vs default" the chooser headlines
+      default — the row IS the mode's default route: vs the same-mode
+                purest alternative, answering "is the detour worth it"
+                from the default's side (negative air_ug = the default
+                is also the cleaner path)
+      fastest — the mode offers one route (transit, windows-down):
+                vs the global fastest option — a mode-trade
+      self    — the row IS the global fastest: honest zeros */
+  basis: "route" | "default" | "fastest" | "self";
+  vs_label: string | null;      // baseline row's label (audit; clients localize)
+  air_ug: number | null;        // option dose.mid − baseline dose.mid
+                                // (negative = this option breathes less);
+                                // null when either dose is unpriced
+  air_pct: number | null;       // air_ug as % of baseline dose.mid;
+                                // null when baseline mid is missing/0
+  min_added: number | null;     // option eta − baseline eta, minutes
+                                // (negative = this option is faster)
+  band_drop: number | null;     // baseline's CPCB band index − option's
+                                // on the corridors' avg_conc (same breaks
+                                // as the client's bandIdx): +N = this
+                                // option lands a LIGHTER category —
+                                // 'clears a band' in the who-it-helps
+                                // verdict; null when either read is missing
+}
+
 export interface V2PlanOption {
   mode: string;                 // car|car_open|bike|auto|bus|cycle|walk|metro
   label: string;
@@ -508,6 +538,9 @@ export interface V2PlanOption {
   origin_gap_km?: number;       // how far the geometry starts from the
                                 // requested origin, km
   route_id: string;             // opaque, /v2/strip key, ~1 h TTL
+  delta?: V2RouteDelta | null;  // exposure drop vs the honest baseline —
+                              // "the purest route and the default one",
+                              // with its time penalty (additive)
   stations?: CompareOption["stations"]; // metro only
   /* transit legs (metro/bus via transit_v2) — absent on road modes */
   legs?: unknown[];             // per-leg board/alight/line detail

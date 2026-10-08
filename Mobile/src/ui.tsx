@@ -101,19 +101,32 @@ export function CountUp({ value, format, style, duration = 620, ...rest }: {
   style?: Animated.WithAnimatedValue<StyleProp<TextStyle>>; [k: string]: unknown;
 }) {
   const reduceMotion = useReduceMotion();
-  const [disp, setDisp] = useState(() => (reduceMotion ? value : 0));
-  const prev = useRef(0);
+  /* mount paints the real number — a count-up is a CHANGE indicator,
+     not a reveal: while the JS thread is starved the rAF loop can't
+     run, and the initial "0" sat as a false reading ~25–60 s on
+     offline cold start and every plan option card (e2e-sweep P1-1:
+     "real user could read 'no dose' on a 78 µg day"). The tick still
+     animates every live update — the dose accreting is the marquee a
+     count-up was always meant to be. `cur` mirrors what's actually on
+     screen so a value change mid-sweep continues from the shown
+     number, never snaps back to a settled value it already left; the
+     reduce branch deliberately leaves it alone so `disp` can never go
+     stale — every setDisp lives inside the rAF frame. */
+  const [disp, setDisp] = useState(value);
+  const cur = useRef(value);
   useEffect(() => {
-    if (reduceMotion) { prev.current = value; return; }
-    const from = prev.current;
+    if (reduceMotion) return;
+    const from = cur.current;
+    if (from === value) return;
     const t0 = Date.now();
     let raf = 0;
     const step = () => {
       const p = Math.min(1, (Date.now() - t0) / duration);
       const e = 1 - Math.pow(1 - p, 3);
-      setDisp(from + (value - from) * e);
+      const n = from + (value - from) * e;
+      cur.current = n;
+      setDisp(n);
       if (p < 1) raf = requestAnimationFrame(step);
-      else prev.current = value;
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
