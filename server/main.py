@@ -2008,6 +2008,11 @@ for _name in ("ios-choose-priced", "ios-choose-verdict",
                                              "image/webp"))
     app.get(f"/{_name}.png")(_ios_shot_route(f"{_name}.png"))
 
+# the v13 feature story's ledger/week captures ship webp-only.
+for _name in ("ios-feat-trips", "ios-feat-week"):
+    app.get(f"/{_name}.webp")(_ios_shot_route(f"{_name}.webp",
+                                             "image/webp"))
+
 
 @app.get("/hero-haze.webp")
 async def hero_haze_webp():
@@ -2031,6 +2036,19 @@ async def hero_alive_webp():
     return FileResponse(
         os.path.join(os.path.dirname(__file__), "static",
                      "hero-alive.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/hero-nature.webp")
+async def hero_nature_webp():
+    """The v13 hero's mist-over-ridge photograph (server/static/
+    hero-nature.webp) — full-bleed beneath the 'Delhi's air, counted.'
+    headline."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "hero-nature.webp"),
         media_type="image/webp", headers=_STATIC_CACHE)
 
 
