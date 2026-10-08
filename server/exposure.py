@@ -256,11 +256,15 @@ def segment_samples(geometry: dict, duration_s: float, step_m: float = 250.0):
         seg = _leg_m(a, b)
         carry += seg
         if carry >= step_m or i == len(coords) - 1:
-            frac = seg / total
+            # the sample stands for EVERYTHING accumulated since the last
+            # emission (carry), not just the leg that crossed step_m —
+            # seg alone under-attributes distance/time and biases dose
+            # toward vertex-dense geometry (precision-audit find)
+            frac = carry / total
             if isinstance(b, (list, tuple)) and len(b) >= 2 and \
                     math.isfinite(b[0]) and math.isfinite(b[1]):
                 out.append({"lat": b[1], "lon": b[0],
-                            "seconds": duration_s * frac, "dist_m": seg})
+                            "seconds": duration_s * frac, "dist_m": carry})
             # else: malformed vertex — no sample emitted (keeps the
             # lat/lon-always-float contract callers like v2/strip rely
             # on); its distance still counted in `total`, so neighbours

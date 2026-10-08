@@ -754,9 +754,11 @@ def segment_samples(coords, duration_s: float, step_m: float = 250.0) -> list:
         seg = _haversine_m(a, b)
         carry += seg
         if carry >= step_m or i == len(coords) - 1:
-            frac = seg / total
+            # carry, not seg — the sample stands for all meters since the
+            # last emission (parity with exposure.segment_samples)
+            frac = carry / total
             out.append({"lat": b[1], "lon": b[0],
-                        "seconds": duration_s * frac, "dist_m": seg})
+                        "seconds": duration_s * frac, "dist_m": carry})
             carry = 0.0
     s = sum(x["seconds"] for x in out) or 1.0
     for x in out:

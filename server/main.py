@@ -1096,6 +1096,10 @@ async def aqi(lat: float, lon: float):
             subs[k] = s
     us_aqi_v = round(max(subs.values())) if subs else None
     us_aqi_basis = max(subs, key=subs.get) if subs else None
+    # both distances report None rather than emitting JSON `Infinity`
+    # (invalid JSON — a cold-start poll would parse-fail whole)
+    _ns_km = FIELD.nearest_sample_km(lat, lon)
+    _nst_km = FIELD.nearest_station_km(lat, lon)
     return {
         "pm25": species["pm25"],
         "pm25_ambient": round(v, 1),
@@ -1114,7 +1118,11 @@ async def aqi(lat: float, lon: float):
         "dust": FIELD.value(lat, lon, "dust"),
         "aod": FIELD.value(lat, lon, "aerosol_optical_depth"),
         "conditions": FIELD.weather(),
-        "nearest_sample_km": round(FIELD.nearest_sample_km(lat, lon), 1),
+        "nearest_sample_km": round(_ns_km, 1) if math.isfinite(_ns_km) else None,
+        # km to the nearest NAMED live instrument — the only distance a
+        # 'nearest live monitor' caption may print (samples incl. model
+        # fill points; snapshot cells' own station km when feed is dark)
+        "nearest_station_km": round(_nst_km, 1) if math.isfinite(_nst_km) else None,
         # inside the service margin but past the field's own extent the
         # value above is the nearest edge evidence extrapolated, not a
         # local read — disclosed before only by ns_km + a huge band a

@@ -130,13 +130,14 @@ export const dayKey = (ts: number) => {
 };
 
 /** Record a foreground ambient read. Dedupes: a read <8 min old at a spot
- *  <~450 m away carries no new information — the file stays sparse. */
+ *  inside ~0.9 km carries no new information — the file stays sparse. */
 export async function recordSample(s: AmbientSample): Promise<boolean> {
   const d = await ensureMem();
   const last = d.samples[d.samples.length - 1];
   if (last && s.ts - last.ts < 8 * 60 * 1000) {
     const dlat = Math.abs(s.lat - last.lat), dlon = Math.abs(s.lon - last.lon);
-    if (dlat + dlon < 0.008) return false; // ~450 m + fresh — nothing learned
+    // Manhattan-degree gate: 0.008° ≈ 0.9 km N-S, ~0.6 km diagonal
+    if (dlat + dlon < 0.008) return false; // ~0.9 km + fresh — nothing learned
   }
   d.samples.push(s);
   // bounded: oldest beyond the keep-window drop off the tail first

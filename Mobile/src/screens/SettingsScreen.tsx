@@ -563,7 +563,7 @@ function SettingsSheetInner({
                 /* the live answer to "how accurate at MY home" — the
                    nearest real instrument feeding this cell's field */
                 <Text {...DYNAMIC_TYPE} style={[ss.bodyTxt, ss.nearestTxt, { fontFamily: fam(lang, "reg") }]}>
-                  {t("settingsNearestInstrument", lang, { n: nearestKm < 1 ? nearestKm.toFixed(1) : Math.round(nearestKm) })}
+                  {t("settingsNearestInstrument", lang, { n: nearestKm.toFixed(1) })}
                 </Text>
               )}
             </View>,

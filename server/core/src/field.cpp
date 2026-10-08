@@ -144,8 +144,10 @@ std::vector<SegSample> segment_samples(
     const double seg = haversine_m(a, b);
     carry += seg;
     if (carry >= step_m || i == n - 1) {
-      const double frac = seg / total;
-      out.push_back(SegSample{b.second, b.first, duration_s * frac, seg});
+      // carry, not seg — the sample stands for all meters since the last
+      // emission (parity with exposure.segment_samples)
+      const double frac = carry / total;
+      out.push_back(SegSample{b.second, b.first, duration_s * frac, carry});
       carry = 0.0;
     }
   }

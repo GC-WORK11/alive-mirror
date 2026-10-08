@@ -969,8 +969,9 @@ const HomeHeader = React.memo(HomeHeaderInner);
 /** What the app's /aqi poll knows about the ambient number beyond its
  *  value — the hero's honesty lines are honest only with it. */
 export type AmbientMeta = {
-  /** km to the nearest real instrument behind the field (null = the
-      field was model-only this read) */
+  /** km to the nearest real instrument behind the field — the wire's
+      nearest_station_km (a NAMED monitor, never a model fill point).
+      null = no live instrument fed the field this read */
   km: number | null;
   /** true when the read queried the user's own GPS fix — false means
       the Delhi-centre fallback answered (location off/no fix yet) */
@@ -981,6 +982,10 @@ export type AmbientMeta = {
   /** the point sits past the monitored field's edge — the number is
       the nearest edge's evidence, not a local read */
   beyondEdge: boolean;
+  /** the gazetteer locality the read is for (t0 areaNear at the user's
+      own fix) — 'Karol Bagh', not just 'your location'. null when the
+      index can't name it honestly */
+  place?: string | null;
 };
 
 function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fieldStale, lang }: {
@@ -1151,8 +1156,12 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
             : ambientMeta.beyondEdge
               ? t("homeAirEdge", lang)
               : ambientMeta.km != null
-                ? t("homeAirMeta", lang, { k: ambientMeta.km })
-                : null}
+                ? (ambientMeta.place
+                    ? t("homeAirMetaPlace", lang, { p: ambientMeta.place, k: ambientMeta.km })
+                    : t("homeAirMeta", lang, { k: ambientMeta.km }))
+                : (ambientMeta.place
+                    ? t("homeAirPlaceModel", lang, { p: ambientMeta.place })
+                    : t("homeAirModel", lang))}
         </Text>
       )}
       {!counted && airAgeLine != null && (

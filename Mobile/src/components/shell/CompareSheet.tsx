@@ -30,7 +30,7 @@ import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
 import { CountUp, Sheet } from "../../ui";
 import { PressSpring } from "../PressSpring";
-import { approx, clockLabel, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
+import { approx, clockLabel, doseUgRound, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 
 import { departSavedPct, type DepartCurve } from "../../api/depart";
 import type { PlanError } from "./useShellFlow";
@@ -225,7 +225,7 @@ function DayStrip({ data, bestHour, lang }: {
       accessibilityLabel={
         t("depart_airByHour", lang)
         + (best ? `. ${t("depart_bestLine", lang, {
-            time: hourLabel(best.start, best.hour, lang), n: Math.round(best.dose_mid),
+            time: hourLabel(best.start, best.hour, lang), n: doseUgRound(best.dose_mid),
           })}` : "")
       }>
       <Text {...DYNAMIC_TYPE} style={[s.stripCap, { fontFamily: fam(lang, "reg") }]}>
@@ -253,7 +253,7 @@ function DayStrip({ data, bestHour, lang }: {
         <Text {...DYNAMIC_TYPE} style={[s.stripBestTxt, { fontFamily: fam(lang, "reg") }]}
           numberOfLines={1}>
           {t("depart_bestLine", lang, {
-            time: hourLabel(best.start, best.hour, lang), n: Math.round(best.dose_mid),
+            time: hourLabel(best.start, best.hour, lang), n: doseUgRound(best.dose_mid),
           })}
         </Text>
       ) : null}

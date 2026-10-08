@@ -1054,8 +1054,29 @@ class AirField:
             return km
         if not self._samples:
             return float("inf")
-        return min(math.hypot(slat - lat, slon - lon) * 111.0
+        # same anisotropic degree->km as _snap_nearest / krige.py —
+        # *111.0 on longitude overstated E-W distance ~13% at 28.6N
+        return min(math.hypot((slat - lat) * _KY, (slon - lon) * _KX)
                    for slat, slon, _, _ in self._samples)
+
+    def nearest_station_km(self, lat: float, lon: float) -> float:
+        """km to the nearest NAMED live instrument — the number behind
+        the app's 'nearest live monitor' caption. nearest_sample_km
+        counts unnamed model fill points (and a kriged cell centre on
+        snapshot serving); only a real instrument can carry the 'live
+        monitor' claim. Live instruments first — they're the exact
+        user->instrument distance; snapshot serving falls back to the
+        cell's own nearest_station_km (build-time, from the cell centre)
+        when the live feed has none. inf = honestly no monitor."""
+        if self._stations_live:
+            return min(math.hypot((a - lat) * _KY, (b - lon) * _KX)
+                       for a, b, _c in self._stations_live)
+        if self._serving_snapshot():
+            c, _km = self._snap_nearest(lat, lon)
+            near = (c or {}).get("nearest_station_km")
+            if near is not None:
+                return float(near)
+        return float("inf")
 
     def beyond_field_edge(self, lat: float, lon: float) -> bool:
         """(lat, lon) sits outside the served field's own extent — the

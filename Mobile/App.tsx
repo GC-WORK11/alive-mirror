@@ -28,7 +28,7 @@ import {
   gestureLabelLayers, gestureLabelLayersLatin, latinLabels, v2StyleUrl,
 } from "./src/map/style";
 import { warmBasemap } from "./src/map/tileWarm";
-import { warm as warmSearchIndex } from "./src/search/t0";
+import { warm as warmSearchIndex, localityAt } from "./src/search/t0";
 import { afterFirstFrame, noteUserInput } from "./src/startup/idle";
 import { camDur } from "./src/map/cam";
 import {
@@ -574,18 +574,32 @@ function AppInner() {
               : nf == null ? null : { data: nf, at: Date.now() });
           const bz = typeof j?.pm25 === "number" ? j.pm25 : null;
           const amb = typeof j?.pm25_ambient === "number" ? j.pm25_ambient : bz;
-          const nk = typeof j?.nearest_sample_km === "number" && isFinite(j.nearest_sample_km)
-            ? j.nearest_sample_km : null;
+          /* nearest live INSTRUMENT — the caption's 'live monitor' is
+             literal, so only nearest_station_km may feed it (a model
+             fill point is never a monitor). Present-but-null stays null
+             honestly; the fallback to nearest_sample_km exists only for
+             a pre-update server that doesn't serve the key at all. */
+          const nk = j != null && "nearest_station_km" in j
+            ? (typeof j.nearest_station_km === "number" && isFinite(j.nearest_station_km)
+                ? j.nearest_station_km : null)
+            : (typeof j?.nearest_sample_km === "number" && isFinite(j.nearest_sample_km)
+                ? j.nearest_sample_km : null);
           setNearestKm((prev) => (prev === nk ? prev : nk));
           const ua = typeof j?.us_aqi === "number" && isFinite(j.us_aqi)
             ? j.us_aqi : null;
+          /* WHERE the read is for — the gazetteer locality at the user's
+             own fix ('Karol Bagh'), null when t0 can't name it honestly.
+             Only at a real fix: the centroid fallback never names a
+             locality it didn't query for. */
+          const pl = pos != null ? localityAt({ lat, lon }) : null;
           setAmbientMeta((prev) => {
             const nx: AmbientMeta = {
               km: nk, atGps: pos != null, usAqi: ua,
-              beyondEdge: j?.beyond_field_edge === true,
+              beyondEdge: j?.beyond_field_edge === true, place: pl,
             };
             return prev != null && prev.km === nx.km && prev.atGps === nx.atGps
               && prev.usAqi === nx.usAqi && prev.beyondEdge === nx.beyondEdge
+              && prev.place === nx.place
               ? prev : nx;
           });
           /* same value → no re-render — the 60 s poll usually repeats

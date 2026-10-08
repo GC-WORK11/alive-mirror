@@ -144,7 +144,11 @@ export interface AqiResponse {
   pm25: number | null;
   pm10?: number | null;
   no2?: number | null;
-  nearest_sample_km?: number;
+  nearest_sample_km?: number | null;  // null when the field has no samples (was JSON-invalid Infinity)
+  /** km to the nearest NAMED live instrument — the only distance a
+      'nearest live monitor' caption may print. null = no live instrument
+      fed the field (model-only); absent key = pre-update server */
+  nearest_station_km?: number | null;
   /** true when the point is inside the service margin but outside the
       served field's own extent — the value is the nearest edge evidence
       extrapolated, not a local read (edge-honesty marker) */

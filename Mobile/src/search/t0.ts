@@ -1103,6 +1103,21 @@ export function nearestPlace(p: LatLon, maxM = 150): NearestHit | null {
   return best;
 }
 
+/** the gazetteer locality name covering a coordinate — 'Karol Bagh',
+ *  not just 'your location'. areaNear() already scores every area-kind
+ *  row within reach by weight minus distance; the hero's provenance
+ *  line uses this so the ambient number can name WHERE the read is for
+ *  (owner's precision law). null when the index isn't built or no
+ *  locality sits within maxM — callers fall back to the honest
+ *  'your location' phrasing, never a guess. */
+export function localityAt(p: LatLon, maxM = 1400): string | null {
+  if (!ready()) {
+    warm();
+    return null;   // index not ready — 'your location' is the honest answer
+  }
+  return areaNear(p.lat, p.lon, maxM)?.n ?? null;
+}
+
 /* --- prebuild/test hooks (scripts/build-t0-index.mjs, src/search/
  *  test-runner.mjs) — serialize() emits the full table set the build
  *  script shards into assets/t0-index/c*.json; hydrate() drives the
