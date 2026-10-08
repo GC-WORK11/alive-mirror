@@ -1109,13 +1109,6 @@ const en = {
      so neither language glues "CO₂" after a unit word */
   share_co2: "{n} kg CO₂",
 
-  /* welcome gate provenance line — reachable post-delete since wipe
-     clears welcomeSeen but keeps lang */
-  wel_provAmbient: "live · the air here, this hour",
-  wel_provCity: "live · the ncr-wide average",
-  wel_neverFaked: "nothing served — never faked",
-  wel_thenBreathe: "then — what you breathe",
-  wel_delhiBreathes: "what delhi breathes",
   /* home-truth: the ambient number's plain-word gloss + provenance —
      the owner asked "what is it even showing, AQI or mixed index?"
      and "verified with my live location it's WRONG". The number is a
@@ -2129,11 +2122,6 @@ const hi: Record<StringKey, string> = {
   kind_wholesale: "थोक दुकान",
   kind_zoo: "चिड़ियाघर",
   share_co2: "CO₂ {n} किग्रा",
-  wel_provAmbient: "लाइव · यहाँ की हवा, इस घड़ी",
-  wel_provCity: "लाइव · पूरे एनसीआर का औसत",
-  wel_neverFaked: "कुछ नहीं दिखाया — कभी बनाते नहीं",
-  wel_thenBreathe: "फिर — आप क्या साँस लेते हैं",
-  wel_delhiBreathes: "दिल्ली क्या साँस लेती है",
   /* home-truth: ambient number gloss + provenance */
   homeAirWhat: "PM2.5 — हवा के एक घन मीटर में बारीक धूल, इसी वक़्त",
   homeAirWhatFc: "एक m³ हवा में अनुमानित PM2.5 — आगे का अंदाज़ा, लाइव रीडिंग नहीं",
