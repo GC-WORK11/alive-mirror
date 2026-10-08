@@ -158,3 +158,35 @@ points — confidence tiers still use it). Web surfaces reading
 Verify-on-sim: hero caption → locality name + station km; dose counters →
 unchanged totals (the segment fix redistributes *within* a trip, total dose
 holds where the field is flat).
+
+## Sim verification (iPhone 17 sim, EDD9B083, 8:28 pm IST, prod-backed)
+
+Device GPS pinned at 28.6517, 77.1907 (Karol Bagh metro). Home screen
+shows — screenshot `precision-audit-sim-home.png`:
+
+- **"read near Karol Bagh · nearest live monitor ~2.1 km away"** —
+  `localityAt` resolved the locality name from the bundled gazetteer
+  (no network, exact for the pinned coords). km came from prod
+  `nearest_sample_km=2.1` via the field fallback — `nearest_station_km`
+  serves `null` until this branch deploys.
+- **"same air = AQI 138 on other apps"** — prod `us_aqi=138` for the same
+  coords; EPA breakpoint math confirmed (35.5–55.4 band → 101–150).
+- **"3.4× the WHO daily limit"** — 51.3 / 15 = 3.42.
+- **"air reading · 2 min old"**, fires line "27 fires … up from 16 over
+  ~5.7h … clearing at ~27%" — all live-server-derived, `~` markers present
+  on every estimate.
+
+Hero read 51 µg/m³ while prod `/aqi` returned 57.6 for the same coords a
+minute later — live field drift between polls, not a display error.
+
+### Build notes (macOS VM)
+
+- `xcodebuild` initially failed in the EXConstants script phase:
+  `expo-build-properties` was in package.json but missing from
+  node_modules (a stale install predating a lane's package.json change).
+  `npm install` fixed it; **BUILD SUCCEEDED**.
+- pod install needs `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` or it dies on
+  `Unicode Normalization not appropriate for ASCII-8BIT`.
+- App launches via `simctl openurl alive108://expo-development-client/?url=…`
+  (an OS "Open in" prompt) or plain `simctl launch com.anonymous.app`
+  with metro on :8081.
