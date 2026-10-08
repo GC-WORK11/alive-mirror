@@ -1986,6 +1986,29 @@ async def app_airmap_png():
         headers=_STATIC_CACHE)
 
 
+def _ios_shot_route(name, media=None):
+    """One FileResponse handler per landing ios-* capture — the editori-
+    al landing's app frames are real iphone shots (720x1566), each with
+    a webp and a png fallback."""
+    from fastapi.responses import FileResponse
+    import os
+
+    async def _serve():
+        return FileResponse(
+            os.path.join(os.path.dirname(__file__), "static", name),
+            media_type=media, headers=_STATIC_CACHE)
+
+    _serve.__name__ = "serve_" + name.replace("-", "_").replace(".", "_")
+    return _serve
+
+
+for _name in ("ios-choose-priced", "ios-choose-verdict",
+              "ios-choose-bold", "ios-dose"):
+    app.get(f"/{_name}.webp")(_ios_shot_route(f"{_name}.webp",
+                                             "image/webp"))
+    app.get(f"/{_name}.png")(_ios_shot_route(f"{_name}.png"))
+
+
 @app.get("/delhi_subdistricts.geojson")
 async def delhi_subdistricts_geojson():
     """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/

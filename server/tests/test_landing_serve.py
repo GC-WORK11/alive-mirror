@@ -27,7 +27,7 @@ REQUIRED = [
     "/health",
     "/city",
     "/community",
-    "/app-hero-708.webp",
+    "/ios-dose.webp",
     "hero-grid",
     "statusline",
     "confSplit",

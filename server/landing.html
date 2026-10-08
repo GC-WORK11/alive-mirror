@@ -1,25 +1,23 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Alive — the live air board for Delhi NCR</title>
-<meta name="description" content="A personal PM2.5 dosimeter without hardware — the field knows what Delhi breathed today; the app knows what you breathed. The map even picks the cleaner route — live numbers, public board.">
+<title>Alive — a personal dosimeter for Delhi air</title>
+<meta name="description" content="A personal PM2.5 dosimeter without hardware — the field knows what Delhi breathed today; the app knows what you breathed. The map even picks the cleaner route.">
 <meta name="theme-color" content="#fafaf7">
-<meta property="og:title" content="Alive — the live air board for Delhi NCR">
+<meta property="og:title" content="Alive — a personal dosimeter for Delhi air">
 <meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and nothing leaves your phone that isn't already a group count.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
 <style>
 :root{
-  /* shared register — docs/lanes/register-card.md + the engine room's
-     light ops surface: paper/ink, mono micro-labels, serif numerals,
-     muted CPCB bands (colour only where it means air) */
+  /* shared register — docs/lanes/register-card.md (web grammar) */
   --paper:#fafaf7; --surf:#fff; --surf2:#f3f2ec; --surf3:#ebe9e1;
   --ink:#16181d; --ink2:#4a4e57; --ink3:#6e7278;
   --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
   --acc:#3a6844; --accInk:#2b4e32; --accWash:#eaf0e4; --accTint:#dce7d1;
   --sage:#3a6844;
-  /* muted CPCB band — tile surfaces are its pastel washes, never the
-     raw hue; band ink = the hue darkened for text */
+  /* muted CPCB band — tile surfaces are its pastel washes (90% / 74%
+     white), never the raw hue; band ink = the hue darkened for text */
   --b0:#7aab59; --b1:#c8b25a; --b2:#d58c4a;
   --b3:#b85442; --b4:#8f3c49; --b5:#6e3c54;
   --bw0:#f2f7ee; --bw1:#faf7ef; --bw2:#fbf4ed;
@@ -33,15 +31,17 @@
          "Segoe UI",Inter,system-ui,sans-serif;
   --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
 }
-/* ---- the board grammar — the admin console's register made public ----
-   mast     one sticky rail: wordmark, the live read, the doors
-   hero     the number owns the page — instrument numeral + vitals rail
-   panel    white card on paper, hairline edge, ambient shadow
-   strips   live panels in a row — every figure carries its age
+/* ---- web component grammar (v5 — the page is one editorial flow) -----
+   statement the felt opening line — big sans, one quiet em, no chrome
+   readout  the proof object — band-washed zone, light numeral, felt +
+            basis lines, provenance as a text line
+   steps    numbered editorial rows — air separates, no rules
+   pledge   the privacy story drawn as a ledger — term, then claim
+   pill     segmented control — surface2 track, options, white selection
    tile     band/tonal surface on ambient depth — hairlines only mark
             selection or emptiness
-   words    number + unit + ≤3-word label; sentences only in captions
-   --------------------------------------------------------------------- */
+   words    number + unit + ≤3-word label; sentences only in CTAs/captions
+   ----------------------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);
@@ -49,129 +49,231 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);
 ::selection{background:#eceadf}
 a{color:inherit}
 a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.col{max-width:960px;margin:0 auto;padding:0 32px}
+/* the instrument gets a wider berth than the prose — the field map is
+   the page's largest object and deserves the full measure */
+.col-wide{max-width:1120px;margin:0 auto;padding:0 32px}
+
+/* one quiet entrance — nothing loops, nothing pulses */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}}
+.rise{opacity:0;animation:rise .55s cubic-bezier(.16,.6,.24,1) forwards;
+  animation-delay:var(--d,0ms)}
+@media(prefers-reduced-motion:reduce){
+  .rise{animation:none;opacity:1}}
+
+/* screen-reader-only live region — announces cell reads and route results */
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;
-  clip:rect(0 0 0 1px);white-space:nowrap}
+  clip:rect(0 0 0 0);white-space:nowrap}
 
-/* the mast — engine-room rail: wordmark left, live read + doors right */
-.mast{position:sticky;top:0;z-index:40;background:rgba(250,250,247,.88);
-  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--line)}
-.mast-in{max-width:1180px;margin:0 auto;padding:13px clamp(16px,4vw,32px);
-  display:flex;align-items:center;justify-content:space-between;gap:12px 20px;
-  flex-wrap:wrap}
-.wm{font-family:var(--mono);font-size:12px;letter-spacing:.32em;
-  text-transform:uppercase;color:var(--ink);display:inline-flex;
-  align-items:baseline;gap:10px}
-.wm i{font-style:normal;color:var(--ink4);letter-spacing:.16em}
-.mast-r{display:flex;align-items:center;gap:9px 18px;flex-wrap:wrap}
-#toplive{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--ink2);display:inline-flex;
-  align-items:center;font-variant-numeric:tabular-nums}
-#toplive .tdot{width:6px;height:6px;border-radius:2px;
-  background:var(--hb,var(--acc));margin-right:8px;vertical-align:1px}
+/* top bar — plain text floating on paper, sticky: toplive is the scroll
+   companion, so once the hero's numeral leaves view the live reading
+   takes its place in chrome that actually stays. JS fills it; empty
+   means hidden. */
+.top{position:sticky;top:0;z-index:40;
+  background:rgba(250,250,247,.86);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.top-in{max-width:1120px;margin:0 auto;padding:18px 32px;
+  display:flex;align-items:baseline;justify-content:space-between;gap:24px}
+.wm{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
+  font-weight:600;text-decoration:none}
+.wm i{font-style:normal;color:var(--sage)}
+#toplive{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink3);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;opacity:0;transform:translateY(3px);
+  transition:opacity .45s ease,transform .45s ease}
+#toplive.on{opacity:1;transform:none}
+#toplive:empty{display:none}
 #toplive b{color:var(--ink);font-weight:600}
-.mast nav{display:flex;gap:16px;align-items:center}
-.mast nav a{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink2);text-decoration:none;
-  padding-bottom:2px;border-bottom:1px solid transparent}
-.mast nav a:hover{color:var(--ink);border-bottom-color:var(--ink)}
-.mast nav a.cta{color:var(--accInk);background:var(--accWash);
-  border:1px solid rgba(58,104,68,.30);border-bottom:1px solid rgba(58,104,68,.30);
-  border-radius:7px;padding:6px 12px}
-.mast nav a.cta:hover{border-color:var(--acc);color:var(--accInk)}
-@media(max-width:560px){.mast{position:static}}
+#toplive .tdot{display:inline-block;width:6px;height:6px;border-radius:1.5px;
+  background:var(--hb,var(--acc));margin-right:8px;vertical-align:1px}
+@media(prefers-reduced-motion:reduce){#toplive{transition:none}}
+.top nav{display:flex;gap:26px}
+.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink2);text-decoration:none}
+.top nav a:hover{color:var(--ink);text-decoration:underline;
+  text-underline-offset:4px;text-decoration-thickness:1px}
+@media(max-width:640px){.top nav{gap:16px}
+  .top nav a{font-size:11px;letter-spacing:.12em;padding:14px 0}
+  #toplive{display:none}}
 
-.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 40px}
+/* quiet one-time scroll entrance — sections rise as they arrive.
+   applied by JS only (data-rv → .rv), so no-JS never hides content;
+   reduced-motion leaves everything simply visible. --rvd staggers
+   children inside a group (the dose equation's terms arrive term by
+   term — arithmetic in sequence, not a slab). */
+.rv{opacity:0;transform:translateY(12px);
+  transition:opacity .6s cubic-bezier(.16,.6,.24,1) var(--rvd,0ms),
+             transform .6s cubic-bezier(.16,.6,.24,1) var(--rvd,0ms)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;
+  transition:none}}
 
-/* the hero — 'is the city breathing' answered in one designed surface:
-   the field mean owns it as one serif numeral (band-inked), the band
-   word is the only air colour; a vitals rail carries the proof the
-   system is running; doors sit under it. */
-.hero{background:var(--surf);border:1px solid var(--line);border-radius:20px;
-  padding:clamp(20px,3.4vw,36px) clamp(18px,3vw,32px);margin:18px 0 10px;
-  box-shadow:0 1px 3px -1px rgba(22,24,29,.07)}
-.hero-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:26px 40px}
-.hero-kick{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
-  text-transform:uppercase;color:var(--ink4);display:flex;
-  align-items:center;gap:10px;flex-wrap:wrap}
-.hero-kick .lv{color:var(--accInk);display:inline-flex;align-items:center;gap:6px}
-.hero-kick .lv i{width:6px;height:6px;border-radius:2px;
+/* the opening — the field IS the hero. the live kriged map fills the
+   viewport edge to edge (#fieldair, painted by JS from /grid): cells
+   breathe out of phase and motes drift on the real wind vector, under
+   two veils — the day's band as an even wash (colour keeps meaning) and
+   a paper gradient that protects the type. statement on top, the
+   instrument's own numeral anchored at the foot. */
+.open{position:relative;overflow:clip;
+  min-height:calc(100dvh - var(--thh,60px));display:flex;
+  flex-direction:column}
+#fieldair{position:absolute;inset:0;z-index:0;width:100%;height:100%;
+  opacity:0;transition:opacity 1.1s ease}
+#fieldair.ready{opacity:1}
+@media(prefers-reduced-motion:reduce){#fieldair{transition:none}}
+.open::before{content:"";position:absolute;inset:0;z-index:1;
+  background:var(--hw,var(--paper));opacity:.34;pointer-events:none;
+  transition:background .8s ease}
+.open::after{content:"";position:absolute;inset:0;z-index:1;
+  pointer-events:none;
+  background:linear-gradient(180deg,
+    rgba(250,250,247,.88) 0%,rgba(250,250,247,.42) 30%,
+    rgba(250,250,247,.22) 58%,rgba(250,250,247,.74) 100%)}
+@media(prefers-reduced-motion:reduce){.open::before{transition:none}}
+.open .col{position:relative;z-index:2;flex:1;display:flex;
+  flex-direction:column;padding-top:56px;padding-bottom:30px}
+.hero-grid{display:block}
+.hero-copy{max-width:680px;will-change:transform}
+@media(max-width:640px){.open .col{padding-top:38px;padding-bottom:24px}}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink3)}
+.eyebrow .livedot{display:inline-block;width:7px;height:7px;
+  border-radius:2px;background:var(--hb,var(--line2));margin-right:9px;
+  vertical-align:0;transition:background .6s ease}
+h1.lede{font-family:var(--sans);font-weight:500;
+  font-size:clamp(40px,8.6vw,72px);line-height:1.04;
+  letter-spacing:-.038em;margin-top:24px;max-width:18ch}
+h1.lede em{font-style:normal;color:var(--ink2)}
+.sub{margin-top:24px;max-width:560px;font-size:16.5px;line-height:1.62;
+  color:var(--ink2)}
+.sub b{color:var(--ink);font-weight:600}
+@media(max-width:640px){.eyebrow{letter-spacing:.12em;line-height:1.9}}
+/* the readout anchored at the hero's foot — the instrument reading its
+   own mean over the field it just drew; heroLive is the compact
+   provenance strip under it */
+.open .hnum{margin-top:auto}
+.hero-foot{margin-top:16px}
+
+/* the proof — the readout IS the object. the zone wears the day's live
+   band as a tonal wash (colour = the data, the "the air is the canvas"
+   exception — docs/20): one label, one numeral, one felt line, one basis
+   line, one provenance line. everything else is air. */
+.proof{background:var(--hw,var(--paper));transition:background .8s ease}
+.proof .col{padding-top:56px;padding-bottom:60px}
+@media(prefers-reduced-motion:reduce){.proof{transition:none}}
+@media(max-width:640px){.proof .col{padding-top:48px;padding-bottom:52px}}
+/* the readout stacks like an instrument read: label, numeral, felt,
+   basis. the fine band-inked rule under it breathes (the app's
+   BreathEdge as a baseline, not a card ring). all set live from
+   /v2/city in JS; --hb the true band hue for the square dot. */
+.hnum{position:relative;padding-bottom:26px;margin-top:56px}
+.open .hnum{margin-top:auto;padding-bottom:4px}
+@keyframes breath{0%,100%{opacity:.10}50%{opacity:.30}}
+.hnum::after{content:"";position:absolute;left:0;right:0;bottom:0;
+  height:1.5px;background:var(--he,var(--acc));opacity:0;pointer-events:none}
+.hnum.breathe::after{animation:breath 4.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.hnum.breathe::after{animation:none;opacity:.18}}
+.hnum-band{display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ni,var(--accInk))}
+.hnum-band .bsq{width:8px;height:8px;border-radius:2px;flex:none;
   background:var(--hb,var(--acc))}
-.hero-fig{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
-  margin-top:10px}
-.hnum-v{font-family:var(--serif);font-weight:400;
-  font-size:clamp(88px,11.5vw,148px);line-height:.94;letter-spacing:-.038em;
+.hnum-n{display:flex;align-items:baseline;gap:14px;margin-top:18px}
+.hnum-v{font-family:var(--sans);font-weight:250;
+  font-size:clamp(88px,21vw,164px);line-height:.9;letter-spacing:-.05em;
   font-variant-numeric:tabular-nums;color:var(--nv,var(--ink))}
-.hnum-v.na{color:var(--ink4);font-size:clamp(30px,4vw,46px)}
-.hnum-u{font-family:var(--mono);font-size:11px;letter-spacing:.12em;
-  color:var(--ink3)}
-.hnum-band{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  text-transform:uppercase;padding:4px 11px;border-radius:7px;
-  background:var(--hw,var(--surf2));color:var(--ni,var(--ink2));
-  white-space:nowrap;transition:background .8s ease,color .8s ease}
-.hnum-band .bsq{display:inline-block;width:7px;height:7px;border-radius:2px;
-  background:var(--hb,var(--line2));margin-right:8px;vertical-align:1px}
-.hero-anchor{margin-top:14px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.1em;color:var(--ink3);line-height:1.9}
-.hero-anchor b{color:var(--ink2);font-weight:600}
-.hero-felt{font-size:14.5px;line-height:1.7;color:var(--ink2);
-  margin-top:10px;max-width:56ch}
-.hero-felt b{color:var(--ink);font-weight:600}
-/* the vitals rail — small kv reads that prove the board is live */
-.hero-vitals{border-left:1px solid var(--line);padding-left:22px;
-  align-self:center;display:flex;flex-direction:column;gap:9px}
-.hero-vitals .vr{display:flex;justify-content:space-between;
-  align-items:baseline;gap:14px}
-.hero-vitals dt{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink4);flex:none}
-.hero-vitals dd{color:var(--ink);font-size:11.5px;
-  font-variant-numeric:tabular-nums;text-align:right}
-.doors{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.door{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  text-transform:uppercase;text-decoration:none;padding:9px 14px;
-  border-radius:9px;color:var(--ink);background:var(--surface2,var(--surf2));
-  box-shadow:inset 0 0 0 1px var(--line)}
-.door:hover{box-shadow:inset 0 0 0 1px var(--ink3)}
-.door.main{background:var(--accWash);color:var(--accInk);
-  box-shadow:inset 0 0 0 1px rgba(58,104,68,.35)}
-.door.main:hover{box-shadow:inset 0 0 0 1px var(--acc)}
-@media(max-width:860px){.hero-grid{grid-template-columns:1fr}
-  .hero-vitals{border-left:none;border-top:1px solid var(--line);
-    padding-left:0;padding-top:14px;display:grid;
-    grid-template-columns:1fr 1fr;gap:8px 18px}
-  .hero-vitals .vr{display:block}
-  .hero-vitals dd{text-align:left}}
-@media(max-width:400px){.hero-vitals{grid-template-columns:1fr}}
-
-/* the status strip — one mono line of liveness under the hero */
-.statusline{padding:14px 2px 6px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.1em;color:var(--ink3);text-transform:uppercase;
-  line-height:1.9}
+.hnum-n .u{font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  color:var(--ink2)}
+.hnum-s{display:block;margin-top:10px;font-style:normal;
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ni,var(--ink3));line-height:1.9}
+/* the felt line — the dose story's lead sentence sits at statement
+   weight, the cigarettes figure lands inside it as the translation */
+.felt{display:block;margin-top:18px;font-size:clamp(19px,2.8vw,23px);
+  line-height:1.5;letter-spacing:-.01em;color:var(--ink);max-width:46ch}
+.felt b{font-weight:600;white-space:nowrap}
+/* provenance — the ops truth as one line of text, dots for separators.
+   the equal tile row was the kit tell; a provenance line is how a real
+   instrument cites its sources. */
+.statusline{margin-top:26px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;
+  font-variant-numeric:tabular-nums;line-height:2}
 .statusline>span+span::before{content:"·";margin:0 12px;color:var(--ink4)}
 .statusline b{color:var(--ink);font-weight:600}
 .statusline .ok{color:var(--accInk)}
 
-/* section heads — the register's tick: every block wears the accent
-   square, mono small-caps, subtitle in the same rail */
-h2.blk{font-family:var(--mono);font-size:11px;text-transform:uppercase;
-  letter-spacing:.22em;color:var(--ink3);margin:34px 0 12px;font-weight:400;
-  display:flex;justify-content:flex-start;align-items:center;gap:10px;
-  flex-wrap:wrap}
-h2.blk::before{content:"";width:6px;height:6px;background:var(--acc);
-  border-radius:2px;flex:none}
-h2.blk em{font-style:normal;color:var(--ink4);letter-spacing:.07em;
-  flex-basis:100%;margin:6px 0 0 16px;line-height:1.75;max-width:96ch;
-  text-transform:none}
-h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
+/* the equation — the aqi-to-dose translation drawn as the instrument's
+   own arithmetic: four live terms, hairline-separated, each with its
+   three-word provenance label. the page's second numeral (dose) lives
+   here, not in a card. */
+.eq{display:flex;align-items:stretch;flex-wrap:wrap;gap:0;margin-top:34px}
+.eq[hidden]{display:none}
+.eq .term{flex:1 1 0;min-width:120px;padding:6px 18px 8px}
+.eq .term:first-child{padding-left:0}
+.eq .term + .term{border-left:1px solid var(--line2)}
+.eq .tv{font-family:var(--sans);font-weight:300;
+  font-size:clamp(24px,4.4vw,34px);line-height:1.08;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+.eq .tv .tu{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  color:var(--ink3);margin-left:4px}
+.eq .tv em{font-style:normal;font-weight:500}
+.eq .tl{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink3);margin-top:7px;line-height:1.7}
+.eq .op{flex:none;align-self:center;padding:0 4px;
+  font-family:var(--mono);font-size:15px;color:var(--ink4)}
+@media(max-width:640px){
+  .eq{flex-direction:column;gap:0;max-width:100%;margin-top:26px}
+  .eq .term{flex:none;min-width:0;padding:10px 0 12px}
+  .eq .term:first-child{padding-left:0;padding-top:0}
+  .eq .term + .term{border-left:none}
+  .eq .term.mid{border-left:none}
+  .eq .op{align-self:stretch;display:flex;align-items:center;gap:14px;
+    padding:3px 0;font-size:15px}
+  .eq .op::before,.eq .op::after{content:"";flex:1;height:1px;
+    background:var(--line2)}}
+
+/* the next twelve hours — a hairline forecast curve inside the proof
+   zone, drawn from the same /v2/city payload (next_hours), no fetch of
+   its own. teases the map's scrub deck below. */
+.spark{margin-top:30px;max-width:560px}
+.spark svg{display:block;width:100%;height:52px;overflow:visible}
+/* the curve draws itself once, on entry — the next twelve hours tracing
+   in stroke, fill fading under it, now-dot landing last. reduced-motion
+   leaves the finished curve simply there. */
+.spark .curve{stroke-dasharray:1;stroke-dashoffset:0}
+.spark .fill{opacity:1}
+.spark .nowdot{opacity:1}
+@media(prefers-reduced-motion:no-preference){
+  .spark:not(.dr) .curve{stroke-dashoffset:1}
+  .spark:not(.dr) .fill,.spark:not(.dr) .nowdot{opacity:0}
+  .spark.dr .curve{transition:stroke-dashoffset 1.15s
+    cubic-bezier(.16,.6,.24,1) .12s}
+  .spark.dr .fill{transition:opacity .8s ease .55s}
+  .spark.dr .nowdot{transition:opacity .4s ease .95s}}
+.spark .cap{display:flex;justify-content:space-between;gap:10px;
+  margin-top:6px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
   font-variant-numeric:tabular-nums}
+.spark .cap b{color:var(--ink);font-weight:600}
+.spark .cap .goto a{color:var(--ink);text-decoration:none;
+  border-bottom:1px solid var(--line2);padding-bottom:2px}
+.spark .cap .goto a:hover{border-bottom-color:var(--ink)}
 
-.panel{background:var(--surf);border:1px solid var(--line);border-radius:16px;
-  box-shadow:0 1px 3px -1px rgba(22,24,29,.07);overflow:hidden}
-.panel-pad{padding:clamp(14px,2.4vw,22px)}
-
-/* the field — the board's centre instrument. one honest raster on real
-   geography, click through it; the card frame owns it and a band-tinted
-   glow warms the air around it (colour = the live band, never decor). */
+/* the field — the page's instrument, promoted to first place after the
+   proof. one honest raster, real geography, click through it; the card
+   frame owns it and a band-tinted glow warms the air around it
+   (colour = the live band again, never decoration). */
+.field .col-wide{padding-top:72px}
+.field-sec{padding:0}
+.field-lead{display:flex;align-items:baseline;justify-content:space-between;
+  gap:14px 28px;flex-wrap:wrap;margin-bottom:16px}
+.field-lead .lead{margin:0}
+.field-lead .sub2{font-size:14px;line-height:1.6;color:var(--ink2);
+  max-width:34ch;text-align:right}
+@media(max-width:640px){.field-lead .sub2{text-align:left;max-width:none}
+  .field .col-wide{padding-top:56px}}
 .field-head{display:flex;align-items:center;
   margin:0 0 14px;gap:10px 14px;flex-wrap:wrap}
 .field-head .psel{margin-right:2px}
@@ -183,7 +285,9 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
   letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
   display:inline-flex;align-items:center}
 .field-head .lbl b{color:var(--ink);font-weight:600}
-/* pill grammar — a segmented control, not a row of loose text */
+/* pill grammar — a segmented control, not a row of loose text.
+   surface2 track on paper needs no edge; the selected option lifts as
+   a white card with the one sanctioned hairline (selection). */
 .psel{display:inline-flex;gap:2px;padding:3px;background:var(--surf2);
   border-radius:11px}
 .psel button{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
@@ -194,15 +298,22 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
   box-shadow:0 1px 3px rgba(22,24,29,.12),inset 0 0 0 1px var(--line)}
 .psel button:hover{color:var(--ink)}
 .psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+/* the live glow — the day's band bleeding softly past the card's edge,
+   the field's own colour carrying outside the frame. sits as a sibling
+   behind the card (the card clips its own children). */
 .fstage{position:relative}
 .fglow{position:absolute;inset:-7% -4%;z-index:0;border-radius:40px;
   background:var(--gw,transparent);filter:blur(34px);opacity:.55;
   transition:background 1.2s ease;pointer-events:none}
 @media(prefers-reduced-motion:reduce){.fglow{transition:none}}
 .fwrap{position:relative;z-index:1;opacity:0;transition:opacity .5s ease;
-  background:var(--surf);border-radius:14px;overflow:hidden;
-  border:1px solid var(--line)}
+  background:var(--surf);border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 22px 54px -20px rgba(22,24,29,.26),
+             0 4px 14px -6px rgba(22,24,29,.10)}
 .fwrap.ready{opacity:1}
+/* the demo chip — one tap to the money shot: a real a→b priced live on
+   the map, honestly labelled as a live example, not a canned video */
 .demochip{position:absolute;left:14px;bottom:14px;z-index:6;
   display:inline-flex;align-items:center;gap:9px;
   font-family:var(--mono);font-size:11px;letter-spacing:.11em;
@@ -226,8 +337,9 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
 #raster{position:relative;z-index:2;display:block;width:100%;
   height:auto;aspect-ratio:1.2892;touch-action:manipulation}
 /* the field is three stacked canvases — cells, boundaries+wind, and the
-   dynamic ink — so a hover, a pick, or a param switch repaints only the
-   layer that changed instead of the whole scene */
+   dynamic ink — so a hover, a pick, or a forecast hour repaints only the
+   layer that changed instead of the whole scene. positioned layers would
+   otherwise paint above the in-flow #raster and hide pins/route/errors */
 .lay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
   z-index:1}
 #raster.pick{cursor:crosshair}
@@ -268,16 +380,104 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
 .legend .conf{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   color:var(--ink3);text-transform:uppercase}
+/* the day, recorded — the decade archive's 24-hour curve as a real
+   timeline: every hour wears its own band wash, the live hour sits on
+   the baseline in band ink with its flag. the chart is the content. */
+.day-sec{padding:56px 0 0}
+.day-head{display:flex;justify-content:space-between;align-items:center;
+  gap:12px 24px;flex-wrap:wrap;margin-bottom:18px}
+.day-head .lbl{font-family:var(--mono);font-size:11px;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
+  display:inline-flex;align-items:center}
+.day-head .lbl b{color:var(--ink);font-weight:600}
+#dayNote{font-variant-numeric:tabular-nums}
+#dayNote b{color:var(--ink);font-weight:600}
+.daybars{display:flex;align-items:flex-end;gap:3px;height:76px;
+  position:relative;padding-bottom:1px;
+  border-bottom:1px solid var(--line2)}
+/* the recorded day grows in bar by bar — the archive accruing, not a
+   chart appearing. transform only; reduced-motion paints finished. */
+.daybars .db{flex:1;background:var(--dbw,var(--surf3));min-height:3px;
+  border-radius:3px 3px 0 0;position:relative}
+@media(prefers-reduced-motion:no-preference){
+  .daybars:not(.in) .db{transform:scaleY(0);transform-origin:bottom}
+  .daybars .db{transition:transform .55s
+    cubic-bezier(.16,.6,.24,1) calc(var(--i,0)*16ms)}
+  .daybars.in .db{transform:none}}
+.daybars .db.now{background:var(--dbn,var(--ink))}
+.daybars .db.now::before{content:"now";position:absolute;top:-17px;
+  left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink2)}
+.daybars .db:hover{outline:1px solid var(--ink);outline-offset:1px}
+.dayticks{display:flex;justify-content:space-between;margin-top:6px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  color:var(--ink4)}
 .day-note{margin-top:9px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.1em;color:var(--ink3);text-transform:uppercase;
-  line-height:1.8}
+  letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
 .day-note b{color:var(--ink2);font-weight:600}
-.day-note a{color:var(--ink2)}
-/* results surface — the priced corridor, the depart read, the dose
-   ladder: tonal cards on ambient depth, never outlined */
+/* watch the day — forecast scrubber under the field card: a tonal
+   control strip, no edge — grouped controls read as one instrument */
+.trow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin-top:12px;padding:10px 14px;background:var(--surf2);
+  border-radius:12px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
+.trow[hidden]{display:none}
+.trow button{font-family:inherit;font-size:inherit;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink);background:var(--surf);
+  border:none;border-radius:8px;
+  box-shadow:0 1px 3px rgba(22,24,29,.10);
+  padding:6px 12px 5px;cursor:pointer}
+.trow button:hover{background:#fff}
+.trow button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
+  appearance:none;background:transparent;height:14px;margin:0;cursor:pointer}
+.tl-range:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.tl-range::-webkit-slider-runnable-track{height:1px;
+  background:linear-gradient(to right,var(--ink3) 0 var(--tp,0%),
+  var(--line2) var(--tp,0%) 100%)}
+.tl-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:9px;height:9px;background:var(--ink);border:none;border-radius:0;
+  margin-top:-4px}
+.tl-range::-moz-range-track{height:1px;background:var(--line2)}
+.tl-range::-moz-range-progress{height:1px;background:var(--ink3)}
+.tl-range::-moz-range-thumb{width:9px;height:9px;background:var(--ink);
+  border:none;border-radius:0}
+.tl-h{min-width:66px;color:var(--ink2);white-space:nowrap}
+.tl-load{color:var(--ink4,#a6acb8);white-space:nowrap}
+.tl-note{flex-basis:100%;font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink4,#a6acb8)}
+/* phones: thumb-sized hits — text buttons keep their look, the box grows;
+   the hairline scrubber gets a taller grab strip and a bigger thumb */
+@media(max-width:640px){
+  .trow button{padding-top:14px;padding-bottom:13px}
+  .psel button{padding-top:14px;padding-bottom:13px}
+  .tl-range{height:28px;min-width:140px}
+  .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7.5px}
+  .tl-range::-moz-range-thumb{width:16px;height:16px}}
+/* the scrub deck featured: the "watch the day" control reads as the
+   field's own control surface — raised, roomier, hour readout at
+   readout weight, progress fill in the band's own ink */
+.trow{padding:14px 16px;gap:12px 16px;background:var(--surf);
+  box-shadow:0 10px 26px -12px rgba(22,24,29,.18),
+    inset 0 0 0 1px var(--line);border-radius:14px}
+.trow button{box-shadow:0 1px 3px rgba(22,24,29,.10),
+  inset 0 0 0 1px var(--line2)}
+.tl-h{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;
+  min-width:96px}
+.tl-range::-webkit-slider-runnable-track{height:2px;
+  background:linear-gradient(to right,var(--he,var(--ink3)) 0 var(--tp,0%),
+  var(--line2) var(--tp,0%) 100%)}
+.tl-range::-moz-range-progress{height:2px;background:var(--he,var(--ink3))}
+.tl-range::-webkit-slider-thumb{width:11px;height:11px;margin-top:-4.5px}
+@media(max-width:640px){
+  .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7px}}
+/* results surface as tiles — the priced corridor, the depart read,
+   the dose ladder: tonal cards on ambient depth, never outlined */
 .routeline{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
-  color:var(--ink2);margin-top:10px;line-height:1.8;
-  background:var(--accWash);border-radius:10px;padding:10px 14px}
+  color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0;
+  background:var(--accWash);
+  border-radius:10px;padding:10px 14px}
 .routeline:empty{display:none}
 .routeline b{color:var(--ink);font-weight:600}
 .routeline .rdose{font-family:var(--serif);font-size:15px;
@@ -294,7 +494,6 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
 .lrow{display:flex;align-items:baseline;gap:12px;padding:9px 12px;
   margin-top:6px;background:var(--surf);border-radius:10px;
   box-shadow:0 1px 3px -1px rgba(22,24,29,.08);
-  border:1px solid var(--line);
   font-family:var(--mono);font-size:11px;
   letter-spacing:.06em;color:var(--ink3);cursor:pointer}
 .lrow:hover{background:var(--surf2)}
@@ -319,71 +518,10 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
 .lmore{padding:6px 0 0;font-family:var(--mono);font-size:11px;
   letter-spacing:.08em;color:var(--ink4);text-transform:uppercase}
 
-/* the strips — live panels in a row. every figure wears its age;
-   absence of colour is 'good', depth only where the verdict needs it */
-.strips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-@media(max-width:980px){.strips{grid-template-columns:1fr}}
-.card{background:var(--surf);border:1px solid var(--line);border-radius:14px;
-  box-shadow:0 1px 3px -1px rgba(22,24,29,.07);
-  padding:14px 16px 13px;display:flex;flex-direction:column}
-.kchip{display:block;align-self:stretch;font-family:var(--mono);
-  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--ink2);background:var(--surf2);border-radius:7px;
-  padding:4px 9px;line-height:1.55;margin:0 0 12px}
-.kchip .vword{float:right;margin-top:1px;color:var(--vc,var(--ink3))}
-.cap{font-family:var(--mono);font-size:11px;color:var(--ink4);
-  letter-spacing:.02em;margin-top:9px;line-height:1.6}
-.card .storyline{font-size:15px;line-height:1.6;color:var(--ink);
-  letter-spacing:-.005em}
-.card .storyline b{font-weight:600}
-.card .evid{font-family:var(--mono);font-size:11px;color:var(--ink3);
-  letter-spacing:.04em;margin-top:9px;line-height:1.7}
-.card .cap a{color:var(--ink3);text-decoration:none;
-  border-bottom:1px solid var(--line2)}
-.card .cap a:hover{color:var(--ink);border-bottom-color:var(--ink3)}
-
-/* the spark — the next-twelve curve, drawn from the served forecast */
-.spark{margin-top:4px}
-.spark svg{display:block;width:100%;height:52px;overflow:visible}
-.spark .curve{stroke-dasharray:1;stroke-dashoffset:0}
-.spark .fill{opacity:1}
-.spark .nowdot{opacity:1}
-@media(prefers-reduced-motion:no-preference){
-  .spark:not(.dr) .curve{stroke-dashoffset:1}
-  .spark:not(.dr) .fill,.spark:not(.dr) .nowdot{opacity:0}
-  .spark.dr .curve{transition:stroke-dashoffset 1.15s
-    cubic-bezier(.16,.6,.24,1) .12s}
-  .spark.dr .fill{transition:opacity .8s ease .55s}
-  .spark.dr .nowdot{transition:opacity .4s ease .95s}}
-.spark .cap{display:flex;justify-content:space-between;gap:10px;
-  margin-top:6px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
-  font-variant-numeric:tabular-nums}
-.spark .cap b{color:var(--ink);font-weight:600}
-
-/* the day, recorded — the archive's 24-hour curve: every hour wears its
-   own band wash, the live hour sits on the baseline in band ink */
-.daybars{display:flex;align-items:flex-end;gap:3px;height:64px;
-  position:relative;padding-bottom:1px;margin-top:10px;
-  border-bottom:1px solid var(--line2)}
-.daybars .db{flex:1;background:var(--dbw,var(--surf3));min-height:3px;
-  border-radius:3px 3px 0 0;position:relative}
-@media(prefers-reduced-motion:no-preference){
-  .daybars:not(.in) .db{transform:scaleY(0);transform-origin:bottom}
-  .daybars .db{transition:transform .55s
-    cubic-bezier(.16,.6,.24,1) calc(var(--i,0)*16ms)}
-  .daybars.in .db{transform:none}}
-.daybars .db.now{background:var(--dbn,var(--ink))}
-.daybars .db.now::before{content:"now";position:absolute;top:-17px;
-  left:50%;transform:translateX(-50%);
-  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink2)}
-.daybars .db:hover{outline:1px solid var(--ink);outline-offset:1px}
-.dayticks{display:flex;justify-content:space-between;margin-top:6px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.1em;
-  color:var(--ink4)}
-
-/* the districts — every boundary cut, filled by its live CPCB band */
+/* the districts — every boundary cut, filled by its live cpcb band.
+   chips are band-tinted tiles: the tile surface is the district's own
+   band washed pastel (--cw set in JS), the silhouette keeps the hue. */
+.dist-sec{padding:52px 0 0}
 .dist-head{display:flex;justify-content:space-between;align-items:center;
   margin-bottom:14px;gap:14px;flex-wrap:wrap}
 .dist-head .lbl{font-family:var(--mono);font-size:11px;
@@ -395,6 +533,8 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
 .dscroll{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;
   padding:2px 2px 10px;-webkit-overflow-scrolling:touch}
 .dscroll::-webkit-scrollbar{display:none}
+/* phones: tiles clip mid-name with no hint they scroll — local cover +
+   scroll shadow peeks only while more districts sit past that edge */
 @media(max-width:700px){.dscroll{
   background-image:linear-gradient(to right,#fafaf7 30%,rgba(250,250,247,0)),
     linear-gradient(to right,rgba(250,250,247,0),#fafaf7 30%),
@@ -409,7 +549,6 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
 .dchip{flex:0 0 auto;display:flex;align-items:center;gap:10px;
   padding:11px 16px 11px 11px;
   border-radius:13px;background:var(--cw,var(--surf));
-  border:1px solid var(--line);
   cursor:pointer;text-align:left;
   box-shadow:0 2px 8px -3px rgba(22,24,29,.10);
   transition:transform .25s cubic-bezier(.22,1,.36,1);
@@ -432,231 +571,426 @@ h2.blk .right{margin-left:auto;color:var(--ink4);letter-spacing:.12em;
   font-family:var(--mono);font-size:11px;letter-spacing:.05em;
   vertical-align:middle}
 @media(max-width:640px){.dchip{padding:10px 14px 10px 10px}
-  .dchip svg{width:34px;height:34px}
-  .dist-head .lbl{display:block;line-height:1.9}}
+  .dchip svg{width:34px;height:34px}}
+/* the label qualifier flows as one run at phone width — inline-flex
+   turns the <b> into a second squeezed column otherwise. must sit
+   below the .lbl definitions or equal specificity loses */
+@media(max-width:640px){
+  .day-head .lbl,.dist-head .lbl{display:block;line-height:1.9}}
 
-/* the app — the ledger that moves with you: real captures inside CSS
-   device chrome (bezel + side keys + camera pinhole + rounded screen),
-   no baked frame PNGs, no captions — the screens speak */
-.app .panel-pad{text-align:center}
-.devices{display:flex;gap:clamp(18px,4vw,46px);justify-content:center;
-  align-items:flex-start;flex-wrap:wrap;margin-top:26px}
-.phone{position:relative;flex:none;width:min(236px,78vw);
-  border-radius:38px;padding:16px 10px 12px;
-  background:linear-gradient(168deg,#2b2e34 0%,#191c20 55%,#131519 100%);
-  box-shadow:0 34px 62px -26px rgba(22,24,29,.48),
-    0 4px 14px -4px rgba(22,24,29,.22),
-    inset 0 1px 0 rgba(255,255,255,.10),
-    inset 0 0 0 1px rgba(20,22,26,.9)}
-/* side keys — power right, volume left, proud of the bezel */
-.phone::before,.phone::after{content:"";position:absolute;
-  background:#101216;border-radius:2px}
-.phone::before{right:-2.5px;top:112px;width:3px;height:56px}
-.phone::after{left:-2.5px;top:96px;width:3px;height:34px;
-  box-shadow:0 46px 0 #101216}
-/* the camera pinhole sits inside the screen's status row, centred —
-   where the hardware really puts it */
-.phone .cam{position:absolute;top:23px;left:50%;transform:translateX(-50%);
-  width:9px;height:9px;border-radius:50%;background:#07080b;z-index:2;
-  box-shadow:inset 0 0 1.5px 1px rgba(255,255,255,.14),
-    0 0 0 1.5px rgba(0,0,0,.28)}
-.phone .scr{display:block;border-radius:24px;overflow:hidden;
-  background:#0e1013}
-.phone .scr img{display:block;width:100%;height:auto}
-.app .lede{font-size:14.5px;line-height:1.7;color:var(--ink2);
-  max-width:58ch;margin:0 auto}
-.app .lede b{color:var(--ink);font-weight:600}
-.app-cta{margin-top:22px;display:flex;gap:10px;justify-content:center;
-  flex-wrap:wrap}
+/* the mechanics — the section lead is a felt line, not a labelled
+   band; steps are numbered editorial rows separated by air, not rules;
+   the pledge block is the privacy story drawn as a ledger. */
+.mech .col{padding-top:76px}
+.city .col{padding-top:76px}
+.lead{font-family:var(--sans);font-weight:500;
+  font-size:clamp(26px,4.8vw,38px);line-height:1.14;
+  letter-spacing:-.024em;color:var(--ink);max-width:26ch;margin:0}
+.mech-grid{display:grid;grid-template-columns:minmax(0,1fr) 236px;
+  gap:64px;align-items:start}
+.steps{margin-top:38px}
+.step{display:grid;grid-template-columns:40px 118px minmax(0,1fr);
+  column-gap:20px;padding:22px 0}
+.step + .step{margin-top:2px}
+.step .n{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  color:var(--ink4);padding-top:4px}
+.step .t{display:block;font-weight:600;font-size:15.5px;
+  letter-spacing:-.01em;color:var(--ink);padding-top:1px}
+.step .d{display:block;font-size:13.5px;line-height:1.65;color:var(--ink2)}
+.step .d a{color:var(--ink);text-decoration:none;
+  border-bottom:1px solid var(--line2)}
+.step .d a:hover{border-bottom-color:var(--ink)}
+.why{font-size:19px;line-height:1.55;letter-spacing:-.008em;
+  color:var(--ink);max-width:42ch;margin:44px 0 0}
+.why b{font-weight:600;white-space:nowrap}
+/* the ledger — the privacy story as design: three lines, term then
+   claim, the shape of the thing it describes */
+.pledge{margin-top:52px}
+.pledge h3{font-family:var(--sans);font-weight:500;font-size:19px;
+  letter-spacing:-.012em;color:var(--ink);margin:0 0 18px}
+.pl{display:grid;grid-template-columns:132px minmax(0,1fr);
+  column-gap:20px;padding:13px 0;align-items:baseline}
+.pl-t{font-weight:600;font-size:15px;color:var(--ink)}
+.pl-d{font-size:14.5px;line-height:1.6;color:var(--ink2)}
+@media(max-width:840px){.mech-grid{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .step{grid-template-columns:34px minmax(0,1fr)}
+  .step .d{grid-column:2}
+  .pl{grid-template-columns:1fr;row-gap:3px}}
+
+/* the app artifact — proof furniture beside the mechanics; the field
+   map, not a framed screenshot, is this page's product visual */
+.shot{margin:0;max-width:236px;width:100%;
+  border-radius:26px;overflow:hidden;
+  background:#fff;box-shadow:0 24px 50px -30px rgba(22,24,29,.34)}
+.shot .phone{margin:10px;display:block}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{padding:11px 16px 12px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3)}
+@media(max-width:840px){.shot{margin-top:44px}}
+
+/* the chooser beat — the same field asked to pick, on the shipped app.
+   three real frames from one run pulled through a projector gate by the
+   scroll itself (.gated): the film cranks frame to frame, the caption
+   beat changes under it. without JS or under reduced-motion it is the
+   plain strip — same picture, same captions, no hijack. */
+.choose .col{padding-top:76px}
+.choose-head{display:flex;align-items:center;justify-content:space-between;
+  gap:16px 28px;flex-wrap:wrap}
+.vpill{display:inline-flex;align-items:center;gap:9px;flex:none;
+  font-size:14px;font-weight:500;letter-spacing:-.006em;color:var(--ink);
+  background:var(--surf);border-radius:12px;padding:10px 15px;
+  box-shadow:0 10px 24px -12px rgba(22,24,29,.22),
+    inset 0 0 0 1px rgba(22,24,29,.06)}
+.vpill .vmark{font-style:normal;color:var(--ink2);font-size:13px}
+.film-run{position:relative;margin:30px 0 0}
+.film-stick{position:static}
+.film-gate{overflow:visible}
+.film-track{display:flex;gap:22px;will-change:transform}
+/* the slim phone frame — a 6px bezel and the iphone's own corner
+   radius, nothing thicker (owner on the last pass: 'emulator body
+   too thick'). the captures already carry their own status bar. */
+.phone{flex:1;min-width:0;padding:6px;border-radius:11%/5%;
+  background:#14161a;
+  box-shadow:0 24px 50px -30px rgba(22,24,29,.34)}
+.phone picture{display:block}
+.phone img{display:block;width:100%;height:auto;
+  border-radius:9.6%/4.4%}
+.film-caps{display:flex;gap:12px;margin-top:14px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3);
+  font-variant-numeric:tabular-nums}
+.film-caps .fcap{flex:1;text-align:center;transition:color .3s ease}
+.film-caps .fcap:first-child{text-align:left}
+.film-caps .fcap:last-child{text-align:right}
+.film-caps .fcap.on{color:var(--ink)}
+@media(max-width:640px){.film-caps{font-size:10px;letter-spacing:.06em}}
+/* gated mode — JS adds .gated when motion is allowed: the runway is tall,
+   the stick holds the gate mid-viewport, scroll progress translates the
+   strip two frame-widths so each real frame owns the gate in turn */
+.film-run.gated{height:235vh;margin:0}
+.film-run.gated .film-stick{position:sticky;top:0;height:100dvh;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px}
+.film-run.gated .film-gate{overflow:hidden;
+  width:min(310px,80vw,40dvh);
+  border-radius:34px;
+  filter:drop-shadow(0 18px 30px rgba(22,24,29,.16))}
+.film-run.gated .film-track{width:300%;gap:0}
+.film-run.gated .phone{flex:0 0 calc(100%/3)}
+.film-run.gated .film-caps{width:min(310px,80vw,40dvh);margin-top:0}
+@media(max-width:640px){.film-run.gated{height:210vh}}
+/* no-JS / reduced-motion fallback on a phone: the row turns into a
+   swipeable strip — the frames stay iphone-sized instead of
+   shrinking to thumbnails */
+@media(max-width:640px){
+  .film-run:not(.gated) .film-gate{overflow-x:auto;margin:0 -32px;
+    padding:0 32px 6px;scrollbar-width:none}
+  .film-run:not(.gated) .film-gate::-webkit-scrollbar{display:none}
+  .film-run:not(.gated) .film-track{display:flex;gap:16px;
+    width:max-content}
+  .film-run:not(.gated) .phone{flex:none;width:min(56vw,240px)}}
+
+/* links — quiet mono text links. the icon-in-a-coloured-tile door was
+   the catalog tell (docs/20); an underlined word + arrow is the
+   affordance. */
+.links{margin-top:40px;display:flex;gap:36px;flex-wrap:wrap;
+  align-items:center}
+.go{display:inline-flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink);text-decoration:none;
+  padding-bottom:4px;border-bottom:1px solid var(--ink)}
+.go .arr{display:inline-block;
+  transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.go:hover .arr{transform:translateX(4px)}
+.go.dim{color:var(--ink2);border-bottom-color:var(--line2)}
+.go.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
+@media(max-width:640px){.links{gap:22px}}
+@media(prefers-reduced-motion:reduce){.go .arr{transition:none}
+  .go:hover .arr{transform:none}}
+
+/* the close — the felt line at statement weight, then the doors */
+.close .col{padding-top:88px;padding-bottom:26px}
+.close .lead{max-width:30ch}
 
 /* footer — quiet meta on paper, air instead of a rule */
-.foot{border-top:1px solid var(--line);margin-top:44px}
-.foot-in{max-width:1180px;margin:0 auto;
-  padding:18px clamp(16px,4vw,32px) 40px;
+.foot-in{max-width:960px;margin:0 auto;padding:20px 32px 46px;
   display:flex;justify-content:space-between;gap:12px 28px;flex-wrap:wrap;
   font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  color:var(--ink3);text-transform:uppercase;line-height:1.9}
+  color:var(--ink3);text-transform:uppercase}
 .foot a{color:var(--ink2);text-decoration:none}
 .foot a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px}
-@media(prefers-reduced-motion:reduce){.dchip{transition:none}
-  .dchip:hover{transform:none}}
-</style>
-</head>
-<body>
 
-<header class="mast"><div class="mast-in">
-  <span class="wm"><i class="livedot" id="mastDot" style="display:inline-block;width:6px;height:6px;border-radius:2px;background:var(--hb,var(--acc));margin-right:2px"></i>alive<i>· delhi ncr</i></span>
-  <div class="mast-r">
-    <span id="toplive" aria-hidden="true"></span>
-    <nav>
-      <a href="/city">the city</a>
-      <a href="/community">community</a>
-      <a class="cta" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app</a>
-    </nav>
-  </div>
+</style>
+</head><body>
+
+<header class="top"><div class="top-in">
+  <a class="wm" href="/">ALIVE</a>
+  <span id="toplive" aria-hidden="true"></span>
+  <nav>
+    <a href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app</a>
+    <a href="/city">the city</a>
+    <a href="/community">community</a>
+  </nav>
 </div></header>
 
-<div class="wrap">
-
-<!-- the number — the board's hero: the live field mean as an instrument
-     numeral, its band word as the only air colour, a vitals rail for
-     proof, the doors underneath -->
-<section class="hero" id="heroZone">
-  <div class="hero-grid">
-    <div>
-      <div class="hero-kick">
-        <span class="lv"><i></i>live</span>
-        <span>a dosimeter without hardware — delhi ncr, right now</span>
-      </div>
-      <div class="hero-fig">
-        <b class="hnum-v" id="hnumV">—</b>
-        <span class="hnum-u">µg/m³<br>pm2.5</span>
-        <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">reading the live air map…</span></span>
-      </div>
-      <div class="hero-anchor" id="hnumA">anchored at connaught place · reading the field…</div>
-      <p class="hero-felt" id="hnumT">a day of breathing today's air — reading…</p>
+<!-- the opening — the field IS the hero: the live kriged map fills the
+     viewport under a band-tinted paper scrim, statement above, the
+     instrument's own numeral at the foot. every figure real. -->
+<section class="open" id="heroZone">
+  <canvas id="fieldair" aria-hidden="true"></canvas>
+  <div class="col">
+    <div class="hero-grid"><div class="hero-copy">
+      <div class="eyebrow rise" style="--d:0ms" id="eyebrow"><i class="livedot" id="liveDot"></i>delhi ncr — a dosimeter without hardware</div>
+      <h1 class="lede rise" style="--d:70ms">A ledger for your <em>lungs</em>, kept on your phone.</h1>
+      <p class="sub rise" style="--d:160ms">A personal dosimeter for Delhi —
+      no hardware. <b id="stnHero">—</b> instruments across the NCR are the
+      sensor; the app does the counting on your phone, and the only thing
+      that ever leaves is a count of three or more.</p>
+    </div></div>
+    <div class="hnum" id="hnum" role="status">
+      <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the air map, live</span></span>
+      <div class="hnum-n"><b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span></div>
+      <i class="hnum-s" id="hnumS">reading the live air map…</i>
     </div>
-    <dl class="hero-vitals">
-      <div class="vr"><dt>stations live</dt><dd id="vStn">—</dd></div>
-      <div class="vr"><dt>map age</dt><dd id="vAge">—</dd></div>
-      <div class="vr"><dt>wind</dt><dd id="vWind">—</dd></div>
-      <div class="vr"><dt>segments priced</dt><dd id="vPriced">—</dd></div>
-      <div class="vr"><dt>grap stage now</dt><dd id="vGrap">—</dd></div>
-      <div class="vr"><dt>next 12h</dt><dd id="vNext">—</dd></div>
-    </dl>
-  </div>
-  <div class="doors">
-    <a class="door main" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app — android &amp; ios</a>
-    <a class="door" href="/city">open the live field</a>
-    <a class="door" href="/community">community — group counts only</a>
+    <div class="hero-foot"><i class="hnum-s" id="heroLive"></i></div>
   </div>
 </section>
 
-<div class="statusline" id="status" aria-live="polite">reading the live air…</div>
-
-<!-- the field — the board's centre instrument -->
-<h2 class="blk">the field — live<em>the kriged pm2.5 surface over the real NCR boundaries — the same raster the app and the route engine read. tap a cell to inspect it, or pick two points and the engine prices the air between them, live.</em></h2>
-<section class="panel" id="fieldSec"><div class="panel-pad">
-  <div class="field-head">
-    <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the air map, this hour</b></span></span>
-    <span class="psel" id="msel" role="group" aria-label="tool"></span>
-    <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
-    <span class="lbl" style="margin-left:auto"><i class="livedot" id="fieldDot"></i><span id="fieldAge">—</span></span>
+<!-- the dose story — the zone wears the day's live CPCB band (colour =
+     the data): the felt line leads, the equation arrives term by term
+     on scroll, the forecast curve draws itself, and provenance sits
+     under it as one quiet line of text, not a row of tiles. -->
+<section class="proof"><div class="col">
+  <h2 class="lead" data-rv>A day of breathing it.</h2>
+  <p class="felt" id="hnumT" data-rv>a day of breathing today's air — reading…</p>
+  <div class="eq" id="eq" hidden>
+    <div class="term" data-rv style="--rvd:0ms"><div class="tv"><b id="eqConc">—</b><span class="tu">µg/m³</span></div>
+      <div class="tl">in the air · the ncr-wide mean</div></div>
+    <span class="op" data-rv style="--rvd:90ms">×</span>
+    <div class="term mid" data-rv style="--rvd:160ms"><div class="tv">14.4<span class="tu">m³/day</span></div>
+      <div class="tl">the air a pair of lungs moves</div></div>
+    <span class="op" data-rv style="--rvd:230ms">=</span>
+    <div class="term mid" data-rv style="--rvd:300ms"><div class="tv"><em id="eqDose">—</em><span class="tu">µg</span></div>
+      <div class="tl">inhaled in a day · your dose</div></div>
+    <span class="op" data-rv style="--rvd:370ms">≈</span>
+    <div class="term mid" data-rv style="--rvd:440ms"><div class="tv"><em id="eqCig">—</em><span class="tu">cigarettes</span></div>
+      <div class="tl">the same day's dose, felt</div></div>
   </div>
-  <div class="fstage">
-    <div class="fglow" aria-hidden="true"></div>
-    <div class="fwrap">
-      <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
-      <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
-      <canvas id="raster" tabindex="0"
-        aria-label="the live air map — move focus with the arrow keys, enter reads a spot"></canvas>
-      <div class="fpop" id="fpop" hidden></div>
-      <button class="demochip" id="demoChip" type="button">
-        <span class="dc-play" aria-hidden="true"></span>
-        <span>watch a real trip get priced<small>connaught place → i.g.i. — live engine call</small></span>
-      </button>
-    </div>
+  <div class="spark" id="spark" hidden>
+    <svg id="sparkSvg" viewBox="0 0 560 52" preserveAspectRatio="none"
+      role="img" aria-label="the next twelve hours — live forecast curve"></svg>
+    <div class="cap"><span id="sparkL">the next twelve hours</span>
+      <span class="goto"><a href="#fieldSec" id="sparkGo">watch it move on the map ↓</a></span></div>
   </div>
-  <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
-  <div class="field-cap">
-    <span class="left" id="capLeft">This is the sensor —
-      the same surface the dosimeter reads.</span>
-    <span class="legend" aria-hidden="true">
-      <span class="strip" id="legendStrip"></span>
-      <span class="tick" id="legendTick"></span>
-      <span class="conf" id="confSplit">—</span>
-    </span>
-  </div>
-  <div class="day-note" id="skillLine" hidden></div>
-  <div class="day-note" id="whyLine" hidden></div>
-  <div class="routeline" id="routeline" aria-live="polite"></div>
-  <div class="depart" id="departline"></div>
-  <div class="ladder" id="ladder"></div>
+  <div class="statusline" id="status" aria-live="polite" data-rv>reading the live air…</div>
 </div></section>
 
-<!-- the strips — live panels, every figure wearing its age -->
-<h2 class="blk">the strips — live<em>what is driving the air, where it goes next, and what a day here usually does — all served live, all aged honestly.</em></h2>
-<section class="strips">
-  <div class="card">
-    <span class="kchip">the air's story <span class="vword" id="storyAge">—</span></span>
-    <div class="storyline" id="storyLine">reading the drivers…</div>
-    <div class="evid" id="storyEvid"></div>
-    <div class="cap" id="storyCap">measured, not reported · <a href="/v2/why?lat=28.6315&amp;lon=77.2167">the evidence ↗</a></div>
+<!-- the instrument — the ambient field made operative: the same
+     surface that was breathing behind the hero is now under your hand.
+     touch a cell, or let it price a real trip; the day-strip deck
+     scrubs the next twelve served hours. -->
+<section class="field" id="fieldSec"><div class="col-wide">
+  <div class="field-lead" data-rv>
+    <h2 class="lead">The field, in your hands.</h2>
+    <p class="sub2">every cell filled in from live instruments —
+    touch one, or watch the engine price a real trip around the dirty air</p>
   </div>
-  <div class="card">
-    <span class="kchip">the next twelve hours <span class="vword" id="sparkKind">live forecast</span></span>
-    <div class="spark" id="spark">
-      <svg id="sparkSvg" viewBox="0 0 560 52" preserveAspectRatio="none"
-        aria-label="the next twelve hours, forecast pm2.5"></svg>
-      <div class="cap"><span id="sparkL">reading the forecast…</span>
-        <span class="goto"><a href="#fieldSec" id="sparkGo">the map ↓</a></span></div>
+  <div class="field-sec">
+    <div class="field-head">
+      <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the air map, this hour</b></span></span>
+      <span class="psel" id="msel" role="group" aria-label="tool"></span>
+      <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
+      <span class="lbl"><i class="livedot" id="fieldDot"></i><span id="fieldAge">—</span></span>
     </div>
-    <div class="cap" id="sparkCap">served forecast, not a guess — the same next_hours the app reads</div>
+    <div class="fstage">
+      <div class="fglow" aria-hidden="true"></div>
+      <div class="fwrap">
+        <canvas class="lay" id="raster-base" aria-hidden="true"></canvas>
+        <canvas class="lay" id="raster-mid" aria-hidden="true"></canvas>
+        <canvas id="raster" tabindex="0"
+          aria-label="live air map over Delhi NCR. Mouse or arrow keys select a cell; Enter reads it."
+          aria-describedby="kbhint"></canvas>
+        <div class="fpop" id="fpop" hidden></div>
+        <button class="demochip" id="demoChip" type="button">
+          <i class="dc-play"></i>
+          <span>watch it work<small>connaught place → i.g.i. — a real trip, priced live</small></span>
+        </button>
+      </div>
+    </div>
+    <div class="trow" id="tl" hidden>
+      <button id="tlPlay" type="button" aria-pressed="false">▶ watch the day</button>
+      <input class="tl-range" id="tlRange" type="range" min="0" max="11"
+             step="1" value="0" aria-label="forecast hour — scrub the next twelve hours">
+      <span class="tl-h" id="tlHour">h+0 now</span>
+      <span class="tl-load" id="tlLoad" hidden></span>
+      <button class="tl-now" id="tlNow" type="button" hidden>← now</button>
+      <span class="tl-note" id="tlNote"></span>
+    </div>
+    <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
+    <noscript>
+      <style>
+        #status,.field-head,.fstage,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum,#heroLive,#fieldair{display:none}
+      </style>
+      <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
+        letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+        line-height:1.9">
+        the live maps, the district map, and today's dose figure need
+        javascript — everything else on this page does not.</p>
+    </noscript>
+    <div class="field-cap">
+      <span class="left" id="capLeft">This is the sensor —
+      every cell filled in from live instruments, confidence carried with
+      it; the same surface the router prices on. It records Delhi hourly —
+      history, not just forecast. Click a cell.</span>
+      <span class="legend">
+        <span class="strip" id="legendStrip"></span>
+        <span class="tick" id="legendTick"></span>
+        <span class="conf" id="confSplit">—</span>
+      </span>
+    </div>
+    <div class="day-note" id="skillLine" hidden></div>
+    <div class="day-note" id="whyLine" hidden></div>
+    <div class="routeline" id="routeline" aria-live="polite"></div>
+    <div class="depart" id="departline"></div>
+    <div class="ladder" id="ladder"></div>
   </div>
-  <div class="card">
-    <span class="kchip">a typical october day <span class="vword">recorded</span></span>
+</div></section>
+
+<!-- the chooser — the same field, asked to pick on the shipped app:
+     three real frames off the ios build, pulled through the gate by
+     the scroll itself. the verdict pill is the app's own voice,
+     quoted once in page type — a pull-quote of real UI text, never a
+     fake render. -->
+<section class="choose"><div class="col">
+  <div class="choose-head" data-rv>
+    <h2 class="lead">The same field, asked to choose.</h2>
+    <span class="vpill"><i class="vmark" aria-hidden="true">∅</i>the cleanest way there</span>
+  </div>
+  <figure class="film-run" id="filmRun">
+    <div class="film-stick">
+      <div class="film-gate">
+        <div class="film-track" id="filmTrack">
+          <div class="phone"><picture>
+            <source type="image/webp" srcset="/ios-choose-priced.webp 720w">
+            <img src="/ios-choose-priced.png" width="720" height="1566"
+              loading="lazy" fetchpriority="low" decoding="async"
+              alt="the app on iphone — every way to connaught place priced with its dose: on foot, car, bike, each carrying its µg">
+          </picture></div>
+          <div class="phone"><picture>
+            <source type="image/webp" srcset="/ios-choose-verdict.webp 720w">
+            <img src="/ios-choose-verdict.png" width="720" height="1566"
+              loading="lazy" fetchpriority="low" decoding="async"
+              alt="the app on iphone — the verdict pill pinned on the map over india gate: leave 13:30, breathe ~11% less">
+          </picture></div>
+          <div class="phone"><picture>
+            <source type="image/webp" srcset="/ios-choose-bold.webp 720w">
+            <img src="/ios-choose-bold.png" width="720" height="1566"
+              loading="lazy" fetchpriority="low" decoding="async"
+              alt="the app on iphone — the cleanest way gone bold on the map while the rest fade">
+          </picture></div>
+        </div>
+      </div>
+      <div class="film-caps" id="filmCaps">
+        <span class="fcap on" id="fcap0">every way, priced</span>
+        <span class="fcap" id="fcap1">the verdict pins itself</span>
+        <span class="fcap" id="fcap2">the cleanest goes bold</span>
+      </div>
+    </div>
+  </figure>
+</div></section>
+
+<!-- the mechanics — how a breath becomes a number, then the privacy
+     story as design: the ledger kept on-device, shared only at k≥3. -->
+<section class="mech"><div class="col"><div class="mech-grid">
+  <div>
+    <h2 class="lead" data-rv>How a breath becomes a number.</h2>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><span class="t">measure</span>
+        <p class="d">WAQI and DPCC monitors across the NCR report on
+        their own clocks — DPCC posts about every 5 minutes and the
+        map rebuilds every 15 — and every reading lands in the same
+        unit (µg/m³) before anything touches it.</p></div>
+      <div class="step"><span class="n">02</span><span class="t">interpolate</span>
+        <p class="d">Careful fill-in between stations — kriging — draws
+        the map: a surface, not a guess, and every cell keeps its own
+        error band. We hid 3,550 real station readings and asked the
+        map to guess them — 95.2% landed inside that band.
+        <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">the method ↗</a></p></div>
+      <div class="step"><span class="n">03</span><span class="t">dose</span>
+        <p class="d">The dust in the air × how hard you're breathing ×
+        the minutes you're out — added up along the road. A C++ engine
+        priced <b><span id="pricedcount2">—</span>&nbsp;million</b> road
+        segments on it to rank routes; the app runs the same sum over
+        your trips, on-device.</p></div>
+    </div>
+    <p class="why" data-rv>Routing by breath is the proof the map can
+    decide — the engine priced <b><span id="pricedcount">—</span>&nbsp;million</b>
+    of <b><span id="edgecount">—</span>&nbsp;million</b> road segments under
+    this hour's map.</p>
+    <div class="pledge" data-rv>
+      <h3>The ledger stays yours.</h3>
+      <div class="pl"><span class="pl-t">your dose</span>
+        <span class="pl-d">counted on your phone, kept on your phone</span></div>
+      <div class="pl"><span class="pl-t">a shared trip</span>
+        <span class="pl-d">joins a shared street only where three or more phones cross it — below that, it never appears at all</span></div>
+      <div class="pl"><span class="pl-t">the rest</span>
+        <span class="pl-d">no accounts, no profiles — aggregates or nothing</span></div>
+    </div>
+  </div>
+  <figure class="shot" data-rv>
+    <div class="phone"><picture>
+      <source type="image/webp" srcset="/ios-dose.webp 720w">
+      <img src="/ios-dose.png" width="720" height="1566" decoding="async" loading="lazy" fetchpriority="low"
+        alt="the app on iphone: you've breathed 14 µg today — 7% of your daily budget, good band — with the day's least-bad hours below">
+    </picture></div>
+    <figcaption>the app on ios, live — the real dose ledger</figcaption>
+  </figure>
+</div></div></section>
+
+<!-- the city, recorded — the archive strip and the district rail.
+     the live instrument moved up; what remains is the memory of it:
+     a typical october hour by hour, and every district's live read. -->
+<section class="city"><div class="col">
+  <h2 class="lead" data-rv>The city, kept.</h2>
+  <div class="day-sec" id="daySec" hidden>
+    <div class="day-head">
+      <span class="lbl">the day, recorded — <b id="typMonth">a typical october, hour by hour</b></span>
+      <span class="lbl" id="dayNote">—</span>
+    </div>
     <div class="daybars" id="daybars"
-      role="img" aria-label="typical october day at connaught place, hour by hour — the archive"></div>
-    <div class="dayticks"><span>00</span><span>06</span><span>12</span><span>18</span><span>24 ist</span></div>
-    <div class="cap" id="dayWhy">the archive's middle value for this hour · <b>recorded history</b>, not a forecast</div>
+      role="img" aria-label="typical october day at connaught place, hour by hour — decade of records"></div>
+    <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
+    <div class="day-note" id="dayWhy"></div>
   </div>
-</section>
 
-<!-- the districts — every boundary filled by its live band -->
-<h2 class="blk">the districts — live<em>every real boundary in the NCR, filled by this hour's map — worst first, tap a chip for its read and the +12h direction.</em></h2>
-<section class="panel"><div class="panel-pad">
-  <div class="dist-head">
-    <span class="lbl"><b><span id="distN">—</span>&nbsp;real boundaries, each filled live</b></span>
-    <span class="hint">tap a boundary · worst first</span>
-  </div>
-  <div class="distwrap">
-    <div class="dscroll" id="dscroll"></div>
-    <div class="fpop dtpop" id="dtpop" hidden></div>
+  <div class="dist-sec">
+    <div class="dist-head">
+      <span class="lbl">the districts — <b><span id="distN">—</span> real boundaries, each filled live</b></span>
+      <span class="hint">tap a boundary · worst first</span>
+    </div>
+    <div class="distwrap">
+      <div class="dscroll" id="dscroll"></div>
+      <div class="fpop dtpop" id="dtpop" hidden></div>
+    </div>
   </div>
 </div></section>
 
-<!-- the app — the ledger that moves with you -->
-<h2 class="blk">the app<em>the field knows what Delhi breathed — the app knows what you breathed. real captures off the shipped build, inside the frame they run in.</em></h2>
-<section class="panel app"><div class="panel-pad">
-  <p class="lede">Your phone already goes where the air changes — <b>Alive</b>
-    turns that walk into a ledger: the dose counted on-device, the cleaner
-    route priced out of the same field. Group counts only — never one
-    person, never a profile.</p>
-  <div class="devices">
-    <figure class="phone" data-rv><span class="cam" aria-hidden="true"></span>
-      <span class="scr"><picture>
-        <source type="image/webp" srcset="/app-hero-472.webp 472w, /app-hero-708.webp 708w" sizes="236px">
-        <img src="/app-hero-708.png" width="708" height="1573" decoding="async" loading="lazy" fetchpriority="low"
-          alt="the app on android — you've breathed 17 µg today, 8% of the daily budget, good band">
-      </picture></span>
-    </figure>
-    <figure class="phone" data-rv><span class="cam" aria-hidden="true"></span>
-      <span class="scr"><picture>
-        <source type="image/webp" srcset="/app-choose-settle.webp 708w" sizes="236px">
-        <img src="/app-choose-settle.png" width="708" height="1573" decoding="async" loading="lazy" fetchpriority="low"
-          alt="the chooser settled — every way priced by dose, the cleanest gone bold on the map">
-      </picture></span>
-    </figure>
-    <figure class="phone" data-rv><span class="cam" aria-hidden="true"></span>
-      <span class="scr"><picture>
-        <source type="image/webp" srcset="/app-airmap.webp 708w" sizes="236px">
-        <img src="/app-airmap.png" width="708" height="1573" decoding="async" loading="lazy" fetchpriority="low"
-          alt="the air map — the kriged field over the city, tap to read any point">
-      </picture></span>
-    </figure>
-  </div>
-  <div class="app-cta">
-    <a class="door main" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app — github releases</a>
-    <a class="door" href="/city">the city, live</a>
-    <a class="door" href="/community">the community ledger</a>
+<!-- the close — the felt line, then the two doors as quiet text links. -->
+<section class="close"><div class="col">
+  <p class="lead" data-rv>The field knows what Delhi breathed —<br>
+  the app knows what you breathed.</p>
+  <div class="links" data-rv>
+    <a class="go" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app — android &amp; ios builds<span class="arr">→</span></a>
+    <a class="go" href="/city">open the live field<span class="arr">→</span></a>
+    <a class="go dim" href="/community">community — group counts only<span class="arr">→</span></a>
   </div>
 </div></section>
-
-</div>
 
 <footer class="foot"><div class="foot-in">
-  <span>alive — delhi ncr · a dosimeter for your lungs</span>
+  <span>alive — delhi ncr</span>
   <span id="buildTag">—</span>
   <span>group counts only · never one person · no profiles</span>
 </div></footer>
@@ -667,8 +1001,8 @@ const $=id=>document.getElementById(id);
    caller's honest-degrade path, not hang the surface forever */
 const _inflight={};
 const api=(p,o,ms=15000)=>{
-  /* identical in-flight GETs share one request — the hero numeral, the
-     story card and the spark all want /v2/city at parse time */
+  /* identical in-flight GETs share one request — two first-wave readers
+     both want /v2/city at parse time; a POST always fires. */
   const get=!o||!o.method||String(o.method).toUpperCase()==='GET';
   const key=get?p:null;
   if(key&&_inflight[key])return _inflight[key];
@@ -682,40 +1016,22 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const F1=n=>n==null?'—':(+n).toFixed(1);
 const fmt=n=>n==null?'—':Math.round(n).toLocaleString('en-IN');
 
-/* CPCB band colours, muted to sit quietly on paper — six bands, the
+/* cpcb band colours, muted to sit quietly on paper — six bands, the
    breakpoints differ per pollutant but the hue order is the scale */
 const BAND=[[122,171,89],[200,178,90],[213,140,74],[184,84,66],[143,60,73],[110,60,84]];
 const BAND_NAME=['good','satisfactory','moderate','poor','very poor','severe'];
 const SPECS={
   pm2_5:{prop:'pm25',breaks:[30,60,90,120,250],unit:'µg/m³',
-         ticks:['30','µg/m³','250+'],title:'pm2.5',
-         /* anchor values inside each band — the cell fill lerps between
-            neighbours instead of snapping band to band, so the surface
-            shades like a field, not a choropleth */
-         ramp:[15,45,75,105,185,320]},
+         ticks:['30','µg/m³','250+'],title:'pm2.5'},
   us_aqi:{prop:'us_aqi',breaks:[50,100,150,200,300],unit:'aqi',
-          ticks:['50','aqi','300+'],title:'us aqi',
-          ramp:[25,75,125,175,250,350]},
+          ticks:['50','aqi','300+'],title:'us aqi'},
   pm10:{prop:'pm10',breaks:[50,100,250,350,430],unit:'µg/m³',
-        ticks:['50','µg/m³','430+'],title:'pm10',
-        ramp:[25,75,175,300,390,470]},
+        ticks:['50','µg/m³','430+'],title:'pm10'},
 };
 function bandCol(v,br){let i=0;while(i<br.length&&v>br[i])i++;
   return BAND[Math.min(i,5)]}
 function bandIdx(v,br){let i=0;while(i<br.length&&v>br[i])i++;
   return Math.min(i,5)}
-/* the smooth ramp — the same six official hues, read continuously:
-   below the first anchor or past the last the band holds flat, between
-   anchors the fill lerps. the legend + band words still snap (a band IS
-   a band); only the cell shading got the finer steps he asked for. */
-function rampCol(v,spec){
-  const vs=spec.ramp;
-  if(v<=vs[0])return BAND[0];
-  if(v>=vs[5])return BAND[5];
-  let i=0;while(i<5&&v>vs[i+1])i++;
-  const t=(v-vs[i])/(vs[i+1]-vs[i]);
-  return BAND[i].map((c,k)=>Math.round(c+(BAND[i+1][k]-c)*t));
-}
 
 /* the server's krige window (grid.py BBOX) — cells are drawn inside
    exactly this box, so the raster sits on true geography */
@@ -726,6 +1042,7 @@ let MEDIAN=null,PARAM='pm2_5',MODE='inspect';
 let CITY_MEAN=null,HNUM_DONE=false,FIELD_AGE_TXT=null;
 let FIELD_AGE_S=null,FIELD_AGE_AT=0,FIELD_STALE=false,
     HL_STN=0,HL_WIND=null;
+let tlSync=()=>{};   /* bound by the scroll furniture below */
 let FEATS=[],GJ=[],WIND=null;
 let W=0,H=0,PT_A=null,PT_B=null,ROUTE=null,PLANSEQ=0;
 let ROUTE_RAF=0;   /* the draw-on animation's rAF handle */
@@ -814,7 +1131,8 @@ function washHex(hex,t){
   const px=i=>Math.round(((n>>(16-8*i))&255)*(1-t)+255*t);
   return `rgb(${px(0)},${px(1)},${px(2)})`;
 }
-/* the app's bandInkIdx — the hue pulled 15% toward ink */
+/* the app's bandInkIdx — the hue pulled 15% toward ink; the breathing
+   edge's colour (deeper than a wash, softer than text ink) */
 function inkHex(hex,t){
   const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return null;
   const n=parseInt(m[1],16),ik=[0x16,0x18,0x1d];
@@ -823,12 +1141,24 @@ function inkHex(hex,t){
 }
 const bandHex=i=>'#'+BAND[i].map(v=>v.toString(16).padStart(2,'0')).join('');
 
-/* --- the canvas ----------------------------------------------------------
+/* hour-aware greeting, IST — "good evening" then the existing stamp;
+   the web is English-only, one quiet line in the hero eyebrow */
+(function(){
+  const h=Math.floor((Date.now()/6e4+330)%1440/60);
+  const g=h<5?'up late':h<12?'good morning':h<17?'good afternoon'
+    :h<21?'good evening':'up late';
+  const e=document.querySelector('.hero-copy .eyebrow');
+  const t=e&&[...e.childNodes].find(n=>n.nodeType===3);
+  if(t)t.nodeValue=g+' · '+t.nodeValue.trim();
+})();
+
+/* --- the canvas --------------------------------------------------------
    three stacked canvases — repaint only the layer whose inputs changed.
-   raster-base: paper + cell tint (dirty on a new field).
+   raster-base: paper + cell tint (dirty on a new field or forecast hour).
    raster-mid: district boundaries + wind arrow (dirty on new geojson,
    wind tick, or resize). raster (top): pins, route, crosshair — cleared
-   and redrawn per frame for ~free. */
+   and redrawn per frame for ~free. no drawImage blits: the compositor
+   stacks the layers, which stays cheap under software rasterisation. */
 const CONF_A={hi:.92,med:.6,lo:.34};
 let CELLS_DIRTY=true,MID_DIRTY=true;
 function laySize(cv){
@@ -843,14 +1173,14 @@ function paintCells(){
   const ctx=cv.getContext('2d'),spec=SPECS[PARAM];
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
-  for(const ft of FEATS){
+  for(const ft of viewFeats()){
     const ring=ft.geometry&&ft.geometry.coordinates&&
                ft.geometry.coordinates[0];
     if(!ring||ring.length<3)continue;
     const p=ft.properties||{};
     const v=p[spec.prop]!=null?p[spec.prop]:p.pm25;
     if(v==null)continue;
-    const col=rampCol(v,spec);
+    const col=bandCol(v,spec.breaks);
     ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${CONF_A[p.conf]??.34})`;
     ctx.beginPath();
     ring.forEach(([lo,la],i)=>{i?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
@@ -924,7 +1254,7 @@ function drawSegRoute(ctx,segs,p){
     ctx.strokeStyle='rgba(250,250,247,.9)';ctx.lineWidth=6.5;ctx.stroke()}
   let k=0;
   for(const [s,pts] of vis){
-    const c=s.pm25!=null?rampCol(s.pm25,SPECS.pm2_5):[22,24,29];
+    const c=s.pm25!=null?bandCol(s.pm25,SPECS.pm2_5.breaks):[22,24,29];
     const deep=c.map(v=>Math.round(v*.74+0x16*.26));   /* inked 26% — a line needs the hue's darker register */
     ctx.beginPath();
     pts.forEach(([lo,la],j)=>{j?ctx.lineTo(toX(lo),toY(la)):ctx.moveTo(toX(lo),toY(la))});
@@ -957,23 +1287,11 @@ function kickRoute(){
     if(el<ROUTE_DUR)ROUTE_RAF=requestAnimationFrame(tick)};
   ROUTE_RAF=requestAnimationFrame(tick);
 }
-function drawPin(ctx,pt,ch){
-  const x=toX(pt.lon),y=toY(pt.lat);
-  ctx.beginPath();ctx.arc(x,y,9,0,6.283);
-  ctx.fillStyle='rgba(250,250,247,.9)';ctx.fill();
-  ctx.beginPath();ctx.arc(x,y,9,0,6.283);
-  ctx.strokeStyle='rgba(22,24,29,.9)';ctx.lineWidth=1.2;ctx.stroke();
-  ctx.fillStyle='#16181d';ctx.font='600 9px '+monoFont();
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(ch,x,y+.5);
-  ctx.textBaseline='alphabetic';
-}
 function drawScene(){
   if(!W||!H)return;
   if(CELLS_DIRTY)paintCells();
   if(MID_DIRTY)paintMid();
   const cv=$('raster'),ctx=cv.getContext('2d');
-  laySize(cv);
   ctx.clearRect(0,0,W,H);
   /* a/b markers + the priced route — drawn over cells, never under */
   if(PT_A)drawPin(ctx,PT_A,'a');
@@ -1034,6 +1352,250 @@ function drawScene(){
 const monoFont=()=>getComputedStyle(document.body).fontFamily.includes('SF Mono')
   ?'"SF Mono",Menlo,monospace':'ui-monospace,Menlo,monospace';
 
+/* --- the ambient field --------------------------------------------------
+   the hero's own canvas: the same /grid features the instrument reads,
+   drawn edge to edge under the statement. cells breathe out of phase
+   (confidence sets the ceiling), district borders ink at furniture
+   weight, and motes drift on the real wind vector /health reported —
+   the air itself, moving. one rAF loop, only while the hero is on
+   screen and the tab awake; reduced-motion gets a single still paint. */
+let AW=0,AH=0,AIR_RAF=0,AIR_ON=false,AIR_SEED=[];
+const aX=l=>(l-BBOX.w)/(BBOX.e-BBOX.w)*AW;
+const aY=la=>(BBOX.n-la)/(BBOX.n-BBOX.s)*AH;
+function airSize(){
+  const cv=$('fieldair');if(!cv)return;
+  const dpr=devicePixelRatio||1;
+  AW=cv.clientWidth;AH=cv.clientHeight;
+  cv.width=Math.round(AW*dpr);cv.height=Math.round(AH*dpr);
+  cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+  AIR_SEED=Array.from({length:56},()=>({x:Math.random()*AW,
+    y:Math.random()*AH,j:Math.random()*6.283,s:.6+Math.random()*.9}));
+}
+function paintAir(ts){
+  const cv=$('fieldair');if(!cv||!AW||!AH)return;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,AW,AH);
+  ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,AW,AH);
+  if(FEATS.length){
+    const spec=SPECS.pm2_5;
+    for(let i=0;i<FEATS.length;i++){
+      const ft=FEATS[i],
+        ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
+      if(!ring||ring.length<3)continue;
+      const v=(ft.properties||{}).pm25;if(v==null)continue;
+      const col=bandCol(v,spec.breaks);
+      const ph=Math.sin(ts/3600+i*1.7);
+      const a=(CONF_A[(ft.properties||{}).conf]??.34)*(.5+.11*ph);
+      ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${a.toFixed(3)})`;
+      ctx.beginPath();
+      ring.forEach(([lo,la],k)=>{k?ctx.lineTo(aX(lo),aY(la)):
+        ctx.moveTo(aX(lo),aY(la))});
+      ctx.closePath();ctx.fill();
+    }
+    ctx.lineJoin='round';ctx.strokeStyle='rgba(22,24,29,.2)';
+    ctx.lineWidth=1;
+    for(const f of GJ){const g=f.geometry;if(!g)continue;
+      const polys=g.type==='Polygon'?[g.coordinates]
+        :g.type==='MultiPolygon'?g.coordinates:[];
+      for(const poly of polys){if(!poly[0])continue;
+        ctx.beginPath();poly[0].forEach(([lo,la],i)=>{
+          i?ctx.lineTo(aX(lo),aY(la)):ctx.moveTo(aX(lo),aY(la))});
+        ctx.closePath();ctx.stroke()}}
+  }else{
+    /* honest skeleton — the field has not answered yet: a faint grid
+       of ink dots instead of a fake surface */
+    ctx.fillStyle='rgba(22,24,29,.07)';
+    for(let y=14;y<AH;y+=26)for(let x=14;x<AW;x+=26)ctx.fillRect(x,y,1.6,1.6);
+  }
+  /* motes — particulate drift on the real wind vector; no wind, no drift */
+  if(WIND&&WIND.from_deg!=null&&WIND.speed_kmh>0.5&&AIR_SEED.length){
+    const th=(Number(WIND.from_deg)+180)*Math.PI/180,
+          dx=Math.sin(th),dy=-Math.cos(th),
+          v=(6+Math.min(40,WIND.speed_kmh)*1.1)/60;
+    ctx.fillStyle='rgba(22,24,29,.16)';
+    for(const m of AIR_SEED){
+      m.x+=dx*v*m.s+Math.sin(ts/900+m.j)*.12;
+      m.y+=dy*v*m.s+Math.cos(ts/1100+m.j)*.10;
+      if(m.x<-4)m.x+=AW+8;else if(m.x>AW+4)m.x-=AW+8;
+      if(m.y<-4)m.y+=AH+8;else if(m.y>AH+4)m.y-=AH+8;
+      ctx.fillRect(m.x,m.y,2.1,2.1);
+    }
+  }
+  cv.classList.add('ready');
+}
+function airLoop(ts){
+  AIR_RAF=0;
+  if(!AIR_ON)return;
+  paintAir(ts==null?performance.now():ts);
+  AIR_RAF=requestAnimationFrame(airLoop);
+}
+function airKick(){
+  if(AIR_ON&&!AIR_RAF&&!document.hidden&&!RM)AIR_RAF=requestAnimationFrame(airLoop);
+}
+(function(){
+  const cv=$('fieldair');if(!cv)return;
+  /* the hero must not push its numeral past the fold — the sticky
+     chrome's true height is measured, not assumed */
+  const bar=document.querySelector('.top');
+  const thh=()=>document.documentElement.style.setProperty('--thh',
+    (bar?bar.offsetHeight:60)+'px');
+  thh();addEventListener('resize',thh);
+  airSize();cv.classList.add('ready');
+  if(RM){   /* reduced motion: one still frame once data lands */
+    const still=()=>{if(FEATS.length)paintAir(0);else setTimeout(still,450)};
+    setTimeout(still,80);
+    addEventListener('resize',()=>{airSize();paintAir(0)});
+    return;
+  }
+  const io=new IntersectionObserver(es=>{
+    AIR_ON=es[0].isIntersecting;
+    if(AIR_ON){airSize();airKick()}
+    else if(AIR_RAF){cancelAnimationFrame(AIR_RAF);AIR_RAF=0}
+  },{threshold:.02});
+  io.observe(document.querySelector('.open'));
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&AIR_RAF){cancelAnimationFrame(AIR_RAF);AIR_RAF=0}
+    else airKick()});
+  addEventListener('resize',()=>{clearTimeout(cv._rz);
+    cv._rz=setTimeout(()=>{airSize();if(!AIR_RAF)paintAir(performance.now())},160)});
+})();
+function drawPin(ctx,pt,ch){
+  const x=toX(pt.lon),y=toY(pt.lat);
+  ctx.beginPath();ctx.arc(x,y,9,0,6.283);
+  ctx.fillStyle='rgba(250,250,247,.9)';ctx.fill();
+  ctx.beginPath();ctx.arc(x,y,9,0,6.283);
+  ctx.strokeStyle='rgba(22,24,29,.9)';ctx.lineWidth=1.2;ctx.stroke();
+  ctx.fillStyle='#16181d';ctx.font='600 9px '+monoFont();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(ch,x,y+.5);
+  ctx.textBaseline='alphabetic';
+}
+
+/* --- watch the day — the forecast drift over this same raster ---------
+   every frame is a real served /grid surface at h+N; nothing is ever
+   interpolated client-side. TL.frame is the hour's features — drawScene
+   and the inspector both read viewFeats(), so what you see is what you
+   click. pm2.5-only (the horizon is a pm2.5 model); another param
+   disengages the layer and hands the canvas back to the live field. */
+const TL={playing:false,h:0,timer:null,seq:0,ok:false,frame:null,
+          cache:{},pending:{},epoch:null,touched:0};
+                                        /* cache[h]: feats | null(failed);
+           epoch = the served [forecast_at, field_at, obs] stamp of the
+           frames in cache; touched = wall-clock of the last pull — the
+           pair that decides when a cached surface has to be re-asked */
+const TL_MAX=11,TL_MS=1500;
+const viewFeats=()=>TL.frame||FEATS;
+const tlClock=h=>new Date(Date.now()+h*36e5)
+  .toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});
+const TL_NOTE_ON=`cells = forecast hour · numbers elsewhere stay live — forecast surface — CAMS + stagnation model; confidence fades with horizon`;
+const TL_NOTE_OFF=`the next twelve hours — forecast surface — CAMS + stagnation model; confidence fades with horizon`;
+function tlSetHour(h){TL.seq++;TL.h=h;const r=$('tlRange');r.value=h;
+  r.style.setProperty('--tp',(h/TL_MAX*100)+'%');
+  $('tlHour').textContent=h===0?'h+0 now':`h+${h} ${tlClock(h)} IST`}
+function tlTick(t){const e=$('tlLoad');
+  if(t==null){e.hidden=true;return}e.hidden=false;e.textContent=t}
+async function tlFetch(h){
+  if(h in TL.cache)return TL.cache[h];
+  if(TL.pending[h])return TL.pending[h];
+  TL.pending[h]=api(`/grid?cells=${CELLS}&param=pm2_5&h=${h}`)
+    .then(g=>{const f=(g&&g.features)||[];
+      const ep=g&&g.properties&&g.properties.cell_epoch;
+      if(ep)TL.epoch=ep;
+      TL.touched=Date.now();
+      TL.cache[h]=f.length?f:null;return TL.cache[h]})
+    .catch(()=>{TL.cache[h]=null;return null})
+    .finally(()=>{delete TL.pending[h]});
+  return TL.pending[h];
+}
+/* the frames are a served surface, not a session fixture — when the
+   live poll sees the field rebuild (its cell_epoch[0] moves past the
+   field stamp the horizon frames were fetched under, epoch[1]), or the
+   frames simply outlive one field cadence (900 s — the floor every
+   served layer claims against), the cached set is dropped and only the
+   hour on screen re-pulls; the rest go back to lazy fetch-on-touch.
+   A re-pull re-asks /grid for the current epoch — never a fake timer
+   and never newer than the source. */
+function tlInvalidate(){
+  TL.cache={};TL.seq++;            /* seq kills in-flight scrub paints */
+  if(TL.frame){const h=TL.h;TL.frame=null;tlShow(h)}
+}
+function tlAged(){
+  if(TL.touched&&Date.now()-TL.touched>900e3)tlInvalidate()
+}
+function tlCap(){                        /* caption owns the frame shown */
+  const vals=(TL.frame||[]).map(f=>{const p=f.properties||{};
+    return p.pm25}).filter(v=>v!=null).sort((a,b)=>a-b);
+  if(vals.length)$('capLeft').innerHTML=
+    `cells = forecast h+${TL.h} — ${fmt(vals.length)} cells, `+
+    `${F1(vals[0])}–${F1(vals[vals.length-1])} µg/m³ · `+
+    `district chips + edge pricing stay live. ${MODE==='inspect'?'Click a cell.':'Pick two points.'}`;
+}
+async function tlShow(h){
+  const seq=++TL.seq;
+  $('tlNow').hidden=false;$('tlNote').textContent=TL_NOTE_ON;
+  if(TL.cache[h]){TL.frame=TL.cache[h];CELLS_DIRTY=true;drawScene();tlCap();tlTick(null);return}
+  tlTick(`loading h+${h}`);
+  const f=await tlFetch(h);
+  if(seq!==TL.seq)return;                  /* a newer scrub owns the map */
+  if(f){TL.frame=f;CELLS_DIRTY=true;drawScene();tlCap();tlTick(null)}
+  else if(TL.playing){tlTick(null);tlAdvance()}
+  else tlTick(`h+${h} — no surface served`);
+}
+function tlAdvance(){                      /* next cached frame, or hold */
+  for(let h=TL.h+1;h<=TL_MAX;h++){
+    if(TL.cache[h]){tlSetHour(h);TL.frame=TL.cache[h];
+      CELLS_DIRTY=true;drawScene();tlCap();tlTick(null);return}}
+  let left=false;
+  for(let h=TL.h+1;h<=TL_MAX;h++)if(TL.cache[h]!==null)left=true;
+  if(!left){tlStop();return}               /* only failed hours remain */
+  tlTick(`loading h+${TL.h+1}`);
+}
+function tlDeep(){                         /* lazy chain, one at a time */
+  let h=0;const next=()=>{while(h<=TL_MAX&&h in TL.cache)h++;
+    if(h>TL_MAX)return;
+    tlFetch(h++).finally(()=>setTimeout(next,80))};
+  next();
+}
+function tlPlay(){
+  if(TL.h>=TL_MAX)tlSetHour(0);
+  TL.playing=true;$('tlPlay').textContent='‖ pause';
+  $('tlPlay').setAttribute('aria-pressed','true');
+  tlDeep();                                /* deeper hours fetch on first play */
+  TL.timer=setInterval(tlAdvance,TL_MS);
+  tlShow(TL.h);
+}
+function tlPause(){TL.playing=false;clearInterval(TL.timer);
+  $('tlPlay').textContent='▶ resume';$('tlPlay').setAttribute('aria-pressed','false')}
+function tlStop(){TL.playing=false;clearInterval(TL.timer);
+  $('tlPlay').textContent='▶ watch the day'; /* honest stop at h+11 */
+  $('tlPlay').setAttribute('aria-pressed','false')}
+function tlReset(){                        /* back to the live field */
+  tlStop();TL.frame=null;tlSetHour(0);tlTick(null);
+  $('tlNow').hidden=true;$('tlNote').textContent=TL_NOTE_OFF;
+  CELLS_DIRTY=true;drawScene();capLive()}
+function tlGate(){                         /* pm2.5-only control */
+  if(!(TL.ok&&PARAM==='pm2_5')){
+    if(TL.frame||TL.playing)tlReset();
+    $('tl').hidden=true;return}
+  $('tl').hidden=false;
+}
+async function tlInit(){
+  $('tlNote').textContent=TL_NOTE_OFF;
+  /* h+0 doubles as the availability probe — if the horizon endpoint
+     errors, the section stays complete without a dead control */
+  const f=await tlFetch(0).catch(()=>null);
+  if(!f)return;
+  TL.ok=true;tlGate();
+  $('tlPlay').addEventListener('click',()=>TL.playing?tlPause():tlPlay());
+  $('tlRange').addEventListener('input',()=>{tlSetHour(+$('tlRange').value);tlShow(TL.h)});
+  $('tlNow').addEventListener('click',tlReset);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&TL.playing)tlPause();
+    else if(!document.hidden)tlAged()});   /* re-entry = a freshness check */
+  const idle=window.requestIdleCallback||(f=>setTimeout(f,400));
+  idle(()=>{tlFetch(1).then(()=>tlFetch(2)).then(()=>tlFetch(3))});
+}
+
 /* --- fetch + paint ------------------------------------------------------ */
 let PAINTSEQ=0;
 let LIVE_CAP={};                        /* live-caption facts for reset */
@@ -1052,12 +1614,17 @@ async function paint(){
   const cv=$('raster'),ctx=cv.getContext('2d');
   const spec=SPECS[PARAM];
   /* size the bitmap before the fetch so both the slow-network skeleton
-     and the failure state have a real surface to draw on */
+     and the failure state have a real surface to draw on — an unseen
+     W/H=0 was the old bug behind an invisible error message. */
   const w=cv.parentElement.clientWidth||896,dpr=window.devicePixelRatio||1;
   W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
-  laySize(cv);
-  /* hold the last painted frame while the new param fetches; on a cold
-     first paint draw an honest skeleton instead */
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){
+    cv.width=W*dpr;cv.height=H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  /* hold the last painted frame while the new param fetches — caption
+     says 'loading', the canvas never blanks. on a cold first paint
+     (nothing held yet) draw an honest skeleton instead. */
   if(!FEATS.length){
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='#a6acb8';ctx.font='11px '+monoFont();ctx.textAlign='center';
@@ -1083,6 +1650,9 @@ async function paint(){
     $('confSplit').textContent=
       `${hi} measured · ${med} estimated between stations · ${lo} thin`;
     const ep=g.properties&&g.properties.cell_epoch;
+    /* a fresh field epoch re-anchors the horizon surface too — the
+       timeline frames fetched under the previous build are stale now */
+    if(ep&&TL.epoch&&ep[0]!==TL.epoch[1])tlInvalidate();
     /* IST like the other pages' stamps — a viewer on any other clock
        sees the field's own build minute, not a stale local time */
     if(ep)$('fieldAge').textContent=
@@ -1093,14 +1663,14 @@ async function paint(){
     const derived=(FEATS[0]&&FEATS[0].properties&&FEATS[0].properties.derived)||null;
     LIVE_CAP={n:vals.length,lo:vals.length?vals[0]:null,
               hi:vals.length?vals[vals.length-1]:null,derived};
-    if(vals.length)capLive();
+    if(TL.frame)tlCap();else if(vals.length)capLive();
     cv.parentElement.classList.add('ready');
-    /* the statusline may already have rendered before MEDIAN landed —
-       refresh it so 'median' isn't absent for 120s */
+    /* the status line may already have rendered before MEDIAN
+       landed — refresh it so 'median' isn't absent for 120s */
     if(MEDIAN!=null)status();
   }catch(e){
     /* honest failure: the grid is unreachable. say so, say the retry
-       cadence, never fake a surface. */
+       cadence (the 120s interval does retry), never fake a surface. */
     ctx.fillStyle='#f3f2ec';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='#a6acb8';ctx.font='11px '+monoFont();ctx.textAlign='center';
     ctx.fillText('the live map is unreachable — retrying',W/2,H/2-9);
@@ -1122,14 +1692,16 @@ function renderPills(){
 }
 $('psel').addEventListener('click',e=>{
   const b=e.target.closest('button[data-p]');if(!b||b.dataset.p===PARAM)return;
-  PARAM=b.dataset.p;renderPills();
+  PARAM=b.dataset.p;renderPills();tlGate();
   INS=null;$('fpop').hidden=true;
   /* a drawn route stays valid geographically, but the surface + dose basis
      are pm2.5-specific — repaint fresh rather than recolor stale cells */
   PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';
   paint();
 });
-/* the demo chip — one tap, a real trip priced live on the map */
+/* the demo chip — one tap, a real trip priced live on the map. honest
+   by construction: it fires the same /v2/plan call a manual a→b does,
+   on two real anchors; it just saves the demo-room the pin-hunting. */
 function hideDemoChip(){const c=$('demoChip');if(c)c.classList.add('gone')}
 $('demoChip').addEventListener('click',()=>{
   hideDemoChip();
@@ -1151,9 +1723,8 @@ $('msel').addEventListener('click',e=>{
 /* --- cell inspector ----------------------------------------------------- */
 function hitCell(x,y){
   const lon=toLon(x),lat=toLat(y);
-  for(const ft of FEATS){
-    const ring=ft.geometry&&ft.geometry.coordinates&&
-               ft.geometry.coordinates[0];
+  for(const ft of viewFeats()){
+    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
     if(ring&&ring.length>2&&pip(lon,lat,ring))return{ft,lon,lat};
   }
   return{ft:null,lon,lat};
@@ -1172,7 +1743,7 @@ function showCellCard(ft,x,y,pinned){
   const bi=v!=null?bandIdx(v,spec.breaks):null;
   pop.hidden=false;
   pop.innerHTML=`<div class="p-name">${NAMES[key]!=null?NAMES[key]:'locating…'}</div>
-    <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}`:''}${pinned?' · pinned — esc closes':''}</div>
+    <div class="p-sub">sector ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}`:''}${TL.frame?` · forecast h+${TL.h}`:''}${pinned?' · pinned — esc closes':''}</div>
     <div class="p-v"><b>${v==null?'—':F1(v)}</b> ${spec.title}${spec.unit==='aqi'?'':' µg/m³'}${bi!=null?` · <span class="pcol" style="background:rgb(${BAND[bi].join(',')})"></span>${BAND_NAME[bi]}`:''}</div>
     <div class="p-conf">${p.conf==='hi'?'high confidence — many stations near here'
       :p.conf==='med'?'medium confidence — some stations near here'
@@ -1325,7 +1896,8 @@ async function planAB(){
       ROUTE=null;drawScene();
       /* honest empty has three shapes — outside the field window, inside
          but the arms didn't answer in budget (degraded names them), and
-         inside with no road path between the points. */
+         inside with no road path between the points. Only the first is a
+         coverage statement; don't claim coverage for a timed-out arm. */
       const tail=d.code==='outside_service_area'
         ?'the engine only prices inside the NCR map'
         :(d.degraded||[]).length
@@ -1372,7 +1944,10 @@ async function planAB(){
 }
 
 /* "when to leave" — earned surface: only after a route exists, it asks
-   /depart for the real dose-by-hour curve on the same corridor. */
+   /depart for the real dose-by-hour curve on the same corridor. hairline
+   polyline + one cpcb-tinted dot per slot (tint = the concentration you'd
+   breathe that hour, same field basis as the raster), best slot ringed.
+   one line of text, honest in every shape the data can take. */
 async function departAB(a,b,seq){
   try{
     const d=await api(`/depart?from_lat=${a.lat}&from_lon=${a.lon}`+
@@ -1410,8 +1985,12 @@ async function departAB(a,b,seq){
 }
 
 /* dose-per-mode ladder — the engine already priced every option; this is
-   that list made visible. one hairline row per mode: name, bar ∝ dose
-   mid, dose + lo–hi band. */
+   that list made visible. one hairline row per mode: name, bar ∝ dose mid,
+   dose + lo–hi band. recommended row inked; the DRAWN row gets the heavier
+   bar (drawn ≠ recommended is honest). clicking a row re-draws the canvas
+   from that option's own route_geojson — the engine's actual geometry for
+   the mode. no geometry → honest 'priced, no road path to draw'. truncated
+   options carry their gap + lo-conf flag inline and are never inked. */
 let LOPTS=[];
 function ladderAB(opts,drawnOpt,seq){
   if(seq!==PLANSEQ)return;
@@ -1479,14 +2058,17 @@ function drawOption(i,seq){
     r.classList.toggle('drawn',j===i&&geo.length>0)});
 }
 
-/* --- the hero number + the live reads ------------------------------------
-   hero numeral = the field mean itself (pm25_stats.mean off /v2/city) —
-   the dosimeter's own reading. the strip's spark = the payload's
-   next_hours, a real served forecast, nothing interpolated. the story
-   card = the same payload's why block. every state has an honest shape:
-   unreachable says so, never fakes. */
-/* the numeral counts in once — the instrument waking up. refresh ticks
-   stay instant; reduced-motion skips the sweep entirely. */
+/* --- the hero number + the recorded day ---------------------------------
+   hero number = the server's own breath figure (/v2/city .breath): a day
+   of breathing today's field, field-weighted over the NCR lattice, in
+   cigarettes (the page's only unit a cold reader already feels). the day
+   strip = /today's climatology curve — recorded history, not forecast.
+   every state has an honest shape: unreachable says so, never fakes. */
+/* the hero numeral counts in once — the instrument waking up. refresh
+   ticks stay instant; reduced-motion skips the sweep entirely. */
+/* the numeral counts in once (the instrument waking up) and ticks on
+   each live refresh — numbers move between real values, never fake.
+   reduced-motion and the rAF-stall backstop land the true figure. */
 function countTo(el,target,dur){
   const done=()=>{el.textContent=target>=100?`${Math.round(target)}`:F1(target);
     el._v=target};
@@ -1525,54 +2107,26 @@ function sparkFill(hrs){
   $('sparkL').innerHTML=
     `the next ${vs.length} hours — live forecast · <b>${F1(lo)}–${F1(hi)}</b>`+
     ` <span style="text-transform:none">µg/m³</span>`;
-  $('vNext').textContent=`${F1(lo)}–${F1(hi)} µg/m³`;
+  el.hidden=false;
   /* the curve draws itself once, on entry */
   if(RM)el.classList.add('dr');
   else{const io=new IntersectionObserver(es=>{
     if(es[0].isIntersecting){el.classList.add('dr');io.disconnect()}},
     {threshold:.45});io.observe(el)}
 }
-/* the story card — the causal read off /v2/city's why block: the fires
-   and the wind in felt words, with its own age disclosed. no note → the
-   card says the honest flat thing, never a guess. */
-function paintStory(d){
-  const w=d&&d.why||{};
-  const sa=w.story_age_s;
-  $('storyAge').textContent=sa==null?'—'
-    :sa<90?'just now':`updated ${Math.round(sa/60)} min ago`;
-  if(!w.cause_note&&!w.line){
-    $('storyLine').textContent='the usual local air — no single driver stands out';
-    return;
-  }
-  $('storyLine').innerHTML=(w.line?`<b>${esc(w.line)}.</b> `:'')+
-    (w.cause_note?esc(w.cause_note):'');
-  const ev=(w.drivers||[])[0];
-  $('storyEvid').textContent=ev&&ev.evidence?ev.evidence:'';
-}
+/* the live read that follows you past the proof zone — filled once
+   BOTH halves are known: the mean from /v2/city (heroCity) and the
+   field's age from /health (status); either may answer first */
+/* the hero's foot line — the same provenance the status strip reads,
+   kept small so the numeral stays the object */
 /* wind expires ~31 min server-side — a met vector past the field's own
    cadence must carry its age like every other number does */
 const windAge=w=>w&&w.age_s>900?` · ${Math.round(w.age_s/60)}m old`:'';
-function paintVitals(h){
-  /* the vitals rail — proof the board is live, straight off /health */
-  const s=h.sources||{};
-  const stn=(s.stations||{}).count||0;
-  const wind=h.wind||{};WIND=wind.speed_kmh?wind:null;
-  MID_DIRTY=true;    /* the wind arrow lives in the mid layer */
-  const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+' min':'—';
-  FIELD_AGE_S=h.field_age_s!=null?h.field_age_s:null;
-  FIELD_AGE_AT=Date.now();FIELD_STALE=!!h.field_stale;
-  HL_STN=stn;HL_WIND=wind;
-  $('vStn').textContent=stn>0?stn:'—';
-  $('vAge').textContent=h.field_stale?'stale':(h.field_age_s!=null?age+' old':'—');
-  const dirs=['N','NE','E','SE','S','SW','W','NW'];
-  const dirw=wind.from_deg!=null?dirs[Math.round(((wind.from_deg%360)+360)%360/45)%8]:null;
-  $('vWind').textContent=wind.speed_kmh
-    ?`${Math.round(wind.speed_kmh)} km/h${dirw?' '+dirw:''}${windAge(wind)}`:'—';
-  const priced=h.routing&&h.routing.edges_priced;
-  $('vPriced').textContent=priced!=null
-    ?(priced>=1e6?(priced/1e6).toFixed(2)+'m':Math.round(priced/1e3)+'k'):'—';
-  FIELD_AGE_TXT=h.field_stale?'stale':age+' fresh';
-  paintToplive();paintAnchorAge();
+function paintHeroLive(){
+  const el=$('heroLive');if(!el)return;
+  el.innerHTML=(HL_STN>0?`<b>${HL_STN}</b> stations live · `:'')+
+    (FIELD_AGE_TXT?`map <b>${FIELD_AGE_TXT}</b>`:'')+
+    (HL_WIND&&HL_WIND.speed_kmh?` · wind <b>${Math.round(HL_WIND.speed_kmh)} km/h</b>${windAge(HL_WIND)}`:'');
 }
 function paintToplive(){
   const tl=$('toplive');
@@ -1580,106 +2134,102 @@ function paintToplive(){
   /* µ uppercases to Μ inside the strip's caps register — opt it out or
      µg reads as mg */
   tl.innerHTML=`<i class="tdot"></i>`+
-    `pm2.5 <b style="margin-left:6px">${CITY_MEAN>=100?Math.round(CITY_MEAN):F1(CITY_MEAN)}</b>`+
-    `<span style="text-transform:none"> µg/m³</span>`+
+    `pm2.5 <b>${CITY_MEAN>=100?Math.round(CITY_MEAN):F1(CITY_MEAN)}</b>`+
+    ` <span style="text-transform:none">µg/m³</span>`+
     (FIELD_AGE_TXT?` · map ${FIELD_AGE_TXT}`:'');
-}
-/* the anchor line — where the board's reference read sits: the gazetteer
-   name at the connaught place anchor, the nearest live monitor's
-   distance, and the map's age. name best-effort; the numbers carry it. */
-let ANCHOR={name:null,km:null};
-function paintAnchorAge(){
-  const el=$('hnumA');if(!el)return;
-  const bits=['field read — <b>the ncr-wide mean</b>'];
-  if(ANCHOR.name)bits.push(`anchored at ${esc(ANCHOR.name)}`);
-  else bits.push('anchored at connaught place');
-  if(ANCHOR.km!=null)bits.push(`nearest live monitor ~${F1(ANCHOR.km)} km`);
-  bits.push(`map <b>${FIELD_AGE_TXT||'—'}</b>`);
-  el.innerHTML=bits.join(' · ');
-}
-async function anchorRead(){
-  try{
-    const a=await api('/aqi?lat=28.6315&lon=77.2167');
-    if(a&&a.nearest_station_km!=null)ANCHOR.km=a.nearest_station_km;
-  }catch(e){}
-  try{
-    const r=await fetch('/v2/reverse?lat=28.6315&lon=77.2167',
-      {signal:AbortSignal.timeout(5000)});
-    if(r.ok){const j=await r.json();
-      if(j&&j.name)ANCHOR.name=String(j.name).replace(/^near /,'')}
-  }catch(e){}
-  paintAnchorAge();
+  tlSync();   /* the text may land after the last scroll event */
 }
 async function heroCity(){
   try{
     const d=await api('/v2/city');
     const b=d.breath||{};
     const cig=(b.cigarettes||{}).mid, ug=(b.day_inhaled_ug||{}).mid;
+    /* the hero numeral is the field mean itself — the dosimeter's own
+       reading (µg-first framing; cigarettes stay a qualifier, never the
+       headline). the zone washes to the day's live band, the rule under
+       the readout breathes in band ink, the small square keeps the true
+       hue — all off pm25_stats.mean. */
     const mean=d.pm25_stats&&d.pm25_stats.mean;
     if(mean!=null){
       CITY_MEAN=mean;
-      const bi=bandIdx(mean,SPECS.pm2_5.breaks),bx=bandHex(bi);
+      const bi=bandIdx(mean,SPECS.pm2_5.breaks),el=$('hnum'),bx=bandHex(bi);
+      /* the day's band wash lives at root — the hero's scrim AND the
+         dose zone below both wear it */
       const root=document.documentElement.style;
       root.setProperty('--hw',`var(--bw${bi})`);
-      root.setProperty('--he',inkHex(bx));
+      el.style.setProperty('--he',inkHex(bx));
+      el.style.setProperty('--nv',`var(--bi${bi})`);
+      el.style.setProperty('--ni',`var(--bi${bi})`);
+      el.style.setProperty('--hb',bx);
+      /* band vars beyond .hnum's scope — eyebrow dot, field dot, the
+         top-strip square, the map card's glow, the scrub deck fill */
       root.setProperty('--bhex',bx);
+      root.setProperty('--he',inkHex(bx));
       root.setProperty('--gw',washHex(bx,.55));
-      root.setProperty('--nv',`var(--bi${bi})`);
-      root.setProperty('--ni',`var(--bi${bi})`);
-      root.setProperty('--hb',bx);
-      $('hnumV').classList.remove('na');
       $('hnumW').textContent=`pm2.5 · ${BAND_NAME[bi]}`;
       countIn($('hnumV'),mean);
-      /* grap equivalent — the legal frame of this hour's mean */
-      const g=d.grap;
-      if(g&&g.equivalent_stage!=null){
-        /* same frame as /city + the console: GRAP's legal stages are
-           I–IV — a served 0 is 'below stage i', never 'stage 0', and the
-           hover carries the honesty note every other surface states */
-        $('vGrap').textContent=g.equivalent_stage
-          ?`stage ${['','i','ii','iii','iv'][g.equivalent_stage]||g.equivalent_stage} · aqi ${g.aqi}`
-          :`below stage i · aqi ${g.aqi}`;
-        $('vGrap').title="computed from the live field — the official stage is caqm's call";
+      el.classList.add('breathe');
+      /* the equation — dose made visible as arithmetic, all terms live
+         (mean + a day's inhaled µg + its cigarette equivalent) */
+      if(ug!=null&&cig!=null&&cig>0){
+        $('eqConc').textContent=mean>=100?`${Math.round(mean)}`:F1(mean);
+        $('eqDose').textContent='≈'+fmt(ug);
+        $('eqCig').textContent=F1(cig);
+        $('eq').hidden=false;
       }
-      /* the felt line — a day's breathing in the one unit a cold reader
-         already feels */
+      sparkFill(d.next_hours);
+      paintToplive();
+      /* the felt line — the lead's translation, cigarettes as the
+         qualifier, never the figure */
       if(cig!=null&&cig>0){
         $('hnumT').innerHTML=`if you breathed it all day ≈`
-          +` <b>${F1(cig)} cigarettes</b> — a day at 22 µg/m³ ≈ 1`;
+          +` <b>${F1(cig)} cigarettes</b>`;
       }else{
         $('hnumT').innerHTML=`if you breathed it all day`
           +`${ug!=null?` ≈ <b>${fmt(ug)} µg</b> inhaled`:''}`;
       }
-      sparkFill(d.next_hours);
-      paintToplive();
-      paintStory(d);
+      /* the basis line uppercases — µ must opt out or µg becomes "mg" */
+      const noT='<span style="text-transform:none">µg/m³</span>';
+      $('hnumS').innerHTML=`live · the ncr-wide average`
+        +`${(b.cigarettes||{}).hi!=null?` · worst ≈${F1(b.cigarettes.hi)} cigarettes` :''}`
+        +` · a day at 22 ${noT} ≈ 1 cigarette`;
     }else{
-      $('hnumV').textContent='—';$('hnumV').classList.add('na');
+      $('hnumV').textContent='—';
       $('hnumW').textContent='pm2.5 — the air map';
       $('hnumT').textContent='the breath figure came back empty — no fake number shown';
-      $('storyLine').textContent='the drivers are unreachable — the map below still reads live';
+      $('hnumS').textContent='the map below still reads live';
     }
     const t=d.typical||{};
+    /* the archive's basis month is served, not guessed — the label
+       follows the payload so it never sits a month stale */
+    if(t.month>=1&&t.month<=12){
+      TYP_MONTH=new Date(2000,t.month-1,1)
+        .toLocaleString('en-IN',{month:'long'}).toLowerCase();
+      $('typMonth').textContent=`a typical ${TYP_MONTH}, hour by hour`;
+      $('daybars').setAttribute('aria-label',
+        `typical ${TYP_MONTH} day at connaught place, hour by hour — decade of records`);
+    }
     if(t.vs_now_pct!=null){
       const pc=Math.round(t.vs_now_pct);
-      $('dayWhy').innerHTML=
-        `the archive's middle value for this hour · <b>recorded history</b>, not a forecast`+
-        ` · now — live air ${pc>0?'+':''}${pc}% vs the typical hour`;
+      $('dayNote').textContent=
+        `now — live air ${pc>0?'+':''}${pc}% vs the typical hour`;
     }
   }catch(e){
-    $('hnumV').textContent='—';$('hnumV').classList.add('na');
+    $('hnumV').textContent='—';
     $('hnumT').textContent='the breath figure is unreachable — the page retries it';
-    $('storyLine').textContent='the drivers are unreachable — the map below still reads live';
-    $('storyAge').textContent='—';
+    $('hnumS').textContent='the map below still reads live';
   }
 }
-/* the climatology curve is recorded history — it never changes within a
-   page's life, so it renders from one fetch. But the "now" bar is a
-   clock fact: dayTick re-marks it from wall-clock on the 120 s beat. */
-let DAY_HRS=null;
+/* the climatology curve is recorded history — it never changes within
+   a page's life, so it renders from one fetch. But the "now" bar is a
+   clock fact: a page left open across an hour boundary used to keep
+   the marker frozen on the open-time hour. dayTick re-marks it from
+   wall-clock on the 120 s beat — no refetch for a static curve. */
+let DAY_HRS=null,TYP_MONTH=null;
 const dayBarsHtml=(hrs,mx,now)=>hrs.map((v,i)=>{
-  /* every hour wears its own band — a wash of the hue for plain hours,
-     the hue's ink register on the live one */
+  /* every hour wears its own band — a wash of the hue for plain
+     hours, the hue's ink register on the live one; the strip reads
+     as the city's day, not a chart of bars */
   const bx=bandHex(bandIdx(v,SPECS.pm2_5.breaks));
   const vars=i===now
     ?`--dbw:${washHex(bx,.74)};--dbn:${inkHex(bx,.1)}`
@@ -1708,10 +2258,15 @@ async function dayStrip(){
     else{const io=new IntersectionObserver(es=>{
       if(es[0].isIntersecting){db.classList.add('in');io.disconnect()}},
       {threshold:.3});io.observe(db)}
-  }catch(e){/* the strip keeps its honest-empty text */}
+    $('dayWhy').innerHTML=
+      `typical = the archive's middle value for this hour — ${TYP_MONTH||'october'} · ist ·
+      connaught place · <b>recorded history</b>, not a forecast`;
+    $('daySec').hidden=false;
+  }catch(e){/* the strip stays hidden — honest absence, no fake curve */}
 }
 /* the model grades itself — one honest line, only when /v2/skill has
-   enough real forecast-vs-recorded pairs to stand behind a number. */
+   enough real forecast-vs-recorded pairs to stand behind a number.
+   thin or unreachable: the line simply doesn't exist. */
 async function skillLine(){
   try{
     const d=await api('/v2/skill');
@@ -1725,7 +2280,8 @@ async function skillLine(){
     $('skillLine').hidden=false;
   }catch(e){/* hidden — no score without the pairs to back it */}
 }
-/* why now — the causal read, live from /v2/why at connaught place. */
+/* why tonight — the causal read, live from /v2/why at connaught place.
+   no line → no element: the explainer stays absent rather than guess. */
 async function whyTonight(){
   try{
     const d=await api('/v2/why?lat=28.6315&lon=77.2167');
@@ -1874,28 +2430,41 @@ Promise.all([
 async function loadDistricts(){
   try{const d=await api('/v2/districts');DIST=(d.districts||d)||[];
     if(Array.isArray(DIST)){$('distN').textContent=DIST.length;paintDChips()}}
-  catch(e){/* unreachable → say so: the resting line, not a blank strip */
+  catch(e){/* unreachable → say so: paintDChips renders the resting
+               line when DIST is still empty */
     if(!DIST.length)paintDChips()}
 }
 async function status(){
   try{
     const h=await api('/health');
-    paintVitals(h);
     const s=h.sources||{};
     const stn=(s.stations||{}).count||0;
-    const wind=h.wind||{};
+    const wind=h.wind||{};WIND=wind.speed_kmh?wind:null;
+    MID_DIRTY=true;    /* the wind arrow lives in the mid layer */
     const age=h.field_age_s!=null?Math.round(h.field_age_s/60)+' min':'—';
+    FIELD_AGE_S=h.field_age_s!=null?h.field_age_s:null;
+    FIELD_AGE_AT=Date.now();FIELD_STALE=!!h.field_stale;
+    HL_STN=stn;HL_WIND=wind;
     const edges=h.routing&&h.routing.edges?h.routing.edges:null;
     const priced=h.routing&&h.routing.edges_priced?h.routing.edges_priced:null;
+    if(edges)$('edgecount').textContent=(edges/1e6).toFixed(2);
     const ptxt=priced!=null
       ?(priced>=1e6?(priced/1e6).toFixed(2)+'m':Math.round(priced/1e3)+'k')
       :'—';
+    if(priced!=null){$('pricedcount').textContent=
+      (priced/1e6).toFixed(2);$('pricedcount2').textContent=
+      (priced/1e6).toFixed(2)}
+    if(stn>0)$('stnHero').textContent=stn;
+    /* the live read that follows you past the first fold — same field
+       mean the hero counted, same freshness the status strip reads */
+    FIELD_AGE_TXT=h.field_stale?'stale':age+' fresh';
+    paintToplive();paintHeroLive();
     $('status').innerHTML=
       `<span><b>${stn}</b> stations live</span>`+
       `<span id="stAge">map <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
       (MEDIAN!=null?`<span>${PARAM==='pm2_5'?'usual':SPECS[PARAM].title+' usual'} <b>${Math.round(MEDIAN)}</b> <span style="text-transform:none">${SPECS[PARAM].unit}</span></span>`:'')+
       (wind.speed_kmh?`<span>wind <b>${Math.round(wind.speed_kmh)} km/h</b>${windAge(wind)}</span>`:'')+
-      `<span><b>${ptxt}</b> road segments priced${edges?` of ${(edges/1e6).toFixed(2)}m`:''}</span>`;
+      `<span><b>${ptxt}</b> road segments priced</span>`;
     if(h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
   }catch(e){
     $('status').innerHTML='<span>map unreachable — retrying</span>';
@@ -1903,44 +2472,93 @@ async function status(){
 }
 
 /* quiet scroll entrance — elements marked data-rv rise once as they
-   arrive. the marker stays inert without JS; reduced-motion skips it. */
+   arrive. the marker stays inert without JS (content is just visible);
+   reduced-motion skips the effect entirely. */
 (function(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   if(!('IntersectionObserver' in window))return;
   const io=new IntersectionObserver(es=>{es.forEach(en=>{
     if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}})},
     {threshold:.12,rootMargin:'0px 0px -6% 0px'});
-  const st=document.createElement('style');
-  st.textContent='[data-rv].rv{opacity:0;transform:translateY(10px);transition:opacity .55s cubic-bezier(.16,.6,.24,1),transform .55s cubic-bezier(.16,.6,.24,1)}[data-rv].rv.in{opacity:1;transform:none}';
-  document.head.appendChild(st);
   document.querySelectorAll('[data-rv]').forEach(el=>{
     el.classList.add('rv');io.observe(el)});
 })();
 
-renderPills();paint();status();heroCity();anchorRead();
+/* scroll furniture — the live read slides into the top strip once the
+   proof zone is past, and the hero copy + app shot drift a few px
+   against the scroll so layers read as layers. all px, no layout. */
+(function(){
+  const tl=$('toplive'),hz=$('heroZone'),
+        copy=document.querySelector('.hero-copy'),
+        shot=document.querySelector('.shot');
+  let tick=false;
+  const on=()=>{if(tick)return;tick=true;
+    requestAnimationFrame(()=>{tick=false;
+      /* the proof zone's own bottom, measured live — eq/spark unhide
+         later, so a cached value would lie */
+      const hb=hz?hz.getBoundingClientRect().bottom+scrollY:1e9;
+      if(tl)tl.classList.toggle('on',
+        scrollY>hb-56&&tl.innerHTML.trim()!=='');
+      if(RM)return;
+      if(copy)copy.style.transform=
+        `translateY(${Math.max(-26,-scrollY*.05)}px)`;
+      if(shot){const r=shot.getBoundingClientRect();
+        const off=(r.top+r.height*.5-innerHeight*.5)/innerHeight;
+        shot.style.transform=
+          `translateY(${Math.max(-24,Math.min(24,off*-34))}px)`}
+    })};
+  tlSync=on;
+  addEventListener('scroll',on,{passive:true});
+  addEventListener('resize',on);on();
+})();
+
+/* the film gate — scroll cranks the strip through its three real
+   frames, the caption beat changing under each. gated mode needs JS +
+   motion; otherwise it stays the plain static strip, same markup. */
+(function(){
+  const run=$('filmRun'),gate=document.querySelector('.film-gate'),
+        track=$('filmTrack'),caps=[...document.querySelectorAll('.fcap')];
+  if(!run||!gate||!track||RM)return;
+  run.classList.add('gated');
+  let tick=false;
+  const on=()=>{if(tick)return;tick=true;
+    requestAnimationFrame(()=>{tick=false;
+      const top=run.offsetTop,h=run.offsetHeight,vh=innerHeight;
+      const p=Math.max(0,Math.min(1,(scrollY-top)/(h-vh||1)));
+      const w=gate.clientWidth;
+      track.style.transform=`translate3d(${(-p*2*w).toFixed(1)}px,0,0)`;
+      const ci=Math.min(2,Math.floor(p*2.999));
+      caps.forEach((c,i)=>c.classList.toggle('on',i===ci))})};
+  addEventListener('scroll',on,{passive:true});
+  addEventListener('resize',on);on();
+})();
+
+renderPills();paint();status();heroCity();
 /* below-the-fold feeds wait for the browser's first idle breath — the
    first wave keeps its connections for the number, the map and its
    boundaries instead of eleven requests competing for six slots */
 const idle=(window.requestIdleCallback||(f=>setTimeout(f,400)));
-idle(()=>{loadDistricts()},{timeout:1500});
+idle(()=>{loadDistricts();tlInit()},{timeout:1500});
 idle(()=>{dayStrip();skillLine();whyTonight()},{timeout:2000});
 let rsz=null;window.addEventListener('resize',()=>{
   clearTimeout(rsz);rsz=setTimeout(()=>{
-    const cv=$('raster'),w=cv.parentElement.clientWidth||896;
+    const cv=$('raster'),w=cv.parentElement.clientWidth||896,
+          dpr=window.devicePixelRatio||1;
     W=w;H=Math.round(w*(BBOX.n-BBOX.s)/((BBOX.e-BBOX.w)*ASP));
-    laySize(cv);
+    cv.width=W*dpr;cv.height=H*dpr;
+    cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
     CELLS_DIRTY=true;MID_DIRTY=true;drawScene();
   },160)});
-setInterval(()=>{paint();status();loadDistricts();heroCity();skillLine();whyTonight();dayTick()},120000);
+setInterval(()=>{paint();status();loadDistricts();heroCity();skillLine();whyTonight();tlAged();dayTick()},120000);
 /* the map's freshness ticks over every 30 s — the age figure lives in
-   three surfaces (status line, hero anchor, top strip) and ages between
+   three surfaces (status line, hero foot, top-strip) and ages between
    /health polls */
 setInterval(()=>{
   if(FIELD_AGE_S==null)return;
   const m=Math.round((FIELD_AGE_S+(Date.now()-FIELD_AGE_AT)/1000)/60)+' min';
   FIELD_AGE_TXT=(FIELD_STALE?'stale':m+' fresh');
   const a=$('stAge');if(a)a.innerHTML=`map <b class="ok">${FIELD_AGE_TXT}</b>`;
-  paintToplive();paintAnchorAge();
+  paintToplive();paintHeroLive();
 },30000);
 </script>
 <div id="srlive" class="sr-only" aria-live="polite"></div>
