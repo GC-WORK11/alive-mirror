@@ -7,11 +7,12 @@
 - `/v2/playtime?near=LAT,LON` — rolling 24h curve → best/worst windows + sparse flags
 - `/grid /v2/city /v2/plan /city /community` — all 200
 
-## APK (built 270be81 — has every feature + fix)
-- arm64 (release): alive-270be81-arm64.apk 108.7MB sha dcf7a9e8…5957
-  https://app.devin.ai/attachments/d030782b-a478-4fe9-bb8f-0912888bab97/alive-270be81-arm64.apk
-- universal (x86 fallback): 189.3MB sha 3ac840ac…0aba
+## APK — install THIS one (v6, ec2ed08 — every feature + every fix incl. post-wipe freeze)
+- arm64 release: alive-ec2ed08-arm64.apk 108.7MB sha 95f467ca…8d07
+  https://app.devin.ai/attachments/a1c6257e-18fe-484f-806f-48736f7c8624/alive-ec2ed08-arm64.apk
+- universal x86 fallback (v5, 270be81): 189.3MB sha 3ac840ac…0aba
   https://app.devin.ai/attachments/bd4aa94a-ed39-4835-af53-02c5ac91a0f2/alive-270be81-universal.apk
+- (v5 arm64 superseded — was missing the 5 residual fixes)
 
 ## Videos
 - 106s X-cut (all 4 features, fits 2:20): https://app.devin.ai/attachments/6787bddb-04ee-40fc-9b19-067df5cce60b/alive-x-cut.mp4
@@ -31,7 +32,6 @@ data-truth.md · demo-script.md (3-min, real numbers) · checklist-vs-brief.md �
 2. HTTPS for API if live numbers must show on the Vercel URL (needs domain + cert)
 
 ## Honest gaps
-- Offline "can't reach server" pill transient (e2e-residual lane 61135d92 on it)
-- Post-wipe location-page freeze (same lane)
+- e2e-residual ec2ed08 FIXED all 5 sweep leftovers (post-wipe freeze, offline pill, IST clock, expander, hi a11y) — baked in v6 APK
 - CPCB/OpenAQ dark legs — disclosed on /health, upgrade path in source-upgrade-rfc.md
 - Demo film ran universal build on x86 AVD; arm64 is the device twin (same bundle, prod API baked — verified unzip grep)
