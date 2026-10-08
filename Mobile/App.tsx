@@ -409,9 +409,10 @@ function AppInner() {
     const t = setTimeout(() => setToPin(c), 0);
     return () => clearTimeout(t);
   }, [to]);
-  // route-tint shape sources mount at lower priority — keeps the compare
-  // sheet's entrance animation from sharing a frame with the chunk build
-  const deferredOptions = useDeferredValue(options);
+  // options go straight to the tint sources — the deferred mount starved
+  // under compare's mount churn (deferred lane never committed → the
+  // route simply never painted). The chunk build is pure JS; every
+  // native-style commit still rides the beat's own draw-free timers.
   const lang = settings.lang;
 
   /* Endpoint-pin child swaps are map-side commits — they must land clear
@@ -1384,7 +1385,7 @@ function AppInner() {
       reportSlots={reportSlots}
       fires={fires} spots={spots} layers={layers}
       field={fieldGeo} stations={fieldStations}
-      options={deferredOptions}
+      options={options}
       selected={selected}
       strips={strips}
       fromPin={fromPin} toPin={toPin}
