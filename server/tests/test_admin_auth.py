@@ -228,6 +228,40 @@ def test_in_link_rate_bucket_matches_login():
     assert c.get("/ping").status_code == 200     # global budget untouched
 
 
+def test_in_link_shares_one_bucket_with_login():
+    """audit-3: the magic link and the form verify ONE credential — the
+    brute-force budget is one bucket per socket peer, not one each.
+    Five attempts split across both paths, then 429 on either."""
+    app = FastAPI()
+
+    @app.post(M + "/login")
+    async def login():
+        return {"ok": True}
+
+    @app.get(M + "/in/{secret}")
+    async def inn(secret: str):
+        return {"ok": True}
+
+    @app.get("/ping")
+    async def ping():
+        return {"ok": True}
+
+    middleware.attach(app, rate_per_s=100, burst=100)
+    c = TestClient(app)
+    codes = [
+        c.post(M + "/login").status_code,     # 1
+        c.get(M + "/in/g1").status_code,      # 2
+        c.post(M + "/login").status_code,     # 3
+        c.get(M + "/in/g2").status_code,      # 4
+        c.post(M + "/login").status_code,     # 5 — cap hit
+        c.get(M + "/in/g3").status_code,
+        c.post(M + "/login").status_code,
+    ]
+    assert codes[:5] == [200] * 5
+    assert codes[5:] == [429, 429]
+    assert c.get("/ping").status_code == 200  # global budget untouched
+
+
 def test_in_link_never_reaches_request_log():
     """The path IS the credential — the structured request log renders
     /in/<redacted>, matched route or not (a near-miss guess would still

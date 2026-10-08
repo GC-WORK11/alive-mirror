@@ -1246,6 +1246,12 @@ function AppInner() {
     setLocNotice(t("locating", lang));
     const fix = await posNowDetailed();
     const pos = fix?.pos ?? null;
+    /* the ≤9 s fix window is an async tail like every pick's: if the
+       sheet already left (back-press, compare advancing) the answer is
+       stale — write nothing, reopen nothing (audit-3: the failure
+       branch below was gated, this one wasn't — a late fix re-mounted
+       the place sheet or re-wrote a home/work slot post-close). */
+    if (phaseRef.current !== "search") { setLocNotice(null); return; }
     if (pos && placePickSlot) {
       patchSettings({ [placePickSlot]: { name: fixName(fix!, lang),
         lat: pos.coords.latitude, lon: pos.coords.longitude } });

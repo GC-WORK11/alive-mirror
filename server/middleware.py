@@ -185,7 +185,7 @@ class RateLimitMiddleware:
     def _limits_for(self, path: str) -> tuple:
         for pref, lim in self.overrides.items():
             if path.startswith(pref):
-                return pref, lim[0], lim[1]
+                return _BUCKET_CLASS.get(pref, pref), lim[0], lim[1]
         return "*", self.rate, self.burst
 
     def _evict(self, now: float) -> None:
@@ -447,6 +447,14 @@ _DEFAULT_PATH_LIMITS = {
     # same brake, same bucket: URL-carried or not, brute force stays
     # bound to ~1 guess per 5 s
     (_ADMIN_MOUNT or "/v2/admin") + "/in/": (0.2, 5),
+}
+
+# /in/ and /login verify ONE credential, so they must drain ONE bucket
+# per client — keyed by prefix they'd each grant 5 burst + ~1/5 s, i.e.
+# double the guess budget the comments above promise (audit-3).
+_BUCKET_CLASS = {
+    (_ADMIN_MOUNT or "/v2/admin") + "/in/":
+        (_ADMIN_MOUNT or "/v2/admin") + "/login",
 }
 
 

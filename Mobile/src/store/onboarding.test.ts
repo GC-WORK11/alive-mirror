@@ -92,6 +92,21 @@ describe("consent flag — one-time is one-time", () => {
     assert.equal(c.sharing, "on");
   });
 
+  it("a save queued across delete-my-data is dropped whole", async () => {
+    /* audit-3: saveConsent's merge body ran on writeTail AFTER a wipe —
+       loadConsent repopulated mem (EMPTY) so `mem === null` never fired
+       and the stale patch (seen:true, sharing:"on") resurrected the
+       file. The generation is now captured at CALL time. */
+    const p = saveConsent({ seen: true, sharing: "on", ts: 9 });
+    clearConsent();                       // wipe lands before the merge body
+    await p;
+    const m = fsMap();
+    assert.equal(m.has(`${DOCS}/consent.json`), false);
+    const c = await loadConsent();
+    assert.equal(c.seen, false);
+    assert.equal(c.sharing, null);
+  });
+
   it("clearConsent wipes the file and re-arms the gate", async () => {
     await saveConsent({ seen: true, sharing: "on", ts: 6 });
     clearConsent();

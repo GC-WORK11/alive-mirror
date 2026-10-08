@@ -74,9 +74,16 @@ export async function loadConsent(): Promise<ConsentState> {
  *  last-writer-wins away each other's keys (the onboarding race —
  *  `sharing` landed but `seen: true` was clobbered). */
 export function saveConsent(patch: Partial<ConsentState>): Promise<ConsentState> {
+  /* capture the generation at CALL time: a save queued before delete-
+     my-data but executing after it must be dropped whole — loadConsent
+     repopulates mem (EMPTY) post-wipe, so `mem === null` alone can't
+     see this interleaving and the queued patch would resurrect the
+     file (audit-3: seen:true skipped the gate, sharing:"on" re-armed
+     donation after a wipe). */
+  const gen = wipeGen;
   const p = writeTail.then(async () => {
     const next = { ...(await loadConsent()), ...patch };
-    if (mem === null) return next;  // wiped mid-merge — don't resurrect
+    if (mem === null || gen !== wipeGen) return next;  // wiped — don't resurrect
     mem = next;
     writeJsonDoc(NAME, mem);        // atomic rename + .bak (safefile)
     return next;

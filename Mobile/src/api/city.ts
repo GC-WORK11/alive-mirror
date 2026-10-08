@@ -263,8 +263,12 @@ export async function fetchCityMoves(
 }
 
 /** Instant last-good read like peekCity — paints the moves card while
- *  the wire lands. */
+ *  the wire lands. FRESH hits only: the moves card has no age chip
+ *  (the city payload carries agedCity/stale labelling; this payload
+ *  doesn't), so a past-TTL disk copy would show an old "last 7 days"
+ *  distribution as current with no disclosure (audit-3). A stale hit
+ *  just waits on the wire like a miss. */
 export async function peekCityMoves(): Promise<CityMovesPayload | null> {
   const hit = await cachePeek<CityMovesPayload>(MOVES_CACHE_KEY);
-  return hit ? hit.value : null;
+  return hit && hit.fresh ? hit.value : null;
 }
