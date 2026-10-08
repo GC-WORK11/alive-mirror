@@ -167,16 +167,101 @@ def test_bearer_still_accepted_for_ops_curl(monkeypatch):
                  ).status_code == 200
 
 
+# --- <mount>/in/<token> — the one-link sign-in --------------------------------
+
+def test_in_link_mints_cookie_and_redirects_clean(monkeypatch):
+    """GET <mount>/in/<real-token> → 303 to the bare mount + the same
+    signed HttpOnly cookie the form mints — the address the operator
+    lands on never carries the credential."""
+    c = _login_client(monkeypatch)
+    r = c.get(M + "/in/test-token-xyz", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == M
+    assert "no-store" in r.headers.get("cache-control", "")
+    sc = r.headers["set-cookie"]
+    assert "alive_admin=v1." in sc and "httponly" in sc.lower()
+    assert "samesite=strict" in sc.lower() and "path=/" in sc.lower()
+    # the minted session is live — the board answers without re-signing
+    assert c.get(M + "/session").json() == {"authenticated": True}
+    assert c.get(M + "/api").status_code == 200
+
+
+def test_in_link_wrong_secret_is_honest_404(monkeypatch):
+    """A bad guess is indistinguishable from any unknown URL — same
+    status, same body, no cookie. Whether a guess was RIGHT never leaks."""
+    c = _login_client(monkeypatch)
+    bad = c.get(M + "/in/not-the-token", follow_redirects=False)
+    unknown = c.get("/no-such-path", follow_redirects=False)
+    assert bad.status_code == 404
+    assert bad.json() == unknown.json() == {"detail": "Not Found"}
+    assert "set-cookie" not in bad.headers
+    assert c.get(M + "/session").json() == {"authenticated": False}
+
+
+def test_in_link_unconfigured_is_404(monkeypatch):
+    """No ALIVE_ADMIN_TOKEN → no secret can ever match → the same
+    honest 404 (no 503 'endpoint exists' hint)."""
+    monkeypatch.delenv("ALIVE_ADMIN_TOKEN", raising=False)
+    c = TestClient(_m().app)
+    assert c.get(M + "/in/anything").status_code == 404
+
+
+def test_in_link_rate_bucket_matches_login():
+    """The URL-carried credential gets the login brake: 5 tries then
+    429 per socket peer, and the global budget stays untouched."""
+    assert middleware._DEFAULT_PATH_LIMITS[M + "/in/"] == (0.2, 5)
+    app = FastAPI()
+
+    @app.get(M + "/in/{secret}")
+    async def inn(secret: str):
+        return {"ok": True}
+
+    @app.get("/ping")
+    async def ping():
+        return {"ok": True}
+
+    middleware.attach(app, rate_per_s=100, burst=100)
+    c = TestClient(app)
+    codes = [c.get(M + f"/in/guess{i}").status_code for i in range(7)]
+    assert codes[:5] == [200] * 5
+    assert 429 in codes[5:]
+    assert c.get("/ping").status_code == 200     # global budget untouched
+
+
+def test_in_link_never_reaches_request_log():
+    """The path IS the credential — the structured request log renders
+    /in/<redacted>, matched route or not (a near-miss guess would still
+    leak ~47/48 chars of the real token)."""
+    import json
+
+    import observability
+    assert observability._SECRET_PATH_PREFIXES == (M + "/in/",)
+    lines = []
+
+    class _Cap:
+        def info(self, s):
+            lines.append(s)
+
+    mw = observability.RequestLoggingMiddleware(None, logger=_Cap())
+    mw._emit("rid", "GET", M + "/in/{secret}",
+             M + "/in/test-token-xyz", 303, 1.2, {})
+    rec = json.loads(lines[0])
+    assert rec["path"] == M + "/in/<redacted>"
+    assert "test-token-xyz" not in lines[0]
+
+
 # --- the page -------------------------------------------------------------------
 
 def test_admin_page_is_cookie_flow_not_token_storage():
     """The served page must carry the gate + cookie login and none of the
-    sessionStorage-token machinery the XSS report flagged."""
+    sessionStorage-token machinery the XSS report flagged — and no boot
+    strip: the console opens straight into content (hash-login lane)."""
     body = TestClient(_m().app).get(M).text
     assert 'id="gate"' in body and 'id="gateform"' in body
     assert "M+'/login'" in body
     assert "M+'/logout'" in body
     assert "M+'/session'" in body
+    assert 'id="boot"' not in body and "alive_boot_v1" not in body
     for dead in ("alive_admin_tok", "prompt(", "sessionStorage.setItem('alive_admin"):
         assert dead not in body, dead
 

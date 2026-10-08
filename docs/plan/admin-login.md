@@ -5,6 +5,47 @@ Proved end-to-end on prod **2026-10-07 ~11:35 UTC (~17:05 IST)**, live
 build `43913dc0` — wire chain, gate, rate limit, and a real Chrome
 drive (screenshots in `docs/lanes/admin-login-e2e-report.md`).
 
+## The sign-in — one link, open it, you're in (hash-login lane)
+
+The primary sign-in is now a **link, not a form**. Paste the mount
+path and the token into one URL and open it — done:
+
+```
+http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs/in/<token>
+```
+
+What the server does with it, all before the page paints:
+
+1. `GET <mount>/in/<token>` — the path segment is checked against the
+   **same `ALIVE_ADMIN_TOKEN`** the form uses, with the same
+   constant-time compare.
+2. On a match the server mints the **same session cookie** the form
+   mints (`alive_admin=v1.<exp>.<sig>`, HttpOnly, SameSite=Strict) and
+   answers `303 See Other` → `<mount>` — a clean URL. The credential
+   is spent on the way in and **never sits in the address bar once
+   the board is up**; nothing client-side ever sees the token.
+3. On a wrong guess it answers the **same `404 {"detail":"Not Found"}`
+   every unknown path gets** — the endpoint's existence is committed
+   in the repo, but whether a guess was right leaks nothing.
+4. The endpoint rides the **same rate bucket as the form** (5 tries
+   then ~1 per 5 s per socket peer) — a credential in a URL is still
+   a credential, and brute force stays bound. And the request log
+   renders the path as `<mount>/in/<redacted>` — the token can never
+   land in CloudWatch via a log line.
+
+So the T-30 move is: keep one line in the phone note —
+`$NLB$M/in/$TOKEN` — tap it, board's up. The **form stays** on the
+gate card as the fallback (paste token → sign in); both mint the
+identical cookie, both share the same brake, neither stores the
+token in the page.
+
+Honest edge, carry it: the URL you opened lives in **browser history**
+until it ages out — the cookie it minted is the same 8 h session
+either path produces. Rotation kills both. Also no splash on this
+surface anymore: the console opens straight into the board (the boot
+strip is a landing-page beat now — it was deleted from the console in
+this lane).
+
 ## The URL — unlisted on purpose (admin-obscure lane, 2026-10-08)
 
 The engine room moved off `/admin` to a high-entropy path — security
@@ -47,19 +88,25 @@ http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4Yhaa
 
 ## The 60-second flow — laptop or phone, identical
 
-1. Open `http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs`
-   (the unlisted console URL — `/admin` 404s by design).
-2. A guest lands on the **gate card** — "Alive / engine room ·
-   OPERATOR ONLY — it opens for the operator and nobody else."
-3. Paste the token → **SIGN IN**.
-4. The board renders and refreshes itself every 30 s; the masthead
-   shows **SIGN OUT** while you're in.
-5. Session ≈ **8 h**, and it survives a task redeploy — the cookie is
+1. Open the link from your note —
+   `…elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs/in/<token>`
+   (build it as `$NLB$M/in/$TOKEN`; the `/in/` segment is what signs
+   you in). `/admin` 404s by design; a wrong `/in/` guess 404s the
+   same way.
+2. The server checks the token, sets the cookie, and 303s you to the
+   bare mount — you land **signed in on a clean URL**, no gate, no
+   splash, board rendering live.
+3. The board refreshes itself every 30 s; the masthead shows
+   **SIGN OUT** while you're in.
+4. Session ≈ **8 h**, and it survives a task redeploy — the cookie is
    stateless-signed (`alive_admin=v1.<exp>.<sig>`, HttpOnly,
    SameSite=Strict), so nothing server-side can lose it.
-6. **SIGN OUT** when done — gate card returns immediately. (Honest
+5. **SIGN OUT** when done — gate card returns immediately. (Honest
    bound: the minted cookie stays valid till its signed expiry if a
    copy exists; rotation is the global kill.)
+
+Fallback — the gate card still works: open the bare mount URL, paste
+the token into the form, **SIGN IN**. Same cookie, same session.
 
 Same flow on the phone's browser — no device binding, nothing to
 install. Venue Wi-Fi caveat stands: NLB is HTTP :80, so a captive
@@ -100,7 +147,19 @@ TOKEN=$(aws secretsmanager get-secret-value --secret-id alive108/admin-token \
 
 M=/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs   # admin_mount.ADMIN_MOUNT
 
-# 1) sign in → 200 + Set-Cookie alive_admin=v1.<exp>.<sig>
+# 0) the link path (primary) — 303 → clean mount + Set-Cookie, no body,
+#    token never in the URL you land on:
+curl -s -D- -o /dev/null -c /tmp/admin.jar "$NLB$M/in/$TOKEN" \
+     | grep -iE '^HTTP|^location|^set-cookie'
+#    HTTP/1.1 303 See Other
+#    location: /a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs
+#    set-cookie: alive_admin=v1.<exp>.<sig>; HttpOnly; Max-Age=28800; Path=/; SameSite=strict
+
+#    a bad guess is just another 404:
+curl -s "$NLB$M/in/nope"        # → {"detail":"Not Found"} — identical
+curl -s "$NLB/no-such-path"     # → {"detail":"Not Found"} — to this
+
+# 1) or the form path (fallback) → 200 + Set-Cookie alive_admin=v1.<exp>.<sig>
 curl -s -D- -o /dev/null -X POST "$NLB$M/login" \
      -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN\"}" \
      | grep -i '^set-cookie'
@@ -126,9 +185,10 @@ never needed in the browser.
 
 | Symptom | Meaning | Fix |
 |---|---|---|
+| `/in/` link answers a bare `{"detail":"Not Found"}` | token in the URL ≠ live SM value (or token unset) | rebuild the link from SM — the endpoint 404s bad guesses on purpose, it never says "wrong token" |
 | gate card says `admin auth is not configured` (503 on the login POST) | task env lost `ALIVE_ADMIN_TOKEN` | secrets broke the rollout — check service events, rollback; same failure as pre-cookie |
 | `wrong token — try again` (401) | typo / stale copy | re-paste from the SM value; 5 bad tries → 429 |
-| 429 `rate_limited` | login bucket drained (5 then ~1/5 s) | wait ~5 s, one clean attempt — it passes |
+| 429 `rate_limited` | login or /in/ bucket drained (5 then ~1/5 s) | wait ~5 s, one clean attempt — it passes |
 | board re-locks mid-view | cookie expired or signed out in another tab | sign in again — 30 s probe re-locks by design |
 | captive portal / no conn | NLB is plain HTTP :80 | switch to the phone hotspot; flow is identical |
 
@@ -139,5 +199,9 @@ never needed in the browser.
   decision, and `Secure` auto-enables the day a TLS listener exists.
 - **No per-cookie revocation** — stateless by design; worst case a
   copied cookie lives ≤8 h. Global kill = rotate the secret.
+- **The link is the token in a coat** — anyone holding the full
+  `/in/` URL holds the credential. It stays in browser history and
+  anywhere you pasted it; treat the link itself like the token.
+  Rate-limit + honest-404 bound guessing, not sharing.
 - **One operator identity** — one token, one "operator". Right size
   for the demo; wrong shape if a second human ever needs the board.

@@ -58,6 +58,16 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse, Response
 from starlette.datastructures import MutableHeaders
 
+try:  # the console's mount — same dual-layout rule as middleware.py:
+    # /in/<token> carries a credential in the path itself, so the
+    # prefix is needed to blank the secret out of the log record below
+    from admin_mount import ADMIN_MOUNT as _ADMIN_MOUNT
+except ImportError:
+    try:
+        from server.admin_mount import ADMIN_MOUNT as _ADMIN_MOUNT
+    except Exception:
+        _ADMIN_MOUNT = None
+
 __all__ = [
     "REGISTRY", "MetricsRegistry", "RequestLoggingMiddleware",
     "install", "router", "metrics_text",
@@ -105,6 +115,12 @@ _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._\-]{1,64}$")
 _TIER_KEY_RE = re.compile(r"^[A-Za-z0-9_.\-]{1,32}$")
 _SERVER_TIMING_RE = re.compile(
     r"(?i)([A-Za-z0-9_.\-]{1,32})\s*;\s*dur\s*=\s*([0-9]+(?:\.[0-9]+)?)")
+
+#: Path prefixes whose remainder is a credential — logged redacted.
+#: The magic sign-in link carries the admin token in the path itself;
+#: scrub_log_line's labelled-secret pass can't see it (the segment
+#: isn't labelled), so the path is rewritten before the record is built.
+_SECRET_PATH_PREFIXES = ((_ADMIN_MOUNT or "/v2/admin") + "/in/",)
 
 
 def scrub_log_line(line: str) -> str:
@@ -442,6 +458,14 @@ class RequestLoggingMiddleware:
     # -- logging ------------------------------------------------------------
     def _emit(self, rid, method, route, path, status, latency_ms,
               tier_ms) -> None:
+        # The magic-link path IS the credential — the concrete secret
+        # must never reach a log line, matched route or not (a near-miss
+        # guess is still ~47/48 chars of the real token). The route
+        # template in `route` is safe: it carries {secret}, not a value.
+        for p in _SECRET_PATH_PREFIXES:
+            if path.startswith(p):
+                path = p + "<redacted>"
+                break
         # Built field-by-field from LOG_FIELDS — nothing else can get in.
         record = {
             "ts": round(time.time(), 2),

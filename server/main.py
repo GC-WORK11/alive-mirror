@@ -1708,6 +1708,39 @@ async def admin_session(request: Request):
                                       "testclient")}
 
 
+@app.get(ADMIN_MOUNT + "/in/{secret}", include_in_schema=False)
+async def admin_in(secret: str, request: Request):
+    """One-link sign-in — the token rides the URL exactly once.
+
+    The path segment is verified against the same ALIVE_ADMIN_TOKEN the
+    form checks, same constant-time compare; on a match the SAME
+    session cookie is minted and the browser is 303'd to the bare
+    mount — the page that loads carries a clean URL, so the credential
+    never sits in an address bar past the landing. A wrong guess gets
+    the identical 404 every unknown path gets: the endpoint's existence
+    is committed, but whether a guess was RIGHT never leaks. The
+    middleware bucket for <mount>/in/ holds attempts to ~1 per 5 s —
+    a credential in a URL needs the same brake as the form, and the
+    request logger renders the path as /in/<redacted> so the token
+    can't land in CloudWatch.
+    """
+    token = os.environ.get("ALIVE_ADMIN_TOKEN")
+    if not token or not hmac.compare_digest(secret, token):
+        raise HTTPException(404)
+    ttl = _admin_session_s()
+    exp = int(time.time()) + ttl
+    from fastapi.responses import RedirectResponse
+    r = RedirectResponse(ADMIN_MOUNT, status_code=303)
+    secure = (request.url.scheme == "https"
+              or request.headers.get("x-forwarded-proto") == "https")
+    r.set_cookie(_ADMIN_COOKIE, _session_value(exp), max_age=ttl,
+                 httponly=True, samesite="strict", secure=secure, path="/")
+    # a credential-minting response must never be replayed from a cache
+    r.headers["cache-control"] = "no-store"
+    r.headers["x-robots-tag"] = "noindex, nofollow"
+    return r
+
+
 @app.get(ADMIN_MOUNT + "/api", dependencies=[Depends(_admin_guard)],
          include_in_schema=False)
 async def admin_api():

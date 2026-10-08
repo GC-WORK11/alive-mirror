@@ -1429,3 +1429,30 @@ Lead fixes landed + verified on sim (ios-cold-drive addenda, report @ e7db808):
   E2E (gate→wrong→login→board→sign out→gate).
 - **Demo-morning line**: token lives in SM `alive108/admin-token`;
   paste once → ~8h of board; phone hotspot = same flow.
+
+## cont.71 — 2026-10-08 ~09:55 UTC (hash-login: one-link admin sign-in)
+
+- **Lane: hash-login.** `GET <mount>/in/<token>` is now the primary
+  sign-in — server-side compare_digest against ALIVE_ADMIN_TOKEN →
+  same `alive_admin=v1.<exp>.<sig>` cookie (HttpOnly, SameSite=Strict)
+  + 303 to the bare mount. Credential never sits in the address bar
+  after landing; wrong guess = the honest 404 every unknown path gets.
+  Form login stays as fallback (same cookie, same brake).
+- **Same brakes as the form**: `<mount>/in/` rides its own (0.2, 5)
+  socket-peer bucket in middleware `_DEFAULT_PATH_LIMITS`;
+  observability `RequestLoggingMiddleware` renders the path
+  `/in/<redacted>` — token can't reach CloudWatch via a log line
+  (verified end-to-end on 303 and 404). Uvicorn stays --no-access-log.
+- **Console splash killed**: the admin boot strip is deleted outright
+  (~120 lines: CSS, #boot node, bootStrip(), alive_boot_v1) — the
+  landing keeps its own strip. First paint = one checkSession fetch →
+  board. Also fixed a stale-label bug the link exposed: tokBtnRefresh
+  now re-runs when the session probe lands (signed-in reloads used to
+  keep "operator sign in" on the masthead).
+- Verified: pytest +5 (303/cookie/redirect, honest-404, unconfigured
+  404, /in/ bucket 429, log redaction) 20/20 auth suite; live curl
+  chain + real Chrome drive on :8108 (link → clean URL → board →
+  SIGN OUT → gate). Report `docs/lanes/hash-login-report.md`; doc
+  `docs/plan/admin-login.md` rewritten around the link.
+- **Honest edge**: the link is the token — it lives in browser
+  history and wherever it's pasted; rotation is the kill.

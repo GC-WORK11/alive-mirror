@@ -443,6 +443,10 @@ _DEFAULT_PATH_LIMITS = {
     # path is deliberately un-guessable); the /v2/admin fallback only
     # covers a context where admin_mount can't be imported at all.
     (_ADMIN_MOUNT or "/v2/admin") + "/login": (0.2, 5),
+    # the /in/<token> magic link is the same credential in a GET path —
+    # same brake, same bucket: URL-carried or not, brute force stays
+    # bound to ~1 guess per 5 s
+    (_ADMIN_MOUNT or "/v2/admin") + "/in/": (0.2, 5),
 }
 
 
