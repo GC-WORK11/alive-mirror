@@ -28,7 +28,15 @@ export { inNcr };
    aqi poll) showed real numbers. Guards match the home read: in-NCR +
    15 min freshness, so a stale or out-of-area fix still fails honestly. */
 export const posNow = async () => {
-  const cur = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+  /* a fix that can't answer inside ~9 s used to hang the caller forever —
+     an offline map pick ate the tap and produced nothing (walk F3).
+     Racing the request means every caller reaches its honest failure
+     path (locPickFailed / locDenied) instead of waiting on a GNSS fix
+     that may never come. */
+  const cur = await Promise.race([
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null),
+    new Promise<null>((resolve) => { setTimeout(() => resolve(null), 9000); }),
+  ]);
   if (cur) return cur;
   const last = await Location.getLastKnownPositionAsync().catch(() => null);
   if (!last) return null;

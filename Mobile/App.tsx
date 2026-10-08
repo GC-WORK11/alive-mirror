@@ -16,7 +16,7 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import {
   Camera, Layer, Map, Marker, UserLocation,
-  type CameraRef, type ViewStateChangeEvent,
+  type CameraRef, type MapRef, type ViewStateChangeEvent,
 } from "@maplibre/maplibre-react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { V2Elev, V2Radius, V2T, V2Type, bandIdx, cigOf, fam } from "./src/theme";
@@ -33,6 +33,7 @@ import { afterFirstFrame, noteUserInput } from "./src/startup/idle";
 import { camDur } from "./src/map/cam";
 import {
   holdMapDraw, noteMapBusy, noteMapIdle, useHeldState, useMapDrawHeld,
+  whenMapDrawFree,
 } from "./src/map/drawHold";
 import { ReportsLayer, reconcileReportSlots, REPORT_POOL, type ReportSlot } from "./src/components/ReportsLayer";
 import { FreshnessChip } from "./src/components/FreshnessChip";
@@ -182,7 +183,7 @@ const onMapFullyRendered = () => { onMapIdle(); warmBasemap(STYLE_URL); };
    stable identities, so unrelated app state no longer touches it. */
 const MapTree = React.memo(function MapTree({
   lang, compassPosition, logoPosition, attributionPosition,
-  onPress, onLongPress, camRef, drawHeld, covered,
+  onPress, onLongPress, onPuckPress, camRef, mapRef, drawHeld, covered,
   trackUserLocation, onTrackUserLocationChange,
   hasLoc, corridors, reportSlots, fires, spots, layers,
   field, stations,
@@ -196,7 +197,13 @@ const MapTree = React.memo(function MapTree({
   attributionPosition: { bottom: number; right: number };
   onPress: (e: MapPressEvent) => void;
   onLongPress: (e: MapPressEvent) => void;
+  /* puck tap — the native "You Are Here" a11y label read as a button
+     with no action (walk F6): wired to the recenter path in App */
+  onPuckPress: () => void;
   camRef: React.RefObject<CameraRef | null>;
+  /* Map imperative handle — the native attribution ⓘ button's own
+     dialog is JS-callable through showAttribution() (F6 fallback) */
+  mapRef: React.RefObject<MapRef | null>;
   trackUserLocation: "default" | undefined;
   onTrackUserLocationChange: (e: TrackChangeEvent) => void;
   hasLoc: boolean;
@@ -255,7 +262,7 @@ const MapTree = React.memo(function MapTree({
     }
   }, []);
   return (
-    <Map mapStyle={lang === "hi" ? STYLE_URL : STYLE_EN} style={StyleSheet.absoluteFill}
+    <Map ref={mapRef} mapStyle={lang === "hi" ? STYLE_URL : STYLE_EN} style={StyleSheet.absoluteFill}
       /* mount-vs-draw hold (src/map/drawHold.ts): while an overlay
          mounts/unmounts over the map the render pump drops to 2 fps so
          the commit can't intersect a wall of in-flight draws — the
@@ -296,7 +303,7 @@ const MapTree = React.memo(function MapTree({
           sim crash class as route sources/markers). The small idle-GPS
           cost beats a remove-during-render race; always-on dot matches
           normal map UX anyway. */}
-      {hasLoc && <UserLocation animated accuracy />}
+      {hasLoc && <UserLocation animated accuracy onPress={onPuckPress} />}
       {/* all map children stay mounted for the app's life — a mid-draw
           removeSource/removeAnnotation is the upstream sim SIGSEGV;
           the toggles only swap data in and out (see each component) */}
@@ -348,6 +355,10 @@ export default function App() {
 function AppInner() {
   bump("app.AppInner");
   const camRef = useRef<CameraRef>(null);
+  /* the Map's imperative handle — the native "About this map" ⓘ button
+     drives showAttribution() itself; the JS copy stays for the dead-tap
+     fallback (walk F6, decided on-device) */
+  const mapRef = useRef<MapRef>(null);
   /* last real endpoint coords — the always-mounted markers park here when
      hidden (see the Marker block below). State not a ref: lint bans
      refs-in-render, and the marker needs the value at render anyway. */
@@ -441,6 +452,13 @@ function AppInner() {
   const [layersOpen, setLayersOpen] = useHeldState(false);
   const [mapPickArmed, setMapPickArmed] = useHeldState(false);
   const [locDenied, setLocDenied] = useState(false);
+  /* the pick flow's notice lives in locNotice — rendered inside the
+     search sheet there. On the idle map it used to be invisible, so a
+     rejected/stalled map pick read as a silent dead tap (walk F3). A
+     held mirror floats the same line as a pill (draw-hold discipline);
+     tap dismisses. */
+  const [mapPickNote, setMapPickNote] = useHeldState<string | null>(null);
+  useEffect(() => { setMapPickNote(locNotice); }, [locNotice, setMapPickNote]);
   const [vehicleOpen, setVehicleOpen] = useHeldState(false);
   /* needsVehicle flips inside the same commit as the first option rows —
      mounting the wizard there makes its enter-spring share a frame with
@@ -1007,7 +1025,7 @@ function AppInner() {
      the OSM attribution used to sit at the same offset, drowned under
      it and untappable (audit #6). It now floats just above the card;
      when the peek isn't mounted it just reads slightly higher. */
-  const attributionPosition = useMemo(() => ({ bottom: insets.bottom + 164, right: 10 }), [insets.bottom]);
+  const attributionPosition = useMemo(() => ({ bottom: insets.bottom + 164, right: 16 }), [insets.bottom]);
   /* search bias is the REAL GPS fix — never 'from', which used to feed
      the bias a fabricated 'central Delhi' fallback and rank results for
      a place the user wasn't in (owner: 'live location ain't working').
@@ -1034,9 +1052,15 @@ function AppInner() {
     }
     setMapPickArmed(false);
     tap();   // the pick landed — same weight as a row tap
+    /* the confirm chain takes real seconds offline (reverse-name ≤6 s,
+       then pick's origin fix ≤9 s): say the spot is being checked so
+       the tap never dies in silence (walk F3). pick() and the slot
+       path overwrite or clear it with the true outcome. */
+    setLocNotice(t("mapPickChecking", lang));
     const rev = await reverseName(c[1], c[0]);
     if (placePickSlot) {
       // the unset home/work slot asked for this pick ("choose on map")
+      setLocNotice(null);
       patchSettings({ [placePickSlot]: { name: rev.name, lat: c[1], lon: c[0] } });
       setPlacePickSlot(null);
       setSidebarOpen(true);
@@ -1046,13 +1070,14 @@ function AppInner() {
        map tap must land in `from`, not silently re-target the
        destination (offline-verify catalogue #1) */
     pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] });
-  }, [mapPickArmed, placePickSlot, patchSettings, pick, airMapOpen, setTapPoint]);
+  }, [mapPickArmed, placePickSlot, patchSettings, pick, airMapOpen, setTapPoint, setLocNotice, lang]);
   const onMapLongPress = useCallback(async (f: MapPressEvent) => {
     const c = (f as { nativeEvent?: { lngLat?: [number, number] } }).nativeEvent?.lngLat;
     if (!c) return;
+    setLocNotice(t("mapPickChecking", lang));
     const rev = await reverseName(c[1], c[0]);
     pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] });
-  }, [pick]);
+  }, [pick, setLocNotice, lang]);
   const onTrackUserLocationChange = useCallback((e: TrackChangeEvent) => {
     if (!e.nativeEvent.trackUserLocation) setFollow(false);
   }, [setFollow]);
@@ -1132,6 +1157,23 @@ function AppInner() {
       })
       .catch(() => setLocDenied(true));
   }, [follow, setFollow]);
+  /* the puck's native a11y label is "You Are Here" — it read as a
+     button with no action (walk F6). A tap recentres on the real fix
+     and engages follow; no fix answers with the same honest pill the
+     crosshair shows instead of dead silence. */
+  const onPuckPress = useCallback(() => {
+    posNow().then((pos) => {
+      if (pos) {
+        setLocDenied(false);
+        setHasLoc(true);
+        setFollow(true);
+        whenMapDrawFree(() => camRef.current?.flyTo({
+          center: [pos.coords.longitude, pos.coords.latitude],
+          zoom: 15.5, duration: camDur(600),
+        }));
+      } else setLocDenied(true);
+    }).catch(() => setLocDenied(true));
+  }, [camRef, setFollow]);
   const openLayers = useCallback(() => setLayersOpen(true), []);
   const onPeekOpen = useCallback(() => setHomeOpen(true), []);
   const onToggleSteps = useCallback(() => setStepsOpen(!stepsOpen), [stepsOpen, setStepsOpen]);
@@ -1168,6 +1210,14 @@ function AppInner() {
       tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : null),
   }).catch(() => {}), [lang, settings.show_cig]);
   const onLayersClose = useCallback(() => setLayersOpen(false), []);
+  /* walk-F6 — the map's ⓘ ornament is native MapLibre chrome: it renders
+     ~10px and half-clipped at the bezel, so the attribution it stands
+     for was effectively unreachable (dead tap). showAttribution opens
+     the very same native sheet; the Layers row is the reachable door. */
+  const onAboutMap = useCallback(() => {
+    setLayersOpen(false);
+    mapRef.current?.showAttribution().catch(() => {});
+  }, [setLayersOpen]);
   const onTapReadClose = useCallback(() => { tick(); setTapPoint(null); }, [setTapPoint]);
   const onDelhiClose = useCallback(() => setDelhiOpen(false), []);
   const onLedgerClose = useCallback(() => setLedgerOpen(false), []);
@@ -1207,7 +1257,9 @@ function AppInner() {
       attributionPosition={attributionPosition}
       onPress={onMapPress}
       onLongPress={onMapLongPress}
+      onPuckPress={onPuckPress}
       camRef={camRef}
+      mapRef={mapRef}
       trackUserLocation={follow ? "default" : undefined}
       onTrackUserLocationChange={onTrackUserLocationChange}
       hasLoc={hasLoc}
@@ -1346,7 +1398,7 @@ function AppInner() {
       {phase === "nav" && sel && (
         <NavSession option={sel} options={options} from={from} to={to} steps={steps}
           camRef={camRef} lang={lang} share={settings.share} voice={settings.voice}
-          onExit={onNavExit}
+          onExit={onNavExit} onHome={onPeekOpen}
           vehicle={vehicle} showCig={settings.show_cig} onTripDone={recordTrip} />
       )}
 
@@ -1395,6 +1447,26 @@ function AppInner() {
         </Pressable>
       )}
 
+      {/* map-pick notice on the open map — pending while the spot is
+          being confirmed, the honest refusal if it can't be (offline
+          pick used to die silent here, walk F3). Inside search the
+          sheet's own notice slot carries the same locNotice. */}
+      {phase === "idle" && !mapPickArmed && mapPickNote && (
+        <Pressable
+          style={[s.pickHintWrap, {
+            top: insets.top + 66 + (airMapOpen ? AIR_CARD_CLEARANCE : 0)
+              + ((net.state !== "online" || apiOk === false) ? 36 : 0),
+          }]}
+          onPress={() => { tick(); setLocNotice(null); }}
+          accessibilityRole="button" accessibilityLabel={mapPickNote}
+        >
+          <Icon name="pin" color={V2T.text2} size={14} />
+          <Text {...DYNAMIC_TYPE} style={[s.pickHintTxt, { fontFamily: fam(lang, "med") }]}>
+            {mapPickNote}
+          </Text>
+        </Pressable>
+      )}
+
       {/* locate tapped with location off/denied — the crosshair used to
           answer with silence. Tap opens iOS Settings, where the switch
           actually lives; a later fix or a fresh grant clears it. */}
@@ -1439,7 +1511,7 @@ function AppInner() {
         onShare={onShare}
         onShareTrip={onShareTrip} />
       <LayersSheet visible={layersOpen} values={layers} onToggle={toggleLayer}
-        onClose={onLayersClose} lang={lang} />
+        onClose={onLayersClose} onAbout={onAboutMap} lang={lang} />
       <DelhiToday visible={delhiOpen} onClose={onDelhiClose} lang={lang} showCig={settings.show_cig} />
       <LedgerScreen visible={ledgerOpen} onClose={onLedgerClose} lang={lang} showCig={settings.show_cig} onTripsChanged={reloadTrips} />
       <SettingsScreen visible={settingsOpen} onClose={onSettingsClose}
@@ -1474,11 +1546,14 @@ function AppInner() {
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
 const NavSession = React.memo(function NavSession({
-  option, options, from, to, steps, camRef, lang, share, voice, vehicle, showCig, onExit, onTripDone,
+  option, options, from, to, steps, camRef, lang, share, voice, vehicle, showCig, onExit, onHome, onTripDone,
 }: {
   option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
   camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
   share: boolean; onExit: () => void;
+  /* walk-F2 — Done opens the home door at PRESS time; waiting for the
+     deferred teardown left a chromeless map for the whole hold window */
+  onHome: () => void;
   /** S8 profile — the donation marks puc_calibrated from it on
       private-motor trips only */
   vehicle?: VehicleProfile | null;
@@ -1599,8 +1674,13 @@ const NavSession = React.memo(function NavSession({
       /* Done tears down the whole nav session in one commit; deferring it
          past the sheet's close keeps the heavy unmount off the same frame
          as the press (iOS-sim render-thread race — same class as the
-         deferred search focus/close fixes). */
-      <ReceiptSheet data={data} lang={lang} showCig={showCig} onDone={() => setTimeout(onExit, 280)}
+         deferred search focus/close fixes). The trip is OVER the moment
+         Done lands — open the home door NOW instead of inside the
+         deferred teardown, or the user sits on a chromeless map for the
+         hold window (walk F2). onNavExit's own setHomeOpen stays
+         idempotent. */
+      <ReceiptSheet data={data} lang={lang} showCig={showCig}
+        onDone={() => { onHome(); setTimeout(onExit, 280); }}
         onShare={() => Share.share({
           message: shareTripMsg(lang,
             from ? placeNameLabel(from.name, lang) : "?",

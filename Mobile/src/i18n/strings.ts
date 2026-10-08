@@ -323,6 +323,9 @@ const en = {
   layerFires: "fires",
   layerBlackspots: "crash spots",
   layerCorridors: "streets travellers crossed",
+  /* walk-F6: the native ⓘ ornament renders tiny + bezel-clipped — this
+     row gives the same native attribution sheet a real tap target */
+  aboutMap: "about this map",
   // sidebar header + ledger
   breathed: "breathed",
   breathedOnTrips: "breathed on trips",
@@ -636,6 +639,9 @@ const en = {
   noPlaceFound: "no place found — try a landmark",
   emptySearchHint: "type a place or landmark — or choose on the map",
   mapPickHint: "tap the map to drop a pin there",
+  /** armed pick resolving (reverse-name + origin fix — bounded, never a
+      fake 'pin dropped' while the outcome is still unknown) */
+  mapPickChecking: "checking this spot…",
   /* the air map's own legend card — what the painted field means and
      what stands behind it (AirMapCard). Station count reuses
      srcStations, the scale ends reuse band_good/band_severe, the age
@@ -1480,6 +1486,7 @@ const hi: Record<StringKey, string> = {
   layerFires: "आग",
   layerBlackspots: "एक्सीडेंट स्पॉट",
   layerCorridors: "सड़कें जिनसे यात्री गुज़रे",
+  aboutMap: "इस नक्शे के बारे में",
   breathed: "साँस में लिया",
   breathedOnTrips: "यात्राओं में लिया",
   putOut: "गाड़ी ने छोड़ा",
@@ -1740,6 +1747,7 @@ const hi: Record<StringKey, string> = {
   noPlaceFound: "कोई जगह नहीं मिली — कोई लैंडमार्क लिखकर देखें",
   emptySearchHint: "जगह या लैंडमार्क लिखें — या नक्शे पर चुनें",
   mapPickHint: "नक्शे पर टैप करके पिन लगाएँ",
+  mapPickChecking: "यह जगह जाँच रहे हैं…",
   airmapTitle: "हवा का नक्शा",
   airmapLine: "जितना लाल, उतनी ख़राब हवा अभी",
   tapHint: "कहीं भी टैप करें — उस जगह की हवा बताएगी",

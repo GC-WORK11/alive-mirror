@@ -157,6 +157,12 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
      cancellable server tiers); this hook owns the phases around it. */
   const pick = useCallback(async (p: Place, which?: Which) => {
     Keyboard.dismiss();
+    /* the confirm path can stall for seconds (an unbounded GNSS fix used
+       to hang here forever — walk F3's silent offline pick). While it
+       runs the notice says the spot is being confirmed; every exit below
+       overwrites it with the real outcome or clears it on success. The
+       notice shows on the idle map (App) or inside the search sheet. */
+    setLocNotice(t("mapPickChecking", lang));
     if ((which ?? editWhich) === "from") {
       /* a start within a street of the destination has no route to
          compare (audit #19/#20's 50 m pins) — say so, stay in search */
@@ -188,6 +194,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         }
         setFrom({ name: t("placeCurrentLocation", lang), subtitle: "",
           lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setLocNotice(null);
         setPhase("compare");
       } else {
         /* NEVER fabricate an origin — the old path silently plotted
@@ -207,6 +214,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
         return;
       }
+      setLocNotice(null);
       setPhase("compare");
     }
     /* NO pick-time flyTo: the camera moves exactly once per plan — the
