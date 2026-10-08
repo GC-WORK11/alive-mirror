@@ -8,8 +8,8 @@
 #   1. computes sha256 + byte size
 #   2. parses the build sha out of the filename (alive108-<sha>.apk) and
 #      checks that commit exists in this clone
-#   3. fills the placeholders in docs/release/RELEASE-NOTES.md
-#      → docs/release/RELEASE-NOTES.filled.md
+#   3. fills the placeholders in docs/release/v1.0.0-demo-notes.md
+#      (falls back to docs/release/RELEASE-NOTES.md) → <name>.filled.md
 #   4. prints BOTH release paths — `gh release create` for a shell where
 #      gh is authed, and the manual github.com web steps for when it isn't
 #      (it is NOT authed on the work boxes).
@@ -34,8 +34,10 @@ case "$APK_PATH" in *.apk) ;; *) echo "release_prep: WARNING: $APK_PATH is not a
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null)" \
   || die "run from inside the Delhi-Air-108 checkout"
-NOTES="$REPO_ROOT/docs/release/RELEASE-NOTES.md"
-OUT="$REPO_ROOT/docs/release/RELEASE-NOTES.filled.md"
+# Prefer the tag-named notes file; the older RELEASE-NOTES.md is the fallback.
+NOTES="$REPO_ROOT/docs/release/v1.0.0-demo-notes.md"
+[ -f "$NOTES" ] || NOTES="$REPO_ROOT/docs/release/RELEASE-NOTES.md"
+OUT="${NOTES%.md}.filled.md"
 [ -f "$NOTES" ] || die "template missing: $NOTES"
 
 APK_BASE="$(basename "$APK_PATH")"
