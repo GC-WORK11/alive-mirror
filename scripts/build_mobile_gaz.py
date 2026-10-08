@@ -19,7 +19,7 @@ Usage:
 
 --install is the data-stamp step: it writes the emitted gazetteer over
 Mobile/assets/delhi-gazetteer.json AND regenerates the prebuilt t0 search
-index (Mobile/assets/t0-index.json via Mobile/scripts/build-t0-index.mjs)
+index (Mobile/assets/t0-index/ via Mobile/scripts/build-t0-index.mjs)
 in the same run, so the shipped index can never rot behind the corpus.
 """
 
@@ -72,7 +72,7 @@ def main() -> int:
         shutil.copyfile(args.out, bc.GAZETTEER_PATH)
         print(f"installed -> {os.path.relpath(bc.GAZETTEER_PATH, bc.REPO)}")
         # the index derives from the corpus: rebuild it in THIS step so a
-        # stale t0-index.json can never ship against fresher data
+        # stale t0 index can never ship against fresher data
         r = subprocess.run(
             ["node", "scripts/build-t0-index.mjs", "--force"],
             cwd=os.path.join(bc.REPO, "Mobile"), check=False)
