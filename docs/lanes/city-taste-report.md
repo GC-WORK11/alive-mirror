@@ -42,14 +42,11 @@ register. `.tl button`s keep the surface2 grammar with a lighter shadow.
 - `across the map: … ΜG/M³` — the uppercase `<i>` gloss was uppercasing
   `µg` → `ΜG`. The unit now sits in a `text-transform:none` span; same
   fix on /community's statusline `µg breathed`.
-- **Freshness F1** — the horizon scrubber cached `/grid?h=N` frames
-  forever; the forecast re-anchors each field build (~30-min TTL) while
-  the cache never aged. Frames now expire after 15 min on the field's
-  own refresh cycle; an active scrub re-pulls its hour, a running play
-  re-chains deeper hours. (`TL.stamped` + invalidate inside `load()`.)
-- **Freshness F8-adjacent** — `refresh_in_s` could push the poll (and
-  the "next rebuild in N min" claim) past the field TTL; now clamped to
-  600 s so the disclosed next-rebuild stays honest.
+- **Freshness F1 / F8** — landed by `a7814cb` mid-flight; rebase kept
+  upstream's epoch+900s `tlInvalidate()`/`tlAged()` and the `Math.min`
+  600 s poll clamp (functionally the same fix this lane had written —
+  horizon cache expires on field rebuild or one field cadence, and the
+  "next rebuild in N min" disclosure can't outlive the field TTL).
 
 ## Band-color discipline
 
