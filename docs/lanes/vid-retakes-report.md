@@ -2,14 +2,14 @@
 
 Demo-video retakes. One continuous take each, Chrome real window (fullscreen), prod `http://65.2.28.40`. Film CDP-driven via playwright (`~/vidrig/drive_*.mjs`), screen-recorded, heads trimmed, h264 mp4.
 
-**Design churn note:** landing iterated v10 → v11 → v13 → **v14** (final) while this lane waited; three earlier landing takes were filmed then discarded on HOLD orders. The shipped landing take is on v14 (`fb5cbb79`, deploy-21) — the build the owner launches with.
+**Design churn note:** landing iterated v10 → v11 → v13 → **v14** (final) while this lane waited; three earlier landing takes were filmed then discarded on HOLD orders. The shipped landing take is on v14 (`fb5cbb79`, deploy-21). The admin console was then restyled to the cognition-register analytics page (deploy-23, `:230`), so the admin take was re-filmed against the NEW console — the first admin take (old boards UI) is discarded.
 
 ## Deliverables (final)
 
 | video | file | duration | attachment URL |
 |---|---|---|---|
 | landing (**v14**) | `landing-v14-final.mp4` | 89.1 s | https://app.devin.ai/attachments/4ecc601b-c2a1-4ba8-8fb7-2f87b97a113f/landing-v14-final.mp4 |
-| admin (restyled gate) | `admin-final.mp4` | 45.9 s | https://app.devin.ai/attachments/4299e88c-6829-45da-b86c-40e6ae3397dc/admin-final.mp4 |
+| admin (**new console**) | `admin-v2-final.mp4` | 60.8 s | https://app.devin.ai/attachments/bc466100-90a0-4c3c-b78b-7198f1110d9b/admin-v2-final.mp4 |
 
 ## Landing take (v14) — beats verified on camera
 
@@ -26,14 +26,19 @@ Demo-video retakes. One continuous take each, Chrome real window (fullscreen), p
 | end frame | back on smog hero |
 | zero-check | 0× `get the app` / `github.com` strings in served HTML; no boxes/cards rendered; no notifications/dialogs on camera |
 
-## Admin take — beats verified on camera
+## Admin take (new console, deploy-23/:230) — beats verified on camera
 
 | beat | evidence |
 |---|---|
-| mount URL → gate | warm restyled gate card (ALIVE / "engine room", black pill **sign in**) — no green capsule |
-| entry | `#gatetok` (type=password) JS-filled → dots on camera, never typed; `form.requestSubmit()` → POST `<mount>/login` |
-| boards unlock | gate hides; fires map (120 fires, belt ringed 16, source firms-public-csv), district-by-district map, forecast grading table (498 checks / 67 recorded hours, right-band 90.1% → 37.2%), header "updated … IST · refreshes itself every 30 s" |
-| sign out | `#tokbtn` click → back to gate |
+| mount URL → gate | restyled gate card (ALIVE / "engine room", "operator only", black pill **sign in**) — no green capsule |
+| entry | `#gatetok` (type=password) JS-filled → dots + "signing in…" on camera, never typed; `form.requestSubmit()` → POST `<mount>/login` |
+| 01 live air | giant **89.6** µg/m³ numeral + "moderate" dot, "the data is 15m old", "0–9.2 cigarettes", "stations reporting 53 · waqi ✓ · dpcc ✓", wind 6 km/h se, −10.3% vs typical — all plain ruled lines |
+| 02 coverage | 53 stations · 96-sample model grid · kriging on · 96 cells · 72 snapshots · 120 h forecast · 9,03,058/10,70,459 edges priced |
+| 03 usage | "counted since boot" · requests 215 · in-flight 4 · per-route rows /health 102 p90≤5ms, /city 23 p90≤10ms, /session 21 |
+| 04 health | "all quiet" · feed rows model/met/stations/fires/location/routing all "listening" · errors 4xx 2 · 5xx 0 · disk 84.5% · dynamodb 31 tokens · build 3ed8f9f4 · up 16m |
+| footer | "groups of 3+ phones only, never a person" + /city /v2/city /health links + giant "alive" mark |
+| sign out | `#tokbtn` → back to gate card |
+| zero-check | zero cards/boxes/tables/dials — every datum a ruled line; no dialogs/notifications on camera |
 
 ## Discarded takes
 
@@ -42,6 +47,9 @@ Demo-video retakes. One continuous take each, Chrome real window (fullscreen), p
 - `rec-landing-v11-t1/t2` — landing on v11 (superseded by v13 order)
 - `rec-1e5a236a` — admin take 2 (gate dwell ~2 s; reshot w/ 6 s dwell)
 - `rec-landing-v14-t1` — stuck "GoogleUpdater" macOS banner top-right + unmaximized window after relaunch; dismissed + fullscreened, reshot
+- `admin-final.mp4` (rec-admin-v10-t3) — filmed the OLD boards console; superseded by cognition-register console (deploy-23)
+- `rec-admin-v2-t1` — Chrome "Save password?" dialog returned (Chrome rewrote profile prefs on relaunch); fixed via `--password-store=basic --disable-features=AutofillServerCommunication` + prefs re-patch, reshot
+- `rec-admin-v2-t2/t3` — clean but 53 s (under the ~60 s floor); reshot with longer dwells → take 4 @ 60.7 s
 
 ## FINDING (resolved by design)
 
