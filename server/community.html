@@ -196,7 +196,6 @@ td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
   <a class="wm" href="/">ALIVE<i>·</i>108</a>
   <nav>
     <a href="/city">the city</a>
-    <a href="/admin">admin</a>
   </nav>
 </div></header>
 
@@ -227,7 +226,6 @@ td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
   </div>
   <div class="links rise" style="--d:310ms">
     <a class="tlink" href="/city">Delhi's air right now →</a>
-    <a class="tlink dim" href="/admin">Admin →</a>
   </div>
   <div class="statusline rise" id="status" style="--d:360ms">reading the count…</div>
   <noscript>
@@ -307,7 +305,7 @@ const tName=s=>String(s||'').replace(/(^|[\s\-/'(])([a-z])/g,(m,p1,p2)=>p1+p2.to
 
 /* one ledger row per honest number — an absent feed renders '—'
    with its label, never an invented figure. every stat carries its
-   own 'what this is' line, same pattern the admin gtiles use. */
+   own 'what this is' line, same pattern the console gtiles use. */
 const lrow=(k,v,unit,na,w)=>`<div class="lrow"><span class="k">${k}`+
   `${w?`<span class="w">${w}</span>`:''}</span>`+
   `<span class="v${na?' na':''}">${na?'—':v}${unit&&!na?` <small>${unit}</small>`:''}</span></div>`;

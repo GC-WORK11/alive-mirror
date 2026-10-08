@@ -1,4 +1,4 @@
-"""Aggregate-only admin API — /admin/api/* (docs/plan/07 §2, §3).
+"""Aggregate-only admin API — <mount>/api/* (docs/plan/07 §2, §3).
 
 MOUNT NOTE — the integrator wires this router into server/main.py with
 exactly two lines, next to the /v2 mount at the bottom of the file:
@@ -6,8 +6,9 @@ exactly two lines, next to the /v2 mount at the bottom of the file:
     from admin_agg import router as _admin_agg_router   # or: server.admin_agg
     app.include_router(_admin_agg_router)
 
-(/admin itself — the HTML page — is already served by main.py; this file
-is only the data layer behind the rebuilt dashboard.)
+The console lives under one un-guessable path (admin_mount.ADMIN_MOUNT)
+— /admin and friends answer an honest 404. The page itself is served
+by main.py; this file is only the data layer behind the dashboard.
 
 PRIVACY — this module is architecturally incapable of showing a person:
   * It reads ONLY TripAggregates (v2/store.py), which holds day counters
@@ -59,10 +60,15 @@ try:  # noqa: E402
 except ImportError:  # imported as server.admin_agg from the repo root
     from server.v2.store import LEDGER, TRIPS  # type: ignore
 
-router = APIRouter(prefix="/admin/api", tags=["admin-aggregates"])
+try:  # noqa: E402
+    from admin_mount import ADMIN_MOUNT
+except ImportError:  # imported as server.admin_agg from the repo root
+    from server.admin_mount import ADMIN_MOUNT  # type: ignore
+
+router = APIRouter(prefix=ADMIN_MOUNT + "/api", tags=["admin-aggregates"])
 # the usage tab's data surface — same aggregate-only contract, mounted
-# under /v2 (the path the admin page calls), gated by the same
-# _admin_guard the integrator applies in main.py
+# beside the rest of the console api, gated by the same _admin_guard
+# the integrator applies in main.py
 usage_router = APIRouter(tags=["admin-usage"])
 
 K_MIN = 3                      # doc 07 §3 display threshold (store-enforced)
@@ -254,15 +260,15 @@ async def index():
         "privacy": ("aggregate-only — k>=3 enforced by the trip store; "
                     "no per-device data exists server-side to serve"),
         "endpoints": [
-            "/admin/api/status",
-            "/admin/api/sources",
-            "/admin/api/corridors",
-            "/admin/api/donations",
-            "/admin/api/validation",
-            "/admin/api/model",
-            "/admin/api/timing",
-            "/admin/api/global",
-            "/v2/usage",
+            f"{ADMIN_MOUNT}/api/status",
+            f"{ADMIN_MOUNT}/api/sources",
+            f"{ADMIN_MOUNT}/api/corridors",
+            f"{ADMIN_MOUNT}/api/donations",
+            f"{ADMIN_MOUNT}/api/validation",
+            f"{ADMIN_MOUNT}/api/model",
+            f"{ADMIN_MOUNT}/api/timing",
+            f"{ADMIN_MOUNT}/api/global",
+            f"{ADMIN_MOUNT}/api/usage",
         ],
     }
 
@@ -783,11 +789,11 @@ async def validation():
     }
 
 
-# --- /v2/usage — the admin 'usage' tab ---------------------------------------
-# Serves on the usage_router (mounted at /v2/usage with the same
-# _admin_guard as this router). Answers "who uses it" the only way the
-# privacy contract allows: every number is a scalar aggregate over the
-# stores that already exist — never per device, never per trip.
+# --- <mount>/api/usage — the console 'usage' tab ------------------------------
+# Serves on the usage_router (mounted at ADMIN_MOUNT/api/usage with the
+# same _admin_guard as this router). Answers "who uses it" the only way
+# the privacy contract allows: every number is a scalar aggregate over
+# the stores that already exist — never per device, never per trip.
 
 
 def _median(vals: list):
@@ -802,9 +808,9 @@ def _median(vals: list):
     return round((s[n // 2 - 1] + s[n // 2]) / 2.0, 1)
 
 
-@usage_router.get("/v2/usage")
+@usage_router.get(ADMIN_MOUNT + "/api/usage")
 async def usage():
-    """Usage rollup for the admin 'usage' tab — aggregate-only.
+    """Usage rollup for the console 'usage' tab — aggregate-only.
 
     Blocks, each reading a real store (null + basis note when its source
     can't answer — a number is never invented):

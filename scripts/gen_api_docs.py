@@ -27,6 +27,8 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "server"))
+from admin_mount import ADMIN_MOUNT  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Capture plan — one representative request per endpoint, ordered so that
@@ -94,15 +96,15 @@ EXAMPLES = [
                           "duration_s": 900, "dose_ug": 41.2}}},
     {"method": "GET", "path": "/v2/city"},
     # --- internal ---
-    {"method": "GET", "path": "/admin/api"},
-    {"method": "GET", "path": "/admin", "html": True},
+    {"method": "GET", "path": ADMIN_MOUNT + "/api"},
+    {"method": "GET", "path": ADMIN_MOUNT, "html": True},
     {"method": "GET", "path": "/city", "html": True},
 ]
 
 # Ops/dashboard surfaces — not part of the app contract. No endpoint in
 # the codebase is marked deprecated; that statement is verified each run
 # by the drift section, not asserted here.
-INTERNAL_PATHS = {"/admin", "/admin/api", "/city"}
+INTERNAL_PATHS = {ADMIN_MOUNT, ADMIN_MOUNT + "/api", "/city"}
 
 # Curated request-body fields — FastAPI types these handlers as `body: dict`
 # so the OpenAPI schema is a generic object; these are the keys the code

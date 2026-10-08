@@ -99,7 +99,7 @@ class TripAggregates:
         # corridor cells use. Per-trip rows (ts/mode/dose/km) would
         # collapse to a single person's journey; hour buckets can't.
         self._hours: dict = {}
-        # global layer for /admin/api/global: the donated trip's
+        # global layer for the console api/global: the donated trip's
         # endpoint AREA (district/sub-district name resolved upstream in
         # v2/trip from the already-trimmed endpoint) — a string, not a
         # coordinate. Distinct hashed devices per area/pair keep the
@@ -334,7 +334,7 @@ class TripAggregates:
                     for i in range(hours)]
 
     def global_aggregates(self) -> dict:
-        """Everything /admin/api/global may reveal — area and OD-pair
+        """Everything the console api/global may reveal — area and OD-pair
         rows plus the lifetime savings counters, k>=3 filtered on
         distinct devices exactly like corridor cells. Mirrors
         agg_ddb.DDBTripAggregates.global_aggregates' shape."""
@@ -526,7 +526,7 @@ class DeviceLedger:
 def _select_ledger():
     """Same backend selection as _select_trips: DynamoDB when the env
     table + boto3 + credentials resolve, else in-memory. /health and
-    /admin read LEDGER.backend to show which is live."""
+    The console reads LEDGER.backend to show which is live."""
     table = (os.environ.get("AGG_TABLE")
              or os.environ.get("ALIVE_DDB_TABLE") or "").strip()
     if not table:

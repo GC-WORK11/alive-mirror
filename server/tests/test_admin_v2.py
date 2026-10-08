@@ -1,6 +1,6 @@
-"""r5 ops-dashboard tests — the fields the rebuilt /admin page consumes.
+"""r5 ops-dashboard tests — the fields the rebuilt console page consumes.
 
-Covers the additive surface on /admin/api/* (server/admin_agg.py):
+Covers the additive surface on <mount>/api/* (server/admin_agg.py):
 field serving/stale/σ-band honesty, the `met` ingest source with
 provenance extras, per-source stale flags, mode share + derived dose
 means in /donations, publishable counts in /corridors — and re-asserts
@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import admin_agg
+from admin_mount import ADMIN_MOUNT as M
 from v2.store import TRIPS
 
 app = FastAPI()
@@ -19,13 +20,13 @@ app.include_router(admin_agg.usage_router)
 client = TestClient(app)
 
 ENDPOINTS = [
-    "/admin/api",
-    "/admin/api/status",
-    "/admin/api/sources",
-    "/admin/api/corridors",
-    "/admin/api/donations",
-    "/admin/api/validation",
-    "/v2/usage",
+    M + "/api",
+    M + "/api/status",
+    M + "/api/sources",
+    M + "/api/corridors",
+    M + "/api/donations",
+    M + "/api/validation",
+    M + "/api/usage",
 ]
 
 # Same contract as test_admin_agg: no response may carry identity or
@@ -94,7 +95,7 @@ def test_status_serving_stale_sigma_keys(monkeypatch):
                         lambda: _fake_field())
     monkeypatch.setattr(admin_agg._health, "collect_health",
                         lambda: _fake_health())
-    d = client.get("/admin/api/status").json()
+    d = client.get(M + "/api/status").json()
     f = d["field"]
     for k in ("serving", "stale", "stale_after_s",
               "sigma_coverage", "coverage"):
@@ -110,7 +111,7 @@ def test_status_serving_stale_sigma_keys(monkeypatch):
 def test_status_stale_true_passthrough(monkeypatch):
     monkeypatch.setattr(admin_agg, "_field_status",
                         lambda: _fake_field(age_s=4000, stale=True))
-    f = client.get("/admin/api/status").json()["field"]
+    f = client.get(M + "/api/status").json()["field"]
     assert f["stale"] is True and f["age_s"] == 4000
 
 
@@ -125,7 +126,7 @@ def test_sources_met_present_with_prov_extras(monkeypatch):
         "stations": {"n_raw": 61, "n_used": 42},
         "fires": {"modifier": 1.21},
     })
-    d = client.get("/admin/api/sources").json()
+    d = client.get(M + "/api/sources").json()
     s = d["sources"]
     assert "met" in s                       # fourth field input, now surfaced
     assert s["met"]["wind_ms"] == 3.2
@@ -155,7 +156,7 @@ def test_sources_stale_flag_tristate(monkeypatch):
                                       "age_s": 90, "status": "ok"},
                             "location": {"up": None, "detail": "l"},
                         }))
-    s = client.get("/admin/api/sources").json()["sources"]
+    s = client.get(M + "/api/sources").json()["sources"]
     assert s["model"]["stale"] is True      # 500s > 100s alarm rule
     assert s["met"]["stale"] is False       # fresh
     assert s["stations"]["stale"] is None   # no age -> 'no data', not 'late'
@@ -176,7 +177,7 @@ def test_sources_live_null_never_erases_prov_age(monkeypatch):
                             "fires": {"up": None, "detail": "f",
                                       "age_s": 700, "status": "ok"},
                         }))
-    s = client.get("/admin/api/sources").json()["sources"]
+    s = client.get(M + "/api/sources").json()["sources"]
     assert s["fires"]["age_s"] == 700       # prov age kept, not erased
     assert s["fires"]["status"] == "ok"
 
@@ -192,7 +193,7 @@ def test_sources_live_values_win_over_prov(monkeypatch):
                             "fires": {"up": None, "detail": "f",
                                       "age_s": 700, "status": "stale"},
                         }))
-    s = client.get("/admin/api/sources").json()["sources"]
+    s = client.get(M + "/api/sources").json()["sources"]
     assert s["fires"]["age_s"] == 55        # live fetch beats prov age
     assert s["fires"]["status"] == "ok"
     assert s["fires"]["fires"] == 12 and s["fires"]["belt_fires"] == 4
@@ -209,7 +210,7 @@ def test_donations_mode_share_sorted_and_sums_100():
                            "dose_ug": 40.0})
     _donate(["cD"], ["t4"], {"mode": "walk", "distance_km": 2.0,
                            "dose_ug": 10.0})
-    d = client.get("/admin/api/donations").json()
+    d = client.get(M + "/api/donations").json()
     share = d["mode_share"]
     assert [r["mode"] for r in share] == ["metro", "car", "walk"]
     assert share[0]["trips"] == 2 and share[0]["pct"] == 50.0
@@ -222,7 +223,7 @@ def test_donations_mode_share_sorted_and_sums_100():
 
 def test_donations_derived_null_when_empty():
     """Zero trips -> null derived means, never a fake-zero average."""
-    d = client.get("/admin/api/donations").json()
+    d = client.get(M + "/api/donations").json()
     assert d["mode_share"] == []
     t = d["totals"]
     assert t["avg_dose_per_trip_ug"] is None
@@ -235,7 +236,7 @@ def test_donations_derived_null_when_empty():
 def test_corridors_publishable_counts():
     _donate(["cellA"], ["t1", "t2"])                 # k<3 -> suppressed
     _donate(["cellB"], ["t1", "t2", "t3"])           # publishable
-    d = client.get("/admin/api/corridors").json()
+    d = client.get(M + "/api/corridors").json()
     assert d["shown"] == len(d["rows"]) == 1
     assert d["publishable_cells"] == 1
     assert d["cells_tracked"] == 2

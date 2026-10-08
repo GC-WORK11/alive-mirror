@@ -12,6 +12,7 @@ Usage: python3 tools/load_v2.py [baseline|mix|all] [outfile] [base]
 """
 import asyncio
 import json
+import os
 import sys
 import time
 
@@ -19,6 +20,9 @@ import httpx
 
 BASE = (sys.argv[3] if len(sys.argv) > 3 else
         "http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "server"))
+from admin_mount import ADMIN_MOUNT
 CP = (28.6315, 77.2167)
 GGM = (28.4595, 77.0266)
 
@@ -30,7 +34,7 @@ GETS = {
     "grid0":    "/grid?h=0",
     "aqi":      f"/aqi?lat={CP[0]}&lon={CP[1]}",
     "city":     "/city",
-    "admin":    "/admin",
+    "admin":    ADMIN_MOUNT,
 }
 PLAN_BODY = {"from": {"lat": CP[0], "lon": CP[1]},
              "to": {"lat": GGM[0], "lon": GGM[1]}}

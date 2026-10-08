@@ -10,6 +10,8 @@ import sys
 
 import httpx
 
+from admin_mount import ADMIN_MOUNT
+
 BASE = "http://localhost:8000"
 if "--base" in sys.argv:
     BASE = sys.argv[sys.argv.index("--base") + 1]
@@ -156,7 +158,7 @@ async def main():
         check("community corridors", isinstance(j.get("top_corridors"), list))
         check("community freshness", "latest_obs_age_min" in j)
 
-        j = (await c.get("/admin/api")).json()
+        j = (await c.get(ADMIN_MOUNT + "/api")).json()
         check("admin live_users int", isinstance(j.get("live_users"), int))
         check("admin contributors", len(j.get("contributors", [])) >= 1)
         # hour-bucketed k-anonymity feed (3ef3677): an empty list is the
@@ -169,7 +171,7 @@ async def main():
                       for b in j["recent_journeys"]))
         check("admin field status", bool(j.get("field", {}).get("samples")))
 
-        r = await c.get("/admin")
+        r = await c.get(ADMIN_MOUNT)
         check("admin page html", r.status_code == 200 and "ALive-108" in r.text)
 
         j = (await c.get("/escape", params={"lat": KB[0], "lon": KB[1], "limit": 5})).json()

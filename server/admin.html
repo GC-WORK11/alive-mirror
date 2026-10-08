@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
 <title>ALive-108 · engine room</title>
 <meta name="description" content="The machine room — every feed, model and counter the live site serves, pulled straight off the wire.">
 <meta property="og:title" content="ALive-108 · engine room">
@@ -70,9 +71,9 @@
 
   /* the gate — the engine room fails closed: no live session, no board.
      same register as the boot strip: warm paper, one card, hairlines,
-     mono small-caps. the token goes to the server once (POST /v2/admin/
-     login) and never touches JS again — the session is an HttpOnly
-     cookie, so this page stores no secret a script could steal */
+     mono small-caps. the token goes to the server once (POST to the
+     mount's login endpoint) and never touches JS again — the session is
+     an HttpOnly cookie, so this page stores no secret a script could steal */
   #gate{position:fixed;inset:0;z-index:60;background:var(--paper);
         display:flex;align-items:center;justify-content:center;padding:20px}
   #gate[hidden]{display:none}
@@ -567,7 +568,7 @@
   <div class="bt-foot" id="btFoot">the same field, watched</div>
 </div>
 
-<!-- the gate — shown the moment /v2/admin/session says no live cookie.
+<!-- the gate — shown the moment the session probe says no live cookie.
      guests never reach the board's fetches for gated tiles; the one
      escape is the public city view, which needs nothing -->
 <div id="gate" hidden>
@@ -754,6 +755,11 @@
   catch(e){b.remove()}})();
 const NF=new Intl.NumberFormat('en-IN');
 const $=id=>document.getElementById(id);
+/* the console's whole surface hangs under one un-guessable mount
+   (server/admin_mount.py) — every authed path below is relative to the
+   path this page was itself served at, so the file never hardcodes the
+   mount and rotates with it for free */
+const M=location.pathname.replace(/\/+$/,'');
 const fmt=n=>n==null?'—':NF.format(Math.round(n));
 const fmt1=n=>n==null?'—':NF.format(Math.round(n*10)/10);
 const ago=s=>s==null?'—':s<60?`${Math.round(s)}s`:s<3600?`${Math.round(s/60)}m`:`${Math.round(s/3600)}h`;
@@ -785,7 +791,7 @@ const freshBadge=(flag)=>flag===true?'<span class="badge stale">stale</span>'
   :flag===false?'<span class="badge ok">fresh</span>'
   :'<span class="badge">no data</span>';
 
-/* auth model: POST /v2/admin/login mints an HttpOnly SameSite=Strict
+/* auth model: the login POST mints an HttpOnly SameSite=Strict
    cookie signed server-side — the token itself never lives in JS, so a
    page-context script cannot steal it (the sessionStorage Bearer this
    replaces could). AUT tracks 'is the session live' for short-circuiting
@@ -793,7 +799,7 @@ const freshBadge=(flag)=>flag===true?'<span class="badge stale">stale</span>'
 let AUT=false;
 async function checkSession(){
   try{
-    const r=await fetch('/v2/admin/session',{credentials:'same-origin',
+    const r=await fetch(M+'/session',{credentials:'same-origin',
       signal:AbortSignal.timeout(8000)});
     if(!r.ok)return AUT;
     return !!(await r.json()).authenticated;
@@ -843,9 +849,9 @@ async function tick(){
      token check happens BEFORE any authed fetch — an unauthenticated
      load fires zero 401s: public feeds still serve, gated slots reject
      instantly and render their honest-empty states. */
-  const urls=['/admin/api/status','/admin/api/sources','/admin/api/corridors',
-    '/admin/api/donations','/admin/api/validation','/admin/api/model',
-    '/v2/districts','/admin/api/timing','/admin/api/global','/v2/usage',
+  const urls=[M+'/api/status',M+'/api/sources',M+'/api/corridors',
+    M+'/api/donations',M+'/api/validation',M+'/api/model',
+    '/v2/districts',M+'/api/timing',M+'/api/global',M+'/api/usage',
     /* public feeds — the page renders real truth before the token lands:
        /health carries the public-safe status block (samples, stations,
        edges priced, engine), /aqi the live read + fire status + σ band,
@@ -854,12 +860,12 @@ async function tick(){
     '/v2/why?lat=28.63&lon=77.22','/v2/city',
     /* the auth probe — not gated, always fetched; it is how sign-out /
        expiry in another tab (or a token rotation) re-locks this board */
-    '/v2/admin/session'];
+    M+'/session'];
   const gated=!AUT;
   /* every operator-only path must short-circuit for guests — a fetch
      that hits the server anyway would surface its 401/403 as a nagging
      token prompt instead of the honest locked state */
-  const isGatedPath=u=>u.startsWith('/admin/api/')||u==='/v2/usage';
+  const isGatedPath=u=>u.startsWith(M+'/api/');
   const res=await Promise.allSettled(urls.map(u=>
     (gated&&isGatedPath(u))
       ?Promise.reject(new Error(u+' — token required'))
@@ -1538,7 +1544,7 @@ async function tick(){
     }));
 
   /* --- 05 · the engine: dose-math table + formula + routing internals
-     + scorecard. every constant is served by /admin/api/model — the
+     + scorecard. every constant is served by the console's model api — the
      page shows what the engine computes, never a pasted copy --- */
   const CANON=['walking','auto_rickshaw','driving_two_wheeler','cycling',
     'driving_car_open','bus','driving_car_ac','metro'];
@@ -2223,7 +2229,7 @@ function paintShared(dn,S,rows,G){
      <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'nothing to show yet'}</div>
      <div class="cap">${sub}</div></div>`).join('');
 }
-/* --- 07 · who's using it: the /v2/usage rollup. every number is a
+/* --- 07 · who's using it: the usage rollup (mount-relative api). every number is a
    scalar aggregate over the stores that already exist — a null + note
    where a source can't answer, an honest locked state for guests
    (the fetch never fires without a token, so no 401 nags) --- */
@@ -2691,7 +2697,7 @@ function tokBtnRefresh(){$('tokbtn').textContent=
   AUT?'sign out':'operator sign in'}
 $('tokbtn').addEventListener('click',()=>{
   if(AUT){
-    fetch('/v2/admin/logout',{method:'POST',credentials:'same-origin'})
+    fetch(M+'/logout',{method:'POST',credentials:'same-origin'})
       .finally(()=>{AUT=false;showGate();tick()});
     return}
   showGate('')});
@@ -2701,7 +2707,7 @@ $('gateform').addEventListener('submit',async e=>{
   if(!tok){err.textContent='enter the operator token';return}
   btn.disabled=true;err.textContent='signing in…';
   try{
-    const r=await fetch('/v2/admin/login',{method:'POST',
+    const r=await fetch(M+'/login',{method:'POST',
       credentials:'same-origin',
       headers:{'content-type':'application/json'},
       body:JSON.stringify({token:tok}),

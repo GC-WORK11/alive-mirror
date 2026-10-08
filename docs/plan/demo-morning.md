@@ -66,7 +66,7 @@ hope.** Then warm.
 | 2 | plan serving (priced engine) | `python3 tools/warm_task.py` | exit 0 → prints `WARM: priced engine serving after Ns`; last line `/tiles/health ok — 22.7 MB` |
 | 3 | field age < 20 min | `curl -s "$NLB/health"` → `field_age_s` | `< 1200` (it peaks ~920 s then resets on the ~15-min cycle — a stuck reading >1200 s means the ingest loop died) |
 | 4 | APK installed + warmed | on the phone: app opens → home hero shows a live "outside" number → tap "Air map" (the field must be painted, not a bare basemap) → "Where to?" India Gate → Huda City Centre → plan lands → back to home | install the latest `alive108-<sha>.apk` — **must be a re-cut ≥`e147dbd`** (the wave's Mobile commits; `demo-kit.md` §1). The pinned `ef5d95f` still *works* (r2 pack inside) but shows the OLD app — v1 chooser, invisible field, welcome film on fresh install. `c3bb731`/`0b11123` are **never**; a `d8c7b41..edc4666` cut crashes at launch. `shasum -a 256` the file against its report |
-| 5 | admin login works | `TOKEN=$(aws secretsmanager get-secret-value --secret-id alive108/admin-token --query SecretString --output text)` then `curl -s -D- -o /dev/null -X POST "$NLB/v2/admin/login" -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN\"}" \| grep -i '^set-cookie'` | `alive_admin=v1.<exp>.<sig>; HttpOnly; Max-Age=28800` — proves token + endpoint good before you need them on camera |
+| 5 | admin login works | `TOKEN=$(aws secretsmanager get-secret-value --secret-id alive108/admin-token --query SecretString --output text)` then `curl -s -D- -o /dev/null -X POST "$NLB/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs/login" -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN\"}" \| grep -i '^set-cookie'` | `alive_admin=v1.<exp>.<sig>; HttpOnly; Max-Age=28800` — proves token + endpoint good before you need them on camera |
 
 **NO-GO conditions (cut or fix, don't fake):**
 - `/health` `field_stale:true` or `field_age_s` stuck > 1200 s after two
@@ -75,8 +75,8 @@ hope.** Then warm.
 - Demo-OD plan returns `options:[]` twice in a row (one honest planner
   timeout is normal on cold far-ODs; two means cut to backup video).
 - Public repo not pushed — disqualifier.
-- APK crashes on open twice — demo the web surfaces (`/`, `/city`,
-  `/admin`); same numbers.
+- APK crashes on open twice — demo the web surfaces (`/`, `/city`, and the
+  console at its unlisted URL); same numbers.
 
 ---
 
@@ -214,14 +214,14 @@ bash scripts/verify_numbers.sh
 - [ ] Have the operator token physically at hand — **phone note or
   paper**, not a laptop you'll unlock on stage. (Secrets Manager
   `alive108/admin-token`; fetch cmd in the GO/NO-GO table.)
-- [ ] In the demo browser open `$NLB/admin` — a guest lands on the
+- [ ] In the demo browser open `$NLB/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs` — a guest lands on the
   **gate card** ("engine room · OPERATOR ONLY"), not the board.
 - [ ] Paste the token → **SIGN IN** → board renders + ticks ~30 s.
 - [ ] **Chrome will offer "Save password?" → tap Never.** The token
   does not go into a password manager on a shared machine.
 - [ ] If it says `wrong token`: re-paste carefully — **5 bad tries →
   429**; wait ~5 s, one clean attempt passes.
-- [ ] Judges never go near `/admin`? Leave it gated — the gate card
+- [ ] Judges never go near the console URL? Leave it gated — the gate card
   itself is the privacy story.
 
 ### Physical
@@ -268,9 +268,9 @@ canonical verbatim; this is the order + the honest number behind each):
 | 3 | 0:35–0:55 | **phone**: "Where to?" → type `ashook nagar shadara gali no 4`, then `huda city centre` | "search works the way you actually type — misspelled, phonetic, a gali number, 'near the mandir'; it folds the spelling, anchors 'near' to the real landmark, never invents a pin. Now the trip — HUDA city centre." |
 | 4 | 0:55–1:35 | **phone**: plan lands → the 4-act chooser on the map → compare ladder + leave-later row | "watch the map think: your from, your to — then the ways, drawn as equals — then one settles and *says why*. Same twenty-five kilometres: on foot about five hundred µg, a sealed AC car about fifteen — more than a thirty-times spread the map you use today never tells you. And it prices *when* — leave at eleven, about a quarter less." Metro clause ONLY if the row's on the wire. |
 | 5 | 1:35–1:55 | **phone**: "your lungs' calendar" week sheet → "Delhi today" | "every trip lands in your lungs' calendar — seven real days, blank means the app wasn't with you, never a fake zero. Delhi today: the city's air is shared, but your trips are yours — until you've taken one it says so." |
-| 6 | 1:55–2:15 | **laptop**: `/` landing + `/community` + `/v2/city` + `/admin` gate→board | "the same field serves the public page — and every donated trip becomes a live sensor: forty-seven real donations, twenty-five contributors; a street only publishes after three different riders cross it — the privacy is in the math." ⟳ LIVE counts |
+| 6 | 1:55–2:15 | **laptop**: `/` landing + `/community` + `/v2/city` + console gate→board | "the same field serves the public page — and every donated trip becomes a live sensor: forty-seven real donations, twenty-five contributors; a street only publishes after three different riders cross it — the privacy is in the math." ⟳ LIVE counts |
 | 7 | 2:15–2:35 | AWS console — ECS `alive108` | "real infrastructure: ECS Fargate behind an NLB — one task, healthy, Spot-priced; DynamoDB holds only aggregates." Read task-def off the console, never a memorized number. |
-| 8 | 2:35–2:50 | `/admin` field map — species pills → back to `/` | "we hold one rule: no fake precision — the band is *measured* (95.2% @2σ over 3,550 held-out station-hours). Click NO₂ — a different map, not a relabeled layer. Dose every 250 metres for the rider, emissions per mode for the city — ALive-108, the map that prices the air." |
+| 8 | 2:35–2:50 | console field map — species pills → back to `/` | "we hold one rule: no fake precision — the band is *measured* (95.2% @2σ over 3,550 held-out station-hours). Click NO₂ — a different map, not a relabeled layer. Dose every 250 metres for the rider, emissions per mode for the city — ALive-108, the map that prices the air." |
 
 **Do NOT improvise other ODs on stage.** The metro+walk row is only
 guaranteed on the demo OD (India Gate → Huda City Centre — verified

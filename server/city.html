@@ -285,7 +285,7 @@
     .day{flex:none;min-width:112px}}
 
   /* district detail — top-left under m-tag on desktop, docks bottom on mobile;
-     hairline popover, same language as /admin's cell inspector */
+     hairline popover, same language as the console's cell inspector */
   .detail{position:absolute;left:18px;top:66px;min-width:210px;max-width:250px;
           background:rgba(255,255,255,.94);border:1px solid var(--line2);
           border-radius:12px;padding:13px 15px;pointer-events:none;
@@ -436,7 +436,6 @@
   <div class="mast-r">
     <a href="/">home</a>
     <a href="/community">community</a>
-    <a href="/admin">admin</a>
     <span class="hidemob" id="clock">—</span>
     <span class="live-lbl"><span class="live-sq"></span>live</span>
   </div>
@@ -608,7 +607,6 @@
       own cadence.
     </div>
     <div class="foot-r">
-      <a href="/admin">ops ↗</a><br>
       <a href="/docs">api docs ↗</a><br>
       <span id="stamp">—</span>
     </div>
@@ -619,7 +617,7 @@
 /* ---------- CPCB National AQI — official six band names, the product's
    muted ramp ----------
    band NAMES stay the official CPCB categories; the hexes are the whole
-   web family's muted product ramp (--b0..5, same as landing + admin) —
+   web family's muted product ramp (--b0..5, same as landing + console) —
    the raw govt swatches (#FFFF00, #FF0000…) flooded the choropleth and
    read neon against the warm register. hue = air-quality meaning only. */
 const BANDS=[[0,50,'Good','#7AAB59'],[51,100,'Satisfactory','#C8B25A'],

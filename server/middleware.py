@@ -47,6 +47,14 @@ from typing import Optional
 
 from starlette.datastructures import Headers, MutableHeaders
 
+try:  # the console's mount — same dual-layout rule as main.py
+    from admin_mount import ADMIN_MOUNT as _ADMIN_MOUNT
+except ImportError:
+    try:
+        from server.admin_mount import ADMIN_MOUNT as _ADMIN_MOUNT
+    except Exception:
+        _ADMIN_MOUNT = None
+
 # ---------------------------------------------------------------------------
 # helpers: tiny JSON responder that works at raw ASGI level
 # ---------------------------------------------------------------------------
@@ -304,7 +312,7 @@ class BodySizeLimitMiddleware:
 
 
 # ---------------------------------------------------------------------------
-# 3. Security headers — measured set, safe for /admin and /city pages
+# 3. Security headers — measured set, safe for the console and /city pages
 # ---------------------------------------------------------------------------
 
 _DEFAULT_HEADERS = {
@@ -322,7 +330,7 @@ class SecurityHeadersMiddleware:
     X-Content-Type-Options nosniff, X-Frame-Options DENY, Referrer-Policy
     no-referrer, X-XSS-Protection 0. HSTS only when the request arrived
     over TLS (scheme https or X-Forwarded-Proto from the NLB) — sending
-    it on plain HTTP is a no-op anyway. No CSP: the admin/city pages
+    it on plain HTTP is a no-op anyway. No CSP: the console/city pages
     use inline <script>/<style>, and a wrong CSP is worse than none —
     noted, not silently half-done.
     """
@@ -430,8 +438,11 @@ _DEFAULT_PATH_LIMITS = {
     "/observe": (1.0, 5),
     "/report": (1.0, 5),
     # operator sign-in: 5 attempts then ~1 per 5 s per socket peer — a
-    # real login needs one shot; anything beyond five is brute force
-    "/v2/admin/login": (0.2, 5),
+    # real login needs one shot; anything beyond five is brute force.
+    # The bucket keys the live mount from admin_mount.py (the console
+    # path is deliberately un-guessable); the /v2/admin fallback only
+    # covers a context where admin_mount can't be imported at all.
+    (_ADMIN_MOUNT or "/v2/admin") + "/login": (0.2, 5),
 }
 
 

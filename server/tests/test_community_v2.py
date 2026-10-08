@@ -22,6 +22,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import community  # noqa: E402
+from admin_mount import ADMIN_MOUNT as M  # noqa: E402
 from v2 import store as _v2store  # noqa: E402
 
 # one ~500 m cell near Connaught Place, plus a far-away second cell
@@ -253,7 +254,7 @@ def test_field_samples_stale_traversals_dont_publish():
 # --- response shape (the /community page contract) -------------------------
 def test_totals_reads_the_shared_ledger():
     """totals() answers from the SAME donation ledger /v2/city and
-    /admin serve (v2.store TRIPS + LEDGER) — one source of truth, so
+    the ops console serve (v2.store TRIPS + LEDGER) — one source of truth, so
     the public surfaces can never diverge again. The traversal
     projection this module keeps (community.observe's fold) is a
     different dataset and must NOT inflate the ledger numbers."""
@@ -351,7 +352,7 @@ def test_contributors_detail_is_day_rollup_not_devices():
     assert r["day"] == time.strftime("%Y-%m-%d", time.gmtime())
     assert r["contributors"] == 3 and r["trips"] == 3
     assert "contributor" not in _keys(rows)
-    assert "last_seen_min_ago" in r  # /admin/api live-activity check
+    assert "last_seen_min_ago" in r  # ops console api live-activity check
 
 
 def test_contributors_detail_suppresses_sub_k_days():
@@ -533,7 +534,7 @@ def test_feedback_endpoint_round_trip():
     assert r.status_code == 200 and r.json()["stored"] is True
     r = c.post("/v2/feedback", json={"stars": 9})
     assert r.status_code == 422
-    s = c.get("/admin/api/reviews").json()
+    s = c.get(M + "/api/reviews").json()
     assert s["count"] >= 1
     community._reviews.clear(); community._loaded = False
 

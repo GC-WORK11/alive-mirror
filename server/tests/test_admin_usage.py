@@ -1,8 +1,8 @@
-"""Tests for /v2/usage — the admin 'usage' tab's aggregate rollup.
+"""Tests for the console usage endpoint — the 'usage' tab's rollup.
 
 The endpoint answers "who uses it" inside the privacy spine (doc 07 §3):
 aggregate scalars only, honest nulls + basis notes where a store can't
-answer, the same _admin_guard as /admin/api/*. Covered here: payload
+answer, the same _admin_guard as the rest of <mount>/api/*. Covered here: payload
 shape on a populated store, the no-identity key scan, the honest-empty
 state, degraded-backend honesty (a failing store degrades to null +
 note, never a wrong number), the 401/403 gate, and the admin page's
@@ -16,6 +16,7 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 import admin_agg
+from admin_mount import ADMIN_MOUNT as M
 from v2.store import LEDGER, TRIPS
 
 app = FastAPI()
@@ -65,7 +66,7 @@ def _donate(cells, tokens, summary=None, ts=None):
 
 def test_usage_shape_empty():
     """Fresh stores -> honest empties, no fabricated zeros-as-means."""
-    d = client.get("/v2/usage").json()
+    d = client.get(M + "/api/usage").json()
     assert d["k_min"] == 3
     assert d["empty"] is True
     assert d["installs"] is None and d["installs_note"]
@@ -87,7 +88,7 @@ def test_usage_shape_populated():
                              "dose_ug": 120.0})
     _donate(["cX"], ["t3"], {"mode": "walk", "distance_km": 2.0,
                              "dose_ug": 30.0})
-    d = client.get("/v2/usage").json()
+    d = client.get(M + "/api/usage").json()
     assert d["empty"] is False
     dev = d["devices"]
     assert dev["total"] == 3 and dev["seen_24h"] == 3
@@ -114,7 +115,7 @@ def test_usage_window_buckets():
     _donate(["cX"], ["fresh"], ts=now - 3600)
     _donate(["cX"], ["week"], ts=now - 3 * 86400)
     _donate(["cX"], ["old"], ts=now - 10 * 86400)
-    d = client.get("/v2/usage").json()
+    d = client.get(M + "/api/usage").json()
     dev = d["devices"]
     assert dev["total"] == 3
     assert dev["seen_24h"] == 1 and dev["seen_7d"] == 2
@@ -127,7 +128,7 @@ def test_usage_window_buckets():
 def test_usage_never_leaks_identity():
     """A populated payload recursively scanned: counts, never people."""
     _donate(["cX"], ["t1", "t2", "t3"])
-    d = client.get("/v2/usage").json()
+    d = client.get(M + "/api/usage").json()
     leaked = {k.lower() for k in _keys(d)} & BANNED_KEYS
     assert not leaked, f"usage leaks field(s): {leaked}"
     # nothing dimensional below a city total: no per-device or per-trip
@@ -157,7 +158,7 @@ def test_usage_degraded_ledger_is_honest():
     real = admin_agg.LEDGER
     admin_agg.LEDGER = BrokenLedger()
     try:
-        d = client.get("/v2/usage").json()
+        d = client.get(M + "/api/usage").json()
     finally:
         admin_agg.LEDGER = real
     assert d["devices"]["unavailable"] is True
@@ -173,7 +174,7 @@ def test_usage_k_guard_is_structural():
     the >=3 gate). What must never happen is a scalar turning into a
     person; the payload stays key-clean."""
     _donate(["cX"], ["solo"])
-    d = client.get("/v2/usage").json()
+    d = client.get(M + "/api/usage").json()
     assert d["devices"]["total"] == 1          # a count, not a person
     assert d["corridors"]["publishable"] == 0  # k<3 cell suppressed
     assert d["corridors"]["tracked"] == 1
@@ -193,11 +194,11 @@ def test_usage_requires_operator_token(monkeypatch):
     gated_app.include_router(admin_agg.usage_router,
                              dependencies=[Depends(_m._admin_guard)])
     c = TestClient(gated_app, base_url="http://10.9.8.7")
-    assert c.get("/v2/usage").status_code == 401
-    r = c.get("/v2/usage",
+    assert c.get(M + "/api/usage").status_code == 401
+    r = c.get(M + "/api/usage",
               headers={"Authorization": "Bearer test-token-xyz"})
     assert r.status_code == 200
-    assert c.get("/v2/usage",
+    assert c.get(M + "/api/usage",
                  headers={"Authorization": "Bearer wrong"}).status_code == 401
 
 
@@ -207,8 +208,8 @@ def test_admin_page_renders_usage_section():
     """The served page must carry the section, the fetch, and the guest
     short-circuit — a stale admin.html fails this loudly."""
     import main as _m
-    body = TestClient(_m.app).get("/admin").text
-    assert '/v2/usage' in body
+    body = TestClient(_m.app).get(M).text
+    assert '/api/usage' in body
     assert 'id="usagecards"' in body
     assert 'id="usagefb"' in body
     assert 'isGatedPath' in body

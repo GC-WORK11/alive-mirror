@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Shotlist beat 5 — the engine room (1:35-2:05): /admin.
+# Shotlist beat 5 — the engine room (1:35-2:05): the unlisted console
+# mount (server/admin_mount.py; keep in sync).
 # Token -> live pipeline stamps -> engine internals (dose math, routing,
 # measured latency, model scorecard) -> the field map with fire dots,
 # NO2 repaint for contrast, then the k>=3 corridor wire table. ~33s
@@ -39,7 +40,7 @@ cat > /tmp/act_admin.json <<'JSON'
 JSON
 
 "$PY" "$VIDEO_DIR/cdp_rec.py" --rec "${REC:-auto}" \
-  --url "$NLB/admin" \
+  --url "$NLB/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs" \
   --out "$OUT_DIR/50_admin.mp4" \
   --pre 4 --dur 30 \
   --pre-actions /tmp/act_admin_pre.json \

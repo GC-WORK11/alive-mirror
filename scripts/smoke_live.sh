@@ -55,7 +55,8 @@ check "GET /v2/reach walk"     200 '.edge_count > 0' "$BASE/v2/reach?lat=$LAT&lo
 check "GET /v2/outlook"        200 '(.days|length) > 0' "$BASE/v2/outlook?lat=$LAT&lon=$LON"
 check "GET /v2/city"           200 '.species != null and .field_age_s != null' "$BASE/v2/city"
 check "GET /city page"         200 '.' "$BASE/city"
-check "GET /admin page"        200 '.' "$BASE/admin"
+# console page — unlisted mount (server/admin_mount.py; keep in sync)
+check "GET console page"      200 '.' "$BASE/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs"
 check "GET /community"         200 '.obs_total != null' "$BASE/community"
 check "GET /grid?h=0"          200 '.type == "FeatureCollection" and (.features|length) > 0' "$BASE/grid?h=0"
 check "GET /grid?h=12"         200 '.type == "FeatureCollection" and (.features|length) > 0' "$BASE/grid?h=12"

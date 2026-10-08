@@ -87,7 +87,7 @@ RUNNING) → Elastic IP `65.2.28.40` → NLB listener → phone browser on
 build_sha `698cf808`) → Secrets Manager `alive108/openaq` +
 `alive108/waqi` + `alive108/admin-token` (where the keys live — the
 token now mints an HMAC-signed HttpOnly session cookie via
-`POST /v2/admin/login`, no client-side storage). Voiceover:
+a login POST on its unlisted mount, no client-side storage). Voiceover:
 "CodeBuild builds the image inside AWS, ECR stores it, Fargate runs it
 serverless, a Network Load Balancer fronts it — the same engine the app
 on this phone is talking to."

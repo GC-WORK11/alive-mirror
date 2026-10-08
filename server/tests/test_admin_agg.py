@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 import admin_agg
+from admin_mount import ADMIN_MOUNT as M
 from v2.store import TRIPS
 
 app = FastAPI()
@@ -22,16 +23,16 @@ app.include_router(admin_agg.usage_router)
 client = TestClient(app)
 
 ENDPOINTS = [
-    "/admin/api",
-    "/admin/api/status",
-    "/admin/api/sources",
-    "/admin/api/corridors",
-    "/admin/api/donations",
-    "/admin/api/validation",
-    "/admin/api/model",
-    "/admin/api/timing",
-    "/admin/api/global",
-    "/v2/usage",
+    M + "/api",
+    M + "/api/status",
+    M + "/api/sources",
+    M + "/api/corridors",
+    M + "/api/donations",
+    M + "/api/validation",
+    M + "/api/model",
+    M + "/api/timing",
+    M + "/api/global",
+    M + "/api/usage",
 ]
 
 # Field names that must never appear anywhere in an admin response —
@@ -76,7 +77,7 @@ def _donate(cells, tokens, summary=None):
 # --- shapes -----------------------------------------------------------------
 
 def test_index_shape():
-    r = client.get("/admin/api")
+    r = client.get(M + "/api")
     assert r.status_code == 200
     d = r.json()
     assert set(ENDPOINTS[1:]) == set(d["endpoints"])
@@ -84,7 +85,7 @@ def test_index_shape():
 
 
 def test_status_shape():
-    d = client.get("/admin/api/status").json()
+    d = client.get(M + "/api/status").json()
     for k in ("ts", "ok", "build_sha", "version", "uptime_s",
               "field", "provenance", "empty"):
         assert k in d
@@ -94,7 +95,7 @@ def test_status_shape():
 
 
 def test_sources_shape():
-    d = client.get("/admin/api/sources").json()
+    d = client.get(M + "/api/sources").json()
     assert set(d["sources"]) == {"model", "met", "stations",
                                "fires", "location", "routing"}
     for s in d["sources"].values():
@@ -103,7 +104,7 @@ def test_sources_shape():
 
 
 def test_validation_shape_and_no_grid_cells():
-    d = client.get("/admin/api/validation").json()
+    d = client.get(M + "/api/validation").json()
     assert d["status"] in ("ok", "no rollup outputs on disk yet")
     assert "weekly" in d and "daily" in d
     if d["weekly"]:
@@ -133,7 +134,7 @@ def test_sources_fires_held_to_own_cadence(monkeypatch):
     monkeypatch.setattr(admin_agg, "_location_enabled", lambda: False)
     monkeypatch.setattr(admin_agg, "_routing_status", lambda: {})
 
-    d = client.get("/admin/api/sources").json()
+    d = client.get(M + "/api/sources").json()
     src = d["sources"]
     # past the FIELD bar (3600 > 2700) but inside its own cadence
     assert src["fires"]["stale_after_s"] == fires_mod.STALE_AFTER_S
@@ -144,14 +145,14 @@ def test_sources_fires_held_to_own_cadence(monkeypatch):
     assert src["stations"]["stale"] is True
     # and a fires feed genuinely past its own bar still flags
     fires_age["v"] = fires_mod.STALE_AFTER_S + 60
-    assert client.get("/admin/api/sources").json()[
+    assert client.get(M + "/api/sources").json()[
         "sources"]["fires"]["stale"] is True
 
 
 # --- corridors: k>=3 ---------------------------------------------------------
 
 def test_corridors_empty_is_honest():
-    d = client.get("/admin/api/corridors").json()
+    d = client.get(M + "/api/corridors").json()
     assert d["rows"] == [] and d["empty"] is True
     assert d["k_min"] == 3 and d["window_s"] == 72 * 3600
 
@@ -161,7 +162,7 @@ def test_corridors_k_suppression_passthrough():
     _donate(["cellA"], ["t1", "t2"])
     # 3 distinct devices on cell B -> publishable
     _donate(["cellB"], ["t1", "t2", "t3"])
-    d = client.get("/admin/api/corridors").json()
+    d = client.get(M + "/api/corridors").json()
     cells = [r["cell"] for r in d["rows"]]
     assert "cellB" in cells and "cellA" not in cells
     assert all(r["devices"] >= 3 for r in d["rows"])
@@ -189,7 +190,7 @@ def test_corridors_k_floor_tripwire(monkeypatch):
     with pytest.raises(HTTPException) as e:
         asyncio.run(admin_agg.corridors())
     assert e.value.status_code == 500
-    r = client.get("/admin/api/corridors")
+    r = client.get(M + "/api/corridors")
     assert r.status_code == 500 and "k>=3" in r.json()["detail"]
 
 
@@ -202,14 +203,14 @@ def test_global_k_floor_tripwire(monkeypatch):
                     "od_pairs": []}
 
     monkeypatch.setattr(admin_agg, "TRIPS", BrokenStore())
-    r = client.get("/admin/api/global")
+    r = client.get(M + "/api/global")
     assert r.status_code == 500 and "k>=3" in r.json()["detail"]
 
 
 # --- donations ----------------------------------------------------------------
 
 def test_donations_empty_is_honest():
-    d = client.get("/admin/api/donations").json()
+    d = client.get(M + "/api/donations").json()
     assert d["totals"]["trips"] == 0 and d["empty"] is True
     # no global device registry exists — reported as such, not guessed
     assert d["distinct_devices"] is None
@@ -221,7 +222,7 @@ def test_donations_totals_sum_days():
                               "dose_ug": 40.0, "switched": True})
     _donate(["cellC"], ["t2"], {"mode": "car", "distance_km": 6.0,
                               "dose_ug": 90.0})
-    d = client.get("/admin/api/donations").json()
+    d = client.get(M + "/api/donations").json()
     t = d["totals"]
     assert t["trips"] == 2 and t["km"] == 10.0
     assert t["dose_ug"] == 130.0 and t["switched"] == 1
@@ -239,7 +240,7 @@ def test_donations_co2_split_only_counts_reporters():
     # old-build donation: counts in headline totals, never in the split
     _donate(["cellC"], ["t2"], {"mode": "bike", "distance_km": 4.0,
                                "co2_kg_mid": 0.9})
-    t = client.get("/admin/api/donations").json()["totals"]
+    t = client.get(M + "/api/donations").json()["totals"]
     sp = t["co2_split"]
     assert sp["trips"] == 1 and sp["moving_g"] == 100.0
     assert sp["pct"] == {"moving": 50.0, "idle": 20.0, "cold": 30.0}
@@ -247,7 +248,7 @@ def test_donations_co2_split_only_counts_reporters():
 
 
 def test_model_card_serves_real_constants():
-    d = client.get("/admin/api/model").json()
+    d = client.get(M + "/api/model").json()
     assert d["available"] is True
     # the panel's numbers are the model's own tables — spot-check two
     # canonical rows so a drifted constant can never ship silently
@@ -261,7 +262,7 @@ def test_model_card_serves_real_constants():
 
 def test_donations_co2_split_absent_is_null():
     _donate(["cellB"], ["t1"])
-    t = client.get("/admin/api/donations").json()["totals"]
+    t = client.get(M + "/api/donations").json()["totals"]
     assert t["co2_split"] is None
 
 
@@ -274,7 +275,7 @@ def _donate_od(o, d, tokens, summary=None, **rec_kw):
 
 
 def test_global_empty_is_honest():
-    d = client.get("/admin/api/global").json()
+    d = client.get(M + "/api/global").json()
     assert d["empty"] is True
     assert d["areas"] == [] and d["od_pairs"] == []
     assert d["dose_avoided"] is None and d["co2_avoided"] is None
@@ -284,7 +285,7 @@ def test_global_empty_is_honest():
 def test_global_areas_and_od_k_rule():
     _donate_od("Central Delhi", "Gurugram", ["t1", "t2"])
     _donate_od("Central Delhi", "Gurugram", ["t3"])
-    d = client.get("/admin/api/global").json()
+    d = client.get(M + "/api/global").json()
     a = [r for r in d["areas"] if r["area"] == "Central Delhi"]
     assert a and a[0]["devices"] == 3 and a[0]["trips"] == 3
     od = d["od_pairs"]
@@ -295,7 +296,7 @@ def test_global_areas_and_od_k_rule():
 
 def test_global_suppresses_below_k3_and_counts():
     _donate_od("Shahdara", "Faridabad", ["t1", "t2"])  # 2 devices < k
-    d = client.get("/admin/api/global").json()
+    d = client.get(M + "/api/global").json()
     assert d["areas"] == [] and d["od_pairs"] == []
     assert d["suppressed"] == {"areas": 1, "od_pairs": 1}
     assert d["areas_tracked"] == 1 and d["od_pairs_tracked"] == 1
@@ -313,7 +314,7 @@ def test_global_savings_only_count_reporters():
     TRIPS.record_trip(["c"], {"mode": "car", "distance_km": 5.0,
                               "dose_ug": 60.0, "co2_avoided_kg": 9.9},
                       token_hash="t5")
-    d = client.get("/admin/api/global").json()
+    d = client.get(M + "/api/global").json()
     assert d["dose_avoided"] == {"dose_ug": 30.0, "trips_reporting": 1}
     assert d["co2_avoided"] == {"co2_kg": 0.8, "puc_calibrated_trips": 1}
 
@@ -321,7 +322,7 @@ def test_global_savings_only_count_reporters():
 def test_global_no_origin_means_no_area_row():
     TRIPS.record_trip(["cellX"], {"mode": "metro", "distance_km": 3.0,
                                  "dose_ug": 10.0}, token_hash="t1")
-    d = client.get("/admin/api/global").json()
+    d = client.get(M + "/api/global").json()
     assert d["areas_tracked"] == 0 and d["od_pairs_tracked"] == 0
 
 

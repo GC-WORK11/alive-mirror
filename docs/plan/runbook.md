@@ -44,7 +44,7 @@ archive) and `/health` must say so.*
 > **Update 2026-10-06:** stations are live — `alive108/waqi` (24 instruments)
 > and the DPCC adapter (30) feed the field without OpenAQ; `alive108/cpcb`
 > is a dead path (data.gov.in TCP-refused). The task also needs
-> `alive108/admin-token` for `/admin/api` — both wired by
+> `alive108/admin-token` for the console api (unlisted mount — `docs/plan/admin-login.md`) — both wired by
 > `scripts/deploy.sh`'s secrets block.
 
 ```bash
@@ -164,7 +164,7 @@ aws elbv2 describe-target-health --target-group-arn $TG   # wait for "healthy"
   container as env `OPENAQ_API_KEY` (execution role has
   `secretsmanager:GetSecretValue` on `alive108/*`). **`alive108/waqi`** —
   aqicn token feeding the live WAQI instruments; **`alive108/admin-token`**
-  — Bearer for `/admin/api`. **`alive108/cpcb`** —
+  — Bearer for the console api (unlisted mount). **`alive108/cpcb`** —
   data.gov.in/CPCB hourly feed key, read by the worker only (dead path —
   data.gov.in TCP-refused). All are
   scaffolded by `provision.sh` with `{"api_key":"REPLACE_ME"}` placeholders —

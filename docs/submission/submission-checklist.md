@@ -156,10 +156,11 @@ export NLB="http://$(aws elbv2 describe-load-balancers --names alive108 \
       venue; never log in live). CLI understudy armed — prints
       `alive108:NNN · FARGATE`. The video must show the console.
 - [ ] T-30: **admin sign-in check (go-nogo #8)** — the flow is now:
-      open `/admin` → the gate card → paste the operator token →
-      `POST /v2/admin/login` mints the HttpOnly cookie (~8 h) → the
+      open the unlisted console URL (`docs/plan/admin-login.md`) → the
+      gate card → paste the operator token → its login POST mints
+      the HttpOnly cookie (~8 h) → the
       board renders. Guests land on the gate card and no gated fetch
-      fires; the Bearer curl path (`/admin/api` 200) stays for ops.
+      fires; the Bearer curl path (the mount's `api` 200) stays for ops.
 - [ ] T-30: `warm_task.py` now covers the dosimeter beats it used to
       miss (`/v2/day`, `/v2/reach walk`, `/v2/outlook`, `/grid?h=12`,
       `/community`) — still spot-check
@@ -169,7 +170,7 @@ export NLB="http://$(aws elbv2 describe-load-balancers --names alive108 \
       (settled edges + `took_ms` < 2000; a cold field returns the honest
       `engine_unavailable` — warm_task first). Or run the whole sweep
       read-only: `./scripts/smoke_live.sh`.
-- [ ] T-30: **archive tile on `/admin`** — the field has recorded Delhi
+- [ ] T-30: **archive tile on the console** — the field has recorded Delhi
       hourly since Oct 5 (`archive.status()` → `snapshots_total`,
       `since_ist`; `GET /v2/archive` replays the day hour-by-hour). A
       `gap` hour is honest, not a bug — it's what the recorder wrote

@@ -1575,7 +1575,7 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
     }
 
 
-# --- operator session: HMAC-signed cookie, minted by /v2/admin/login --------
+# --- operator session: HMAC-signed cookie, minted by <mount>/login ----------
 #
 # No server-side session store (zero-infra constraint): the cookie is a
 # stateless "expiry + signature" pair signed with ALIVE_ADMIN_TOKEN, so it
@@ -1584,6 +1584,15 @@ async def shift(lat: float, lon: float, hours: float = 8.0,
 # (the old sessionStorage token was one XSS away from theft);
 # SameSite=Strict means a cross-site request never carries it, which also
 # kills the CSRF surface without a token dance.
+#
+# The whole console — page, api, session endpoints — lives under one
+# un-guessable mount (server/admin_mount.py); /admin and friends answer
+# an honest 404 so path scans learn nothing. Obscurity is additive: the
+# token + cookie + rate bucket below stay the real gate.
+try:
+    from admin_mount import ADMIN_MOUNT
+except ImportError:                        # package-mode import
+    from server.admin_mount import ADMIN_MOUNT
 
 _ADMIN_COOKIE = "alive_admin"
 _ADMIN_SESSION_S = 8 * 3600   # ~one demo day; ALIVE_ADMIN_SESSION_S overrides
@@ -1622,14 +1631,14 @@ def _session_ok(request: Request) -> bool:
 
 
 def _admin_guard(request: Request):
-    """Gate for /admin/api* — the ops dashboard's data surface.
+    """Gate for <mount>/api* — the ops dashboard's data surface.
 
     `ALIVE_ADMIN_TOKEN` set  → require the signed session cookie (minted
-    by POST /v2/admin/login) or `Authorization: Bearer <token>` — Bearer
+    by POST <mount>/login) or `Authorization: Bearer <token>` — Bearer
     is kept for ops curl/health-checks, the browser only ever sees the
     cookie. Unset → loopback clients only (dev default); a real
     deployment sits behind a LB, so remote callers get 403 until the
-    operator sets the token. The /admin HTML page itself is public —
+    operator sets the token. The console HTML page itself is public —
     it carries no data; every fetch it makes goes through this guard.
     """
     token = os.environ.get("ALIVE_ADMIN_TOKEN")
@@ -1646,11 +1655,11 @@ def _admin_guard(request: Request):
             403, "admin api is loopback-only until ALIVE_ADMIN_TOKEN is set")
 
 
-@app.post("/v2/admin/login")
+@app.post(ADMIN_MOUNT + "/login", include_in_schema=False)
 async def admin_login(request: Request):
     """Trade the operator token for a signed session cookie.
 
-    Rate-limited hard by middleware's /v2/admin/login bucket (5 tries
+    Rate-limited hard by middleware's <mount>/login bucket (5 tries
     then ~1 per 5 s per socket peer) — brute force is a dead end against
     a 256-bit token; the brake is what keeps an attempt cheap and loud.
     """
@@ -1678,7 +1687,7 @@ async def admin_login(request: Request):
     return r
 
 
-@app.post("/v2/admin/logout")
+@app.post(ADMIN_MOUNT + "/logout", include_in_schema=False)
 async def admin_logout():
     """Drop the session cookie. Stateless — a copied cookie stays valid
     until its signed expiry (≤8h worst case); the report owns that."""
@@ -1688,7 +1697,7 @@ async def admin_logout():
     return r
 
 
-@app.get("/v2/admin/session")
+@app.get(ADMIN_MOUNT + "/session", include_in_schema=False)
 async def admin_session(request: Request):
     """The gate screen's probe — is this browser signed in right now?
     Answers the cookie path of _admin_guard (loopback dev included)."""
@@ -1699,7 +1708,8 @@ async def admin_session(request: Request):
                                       "testclient")}
 
 
-@app.get("/admin/api", dependencies=[Depends(_admin_guard)])
+@app.get(ADMIN_MOUNT + "/api", dependencies=[Depends(_admin_guard)],
+         include_in_schema=False)
 async def admin_api():
     """Live ops snapshot for the admin dashboard — anon ids only."""
     thirty_min = 30
@@ -1726,7 +1736,8 @@ async def admin_api():
     }
 
 
-@app.get("/admin/api/reviews", dependencies=[Depends(_admin_guard)])
+@app.get(ADMIN_MOUNT + "/api/reviews", include_in_schema=False,
+         dependencies=[Depends(_admin_guard)])
 async def admin_reviews():
     """'Their reviews' as an aggregate: star histogram + mean; note bodies
     publish only at k>=3 reviews, hour-bucketed, ≤140 chars each."""
@@ -1761,12 +1772,18 @@ async def landing_page():
                         headers=_PAGE_CACHE)
 
 
-@app.get("/admin")
-@app.get("/admin.html")
+@app.get(ADMIN_MOUNT, include_in_schema=False)
+@app.get(ADMIN_MOUNT + "/", include_in_schema=False)
 async def admin_page():
+    """The engine room — served under one un-guessable mount only
+    (server/admin_mount.py); /admin + friends answer an honest 404 so
+    path scans learn nothing. x-robots-tag keeps crawlers off — the
+    path must never appear in a public robots.txt, so the header (plus
+    a meta in the page) is the whole noindex mechanism."""
     from fastapi.responses import FileResponse
     import os
-    return FileResponse(os.path.join(os.path.dirname(__file__), "admin.html"))
+    return FileResponse(os.path.join(os.path.dirname(__file__), "admin.html"),
+                        headers={"x-robots-tag": "noindex, nofollow"})
 
 
 @app.get("/city")
@@ -2097,11 +2114,14 @@ except Exception:
     _admin_agg = None
 if _admin_agg is not None:
     app.include_router(_admin_agg.router,
-                       dependencies=[Depends(_admin_guard)])
-    # /v2/usage — the admin 'usage' tab's aggregate rollup; same gate as
-    # /admin/api/* (Bearer token when set, loopback-only otherwise)
+                       dependencies=[Depends(_admin_guard)],
+                       include_in_schema=False)
+    # <mount>/api/usage — the console 'usage' tab's aggregate rollup;
+    # same gate as the rest of the mount's api (Bearer token when set,
+    # loopback-only otherwise)
     app.include_router(_admin_agg.usage_router,
-                       dependencies=[Depends(_admin_guard)])
+                       dependencies=[Depends(_admin_guard)],
+                       include_in_schema=False)
 
 try:  # /metrics + request logging
     import observability as _obs

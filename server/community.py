@@ -615,8 +615,8 @@ def contributors_detail() -> dict:
     doc 07 §3 forbids, even hashed, because a persistent id makes the
     rows linkable across days. Rows are now UTC-day buckets: what the
     city did each day, plus the count of distinct devices behind it.
-    `last_seen_min_ago` is kept so /admin/api's live-activity check
-    still computes.
+    `last_seen_min_ago` is kept so the ops console api's
+    live-activity check still computes.
 
     The same k>=_K_MIN_DEVICES distinct-device rule recent_obs applies
     to hour buckets gates the day rows too: a UTC day held by 1-2
@@ -923,8 +923,8 @@ def corridors(limit: int = 10) -> list[dict]:
 def totals() -> dict:
     """City rollup — the collective ledger judges can read at a glance.
 
-    Reads the SAME donation ledger /v2/city and /admin serve
-    (v2.store.TRIPS day buckets + LEDGER's device count) — one source
+    Reads the SAME donation ledger /v2/city and the ops console
+    serve (v2.store.TRIPS day buckets + LEDGER's device count) — one source
     of truth, so the public surfaces can never disagree on 'shared
     trips' again (they diverged: /v2/trip writes TRIPS and best-effort
     folds here, and this module's own _LIFE/_DEVICES counter answered
@@ -961,7 +961,8 @@ def totals() -> dict:
                                if last_ts else None),
         "top_corridors": corridors(5),
         "source": "trip_aggregates",
-        "basis": ("the shared donation ledger /v2/city and /admin read "
+        "basis": ("the shared donation ledger /v2/city and the ops "
+                  "console read "
                   "(v2 trip aggregates + device ledger) — one source of "
                   "truth for shared-trip totals; corridor cells publish "
                   "only with >=3 distinct devices in 72 h; no per-trip "

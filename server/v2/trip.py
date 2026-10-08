@@ -342,7 +342,7 @@ async def post_trip(body: dict):
         except Exception as e:  # noqa: BLE001 — aggregates already
             # stored; a citizen-layer hiccup must not fail a donation.
             # It must not pass silently either — record it where
-            # /admin and the debug surface can read it.
+            # the ops console and the debug surface can read it.
             try:
                 import community
                 community._record_error(e)

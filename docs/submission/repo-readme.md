@@ -95,9 +95,9 @@ at ingest. And since today the field explains itself in plain words —
 ventilation · the recorded trend, composed only from measured fields and
 labeled "measured, not reported" on every surface.
 
-<!-- SCREENSHOT 3 — `/admin` engine room, captured 2026-10-06
+<!-- SCREENSHOT 3 — engine room, captured 2026-10-06
      (web-overhaul-v2 lane) -->
-![/admin — the engine room: every number has a source](../lanes/web-overhaul-v2-shots/after-admin.png)
+![engine room: every number has a source](../lanes/web-overhaul-v2-shots/after-admin.png)
 
 The Android app is real and captured — shipped-build screenshots live in
 `docs/assets/cloud-build/` (home map, route options, search, receipts):
@@ -140,7 +140,7 @@ curl -s "$NLB/v2/archive?day=2026-10-05"
 Browser surfaces: `/` (dosimeter landing + field map + a→b), `/city`
 (districts, day-in-dose ticker, lung reach, the parali-watch tile),
 `/community` (donation
-ledger), `/admin` (engine room — behind a real sign-in since Oct 7:
+ledger), the engine room (unlisted URL — behind a real sign-in since Oct 7:
 the operator token trades once for an HMAC-signed HttpOnly cookie;
 guests land on a gate card) — the rest all public, all live.
 
@@ -170,7 +170,7 @@ Web surfaces / judges ──────────┤         │  → krige f
    ├─ /v2/archive served-field history — recorded hourly (basis:recorded)
    ├─ /v2/outlook + /aqi /grid /depart   field, forecast, leave-later
    ├─ /v2/search  C++ index over 97,447-entry OSM-NCR corpus
-   └─ /v2/city /admin /community   aggregates, k≥3 everywhere
+   └─ /v2/city /community +console   aggregates, k≥3 everywhere
         │            │               │
       DynamoDB     S3            Secrets Manager
      alive108-agg  field snaps   admin + upstream keys

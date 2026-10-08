@@ -469,8 +469,8 @@ rebuild at the SHA — it's one gradle command."
   last-known was null (the populated report shows those 4 centroid
   reads explicitly). The deception class would be fake *air numbers*;
   there are none.
-- **"Admin console is a prop."** `/admin` serves a real engine-room
-  surface (200, ~125 KB live HTML); the data APIs under it are
+- **"Admin console is a prop."** the engine room is a real surface behind
+  an unlisted URL (200, ~125 KB live HTML); the data APIs under it are
   token-gated by design — nothing judge-facing depends on them.
 - **"You show a GRAP stage — that's the government's call, not
   yours."** *(shipped 2026-10-06, `83d47de`)* — agreed, and the wire

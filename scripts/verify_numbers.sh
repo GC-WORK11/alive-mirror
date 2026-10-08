@@ -152,7 +152,7 @@ def emit(claim, live, pat, safe, note=""):
     if note: print(f"{'':46s}· {note}")
 
 emit("build_sha (/health)", H.get("build_sha"), r"build_sha|sha", "wart",
-     "/admin/api/status may disagree — BUILD_SHA lag; say the ECR image tag")
+     "the console api/status may disagree — BUILD_SHA lag; say the ECR image tag")
 try:
     _meta = json.load(open(os.path.join(REPO, "server/data/route_graph.meta.json")))
     emit("graph edges / nodes (meta)", f"{_meta.get('edges')} / {_meta.get('nodes')}",

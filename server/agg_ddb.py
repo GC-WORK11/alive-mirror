@@ -211,7 +211,7 @@ class DDBTripAggregates:
 
     def _add_global(self, summary: dict, token_hash: str,
                     origin_area: str, dest_area: str) -> None:
-        """The /admin/api/global layer — pk='global' items mirroring the
+        """The console api/global layer — pk='global' items mirroring the
         memory store's _areas/_od/savings. Area names arrive resolved
         upstream (v2/trip snaps the already-trimmed endpoint to a
         district/sub-district name): a string, never a coordinate. The
@@ -370,7 +370,7 @@ class DDBTripAggregates:
             return []
 
     def global_aggregates(self) -> dict:
-        """/admin/api/global's read — area rows, OD-pair rows, savings
+        """The console api/global read — area rows, OD-pair rows, savings
         counters; same k>=3-on-devices filter and same shape as the
         memory store's. Degrades to the honest-empty shape on failure,
         never a fabricated zero."""
@@ -573,7 +573,7 @@ LEDGER_TTL_S = 90 * 86400          # per-device rows expire after 90 d
 class DDBDeviceLedger:
     """Per-device trip history on DynamoDB — the durable twin of
     v2.store.DeviceLedger (same public methods; `backend` distinguishes
-    it for /health and /admin).
+    it for /health and the console).
 
     Layout in the shared aggregate table: one item per trip row
       pk = "ledger#<token_hash>"   sk = "trip#<ts>.<seq>"

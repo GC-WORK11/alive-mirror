@@ -5,6 +5,31 @@ Proved end-to-end on prod **2026-10-07 ~11:35 UTC (~17:05 IST)**, live
 build `43913dc0` — wire chain, gate, rate limit, and a real Chrome
 drive (screenshots in `docs/lanes/admin-login-e2e-report.md`).
 
+## The URL — unlisted on purpose (admin-obscure lane, 2026-10-08)
+
+The engine room moved off `/admin` to a high-entropy path — security
+by obscurity **on top of** the real auth below, never instead of it:
+
+```
+http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs
+```
+
+- `/admin`, `/admin.html`, `/admin/api*`, `/v2/admin/*`, `/v2/usage`
+  all answer an **honest 404** now — same response as any made-up URL,
+  so a path scan learns nothing (no redirect, no 401 hint).
+- The whole console — page, api, sign-in, sign-out, session probe,
+  usage rollup — hangs under the one mount, held in
+  **`server/admin_mount.py`** (`ADMIN_MOUNT`). Never hardcode the
+  literal elsewhere; rotate by editing that file + redeploying.
+- Everything in this doc is unchanged except the paths: the gate card,
+  the token, the cookie, the 5-try rate bucket are exactly what they
+  were. Obscurity hides the door; the lock is the same lock.
+- The path is committed on purpose (you're reading it now). Treat it
+  like a spare key, not a password: fine in the private repo and ops
+  notes, don't paste it in submission docs, chat, or on stage.
+- Noindex rides on the route itself (`x-robots-tag` + page meta) —
+  robots.txt never names it, since that file is public by design.
+
 ## The token — where it is, never what it is
 
 - Lives in **AWS Secrets Manager `alive108/admin-token`** (region
@@ -22,7 +47,8 @@ drive (screenshots in `docs/lanes/admin-login-e2e-report.md`).
 
 ## The 60-second flow — laptop or phone, identical
 
-1. Open `http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/admin`.
+1. Open `http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs`
+   (the unlisted console URL — `/admin` 404s by design).
 2. A guest lands on the **gate card** — "ALIVE·108 / engine room ·
    OPERATOR ONLY — it opens for the operator and nobody else."
 3. Paste the token → **SIGN IN**.
@@ -61,8 +87,8 @@ scalars; there is no per-device data server-side to leak.
 - **Honesty tiles**: hidden-monitor MAE (read 11.96 µg/m³ — the "how
   wrong is the map" number), species reads, σ band.
 - **The pipeline panel**: measure → interpolate → sample → breathe →
-  emit → aggregate, with the real constants from `/admin/api/model`.
-- **Usage tab** (`/v2/usage`): devices / trips / donations —
+  emit → aggregate, with the real constants from the mount's `api/model`.
+- **Usage tab** (mount's `api/usage`): devices / trips / donations —
   aggregate-only by construction (`k_min:3`).
 
 ## Ops equivalent — the exact curl chain (verify, don't stage)
@@ -72,21 +98,23 @@ NLB=http://alive108-2699c171ddded465.elb.ap-south-1.amazonaws.com
 TOKEN=$(aws secretsmanager get-secret-value --secret-id alive108/admin-token \
         --region ap-south-1 --query SecretString --output text)
 
+M=/a-AFiVSpmZ1Oc4YhaaQyhRie5yqnlKV_qs   # admin_mount.ADMIN_MOUNT
+
 # 1) sign in → 200 + Set-Cookie alive_admin=v1.<exp>.<sig>
-curl -s -D- -o /dev/null -X POST "$NLB/v2/admin/login" \
+curl -s -D- -o /dev/null -X POST "$NLB$M/login" \
      -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN\"}" \
      | grep -i '^set-cookie'
 #    alive_admin=v1.<exp>.<sig>; HttpOnly; Max-Age=28800; Path=/; SameSite=strict
 
 # 2) session probe → {"authenticated":true}
-curl -s "$NLB/v2/admin/session" -H "Cookie: alive_admin=<v1....>"
+curl -s "$NLB$M/session" -H "Cookie: alive_admin=<v1....>"
 
 # 3) gated data opens → 200
-curl -s "$NLB/v2/usage"  -H "Cookie: alive_admin=<v1....>"
-curl -s "$NLB/admin/api" -H "Cookie: alive_admin=<v1....>"
+curl -s "$NLB$M/api/usage" -H "Cookie: alive_admin=<v1....>"
+curl -s "$NLB$M/api"       -H "Cookie: alive_admin=<v1....>"
 
 # 4) sign out → Set-Cookie Max-Age=0
-curl -s -D- -o /dev/null -X POST "$NLB/v2/admin/logout" \
+curl -s -D- -o /dev/null -X POST "$NLB$M/logout" \
      -H "Cookie: alive_admin=<v1....>" | grep -i '^set-cookie'
 ```
 
@@ -98,7 +126,7 @@ never needed in the browser.
 
 | Symptom | Meaning | Fix |
 |---|---|---|
-| gate card says `admin auth is not configured` (503 on `/v2/admin/login`) | task env lost `ALIVE_ADMIN_TOKEN` | secrets broke the rollout — check service events, rollback; same failure as pre-cookie |
+| gate card says `admin auth is not configured` (503 on the login POST) | task env lost `ALIVE_ADMIN_TOKEN` | secrets broke the rollout — check service events, rollback; same failure as pre-cookie |
 | `wrong token — try again` (401) | typo / stale copy | re-paste from the SM value; 5 bad tries → 429 |
 | 429 `rate_limited` | login bucket drained (5 then ~1/5 s) | wait ~5 s, one clean attempt — it passes |
 | board re-locks mid-view | cookie expired or signed out in another tab | sign in again — 30 s probe re-locks by design |
