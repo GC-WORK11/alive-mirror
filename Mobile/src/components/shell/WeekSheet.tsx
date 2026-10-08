@@ -145,7 +145,7 @@ function WeekSheetInner({ day, week, outlook, budgetUg, lang, onClose }: {
         <Text {...DYNAMIC_TYPE} style={[ws.weekTotal, NUM, { fontFamily: fam(lang, "med") }]}>
           {t("homeWeek", lang, { n: approx(doseUgRound(total)) })}
           <Text style={[ws.weekTotalSub, { fontFamily: fam(lang, "reg") }]}>
-            {`  ·  ${countedN}/7 ${t("weekCountedFine", lang)}`}
+            {`  ·  ${t("weekCountedFine", lang, { n: countedN, m: 7 })}`}
           </Text>
         </Text>
 
@@ -165,7 +165,9 @@ function WeekSheetInner({ day, week, outlook, budgetUg, lang, onClose }: {
               return (
                 <Pressable key={w.day} onPress={() => pick(w.day)}
                   accessibilityRole="button" accessibilityState={{ selected: isSel }}
-                  accessibilityLabel={`${letter} ${doseUgRound(w.ug)}`}
+                  /* the strip's grammar: the unit rides the number —
+                     'monday ≈42 µg', not a bare 'monday 42' (numbers-sweep) */
+                  accessibilityLabel={`${letter}, ${w.ug > 0 ? `${approx(doseUgRound(w.ug))} µg` : t("weekNoReads", lang)}`}
                   style={({ pressed }) => [
                     ws.calCell,
                     { backgroundColor: cellBg, borderColor: cellEdge },

@@ -666,7 +666,9 @@ const en = {
   dayPartsTitle: "where it accumulated",
   /* {h} is a whole clock word now ('2pm' / '2 बजे') — no :00 tail */
   dayArcDose: "≈{n} µg · {h}",
-  dayArcAir: "{h} · air ~{c}",
+  /* {c} is µg/m³ — the unit travels with the number or it reads as the
+     same µg the hero counts (numbers-sweep) */
+  dayArcAir: "{h} · air ~{c} µg/m³",
   dayArcFlat: "{h}",
   dayMorningFlat: "a flat day — any hour sits about as light as the next",
   dayMorningHeavy: "heaviest ~{f}–{t} (≈{c} µg/m³)",
@@ -774,7 +776,10 @@ const en = {
   goLabel: "go somewhere",
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "you've breathed today",
-  homeOutsideNow: "outside ~{n} · {w}",
+  /* the ambient twin of the hero's inhaled µg — the unit must travel
+     with it or ~180 sits next to ≈42 µg and reads as one more dose
+     (numbers-sweep) */
+  homeOutsideNow: "outside ~{n} µg/m³ · {w}",
   homeOfBudget: "of ~{b} µg daily",
   homeWeek: "{n} µg this week",
   /* the sparse week strip — the city's forecast days stand in (dimmed)
@@ -1127,8 +1132,10 @@ const en = {
   /* the lungs' calendar sheet */
   weekOpen: "open your lungs' calendar",
   weekSheetSub: "tap a day to open its story",
-  weekCountedFine: "days counted",
-  weekDayDose: "you breathed ≈{n} µg that day",
+  /* "3/7" read as a date or a score — "of" is the counted-days form
+     a person says out loud (numbers-sweep) */
+  weekCountedFine: "{n} of {m} days counted",
+  weekDayDose: "you breathed {n} µg that day",
   weekDayPct: "{p}% of the daily limit you set",
   weekAheadTitle: "the air ahead",
   weekAheadSub: "what the forecast says is coming — the days haven't happened yet",
@@ -1730,7 +1737,7 @@ const hi: Record<StringKey, string> = {
   dayCoveredMin: "{m} मिनट गिने",
   dayPartsTitle: "कहाँ जुड़ा",
   dayArcDose: "≈{n} µg · {h}",
-  dayArcAir: "{h} · हवा ~{c}",
+  dayArcAir: "{h} · हवा ~{c} µg/m³",
   dayArcFlat: "{h}",
   dayMorningFlat: "सपाट दिन — किसी भी घड़ी में हवा लगभग बराबर है",
   dayMorningHeavy: "सबसे भारी ~{f}–{t} (≈{c} µg/m³)",
@@ -1820,7 +1827,7 @@ const hi: Record<StringKey, string> = {
   goLabel: "कहीं जाएँ",
   /* the dosimeter home — the resting surface (docs/plan/design-refs) */
   homeBreathed: "आज आपने साँस में लिया",
-  homeOutsideNow: "बाहर ~{n} · {w}",
+  homeOutsideNow: "बाहर ~{n} µg/m³ · {w}",
   homeOfBudget: "दिन की ~{b} µg में से",
   homeWeek: "इस हफ़्ते {n} µg",
   homeWeekCity: "दिल्ली के अगले दिन",
@@ -2140,8 +2147,8 @@ const hi: Record<StringKey, string> = {
   /* the lungs' calendar sheet */
   weekOpen: "आपके फेफड़ों का कैलेंडर खोलें",
   weekSheetSub: "किसी दिन की कहानी खोलने के लिए उसे टैप करें",
-  weekCountedFine: "दिन गिने गए",
-  weekDayDose: "उस दिन आपने ≈{n} µg साँस में लिया",
+  weekCountedFine: "{m} में से {n} दिन गिने",
+  weekDayDose: "उस दिन आपने {n} µg साँस में लिया",
   weekDayPct: "आपकी तय दैनिक सीमा का {p}%",
   weekAheadTitle: "आगे की हवा",
   weekAheadSub: "आगे का अंदाज़ा क्या कहता है — ये दिन अभी हुए नहीं",

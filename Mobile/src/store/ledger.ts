@@ -132,10 +132,13 @@ export async function logTrip(t: Trip): Promise<Trip[]> {
 
 const dayKey = (ts: number) => new Date(ts).toDateString();
 
-export function stats(trips: Trip[], now = new Date()) {
+export function stats(trips: Trip[], now = new Date(), budgetUg = BUDGET_UG) {
   /* one pass: day → {ug, avoided, rows}; the old version ran four scans
      per call (today filter, all-time reduce, byDay map, then a per-day
-     filter inside weekStats callers) — same answers, one walk. */
+     filter inside weekStats callers) — same answers, one walk.
+     streak/budgetPct take the caller's profile budget — the hardcoded
+     general-budget version read a 216-day as "good" for a 72-µg
+     sensitive profile (numbers-sweep: latent lie in dead fields). */
   type DayAcc = { ug: number; avoided: number; rows: Trip[] };
   const byDay = new Map<string, DayAcc>();
   let allAvoided = 0;
@@ -156,13 +159,13 @@ export function stats(trips: Trip[], now = new Date()) {
 
   let streak = 0;
   const d = new Date(now);
-  if (todayUg > 0 && todayUg < BUDGET_UG) streak++;
+  if (todayUg > 0 && todayUg < budgetUg) streak++;
   else if (todayUg === 0 && byDay.size > 0) streak++;
   for (;;) {
     d.setDate(d.getDate() - 1);
     const v = byDay.get(dayKey(d.getTime()));
     if (v === undefined) break;
-    if (v.ug < BUDGET_UG) streak++;
+    if (v.ug < budgetUg) streak++;
     else break;
   }
 
@@ -171,8 +174,8 @@ export function stats(trips: Trip[], now = new Date()) {
     avoidedUg: Math.round(avoidedUg * 10) / 10,
     allAvoidedUg: Math.round(allAvoided * 10) / 10,
     cigEq: Math.round((todayUg / CIG_UG) * 100) / 100,
-    budgetUg: BUDGET_UG,
-    budgetPct: Math.min(999, Math.round((todayUg / BUDGET_UG) * 100)),
+    budgetUg,
+    budgetPct: Math.min(999, Math.round((todayUg / budgetUg) * 100)),
     streak,
     today,
   };
