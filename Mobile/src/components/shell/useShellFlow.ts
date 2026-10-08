@@ -23,6 +23,7 @@ import type { RouteStrip } from "../../nav/strip";
 import { flattenCoords, havM } from "../../nav/offroute";
 import { t } from "../../i18n/strings";
 import { API, DELHI, fetchJson, inNcr, posNow } from "./net";
+import { pickTailGate } from "./pickGate";
 import { isTransit, preserveIdx } from "./types";
 import type { Depart, Place, Step, V2Option } from "./types";
 import { tap } from "../../haptics";
@@ -53,12 +54,22 @@ export type PlanError = { kind: "network" | "server" | "outside"; detail?: strin
 
 export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: boolean, lang: "en" | "hi" = "en") {
   const [phase, setPhaseState] = useState<Phase>("idle");
+  /* phaseRef mirrors the last phase anyone ASKED for, written before the
+     deferred commit — on sim/emulator holdMapDrawThen delays setState, so
+     a pick's async tail reading `phase` sees the surface that was up when
+     its chain started, not where the flow actually went. Async tails gate
+     every journey write on it (the pick-race bounce: a late locPickFailed
+     tail reopening an empty Where-to after compare already mounted). */
+  const phaseRef = useRef<Phase>("idle");
   /* every phase flip mounts or unmounts an overlay over the map — the
      setter commits inside a draw-hold so the map's pump is throttled
      before the sheet it precedes lands (mount-vs-draw SIGSEGV class;
      src/map/drawHold.ts). One wrap covers every caller. */
-  const setPhase = useCallback((p: SetStateAction<Phase>) =>
-    holdMapDrawThen(() => setPhaseState(p)), []);
+  const setPhase = useCallback((p: SetStateAction<Phase>) => {
+    const next = typeof p === "function" ? p(phaseRef.current) : p;
+    phaseRef.current = next;
+    holdMapDrawThen(() => setPhaseState(next));
+  }, []);
   /* the soft keyboard belongs to the search phase only — on Android the
      IME can outlive the pick's async dismiss and sit over the next
      sheet's bottom rows, eating back/skip taps until manually dismissed
@@ -70,6 +81,19 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
   const [editWhich, setEditWhich] = useState<Which>("to");
+  /* pick-race guards (demo-vid-android): a pick's confirm chain spans
+     seconds of async work (dismiss ≤500 ms + posNow ≤9 s + deferred
+     phase commits) while the sheet stays mounted and tappable. pickSeq
+     = the latest selection's generation — a superseded pick's tail is
+     dead and writes nothing. pickDone counts resolutions — the sheet
+     unlatches its rows on it (its own commit latch holds the window
+     between the tap and the flow settling). invalidatePicks kills any
+     in-flight tail when the user deliberately re-opens a surface — a
+     stale tail must never yank the journey forward over that choice. */
+  const pickSeq = useRef(0);
+  const [pickDone, setPickDone] = useState(0);
+  const invalidatePicks = useCallback(() => { pickSeq.current += 1; }, []);
+  const bumpPickDone = useCallback(() => setPickDone((n) => n + 1), []);
   /* honest one-line notice on the search sheet (e.g. a failed GPS fix).
      Set when a location attempt dies; cleared on close or a real pick. */
   const [locNotice, setLocNotice] = useState<string | null>(null);
@@ -156,6 +180,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   /* search itself lives in src/screens/SearchScreen (S2: T0 on-device +
      cancellable server tiers); this hook owns the phases around it. */
   const pick = useCallback(async (p: Place, which?: Which) => {
+    const seq = ++pickSeq.current;
     Keyboard.dismiss();
     /* the confirm path can stall for seconds (an unbounded GNSS fix used
        to hang here forever — walk F3's silent offline pick). While it
@@ -163,66 +188,88 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        overwrites it with the real outcome or clears it on success. The
        notice shows on the idle map (App) or inside the search sheet. */
     setLocNotice(t("mapPickChecking", lang));
-    if ((which ?? editWhich) === "from") {
-      /* a start within a street of the destination has no route to
-         compare (audit #19/#20's 50 m pins) — say so, stay in search */
-      if (to) {
-        const d = havM(p.lat, p.lon, to.lat, to.lon);
-        if (d < 50) {
-          setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+    /* only "search" may be steered by a pick tail: once the flow has
+       moved on, a late continuation writing setPhase("search") remounts
+       the sheet EMPTY — the demo-vid-android bounce — and a "compare"
+       write over a map-pick-armed idle would hijack a newer input.
+       "compare" counts as in-flight too: the journey already advanced
+       in this pick's own direction, so the advance write is a no-op. */
+    const tailInSearch = () => pickTailGate(phaseRef.current, "stay");
+    const tailMayAdvance = () => pickTailGate(phaseRef.current, "advance");
+    try {
+      if ((which ?? editWhich) === "from") {
+        /* a start within a street of the destination has no route to
+           compare (audit #19/#20's 50 m pins) — say so, stay in search */
+        if (to) {
+          const d = havM(p.lat, p.lon, to.lat, to.lon);
+          if (d < 50) {
+            setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+            return;
+          }
+        }
+        setFrom(p);
+        setLocNotice(null);
+        setPhase(to ? "compare" : "search");
+        setEditWhich("to");
+        return;
+      }
+      setTo(p);
+      if (!from) {
+        const pos = await posNow();
+        /* a newer selection began while the fix was in flight — this
+           tail is stale and must write nothing at all */
+        if (seq !== pickSeq.current) return;
+        if (pos) {
+          /* a destination within a street of where you stand is the
+             no-route case — 'Your location' tapped as a destination did
+             exactly this and got a compare screen for nothing (audit #19) */
+          const d = havM(pos.coords.latitude, pos.coords.longitude, p.lat, p.lon);
+          if (d < 50) {
+            if (!tailInSearch()) return;
+            setTo(null);
+            setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+            return;
+          }
+          setFrom({ name: t("placeCurrentLocation", lang), subtitle: "",
+            lat: pos.coords.latitude, lon: pos.coords.longitude });
+          setLocNotice(null);
+          if (tailMayAdvance()) setPhase("compare");
+        } else {
+          /* NEVER fabricate an origin — the old path silently plotted
+             'Central Delhi' as the start point and routed from there, the
+             exact 'hardcoded garbage' the owner hit. A plan with no real
+             origin can't run honestly: send the user back to search with
+             the 'from' slot armed and say what failed — but only while
+             search still owns the surface; after a back-press/second pick
+             the failure tail must not reopen it. */
+          if (!tailInSearch()) { setLocNotice(null); return; }
+          setLocNotice(t("locPickFailed", lang));
+          setEditWhich("from");
+          setPhase("search");
           return;
         }
-      }
-      setFrom(p);
-      setLocNotice(null);
-      setPhase(to ? "compare" : "search");
-      setEditWhich("to");
-      return;
-    }
-    setTo(p);
-    if (!from) {
-      const pos = await posNow();
-      if (pos) {
-        /* a destination within a street of where you stand is the
-           no-route case — 'Your location' tapped as a destination did
-           exactly this and got a compare screen for nothing (audit #19) */
-        const d = havM(pos.coords.latitude, pos.coords.longitude, p.lat, p.lon);
+      } else {
+        const d = havM(from.lat, from.lon, p.lat, p.lon);
         if (d < 50) {
           setTo(null);
           setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
           return;
         }
-        setFrom({ name: t("placeCurrentLocation", lang), subtitle: "",
-          lat: pos.coords.latitude, lon: pos.coords.longitude });
         setLocNotice(null);
         setPhase("compare");
-      } else {
-        /* NEVER fabricate an origin — the old path silently plotted
-           'Central Delhi' as the start point and routed from there, the
-           exact 'hardcoded garbage' the owner hit. A plan with no real
-           origin can't run honestly: send the user back to search with
-           the 'from' slot armed and say what failed. */
-        setLocNotice(t("locPickFailed", lang));
-        setEditWhich("from");
-        setPhase("search");
-        return;
       }
-    } else {
-      const d = havM(from.lat, from.lon, p.lat, p.lon);
-      if (d < 50) {
-        setTo(null);
-        setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
-        return;
-      }
-      setLocNotice(null);
-      setPhase("compare");
+      /* NO pick-time flyTo: the camera moves exactly once per plan — the
+         fitBounds in show() below. A fast engine-first answer used to fire
+         fitBounds while this flyTo was mid-flight; MapLibre cancelling an
+         in-flight transition is the "handler to 0" render-thread SIGSEGV
+         seen at plan:first. The sheet's "checking every way there…" covers
+         the hold. */
+    } finally {
+      /* tell the sheet its commit window is over — a failed pick leaves
+         it mounted and its rows must tap again; a superseded tail bumps
+         nothing (the newer pick still owns the latch) */
+      if (seq === pickSeq.current) setPickDone((n) => n + 1);
     }
-    /* NO pick-time flyTo: the camera moves exactly once per plan — the
-       fitBounds in show() below. A fast engine-first answer used to fire
-       fitBounds while this flyTo was mid-flight; MapLibre cancelling an
-       in-flight transition is the "handler to 0" render-thread SIGSEGV
-       seen at plan:first. The sheet's "checking every way there…" covers
-       the hold. */
   }, [editWhich, from, to, lang, setPhase]);
 
   /* ---- routes: destination+origin set → /v2/plan + legacy /depart ---- */
@@ -552,5 +599,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
     strips, reloadTrips, locNotice, setLocNotice,
+    phaseRef, pickDone, invalidatePicks, bumpPickDone,
   };
 }

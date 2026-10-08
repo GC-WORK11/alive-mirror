@@ -108,7 +108,7 @@ function Title({ text, query, lang }: { text: string; query: string; lang: Lang 
 
 function PlaceRow({
   glyph, title, subtitle, distLabel, outsideNote, dim, lang, query = "",
-  onPress, onLongPress, armed,
+  onPress, onPressIn, onLongPress, armed,
 }: {
   glyph: React.ReactNode;
   title: string;
@@ -119,12 +119,14 @@ function PlaceRow({
   lang: Lang;
   query?: string;
   onPress: () => void;
+  onPressIn?: () => void;
   onLongPress?: () => void;
   armed?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={onPressIn}
       onLongPress={onLongPress}
       delayLongPress={320}
       accessibilityRole="button"
@@ -231,6 +233,7 @@ function SearchSheetInner({
   lang,
   mode = "to",
   notice = null,
+  pickDone,
 }: {
   onSelect: (sel: SearchSelection) => void;
   onClose: () => void;
@@ -242,6 +245,9 @@ function SearchSheetInner({
   /** honest one-line notice under the bar (e.g. a failed GPS fix) —
       rendered, never silently swallowed. */
   notice?: string | null;
+  /** bumps when the shell's pick chain settles — the sheet unlatches its
+      rows then (a failed pick leaves it mounted and must tap again). */
+  pickDone?: number;
 }) {
   const [q, setQ] = useState("");
   /* the row list renders off the deferred query — a keystroke's urgent
@@ -340,12 +346,33 @@ function SearchSheetInner({
     setTimeout(fire, 500);
   }, []);
 
+  /* pick-race (demo-vid-android): a tap lands mid-swap — the results list
+     re-renders between touch-down and release, and the row fibers are
+     index-keyed, so the release resolves against the NEW row's props: the
+     old code committed whatever was under the finger AT RELEASE, not what
+     the finger touched. pickAtPress captures the identity at press-in
+     (what was actually under the finger); pick() commits that. A capture
+     that never became a press (slid off) ages out in 800 ms so a later
+     no-gesture pick (submit, action bar) can't inherit it. committing
+     latches the whole sheet for the pick's confirm window — a second
+     row tap or action-bar press while the pick is in flight is held,
+     not raced into a duplicate journey. pickDone from the shell unlatches
+     it when the chain settles. */
+  const committing = useRef(false);
+  const pickAtPress = useRef<{ p: PlaceResult; at: number } | null>(null);
+  useEffect(() => { committing.current = false; }, [pickDone]);
+
   const pick = useCallback(
     (p: PlaceResult) => {
+      if (committing.current) return;   // one pick per confirm window
+      committing.current = true;
+      const cap = pickAtPress.current;
+      pickAtPress.current = null;
+      const target = cap && Date.now() - cap.at < 800 ? cap.p : p;
       tick();   // the row landed — light tick before the sheet slides away
       dismissThen(() => {
-        addRecent(p).then(() => getPlaces().then(setStore)).catch(() => {});
-        onSelect({ type: "place", place: p });
+        addRecent(target).then(() => getPlaces().then(setStore)).catch(() => {});
+        onSelect({ type: "place", place: target });
       });
     },
     [onSelect, dismissThen],
@@ -432,8 +459,9 @@ function SearchSheetInner({
           outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
           dim={p.outside_ncr}
           armed={armedFor(p)}
+          onPressIn={() => { pickAtPress.current = { p, at: Date.now() }; }}
           onPress={() => pick(p)}
-          onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
+          onLongPress={() => { if (committing.current) return; tick(); setArmed(armedFor(p) ? null : { place: p }); }}
         />
         {armedFor(p) && (
           <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
@@ -463,8 +491,9 @@ function SearchSheetInner({
             subtitle={store.home.name}
             distLabel={distLabel(store.home)}
             armed={armedRemove("home")}
+            onPressIn={() => { pickAtPress.current = { p: store.home!, at: Date.now() }; }}
             onPress={() => pick(store.home!)}
-            onLongPress={() => { tick(); setArmed(armedRemove("home") ? null : { place: store.home!, removeSlot: "home" }); }}
+            onLongPress={() => { if (committing.current) return; tick(); setArmed(armedRemove("home") ? null : { place: store.home!, removeSlot: "home" }); }}
           />
           {armedRemove("home") && (
             <SaveStrip place={store.home} removeSlot="home" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
@@ -480,8 +509,9 @@ function SearchSheetInner({
             subtitle={store.work.name}
             distLabel={distLabel(store.work)}
             armed={armedRemove("work")}
+            onPressIn={() => { pickAtPress.current = { p: store.work!, at: Date.now() }; }}
             onPress={() => pick(store.work!)}
-            onLongPress={() => { tick(); setArmed(armedRemove("work") ? null : { place: store.work!, removeSlot: "work" }); }}
+            onLongPress={() => { if (committing.current) return; tick(); setArmed(armedRemove("work") ? null : { place: store.work!, removeSlot: "work" }); }}
           />
           {armedRemove("work") && (
             <SaveStrip place={store.work} removeSlot="work" store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
@@ -500,8 +530,9 @@ function SearchSheetInner({
             outsideNote={p.outside_ncr ? t("outsideDelhi", lang) : undefined}
             dim={p.outside_ncr}
             armed={armedFor(p)}
+            onPressIn={() => { pickAtPress.current = { p, at: Date.now() }; }}
             onPress={() => pick(p)}
-            onLongPress={() => { tick(); setArmed(armedFor(p) ? null : { place: p }); }}
+            onLongPress={() => { if (committing.current) return; tick(); setArmed(armedFor(p) ? null : { place: p }); }}
           />
           {armedFor(p) && (
             <SaveStrip place={p} store={store} lang={lang} onSave={saveSlot} onRemove={(slot) => saveSlot(slot, null)} />
@@ -617,7 +648,7 @@ function SearchSheetInner({
             one tap away even mid-scroll (doc 02 §S2). */}
         <View style={[ss.actionBar, { paddingBottom: insets.bottom + 6 }]}>
           <Pressable
-            onPress={() => { tick(); dismissThen(() => onSelect({ type: "current_location" })); }}
+            onPress={() => { if (committing.current) return; committing.current = true; tick(); dismissThen(() => onSelect({ type: "current_location" })); }}
             accessibilityRole="button"
             accessibilityLabel={t("yourLocation", lang)}
             style={({ pressed }) => [ss.actionBtn, pressed && { backgroundColor: "rgba(255,255,255,0.55)" }]}
@@ -629,7 +660,7 @@ function SearchSheetInner({
           </Pressable>
           <View style={ss.actionSplit} />
           <Pressable
-            onPress={() => { tick(); dismissThen(() => onSelect({ type: "choose_on_map" })); }}
+            onPress={() => { if (committing.current) return; committing.current = true; tick(); dismissThen(() => onSelect({ type: "choose_on_map" })); }}
             accessibilityRole="button"
             accessibilityLabel={t("chooseOnMap", lang)}
             accessibilityHint={t("mapPickHint", lang)}
@@ -659,6 +690,7 @@ function SearchScreenInner({
   lang = "en",
   mode,
   notice,
+  pickDone,
 }: {
   visible: boolean;
   onSelect: (sel: SearchSelection) => void;
@@ -667,6 +699,7 @@ function SearchScreenInner({
   lang?: Lang;
   mode?: "to" | "from";
   notice?: string | null;
+  pickDone?: number;
 }) {
   bump("scr.Search");
   /* Android hardware back must close the sheet — Modal used to provide this;
@@ -711,6 +744,7 @@ function SearchScreenInner({
           lang={lang}
           mode={mode}
           notice={notice}
+          pickDone={pickDone}
         />
       </Animated.View>
     </View>

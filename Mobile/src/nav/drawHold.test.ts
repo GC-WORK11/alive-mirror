@@ -30,8 +30,12 @@ test("the Map's preferredFramesPerSecond rides the draw-hold", () => {
 
 test("phase transitions commit inside a draw-hold", () => {
   const flow = read("../components/shell/useShellFlow.ts");
-  const wrapped = flow.match(/holdMapDrawThen\(\(\) => setPhaseState\(p\)\)/);
+  const wrapped = flow.match(/holdMapDrawThen\(\(\) => setPhaseState\(\w+\)\)/);
   assert.ok(wrapped, "setPhase must commit via holdMapDrawThen so the fps drop lands before the mount");
+  /* the pick-race guards resolve the requested phase before deferring —
+     phaseRef must mirror it or an async tail would gate on a stale
+     surface (the deferred-commit race that reopened the empty sheet) */
+  assert.match(flow, /phaseRef\.current = \w+/, "phaseRef must be written before the deferred commit");
 });
 
 test("camera commits wait for draw-idle", () => {

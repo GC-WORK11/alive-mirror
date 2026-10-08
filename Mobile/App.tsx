@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, Linking, LogBox, Pressable, Share, StyleSheet, Text, View, type NativeSyntheticEvent } from "react-native";
+import { BackHandler, Linking, LogBox, Pressable, Share, StyleSheet, Text, ToastAndroid, View, type NativeSyntheticEvent } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
@@ -379,6 +379,7 @@ function AppInner() {
     vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
     pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
     strips, reloadTrips, locNotice, setLocNotice,
+    phaseRef, pickDone, invalidatePicks, bumpPickDone,
   } = flow;
   useEffect(() => {
     if (!from) return;
@@ -821,10 +822,21 @@ function AppInner() {
       if (phase === "compare") { setHomeOpen(true); clearRoute(); return true; }
       if (phase === "nav") return true;
       if (phase === "idle" && !homeOpen) { setHomeOpen(true); return true; }
+      /* the root used to return false here — Android finished the
+         activity and the whole app ejected to the launcher mid-walk
+         (demo-vid-android's 'crash'). A real exit still exists but has
+         to be deliberate: one press warns, a second inside 2 s exits. */
+      const now = Date.now();
+      if (now - lastBackAt.current > 2000) {
+        lastBackAt.current = now;
+        ToastAndroid.show(t("backToExit", lang), ToastAndroid.SHORT);
+        return true;
+      }
+      lastBackAt.current = 0;
       return false;
     });
     return () => sub.remove();
-  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, homeOpen, phase, clearRoute]);
+  }, [vehicleOpen, settingsOpen, ledgerOpen, delhiOpen, layersOpen, sidebarOpen, mapPickArmed, homeOpen, phase, clearRoute, lang]);
 
   /* notification taps — before this a ping answered with a dead open on
      whatever surface was last up (lifecycle-drive): air events land on
@@ -1117,12 +1129,16 @@ function AppInner() {
      (testday-ios z-order wart). Mirrors onDelhiTodayOpen/onFullSettings
      closing the drawer beneath their own surface. */
   const openSidebar = useCallback(() => { mark("drawer.tap"); setLayersOpen(false); setSidebarOpen(true); }, []);
+  /* the last BACK press that survived the dispatcher — the second one
+     inside the window is the user's real "get me out". */
+  const lastBackAt = useRef(0);
   const openSearch = useCallback(() => {
     mark("search.tap");
+    invalidatePicks();   // a stale pick tail must never reopen the sheet over this open
     setLocNotice(null);
     setEditWhich("to");
     setPhase("search");
-  }, [setEditWhich, setPhase, setLocNotice]);
+  }, [setEditWhich, setPhase, setLocNotice, invalidatePicks]);
   const closeCompareToHome = useCallback(() => { setHomeOpen(true); clearRoute(); }, [clearRoute]);
   const onSearchClose = useCallback(() => {
     setLocNotice(null);
@@ -1150,6 +1166,7 @@ function AppInner() {
       return;
     }
     if (sel.type === "choose_on_map") {
+      invalidatePicks();         // the armed map tap supersedes any in-flight pick
       setHomeOpen(false);        // the map surface itself
       setPhase("idle");
       setMapPickArmed(true);       // next map tap picks — for the slot
@@ -1168,11 +1185,15 @@ function AppInner() {
     else {
       /* the failed fix used to close the sheet and show NOTHING (the
          'live location ain't working' silent no-op) — stay open and
-         say it failed so typing a place keeps the flow moving. */
+         say it failed so typing a place keeps the flow moving. Same
+         pick-race gate as the pick tail: if the sheet already left
+         (back-press, compare advancing), the failure must not reopen it. */
+      bumpPickDone();
+      if (phaseRef.current !== "search") { setLocNotice(null); return; }
       setLocNotice(t("locPickFailed", lang));
       setPhase("search");
     }
-  }, [placePickSlot, patchSettings, setPhase, pick, editWhich, lang, to, setLocNotice]);
+  }, [placePickSlot, patchSettings, setPhase, pick, editWhich, lang, to, setLocNotice, bumpPickDone, phaseRef]);
   const onLocate = useCallback(() => {
     if (follow) { setFollow(false); return; }
     /* warm the fused provider before engaging follow — MapLibre's
@@ -1220,10 +1241,11 @@ function AppInner() {
   }, []);
   const onSidebarClose = useCallback(() => setSidebarOpen(false), []);
   const onPickPlace = useCallback((slot: "home" | "work") => {
+    invalidatePicks();           // the slot's fresh sheet must not inherit a stale tail
     setPlacePickSlot(slot);
     setSidebarOpen(false);
     setPhase("search");
-  }, [setPhase]);
+  }, [setPhase, invalidatePicks]);
   const onDelhiTodayOpen = useCallback(() => { setSidebarOpen(false); setDelhiOpen(true); }, []);
   const onTripReceipt = useCallback(() => { setSidebarOpen(false); setLedgerOpen(true); }, []);
   const onFullSettings = useCallback(() => { mark("settings.tap"); setSidebarOpen(false); setSettingsOpen(true); }, []);
@@ -1355,6 +1377,7 @@ function AppInner() {
         userLocation={searchUserLoc}
         mode={editWhich}
         notice={locNotice}
+        pickDone={pickDone}
         onClose={onSearchClose}
         onSelect={onSearchSelect} />
       {phase === "idle" && (
