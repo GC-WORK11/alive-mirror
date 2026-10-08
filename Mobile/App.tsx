@@ -737,26 +737,21 @@ function AppInner() {
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); clearInterval(fieldIv); if (fieldT) clearTimeout(fieldT); };
   }, [setFrom, setTrips, settings.lang]);
 
-  /* first-open ordering: the consent sheet is required on every cold
-     install, but it doesn't get to stand in front of the first real
-     number — the ambient read gets a beat of visibility first, then the
-     sheet slides in and stays required. The 9 s fallback keeps the gate
-     honest when the field can't answer (offline cold open): value-first
-     is a preference, consent is a requirement, and nothing consent-free
-     may gate the value moment either way. Donation can't fire in the
-     gap — POST /v2/trip only runs on trip arrival, gated by
-     settings.share, which this sheet itself writes. */
-  const [gateReady, setGateReady] = useHeldState(false);
+  /* first-open ordering, per the owner: onboarding is the FIRST surface
+     on a cold install — the home sheet must never paint underneath it
+     ("you go to the home screen, but then the onboarding screen came").
+     The whole overlay tree below is gated on `introSeen !== null` so
+     the consent-flag read lands before any home render, and the sheet
+     mounts the moment the flag says unseen — no delayed slide-in over a
+     live home. The ambient read still streams into page 1's number as
+     it lands (no canned value). Consent itself is unchanged: a required
+     one-time ask, `seen` persists on the answer/skip, and an unanswered
+     flow honestly re-arms. */
   /* whether the OS location ask may fire when introSeen flips — true on
      the returning-user boot path (consent is already on disk); the
      onboarding permission page's "not now" writes false so declining
      there stays a real decline */
   const [locAskOk, setLocAskOk] = useState(true);
-  useEffect(() => {
-    if (gateReady || introSeen !== false) return;
-    const t = setTimeout(() => setGateReady(true), ambientUg != null ? 4000 : 9000);
-    return () => clearTimeout(t);
-  }, [gateReady, introSeen, ambientUg]);
 
   /* the OS location ask follows the consent answer — before it, the dialog
      is a wall over the first value and reads as a data-grab with no
@@ -1348,7 +1343,13 @@ function AppInner() {
   /* onTouchStart on the root: marks every touch-down for the boot-idle
      schedulers (gazetteer warm, tile pack) so their slices yield to real
      input — one handler, zero render cost (src/startup/idle.ts). */
-  if (!fontsLoaded)
+  /* the flag-load gate: until consent.json resolves we don't know which
+     surface owns the first frame — paint ONLY the map (it pre-mounts
+     under the splash for the tile-warm head start either way). Any
+     overlay committed here would be the home-flash the owner hit. The
+     read is a single ~ms file, so the bare-map window is a beat, not a
+     state; introSeen=false mounts onboarding, true mounts home. */
+  if (!fontsLoaded || introSeen === null)
     return <View style={s.root} onTouchStart={noteUserInput}>{mapTree}</View>;
   return (
     <View style={s.root} onTouchStart={noteUserInput}>
@@ -1583,7 +1584,11 @@ function AppInner() {
         onDone={onVehicleDone}
         onClose={onVehicleClose} />
 
-      <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
+      {/* onboarding mounts the instant the flag says unseen — no
+          gateReady beat: the owner ordered it FIRST, not after a home
+          preview. introSeen===null never reaches this tree (gated
+          above), so there is no mount-flash in either direction */}
+      <OnboardingScreen visible={introSeen === false} lang={lang}
         ambientUg={ambientUg} onDone={onOnboardDone} />
       {/* the first-run coach tour — mounts once after onboarding while
           the live home paints under it (scrim is touch-transparent; only

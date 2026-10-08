@@ -3,9 +3,15 @@
 // same File/Paths pattern as src/search/recents.ts + src/store/ledger.ts.
 // If the FS ever fails we still work in memory for the session — the gate
 // must never wedge the app.
-import { File, Paths } from "expo-file-system";
+//
+// Persistence goes through safefile (atomic tmp→rename + .bak): the old
+// naive FILE.create()+FILE.write() could leave a torn/empty consent.json
+// — JSON.parse threw, the flag read as `seen:false`, and onboarding
+// replayed on every cold open forever. .bak restores the last good
+// generation instead.
+import { purgeJsonDoc, readJsonDoc, writeJsonDoc } from "./safefile";
 
-const FILE = new File(Paths.document, "consent.json");
+const NAME = "consent.json";
 
 export type SharingChoice = "on" | "off";
 
@@ -24,6 +30,9 @@ const EMPTY: ConsentState = { seen: false, sharing: null, ts: null };
 let mem: ConsentState | null = null;
 let inflight: Promise<ConsentState> | null = null;
 let writeTail: Promise<unknown> = Promise.resolve();
+/* wipe generation — a save that merged pre-wipe state must not resurrect
+   the file (saveSettings' `mem === null` convention, daylog's wipeGen). */
+let wipeGen = 0;
 
 function sanitize(raw: unknown): ConsentState {
   if (!raw || typeof raw !== "object") return EMPTY;
@@ -35,29 +44,23 @@ function sanitize(raw: unknown): ConsentState {
   };
 }
 
-async function persist(s: ConsentState): Promise<void> {
-  mem = s;
-  try {
-    if (!FILE.exists) FILE.create();
-    FILE.write(JSON.stringify(mem));
-  } catch {
-    // best-effort — the in-memory copy still holds
-  }
-}
-
 /** Load the consent record (seen · sharing · ts). Stays eager — it gates
  *  the onboarding sheet — but concurrent first callers share one read. */
 export async function loadConsent(): Promise<ConsentState> {
   if (mem) return mem;
   if (!inflight) {
     inflight = (async () => {
-      try {
-        if (FILE.exists) {
-          mem = sanitize(JSON.parse(await FILE.text()));
-          return mem;
-        }
-      } catch {}
-      mem ??= EMPTY;
+      const g = wipeGen;
+      /* atomic+.bak read — a torn main falls back to the previous good
+         generation instead of reading as never-seen (the replay bug) */
+      const j = await readJsonDoc(NAME, (v): v is Partial<ConsentState> =>
+        !!v && typeof v === "object");
+      if (g !== wipeGen || mem !== null) {
+        // wiped mid-read, or a writer won the race while we parsed
+        if (mem) return mem;
+        return EMPTY;
+      }
+      mem = j ? sanitize(j) : EMPTY;
       return mem;
     })();
   }
@@ -73,7 +76,9 @@ export async function loadConsent(): Promise<ConsentState> {
 export function saveConsent(patch: Partial<ConsentState>): Promise<ConsentState> {
   const p = writeTail.then(async () => {
     const next = { ...(await loadConsent()), ...patch };
-    await persist(next);
+    if (mem === null) return next;  // wiped mid-merge — don't resurrect
+    mem = next;
+    writeJsonDoc(NAME, mem);        // atomic rename + .bak (safefile)
     return next;
   });
   writeTail = p.catch(() => {});
@@ -81,10 +86,19 @@ export function saveConsent(patch: Partial<ConsentState>): Promise<ConsentState>
 }
 
 /** "Delete my data" seam — call from settings.clearAllData() so wiping the
- *  phone also wipes this file and re-arms the gate on next launch. */
+ *  phone also wipes this file and re-arms the gate on next launch. Mirrors
+ *  drop too (null = wiped), or a queued save would resurrect the file. */
 export function clearConsent(): void {
-  mem = EMPTY;
-  try {
-    if (FILE.exists) FILE.delete();
-  } catch {}
+  wipeGen += 1;
+  mem = null;
+  inflight = null;
+  purgeJsonDoc(NAME); // main + .tmp + .bak — a wiped phone keeps no copy
+}
+
+/** Test seam — drop the in-memory mirror so the next load re-reads disk
+ *  (same convention as resetDaylogCache/resetLedgerCache). Simulates a
+ *  relaunch without touching the file. */
+export function resetConsentCache(): void {
+  mem = null;
+  inflight = null;
 }
