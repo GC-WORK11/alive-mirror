@@ -7,7 +7,7 @@ them more improved."* Ported the landing's `.hnum` instrument grammar
 (`server/landing.html`) to `HomeScreen`'s hero and deepened the subtle-state
 band work — band colour still only where it means air.
 
-- **Branch:** `base/v2` (pushed below head `5d4bbf5`)
+- **Branch:** `base/v2` @ `2f683cb` (pushed on top of `4101bd8` merge-home)
 - **Device:** iOS 26.5 sim (iPhone 17, `EDD9B083`), dev-client build of this
   tree, Metro `EXPO_PUBLIC_API_URL=http://65.2.28.40` (prod ALB, GET-only)
 - **Evidence:** `docs/lanes/app-home-sexy-shots/` — before/after PNGs + two
