@@ -823,11 +823,13 @@ function matchStage(
     for (let i = 1; i < allLists.length; i++)
       if (allLists[i].length < allLists[base].length) base = i;
     for (const id of allLists[base]) cand.add(id);
-    // fused single-token queries also check the full-name skeleton
-    if (p.toks.length === 1) {
-      const sk = fold(p.toks[0]);
-      if (sk.length >= 2) for (const id of fskel.get(sk.slice(0, MAX_PREFIX)) ?? []) cand.add(id);
-    }
+    // fused-name skeleton is always unioned: postings cap at 80 and a
+    // mid-weight row can be cut from EVERY single-token list while its
+    // whole-name skeleton ('ashok nagar' -> 'xkngr', ~a dozen rows)
+    // stays precise -- a capped posting must not make a named place
+    // invisible. For one token this is the same path as before.
+    const sk = fold(p.toks.join(""));
+    if (sk.length >= 2) for (const id of fskel.get(sk.slice(0, MAX_PREFIX)) ?? []) cand.add(id);
   }
 
   const scored: { s: number; e: Entry }[] = [];
@@ -896,24 +898,77 @@ function resolveAnchor(toks: string[], userLoc?: LatLon | null): Entry | null {
   return best.e;
 }
 
-/** entries satisfying every unit ask within maxM of an anchor — "gali 4"
- * inside Ashok Nagar. Rides the same geo cells as nearestPlace. */
+/** a token that could carry a unit value: letter(s), digit(s),
+ * letter+digit, or the roman-numeral forms the corpus uses. */
+const UNIT_VALUEISH = /^[a-z]?\d{1,4}[a-z]?$|^[a-z]{1,2}$|^[ivx]{1,4}$/;
+
+/** a row CONTRADICTS a unit when it carries the same designator family
+ * with a different value — "Sector 63" is not a fuzzy 'sector 62', it is
+ * a different sector. A unit the row doesn't carry stays silent:
+ * "Sector 62" neither satisfies nor contradicts 'block h', so it can
+ * still stand as the honest container when no H-block row is mapped. */
+const unitContradicts = (etoks: string[], u: { struct: string; value: string }): boolean => {
+  const alts = STRUCT_ALTS[u.struct] ?? [u.struct];
+  if (!alts.some((a) => etoks.includes(a))) return false;
+  return etoks.some((t) => UNIT_VALUEISH.test(t) && t !== u.value);
+};
+
+/** entries answering unit asks within maxM of an anchor — "gali 4"
+ * inside Ashok Nagar. Ranked sat-desc then dist: a row satisfying EVERY
+ * unit is the real ask; a row satisfying SOME with no contradicting
+ * value is the honest containing area ('h block sector 62' -> the
+ * sector itself when no H-block row is mapped). A row contradicting a
+ * unit ('Sector 63', 'Gali 5') never stands for it. Rides the same geo
+ * cells as nearestPlace. */
 function unitScan(anchor: LatLon, units: Parsed["units"], maxM = 2600, cap = 6): { e: Entry; d: number }[] {
   const entries = ENTRIES!;
   const geo = GEO!;
-  const out: { e: Entry; d: number }[] = [];
+  const out: { e: Entry; d: number; sat: number }[] = [];
   const cells = Math.ceil(maxM / 1000 / 0.22);
   const bi = Math.floor(anchor.lat / GEO_CELL), bj = Math.floor(anchor.lon / GEO_CELL);
   for (let di = -cells; di <= cells; di++)
     for (let dj = -cells; dj <= cells; dj++)
       for (const i of geo.get(`${bi + di},${bj + dj}`) ?? []) {
         const e = entries[i];
-        if (!units.every((u) => unitSat(e.toks, u))) continue;
+        let sat = 0, contra = false;
+        for (const u of units) {
+          if (unitSat(e.toks, u)) sat++;
+          else if (unitContradicts(e.toks, u)) { contra = true; break; }
+        }
+        if (contra || sat === 0) continue;
         const d = distKm(e, anchor) * 1000;
-        if (d <= maxM) out.push({ e, d });
+        if (d <= maxM) out.push({ e, d, sat });
       }
-  out.sort((a, b) => a.d - b.d);
+  out.sort((a, b) => b.sat - a.sat || a.d - b.d);
   return out.slice(0, cap);
+}
+
+/** when the name-match anchor is blind to the unit ask, the unit itself
+ * is the place ('h block sector 62 noida' — the sector row beats a
+ * 'noida' road): rows whose own name carries the rarest unit value are
+ * the honest anchors. Gated so a matching designator in a far colony
+ * can't guess: the anchor must share a query token with its name or sit
+ * near the bias. */
+function unitAnchorScan(p: Parsed, bias: LatLon | null): Entry | null {
+  const prefix = PREFIX!;
+  const entries = ENTRIES!;
+  let sharedBest: Entry | null = null;
+  let nearBest: { e: Entry; d: number } | null = null;
+  for (const u of p.units) {
+    for (const i of prefix.get(u.value) ?? []) {
+      const e = entries[i];
+      if (!unitSat(e.toks, u)) continue;
+      if (p.toks.some((t) => e.toks.some((nt) => nt.startsWith(t)))) {
+        if (!sharedBest || e.wt > sharedBest.wt) sharedBest = e;
+        continue;
+      }
+      if (bias) {
+        const d = distKm(e, bias) * 1000;
+        if (d <= 8000 && (!nearBest || d < nearBest.d)) nearBest = { e, d };
+      }
+    }
+  }
+  return sharedBest ?? nearBest?.e ?? null;
 }
 
 /** kind-scan — "bakery near hanuman mandir": real kind rows around the
@@ -999,6 +1054,17 @@ export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResul
   if (p.units.length && anchorE) {
     for (const { e } of unitScan(anchorE, p.units))
       unitRows.push(toResult(e));
+    /* the unit itself is the place when the name anchor is blind —
+       'h block sector 62 noida': re-anchor on the best row carrying a
+       unit value, then rescan the same tiered scan around it. */
+    if (!unitRows.length) {
+      const ua = unitAnchorScan(p, bias);
+      if (ua && ua !== anchorE) {
+        for (const { e } of unitScan(ua, p.units))
+          unitRows.push(toResult(e));
+        if (!unitRows.length) unitRows.push(toResult(ua));
+      }
+    }
   }
 
   /* kind routing — 'bakery near hanuman mandir' is a kind ask around an

@@ -76,10 +76,10 @@ export const KIND_RE: [RegExp, string][] = [
   [/^(college|colleges)$/, "college|college_university|educational_institution"],
   [/^(university|universities)$/, "university|college_university"],
   [/^(petrol|fuel|diesel|cng)$/, "fuel|charging_station"],
-  [/^(temple|mandir|mandeer)$/, "temple|hindu_place_of_worship|place_of_worship|shrine"],
-  [/^(mosque|masjid|dargah)$/, "mosque|muslim_place_of_worship|place_of_worship"],
-  [/^(church)$/, "church|christian_place_of_worship|place_of_worship"],
-  [/^(gurudwara|gurdwara)$/, "gurudwara|sikh_place_of_worship|place_of_worship"],
+  [/^(temple|mandir|mandeer)$/, "temple|hindu_place_of_worship|jain"],
+  [/^(mosque|masjid|dargah)$/, "mosque|muslim_place_of_worship|dargah"],
+  [/^(church)$/, "church|christian_place_of_worship"],
+  [/^(gurudwara|gurdwara)$/, "gurudwara|sikh_place_of_worship"],
   [/^(park|parks|parkk)$/, "park|garden|playground|recreation_ground"],
   [/^(restaurant|dhaba|restaurent|resturant|hotel.*khana)$/, "restaurant|fast_food|food_court|canteen"],
   [/^(hotel|hotels|guesthouse)$/, "hotel|guest_house|hostel|motel|resort"],
@@ -141,14 +141,17 @@ export function parseQuery(raw: string): Parsed | null {
     }
   }
 
-  /* 2 — fillers out of the head side, EXCEPT a single-letter 'a'/'an'
-     sitting next to a designator: 'a block' means the unit letter A —
-     'nandanagri a block pocket something' is block-A inside Nand Nagri. */
+  /* 2 — fillers out of the head side, EXCEPT a single-letter token
+     sitting next to a designator: 'a block' means the unit letter A,
+     'h block' means the unit letter H — 'nandanagri a block pocket
+     something' is block-A inside Nand Nagri. Only ONE-character tokens
+     earn the exemption ('h' is house-filler before 'no', a block letter
+     beside 'block'); 'an' stays for the pre-existing 'an block' form. */
   const nextToStruct = (i: number, arr: string[]) =>
     (i > 0 && STRUCT.has(arr[i - 1])) || (i < arr.length - 1 && STRUCT.has(arr[i + 1]));
   const kept = head.filter((t, i) => {
     if (NEAR.has(t)) return false;
-    if ((t === "a" || t === "an") && nextToStruct(i, head)) return true;
+    if ((t.length === 1 || t === "an") && nextToStruct(i, head)) return true;
     return !FILLER.has(t);
   });
 
@@ -165,9 +168,10 @@ export function parseQuery(raw: string): Parsed | null {
     // prefer the value AFTER the struct ('gali 4'), else BEFORE ('4 gali')
     for (const j of [i + 1, i - 1]) {
       if (j < 0 || j >= kept.length || consumed.has(j) || STRUCT.has(kept[j])) continue;
-      // 'a'/'an' reached here only because they survived nextToStruct —
-      // they ARE the unit letter ('a block' = block A)
-      if (isUnitValue(kept[j]) || kept[j] === "a" || kept[j] === "an") {
+      // 'a'/'an'/'h' reached here only because they survived
+      // nextToStruct — a single letter IS the unit letter
+      // ('a block' = block A, 'h block' = block H)
+      if (isUnitValue(kept[j]) || kept[j].length === 1 || kept[j] === "an") {
         units.push({ struct: t, value: kept[j] });
         consumed.add(i);
         consumed.add(j);

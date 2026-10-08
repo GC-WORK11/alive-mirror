@@ -2,9 +2,9 @@
 // Regenerate after any gazetteer change: cd Mobile && npm run build:t0
 module.exports = {
   v: 1,
-  gaz_sha256: "21e805ada054fb68d4d74307437ebf5d560465747fdc0c6d1e4b7e868db749ef",
-  gaz_rows: 124311,
-  chunks: 36,
+  gaz_sha256: "ba1d38a39241b16dd7c576f8461782c676d74f0ab971d916f39a91b3652712ac",
+  gaz_rows: 132932,
+  chunks: 39,
   load(i) {
     switch (i) {
       case 0: return require("./c0.json");
@@ -43,6 +43,9 @@ module.exports = {
       case 33: return require("./c33.json");
       case 34: return require("./c34.json");
       case 35: return require("./c35.json");
+      case 36: return require("./c36.json");
+      case 37: return require("./c37.json");
+      case 38: return require("./c38.json");
       default: return null;
     }
   },

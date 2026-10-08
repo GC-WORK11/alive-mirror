@@ -184,6 +184,9 @@ ALIAS_TAGS = (
     "short_name", "reg_name", "nat_name", "name:hi", "brand", "ref",
     # context tags: a POI's street/locality becomes searchable context
     "addr:street", "addr:place", "addr:subdistrict", "addr:city", "is_in",
+    # a POI's own block/housenumber is typed context too
+    # ("paan bhandar block c")
+    "addr:block", "addr:housenumber",
 )
 
 SAMPLE_LINES = 20000  # first N entries copied to the committed sample file
@@ -412,6 +415,23 @@ def put_entry(entries: dict, stats: dict, entry) -> bool:
     return False
 
 
+# Display-name fallback for objects that carry no name= tag but do carry
+# an attested alternate: official/loc/alt/short names are still names
+# people type.  old_name stays alias-only -- it is a stale name, not a
+# current one.
+NAME_FALLBACK = ("official_name", "loc_name", "alt_name", "short_name")
+
+
+def display_name_of(t) -> str | None:
+    n = t.get("name")
+    if n:
+        return n
+    for k in NAME_FALLBACK:
+        if t.get(k):
+            return t[k]
+    return None
+
+
 def compose_addr(t) -> str | None:
     """Display string for an addr object, or None if it can't be named.
 
@@ -420,6 +440,8 @@ def compose_addr(t) -> str | None:
     district -- a housenumber with only addr:city is NOT displayable
     ("44 Delhi" resolves nothing); it drops to proximity anchoring.
     A bare housenumber ("12") is not findable either -- skipped.
+    A housenumber WITH a block keeps it -- "44 Block B, Nand Nagri" is
+    how Delhi addresses actually read.
     """
     hn = (t.get("addr:housenumber") or "").strip()
     if hn in ("-", "—", "?"):
@@ -429,8 +451,11 @@ def compose_addr(t) -> str | None:
     block = t.get("addr:block", "").strip()
     sub = (t.get("addr:subdistrict") or t.get("addr:suburb")
            or t.get("addr:neighbourhood") or t.get("addr:locality")
+           or t.get("addr:sector") or t.get("addr:quarter")
            or t.get("addr:district") or "").strip()
     ctx = street or place or sub
+    if hn and block and ctx:
+        return f"{hn} Block {block}, {ctx}"
     if hn and ctx:
         return f"{hn} {ctx}"
     if hn and block:
@@ -644,7 +669,7 @@ def build_corpus(pbf_paths):
 
     def classify(t):
         """Return (category, display_source) for a tag set, or None."""
-        name = t.get("name")
+        name = display_name_of(t)
         for k in POI_KEYS:
             if k in t and name:
                 return f"{k}:{t[k]}", name
@@ -664,10 +689,18 @@ def build_corpus(pbf_paths):
         if t.get("addr:housename") and re.search(r"[a-zA-Z]",
                                                  t["addr:housename"]):
             return "building:housename", t["addr:housename"]
-        if "addr:place" in t:
-            return "addr:place", t["addr:place"]
-        if "addr:subdistrict" in t:
-            return "addr:subdistrict", t["addr:subdistrict"]
+        if "addr:place" in t or "addr:subdistrict" in t:
+            # a marker for the locality itself stays a locality; an object
+            # that also carries housenumber/block/street is an ADDRESS in
+            # that locality -- compose it so the number and block survive
+            # instead of collapsing into a dupe of the place row
+            if (_housenumber_of(t) or t.get("addr:block")
+                    or t.get("addr:street")):
+                disp = compose_addr(t)
+                if disp:
+                    return "addr:address", disp
+            key = "addr:place" if "addr:place" in t else "addr:subdistrict"
+            return key, t[key]
         if t.get("addr:full"):
             return "addr:address", t["addr:full"]
         if t.get("addr:housenumber") or t.get("addr:block"):
@@ -721,7 +754,7 @@ def build_corpus(pbf_paths):
         def way(self, w):
             stats["ways_scanned"] += 1
             t = w.tags
-            name = t.get("name")
+            name = display_name_of(t)
             # centroid = mean of node locations (cheap; fine for search anchors)
             slat = slon = 0.0
             cnt = 0
