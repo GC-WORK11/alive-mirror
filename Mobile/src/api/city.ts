@@ -112,10 +112,23 @@ export type CityPayload = {
   >;
   trips?: {
     days?: Record<string, CityDayTotals>;
+    /** server-stamped UTC day key — the ONLY day 'today' may mean */
+    today_key?: string;
+    /** days[today_key] or null when nothing was shared today — an
+        absent bucket is the honest 'no trips yet today', never the
+        last populated day relabelled (server/v2/city.py `_public`) */
+    today?: CityDayTotals | null;
     cells_tracked?: number;
     corridors_publishable?: number;
   };
 };
+
+/** The only day a 'today' card may print: the server's own stamped
+ *  UTC-day bucket (trips.today / today_key), null when nothing was
+ *  shared today — never the last POPULATED day from days[] relabelled
+ *  (F4: after a donation gap sort().pop() painted yesterday 'today'). */
+export const cityToday = (d: CityPayload): CityDayTotals | null =>
+  d.trips?.today ?? null;
 
 /** One shot at `${API_BASE}/v2/city`, last-good cached: offline → the
  * previous payload returns and the net-status pill labels it stale.

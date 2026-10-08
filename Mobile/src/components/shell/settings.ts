@@ -42,6 +42,10 @@ export type ShellSettings = {
   /** L4 exposure ceiling profile — a ceiling the user sets, not a medical
    *  line. Drives the day card's budget flag + the tiles' remaining µg. */
   profile: "general" | "sensitive" | "child";
+  /** F7: profile itself defaults to "general" — without this flag every
+   *  fresh install's preset ceiling printed under "a line you set".
+   *  True only after the user actually picks a profile segment. */
+  profile_set: boolean;
 };
 
 export const DEFAULT_SETTINGS: ShellSettings = {
@@ -50,7 +54,7 @@ export const DEFAULT_SETTINGS: ShellSettings = {
   alerts_reflect: true,
   show_cig: false,
   vehicle: null, home: null, work: null,
-  profile: "general",
+  profile: "general", profile_set: false,
 };
 
 /** WHO 2021 24-h PM2.5 guideline (µg/m³) — the denominator behind every

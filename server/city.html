@@ -1473,8 +1473,10 @@ function paintTicker(a,cy,t,ad,nd){
           :'below stage i'})(),
       'grap — the smog-emergency stage this air maps to (aqi of the live field, computed here — the official stage is caqm\'s call)'],
     [`districts`,`${nd} live`,'districts with a live reading right now'],
-    [`shared trips today`,`${IN(t.obs_24h)}`],
-    [`km shared today`,`${IN(t.km_24h)}`],
+    /* F8 — 'today' buckets on the UTC day: the qualifier is part of the
+       label, matching the ledger head's 'counted since utc midnight' */
+    [`shared trips · utc day`,`${IN(t.obs_24h)}`],
+    [`km shared · utc day`,`${IN(t.km_24h)}`],
     [`street stretches seen`,`${IN(t.cells_tracked)}`,
       'street stretches crossed by shared trips in the last 3 days'],
     [`streets ≥3 phones`,`${IN(t.corridors_publishable)}`,

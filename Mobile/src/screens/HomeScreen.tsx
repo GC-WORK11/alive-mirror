@@ -811,8 +811,12 @@ const PROFILES = [
   { k: "child", labelKey: "profileChild" },
 ] as const;
 
-function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
-  totalUg: number; profile: ShellSettings["profile"]; lang: Lang;
+function BudgetCardInner({ totalUg, profile, profileSet, lang, onProfile }: {
+  totalUg: number; profile: ShellSettings["profile"];
+  /** false = the ceiling is still the shipped default — every line on
+      this card reads 'suggested', never 'you set' (F7). True only after
+      the user picks a profile segment below. */
+  profileSet: boolean; lang: Lang;
   onProfile: (p: ShellSettings["profile"]) => void;
 }) {
   bump("home.BudgetCard");
@@ -822,7 +826,7 @@ function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
   return (
     <View style={ss.card}>
       <Text {...DYNAMIC_TYPE} style={[ss.cardTitle, { fontFamily: fam(lang, "semi") }]}>
-        {t("budgetTitle", lang)}
+        {t(profileSet ? "budgetTitle" : "budgetTitleSugg", lang)}
       </Text>
       <View style={ss.budgetBar}>
         <View style={[ss.budgetFill, {
@@ -832,8 +836,8 @@ function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
       </View>
       <Text {...DYNAMIC_TYPE} style={[ss.budgetLine, NUM, { fontFamily: mtext(lang) }]}>
         {over > 0
-          ? t("budgetOver", lang, { o: doseUgRound(over), p: t(`profile${profile[0].toUpperCase()}${profile.slice(1)}` as never, lang) })
-          : t("budgetWithin", lang, { r: doseUgRound(-over), b: budget })}
+          ? t(profileSet ? "budgetOver" : "budgetOverSugg", lang, { o: doseUgRound(over), p: t(`profile${profile[0].toUpperCase()}${profile.slice(1)}` as never, lang) })
+          : t(profileSet ? "budgetWithin" : "budgetWithinSugg", lang, { r: doseUgRound(-over), b: budget })}
       </Text>
       <View style={ss.profileRow}>
         {PROFILES.map((p) => {
@@ -854,7 +858,12 @@ function BudgetCardInner({ totalUg, profile, lang, onProfile }: {
         })}
       </View>
       <Text {...DYNAMIC_TYPE} style={[ss.finePrint, { fontFamily: fam(lang, "reg") }]}>
-        {t("budgetProfileQ", lang, { b: budget })}
+        {/* 'a line you set' only once the user actually set it — before
+            that the ceiling is disclosed as the WHO-anchored suggestion
+            it is, with the assumed breathing volume spelled out (F7) */}
+        {profileSet
+          ? t("budgetProfileQ", lang, { b: budget })
+          : t(`budgetQ${profile[0].toUpperCase()}${profile.slice(1)}Sugg` as never, lang, { b: budget })}
       </Text>
     </View>
   );
@@ -1014,8 +1023,11 @@ export type AmbientMeta = {
   place?: string | null;
 };
 
-function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fieldStale, lang }: {
+function HeroBlockInner({ data, budgetUg, profileSet, ambientUg, ambientMeta, fieldAgeS, fieldStale, lang }: {
   data: DayData | null; budgetUg: number; ambientUg: number | null; lang: Lang;
+  /** false → the '…% of your daily limit' reference must not claim the
+      line — the suggested-limit wording prints instead (F7) */
+  profileSet?: boolean;
   /** provenance of the ambient read — the hero's "where from" lines */
   ambientMeta?: AmbientMeta | null;
   /** the live field's own age/stale verdict (the /aqi block) — the air
@@ -1067,7 +1079,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
   let ref: string | null = null;
   let ref2: string | null = null;
   if (counted) {
-    ref = budgetUg > 0 ? t("refBudget", lang, { p: Math.round((ug / budgetUg) * 100) }) : null;
+    ref = budgetUg > 0 ? t(profileSet ? "refBudget" : "refBudgetSugg", lang, { p: Math.round((ug / budgetUg) * 100) }) : null;
     if (yday > 0) {
       const d = Math.round(ug - yday);
       if (d !== 0) ref2 = t(d > 0 ? "refYesterdayMore" : "refYesterdayLess", lang, { n: Math.abs(d) });
@@ -1472,7 +1484,7 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
             this scroll — it is the fixed header row above. */}
         <FadeIn delay={0}>
           <TourTarget id="hero">
-            <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg}
+            <HeroBlock data={data} budgetUg={budget} profileSet={settings.profile_set} ambientUg={ambientUg}
               ambientMeta={ambientMeta} fieldAgeS={fieldAgeS} fieldStale={fieldStale} lang={lang} />
           </TourTarget>
         </FadeIn>
@@ -1508,14 +1520,14 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
         </FadeIn>
         <FadeIn delay={300}>
           <BudgetCard totalUg={data?.rec.totalUg ?? 0} profile={settings.profile}
-            lang={lang} onProfile={onProfile} />
+            profileSet={settings.profile_set} lang={lang} onProfile={onProfile} />
         </FadeIn>
       </ScrollView>
       {/* the lungs' calendar — mounted over the scroll so a strip tap
           rises as its own sheet */}
       {weekDay != null && data != null && (
         <WeekSheet day={weekDay} week={data.week} outlook={data.outlook}
-          budgetUg={budget} lang={lang} onClose={() => setWeekDay(null)} />
+          budgetUg={budget} profileSet={settings.profile_set} lang={lang} onClose={() => setWeekDay(null)} />
       )}
     </View>
   );

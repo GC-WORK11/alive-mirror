@@ -1085,8 +1085,8 @@ async function tick(){
      'total PM2.5 mass actually inhaled across every shared trip — the number nobody else measures',
      t.dose_ug>0?['counted',VC.good]:['quiet',VC.quiet]],
     [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
-     `co₂ from shared rides · mid estimate`,'accent',t.co2_kg_mid>0,
-     'what the shared rides emitted — midpoint between the low and high emission factors',
+     `co₂ from shared rides · mid estimate · counted-basis`,'accent',t.co2_kg_mid>0,
+     'what the shared rides emitted — midpoint between the low and high emission factors, integrated along each actual ride',
      t.co2_kg_mid>0?['counted',VC.good]:['quiet',VC.quiet]]];
   const cardHtml=([v,l,cl,ok,what,verd])=>
     `<div class="card"><div class="kchip${ok&&cl?' '+cl:''}">${l}${verd?`<span class="vword" style="--vc:${verd[1]}">${verd[0]}</span>`:''}</div>`+
@@ -1365,13 +1365,18 @@ async function tick(){
   /* where the donated CO₂ comes from — moving/idling/cold-start, summed
      only over trips whose receipts carried the real phase split */
   const cs=t.co2_split;
+  /* F6 — the split is each trip's PLANNED-route phase estimate
+     (emissions.breakdown donated with the receipt); the counted-kg tile
+     is measured along the actual ride. The two bases never reconcile by
+     construction — the label must say which basis this is, not let the
+     percentages read as a breakdown of the counted total. */
   $('co2split').innerHTML=cs&&cs.pct?`
     <div class="split">
       <i style="width:${cs.pct.moving}%;background:rgba(101,112,127,.5)"></i>
       <i style="width:${cs.pct.idle}%;background:rgba(190,87,30,.65)"></i>
       <i style="width:${cs.pct.cold}%;background:rgba(138,45,62,.65)"></i>
     </div>
-    <div class="split-l">where the ride CO₂ comes from — <b style="color:var(--ink)">moving ${cs.pct.moving}% · idling ${cs.pct.idle}% · cold starts ${cs.pct.cold}%</b> · over ${fmt(cs.trips)} trip${cs.trips===1?'':'s'} that reported a split</div>`
+    <div class="split-l">where the ride CO₂ comes from — <b style="color:var(--ink)">moving ${cs.pct.moving}% · idling ${cs.pct.idle}% · cold starts ${cs.pct.cold}%</b> · over ${fmt(cs.trips)} trip${cs.trips===1?'':'s'} that reported a split · plan-basis shares — the counted kg above is measured along each ride, a different basis</div>`
     :(t.trips?'<div class="split-l" style="padding-top:2px">no donated trip has reported a CO₂ split yet — receipts from the current app build carry it</div>':'');
 
   /* --- 01 · the provenance strip: the one line a judge reads first.

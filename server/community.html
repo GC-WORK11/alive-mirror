@@ -244,7 +244,8 @@ td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
     <span class="lbl" id="age">—</span>
   </div>
   <p class="sintro">The running total of every trip riders have shared
-  — all added together, never per person.</p>
+  — all added together, never per person. The 'today' rows count the
+  UTC day — they reset at 05:30 IST.</p>
   <div class="lgrid" id="lgrid">
     <div class="lrow"><span class="k">contributors</span><span class="v na">connecting…</span></div>
   </div>
@@ -325,6 +326,9 @@ async function load(){
       `<span><b>${F1(c.dose_ug_today)}</b> <span style="text-transform:none">µg</span> breathed · today</span>`+
       `<span><b>${F1(c.km_today)}</b> km of trips · today</span>`+
       `<span><b>${IN(c.avoided_ug_all)} µg</b> pm2.5 dodged · all-time</span>`+
+      /* F8 — 'today' is the UTC day, not the IST day: the qualification
+         prints with the counters, not only in a hover title */
+      `<span>today = utc day · resets 05:30 ist</span>`+
       (last!=null?`<span>last shared trip <b>${agoMin(last)}</b> ago</span>`:'');
   }else if(h){
     $('status').innerHTML='<span>the count is resting — the live air map is up</span>';

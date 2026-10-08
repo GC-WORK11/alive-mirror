@@ -72,9 +72,20 @@ globalThis.require = (spec) => {
   };
 }
 
+/* react-native itself: a data-URL stub — client.ts needs Platform.select
+   for API_BASE, nothing else. Lets search tests import the client module
+   without dragging the real (Flow-syntax) package into strip-types. */
+const RN_STUB =
+  "data:text/javascript," +
+  encodeURIComponent(
+    "export const Platform = { OS: 'test', select: (o) => o?.default ?? Object.values(o ?? {})[0] };" +
+    "export default {};",
+  );
+
 registerHooks({
   resolve(specifier, context, next) {
     const bare = specifier.split("?")[0];
+    if (bare === "react-native") return { url: RN_STUB, shortCircuit: true };
     try {
       const r = next(bare, context);
       if (specifier.includes("?") && r.url) r.url += specifier.slice(specifier.indexOf("?"));

@@ -40,6 +40,14 @@ type RawRow = {
   kind?: string;
   category?: string;
   outside_ncr?: boolean;
+  /* F2 — the server's substitution metadata (v2/search._place_row /
+     _area_row / _compound_row): how the row matched, the resolved
+     anchor's name, whether the ask was multi-part. Dropping it made a
+     category-or-area substitute print like a direct name hit. */
+  match?: string;
+  match_rank?: number;
+  anchor?: string;
+  compound?: boolean;
 };
 
 /** Gazetteer rows occasionally surface raw OSM tag strings
@@ -82,6 +90,11 @@ function toPlace(r: RawRow, tier: "t1" | "t2"): PlaceResult | null {
     kind: r.kind ?? r.category ?? "place",
     outside_ncr: r.outside_ncr ?? !inNcr(r.lat, r.lon),
     tier,
+    /* the wire's own honesty fields ride through untouched — an
+       unexpected match value still surfaces, never silently zeroed */
+    ...(r.match != null
+      ? { match: r.match as PlaceResult["match"], anchor: r.anchor, compound: r.compound }
+      : {}),
   };
 }
 
@@ -257,7 +270,10 @@ export class ServerSearch {
   private seq = 0;
   private prevText = "";
 
-  constructor(private debounceMs = 80) {}
+  /* parameter property avoided — node's strip-types loader (the unit
+     runners) can't parse `constructor(private x)` */
+  private debounceMs: number;
+  constructor(debounceMs = 80) { this.debounceMs = debounceMs; }
 
   /** Feed the raw text field contents. First character of a fresh query
    * fires immediately; subsequent edits debounce. */

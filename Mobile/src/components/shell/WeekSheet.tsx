@@ -65,7 +65,7 @@ import { dayLabel, fieldAgeLine, outlookCaption } from "./daywords";
 import { HourArc } from "./HourArc";
 import type { WeekDay } from "./WeekStrip";
 
-function WeekSheetInner({ day, week, outlook, budgetUg, lang, onClose }: {
+function WeekSheetInner({ day, week, outlook, budgetUg, profileSet, lang, onClose }: {
   /** the day the strip opened on (yyyy-mm-dd, the week's own keys) */
   day: string;
   /** the 7-day window, oldest → today (WeekStrip's payload) */
@@ -73,6 +73,9 @@ function WeekSheetInner({ day, week, outlook, budgetUg, lang, onClose }: {
   /** the folded days ahead — null keeps the section out entirely */
   outlook: Outlook | null;
   budgetUg: number;
+  /** false → the % line under a day reads 'of the suggested limit', not
+      'of your limit' — the ceiling is a shipped default until picked (F7) */
+  profileSet?: boolean;
   lang: Lang;
   onClose: () => void;
 }) {
@@ -212,7 +215,7 @@ function WeekSheetInner({ day, week, outlook, budgetUg, lang, onClose }: {
                     </Text>
                     {openPct > 0 && (
                       <Text {...DYNAMIC_TYPE} style={[ws.dayPct, NUM, { fontFamily: fam(lang, "reg") }]}>
-                        {t("weekDayPct", lang, { p: openPct })}
+                        {t(profileSet ? "weekDayPct" : "weekDayPctSugg", lang, { p: openPct })}
                       </Text>
                     )}
                     {open.rec.coveredMin > 0 && (

@@ -40,6 +40,7 @@ import {
   type SearchSelection,
 } from "../search/t0";
 import { mergeResults, sameNamedPlace, ServerSearch, type ServerTiers } from "../search/client";
+import { parseQuery } from "../search/parse";
 import { addRecent, getPlaces, setSaved, type PlaceStore, type SavedSlot } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
 import { confirm, tick } from "../haptics";
@@ -389,6 +390,26 @@ function SearchSheetInner({
   /* perf: each committed non-empty list stamps a rows mark — pair with
      search.key for keystroke→first-row latency in the perf log. */
   useEffect(() => { if (merged.length > 0) mark("search.rows"); }, [merged]);
+  /* F2 — the 'don't assume' law: when the top hit is a category or
+     area-only substitute for a named-place ask, one honest line names
+     the miss. The metadata rides on the row (server compound/area rows,
+     t0's own kind/unit paths); a lone kind word or a real name hit needs
+     no label — the row IS the answer there. */
+  const parsed = useMemo(() => {
+    const s = qDeferred.trim();
+    return s ? parseQuery(s) : null;
+  }, [qDeferred]);
+  const substLine = useMemo(() => {
+    const top = merged[0];
+    if (!top || !parsed) return null;
+    if (top.match === "category" && parsed.kind != null && parsed.toks.length > 1)
+      return t("searchSubstCategory", lang, { name: parsed.toks.join(" ") });
+    if (top.match === "area" && parsed.units.length)
+      return t("searchSubstArea", lang, {
+        unit: parsed.units.map((u) => `${u.struct} ${u.value}`).join(", "),
+      });
+    return null;
+  }, [merged, parsed, lang]);
   const typing = qDeferred.trim().length > 0;
   const pending = tiers === null;
   const empty = typing && !pending && merged.length === 0;
@@ -498,6 +519,13 @@ function SearchSheetInner({
   const resultsEl = useMemo(() => (
     <>
       {merged.length > 0 && <SectionLabel lang={lang}>{t("resultsHeader", lang)}</SectionLabel>}
+      {/* the substitute disclosure — sits with the top hit it qualifies */}
+      {substLine ? (
+        <Text {...DYNAMIC_TYPE} accessibilityLiveRegion="polite"
+          style={[ss.substNote, { fontFamily: fam(lang, "reg") }]} numberOfLines={2}>
+          {substLine}
+        </Text>
+      ) : null}
       {t0rows.map((p, i) => renderPlace(p, `t0-${i}`))}
       {(pending || serverRows.length > 0) && t0rows.length > 0 && <View style={ss.hairline} />}
       {pending ? (
@@ -513,7 +541,7 @@ function SearchSheetInner({
         </View>
       )}
     </>
-  ), [merged, t0rows, serverRows, pending, empty, lang, renderPlace]);
+  ), [merged, t0rows, serverRows, pending, empty, substLine, lang, renderPlace]);
 
   return (
     <View style={[ss.root, { marginTop: insets.top + 8 }]}>
@@ -729,6 +757,16 @@ const ss = StyleSheet.create({
     backgroundColor: V2T.surface2,
   },
   noticeTxt: { color: V2T.text2, fontSize: V2Type.label },
+  /* the 'nearby alternative — "x" not found' line — quiet ink over the
+     surface, louder than a subtitle so the disclosure can't hide */
+  substNote: {
+    color: V2T.text2,
+    fontSize: V2Type.label,
+    marginHorizontal: 14,
+    marginTop: 2,
+    marginBottom: 6,
+    lineHeight: 17,
+  },
   input: {
     flex: 1,
     color: V2T.text,

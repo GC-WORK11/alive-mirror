@@ -1212,7 +1212,9 @@ function AppInner() {
   const onHomeMap = useCallback(() => setHomeOpen(false), []);
   const onHomeCity = useCallback(() => setDelhiOpen(true), []);
   const onHomeTrips = useCallback(() => setLedgerOpen(true), []);
-  const onHomeProfile = useCallback((p: string) => patchSettings({ profile: p } as Partial<ShellSettings>), [patchSettings]);
+  /* a real profile pick — the only path allowed to print 'a line you
+     set' on the budget card (F7; the default ceiling never earns it) */
+  const onHomeProfile = useCallback((p: string) => patchSettings({ profile: p, profile_set: true } as Partial<ShellSettings>), [patchSettings]);
   const onCheckin = useCallback((c: Parameters<typeof setCheckin>[1]) => {
     void setCheckin(Date.now(), c).then(() => setDayNonce((n) => n + 1));
   }, []);

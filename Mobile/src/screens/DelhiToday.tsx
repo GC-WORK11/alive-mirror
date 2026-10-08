@@ -45,6 +45,7 @@ import { Icon, type Glyph } from "../icons";
 import {
   fetchCity,
   fetchCityMoves, type CityMovesPayload,
+  cityToday,
   type CityCorridor,
   type CityPayload,
 } from "../api/city";
@@ -69,12 +70,12 @@ const streetName = (name: string): string =>
     ? name
     : name.replace(/\b\w/g, (ch) => ch.toUpperCase());
 
-const latestDay = (data: CityPayload) => {
-  const days = data.trips?.days;
-  if (!days) return null;
-  const key = Object.keys(days).sort().pop(); // ISO keys sort chronologically
-  return key ? days[key] : null;
-};
+/* 'today' = the server's own UTC-day bucket (api/city.cityToday →
+   trips.today / today_key), served explicitly so a donation gap never
+   paints yesterday under a TODAY title — before this, latest-day
+   sort().pop() relabelled the last POPULATED bucket 'today' (F4).
+   Absent key = honest no-card. */
+const latestDay = (data: CityPayload) => cityToday(data);
 
 /** True only when the payload says plainly there are no live stations —
  * an absent block never reads as "offline". */
@@ -624,6 +625,13 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 <Text {...DYNAMIC_TYPE} style={[ss.sec, { fontFamily: fam(lang, "semi") }]}>
                   {t("cityTravellersTitle", lang)}
                 </Text>
+                {/* the counters bucket on the UTC day, not IST —
+                    the qualification prints with them, always (F8) */}
+                <Text {...DYNAMIC_TYPE}
+                  style={[ss.dayQual, { fontFamily: fam(lang, "reg") }]}
+                >
+                  {t("cityTodayUtc", lang)}
+                </Text>
                 <Text {...DYNAMIC_TYPE}
                   style={[
                     ss.dayLine,
@@ -937,6 +945,15 @@ const ss = StyleSheet.create({
     marginHorizontal: 18,
     marginTop: 4,
     lineHeight: 22,
+  },
+  /* 'utc day · resets 05:30 ist' — one quiet line under the travellers
+     head so the public 'today' counters never read as the IST day */
+  dayQual: {
+    color: V2T.text3,
+    fontSize: V2Type.label,
+    marginHorizontal: 18,
+    marginTop: -2,
+    marginBottom: 2,
   },
   /* the species instruments as tinted stat tiles — a wrapping grid,
      each tile number-over-symbol in its family well (sky instruments,

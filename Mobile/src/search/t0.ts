@@ -32,6 +32,21 @@ export type PlaceResult = {
   kind: string;              // gazetteer/server category
   outside_ncr: boolean;
   tier: SearchTier;
+  /* how this row matched (F2 — the 'don't assume' law). undefined =
+     matched on the name itself. Server vocabulary:
+       'place'    — name hit; with a near-ask, `anchor` names the
+                    resolved place it was found beside
+       'category' — kind row standing in for a named place the corpus
+                    doesn't hold ('bakery near hanuman mandir' after
+                    'pawan bakery' misses): `anchor` names the anchor
+       'area'     — the resolved area/unit-carrier standing for a unit
+                    that was never mapped ('gali 4' inside Ashok Nagar)
+     `compound` marks multi-part asks (kind+anchor, name+anchor); the
+     SearchScreen substitute label keys off this metadata — never a
+     guessed answer. */
+  match?: "name" | "place" | "category" | "area";
+  anchor?: string;
+  compound?: boolean;
 };
 
 // What the shell receives from SearchScreen.onSelect.
@@ -920,7 +935,7 @@ const unitContradicts = (etoks: string[], u: { struct: string; value: string }):
  * sector itself when no H-block row is mapped). A row contradicting a
  * unit ('Sector 63', 'Gali 5') never stands for it. Rides the same geo
  * cells as nearestPlace. */
-function unitScan(anchor: LatLon, units: Parsed["units"], maxM = 2600, cap = 6): { e: Entry; d: number }[] {
+function unitScan(anchor: LatLon, units: Parsed["units"], maxM = 2600, cap = 6): { e: Entry; d: number; sat: number }[] {
   const entries = ENTRIES!;
   const geo = GEO!;
   const out: { e: Entry; d: number; sat: number }[] = [];
@@ -1052,20 +1067,31 @@ export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResul
   const unitRows: PlaceResult[] = [];
   const anchorE = nearAnchor ?? scored[0]?.e ?? null;
   if (p.units.length && anchorE) {
-    for (const { e } of unitScan(anchorE, p.units))
-      unitRows.push(toResult(e));
+    /* a row satisfying SOME-but-not-all asked units is the containing
+       area, not the unit — marked 'area' so the sheet can say so (F2) */
+    for (const { e, sat } of unitScan(anchorE, p.units))
+      unitRows.push(sat < p.units.length
+        ? { ...toResult(e), match: "area", compound: true, anchor: anchorE.n }
+        : toResult(e));
     /* the unit itself is the place when the name anchor is blind —
        'h block sector 62 noida': re-anchor on the best row carrying a
-       unit value, then rescan the same tiered scan around it. */
+       unit value, then rescan the same tiered scan around it. Rows from
+       the re-anchored scan answer a DIFFERENT area than the named one —
+       every one is marked 'area' so the substitution is disclosable. */
     if (!unitRows.length) {
       const ua = unitAnchorScan(p, bias);
       if (ua && ua !== anchorE) {
         for (const { e } of unitScan(ua, p.units))
-          unitRows.push(toResult(e));
-        if (!unitRows.length) unitRows.push(toResult(ua));
+          unitRows.push({ ...toResult(e), match: "area", compound: true, anchor: ua.n });
+        if (!unitRows.length)
+          unitRows.push({ ...toResult(ua), match: "area", compound: true, anchor: ua.n });
       }
     }
   }
+  /* no unit row anywhere → the anchor stands as the honest area answer
+     ('ashok nagar gali 4' → the Ashok Nagar row itself). Marked 'area'
+     so the sheet labels it instead of letting it read as a name hit. */
+  const areaStandin = p.units.length > 0 && anchorE != null && !unitRows.length ? anchorE : null;
 
   /* kind routing — 'bakery near hanuman mandir' is a kind ask around an
      anchor, not a name ask: name rows of "bakery"-named places get the
@@ -1081,8 +1107,17 @@ export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResul
     const anchor: LatLon | null = nearAnchor ?? bias;
     if (anchor) {
       const anchorSub = nearAnchor ? ` · ${nearAnchor.n}` : "";
+      /* every kind row is a CATEGORY match — for a name-bearing ask
+         ('pawan bakery …') it is a substitute for the missed name, for a
+         lone kind word it is itself the answer. Either way the metadata
+         rides along; the sheet decides when to disclose it (F2). */
       kindRows = kindScan(anchor, re, nameToks, 2600, limit)
-        .map(({ e }) => toResult(e, `${kindLabel(e.c)}${anchorSub}`));
+        .map(({ e }) => ({
+          ...toResult(e, `${kindLabel(e.c)}${anchorSub}`),
+          match: "category" as const,
+          compound: nearAnchor != null || p.toks.length > 1,
+          anchor: nearAnchor?.n,
+        }));
     }
     // for a name-bearing kind ask the name hits may still be the better
     // answer — append them after the kind rows, dedupe handles overlap
@@ -1106,16 +1141,27 @@ export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResul
   };
 
   for (const r of unitRows) push(r);
+  /* name hits inside a near-ask carry their resolved anchor; the area
+     standin (a unit ask the corpus can't satisfy) is marked 'area' —
+     both ride as metadata, the render decides what to disclose (F2) */
+  const scoredResult = (e: Entry): PlaceResult => ({
+    ...toResult(e),
+    ...(e === areaStandin
+      ? { match: "area" as const, compound: true, anchor: e.n }
+      : nearAnchor
+        ? { match: "place" as const, compound: true, anchor: nearAnchor.n }
+        : {}),
+  });
   if (loneKind) {
     // a lone kind word's name-path rows are usually a different thing
     // entirely ('atm' → "Atma Ram College") — the scan IS the answer
     for (const r of kindRows) push(r);
-    for (const { e } of scored) push(toResult(e), e);
+    for (const { e } of scored) push(scoredResult(e), e);
   } else if (kindRows.length && kindFirst) {
     for (const r of kindRows) push(r);
-    for (const { e } of scored) push(toResult(e), e);
+    for (const { e } of scored) push(scoredResult(e), e);
   } else {
-    for (const { e } of scored) push(toResult(e), e);
+    for (const { e } of scored) push(scoredResult(e), e);
     for (const r of kindRows) push(r);
   }
   return out;
