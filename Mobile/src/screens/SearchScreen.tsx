@@ -43,6 +43,7 @@ import {
 } from "../search/t0";
 import { mergeResults, sameNamedPlace, ServerSearch, type ServerTiers } from "../search/client";
 import { parseQuery } from "../search/parse";
+import { exploreIntent } from "../search/explore";
 import { addRecent, getPlaces, setSaved, type PlaceStore, type SavedSlot } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
 import { confirm, tick } from "../haptics";
@@ -440,6 +441,10 @@ function SearchSheetInner({
     const s = qDeferred.trim();
     return s ? parseQuery(s) : null;
   }, [qDeferred]);
+  /* stays/playtime intent rows — 'hotels near karol bagh' or 'when to
+     play' render ONE explore row above the place results; the sheet it
+     opens scores the ask off the live engine, never off this parse. */
+  const intent = useMemo(() => exploreIntent(parsed), [parsed]);
   const substLine = useMemo(() => {
     const top = merged[0];
     if (!top || !parsed) return null;
@@ -575,6 +580,30 @@ function SearchSheetInner({
 
   const resultsEl = useMemo(() => (
     <>
+      {intent && (
+        <>
+          <SectionLabel lang={lang}>{t("exploreHeader", lang)}</SectionLabel>
+          <PlaceRow
+            lang={lang}
+            glyph={<Icon name={intent.mode === "stays" ? "hotel" : "explore"} color={V2T.accent} size={20} />}
+            title={t(intent.mode === "stays" ? "exploreStays" : "explorePlay", lang)}
+            subtitle={intent.nearQuery
+              ? t("exploreNearPlace", lang, { place: intent.nearQuery })
+              : t("exploreNearYou", lang)}
+            armed={false}
+            onPressIn={() => {}}
+            onPress={() => {
+              if (committing.current) return;
+              committing.current = true;
+              tick();
+              dismissThen(() => onSelect({
+                type: "explore", mode: intent.mode,
+                nearQuery: intent.nearQuery }));
+            }}
+            onLongPress={() => {}}
+          />
+        </>
+      )}
       {merged.length > 0 && <SectionLabel lang={lang}>{t("resultsHeader", lang)}</SectionLabel>}
       {/* the substitute disclosure — sits with the top hit it qualifies */}
       {substLine ? (
@@ -604,7 +633,8 @@ function SearchSheetInner({
         </>
       )}
     </>
-  ), [merged, t0rows, serverRows, pending, empty, substLine, hereRows, lang, renderPlace]);
+  ), [merged, t0rows, serverRows, pending, empty, substLine, hereRows,
+    intent, lang, renderPlace, dismissThen, onSelect]);
 
   return (
     <View style={[ss.root, { marginTop: insets.top + 8 }]}>

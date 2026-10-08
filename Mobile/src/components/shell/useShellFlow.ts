@@ -47,7 +47,7 @@ if (Platform.OS === "android" && setLayoutAnimExp && !isFabric) setLayoutAnimExp
    sheet's own enter spring already covers the visual handoff; rows just
    appear in place. */
 
-export type Phase = "idle" | "search" | "place" | "compare" | "nav";
+export type Phase = "idle" | "search" | "place" | "compare" | "nav" | "explore";
 export type Which = "to" | "from";
 /** honesty-cluster match metadata the search rows carry — shown on the
  *  place sheet as the substitute label, never implied to be exact. */

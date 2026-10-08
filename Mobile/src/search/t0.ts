@@ -52,6 +52,7 @@ export type PlaceResult = {
 // What the shell receives from SearchScreen.onSelect.
 export type SearchSelection =
   | { type: "place"; place: PlaceResult }
+  | { type: "explore"; mode: "stays" | "playtime"; nearQuery: string | null }
   | { type: "current_location" }
   | { type: "choose_on_map" };
 

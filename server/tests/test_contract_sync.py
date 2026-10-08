@@ -280,6 +280,10 @@ def _fetchers():
             "lat": CP[0], "lon": CP[1]}).json(),
         "V2OutlookResponse": lambda: client.get("/v2/outlook", params={
             "lat": CP[0], "lon": CP[1]}).json(),
+        "V2StaysResponse": lambda: client.get("/v2/stays", params={
+            "near": f"{CP[0]},{CP[1]}", "k": 8}).json(),
+        "V2PlaytimeResponse": lambda: client.get("/v2/playtime", params={
+            "near": f"{CP[0]},{CP[1]}"}).json(),
     }
 
 
@@ -314,6 +318,9 @@ NESTED = [
     ("V2DayResponse", "hours", "V2DayHour"),
     ("V2DayResponse", "decisions", "V2DayDecision"),
     ("V2OutlookResponse", "days", "V2OutlookDay"),
+    ("V2StaysResponse", "stays", "V2StayRow"),
+    ("V2PlaytimeResponse", "hours", "V2PlaytimeHour"),
+    ("V2PlaytimeResponse", "decisions", "V2DayDecision"),
 ]
 # object-valued keys get the same two-direction check:
 # (parent fetcher key, object-key, child interface | None)
@@ -344,6 +351,14 @@ NESTED_OBJ = [
     ("V2OutlookResponse", "field", "FieldStatus"),
     ("V2OutlookResponse", "forecast", "V2ForecastStatus"),
     ("V2OutlookResponse", "best_day", "V2OutlookBestDay"),
+    ("V2StaysResponse", "near", "V2NearRef"),
+    ("V2StaysResponse", "field", "FieldStatus"),
+    ("V2StaysResponse", "forecast", "V2ForecastStatus"),
+    ("V2PlaytimeResponse", "near", "V2NearRef"),
+    ("V2PlaytimeResponse", "field", "FieldStatus"),
+    ("V2PlaytimeResponse", "forecast", "V2ForecastStatus"),
+    ("V2PlaytimeResponse", "best_window", "V2PlaytimeWindow"),
+    ("V2PlaytimeResponse", "worst_window", "V2PlaytimeWindow"),
 ]
 
 

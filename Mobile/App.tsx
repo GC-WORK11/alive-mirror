@@ -54,6 +54,8 @@ import { fetchCity, fetchCityMoves } from "./src/api/city";
 import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
 import { PlaceSheet } from "./src/components/shell/PlaceSheet";
+import { ExploreSheet } from "./src/components/shell/ExploreSheet";
+import type { ExploreAnchor, ExploreMode } from "./src/api/explore";
 import { getPlaces } from "./src/search/recents";
 import { VehicleSheet } from "./src/screens/VehicleSheet";
 import { DelhiToday } from "./src/screens/DelhiToday";
@@ -885,6 +887,7 @@ function AppInner() {
          button is the honest exit. Search handles its own press.
          BACK on the idle map returns home — the day surface is root. */
       if (phase === "place") { closePlace(); return true; }
+      if (phase === "explore") { setPhase("search"); return true; }
       if (phase === "compare") { setHomeOpen(true); clearRoute(); return true; }
       if (phase === "nav") return true;
       if (phase === "idle" && !homeOpen) { setHomeOpen(true); return true; }
@@ -1226,7 +1229,41 @@ function AppInner() {
     if (placePickSlot) { setPlacePickSlot(null); setSidebarOpen(true); }
     setPhase(to ? "compare" : "idle");
   }, [placePickSlot, setPhase, setLocNotice, to]);
+  /* the explore settle — what the 'stays'/'when to play' intent row
+     opened, anchor resolved (place words → the server's near= name;
+     bare asks → a real fix or the search-bias fix, never a made-up
+     point) */
+  const [explore, setExplore] = useState<
+    { mode: ExploreMode; anchor: ExploreAnchor } | null>(null);
+
   const onSearchSelect = useCallback(async (sel: SearchSelection) => {
+    if (sel.type === "explore") {
+      setMapPickArmed(false);
+      setHomeOpen(false);           // the journey lives on the map surface
+      let anchor: ExploreAnchor | null = sel.nearQuery
+        ? { name: sel.nearQuery }
+        : null;
+      if (!anchor) {
+        /* 'near me' — a live fix wins, then the search-bias fix; the
+           sheet never invents a point, it just has no anchor to ask
+           for and the honest empty state says so */
+        const fix = await posNowDetailed();
+        const p = fix?.pos;
+        if (p) anchor = { lat: p.coords.latitude, lon: p.coords.longitude };
+        else if (searchUserLoc) anchor = { lat: searchUserLoc.lat, lon: searchUserLoc.lon };
+      }
+      /* async tail like every pick's — the fix await can outlive the
+         sheet that asked for it */
+      if (phaseRef.current !== "search") return;
+      if (!anchor) {
+        setLocNotice(t("locPickFailed", lang));
+        setPhase("search");
+        return;
+      }
+      setExplore({ mode: sel.mode, anchor });
+      setPhase("explore");
+      return;
+    }
     if (sel.type === "place") {
       if (placePickSlot) {
         // sidebar's unset home/work slot asked for a search pick —
@@ -1551,6 +1588,23 @@ function AppInner() {
         <PlaceSheet place={place.p} meta={place.meta} airUg={placeAirUg}
           locating={locating} notice={locNotice}
           onDirections={goDirections} onClose={closePlace} lang={lang} />
+      )}
+      {/* the 'stay & play' settle — a stay row's tap drops it on the
+          air map through the map's own tap-read (same settle grammar:
+          fly + pin + the field answering at the point) */}
+      {phase === "explore" && explore && (
+        <ExploreSheet mode={explore.mode} anchor={explore.anchor} lang={lang}
+          onModeChange={(m) => setExplore((e) => e && { ...e, mode: m })}
+          onPin={(p) => {
+            setPhase("idle");
+            setHomeOpen(false);
+            camRef.current?.flyTo({ center: [p.lon, p.lat], zoom: 15, duration: camDur(700) });
+            /* the tap-read clears on leaving the air-map surface —
+               set it only once phase=idle+homeOpen=false have landed,
+               else the clear effect eats the pin in the same pass */
+            setTimeout(() => setTapPoint({ lat: p.lat, lon: p.lon }), 120);
+          }}
+          onClose={() => setPhase("search")} />
       )}
       {phase === "compare" && (
         <CompareSheet options={options} selected={selected} onSelect={setSelected}

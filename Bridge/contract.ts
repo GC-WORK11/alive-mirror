@@ -1052,6 +1052,127 @@ export interface V2OutlookResponse {
                                 //  unavailable" paths emit days: []
 }
 
+/* /v2/stays + /v2/playtime — the 'stay & play' surfaces. Both answer a
+   near= (lat,lon pair or a place name through the same T1 engine as
+   /v2/search) over the SAME live primitives the rest of /v2 serves:
+   the live field read for now, and the anchored CAMS horizon at the
+   point's own coordinates for the next 24 h. Nothing district-averaged
+   or relabelled; thin reads carry sparse/nearest_station_km so the
+   client can say so. */
+
+export interface V2NearRef {
+  lat: number;
+  lon: number;
+  name: string | null;            // resolved place name (null for coords)
+  kind?: string;                  // gazetteer kind when via = "search"
+  via: "coords" | "search";       // how the point was resolved
+}
+
+export interface V2StayRow {
+  id: string;                     // "gaz:<idx>" corpus row identity
+  name: string;
+  kind: string;                   // corpus lodging kind (tourism:hotel, ...)
+  lat: number;
+  lon: number;
+  dist_km: number;                // straight-line from the anchor
+  pm25_now: number | null;        // live field read at the stay — null
+                                  // when the field can't read it
+  window_mean_ug: number | null;  // mean of anchored forecast over
+                                  // scored_h hours at the stay
+  n_hours: number;                // forecast slots actually averaged
+  scored_on: "next24h" | "now" | "unrated"; // which read the row ranked
+                                          // on — 'unrated' sorts last,
+                                          // never borrows a number
+  band: string;                   // CPCB category of the ranked score
+  cleaner_by_ug: number | null;   // anchor pm25_now minus stay pm25_now —
+                                  // positive = lighter air at the stay;
+                                  // null when either read is missing
+  sparse: boolean;                // thin-read flag (edge / far monitor)
+  nearest_station_km: number | null;      // live-monitor distance itself
+}
+
+export interface V2StaysResponse {
+  near: V2NearRef;
+  stays: V2StayRow[];             // ranked by window mean (then now,
+                                  // then distance); unrated rows last
+  k: number;
+  window_h: number;               // intended scoring horizon (24)
+  scored_h: number;               // horizon actually served per stay
+  lodging_rows: number;           // corpus lodging rows the pool drew from
+  ranked_on: string;              // the scoring basis in plain words
+  anchor_pm25_now: number | null; // live field at the anchor — the 'your
+                                  // area' side of every delta
+  anchor_band: string;
+  sparse: boolean;                // anchor's own thin-read flag
+  beyond_edge: boolean;
+  nearest_station_km: number | null;
+  model: string;
+  field_age_s: number | null;
+  field: FieldStatus;
+  forecast?: V2ForecastStatus;
+  ts: number;                     // unix seconds, IST computation instant
+  error?: string;                 // OUT_OF_AREA path → {near, stays: [],
+                                  // error}
+}
+
+export interface V2PlaytimeHour {
+  h: number;                      // hours ahead
+  start: string | null;           // ISO UTC slot start
+  ist_label: string;              // "17:30" Delhi clock label
+  pm25_mid: number;
+  pm25_lo: number | null;         // krige→climatology blend (same as
+  pm25_hi: number | null;         // V2DayHour)
+  us_aqi: number | null;
+  band: string;
+  confidence: "hi" | "med" | "lo";
+  date_ist: string;               // IST civil date — the fold rolls past
+  day_offset: number;             // midnight: 0 = today, 1 = tomorrow…
+}
+
+export interface V2PlaytimeWindow {
+  start_h: number;
+  end_h: number | null;           // null = still open at horizon edge
+  start_label?: string;
+  end_label?: string | null;
+  pm25_mid?: number;
+  basis: string;
+  start_day_offset: number;       // 0 = today, 1 = tomorrow — pairs with
+  end_day_offset: number;         // start_label for "06:30 tomorrow"
+}
+
+export interface V2PlaytimeResponse {
+  near: V2NearRef;
+  tz: string;
+  generated_ist: string;
+  hours: V2PlaytimeHour[];        // the rolling next-24h curve (holes
+                                  // skipped, never zeroed)
+  served_h: number;               // slots actually served
+  window_h: number;               // intended horizon (24)
+  now_pm25: number | null;        // first hour's mid — 'right now'
+  mean_pm25: number | null;       // window mean — the comparison basis
+  best_window: V2PlaytimeWindow | null;   // lightest contiguous run —
+                                          // 'kids out then'
+  worst_window: V2PlaytimeWindow | null;  // heaviest contiguous run
+  cleaner_by_ug: number | null;   // now_pm25 − best-window mean; positive
+                                  // = lighter later, can be negative
+  flat: boolean;                  // spread within noise → no windows
+  confidence: "hi" | "med" | "lo" | null; // worst grade across hours
+  verdict: string;                // one honest sentence ("least-bad
+                                  // window 12:30-14:30 tomorrow — 16
+                                  // µg/m³ lighter than now")
+  decisions: V2DayDecision[];     // same generator as /v2/day
+  sparse: boolean;
+  beyond_edge: boolean | null;
+  nearest_station_km: number | null;
+  model: string;
+  band_basis: string;
+  field_age_s: number | null;
+  field: FieldStatus;
+  forecast?: V2ForecastStatus;
+  error?: string;                 // OUT_OF_AREA / forecast-unavailable
+                                  // paths → hours: []
+}
+
 export const V2_ENDPOINTS = {
   search: "/v2/search",
   districts: "/v2/districts",
@@ -1065,6 +1186,8 @@ export const V2_ENDPOINTS = {
   city_moves: "/v2/city/moves",
   day: "/v2/day",
   outlook: "/v2/outlook",
+  stays: "/v2/stays",
+  playtime: "/v2/playtime",
   ledger: "/v2/ledger",
   // /v2/today and /v2/depart are wire aliases for the v1 handlers —
   // same shapes as /today and /depart above, surfaced under the v2
