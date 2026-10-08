@@ -33,7 +33,7 @@ import {
   gestureLabelLayers, gestureLabelLayersLatin, latinLabels, v2StyleUrl,
 } from "./src/map/style";
 import { warmBasemap } from "./src/map/tileWarm";
-import { warm as warmSearchIndex, localityAt } from "./src/search/t0";
+import { warm as warmSearchIndex, localityAt, query as t0query } from "./src/search/t0";
 import { afterFirstFrame, noteUserInput } from "./src/startup/idle";
 import { camDur } from "./src/map/cam";
 import {
@@ -196,7 +196,7 @@ const MapTree = React.memo(function MapTree({
   onPress, onLongPress, onPuckPress, camRef, mapRef, drawHeld, covered,
   trackUserLocation, onTrackUserLocationChange,
   hasLoc, corridors, reportSlots, fires, spots, layers,
-  field, stations,
+  field, stations, airLayer,
   options, selected, strips,
   fromPin, toPin, fromSet, toSet, pinReady,
   placePin, placePinShow, navTint, holdPill,
@@ -225,6 +225,8 @@ const MapTree = React.memo(function MapTree({
   layers: Record<LayerKey, boolean>;
   field: GeoJSON.FeatureCollection | null;
   stations: AirStation[] | null;
+  /* the air-gate: field cells/rings paint only while air intent is up */
+  airLayer: boolean;
   options: V2Option[];
   selected: number;
   strips: Parameters<typeof RouteTintSource>[0]["strips"];
@@ -330,10 +332,11 @@ const MapTree = React.memo(function MapTree({
           removeSource/removeAnnotation is the upstream sim SIGSEGV;
           the toggles only swap data in and out (see each component) */}
       {/* the air map's own surface — the served PM2.5 field, painted
-          under the road/label stack; the band colours + every number
-          are the field's real reads, and the rings are the actual
-          instrument sites the blend is anchored to */}
-      <AirFieldLayer field={field} stations={stations} gesturing={gesturing} />
+          under the road/label stack ONLY while air intent is up (App's
+          airLayerVisible: the readout surface, a place's air detail, an
+          air answers sheet). Everywhere else the basemap stays plain —
+          the owner's order, "the where-to looks ugly with colored maps" */}
+      <AirFieldLayer field={field} stations={stations} gesturing={gesturing} on={airLayer} />
       <BasemapLabels lang={lang} gesturing={gesturing} />
       <CorridorLayer corridors={corridors} on={layers.corridors} />
       <ReportsLayer slots={reportSlots} />
@@ -1134,6 +1137,15 @@ function AppInner() {
      browsing, this is the reading */
   const airMapOpen = phase === "idle" && !homeOpen;
 
+  /* THE OWNER'S AIR-GATE — every map surface paints plain basemap until
+     the user asks about air. Air intent = the air-map readout surface
+     (idle, home lifted, no trip pick armed), a place's air detail
+     (settle sheet), or an air answers sheet (stays/playtime). Search,
+     compare and nav never paint the field — the route line, the dose
+     rows and the verdict pill carry that story. */
+  const airLayerVisible =
+    (airMapOpen && !mapPickArmed) || phase === "place" || phase === "explore";
+
   /* the home sheet is a full opaque surface — the same predicate as its
      `visible` prop. While it owns the screen the map renders into a
      void: cap the render pump low so home scroll + sheet springs keep
@@ -1237,6 +1249,34 @@ function AppInner() {
     { mode: ExploreMode; anchor: ExploreAnchor } | null>(null);
 
   const onSearchSelect = useCallback(async (sel: SearchSelection) => {
+    /* the air ask lands the user on the air-map surface — the field
+       paints there (airLayerVisible), the camera flies to the anchor
+       and the tap-read pins its own number so 'air around me' answers
+       with a read, not just colour. Anchors are honest: a named phrase
+       resolves through the bundled gazetteer, 'around me' asks for a
+       real fix; no anchor → the field still paints, unpinned. */
+    if (sel.type === "air") {
+      setMapPickArmed(false);
+      setHomeOpen(false);
+      setPhase("idle");
+      const hit = sel.nearQuery ? t0query(sel.nearQuery, searchUserLoc, 1)[0] : null;
+      if (hit) {
+        whenMapDrawFree(() => camRef.current?.flyTo({
+          center: [hit.lon, hit.lat], zoom: 14, duration: camDur(700) }));
+        setTimeout(() => setTapPoint({ lat: hit.lat, lon: hit.lon }), 120);
+      } else if (!sel.nearQuery) {
+        const fix = await posNowDetailed();
+        const p = fix?.pos;
+        if (phaseRef.current !== "idle") return;   // the surface moved on
+        if (p) {
+          const at = { lat: p.coords.latitude, lon: p.coords.longitude };
+          whenMapDrawFree(() => camRef.current?.flyTo({
+            center: [at.lon, at.lat], zoom: 14, duration: camDur(700) }));
+          setTimeout(() => setTapPoint(at), 120);
+        }
+      }
+      return;
+    }
     if (sel.type === "explore") {
       setMapPickArmed(false);
       setHomeOpen(false);           // the journey lives on the map surface
@@ -1325,7 +1365,7 @@ function AppInner() {
       setLocNotice(t("locPickFailed", lang));
       setPhase("search");
     }
-  }, [placePickSlot, patchSettings, setPhase, pick, editWhich, lang, to, setLocNotice, bumpPickDone, phaseRef]);
+  }, [placePickSlot, patchSettings, setPhase, pick, editWhich, lang, to, setLocNotice, bumpPickDone, phaseRef, searchUserLoc, setTapPoint, camRef, setHomeOpen, setMapPickArmed]);
   const onLocate = useCallback(() => {
     if (follow) { setFollow(false); return; }
     /* warm the fused provider before engaging follow — MapLibre's
@@ -1457,6 +1497,7 @@ function AppInner() {
       reportSlots={reportSlots}
       fires={fires} spots={spots} layers={layers}
       field={fieldGeo} stations={fieldStations}
+      airLayer={airLayerVisible}
       options={options}
       selected={selected}
       strips={strips}

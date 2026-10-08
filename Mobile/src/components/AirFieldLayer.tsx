@@ -31,6 +31,7 @@ function AirFieldLayerFn({
   field,
   stations,
   gesturing = false,
+  on = true,
 }: {
   field: GeoJSON.FeatureCollection | null;
   stations: AirStation[] | null;
@@ -39,6 +40,12 @@ function AirFieldLayerFn({
      label set and return on rest. The cells' fill + station rings
      stay painted: the field IS the surface. */
   gesturing?: boolean;
+  /* the owner's air-gate: the field only paints while air intent is
+     active — the air-map surface, a place's air detail, an air answers
+     sheet. Every other map surface stays plain basemap. Empty-collection
+     swap only (the mounted-source contract); the polled field still
+     lands so the next ON paints instantly, stale-free. */
+  on?: boolean;
 }) {
   const cells = useMemo(() => {
     if (!field?.features?.length) return EMPTY;
@@ -84,7 +91,7 @@ function AirFieldLayerFn({
 
   return (
     <>
-      <GeoJSONSource id="airfield" data={cells}>
+      <GeoJSONSource id="airfield" data={on ? cells : EMPTY}>
         {/* the field itself — band colour per cell, alpha by cell conf;
             beforeId seats it above land/buildings but under every road
             and label (v2-road-tunnel is the first transportation layer)
@@ -180,7 +187,7 @@ function AirFieldLayerFn({
       </GeoJSONSource>
       {/* the instruments themselves — quiet ring markers so a reader can
           see the field is anchored to real monitors, not drawn from air */}
-      <GeoJSONSource id="airStations" data={stGeo}>
+      <GeoJSONSource id="airStations" data={on ? stGeo : EMPTY}>
         <Layer
           id="airStationDots"
           type="circle"

@@ -43,7 +43,7 @@ import {
 } from "../search/t0";
 import { mergeResults, sameNamedPlace, ServerSearch, type ServerTiers } from "../search/client";
 import { parseQuery } from "../search/parse";
-import { exploreIntent } from "../search/explore";
+import { airIntent, exploreIntent } from "../search/explore";
 import { addRecent, getPlaces, setSaved, type PlaceStore, type SavedSlot } from "../search/recents";
 import { categoryGlyph } from "../search/CategoryIcon";
 import { confirm, tick } from "../haptics";
@@ -445,6 +445,10 @@ function SearchSheetInner({
      play' render ONE explore row above the place results; the sheet it
      opens scores the ask off the live engine, never off this parse. */
   const intent = useMemo(() => exploreIntent(parsed), [parsed]);
+  /* the air ask — 'air around me' / 'aqi' / 'pollution' isn't a place
+     search at all: it lands the user on the air-map surface where the
+     field itself paints (the owner's air-gate — colour only on ask). */
+  const airI = useMemo(() => airIntent(qDeferred, parsed), [qDeferred, parsed]);
   const substLine = useMemo(() => {
     const top = merged[0];
     if (!top || !parsed) return null;
@@ -474,8 +478,16 @@ function SearchSheetInner({
 
   const submit = useCallback(() => {
     // hardware/software "search" key = pick the top hit — the fastest path.
+    // an air ask's top hit IS the air map: place rows were never the ask.
+    if (airI) {
+      if (committing.current) return;
+      committing.current = true;
+      tick();
+      dismissThen(() => onSelect({ type: "air", nearQuery: airI.nearQuery }));
+      return;
+    }
     if (merged[0]) pick(merged[0]);
-  }, [merged, pick]);
+  }, [merged, pick, airI, dismissThen, onSelect]);
 
   const renderPlace = useCallback(
     (p: PlaceResult, key: string) => (
@@ -580,9 +592,28 @@ function SearchSheetInner({
 
   const resultsEl = useMemo(() => (
     <>
+      {(airI || intent) && <SectionLabel lang={lang}>{t("exploreHeader", lang)}</SectionLabel>}
+      {airI && (
+        <PlaceRow
+          lang={lang}
+          glyph={<Icon name="leaf" color={V2T.accent} size={20} />}
+          title={t("airIntentTitle", lang)}
+          subtitle={airI.nearQuery
+            ? t("exploreNearPlace", lang, { place: airI.nearQuery })
+            : t("exploreNearYou", lang)}
+          armed={false}
+          onPressIn={() => {}}
+          onPress={() => {
+            if (committing.current) return;
+            committing.current = true;
+            tick();
+            dismissThen(() => onSelect({ type: "air", nearQuery: airI.nearQuery }));
+          }}
+          onLongPress={() => {}}
+        />
+      )}
       {intent && (
         <>
-          <SectionLabel lang={lang}>{t("exploreHeader", lang)}</SectionLabel>
           <PlaceRow
             lang={lang}
             glyph={<Icon name={intent.mode === "stays" ? "hotel" : "explore"} color={V2T.accent} size={20} />}
@@ -634,7 +665,7 @@ function SearchSheetInner({
       )}
     </>
   ), [merged, t0rows, serverRows, pending, empty, substLine, hereRows,
-    intent, lang, renderPlace, dismissThen, onSelect]);
+    airI, intent, lang, renderPlace, dismissThen, onSelect]);
 
   return (
     <View style={[ss.root, { marginTop: insets.top + 8 }]}>

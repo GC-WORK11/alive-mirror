@@ -1,8 +1,12 @@
 /**
- * <RouteTintSource/> — the route-wise AQI gradient on the map: every plan
- * option's polyline shaded per span by the field's PM2.5 on the CPCB band
- * ramp (all math in src/map/routeTint.ts — read its header for the data
- * contract and the colour scale).
+ * <RouteTintSource/> — the route paint on the map: every plan option's
+ * polyline chunked per span off the field's PM2.5 (all math in
+ * src/map/routeTint.ts — read its header for the data contract). The
+ * per-chunk band colour still bakes onto each feature as DATA — the
+ * pill and the delta rows speak those numbers — but the paint itself is
+ * flat by the owner's air-gate law: plain surfaces until the user asks
+ * about air; a route is a route, not a field map (picked = forest
+ * accent, alternates/travelled = quiet).
  *
  * WIRING — mounted inside <Map> from App.tsx:
  *
@@ -618,8 +622,12 @@ function RouteTintSourceFn({
     showAlts && !inNav && options.length ? stagedAlts : EMPTY_FC;
   return (
     <>
-      {/* the travelled span — dimmed band memory under the live
-          ahead-tint; parked at EMPTY outside nav like every sibling */}
+      {/* the travelled span — dimmed quiet line under the live
+          ahead-route; parked at EMPTY outside nav like every sibling.
+          FLAT-PAINT RULE (owner's air-gate): routes are routes — one
+          quiet ink line, never the band ramp. Each chunk still bakes
+          its real pm25/band onto the feature (the pill + rows speak
+          numbers, not paint); only the layer colours flattened. */}
       <GeoJSONSource id="routeTintBehind" data={inNav ? navTint.behind : EMPTY_FC}>
         <Layer
           id="routeTint-behind-casing"
@@ -631,7 +639,7 @@ function RouteTintSourceFn({
           id="routeTint-behind-line"
           type="line"
           paint={{
-            "line-color": ["coalesce", ["get", "color"], MAP_QUIET],
+            "line-color": MAP_QUIET,
             "line-width": 6,
             "line-opacity": 0.45,
           }}
@@ -643,7 +651,7 @@ function RouteTintSourceFn({
           id="routeTint-alts-line"
           type="line"
           paint={{
-            "line-color": ["coalesce", ["get", "color"], MAP_QUIET],
+            "line-color": MAP_QUIET,
             "line-width": 3,
             "line-opacity": ["coalesce", ["get", "op"], ALT_OP],
           }}
@@ -662,7 +670,9 @@ function RouteTintSourceFn({
           id="routeTint-sel-line"
           type="line"
           paint={{
-            "line-color": ["coalesce", ["get", "color"], MAP_QUIET],
+            /* the picked road is the app's one 'go' colour — forest
+               accent, same door as Start; never a band segment */
+            "line-color": V2T.accent,
             "line-width": 6,
             "line-opacity": ["coalesce", ["get", "op"], 1],
           }}

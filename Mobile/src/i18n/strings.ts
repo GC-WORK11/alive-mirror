@@ -1287,6 +1287,7 @@ const en = {
   /* the explore intent row + sheet — 'stays' and 'when to go out' as
      query paths off the live engine */
   exploreHeader: "air answers",
+  airIntentTitle: "the air map",
   exploreStays: "stays — lightest air first",
   explorePlay: "when's the air lightest to play",
   exploreNearPlace: "near {place}",
@@ -2372,6 +2373,7 @@ const hi: Record<StringKey, string> = {
   shareClausePutOut: "मेरी गाड़ी ने छोड़ा {co2}",
 
   exploreHeader: "हवा के जवाब",
+  airIntentTitle: "हवा का नक्शा",
   exploreStays: "रुकने की जगह — सबसे हल्की हवा पहले",
   explorePlay: "खेलने के लिए हवा कब सबसे हल्की",
   exploreNearPlace: "{place} के पास",

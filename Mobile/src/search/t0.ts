@@ -53,6 +53,10 @@ export type PlaceResult = {
 export type SearchSelection =
   | { type: "place"; place: PlaceResult }
   | { type: "explore"; mode: "stays" | "playtime"; nearQuery: string | null }
+  /* the air ask — 'air around me' / 'aqi karol bagh' lands the user on
+     the air-map surface (nearQuery = the place phrase to fly to, null =
+     'around me' → the real fix is the anchor) */
+  | { type: "air"; nearQuery: string | null }
   | { type: "current_location" }
   | { type: "choose_on_map" };
 

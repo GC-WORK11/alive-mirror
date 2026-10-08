@@ -75,3 +75,118 @@ export function exploreIntent(parsed: Parsed | null): ExploreIntent | null {
   const nearQuery = anchorToks.length ? anchorToks.join(" ") : null;
   return { mode, nearQuery };
 }
+
+/* ── the air ask ────────────────────────────────────────────────────────
+ * 'air around me' / 'air here' / 'aqi' / 'pollution' (+ the romanized and
+ * Devanagari equivalents) is not a place search at all — it asks for the
+ * field itself. airIntent only re-reads the ask: a hit lets the shell
+ * land the user on the air-map surface; nothing here invents a place.
+ * A miss returns null and the place tiers answer as usual. */
+export type AirIntent = {
+  /** place text the ask anchors to — 'karol bagh' in 'air near karol
+   *  bagh', 'lodhi road' in 'pollution lodhi road'. null = 'around me':
+   *  the anchor is a real fix, never a made-up point. */
+  nearQuery: string | null;
+};
+
+/** tokens that only ever mean air — one alone is the whole ask, and any
+ *  leftover tokens are the anchor ('aqi karol bagh' → air near karol
+ *  bagh). 'pm' alone stays OUT ('pm modi' is a name ask); the numeric
+ *  forms pm25/pm2.5 (normalize() splits the dot → 'pm2 5') are in. */
+const AIR_TOKS = new Set([
+  "aqi", "aqhi", "aod", "usqi", "airindex", "airquality",
+  "pm25", "pm2", "pm2p5", "pm10",
+  "pollution", "polluted", "pollutant", "pollutants",
+  "smog", "smoggy", "haze", "hazy",
+  "dhundh", "dhund", "dhua", "dhuan", "dhuaan",
+  "pradushan", "pradusahan", "pradooshan", "pradushit", "pradusit",
+  "vayugunvatta",
+]);
+
+/** the ambiguous air words — 'air'/'hawa'/'vayu' name things too ('air
+ *  india', 'hawa mahal'), so they only count inside an air-phrased ask:
+ *  every remaining head token must be air or context, or the ask must
+ *  carry an air word up front with a real place phrase trailing
+ *  ('air karol bagh' → air AT karol bagh). */
+const AIR_WORD = new Set([
+  "air", "aer", "eyar", "hawa", "hava", "hva", "vayu", "vaayu", "wayu",
+]);
+
+/** ask-words that never anchor — question/context around the air ask;
+ *  what survives outside them is the place text. */
+const AIR_STOP = new Set([
+  "around", "me", "my", "mine", "here", "there", "near", "quality",
+  "index", "now", "today", "tonight", "tomorrow", "yesterday",
+  "outside", "inside", "outdoors", "indoors", "delhi", "ncr",
+  "it", "is", "the", "how", "hows", "what", "whats", "tell", "check",
+  "show", "about", "report", "status", "level", "levels", "current",
+  "currently", "rate", "rating",
+  "kaisi", "kaisa", "kaise", "kya", "kyaa", "kiya", "hai", "hain", "he",
+  "hin", "ki", "ke", "ka", "yahan", "yaha", "wahan", "waha", "idhar",
+  "udhar", "aaj", "abhi", "ab", "kal", "subah", "savere", "shaam",
+  "raat", "din", "saaf", "saf", "kharab", "kharaab", "achhi", "achha",
+  "acchi", "accha", "buri", "bura", "gandi", "ganda", "bekar", "theek",
+  "thik", "best", "clean", "cleanest", "worst", "dirty",
+]);
+
+/** trailing places where 'air X' is a NAME ask, not air — 'air india',
+ *  'air force station', 'air asia' stay with the place tiers. */
+const AIR_BLOCK = new Set([
+  "india", "indian", "airlines", "airline", "force", "asia", "pacific",
+  "express", "port", "airport", "field", "airfield", "canada", "arabia",
+  "france", "china", "japan", "zealand", "bnb",
+]);
+
+/** Devanagari asks — normalize() strips non-Latin before tokenizing, so
+ *  the raw text is the only honest place to see them. */
+const AIR_DEVANAGARI =
+  /हवा|वायु|प्रदूष|धुंध|धुँध|एयर|एअर|पीएम|धुआँ|धुआ|स्मॉग|कोहरा/;
+
+export function airIntent(raw: string, parsed: Parsed | null): AirIntent | null {
+  const devaHit = AIR_DEVANAGARI.test(raw);
+  /* parsed==null → every Latin token stripped or nothing to parse; a
+     Devanagari air ask still counts (the ask is air, the anchor is 'me') */
+  if (!parsed) return devaHit ? { nearQuery: null } : null;
+  const { toks, near } = parsed;
+  const isAirTok = (t: string) => AIR_TOKS.has(t) || AIR_WORD.has(t);
+  const anchorToks = (arr: string[]) =>
+    arr.filter((t) => !isAirTok(t) && !AIR_STOP.has(t) && !/^\d+$/.test(t));
+
+  /* hard: an unambiguous air token anywhere — leftover head tokens or the
+     near-side name the anchor ('aqi karol bagh', 'pollution lodhi road',
+     'smog near anand vihar'). A Devanagari air word in the raw counts the
+     same way (its Latin neighbours can still anchor: 'प्रदूषण karol bagh'). */
+  const hard = devaHit || toks.some((t) => AIR_TOKS.has(t));
+  if (hard) {
+    const anch = anchorToks(near ?? toks);
+    return { nearQuery: anch.length ? anch.join(" ") : null };
+  }
+
+  /* soft phrased: everything left is air/context ('air around me' →
+     toks=['air']; 'the air' → ['air']; 'hawa kaisi hai' → all context) —
+     and at least one real air word. The near-side anchors it. */
+  if (
+    toks.length > 0 &&
+    toks.every((t) => isAirTok(t) || AIR_STOP.has(t)) &&
+    toks.some((t) => isAirTok(t))
+  ) {
+    const anch = near ? anchorToks(near) : [];
+    return { nearQuery: anch.length ? anch.join(" ") : null };
+  }
+
+  /* soft anchored: 'air X' where X is a place phrase not on the
+     name-block list ('air karol bagh' → air AT karol bagh) — only the
+     latin head earns it: 'hawa X' is a name ask as often as an air ask
+     ('hawa mahal'), so the hawa/vayu family needs the fully-phrased
+     branch or a near= to count. */
+  if (
+    toks.length > 1 &&
+    (toks[0] === "air" || toks[0] === "aer" || toks[0] === "eyar") &&
+    toks.slice(1).every((t) => !isAirTok(t) && !AIR_STOP.has(t)) &&
+    !toks.slice(1).some((t) => AIR_BLOCK.has(t) || /^\d+$/.test(t))
+  ) {
+    return { nearQuery: toks.slice(1).join(" ") };
+  }
+
+  return null;
+}
