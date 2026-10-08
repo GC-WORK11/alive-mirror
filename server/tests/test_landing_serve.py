@@ -28,12 +28,12 @@ REQUIRED = [
     "/city",
     "/community",
     "/ios-dose.webp",
-    "hero-grid",
+    "hero-img",        # v11: full-bleed photograph hero, no card
     "statusline",
     "confSplit",
     "fieldAge",
     "buildTag",
-    "public monitors",
+    "the air Delhi breathes",  # v11 hero line (copy law)
     "the app knows what you breathed",
 ]
 # owner-vetoed elements + placeholder guards

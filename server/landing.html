@@ -4,6 +4,7 @@
 <title>Alive — what Delhi's air does to you</title>
 <meta name="description" content="Delhi's air is the worst in the world, and nobody tells you how much of it you actually breathe. Alive does — it reads the live air over Delhi and shows you what your lungs keep on every route, before you take it.">
 <meta name="theme-color" content="#fbfbfa">
+<link rel="preload" as="image" href="/hero-alive.webp" fetchpriority="high">
 <meta property="og:title" content="Alive — what Delhi's air does to you">
 <meta property="og:description" content="It reads the live air over Delhi and shows you what your lungs keep on every route — and nothing leaves your phone that isn't already a group count.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fbfbfa'/%3E%3Ctext x='14' y='22.5' font-family='-apple-system,Helvetica' font-weight='800' font-size='17' fill='%2316181d' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8.5' r='3.4' fill='%233a6844'/%3E%3C/svg%3E">
@@ -117,59 +118,59 @@ button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .sub2{font-size:15px;line-height:1.6;color:var(--ink2);max-width:38ch}
 @media(max-width:640px){.card{border-radius:19px;padding:20px}}
 
-/* ---------- the hero card ----------
-   the day's field breathes inside the card under a paper scrim; the
-   numeral anchors the foot. card-structured, massive, band-inked. */
-.open{padding-top:clamp(6px,1.4vw,18px)}
-.hero-card{position:relative;overflow:hidden;border:1.5px solid var(--ink);
-  border-radius:28px;background:var(--surf);
-  min-height:calc(100svh - var(--thh,64px) - 118px);
-  display:flex;flex-direction:column;
-  box-shadow:0 32px 60px -34px rgba(22,24,29,.32)}
-/* the atmosphere — a real Delhi smog-scape generated for this hero
-   (server/static/hero-haze.webp): skyline dissolving into pollution
-   haze in the page's own warm-cream + band-ink register. it bleeds the
-   card edge and drifts slower than any real cloud — the fog itself is
-   the ambient motion. the live field canvas keeps drifting inside it. */
-.hero-art{position:absolute;inset:-7% -5%;z-index:0;
-  background:url('/hero-haze.webp') 50% 76%/cover no-repeat;
-  will-change:transform}
-@media(prefers-reduced-motion:no-preference){
-  .hero-art{animation:hazedrift 34s ease-in-out infinite alternate}}
-@keyframes hazedrift{from{transform:translate3d(0,0,0) scale(1.02)}
-  to{transform:translate3d(-1.6%,1.2%,0) scale(1.1)}}
-#fieldair{position:absolute;inset:0;z-index:1;width:100%;height:100%;
-  opacity:0;transition:opacity 1.1s ease}
-#fieldair.ready{opacity:.55}
-@media(prefers-reduced-motion:reduce){#fieldair{transition:none}}
-.hero-card::before{content:"";position:absolute;inset:0;z-index:1;
-  background:var(--hw,var(--paper));opacity:.14;pointer-events:none;
-  transition:background .8s ease}
-.hero-card::after{content:"";position:absolute;inset:0;z-index:1;
-  pointer-events:none;
-  background:linear-gradient(180deg,
-    rgba(251,251,250,.50) 0%,rgba(251,251,250,.24) 32%,
-    rgba(251,251,250,.36) 58%,rgba(251,251,250,.86) 86%,
-    rgba(251,251,250,.94) 100%)}
-@media(prefers-reduced-motion:reduce){.hero-card::before{transition:none}}
-.hero-in{position:relative;z-index:2;flex:1;display:flex;
-  flex-direction:column;padding:clamp(24px,4.6vw,54px)}
-.hero-copy{max-width:760px;will-change:transform}
+/* ---------- the hero — full-bleed calm ----------
+   one photograph carries the whole hero: Delhi at first light, haze
+   over the skyline (server/static/hero-alive.webp — generated for this
+   hero, muted sage-dawn register). no card, no box, no number — the
+   word sits inside the image the way the nature-ref sets type, giant
+   lowercase white, one line, one quiet pill, nothing else. */
+.open{padding-top:0}
+.hero-img{position:relative;overflow:hidden;
+  height:calc(100svh - var(--thh,64px) - 22px);min-height:540px;
+  background:
+    linear-gradient(180deg,rgba(18,24,20,0) 46%,rgba(18,24,20,.34) 100%),
+    url('/hero-alive.webp') 50% 55%/cover no-repeat,
+    url('data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAAAwBgCdASowACAAPrVKnUmnJKKhNVQIAOAWiWMAnTP8BZ6rNgSgLPlDTfGq5jq6DB1+5bD+M/idI3wAAP73BnWZpAzhy9j2ROOsOZbGvgh/jU8WdzPPcj4KRVZlHqR7MdNhD7IcWZ3R8qA7xY2hThd0jUI1klMAxzrcZr5L1hzO5DxFrg49+2mHroq1MVCBAkFVbEmlARgAAA==') 50% 55%/cover no-repeat,
+    var(--surf3)}
+.hero-type{position:absolute;left:clamp(18px,4.6vw,60px);
+  bottom:clamp(22px,5vw,56px);z-index:2}
+.hword{margin:0;max-width:none;font-weight:800;letter-spacing:-.052em;
+  line-height:.9;font-size:clamp(92px,17.5vw,272px);color:#FBFBF9;
+  text-shadow:0 2px 44px rgba(20,26,22,.16)}
+.hline{margin-top:clamp(8px,1.2vw,16px);font-weight:600;
+  font-size:clamp(16px,1.9vw,24px);letter-spacing:-.01em;
+  color:rgba(251,251,249,.94);text-shadow:0 1px 22px rgba(20,26,22,.22)}
+.hcta{display:inline-flex;align-items:center;gap:8px;
+  margin-top:clamp(14px,1.8vw,22px);padding:11px 20px;
+  font-weight:700;font-size:14px;letter-spacing:-.005em;
+  color:#1B211C;text-decoration:none;
+  background:rgba(251,251,250,.95);border-radius:100px;
+  box-shadow:0 10px 24px -12px rgba(20,26,22,.4);
+  transition:transform .2s cubic-bezier(.22,1,.36,1),background .2s ease}
+.hcta:hover{transform:translateY(-1px);background:#fff}
+.hcta:active{transform:scale(.98)}
+@media(prefers-reduced-motion:reduce){.hcta{transition:none}
+  .hcta:hover{transform:none}}
+.hcorner{position:absolute;right:clamp(18px,3vw,38px);
+  bottom:clamp(16px,2.4vw,28px);z-index:2;
+  font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:rgba(251,251,249,.8)}
+/* the live wiring still feeds — it just no longer wears the hero:
+   the numeral/greeting/felt ids the script paints live in a hidden
+   home (display:none); zero script changes, every write still lands */
+.hero-data{display:none}
+#fieldair{position:absolute;inset:0;width:100%;height:100%}
 .chip{display:inline-flex;align-items:center;gap:9px;
   font-family:var(--mono);font-size:11px;letter-spacing:.01em;
   color:var(--ink2);
   background:var(--surf);border:1.5px solid var(--ink);
   border-radius:100px;padding:9px 16px 8px}
+.hero-copy{max-width:760px}
 .livedot{display:inline-block;width:7px;height:7px;border-radius:2px;
   background:var(--bhex,var(--line2));flex:none;
   transition:background .6s ease}
-h1{font-family:var(--sans);font-weight:800;
-  font-size:clamp(38px,6.6vw,76px);line-height:1.0;
-  letter-spacing:-.038em;margin-top:26px;max-width:15ch}
-.sub{margin-top:20px;max-width:58ch;
-  font-size:clamp(15.5px,1.9vw,18.5px);line-height:1.58;color:var(--ink2)}
-.sub b{color:var(--ink);font-weight:700}
-/* the readout — the instrument's own numeral, heavy, band-inked */
+/* the readout — the instrument's own numeral, heavy, band-inked
+   (still wired, hidden with the rest of the old hero chrome) */
 .hnum{margin-top:auto;padding-top:clamp(30px,5vw,54px);position:relative}
 .hnum::after{content:"";position:absolute;left:0;right:0;bottom:-14px;
   height:2px;border-radius:2px;background:var(--he,var(--acc));
@@ -226,13 +227,9 @@ h1{font-family:var(--sans);font-weight:800;
 .hero-foot .hnum-s{margin-top:0;color:var(--ink3)}
 .hero-foot .hnum-s b{color:var(--ink)}
 @media(max-width:640px){
-  .hero-card{min-height:calc(100svh - var(--thh,64px) - 96px);
-    border-radius:22px}
-  .hero-in{padding:22px}
+  .hero-img{min-height:470px}
+  .hword{font-size:clamp(86px,25vw,150px)}
   .chip{font-size:10px;padding:8px 13px 7px;letter-spacing:.01em}
-  h1{margin-top:22px;max-width:13ch}
-  .sub{font-size:15px}
-  .hnum-v{letter-spacing:-.042em}
   .cta{padding:14px 22px;font-size:14px}}
 
 /* ---------- proof card — the day's arithmetic ---------- */
@@ -675,6 +672,8 @@ h1{font-family:var(--sans);font-weight:800;
   font-size:clamp(96px,30.5vw,430px);line-height:.8;
   letter-spacing:-.045em;text-align:center;white-space:nowrap;
   padding-top:clamp(20px,4vw,54px);transform:translateY(10%);
+  -webkit-mask-image:linear-gradient(180deg,#000 58%,rgba(0,0,0,.3));
+  mask-image:linear-gradient(180deg,#000 58%,rgba(0,0,0,.3));
   user-select:none}
 .foot-in{position:relative;z-index:1;max-width:1180px;margin:0 auto;
   padding:clamp(18px,3vw,30px) 20px clamp(30px,5vw,54px);
@@ -703,36 +702,34 @@ h1{font-family:var(--sans);font-weight:800;
 
 <!-- the hero card — the day's live field breathes inside it; the
      numeral is the reading itself, heavy and band-inked -->
-<section class="open" id="heroZone"><div class="col">
-  <div class="hero-card">
-    <div class="hero-art" aria-hidden="true"></div>
-    <canvas id="fieldair" aria-hidden="true"></canvas>
-    <div class="hero-in">
-      <div class="hero-grid"><div class="hero-copy">
-        <div class="chip eyebrow rise" style="--d:0ms" id="eyebrow"><i class="livedot" id="liveDot"></i>delhi ncr · the air your lungs keep</div>
-        <h1 class="rise" style="--d:70ms">Delhi's air is the worst in the world.</h1>
-        <p class="sub rise" style="--d:160ms">Nobody tells you how much of
-        it you actually breathe. Alive does — <b id="stnHero">—</b>
-        public monitors across the NCR read the air, and the app counts
-        what your lungs keep on every route, before you take it.</p>
-      </div></div>
-      <div class="hnum" id="hnum" role="status">
-        <div class="hnum-row">
-          <b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span>
-          <span class="chip band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the air map, live</span></span>
-        </div>
-        <i class="hnum-s" id="hnumS">reading the live air map…</i>
-      </div>
-      <p class="felt rise" style="--d:200ms" id="hnumT">a day outside in this air — reading…</p>
-      <div class="ctas rise" style="--d:280ms">
-        <a class="cta b" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app <span class="arr">→</span></a>
-        <a class="cta o" href="/city">open the live field</a>
-        <a class="cta g" href="/community">community →</a>
-      </div>
-      <div class="hero-foot"><i class="hnum-s" id="heroLive"></i></div>
+<section class="open" id="heroZone">
+  <div class="hero-img" role="img"
+    aria-label="Delhi at first light — a calm haze over the city">
+    <div class="hero-type">
+      <h1 class="hword">alive</h1>
+      <div class="hline">the air Delhi breathes — shown live.</div>
+      <a class="hcta" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app →</a>
     </div>
+    <span class="hcorner">delhi ncr</span>
   </div>
-</div></section>
+  <!-- the live wiring's hidden home — the numeral, band chip, felt line
+       and ages still get painted (zero script changes); the hero just
+       doesn't wear them -->
+  <div class="hero-data" hidden aria-hidden="true">
+    <div class="hero-copy"><div class="chip eyebrow" id="eyebrow"><i class="livedot" id="liveDot"></i>delhi ncr · the air your lungs keep</div></div>
+    <b id="stnHero">—</b>
+    <div class="hnum" id="hnum" role="status">
+      <div class="hnum-row">
+        <b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span>
+        <span class="chip band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the air map, live</span></span>
+      </div>
+      <i class="hnum-s" id="hnumS">reading the live air map…</i>
+    </div>
+    <p class="felt" id="hnumT">a day outside in this air — reading…</p>
+    <i class="hnum-s" id="heroLive"></i>
+    <canvas id="fieldair" aria-hidden="true"></canvas>
+  </div>
+</section>
 
 <!-- the day's arithmetic — the same number, written as the sum your
      lungs do; provenance sits under it as one quiet line -->
