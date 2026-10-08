@@ -1804,7 +1804,11 @@ async function departAB(a,b,seq){
       ` fill="none" stroke="var(--ink3)" stroke-width=".75"/>`;
     const hh=s=>String(s.start||'').slice(11,16)||'—';
     const pct=d.pct_less_vs_now;
-    const txt=bi<=0||!(pct>0)
+    /* server can serve now:null — current hour unpriced (forecast gap);
+       claiming 'now is the light slot' then would invent a verdict */
+    const txt=d.now==null
+      ?`leave ~<b>${hh(d.best)}</b> — the lightest slot we see`
+      :bi<=0||!(pct>0)
       ?`<b>now</b> is the light slot — dose climbs to <b>${F1(d.worst&&d.worst.dose_ug)} µg</b> by ${hh(d.worst||{})}`
       :`leave ~<b>${hh(d.best)}</b> — <b>${Math.round(pct)}%</b> less dose than now`;
     $('departline').innerHTML=

@@ -118,6 +118,48 @@ def test_depart_percent_key_is_honestly_named():
     assert 0 <= b["pct_less_vs_now"] <= 100
 
 
+def test_depart_missing_now_hour_serves_null_not_shifted_base():
+    """When the leave-now hour drops out of the forecast but later slots
+    price, 'now' must be null and pct_less_vs_now must be null — never a
+    percent computed against hour 1+ while labelled 'vs now' (deploy-8
+    audit: slots[0] used to silently become 'now')."""
+
+    class _GapForecast:
+        def hour_index(self, h):
+            return int(h)
+
+        def time_at(self, idx):
+            return f"+{idx}h"
+
+        def pm25(self, lat, lon, when, live=None):
+            if int(when) == 0:
+                return None          # current-hour forecast gap
+            return 100.0 + 50.0 * int(when)
+
+        def status(self):
+            return {"up": True, "stub": True}
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(main, "FORECAST", _GapForecast())
+
+    async def _noop(*a, **k):
+        return None
+    monkeypatch.setattr(main, "_forecast_refresh_bounded", _noop)
+    r = client.get("/depart", params={
+        "from_lat": 28.60, "from_lon": 77.20,
+        "to_lat": 28.70, "to_lon": 77.30, "vehicle": "auto"})
+    monkeypatch.undo()
+    assert r.status_code == 200
+    b = r.json()
+    if b.get("error"):
+        pytest.skip(f"depart path unavailable offline: {b['error']}")
+    assert b["slots"], b
+    assert all(s["hours_ahead"] >= 1 for s in b["slots"])
+    assert b["now"] is None, b["now"]
+    assert b["pct_less_vs_now"] is None
+    assert b["ug_saved_vs_now"] is None
+
+
 def test_decide_reason_is_scoped_to_options():
     r = client.get("/decide", params={
         "from_lat": 28.60, "from_lon": 77.20,

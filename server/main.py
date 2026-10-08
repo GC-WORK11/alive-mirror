@@ -958,7 +958,7 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
 
     Scores the route against the hourly forecast field (CAMS + stagnation
     physics). Assumes the trip completes within the departure hour —
-    flagged honest in `window`.
+    every slot is priced on that hour's field alone.
     """
     exposure_mode = VEHICLE_TO_EXPOSURE.get(vehicle.lower())
     profile = VEHICLE_PROFILE.get(vehicle.lower())
@@ -1015,9 +1015,15 @@ async def depart(from_lat: float, from_lon: float, to_lat: float, to_lon: float,
     if not slots:
         return {"options": [], "error": "forecast unavailable", "forecast": FORECAST.status()}
     ordered = sorted(slots, key=lambda s: s["dose_ug"])
-    now_slot = slots[0]
+    # 'now' is the leave-now hour specifically: slots[0] is only that
+    # when hour 0 survived the coverage filter — a forecast gap at the
+    # current slot would compare best against hour 1+ and still label
+    # the percent 'vs now'. No now-slot -> no percent, never a shifted
+    # base (daycount caveat, deploy-8 audit).
+    now_slot = next((s for s in slots if s["hours_ahead"] == 0), None)
     best = ordered[0]
-    saved = round(100 * (1 - best["dose_ug"] / now_slot["dose_ug"])) if now_slot["dose_ug"] else None
+    saved = (round(100 * (1 - best["dose_ug"] / now_slot["dose_ug"]))
+             if now_slot and now_slot["dose_ug"] else None)
     fstat = FIELD.status() or {}
     body = {
         "vehicle": vehicle, "mode": exposure_mode,

@@ -103,7 +103,10 @@ export function DepartGraph({
   }, [rows, n]);
 
   if (!n) return null;
-  const nowHour = rows[0].hour;
+  /* 'now' is the slot whose hours_ahead is 0 — rows[0] is only that when
+     hour 0 survived the server's coverage filter; when it didn't, no bar
+     may claim the 'now' label (deploy-8 now-slot audit) */
+  const nowHour = 0;
   const best = rows.find((d) => d.hour === bestHour) ?? null;
   const detail = rows.find((d) => d.hour === sel) ?? best;
 

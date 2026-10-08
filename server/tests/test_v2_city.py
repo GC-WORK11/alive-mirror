@@ -245,7 +245,10 @@ def test_today_ledger_never_falls_back_to_last_populated_day():
 
 def test_today_ledger_serves_todays_real_numbers():
     _seed_day(offset_h=26, n=8)
-    _seed_day(offset_h=1, n=2, km=5.0)       # today: 2 trips, 10 km
+    _seed_day(offset_h=0, n=2, km=5.0)       # today: 2 trips, 10 km —
+    # offset 0 keeps the seed on today's key at every run hour; 'now-1h'
+    # crossed the UTC boundary for runs inside the first hour of the day
+    # (00:xx flake, not a code bug)
     t = client.get("/v2/city").json()["trips"]
     today = time.strftime("%Y-%m-%d", time.gmtime())
     assert t["today_key"] == today
