@@ -442,3 +442,48 @@ export function collectionsFor(
   );
   return { alts: FC(altFeats), selected: FC(selFeats), perOption };
 }
+
+/* ── live travel ────────────────────────────────────────────────────────
+ * During nav the painted road is the engine's OWN truth — the live
+ * (possibly rerouted) geometry and the strip the engine re-pulls, not
+ * the plan-time option that launched the trip. navCollectionsFor
+ * re-chunks that geometry with the strip and splits it at the odometer:
+ * `ahead` keeps the CPCB band colours (the air about to be breathed),
+ * `behind` is the already-travelled span — its pm25 stays on the
+ * feature so a dimmed lane still remembers what it was. */
+export function navCollectionsFor(
+  geometry: GeoJSON.Geometry | null | undefined,
+  strip: StripLike,
+  alongM: number,
+  stepM = TINT_STEP_M,
+): { ahead: GeoJSON.FeatureCollection; behind: GeoJSON.FeatureCollection } {
+  const coords = flattenCoords(geometry);
+  if (coords.length < 2) return { ahead: FC([]), behind: FC([]) };
+  const geomCum = cumOf(coords);
+  const geomTotal = geomCum[geomCum.length - 1] ?? 0;
+  const samples = samplesOf(strip);
+  const scum = stripCumM(samples);
+  const stotal = scum[scum.length - 1] ?? 0;
+  /* geometry metres → strip metres — same scale trick featureFor uses:
+     the strip's own cumulative span normalises the chunk's position */
+  const scale = geomTotal > 0 && stotal > 0 ? stotal / geomTotal : 1;
+  const atM = (m: number) =>
+    samples.length
+      ? fieldAtAlongM(samples, scum, m * scale)
+      : { lo: null, mid: null, hi: null };
+  const chunks = resampleLine(coords, stepM);
+  const ahead: GeoJSON.Feature[] = [];
+  const behind: GeoJSON.Feature[] = [];
+  chunks.forEach((ch, i) => {
+    const a0 = Math.min(i * stepM, geomTotal);
+    const a1 = Math.min((i + 1) * stepM, geomTotal);
+    const probe = atM((a0 + a1) / 2);
+    const f = feat(ch, probe.mid, probe.lo, probe.hi, i, 0,
+      samples.length ? "strip" : "none");
+    /* travelled only when the chunk's FAR edge is behind the odometer —
+       the straddling chunk keeps its band colour so the re-tint's
+       edge lands exactly at the position dot */
+    if (a1 <= alongM) behind.push(f); else ahead.push(f);
+  });
+  return { ahead: FC(ahead), behind: FC(behind) };
+}

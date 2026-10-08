@@ -47,6 +47,8 @@ import { TapPin, TapReadout, type TapRead } from "./src/components/TapReadout";
 import { fetchAirField, airFieldEpoch, airFieldAgeS, sampleFieldAt } from "./src/api/airfield";
 import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
+import { PlaceSheet } from "./src/components/shell/PlaceSheet";
+import { getPlaces } from "./src/search/recents";
 import { VehicleSheet } from "./src/screens/VehicleSheet";
 import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
@@ -68,8 +70,8 @@ import { LocateButton } from "./src/components/shell/LocateButton";
 import { LayersButton } from "./src/components/shell/LayersButton";
 import { LayersSheet, type LayerKey } from "./src/components/shell/LayersSheet";
 import { Sidebar } from "./src/components/shell/Sidebar";
-import { useShellFlow } from "./src/components/shell/useShellFlow";
-import { API, DELHI, fetchJson, inNcr, posNow, reverseName } from "./src/components/shell/net";
+import { useShellFlow, fixName } from "./src/components/shell/useShellFlow";
+import { API, DELHI, fetchJson, inNcr, posNow, posNowDetailed, reverseName } from "./src/components/shell/net";
 import {
   DEFAULT_SETTINGS, PROFILE_BUDGET_UG, clearAllData, loadSettings, saveSettings, type SavedPlace, type ShellSettings,
 } from "./src/components/shell/settings";
@@ -189,6 +191,7 @@ const MapTree = React.memo(function MapTree({
   field, stations,
   options, selected, strips,
   fromPin, toPin, fromSet, toSet, pinReady,
+  placePin, placePinShow, navTint, holdPill,
   tapPin, tapShow, tapLabel, tapBand,
 }: {
   lang: Lang;
@@ -222,6 +225,12 @@ const MapTree = React.memo(function MapTree({
   fromSet: boolean;
   toSet: boolean;
   pinReady: boolean;
+  /* the settle pin — parked like tapPin (always mounted, empty-child
+     hides); and the two live-tint inputs RouteTintSource takes */
+  placePin: [number, number];
+  placePinShow: boolean;
+  navTint: Parameters<typeof RouteTintSource>[0]["navRoute"];
+  holdPill: Parameters<typeof RouteTintSource>[0]["holdPill"];
   /* the air map's tap read pin — parked like the endpoint markers:
      always mounted at its last coordinate, hidden by an empty child.
      tapShow/tapLabel/tapBand re-render the marker in place. */
@@ -322,7 +331,8 @@ const MapTree = React.memo(function MapTree({
           land; selected 6 px on 9 px casing, alternates 3 px at 50 %.
           (<RouteTintSource/> — src/components/RouteTint.tsx contract) */}
       <RouteTintSource options={options} selected={selected} strips={strips} lang={lang}
-        from={fromSet ? fromPin : null} to={toSet ? toPin : null} />
+        from={fromSet ? fromPin : null} to={toSet ? toPin : null}
+        navRoute={navTint} holdPill={holdPill} />
       {/* endpoint annotations stay mounted at their last coordinates —
           unmounting a MarkerView mid-draw is the same upstream
           remove-during-render class as the route sources. Hidden is an
@@ -333,6 +343,11 @@ const MapTree = React.memo(function MapTree({
       </Marker>
       <Marker lngLat={toPin} anchor="bottom">
         {toSet && pinReady ? <EndpointPin kind="dest" /> : <View />}
+      </Marker>
+      {/* the settle pin — the previewed place while its half-sheet is
+          up; parked like every sibling marker (empty child = hidden) */}
+      <Marker lngLat={placePin} anchor="bottom">
+        {placePinShow ? <EndpointPin kind="dest" /> : <View />}
       </Marker>
       {/* the tap read's own mark — a band-washed µg chip + dot where the
           finger landed; hidden is an empty child, same parked contract
@@ -379,6 +394,7 @@ function AppInner() {
     vehicle, setVehicleProfile, needsVehicle, steps, stepsOpen, setStepsOpen,
     pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
     strips, reloadTrips, locNotice, setLocNotice,
+    place, locating, goDirections, closePlace,
     phaseRef, pickDone, invalidatePicks, bumpPickDone,
   } = flow;
   useEffect(() => {
@@ -404,9 +420,29 @@ function AppInner() {
      (receipt-Done teardown = residual-SIGSEGV hot spot, 3× on ci15). */
   const [pinReady, setPinReady] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setPinReady(phase === "compare"), 450);
+    /* "place" joins compare: the settle beat pins the destination the
+       moment the sheet lands — same 450 ms clear-of-commit lag */
+    const t = setTimeout(() => setPinReady(phase === "compare" || phase === "place"), 450);
     return () => clearTimeout(t);
   }, [phase]);
+  /* the settle pin — parked like tapPin/fromPin/toPin: the Marker never
+     unmounts, the coordinate parks on the last previewed place, and the
+     child alone decides visibility (annotation churn mid-draw is the
+     sim's SIGSEGV class). It fades out once `to` takes over in compare
+     — same spot, one continuous pin across settle → route. */
+  const [placePin, setPlacePin] = useState<[number, number]>(DELHI);
+  useEffect(() => {
+    if (!place) return;
+    const c: [number, number] = [place.p.lon, place.p.lat];
+    const t = setTimeout(() => setPlacePin(c), 0);
+    return () => clearTimeout(t);
+  }, [place]);
+  const placePinShow = phase === "place" && !!place && pinReady;
+  /* the live nav tint bundle — NavSession pushes the engine's
+     geometry/strip/odometer up here so MapTree's RouteTintSource
+     re-tints the road ahead (and dims what's travelled) */
+  const [navTint, setNavTint] = useState<Parameters<typeof RouteTintSource>[0]["navRoute"]>(null);
+  const deferredNavTint = useDeferredValue(navTint);
 
   /* the draw-hold windows: phase flips and overlay flags are held at
      their setters (useHeldState / the wrapped setPhase), this net
@@ -734,6 +770,10 @@ function AppInner() {
        inside its mount effect (the owner's "10 seconds, hung" read).
        The 900 ms delay keeps the slices behind the boot burst. */
     void afterFirstFrame().then(() => setTimeout(() => warmSearchIndex(), 900));
+    /* recents pre-warm — places.json is a few KB: filling the mem
+       cache at first-idle means the sheet's rail is populated on the
+       FIRST open, not one frame after it (instant-open gate) */
+    void afterFirstFrame().then(() => getPlaces().catch(() => {}));
     return () => { clearInterval(iv); clearInterval(healthIv); clearInterval(aqiIv); clearInterval(fieldIv); if (fieldT) clearTimeout(fieldT); };
   }, [setFrom, setTrips, settings.lang]);
 
@@ -814,6 +854,7 @@ function AppInner() {
          must never kill the app mid-trip — the explicit end-early
          button is the honest exit. Search handles its own press.
          BACK on the idle map returns home — the day surface is root. */
+      if (phase === "place") { closePlace(); return true; }
       if (phase === "compare") { setHomeOpen(true); clearRoute(); return true; }
       if (phase === "nav") return true;
       if (phase === "idle" && !homeOpen) { setHomeOpen(true); return true; }
@@ -951,6 +992,21 @@ function AppInner() {
   const dayData = useDayData(dayPos.lat, dayPos.lon, trips, dayNonce, homeOpen, lang);
   useEffect(() => { if (dayData) { mark("daydata.first"); report("boot"); } }, [dayData != null]);
   const sel = options[selected];
+  /* the on-path time·dose bubble (Google's "N min" chip): pinned to the
+     selected route for the whole compare surface — the dose half never
+     fabricates a number when the engine didn't serve one */
+  const routeBubble = phase === "compare" && sel?.duration_min != null
+    ? { text: t("routeBubble", lang, {
+        m: Math.max(1, Math.round(sel.duration_min)),
+        d: sel.dose?.mid != null ? doseUgRound(sel.dose.mid) : "—",
+      }) }
+    : null;
+  /* the air read at the settled pin — the same local cells the tint
+     paints from; absent cells say "no field read", never a guess */
+  const placeAirUg = useMemo(
+    () => (place ? sampleFieldAt(fieldGeo, place.p.lat, place.p.lon)?.pm25 ?? null : null),
+    [place, fieldGeo],
+  );
   /* the served field block is verbatim-identical between rebuilds — the
      aqiField dedupe holds, this memo never re-runs, and 'air reading:
      N min old' freezes mid-count while wall-clock moves (android-verify
@@ -1157,7 +1213,9 @@ function AppInner() {
       /* again the armed slot, not a hardcoded "to" — a typed place pick
          while "Where from?" was armed used to drop into `to` */
       pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
-        lat: sel.place.lat, lon: sel.place.lon });
+        lat: sel.place.lat, lon: sel.place.lon }, undefined,
+        { match: sel.place.match, anchor: sel.place.anchor,
+          compound: sel.place.compound, kind: sel.place.kind });
       return;
     }
     if (sel.type === "choose_on_map") {
@@ -1168,14 +1226,20 @@ function AppInner() {
                                    // when placePickSlot is armed
       return;
     }
-    const pos = await posNow();
+    /* 'Your location' — the wait for a real fix narrates itself
+       (locating…), and the NAME it earns is honest: a live GNSS read is
+       "Your location"; a cached last-known fix is labelled near-
+       {locality}/last-known — never a fake fresh fix (hunter). */
+    setLocNotice(t("locating", lang));
+    const fix = await posNowDetailed();
+    const pos = fix?.pos ?? null;
     if (pos && placePickSlot) {
-      patchSettings({ [placePickSlot]: { name: t("yourLocation", lang),
+      patchSettings({ [placePickSlot]: { name: fixName(fix!, lang),
         lat: pos.coords.latitude, lon: pos.coords.longitude } });
       setPlacePickSlot(null);
       setPhase("idle");
       setSidebarOpen(true);
-    } else if (pos) pick({ name: t("yourLocation", lang), subtitle: "",
+    } else if (pos) pick({ name: fixName(fix!, lang), subtitle: "",
       lat: pos.coords.latitude, lon: pos.coords.longitude }, editWhich);
     else {
       /* the failed fix used to close the sheet and show NOTHING (the
@@ -1326,6 +1390,10 @@ function AppInner() {
       fromPin={fromPin} toPin={toPin}
       fromSet={!!from} toSet={!!to}
       pinReady={pinReady}
+      placePin={placePin}
+      placePinShow={placePinShow}
+      navTint={deferredNavTint}
+      holdPill={routeBubble}
       tapPin={tapPin}
       tapShow={tapPoint != null}
       tapLabel={tapRead != null && typeof tapRead === "object"
@@ -1441,6 +1509,13 @@ function AppInner() {
             sources={fieldSources(mapField)} lang={lang} compact />
         </View>
       )}
+      {/* the SETTLE surface — tap a row → fly to the pin + this
+          half-sheet; Directions is the only commit to routing */}
+      {phase === "place" && place && (
+        <PlaceSheet place={place.p} meta={place.meta} airUg={placeAirUg}
+          locating={locating} notice={locNotice}
+          onDirections={goDirections} onClose={closePlace} lang={lang} />
+      )}
       {phase === "compare" && (
         <CompareSheet options={options} selected={selected} onSelect={setSelected}
           depart={depart} departCurve={departCurve} notified={notified}
@@ -1458,7 +1533,7 @@ function AppInner() {
       {phase === "nav" && sel && (
         <NavSession option={sel} options={options} from={from} to={to} steps={steps}
           camRef={camRef} lang={lang} share={settings.share} voice={settings.voice}
-          onExit={onNavExit} onHome={onPeekOpen}
+          onExit={onNavExit} onHome={onPeekOpen} onNavTint={setNavTint}
           vehicle={vehicle} showCig={settings.show_cig} onTripDone={recordTrip} />
       )}
 
@@ -1614,11 +1689,13 @@ function AppInner() {
  *  we only translate the plan option into its NavRoute and its summary
  *  into the receipt. (src/nav contract — see src/nav/index.ts) */
 const NavSession = React.memo(function NavSession({
-  option, options, from, to, steps, camRef, lang, share, voice, vehicle, showCig, onExit, onHome, onTripDone,
+  option, options, from, to, steps, camRef, lang, share, voice, vehicle, showCig, onExit, onHome, onTripDone, onNavTint,
 }: {
   option: V2Option; options: V2Option[]; from: Place | null; to: Place | null; steps: Step[] | null;
   camRef: React.RefObject<CameraRef | null>; lang: "en" | "hi";
   share: boolean; onExit: () => void;
+  /** pushes the engine's live tint bundle up to MapTree (cleared on exit) */
+  onNavTint?: (t: ReturnType<typeof useNavEngine>["navTint"] | null) => void;
   /* walk-F2 — Done opens the home door at PRESS time; waiting for the
      deferred teardown left a chromeless map for the whole hold window */
   onHome: () => void;
@@ -1702,6 +1779,13 @@ const NavSession = React.memo(function NavSession({
       });
     },
   });
+  /* the road ahead re-tints off the engine's own truth — geometry
+     (reroutes repaint the path itself), the re-pulled strip, and the
+     60 m-cadenced odometer that splits travelled from ahead */
+  useEffect(() => {
+    onNavTint?.(nav.navTint);
+    return () => onNavTint?.(null);
+  }, [nav.navTint, onNavTint]);
   // start once per nav session; callbacks are stable inside the engine
   const navRef = useRef(nav);
   useEffect(() => { navRef.current = nav; });   // refs update in effects, never during render

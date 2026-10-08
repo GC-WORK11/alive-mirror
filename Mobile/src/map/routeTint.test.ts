@@ -13,6 +13,7 @@
  * on the first failed assertion.
  */
 import { MAP_QUIET,
+  navCollectionsFor,
   candidatesFor,
   chooserVerdict,
   collectionsFor,
@@ -327,6 +328,32 @@ const doseOf = (mid: number | null) => ({ lo: null, mid, hi: null, avg_conc_ugm3
     pointAtFrac({ type: "LineString", coordinates: [[77.2, 28.6]] })?.[0] === 77.2,
     "single-point geometry anchors on itself",
   );
+}
+
+/* navCollectionsFor — the live-travel split: chunks fully behind the
+   odometer dim into `behind`, everything else keeps its band colour in
+   `ahead`; the straddling chunk stays ahead so the re-tint edge lands
+   at the position dot. */
+{
+  const nav = navCollectionsFor(geom, samples, 0);
+  ok(nav.behind.features.length === 0, "odometer 0 → nothing travelled");
+  ok(nav.ahead.features.length === nav.behind.features.length + nav.ahead.features.length,
+    "ahead holds the whole line at odometer 0");
+  const moved = navCollectionsFor(geom, samples, 300);
+  ok(moved.behind.features.length === 1, "300 m in → one full 250 m chunk travelled");
+  ok(
+    moved.behind.features[0].properties?.seg === 0,
+    "the travelled chunk is the first span",
+  );
+  ok(
+    moved.ahead.features.length === nav.ahead.features.length - 1,
+    "ahead lost exactly the travelled chunk",
+  );
+  const all = navCollectionsFor(geom, samples, 1e9);
+  ok(all.ahead.features.length === 0, "past the end → nothing ahead");
+  const none = navCollectionsFor(null, samples, 100);
+  ok(none.ahead.features.length === 0 && none.behind.features.length === 0,
+    "no geometry → empty, never a crash");
 }
 
 console.log(`routeTint self-test OK — ${checks} assertions`);

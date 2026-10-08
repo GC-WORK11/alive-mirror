@@ -21,8 +21,8 @@ const SH = fileURLToPath(new URL("../components/shell/useShellFlow.ts", import.m
 const SC = fileURLToPath(new URL("../screens/SearchScreen.tsx", import.meta.url));
 const APP = fileURLToPath(new URL("../../App.tsx", import.meta.url));
 
-test("pickTailGate: 'stay' only while search owns the surface", () => {
-  for (const ph of ["search"]) assert.ok(pickTailGate(ph, "stay"));
+test("pickTailGate: 'stay' only while a pick-flow surface is up", () => {
+  for (const ph of ["search", "place"]) assert.ok(pickTailGate(ph, "stay"));
   for (const ph of ["idle", "compare", "vehicle", "nav", "receipt"])
     assert.equal(pickTailGate(ph, "stay"), false, `${ph} must not take a 'stay' write`);
 });
@@ -30,6 +30,9 @@ test("pickTailGate: 'stay' only while search owns the surface", () => {
 test("pickTailGate: 'advance' tolerates the pick's own direction only", () => {
   assert.ok(pickTailGate("search", "advance"));
   assert.ok(pickTailGate("compare", "advance"));
+  /* the settle phase sits inside the pick's own direction — an advance
+     may cross it (the goDirections tail lands compare through it) */
+  assert.ok(pickTailGate("place", "advance"));
   for (const ph of ["idle", "vehicle", "nav", "receipt"])
     assert.equal(pickTailGate(ph, "advance"), false,
       `a late advance must not hijack ${ph} (mapPickArmed idle included)`);

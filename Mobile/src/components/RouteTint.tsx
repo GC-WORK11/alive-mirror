@@ -81,9 +81,11 @@ import {
   chooserVerdict,
   collectionsFor,
   MAP_QUIET,
+  navCollectionsFor,
   pointAtFrac,
   TINT_STEP_M,
   type ChooserVerdict,
+  type StripLike,
   type StripLookup,
 } from "../map/routeTint";
 
@@ -105,6 +107,21 @@ export type RouteTintSourceProps = {
   to?: LonLat | null;
   /** pill copy language (default en) */
   lang?: Lang;
+  /** LIVE TRAVEL — set during nav: the engine's own truth ({live or
+   *  rerouted geometry, its latest strip, the 60 m-cadenced odometer}).
+   *  When present the option-set choreography is bypassed: the road
+   *  ahead paints CPCB band colours, the travelled span paints dimmed
+   *  behind it, and the road re-tints as the field/you update. */
+  navRoute?: {
+    geometry: GeoJSON.Geometry | null;
+    strip?: StripLike;
+    alongM?: number;
+  } | null;
+  /** the persistent on-route bubble (Google's "N min" chip): while set,
+   *  the pill holds this text on the selected route instead of the
+   *  verdict's flash — the compare phase's time·dose read stays pinned
+   *  to the path it prices. */
+  holdPill?: { text: string; frac?: number } | null;
 };
 
 const EMPTY_FC: GeoJSON.FeatureCollection = {
@@ -229,6 +246,8 @@ function RouteTintSourceFn({
   from = null,
   to = null,
   lang = "en",
+  navRoute = null,
+  holdPill = null,
 }: RouteTintSourceProps) {
   // one derivation per plan fetch / strip arrival / selection change —
   // perOption inside is already the per-option precompute, never rebuilt
@@ -263,15 +282,19 @@ function RouteTintSourceFn({
     ? selected
     : options.findIndex((o) => o.route_id === selected);
   const anchor = useMemo(
-    () => pointAtFrac(options[selIdx]?.geometry, 0.45),
-    [options, selIdx],
+    () => pointAtFrac(options[selIdx]?.geometry, holdPill?.frac ?? 0.45),
+    [options, selIdx, holdPill],
   );
   const verdict = useMemo(
     () => (selIdx >= 0 ? chooserVerdict(options, selIdx) : null),
     [options, selIdx],
   );
-  const line = verdictText(verdict, lang);
-  const leafGlyph = verdict != null && verdict.kind !== "fastest" && verdict.kind !== "reason";
+  /* the held bubble wins the pill during compare — same anchor, but it
+     stays instead of flashing (the verdict still fires when no hold
+     is up, e.g. the pre-rebuild fallback paths) */
+  const held = holdPill != null;
+  const line = held ? holdPill.text : verdictText(verdict, lang);
+  const leafGlyph = !held && verdict != null && verdict.kind !== "fastest" && verdict.kind !== "reason";
   const [pillEpoch, setPillEpoch] = useState(0);
   /* a stable Animated.Value via lazy useState — useRef(...).current in
      render is a lint error (refs during render) */
@@ -314,16 +337,30 @@ function RouteTintSourceFn({
     }).start();
   }, [ringToEpoch, ringToV, reduceMotion]);
   /* the settle flashes the pill only when there's an honest line and a
-     real anchor — mirrored through a ref so timer closures can check. */
-  const pillReady = useRef<{ text: string | null; anchor: LonLat | null }>({
+     real anchor — mirrored through a ref so timer closures can check.
+     `held` rides the ref too: while the bubble owns the pill the
+     verdict's flash timers stay quiet instead of fighting it. */
+  const pillReady = useRef<{ text: string | null; anchor: LonLat | null; held: boolean }>({
     text: null,
     anchor: null,
+    held: false,
   });
   useEffect(() => {
-    pillReady.current = { text: line, anchor };
+    pillReady.current = { text: held ? null : verdictText(verdict, lang), anchor, held };
   });
+  /* the held bubble: pin the pill open on the route for as long as
+     the compare surface is up — no flash timer, no fade-out. The
+     verdict's epoch cycle only runs while nothing holds it. */
   useEffect(() => {
-    if (!pillEpoch) return;
+    if (!held) return;
+    Animated.timing(pillV, {
+      toValue: 1,
+      duration: reduceMotion ? 0 : 220,
+      useNativeDriver: false,
+    }).start();
+  }, [held, pillV, reduceMotion]);
+  useEffect(() => {
+    if (!pillEpoch || held) return;
     Animated.timing(pillV, {
       toValue: 1,
       duration: reduceMotion ? 0 : 240,
@@ -337,7 +374,7 @@ function RouteTintSourceFn({
       }).start();
     }, PILL_HOLD_MS);
     return () => clearTimeout(t);
-  }, [pillEpoch, pillV, reduceMotion]);
+  }, [pillEpoch, pillV, reduceMotion, held]);
 
   /* Beat + swap timers live in refs, NOT in an effect cleanup list.
      Effect A re-runs on every tint churn — strips stream in over
@@ -390,7 +427,7 @@ function RouteTintSourceFn({
       /* the pill pins only when the verdict has an honest line and a
          real anchor — checked via the ref so stale closures can't
          flash a pill the data doesn't back */
-      if (pillReady.current.text && pillReady.current.anchor) {
+      if (!pillReady.current.held && pillReady.current.text && pillReady.current.anchor) {
         setPillEpoch((e) => e + 1);
       }
     };
@@ -550,7 +587,7 @@ function RouteTintSourceFn({
       setTimeout(() => setStagedSel(tint.selected), SELECT_FADE_MS),
       setTimeout(() => setStagedAlts(tint.alts), DEMOTE_MS),
       setTimeout(() => {
-        if (pillReady.current.text && pillReady.current.anchor) {
+        if (!pillReady.current.held && pillReady.current.text && pillReady.current.anchor) {
           setPillEpoch((e) => e + 1);
         }
       }, SELECT_FADE_MS),
@@ -564,10 +601,43 @@ function RouteTintSourceFn({
     hit here at receipt-Done/options-clear). Swapping data for an empty
     FeatureCollection — or an invisible <View/> child — never removes
     anything, draws nothing, and costs one no-op native call. */
+  /* live-travel FCs — the engine's own geometry/strip/odometer.
+     navCollectionsFor re-chunks the (possibly rerouted) path and
+     splits it at the fix: `ahead` keeps the CPCB bands, `behind` the
+     travelled span dims — rebuilt only when the engine's memoized
+     navTint bundle actually moves. */
+  const navTint = useMemo(
+    () => (navRoute?.geometry
+      ? navCollectionsFor(navRoute.geometry, navRoute.strip ?? null, navRoute.alongM ?? 0, stepM)
+      : null),
+    [navRoute, stepM],
+  );
+  const inNav = navTint != null;
+
   const altsData =
-    showAlts && options.length ? stagedAlts : EMPTY_FC;
+    showAlts && !inNav && options.length ? stagedAlts : EMPTY_FC;
   return (
     <>
+      {/* the travelled span — dimmed band memory under the live
+          ahead-tint; parked at EMPTY outside nav like every sibling */}
+      <GeoJSONSource id="routeTintBehind" data={inNav ? navTint.behind : EMPTY_FC}>
+        <Layer
+          id="routeTint-behind-casing"
+          type="line"
+          paint={{ "line-color": V2T.bg, "line-width": 9 }}
+          layout={{ "line-cap": "round", "line-join": "round" }}
+        />
+        <Layer
+          id="routeTint-behind-line"
+          type="line"
+          paint={{
+            "line-color": ["coalesce", ["get", "color"], MAP_QUIET],
+            "line-width": 6,
+            "line-opacity": 0.45,
+          }}
+          layout={{ "line-cap": "round", "line-join": "round" }}
+        />
+      </GeoJSONSource>
       <GeoJSONSource id="routeTintAlts" data={altsData}>
         <Layer
           id="routeTint-alts-line"
@@ -580,7 +650,8 @@ function RouteTintSourceFn({
           layout={{ "line-cap": "round", "line-join": "round" }}
         />
       </GeoJSONSource>
-      <GeoJSONSource id="routeTintSel" data={options.length ? stagedSel : EMPTY_FC}>
+      <GeoJSONSource id="routeTintSel"
+        data={inNav ? navTint.ahead : options.length ? stagedSel : EMPTY_FC}>
         <Layer
           id="routeTint-sel-casing"
           type="line"
@@ -657,7 +728,7 @@ function RouteTintSourceFn({
         )}
       </Marker>
       <Marker lngLat={anchor ?? DELHI} anchor="bottom">
-        {line && anchor ? (
+        {line && anchor && !inNav ? (
           <Animated.View
             pointerEvents="none"
             style={[

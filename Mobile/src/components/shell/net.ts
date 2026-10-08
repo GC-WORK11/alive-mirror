@@ -27,7 +27,18 @@ export { inNcr };
    location" while the home read (same device, last-known path at the
    aqi poll) showed real numbers. Guards match the home read: in-NCR +
    15 min freshness, so a stale or out-of-area fix still fails honestly. */
-export const posNow = async () => {
+export type PosFix = {
+  pos: Location.LocationObject;
+  /** true = a live GNSS read just answered; false = the fused provider's
+      last-known fix — real but up to 15 min old. Callers label it "near
+      {locality}"/"last known", NEVER "Your location" (hunter: the boot
+      where-to used to claim a fresh GPS fix over a cached coordinate). */
+  fresh: boolean;
+  /** fix age in seconds; 0 for a fresh read */
+  ageS: number;
+};
+
+export const posNowDetailed = async (): Promise<PosFix | null> => {
   /* a fix that can't answer inside ~9 s used to hang the caller forever —
      an offline map pick ate the tap and produced nothing (walk F3).
      Racing the request means every caller reaches its honest failure
@@ -37,13 +48,18 @@ export const posNow = async () => {
     Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null),
     new Promise<null>((resolve) => { setTimeout(() => resolve(null), 9000); }),
   ]);
-  if (cur) return cur;
+  if (cur) {
+    return { pos: cur, fresh: true, ageS: Math.max(0, Math.round((Date.now() - cur.timestamp) / 1000)) };
+  }
   const last = await Location.getLastKnownPositionAsync().catch(() => null);
   if (!last) return null;
   if (!inNcr(last.coords.latitude, last.coords.longitude)) return null;
-  if (Date.now() - last.timestamp > 15 * 60 * 1000) return null;
-  return last;
+  const ageS = Math.round((Date.now() - last.timestamp) / 1000);
+  if (ageS > 15 * 60) return null;
+  return { pos: last, fresh: false, ageS };
 };
+
+export const posNow = async () => (await posNowDetailed())?.pos ?? null;
 
 export const fetchJson = (url: string, timeoutMs = 9000) => {
   const ctrl = new AbortController();

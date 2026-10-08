@@ -1,6 +1,7 @@
 /** useShellFlow — the trip-flow state machine behind the shell:
- * search → pick → compare → nav → receipt, plus the on-device ledger.
- * Kept out of App.tsx so the composition root stays declarative.
+ * search → pick → PLACE (settle: fly-to-pin + place sheet) → compare →
+ * nav → receipt, plus the on-device ledger. Kept out of App.tsx so the
+ * composition root stays declarative.
  *
  * /v2 migration: options come from POST /v2/plan (dose + emissions bands,
  * doc-06 §4 tags/reason_line computed server-side). Legacy /depart and
@@ -22,8 +23,10 @@ import { departCurveResult, departSavedPct, type DepartCurve } from "../../api/d
 import type { RouteStrip } from "../../nav/strip";
 import { flattenCoords, havM } from "../../nav/offroute";
 import { t } from "../../i18n/strings";
-import { API, DELHI, fetchJson, inNcr, posNow } from "./net";
+import { API, DELHI, fetchJson, inNcr, posNow, posNowDetailed, type PosFix } from "./net";
 import { pickTailGate } from "./pickGate";
+import { localityAt } from "../../search/t0";
+import { mark } from "../../perf";
 import { isTransit, preserveIdx } from "./types";
 import type { Depart, Place, Step, V2Option } from "./types";
 import { tap } from "../../haptics";
@@ -44,8 +47,30 @@ if (Platform.OS === "android" && setLayoutAnimExp && !isFabric) setLayoutAnimExp
    sheet's own enter spring already covers the visual handoff; rows just
    appear in place. */
 
-export type Phase = "idle" | "search" | "compare" | "nav";
+export type Phase = "idle" | "search" | "place" | "compare" | "nav";
 export type Which = "to" | "from";
+/** honesty-cluster match metadata the search rows carry — shown on the
+ *  place sheet as the substitute label, never implied to be exact. */
+export type PlaceHint = {
+  match?: "name" | "place" | "category" | "area";
+  anchor?: string;
+  compound?: boolean;
+  /** gazetteer/server category of the shown row — a 'category' match
+      labels the kind that stood in for the unnamed place */
+  kind?: string;
+};
+/** a picked destination previewed before Directions commits to routing */
+export type PlacePreview = { p: Place; meta: PlaceHint | null };
+/* honest origin naming (hunter flagged the boot labelling stale
+   last-known as GPS): a fresh GNSS read is "Your location"; a cached
+   fix is real but is NEVER called that — it names the locality it sits
+   in, or discloses its own age when no locality answers. */
+export const fixName = (fix: PosFix, lang: "en" | "hi"): string => {
+  if (fix.fresh) return t("yourLocation", lang);
+  const loc = localityAt({ lat: fix.pos.coords.latitude, lon: fix.pos.coords.longitude });
+  if (loc) return t("placeNearLocality", lang, { place: loc });
+  return t("placeLastKnown", lang, { m: Math.max(1, Math.round(fix.ageS / 60)) });
+};
 /** network = we never got an answer (offline/timeout/http); server =
  *  /v2/plan answered with an `error` reason; outside = the typed
  *  both-ends-outside-NCR answer — different blame, the sheet labels
@@ -80,6 +105,12 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   }, [phase]);
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
+  /* the settle phase's picked place — set by a 'to' pick, consumed by
+     goDirections (which writes `to` when routing actually commits). */
+  const [place, setPlace] = useState<PlacePreview | null>(null);
+  /* true while goDirections waits on a real fix — the sheet's Directions
+     button reads 'locating…' so the wait is never a dead tap */
+  const [locating, setLocating] = useState(false);
   const [editWhich, setEditWhich] = useState<Which>("to");
   /* pick-race guards (demo-vid-android): a pick's confirm chain spans
      seconds of async work (dismiss ≤500 ms + posNow ≤9 s + deferred
@@ -179,7 +210,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
 
   /* search itself lives in src/screens/SearchScreen (S2: T0 on-device +
      cancellable server tiers); this hook owns the phases around it. */
-  const pick = useCallback(async (p: Place, which?: Which) => {
+  const pick = useCallback(async (p: Place, which?: Which, meta?: PlaceHint | null) => {
     const seq = ++pickSeq.current;
     Keyboard.dismiss();
     /* the confirm path can stall for seconds (an unbounded GNSS fix used
@@ -194,8 +225,6 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        write over a map-pick-armed idle would hijack a newer input.
        "compare" counts as in-flight too: the journey already advanced
        in this pick's own direction, so the advance write is a no-op. */
-    const tailInSearch = () => pickTailGate(phaseRef.current, "stay");
-    const tailMayAdvance = () => pickTailGate(phaseRef.current, "advance");
     try {
       if ((which ?? editWhich) === "from") {
         /* a start within a street of the destination has no route to
@@ -209,68 +238,109 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         }
         setFrom(p);
         setLocNotice(null);
-        setPhase(to ? "compare" : "search");
+        /* a pending place preview survives an origin pick — after the
+           failed fix sent the user to type a 'from', landing here returns
+           them to the settle sheet where Directions now has its start */
+        setPhase(to ? "compare" : place ? "place" : "search");
         setEditWhich("to");
         return;
       }
-      setTo(p);
-      if (!from) {
-        const pos = await posNow();
-        /* a newer selection began while the fix was in flight — this
-           tail is stale and must write nothing at all */
-        if (seq !== pickSeq.current) return;
-        if (pos) {
-          /* a destination within a street of where you stand is the
-             no-route case — 'Your location' tapped as a destination did
-             exactly this and got a compare screen for nothing (audit #19) */
-          const d = havM(pos.coords.latitude, pos.coords.longitude, p.lat, p.lon);
-          if (d < 50) {
-            if (!tailInSearch()) return;
-            setTo(null);
-            setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
-            return;
-          }
-          setFrom({ name: t("placeCurrentLocation", lang), subtitle: "",
-            lat: pos.coords.latitude, lon: pos.coords.longitude });
-          setLocNotice(null);
-          if (tailMayAdvance()) setPhase("compare");
-        } else {
-          /* NEVER fabricate an origin — the old path silently plotted
-             'Central Delhi' as the start point and routed from there, the
-             exact 'hardcoded garbage' the owner hit. A plan with no real
-             origin can't run honestly: send the user back to search with
-             the 'from' slot armed and say what failed — but only while
-             search still owns the surface; after a back-press/second pick
-             the failure tail must not reopen it. */
-          if (!tailInSearch()) { setLocNotice(null); return; }
-          setLocNotice(t("locPickFailed", lang));
-          setEditWhich("from");
-          setPhase("search");
-          return;
-        }
-      } else {
-        const d = havM(from.lat, from.lon, p.lat, p.lon);
-        if (d < 50) {
-          setTo(null);
-          setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
-          return;
-        }
-        setLocNotice(null);
-        setPhase("compare");
-      }
-      /* NO pick-time flyTo: the camera moves exactly once per plan — the
-         fitBounds in show() below. A fast engine-first answer used to fire
-         fitBounds while this flyTo was mid-flight; MapLibre cancelling an
-         in-flight transition is the "handler to 0" render-thread SIGSEGV
-         seen at plan:first. The sheet's "checking every way there…" covers
-         the hold. */
+      /* SETTLE before routing (the Google register the owner timed:
+         tap → camera flies to the pin + a place sheet; Directions is
+         what commits to a trip). The origin resolve + the too-close
+         check live in goDirections — running them here priced a plan
+         (and stalled on a GNSS fix) for a preview the user may never
+         have wanted. This is also what kills the "minutes" open: the
+         pick path is synchronous, no await. */
+      setPlace({ p, meta: meta ?? null });
+      setLocNotice(null);
+      /* mapPickArmed/long-press picks fire from "idle" — a live tap
+         there IS the pick (this path is synchronous: no await between
+         the tap and this write, so no stale tail can interleave — the
+         advance gate's idle exclusion guards async tails, not taps).
+         Only "nav" is off-limits: never yank a live trip. */
+      if (phaseRef.current !== "nav") setPhase("place");
     } finally {
       /* tell the sheet its commit window is over — a failed pick leaves
          it mounted and its rows must tap again; a superseded tail bumps
          nothing (the newer pick still owns the latch) */
       if (seq === pickSeq.current) setPickDone((n) => n + 1);
     }
-  }, [editWhich, from, to, lang, setPhase]);
+  }, [editWhich, to, place, lang, setPhase]);
+
+  /* the settle beat's single camera move: fly to the pin as the place
+     sheet rises (Google: tap a row → the camera settles on it). The
+     earlier no-pick-time-flyTo rule covered pick→plan, where the
+     fitBounds in show() is the only move; the settle IS its own phase
+     so this fly is alone in its window — still deferred a beat so the
+     sheet-mount commit lands first (mount-vs-draw SIGSEGV class). */
+  useEffect(() => {
+    if (phase !== "place" || !place) return;
+    const tm = setTimeout(() => {
+      if (phaseRef.current !== "place") return;
+      whenMapDrawFree(() => {
+        camRef.current?.flyTo({ center: [place.p.lon, place.p.lat], zoom: 15, duration: camDur(700) });
+      });
+    }, 120);
+    return () => clearTimeout(tm);
+  }, [phase, place, camRef]);
+
+  /** Directions — the commit: resolve a REAL origin (never fabricated,
+   *  never a stale fix labelled as GPS), run the 50 m no-route check
+   *  the pick path used to run, then hand from+to to the plan effect. */
+  const goDirections = useCallback(async () => {
+    const pv = place;
+    if (!pv || phaseRef.current !== "place" || locating) return;
+    const tailMayAdvance = () => pickTailGate(phaseRef.current, "advance");
+    mark("dir.tap");
+    const seq = pickSeq.current;
+    setLocating(true);
+    try {
+      let origin = from;
+      if (!origin) {
+        const fix = await posNowDetailed();
+        /* superseded or closed while the fix was in flight — write nothing */
+        if (seq !== pickSeq.current || phaseRef.current !== "place") return;
+        mark("loc.fix");
+        if (!fix) {
+          /* NEVER fabricate an origin — the old 'Central Delhi' fallback
+             routed from a made-up point. The from slot arms on the search
+             sheet with the failure said out loud; the preview survives
+             so a typed 'from' returns straight to this sheet. */
+          if (!pickTailGate(phaseRef.current, "stay")) { setLocNotice(null); return; }
+          setLocNotice(t("locPickFailed", lang));
+          setEditWhich("from");
+          setPhase("search");
+          return;
+        }
+        const c = fix.pos.coords;
+        origin = { name: fixName(fix, lang), subtitle: "", lat: c.latitude, lon: c.longitude };
+      }
+      /* a destination within a street of the start has no route to
+         compare (audit #19/#20's 50 m pins) — say so, stay on the sheet */
+      const d = havM(origin.lat, origin.lon, pv.p.lat, pv.p.lon);
+      if (d < 50) {
+        setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+        return;
+      }
+      setLocNotice(null);
+      setFrom(origin);
+      setTo(pv.p);
+      setPlace(null);
+      if (tailMayAdvance()) setPhase("compare");
+    } finally {
+      setLocating(false);
+    }
+  }, [place, from, locating, lang, setPhase]);
+
+  /** settle-sheet close — back to wherever the journey was. A pending
+      directions() fix tail is killed by invalidating pick seqs. */
+  const closePlace = useCallback(() => {
+    invalidatePicks();
+    setPlace(null);
+    setLocNotice(null);
+    setPhase(to ? "compare" : "idle");
+  }, [to, setPhase, invalidatePicks]);
 
   /* ---- routes: destination+origin set → /v2/plan + legacy /depart ---- */
   useEffect(() => {
@@ -451,6 +521,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
   }, [selected, options, from, to]);
 
   const clearRoute = useCallback(() => {
+    setPlace(null);
     setTo(null); setOptions([]); setDepart(null); setDepartCurve(null);
     setSteps(null); setStepsOpen(false); setStrips({});
     setPlanError(null); setPlanField(null); setPlanDegraded([]);
@@ -493,7 +564,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
        closing the sheet silently re-entered compare on it
        (offline-verify catalogue #2). Fresh slate: the trip was already
        logged by the engine before Done. */
-    setFrom(null); setTo(null);
+    setFrom(null); setTo(null); setPlace(null);
     setOptions([]); setSelected(0); setDepart(null); setDepartCurve(null);
     setSteps(null); setStepsOpen(false); setStrips({});
     setPlanError(null); setPlanField(null); setPlanDegraded([]);
@@ -599,6 +670,7 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     steps, stepsOpen, setStepsOpen, navDose,
     pick, clearRoute, startNav, exitNav, remind, disarmDepart, armDailyBrief, armAirEvents,
     strips, reloadTrips, locNotice, setLocNotice,
+    place, locating, goDirections, closePlace,
     phaseRef, pickDone, invalidatePicks, bumpPickDone,
   };
 }

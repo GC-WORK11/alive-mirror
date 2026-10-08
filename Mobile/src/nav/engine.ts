@@ -7,7 +7,7 @@
  * /v2/trip donation. All counter math is local (doc 04 §5 hard rule).
  */
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AppState } from "react-native";
 import * as Location from "expo-location";
 import type { CameraRef } from "@maplibre/maplibre-react-native";
@@ -174,6 +174,16 @@ export function useNavEngine(opts: NavEngineOpts) {
   const [distRemainingM, setDistRemainingM] = useState(0);
   const [etaS, setEtaS] = useState(route.eta_s ?? route.duration_s ?? 0);
   const [progress, setProgress] = useState(0);
+  /* the painted road's live inputs — lifted to RouteTintSource so the
+     map re-tints the road AHEAD off the engine's own truth (live /
+     rerouted geometry + the strip the engine re-pulls), never the
+     plan-time copy that launched the trip. alongM state updates at a
+     60 m cadence so a fix-rate trip repaints ~once a chunk, not per
+     fix — the odometer itself stays the 1 Hz ref below. */
+  const [navAlongM, setNavAlongM] = useState(0);
+  const [navStrip, setNavStrip] = useState<RouteStrip | null>(null);
+  const [navGeom, setNavGeom] = useState<GeoJSON.Geometry | null>(null);
+  const navAlongShownRef = useRef(0);
   const [nextStep, setNextStep] = useState<NextStep | null>(null);
   const [stripOk, setStripOk] = useState(true);
   /* the strip's serve-time field age + when it was fetched — the
@@ -233,6 +243,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     destRef.current = r.to ? [r.to.lon, r.to.lat] : last ?? null;
     eta0Ref.current = r.eta_s ?? r.duration_s ?? eta0Ref.current;
     cuesRef.current.load(r.steps);
+    setNavGeom(r.geometry ?? null);   // reroutes land here too — the painted road follows the new path
   }, []);
 
   const refreshStrip = useCallback(async (routeId: string) => {
@@ -247,6 +258,7 @@ export function useNavEngine(opts: NavEngineOpts) {
       const s = await fetchStrip(routeId, api);
       if (seq !== stripSeqRef.current) return; // a newer route owns the strip
       stripRef.current = s;
+      setNavStrip(s);                 // the road ahead re-tints on each real re-pull
       cumRef.current = stripCumM(s.samples);
       const age = s.field?.age_min;
       setStripOk(true);
@@ -411,6 +423,12 @@ export function useNavEngine(opts: NavEngineOpts) {
       // monotone odometer: jitter never rewinds the strip position
       const adv = Math.max(0, snap.alongM - alongRef.current);
       alongRef.current += adv;
+      /* the painted travelled/ahead split trails the odometer at ~60 m —
+         per-fix updates would rebuild the tint FC at fix rate */
+      if (alongRef.current - navAlongShownRef.current >= 60) {
+        navAlongShownRef.current = alongRef.current;
+        setNavAlongM(alongRef.current);
+      }
       /* the nav position always follows the fix — but the ledger only
          credits what a vehicle could physically cover since the last
          fix. A resume-fix landing km ahead after a long dead stretch
@@ -662,6 +680,14 @@ export function useNavEngine(opts: NavEngineOpts) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* the map-side live tint contract — a memoized bundle so the
+     RouteTintSource memo only re-runs when one of the three real
+     inputs moved, not on every counter tick */
+  const navTint = useMemo(
+    () => ({ geometry: navGeom, strip: navStrip, alongM: navAlongM }),
+    [navGeom, navStrip, navAlongM],
+  );
+
   return {
     running, start, stop, arrive, recenter,
     dose, co2, pm25,
@@ -669,6 +695,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     offRoute, arrived, snapped, nextStep,
     stripOk, stripAge, summary, outsideField,
     gapActive, pausedS,
+    navTint,
   };
 }
 

@@ -9,6 +9,13 @@
    module so nav/pickRace.test.ts can import the real predicate without
    dragging in react-native. `surface` is useShellFlow's Phase. */
 export function pickTailGate(surface: string, intent: "stay" | "advance"): boolean {
-  if (intent === "advance") return surface === "search" || surface === "compare";
-  return surface === "search";
+  /* "place" joins the allowed set for both intents — it's the settle
+     surface inside the pick's own direction (a live advance may cross
+     it; a retreat re-arms search from it). "idle" stays out of
+     "advance": an armed mapPickArmed idle must never get hijacked by a
+     stale async tail — synchronous pick paths check `!== "nav"`
+     directly instead of going through this gate. */
+  if (intent === "advance")
+    return surface === "search" || surface === "compare" || surface === "place";
+  return surface === "search" || surface === "place";
 }
