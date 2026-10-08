@@ -19,7 +19,7 @@ import {
   type CameraRef, type ViewStateChangeEvent,
 } from "@maplibre/maplibre-react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { V2Elev, V2Radius, V2T, V2Type, cigOf, fam } from "./src/theme";
+import { V2Elev, V2Radius, V2T, V2Type, bandIdx, cigOf, fam } from "./src/theme";
 import { DYNAMIC_TYPE } from "./src/a11y";
 import { EndpointPin } from "./src/ui";
 import { Icon } from "./src/icons";
@@ -42,7 +42,8 @@ import { FiresLayer, BlackspotsLayer } from "./src/components/HazardLayers";
 import { CorridorLayer } from "./src/components/CorridorLayer";
 import { AirFieldLayer, type AirStation } from "./src/components/AirFieldLayer";
 import { AirMapCard } from "./src/components/AirMapCard";
-import { fetchAirField, airFieldEpoch } from "./src/api/airfield";
+import { TapPin, TapReadout, type TapRead } from "./src/components/TapReadout";
+import { fetchAirField, airFieldEpoch, sampleFieldAt } from "./src/api/airfield";
 import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
 import { VehicleSheet } from "./src/screens/VehicleSheet";
@@ -185,6 +186,7 @@ const MapTree = React.memo(function MapTree({
   field, stations,
   options, selected, strips,
   fromPin, toPin, fromSet, toSet, pinReady,
+  tapPin, tapShow, tapLabel, tapBand,
 }: {
   lang: Lang;
   compassPosition: { top: number; right: number };
@@ -211,6 +213,13 @@ const MapTree = React.memo(function MapTree({
   fromSet: boolean;
   toSet: boolean;
   pinReady: boolean;
+  /* the air map's tap read pin — parked like the endpoint markers:
+     always mounted at its last coordinate, hidden by an empty child.
+     tapShow/tapLabel/tapBand re-render the marker in place. */
+  tapPin: [number, number];
+  tapShow: boolean;
+  tapLabel: string;
+  tapBand: number | null;
   drawHeld: boolean;
   covered: boolean;
 }) {
@@ -316,6 +325,12 @@ const MapTree = React.memo(function MapTree({
       <Marker lngLat={toPin} anchor="bottom">
         {toSet && pinReady ? <EndpointPin kind="dest" /> : <View />}
       </Marker>
+      {/* the tap read's own mark — a band-washed µg chip + dot where the
+          finger landed; hidden is an empty child, same parked contract
+          as the endpoint pins above */}
+      <Marker lngLat={tapPin} anchor="bottom">
+        {tapShow ? <TapPin label={tapLabel} band={tapBand} /> : <View />}
+      </Marker>
     </Map>
   );
 });
@@ -387,6 +402,29 @@ function AppInner() {
   const drawHeld = useMapDrawHeld();
   const optionsCount = options.length;
   useEffect(() => { holdMapDraw(); }, [phase, optionsCount]);
+
+  /* the air map's tap read — where the finger last landed on the field
+     surface. tapPoint is the question; the painted cells answer it
+     locally (sampleFieldAt over fieldGeo — the same serve the tint
+     draws from, so tap and colour can never disagree), and a point no
+     cell reaches falls back to ONE /aqi read carried as the model's
+     own. Held state: the marker child swap is a map-side commit.
+     Cleared when the surface isn't up so a stale pin never rides a
+     fresh open. */
+  const [tapPoint, setTapPoint] = useHeldState<{ lat: number; lon: number } | null>(null);
+  /* parked marker coordinate — same contract as fromPin/toPin: holds
+     the last real position, the child alone decides visibility */
+  const [tapPin, setTapPin] = useState<[number, number]>(DELHI);
+  useEffect(() => {
+    if (!tapPoint) return;
+    const c: [number, number] = [tapPoint.lon, tapPoint.lat];
+    const t = setTimeout(() => setTapPin(c), 0);
+    return () => clearTimeout(t);
+  }, [tapPoint]);
+  /* the edge fallback — one /aqi read for a tap no painted cell covers
+     (a dropped-cell hole or past the grid's edge), keyed to the point
+     and the field's own epoch so a fresh serve re-asks honestly */
+  const [tapFallback, setTapFallback] = useState<{ key: string; pm25: number | null } | null>(null);
 
   const [reportSlots, setReportSlots] = useState<(ReportSlot | null)[]>(
     () => Array<ReportSlot | null>(REPORT_POOL).fill(null));
@@ -881,6 +919,65 @@ function AppInner() {
   const fieldStations = useMemo(
     () => (stationsJson ? (JSON.parse(stationsJson) as AirStation[]) : null),
     [stationsJson]);
+
+  /* the tap read resolved: the painted cell's own value first — local,
+     instant, offline-safe; the /aqi edge fallback second; "pending"
+     while it answers, "outside" when nothing honest does. fieldGeo in
+     the deps is the live part: a re-pulled field re-samples the same
+     point and the readout moves with it, no second tap needed. */
+  const tapKey = tapPoint
+    ? `${tapPoint.lat.toFixed(4)},${tapPoint.lon.toFixed(4)}` : null;
+  const tapLocality = useMemo(
+    () => (tapPoint ? localityAt(tapPoint) : null), [tapPoint]);
+  const tapSample = useMemo(
+    () => sampleFieldAt(fieldGeo, tapPoint?.lat ?? NaN, tapPoint?.lon ?? NaN),
+    [fieldGeo, tapPoint]);
+  const tapRead = useMemo((): TapRead | "pending" | "outside" | null => {
+    if (!tapPoint) return null;
+    if (tapSample) {
+      return { pm25: tapSample.pm25, band: bandIdx(tapSample.pm25) ?? 0,
+        conf: tapSample.conf };
+    }
+    /* a stale-keyed fallback is ignored, not cleared — the memo just
+       reads "pending" until the fresh fetch lands */
+    if (tapFallback && tapKey && tapFallback.key.startsWith(tapKey)) {
+      if (tapFallback.pm25 == null) return "outside";
+      return { pm25: tapFallback.pm25, band: bandIdx(tapFallback.pm25) ?? 0,
+        conf: "model" };
+    }
+    return "pending";
+  }, [tapPoint, tapSample, tapFallback, tapKey]);
+  /* one /aqi read for a tap no painted cell covers (a dropped-cell hole
+     or past the grid's edge). The field's epoch rides the key — a new
+     serve re-asks the edge answer instead of holding a stale model
+     read under a field that may now reach the point. */
+  useEffect(() => {
+    if (!tapPoint || tapSample || !tapKey) return;
+    let cancelled = false;
+    const key = `${tapKey}@${fieldGeo ? airFieldEpoch(fieldGeo) ?? "x" : "x"}`;
+    fetchJson(`${API}/aqi?lat=${tapPoint.lat}&lon=${tapPoint.lon}`, 8000)
+      .then((j) => {
+        if (cancelled) return;
+        /* ambient first — the cells paint the ambient surface, so the
+           fallback speaks the same value the readout compares against */
+        const amb =
+          typeof j?.pm25_ambient === "number" && Number.isFinite(j.pm25_ambient)
+            ? j.pm25_ambient
+            : typeof j?.pm25 === "number" && Number.isFinite(j.pm25)
+              ? j.pm25 : null;
+        setTapFallback({ key, pm25: amb });
+      })
+      .catch(() => { if (!cancelled) setTapFallback({ key, pm25: null }); });
+    return () => { cancelled = true; };
+  }, [tapPoint, tapSample, tapKey, fieldGeo]);
+  /* the read belongs to the air-map surface — leaving it (home, a
+     journey phase, the armed pick) clears the pin so the next open
+     starts clean */
+  useEffect(() => {
+    if (phase === "idle" && !homeOpen) return;
+    setTapPoint(null);
+  }, [phase, homeOpen, setTapPoint]);
+
   /* the air map IS this surface — the map under the home sheet is
      browsing, this is the reading */
   const airMapOpen = phase === "idle" && !homeOpen;
@@ -914,10 +1011,20 @@ function AppInner() {
   );
 
   const onMapPress = useCallback(async (f: MapPressEvent) => {
-    if (!mapPickArmed) return;
-    setMapPickArmed(false);
     const c = (f as { nativeEvent?: { lngLat?: [number, number] } }).nativeEvent?.lngLat;
     if (!c) return;
+    if (!mapPickArmed) {
+      /* the air map's own tap: read the field right where the finger
+         landed. Only on the open field surface — under home's sheet or
+         inside a journey phase a bare map tap stays inert. The armed
+         pick below is the committed gesture and always wins. */
+      if (airMapOpen) {
+        tap();
+        setTapPoint({ lat: c[1], lon: c[0] });
+      }
+      return;
+    }
+    setMapPickArmed(false);
     tap();   // the pick landed — same weight as a row tap
     const rev = await reverseName(c[1], c[0]);
     if (placePickSlot) {
@@ -931,7 +1038,7 @@ function AppInner() {
        map tap must land in `from`, not silently re-target the
        destination (offline-verify catalogue #1) */
     pick({ name: rev.name, subtitle: rev.subtitle, lat: c[1], lon: c[0] });
-  }, [mapPickArmed, placePickSlot, patchSettings, pick]);
+  }, [mapPickArmed, placePickSlot, patchSettings, pick, airMapOpen, setTapPoint]);
   const onMapLongPress = useCallback(async (f: MapPressEvent) => {
     const c = (f as { nativeEvent?: { lngLat?: [number, number] } }).nativeEvent?.lngLat;
     if (!c) return;
@@ -1053,6 +1160,7 @@ function AppInner() {
       tr.emit_kg != null ? t("share_co2", lang, { n: `~${tr.emit_kg.toFixed(1)}` }) : null),
   }).catch(() => {}), [lang, settings.show_cig]);
   const onLayersClose = useCallback(() => setLayersOpen(false), []);
+  const onTapReadClose = useCallback(() => { tick(); setTapPoint(null); }, [setTapPoint]);
   const onDelhiClose = useCallback(() => setDelhiOpen(false), []);
   const onLedgerClose = useCallback(() => setLedgerOpen(false), []);
   const onSettingsClose = useCallback(() => setSettingsOpen(false), []);
@@ -1105,6 +1213,12 @@ function AppInner() {
       fromPin={fromPin} toPin={toPin}
       fromSet={!!from} toSet={!!to}
       pinReady={pinReady}
+      tapPin={tapPin}
+      tapShow={tapPoint != null}
+      tapLabel={tapRead != null && typeof tapRead === "object"
+        ? String(Math.round(tapRead.pm25))
+        : tapRead === "outside" ? "–" : "…"}
+      tapBand={tapRead != null && typeof tapRead === "object" ? tapRead.band : null}
       drawHeld={drawHeld}
       covered={mapCovered} />
   );
@@ -1174,6 +1288,22 @@ function AppInner() {
             <View style={[s.peekWrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
               <DayPeek data={dayData} lang={lang} onOpen={onPeekOpen}
                 ambientUg={ambientUg} budgetUg={PROFILE_BUDGET_UG[settings.profile]} />
+            </View>
+          )}
+          {/* the tap read — the point's own answer floats just above the
+              peek strip (its ✕ is the only touchable inside); before the
+              first tap, a quiet hint says the field answers to a touch */}
+          {!homeOpen && tapRead != null && (
+            <View style={[s.tapReadWrap, { bottom: insets.bottom + 170 }]} pointerEvents="box-none">
+              <TapReadout lang={lang} read={tapRead} place={tapLocality} onClose={onTapReadClose} />
+            </View>
+          )}
+          {!homeOpen && tapRead == null && (
+            <View style={[s.tapReadWrap, { bottom: insets.bottom + 170 }]} pointerEvents="none">
+              <Text {...DYNAMIC_TYPE} numberOfLines={1}
+                style={[s.tapHintTxt, { fontFamily: fam(lang, "reg") }]}>
+                {t("tapHint", lang)}
+              </Text>
             </View>
           )}
         </>
@@ -1501,4 +1631,13 @@ const s = StyleSheet.create({
   pickHintTxt: { fontSize: V2Type.label, color: V2T.text },
   freshWrap: { position: "absolute", left: 16 },
   peekWrap: { position: "absolute", left: 0, right: 0 },
+  /* the tap read + its pre-tap hint ride one centred slot just above
+     the peek strip (~90 pt tall from bottom+72) */
+  tapReadWrap: { position: "absolute", left: 0, right: 0, alignItems: "center" },
+  tapHintTxt: {
+    fontSize: V2Type.micro, color: V2T.text3,
+    backgroundColor: V2T.glassFaint, borderRadius: V2Radius.row,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: V2T.glassLine,
+    paddingHorizontal: 10, paddingVertical: 5, overflow: "hidden",
+  },
 });

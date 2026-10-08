@@ -642,6 +642,14 @@ const en = {
      line reuses howWe_fieldAge/cityStale/cityNoField. */
   airmapTitle: "the air map",
   airmapLine: "redder = worse air right now",
+  /* tap readout (TapReadout) — the point's own answer: {place} is the
+     gazetteer locality, tapHere the honest unnamed fallback; the thin/
+     off-field qualifier reuses srcModel */
+  tapHint: "tap anywhere — that spot's air answers",
+  tapReading: "reading…",
+  tapOutside: "outside the air map — no read here",
+  tapHere: "this spot",
+  tapAqiA11y: "air at {place}: {n} µg/m³ — {band}",
   // first run
   // place-name fallbacks (useShellFlow: from/to when no place is picked)
   placeCurrentLocation: "your location",
@@ -1723,6 +1731,11 @@ const hi: Record<StringKey, string> = {
   mapPickHint: "नक्शे पर टैप करके पिन लगाएँ",
   airmapTitle: "हवा का नक्शा",
   airmapLine: "जितना लाल, उतनी ख़राब हवा अभी",
+  tapHint: "कहीं भी टैप करें — उस जगह की हवा बताएगी",
+  tapReading: "पढ़ रहे हैं…",
+  tapOutside: "हवा के नक्शे से बाहर — यहाँ रीडिंग नहीं",
+  tapHere: "यह जगह",
+  tapAqiA11y: "{place} की हवा: {n} µg/m³ — {band}",
   placeCurrentLocation: "आपकी लोकेशन",
   placeCentralDelhi: "सेंट्रल दिल्ली",
   a11yMenu: "मेन्यू",

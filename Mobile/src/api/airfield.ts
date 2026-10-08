@@ -64,3 +64,56 @@ export async function fetchAirField(cells: number = FIELD_GRID_CELLS) {
     },
   });
 }
+
+export type FieldCellSample = {
+  /** the painted cell's own blended read, µg/m³ */
+  pm25: number;
+  /** the cell's confidence grade verbatim ("hi"|"med"|"lo"), null when
+   *  the serve carries none */
+  conf: string | null;
+};
+
+/** Point → the painted cell's own read. The layer's cells are the
+ *  server's square NCR tiling (server/grid.py emits axis-aligned
+ *  rectangles), so containment is a bbox scan — exact for these
+ *  polygons and ~free at the 28-grid's few hundred cells. Local +
+ *  instant + offline-safe: the readout answers from the same data the
+ *  user is already looking at, so tap and tint can never disagree.
+ *
+ *  null = no served cell covers the point (a dropped-cell hole, or
+ *  past the grid's edge): honest absence — the caller falls back to
+ *  /aqi or says so, never a nearest-cell guess. Edge hits resolve to
+ *  whichever neighbour is scanned first; either is a fair area read. */
+export function sampleFieldAt(
+  fc: GeoJSON.FeatureCollection | null | undefined,
+  lat: number,
+  lon: number,
+): FieldCellSample | null {
+  if (!fc?.features?.length) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const EPS = 1e-9;
+  for (const f of fc.features) {
+    const g = f?.geometry;
+    if (!g || g.type !== "Polygon") continue;
+    const ring = (g as GeoJSON.Polygon).coordinates?.[0];
+    if (!Array.isArray(ring) || ring.length === 0) continue;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const pt of ring) {
+      const px = pt?.[0], py = pt?.[1];
+      if (typeof px !== "number" || typeof py !== "number") continue;
+      if (px < x0) x0 = px;
+      if (px > x1) x1 = px;
+      if (py < y0) y0 = py;
+      if (py > y1) y1 = py;
+    }
+    if (!Number.isFinite(x0)) continue;
+    if (lon < x0 - EPS || lon > x1 + EPS || lat < y0 - EPS || lat > y1 + EPS) {
+      continue;
+    }
+    const p = (f.properties ?? {}) as Record<string, unknown>;
+    const v = p.pm25;
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    return { pm25: v, conf: typeof p.conf === "string" ? p.conf : null };
+  }
+  return null;
+}
