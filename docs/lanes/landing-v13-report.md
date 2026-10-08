@@ -138,3 +138,23 @@ register, three fixes:
 
 - `base/v2` — landing.html + hero-delhi-smog.webp + this report.
 - `main` + `landing` — standalone index.html + hero-delhi-smog.webp.
+
+---
+
+# v15 addendum — "so freaking long" → tighter vertical components
+
+Owner: page reads as one marathon. Same register, denser components:
+
+- Districts → 3-column ruled table on desktop (29 rows → 10 tall):
+  grid `repeat(3,1fr)` column-flow, rank · serif name + mono state ·
+  bold mono aqi, hairline rules; single column below 1024px.
+  Icons hidden in table mode (the shape svg stays in the popover).
+- Section padding `clamp(40,7vw,96)` → `clamp(24,4vw,52)`.
+- Product shots `max-width` 340→292px.
+- `.eq` margin 34→22, `.eq-note` 18→14, `.jrow` 13→10, `.door` 22→14,
+  footer col 56→38, `.foot-in` 44→26.
+- Page height @1440: 11738 → 9547 (−19%).
+
+Verify: 8/8 landing + inline tests; shots @1440 (hero/feats/districts/
+how-it-knows/journal/footer) + @390; 0 console errors; live readout
+paints; JS untouched again — pure CSS.
