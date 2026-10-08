@@ -1939,6 +1939,53 @@ async def app_choose_strip_848_png():
         headers=_STATIC_CACHE)
 
 
+@app.get("/app-choose-settle.webp")
+async def app_choose_settle_webp():
+    """Chooser settled frame for the landing's app row — real capture off
+    the shipped build, resized to 708px (same density as app-hero-708)."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-choose-settle.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/app-choose-settle.png")
+async def app_choose_settle_png():
+    """PNG fallback of the chooser-settled frame for the pre-WebP
+    browser."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-choose-settle.png"),
+        headers=_STATIC_CACHE)
+
+
+@app.get("/app-airmap.webp")
+async def app_airmap_webp():
+    """Air-map frame for the landing's app row — real capture off the
+    shipped build, resized to 708px."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-airmap.webp"),
+        media_type="image/webp", headers=_STATIC_CACHE)
+
+
+@app.get("/app-airmap.png")
+async def app_airmap_png():
+    """PNG fallback of the air-map frame for the pre-WebP browser."""
+    from fastapi.responses import FileResponse
+    import os
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "static",
+                     "app-airmap.png"),
+        headers=_STATIC_CACHE)
+
+
 @app.get("/delhi_subdistricts.geojson")
 async def delhi_subdistricts_geojson():
     """Delhi NCT's 13 OSM admin_level=5 sub-areas (server/static/
