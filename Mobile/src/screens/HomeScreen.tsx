@@ -371,6 +371,31 @@ const MOVE_BAND_KEYS: StringKey[] = [
   "band_poor", "band_veryPoor", "band_severe",
 ];
 
+/** The numeral's baseline — the landing .hnum rule, translated: a fine
+ *  band-inked line under the readout that breathes on a slow sine (a
+ *  dosimeter is a breathing thing). Reduce Motion: a static whisper. */
+function BreathLineInner({ color }: { color: string }) {
+  const reduce = useReduceMotion();
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (reduce) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(v, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(v, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [v, reduce]);
+  return (
+    <Animated.View style={[ss.breathLine, {
+      backgroundColor: color,
+      opacity: reduce ? 0.16 : v.interpolate({ inputRange: [0, 1], outputRange: [0.10, 0.32] }),
+    }]} />
+  );
+}
+
+const BreathLine = React.memo(BreathLineInner);
+
 /** The served decision line, localized. English keeps the wire text —
  *  it is already the card's own voice. Hindi rebuilds the sentence from
  *  the label + served windows + the hour series, mirroring
@@ -1053,6 +1078,23 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
       ? t("refWhoOver", lang, { x: x >= 10 ? Math.round(x) : x.toFixed(1) })
       : t("refWhoUnder", lang);
   }
+  /* the instrument's citation — locality, monitor distance and field age
+     as ONE dot-separated provenance line under the verdict (the landing's
+     statusline), not two stacked footnotes */
+  const provBase = !counted && airSrc === "live" && ambientMeta != null
+    ? (ambientMeta.atGps === false
+        ? t("homeAirCityHint", lang)
+        : ambientMeta.beyondEdge
+          ? t("homeAirEdge", lang)
+          : ambientMeta.km != null
+            ? (ambientMeta.place
+                ? t("homeAirMetaPlace", lang, { p: ambientMeta.place, k: ambientMeta.km })
+                : t("homeAirMeta", lang, { k: ambientMeta.km }))
+            : (ambientMeta.place
+                ? t("homeAirPlaceModel", lang, { p: ambientMeta.place })
+                : t("homeAirModel", lang)))
+    : null;
+  const provLine = [provBase, airAgeLine].filter(Boolean).join("  ·  ");
   return (
     <View style={ss.hero}>
       <Text {...DYNAMIC_TYPE} style={[ss.heroEyebrow, { fontFamily: fam(lang, "med") }]}>
@@ -1068,7 +1110,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
               collapses the Hindi hero to the 0.55 floor (~62pt vs the
               112pt spec). numberOfLines=1 alone keeps the anti-wrap the
               prop was added for; a 4-digit dose still fits the row. */}
-          <CountUp value={ug} duration={900}
+          <CountUp value={ug} duration={480}
             numberOfLines={1}
             style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: ink }]}
             format={(n) => `${doseUgRound(n)}`} />
@@ -1078,7 +1120,7 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
         </View>
       ) : airNow != null ? (
         <View style={ss.heroNumRow}>
-          <CountUp value={Math.round(airNow)} duration={900}
+          <CountUp value={Math.round(airNow)} duration={480}
             numberOfLines={1}
             style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: ink }]} />
           <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
@@ -1090,10 +1132,17 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
           {t("daySparseWait", lang)}
         </Text>
       )}
-      {felt != null && (counted || airNow != null) && (
-        <Text {...DYNAMIC_TYPE} style={[ss.heroFelt, { fontFamily: famSerif(lang, "med"), color: ink }]}>
-          {felt}
-        </Text>
+      {/* the breathing baseline — only under a number that exists */
+      (counted || airNow != null) && <BreathLine color={ink} />}
+      {/* the verdict word carries the band's own square — landing's
+          .hnum-band grammar: solid swatch + felt word, position first */
+      felt != null && (counted || airNow != null) && (
+        <View style={ss.heroFeltRow}>
+          <View style={[ss.heroBandSq, { backgroundColor: bandColorIdx(idx) ?? ink }]} />
+          <Text {...DYNAMIC_TYPE} style={[ss.heroFelt, { fontFamily: famSerif(lang, "med"), color: ink }]}>
+            {felt}
+          </Text>
+        </View>
       )}
       {/* what the number IS — plain words, so the figure can't be read
           as "AQI or mixed index" (owner's own complaint); the AQI
@@ -1109,6 +1158,14 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
       {ref != null && (
         <Text {...DYNAMIC_TYPE} style={[ss.heroRef, NUM, { fontFamily: fam(lang, "reg") }]}>
           {ref}{ref2 ? `  ·  ${ref2}` : ""}
+        </Text>
+      )}
+      {/* the ambient number's provenance — where it was read + how fresh,
+          on one citation line (a number you can't verify reads as a
+          wrong number) */}
+      {provLine !== "" && (
+        <Text {...DYNAMIC_TYPE} style={[ss.heroProv, { fontFamily: fam(lang, "reg") }]}>
+          {provLine}
         </Text>
       )}
       {airNowIdx != null && (
@@ -1153,35 +1210,8 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
           </Text>
         </View>
       )}
-      {/* the ambient number's provenance — where it was read + how fresh
-          (a number you can't verify reads as a wrong number) */}
-      {!counted && airSrc === "live" && ambientMeta != null && (
-        <Text {...DYNAMIC_TYPE} style={[ss.heroProv, { fontFamily: fam(lang, "reg") }]}>
-          {ambientMeta.atGps === false
-            ? t("homeAirCityHint", lang)
-            : ambientMeta.beyondEdge
-              ? t("homeAirEdge", lang)
-              : ambientMeta.km != null
-                ? (ambientMeta.place
-                    ? t("homeAirMetaPlace", lang, { p: ambientMeta.place, k: ambientMeta.km })
-                    : t("homeAirMeta", lang, { k: ambientMeta.km }))
-                : (ambientMeta.place
-                    ? t("homeAirPlaceModel", lang, { p: ambientMeta.place })
-                    : t("homeAirModel", lang))}
-        </Text>
-      )}
-      {!counted && airAgeLine != null && (
-        <Text {...DYNAMIC_TYPE} style={[ss.heroProv, { fontFamily: fam(lang, "reg") }]}>
-          {airAgeLine}
-        </Text>
-      )}
-      {/* the dose number's own gloss — µg is a weight your lungs took
-          in, counted only where real reads landed */}
-      {counted && (
-        <Text {...DYNAMIC_TYPE} style={[ss.heroProv, { fontFamily: fam(lang, "reg") }]}>
-          {t("homeDoseWhat", lang)}
-        </Text>
-      )}
+      {/* provenance merged into provLine under the refs above; the old
+          µg gloss caption was cut — the number no longer explains itself */}
       {weekCounted && (
         <View style={ss.heroWeekRow}>
           {data.week.map((w) => (
@@ -1336,7 +1366,7 @@ function MoodCanvasInner({ color }: { color: string }) {
   useEffect(() => {
     if (reduce) { fade.setValue(1); return; }
     fade.setValue(0);
-    const a = Animated.timing(fade, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.cubic), useNativeDriver: true });
+    const a = Animated.timing(fade, { toValue: 1, duration: 750, easing: Easing.inOut(Easing.cubic), useNativeDriver: true });
     a.start();
     return () => a.stop();
   }, [pair.cur, fade, reduce]);
@@ -1354,8 +1384,9 @@ function MoodCanvasInner({ color }: { color: string }) {
       <Defs>
         <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor={c} />
-          <Stop offset="0.38" stopColor={c} stopOpacity={0.55} />
-          <Stop offset="0.7" stopColor={V2T.bg} />
+          <Stop offset="0.26" stopColor={c} stopOpacity={0.62} />
+          <Stop offset="0.52" stopColor={c} stopOpacity={0.30} />
+          <Stop offset="0.8" stopColor={V2T.bg} />
         </LinearGradient>
       </Defs>
       <Rect x="0" y="0" width="100%" height="100%" fill={V2T.bg} />
@@ -1526,7 +1557,11 @@ function HomeScreenInner({ visible, data, lang, settings, ambientUg, ambientMeta
       enter.setValue(reduceMotion ? 1 : 0);
       if (!reduceMotion) {
         jank("enter.home");
-        Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: true }).start();
+        /* a heavier settle — ζ≈0.9: the sheet lands and stops, no
+           rubbery overshoot under the hero */
+        Animated.spring(enter, {
+          toValue: 1, damping: 26, stiffness: 230, mass: 0.9, useNativeDriver: true,
+        }).start();
       }
       return;
     }
@@ -1585,15 +1620,20 @@ const ss = StyleSheet.create({
      a statement in the page, the way a weather app states the sky */
   hero: { paddingHorizontal: 6, paddingTop: 18, paddingBottom: 10 },
   heroEyebrow: { color: V2T.text2, fontSize: V2Type.secondary },
-  heroNum: { fontSize: 112, lineHeight: 118, letterSpacing: -5, marginLeft: -4 },
-  heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
-  heroUg: { color: V2T.text2, fontSize: V2Type.body, paddingBottom: 22 },
-  heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, marginTop: -6 },
-  heroRef: { color: V2T.text2, fontSize: V2Type.secondary, marginTop: 4, lineHeight: 21 },
+  /* the number IS the home screen — the landing's instrument scale on a
+     phone: a huge thin numeral the whole surface arranges around */
+  heroNum: { fontSize: 132, lineHeight: 138, letterSpacing: -6, marginLeft: -6 },
+  heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
+  heroUg: { color: V2T.text3, fontSize: V2Type.label, letterSpacing: 0.5, paddingBottom: 26 },
+  breathLine: { height: 2, borderRadius: 1, marginTop: 16 },
+  heroFeltRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12 },
+  heroBandSq: { width: 10, height: 10, borderRadius: 2.5 },
+  heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, lineHeight: 34 },
+  heroRef: { color: V2T.text2, fontSize: V2Type.secondary, marginTop: 6, lineHeight: 21 },
   /* the provenance/footnote line under a hero number — whispered, never
      competing with the felt word */
-  heroProv: { color: V2T.text4, fontSize: V2Type.label, marginTop: 6, lineHeight: 18 },
-  heroScale: { marginTop: 10, alignSelf: "stretch" as const, maxWidth: 210 },
+  heroProv: { color: V2T.text4, fontSize: V2Type.label, marginTop: 8, lineHeight: 18 },
+  heroScale: { marginTop: 16, alignSelf: "stretch" as const, maxWidth: 220 },
   heroThin: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
   sparseArc: { marginTop: 18, marginHorizontal: -6 },
   sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 14 },

@@ -140,13 +140,16 @@ const hexMix = (a: string, b: string, t: number): string => {
 };
 /** ~10% band on surface — cell/tile fills, selected whispers */
 export const bandWashIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.90);
-/** ~26% band — tile fills where the band itself must scan at a glance
- *  (the days-ahead row: five 10% washes read identical on paper) */
-export const bandWashDeepIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.74);
-/** ~38% band — a hairline that carries the day's colour */
+/** ~32% band — tile fills where the band itself must scan at a glance
+ *  (the days-ahead row: five 10% washes read identical on paper)
+ *  app-home-sexy: deepened 26%→32% — the subtle state holds on the warm
+ *  base but the band is unmistakable at a glance */
+export const bandWashDeepIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.68);
+/** ~40% band — a hairline/marker that carries the day's colour */
 export const bandEdgeIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#FFFFFF", 0.60);
-/** band deepened ~15% toward ink — band-coloured text that still reads */
-export const bandInkIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#16181D", 0.15);
+/** band deepened ~20% toward ink — band-coloured text that reads on the
+ *  warm base (was 15% — too close to a tint at caption sizes) */
+export const bandInkIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#16181D", 0.20);
 
 // ── type ──────────────────────────────────────────────────────────────────
 // The register's ramp: 11/13/17/22/30/44 — eyebrow micro → hero display.
