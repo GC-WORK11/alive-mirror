@@ -11,7 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
 <style>
 :root{
-  --paper:#fafaf7; --ink:#16181d; --ink2:#4a4e57; --ink3:#6e7278;
+  --paper:#fbfbfa; --ink:#16181d; --ink2:#4a4e57; --ink3:#6e7278;
   --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
   --sage:#3a6844;
@@ -40,28 +40,28 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 .top{border-bottom:1px solid var(--line)}
 .top-in{max-width:960px;margin:0 auto;padding:20px 32px;
   display:flex;align-items:baseline;justify-content:space-between;gap:24px}
-.wm{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
-  font-weight:600;text-decoration:none}
+.wm{font-family:var(--sans);font-size:16px;letter-spacing:-.025em;
+  font-weight:800;color:var(--ink);text-decoration:none}
 .wm i{font-style:normal;color:var(--sage)}
 .top nav{display:flex;gap:26px}
-.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink2);text-decoration:none}
+.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink2);text-decoration:none}
 .top nav a:hover{color:var(--ink);text-decoration:underline;
   text-underline-offset:4px;text-decoration-thickness:1px}
 @media(max-width:640px){.top nav{gap:16px}
-  .top nav a{font-size:11px;letter-spacing:.12em;padding:14px 0}
+  .top nav a{font-size:11px;letter-spacing:.01em;padding:14px 0}
   .links{gap:12px 36px}
   .links .tlink{padding-top:12px;padding-bottom:12px}}
 
 .hero{padding:96px 0 64px}
 @media(max-width:640px){.hero{padding:64px 0 40px}
-  .eyebrow{font-size:11px;letter-spacing:.18em}}
+  .eyebrow{font-size:11px;letter-spacing:.01em}}
 .eyebrow{display:flex;align-items:center;gap:10px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.3em;
-  text-transform:uppercase;color:var(--ink3)}
+  font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  font-weight:600;color:var(--ink2)}
 .eyebrow .sq{width:5px;height:5px;background:var(--sage);flex:none}
-h1{font-family:var(--sans);font-weight:500;font-size:clamp(40px,6.8vw,72px);
-  line-height:1.04;letter-spacing:-.03em;margin-top:28px;max-width:16ch}
+h1{font-family:var(--sans);font-weight:800;font-size:clamp(40px,6.8vw,72px);
+  line-height:1.0;letter-spacing:-.038em;margin-top:28px;max-width:16ch}
 h1 em{font-style:normal;color:var(--ink2)}
 .sub{margin-top:30px;max-width:560px;font-size:16px;line-height:1.72;
   color:var(--ink2)}
@@ -73,24 +73,26 @@ h1 em{font-style:normal;color:var(--ink2)}
 .pipe{margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);
   gap:12px}
 @media(max-width:700px){.pipe{grid-template-columns:1fr}}
-.pt{background:var(--surf2);border-radius:14px;padding:16px 18px 15px;
+.pt{background:var(--surf2);border:1.5px solid var(--ink);
+  border-radius:20px;padding:18px 20px 17px;
   display:flex;flex-direction:column;gap:6px;
-  box-shadow:0 2px 16px -8px rgba(22,24,29,.12)}
-.pt .n{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  box-shadow:0 18px 36px -24px rgba(22,24,29,.20)}
+.pt .n{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
   color:var(--ink4);align-self:flex-start}
-.pt b{font-weight:500;font-size:16.5px;
-  letter-spacing:-.01em;color:var(--ink);margin-top:2px}
+.pt b{font-weight:700;font-size:16.5px;
+  letter-spacing:-.015em;color:var(--ink);margin-top:2px}
 .pt .d{font-size:12px;line-height:1.6;color:var(--ink2)}
 
 .links{margin-top:38px;display:flex;gap:36px;flex-wrap:wrap}
-.tlink{font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;
-  border-bottom:1px solid var(--ink);padding-bottom:3px}
-.tlink:hover{border-bottom-color:transparent}
-.tlink.dim{color:var(--ink2);border-bottom-color:var(--line2);font-weight:400}
-.tlink.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.tlink{font-size:14px;font-weight:700;color:var(--paper);text-decoration:none;
+  background:var(--ink);border:1.5px solid var(--ink);
+  border-radius:100px;padding:11px 22px}
+.tlink:hover{background:#1c212b;border-color:#1c212b}
+.tlink.dim{color:var(--ink);background:transparent}
+.tlink.dim:hover{background:var(--surf2)}
 .statusline{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
-  font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  color:var(--ink3);text-transform:uppercase;display:flex;gap:8px 26px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink3);display:flex;gap:8px 26px;
   flex-wrap:wrap;font-variant-numeric:tabular-nums}
 .statusline b{color:var(--ink);font-weight:600;text-transform:none}
 .statusline .ok{color:var(--sage)}
@@ -99,45 +101,45 @@ h1 em{font-style:normal;color:var(--ink2)}
 .ledger{border-top:1px solid var(--line);padding:60px 0 20px}
 .sec-head{display:flex;justify-content:space-between;align-items:baseline;
   margin-bottom:40px;gap:16px}
-.sec-head h2{font-weight:500;font-size:28px;
-  letter-spacing:-.02em}
-.sec-head .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink3);white-space:nowrap}
+.sec-head h2{font-weight:800;font-size:clamp(24px,3.4vw,34px);
+  letter-spacing:-.03em}
+.sec-head .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink3);white-space:nowrap}
 @media(max-width:560px){.sec-head .lbl{display:none}}
 /* soul pass — the totals card wears the app's clay-wash ledger
    identity (terracotta pulled ~80% to paper, solid blend never alpha);
    the hairline rows stay ruled inside it, first row unruled so the
    card's own edge is the line */
 .lgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 56px;
-  background:#E8DDDA;border:1px solid #D0BBB6;border-radius:16px;
-  padding:4px 22px 10px;box-shadow:0 2px 10px -6px rgba(22,24,29,.12)}
+  background:#E8DDDA;border:1.5px solid var(--ink);border-radius:24px;
+  padding:8px 26px 14px;box-shadow:0 24px 48px -32px rgba(22,24,29,.28)}
 @media(min-width:561px){.lgrid>.lrow:nth-child(-n+2){border-top:none}}
 @media(max-width:560px){.lgrid{grid-template-columns:1fr}
   .lgrid>.lrow:first-child{border-top:none}}
 .lrow{display:flex;align-items:baseline;justify-content:space-between;gap:18px;
   padding:20px 0;border-top:1px solid var(--line)}
 .lgrid .lrow{border-top-color:#DCC8C3}
-.lrow .k{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
-  text-transform:uppercase;color:var(--ink3);line-height:1.7;max-width:30ch}
+.lrow .k{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink3);line-height:1.7;max-width:30ch}
 .lrow .k .w{display:block;margin-top:6px;font-family:var(--sans);
   font-size:11.5px;letter-spacing:.01em;text-transform:none;
   color:var(--ink2);line-height:1.55;font-weight:400;max-width:36ch}
 .sintro{margin:-24px 0 32px;max-width:62ch;font-size:13.5px;
   line-height:1.75;color:var(--ink2)}
 .sub+.sub{margin-top:16px}
-.lrow .v{font-family:var(--sans);font-size:34px;font-weight:300;
-  letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;
+.lrow .v{font-family:var(--sans);font-size:34px;font-weight:800;
+  letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums;
   white-space:nowrap}
 .lrow .v small{font-family:var(--mono);font-size:11px;color:var(--ink3);
-  letter-spacing:.08em}
-.lrow .v.na{font-family:var(--mono);font-size:11px;letter-spacing:.12em;
-  color:var(--ink3);text-transform:uppercase}
+  letter-spacing:.01em}
+.lrow .v.na{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink3);}
 
 /* corridors — the same ledger rhythm as a table */
 .corridors{padding:64px 0 20px}
 table{width:100%;border-collapse:collapse}
-th{font-family:var(--mono);font-size:11px;letter-spacing:.2em;
-  text-transform:uppercase;color:var(--ink3);font-weight:400;
+th{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink2);font-weight:600;
   text-align:left;padding:0 12px 12px}
 th.num,td.num{text-align:right}
 td{padding:14px 12px;border-top:1px solid var(--line);font-size:13.5px;
@@ -149,9 +151,9 @@ td .empty{color:var(--ink4);font-size:13px}
 td.cell .st{display:block;font-family:var(--sans);font-size:13px;
   color:var(--ink)}
 td.cell .co{display:block;margin-top:3px;font-family:var(--mono);
-  font-size:11px;letter-spacing:.06em;color:var(--ink3)}
-td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
-  color:var(--ink3);text-transform:uppercase}
+  font-size:11px;letter-spacing:.01em;color:var(--ink3)}
+td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink3);}
 .scrollx{overflow-x:auto}
 /* phones: wide tables clip mid-word with no hint they scroll — local cover
    + scroll shadow peeks only while more columns sit past that edge */
@@ -170,23 +172,24 @@ td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
 .rline{display:flex;gap:16px;align-items:baseline;padding:13px 0;
   border-top:1px solid var(--line);font-size:13px;color:var(--ink2)}
 .rline:last-child{border-bottom:1px solid var(--line)}
-.rline .rk{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink3);flex:none;width:110px}
+.rline .rk{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:var(--ink3);flex:none;width:110px}
 .rline .rn{font-family:var(--mono);font-size:11px;color:var(--ink3);
   margin-left:auto;white-space:nowrap}
 .rline .empty{color:var(--ink4)}
 .tnote{margin-top:16px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.1em;line-height:1.9;text-transform:uppercase;
+  letter-spacing:.01em;line-height:1.9;
   color:var(--ink3);max-width:74ch}
 
-.foot{border-top:1px solid var(--line)}
-.foot-in{max-width:960px;margin:0 auto;padding:24px 32px 42px;
+/* the register's one dark surface — footer is a black block */
+.foot{background:#0f100c;margin-top:80px}
+.foot-in{max-width:960px;margin:0 auto;padding:44px 32px 56px;
   display:flex;justify-content:space-between;gap:12px 28px;flex-wrap:wrap;
-  font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  color:var(--ink3);text-transform:uppercase}
-.foot a{color:var(--ink2);text-decoration:none}
-.foot a:hover{color:var(--ink);text-decoration:underline;
-  text-underline-offset:4px}
+  font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+  color:rgba(242,242,236,.55);}
+.foot a{color:rgba(242,242,236,.8);text-decoration:none}
+.foot a:hover{color:#f2f2ec;text-decoration:underline;
+  text-decoration-thickness:1.5px;text-underline-offset:4px}
 </style>
 </head><body>
 
@@ -231,7 +234,7 @@ td.mode{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
       #status,#lgrid,#corridors,#reports{display:none}
     </style>
     <p style="margin-top:26px;font-family:var(--mono);font-size:11px;
-      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+      letter-spacing:.01em;color:var(--ink3);
       line-height:1.9">
       the count, the streets and the live flags need javascript —
       the explainer above does not.</p>

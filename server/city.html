@@ -17,7 +17,7 @@
      tile surfaces (--dw washes computed in JS off the official CPCB
      palette; the map itself keeps the true CPCB fills). */
   :root{
-    --paper:#fafaf7; --surface:#FFFFFF; --surface2:#F2F1EA; --surface3:#E8E5DB;
+    --paper:#FBFBFA; --surface:#FFFFFF; --surface2:#F2F1EA; --surface3:#E8E5DB;
     --ink:#16181D; --ink2:#4A4E57; --ink3:#6E7278; --ink4:#A6ACB8;
     --line:#E4E1D8; --line2:#D8D5C9; --hair:#D8D5C9;
     --sage:#3A6844; --accent:#3A6844; --accent-ink:#2B4E32; --accent-wash:#EAF0E4;
@@ -39,13 +39,13 @@
   /* ---------- masthead ---------- */
   .mast{display:flex;align-items:baseline;justify-content:space-between;
         padding:20px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);
-        position:sticky;top:0;background:rgba(250,250,247,.88);
+        position:sticky;top:0;background:rgba(251,251,250,.88);
         -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:20}
-  .mark{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
-        font-weight:600;color:var(--ink);text-decoration:none}
-  .mark b{color:var(--sage);font-weight:400}
+  .mark{font-family:var(--sans);font-size:16px;letter-spacing:-.025em;
+        font-weight:800;color:var(--ink);text-decoration:none}
+  .mark b{color:var(--sage);font-weight:800}
   .mast-r{display:flex;align-items:baseline;gap:26px;font-family:var(--mono);
-          font-size:11px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
+          font-size:11px;letter-spacing:.01em;color:var(--ink3);}
   .mast-r a{color:var(--ink2);text-decoration:none}
   .mast-r a:hover{color:var(--ink);text-decoration:underline;
           text-underline-offset:4px;text-decoration-thickness:1px}
@@ -58,12 +58,12 @@
   .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
   .hero{padding:clamp(40px,7vh,72px) 0 26px}
   .eyebrow{display:inline-flex;align-items:center;gap:8px;
-           font-family:var(--mono);font-size:11px;letter-spacing:.24em;
-           color:var(--ink2);text-transform:uppercase}
+           font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+           font-weight:600;color:var(--ink2);}
   .eyebrow::before{content:"";width:6px;height:6px;background:var(--sage);
            border-radius:2px;flex:none}
-  h1{font-family:var(--sans);font-weight:500;letter-spacing:-0.03em;
-     font-size:clamp(40px,6.8vw,72px);line-height:1.04;margin:28px 0 0;
+  h1{font-family:var(--sans);font-weight:800;letter-spacing:-.038em;
+     font-size:clamp(40px,6.8vw,72px);line-height:1.0;margin:28px 0 0;
      color:var(--ink)}
   h1 em{font-style:normal;color:var(--ink2)}
   .dek{margin-top:26px;max-width:560px}
@@ -78,23 +78,23 @@
      fallback. */
   .htoday{margin-top:28px;display:flex;align-items:center;gap:24px;
           max-width:660px;flex-wrap:wrap;background:var(--hw,var(--surface2));
-          border:1px solid var(--ht,var(--line));border-radius:18px;
-          padding:20px 24px 18px;position:relative;
-          box-shadow:0 2px 20px -8px rgba(22,24,29,.10)}
-  .htoday .hv{font-family:var(--sans);font-weight:300;
-          font-size:clamp(56px,6vw,80px);line-height:.95;letter-spacing:-.02em;
+          border:1.5px solid var(--ink);border-radius:24px;
+          padding:22px 26px 20px;position:relative;
+          box-shadow:0 24px 48px -30px rgba(22,24,29,.22)}
+  .htoday .hv{font-family:var(--sans);font-weight:800;
+          font-size:clamp(56px,6vw,80px);line-height:.95;letter-spacing:-.038em;
           font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
   .htoday .hv small{font-family:var(--mono);font-size:11px;color:var(--ink3);
-          letter-spacing:.08em;font-weight:400;text-transform:none}
+          letter-spacing:.01em;font-weight:400;text-transform:none}
   .htoday .ht{font-size:14.5px;line-height:1.5;color:var(--ink);
           min-width:220px;flex:1;max-width:340px}
   .htoday .ht .hchip{display:inline-block;margin-bottom:9px;
-          font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-          text-transform:uppercase;color:var(--hi,var(--ink3));
+          font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+          color:var(--hi,var(--ink3));
           background:rgba(255,255,255,.65);border-radius:6px;padding:3px 8px}
   .htoday .ht i{display:block;margin-top:8px;font-style:normal;
-          font-family:var(--mono);font-size:11px;letter-spacing:.11em;
-          text-transform:uppercase;color:var(--ink3);line-height:1.85}
+          font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+          color:var(--ink3);line-height:1.85}
   .htoday::after{content:"";position:absolute;inset:0;pointer-events:none;
           border-radius:inherit;border:1.5px solid transparent}
   .htoday.breathe::after{border-color:var(--he,var(--accent-ink));
@@ -104,18 +104,19 @@
   /* the why/grap callouts — tinted tiles, solid tag chip, one line each */
   .whyline{margin-top:12px;font-size:14px;line-height:1.55;color:var(--ink2);
            display:flex;gap:12px;align-items:center;max-width:600px;
-           background:var(--surface2);border:1px solid var(--line);
-           border-radius:12px;padding:10px 14px}
-  .whyline .wtag{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
-                 text-transform:uppercase;color:var(--ink2);flex:none;
-                 background:var(--surface);border-radius:999px;padding:4px 10px}
+           background:var(--surface2);border:1.5px solid var(--ink);
+           border-radius:16px;padding:10px 14px}
+  .whyline .wtag{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+                 font-weight:600;color:var(--ink);flex:none;
+                 background:var(--surface);border:1.5px solid var(--ink);
+                 border-radius:100px;padding:4px 10px}
   .whyline[hidden]{display:none}
   .whyline .wtxt em{font-style:normal;color:var(--ink);font-weight:500}
 
   /* ---------- map frame — the card that holds the field ---------- */
-  .map-card{position:relative;margin-top:34px;border:1px solid var(--line);
-            border-radius:16px;overflow:hidden;background:var(--surface);
-            box-shadow:0 2px 22px -10px rgba(22,24,29,.14)}
+  .map-card{position:relative;margin-top:34px;border:1.5px solid var(--ink);
+            border-radius:24px;overflow:hidden;background:var(--surface);
+            box-shadow:0 28px 56px -34px rgba(22,24,29,.30)}
   .map-view{position:relative}
   svg#ncr{display:block;width:100%;height:clamp(420px,64vh,680px);
           touch-action:manipulation;cursor:default}
@@ -123,11 +124,11 @@
      the whole NCR extent inside ~270px of dead canvas at phone widths */
   @media(max-width:640px){svg#ncr{height:auto}}
   .m-tag{position:absolute;top:16px;left:18px;font-family:var(--mono);
-         font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+         font-size:11px;letter-spacing:.01em;
          color:var(--ink3);pointer-events:none;line-height:1.9}
   .m-tag b{color:var(--ink2);font-weight:400}
   .m-wind{position:absolute;top:16px;right:18px;font-family:var(--mono);
-          font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+          font-size:11px;letter-spacing:.01em;
           color:var(--ink3);pointer-events:none;text-align:right;line-height:1.9}
   @media(max-width:640px){.m-wind{display:none}
     /* phones: drop the tag off the map and into the hairline — at 60% of
@@ -154,13 +155,13 @@
             border-top:1px solid var(--line);padding:10px 18px 12px}
   .chips{display:flex;gap:6px;flex-wrap:wrap;max-width:min(560px,80%)}
   .chip{display:flex;align-items:center;gap:6px;font-family:var(--mono);
-        font-size:11px;letter-spacing:.08em;color:var(--ink2);
+        font-size:11px;letter-spacing:.01em;color:var(--ink2);
         background:var(--surface2);
         border-radius:999px;padding:4px 11px 4px 8px;
         box-shadow:0 1px 2px rgba(22,24,29,.06)}
   .chip i{width:9px;height:9px;flex:none;border-radius:2px}
-  .m-src{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
-         color:var(--ink3);text-transform:uppercase;text-align:right;
+  .m-src{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+         color:var(--ink3);text-align:right;
          line-height:1.9;background:var(--surface2);
          border-radius:999px;padding:4px 11px;
          box-shadow:0 1px 2px rgba(22,24,29,.06)}
@@ -168,7 +169,7 @@
   /* the one-line gloss that makes the band numbers legible — same
      register as the control-row notes */
   .leg-note{flex-basis:100%;font-family:var(--mono);font-size:11px;
-            letter-spacing:.12em;text-transform:uppercase;
+            letter-spacing:.01em;
             color:var(--ink4);line-height:1.9}
 
   /* watch the day — forecast scrubber. in-flow inside the same hairline
@@ -176,16 +177,15 @@
      hairline scrubber with an ink progress fill, mono ticks */
   .tl{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
       border-top:1px solid var(--line);padding:9px 18px 10px;
-      font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+      font-family:var(--mono);font-size:11px;letter-spacing:.01em;
       color:var(--ink3)}
   .tl[hidden]{display:none}
   /* controls are chips now — surface2 tiles on the card's floor,
      selection reads as the accent-wash chip */
-  .tl button{font-family:inherit;font-size:inherit;letter-spacing:.14em;
-      text-transform:uppercase;color:var(--ink2);
-      background:var(--surface2);border:none;
-      border-radius:8px;padding:5px 11px;cursor:pointer;
-      box-shadow:0 1px 2px rgba(22,24,29,.06)}
+  .tl button{font-family:inherit;font-size:inherit;letter-spacing:.01em;
+      color:var(--ink2);
+      background:var(--surface2);border:1.5px solid var(--ink);
+      border-radius:100px;padding:6px 14px;cursor:pointer}
   .tl button:hover{color:var(--ink)}
   .tl button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   .tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
@@ -205,14 +205,14 @@
   .tl-h{min-width:66px;color:var(--ink2);white-space:nowrap}
   .tl-load{color:var(--ink4);white-space:nowrap}
   .tl-now{white-space:nowrap}
-  .tl-note{flex-basis:100%;font-size:11px;letter-spacing:.12em;
-      text-transform:uppercase;color:var(--ink4)}
+  .tl-note{flex-basis:100%;font-size:11px;letter-spacing:.01em;
+      color:var(--ink4)}
   /* where can your lungs go? — same control row, text-link pills for
      mode/budget presets; the caption carries the honest counts */
   .rch-pills{display:inline-flex;gap:6px}
   .rch-pills button.on,
   #rchArm[aria-pressed="true"]{background:var(--surface);color:var(--ink);
-      box-shadow:0 1px 3px rgba(22,24,29,.12),inset 0 0 0 1px var(--line)}
+      box-shadow:0 1px 3px rgba(22,24,29,.12)}
 
   /* what happened — the recorded archive strip. one square per ist
      hour: recorded = its mean band tile (clickable, replays the stored
@@ -239,17 +239,17 @@
   .days{border-top:1px solid var(--line);padding:12px 18px 14px}
   .days[hidden]{display:none}
   .days-lbl{display:block;font-family:var(--mono);font-size:11px;
-            letter-spacing:.18em;text-transform:uppercase;color:var(--ink4)}
-  .days-lbl .u{text-transform:none;letter-spacing:.04em}
+            letter-spacing:.01em;color:var(--ink4)}
+  .days-lbl .u{text-transform:none;letter-spacing:.01em}
   /* five pastel tiles — each washed from the day's own CPCB band
      (--dw set in JS); the dot keeps the true hue */
   .dayrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
           gap:8px;margin-top:9px}
   .day{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
        padding:10px 12px 9px;background:var(--dw,var(--surface2));
-       border:1px solid var(--de,var(--line2));border-radius:12px;font-family:var(--mono);
+       border:1.5px solid var(--de,var(--line2));border-radius:14px;font-family:var(--mono);
        font-size:11px;text-align:left;cursor:pointer;color:var(--ink3);
-       box-shadow:0 2px 12px -6px rgba(22,24,29,.10);position:relative;
+       box-shadow:0 8px 20px -10px rgba(22,24,29,.14);position:relative;
        transition:transform .2s cubic-bezier(.22,1,.36,1)}
   /* the breathing edge — a 4.4s sine opacity loop on a 1.5px band-ink
      ring. it lives on the today card now (the page's one ambient
@@ -262,16 +262,16 @@
        animation:breath 4.4s ease-in-out infinite}
   @media(prefers-reduced-motion:reduce){.day.breathe::after{display:none}}
   .day:hover{border-color:var(--line2);transform:translateY(-1px)}
-  .day .dl{font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  .day .dl{font-size:11px;letter-spacing:.01em;
            color:var(--ink2)}
-  .day .dl small{color:var(--ink4);letter-spacing:.08em;margin-left:5px;
+  .day .dl small{color:var(--ink4);letter-spacing:.01em;margin-left:5px;
                  text-transform:none}
   .day .dv{margin-top:2px;font-size:19px;line-height:1.3;color:var(--ink);
            font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:7px}
   .day .dv i{width:8px;height:8px;flex:none;border-radius:2px}
-  .day .dr{font-size:11px;letter-spacing:.08em;color:var(--ink3)}
-  .day .dm{margin-top:2px;font-size:11px;letter-spacing:.1em;
-           text-transform:uppercase;color:var(--ink3);line-height:1.65}
+  .day .dr{font-size:11px;letter-spacing:.01em;color:var(--ink3)}
+  .day .dm{margin-top:2px;font-size:11px;letter-spacing:.01em;
+           color:var(--ink3);line-height:1.65}
   .day.on{box-shadow:inset 0 0 0 1.5px var(--ink)}
   .day.lo{opacity:.6}
   .day.lo:hover,.day.lo.on{opacity:.85}
@@ -280,7 +280,7 @@
             font-size:14px;letter-spacing:-.01em;
             color:var(--ink2)}
   .days-note{display:block;margin-top:6px;font-family:var(--mono);
-             font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+             font-size:11px;letter-spacing:.01em;
              color:var(--ink4);line-height:1.9}
   @media(max-width:640px){.dayrow{display:flex;overflow-x:auto;
       scrollbar-width:none}.dayrow::-webkit-scrollbar{display:none}
@@ -289,22 +289,23 @@
   /* district detail — top-left under m-tag on desktop, docks bottom on mobile;
      hairline popover, same language as the console's cell inspector */
   .detail{position:absolute;left:18px;top:66px;min-width:210px;max-width:250px;
-          background:rgba(255,255,255,.94);border:1px solid var(--line2);
-          border-radius:12px;padding:13px 15px;pointer-events:none;
-          box-shadow:0 8px 24px -12px rgba(22,24,29,.18);
+          background:rgba(255,255,255,.96);border:1.5px solid var(--ink);
+          border-radius:16px;padding:13px 15px;pointer-events:none;
+          box-shadow:0 18px 36px -20px rgba(22,24,29,.26);
           opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s}
   .detail.on{opacity:1;transform:none}
   .detail .d-name{font-weight:500;font-size:17px;letter-spacing:-.01em;
                   color:var(--ink)}
-  .detail .d-state{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
-                   text-transform:uppercase;color:var(--ink3);margin-top:2px}
-  .detail .d-aqi{font-family:var(--sans);font-weight:300;font-size:30px;line-height:1.15;
+  .detail .d-state{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+                   color:var(--ink3);margin-top:2px}
+  .detail .d-aqi{font-family:var(--sans);font-weight:800;font-size:30px;line-height:1.15;
+                 letter-spacing:-.03em;
                  color:var(--ink);margin-top:8px;display:flex;align-items:baseline;gap:8px}
-  .detail .d-aqi small{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-                       color:var(--ink3);text-transform:uppercase}
+  .detail .d-aqi small{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+                       color:var(--ink3);}
   .detail .d-cat{display:inline-block;margin-top:6px;padding:3px 9px;
                  border-radius:6px;font-family:var(--mono);font-size:11px;
-                 letter-spacing:.1em;text-transform:uppercase;color:#fff}
+                 letter-spacing:.01em;color:#fff}
   .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:11px;
                 color:var(--ink2);line-height:1.8}
   .detail .d-conf{margin-top:4px;font-size:11px;color:var(--ink4);line-height:1.5}
@@ -324,8 +325,8 @@
   .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
           margin-top:34px}
   .ticker-in{display:flex;flex-wrap:wrap;gap:8px;padding:14px 0;
-             font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-             text-transform:uppercase;color:var(--ink3)}
+             font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+             color:var(--ink3)}
   .ticker-in span{background:var(--surface2);
              border-radius:999px;padding:6px 12px;color:var(--ink2)}
   .ticker-in i{display:none}
@@ -337,12 +338,12 @@
          border-bottom:1px solid var(--line);padding-bottom:14px}
   /* section number reads as the register's accent chip */
   .sec-n{font-family:var(--mono);font-size:11px;color:var(--ink4);
-         letter-spacing:.14em;flex:none}
+         letter-spacing:.01em;flex:none}
   .sec-t{font-size:clamp(24px,3.4vw,34px);
-         font-weight:500;letter-spacing:-0.02em}
+         font-weight:800;letter-spacing:-.03em}
   .sec-t em{font-style:normal;color:var(--ink2)}
-  .sec-sub{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-           color:var(--ink3);text-transform:uppercase;margin-left:auto;text-align:right}
+  .sec-sub{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+           color:var(--ink3);margin-left:auto;text-align:right}
   @media(max-width:700px){.sec-sub{display:none}}
 
   /* ledger — stat tiles: accent chip label, huge serif numeral + unit,
@@ -351,17 +352,18 @@
   @media(max-width:960px){.ledger{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:520px){.ledger{grid-template-columns:1fr}}
   .stat{background:var(--surface);
-        border-radius:14px;padding:14px 16px 13px;
+        border:1.5px solid var(--ink);
+        border-radius:20px;padding:16px 18px 15px;
         display:flex;flex-direction:column;min-height:132px;
-        box-shadow:0 2px 16px -8px rgba(22,24,29,.12),inset 0 0 0 1px rgba(22,24,29,.03)}
+        box-shadow:0 18px 36px -24px rgba(22,24,29,.22)}
   .stat .k{display:inline-block;font-family:var(--mono);font-size:11px;
-           letter-spacing:.14em;text-transform:uppercase;line-height:1.6;
+           letter-spacing:.01em;line-height:1.6;
            color:var(--ink2);background:var(--surface2);
            border-radius:6px;padding:3px 8px;margin-right:auto}
-  .stat .v{font-family:var(--sans);font-size:clamp(32px,3.2vw,42px);font-weight:300;
-           letter-spacing:-0.02em;margin-top:auto;padding-top:14px;line-height:1}
+  .stat .v{font-family:var(--sans);font-size:clamp(32px,3.2vw,42px);font-weight:800;
+           letter-spacing:-.035em;margin-top:auto;padding-top:14px;line-height:1}
   .stat .v small{font-family:var(--mono);font-size:11px;color:var(--ink3);
-                 font-weight:400;letter-spacing:.06em}
+                 font-weight:400;letter-spacing:.01em}
   .stat .d{font-size:11px;color:var(--ink3);margin-top:9px;line-height:1.5}
   .stat .d b{color:var(--ink2);font-weight:500}
 
@@ -369,8 +371,8 @@
   .prov{display:grid;grid-template-columns:360px 1fr;gap:44px;align-items:center}
   @media(max-width:820px){.prov{grid-template-columns:1fr}}
   .minimap{width:100%;aspect-ratio:1/1.05;background:var(--surface);
-           border:1px solid var(--line2);border-radius:14px;
-           box-shadow:0 2px 18px -8px rgba(22,24,29,.10)}
+           border:1.5px solid var(--ink);border-radius:20px;
+           box-shadow:0 18px 36px -24px rgba(22,24,29,.20)}
   .prov-txt{font-size:14.5px;line-height:1.8;color:var(--ink2);
             max-width:560px}
   .prov-txt p+p{margin-top:14px}
@@ -379,8 +381,8 @@
 
   /* corridors */
   table{width:100%;border-collapse:collapse}
-  th{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
-     color:var(--ink3);font-weight:400;text-align:left;padding:0 12px 12px}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+     color:var(--ink2);font-weight:600;text-align:left;padding:0 12px 12px}
   td{padding:13px 12px;border-top:1px solid var(--line);font-size:13.5px;
      color:var(--ink2);font-weight:400;vertical-align:middle}
   td.rank{font-family:var(--mono);font-size:11px;color:var(--ink4);width:34px}
@@ -388,16 +390,16 @@
   td.cell small{color:var(--ink3)}
   td.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
   td .modep{display:inline-block;font-family:var(--mono);font-size:11px;
-            letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;
+            letter-spacing:.01em;padding:3px 9px;
             border-radius:6px;
             background:var(--surface2);color:var(--ink2)}
   .dose-chip{display:inline-block;min-width:64px;text-align:right;padding:3px 10px;
              font-size:12px;font-variant-numeric:tabular-nums;border-radius:6px;
              background:var(--surface2);color:var(--ink)}
   .scrollx{overflow-x:auto}
-  .card2{border:1px solid var(--line2);border-radius:14px;
+  .card2{border:1.5px solid var(--ink);border-radius:20px;
          padding:16px 14px 4px;background:var(--surface);
-         box-shadow:0 2px 18px -8px rgba(22,24,29,.10)}
+         box-shadow:0 18px 36px -24px rgba(22,24,29,.20)}
   @media(max-width:640px){td{padding:11px 8px;font-size:12.5px}th{padding:0 8px 10px}}
 
   /* reveal */
@@ -406,14 +408,18 @@
   @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
 
   /* foot */
-  footer{margin-top:clamp(60px,10vh,110px);border-top:1px solid var(--line);
-         padding:26px 0 56px;display:grid;grid-template-columns:1fr auto;gap:26px}
-  .foot-l{max-width:640px;color:var(--ink3);font-size:11.5px;line-height:1.85}
-  .foot-l b{color:var(--ink2);font-weight:500}
-  .foot-r{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-          text-transform:uppercase;color:var(--ink3);text-align:right;line-height:2.2}
-  .foot-r a{color:var(--ink2);text-decoration:none}
-  .foot-r a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
+  /* the footer is a black block — the register's one dark surface */
+  footer{margin-top:clamp(60px,10vh,110px);
+         background:#0F100C;border-radius:24px;
+         margin-left:clamp(8px,2vw,20px);margin-right:clamp(8px,2vw,20px);
+         padding:44px clamp(22px,4vw,40px) 60px;
+         display:grid;grid-template-columns:1fr auto;gap:26px}
+  .foot-l{max-width:640px;color:rgba(242,242,236,.55);font-size:12px;line-height:1.85}
+  .foot-l b{color:#F2F2EC;font-weight:600}
+  .foot-r{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
+          color:rgba(242,242,236,.55);text-align:right;line-height:2.2}
+  .foot-r a{color:rgba(242,242,236,.8);text-decoration:none}
+  .foot-r a:hover{color:#F2F2EC;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px}
   @media(max-width:700px){footer{grid-template-columns:1fr}.foot-r{text-align:left}}
 
   /* phones: thumb-sized hits — text pills keep their look, the box grows;
@@ -468,7 +474,7 @@
     <style>.map-card,.ticker,.minimap,#corridors{display:none}
       .rv{opacity:1;transform:none}</style>
     <p style="margin-top:20px;font-family:var(--mono);font-size:11px;
-      letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
+      letter-spacing:.01em;color:var(--ink3);
       line-height:1.9">
       the live map, the hour-by-hour replay and the numbers need
       javascript — the ledger reads '—' because nothing has run yet,
