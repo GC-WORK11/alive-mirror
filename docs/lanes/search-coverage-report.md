@@ -122,6 +122,33 @@ Duplicates: the ~400 m same-name dedupe held in every probe (distinct "Gali Numb
 colonies correctly stay separate rows; the old "Nand Nagri" addr-place dupes collapse into the
 locality row). Icons/subtitles come from the kind column — no raw OSM values leak through SUB.
 
+## Device verification (iPhone 17 sim, iOS 26.5, this push)
+
+Drove the app's search sheet end-to-end on `7926c14` — 39-chunk index hydrated ~35 s
+post-boot, sim location seeded to Shahdara (28.68,77.29). **14/14 phrases passed**;
+device results matched the hydrated-index probe exactly:
+
+- `nandanagri a block pocket` → "A Block Street Number 21 · Shahdara North, 5.2 km" led; Nand Nagari area rows after
+- `ashook nagar shadara gali no 4` → "Gali Number 4 · Maharathi Colony, 1.4 km" led, all rows Shahdara-local
+- `pawan bakery near hanuman mandir` → "Japani Samosa · bakery · Hanuman Mandir Flyover, 6.1 km" led; every row at the flyover; **no fabricated "Pawan Bakery"**
+- `ashok nagar` → Shahdara row leads (1.7 km); Ghaziabad demoted to server-tier tail (19–37 km)
+- `h block sector 62 noida` → "Noida Sector 62 Chowk" led; all Sector-62 rows, zero Sector-63 contradictions
+- `mandir near kailash nagar` → all rows "temple · Kailash Nagar"; zero mosque bleed
+- `nand nagri b block` → "B Block · Jhilmil Indl Area, 2.0 km" led
+- `gali no 7 jahangirpuri` → housenumber rows on Gali Number 7 led
+- `clinic near ashok nagar shahdara` → clinics 0.65–1.1 km led
+- `kirana store near bhajanpura` → "Reliance Fresh · Bhajanpura Chowk, 2.0 km" led
+- `e block defence colony` → "31 Block E · Jangpura" led
+- `zyxwv nonsense placename` → honest miss, zero rows, no guesses
+
+Non-blocking observations on device: attested same-name pairs survive dedupe
+(Nand Nagari/Nand Nagri ~110 m; server-tier "New Ashok Nagar" ×4 looks dupe-y);
+`SiddhiVinayak kids Wear` carries temple kind (name-token match on "Vinayak" —
+a kind-signal quirk, not bleed); `centre` in the clinic regex pulled a sports
+centre in; server-tier rows render kind-only subtitles without "· Locality".
+
+Recording: `rec-8c870551` annotated video, all 14 checks.
+
 ## Known honest limits (not bugs)
 
 - **"Pawan Bakery" is not in OSM** (38 pawan/pavan rows exist — Atta Chakki, Halwai — none a bakery
