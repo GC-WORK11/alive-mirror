@@ -246,12 +246,15 @@ function NavChromeInner({
   const pausedMin = nav?.pausedS != null && nav.pausedS >= 45
     ? Math.max(1, Math.round(nav.pausedS / 60))
     : null;
+  /* single-line concat — a literal newline inside the template made
+     numberOfLines={1} truncate everything past it (arrive + paused were
+     silently invisible) */
   const meta = nav
-    ? `${t(leftIsKm(leftM) ? "nav_left" : "nav_left_m", lang,
+    ? t(leftIsKm(leftM) ? "nav_left" : "nav_left_m", lang,
         leftIsKm(leftM)
           ? { min, km: kmNum(leftM) }
-          : { min, m: leftMNum(leftM) })}
-      · ${t("arriveAt", lang, { t: clock(nav.etaS, lang) })}`
+          : { min, m: leftMNum(leftM) })
+      + ` · ${t("arriveAt", lang, { t: clock(nav.etaS, lang) })}`
       + (pausedMin != null ? ` · ${t("navPausedMin", lang, { n: pausedMin })}` : "")
     : `${Math.round(option.duration_min)} ${t("minUnit", lang)} · ${option.distance_km ?? 0} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: clock(option.duration_min * 60, lang) })}`;
 

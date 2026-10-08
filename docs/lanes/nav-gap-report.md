@@ -69,72 +69,81 @@ engine makes (`classifyGap` → `c.tick(…, gap)`, `jumpCreditM` → `pendM`):
   per-km emission form (`ef·max(ddKm, v·dt)` — resume-credited km emits
   per-km in its landing tick instead of a 1-s sliver).
 
-**Simulator evidence** — _see "On-device run" below._
+**Simulator evidence** — iOS sim E0224A22 (iPhone 17, iOS 27.0),
+Release build at HEAD. The scripted run survived end-to-end **3/3**
+once `fda1083`/`585a717` (prebuilt-chunk index — `query()` never
+sync-builds) removed the alloc-burst crash class that killed ~110
+earlier attempts. Shots in `docs/lanes/nav-gap-shots/`.
 
-## On-device run
+Script (`~/navgap-cycle.sh`, window-anchored CGEvent taps): launch →
+home → where-to → India Gate → compare → Start → drive ~310 m
+(`~/nav-gap-drive.sh` steps 0–28, ~11 m/s) → **fix-gap injected by
+`simctl location clear`** (the sim keeps redelivering the last point
+on Cmd-Shift-H backgrounding — timers never sleep and fixes never gap,
+so a simulated background-park exercises neither `realDt` nor `fixAgeS`;
+`location clear` dries the stream exactly like "parked, GNSS dead") →
+park ~130 s → `location set` + drive ~520 m (steps 29–75) → end trip.
 
-**BLOCKED — rig-level crash, not a verdict on the fix.** The brief's
-script (drive → background 5 min → foreground → resume) could not run:
-the app cannot stay alive long enough on this box today.
+**Verified live** (`driving-before-park.png`, `pill-live-during-gap.png`,
+`meta-suffix-after-resume.png`, `receipt-paused-line.png`):
 
-Attempted on the patched Release build (jsbundle confirmed carrying
-`navPaused`/`receiptPaused`), iPhone 17 sims EDD9B083 (iOS 26.5) and
-E0224A22 (iOS 27.0):
+- ~45 s into the park the strip pill appears: **"ride meters paused —
+  still counting the air"** — the fixAge-gap path firing on-device.
+- After fixes resume: meta reads **"6 min · 3.1 km left · arrive
+  8:49 pm · paused ~1 min"** — paused seconds (≈85 s) disclosed in the
+  glance line.
+- Receipt foot: **"ride meters paused ~1 min — the air count kept
+  going"** — same number end-to-end (an earlier run that stayed
+  fix-dead to the end read "~6 min", matching its longer blind stretch).
+- Counters honest: distance 0.5 km total (~310 m ridden + a capped
+  155 m reposition credit — **not** ~2 km of parked "driving"; the
+  original bug minted ~0.9 km in 4.6 parked minutes); emissions tracked
+  the ridden metres only (87→93 g across a 55 s park in the first run);
+  dose kept accruing at the rest profile (≈0.2→1.3 µg) — the air kept
+  hitting, nothing claimed it was riding.
 
-- ~70 launches today: ~3 survived cold start; **0 survived the
-  destination → plan render burst** (0/3 — needed before nav exists).
-  Cold-start kills land at ~17–19 s inside the JS alloc storm; the two
-  launches that beat it died at the plan tap (~60 s in) or ~286 s into
-  light use. A full nav + background cycle never became reachable.
-- Fresh-boot + quiet host is the only survival pattern found (2/2
-  fresh-boot launches cleared cold start vs ~0/70 on warm-booted sims);
-  crash debris churn (diagnosticd ~70 % CPU per kill) appears
-  self-poisoning on warm sims.
-- lldb attach on a Release launch caught
-  `EXC_BAD_ACCESS addr=0xecececececececfa` in
-  `hermes::vm::JSObject::getComputedPrimitiveDescriptor` on
-  `com.facebook.react.runtime.JavaScript` — the `0xEC` freed-object zap,
-  same UAF class `sigbus-release-report` and
-  `ios-residual-reverify-report` pin to off-JS-thread jsi work racing
-  young-gen scavenges. `gcdbg` still logs `GC Young Gen` in-window even
-  with `[coldfix]` + `withAllocInYoung(false)` live in the binary.
+**Bonus fix found during verification** — the meta row never rendered
+its `· arrive` segment (or the new paused suffix) anywhere: the
+template literal embedded a real newline before the `·`, and
+`numberOfLines={1}` truncated everything past it. `NavChrome` now
+builds `meta` by single-line concat — arrive shows for the first time
+("· arrive 8:49 pm" in the shots).
 
-What this leaves: the fix's tick semantics are node-verified through the
-shipped call path (`gap.test.ts` feeds the real `classifyGap` /
-`tick` / `jumpCreditM`); the platform behavior it intercepts — one
-catch-up tick carrying the whole silent stretch at resume — was already
-observed by the lifecycle lane (the 276 s tick, lifecycle-report). Still
-unverified on-device: the paused pill + meta suffix + receipt line
-rendering end-to-end. Re-run this script once the iOS-residual lane
-closes the crash; the drive harness is `~/nav-gap-drive.sh` (UDID,
-start, end — Rajpath line ~11 m/s) and the background step is
-Cmd-Shift-H → wait → `simctl launch`.
+## Rig history (context, resolved mid-lane)
+
+This lane spent ~5 h unable to reach nav on sim: ~110 launches/cycles,
+every transition ~50 % fatal (`EXC_BAD_ACCESS` `0xEC…` zap in Hermes,
+same class sigbus/residual lanes catalogue). Two remote landings
+cleared it: `9a0799a` (boot-storm `cap()` fix) then `fda1083`/`585a717`
+(prebuilt-chunk index — the alloc burst the crashes rode on is gone;
+ios-warm-reverify measured 15/15 warm alive). On the new arch the
+script above passed 3/3 fresh-boot cycles; the earlier 40-cycle grind
+on the old build completed 0.
 
 ## Residual / notes for other lanes
 
-- **iOS sim rig is currently unusable for end-to-end runs** — this
-  lane's own sim verification is the first casualty. ~70 launches
-  today: ~97 % die in two windows (cold-start ~17–19 s; the
-  destination → plan render burst 0/3). Patched Release build,
-  `[coldfix]` confirmed live, reproduced on iOS 26.5 AND 27.0
-  runtimes. The `sigbus-release` "MEASURED CLEAN 0/60" verdict does
-  NOT hold in this session — the corruptor is worse than their
-  residual estimate. Whoever owns iOS stability next: the plan-render
-  burst is a second, separate kill zone distinct from cold start.
-- lldb attach on one launch caught
-  `EXC_BAD_ACCESS addr=0xecececececececfa` inside
-  `hermes::vm::JSObject::getComputedPrimitiveDescriptor` on the JS
-  thread — the `0xEC` freed-object zap pattern; the same class
-  `sigbus-release-report` pinned to young-gen scavenges. Notably
-  `gcdbg` still logs `GC Young Gen` events despite the lane's
-  `withAllocInYoung(false)` — worth a second look: the config applies
-  but YG still scavenges (their "what remains" caveat reproduced).
-- Survival trick that worked twice: `simctl shutdown all` → fresh
-  boot → quiet host → single launch. Warm-booted sims with crash
-  debris churn (diagnosticd) went ~0/70.
+- **Sim backgrounding does NOT exercise the gap fix** — Cmd-Shift-H on
+  the iOS sim neither suspends the JS timers nor starves the location
+  watch (the last `set` point keeps re-delivering). To test fix-gaps
+  on-sim use `xcrun simctl location <udid> clear` mid-nav — the real
+  "parked, GNSS dead" shape. Real-device suspension still maps to the
+  `realDt` catch-up path (unit-tested, not reproducible on this rig).
+- One unexplained counter observation, flagged not fixed: in a run that
+  ended while still fix-dead, emissions crept ~+96 g over ~2 min idle
+  post-resume. `pendM` only grows inside `onFix`, so something was
+  still delivering fixes (periodic re-delivery of the `set` point with
+  adv>0 vs the last stale fix?) — worth a look if any lane owns the
+  location-watch lifecycle on sim.
 - `Mobile/patches/` must be applied to `node_modules` by hand on this
   box: `npm ci`/`npm install` postinstall is allowScripts-blocked and
   `npx patch-package` chokes on the `-x` exclude flags in the patch
   headers. `for p in patches/*.patch; do (cd node_modules/$(basename $p
   | sed 's/+.*//') && patch -p1 < ../../$p); done` — without it the app
-  dies at launch ~100%.
+  dies at launch ~100%. (The patches landed in `9a0799a` are already
+  applied to this checkout's node_modules — verified via
+  `patch --forward` reporting "previously applied".)
+- iOS AX/`simctl ui` automation is unreliable on this box: iOS AX binds
+  the first booted sim only, and RN Pressables don't respond — drive
+  the sim via CGEvent taps anchored to the Simulator window instead
+  (`~/simtap` + `osascript` window-bounds lookup; see
+  `~/navgap-cycle.sh` for the working harness).
