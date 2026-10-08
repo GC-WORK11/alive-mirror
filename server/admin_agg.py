@@ -290,6 +290,7 @@ async def timing():
                      "sum": v["sum"], "count": v["count"]}
                  for k, v in reg._histograms.items()}
         gauges = dict(reg._gauges)
+        counts = dict(reg._counters)
     def _pct_le(h, share):
         if not h["count"]:
             return None
@@ -315,6 +316,24 @@ async def timing():
     for (name, lk), v in sorted(gauges.items()):
         out["gauges"][name] = v
     out["routes"].sort(key=lambda r: -r["n"])
+    # the request logger's own counters — same registry, same window:
+    # status-class totals + per-route error counts, all since boot.
+    # No counter is synthesized; absent series stay absent.
+    by_status = {}
+    err_rows = []
+    for (name, lk), v in sorted(counts.items()):
+        labels = dict(lk)
+        if name == "alive_http_requests_total":
+            st = str(labels.get("status") or "?")
+            cls = (st[0] + "xx") if st[:1].isdigit() else "?xx"
+            by_status[cls] = by_status.get(cls, 0) + int(v)
+        elif name == "alive_http_errors_total":
+            err_rows.append({"route": labels.get("route", "?"),
+                             "class": labels.get("class", "?"),
+                             "n": int(v)})
+    out["requests"] = {"total": sum(by_status.values()),
+                       "by_status": by_status}
+    out["errors"] = sorted(err_rows, key=lambda r: -r["n"])
     return out
 
 

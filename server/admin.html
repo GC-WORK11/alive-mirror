@@ -5,73 +5,49 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Alive · engine room</title>
-<meta name="description" content="The machine room — every feed, model and counter the live site serves, pulled straight off the wire.">
+<meta name="description" content="The engine room — an operator's ledger of Delhi's air system, every number measured live off this server.">
 <meta property="og:title" content="Alive · engine room">
-<meta property="og:description" content="Every feed, model and counter the live site serves — the same numbers the public pages render, straight off the wire.">
+<meta property="og:description" content="An operator's ledger of Delhi's air system — measured live, aggregate-only, no person ever shown.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%23f4f1ea%27/%3E%3Crect x=%273%27 y=%273%27 width=%2710%27 height=%2710%27 fill=%27%234a7a5e%27/%3E%3C/svg%3E">
 <style>
-  /* r5 light ops surface — paper/ink, one accent, muted bronze→brick→wine
-     severity ramp (Mobile/src/theme.ts tokens). No emoji, no traffic-light
-     hues: absence of colour IS the good state. */
+  /* v13 register — cognition.com × devin.ai (docs/design/web-register.md):
+     warm paper, hairlines, margin indices, serif prose, quiet small type.
+     no cards, no capsules, no navbar — a section is whitespace + a 1px
+     rule + content. band colour only where it means air. */
   :root{
-    --paper:#FBFBFA; --surface:#FFFFFF; --surface2:#EFEDE7; --surface3:#E8E5DB;
+    /* the page's tokens */
+    --paper:#f7f6f5; --surf:#fff;
+    --rInk:#000; --rInk2:rgba(25,25,25,.56); --rInk3:rgba(25,25,25,.44);
+    --rInk4:rgba(25,25,25,.30);
+    --rLine:rgba(0,0,0,.12); --rLine2:rgba(0,0,0,.18);
+    --acc:#3a6844; --accInk:#2b4e32; --accWash:#eaf0e4; --link:#20f;
+    --blk:#111210;
+    /* muted CPCB band — the same ramp the landing wears */
+    --b0:#7aab59; --b1:#c8b25a; --b2:#d58c4a;
+    --b3:#b85442; --b4:#8f3c49; --b5:#6e3c54;
+    /* the gate's tokens — the gate markup/css is byte-identical to the
+       r5 console's, so these names keep its exact values */
+    --surface:#FFFFFF;
     --ink:#16181D; --ink2:#4A5161; --ink3:#65707F; --ink4:#A6ACB8;
-    --line:#E4E2D9; --hair:#DCDAD0;
-    --accent:#3A6844; --accent-ink:#2B4E32; --accent-wash:#EAF0E4;
-    --bronze:#A1662F; --brick:#A34446; --wine:#8A2D3E;
-    --bronze-wash:rgba(161,102,47,.10); --wine-wash:rgba(138,45,62,.09);
-    --serif:ui-serif,"New York",Georgia,"Times New Roman",serif;
-    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
-    --mono:ui-monospace,"SF Mono",Menlo,"Roboto Mono",monospace;
+    --hair:#DCDAD0; --brick:#A34446;
+    --serif:Georgia,"Times New Roman","New York",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",
+           "Helvetica Neue",Helvetica,Inter,"Segoe UI",Roboto,system-ui,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,"Cascadia Mono",monospace;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html{background:var(--paper)}
-  body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+  html{background:var(--paper);-webkit-text-size-adjust:100%}
+  body{background:var(--paper);color:var(--rInk);font-family:var(--sans);
        font-variant-numeric:tabular-nums;min-height:100vh;
-       -webkit-font-smoothing:antialiased}
-  ::selection{background:var(--accent-wash);color:var(--ink)}
+       -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:#dfe7da}
+  a{color:inherit;text-decoration:none}
+  a:hover{text-decoration:underline;text-underline-offset:3px}
 
-  .mast{display:flex;align-items:center;justify-content:space-between;gap:12px;
-        padding:15px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);
-        position:sticky;top:0;background:rgba(251,251,250,.88);flex-wrap:wrap;
-        -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:10}
-  @media(max-width:480px){.mast-r{width:100%;justify-content:flex-start}}
-  /* phones: the wrapped mast runs ~166px — a fifth of the viewport pinned
-     forever. let it scroll away; the ticker/statusline still carry LIVE */
-  @media(max-width:560px){.mast{position:static}}
-  .mast-l{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-  .mast-sub{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-            color:var(--ink4);text-transform:lowercase}
-  .mark{font-family:var(--sans);font-size:16px;letter-spacing:-.025em;
-        font-weight:800;color:var(--ink)}
-  .mark b{color:var(--accent);font-weight:800}
-  .mark i{font-style:normal;color:var(--ink4);letter-spacing:.01em;
-          font-weight:600;font-size:.82em}
-  .mast-r{display:flex;align-items:center;gap:12px;font-family:var(--mono);
-          font-size:11px;letter-spacing:.01em;color:var(--ink3);
-          flex-wrap:wrap;justify-content:flex-end}
-  .priv-badge{padding:3px 10px;border-radius:6px;
-              color:var(--ink2);letter-spacing:.01em;background:var(--surface2);
-              box-shadow:0 1px 2px rgba(22,24,29,.06)}
-  #updated{color:var(--ink2);letter-spacing:.01em}
-  .feed{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;
-        border-radius:6px;color:var(--ink3);
-        background:var(--surface);
-        box-shadow:0 1px 2px rgba(22,24,29,.06)}
-  .feed i{width:6px;height:6px;background:var(--ink4);border-radius:2px}
-  .feed.live i{background:var(--accent)}
-  .feed.off{color:var(--wine);background:var(--wine-wash);
-        box-shadow:0 1px 2px rgba(22,24,29,.06)}
-  .feed.off i{background:var(--wine)}
-  .tokbtn{font-family:inherit;font-size:inherit;letter-spacing:.01em;
-      padding:5px 15px;cursor:pointer;font-weight:700;
-      border:1.5px solid var(--ink);border-radius:100px;
-      color:#FBFBFA;background:var(--ink)}
-  .tokbtn:hover{background:#1C212B;border-color:#1C212B}
-
-  /* the gate — the engine room fails closed: no live session, no board.
+  /* ==================== the gate — byte-identical ====================
+     the engine room fails closed: no live session, no board.
      warm paper, one card, hairlines, mono small-caps. the token goes to
      the server once (POST to the mount's login endpoint — or the /in/
      link mints the cookie server-side without this page ever seeing it)
@@ -115,418 +91,173 @@
              color:var(--ink4);line-height:1.9}
   .gate-foot a{color:var(--ink);text-decoration:none;font-weight:600;
                border-bottom:1.5px solid var(--ink)}
+  .tokbtn{font-family:inherit;font-size:inherit;letter-spacing:.01em;
+      padding:5px 15px;cursor:pointer;font-weight:700;
+      border:1.5px solid var(--ink);border-radius:100px;
+      color:#FBFBFA;background:var(--ink)}
+  .tokbtn:hover{background:#1C212B;border-color:#1C212B}
+  /* ================== end byte-identical gate ================== */
 
-  .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 70px}
-  .statusline{padding:14px 0 4px;font-family:var(--mono);font-size:11px;
-              letter-spacing:.01em;color:var(--ink3);
-              line-height:1.9}
-  .statusline b{color:var(--ink2);font-weight:400}
-  .statusline .err{color:var(--brick);letter-spacing:.01em;text-transform:none}
+  /* ---------- the rail — tiny mark + text links, no navbar ---------- */
+  .top{padding:20px 22px 0;position:relative;z-index:5}
+  .top-in{display:flex;align-items:baseline;gap:26px;flex-wrap:wrap}
+  .wm{font-family:var(--sans);font-weight:600;font-size:15px;
+      letter-spacing:-.01em;color:#16181d}
+  .top nav{display:flex;gap:18px;align-items:baseline}
+  .top nav a{font-size:13px;color:rgba(22,24,29,.62)}
+  .top nav a:hover{color:#16181d}
+  #toplive{margin-left:auto;font-family:var(--mono);font-size:10px;
+           color:var(--rInk3);line-height:1.9}
+  #toplive b{color:#16181d;font-weight:500}
+  #tokbtn{margin-left:14px}
+  @media(max-width:640px){
+    .top{padding:14px 16px 0}
+    .top-in{gap:14px}
+    .top nav{gap:14px}
+    #toplive{flex-basis:100%;margin-left:0}
+    #tokbtn{margin-left:0}}
+  @media(min-width:1024px){
+    .top{position:fixed;top:0;left:0;bottom:auto;right:auto;z-index:6;
+      width:216px;padding:26px 0 0 26px;background:none}
+    .top-in{flex-direction:column;align-items:flex-start;gap:22px}
+    .top nav{flex-direction:column;gap:9px;align-items:flex-start}
+    .top nav a{font-size:13.5px}
+    .top nav a.cur{color:#16181d;border-left:2px solid var(--acc);
+      padding-left:7px;margin-left:-9px}
+    #toplive{margin-left:0}
+    #tokbtn{margin-left:0}
+    .stack{margin-left:216px}}
 
-  /* the hero — 'is it alive' answered in one designed surface: the city's
-     live air owns the page (one serif numeral, band word as the only air
-     colour), a vitals rail carries the proof the system is running.
-     everything on it maps to a public feed (/v2/city · /aqi · /health) */
-  .hero{position:relative;display:grid;grid-template-columns:1.3fr .7fr;
-        gap:22px;background:var(--surface);border:1.5px solid var(--ink);
-        border-radius:24px;padding:clamp(20px,3.2vw,34px) clamp(16px,3vw,30px);
-        margin:14px 0 8px;overflow:hidden;
-        box-shadow:0 28px 56px -34px rgba(22,24,29,.30)}
-  .hero-kick{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-             color:var(--ink4);display:flex;
-             align-items:center;gap:10px;flex-wrap:wrap}
-  .hero-kick .lv{color:var(--accent-ink);display:inline-flex;align-items:center;gap:6px}
-  .hero-kick .lv i{width:6px;height:6px;border-radius:2px;background:var(--accent)}
-  .hero-fig{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:8px}
-  .hero-num{font-family:var(--sans);font-weight:800;color:var(--ink);
-            font-size:clamp(60px,8.2vw,104px);line-height:.95;letter-spacing:-.045em;
-            font-variant-numeric:tabular-nums}
-  .hero-num.na{color:var(--ink4);font-size:clamp(30px,4vw,46px)}
-  .hero-unit{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-             color:var(--ink3)}
-  .hero-band{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-             padding:4px 11px;border-radius:7px;
-             white-space:nowrap}
-  .hero-line{font-size:14.5px;line-height:1.7;color:var(--ink2);
-             margin-top:12px;max-width:56ch;font-weight:400}
-  .hero-line b{color:var(--ink);font-weight:600}
-  .hero-note{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-             color:var(--ink3);margin-top:9px;line-height:1.8}
-  .hero-vitals{border-left:1px solid var(--line);padding-left:20px;
-               align-self:center;display:flex;flex-direction:column;gap:8px}
-  .hero-vitals .vr{display:flex;justify-content:space-between;align-items:baseline;
-                   gap:14px}
-  .hero-vitals dt{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-                  color:var(--ink4);flex:none}
-  .hero-vitals dd{color:var(--ink);font-size:11.5px;font-weight:400;
-                  font-variant-numeric:tabular-nums;text-align:right}
-  .hero-vitals dd.sub{color:var(--ink2)}
-  @media(max-width:860px){.hero{grid-template-columns:1fr;gap:16px}
-    .hero-vitals{border-left:none;border-top:1px solid var(--line);
-                 padding-left:0;padding-top:14px;display:grid;
-                 grid-template-columns:1fr 1fr;gap:7px 18px}
-    .hero-vitals .vr{display:block}
-    .hero-vitals dd{text-align:left}}
-  @media(max-width:400px){.hero-vitals{grid-template-columns:1fr}}
+  /* ---------- one measure, hairlines, margin indices ---------- */
+  .stack{display:flex;flex-direction:column;counter-reset:sec}
+  .stack>section{border-top:1px solid var(--rLine)}
+  .stack>section:first-child{border-top:0}
+  .col{max-width:1180px;margin:0 auto;
+    padding:clamp(40px,7vw,96px) 20px clamp(40px,7vw,96px)}
+  .stack>section:not(.open):not(.noidx) .col{position:relative;
+    padding-left:clamp(0px,12vw,200px);counter-increment:sec}
+  .stack>section:not(.open):not(.noidx) .col::before{
+    content:counter(sec,decimal-leading-zero);
+    position:absolute;left:clamp(10px,3vw,40px);top:clamp(40px,7vw,96px);
+    font-family:var(--mono);font-size:10px;color:var(--rInk3)}
+  @media(max-width:860px){
+    .stack>section:not(.open):not(.noidx) .col{padding-left:20px}
+    .stack>section:not(.open):not(.noidx) .col::before{position:static;
+      display:block;margin-bottom:26px}}
+  @media(min-width:1024px){
+    .stack>section:not(.open):not(.noidx) .col{padding-left:58px;
+      max-width:960px;margin:0}
+    .stack>section:not(.open):not(.noidx) .col::before{left:14px}
+    .stack>section.open .col,.stack>section.noidx .col{max-width:960px;margin:0}}
 
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 8px}
-  .grid--fit{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
-  @media(max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}
-    .grid--fit{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}}
-  @media(max-width:480px){.grid{grid-template-columns:1fr 1fr;gap:8px}}
-  .card{background:var(--surface);border:1.5px solid var(--ink);border-radius:20px;
-        box-shadow:0 18px 36px -24px rgba(22,24,29,.20);
-        padding:16px 18px 15px;display:flex;flex-direction:column}
-  /* web-overhaul-v2 grammar on the same look: the card's name is a
-     severity-tinted chip header, the numeral owns the card, the
-     what-it-is shrinks to a caption — read order: what → how much →
-     (if you care) why */
-  .kchip{display:block;align-self:stretch;font-family:var(--mono);
-         font-size:11px;letter-spacing:.01em;
-         color:var(--ink2);background:var(--surface2);border-radius:7px;
-         padding:4px 9px;line-height:1.55;margin:0 0 12px}
-  .kchip.accent{background:var(--surface2);color:var(--ink2)}
-  /* the honest qualifier every metric wears — absence of colour is
-     'good'; depth only where the verdict needs it */
-  .kchip .vword{float:right;margin-top:1px;color:var(--vc,var(--ink3))}
-  .cap{font-family:var(--mono);font-size:11px;color:var(--ink4);
-       letter-spacing:.02em;margin-top:8px;line-height:1.6}
-  .card .num{font-family:var(--sans);font-size:clamp(26px,2.6vw,36px);font-weight:800;
-       letter-spacing:-.035em;line-height:1.05;font-variant-numeric:tabular-nums;
-       color:var(--ink)}
-  .card .num small{font-family:var(--sans);font-size:11px;color:var(--ink3);font-weight:400}
-  .card .num.na{color:var(--ink4);font-size:clamp(18px,1.8vw,24px);padding:6px 0}
-  .card .num .badge{vertical-align:middle;margin-left:8px}
-  .lbl{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.01em;
-       margin-top:8px;line-height:1.6}
-  .accent{color:var(--accent-ink)} .brick{color:var(--brick)} .wine{color:var(--wine)}
+  /* ---------- shared type — small, quiet, serif prose voice ---------- */
+  .lbl2{font-family:var(--mono);font-size:10px;color:var(--rInk3);
+    margin-bottom:18px;display:flex;align-items:center;line-height:1.8}
+  .lbl2 .livedot{margin-right:8px}
+  .livedot{display:inline-block;width:6px;height:6px;border-radius:1.5px;
+    background:var(--bhex,var(--rLine2));flex:none;
+    transition:background .6s ease}
+  .lead{font-family:var(--serif);font-weight:400;
+    font-size:clamp(21px,2.5vw,30px);line-height:1.28;
+    letter-spacing:-.008em;color:var(--rInk);max-width:34ch;margin:0}
+  .prose{font-family:var(--serif);font-size:15px;line-height:1.68;
+    color:var(--rInk2);max-width:56ch;margin-top:16px}
+  .prose b{color:var(--rInk);font-weight:700}
+  .sub3{font-family:var(--serif);font-size:13.5px;line-height:1.65;
+    color:var(--rInk3);max-width:56ch;margin-top:26px}
+  .sub3 b{color:var(--rInk2);font-weight:700}
 
-  h2{font-family:var(--sans);font-size:clamp(19px,2.2vw,24px);
-     letter-spacing:-.025em;color:var(--ink);margin:40px 0 14px;font-weight:800;
-     display:flex;justify-content:flex-start;align-items:center;gap:10px;
-     flex-wrap:wrap}
-  /* the register's section tick — every block wears the accent square */
-  h2::before{content:"";width:8px;height:8px;background:var(--accent);
-     border-radius:2px;flex:none}
-  h2 em{font-style:normal;color:var(--ink3);letter-spacing:.01em;
-     flex-basis:100%;margin:6px 0 0 18px;line-height:1.7;max-width:96ch;
-     font-family:var(--mono);font-size:11px;font-weight:400;
-     text-transform:none}
-  .panel{background:var(--surface);border:1.5px solid var(--ink);border-radius:20px;
-         box-shadow:0 18px 36px -24px rgba(22,24,29,.20);
-         overflow:hidden}
-  /* the page's one breathing element — the hero card holds the live air
-     itself, so it wears the app's living edge (a 4.4s sine opacity loop
-     on an accent-ink ring). skipped under reduce-motion. */
-  @keyframes breath{0%,100%{opacity:.12}50%{opacity:.32}}
-  .breathe{position:relative}
-  .breathe::after{content:"";position:absolute;inset:0;
-         pointer-events:none;border-radius:inherit;
-         border:1.5px solid var(--accent-ink);
-         animation:breath 4.4s ease-in-out infinite}
-  @media(prefers-reduced-motion:reduce){.breathe::after{display:none}}
-  .scrollx{overflow-x:auto}
-  /* phones: wide tables clip mid-word with no hint they scroll — local cover
-     + scroll shadow peeks only while more columns sit past that edge */
-  @media(max-width:700px){.scrollx{
-    background-image:linear-gradient(to right,#fff 30%,rgba(255,255,255,0)),
-      linear-gradient(to right,rgba(255,255,255,0),#fff 30%),
-      linear-gradient(to right,rgba(20,24,31,.13),rgba(20,24,31,0)),
-      linear-gradient(to left,rgba(20,24,31,.13),rgba(20,24,31,0));
-    background-position:0 0,100% 0,0 0,100% 0;
-    background-repeat:no-repeat;
-    background-size:22px 100%,22px 100%,8px 100%,8px 100%;
-    background-attachment:local,local,scroll,scroll}}
-  .scrollx td{padding:9px 10px}
-  .scrollx th{padding:9px 10px 7px}
-  table{width:100%;border-collapse:collapse}
-  th{text-align:left;font-family:var(--mono);font-size:11px;color:var(--ink2);
-     font-weight:600;padding:12px 14px 10px;letter-spacing:.01em;
-     border-bottom:1px solid var(--line)}
-  td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:12.5px;
-     color:var(--ink2);font-weight:400}
-  tr:last-child td{border-bottom:none}
-  td.num,th.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
-  td .mono{font-family:var(--mono);font-size:11px}
-  .mono{font-family:var(--mono)} .muted{color:var(--ink3)}
+  /* ---------- the live numeral — unboxed plain text ---------- */
+  .hnum{margin-top:26px;position:relative}
+  .hnum-row{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+  .hnum-v{font-weight:500;font-size:clamp(56px,8vw,96px);line-height:1;
+    letter-spacing:-.03em;color:var(--hink,var(--rInk));
+    font-variant-numeric:tabular-nums;transition:color .8s ease}
+  .hnum-v.na{color:var(--rInk4);font-size:clamp(30px,4.5vw,44px)}
+  .hnum .u{font-size:14px;color:var(--rInk2);font-weight:400}
+  .bandw{display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:10px;color:var(--rInk2)}
+  .bsq{display:inline-block;width:8px;height:8px;border-radius:2px;
+    background:var(--bhex,var(--rLine2));flex:none;transition:background .6s ease}
+  .hnum-s{display:block;font-family:var(--mono);font-size:10px;
+    color:var(--rInk3);margin-top:14px;line-height:1.9}
+  .hnum-s b{color:var(--rInk);font-weight:500}
+  .felt{font-family:var(--serif);font-size:16px;line-height:1.55;
+    color:var(--rInk2);max-width:38ch;margin-top:14px}
+  .felt b{font-weight:700;white-space:nowrap;color:var(--rInk)}
 
-  .pill{display:inline-block;padding:2px 10px;font-family:var(--mono);
-        font-size:11px;letter-spacing:.01em;background:var(--surface2);
-        color:var(--ink2);border-radius:6px;
-        box-shadow:0 1px 2px rgba(22,24,29,.06)}
-  .pill.down{background:var(--wine-wash);color:var(--wine)}
-  .pill.idle{background:transparent;color:var(--ink4);box-shadow:none}
-  .badge{display:inline-block;padding:2px 8px;font-family:var(--mono);
-         font-size:11px;letter-spacing:.01em;
-         border-radius:6px;color:var(--ink3);white-space:nowrap;
-         box-shadow:0 1px 2px rgba(22,24,29,.06)}
-  .badge.ok{color:var(--ink3);background:var(--surface2)}
-  .badge.stale{color:var(--bronze);background:var(--bronze-wash)}
-  .badge.crit{color:var(--wine);background:var(--wine-wash)}
-  .badge.live{color:var(--ink3);background:var(--surface2)}
-  .buildstat{font-family:var(--mono);font-size:11px;letter-spacing:.01em;color:var(--ink3)}
-  .buildstat.bad{color:var(--brick)}
-
-  .dose-cell{position:relative}
-  .dose-bar{position:absolute;left:0;top:0;bottom:0;border-radius:4px;opacity:.16}
-  .empty-state{padding:26px 18px;text-align:center;color:var(--ink4);
-               font-size:12px;font-weight:400;line-height:1.7}
-  .empty-state b{color:var(--ink3);font-weight:400;font-family:var(--mono);
-                 font-size:11px;letter-spacing:.01em;
-                 display:block;margin-bottom:6px}
-  .kv{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;padding:14px 16px;
-      font-size:12.5px;color:var(--ink2);font-weight:400}
-  .kv dt{font-family:var(--mono);font-size:11px;color:var(--ink3);
-         letter-spacing:.01em;padding-top:2px}
-  .kv dd{color:var(--ink)}
-  .kv dd.sub{color:var(--ink2)}
-  .whybig{font-size:clamp(18px,2.4vw,24px);
-          line-height:1.4;color:var(--ink);letter-spacing:-0.01em}
-  .chip2{display:inline-block;margin:1px 3px 1px 0;padding:1px 7px;
-         font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-         color:var(--ink3);background:var(--surface2);border-radius:99px;
-         white-space:nowrap;box-shadow:0 1px 2px rgba(22,24,29,.06)}
-
-  .share{padding:6px 16px 14px}
-  .feedlist{padding:2px 16px 10px}
-  @media(max-width:480px){.feed-row{grid-template-columns:36px 1fr auto auto}
-    .feed-row .f-c{display:none}}
-  .feed-h{font-size:11px;letter-spacing:.01em;
-    color:var(--ink4);padding:6px 0 4px}
-  .feed-row{display:grid;grid-template-columns:44px 1fr auto auto auto;
-    gap:10px;align-items:baseline;padding:3px 0;
-    border-top:1px dashed var(--line)}
-  .feed-row:first-of-type{border-top:0}
-  .feed-row .f-t{font-family:var(--mono);font-size:11px;color:var(--ink4)}
-  .feed-row .f-m{font-size:11.5px;color:var(--ink)}
-  .feed-row .f-d,.feed-row .f-k,.feed-row .f-c{font-family:var(--mono);
+  /* ---------- data lines — label / value rows on 1px rules ---------- */
+  .dl{margin-top:26px;border-top:1px solid var(--rLine)}
+  .dr{display:grid;grid-template-columns:minmax(120px,1fr) auto;
+    align-items:baseline;gap:8px 18px;padding:11px 0;
+    border-bottom:1px solid var(--rLine)}
+  .dr .dk{font-family:var(--mono);font-size:10px;color:var(--rInk3);
+    line-height:1.7}
+  .dr .dv{font-family:var(--sans);font-size:15px;font-weight:500;
+    color:var(--rInk);text-align:right;white-space:nowrap}
+  .dr .dv i{font-style:normal;color:var(--rInk3);font-weight:400}
+  .dr .ds{grid-column:1/-1;font-family:var(--serif);font-size:13px;
+    color:var(--rInk3);line-height:1.6}
+  .dr.stale .dv{color:var(--brick)}
+  /* the leaderboard — ruled rows for routes and feeds */
+  .lr{display:grid;grid-template-columns:24px 1fr auto;align-items:baseline;
+    gap:14px;padding:9px 0;border-bottom:1px solid var(--rLine)}
+  .lr .li{font-family:var(--mono);font-size:10px;color:var(--rInk4)}
+  .lr .ln{font-family:var(--mono);font-size:12px;color:var(--rInk);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lr .ln i{font-style:normal;color:var(--rInk3)}
+  .lr .lv{font-family:var(--sans);font-size:14px;font-weight:500;
+    color:var(--rInk);text-align:right;white-space:nowrap}
+  .lr .lv i{font-style:normal;color:var(--rInk3);font-weight:400;
     font-size:11px}
-  .feed-row .f-k,.feed-row .f-c{color:var(--ink4)}
-  .split{height:9px;border-radius:5px;overflow:hidden;display:flex;
-         background:var(--surface2)}
-  .split i{display:block;height:100%}
-  .split-l{font-family:var(--mono);font-size:11px;color:var(--ink3);
-           margin-top:6px;letter-spacing:.01em;line-height:1.5}
-  /* reserve true map aspect before first paint — async fill must not
-     shift the page ((X1-X0)*ASP : (Y1-Y0) = 1.1*0.879 : 0.75) */
-  canvas#fieldmap{width:100%;display:block;aspect-ratio:1.2892;
-                  background:var(--surface2,#efede7)}
-  .fmsel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-  .fmsel button{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-    padding:5px 11px;cursor:pointer;
-    border:1px solid var(--line);border-radius:8px;
-    background:var(--surface2);color:var(--ink3)}
-  .fmsel button:hover{color:var(--ink2);border-color:var(--hair)}
-  .fmsel button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .fmsel button.on{border-color:var(--line2);color:var(--ink);
-    background:var(--surface);
-    box-shadow:0 1px 3px rgba(22,24,29,.12)}
-  .fmscrub{display:flex;align-items:center;gap:10px;margin-bottom:10px;
-    font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.01em}
-  .fmscrub input{flex:1;accent-color:var(--ink);height:3px}
-  .fmscrub span{min-width:44px;}
-  /* six stage tiles — one idea each, no hairline honeycomb */
-  .pipe{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;
-        padding:0 12px 12px}
-  .pipe .st{padding:12px 13px 11px;background:var(--surface2);
-            border-radius:10px;box-shadow:0 1px 3px -1px rgba(22,24,29,.08)}
-  .pipe .n{display:inline-block;font-family:var(--mono);font-size:11px;
-           color:var(--ink2);letter-spacing:.01em;
-           background:var(--surface);border-radius:5px;padding:2px 6px;
-           box-shadow:0 1px 2px rgba(22,24,29,.08)}
-  .pipe .t{font-weight:600;font-size:12.5px;margin:8px 0 4px;letter-spacing:.02em}
-  .pipe .v{font-size:11px;color:var(--ink2);line-height:1.6}
-  .pipe .fr{margin-top:7px;font-family:var(--mono);font-size:11px;
-            letter-spacing:.01em;color:var(--ink4)}
-  @media(max-width:920px){.pipe{grid-template-columns:repeat(3,1fr)}}
-  @media(max-width:560px){.pipe{grid-template-columns:repeat(2,1fr)}}
-  .share-row{display:grid;grid-template-columns:88px 1fr 52px 44px;gap:10px;
-             align-items:center;padding:3.5px 0;font-size:11.5px}
-  .share-row .m{font-family:var(--mono);font-size:11px;color:var(--ink2);
-                letter-spacing:.01em;text-transform:lowercase;
-                overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .share-track{height:7px;border-radius:4px;background:var(--surface2);
-               overflow:hidden}
-  .share-track i{display:block;height:100%;border-radius:4px;
-                 background:rgba(58,104,68,.32)}
-  .share-row .p{font-family:var(--mono);font-size:11px;color:var(--ink);
-                text-align:right}
-  .share-row .n{font-family:var(--mono);font-size:11px;color:var(--ink4);
-                text-align:right}
+  .lr.bad .lv{color:var(--brick)}
 
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-items:start}
-  .cols3{grid-template-columns:1fr 1fr 1fr}
-  @media(max-width:1200px){.cols3{grid-template-columns:1fr 1fr}}
-  @media(max-width:900px){.cols,.cols3{grid-template-columns:1fr}}
-  @media(max-width:480px){td{padding:9px 8px;font-size:11.5px}
-    th{padding:10px 8px 8px}
-    .share-row{grid-template-columns:70px 1fr 44px 36px}}
-  /* phone width — compact the wire tables so the page itself never
-     scrolls sideways; prose cells wrap instead of pushing out */
-  @media(max-width:560px){.scrollx td,.scrollx th{padding:8px 7px}
-    .scrollx th{white-space:normal}
-    .scrollx td{font-size:11.5px}
-    .scrollx td:nth-child(5),.scrollx th:nth-child(5){max-width:118px}}
+  /* ---------- sparkline — a real series only, ink line ---------- */
+  .spark{margin-top:34px}
+  .spark svg{display:block;width:100%;height:auto}
+  .spark .cap{display:flex;justify-content:space-between;gap:14px;
+    margin-top:8px;font-family:var(--mono);font-size:10px;
+    color:var(--rInk3);line-height:1.7}
+  .spark .cap b{color:var(--rInk);font-weight:500}
+  .spark .curve{stroke-dasharray:1;stroke-dashoffset:0}
+  .spark.dr .curve{animation:spd 1.1s cubic-bezier(.3,.7,.2,1) both}
+  @keyframes spd{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+  @media(prefers-reduced-motion:reduce){
+    .spark .curve{animation:none!important}}
 
-  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
-         color:var(--ink4);font-family:var(--mono);font-size:11px;
-         letter-spacing:.01em;line-height:2;
-         display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
-  a{color:var(--accent-ink);text-decoration:none}
+  /* ---------- alarm line — the one loud-ish sentence ---------- */
+  .alarmline{margin-top:26px;font-family:var(--serif);font-size:16px;
+    line-height:1.55;color:var(--rInk2);max-width:56ch}
+  .alarmline b{color:var(--rInk);font-weight:700}
+  .alarmline.quiet b{color:var(--accInk)}
+  .alarmline.hot b{color:var(--brick)}
 
-  /* ncr district choropleth — ONE map surface carrying the real boundary
-     geojson, each polygon filled by its live band for the selected
-     parameter. same console chrome as the field map: fmsel pills above,
-     mono caption + band legend below, click pins an fmpop card */
-  .dmwrap{position:relative}
-  canvas#distmap{width:100%;display:block;aspect-ratio:1.347;
-                 background:var(--surface2);cursor:crosshair}
-  .dlegend{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;
-           margin-top:10px}
-  .dlegend .sw{display:inline-block;width:10px;height:10px;
-               border-radius:2px;margin-right:5px;vertical-align:-1px}
-  .dlegend span{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-                color:var(--ink3)}
-  .dlegend .na-sw{border:1px dashed var(--ink4);background:transparent}
-  /* mono caption language — the line under each map that says exactly
-     what is painted (basis, unit, horizon) */
-  .sub{font-family:var(--mono);font-size:11px;color:var(--ink3);
-       letter-spacing:.01em;line-height:1.7}
-  /* mini-card silhouette + band chip — the stepped popover keeps the
-     district outline it was opened from */
-  .p-cut{width:44px;height:44px;float:right;margin-left:8px}
-  .dt-aqi{margin-left:auto;font-family:var(--mono);font-size:11px;
-          letter-spacing:.01em;white-space:nowrap;padding:2px 7px;
-          border-radius:5px;
-          background:var(--dc,var(--hair));color:var(--dink,#14181F)}
+  .statusline{margin-top:26px;font-family:var(--mono);font-size:10px;
+    color:var(--rInk3);line-height:2.1;border-top:1px solid var(--rLine);
+    padding-top:14px}
+  .statusline>span+span::before{content:"·";margin:0 12px;color:var(--rInk4)}
+  .statusline b{color:var(--rInk);font-weight:500}
+  .statusline .ok{color:var(--accInk)}
+  .statusline .err{color:var(--brick)}
 
-  /* field-map cell inspector — click a painted cell → the cell centre is
-     reverse-geocoded via /v2/reverse and the popover lists its live values */
-  .fmwrap{position:relative}
-  canvas#fieldmap{cursor:crosshair}
-  .fmpop{position:absolute;z-index:5;min-width:200px;max-width:262px;
-         background:var(--surface);border:1.5px solid var(--ink);
-         padding:11px 13px 10px;pointer-events:none;
-         clip-path:polygon(0 8px,4px 8px,4px 4px,8px 4px,8px 0,
-           calc(100% - 8px) 0,calc(100% - 8px) 4px,calc(100% - 4px) 4px,
-           calc(100% - 4px) 8px,100% 8px,100% calc(100% - 8px),
-           calc(100% - 4px) calc(100% - 8px),calc(100% - 4px) calc(100% - 4px),
-           calc(100% - 8px) calc(100% - 4px),calc(100% - 8px) 100%,
-           8px 100%,8px calc(100% - 4px),4px calc(100% - 4px),
-           4px calc(100% - 8px),0 calc(100% - 8px));
-         filter:drop-shadow(0 8px 16px rgba(20,24,31,.16))}
-  .fmpop .p-name{font-family:var(--sans);font-weight:700;font-size:15.5px;
-                 letter-spacing:-.015em;color:var(--ink);line-height:1.3}
-  .fmpop .p-sub{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-                color:var(--ink4);margin-top:4px}
-  .fmpop .p-v{display:flex;align-items:baseline;gap:6px;margin-top:8px;
-              font-family:var(--mono);font-size:11px;color:var(--ink2)}
-  .fmpop .p-v b{font-family:var(--sans);font-size:20px;font-weight:800;
-                letter-spacing:-.02em;color:var(--ink)}
-  .fmpop .p-conf{font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.55}
-  .fmpop.pin{border-width:2px;padding:10.5px 12.5px 9.5px;
-         filter:drop-shadow(0 10px 22px rgba(20,24,31,.22))}
-  /* methodology card — the 'how is this number made' truth under the map */
-  .meth{margin-top:10px;padding:11px 13px 10px;border:1px solid var(--line);
-        border-radius:12px;background:var(--surface2,#efede7);
-        font-size:12px;line-height:1.65;color:var(--ink2)}
-  .meth .mt{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-            color:var(--ink4);margin-bottom:6px}
-  .meth .ms{margin-top:8px;font-size:11px;color:var(--ink3)}
-  .meth b{color:var(--ink);font-weight:600}
-
-  /* global rollups — honest-empty until the aggregate api ships them */
-  .gtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
-
-  /* day-by-day trips strip — muted bars, day labels in mono */
-  .daybars{display:flex;align-items:flex-end;gap:5px;padding:10px 16px 12px;
-           overflow-x:auto}
-  .dbar{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto}
-  .dbar i{width:14px;background:rgba(101,112,127,.5);border-radius:3px 3px 0 0}
-  .dbar span{font-family:var(--mono);font-size:11px;color:var(--ink4)}
-
-  /* recorded-today strip — one square per ist hour inside the archive
-     card: recorded = that hour's mean cpcb band, gap = dashed hollow,
-     pending = faint, unreadable = hatched */
-  .hstrip{display:flex;gap:3px;align-items:center;flex-wrap:wrap;
-          margin-top:9px}
-  .hstrip .ah{width:11px;height:11px;border:1px solid var(--hair);
-              border-radius:2.5px;background:transparent}
-  .hstrip .ah.gap{border-style:dashed;opacity:.55}
-  .hstrip .ah.pend{opacity:.3}
-  .hstrip .ah.bad{background:repeating-linear-gradient(45deg,
-                  transparent 0 2px,var(--hair) 2px 3px)}
-  .hstrip .ahm{font-family:var(--mono);font-size:11px;color:var(--ink4);
-               margin-left:9px;letter-spacing:.01em;}
-
-  /* 01 · the provenance strip — the one line a judge reads first:
-     "24 monitors → honesty σ → 903,058 streets priced", each segment
-     serif-numbered, mono-captioned, hairline-separated */
-  .prov{display:flex;align-items:stretch;flex-wrap:wrap;
-        border-bottom:1px solid var(--line)}
-  .prov .seg{flex:1 1 0;min-width:150px;padding:16px 18px 13px;
-             border-left:1px solid var(--hair)}
-  .prov .seg:first-child{border-left:none}
-  .prov .pnum{font-family:var(--sans);font-size:clamp(22px,2.4vw,32px);
-              font-weight:800;letter-spacing:-.035em;line-height:1.1;
-              color:var(--ink);font-variant-numeric:tabular-nums}
-  .prov .pnum small{font-family:var(--sans);font-size:11px;color:var(--ink3)}
-  .prov .plbl{font-family:var(--mono);font-size:11px;color:var(--ink3);
-              letter-spacing:.01em;margin-top:5px;
-              line-height:1.6}
-  .prov .arr{align-self:center;padding:0 10px;color:var(--ink4);
-             font-family:var(--sans);font-weight:700;font-size:18px}
-  @media(max-width:760px){.prov .seg{min-width:44%;border-top:1px solid var(--hair)}
-    .prov .seg:nth-child(-n+2){border-top:none}}
-
-  /* the fires view — real FIRMS detections over the ~150 km ring;
-     same canvas discipline as the field map. desktop reads stat-rail
-     + map so the section doesn't run the page's full height */
-  .firepanel{display:grid;grid-template-columns:minmax(220px,280px) 1fr;
-             gap:16px;align-items:start}
-  @media(max-width:900px){.firepanel{grid-template-columns:1fr}}
-  canvas#firemap{width:100%;display:block;aspect-ratio:0.924;
-                 background:var(--surface2,#efede7)}
-  .firebar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;
-           padding:2px 0 12px;font-family:var(--mono);font-size:11px;
-           letter-spacing:.01em;color:var(--ink2)}
-  .firepanel .firebar{flex-direction:column;align-items:flex-start;gap:4px;
-                      padding:0}
-  .firebar b{font-family:var(--sans);font-size:19px;font-weight:800;
-             color:var(--ink);letter-spacing:-.025em}
-  .firebar .sep{color:var(--ink4)}
-  /* rail mode: the '·' stays a real (invisible, zero-height) flex item —
-     display:none would merge the text runs either side into one line */
-  .firepanel .firebar .sep{visibility:hidden;height:0;overflow:hidden}
-
-  /* panel title — one line that names the tile for a cold reader,
-     same mono caption language as .feed-h/.sub */
-  .panel-h{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-    color:var(--ink4);padding:12px 16px 0}
-
-  /* 04 · expandable corridor rows — click unfolds the full wire record */
-  .crow{cursor:pointer}
-  .crow:hover td{background:var(--surface2)}
-  .crow .tw{font-family:var(--mono);color:var(--ink4);font-size:11px;width:14px}
-  .crow.open .tw{color:var(--ink)}
-  tr.cor-detail td{background:var(--surface2);border-bottom:1px solid var(--line);
-                   padding:10px 14px 12px 34px;font-size:11.5px;color:var(--ink2);
-                   line-height:1.7}
-  tr.cor-detail .mono{font-size:11px}
-
-  /* engine view — dose-math table inside a panel (reuses table chrome) */
-  .dosemax td .note{color:var(--ink4);font-size:11px}
-
-/* no boot strip on the console — the operator link lands on the board
-   itself; a splash between sign-in and content was the owner's callout
-   (hash-login lane). The landing keeps its strip; this room just opens. */
+  /* ---------- footer — hairline + the one ghost object ---------- */
+  .foot{position:relative;overflow:hidden}
+  .foot .cols{display:flex;justify-content:space-between;gap:20px;
+    flex-wrap:wrap;font-family:var(--mono);font-size:10px;
+    color:var(--rInk3);line-height:2}
+  .foot .cols b{color:var(--rInk);font-weight:500}
+  .foot nav{display:flex;gap:16px}
+  .foot nav a{color:var(--rInk2)}
+  .ghost{font-family:var(--sans);font-weight:700;font-size:clamp(72px,14vw,180px);
+    letter-spacing:-.05em;color:rgba(22,24,29,.05);line-height:.8;
+    margin:40px -6px -14px;user-select:none;pointer-events:none}
 </style>
 </head>
 <body>
 
-<!-- the gate — shown the moment the session probe says no live cookie.
-     guests never reach the board's fetches for gated tiles; the one
-     escape is the public city view, which needs nothing -->
+<!-- the gate — shown the moment the session probe says no live cookie;
+     markup byte-identical to the r5 console's (the form, the input and
+     the POST contract never changed) -->
 <div id="gate" hidden>
   <div class="gate-card" role="dialog" aria-label="operator sign in">
     <div class="mark">ALIVE <i>/ engine room</i></div>
@@ -545,164 +276,97 @@
   </div>
 </div>
 
-<header class="mast">
-  <div class="mast-l">
-    <div class="mark">ALIVE <i>/ engine room</i></div>
-    <span class="mast-sub">what delhi's air system is doing, in plain english · every number measured live</span>
-  </div>
-  <div class="mast-r">
-    <button class="tokbtn" id="tokbtn" type="button">operator sign in</button>
-    <span class="priv-badge">no person is ever shown · groups of 3+ phones only</span>
-    <span id="updated">updated —</span>
-    <span class="feed" id="feed"><i></i><span id="feedtxt">refreshes itself · every 30s</span></span>
-    <span id="clock">—</span>
-  </div>
-</header>
+<header class="top"><div class="top-in">
+  <a class="wm" href="/">alive</a>
+  <nav>
+    <a class="cur" href="#" onclick="return false">engine room</a>
+    <a href="/city">the field</a>
+    <a href="/">delhi</a>
+    <a href="/community">community</a>
+  </nav>
+  <button class="tokbtn" id="tokbtn" type="button">operator sign in</button>
+  <span id="toplive"></span>
+</div></header>
 
-<div class="wrap">
+<main class="stack">
   <noscript>
-    <style>#stamp,#stats,#statsr,#hero,#distmap,#fieldmap,#firemap{display:none}
-      h2,#field,#scorecard,#timing,#sources,#donations,#feedlist,#pipe,#corridors,#sharedpic,#archive,#prov,#firebar,#firemap-sub,#dosemath,#doseformula,#routingcard{display:none}</style>
-    <p style="margin:18px 0;font-family:var(--mono);font-size:11px;
-      letter-spacing:.01em;color:var(--ink3);line-height:1.9">
-      this console is javascript-only — the token prompt and every panel on it are live renders.</p>
+    <section class="open noidx"><div class="col">
+      <p class="prose">this console is javascript-only — every figure on
+      it is a live render off the server's own endpoints.</p>
+    </div></section>
   </noscript>
-  <div class="sub" style="padding:14px 2px 0">the engine room — how sensor readings become the air map that prices every route · every number below is measured live, nothing invented</div>
-  <div class="statusline" id="stamp">connecting…</div>
 
-  <!-- the demo's first beat — 'is it alive' — one hero numeral owns the
-       page: delhi's live air mean from /v2/city, its CPCB band word as
-       the only colour, and the vitals rail that proves the system runs -->
-  <section class="hero breathe" id="hero">
-    <div class="hero-main">
-      <div class="hero-kick">delhi's air · right now <span class="lv" id="hero-lv"><i></i>connecting</span></div>
-      <div class="hero-fig">
-        <span class="hero-num na" id="hero-num">—</span>
-        <span class="hero-unit">µg/m³ · pm2.5</span>
-        <span class="hero-band" id="hero-band" hidden></span>
+  <!-- opening — what this page is and why a dash means something -->
+  <section class="open noidx"><div class="col" style="padding-top:clamp(30px,5vw,60px)">
+    <div class="lbl2"><i class="livedot" id="liveDot"></i>the engine room · operator only</div>
+    <h1 class="lead">Delhi's air system,<br>measured.</h1>
+    <p class="prose">every figure below is computed live off this server —
+      the feeds that feed it, the requests it answers, the phones that
+      share back. counters reset on deploy and say so; a reading the
+      machine doesn't have stays a dash, because a guess would be worse.</p>
+    <div class="statusline" id="stamp"><span>connecting…</span></div>
+  </div></section>
+
+  <!-- 01 live air — the honesty row: the number, its band, its age -->
+  <section><div class="col">
+    <div class="lbl2"><i class="livedot" id="airDot"></i>live air — the honesty row</div>
+    <div class="hnum">
+      <div class="hnum-row">
+        <b class="hnum-v na" id="pm">—</b><span class="u">µg/m³ · pm2.5, mean over the live map</span>
+        <span class="bandw" id="pmBW" hidden><i class="bsq" id="pmB"></i><span id="pmW"></span></span>
       </div>
-      <p class="hero-line" id="hero-line"></p>
-      <p class="hero-note" id="hero-note"></p>
+      <i class="hnum-s" id="pmS">reading the field…</i>
     </div>
-    <dl class="hero-vitals" id="hero-vitals"></dl>
-  </section>
-
-  <div class="grid" id="stats"></div>
-
-  <h2>01 · what it's made of <em>monitors measure, the forecast fills the gaps between them (each fill shows how sure it is), then every road in delhi gets a smoke price — each stage names its source and freshness</em></h2>
-  <div class="panel">
-    <div class="prov" id="prov"></div>
-    <div class="pipe" id="pipe"></div>
-  </div>
-  <div class="panel scrollx" style="margin-top:10px"><table>
-    <thead><tr><th>the feed</th><th>state</th><th class="num">readings</th><th class="num">age</th><th>what it is</th><th>freshness</th></tr></thead>
-    <tbody id="sources"></tbody></table></div>
-  <div class="sub" style="margin:8px 2px 0">how monitors feed the map: waqi plus delhi's own dpcc pages carry the city first; india's cpcb then openaq only run when the leaders can't cover it — every resting feed says so instead of pretending. no feed is ever shown green when it isn't.</div>
-
-  <h2>02 · is it honest <em>the map grades itself against monitors it never saw — the live check, the causal read, and the guts (dose math, route engine, api speed) honestly exposed; a check that can't run is named, not hidden</em></h2>
-  <div class="cols">
-    <div class="panel"><div class="panel-h">field state — what the route engine reads right now</div><dl class="kv" id="field"></dl></div>
-    <div class="panel"><div class="panel-h">how wrong the map is — checked against monitors it never saw</div><dl class="kv" id="scorecard"></dl></div>
-  </div>
-
-  <h2>why the air is like this <em>the causal read · a cause that can't be observed isn't claimed</em></h2>
-  <div class="panel" style="padding:14px">
-    <div id="whyline2" class="whybig">connecting…</div>
-    <div class="sub" id="whysub" style="margin-top:6px"></div>
-  </div>
-  <div class="cols">
-    <div class="panel scrollx"><table>
-      <thead><tr><th>the cause</th><th>role</th><th class="num">strength (0–1)</th><th>the evidence</th><th>the numbers</th></tr></thead>
-      <tbody id="whydrivers"></tbody></table></div>
-    <div class="panel" style="padding:14px">
-      <div class="k" style="font-family:var(--mono);font-size:11px;letter-spacing:.01em;color:var(--ink3)">checked — the raw reads behind the call</div>
-      <dl class="kv" id="whyeval"></dl>
-      <div id="whycant"></div>
-      <canvas id="whyhist" width="560" height="120" style="width:100%;height:120px;margin-top:10px" role="img" aria-label="recorded history — belt fires, clearing room and the air mean per map"></canvas>
+    <p class="felt" id="felt"></p>
+    <div class="dl" id="airRows"></div>
+    <div class="spark" id="fcWrap" hidden>
+      <svg id="fcSvg" viewBox="0 0 560 52" preserveAspectRatio="none" role="img"
+        aria-label="the next twelve hours of pm2.5, live-anchored forecast"></svg>
+      <div class="cap"><span id="fcL">the next twelve hours</span><span id="fcR"></span></div>
     </div>
-  </div>
+  </div></section>
 
-  <div class="cols cols3" style="margin-top:10px">
-    <div class="panel"><div class="panel-h">dose math — what one minute of each mode breathes</div><div class="scrollx"><table>
-      <thead><tr><th>how you travel</th><th class="num" title="how many times dirtier the air inside is vs the street">cabin ×</th><th class="num" title="how hard you breathe on it">breathing l/min</th></tr></thead>
-      <tbody id="dosemath"></tbody></table></div>
-      <div class="sub" id="doseformula" style="padding:10px 14px 12px;border-top:1px solid var(--hair)"></div></div>
-    <div class="panel"><div class="panel-h">the route engine's live state</div><dl class="kv" id="routingcard"></dl></div>
-    <div class="panel"><div class="panel-h">how fast the api answers — the server's own stopwatch</div><dl class="kv" id="timing"></dl></div>
-  </div>
+  <!-- 02 coverage — what the map is made of, and how sure it is -->
+  <section><div class="col">
+    <div class="lbl2">coverage — what the map is made of</div>
+    <div class="dl" id="covRows"></div>
+    <p class="sub3" id="covNote"></p>
+  </div></section>
 
-  <h2>03 · the fire belt <em>real fires spotted by satellite around delhi — bigger dot = more heat; fires upwind in the north-west belt are what actually push the city's smoke up</em></h2>
-  <div class="panel firepanel" style="padding:14px">
-    <div class="firebar" id="firebar"><span class="muted">connecting…</span></div>
-    <div class="fmwrap"><canvas id="firemap" role="img"
-      aria-label="nasa satellite fires over the ~150 km ring around delhi — bigger dot means more heat, ringed fires sit inside the upwind smoke belt"></canvas>
-      <div class="sub" id="firemap-sub" style="margin-top:8px">connecting…</div></div>
-  </div>
-
-  <h2>04 · district by district <em>each area boundary filled by its live air level right now — darker means worse; click one for its full card</em></h2>
-  <div class="panel" style="padding:14px">
-    <div class="fmsel" id="dtsel"></div>
-    <div class="dmwrap"><canvas id="distmap" role="img"
-      aria-label="map of delhi ncr areas — each boundary filled by its live air level for the selected gas; click opens a card"></canvas>
-      <div class="fmpop" id="dtpop" hidden></div></div>
-    <div class="dlegend" id="dlegend"></div>
-    <div class="sub" id="distmap-sub" style="margin-top:8px">connecting…</div>
-  </div>
-
-  <h2>05 · the live air map <em>the actual map the route engine reads — every coloured cell is a real filled-in PM2.5 value; hover any point for its reading, drag the bar for the next 12 hours</em></h2>
-  <div class="panel" style="padding:14px">
-    <div class="fmsel" id="fmsel"></div>
-    <div class="fmscrub" id="fmscrub">
-      <input type="range" id="fmh" min="0" max="11" step="1" value="0">
-      <span id="fmh-lbl">now</span>
+  <!-- 03 usage — who knocks on the door, counted since boot -->
+  <section><div class="col">
+    <div class="lbl2">usage — who knocks on the door</div>
+    <p class="prose" id="bootLine">…</p>
+    <div class="dl" id="reqRows"></div>
+    <div class="dl" id="routeRows" style="margin-top:0"></div>
+    <div class="spark" id="trWrap" hidden>
+      <svg id="trSvg" viewBox="0 0 560 52" preserveAspectRatio="none" role="img"
+        aria-label="journeys shared per utc hour, last twenty-four"></svg>
+      <div class="cap"><span id="trL">journeys shared per hour, utc — the last 24</span><span id="trR"></span></div>
     </div>
-    <div class="fmwrap"><canvas id="fieldmap" role="img"
-      aria-label="the live air map over delhi ncr — hover reads a cell, click pins it"></canvas><div class="fmpop" id="fmpop" hidden></div></div>
-    <div class="sub" id="fieldmap-sub" style="margin-top:8px">connecting…</div>
-    <div class="meth" id="meth" hidden></div>
-  </div>
+    <div class="dl" id="useRows"></div>
+    <p class="sub3" id="useNote"></p>
+  </div></section>
 
-  <h2>06 · what riders share <em>streets that ≥3 different phones crossed + what all the donated trips add up to — anonymized totals only; nothing shown can collapse to one person</em></h2>
-  <div class="grid grid--fit" id="statsr"></div>
-  <div class="panel"><div class="scrollx"><table>
-    <thead><tr><th></th><th>street cell</th><th>near</th><th class="num">trips</th><th class="num">phones</th><th class="num" title="the mean smoke each crossing breathed">smoke inhaled</th><th class="num" title="co₂ emitted per 100 m of street">co₂/100m</th><th class="num" title="the air over this street right now">air now</th></tr></thead>
-    <tbody id="corridors"></tbody></table></div>
-    <div class="sub" style="padding:10px 14px 12px;border-top:1px solid var(--hair)">each row = one street cell that ≥3 different phones crossed in 72h — shared trips, anonymized so no single person can be picked out · smoke inhaled = the mean PM2.5 each crossing breathed · air now = what the air reads over that street right now</div></div>
-  <div class="cols" style="margin-top:10px">
-    <div class="panel">
-      <dl class="kv" id="donations"></dl>
-      <div class="feedlist" id="feedlist"></div>
-      <div class="share" id="co2split"></div>
-      <div class="share" id="modeshare"></div>
-      <div class="daybars" id="daybars"></div>
+  <!-- 04 health — alarms, errors, and the machine's own state -->
+  <section><div class="col">
+    <div class="lbl2">health — when it hurts</div>
+    <p class="alarmline quiet" id="alarm">reading the machine's nerves…</p>
+    <div class="dl" id="srcRows"></div>
+    <div class="dl" id="errRows"></div>
+    <div class="dl" id="sysRows"></div>
+  </div></section>
+
+  <footer class="noidx"><div class="col foot">
+    <div class="cols">
+      <span>alive engine room · refreshes itself every 30 s ·
+        <b>groups of 3+ phones only, never a person</b></span>
+      <nav><a href="/city">/city ↗</a><a href="/v2/city">/v2/city ↗</a>
+        <a href="/health">/health ↗</a></nav>
     </div>
-    <div class="gtiles" id="sharedpic"></div>
-  </div>
-
-  <h2>07 · who's using it <em>how many phones share back, how often, what they breathed, what they told us — aggregate counts only; nothing shown can collapse to one person</em></h2>
-  <div class="grid grid--fit" id="usagecards"></div>
-  <div class="cols" style="margin-top:10px">
-    <div class="panel">
-      <div class="panel-h">the counters — trips shared, breathing, reach</div>
-      <dl class="kv" id="usagekv"></dl>
-      <div class="sub" id="usagehourscap" style="padding:0 16px"></div>
-      <div class="daybars" id="usagehours"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-h">what riders told us — star reviews + hazard flags</div>
-      <dl class="kv" id="usagefb"></dl>
-      <div class="sub" id="usagefbnote" style="padding:0 16px 12px"></div>
-    </div>
-  </div>
-
-  <h2>08 · the archive <em>the same air map you saw live, saved every hour into permanent storage — delhi's air is a recorded history now, not just a forecast</em></h2>
-  <div class="gtiles" id="archive"></div>
-
-  <footer>
-    <span>alive engine room · the page refreshes itself every 30 seconds · groups of 3+ phones only, never a person</span>
-    <span><a href="/city">/city ↗</a> · <a href="/v2/city">/v2/city ↗</a></span>
-  </footer>
-</div>
+    <div class="ghost" aria-hidden="true">alive</div>
+  </div></footer>
+</main>
 
 <script>
 const NF=new Intl.NumberFormat('en-IN');
@@ -715,33 +379,21 @@ const M=location.pathname.replace(/\/+$/,'');
 const fmt=n=>n==null?'—':NF.format(Math.round(n));
 const fmt1=n=>n==null?'—':NF.format(Math.round(n*10)/10);
 const ago=s=>s==null?'—':s<60?`${Math.round(s)}s`:s<3600?`${Math.round(s/60)}m`:`${Math.round(s/3600)}h`;
-/* muted severity ramp — neutral → bronze → brick → wine (never green,
-   never traffic-light): depth carries meaning, not hue-hopping */
-const RAMPS=[[0,'101,112,127'],[0.32,'161,102,47'],[0.55,'163,68,70'],[0.80,'138,45,62'],[1,'72,21,35']];
-function ramp(t,a){t=Math.max(0,Math.min(1,t));let i=0;
-  while(i<RAMPS.length-2&&t>RAMPS[i+1][0])i++;
-  const [t0,c0]=RAMPS[i],[t1,c1]=RAMPS[i+1];const f=t1>t0?(t-t0)/(t1-t0):0;
-  const p0=c0.split(',').map(Number),p1=c1.split(',').map(Number);
-  return `rgba(${p0.map((v,j)=>Math.round(v+(p1[j]-v)*f))},${a})`}
-const doseT=u=>Math.min(1,(u||0)/320);   /* display ramp saturates ~320 µg inhaled per trip */
-const doseInk=u=>{const t=doseT(u);return t<0.08?'var(--ink3)':t<0.4?'var(--bronze)':t<0.75?'var(--brick)':'var(--wine)'};
-/* register washes are solid blends toward white, never alpha — the hero
-   band chip wears the same math (wash .82, ink pulled ~55% toward ink) */
-const _hx=h=>{const n=parseInt(String(h).replace('#',''),16);
-  return [(n>>16)&255,(n>>8)&255,n&255]};
-const mixHex=(a,b,t)=>{const A=_hx(a),B=_hx(b);
-  return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`};
-const bandWash=c=>mixHex(c,'#FFFFFF',.82),bandInk=c=>mixHex(c,'#14181F',.55);
+const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
+  hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
+const hmIST=ts=>new Date(ts*1000).toLocaleTimeString('en-IN',
+  {timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}).toLowerCase()+' ist';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-/* OSM names arrive raw — 'hanuman lane' — title-case the way the app
-   does before they land in a table */
-const tName=s=>String(s||'').replace(/(^|[\s\-/'(])([a-z])/g,(m,p1,p2)=>p1+p2.toUpperCase());
-const emptyMsg=(t)=>`<div class="empty-state"><b>nothing to show yet</b>${t}</div>`;
-/* honest freshness: tri-state — 'stale' when past the field alarm rule,
-   'fresh' muted otherwise, 'no data' when no age exists at all */
-const freshBadge=(flag)=>flag===true?'<span class="badge stale">stale</span>'
-  :flag===false?'<span class="badge ok">fresh</span>'
-  :'<span class="badge">no data</span>';
+
+/* muted CPCB ramp — the same six the landing wears; colour appears only
+   where it means air (the numeral's dot, the forecast fill) */
+const BAND=[[122,171,89],[200,178,90],[213,140,74],[184,84,66],[143,60,73],[110,60,84]];
+const BAND_INK=[[67,94,49],[110,98,50],[117,77,41],[101,46,36],[79,33,40],[61,33,46]];
+const BAND_NAME=['good','satisfactory','moderate','poor','very poor','severe'];
+/* CPCB 24-hr pm2.5 breaks — same table as districts._CPCB_PM25 */
+const bandIdx=v=>v==null?null:v<=30?0:v<=60?1:v<=90?2:v<=120?3:v<=250?4:5;
+const bandCss=i=>`rgb(${BAND[i].join(',')})`;
+const bandInkCss=i=>`rgb(${BAND_INK[i].join(',')})`;
 
 /* auth model: the login POST mints an HttpOnly SameSite=Strict
    cookie signed server-side — the token itself never lives in JS, so a
@@ -782,1869 +434,354 @@ async function getJSON(u){
   if(!r.ok)throw new Error(u+' '+r.status);return r.json()}
 
 let LAST_OK=null;   /* last successful refresh — the honest 'as of' time */
-const timeIST=d=>d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',
-  hour:'2-digit',minute:'2-digit',second:'2-digit'})+' IST';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* wire mode names → what a person calls them (file scope — donations
-   panel, share feed and the usage tab all translate modes) */
-const MODE_N={'car':'car','auto':'auto rickshaw','walk':'walking',
-  'cycle':'cycling','metro':'metro','bus':'bus','2w':'two-wheeler',
-  'bike':'two-wheeler','unknown':'mode unknown','taxi':'taxi',
-  'driving_car':'car','driving_car_ac':'car · ac',
-  'driving_car_open':'car · windows down',
-  'driving_two_wheeler':'two-wheeler','auto_rickshaw':'auto rickshaw',
-  'walking':'walking','cycling':'cycling'};
+/* ---- row builders — every line is label + value + an honest note ---- */
+const row=(k,v,sub,stale)=>
+  `<div class="dr${stale?' stale':''}"><span class="dk">${k}</span>`+
+  `<b class="dv">${v}</b>${sub?`<i class="ds">${sub}</i>`:''}</div>`;
+const lrow=(i,name,val,stale)=>
+  `<div class="lr${stale?' bad':''}"><span class="li">${i}</span>`+
+  `<span class="ln">${name}</span><b class="lv">${val}</b></div>`;
+const DIR8=['n','ne','e','se','s','sw','w','nw'];
+const compass=d=>d==null?null:DIR8[Math.round(d/45)%8];
 
+/* one ink sparkline — real series only; nothing draws for absent data */
+function spark(svgId,vs,{fill=null,dot=null}={}){
+  const el=$(svgId);if(!el||!vs||vs.length<2)return false;
+  const lo=Math.min(...vs),hi=Math.max(...vs);
+  const W=560,H=52,pad=4,base=H-8;
+  const sx=i=>pad+i*(W-2*pad)/(vs.length-1);
+  const sy=v=>hi>lo?5+(hi-v)/(hi-lo)*(base-10):base/2;
+  const pts=vs.map((v,i)=>sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ');
+  el.innerHTML=
+    `<line x1="${pad}" y1="${base}" x2="${W-pad}" y2="${base}" stroke="var(--rLine2)" stroke-width="1"/>`+
+    (fill?`<polygon points="${pad},${base} ${pts} ${sx(vs.length-1).toFixed(1)},${base}" fill="${fill}"/>`:'')+
+    `<polyline class="curve" pathLength="1" points="${pts}" fill="none" stroke="var(--rInk)" stroke-width="1.2"`+
+    ` stroke-linejoin="round" stroke-linecap="round"/>`+
+    (dot?`<circle cx="${sx(0).toFixed(1)}" cy="${sy(vs[0]).toFixed(1)}" r="2.7" fill="${dot}" stroke="var(--rInk)" stroke-width="1"/>`:'');
+  const wrap=el.closest('.spark');if(wrap)wrap.hidden=false;
+  return true;
+}
+const sparkDraw=(wrapId)=>{const w=$(wrapId);
+  if(w&&!RM){w.classList.remove('dr');void w.offsetWidth;w.classList.add('dr')}};
+
+/* ============================== renders ============================== */
+
+function renderAir(city,status){
+  const stats=(city&&city.pm25_stats)||{};
+  const f=(status&&status.field)||(city&&city.field)||{};
+  const mean=stats.mean;
+  const bi=bandIdx(mean);
+  const pmEl=$('pm');
+  if(mean==null){pmEl.textContent='no reading';pmEl.classList.add('na')}
+  else{pmEl.textContent=fmt1(mean);pmEl.classList.remove('na')}
+  document.documentElement.style.setProperty('--hink',
+    bi==null?'var(--rInk)':bandInkCss(bi));
+  if(bi==null){$('pmBW').hidden=true;$('airDot').style.background='var(--rLine2)'}
+  else{
+    $('pmB').style.background=bandCss(bi);
+    $('pmW').textContent=BAND_NAME[bi];
+    $('pmBW').hidden=false;
+    $('airDot').style.background=bandCss(bi);
+  }
+  /* the honesty line under the number — age + where it came from */
+  const age=f.age_s??city?.freshness?.field_age_s;
+  const st=f.stale??(city?.freshness?.label==='stale');
+  $('pmS').innerHTML=(age==null?`the field reports no age — reading straight off what it serves`
+    :`the data is <b>${ago(age)} old</b>${st?` — <b style="color:var(--brick)">stale, past the ${Math.round((f.stale_after_s||2700)/60)}-minute alarm</b>`:''}`);
+  /* felt line — the day's breath in cigarettes, the codebase's own
+     figure; hidden when the field can't answer honestly */
+  const cig=city&&city.breath&&city.breath.cigarettes;
+  $('felt').innerHTML=cig
+    ?`a day outside in this air ≈ <b>${fmt1(cig.lo)}–${fmt1(cig.hi)} cigarettes</b> — berkeley earth's 316 µg rule, on the live map's own band`
+    :'';
+  /* the honesty rows */
+  const w=f.wind||city?.wind||{};
+  const typ=city&&city.typical;
+  const rows=[];
+  const sstat=f.stations_status||{};
+  const feeds=Object.keys(sstat).length
+    ?Object.entries(sstat).map(([k,v])=>`${k} ${v==='ok'?'✓':'✗'}`).join(' · ')
+    :(f.stations_src||null);
+  rows.push(row('stations reporting',
+    f.station_readings!=null?`<b>${fmt(f.station_readings)}</b>`:'—',
+    feeds?`the live blend right now: ${esc(feeds)}`:'which feeds are in the blend — the feed reports nothing'));
+  rows.push(row('serving',
+    f.serving==='live'?'the live field'
+    :f.serving==='snapshot'?'the last built snapshot'
+    :f.serving==='none'?'nothing — the field is empty':'—',
+    f.serving==='snapshot'
+      ?`serving a saved snapshot${f.snapshot_age_s!=null?` · built ${ago(f.snapshot_age_s)} ago`:''} — the live builder is down`
+      :(f.engine?`engine ${esc(f.engine)}`:null),
+    f.serving==='none'));
+  rows.push(row('wind',
+    w.speed_kmh!=null?`${Math.round(w.speed_kmh)} km/h <i>from ${compass(w.from_deg)||'—'}</i>`:'—',
+    w.speed_kmh!=null?'where the smoke drifts from':'the met feed carries no wind right now'));
+  rows.push(row('vs a typical day',
+    typ&&typ.vs_now_pct!=null
+      ?`${typ.vs_now_pct>0?'+':''}${fmt1(typ.vs_now_pct)}%`
+      :'—',
+    typ&&typ.median!=null
+      ?`a typical ${new Date().toLocaleString('en',{month:'long'})} hour like this reads ${fmt1(typ.median)} µg/m³ — ten years of openaq, median`
+      :'the decade-climatology band has no answer for this hour'));
+  $('airRows').innerHTML=rows.join('');
+  /* the next twelve hours — the same live-anchored forecast /v2/city
+     already ships; absent horizon = no line, never a flat fake */
+  const hrs=(city&&city.next_hours||[]).map(h=>h&&h.pm25).filter(v=>v!=null);
+  if(hrs.length>=4){
+    const c=bi==null?BAND[2]:BAND[bi];
+    spark('fcSvg',hrs,{fill:`rgba(${c[0]},${c[1]},${c[2]},.13)`,
+      dot:`rgb(${c[0]},${c[1]},${c[2]})`});
+    const lo=Math.min(...hrs),hi=Math.max(...hrs);
+    $('fcL').innerHTML=`the next ${hrs.length} hours — live forecast · <b>${fmt1(lo)}–${fmt1(hi)} µg/m³</b>`;
+    $('fcR').textContent='anchored to the live map';
+    sparkDraw('fcWrap');
+  }else{$('fcWrap').hidden=true}
+}
+
+function renderCoverage(status){
+  const f=(status&&status.field)||{};
+  const arch=(status&&status.archive)||{};
+  const fc=(status&&status.forecast)||{};
+  const rt=(status&&status.routing)||{loaded:false};
+  const rows=[];
+  /* instruments + model — the field's own count, verbatim feeds */
+  const sstat=f.stations_status||{};
+  rows.push(row('stations into the blend',
+    f.station_readings!=null?fmt(f.station_readings):'—',
+    f.stations_src?`feeding right now: ${esc(f.stations_src)}`:null));
+  for(const[feed,st]of Object.entries(sstat)){
+    const sw=String(st).toLowerCase();
+    rows.push(row(`&nbsp;&nbsp;${esc(feed)}`,esc(st),null,
+      !sw.startsWith('ok')&&!sw.startsWith('skipped')));
+  }
+  rows.push(row('model grid',f.samples!=null?`${fmt(f.samples)} samples`:'—',
+    f.source?`source ${esc(f.source)}`:null));
+  rows.push(row('kriging',
+    f.kriging==='on'?'on — ordinary kriging'
+    :f.kriging==='idw'?'idw fallback — honest, no krige σ':'—',
+    f.kriging==='idw'?'inverse-distance instead of the full spatial model — the map still answers, it just can\'t say how sure':null,
+    f.kriging==='idw'));
+  rows.push(row('how sure each cell is',
+    f.sigma_coverage==='per-query'?'every query gets its krige σ band'
+    :f.sigma_coverage==='full'?'every served cell carries σ'
+    :(f.sigma_coverage||'').startsWith('partial:')?`σ on ${esc(f.sigma_coverage.slice(8))} of the cells`
+    :f.sigma_coverage==='none'?'no σ — the field answers without an honest band':'—',
+    null,f.sigma_coverage==='none'));
+  const cov=f.coverage||{};
+  rows.push(row('the served field',cov.cells!=null?`${fmt(cov.cells)} cells`:'—',
+    cov.bbox?`from ${fmt1(cov.bbox[1])}°n to ${fmt1(cov.bbox[3])}°n`+(cov.out_beyond_km?` · outside it, ${cov.out_beyond_km} km of slack then no answer`:' · outside it, no answer'):null));
+  /* the archive — the hourly recording of this same field */
+  if(arch.enabled===false){
+    rows.push(row('the archive','off','the hourly recorder is disabled on this task'))
+  }else if(arch.snapshots_total!=null){
+    const t=arch.today||{};
+    rows.push(row('the archive',
+      `${fmt(arch.snapshots_total)} snapshot${arch.snapshots_total===1?'':'s'}`,
+      `recorded since ${esc((arch.since_ist||'').slice(0,10)||'—')} · today ${fmt(t.hours_recorded)} of ${fmt(t.hours_elapsed)} hours on disk`+
+      (t.gaps&&t.gaps.length?` · missing ${t.gaps.length} hour${t.gaps.length>1?'s':''}`:'')));
+  }else if(arch.error){
+    rows.push(row('the archive','—',`can't be counted right now — ${esc(arch.error)}`,true));
+  }
+  /* the horizon + the route engine — both only counted when loaded */
+  if(fc.hours!=null)rows.push(row('the forecast',
+    `${fmt(fc.hours)} hours ahead`,fc.age_s!=null?`refreshed ${ago(fc.age_s)} ago`:null));
+  if(rt.loaded)rows.push(row('the route engine',
+    rt.edges_priced!=null&&rt.edges!=null
+      ?`${fmt(rt.edges_priced)} of ${fmt(rt.edges)} edges priced`:'loaded',
+    `least-smoke paths priced off the live map`+(rt.reweight_age_s!=null?` · repriced ${ago(rt.reweight_age_s)} ago`:'')));
+  $('covRows').innerHTML=rows.join('');
+  $('covNote').innerHTML=`kriged or not, the page says which — a cell the
+    field can't honestly answer is never smoothed into fiction. the
+    archive is delhi's air as recorded history, one snapshot an hour.`;
+}
+
+function renderUsage(usage,timing,api){
+  const trips=(usage&&usage.trips)||{};
+  const dev=(usage&&usage.devices)||{};
+  const dose=(usage&&usage.dose)||{};
+  const fb=(usage&&usage.feedback)||{};
+  const corr=(usage&&usage.corridors)||{};
+  const req=(timing&&timing.requests)||{};
+  /* the boot caption — counters live in-process, a deploy zeroes them;
+     the page says so instead of implying a longer history */
+  const up=(api&&api.uptime_s);
+  $('bootLine').innerHTML=(up!=null
+    ?`counted since boot <b>${hmIST(Date.now()/1000-up)}</b> — the server's own stopwatch, in-process. <b>every counter resets on deploy.</b>`
+    :`the server's own stopwatch — in-process counts since boot. <b>every counter resets on deploy.</b>`);
+  /* requests — the registry's real histograms, busiest first */
+  const routes=(timing&&timing.routes)||[];
+  const inflight=timing&&timing.gauges&&timing.gauges.alive_requests_in_flight;
+  const rrows=[];
+  rrows.push(row('requests served',req.total!=null?fmt(req.total):fmt(routes.reduce((a,r)=>a+(r.n||0),0)),
+    inflight?`${fmt(inflight)} in flight right now`:null));
+  $('reqRows').innerHTML=rrows.join('');
+  const shortPath=p=>p&&p.startsWith(M)?p.slice(M.length)||'/':p;
+  const top=routes.filter(r=>r.n>0).slice(0,8);
+  $('routeRows').innerHTML=top.map((r,i)=>lrow(
+    String(i+1).padStart(2,'0'),
+    esc(shortPath(r.path)),
+    `${fmt(r.n)} <i>· p90 ≤ ${r.p90_le_ms!=null?fmt(r.p90_le_ms)+'ms':'—'}</i>`)).join('')||
+    lrow('01','—','nothing has knocked yet');
+  /* journeys sparkline — trips per utc hour, the store's own buckets */
+  const jph=api&&api.journeys_per_hour;
+  if(jph&&jph.length>=2){
+    spark('trSvg',jph,{});
+    const tot=jph.reduce((a,b)=>a+(b||0),0);
+    $('trR').innerHTML=`<b>${fmt(tot)}</b> journeys in the window`;
+    sparkDraw('trWrap');
+  }else{$('trWrap').hidden=true}
+  const urows=[];
+  urows.push(row('devices seen',
+    dev.total!=null?`<b>${fmt(dev.total)}</b> all-time`:'—',
+    dev.seen_24h!=null||dev.seen_7d!=null
+      ?`${dev.seen_24h!=null?fmt(dev.seen_24h)+' in 24h':''}${dev.seen_24h!=null&&dev.seen_7d!=null?' · ':''}${dev.seen_7d!=null?fmt(dev.seen_7d)+' in 7d':''} — devices that shared; true installs are unknowable by design`
+      :usage&&usage.devices_basis?esc(usage.devices_basis):null));
+  const live=api&&api.live_users;
+  urows.push(row('active right now',
+    live!=null?fmt(live):'—',
+    'phones that shared inside the last half hour'));
+  const today=trips.today;
+  urows.push(row('today',
+    today?`<b>${fmt(today.trips)}</b> <i>journeys</i>`:'none yet',
+    today?`${fmt1(today.km)} km · ${fmt1(today.dose_ug)} µg breathed`:'the day counter exists — it just hasn\'t heard a trip yet'));
+  urows.push(row('every donation ever',
+    trips.total?`<b>${fmt(trips.total)}</b> <i>journeys</i>`:'—',
+    trips.total?`${fmt1(trips.km)} km · ${fmt1(trips.dose_ug)} µg · ${fmt1(trips.co2_kg_mid)} kg co₂${trips.latest_donation_age_min!=null?` · last one ${ago(trips.latest_donation_age_min*60)} ago`:''}`:null));
+  urows.push(row('a journey, averaged',
+    dose.mean_ug_per_trip!=null?`${fmt1(dose.mean_ug_per_trip)} µg`:'—',
+    dose.median_ug_per_trip!=null?`median ${fmt1(dose.median_ug_per_trip)} µg over the ${fmt(dose.median_n)} ledgered trips`:'the median waits on the device ledger'));
+  urows.push(row('streets that qualify',
+    corr.publishable!=null?`${fmt(corr.publishable)} <i>of ${fmt(corr.tracked)}</i>`:'—',
+    `a street cell publishes only when ≥${corr.k_min||3} distinct phones crossed it in ${corr.window_h||72}h — the rest are counted, never shown`));
+  const rv=fb.reviews,hz=fb.hazard_reports;
+  urows.push(row('what riders told us',
+    rv&&rv.count!=null?`<b>${fmt(rv.count)}</b> <i>reviews</i>`:'—',
+    `${rv&&rv.avg!=null?`avg ${fmt1(rv.avg)} ★ · `:''}${hz&&hz.active!=null?fmt(hz.active)+' hazard flags live':''}`||null));
+  $('useRows').innerHTML=urows.join('');
+  const supp=api&&api.contributors_suppressed;
+  $('useNote').innerHTML=`aggregate-only by construction — nothing here
+    can collapse to one person${supp&&supp.day_rows?`; <b>${fmt(supp.day_rows)}</b> day-slice${supp.day_rows>1?'s':''} withheld under the 3-phone rule`:''}.`;
+}
+
+function renderHealth(status,sources,timing){
+  const f=(status&&status.field)||{};
+  const src=(sources&&sources.sources)||{};
+  const disk=(status&&status.disk)||{};
+  const led=(status&&status.ledger)||{};
+  const alarms=[];
+  /* every alarm names itself — the count is real conditions, not vibes */
+  if(f.serving==='none')alarms.push('the field serves nothing');
+  if(f.stale===true)alarms.push(`field ${ago(f.age_s)} old, past the ${Math.round((f.stale_after_s||2700)/60)}-minute rule`);
+  let staleN=0;
+  for(const[n,s]of Object.entries(src)){if(s&&s.stale===true){staleN++;}}
+  if(staleN)alarms.push(`${staleN} feed${staleN>1?'s':''} stale`);
+  if(disk.low===true)alarms.push(`disk ${fmt1(disk.free_pct)}% free`);
+  if(led.error)alarms.push(`ledger: ${led.error}`);
+  const lw=(f.load_warnings||[]).length;
+  if(lw)alarms.push(`${lw} load warning${lw>1?'s':''}`);
+  const al=$('alarm');
+  if(alarms.length){
+    al.className='alarmline hot';
+    al.innerHTML=`<b>${alarms.length} thing${alarms.length>1?'s':''} hurting:</b> ${esc(alarms.join(' · '))}`;
+  }else{
+    al.className='alarmline quiet';
+    al.innerHTML=`<b>all quiet.</b> nothing is past its alarm rule — every feed inside its own cadence.`;
+  }
+  /* the feeds, verbatim — each carries its own state word */
+  const srows=[];
+  for(const[name,s]of Object.entries(src)){
+    /* the feed's verdict reads its own status word — 'up' is a probe
+       tri-state (usually null), 'skipped:*' is off by choice, anything
+       unavailable/down/error is brick, everything else is listening */
+    const st=String(s.status||'').toLowerCase();
+    const word=s.up===true?'up':s.up===false?'down'
+      :s.stale===true?'stale'
+      :st.startsWith('unavailable')||st.startsWith('down')||st.startsWith('error')||st.startsWith('fail')?'down'
+      :st.startsWith('skipped')?'off'
+      :'listening';
+    const bad=s.stale===true||s.up===false||word==='down';
+    const age=s.age_s!=null?`${ago(s.age_s)} ago`:'—';
+    srows.push(lrow('',`<b>${esc(name)}</b> — ${esc(s.status||s.detail||'')} `,
+      `${esc(word)} <i>· ${age}</i>`,bad));
+  }
+  $('srcRows').innerHTML=srows.join('');
+  /* errors — the request logger's own counters, per route, since boot */
+  const errs=(timing&&timing.errors)||[];
+  const bs=(timing&&timing.requests&&timing.requests.by_status)||{};
+  const erows=[];
+  erows.push(row('errors since boot',
+    `<i>4xx</i> ${fmt(bs['4xx']||0)} · <i>5xx</i> ${fmt(bs['5xx']||0)}`,
+    errs.length?null:'no route has thrown or refused since boot',
+    (bs['5xx']||0)>0));
+  errs.slice(0,5).forEach((e,i)=>erows.push(
+    lrow(String(i+1).padStart(2,'0'),
+      esc(e.route&&e.route.startsWith(M)?e.route.slice(M.length)||'/':e.route),
+      `${fmt(e.n)} <i>${esc(e.class)}</i>`,e.class==='5xx')));
+  $('errRows').innerHTML=erows.join('');
+  /* the machine's own vitals */
+  const sysrows=[];
+  sysrows.push(row('disk',disk.free_pct!=null?`${fmt1(disk.free_pct)}% free`:'—',
+    disk.path?esc(disk.path):null,disk.low===true));
+  sysrows.push(row('the ledger',
+    led.backend?esc(led.backend):'—',
+    led.devices_tracked!=null?`${fmt(led.devices_tracked)} device tokens tracked`:null,
+    !!led.error));
+  sysrows.push(row('build',
+    status&&status.build_sha?`<i>${esc(status.build_sha)}</i>`:'—',
+    `${status&&status.version?esc(status.version):''}${status&&status.uptime_s!=null?` · up ${ago(status.uptime_s)}`:''}`||null));
+  $('sysRows').innerHTML=sysrows.join('');
+}
+
+/* ============================== the tick ============================== */
 async function tick(){
   /* each feed settles on its own — one failing endpoint must not blank
-     the rest of the board; a section renders only when its payload lands.
+     the rest; a section renders only when its payload lands.
      token check happens BEFORE any authed fetch — an unauthenticated
-     load fires zero 401s: public feeds still serve, gated slots reject
-     instantly and render their honest-empty states. */
-  const urls=[M+'/api/status',M+'/api/sources',M+'/api/corridors',
-    M+'/api/donations',M+'/api/validation',M+'/api/model',
-    '/v2/districts',M+'/api/timing',M+'/api/global',M+'/api/usage',
-    /* public feeds — the page renders real truth before the token lands:
-       /health carries the public-safe status block (samples, stations,
-       edges priced, engine), /aqi the live read + fire status + σ band,
-       /fires the raw firms detections */
-    '/health','/aqi?lat=28.6315&lon=77.2167','/fires',
-    '/v2/why?lat=28.63&lon=77.22','/v2/city',
+     load fires zero 401s: /v2/city still serves (it's the public page's
+     own feed), gated slots reject instantly. */
+  const urls=[M+'/api/status',M+'/api/sources',M+'/api/timing',
+    M+'/api/usage',M+'/api','/v2/city',
     /* the auth probe — not gated, always fetched; it is how sign-out /
        expiry in another tab (or a token rotation) re-locks this board */
     M+'/session'];
   const gated=!AUT;
-  /* every operator-only path must short-circuit for guests — a fetch
-     that hits the server anyway would surface its 401/403 as a nagging
-     token prompt instead of the honest locked state */
-  const isGatedPath=u=>u.startsWith(M+'/api/');
+  const isGatedPath=u=>u.startsWith(M+'/api');
   const res=await Promise.allSettled(urls.map(u=>
     (gated&&isGatedPath(u))
       ?Promise.reject(new Error(u+' — token required'))
       :getJSON(u)));
-  if(res.every(r=>r.status==='rejected')){
+  const sess=res[6].status==='fulfilled'?res[6].value:null;
+  if(sess&&sess.authenticated===false&&AUT){
+    AUT=false;showGate('session ended — sign in again');
+  }
+  const data=res.slice(0,6);
+  if(data.every(r=>r.status==='rejected')){
     /* keep the last good render on screen — flag its age, never blank it */
-    $('feed').className='feed off';
-    $('feedtxt').textContent='offline — retrying';
-    const why=res[0]&&res[0].reason&&(res[0].reason.message||res[0].reason);
+    $('liveDot').style.background='var(--brick)';
     $('stamp').innerHTML=
-      `<span class='err'>admin api unreachable — ${esc(why||'all endpoints failed')}</span>`+
-      (LAST_OK?` · showing last good data from <b>${timeIST(LAST_OK)}</b>`:'');
-    /* panels that never got a first render must not sit on the
-       'connecting…' placeholder forever — say what is actually wrong */
-    for(const [id,what] of [['firebar','fire feed'],['firemap-sub','fire feed'],
-                            ['distmap-sub','district field'],
-                            ['fieldmap-sub','field grid'],
-                            ['whyline2','driver feed']]){
-      const el=$(id);
-      if(el&&el.textContent.trim()==='connecting…')
-        el.textContent=`${what} unreachable — retrying every 30s`;
-    }
+      `<span class="err">the server isn't answering — ${esc((data[0].reason&&data[0].reason.message)||'all feeds failed')}</span>`+
+      (LAST_OK?`<span>showing last good data from <b>${timeIST(LAST_OK)}</b></span>`:'');
     return;
   }
-  const val=r=>r.status==='fulfilled'?r.value:null;
-  const [status,sources,corridors,donations,validation,model,districts,
-    timing,globalAgg,usage,health,aqiPt,firesDoc,why,cityDoc,session]=
-    res.map(val);
-  if(session&&typeof session.authenticated==='boolean'){
-    const was=AUT;AUT=session.authenticated;
-    if(was&&!AUT)showGate('session ended — sign in again');
-    else if(!was&&AUT)hideGate();
-  }
-  /* --- why tonight: driver attribution over the same live ingredients --- */
-  try{
-    const wv=why||{};
-    $('whyline2').textContent=wv.line||'—';
-    const wts=wv.generated_at?('as of '+timeIST(new Date(wv.generated_at))):'';
-    $('whysub').textContent=(wts?wts+' · ':'')+'every claim below carries its evidence; checks that couldn\'t run are named, not hidden';
-    const drs=wv.drivers||[];
-    /* driver-kind names arrive as wire vocabulary — translate the known
-       ones, pass anything new through verbatim */
-    const KIND={'fires':'farm fires','ventilation':'wind + mixing height',
-      'stubble':'stubble burning','traffic':'traffic','industry':'industry',
-      'dust':'road dust','trend':'drift over 6h','seasonal':'season',
-      'stagnation':'stagnant air','fire':'farm fires','met':'weather'};
-    const CHIPK={belt_fires:'belt fires',fires_total:'fires seen',
-      wind_deg:'wind',wind_kmh:'wind km/h',modifier:'smoke lift',
-      vc_m2s:'clearing m²/s',blh_m:'mixing height m',
-      factor:'× less clearing',delta_ug:'change µg/m³',span_h:'hours',
-      n_snapshots:'recorded maps',speed_kmh:'wind km/h',from_deg:'wind from',
-      wind_ms:'wind m/s',aod:'dust in the air',mean_ug:'air mean µg/m³',
-      source:'from',age_s:'age s',belt_frp_mw:'belt heat mw',
-      n_fires:'fires seen',feed:'feed',feed_status:'feed state',
-      feed_age_s:'feed age s',newest_age_s:'latest map age s',
-      n_snapshots_available:'maps on file',span_available_h:'span h',
-      from_pm25:'from µg/m³',to_pm25:'to µg/m³',
-      carrying:'drifting toward delhi'};
-    $('whydrivers').innerHTML=drs.length?drs.map(d=>{
-      const det=d.detail||{};
-      const chips=Object.entries(det).filter(([k,v])=>v!=null&&k!=='vc_ref_m2s')
-        .map(([k,v])=>`<span class="chip2">${esc(CHIPK[k]||k)} ${esc(typeof v==='number'?+v.toFixed(2):v)}</span>`).join(' ');
-      return `<tr><td><b>${esc(KIND[d.kind]||d.kind)}</b>${d.direction?' · '+esc(d.direction):''}</td>
-        <td><span class="badge ${d.weight==='primary'?'stale':''}">${d.weight==='primary'?'main driver':esc(d.weight||'—')}</span></td>
-        <td class="num">${d.score!=null?d.score.toFixed(2):'—'}</td>
-        <td>${esc(d.evidence||'—')}</td><td>${chips}</td></tr>`;
-    }).join(''):`<tr><td colspan="5" class="sub">${esc((wv.line)||'no cause clears the bar')} — the cause list stays empty rather than inventing one</td></tr>`;
-    const evv=wv.evaluated||{};
-    const wnd=wv.wind||{};
-    const evRows=[
-      ['wind',wnd.known?`${Math.round(wnd.speed_kmh)} km/h from ${Math.round(wnd.from_deg??0)}° · ${esc(wnd.source||'')}${wnd.age_s!=null?' · '+ago(wnd.age_s)+' ago':''}`:'unknown — cannot judge the smoke carry',true],
-      ['farm fires',evv.fires?(evv.fires.seen?`${evv.fires.belt_fires??'—'} in the belt · smoke lift ×${evv.fires.modifier??'—'} · drifting toward delhi: ${evv.fires.carrying===null?'unknown':evv.fires.carrying?'yes':'no'}`:'feed cold'):'—',true],
-      ['air can clear',evv.ventilation&&evv.ventilation.vc_m2s!=null?`${fmt(evv.ventilation.vc_m2s)} m²/s of clearing room · clears ×${evv.ventilation.factor??'—'} slower than a typical day · ${esc(evv.ventilation.source||'')}`:'no read',true],
-      ['drift over 6h',evv.trend&&evv.trend.delta_ug!=null?`${evv.trend.delta_ug>0?'+':''}${evv.trend.delta_ug} µg/m³ over ${evv.trend.span_h}h · ${evv.trend.n_snapshots} recorded map${evv.trend.n_snapshots===1?'':'s'}`:(evv.trend?`${evv.trend.n_snapshots} recorded map${evv.trend.n_snapshots===1?'':'s'} in 6h`:'—'),true],
-    ];
-    $('whyeval').innerHTML=evRows.map(([k,v,m])=>`<dt>${k}</dt><dd class="${m?'':'sub'}">${v}</dd>`).join('');
-    const cts=wv.cannot_tell||[];
-    $('whycant').innerHTML=cts.length?cts.map(c=>`<div class="sub" style="margin-top:6px">⚠ can't tell: ${esc(KIND[c.kind]||c.kind)} — ${esc(c.reason)}</div>`).join(''):'';
-    /* sparkline: the recorded builds — pm25 solid + vc dashed + fires dotted */
-    const hp=(wv.history&&wv.history.points)||[];
-    const cv=$('whyhist');
-    if(cv&&hp.length>=2){
-      const ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
-      const W=cv.width,H=cv.height,pad=8;
-      const xs=i=>pad+i*(W-2*pad)/(hp.length-1);
-      const rng=arr=>{const a=arr.filter(x=>x!=null);
-        return a.length?{lo:Math.min(...a),hi:Math.max(...a)}:null};
-      const draw=(key,color,dash)=>{
-        const r=rng(hp.map(p=>p[key]));if(!r)return;
-        ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash);
-        ctx.beginPath();let started=false;
-        hp.forEach((p,i)=>{const v=p[key];if(v==null)return;
-          const x=xs(i),y=H-pad-(((v-r.lo)/((r.hi-r.lo)||1))*(H-2*pad));
-          started?ctx.lineTo(x,y):ctx.moveTo(x,y);started=true});
-        ctx.stroke();ctx.setLineDash([])};
-      draw('belt_fires','rgba(161,102,47,.9)',[2,2]);
-      draw('vc_m2s','rgba(101,112,127,.9)',[4,3]);
-      draw('pm25','rgba(163,68,70,1)',[]);
-      $('whysub').textContent+=` · ${hp.length} recorded map${hp.length===1?'':'s'} over ${wv.history.window_h}h — solid line: the air · dashed: clearing room · dotted: belt fires`;
-    }else if(cv){cv.hidden=true;}
-  }catch(e){$('whydrivers').innerHTML='<tr><td colspan="5" class="sub">why feed unavailable</td></tr>';}
-  let dn=donations||{},S=status||{},H=health||{},A=aqiPt||{};
-  const CY=cityDoc||{};   /* /v2/city — the 'delhi today' summary (grap) */
-  /* guest view — /v2/city publishes the same anonymized aggregates the
-     gated donations feed reports (same store, days folded). when the
-     token is absent the public totals fill the same tiles; nothing is
-     invented — every number below is already served publicly */
-  if(!dn.totals&&CY.trips&&CY.trips.days){
-    const d0=CY.trips.days,dk0=Object.keys(d0).sort();
-    const s0=k=>dk0.reduce((a,d)=>a+(d0[d][k]||0),0);
-    const modes0={};dk0.forEach(d=>{const m=d0[d].modes||{};
-      for(const k in m)modes0[k]=(modes0[k]||0)+m[k]});
-    const nTr0=s0('trips'),km0=s0('km'),dU0=s0('dose_ug');
-    const cm0=s0('co2_moving_g'),ci0=s0('co2_idle_g'),cc0=s0('co2_cold_g'),
-          ct0=s0('co2_split_trips'),csum0=cm0+ci0+cc0;
-    dn={totals:{trips:nTr0,km:km0,dose_ug:dU0,
-      co2_kg_mid:s0('co2_kg_mid'),pm25_g_mid:s0('pm25_g_mid'),
-      switched:s0('switched'),
-      avg_dose_per_trip_ug:nTr0?+(dU0/nTr0).toFixed(1):null,
-      dose_ug_per_km:km0?+(dU0/km0).toFixed(2):null,
-      avg_km_per_trip:nTr0?+(km0/nTr0).toFixed(1):null,
-      dose_avoided_ug:s0('avoided_ug'),co2_avoided_kg:s0('co2_avoided_kg'),
-      co2_split:ct0&&csum0?{pct:{moving:Math.round(cm0/csum0*100),
-        idle:Math.round(ci0/csum0*100),cold:Math.round(cc0/csum0*100)},
-        trips:ct0}:null},
-      days:d0,cells_tracked:CY.trips.cells_tracked,
-      corridors_publishable:CY.trips.corridors_publishable,
-      window_s:((((CY.provenance||{}).trips)||{}).window_h||72)*3600,
-      devices_note:'',recent:[],ts:Date.now()/1000,
-      mode_share:Object.entries(modes0)
-        .map(([mode,n])=>({mode,trips:n,pct:nTr0?Math.round(n/nTr0*100):0}))
-        .sort((a,b)=>b.trips-a.trips)};
-  }
-  const fireSt=A.fire||{};   /* served fire status — belt/modifier/wind live */
-  /* public fill — /health + /aqi are public-safe: when the token is
-     declined the field/routing truth still paints, honestly labelled.
-     gated blocks only enrich what the public feed can't say. */
-  const AFLD=A.field||{};
-  if(!S.field&&(AFLD.samples!=null||H.field_age_s!=null)){
-    S.field={
-      source:AFLD.source||(H.sources&&H.sources.model&&H.sources.model.source),
-      serving:AFLD.serving||null,
-      samples:AFLD.samples!=null?AFLD.samples
-        :(H.sources&&H.sources.model?H.sources.model.samples:null),
-      station_readings:AFLD.station_readings!=null?AFLD.station_readings
-        :(H.sources&&H.sources.stations?H.sources.stations.count:null),
-      age_s:AFLD.age_s!=null?AFLD.age_s:H.field_age_s,
-      stale:AFLD.stale!=null?AFLD.stale:H.field_stale,
-      stale_after_s:AFLD.stale_after_s,
-      kriging:AFLD.kriging,engine:AFLD.engine||H.engine,
-      sigma_coverage:AFLD.sigma_coverage,coverage:AFLD.coverage,
-      wind:AFLD.wind||H.wind,
-      snapshot_age_s:null,
-    };
-  }
-  if(!S.routing&&H.routing&&H.routing.loaded)
-    S.routing={loaded:true,edges:H.routing.edges,
-               edges_priced:H.routing.edges_priced,engine:H.engine};
-  FIRES_DOC=firesDoc||FIRES_DOC||{};
-  /* corridor rows — the gated feed carries field_pm25 per street; the
-     public /v2/city publishes the same k≥3 street cells without it
-     (the air-now column reads — honestly) */
-  const rows=((corridors&&corridors.rows)
-    ||(CY.corridors||[]).map(c=>({cell:c.cell,near:c.name,trips:c.trips,
-      devices:c.devices,avg_dose_ug:c.avg_dose_ug,
-      co2_g_per_100m:c.co2_g_per_100m,field_pm25:null})))
-    .filter(r=>r&&r.trips!=null);
-  /* token-gated endpoints reject on purpose — counting them as 'feeds
-     down' makes an honest gate look broken; only genuine failures count */
-  const isGate=r=>r.status==='rejected'&&
-    String((r.reason&&r.reason.message)||r.reason||'').endsWith('token required');
-  const gatedN=res.filter(isGate).length;
-  const failedN=res.filter(r=>r.status==='rejected'&&!isGate(r)).length;
-  /* --- ncr district choropleth: one map, each boundary filled by its
-     live band for the selected parameter; a pinned card refreshes in
-     place with the new feed --- */
-  try{
-    DIST_ROWS=(districts&&districts.districts)||[];
-    paintDMap().then(()=>{
-      if(DT_PIN){const r=DM_ROWS.find(r=>r.name===DT_PIN.name);
-        if(r)dmShow(r,DT_PIN.x,DT_PIN.y);else dtHide()}
-    }).catch(()=>{});
-  }catch(e){ /* the map stays honest-empty; never break the board */ }
-
   LAST_OK=new Date();
-  $('feed').className='feed live';
-  $('feedtxt').textContent='refreshes itself · every 30s';
-  $('updated').textContent='updated '+timeIST(LAST_OK);
-  if(failedN||gatedN)$('feedtxt').textContent='refreshes itself · every 30s'+
-    (failedN?` · ${failedN} feed${failedN>1?'s':''} down`:'')+
-    (gatedN?` · ${gatedN} locked — sign in as operator`:'')
-
-  G_STATUS=S;   /* methodology cards read live counts from the status feed */
-  const f=S.field||{};
-  const sv=f.serving||'none';
-  const svBadge=sv==='live'?'<span class="badge live">live</span>'
-    :sv==='snapshot'?'<span class="badge">snapshot</span>'
-    :'<span class="badge crit">no field</span>';
-  if(S.field){
-    /* the hero + vitals rail carry the counts — the stamp stays the
-       honest ticker: uptime, the 'as of' read, and the gate notice */
-    $('stamp').innerHTML=
-      (S.uptime_s!=null?`engine up <b>${ago(S.uptime_s)}</b> · `:'')+
-      `updated <b>${timeIST(LAST_OK)}</b>`+
-      (gated?` · <span class="err">guest view</span> — operator sign-in unlocks the internals; everything below is live public truth`:'');
-  }else{
-    /* the one honest line for the token need — the pill above the
-       stamp says the count, this says what the token unlocks */
-    $('stamp').innerHTML=gated
-      ?'<span class="err">guest view — no operator token</span> · the operator panels stay locked; everything below is live public truth.'
-      :'<span class="err">status feed unavailable — retrying every 30s</span>';
-  }
-
-  /* --- headline cards --- */
-  const t=dn.totals||{};
-  const daily=(validation&&validation.daily)||{};
-  const loso=(validation&&validation.weekly&&validation.weekly.loso)||{};
-  const archR=(validation&&validation.weekly&&validation.weekly.archive_replay)||{};
-  /* the day's middle read — the gated rollup first, else the same
-     number the public /v2/city serves (median of the sampled points) */
-  const medV=daily.median_pm25!=null?daily.median_pm25
-    :((CY.pm25_stats&&CY.pm25_stats.median)!=null?CY.pm25_stats.median:null);
-  const medL=daily.median_pm25!=null
-    ?`delhi's air right now · middle reading${daily.date?' · '+daily.date:''}`
-    :`delhi's air right now · middle of ${(CY.pm25_stats&&CY.pm25_stats.n)||'—'} sampled points`;
-  // headline error card: held-out LOSO when it has folds; otherwise the
-  // archive replay mae is real evidence and clearly labelled as such —
-  // an empty card here would undersell data the week block already shows.
-  // guests fall back to the public leave-one-out calibration /aqi serves.
-  const calM=(A.calibration||{});
-  const medW=daily.median_pm25!=null
-    ?'the middle reading across every live cell for the whole recorded day — half of delhi breathed worse than this'
-    :'the middle reading across the sampled cells right now — half of delhi breathes worse than this';
-  const maeV=loso.mae_ugm3!=null?loso.mae_ugm3
-    :(archR.status==='ok'&&archR.mae_ugm3!=null?archR.mae_ugm3
-    :(calM.mae_ug!=null?calM.mae_ug:null));
-  const maeL=loso.mae_ugm3!=null?'hidden-monitor test'
-    :(archR.status==='ok'&&archR.mae_ugm3!=null?'replay of recorded hours'
-    :'live check · each monitor hidden in turn');
-  /* every card wears a verdict word — 'good'/'live'/'quiet'/'watching'/
-     'down' for ops health, the real cpcb band word for air stats.
-     muted ramp only: good is the colourless one. */
-  const VC={good:'var(--ink3)',live:'var(--accent-ink)',
-    quiet:'var(--ink4)',watching:'var(--bronze)',down:'var(--wine)'};
-  const MUTEDB=['#7AAB59','#C8B25A','#D58C4A','#B85442','#8F3C49','#6E3C54'];
-  const BWORDS=['good','satisfactory','moderate','poor','very poor','severe'];
-  const PM25BREAKS=[30,60,90,120,250];
-  const bandV=pm=>{let i=0;while(i<PM25BREAKS.length&&pm>PM25BREAKS[i])i++;
-    return [BWORDS[i],MUTEDB[i]]};
-  const ageTxt=f.age_s!=null?ago(f.age_s):null;
-  /* the card grammar now splits by what it proves — air vitals sit under
-     the hero (public feeds, always live), rider totals live inside 'what
-     riders share' where an honest-empty reads as 'nothing shared yet' */
-  const cardsA=[
-    [f.age_s!=null?`${ageTxt}`:null,
-     `the air map · how fresh · serving ${esc(sv)}`,'',f.age_s!=null,
-     'how long since the air map was rebuilt from real readings — the fresher, the more every route trusts it',
-     f.stale===true?['watching',VC.watching]:['good',VC.good]],
-    [f.samples!=null?`${fmt(f.samples)} <small>map points</small>`:null,
-     `map detail · points fitted to ${fmt(f.station_readings)} monitors`,'',f.samples!=null,
-     'how many map-points the air surface has — the engine reads air at ~500m granularity, not one city average',
-     (f.samples||0)>0?['good',VC.good]:['down',VC.down]],
-    [medV!=null?`${fmt1(medV)} <small>µg/m³</small>`:null,
-     medL,'',medV!=null,medW,
-     medV!=null?bandV(medV):null],
-    [maeV!=null?`${maeV} <small>µg/m³</small>`:null,
-     `how wrong the map is · ${maeL}${validation&&validation.weekly?' · '+validation.weekly.week:''}`,'',maeV!=null,
-     'the honesty score: how far the filled-in map misses a real monitor it was never shown — lower is truer',
-     maeV!=null?(maeV<=30?['good',VC.good]:maeV<=60?['watching',VC.watching]:['down',VC.down]):null]];
-  const cardsR=[
-    [t.trips?fmt(t.trips):null,'trips people shared · all time','',!!t.trips,
-     'real journeys users chose to share — anonymized totals only, never a person',
-     t.trips?['live',VC.live]:['quiet',VC.quiet]],
-    [dn.corridors_publishable||null,'shared streets · ≥3 phones crossed','accent',dn.corridors_publishable>0,
-     'streets where ≥3 different phones crossed in 72h — safe to show without exposing anyone',
-     dn.corridors_publishable>0?['live',VC.live]:['quiet',VC.quiet]],
-    [t.switched?fmt(t.switched):null,'cleaner choices made','accent',t.switched>0,
-     'trips where someone picked the lower-smoke option the app showed',
-     t.switched?['live',VC.live]:['quiet',VC.quiet]],
-    [t.dose_ug?`${fmt(t.dose_ug)} <small>µg</small>`:null,
-     `smoke inhaled · all shared trips · ~${fmt(t.avg_dose_per_trip_ug)??'—'} <span style="text-transform:none">µg each</span>`,'accent',t.dose_ug>0,
-     'total PM2.5 mass actually inhaled across every shared trip — the number nobody else measures',
-     t.dose_ug>0?['counted',VC.good]:['quiet',VC.quiet]],
-    [t.co2_kg_mid?`${fmt1(t.co2_kg_mid)} <small>kg</small>`:null,
-     `co₂ from shared rides · mid estimate · counted-basis`,'accent',t.co2_kg_mid>0,
-     'what the shared rides emitted — midpoint between the low and high emission factors, integrated along each actual ride',
-     t.co2_kg_mid>0?['counted',VC.good]:['quiet',VC.quiet]]];
-  const cardHtml=([v,l,cl,ok,what,verd])=>
-    `<div class="card"><div class="kchip${ok&&cl?' '+cl:''}">${l}${verd?`<span class="vword" style="--vc:${verd[1]}">${verd[0]}</span>`:''}</div>`+
-    `<div class="num ${ok?cl||'':'na'}">${ok?v:(gated?'locked — sign in':'nothing to show yet')}</div>`+
-    (what?`<div class="cap">${what}</div>`:'')+
-    `</div>`;
-  $('stats').innerHTML=cardsA.map(cardHtml).join('');
-  $('statsr').innerHTML=cardsR.map(cardHtml).join('');
-
-  /* --- the hero — 'is it alive' in one read. the numeral is the city's
-     own field mean (/v2/city pm25_stats.mean); the band word is the
-     only colour allowed; the vitals rail is the proof the system is
-     actually running. every row traces a served field — nothing here
-     is computed on-page except the wash math on the band chip --- */
-  try{
-    const ps=CY.pm25_stats||{},typ=CY.typical||{},fld=CY.field||{},
-          grp=CY.grap||{},hrt=H.routing||{},fw=CY.wind||f.wind||{},
-          lv=ps.mean!=null;
-    $('hero-num').textContent=lv?fmt1(ps.mean):'—';
-    $('hero-num').className='hero-num'+(lv?'':' na');
-    const bd=$('hero-band');
-    if(lv){const [w,c]=bandV(ps.mean);
-      bd.hidden=false;bd.textContent=w;
-      bd.style.background=bandWash(c);bd.style.color=bandInk(c);
-      bd.style.border='1px solid '+mixHex(c,'#FFFFFF',.6);
-    }else bd.hidden=true;
-    const lvEl=$('hero-lv');
-    lvEl.innerHTML=lv?'<i></i>live':'— offline';
-    lvEl.style.color=lv?'':'var(--ink4)';
-    $('hero-line').innerHTML=lv
-      ?`the mean across <b>${fmt(ps.n)} sampled cells</b> — median ${fmt1(ps.median)} · worst ${fmt1(ps.max)} µg/m³`+
-       (ps.above_who24h_15!=null
-         ?` — <b>${ps.above_who24h_15>=99.5?'every cell':ps.above_who24h_15+'%'}</b> above the WHO 24-hour guideline`:'')+
-       (grp.aqi!=null?` · indian aqi ${Math.round(grp.aqi)}`:'')
-      :'the city feed is unreachable — this page retries every 30 seconds and never fills a number in.';
-    const noteBits=[];
-    if(typ.vs_now_pct!=null&&typ.median!=null)
-      noteBits.push(`${Math.abs(Math.round(typ.vs_now_pct))}% ${typ.vs_now_pct<0?'below':'above'} a typical ${['','jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][typ.month]||'this-month'} day (≈${fmt1(typ.median)} µg/m³)`);
-    if(grp.equivalent_stage!=null)
-      noteBits.push(grp.equivalent_stage
-        ?`maps to GRAP stage ${['','I','II','III','IV'][grp.equivalent_stage]||grp.equivalent_stage} — computed here, caqm declares the official one`
-        :`below emergency-rules stage I — computed here, caqm declares the official one`);
-    if(fw.speed_kmh!=null)
-      noteBits.push(`wind ${fmt1(fw.speed_kmh)} km/h from ${Math.round(fw.from_deg??0)}°`);
-    $('hero-note').textContent=noteBits.join(' · ');
-    const ttl=(CY.field&&CY.field.refresh_ttl_s)||null;
-    const frN=fireSt.fires!=null?fireSt.fires:null;
-    $('hero-vitals').innerHTML=[
-      ['the map is',S.field?svBadge:(AFLD.samples!=null?'<span class="badge live">live</span>':'<span class="badge">unknown</span>')],
-      ['last rebuilt',f.age_s!=null?ago(f.age_s)+' ago'+(ttl?` · every ~${Math.round(ttl/60)}m`:''):'—'],
-      ['instruments',f.station_readings!=null?`${fmt(f.station_readings)} live · ${esc(f.stations_src||'govt feeds')}`:'—'],
-      ['map points',f.samples!=null?fmt(f.samples):'—'],
-      ['streets priced',(S.routing&&S.routing.edges_priced!=null?fmt(S.routing.edges_priced)
-        :hrt.edges_priced!=null?fmt(hrt.edges_priced):'—')],
-      ['fires',frN!=null?`${fmt(frN)} spotted · ${fmt(fireSt.belt_fires||0)} in the belt`:'—'],
-      ['next rebuild',(fld.refresh_in_s!=null?`in ${ago(fld.refresh_in_s)}`
-        :(H.field_refresh_in_s!=null?`in ${ago(H.field_refresh_in_s)}`:'—'))],
-    ].map(([k,v])=>`<div class="vr"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
-  }catch(e){/* the hero degrades to its em-dash state — never a fake */}
-
-  /* --- source health: what is serving, and how fresh it is --- */
-  const p=S.provenance||{};
-  const wind=f.wind||{};
-  const cov=f.coverage||null;
-  const disk=S.disk||{};
-  $('field').innerHTML=S.field?[
-    ['the map is',svBadge,true],
-    ['built from',esc(f.source||'—'),true],
-    ['last updated',`${ago(f.age_s)} ago ${freshBadge(f.stale)}`,true],
-    ['map detail',`${fmt(f.samples)} map points · ${fmt(f.station_readings)} monitors read`,true],
-    ...(f.snapshot_age_s!=null?[['last saved copy',ago(f.snapshot_age_s)+' ago',true]]:[]),
-    ['gap filling',f.kriging==='on'
-      ?'on — every gap between monitors is filled in, each carrying its honesty band'
-      :esc(f.kriging||'—'),true],
-    ['uncertainty band',f.sigma_coverage==='per-query'
-      ?'per query — every read carries its own ± range'
-      :esc(f.sigma_coverage||'none — cells carry no honest uncertainty band'),true],
-    ['area covered',cov&&cov.cells!=null?`${fmt(cov.cells)} cells${cov.out_beyond_km!=null?` · within ~${cov.out_beyond_km} km of any street`:' across the commute-shed'}`:'—',true],
-    ['streets priced',S.routing&&S.routing.loaded
-      ?`${S.routing.engine?esc(S.routing.engine)+' · ':''}${fmt(S.routing.edges_priced)} of ${fmt(S.routing.edges)} priced by live air${S.routing.reweight_age_s!=null?` · repriced ${ago(S.routing.reweight_age_s)} ago`:''}`
-      :'warming up — builds on first plan',true],
-    ['wind',wind.speed_kmh!=null?`${Math.round(wind.speed_kmh)} km/h from ${Math.round(wind.from_deg??0)}°`:'—',true],
-    ['other gases today',(()=>{
-      const sp=(S.species&&Object.keys(S.species).length)?S.species
-        :(CY.species&&Object.keys(CY.species).length?CY.species:null);
-      return sp
-        ?`PM10 ${sp.pm10?.mean??'—'} · NO₂ ${sp.nitrogen_dioxide?.mean??'—'} · O₃ ${sp.ozone?.mean??'—'} · CO ${sp.carbon_monoxide?.mean??'—'} · SO₂ ${sp.sulphur_dioxide?.mean??'—'} µg/m³${sp.us_aqi?` · US AQI ${Math.round(sp.us_aqi.mean)}`:''}`
-        :'pm2.5 only — the field serves no other gases right now'})(),true],
-    /* the legal frame — the same /v2/city block the public hero reads;
-       row absent on a cold field rather than claiming a stage */
-    ...(CY.grap&&CY.grap.equivalent_stage!=null?[['emergency rules (grap)',
-      (CY.grap.equivalent_stage
-        ?`this air maps to GRAP stage ${['','I','II','III','IV'][CY.grap.equivalent_stage]} restrictions`
-        :`below GRAP stage I — no restrictions map to this air`)
-      +` · index ${CY.grap.aqi} on the live field · computed here — the official stage is declared by india's air commission (caqm)`,true]]:[]),
-    ['forecast',(S.forecast&&S.forecast.hours)
-      ?`${S.forecast.hours}h ahead · ${fmt(S.forecast.aq_points??'—')} map points · fetched ${ago(S.forecast.age_s)} ago${S.forecast.live_anchor&&S.forecast.live_anchor.enabled?' · anchored to the live field':''}`
-      :(CY.next_hours&&CY.next_hours.length)
-      ?`the next ${CY.next_hours.length}h served publicly · the 120h model horizon unlocks for the operator`
-      :'cold — warms on the first plan',true],
-    ...(gated?[]:[
-      ['storage free',disk.free_pct!=null?`${disk.free_pct}%${disk.low?' · <span class="badge crit">low</span>':''}`:'—',true],
-      ['recipe',esc(p.field||'—'),false],
-    ]),
-  ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
-    ||emptyMsg('field module unavailable on this box')
-    :emptyMsg(gated?'locked — sign in as operator':'status feed unavailable');
-
-  /* --- 02 · fires over the field — real firms detections, ember = √frp,
-     belt detections ringed; belt count + modifier trace live fields --- */
-  try{
-    const frFeats=(FIRES_DOC&&FIRES_DOC.features)||[];
-    const frMeta=(FIRES_DOC&&FIRES_DOC.metadata)||{};
-    const beltN=fireSt.belt_fires!=null?fireSt.belt_fires
-      :frFeats.filter(x=>(x.properties||{}).belt).length;
-    const inst={},dnC={};
-    for(const ft of frFeats){const p=ft.properties||{};
-      const k=p.instrument||'?';inst[k]=(inst[k]||0)+1;
-      if(p.daynight)dnC[p.daynight]=(dnC[p.daynight]||0)+1;}
-    const quad=fireSt.wind_deg!=null
-      ?(fireSt.wind_deg%360>=270?'inside':'outside'):null;
-    $('firebar').innerHTML=(frFeats.length||fireSt.fires!=null)?[
-      `<b>${fmt(fireSt.fires!=null?fireSt.fires:frFeats.length)}</b> fires spotted`,
-      `<b>${fmt(beltN)}</b> inside the smoke belt`,
-      fireSt.modifier!=null?`smoke lift <b>×${fireSt.modifier}</b>`:null,
-      Object.keys(inst).length?Object.entries(inst).map(([k,v])=>k.toLowerCase()+' '+v).join(' / '):null,
-      (dnC.D||dnC.N)?`${dnC.D||0} by day · ${dnC.N||0} by night`:null,
-      fireSt.wind_deg!=null?`wind ${Math.round(fireSt.wind_deg)}° — ${quad==='inside'?'carrying belt smoke toward delhi':'blowing it away from delhi'}`:null,
-      `${esc(fireSt.source||frMeta.source||'—')} · fetched ${ago(fireSt.age_s!=null?fireSt.age_s:frMeta.age_s)} ago`,
-    ].filter(Boolean).join('<span class="sep">·</span>')
-      :'<span class="muted">no fires served — the layer is honestly empty</span>';
-    FIRE_BELT=beltN;FIRE_MOD=fireSt.modifier!=null?fireSt.modifier:null;
-    FIRE_WIND=fireSt.wind_deg!=null?fireSt.wind_deg:null;FIRE_QUAD=quad;
-    paintFireMap();
-  }catch(e){$('firemap-sub').textContent='fire feed unavailable — '+esc(e.message||e)}
-
-  /* --- api speed, measured — the server's own stopwatch, bucketed --- */
-  try{
-    const trs=(timing&&timing.routes)||[];
-    const order=['/v2/plan','/route','/aqi','/v2/search','/v2/reverse','/grid',
-                 '/v2/districts','/v2/trip','/depart'];
-    const shown=order.map(rt=>trs.find(r=>r.path===rt)).filter(Boolean)
-      .slice(0,6);
-    const other=trs.length-shown.length;
-    const fmtMs=v=>v==null?'—':(v>=1000?(v/1000).toFixed(1)+'s':Math.round(v)+'ms');
-    /* route paths read as what the caller asked for, not the wire name —
-       keys must be route templates: the metrics label is path_format,
-       and unmatched paths collapse to 'unmatched' before reaching here */
-    const PNAMES={'/v2/plan':'plan a trip','/route':'plan a trip',
-      '/aqi':'air at a point','/v2/search':'find a place',
-      '/v2/reverse':'name a point','/grid':'the air map',
-      '/v2/districts':'district list','/v2/trip':'trip donations',
-      '/depart':'when to leave'};
-    const trows=shown.map(r=>{
-      const p90=r.p90_le_ms==null?'>5s+':`≤${fmtMs(r.p90_le_ms)}`;
-      return [`${esc(PNAMES[r.path]||r.path)}`,
-        `${fmtMs(r.mean_ms)} avg · 9 in 10 ${p90} · ${fmt(r.n)} calls`,true];
-    });
-    if(other>0)trows.push(['everything else',`${other} more routes tracked`,false]);
-    if(!trs.length){
-      $('timing').innerHTML=emptyMsg(gated
-        ?'locked — sign in as operator':'no requests measured yet');
-    }else{
-      trows.unshift(['how fast the api answers',`the server's own stopwatch · window ${esc(timing.window||'since boot')} · “9 in 10” = the upper edge of the bracket it landed in`,false]);
-      $('timing').innerHTML=trows.map(([k,v,main])=>
-        `<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('');
-    }
-  }catch(e){$('timing').innerHTML=emptyMsg('timing feed unavailable');}
-
-  /* --- 03 · sources: the trust table — every input feed with count,
-     age and a tri-state that never green-washes. station adapters expand
-     into the waqi→cpcb→openaq chain with verbatim verdicts off the
-     wire; public /health fields carry the table without a token, the
-     gated probe enriches with build provenance. --- */
-  const hs=H.sources||{}, asrc=(sources&&sources.sources)||{};
-  const aSt=n=>asrc[n]||{};
-  const staleAfter=(sources&&sources.stale_after_s)||2700;
-  const feeds=(hs.stations&&hs.stations.feeds)||{};
-  const feedState=v=>v==null?'dormant':v==='ok'?'live'
-    :String(v).startsWith('skipped')?'dormant':'down';
-  const STATE={live:['live',''],dormant:['dormant','idle'],down:['down','down'],cold:['no data','idle']};
-  const mk=(name,st,count,age,detail,fresh)=>{
-    const p=STATE[st]||STATE.cold;
-    const st2=fresh!=null?fresh:(typeof age==='number'?age>staleAfter:null);
-    return `<tr><td class="mono">${name}</td>
-      <td><span class="pill ${p[1]}">${p[0]}</span></td>
-      <td class="num mono">${count}</td>
-      <td class="num mono">${age==null?'—':ago(age)}</td>
-      <td class="muted" style="font-size:11px">${detail}</td>
-      <td>${st2===true?'<span class="badge stale">stale</span>'
-        :st2===false?'<span class="badge ok">fresh</span>':'<span class="badge">—</span>'}</td></tr>`};
-  const windPub=H.wind||{},metA=aSt('met'),routA=aSt('routing'),locA=aSt('location'),firesH=hs.fires||{};
-  const srows=[
-    mk('city monitors · waqi',feeds.waqi!=null?feedState(feeds.waqi):(f.station_readings>0?'live':'down'),
-      f.station_readings!=null?fmt(f.station_readings)+' blended':'—',
-      f.age_s,'government monitors, republished via waqi — leads the blend · every reading trusted 3× over the forecast',aSt('stations').stale),
-    mk('city monitors · dpcc',feedState(feeds.dpcc),'—',null,
-      `delhi's own 5-minute pollution pages — ${feeds.dpcc==='ok'?'live: adds the monitors waqi misses':feeds.dpcc!=null?'tried this cycle':'rests — additive, never replaces waqi'}`,null),
-    mk('city monitors · cpcb',feedState(feeds.cpcb),'—',null,
-      `india's central pollution board — ${feeds.cpcb?'tried this cycle':'rests while waqi+dpcc are winning the chain'}; a keyed attempt whose network route is refused from our region today`,null),
-    mk('city monitors · openaq',feedState(feeds.openaq),'—',null,
-      'the fallback of last resort — runs only when nothing else contributes; the old key was revoked, it rests until a fresh one lands',null),
-    mk('forecast grid · europe',f.samples>0?'live':'down',
-      f.samples!=null?fmt(f.samples)+' pts':'—',f.age_s,
-      'the european atmosphere model (cams · open-meteo) — open, no key'+(aSt('model').n_points!=null?` · ${fmt(aSt('model').n_points)} points at last build`:''),aSt('model').stale),
-    mk('wind + air column',(windPub.speed_kmh!=null||metA.wind_ms!=null)?'live':'cold',
-      windPub.speed_kmh!=null?`${fmt1(windPub.speed_kmh)} km/h @ ${Math.round(windPub.from_deg??0)}°`:(metA.wind_ms!=null?`${fmt1(metA.wind_ms)} m/s`:'—'),
-      windPub.age_s!=null?windPub.age_s:metA.age_s,
-      'wind + how high smoke can mix — open, no key'+(metA.blh_m!=null?` · ceiling ${fmt(metA.blh_m)} m · clearing ${fmt(metA.vc_m2s)} m²/s`:''),metA.stale),
-    mk('fires · nasa satellites',((fireSt.fires||firesH.fires||0)>0)?'live':'cold',
-      `${fmt(fireSt.fires!=null?fireSt.fires:firesH.fires)} fires · ${fmt(fireSt.belt_fires||0)} in the belt`,
-      fireSt.age_s!=null?fireSt.age_s:firesH.age_s,
-      `nasa's public fire list · smoke lift ×${fireSt.modifier!=null?fireSt.modifier:'—'} · ${esc(fireSt.status||'—')}`,
-      /* the fires feed updates ~6-hourly — judge it by its own stale_after_s, not the 45m table default */
-      (aSt('fires').stale!=null?aSt('fires').stale
-        :(fireSt.age_s!=null?fireSt.age_s>(fireSt.stale_after_s||staleAfter):null))),
-    mk('places + names · amazon',((hs.location&&hs.location.up===true)||locA.enabled===true)?'live':'down',
-      '—',null,'no key set — place search falls back to the open maps (photon + osrm)',null),
-    mk('streets · own router',routA.up===true?'live':routA.up===false?'down':(H.routing&&H.routing.loaded?'live':'cold'),
-      (H.routing&&H.routing.edges_priced!=null)?`${fmt(H.routing.edges_priced)} priced`:'—',routA.age_s,
-      'our own delhi road engine first, the public demo router as fallback — timed by real plan calls, never pinged'+(routA.ms!=null?` · ${fmt(routA.ms)} ms last`:''),routA.stale),
-  ];
-  $('sources').innerHTML=srows.join('')||`<tr><td colspan="6">${emptyMsg('source probe returned nothing')}</td></tr>`;
-
-  /* --- trip aggregates: donations + mode share + k≥3 corridors --- */
-  const days=dn.days||{};
-  const dayKeys=Object.keys(days).sort();
-  const share=dn.mode_share||[];
-  $('donations').innerHTML=t.trips?`
-      <dt>shared trips</dt><dd>${fmt(t.trips)} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}</dd>
-      <dt>distance</dt><dd>${fmt1(t.km)} km · ${t.avg_km_per_trip??'—'} km per trip</dd>
-      <dt>smoke inhaled</dt><dd>${fmt(t.dose_ug)} µg · anonymized totals only</dd>
-      <dt>per trip / per km</dt><dd>${t.avg_dose_per_trip_ug??'—'} µg/trip · ${t.dose_ug_per_km??'—'} µg/km</dd>
-      <dt>co₂ emitted</dt><dd>${fmt1(t.co2_kg_mid)} kg${t.pm25_g_mid!=null?` · ${fmt1(t.pm25_g_mid)} g tailpipe PM2.5`:''}</dd>
-      <dt>picked cleaner</dt><dd>${fmt(t.switched)} trips chose the lower-smoke option</dd>
-      <dt>street cells tracked</dt><dd>${fmt(dn.cells_tracked)} · ${fmt(dn.corridors_publishable)} shareable (3+ phones)</dd>
-      <dt>window</dt><dd class="sub">street counts reset every ${Math.round((dn.window_s||0)/3600)}h · ${esc(dn.devices_note||'')}</dd>
-      <dt>by day</dt><dd class="sub">${dayKeys.slice(-7).map(d=>{
-        const v=days[d];return `${esc(d)}: ${fmt(v.trips)} trips / ${fmt1(v.km)} km`}).join('<br>')}</dd>`
-    :emptyMsg('no shared trips yet — totals appear when the first anonymized trip lands. nothing is zero-filled.');
-  /* day-by-day bar strip — every recorded day, bars = shared trips,
-     hover carries the day's dose+co2 (aggregate day counters only) */
-  if(t.trips){
-    const maxTr=Math.max(1,...dayKeys.map(d=>days[d].trips||0));
-    $('daybars').innerHTML=dayKeys.slice(-14).map(d=>{
-      const v=days[d],h=Math.max(4,Math.round((v.trips||0)/maxTr*46));
-      return `<div class="dbar" title="${esc(d)} — ${fmt(v.trips)} trips · ${fmt1(v.km)} km · ${fmt1(v.dose_ug)} µg · ${fmt1(v.co2_kg_mid)} kg co₂">
-        <i style="height:${h}px"></i><span>${esc(d.slice(5))}</span></div>`;
-    }).join('');
-  }
-  /* the live feed — UTC-hour aggregates only (mode/dose/km/co2 sums);
-     a row exists only where >=3 distinct devices donated in that hour,
-     so nothing shown can collapse to one person's journey */
-  const feed=dn.recent||[];
-  $('feedlist').innerHTML=donations==null
-    ?(t.trips?'<div class="feed-h">busiest shared hours — groups of 3+ phones in the same hour — unlock for the operator</div>'
-      :emptyMsg(gated?'locked — sign in as operator':'donations feed unavailable'))
-    :feed.length?
-    `<div class="feed-h">latest shared trips · busiest hours · groups of 3+ phones</div>`+feed.map(e=>{
-      const s=Math.max(0,Math.round(((dn.ts||Date.now()/1000)-(e.ts||0))));
-      return `<div class="feed-row">
-        <span class="f-t">${ago(s)} ago</span>
-        <span class="f-m">${esc(MODE_N[e.mode]||e.mode||'trip')}${e.trips>1?' <span style="color:var(--ink4)">×'+e.trips+'</span>':''}${e.switched?' <span style="color:var(--ink4)">· picked cleaner</span>':''}</span>
-        <span class="f-d" style="color:${doseInk(e.dose_ug||0)}">${fmt1(e.dose_ug)} µg</span>
-        <span class="f-k">${fmt1(e.km)} km</span>
-        <span class="f-c">${e.co2_kg_mid?fmt1(e.co2_kg_mid)+' kg co₂':''}</span>
-      </div>`;
-    }).join('')
-    :'';
-  $('modeshare').innerHTML=share.length?`<div class="feed-h">how people travelled · share of shared trips</div>`+share.map(r=>
-    `<div class="share-row"><span class="m">${esc(MODE_N[r.mode]||r.mode)}</span>
-      <div class="share-track"><i style="width:${Math.min(100,r.pct||0)}%"></i></div>
-      <span class="p">${r.pct!=null?r.pct+'%':'—'}</span>
-      <span class="n">${fmt(r.trips)}</span></div>`).join('')
-    :'';
-  /* where the donated CO₂ comes from — moving/idling/cold-start, summed
-     only over trips whose receipts carried the real phase split */
-  const cs=t.co2_split;
-  /* F6 — the split is each trip's PLANNED-route phase estimate
-     (emissions.breakdown donated with the receipt); the counted-kg tile
-     is measured along the actual ride. The two bases never reconcile by
-     construction — the label must say which basis this is, not let the
-     percentages read as a breakdown of the counted total. */
-  $('co2split').innerHTML=cs&&cs.pct?`
-    <div class="split">
-      <i style="width:${cs.pct.moving}%;background:rgba(101,112,127,.5)"></i>
-      <i style="width:${cs.pct.idle}%;background:rgba(190,87,30,.65)"></i>
-      <i style="width:${cs.pct.cold}%;background:rgba(138,45,62,.65)"></i>
-    </div>
-    <div class="split-l">where the ride CO₂ comes from — <b style="color:var(--ink)">moving ${cs.pct.moving}% · idling ${cs.pct.idle}% · cold starts ${cs.pct.cold}%</b> · over ${fmt(cs.trips)} trip${cs.trips===1?'':'s'} that reported a split · plan-basis shares — the counted kg above is measured along each ride, a different basis</div>`
-    :(t.trips?'<div class="split-l" style="padding-top:2px">no donated trip has reported a CO₂ split yet — receipts from the current app build carry it</div>':'');
-
-  /* --- 01 · the provenance strip: the one line a judge reads first.
-     every segment traces a live field: instruments+samples = field
-     status (public /health when gated), σ = the served band at the
-     city read (/aqi pm25_hi−ambient ÷ smoke modifier), edges = the
-     routing engine's own counters. --- */
-  try{
-    const nSt=f.station_readings,nSamp=f.samples;
-    const sig=(A.pm25_hi!=null&&A.pm25_ambient!=null&&A.smoke_modifier)
-      ?(A.pm25_hi/A.smoke_modifier)-A.pm25_ambient:null;
-    const rt=S.routing||{};
-    const seg=(num,lbl)=>`<div class="seg"><div class="pnum">${num}</div><div class="plbl">${lbl}</div></div>`;
-    $('prov').innerHTML=
-      seg(nSt!=null?fmt(nSt):'—',
-        `monitors reporting · ${esc(f.stations_src||'govt feeds')} · ${ago(f.age_s)} old`)
-     +`<div class="arr">→</div>`
-     +seg(nSamp!=null?fmt(nSamp):'—',
-        `forecast points · ${esc(f.source||'—')}`)
-     +`<div class="arr">→</div>`
-     +seg(sig!=null?`±${fmt1(sig)} <small>µg/m³</small>`:'—',
-        `the ± range stamped on every gap-filled read · gap-fill ${esc(f.kriging||'—')} · ${esc(f.engine||'—')} · measured at the city read`)
-     +`<div class="arr">→</div>`
-     +seg(rt.edges_priced!=null?fmt(rt.edges_priced):'—',
-        `streets priced by live air${rt.edges!=null?` · of ${fmt(rt.edges)}`:''}`);
-  }catch(e){$('prov').innerHTML=''}
-
-  /* --- pipeline stages — each stamped with its own freshness --- */
-  const me=(model&&model.microenv)||{},ve=(model&&model.ventilation_lpm)||{},
-        cov0=f.coverage||{},csP=(t.co2_split&&t.co2_split.pct)||null;
-  const meVals=Object.values(me),veVals=Object.values(ve);
-  const steps=[
-    ['01','measure',`${fmt(f.station_readings)} monitors · ${fmt(f.samples)} forecast points · ${esc(f.source||'—')}`,ago(f.age_s),
-      'government monitors measure the air right now'],
-    ['02','blend','monitors enter at 3× weight · smoothed · the forecast is de-biased toward the readings',ago(f.age_s),
-      'real readings fold into the forecast grid — monitors outweigh the model'],
-    ['03','fill',`gap-fill engine ${esc(f.engine||'—')} · honesty σ ${esc(f.sigma_coverage||'—')} · ${cov0.cells!=null?fmt(cov0.cells)+' cells':'—'} covered`,esc(f.serving||'—'),
-      'the gaps between monitors are filled in — σ shows how honest each fill is'],
-    ['04','price',(S.routing&&S.routing.loaded)
-      ?`${esc(S.routing.engine||'engine')} · ${fmt(S.routing.edges_priced)} of ${fmt(S.routing.edges)} streets priced`
-      :'engine warming up — builds on first plan',
-      (S.routing&&S.routing.reweight_age_s!=null)?`repriced ${ago(S.routing.reweight_age_s)} ago`:'—',
-      'every road in delhi gets a smoke cost from the map above it'],
-    ['05','dose',(model&&model.available)
-      ?`cabin ×${Math.min(...meVals)}–×${Math.max(...meVals)} · breathing ${Math.min(...veVals)}–${Math.max(...veVals)} L/min · every ~${model.sample_every_m} m along a trip`
-      :'air outside × cabin shield × breathing rate × minutes — internals locked',
-      'fixed constants',
-      'what a body actually inhales — street air × how shielded the vehicle is × how hard you breathe'],
-    ['06','share',`groups of 3+ only · ${fmt(dn.cells_tracked)} streets tracked · ${fmt(dn.corridors_publishable)} shareable · ${fmt(t.trips)} trips`,'72h window',
-      'shared trips merge into street-level counts — a street appears only when ≥3 different phones crossed it'],
-  ];
-  $('pipe').innerHTML=(S.field||S.routing)
-    ?steps.map(([n,t0,v,fr,plain])=>
-      `<div class="st"><div class="n">${n}</div><div class="t">${t0}</div>`+
-      (plain?`<div class="v" style="color:var(--ink);margin-bottom:5px">${plain}</div>`:'')+
-      `<div class="v">${v}</div><div class="fr">${esc(fr||'')}</div></div>`).join('')
-    :`<div class="empty-state" style="grid-column:1/-1"><b>nothing to show yet</b>${gated?'pipeline locked — sign in as operator':'status feed unavailable'}</div>`;
-
-  /* --- live field map --- */
-  FM_WIND=f.wind||null;
-  await paintFieldMap(FM_PARAM);
-
-  /* --- the shared picture: global rollups over the feeds this page
-     already trusts — honest-empty for fields the api has not shipped --- */
-  paintShared(dn,S,rows,globalAgg);
-  paintUsage(usage,gated);
-  paintArchive(S);
-
-  /* --- corridors (aggregate rows only; the k≥3 set comes from the
-     store). click unfolds the full wire record — every served field,
-     nothing invented --- */
-  const maxDose=Math.max(1,...rows.map(r=>r.avg_dose_ug||0));
-  $('corridors').innerHTML=rows.length?rows.map((r,i)=>{
-    const t=doseT(r.avg_dose_ug),rel=(r.avg_dose_ug||0)/maxDose;
-    const short=String(r.cell||'—');
-    return `<tr class="crow" data-ci="${i}" title="click for the full record">
-      <td class="tw">+</td>
-      <td class="mono muted" title="${esc(short)}">${esc(short.length>15?short.slice(0,13)+'…':short)}</td>
-      <td>${esc(tName(r.near)||'—')}</td>
-      <td class="num">${fmt(r.trips)}</td>
-      <td class="num">${fmt(r.devices)}</td>
-      <td class="num dose-cell"><span class="dose-bar" style="width:${Math.round(rel*100)}%;background:${ramp(t,.9)}"></span>
-        <span class="mono" style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</span></td>
-      <td class="num muted">${r.co2_g_per_100m==null?'—':fmt1(r.co2_g_per_100m)+' g'}</td>
-      <td class="num" title="the air over this street right now — what those crossings breathed">${r.field_pm25==null?'<span class="muted">—</span>':`<span class="mono" style="color:${doseInk(r.field_pm25*3.2)}">${fmt1(r.field_pm25)} µg/m³</span>`}</td></tr>
-    <tr class="cor-detail" id="cord-${i}" hidden><td colspan="8">
-      <span class="mono">${esc(r.cell)}</span> — one street cell · near ${esc(tName(r.near)||'—')}<br>
-      ${fmt(r.trips)} shared crossings by ${fmt(r.devices)} different phones in ${Math.round((corridors&&corridors.window_s||259200)/3600)}h ·
-      mean smoke inhaled <b style="color:${doseInk(r.avg_dose_ug)}">${fmt1(r.avg_dose_ug)} µg</b> ·
-      co₂ ${r.co2_g_per_100m==null?'—':fmt1(r.co2_g_per_100m)+' g/100m'}${r.co2_trips!=null?` over ${fmt(r.co2_trips)} reporting trip${r.co2_trips===1?'':'s'}`:''} ·
-      air over the street now ${r.field_pm25==null?'—':`<b style="color:${doseInk(r.field_pm25*3.2)}">${fmt1(r.field_pm25)} µg/m³ pm2.5</b>`} — what those crossings breathed<br>
-      <span style="color:var(--ink4)">straight off the wire — every field above is served verbatim; nothing invented here.</span>
-    </td></tr>`;
-  }).join(''):`<tr><td colspan="8">${emptyMsg(
-    corridors==null
-      ?(gated?'locked — sign in as operator':'corridor feed unavailable')
-      :'no shareable streets yet — a cell appears here only after 3+ different phones cross it inside 72h. suppressed streets are never shown.')}</td></tr>`;
-  document.querySelectorAll('#corridors .crow').forEach(tr=>
-    tr.addEventListener('click',()=>{
-      const d=document.getElementById('cord-'+tr.dataset.ci);
-      const open=tr.classList.toggle('open');
-      if(d)d.hidden=!open;
-      const tw=tr.querySelector('.tw');if(tw)tw.textContent=open?'–':'+';
-    }));
-
-  /* --- 05 · the engine: dose-math table + formula + routing internals
-     + scorecard. every constant is served by the console's model api — the
-     page shows what the engine computes, never a pasted copy --- */
-  const CANON=['walking','auto_rickshaw','driving_two_wheeler','cycling',
-    'driving_car_open','bus','driving_car_ac','metro'];
-  const MNAMES={walking:'walking',auto_rickshaw:'auto rickshaw',
-    driving_two_wheeler:'two-wheeler',cycling:'cycling',
-    driving_car_open:'car · windows down',bus:'bus',
-    driving_car_ac:'car · ac',metro:'metro'};
-  if(model&&model.available){
-    $('dosemath').innerHTML=CANON.filter(m=>me[m]!=null)
-      .sort((a,b)=>me[b]-me[a]).map(m=>
-      `<tr><td class="mono">${MNAMES[m]||esc(m)}</td>
-       <td class="num mono">×${me[m]}</td>
-       <td class="num mono">${ve[m]!=null?fmt1(ve[m]):'—'}</td></tr>`).join('')
-      ||`<tr><td colspan="3">${emptyMsg('no canonical modes served')}</td></tr>`;
-    const ru=model.road_uplift||{},cit=model.citations||{};
-    const RUNAME={stagnant:'still air',free_flow:'free flow',
-      congestion:'traffic jam',congested:'traffic jam',
-      urban:'city streets','urban arterial':'arterial roads'};
-    $('doseformula').innerHTML=
-      'how to read this: each row is a way of travelling — cabin × is how many times dirtier the air inside is than the street outside, breathing is how hard a person breathes riding it. a walking dose = street air × minutes; a car-with-ac dose shrinks it by the cabin factor.<br>'
-      +esc(model.dose_formula||'')
-      +(Object.keys(ru).length?`<br>busy-road uplift — ${Object.entries(ru).map(([k,v])=>`${esc(RUNAME[k]||k)} ×${v}`).join(' · ')}`:'')
-      +(model.plausible_max_kmh!=null?`<br>speed ceiling ${model.plausible_max_kmh} km/h — faster 'trips' are flagged, never silently fixed`:'')
-      +(cit.microenv?`<br><span style="color:var(--ink4)">${esc(cit.microenv)}${cit.ventilation?' · '+esc(cit.ventilation):''}</span>`:'');
-  }else{
-    $('dosemath').innerHTML=`<tr><td colspan="3">${emptyMsg(gated?'locked — sign in as operator':'model card unavailable')}</td></tr>`;
-    $('doseformula').textContent='';
-  }
-
-  const rt=S.routing||{};
-  $('routingcard').innerHTML=rt.loaded?[
-    ['engine',esc(rt.engine||'—'),true],
-    ['road map',rt.edges!=null?`${fmt(rt.edges)} streets${rt.nodes!=null?` · ${fmt(rt.nodes)} junctions`:''}`:'—',true],
-    ['priced by live air',rt.edges_priced!=null?fmt(rt.edges_priced):'—',true],
-    ...(gated?[['internals','sign in to see road-map internals',false]]:[
-      ['air over the map',rt.field_mean!=null?fmt1(rt.field_mean)+' µg/m³':'—',true],
-      ['last repriced',rt.reweight_age_s!=null?`${ago(rt.reweight_age_s)} ago · every ${ago(rt.reweight_ttl_s)}`:'—',true],
-      ['road data from',rt.graph_pbfs?rt.graph_pbfs.map(esc).join(' + '):'—',false],
-      ['map fingerprint',esc(rt.graph_sha||'—'),false],
-      ['trip ledger',esc(S.trips_backend||'—')+(S.ledger&&S.ledger.backend!=null?`${S.ledger.backend!==S.trips_backend?` · ledger ${esc(S.ledger.backend)}`:''} · ${fmt(S.ledger.devices_tracked)} anonymized phones`:''),true],
-    ])
-  ].map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
-    :emptyMsg('route engine warming up — builds on the first plan');
-
-  /* model scorecard — the validation rollup + the live LOO calibration
-     the public /aqi already serves; honest absence everywhere else */
-  const cal=A.calibration||{};
-  const crows2=[];
-  if(cal.method)crows2.push(['live check',
-    `each monitor hidden in turn, then predicted — misses by ${cal.mae_ug} µg/m³ on average · big-miss score (rmse) ${cal.rmse_ug} µg/m³ · bias ${cal.mean_bias_ug>0?'+':''}${cal.mean_bias_ug} µg/m³ · ${cal.n_stations} monitors`,true]);
-  const wk2=validation&&validation.weekly,arch2=wk2&&wk2.archive_replay||{},loso2=wk2&&wk2.loso||{},daily2=validation&&validation.daily||{};
-  /* a failed check reports 'unavailable: ValueError: …' off the wire —
-     keep the honest 'couldn't run', drop the stack-trace accent */
-  const chk=s=>{const m=/^unavailable:\s*(\w+Error)/.exec(s||'');
-    return m?`unavailable — check couldn't run (${m[1]})`:s};
-  if(wk2){
-    crows2.push(['hidden-monitor test (weekly)',loso2.status==='ok'
-      ?`misses by ${loso2.mae_ugm3} µg/m³ on average · big-miss score ${loso2.rmse_ugm3} µg/m³ · bias ${loso2.bias_ugm3>0?'+':''}${loso2.bias_ugm3} µg/m³ · ${loso2.n} hidden`
-      :esc(chk(loso2.status||'—')),true]);
-    crows2.push(['replay of recorded hours',arch2.status==='ok'
-      ?`misses by ${arch2.mae_ugm3} µg/m³ on average · big-miss score ${arch2.rmse_ugm3} µg/m³ · bias ${arch2.bias_ugm3>0?'+':''}${arch2.bias_ugm3} µg/m³ · ${fmt(arch2.pairs)} checks`
-      :esc(chk(arch2.status||'—')),true]);
-    crows2.push(['tested week',esc(wk2.week||'—')+(wk2.generated
-      ?' · generated '+esc(`${new Date(wk2.generated).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'})} ${timeIST(new Date(wk2.generated))}`)
-      :''),false]);
-  }
-  if(daily2.date){
-    crows2.push(['yesterday, in full',`${esc(daily2.date)} · ${fmt(daily2.n_cells)} cells · ${fmt(daily2.n_snapshots)} snapshot${daily2.n_snapshots===1?'':'s'}`,true],
-      ['above the who limit',daily2.pct_cells_gt15_who!=null?`${daily2.pct_cells_gt15_who}% of cells`:'—',true],
-      ['above the cpcb limit',daily2.pct_cells_gt60_cpcb!=null?`${daily2.pct_cells_gt60_cpcb}% of cells`:'—',true]);
-  }
-  if(validation)crows2.push(['the long report',
-    validation.report_md?'data/field_validation.md on disk':'not generated yet',false]);
-  if(gated)crows2.push(['more','weekly tests · daily rollups — locked, sign in as operator',false]);
-  $('scorecard').innerHTML=crows2.length
-    ?crows2.map(([k,v,main])=>`<dt>${k}</dt><dd class="${main?'':'sub'}">${v}</dd>`).join('')
-    :emptyMsg(gated?'locked — sign in as operator'
-      :'no scorecard on disk yet — the weekly test has not run');
+  $('liveDot').style.background='';
+  const val=i=>data[i].status==='fulfilled'?data[i].value:null;
+  const status=val(0),sources=val(1),timing=val(2),usage=val(3),api=val(4),city=val(5);
+  try{renderAir(city,status)}catch(e){}
+  try{renderCoverage(status)}catch(e){}
+  try{renderUsage(usage,timing,api)}catch(e){}
+  try{renderHealth(status,sources,timing)}catch(e){}
+  /* the stamp line — when this paint happened and what it cost */
+  $('stamp').innerHTML=
+    `<span>updated <b>${timeIST(LAST_OK)}</b></span>`+
+    `<span>refreshes itself every 30 s</span>`+
+    (status&&status.build_sha?`<span>build <b>${esc(status.build_sha)}</b></span>`:'');
+  $('toplive').innerHTML=`updated <b>${timeIST(LAST_OK)}</b>`;
 }
 
-/* ---------- live field map ----------
-   species pills re-paint the canvas from /grid?param=<species> — every
-   layer is the field's own real cells; pm2.5 keeps the absolute 0–300
-   ramp (same scale the app uses), other species ramp across their own
-   observed range and the caption says so */
-const FM_SPECIES=[['pm2_5','pm2.5'],['pm10','pm10'],
-  ['nitrogen_dioxide','no₂'],['ozone','o₃'],
-  ['carbon_monoxide','co'],['sulphur_dioxide','so₂'],['us_aqi','us aqi']];
-let FM_PARAM='pm2_5',FM_WIND=null,FM_H=0,FM_BOUND=false;
-let FIRES_DOC=null,            /* raw /fires geojson — shared by firemap + fieldmap */
-    FIRE_BELT=null,FIRE_MOD=null,FIRE_WIND=null,FIRE_QUAD=null;
-const FM_CELLS=40,FM_X0=76.80,FM_Y0=28.20,FM_X1=77.90,FM_Y1=28.95;
-let FM_LAST_EP=null,FM_HOV=null,FM_REST=null,G_STATUS=null;
-/* sector index — spreadsheet-style refs over the 40×40 cell grid:
-   columns A…AN west→east, rows 01…40 south→north, so a cell can be
-   named ('m14') instead of a bare coordinate pair */
-function fmSector(lon,lat){
-  const C=Math.max(0,Math.min(FM_CELLS-1,Math.floor((lon-FM_X0)/((FM_X1-FM_X0)/FM_CELLS))));
-  const R=Math.max(0,Math.min(FM_CELLS-1,Math.floor((lat-FM_Y0)/((FM_Y1-FM_Y0)/FM_CELLS))));
-  let s='',c=C;do{s=String.fromCharCode(65+c%26)+s;c=Math.floor(c/26)-1}while(c>=0);
-  return s+String(R+1).padStart(2,'0');
-}
-/* methodology — every layer answers 'how is this number made' in its own
-   words: sources, inversion, de-bias, krige. verified against
-   airfield.py + ingest_waqi.py, not marketing copy */
-function paintMeth(){
-  const m=$('meth');if(!m||m.hidden)return;
-  const f=(G_STATUS&&G_STATUS.field)||{};
-  const nSt=f.station_readings??'—',nSamp=f.samples??'—';
-  const METH={
-    pm2_5:`<b>${fmt(nSt)} government monitors</b> report an official index → converted back into real µg/m³ → smoothed monitor-by-monitor → blended with ${fmt(nSamp)} forecast points from the european atmosphere model → the forecast is pulled toward the real readings → the gaps between monitors get filled in → the ${fmt(FM_FEATS.length)} cells above.<br>the honesty band: every cell carries its own ± range — how sure each fill is; the self-grade card below scores whether those bands held. shared trips re-weight the cells they cross.`,
-    pm10:`forecast layer plus whatever pm10 monitors report — pm10 = pm2.5 + the coarse dust fraction; most monitors measure the fine fraction only, so the coarse part stays mostly modelled.`,
-    nitrogen_dioxide:`forecast layer, corrected where a monitor reports this gas — most delhi monitors measure pm2.5 only, so this layer stays mostly the model; a cell's confidence fades with distance to the nearest forecast point.`,
-    ozone:`forecast layer, corrected where a monitor reports this gas — most monitors measure pm2.5 only; confidence fades by distance to a forecast point.`,
-    carbon_monoxide:`forecast layer, corrected where a monitor reports this gas — most monitors measure pm2.5 only; confidence fades by distance to a forecast point.`,
-    sulphur_dioxide:`forecast layer, corrected where a monitor reports this gas — most monitors measure pm2.5 only; confidence fades by distance to a forecast point.`,
-    us_aqi:`our own pm2.5 map run through the US EPA's official breakpoints — delhi's index is pm2.5-driven; same cells, one story. confidence rides the pm2.5 map's.`
-  };
-  let hi=0,med=0,lo=0;
-  for(const ft of FM_FEATS){const c=(ft.properties||{}).conf;
-    if(c==='hi')hi++;else if(c==='med')med++;else lo++}
-  const label=(FM_SPECIES.find(s=>s[0]===FM_PARAM)||[FM_PARAM,FM_PARAM])[1];
-  m.innerHTML=`<div class="mt">how this layer is made — ${esc(label)}</div>
-    ${METH[FM_PARAM]||'—'}
-    <div class="ms">${fmt(FM_FEATS.length)} cells rendered — ${fmt(hi)} measured · ${fmt(med)} filled in · ${fmt(lo)} thin · grid ref a01–an40 · each district number = the mean of the cells inside its border</div>`;
-}
-function methToggle(){const m=$('meth');if(!m)return;
-  const b=$('methbtn');
-  if(m.hidden){m.hidden=false;paintMeth();if(b)b.textContent='hide'}
-  else{m.hidden=true;if(b)b.textContent='how it\'s made'}
-}
-function renderFmSel(){
-  $('fmsel').innerHTML=FM_SPECIES.map(([p,l])=>
-    `<button class="${p===FM_PARAM?'on':''}" onclick="fmPick('${p}')">${l}</button>`).join('')+
-    `<button id="methbtn" style="margin-left:auto" onclick="methToggle()">${$('meth')&&!$('meth').hidden?'hide':'how it\'s made'}</button>`;
-}
-async function fmPick(p){FM_PARAM=p;renderFmSel();await paintFieldMap(p);paintMeth();}
-
-/* --- cell inspector — a click on the map names the real place under
-   the cell via the public gazetteer (/v2/reverse) and lists that cell's
-   own live values; no user data crosses this surface --- */
-let FM_FEATS=[],FM_INS=null;const FM_NAMES={};   /* centroid-key → resolved place name */
-let FM_GJ=null;   /* ncr district polygons — names every cell honestly
-                     even where the gazetteer has nothing within 150m */
-function fmDistrict(lon,lat){
-  for(const f of (FM_GJ&&FM_GJ.features)||[]){
-    const g=f.geometry;if(!g)continue;
-    const polys=g.type==='Polygon'?[g.coordinates]
-      :g.type==='MultiPolygon'?g.coordinates:[];
-    for(const poly of polys){
-      if(poly[0]&&pip(lon,lat,poly[0])){
-        let hole=false;
-        for(let h=1;h<poly.length;h++)if(pip(lon,lat,poly[h])){hole=true;break}
-        if(!hole)return f.properties||{};
-      }
-    }
-  }
-  return null;
-}
-function pip(lon,lat,ring){           /* even-odd point-in-ring */
-  let inside=false;
-  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
-    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
-    if(((yi>lat)!==(yj>lat))&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)inside=!inside;
-  }
-  return inside;
-}
-function fmShow(ft,x,y,pinned){
-  const cv=$('fieldmap'),pop=$('fmpop');if(!cv||!pop)return;
-  const p=ft.properties||{},ring=ft.geometry.coordinates[0];
-  const clon=ring.reduce((s,c)=>s+c[0],0)/ring.length;
-  const clat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
-  const key=clon.toFixed(4)+','+clat.toFixed(4);FM_INS={key,x,y,pinned:!!pinned};
-  const wr=cv.parentElement.getBoundingClientRect();
-  pop.style.left=Math.min(Math.max(8,x+12),Math.max(8,wr.width-272))+'px';
-  pop.style.top=Math.min(Math.max(8,y+12),Math.max(8,wr.height-150))+'px';
-  const label=(FM_SPECIES.find(s=>s[0]===FM_PARAM)||[FM_PARAM,FM_PARAM])[1];
-  const v=p[FM_PARAM]!=null?p[FM_PARAM]:p.pm25;
-  const dist=fmDistrict(clon,clat);
-  pop.hidden=false;
-  pop.classList.toggle('pin',!!pinned);
-  pop.innerHTML=`<div class="p-name">${FM_NAMES[key]!=null?FM_NAMES[key]:'locating…'}</div>
-    <div class="p-sub">grid ${fmSector(clon,clat)} · ${clat.toFixed(3)}°n ${clon.toFixed(3)}°e${dist?` · ${esc(dist.name||'')}${dist.state?', '+esc(dist.state):''}`:''}${FM_H?` · +${FM_H}h`:''}${pinned?' · pinned — esc closes':''}</div>
-    <div class="p-v"><b>${v==null?'—':fmt1(v)}</b> ${label}${FM_PARAM==='us_aqi'?'':' µg/m³'}</div>
-    <div class="p-conf">${p.conf==='hi'?'solid — monitor evidence close by'
-      :p.conf==='med'?'fair — filled in near evidence'
-      :'thin — far from any evidence'}${p.pm25!=null&&FM_PARAM!=='pm2_5'?`<br>pm2.5 ${fmt1(p.pm25)} µg/m³ in the same cell`:''}</div>`;
-  /* name is best-effort — the card already carries the live values.
-     plain fetch (public endpoint): the api answers 404 when the
-     gazetteer has nothing within 150m — that reads 'no named place',
-     not an error; a real failure shows '—' and can retry */
-  if(FM_NAMES[key]==null){
-    /* hover pays the gazetteer only when the pointer actually rests on a
-       cell (320ms) — a fast sweep across the map costs zero fetches;
-       a pinned card looks up immediately */
-    const doFetch=()=>fetch(`/v2/reverse?lat=${clat.toFixed(4)}&lon=${clon.toFixed(4)}`,
-          {signal:AbortSignal.timeout(4000)})
-      .then(async r=>{
-        if(r.status===404)return null;
-        if(!r.ok)throw new Error('reverse '+r.status);
-        return r.json();
-      })
-      .then(rr=>{
-        FM_NAMES[key]=(rr&&rr.name)
-          ?esc(rr.name)+(rr.subtitle?` <span style="font-family:var(--sans);font-size:11px;color:var(--ink3)">${esc(rr.subtitle)}</span>`:'')
-          :'<span style="font-size:12px;color:var(--ink3)">no named place within 150m</span>';
-        if(FM_INS&&FM_INS.key===key&&!pop.hidden){
-          const nm=pop.querySelector('.p-name');if(nm)nm.innerHTML=FM_NAMES[key];
-        }
-      })
-      .catch(err=>{
-        /* timeout vs real failure read differently — both honest; neither
-           cached, so the next hover/click retries */
-        const msg=(err&&err.name==='TimeoutError')?'name lookup timed out':'—';
-        if(FM_INS&&FM_INS.key===key&&!pop.hidden){
-          const nm=pop.querySelector('.p-name');if(nm)nm.textContent=msg;
-        }
-      });
-    if(pinned)doFetch();
-    else{clearTimeout(FM_REST);FM_REST=setTimeout(()=>{
-      if(FM_INS&&FM_INS.key===key&&!pop.hidden)doFetch()},320)}
-  }
-}
-/* hover a cell → its mini card opens after a short rest; click pins it.
-   a pinned card owns the spot — hovers can't move it until esc or a
-   click on empty field dismisses it */
-function fmHit(e){
-  const cv=$('fieldmap');if(!cv)return{ft:null,x:0,y:0};
-  const r=cv.getBoundingClientRect();
-  const x=e.clientX-r.left,y=e.clientY-r.top;
-  const lon=FM_X0+x/r.width*(FM_X1-FM_X0),lat=FM_Y0+(1-y/r.height)*(FM_Y1-FM_Y0);
-  for(const ft of FM_FEATS){
-    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
-    if(ring&&ring.length>2&&pip(lon,lat,ring))return{ft,x,y};
-  }
-  return{ft:null,x,y};
-}
-function fmMove(e){
-  if(FM_INS&&FM_INS.pinned)return;
-  clearTimeout(FM_HOV);const ev=e;
-  FM_HOV=setTimeout(()=>{
-    const{ft,x,y}=fmHit(ev),pop=$('fmpop');if(!pop)return;
-    if(!ft){pop.hidden=true;FM_INS=null;return}
-    fmShow(ft,x,y,false);
-  },110);
-}
-function fmLeave(){
-  clearTimeout(FM_HOV);clearTimeout(FM_REST);
-  if(!(FM_INS&&FM_INS.pinned)){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null}
-}
-
-/* --- ncr district choropleth — ONE map surface carrying the real
-   boundary geojson, each polygon filled by its live band for the
-   selected parameter. pm2.5 + us aqi read the server's own district
-   rows (sparse areas keep their centroid read); every other species =
-   the mean of the /grid cells inside the polygon — the same
-   cells-inside rule the server publishes. banding is the real cpcb
-   national aqi table; the us aqi surface uses the epa scale. click
-   pins the same mini card the field map uses --- */
-let DIST_ROWS=[],DT_PIN=null,DM_PARAM='pm2_5',DM_HOV=null,DM_ROWS=[];
-let DT_GRID12=null,DT_GRID12_OK=null;   /* cached +12h pm2.5 field */
-const DM_GRID={};                       /* param → /grid features */
-let DM_BBOX=null;                       /* union extent of both boundary sets */
-
-/* cpcb national aqi six-band palette (mirror of server/districts.py
-   CPCB_BANDS) + the us epa scale for the us_aqi surface — band NAMES
-   are the official categories; the hues are the muted product ramp
-   (raw cpcb/epa hexes read neon on the paper canvas) */
-const CPCB_BANDS=[[0,50,'good','#7AAB59'],[51,100,'satisfactory','#C8B25A'],
-  [101,200,'moderate','#D58C4A'],[201,300,'poor','#B85442'],
-  [301,400,'very poor','#8F3C49'],[401,500,'severe','#6E3C54']];
-const EPA_BANDS=[[0,50,'good','#7AAB59'],[51,100,'moderate','#C8B25A'],
-  [101,150,'unhealthy · sensitive','#D58C4A'],[151,200,'unhealthy','#B85442'],
-  [201,300,'very unhealthy','#8F3C49'],[301,500,'hazardous','#6E3C54']];
-/* cpcb sub-index breakpoints per species — Table 3.1 of the national
-   aqi doc districts.py cites. co rows are mg/m³ (the grid serves µg/m³
-   — ÷1000 at read). species with no official table (dust, aod) stay
-   off this switcher; the field map still renders their real range */
-const CPCB_SUB={
-  pm2_5:[[0,30,0,50],[30,60,51,100],[60,90,101,200],[90,120,201,300],[120,250,301,400],[250,500,401,500]],
-  pm10:[[0,50,0,50],[50,100,51,100],[100,250,101,200],[250,350,201,300],[350,430,301,400],[430,600,401,500]],
-  nitrogen_dioxide:[[0,40,0,50],[40,80,51,100],[80,180,101,200],[180,280,201,300],[280,400,301,400],[400,800,401,500]],
-  ozone:[[0,50,0,50],[50,100,51,100],[100,168,101,200],[168,208,201,300],[208,748,301,400],[748,1000,401,500]],
-  carbon_monoxide:[[0,1,0,50],[1,2,51,100],[2,10,101,200],[10,17,201,300],[17,34,301,400],[34,50,401,500]],
-  sulphur_dioxide:[[0,40,0,50],[40,80,51,100],[80,380,101,200],[380,800,201,300],[800,1600,301,400],[1600,2000,401,500]],
-  ammonia:[[0,200,0,50],[200,400,51,100],[400,800,101,200],[800,1200,201,300],[1200,1800,301,400],[1800,2400,401,500]],
-};
-const DM_SPECIES=[['pm2_5','pm2.5'],['us_aqi','us aqi'],['pm10','pm10'],
-  ['nitrogen_dioxide','no₂'],['ozone','o₃'],['carbon_monoxide','co'],
-  ['sulphur_dioxide','so₂'],['ammonia','nh₃']];
-const DM_UNIT={pm2_5:'µg/m³',pm10:'µg/m³',nitrogen_dioxide:'µg/m³',
-  ozone:'µg/m³',carbon_monoxide:'µg/m³',sulphur_dioxide:'µg/m³',
-  ammonia:'µg/m³',us_aqi:'aqi'};
-const DM_VK=p=>p==='pm2_5'?'pm25':p;    /* /grid cell property name */
-/* us-epa pm2.5 breakpoints for the +12h aqi read (districts.py _US_PM25) */
-const US_PM25=[[0,9,0,50],[9,35.4,51,100],[35.4,55.4,101,150],
-  [55.4,125.4,151,200],[125.4,225.4,201,300],[225.4,325.4,301,400],
-  [325.4,500.4,401,500]];
-
-function dmSubIdx(v,tab){   /* districts.py _sub_index mirror — linear in-band */
-  for(const[lo,hi,il,ih]of tab){if(v<=hi)return hi<=lo?ih:(ih-il)/(hi-lo)*(v-lo)+il}
-  const[lo,hi,il,ih]=tab[tab.length-1];return(ih-il)/(hi-lo)*(v-lo)+il}
-function dmAqi(p,v){        /* aqi for a raw concentration via the cpcb table */
-  if(p==='carbon_monoxide')v=v/1000;
-  const tab=CPCB_SUB[p];return tab==null?null:Math.round(dmSubIdx(Math.max(0,v),tab))}
-function dmBand(aqi,p){     /* [lo,hi,cat,color] — epa scale for us_aqi, cpcb else */
-  if(aqi==null)return null;
-  const bands=p==='us_aqi'?EPA_BANDS:CPCB_BANDS;
-  for(const b of bands)if(aqi<=b[1])return b;
-  return bands[bands.length-1]}
-
-/* chip text contrast — a 'satisfactory' light chip takes ink, a dark
-   wine chip takes paper */
-function chipInk(hex){
-  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#14181F';
-  const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
-  return (0.299*r+0.587*g+0.114*b)/255>0.6?'#14181F':'#fff';
-}
-/* district boundary silhouettes — each feature normalised into a
-   64×64 svg box (true aspect: lon° ×0.879 vs lat°); the mini card keeps
-   the outline it was opened from */
-const CUT={};
-function cutPath(feat){
-  const g=feat&&feat.geometry;if(!g)return null;
-  const rings=g.type==='Polygon'?[g.coordinates[0]]
-    :g.type==='MultiPolygon'?g.coordinates.map(p=>p[0]):[];
-  if(!rings.length)return null;
-  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-  for(const r of rings)for(const c of r){
-    x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);
-    y0=Math.min(y0,c[1]);y1=Math.max(y1,c[1])}
-  const w=(x1-x0)*0.879,h=(y1-y0);
-  if(w<=0||h<=0)return null;
-  const pad=3,S=(64-2*pad)/Math.max(w,h);
-  const mx=x=>((x-x0)*0.879*S+pad).toFixed(1);
-  const my=y=>((y1-y)*S+pad).toFixed(1);
-  return rings.map(r=>
-    'M'+r.map(c=>mx(c[0])+','+my(c[1])).join('L')+'Z').join(' ');
-}
-function dtHide(){const p=$('dtpop');if(p)p.hidden=true;DT_PIN=null;
-  paintDMap().catch(()=>{})}
-/* unweighted mean of a cell set over a boundary feature — the same
-   read the server publishes (cells whose centres land inside) */
-function distMeanV(feats,feat,vk){
-  const g=feat&&feat.geometry;if(!g)return null;
-  const polys=g.type==='Polygon'?[g.coordinates]
-    :g.type==='MultiPolygon'?g.coordinates:[];
-  let s=0,n=0;
-  for(const ft of feats){
-    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
-    if(!ring||ring.length<3)continue;
-    const v=(ft.properties||{})[vk];if(v==null)continue;
-    const clon=ring.reduce((a,c)=>a+c[0],0)/ring.length;
-    const clat=ring.reduce((a,c)=>a+c[1],0)/ring.length;
-    for(const poly of polys){
-      if(!(poly[0]&&pip(clon,clat,poly[0])))continue;
-      let hole=false;
-      for(let h=1;h<poly.length;h++)if(pip(clon,clat,poly[h])){hole=true;break}
-      if(!hole){s+=v;n++}
-      break;
-    }
-  }
-  return n?{mean:s/n,n}:null;
-}
-/* trend = the +12h cams-anchored field mean over the same polygon —
-   a real forward difference, 'n/a' when the horizon doesn't answer.
-   us aqi projects the pm2.5 horizon through the epa table (the same
-   thing the server serves at /grid?param=us_aqi&h=N); other species
-   have no forecast surface — the card says so honestly */
-async function dmTrend(row){
-  const p=DM_PARAM;
-  if(p!=='pm2_5'&&p!=='us_aqi')
-    return '+12h — forecast surface serves pm2.5 only';
-  if(DT_GRID12_OK===null){
-    try{const g=await getJSON('/grid?cells=40&param=pm2_5&h=12');
-      DT_GRID12=(g&&g.features)||[];DT_GRID12_OK=DT_GRID12.length>0}
-    catch(e){DT_GRID12=[];DT_GRID12_OK=false}
-  }
-  if(!DT_GRID12_OK)return '+12h — forecast n/a';
-  const m=row.feat&&distMeanV(DT_GRID12,row.feat,'pm25');
-  if(m==null)return '+12h — outside forecast coverage';
-  if(p==='us_aqi'){
-    const ea=Math.round(dmSubIdx(m.mean,US_PM25));
-    const base=row.v;
-    if(base==null)return `+12h → aqi ${ea}`;
-    const d=Math.round(ea-base);
-    return Math.abs(d)<2
-      ?`+12h → aqi ${ea} · flat`
-      :`+12h → aqi ${ea} · ${d>0?'+':''}${d}`;
-  }
-  const base=row.v;
-  if(base==null||base<1e-9)return `+12h → ${fmt1(m.mean)} µg/m³`;
-  const pc=Math.round((m.mean-base)/base*100);
-  return Math.abs(pc)<3
-    ?`+12h → ${fmt1(m.mean)} µg/m³ · flat`
-    :`+12h → ${fmt1(m.mean)} µg/m³ · ${pc>0?'+':''}${pc}%`;
-}
-/* the card a district click pins — same stepped popover as the cell
-   inspector: name, live value + band chip, covered-cell basis, +12h */
-function dmShow(row,x,y){
-  const cv=$('distmap'),pop=$('dtpop');if(!cv||!pop||!row)return;
-  const wr=cv.parentElement.getBoundingClientRect();
-  const p=DM_PARAM,c=(row.band&&row.band[3])||'#A6ACB8';
-  const na=row.v==null;
-  DT_PIN={name:row.name,x,y};
-  const pcut=CUT[row.name];
-  const level=row.level==='osm_admin_5'
-    ?`sub-area · ${row.parent||'delhi nct'}`:`district · ${row.state||'—'}`;
-  const label=(DM_SPECIES.find(s=>s[0]===p)||[p,p])[1];
-  const basis=na?'outside the measured field'
-    :row.conf==='sparse'&&(p==='pm2_5'||p==='us_aqi')
-      ?`centroid read — ${row.cells||0} covered cell${(row.cells||0)===1?'':'s'}`
-      :`mean of ${row.cells||0} covered cell${(row.cells||0)===1?'':'s'}`+
-        (row.conf==='sparse'?' — thin coverage':'');
-  const partial=(row.raw&&row.raw.partial_field_coverage)?' · partial coverage':'';
-  const vTxt=na?'<b>—</b> no field data'
-    :p==='us_aqi'?`<b>${Math.round(row.v)}</b> us aqi`
-    :`<b>${fmt1(row.v)}</b> ${DM_UNIT[p]||''}`;
-  const chip=na||row.aqi==null||!row.band?''
-    :` <span class="dt-aqi" style="--dc:${c};--dink:${chipInk(c)}">aqi ${row.aqi} · ${esc(row.band[2])}</span>`;
-  pop.innerHTML=`${pcut?`<svg class="p-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${pcut}" fill="${c}" fill-opacity="${na?0.10:0.85}" stroke="var(--ink)" stroke-width="1.6" stroke-linejoin="round"/></svg>`:''}
-    <div class="p-name">${esc(row.name)}</div>
-    <div class="p-sub">${esc(level)} · ${esc(label)}</div>
-    <div class="p-v">${vTxt}${chip}</div>
-    <div class="p-conf">${esc(basis)}${partial}${na?'':'<br><span id="dttrend">trend — computing +12h field…</span>'}</div>`;
-  pop.hidden=false;pop.classList.add('pin');
-  pop.style.left=Math.min(Math.max(8,x+12),Math.max(8,wr.width-272))+'px';
-  pop.style.top=Math.min(Math.max(8,y+12),Math.max(8,wr.height-160))+'px';
-  /* flips above the cursor when the bottom edge would overflow */
-  if(pop.offsetTop+pop.offsetHeight>wr.height-6)
-    pop.style.top=Math.max(8,y-14-pop.offsetHeight)+'px';
-  if(!na){const nm=row.name,pm=p;dmTrend(row).then(t=>{
-    const el=$('dttrend');
-    if(el&&!pop.hidden&&DT_PIN&&DT_PIN.name===nm&&DM_PARAM===pm)el.textContent=t;
-  })}
-}
-/* one read per boundary for the active parameter */
-function distRows(){
-  const p=DM_PARAM,out=[];
-  const byName={};for(const d of DIST_ROWS)byName[d.name]=d;
-  const feats=(FM_GJ&&FM_GJ.features)||[];
-  const grid=(p==='pm2_5'||p==='us_aqi')?null:(DM_GRID[p]||[]);
-  for(const f of feats){
-    const pr=f.properties||{},name=pr.name;
-    if(!name)continue;
-    let v=null,aqi=null,cells=null,conf=null,raw=null;
-    if(p==='pm2_5'||p==='us_aqi'){
-      const d=byName[name];if(!d)continue;
-      raw=d;
-      v=p==='pm2_5'?d.pm25:d.aqi_us;
-      aqi=p==='pm2_5'?d.aqi:d.aqi_us;
-      cells=d.cells_covered!=null?d.cells_covered:null;
-      conf=d.confidence||null;
-    }else if(grid.length){
-      const m=distMeanV(grid,f,DM_VK(p));
-      if(m){v=m.mean;cells=m.n;conf=m.n>=3?'field':'sparse';aqi=dmAqi(p,v)}
-      else conf='none';
-    }else conf='none';
-    out.push({feat:f,name,level:pr.level||'district',parent:pr.parent||'',
-      state:pr.state||'',v,aqi,cells,conf,band:dmBand(aqi,p),raw});
-  }
-  return out;
-}
-function renderDmSel(){
-  const el=$('dtsel');if(!el)return;
-  el.innerHTML=DM_SPECIES.map(([p,l])=>
-    `<button class="${p===DM_PARAM?'on':''}" onclick="dmPick('${p}')">${l}</button>`).join('');
-}
-async function dmPick(p){
-  if(p===DM_PARAM)return;
-  DM_PARAM=p;renderDmSel();paintDLegend();await paintDMap();
-  /* a pinned card follows the switch — same spot, new parameter */
-  if(DT_PIN){const r=DM_ROWS.find(r=>r.name===DT_PIN.name);
-    if(r)dmShow(r,DT_PIN.x,DT_PIN.y);else dtHide()}
-}
-function paintDLegend(){
-  const el=$('dlegend');if(!el)return;
-  const scale=DM_PARAM==='us_aqi'?EPA_BANDS:CPCB_BANDS;
-  el.innerHTML=scale.map(([lo,hi,cat,col])=>
-    `<span><i class="sw" style="background:${col}"></i>${cat} ${lo}–${hi}</span>`).join('')+
-    `<span style="margin-left:auto"><i class="sw na-sw"></i>no cells inside</span>`;
-}
-async function paintDMap(){
-  const cv=$('distmap'),cap=$('distmap-sub');if(!cv)return;
-  if($('dtsel')&&!$('dtsel').children.length){renderDmSel();paintDLegend()}
-  const p=DM_PARAM;
-  const feats=(FM_GJ&&FM_GJ.features)||[];
-  if(!feats.length){if(cap)cap.textContent='boundary geojson still loading…';return}
-  /* the grid behind a computed param — fetched once per species; the
-     epoch-cached endpoint makes re-reads cheap on every tick */
-  if(p!=='pm2_5'&&p!=='us_aqi'&&DM_GRID[p]==null){
-    if(cap)cap.textContent=`loading the ${p} field…`;
-    try{const g=await getJSON(`/grid?cells=${FM_CELLS}&param=${p}`);
-        DM_GRID[p]=(g&&g.features)||[]}
-    catch(e){DM_GRID[p]=[]}
-  }
-  if(!DM_BBOX){
-    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-    for(const f of feats){
-      const g=f.geometry;if(!g)continue;
-      const polys=g.type==='Polygon'?[g.coordinates]
-        :g.type==='MultiPolygon'?g.coordinates:[];
-      for(const poly of polys)for(const c of poly[0]||[]){
-        x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);
-        y0=Math.min(y0,c[1]);y1=Math.max(y1,c[1])}
-    }
-    if(x0>x1)return;
-    const px=(x1-x0)*0.035,py=(y1-y0)*0.05;
-    DM_BBOX={x0:x0-px,x1:x1+px,y0:y0-py,y1:y1+py};
-  }
-  const B=DM_BBOX,ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
-  const w=cv.parentElement.clientWidth;
-  const W=w,H=Math.round(w*(B.y1-B.y0)/((B.x1-B.x0)*0.879));
-  cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
-  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-  const px=v=>(v-B.x0)/(B.x1-B.x0)*W,py=v=>(1-(v-B.y0)/(B.y1-B.y0))*H;
-  const pathOf=f=>{
-    const g=f.geometry,P=new Path2D();
-    const polys=g.type==='Polygon'?[g.coordinates]
-      :g.type==='MultiPolygon'?g.coordinates:[];
-    for(const poly of polys)for(const ring of poly){
-      (ring||[]).forEach(([lo,la],i)=>{const x=px(lo),y=py(la);
-        i?P.lineTo(x,y):P.moveTo(x,y)});
-      P.closePath()}
-    return P;
-  };
-  DM_ROWS=distRows();
-  /* outer districts paint first, the 13 nct sub-areas on top — the
-     inner boundaries stay readable, order is the geojson's own */
-  const ALPHA={field:.85,sparse:.42,none:0};
-  const ord=[...DM_ROWS].sort((a,b)=>
-    (a.level==='osm_admin_5'?1:0)-(b.level==='osm_admin_5'?1:0));
-  for(const r of ord){
-    const path=pathOf(r.feat),na=r.v==null;
-    if(na){ctx.fillStyle='rgba(166,172,184,.10)';ctx.fill(path,'evenodd')}
-    else{ctx.globalAlpha=ALPHA[r.conf]??.5;ctx.fillStyle=r.band?r.band[3]:'#A6ACB8';
-      ctx.fill(path,'evenodd');ctx.globalAlpha=1}
-  }
-  /* boundaries second — a shared edge never hides under a neighbour's fill */
-  ctx.lineJoin='round';
-  for(const r of ord){
-    const path=pathOf(r.feat),na=r.v==null;
-    const pinned=DT_PIN&&DT_PIN.name===r.name,hovered=DM_HOV===r.name;
-    ctx.setLineDash(na?[3,3]:[]);
-    ctx.strokeStyle=pinned?'#14181F':hovered?'rgba(20,24,31,.9)':'rgba(20,24,31,.55)';
-    ctx.lineWidth=pinned?2:hovered?1.6:0.9;
-    ctx.stroke(path);
-  }
-  ctx.setLineDash([]);
-  /* names where the shape has room — the card names everything on
-     click. sub-areas need a bigger shape before they earn a label:
-     NCT's centre would otherwise read as overlapping captions */
-  ctx.font='11px ui-monospace,"SF Mono",Menlo,monospace';
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  for(const r of ord){
-    const c=(r.feat.properties||{}).centroid;
-    if(!c)continue;
-    const g=r.feat.geometry;
-    const polys=g.type==='Polygon'?[g.coordinates]
-      :g.type==='MultiPolygon'?g.coordinates:[];
-    let bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;
-    for(const poly of polys)for(const pt of poly[0]||[]){
-      bx0=Math.min(bx0,px(pt[0]));bx1=Math.max(bx1,px(pt[0]));
-      by0=Math.min(by0,py(pt[1]));by1=Math.max(by1,py(pt[1]))}
-    const needW=r.level==='osm_admin_5'?92:64;
-    const needH=r.level==='osm_admin_5'?26:18;
-    if(bx1-bx0<needW||by1-by0<needH)continue;
-    const nm=String(r.name).toUpperCase();
-    const lx=px(c[0]),ly=py(c[1]);
-    ctx.strokeStyle='rgba(245,244,240,.8)';ctx.lineWidth=3;
-    ctx.strokeText(nm,lx,ly);
-    ctx.fillStyle=r.level==='osm_admin_5'
-      ?'rgba(20,24,31,.62)':'rgba(20,24,31,.85)';
-    ctx.fillText(nm,lx,ly);
-  }
-  /* caption — what is painted, in the console's own words */
-  const liveN=DM_ROWS.filter(r=>r.v!=null).length;
-  const thinN=DM_ROWS.filter(r=>r.v!=null&&r.conf==='sparse').length;
-  const label=(DM_SPECIES.find(s=>s[0]===p)||[p,p])[1];
-  const gridless=p!=='pm2_5'&&p!=='us_aqi'&&!(DM_GRID[p]&&DM_GRID[p].length);
-  if(cap)cap.innerHTML=gridless
-    ?`${label} — the field serves no ${label} cells right now`
-    :`${fmt(feats.length)} boundaries · ${fmt(liveN)} live${thinN?` · ${fmt(thinN)} thin (centroid read)` :''} · fills = ${p==='us_aqi'?'the us aqi scale':"india's national aqi bands"} for ${esc(label)} · value = mean of the covered cells inside each border · click pins a card`;
-}
-function dmHit(e){
-  const cv=$('distmap');if(!cv||!DM_BBOX)return{row:null,x:0,y:0};
-  const r=cv.getBoundingClientRect();
-  const x=e.clientX-r.left,y=e.clientY-r.top;
-  const B=DM_BBOX;
-  const lon=B.x0+x/r.width*(B.x1-B.x0),lat=B.y0+(1-y/r.height)*(B.y1-B.y0);
-  /* innermost wins — the 13 nct sub-areas ride last in FM_GJ, so a
-     reverse walk picks the small shape over its parent district */
-  const feats=(FM_GJ&&FM_GJ.features)||[];
-  for(let i=feats.length-1;i>=0;i--){
-    const f=feats[i],g=f.geometry;if(!g)continue;
-    const polys=g.type==='Polygon'?[g.coordinates]
-      :g.type==='MultiPolygon'?g.coordinates:[];
-    let inside=false;
-    for(const poly of polys){
-      if(!(poly[0]&&pip(lon,lat,poly[0])))continue;
-      let hole=false;
-      for(let h=1;h<poly.length;h++)if(pip(lon,lat,poly[h])){hole=true;break}
-      if(!hole){inside=true;break}
-    }
-    if(inside)return{row:DM_ROWS.find(rr=>rr.feat===f)||null,x,y};
-  }
-  return{row:null,x,y};
-}
-function dmClick(e){
-  const{row,x,y}=dmHit(e);
-  if(!row){dtHide();return}
-  e.stopPropagation();
-  /* re-click on the pinned district un-pins; any other takes over */
-  if(DT_PIN&&DT_PIN.name===row.name)dtHide();else dmShow(row,x,y);
-}
-function dmMove(e){
-  const{row}=dmHit(e),n=row?row.name:null;
-  if(n!==DM_HOV){DM_HOV=n;paintDMap()}
-}
-function dmLeave(){if(DM_HOV){DM_HOV=null;paintDMap()}}
-function fmClick(e){
-  const{ft,x,y}=fmHit(e),pop=$('fmpop');if(!pop)return;
-  if(!ft){pop.hidden=true;FM_INS=null;return}
-  fmShow(ft,x,y,true);
-}
-
-/* --- the shared picture: global rollups. each tile reads the aggregate
-   feeds this page already trusts; a field that has not shipped renders
-   honest-empty — never an invented number --- */
-function paintShared(dn,S,rows,G){
-  const pick=(o,ks)=>{if(!o)return null;for(const k of ks){
-    const v=k.split('.').reduce((a,p)=>(a&&a[p]!=null)?a[p]:null,o);
-    if(v!=null)return v}return null};
-  const areas=(G&&G.areas&&G.areas.length?G.areas.length:null)
-           ??pick(dn,['devices_by_area','areas_active','pax_by_area'])
-           ??pick(S,['devices_by_area','areas_active']);
-  const areasTracked=G&&G.areas_tracked;
-  const ods=(G&&G.od_pairs&&G.od_pairs.length?{n:G.od_pairs.length,traversals:G.od_pairs.reduce((s,p)=>s+(p.trips||p.n||0),0)}:null)
-           ??pick(dn,['od_flows','journeys','flows','corridors_total'])
-           ??(rows.length?{traversals:rows.reduce((s,r)=>s+(r.trips||0),0),n:rows.length}:null);
-  const t=dn.totals||{};
-  /* savings blocks ship either scalar or {dose_ug|kg, trips_reporting} — unbox, never fmt an object */
-  const box=(v,ks)=>{if(v==null)return null;
-    if(typeof v==='number')return v;
-    for(const k of ks)if(v[k]!=null)return v[k];return null};
-  const rep=(b)=>b&&typeof b==='object'&&b.trips_reporting!=null?b.trips_reporting:null;
-  const savedCo2=box(G&&G.co2_avoided,['kg','co2_kg','value','amount','total'])
-           ??pick(t,['co2_saved_kg','co2_avoided_kg'])??pick(dn,['co2_saved_kg','saved_co2_kg']);
-  const savedDose=box(G&&G.dose_avoided,['dose_ug','ug','value','total'])
-           ??pick(t,['dose_saved_ug','dose_avoided_ug'])??pick(dn,['dose_saved_ug']);
-  const nRep=rep(G&&G.dose_avoided)??rep(G&&G.co2_avoided);
-  /* 'their reviews' — authored feedback riding the global feed; note
-     bodies only at k>=3 */
-  const rv=G&&G.reviews;
-  const rvSub=rv&&rv.count?[
-    [5,4,3,2,1].map(s=>`${s}★ ${fmt(rv.hist&&rv.hist[s]||0)}`).join(' · '),
-    rv.notes&&rv.notes.length?`latest: “${esc(rv.notes[0].note)}”`:null,
-    rv.notes_withheld?'notes stay hidden until 3+ reviews exist':null,
-  ].filter(Boolean).join('<br>')
-    :'stars + an optional note from the app; note text publishes only once 3+ reviews exist';
-  const tiles=[
-    ['areas with riders',
-      areas!=null?fmt(typeof areas==='object'?Object.keys(areas).length:areas)+' areas':null,
-      `places where riders are active — shown only at 3+ phones${G&&G.suppressed&&G.suppressed.areas?` · ${fmt(G.suppressed.areas)} smaller places withheld`:''} — never a person`],
-    ['journeys between places',
-      ods!=null?(typeof ods==='number'?fmt(ods)+' journeys'
-        :`${fmt(ods.traversals)} crossings · ${ods.n} ${ods.n===1?'journey':'journeys'}`):null,
-      'shared trips between two places — only where 3+ phones went the same way; anything smaller is counted, never shown'],
-    ['smoke + co₂ avoided',
-      (savedCo2!=null||savedDose!=null)
-        ?[savedCo2!=null?fmt1(savedCo2)+' kg co₂':null,
-          savedDose!=null?fmt(savedDose)+' µg dose':null].filter(Boolean).join(' · ')
-        :(t.co2_kg_mid?fmt1(t.co2_kg_mid)+' kg co₂ emitted · mid estimate':null),
-      `what riders saved by taking the cleaner option instead of the worst one${nRep!=null?` · ${fmt(nRep)} trip${nRep===1?'':'s'} reporting`:''}`],
-    ['what riders think',
-      rv&&rv.count?`${fmt1(rv.avg)}★ · ${fmt(rv.count)} review${rv.count===1?'':'s'}`:null,
-      rvSub],
-  ];
-  const el=$('sharedpic');if(!el)return;
-  el.innerHTML=tiles.map(([l,v,sub])=>
-    `<div class="card"><div class="kchip">${l}</div>
-     <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'nothing to show yet'}</div>
-     <div class="cap">${sub}</div></div>`).join('');
-}
-/* --- 07 · who's using it: the usage rollup (mount-relative api). every number is a
-   scalar aggregate over the stores that already exist — a null + note
-   where a source can't answer, an honest locked state for guests
-   (the fetch never fires without a token, so no 401 nags) --- */
-function paintUsage(us,gated){
-  const cards=$('usagecards'),kv=$('usagekv'),hcap=$('usagehourscap'),
-        hours=$('usagehours'),fb=$('usagefb'),fbn=$('usagefbnote');
-  if(!cards)return;
-  if(us==null){
-    const msg=gated?'locked — sign in as operator':'usage feed unavailable';
-    cards.innerHTML=`<div class="card"><div class="kchip">usage</div>
-      <div class="num na" style="font-size:13px;line-height:1.25">${msg}</div>
-      <div class="cap">${gated?'who uses it unlocks with the operator token — aggregate counts only, never a person':'the usage rollup could not be read — retrying next tick'}</div></div>`;
-    if(kv)kv.innerHTML='';if(hours)hours.innerHTML='';
-    if(hcap)hcap.textContent='';if(fb)fb.innerHTML='';
-    if(fbn)fbn.textContent='';
-    return;
-  }
-  const dev=us.devices||{},tr=us.trips||{},ds=us.dose||{},
-        cor=us.corridors||{},fbk=us.feedback||{},
-        tdy=tr.today,w24=tr.last_24h;
-  const tiles=[
-    ['phones that ever shared',
-      dev.total!=null?fmt(dev.total):null,
-      dev.unavailable?'the device ledger could not be read — no count painted':
-      'distinct tokens in the donation ledger — a phone mints its token at install but the server only learns it when a trip is shared, so this is “phones that shared”, never installs'],
-    ['sharing · last 24h / 7d',
-      dev.seen_24h!=null?`${fmt(dev.seen_24h)} <small>/ ${fmt(dev.seen_7d)}</small>`:null,
-      'phones whose latest shared trip lands inside each window'],
-    ['trips shared today',
-      tdy?`${fmt(tdy.trips)} <small>· ${fmt1(tdy.km)} km</small>`:(tr.total?0:null),
-      `the donation ledger's own UTC day counter${tdy&&tdy.modes&&Object.keys(tdy.modes).length?` · ${Object.entries(tdy.modes).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([m,n])=>`${fmt(n)} ${esc(MODE_N[m]||m)}`).join(' · ')}`:''}`],
-    ['breathed per shared trip',
-      ds.mean_ug_per_trip!=null
-        ?`<span style="color:${doseInk(ds.mean_ug_per_trip)}">${fmt1(ds.mean_ug_per_trip)} µg</span>${ds.median_ug_per_trip!=null?` <small>· median ${fmt1(ds.median_ug_per_trip)}</small>`:''}`
-        :null,
-      ds.mean_ug_per_trip!=null
-        ?`mean over every donated trip${ds.median_ug_per_trip!=null?` · median over ${fmt(ds.median_n)} ledgered trips`:' · median needs the device ledger'}`
-        :'no donated trips yet — nothing to average'],
-  ];
-  cards.innerHTML=tiles.map(([l,v,sub])=>
-    `<div class="card"><div class="kchip">${l}</div>
-     <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25">${v||'nothing to show yet'}</div>
-     <div class="cap">${sub}</div></div>`).join('');
-  kv.innerHTML=(tr.total||(dev&&dev.total))?`
-    <dt>shared trips</dt><dd>${fmt(tr.total)} across ${fmt(tr.days_tracked)} day${tr.days_tracked===1?'':'s'} · ${fmt(tr.switched)} picked the cleaner option</dd>
-    <dt>last 24h</dt><dd>${w24?`${fmt(w24.trips)} trips · ${fmt1(w24.km)} km · ${fmt1(w24.dose_ug)} µg breathed · ${fmt(w24.devices)} phone${w24.devices===1?'':'s'}`:esc(tr.last_24h_note||'rolling window not available on this backend')}</dd>
-    <dt>smoke inhaled</dt><dd>${ds.mean_ug_per_trip!=null?`${fmt1(ds.mean_ug_per_trip)} µg/trip mean${ds.median_ug_per_trip!=null?` · ${fmt1(ds.median_ug_per_trip)} median`:''}${ds.mean_ug_per_km!=null?` · ${fmt1(ds.mean_ug_per_km)} µg/km`:''}`:'—'}</dd>
-    <dt>street cells</dt><dd>${fmt(cor.tracked)} tracked · ${fmt(cor.publishable)} shareable — cells need ${cor.k_min||3}+ phones in ${cor.window_h||72}h</dd>
-    <dt>latest donation</dt><dd>${tr.latest_donation_age_min!=null?ago(tr.latest_donation_age_min*60)+' ago':'—'}</dd>
-    <dt>installs</dt><dd class="sub">${esc(us.installs_note||'unknowable server-side by design')}</dd>
-    <dt>median basis</dt><dd class="sub">${esc(ds.median_basis||'')}</dd>
-    ${(ds.daily||[]).length?`<dt>breathed, by day</dt><dd class="sub">${ds.daily.slice(-7).map(d=>`${esc(d.day)}: ${d.mean_ug!=null?fmt1(d.mean_ug)+' µg':'—'} · ${fmt(d.trips)} trip${d.trips===1?'':'s'}`).join('<br>')}</dd>`:''}`
-    :emptyMsg(us.empty?'no shared trips yet — counters appear when the first anonymized donation lands. nothing is zero-filled.':'the usage rollup answered with nothing — nothing painted');
-  const ph=tr.per_hour||[];
-  if(ph.length){
-    const mx=Math.max(1,...ph),curH=new Date().getUTCHours();
-    hcap.textContent=`donations per hour — the last ${ph.length} UTC hour buckets, oldest→newest`;
-    hours.innerHTML=ph.map((n,i)=>{
-      const h=(curH-ph.length+1+i+96)%24,hh=Math.max(3,Math.round(n/mx*46));
-      return `<div class="dbar" title="${String(h).padStart(2,'0')}:00 utc — ${fmt(n)} shared trip${n===1?'':'s'}">
-        <i style="height:${hh}px"></i><span>${i%4===0?String(h).padStart(2,'0'):''}</span></div>`;
-    }).join('');
-  }else{hours.innerHTML='';hcap.textContent=tr.per_hour_note||''}
-  const rv=fbk.reviews,hz=fbk.hazard_reports;
-  fb.innerHTML=(rv||hz)?`
-    <dt>star reviews</dt><dd>${rv&&rv.count?`${fmt1(rv.avg)}★ across ${fmt(rv.count)} review${rv.count===1?'':'s'}`:'none yet — the first stars land here'}</dd>
-    ${rv&&rv.count?`<dt>by stars</dt><dd class="sub">${[5,4,3,2,1].map(s=>`${s}★ ${fmt(rv.hist&&rv.hist[s]||0)}`).join(' · ')}</dd>`:''}
-    ${rv&&rv.notes&&rv.notes.length?`<dt>latest note</dt><dd class="sub">“${esc(rv.notes[0].note)}” · notes publish only once 3+ reviews exist</dd>`:''}
-    ${rv&&rv.notes_withheld?`<dt>notes withheld</dt><dd class="sub">review notes stay hidden until 3+ reviews exist — the k-anonymity floor, same as everywhere</dd>`:''}
-    <dt>hazard flags live</dt><dd>${hz?`${fmt(hz.active)} active${hz.active?` — ${Object.entries(hz.kinds).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${fmt(n)} ${esc(k)}`).join(' · ')}`:''} · each expires in ${hz.ttl_h||6}h, counts only`:'the report store could not be read'}</dd>`
-    :emptyMsg('feedback feeds unavailable — nothing painted');
-  fbn.textContent=fbk.basis||'';
-}
-/* --- the archive: the served field recorded hourly (archive.py →
-   s3://{bucket}/archive/ + the local mirror). every number on this
-   strip comes from archive.status() — counts of real snapshot files,
-   never an estimate --- */
-let ARC_GATED=false;   /* true when the operator feed already filled the tiles */
-function paintArchive(S){
-  const el=$('archive');if(!el)return;
-  const a=(S&&S.archive)||{};
-  ARC_GATED=a.snapshots_total!=null;
-  const td=a.today||{};
-  const last=a.last||{};
-  const tiles=[
-    ['hours saved today',
-      td.hours_recorded!=null
-        ?`${fmt(td.hours_recorded)} <small>of ${td.hours_elapsed!=null?td.hours_elapsed:24} IST</small>`:null,
-      td.gaps&&td.gaps.length
-        ?`missing hours: ${td.gaps.map(h=>String(h).padStart(2,'0')+':00').join(' · ')}`
-        :(td.hours_recorded!=null?'every hour so far has a real saved map':'waiting on the first save')],
-    ['recording since',
-      a.since_ist?`${a.since_ist.slice(0,10)} · ${a.since_ist.slice(11,16)} IST`:null,
-      'the air map has been saved hourly since then'],
-    ['saved maps · all time',
-      a.snapshots_total!=null?fmt(a.snapshots_total):null,
-      a.storage&&a.storage.bucket
-        ?`stored in the cloud (s3://${a.storage.bucket}/archive/) · mirrored locally`
-        :'local copies only — cloud bucket unset'],
-    ['last save',
-      last.captured_ist?`${last.captured_ist.slice(11,16)} IST · ${last.cells!=null?fmt(last.cells)+' cells':''}`
-        :(last.ok===false?(last.skipped?'skipped — nothing to record':(last.error?'failed':null)):null),
-      last.backend?`stored via ${last.backend}${last.uri?' · '+last.uri:''}`:(last.note||'')],
-  ];
-  el.innerHTML=tiles.map(([l,v,sub],i)=>
-    `<div class="card"><div class="kchip">${l}</div>
-     <div class="num ${v?'':'na'}" style="font-size:${v?19:13}px;line-height:1.25" id="arcv${i}">${v||(ARC_GATED?'nothing to show yet':'reading…')}</div>
-     <div class="cap" id="arcc${i}">${sub||''}</div></div>`).join('')+
-    /* recorded today — one square per ist hour, coloured by that
-       hour's mean band; filled lazily from /v2/archive (public read) */
-    `<div class="card" style="grid-column:1/-1">
-     <div class="kchip">today, hour by hour — one square per hour, coloured by how bad the air was</div>
-     <div class="hstrip" id="archstrip"></div>
-     <div class="cap" id="archstripcap">reading the archive…</div></div>`+
-    /* the model grades itself — /v2/skill pairs every recorded hour
-       with the forecast surfaces the api had already served for it;
-       honest-empty until the archive holds enough pairs */
-    `<div class="card" style="grid-column:1/-1">
-     <div class="kchip">the forecast grades itself — what it predicted vs what the recorded hour turned out to be</div>
-     <div class="scrollx" id="skillwrap"></div>
-     <div class="cap" id="skillcap">reading the scorecard…</div></div>`;
-  archStrip();
-  skillCard();
-}
-/* the self-grade card — horizon × error from /v2/skill. every number
-   is a real stored pair; thin buckets say so instead of pretending */
-async function skillCard(){
-  const wrap=$('skillwrap'),cap=$('skillcap');if(!wrap)return;
-  let d=null;
-  try{const r=await fetch('/v2/skill',{signal:AbortSignal.timeout(15000)});
-      if(r.ok)d=await r.json()}catch(_){}
-  if(!wrap.isConnected)return;
-  if(!d||d.basis!=='self-graded'){
-    wrap.innerHTML='';
-    cap.textContent='/v2/skill unreachable — retrying next tick';
-    return;
-  }
-  const cv=d.coverage||{},ov=d.overall||{},hs=d.horizons||[];
-  const ok=hs.filter(x=>x.status==='ok');
-  const thin=hs.filter(x=>x.status==='thin'&&x.n>0);
-  if(d.status!=='ok'){
-    wrap.innerHTML='';
-    cap.textContent=`${fmt(d.pairs||0)} real forecast-vs-recorded checks on file so far${cv.since_ist?` — recording since ${cv.since_ist.slice(0,10)} ${cv.since_ist.slice(11,16)} IST`:''} — a score needs ${d.min_pairs||5}+ graded hours; the table fills in as the archive grows`;
-    return;
-  }
-  /* th uppercases — µ opts out of the transform or "µg/m³" reads "mg/m³" */
-  wrap.innerHTML=`<table style="margin-top:8px"><thead><tr><th>how far ahead it looked</th><th class="num">hours graded</th><th class="num">missed by <span style="text-transform:none">µg/m³</span></th><th class="num">leaned high/low</th><th class="num">right band</th></tr></thead>
-    <tbody>${ok.map(h=>`<tr><td class="mono">+${h.h}h</td><td class="num">${fmt(h.n)}</td><td class="num">${fmt1(h.mae_ug)}</td><td class="num">${h.bias_ug>0?'+':''}${fmt1(h.bias_ug)}</td><td class="num">${fmt1(h.band_hit_pct)}%</td></tr>`).join('')}</tbody></table>`
-    +(thin.length?`<div class="cap">still thin — ${thin.map(t=>`+${t.h}h has ${t.n}`).join(' · ')} graded hour${thin.length===1&&thin[0].n===1?'':'s'}; a horizon needs ${d.min_pairs||5} before it scores</div>`:'');
-  cap.innerHTML=`${fmt(ov.n)} checks over ${cv.hours_graded||'—'} recorded hours${cv.first_pair_ist?` since ${cv.first_pair_ist.slice(0,10)}`:''} — overall miss ${fmt1(ov.mae_ug)} µg/m³, bias ${ov.bias_ug>0?'+':''}${fmt1(ov.bias_ug)} (${ov.bias_ug<0?'we under-called':'we over-called'}) · ${fmt1(ov.band_hit_pct)}% of cells landed in the right band`;
-}
-/* the hourly strip — every square a real snapshot or an honest gap,
-   colours from the day's own payload (never status() estimates) */
-async function archStrip(){
-  const el=$('archstrip'),cap=$('archstripcap');if(!el)return;
-  let d=null;
-  try{const r=await fetch('/v2/archive',{signal:AbortSignal.timeout(12000)});
-      if(r.ok)d=await r.json()}catch(_){}
-  if(!el.isConnected)return;
-  if(!d||d.basis!=='recorded'||!(d.archive&&d.archive.total_snapshots)){
-    el.innerHTML='';
-    cap.textContent=d&&d.basis==='recorded'
-      ?'archive empty — no saved maps on record yet'
-      :'archive unreachable — retrying next tick';
-    return;
-  }
-  const cov=d.coverage||{},wm=cov.with_model||[];
-  /* when the operator feed is locked the public payload carries the
-     same counts — fill the four tiles it couldn't */
-  if(!ARC_GATED){
-    const ar=d.archive||{};
-    const setv=(i,h)=>{const n=$('arcv'+i);if(n){n.classList.remove('na');n.innerHTML=h}};
-    const setc=(i,h)=>{const n=$('arcc'+i);if(n)n.innerHTML=h};
-    setv(0,`${fmt(cov.recorded_count)} <small>of ${24-(cov.pending||[]).length} IST</small>`);
-    setc(0,(cov.gaps||[]).length
-      ?`missing hours: ${cov.gaps.map(h=>String(h).padStart(2,'0')+':00').join(' · ')}`
-      :'every elapsed hour so far has a real saved map');
-    setv(1,ar.since_ist?`${ar.since_ist.slice(0,10)} · ${ar.since_ist.slice(11,16)} IST`:'—');
-    setc(1,'the air map has been saved hourly since then');
-    setv(2,fmt(ar.total_snapshots));
-    setc(2,d.storage&&d.storage.bucket
-      ?`stored in the cloud (s3://${d.storage.bucket}/archive/) · mirrored locally`
-      :'local copies only — cloud bucket unset');
-    setv(3,ar.last_ist?`${ar.last_ist.slice(11,16)} IST`:'—');
-    setc(3,'the most recent hourly save');
-  }
-  const meanOf=e=>{let s=0,n=0;
-    for(const c of e.cells||[])if(c[2]!=null){s+=c[2];n++}
-    return n?s/n:null};
-  el.innerHTML=(d.hours||[]).map(e=>{
-    const st=e.status,rec=st==='recorded';
-    const m=rec?meanOf(e):null;
-    const col=m==null?null:(dmBand(dmAqi('pm2_5',m),'pm2_5')||[])[3];
-    const tt=`${e.ist_label} IST — ${rec
-      ?`recorded · mean pm2.5 ${fmt1(m)} µg/m³`+(e.model?' · forecast on record':'')
-      :st==='gap'?'no record':st==='unreadable'?'saved map unreadable':'not due yet'}`;
-    return `<span class="ah ${rec?'':st==='gap'?'gap':st==='unreadable'?'bad':'pend'}"
-      ${col?`style="background:${col};border-color:rgba(20,24,31,.45)"`:''}
-      title="${esc(tt)}"></span>`;
-  }).join('')+
-  `<span class="ahm">${(cov.recorded||[]).length} recorded`+
-    `${(cov.gaps||[]).length?` · ${cov.gaps.length} gap${cov.gaps.length===1?'':'s'}`:''}`+
-    `${wm.length?` · ${wm.length} with a forecast (${wm.map(h=>String(h).padStart(2,'0')).join('·')}h)`  :''}`+
-    ` · 00 → 23 IST</span>`;
-  cap.textContent=`${d.day} · ${cov.recorded_count||0} of ${24-(cov.pending||[]).length} elapsed hours recorded`+
-    `${d.archive.since_ist?` · recording since ${d.archive.since_ist.slice(0,10)} ${d.archive.since_ist.slice(11,16)} IST`:''}`;
-}
-/* forecast scrub — /grid?h=N re-serves the cams horizon anchored to the
-   live field; pm2.5 only (other species have no forecast surface) */
-function syncScrub(){
-  const on=FM_PARAM==='pm2_5';
-  $('fmscrub').style.display=on?'':'none';
-  if(!on&&FM_H){FM_H=0;$('fmh').value=0;$('fmh-lbl').textContent='now'}
-}
-function bindScrub(){
-  if(FM_BOUND)return;FM_BOUND=true;
-  $('fmh').addEventListener('input',async e=>{
-    FM_H=+e.target.value;
-    $('fmh-lbl').textContent=FM_H===0?'now':`+${FM_H}h`;
-    await paintFieldMap(FM_PARAM);
-  });
-  $('fieldmap').addEventListener('click',fmClick);
-  $('fieldmap').addEventListener('mousemove',fmMove);
-  $('fieldmap').addEventListener('mouseleave',fmLeave);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('fmpop');if(p)p.hidden=true;FM_INS=null;dtHide()}});
-  /* district map: click pins a card, hover raises the boundary —
-     a click anywhere off the canvas/card dismisses it */
-  $('distmap').addEventListener('click',dmClick);
-  $('distmap').addEventListener('mousemove',dmMove);
-  $('distmap').addEventListener('mouseleave',dmLeave);
-  document.addEventListener('click',e=>{
-    if(!e.target.closest('#distmap')&&!e.target.closest('#dtpop'))dtHide()});
-  /* both baked boundary sets — districts + the 13 delhi sub-areas —
-     name cells honestly and give the district card its polygon */
-  Promise.all([
-    fetch('/ncr.geojson',{signal:AbortSignal.timeout(12000)})
-      .then(r=>r.ok?r.json():null).catch(()=>null),
-    fetch('/delhi_subdistricts.geojson',{signal:AbortSignal.timeout(12000)})
-      .then(r=>r.ok?r.json():null).catch(()=>null)
-  ]).then(([a,b])=>{FM_GJ={features:[
-    ...((a&&a.features)||[]),...((b&&b.features)||[])]};
-    /* cut the mini-card silhouettes once both sets are in, then paint
-       the choropleth — the boundaries are its whole surface */
-    for(const f of FM_GJ.features||[]){
-      const n=f.properties&&f.properties.name;
-      if(n&&!CUT[n]){const p=cutPath(f);if(p)CUT[n]=p}
-    }
-    paintDMap();paintFireMap();
-  });
-}
-
-/* --- fires over the field: the real /fires detections painted over the
-   served bbox (metadata.bbox_wsen), ember radius = √frp so the eye reads
-   energy, belt detections ringed — the same belt the smoke modifier
-   actually counts. belt window = FIRE_BELT_BBOX in fires.py. --- */
-const FMG_BELT=[73.5,28.5,77.5,31.5];
-function paintFireMap(){
-  const cv=$('firemap');if(!cv)return;
-  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
-  if(!W||!H)return;
-  cv.width=W*dpr;cv.height=H*dpr;
-  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
-  ctx.clearRect(0,0,W,H);
-  const meta=(FIRES_DOC&&FIRES_DOC.metadata)||{};
-  const bb=meta.bbox_wsen||[75.75,27.2,78.75,30.05];
-  const [W0,S0,E0,N0]=bb;
-  const X=lo=>(lo-W0)/(E0-W0)*W, Y=la=>(1-(la-S0)/(N0-S0))*H;
-  /* 1° graticule */
-  ctx.strokeStyle='rgba(20,24,31,.07)';ctx.lineWidth=1;
-  ctx.fillStyle='rgba(20,24,31,.4)';ctx.font='8.5px ui-monospace,monospace';
-  for(let lo=Math.ceil(W0);lo<E0;lo++){
-    ctx.beginPath();ctx.moveTo(X(lo),0);ctx.lineTo(X(lo),H);ctx.stroke();
-    ctx.textAlign='center';ctx.fillText(lo+'°e',X(lo),H-4);}
-  for(let la=Math.ceil(S0);la<N0;la++){
-    ctx.beginPath();ctx.moveTo(0,Y(la));ctx.lineTo(W,Y(la));ctx.stroke();
-    ctx.textAlign='left';ctx.fillText(la+'°n',4,Y(la)+3);}
-  /* district outlines once the boundary geojson has landed */
-  if(FM_GJ&&FM_GJ.features){ctx.strokeStyle='rgba(20,24,31,.2)';ctx.lineWidth=.8;
-    for(const ft of FM_GJ.features){const g=ft.geometry||{};
-      const polys=g.type==='MultiPolygon'?g.coordinates:(g.type==='Polygon'?[g.coordinates]:[]);
-      for(const poly of polys)for(const ring of poly){ctx.beginPath();
-        ring.forEach(([lo,la],i)=>i?ctx.lineTo(X(lo),Y(la)):ctx.moveTo(X(lo),Y(la)));
-        ctx.closePath();ctx.stroke();}}}
-  /* the smoke belt — the dashed window the modifier actually watches */
-  ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(110,31,44,.55)';ctx.lineWidth=1.2;
-  ctx.strokeRect(X(FMG_BELT[0]),Y(FMG_BELT[3]),
-    X(FMG_BELT[2])-X(FMG_BELT[0]),Y(FMG_BELT[1])-Y(FMG_BELT[3]));
-  ctx.setLineDash([]);
-  /* belt label — the window extends past the served bbox west+north,
-     so the caption is clamped to the visible corner of the belt */
-  ctx.fillStyle='rgba(110,31,44,.8)';ctx.textAlign='left';
-  ctx.fillText('nw smoke belt — fires here raise delhi\'s air',
-    Math.max(10,X(FMG_BELT[0])+5),Y(FMG_BELT[1])-8);
-  /* detections — day filled bronze, night hollow; belt ringed wine */
-  const feats=(FIRES_DOC&&FIRES_DOC.features)||[];
-  for(const f of feats){
-    const [lo,la]=(f.geometry&&f.geometry.coordinates)||[];
-    if(lo==null||la==null)continue;
-    const p=f.properties||{},r=1.6+Math.sqrt(Math.max(0,p.frp||0))*1.15;
-    const x=X(lo),y=Y(la);
-    if(p.belt){ctx.strokeStyle='rgba(110,31,44,.95)';ctx.lineWidth=1.2;
-      ctx.beginPath();ctx.arc(x,y,r+2.2,0,6.283);ctx.stroke();}
-    ctx.beginPath();ctx.arc(x,y,r,0,6.283);
-    if(p.daynight==='N'){ctx.strokeStyle='rgba(160,68,24,.8)';ctx.lineWidth=1.1;ctx.stroke()}
-    else{ctx.fillStyle='rgba(190,87,30,.82)';ctx.fill();
-      ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=.7;ctx.stroke()}
-  }
-  /* delhi centre cross */
-  const dx=X(77.2090),dy=Y(28.6139);
-  ctx.strokeStyle='rgba(20,24,31,.6)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(dx-6,dy);ctx.lineTo(dx+6,dy);
-  ctx.moveTo(dx,dy-6);ctx.lineTo(dx,dy+6);ctx.stroke();
-  ctx.fillStyle='rgba(20,24,31,.7)';ctx.fillText('delhi',dx+9,dy+3);
-  /* caption traces the mechanism: belt → wind quadrant → modifier */
-  const wTxt=FIRE_WIND!=null
-    ?` wind ${Math.round(FIRE_WIND)}° — ${FIRE_QUAD==='inside'?'carrying belt smoke toward delhi':'blowing it away from delhi'}`
-    :'';
-  $('firemap-sub').innerHTML=feats.length
-    ?`${fmt(feats.length)} fires · dot size = heat energy · belt fires ringed — `+
-     `<b style="color:rgba(110,31,44,.95)">${fmt(FIRE_BELT!=null?FIRE_BELT:0)}</b> inside the belt${wTxt} `+
-     `→ the city's air map is lifted <b>×${FIRE_MOD!=null?FIRE_MOD:'—'}</b> by their smoke`+
-     `${meta.source?` · source ${esc(meta.source)}`:''}`+
-     `${meta.age_s!=null?` · fetched ${ago(meta.age_s)} ago`:''}`
-    :'no fire detections served — the layer is honestly empty';
-}
-
-async function paintFieldMap(param){
-  const cv=$('fieldmap');if(!cv)return;
-  if(!$('fmsel').children.length){renderFmSel();bindScrub()}
-  syncScrub();
-  try{
-    const g=await getJSON(`/grid?cells=${FM_CELLS}&param=${param}${FM_H?`&h=${FM_H}`:''}`);
-    /* epoch replay detection — the server stamps the freshness tuple;
-       an identical epoch means the canvas already shows this data, so
-       the ~1600-polygon redraw is skipped (the download stays cheap —
-       the grid is epoch-cached server-side) */
-    const ep=(g&&g.properties&&g.properties.cell_epoch)||null;
-    const epKey=ep?param+'|'+FM_H+'|'+JSON.stringify(ep):null;
-    if(epKey&&epKey===FM_LAST_EP)return;
-    FM_LAST_EP=epKey;
-    const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
-    const X0=76.80,Y0=28.20,X1=77.90,Y1=28.95,ASP=0.879;   /* cos(28.6°) */
-    const w=cv.parentElement.clientWidth;   /* .fmwrap: already inside the panel's padding */
-    /* true map aspect: lon-deg ≈ 111·cos(lat) km vs lat-deg ≈ 111 km */
-    const W=w,H=Math.round(w*(Y1-Y0)/((X1-X0)*ASP));
-    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-    const feats=(g&&g.features)||[];
-    FM_FEATS=feats;
-    /* refresh an open cell card in place — the judge keeps their cell,
-       its numbers stay live; only vanish if the cell itself left the grid */
-    const pop=$('fmpop');
-    if(pop&&FM_INS){
-      const same=feats.find(ft=>{
-        const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
-        if(!ring||ring.length<3)return false;
-        return (ring.reduce((s,c)=>s+c[0],0)/ring.length).toFixed(4)+','+
-               (ring.reduce((s,c)=>s+c[1],0)/ring.length).toFixed(4)===FM_INS.key;
-      });
-      if(same)fmShow(same,FM_INS.x,FM_INS.y,FM_INS.pinned);
-      else{pop.hidden=true;FM_INS=null}
-    }else if(pop){pop.hidden=true}
-    const alpha={'hi':.92,'med':.58,'lo':.30};
-    let vmin=null,vmax=null;const vals=[];
-    for(const ft of feats){
-      const p=(ft.properties||{}),ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
-      if(!ring||ring.length<3)continue;
-      const v=p[param]!=null?p[param]:p.pm25;
-      if(v==null)continue;
-      vals.push([ring,v,p.conf]);
-      if(vmin==null||v<vmin)vmin=v;
-      if(vmax==null||v>vmax)vmax=v;
-    }
-    const span=Math.max(1e-6,(vmax||0)-(vmin||0));
-    for(const [ring,v,conf] of vals){
-      /* pm2.5 + us_aqi → absolute 0–300 scale (the app's own ramp —
-         an index read must color by its own band anchors, not by
-         today's observed span); other species ramp across this layer's
-         real observed range */
-      const t=(param==='pm2_5'||param==='us_aqi')?Math.min(1,v/300):(v-(vmin||0))/span;
-      ctx.fillStyle=ramp(t,alpha[conf]??.3);
-      ctx.beginPath();
-      ring.forEach(([lo,la],i)=>{const x=(lo-X0)/(X1-X0)*W,y=(1-(la-Y0)/(Y1-Y0))*H;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-      ctx.closePath();ctx.fill();
-    }
-    /* index frame — degree ticks so a sector ref can be placed on the
-       page: lon labels along the bottom, lat up the left edge */
-    ctx.fillStyle='rgba(20,24,31,.42)';ctx.font='8.5px ui-monospace,monospace';
-    ctx.textAlign='center';
-    for(let lo=77.0;lo<FM_X1-0.05;lo+=0.2){
-      ctx.fillText(lo.toFixed(1)+'°e',(lo-FM_X0)/(FM_X1-FM_X0)*W,H-4);
-    }
-    ctx.textAlign='left';
-    for(let la=28.4;la<FM_Y1-0.02;la+=0.2){
-      ctx.fillText(la.toFixed(1)+'°n',4,(1-(la-FM_Y0)/(FM_Y1-FM_Y0))*H+3);
-    }
-    /* centre mark — the centroid the city numbers are computed at */
-    const cx=(77.2167-X0)/(X1-X0)*W,cy=(1-(28.6315-Y0)/(Y1-Y0))*H;
-    ctx.strokeStyle='rgba(20,24,31,.55)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.arc(cx,cy,4,0,6.283);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(cx-7,cy);ctx.lineTo(cx+7,cy);ctx.moveTo(cx,cy-7);ctx.lineTo(cx,cy+7);ctx.stroke();
-    /* wind transport — the real met vector, drawn in the direction the
-       smoke actually drifts (met 'from' + 180°), N up */
-    if(FM_WIND&&FM_WIND.from_deg!=null&&FM_WIND.speed_kmh>0.5){
-      const bx=W-34,by=34,L=17,
-            th=(Number(FM_WIND.from_deg)+180)*Math.PI/180,
-            dx=Math.sin(th),dy=-Math.cos(th),
-            x2=bx+dx*L,y2=by+dy*L;
-      ctx.strokeStyle='rgba(20,24,31,.62)';ctx.fillStyle='rgba(20,24,31,.62)';
-      ctx.lineWidth=1.4;
-      ctx.beginPath();ctx.moveTo(bx-dx*L*.4,by-dy*L*.4);ctx.lineTo(x2,y2);ctx.stroke();
-      const ah=5.2,at=Math.atan2(dy,dx);
-      ctx.beginPath();ctx.moveTo(x2,y2);
-      ctx.lineTo(x2-ah*Math.cos(at-.5),y2-ah*Math.sin(at-.5));
-      ctx.lineTo(x2-ah*Math.cos(at+.5),y2-ah*Math.sin(at+.5));
-      ctx.closePath();ctx.fill();
-      ctx.font='8px ui-monospace,monospace';ctx.textAlign='center';
-      ctx.fillText('N',bx,10);ctx.fillText(`${Math.round(FM_WIND.from_deg)}°`,bx,by+22);
-    }
-    /* real fire detections over the same map — shared with the fires
-       view (one /fires fetch), each ember sized by √frp, belt detections
-       ringed wine */
-    if(FIRES_DOC===null){
-      try{FIRES_DOC=await getJSON('/fires')}
-      catch(_){FIRES_DOC={features:[]}}
-    }
-    let plotted=0;
-    for(const f of (FIRES_DOC&&FIRES_DOC.features)||[]){
-      const [flo,fla]=(f.geometry&&f.geometry.coordinates)||[];
-      if(flo==null||fla==null)continue;
-      const fx=(flo-X0)/(X1-X0)*W,fy=(1-(fla-Y0)/(Y1-Y0))*H;
-      if(fx<-8||fx>W+8||fy<-8||fy>H+8)continue;
-      const p=f.properties||{},fr=1.4+Math.sqrt(Math.max(0,p.frp||0))*0.9;
-      if(p.belt){ctx.strokeStyle='rgba(110,31,44,.9)';ctx.lineWidth=1.1;
-        ctx.beginPath();ctx.arc(fx,fy,fr+1.8,0,6.283);ctx.stroke();}
-      ctx.fillStyle=p.daynight==='N'?'rgba(255,255,255,0)':'rgba(190,87,30,.8)';
-      ctx.beginPath();ctx.arc(fx,fy,fr,0,6.283);
-      if(p.daynight==='N'){ctx.strokeStyle='rgba(190,87,30,.75)';ctx.lineWidth=1;ctx.stroke()}
-      else{ctx.fill();ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=.8;ctx.stroke()}
-      plotted++;
-    }
-    const label=(FM_SPECIES.find(s=>s[0]===param)||[param,param])[1];
-    const unit=param==='us_aqi'?'':' µg/m³';
-    const windTxt=(FM_WIND&&FM_WIND.speed_kmh!=null)
-      ?` · wind ${Math.round(FM_WIND.speed_kmh)} km/h from ${Math.round(FM_WIND.from_deg??0)}° — the arrow is where smoke drifts`:'';
-    const hTag=FM_H?`<b style="color:var(--ink)">forecast +${FM_H}h</b> · `:'';
-    const hNote=FM_H?'forecast, anchored to the live map':'fainter cells = farther from real evidence';
-    $('fieldmap-sub').innerHTML=vals.length
-      ?`${hTag}${fmt(vals.length)} cells · ${FM_CELLS}×${FM_CELLS} grid · ~2.1×2.7 km each · hover or click a cell to read it · ${label} ${fmt1(vmin)}–${fmt1(vmax)}${unit}`+
-       `${param==='pm2_5'||param==='us_aqi'?'':' · colour runs over this layer\'s own range'} · ${hNote}`+
-       (plotted?` · <b style="color:rgba(190,87,30,1)">${fmt(plotted)}</b> fires plotted${((FIRES_DOC&&FIRES_DOC.features)||[]).length>plotted?` (${fmt(((FIRES_DOC&&FIRES_DOC.features)||[]).length-plotted)} more outside this view)`:''}`:'')+windTxt
-      :`${label} — the map serves no ${label} cells right now`;
-  }catch(e){
-    $('fieldmap-sub').textContent='grid unreachable — '+esc(e.message||e);
-  }
-}
-
-function clock(){$('clock').textContent=
-  new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' IST'}
+function clock(){}
 
 /* sign-in is a real form on the gate screen now — the token crosses the
    wire once, the session lives in an HttpOnly cookie, and this button
@@ -2688,7 +825,7 @@ tokBtnRefresh();
    live session was the old reload bug it exposes. */
 (async()=>{AUT=await checkSession();tokBtnRefresh();
   if(!AUT)showGate('');
-  tick();clock();setInterval(tick,30000);setInterval(clock,30000)})();
+  tick();setInterval(tick,30000)})();
 </script>
 </body>
 </html>
