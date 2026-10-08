@@ -95,7 +95,10 @@ export function BreathEdge({ color, radius = 24 }: { color: string; radius?: num
 
 export function CountUp({ value, format, style, duration = 620, ...rest }: {
   value: number; format?: (n: number) => string; duration?: number;
-  style?: StyleProp<TextStyle>; [k: string]: unknown;
+  /* animated-capable style: the hero inks the numeral through an
+     interpolation so a band change cross-fades instead of snapping —
+     needs Animated.Text below, plain Text can't take animated values */
+  style?: Animated.WithAnimatedValue<StyleProp<TextStyle>>; [k: string]: unknown;
 }) {
   const reduceMotion = useReduceMotion();
   const [disp, setDisp] = useState(() => (reduceMotion ? value : 0));
@@ -118,7 +121,7 @@ export function CountUp({ value, format, style, duration = 620, ...rest }: {
   /* reduce-motion skips the whole sweep — the final value renders
      statically, no ticking state at all */
   const shown = reduceMotion ? value : disp;
-  return <Text style={style} {...rest}>{format ? format(shown) : `${Math.round(shown)}`}</Text>;
+  return <Animated.Text style={style} {...rest}>{format ? format(shown) : `${Math.round(shown)}`}</Animated.Text>;
 }
 
 /** Honest-but-designed empty state: a hairline ring holding the glyph,

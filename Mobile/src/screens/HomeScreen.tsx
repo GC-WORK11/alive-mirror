@@ -320,9 +320,25 @@ const Sparkline = React.memo(SparklineInner);
  *  the truth we HAVE (the field) labelled, never a fake personal count
  *  (docs/lanes/hero-sparse). Same hole-not-a-guess rule as the move
  *  sparkline — a failed hour is a gap in the stroke. */
+
+/* the arc's live end breathes — a held breath on the one point that is
+   a real read (JS driver: svg props aren't view styles) */
+const APulse = Animated.createAnimatedComponent(Circle);
+
 function SparseAirArcInner({ series, color }: { series: (number | null)[]; color: string }) {
   bump("home.SparseAirArc");
+  const reduce = useReduceMotion();
   const [w, setW] = useState(0);
+  const [pulse] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    if (reduce) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 0.35, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      Animated.timing(pulse, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse, reduce]);
   const H = 64, PAD = 4;
   const vals = series.filter((v): v is number => v != null);
   const max = Math.max(...vals, 1), min = Math.min(...vals, 0);
@@ -367,7 +383,8 @@ function SparseAirArcInner({ series, color }: { series: (number | null)[]; color
             </React.Fragment>
           ))}
           {first >= 0 && (
-            <Circle cx={x(first)} cy={y(series[first] as number)} r={4} fill={color} />
+            <APulse cx={x(first)} cy={y(series[first] as number)} r={4} fill={color}
+              opacity={reduce ? 1 : pulse} />
           )}
         </Svg>
       )}
@@ -388,14 +405,17 @@ const MOVE_BAND_KEYS: StringKey[] = [
 /** The numeral's baseline — the landing .hnum rule, translated: a fine
  *  band-inked line under the readout that breathes on a slow sine (a
  *  dosimeter is a breathing thing). Reduce Motion: a static whisper. */
-function BreathLineInner({ color }: { color: string }) {
+function BreathLineInner({ color }: { color: string | Animated.AnimatedInterpolation<string> }) {
   const reduce = useReduceMotion();
   const [v] = useState(() => new Animated.Value(0));
   useEffect(() => {
     if (reduce) return;
+    /* JS driver, not native — the line's colour arrives as a JS-side
+       inkTone interpolation; one native-driven prop would migrate the
+       whole animated node and the colour fade would crash */
     const loop = Animated.loop(Animated.sequence([
-      Animated.timing(v, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(v, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(v, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      Animated.timing(v, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
     ]));
     loop.start();
     return () => loop.stop();
@@ -409,6 +429,29 @@ function BreathLineInner({ color }: { color: string }) {
 }
 
 const BreathLine = React.memo(BreathLineInner);
+
+/** The band's ink never snaps — when the read behind the hero moves a
+ *  band, every inked element melts to the new tone over ~600 ms (the
+ *  MoodCanvas's grammar, one level down). JS driver: colour can't ride
+ *  the native driver. Reduce Motion swaps instantly. */
+function useInkTone(color: string): string | Animated.AnimatedInterpolation<string> {
+  const reduce = useReduceMotion();
+  const [pair, setPair] = useState({ prev: color, cur: color });
+  const [fade] = useState(() => new Animated.Value(1));
+  if (pair.cur !== color) setPair({ prev: pair.cur, cur: color });
+  useEffect(() => {
+    if (reduce || pair.prev === pair.cur) { fade.setValue(1); return; }
+    fade.setValue(0);
+    const a = Animated.timing(fade, {
+      toValue: 1, duration: 600, easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    });
+    a.start();
+    return () => a.stop();
+  }, [pair.prev, pair.cur, fade, reduce]);
+  return reduce ? color
+    : fade.interpolate({ inputRange: [0, 1], outputRange: [pair.prev, pair.cur] });
+}
 
 /** The served decision line, localized. English keeps the wire text —
  *  it is already the card's own voice. Hindi rebuilds the sentence from
@@ -1053,6 +1096,15 @@ function HeroBlockInner({ data, budgetUg, profileSet, ambientUg, ambientMeta, fi
   /* tour target — the sparse day's "counting up" row is the ledger's
      first-run shape (the real DayCard mounts only once a day counts) */
   const { node: ledgerNode, onLayout: ledgerLayout } = useMeasureTarget("heroLedger");
+  /* the band's ink tone — derived before the skeleton return so the
+     cross-fade hooks keep a fixed call order. The inked elements below
+     take the animated colour; the small dots/arcs keep the plain one. */
+  const airNow0 = ambientUg ?? data?.curve?.series.find((v) => v != null) ?? null;
+  const idx0 = data == null ? null
+    : !data.rec.thin ? (doseTierIdx(data.rec.totalUg, budgetUg) ?? 0) : bandIdx(airNow0);
+  const inkNow = idx0 != null ? (bandInkIdx(idx0) ?? V2T.text) : V2T.text;
+  const inkTone = useInkTone(inkNow);
+  const sqTone = useInkTone(idx0 != null ? (bandColorIdx(idx0) ?? inkNow) : inkNow);
   if (!data) {
     /* skeleton — blocks morph to content when the disk read lands */
     return (
@@ -1142,9 +1194,9 @@ function HeroBlockInner({ data, budgetUg, profileSet, ambientUg, ambientMeta, fi
               collapses the Hindi hero to the 0.55 floor (~62pt vs the
               112pt spec). numberOfLines=1 alone keeps the anti-wrap the
               prop was added for; a 4-digit dose still fits the row. */}
-          <CountUp value={ug} duration={480}
+          <CountUp value={ug} duration={600}
             numberOfLines={1}
-            style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: ink }]}
+            style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: inkTone }]}
             format={(n) => `${doseUgRound(n)}`} />
           <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
             {t("unitUg", lang).split(" ")[0]}
@@ -1152,9 +1204,9 @@ function HeroBlockInner({ data, budgetUg, profileSet, ambientUg, ambientMeta, fi
         </View>
       ) : airNow != null ? (
         <View style={ss.heroNumRow}>
-          <CountUp value={Math.round(airNow)} duration={480}
+          <CountUp value={Math.round(airNow)} duration={600}
             numberOfLines={1}
-            style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: ink }]} />
+            style={[ss.heroNum, NUM, { fontFamily: famSerif(lang, "light"), color: inkTone }]} />
           <Text {...DYNAMIC_TYPE} style={[ss.heroUg, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
             µg/m³
           </Text>
@@ -1165,15 +1217,15 @@ function HeroBlockInner({ data, budgetUg, profileSet, ambientUg, ambientMeta, fi
         </Text>
       )}
       {/* the breathing baseline — only under a number that exists */
-      (counted || airNow != null) && <BreathLine color={ink} />}
+      (counted || airNow != null) && <BreathLine color={inkTone} />}
       {/* the verdict word carries the band's own square — landing's
           .hnum-band grammar: solid swatch + felt word, position first */
       felt != null && (counted || airNow != null) && (
         <View style={ss.heroFeltRow}>
-          <View style={[ss.heroBandSq, { backgroundColor: bandColorIdx(idx) ?? ink }]} />
-          <Text {...DYNAMIC_TYPE} style={[ss.heroFelt, { fontFamily: famSerif(lang, "med"), color: ink }]}>
+          <Animated.View style={[ss.heroBandSq, { backgroundColor: sqTone }]} />
+          <Animated.Text {...DYNAMIC_TYPE} style={[ss.heroFelt, { fontFamily: famSerif(lang, "med"), color: inkTone }]}>
             {felt}
-          </Text>
+          </Animated.Text>
         </View>
       )}
       {/* what the number IS — plain words, so the figure can't be read
@@ -1656,16 +1708,16 @@ const ss = StyleSheet.create({
      phone: a huge thin numeral the whole surface arranges around */
   heroNum: { fontSize: 132, lineHeight: 138, letterSpacing: -6, marginLeft: -6 },
   heroNumRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
-  heroUg: { color: V2T.text3, fontSize: V2Type.label, letterSpacing: 0.5, paddingBottom: 26 },
+  heroUg: { color: V2T.text3, fontSize: V2Type.label, paddingBottom: 26 },
   breathLine: { height: 2, borderRadius: 1, marginTop: 16 },
-  heroFeltRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12 },
+  heroFeltRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
   heroBandSq: { width: 10, height: 10, borderRadius: 2.5 },
   heroFelt: { fontSize: V2Type.display, letterSpacing: -0.4, lineHeight: 34 },
-  heroRef: { color: V2T.text2, fontSize: V2Type.secondary, marginTop: 6, lineHeight: 21 },
+  heroRef: { color: V2T.text2, fontSize: V2Type.secondary, marginTop: 9, lineHeight: 21 },
   /* the provenance/footnote line under a hero number — whispered, never
      competing with the felt word */
-  heroProv: { color: V2T.text4, fontSize: V2Type.label, marginTop: 8, lineHeight: 18 },
-  heroScale: { marginTop: 16, alignSelf: "stretch" as const, maxWidth: 220 },
+  heroProv: { color: V2T.text4, fontSize: V2Type.label, marginTop: 10, lineHeight: 18 },
+  heroScale: { marginTop: 18, alignSelf: "stretch" as const, maxWidth: 220 },
   heroThin: { color: V2T.text2, fontSize: V2Type.secondary, lineHeight: 21, marginTop: 8 },
   sparseArc: { marginTop: 18, marginHorizontal: -6 },
   sparseProgRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 14 },
