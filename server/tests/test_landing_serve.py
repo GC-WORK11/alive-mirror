@@ -33,7 +33,7 @@ REQUIRED = [
     "confSplit",
     "fieldAge",
     "buildTag",
-    "dosimeter",
+    "public monitors",
     "the app knows what you breathed",
 ]
 # owner-vetoed elements + placeholder guards

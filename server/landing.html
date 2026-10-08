@@ -1,21 +1,23 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Alive — a personal dosimeter for Delhi air</title>
-<meta name="description" content="A personal PM2.5 dosimeter without hardware — the field knows what Delhi breathed today; the app knows what you breathed. The map even picks the cleaner route.">
-<meta name="theme-color" content="#fafaf7">
-<meta property="og:title" content="Alive — a personal dosimeter for Delhi air">
-<meta property="og:description" content="The field knows what Delhi breathed today; the app knows what you breathed — and nothing leaves your phone that isn't already a group count.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafaf7'/%3E%3Ctext x='16' y='21' font-family='Georgia' font-size='15' fill='%2314181f' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8' r='2.5' fill='%233a6844'/%3E%3C/svg%3E">
+<title>Alive — what Delhi's air does to you</title>
+<meta name="description" content="Delhi's air is the worst in the world, and nobody tells you how much of it you actually breathe. Alive does — it reads the live air over Delhi and shows you what your lungs keep on every route, before you take it.">
+<meta name="theme-color" content="#fbfbfa">
+<meta property="og:title" content="Alive — what Delhi's air does to you">
+<meta property="og:description" content="It reads the live air over Delhi and shows you what your lungs keep on every route — and nothing leaves your phone that isn't already a group count.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fbfbfa'/%3E%3Ctext x='14' y='22.5' font-family='-apple-system,Helvetica' font-weight='800' font-size='17' fill='%2316181d' text-anchor='middle'%3Ea%3C/text%3E%3Ccircle cx='24' cy='8.5' r='3.4' fill='%233a6844'/%3E%3C/svg%3E">
 <style>
 :root{
-  /* shared register — docs/lanes/register-card.md (web grammar) */
-  --paper:#fafaf7; --surf:#fff; --surf2:#f3f2ec; --surf3:#ebe9e1;
+  /* a1mobile register — warm bone, one forest accent, band colour only
+     where colour means air quality. shared register:
+     docs/lanes/register-card.md (web grammar) */
+  --paper:#fbfbfa; --surf:#fff; --surf2:#f3f2ec; --surf3:#ebe9e1;
   --ink:#16181d; --ink2:#4a4e57; --ink3:#6e7278;
   --ink4:#a6acb8;
   --line:#e4e1d8; --line2:#d8d5c9;
   --acc:#3a6844; --accInk:#2b4e32; --accWash:#eaf0e4; --accTint:#dce7d1;
-  --sage:#3a6844;
+  --blk:#0f100c; /* the premium block — warm near-black */
   /* muted CPCB band — tile surfaces are its pastel washes (90% / 74%
      white), never the raw hue; band ink = the hue darkened for text */
   --b0:#7aab59; --b1:#c8b25a; --b2:#d58c4a;
@@ -26,59 +28,52 @@
   --bd3:#edd3ce; --bd4:#e2ccd0; --bd5:#d9ccd3;
   --bi0:#435e31; --bi1:#6e6232; --bi2:#754d29;
   --bi3:#652e24; --bi4:#4f2128; --bi5:#3d212e;
-  --serif:"New York",ui-serif,Georgia,"Times New Roman",serif;
-  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",
-         "Segoe UI",Inter,system-ui,sans-serif;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",
+         "Helvetica Neue","Segoe UI",Inter,system-ui,sans-serif;
   --mono:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Mono",Menlo,monospace;
 }
-/* ---- web component grammar (v5 — the page is one editorial flow) -----
-   statement the felt opening line — big sans, one quiet em, no chrome
-   readout  the proof object — band-washed zone, light numeral, felt +
-            basis lines, provenance as a text line
-   steps    numbered editorial rows — air separates, no rules
-   pledge   the privacy story drawn as a ledger — term, then claim
-   pill     segmented control — surface2 track, options, white selection
-   tile     band/tonal surface on ambient depth — hairlines only mark
-            selection or emptiness
-   words    number + unit + ≤3-word label; sentences only in CTAs/captions
-   ----------------------------------------------------------------------- */
 *{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-::selection{background:#eceadf}
+::selection{background:#dfe7da}
 a{color:inherit}
-a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
-.col{max-width:960px;margin:0 auto;padding:0 32px}
-/* the instrument gets a wider berth than the prose — the field map is
-   the page's largest object and deserves the full measure */
-.col-wide{max-width:1120px;margin:0 auto;padding:0 32px}
-
-/* one quiet entrance — nothing loops, nothing pulses */
-@keyframes rise{from{opacity:0;transform:translateY(10px)}
-  to{opacity:1;transform:none}}
-.rise{opacity:0;animation:rise .55s cubic-bezier(.16,.6,.24,1) forwards;
-  animation-delay:var(--d,0ms)}
-@media(prefers-reduced-motion:reduce){
-  .rise{animation:none;opacity:1}}
-
-/* screen-reader-only live region — announces cell reads and route results */
+a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.col{max-width:1180px;margin:0 auto;padding:0 20px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;
   clip:rect(0 0 0 0);white-space:nowrap}
 
-/* top bar — plain text floating on paper, sticky: toplive is the scroll
-   companion, so once the hero's numeral leaves view the live reading
-   takes its place in chrome that actually stays. JS fills it; empty
-   means hidden. */
-.top{position:sticky;top:0;z-index:40;
-  background:rgba(250,250,247,.86);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.top-in{max-width:1120px;margin:0 auto;padding:18px 32px;
-  display:flex;align-items:baseline;justify-content:space-between;gap:24px}
-.wm{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
-  font-weight:600;text-decoration:none}
-.wm i{font-style:normal;color:var(--sage)}
-#toplive{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+/* one quiet entrance on load — nothing loops, nothing pulses */
+@keyframes rise{from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:none}}
+.rise{opacity:0;animation:rise .6s cubic-bezier(.16,.6,.24,1) forwards;
+  animation-delay:var(--d,0ms)}
+@media(prefers-reduced-motion:reduce){
+  .rise{animation:none;opacity:1}}
+/* scroll entrance — sections rise once as they arrive. JS adds .rv to
+   data-rv elements only, so no-JS never hides content. */
+.rv{opacity:0;transform:translateY(14px);
+  transition:opacity .6s cubic-bezier(.16,.6,.24,1) var(--rvd,0ms),
+             transform .6s cubic-bezier(.16,.6,.24,1) var(--rvd,0ms)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;
+  transition:none}}
+
+/* ---------- the floating pill bar ---------- */
+.top{position:sticky;top:10px;z-index:40;padding:0 14px}
+.top-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;
+  justify-content:space-between;gap:16px;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1.5px solid var(--ink);border-radius:100px;
+  padding:8px 10px 8px 20px;
+  box-shadow:0 14px 30px -20px rgba(22,24,29,.35)}
+.wm{font-weight:800;font-size:15px;letter-spacing:-.015em;
+  text-decoration:none;display:inline-flex;align-items:center;gap:7px}
+.wm i{font-style:normal;width:7px;height:7px;border-radius:2px;
+  background:var(--acc);display:inline-block}
+#toplive{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
   text-transform:uppercase;color:var(--ink3);
   font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;opacity:0;transform:translateY(3px);
@@ -87,161 +82,374 @@ a:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
 #toplive:empty{display:none}
 #toplive b{color:var(--ink);font-weight:600}
 #toplive .tdot{display:inline-block;width:6px;height:6px;border-radius:1.5px;
-  background:var(--hb,var(--acc));margin-right:8px;vertical-align:1px}
+  background:var(--bhex,var(--acc));margin-right:8px;vertical-align:1px}
 @media(prefers-reduced-motion:reduce){#toplive{transition:none}}
-.top nav{display:flex;gap:26px}
-.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink2);text-decoration:none}
-.top nav a:hover{color:var(--ink);text-decoration:underline;
-  text-underline-offset:4px;text-decoration-thickness:1px}
-@media(max-width:640px){.top nav{gap:16px}
-  .top nav a{font-size:11px;letter-spacing:.12em;padding:14px 0}
+.top nav{display:flex;align-items:center;gap:4px}
+.top nav a{font-size:13px;font-weight:600;letter-spacing:-.005em;
+  color:var(--ink2);text-decoration:none;padding:9px 13px;
+  border-radius:100px;transition:background .2s ease,color .2s ease}
+.top nav a:hover{color:var(--ink);background:var(--surf2)}
+.top nav a.ncta{background:var(--ink);color:var(--paper)}
+.top nav a.ncta:hover{background:#262930;color:var(--paper)}
+@media(max-width:640px){
+  .top{top:8px;padding:0 10px}
+  .top-in{padding:7px 8px 7px 16px;gap:8px}
+  .top nav a{font-size:12px;padding:9px 10px}
   #toplive{display:none}}
 
-/* quiet one-time scroll entrance — sections rise as they arrive.
-   applied by JS only (data-rv → .rv), so no-JS never hides content;
-   reduced-motion leaves everything simply visible. --rvd staggers
-   children inside a group (the dose equation's terms arrive term by
-   term — arithmetic in sequence, not a slab). */
-.rv{opacity:0;transform:translateY(12px);
-  transition:opacity .6s cubic-bezier(.16,.6,.24,1) var(--rvd,0ms),
-             transform .6s cubic-bezier(.16,.6,.24,1) var(--rvd,0ms)}
-.rv.in{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;
-  transition:none}}
+/* ---------- the card grammar ----------
+   every section is one card on the warm base — thick ink border,
+   soft tinted shadow, generous padding. one radius for cards, one
+   radius for pills (documented split). */
+.stack{display:flex;flex-direction:column;
+  gap:clamp(22px,3.4vw,40px);
+  padding:clamp(16px,3vw,36px) 0 clamp(26px,4vw,56px)}
+.card{background:var(--surf);border:1.5px solid var(--ink);
+  border-radius:24px;padding:clamp(24px,4.6vw,48px);
+  box-shadow:0 24px 48px -32px rgba(22,24,29,.30),
+             0 3px 10px -6px rgba(22,24,29,.08)}
+.lbl2{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink3);margin-bottom:16px;
+  display:flex;align-items:center}
+.lbl2 .livedot{margin-right:9px}
+.lead{font-family:var(--sans);font-weight:800;
+  font-size:clamp(27px,4.6vw,44px);line-height:1.03;
+  letter-spacing:-.032em;color:var(--ink);max-width:22ch;margin:0}
+.sub2{font-size:15px;line-height:1.6;color:var(--ink2);max-width:38ch}
+@media(max-width:640px){.card{border-radius:19px;padding:20px}}
 
-/* the opening — the field IS the hero. the live kriged map fills the
-   viewport edge to edge (#fieldair, painted by JS from /grid): cells
-   breathe out of phase and motes drift on the real wind vector, under
-   two veils — the day's band as an even wash (colour keeps meaning) and
-   a paper gradient that protects the type. statement on top, the
-   instrument's own numeral anchored at the foot. */
-.open{position:relative;overflow:clip;
-  min-height:calc(100dvh - var(--thh,60px));display:flex;
-  flex-direction:column}
+/* ---------- the hero card ----------
+   the day's field breathes inside the card under a paper scrim; the
+   numeral anchors the foot. card-structured, massive, band-inked. */
+.open{padding-top:clamp(6px,1.4vw,18px)}
+.hero-card{position:relative;overflow:hidden;border:1.5px solid var(--ink);
+  border-radius:28px;background:var(--surf);
+  min-height:calc(100svh - var(--thh,64px) - 118px);
+  display:flex;flex-direction:column;
+  box-shadow:0 34px 64px -36px rgba(22,24,29,.34),
+             0 4px 12px -6px rgba(22,24,29,.10)}
 #fieldair{position:absolute;inset:0;z-index:0;width:100%;height:100%;
   opacity:0;transition:opacity 1.1s ease}
 #fieldair.ready{opacity:1}
 @media(prefers-reduced-motion:reduce){#fieldair{transition:none}}
-.open::before{content:"";position:absolute;inset:0;z-index:1;
-  background:var(--hw,var(--paper));opacity:.34;pointer-events:none;
+.hero-card::before{content:"";position:absolute;inset:0;z-index:1;
+  background:var(--hw,var(--paper));opacity:.30;pointer-events:none;
   transition:background .8s ease}
-.open::after{content:"";position:absolute;inset:0;z-index:1;
+.hero-card::after{content:"";position:absolute;inset:0;z-index:1;
   pointer-events:none;
   background:linear-gradient(180deg,
-    rgba(250,250,247,.88) 0%,rgba(250,250,247,.42) 30%,
-    rgba(250,250,247,.22) 58%,rgba(250,250,247,.74) 100%)}
-@media(prefers-reduced-motion:reduce){.open::before{transition:none}}
-.open .col{position:relative;z-index:2;flex:1;display:flex;
-  flex-direction:column;padding-top:56px;padding-bottom:30px}
-.hero-grid{display:block}
-.hero-copy{max-width:680px;will-change:transform}
-@media(max-width:640px){.open .col{padding-top:38px;padding-bottom:24px}}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;
-  text-transform:uppercase;color:var(--ink3)}
-.eyebrow .livedot{display:inline-block;width:7px;height:7px;
-  border-radius:2px;background:var(--hb,var(--line2));margin-right:9px;
-  vertical-align:0;transition:background .6s ease}
-h1.lede{font-family:var(--sans);font-weight:500;
-  font-size:clamp(40px,8.6vw,72px);line-height:1.04;
-  letter-spacing:-.038em;margin-top:24px;max-width:18ch}
-h1.lede em{font-style:normal;color:var(--ink2)}
-.sub{margin-top:24px;max-width:560px;font-size:16.5px;line-height:1.62;
-  color:var(--ink2)}
-.sub b{color:var(--ink);font-weight:600}
-@media(max-width:640px){.eyebrow{letter-spacing:.12em;line-height:1.9}}
-/* the readout anchored at the hero's foot — the instrument reading its
-   own mean over the field it just drew; heroLive is the compact
-   provenance strip under it */
-.open .hnum{margin-top:auto}
-.hero-foot{margin-top:16px}
-
-/* the proof — the readout IS the object. the zone wears the day's live
-   band as a tonal wash (colour = the data, the "the air is the canvas"
-   exception — docs/20): one label, one numeral, one felt line, one basis
-   line, one provenance line. everything else is air. */
-.proof{background:var(--hw,var(--paper));transition:background .8s ease}
-.proof .col{padding-top:56px;padding-bottom:60px}
-@media(prefers-reduced-motion:reduce){.proof{transition:none}}
-@media(max-width:640px){.proof .col{padding-top:48px;padding-bottom:52px}}
-/* the readout stacks like an instrument read: label, numeral, felt,
-   basis. the fine band-inked rule under it breathes (the app's
-   BreathEdge as a baseline, not a card ring). all set live from
-   /v2/city in JS; --hb the true band hue for the square dot. */
-.hnum{position:relative;padding-bottom:26px;margin-top:56px}
-.open .hnum{margin-top:auto;padding-bottom:4px}
+    rgba(251,251,250,.62) 0%,rgba(251,251,250,.34) 34%,
+    rgba(251,251,250,.58) 62%,rgba(251,251,250,.93) 100%)}
+@media(prefers-reduced-motion:reduce){.hero-card::before{transition:none}}
+.hero-in{position:relative;z-index:2;flex:1;display:flex;
+  flex-direction:column;padding:clamp(24px,4.6vw,54px)}
+.hero-copy{max-width:760px;will-change:transform}
+.chip{display:inline-flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--ink2);
+  background:var(--surf);border:1.5px solid var(--ink);
+  border-radius:100px;padding:9px 16px 8px}
+.livedot{display:inline-block;width:7px;height:7px;border-radius:2px;
+  background:var(--bhex,var(--line2));flex:none;
+  transition:background .6s ease}
+h1{font-family:var(--sans);font-weight:800;
+  font-size:clamp(38px,6.6vw,76px);line-height:1.0;
+  letter-spacing:-.038em;margin-top:26px;max-width:15ch}
+.sub{margin-top:20px;max-width:58ch;
+  font-size:clamp(15.5px,1.9vw,18.5px);line-height:1.58;color:var(--ink2)}
+.sub b{color:var(--ink);font-weight:700}
+/* the readout — the instrument's own numeral, heavy, band-inked */
+.hnum{margin-top:auto;padding-top:clamp(30px,5vw,54px);position:relative}
+.hnum::after{content:"";position:absolute;left:0;right:0;bottom:-14px;
+  height:2px;border-radius:2px;background:var(--he,var(--acc));
+  opacity:0;pointer-events:none}
 @keyframes breath{0%,100%{opacity:.10}50%{opacity:.30}}
-.hnum::after{content:"";position:absolute;left:0;right:0;bottom:0;
-  height:1.5px;background:var(--he,var(--acc));opacity:0;pointer-events:none}
 .hnum.breathe::after{animation:breath 4.4s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){.hnum.breathe::after{animation:none;opacity:.18}}
-.hnum-band{display:inline-flex;align-items:center;gap:8px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ni,var(--accInk))}
-.hnum-band .bsq{width:8px;height:8px;border-radius:2px;flex:none;
+.hnum-row{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.hnum-v{font-family:var(--sans);font-weight:800;
+  font-size:clamp(92px,24.5vw,190px);line-height:.88;
+  letter-spacing:-.048em;font-variant-numeric:tabular-nums;
+  color:var(--nv,var(--ink))}
+.hnum-row .u{font-family:var(--sans);font-weight:700;
+  font-size:clamp(18px,3vw,26px);letter-spacing:-.02em;
+  color:var(--ink2);padding-bottom:.5em}
+.chip.band{background:var(--hw,var(--surf2));color:var(--ni,var(--ink2));
+  margin-bottom:.7em}
+.chip.band .bsq{width:8px;height:8px;border-radius:2px;flex:none;
   background:var(--hb,var(--acc))}
-.hnum-n{display:flex;align-items:baseline;gap:14px;margin-top:18px}
-.hnum-v{font-family:var(--sans);font-weight:250;
-  font-size:clamp(88px,21vw,164px);line-height:.9;letter-spacing:-.05em;
-  font-variant-numeric:tabular-nums;color:var(--nv,var(--ink))}
-.hnum-n .u{font-family:var(--mono);font-size:12px;letter-spacing:.06em;
-  color:var(--ink2)}
-.hnum-s{display:block;margin-top:10px;font-style:normal;
-  font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+.hnum-s{display:block;margin-top:16px;font-style:normal;
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ni,var(--ink3));line-height:1.9}
-/* the felt line — the dose story's lead sentence sits at statement
-   weight, the cigarettes figure lands inside it as the translation */
-.felt{display:block;margin-top:18px;font-size:clamp(19px,2.8vw,23px);
-  line-height:1.5;letter-spacing:-.01em;color:var(--ink);max-width:46ch}
-.felt b{font-weight:600;white-space:nowrap}
-/* provenance — the ops truth as one line of text, dots for separators.
-   the equal tile row was the kit tell; a provenance line is how a real
-   instrument cites its sources. */
+.hnum-s b{color:var(--ni,var(--ink));font-weight:600}
+.felt{display:block;margin-top:20px;font-weight:700;
+  font-size:clamp(21px,3.2vw,28px);line-height:1.32;
+  letter-spacing:-.02em;color:var(--ink);max-width:44ch}
+.felt b{font-weight:800;white-space:nowrap}
+/* the pill CTAs */
+.ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px;
+  align-items:center}
+.cta{display:inline-flex;align-items:center;gap:10px;
+  border-radius:100px;padding:15px 26px;
+  font-weight:700;font-size:15px;letter-spacing:-.008em;
+  text-decoration:none;white-space:nowrap;cursor:pointer;
+  transition:transform .2s cubic-bezier(.22,1,.36,1),
+             box-shadow .2s ease,background .2s ease,color .2s ease}
+.cta .arr{display:inline-block;font-weight:700;
+  transition:transform .25s cubic-bezier(.22,1,.36,1)}
+.cta:hover .arr{transform:translateX(3px)}
+.cta:active{transform:scale(.98)}
+.cta.b{background:var(--ink);color:var(--paper);
+  box-shadow:0 14px 26px -14px rgba(22,24,29,.5)}
+.cta.b:hover{transform:translateY(-1px);background:#23262e;
+  box-shadow:0 18px 32px -14px rgba(22,24,29,.5)}
+.cta.o{border:1.5px solid var(--ink);color:var(--ink);
+  background:rgba(255,255,255,.7)}
+.cta.o:hover{transform:translateY(-1px);background:var(--surf);
+  box-shadow:0 12px 24px -14px rgba(22,24,29,.3)}
+.cta.g{color:var(--ink2);padding:15px 10px}
+.cta.g:hover{color:var(--ink)}
+@media(prefers-reduced-motion:reduce){.cta,.cta .arr{transition:none}
+  .cta:hover{transform:none}.cta:hover .arr{transform:none}}
+.hero-foot{margin-top:20px}
+.hero-foot .hnum-s{margin-top:0;color:var(--ink3)}
+.hero-foot .hnum-s b{color:var(--ink)}
+@media(max-width:640px){
+  .hero-card{min-height:calc(100svh - var(--thh,64px) - 96px);
+    border-radius:22px}
+  .hero-in{padding:22px}
+  .chip{font-size:10px;padding:8px 13px 7px;letter-spacing:.12em}
+  h1{margin-top:22px;max-width:13ch}
+  .sub{font-size:15px}
+  .hnum-v{letter-spacing:-.042em}
+  .cta{padding:14px 22px;font-size:14px}}
+
+/* ---------- proof card — the day's arithmetic ---------- */
+.eq{display:flex;align-items:stretch;flex-wrap:wrap;gap:0;margin-top:34px;
+  background:var(--surf2);border-radius:16px;padding:6px 4px;
+  border:1px solid var(--line)}
+.eq[hidden]{display:none}
+.eq .term{flex:1 1 0;min-width:120px;padding:14px 18px 12px}
+.eq .term + .term{border-left:1.5px solid var(--line2)}
+.eq .tv{font-family:var(--sans);font-weight:800;
+  font-size:clamp(24px,4vw,34px);line-height:1.05;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+.eq .tv .tu{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  color:var(--ink3);margin-left:4px;font-weight:400}
+.eq .tv em{font-style:normal;font-weight:800;color:var(--accInk)}
+.eq .tl{font-family:var(--mono);font-size:11px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink3);margin-top:8px;line-height:1.7}
+.eq .op{flex:none;align-self:center;padding:0 6px;
+  font-family:var(--sans);font-weight:700;font-size:16px;color:var(--ink4)}
+.basis{margin-top:16px;font-size:13px;line-height:1.6;color:var(--ink3);
+  max-width:60ch}
+.basis b{color:var(--ink2);font-weight:600}
 .statusline{margin-top:26px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;
-  font-variant-numeric:tabular-nums;line-height:2}
+  letter-spacing:.11em;color:var(--ink3);text-transform:uppercase;
+  font-variant-numeric:tabular-nums;line-height:2;
+  border-top:1.5px solid var(--line);padding-top:18px}
 .statusline>span+span::before{content:"·";margin:0 12px;color:var(--ink4)}
 .statusline b{color:var(--ink);font-weight:600}
 .statusline .ok{color:var(--accInk)}
-
-/* the equation — the aqi-to-dose translation drawn as the instrument's
-   own arithmetic: four live terms, hairline-separated, each with its
-   three-word provenance label. the page's second numeral (dose) lives
-   here, not in a card. */
-.eq{display:flex;align-items:stretch;flex-wrap:wrap;gap:0;margin-top:34px}
-.eq[hidden]{display:none}
-.eq .term{flex:1 1 0;min-width:120px;padding:6px 18px 8px}
-.eq .term:first-child{padding-left:0}
-.eq .term + .term{border-left:1px solid var(--line2)}
-.eq .tv{font-family:var(--sans);font-weight:300;
-  font-size:clamp(24px,4.4vw,34px);line-height:1.08;letter-spacing:-.03em;
-  font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
-.eq .tv .tu{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
-  color:var(--ink3);margin-left:4px}
-.eq .tv em{font-style:normal;font-weight:500}
-.eq .tl{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--ink3);margin-top:7px;line-height:1.7}
-.eq .op{flex:none;align-self:center;padding:0 4px;
-  font-family:var(--mono);font-size:15px;color:var(--ink4)}
 @media(max-width:640px){
-  .eq{flex-direction:column;gap:0;max-width:100%;margin-top:26px}
-  .eq .term{flex:none;min-width:0;padding:10px 0 12px}
-  .eq .term:first-child{padding-left:0;padding-top:0}
-  .eq .term + .term{border-left:none}
-  .eq .term.mid{border-left:none}
+  .eq{flex-direction:column;gap:0}
+  .eq .term{flex:none;min-width:0;padding:12px 14px}
+  .eq .term + .term{border-left:none;border-top:1.5px solid var(--line2)}
   .eq .op{align-self:stretch;display:flex;align-items:center;gap:14px;
-    padding:3px 0;font-size:15px}
+    padding:2px 14px;font-size:14px}
   .eq .op::before,.eq .op::after{content:"";flex:1;height:1px;
     background:var(--line2)}}
 
-/* the next twelve hours — a hairline forecast curve inside the proof
-   zone, drawn from the same /v2/city payload (next_hours), no fetch of
-   its own. teases the map's scrub deck below. */
-.spark{margin-top:30px;max-width:560px}
-.spark svg{display:block;width:100%;height:52px;overflow:visible}
-/* the curve draws itself once, on entry — the next twelve hours tracing
-   in stroke, fill fading under it, now-dot landing last. reduced-motion
-   leaves the finished curve simply there. */
+/* ---------- the field card — the instrument ---------- */
+.fieldcard{padding:clamp(20px,3.4vw,38px)}
+.field-lead{display:flex;align-items:flex-end;justify-content:space-between;
+  gap:14px 28px;flex-wrap:wrap;margin-bottom:22px}
+@media(max-width:640px){.field-lead .sub2{max-width:none}}
+.field-head{display:flex;align-items:center;
+  margin:0 0 14px;gap:10px 14px;flex-wrap:wrap}
+.field-head #fieldAge{margin-left:auto}
+.field-head .livedot{display:inline-block;width:6px;height:6px;
+  border-radius:2px;background:var(--he,var(--ink4));margin-right:8px;
+  vertical-align:1px;opacity:.6;transition:background .6s ease}
+.field-head .lbl{font-family:var(--mono);font-size:11px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);
+  display:inline-flex;align-items:center}
+.field-head .lbl b{color:var(--ink);font-weight:600}
+/* segmented controls — pill track on the card */
+.psel{display:inline-flex;gap:2px;padding:3px;background:var(--surf2);
+  border-radius:100px;border:1.5px solid var(--line2)}
+.psel button{font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;padding:7px 14px 6px;cursor:pointer;
+  border:none;border-radius:100px;background:transparent;
+  color:var(--ink3);-webkit-appearance:none;appearance:none;
+  font-weight:600}
+.psel button.on{background:var(--ink);color:var(--paper)}
+.psel button:hover{color:var(--ink)}
+.psel button.on:hover{color:var(--paper)}
+/* the live glow — the day's band bleeding softly past the map's edge */
+.fstage{position:relative}
+.fglow{position:absolute;inset:-6% -3%;z-index:0;border-radius:40px;
+  background:var(--gw,transparent);filter:blur(34px);opacity:.5;
+  transition:background 1.2s ease;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.fglow{transition:none}}
+.fwrap{position:relative;z-index:1;opacity:0;transition:opacity .5s ease;
+  background:var(--surf);border-radius:16px;overflow:hidden;
+  border:1.5px solid var(--ink);
+  box-shadow:0 18px 40px -24px rgba(22,24,29,.28)}
+.fwrap.ready{opacity:1}
+.demochip{position:absolute;left:14px;bottom:14px;z-index:6;
+  display:inline-flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink);
+  background:rgba(251,251,250,.94);border:1.5px solid var(--ink);
+  border-radius:100px;
+  padding:11px 16px;cursor:pointer;text-align:left;
+  box-shadow:0 8px 20px -8px rgba(22,24,29,.30);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.demochip .dc-play{flex:none;width:0;height:0;border-left:8px solid var(--ink);
+  border-top:5px solid transparent;border-bottom:5px solid transparent}
+.demochip small{display:block;font-size:11px;letter-spacing:.08em;
+  color:var(--ink3);margin-top:3px;text-transform:none}
+.demochip:hover{background:#fff}
+.demochip.gone{display:none}
+@media(max-width:640px){.demochip{left:10px;bottom:10px;right:10px;
+  padding:13px 14px}}
+/* reserve the true map aspect before first paint — no layout jump */
+#raster{position:relative;z-index:2;display:block;width:100%;
+  height:auto;aspect-ratio:1.2892;touch-action:manipulation}
+.lay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
+  z-index:1}
+#raster.pick{cursor:crosshair}
+#raster:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+@media(prefers-reduced-motion:reduce){.fwrap{transition:none;opacity:1}}
+.kbhint{margin-top:8px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+.fpop{position:absolute;z-index:5;min-width:196px;max-width:250px;
+  background:var(--paper);border:1.5px solid var(--ink);border-radius:12px;
+  padding:12px 14px 11px;pointer-events:none;
+  box-shadow:0 14px 30px -14px rgba(22,24,29,.28)}
+.fpop .p-name{font-weight:700;font-size:15px;color:var(--ink);
+  line-height:1.3;letter-spacing:-.01em}
+.fpop .p-sub{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink3);margin-top:4px;line-height:1.7}
+.fpop .p-v{display:flex;align-items:baseline;gap:6px;margin-top:8px;
+  font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.fpop .p-v b{font-family:var(--sans);font-weight:800;font-size:20px;
+  letter-spacing:-.02em;color:var(--ink)}
+.fpop .p-conf{font-size:11.5px;color:var(--ink3);margin-top:6px;
+  line-height:1.55}
+.fpop .pcol{display:inline-block;width:8px;height:8px;border-radius:2px;
+  margin-right:6px}
+.field-cap{margin-top:14px;font-size:13px;line-height:1.6;color:var(--ink3);
+  display:flex;justify-content:space-between;gap:10px 40px;flex-wrap:wrap;
+  font-variant-numeric:tabular-nums}
+.field-cap .left{max-width:52ch}
+.field-cap .left b{color:var(--ink2);font-weight:600}
+.legend{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.legend .strip{display:flex;height:5px;width:132px;border-radius:3px;
+  overflow:hidden}
+.legend .strip i{flex:1;display:block}
+.legend .tick{display:flex;justify-content:space-between;width:132px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
+.legend .conf{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  color:var(--ink3);text-transform:uppercase}
+/* the scrub deck — watch the day */
+.trow{display:flex;align-items:center;gap:12px 16px;flex-wrap:wrap;
+  margin-top:14px;padding:14px 16px;background:var(--surf2);
+  border-radius:14px;border:1.5px solid var(--line2);
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
+.trow[hidden]{display:none}
+.trow button{font-family:inherit;font-size:inherit;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink);background:var(--surf);
+  border:1.5px solid var(--ink);border-radius:100px;
+  padding:7px 14px 6px;cursor:pointer;font-weight:600}
+.trow button:hover{background:var(--paper)}
+.tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
+  appearance:none;background:transparent;height:14px;margin:0;cursor:pointer}
+.tl-range:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.tl-range::-webkit-slider-runnable-track{height:2px;border-radius:2px;
+  background:linear-gradient(to right,var(--he,var(--ink3)) 0 var(--tp,0%),
+  var(--line2) var(--tp,0%) 100%)}
+.tl-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:11px;height:11px;background:var(--ink);border:none;border-radius:2px;
+  margin-top:-4.5px}
+.tl-range::-moz-range-track{height:2px;background:var(--line2)}
+.tl-range::-moz-range-progress{height:2px;background:var(--he,var(--ink3))}
+.tl-range::-moz-range-thumb{width:11px;height:11px;background:var(--ink);
+  border:none;border-radius:2px}
+.tl-h{min-width:96px;color:var(--ink);white-space:nowrap;
+  font-variant-numeric:tabular-nums;font-size:12px}
+.tl-load{color:var(--ink4);white-space:nowrap}
+.tl-note{flex-basis:100%;font-size:11px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink4)}
+@media(max-width:640px){
+  .trow button{padding-top:12px;padding-bottom:11px}
+  .psel button{padding-top:12px;padding-bottom:11px}
+  .tl-range{height:28px;min-width:140px}
+  .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7px}
+  .tl-range::-moz-range-thumb{width:16px;height:16px}}
+/* priced-route results — tonal chips on ambient depth */
+.routeline{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  color:var(--ink2);margin-top:12px;line-height:1.85;min-height:0;
+  background:var(--accWash);border:1.5px solid var(--accTint);
+  border-radius:12px;padding:11px 14px}
+.routeline:empty{display:none}
+.routeline b{color:var(--ink);font-weight:600}
+.routeline .rdose{font-family:var(--sans);font-weight:800;font-size:15px;
+  letter-spacing:-.01em}
+.depart{display:flex;align-items:center;gap:14px;margin-top:10px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.07em;
+  color:var(--ink3);background:var(--surf2);border:1.5px solid var(--line2);
+  border-radius:12px;padding:11px 14px}
+.depart:empty{display:none}
+.depart svg{flex:none;display:block}
+.depart b{color:var(--ink);font-weight:600}
+.ladder{margin-top:10px}
+.ladder:empty{display:none}
+.lrow{display:flex;align-items:baseline;gap:12px;padding:10px 12px;
+  margin-top:6px;background:var(--surf);border:1.5px solid var(--line);
+  border-radius:12px;
+  font-family:var(--mono);font-size:11px;
+  letter-spacing:.06em;color:var(--ink3);cursor:pointer}
+.lrow:hover{border-color:var(--ink2)}
+.lrow.rec{background:var(--accWash);border-color:var(--acc)}
+.lrow .lbd{flex:none;width:7px;height:7px;border-radius:2px;
+  align-self:center;margin-right:-4px}
+.lrow .lname{width:138px;flex:none;color:var(--ink2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.lrow .lbar{flex:1;position:relative;height:5px}
+.lrow .lbar i{position:absolute;left:0;top:2px;height:1.5px;background:var(--ink3);
+  display:block}
+.lrow.rec .lname{color:var(--ink);font-weight:600}
+.lrow.rec .lbar i{background:var(--ink)}
+.lrow.drawn .lbar i{background:var(--ink);height:2.5px;top:1.25px}
+.lrow.drawn .lname:after{content:' · drawn';color:var(--ink3)}
+.lrow .ldose{flex:none;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.lrow .ldose i{font-style:normal;color:var(--ink4);margin-left:5px}
+.lrow .lflag{flex:none;font-size:11px;letter-spacing:.08em;
+  color:var(--ink4);text-transform:uppercase}
+.lrow .lflag b{color:var(--ink2);font-weight:600}
+.lmore{padding:8px 0 0;font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;color:var(--ink4);text-transform:uppercase;line-height:1.9}
+.lmore b{color:var(--ink2)}
+
+/* ---------- the story card — why it's like this ---------- */
+.story-line{font-weight:800;font-size:clamp(24px,4.2vw,40px);
+  line-height:1.1;letter-spacing:-.03em;color:var(--ink);max-width:26ch;
+  margin:0}
+.story-sub{margin-top:18px;font-size:15px;line-height:1.65;
+  color:var(--ink2);max-width:62ch}
+.story-cause{display:block}
+.story-meta{display:block;margin-top:14px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink3)}
+.story-meta a{color:var(--ink);text-decoration:none;
+  border-bottom:1.5px solid var(--line2);padding-bottom:2px}
+.story-meta a:hover{border-bottom-color:var(--ink)}
+
+/* ---------- the forecast card ---------- */
+.spark{margin-top:26px;max-width:none}
+.spark svg{display:block;width:100%;height:64px;overflow:visible}
 .spark .curve{stroke-dasharray:1;stroke-dashoffset:0}
 .spark .fill{opacity:1}
 .spark .nowdot{opacity:1}
@@ -253,291 +461,63 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   .spark.dr .fill{transition:opacity .8s ease .55s}
   .spark.dr .nowdot{transition:opacity .4s ease .95s}}
 .spark .cap{display:flex;justify-content:space-between;gap:10px;
-  margin-top:6px;font-family:var(--mono);font-size:11px;
+  margin-top:8px;font-family:var(--mono);font-size:11px;
   letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
   font-variant-numeric:tabular-nums}
 .spark .cap b{color:var(--ink);font-weight:600}
 .spark .cap .goto a{color:var(--ink);text-decoration:none;
-  border-bottom:1px solid var(--line2);padding-bottom:2px}
+  border-bottom:1.5px solid var(--line2);padding-bottom:2px}
 .spark .cap .goto a:hover{border-bottom-color:var(--ink)}
 
-/* the field — the page's instrument, promoted to first place after the
-   proof. one honest raster, real geography, click through it; the card
-   frame owns it and a band-tinted glow warms the air around it
-   (colour = the live band again, never decoration). */
-.field .col-wide{padding-top:72px}
-.field-sec{padding:0}
-.field-lead{display:flex;align-items:baseline;justify-content:space-between;
-  gap:14px 28px;flex-wrap:wrap;margin-bottom:16px}
-.field-lead .lead{margin:0}
-.field-lead .sub2{font-size:14px;line-height:1.6;color:var(--ink2);
-  max-width:34ch;text-align:right}
-@media(max-width:640px){.field-lead .sub2{text-align:left;max-width:none}
-  .field .col-wide{padding-top:56px}}
-.field-head{display:flex;align-items:center;
-  margin:0 0 14px;gap:10px 14px;flex-wrap:wrap}
-.field-head .psel{margin-right:2px}
-.field-head #fieldAge{margin-left:auto}
-.field-head .livedot{display:inline-block;width:6px;height:6px;
-  border-radius:2px;background:var(--he,var(--ink4));margin-right:8px;
-  vertical-align:1px;opacity:.5;transition:background .6s ease}
-.field-head .lbl{font-family:var(--mono);font-size:11px;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
-  display:inline-flex;align-items:center}
-.field-head .lbl b{color:var(--ink);font-weight:600}
-/* pill grammar — a segmented control, not a row of loose text.
-   surface2 track on paper needs no edge; the selected option lifts as
-   a white card with the one sanctioned hairline (selection). */
-.psel{display:inline-flex;gap:2px;padding:3px;background:var(--surf2);
-  border-radius:11px}
-.psel button{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
-  text-transform:uppercase;padding:6px 13px 5px;cursor:pointer;
-  border:none;border-radius:8px;background:transparent;
-  color:var(--ink3);-webkit-appearance:none;appearance:none}
-.psel button.on{background:var(--surf);color:var(--ink);
-  box-shadow:0 1px 3px rgba(22,24,29,.12),inset 0 0 0 1px var(--line)}
-.psel button:hover{color:var(--ink)}
-.psel button:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
-/* the live glow — the day's band bleeding softly past the card's edge,
-   the field's own colour carrying outside the frame. sits as a sibling
-   behind the card (the card clips its own children). */
-.fstage{position:relative}
-.fglow{position:absolute;inset:-7% -4%;z-index:0;border-radius:40px;
-  background:var(--gw,transparent);filter:blur(34px);opacity:.55;
-  transition:background 1.2s ease;pointer-events:none}
-@media(prefers-reduced-motion:reduce){.fglow{transition:none}}
-.fwrap{position:relative;z-index:1;opacity:0;transition:opacity .5s ease;
-  background:var(--surf);border-radius:16px;
-  overflow:hidden;
-  box-shadow:0 22px 54px -20px rgba(22,24,29,.26),
-             0 4px 14px -6px rgba(22,24,29,.10)}
-.fwrap.ready{opacity:1}
-/* the demo chip — one tap to the money shot: a real a→b priced live on
-   the map, honestly labelled as a live example, not a canned video */
-.demochip{position:absolute;left:14px;bottom:14px;z-index:6;
-  display:inline-flex;align-items:center;gap:9px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.11em;
-  text-transform:uppercase;color:var(--ink);
-  background:rgba(250,250,247,.94);border:none;border-radius:10px;
-  padding:10px 14px;cursor:pointer;text-align:left;
-  box-shadow:0 6px 18px -6px rgba(22,24,29,.28),
-    inset 0 0 0 1px rgba(22,24,29,.08);
-  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-.demochip .dc-play{flex:none;width:0;height:0;border-left:8px solid var(--ink);
-  border-top:5px solid transparent;border-bottom:5px solid transparent}
-.demochip small{display:block;font-size:11px;letter-spacing:.1em;
-  color:var(--ink3);margin-top:3px;text-transform:none}
-.demochip:hover{background:#fff}
-.demochip:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
-.demochip.gone{display:none}
-@media(max-width:640px){.demochip{left:10px;bottom:10px;right:10px;
-  padding:13px 14px}}
-/* reserve the true map aspect before first paint — no layout jump
-   ((e-w)*ASP lon-km : (n-s) lat-km = 1.1*0.879 : 0.75) */
-#raster{position:relative;z-index:2;display:block;width:100%;
-  height:auto;aspect-ratio:1.2892;touch-action:manipulation}
-/* the field is three stacked canvases — cells, boundaries+wind, and the
-   dynamic ink — so a hover, a pick, or a forecast hour repaints only the
-   layer that changed instead of the whole scene. positioned layers would
-   otherwise paint above the in-flow #raster and hide pins/route/errors */
-.lay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
-  z-index:1}
-#raster.pick{cursor:crosshair}
-#raster:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
-@media(prefers-reduced-motion:reduce){.fwrap{transition:none;opacity:1}}
-.kbhint{margin-top:6px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
-.fpop{position:absolute;z-index:5;min-width:196px;max-width:250px;
-  background:var(--paper);border:1px solid var(--ink);
-  padding:11px 13px 10px;pointer-events:none;
-  clip-path:polygon(0 8px,4px 8px,4px 4px,8px 4px,8px 0,
-    calc(100% - 8px) 0,calc(100% - 8px) 4px,calc(100% - 4px) 4px,
-    calc(100% - 4px) 8px,100% 8px,100% calc(100% - 8px),
-    calc(100% - 4px) calc(100% - 8px),calc(100% - 4px) calc(100% - 4px),
-    calc(100% - 8px) calc(100% - 4px),calc(100% - 8px) 100%,
-    8px 100%,8px calc(100% - 4px),4px calc(100% - 4px),
-    4px calc(100% - 8px),0 calc(100% - 8px));
-  filter:drop-shadow(0 8px 16px rgba(22,24,29,.12))}
-.fpop .p-name{font-family:var(--serif);font-size:15.5px;color:var(--ink);
-  line-height:1.3}
-.fpop .p-sub{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink3);margin-top:4px;line-height:1.7}
-.fpop .p-v{display:flex;align-items:baseline;gap:6px;margin-top:8px;
-  font-family:var(--mono);font-size:11px;color:var(--ink2)}
-.fpop .p-v b{font-family:var(--serif);font-size:20px;font-weight:400;
-  color:var(--ink)}
-.fpop .p-conf{font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.55}
-.fpop .pcol{display:inline-block;width:8px;height:8px;margin-right:6px}
-.field-cap{margin-top:12px;font-size:12.5px;line-height:1.6;color:var(--ink3);
-  display:flex;justify-content:space-between;gap:10px 40px;flex-wrap:wrap;
-  font-variant-numeric:tabular-nums}
-.field-cap .left{max-width:52ch}
-.field-cap .left b{color:var(--ink2);font-weight:500}
-.legend{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
-.legend .strip{display:flex;height:5px;width:132px}
-.legend .strip i{flex:1;display:block}
-.legend .tick{display:flex;justify-content:space-between;width:132px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
-.legend .conf{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
-  color:var(--ink3);text-transform:uppercase}
-/* the day, recorded — the decade archive's 24-hour curve as a real
-   timeline: every hour wears its own band wash, the live hour sits on
-   the baseline in band ink with its flag. the chart is the content. */
-.day-sec{padding:56px 0 0}
+/* ---------- the city card — the record + the rail ---------- */
+.day-sec{padding:8px 0 0}
 .day-head{display:flex;justify-content:space-between;align-items:center;
-  gap:12px 24px;flex-wrap:wrap;margin-bottom:18px}
-.day-head .lbl{font-family:var(--mono);font-size:11px;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
+  gap:12px 24px;flex-wrap:wrap;margin-bottom:16px}
+.day-head .lbl,.dist-head .lbl{font-family:var(--mono);font-size:11px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);
   display:inline-flex;align-items:center}
-.day-head .lbl b{color:var(--ink);font-weight:600}
+.day-head .lbl b,.dist-head .lbl b{color:var(--ink);font-weight:600}
 #dayNote{font-variant-numeric:tabular-nums}
 #dayNote b{color:var(--ink);font-weight:600}
-.daybars{display:flex;align-items:flex-end;gap:3px;height:76px;
+.daybars{display:flex;align-items:flex-end;gap:3px;height:84px;
   position:relative;padding-bottom:1px;
-  border-bottom:1px solid var(--line2)}
-/* the recorded day grows in bar by bar — the archive accruing, not a
-   chart appearing. transform only; reduced-motion paints finished. */
+  border-bottom:1.5px solid var(--line2)}
 .daybars .db{flex:1;background:var(--dbw,var(--surf3));min-height:3px;
-  border-radius:3px 3px 0 0;position:relative}
+  border-radius:4px 4px 0 0;position:relative}
 @media(prefers-reduced-motion:no-preference){
   .daybars:not(.in) .db{transform:scaleY(0);transform-origin:bottom}
   .daybars .db{transition:transform .55s
     cubic-bezier(.16,.6,.24,1) calc(var(--i,0)*16ms)}
   .daybars.in .db{transform:none}}
 .daybars .db.now{background:var(--dbn,var(--ink))}
-.daybars .db.now::before{content:"now";position:absolute;top:-17px;
+.daybars .db.now::before{content:"now";position:absolute;top:-18px;
   left:50%;transform:translateX(-50%);
   font-family:var(--mono);font-size:10px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ink2)}
-.daybars .db:hover{outline:1px solid var(--ink);outline-offset:1px}
-.dayticks{display:flex;justify-content:space-between;margin-top:6px;
+.daybars .db:hover{outline:1.5px solid var(--ink);outline-offset:1px}
+.dayticks{display:flex;justify-content:space-between;margin-top:8px;
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   color:var(--ink4)}
-.day-note{margin-top:9px;font-family:var(--mono);font-size:11px;
-  letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
+.day-note{margin-top:10px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.1em;color:var(--ink3);text-transform:uppercase;
+  line-height:1.9}
 .day-note b{color:var(--ink2);font-weight:600}
-/* watch the day — forecast scrubber under the field card: a tonal
-   control strip, no edge — grouped controls read as one instrument */
-.trow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  margin-top:12px;padding:10px 14px;background:var(--surf2);
-  border-radius:12px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink3)}
-.trow[hidden]{display:none}
-.trow button{font-family:inherit;font-size:inherit;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--ink);background:var(--surf);
-  border:none;border-radius:8px;
-  box-shadow:0 1px 3px rgba(22,24,29,.10);
-  padding:6px 12px 5px;cursor:pointer}
-.trow button:hover{background:#fff}
-.trow button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
-.tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
-  appearance:none;background:transparent;height:14px;margin:0;cursor:pointer}
-.tl-range:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
-.tl-range::-webkit-slider-runnable-track{height:1px;
-  background:linear-gradient(to right,var(--ink3) 0 var(--tp,0%),
-  var(--line2) var(--tp,0%) 100%)}
-.tl-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
-  width:9px;height:9px;background:var(--ink);border:none;border-radius:0;
-  margin-top:-4px}
-.tl-range::-moz-range-track{height:1px;background:var(--line2)}
-.tl-range::-moz-range-progress{height:1px;background:var(--ink3)}
-.tl-range::-moz-range-thumb{width:9px;height:9px;background:var(--ink);
-  border:none;border-radius:0}
-.tl-h{min-width:66px;color:var(--ink2);white-space:nowrap}
-.tl-load{color:var(--ink4,#a6acb8);white-space:nowrap}
-.tl-note{flex-basis:100%;font-size:11px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--ink4,#a6acb8)}
-/* phones: thumb-sized hits — text buttons keep their look, the box grows;
-   the hairline scrubber gets a taller grab strip and a bigger thumb */
-@media(max-width:640px){
-  .trow button{padding-top:14px;padding-bottom:13px}
-  .psel button{padding-top:14px;padding-bottom:13px}
-  .tl-range{height:28px;min-width:140px}
-  .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7.5px}
-  .tl-range::-moz-range-thumb{width:16px;height:16px}}
-/* the scrub deck featured: the "watch the day" control reads as the
-   field's own control surface — raised, roomier, hour readout at
-   readout weight, progress fill in the band's own ink */
-.trow{padding:14px 16px;gap:12px 16px;background:var(--surf);
-  box-shadow:0 10px 26px -12px rgba(22,24,29,.18),
-    inset 0 0 0 1px var(--line);border-radius:14px}
-.trow button{box-shadow:0 1px 3px rgba(22,24,29,.10),
-  inset 0 0 0 1px var(--line2)}
-.tl-h{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;
-  min-width:96px}
-.tl-range::-webkit-slider-runnable-track{height:2px;
-  background:linear-gradient(to right,var(--he,var(--ink3)) 0 var(--tp,0%),
-  var(--line2) var(--tp,0%) 100%)}
-.tl-range::-moz-range-progress{height:2px;background:var(--he,var(--ink3))}
-.tl-range::-webkit-slider-thumb{width:11px;height:11px;margin-top:-4.5px}
-@media(max-width:640px){
-  .tl-range::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7px}}
-/* results surface as tiles — the priced corridor, the depart read,
-   the dose ladder: tonal cards on ambient depth, never outlined */
-.routeline{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
-  color:var(--ink2);margin-top:10px;line-height:1.8;min-height:0;
-  background:var(--accWash);
-  border-radius:10px;padding:10px 14px}
-.routeline:empty{display:none}
-.routeline b{color:var(--ink);font-weight:600}
-.routeline .rdose{font-family:var(--serif);font-size:15px;
-  letter-spacing:-.01em}
-.depart{display:flex;align-items:center;gap:14px;margin-top:8px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.07em;
-  color:var(--ink3);background:var(--surf2);
-  border-radius:10px;padding:10px 14px}
-.depart:empty{display:none}
-.depart svg{flex:none;display:block}
-.depart b{color:var(--ink);font-weight:600}
-.ladder{margin-top:10px}
-.ladder:empty{display:none}
-.lrow{display:flex;align-items:baseline;gap:12px;padding:9px 12px;
-  margin-top:6px;background:var(--surf);border-radius:10px;
-  box-shadow:0 1px 3px -1px rgba(22,24,29,.08);
-  font-family:var(--mono);font-size:11px;
-  letter-spacing:.06em;color:var(--ink3);cursor:pointer}
-.lrow:hover{background:var(--surf2)}
-.lrow.rec{background:var(--accWash);box-shadow:inset 0 0 0 1.5px var(--acc)}
-.lrow:focus-visible{outline:1px solid var(--ink);outline-offset:-2px}
-.lrow .lbd{flex:none;width:7px;height:7px;border-radius:2px;
-  align-self:center;margin-right:-4px}
-.lrow .lname{width:138px;flex:none;color:var(--ink2);white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
-.lrow .lbar{flex:1;position:relative;height:5px}
-.lrow .lbar i{position:absolute;left:0;top:2px;height:1px;background:var(--ink3);
-  display:block}
-.lrow.rec .lname{color:var(--ink);font-weight:600}
-.lrow.rec .lbar i{background:var(--ink)}
-.lrow.drawn .lbar i{background:var(--ink);height:2px;top:1.5px}
-.lrow.drawn .lname:after{content:' · drawn';color:var(--ink3)}
-.lrow .ldose{flex:none;font-variant-numeric:tabular-nums;color:var(--ink2)}
-.lrow .ldose i{font-style:normal;color:var(--ink4);margin-left:5px}
-.lrow .lflag{flex:none;font-size:11px;letter-spacing:.08em;
-  color:var(--ink4);text-transform:uppercase}
-.lrow .lflag b{color:var(--ink2);font-weight:600}
-.lmore{padding:6px 0 0;font-family:var(--mono);font-size:11px;
-  letter-spacing:.08em;color:var(--ink4);text-transform:uppercase}
-
-/* the districts — every boundary cut, filled by its live cpcb band.
-   chips are band-tinted tiles: the tile surface is the district's own
-   band washed pastel (--cw set in JS), the silhouette keeps the hue. */
-.dist-sec{padding:52px 0 0}
+.day-note a{color:var(--ink);text-decoration:none;
+  border-bottom:1.5px solid var(--line2);padding-bottom:1px}
+.day-note a:hover{border-bottom-color:var(--ink)}
+.dist-sec{padding:38px 0 0}
 .dist-head{display:flex;justify-content:space-between;align-items:center;
   margin-bottom:14px;gap:14px;flex-wrap:wrap}
-.dist-head .lbl{font-family:var(--mono);font-size:11px;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);
-  display:inline-flex;align-items:center}
 .dist-head .hint{font-family:var(--mono);font-size:11px;
   letter-spacing:.12em;text-transform:uppercase;color:var(--ink4)}
 .distwrap{position:relative}
 .dscroll{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;
-  padding:2px 2px 10px;-webkit-overflow-scrolling:touch}
+  padding:2px 2px 10px;-webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity}
 .dscroll::-webkit-scrollbar{display:none}
-/* phones: tiles clip mid-name with no hint they scroll — local cover +
-   scroll shadow peeks only while more districts sit past that edge */
 @media(max-width:700px){.dscroll{
-  background-image:linear-gradient(to right,#fafaf7 30%,rgba(250,250,247,0)),
-    linear-gradient(to right,rgba(250,250,247,0),#fafaf7 30%),
+  background-image:linear-gradient(to right,#fff 30%,rgba(255,255,255,0)),
+    linear-gradient(to right,rgba(255,255,255,0),#fff 30%),
     linear-gradient(to right,rgba(22,24,29,.13),rgba(22,24,29,0)),
     linear-gradient(to left,rgba(22,24,29,.13),rgba(22,24,29,0));
   background-position:0 0,100% 0,0 0,100% 0;
@@ -547,263 +527,243 @@ h1.lede em{font-style:normal;color:var(--ink2)}
 @keyframes chipin{from{opacity:0;transform:translateY(9px)}
   to{opacity:1;transform:none}}
 .dchip{flex:0 0 auto;display:flex;align-items:center;gap:10px;
-  padding:11px 16px 11px 11px;
-  border-radius:13px;background:var(--cw,var(--surf));
+  padding:11px 16px 11px 11px;scroll-snap-align:start;
+  border-radius:14px;background:var(--cw,var(--surf));
+  border:1.5px solid var(--line2);
   cursor:pointer;text-align:left;
-  box-shadow:0 2px 8px -3px rgba(22,24,29,.10);
-  transition:transform .25s cubic-bezier(.22,1,.36,1);
+  box-shadow:0 3px 10px -4px rgba(22,24,29,.10);
+  transition:transform .25s cubic-bezier(.22,1,.36,1),
+    border-color .2s ease;
   -webkit-appearance:none;appearance:none;font-family:var(--sans)}
-@media(prefers-reduced-motion:reduce){.dchip{animation:none!important}}
-.dchip:hover{transform:translateY(-1px)}
-.dchip:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
-.dchip[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--ink)}
+@media(prefers-reduced-motion:reduce){.dchip{animation:none!important}
+  .dchip:hover{transform:none}}
+.dchip:hover{transform:translateY(-1px);border-color:var(--ink2)}
+.dchip[aria-pressed="true"]{border-color:var(--ink);
+  box-shadow:inset 0 0 0 1px var(--ink)}
 .dchip svg{width:40px;height:40px;flex:none;display:block}
-.dchip .dn{font-size:11px;font-weight:600;color:var(--ink);
+.dchip .dn{font-size:11.5px;font-weight:700;color:var(--ink);
   white-space:nowrap;letter-spacing:-.005em}
 .dchip .ds{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink3);margin-top:3px;white-space:nowrap}
-.dchip .da{font-family:var(--serif);font-size:17px;color:var(--ink);
-  margin-left:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dchip .da{font-weight:800;font-size:18px;color:var(--ink);
+  margin-left:6px;font-variant-numeric:tabular-nums;white-space:nowrap;
+  letter-spacing:-.02em}
 .dchip .da i{font-style:normal;font-family:var(--mono);font-size:11px;
-  color:var(--ink3);letter-spacing:.08em}
+  font-weight:400;color:var(--ink3);letter-spacing:.08em}
 .dtpop .p-cut{width:44px;height:44px;float:right;margin-left:8px}
-.dtpop .daqi{display:inline-block;margin-left:8px;padding:2px 6px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.05em;
-  vertical-align:middle}
+.dtpop .daqi{display:inline-block;margin-left:8px;padding:2px 7px;
+  border-radius:6px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.05em;vertical-align:middle}
 @media(max-width:640px){.dchip{padding:10px 14px 10px 10px}
-  .dchip svg{width:34px;height:34px}}
-/* the label qualifier flows as one run at phone width — inline-flex
-   turns the <b> into a second squeezed column otherwise. must sit
-   below the .lbl definitions or equal specificity loses */
-@media(max-width:640px){
+  .dchip svg{width:34px;height:34px}
   .day-head .lbl,.dist-head .lbl{display:block;line-height:1.9}}
 
-/* the mechanics — the section lead is a felt line, not a labelled
-   band; steps are numbered editorial rows separated by air, not rules;
-   the pledge block is the privacy story drawn as a ledger. */
-.mech .col{padding-top:76px}
-.city .col{padding-top:76px}
-.lead{font-family:var(--sans);font-weight:500;
-  font-size:clamp(26px,4.8vw,38px);line-height:1.14;
-  letter-spacing:-.024em;color:var(--ink);max-width:26ch;margin:0}
-.mech-grid{display:grid;grid-template-columns:minmax(0,1fr) 236px;
-  gap:64px;align-items:start}
-.steps{margin-top:38px}
-.step{display:grid;grid-template-columns:40px 118px minmax(0,1fr);
-  column-gap:20px;padding:22px 0}
-.step + .step{margin-top:2px}
-.step .n{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  color:var(--ink4);padding-top:4px}
-.step .t{display:block;font-weight:600;font-size:15.5px;
-  letter-spacing:-.01em;color:var(--ink);padding-top:1px}
-.step .d{display:block;font-size:13.5px;line-height:1.65;color:var(--ink2)}
-.step .d a{color:var(--ink);text-decoration:none;
-  border-bottom:1px solid var(--line2)}
-.step .d a:hover{border-bottom-color:var(--ink)}
-.why{font-size:19px;line-height:1.55;letter-spacing:-.008em;
-  color:var(--ink);max-width:42ch;margin:44px 0 0}
-.why b{font-weight:600;white-space:nowrap}
-/* the ledger — the privacy story as design: three lines, term then
-   claim, the shape of the thing it describes */
-.pledge{margin-top:52px}
-.pledge h3{font-family:var(--sans);font-weight:500;font-size:19px;
-  letter-spacing:-.012em;color:var(--ink);margin:0 0 18px}
-.pl{display:grid;grid-template-columns:132px minmax(0,1fr);
-  column-gap:20px;padding:13px 0;align-items:baseline}
-.pl-t{font-weight:600;font-size:15px;color:var(--ink)}
-.pl-d{font-size:14.5px;line-height:1.6;color:var(--ink2)}
-@media(max-width:840px){.mech-grid{grid-template-columns:1fr}}
-@media(max-width:560px){
-  .step{grid-template-columns:34px minmax(0,1fr)}
-  .step .d{grid-column:2}
-  .pl{grid-template-columns:1fr;row-gap:3px}}
-
-/* the app artifact — proof furniture beside the mechanics; the field
-   map, not a framed screenshot, is this page's product visual */
-.shot{margin:0;max-width:236px;width:100%;
-  border-radius:26px;overflow:hidden;
-  background:#fff;box-shadow:0 24px 50px -30px rgba(22,24,29,.34)}
-.shot .phone{margin:10px;display:block}
-.shot img{display:block;width:100%;height:auto}
-.shot figcaption{padding:11px 16px 12px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--ink3)}
-@media(max-width:840px){.shot{margin-top:44px}}
-
-/* the chooser beat — the same field asked to pick, on the shipped app.
-   three real frames from one run pulled through a projector gate by the
-   scroll itself (.gated): the film cranks frame to frame, the caption
-   beat changes under it. without JS or under reduced-motion it is the
-   plain strip — same picture, same captions, no hijack. */
-.choose .col{padding-top:76px}
-.choose-head{display:flex;align-items:center;justify-content:space-between;
+/* ---------- the app card — the frames ---------- */
+.choose-head{display:flex;align-items:flex-end;justify-content:space-between;
   gap:16px 28px;flex-wrap:wrap}
 .vpill{display:inline-flex;align-items:center;gap:9px;flex:none;
-  font-size:14px;font-weight:500;letter-spacing:-.006em;color:var(--ink);
-  background:var(--surf);border-radius:12px;padding:10px 15px;
-  box-shadow:0 10px 24px -12px rgba(22,24,29,.22),
-    inset 0 0 0 1px rgba(22,24,29,.06)}
-.vpill .vmark{font-style:normal;color:var(--ink2);font-size:13px}
-.film-run{position:relative;margin:30px 0 0}
-.film-stick{position:static}
-.film-gate{overflow:visible}
-.film-track{display:flex;gap:22px;will-change:transform}
+  font-size:13px;font-weight:600;letter-spacing:-.005em;color:var(--ink);
+  background:var(--surf2);border:1.5px solid var(--line2);
+  border-radius:100px;padding:10px 16px}
+.vpill .vmark{font-style:normal;color:var(--accInk);font-size:13px}
+.prail{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;
+  margin-top:28px}
+.pshot{margin:0}
 /* the slim phone frame — a 6px bezel and the iphone's own corner
-   radius, nothing thicker (owner on the last pass: 'emulator body
-   too thick'). the captures already carry their own status bar. */
-.phone{flex:1;min-width:0;padding:6px;border-radius:11%/5%;
+   radius, nothing thicker (owner: 'emulator body too thick') */
+.phone{padding:6px;border-radius:11%/5%;
   background:#14161a;
-  box-shadow:0 24px 50px -30px rgba(22,24,29,.34)}
+  box-shadow:0 24px 46px -28px rgba(22,24,29,.4)}
 .phone picture{display:block}
 .phone img{display:block;width:100%;height:auto;
   border-radius:9.6%/4.4%}
-.film-caps{display:flex;gap:12px;margin-top:14px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--ink3);
-  font-variant-numeric:tabular-nums}
-.film-caps .fcap{flex:1;text-align:center;transition:color .3s ease}
-.film-caps .fcap:first-child{text-align:left}
-.film-caps .fcap:last-child{text-align:right}
-.film-caps .fcap.on{color:var(--ink)}
-@media(max-width:640px){.film-caps{font-size:10px;letter-spacing:.06em}}
-/* gated mode — JS adds .gated when motion is allowed: the runway is tall,
-   the stick holds the gate mid-viewport, scroll progress translates the
-   strip two frame-widths so each real frame owns the gate in turn */
-.film-run.gated{height:235vh;margin:0}
-.film-run.gated .film-stick{position:sticky;top:0;height:100dvh;
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:16px}
-.film-run.gated .film-gate{overflow:hidden;
-  width:min(310px,80vw,40dvh);
-  border-radius:34px;
-  filter:drop-shadow(0 18px 30px rgba(22,24,29,.16))}
-.film-run.gated .film-track{width:300%;gap:0}
-.film-run.gated .phone{flex:0 0 calc(100%/3)}
-.film-run.gated .film-caps{width:min(310px,80vw,40dvh);margin-top:0}
-@media(max-width:640px){.film-run.gated{height:210vh}}
-/* no-JS / reduced-motion fallback on a phone: the row turns into a
-   swipeable strip — the frames stay iphone-sized instead of
-   shrinking to thumbnails */
-@media(max-width:640px){
-  .film-run:not(.gated) .film-gate{overflow-x:auto;margin:0 -32px;
-    padding:0 32px 6px;scrollbar-width:none}
-  .film-run:not(.gated) .film-gate::-webkit-scrollbar{display:none}
-  .film-run:not(.gated) .film-track{display:flex;gap:16px;
-    width:max-content}
-  .film-run:not(.gated) .phone{flex:none;width:min(56vw,240px)}}
+.pshot figcaption{padding:12px 4px 0;font-size:12.5px;line-height:1.5;
+  color:var(--ink3)}
+.pshot figcaption b{display:block;font-weight:700;font-size:13px;
+  letter-spacing:-.008em;color:var(--ink);margin-bottom:2px}
+@media(max-width:860px){
+  .prail{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+    scrollbar-width:none;margin-left:-20px;margin-right:-20px;
+    padding:28px 20px 6px}
+  .prail::-webkit-scrollbar{display:none}
+  .pshot{flex:0 0 58%;scroll-snap-align:start;min-width:0}
+  .prail{margin-top:0}}
 
-/* links — quiet mono text links. the icon-in-a-coloured-tile door was
-   the catalog tell (docs/20); an underlined word + arrow is the
-   affordance. */
-.links{margin-top:40px;display:flex;gap:36px;flex-wrap:wrap;
-  align-items:center}
-.go{display:inline-flex;align-items:center;gap:10px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--ink);text-decoration:none;
-  padding-bottom:4px;border-bottom:1px solid var(--ink)}
-.go .arr{display:inline-block;
-  transition:transform .3s cubic-bezier(.22,1,.36,1)}
-.go:hover .arr{transform:translateX(4px)}
-.go.dim{color:var(--ink2);border-bottom-color:var(--line2)}
-.go.dim:hover{color:var(--ink);border-bottom-color:var(--ink)}
-@media(max-width:640px){.links{gap:22px}}
-@media(prefers-reduced-motion:reduce){.go .arr{transition:none}
-  .go:hover .arr{transform:none}}
+/* ---------- the mechanics card ---------- */
+.steps{margin-top:34px;display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:14px}
+.step{background:var(--surf2);border:1.5px solid var(--line);
+  border-radius:16px;padding:20px}
+.step .n{display:inline-block;font-family:var(--mono);font-size:11px;
+  letter-spacing:.14em;color:var(--ink4);margin-bottom:14px;
+  background:var(--surf);border:1.5px solid var(--line2);
+  border-radius:100px;padding:4px 10px}
+.step .t{display:block;font-weight:800;font-size:17px;
+  letter-spacing:-.02em;color:var(--ink);margin-bottom:8px}
+.step .d{display:block;font-size:13.5px;line-height:1.62;color:var(--ink2)}
+.step .d a{color:var(--ink);text-decoration:none;
+  border-bottom:1.5px solid var(--line2)}
+.step .d a:hover{border-bottom-color:var(--ink)}
+.step .d b{font-weight:700;color:var(--ink)}
+.why{font-size:19px;line-height:1.5;letter-spacing:-.015em;
+  font-weight:700;color:var(--ink);max-width:46ch;margin:30px 0 0}
+.why b{font-weight:800;white-space:nowrap}
+/* the ledger — what leaves your phone, drawn as a ledger */
+.pledge{margin-top:34px;background:var(--surf2);
+  border:1.5px solid var(--line);border-radius:16px;
+  padding:22px 22px 14px}
+.pledge h3{font-family:var(--sans);font-weight:800;font-size:19px;
+  letter-spacing:-.02em;color:var(--ink);margin:0 0 16px}
+.pl{display:grid;grid-template-columns:150px minmax(0,1fr);
+  column-gap:20px;padding:12px 0;align-items:baseline;
+  border-top:1.5px solid var(--line)}
+.pl-t{font-weight:700;font-size:14.5px;color:var(--ink)}
+.pl-d{font-size:14px;line-height:1.6;color:var(--ink2)}
+@media(max-width:760px){.steps{grid-template-columns:1fr}
+  .pl{grid-template-columns:1fr;row-gap:3px}}
 
-/* the close — the felt line at statement weight, then the doors */
-.close .col{padding-top:88px;padding-bottom:26px}
-.close .lead{max-width:30ch}
+/* ---------- the get-app card — the premium black block ---------- */
+.blk{background:var(--blk);border-color:var(--blk);color:#f2f2ec}
+.blk .lbl2{color:rgba(242,242,236,.5)}
+.blk .lead{color:#fbfbfa;max-width:16ch}
+.bsub{margin-top:20px;font-size:clamp(16px,2.1vw,19.5px);
+  line-height:1.55;color:rgba(242,242,236,.72);max-width:50ch}
+.bsub b{color:#fbfbfa;font-weight:700}
+.blk .ctas{margin-top:30px}
+.cta.w{background:var(--paper);color:var(--ink);
+  box-shadow:0 14px 26px -12px rgba(0,0,0,.6)}
+.cta.w:hover{background:#fff;transform:translateY(-1px)}
+.bnote{margin-top:22px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.13em;text-transform:uppercase;
+  color:rgba(242,242,236,.45);line-height:1.9}
 
-/* footer — quiet meta on paper, air instead of a rule */
-.foot-in{max-width:960px;margin:0 auto;padding:20px 32px 46px;
-  display:flex;justify-content:space-between;gap:12px 28px;flex-wrap:wrap;
-  font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  color:var(--ink3);text-transform:uppercase}
-.foot a{color:var(--ink2);text-decoration:none}
-.foot a:hover{color:var(--ink);text-decoration:underline;
+/* ---------- the doors ---------- */
+.doors{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.door{display:flex;align-items:center;justify-content:space-between;
+  gap:18px;text-decoration:none;
+  transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease}
+.door:hover{transform:translateY(-2px);
+  box-shadow:0 30px 54px -32px rgba(22,24,29,.36),
+             0 4px 12px -6px rgba(22,24,29,.10)}
+.door .db b{display:block;font-weight:800;font-size:clamp(20px,2.6vw,26px);
+  letter-spacing:-.025em;color:var(--ink)}
+.door .db i{display:block;font-style:normal;font-size:13.5px;
+  color:var(--ink3);margin-top:6px;line-height:1.5}
+.door .darr{flex:none;width:44px;height:44px;border-radius:100px;
+  border:1.5px solid var(--ink);display:flex;align-items:center;
+  justify-content:center;font-size:18px;font-weight:700;
+  transition:background .2s ease,color .2s ease,transform .25s ease}
+.door:hover .darr{background:var(--ink);color:var(--paper);
+  transform:translateX(3px)}
+@media(max-width:700px){.doors{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.door,.door .darr{transition:none}
+  .door:hover{transform:none}.door:hover .darr{transform:none}}
+
+/* ---------- the black footer — the brand signature ---------- */
+.foot{background:var(--blk);color:#f2f2ec;overflow:hidden}
+.fgiant{display:block;font-weight:800;color:var(--paper);
+  font-size:clamp(96px,30.5vw,430px);line-height:.8;
+  letter-spacing:-.045em;text-align:center;white-space:nowrap;
+  padding-top:clamp(20px,4vw,54px);transform:translateY(10%);
+  user-select:none}
+.foot-in{position:relative;z-index:1;max-width:1180px;margin:0 auto;
+  padding:clamp(18px,3vw,30px) 20px clamp(30px,5vw,54px);
+  display:flex;justify-content:space-between;align-items:center;
+  gap:12px 26px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11px;letter-spacing:.13em;
+  color:rgba(242,242,236,.55);text-transform:uppercase}
+.foot-in b{color:#fbfbfa;font-weight:600}
+.foot-in nav{display:flex;gap:22px}
+.foot-in a{color:rgba(242,242,236,.75);text-decoration:none}
+.foot-in a:hover{color:#fbfbfa;text-decoration:underline;
   text-underline-offset:4px}
-
 </style>
 </head><body>
-
 <header class="top"><div class="top-in">
-  <a class="wm" href="/">ALIVE</a>
+  <a class="wm" href="/">ALIVE<i></i></a>
   <span id="toplive" aria-hidden="true"></span>
   <nav>
-    <a href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app</a>
-    <a href="/city">the city</a>
+    <a class="ncta" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app</a>
+    <a href="/city">the field</a>
     <a href="/community">community</a>
   </nav>
 </div></header>
 
-<!-- the opening — the field IS the hero: the live kriged map fills the
-     viewport under a band-tinted paper scrim, statement above, the
-     instrument's own numeral at the foot. every figure real. -->
-<section class="open" id="heroZone">
-  <canvas id="fieldair" aria-hidden="true"></canvas>
-  <div class="col">
-    <div class="hero-grid"><div class="hero-copy">
-      <div class="eyebrow rise" style="--d:0ms" id="eyebrow"><i class="livedot" id="liveDot"></i>delhi ncr — a dosimeter without hardware</div>
-      <h1 class="lede rise" style="--d:70ms">A ledger for your <em>lungs</em>, kept on your phone.</h1>
-      <p class="sub rise" style="--d:160ms">A personal dosimeter for Delhi —
-      no hardware. <b id="stnHero">—</b> instruments across the NCR are the
-      sensor; the app does the counting on your phone, and the only thing
-      that ever leaves is a count of three or more.</p>
-    </div></div>
-    <div class="hnum" id="hnum" role="status">
-      <span class="hnum-band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the air map, live</span></span>
-      <div class="hnum-n"><b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span></div>
-      <i class="hnum-s" id="hnumS">reading the live air map…</i>
-    </div>
-    <div class="hero-foot"><i class="hnum-s" id="heroLive"></i></div>
-  </div>
-</section>
+<main class="stack">
 
-<!-- the dose story — the zone wears the day's live CPCB band (colour =
-     the data): the felt line leads, the equation arrives term by term
-     on scroll, the forecast curve draws itself, and provenance sits
-     under it as one quiet line of text, not a row of tiles. -->
-<section class="proof"><div class="col">
-  <h2 class="lead" data-rv>A day of breathing it.</h2>
-  <p class="felt" id="hnumT" data-rv>a day of breathing today's air — reading…</p>
-  <div class="eq" id="eq" hidden>
-    <div class="term" data-rv style="--rvd:0ms"><div class="tv"><b id="eqConc">—</b><span class="tu">µg/m³</span></div>
-      <div class="tl">in the air · the ncr-wide mean</div></div>
-    <span class="op" data-rv style="--rvd:90ms">×</span>
-    <div class="term mid" data-rv style="--rvd:160ms"><div class="tv">14.4<span class="tu">m³/day</span></div>
-      <div class="tl">the air a pair of lungs moves</div></div>
-    <span class="op" data-rv style="--rvd:230ms">=</span>
-    <div class="term mid" data-rv style="--rvd:300ms"><div class="tv"><em id="eqDose">—</em><span class="tu">µg</span></div>
-      <div class="tl">inhaled in a day · your dose</div></div>
-    <span class="op" data-rv style="--rvd:370ms">≈</span>
-    <div class="term mid" data-rv style="--rvd:440ms"><div class="tv"><em id="eqCig">—</em><span class="tu">cigarettes</span></div>
-      <div class="tl">the same day's dose, felt</div></div>
+<!-- the hero card — the day's live field breathes inside it; the
+     numeral is the reading itself, heavy and band-inked -->
+<section class="open" id="heroZone"><div class="col">
+  <div class="hero-card">
+    <canvas id="fieldair" aria-hidden="true"></canvas>
+    <div class="hero-in">
+      <div class="hero-grid"><div class="hero-copy">
+        <div class="chip eyebrow rise" style="--d:0ms" id="eyebrow"><i class="livedot" id="liveDot"></i>delhi ncr · the air your lungs keep</div>
+        <h1 class="rise" style="--d:70ms">Delhi's air is the worst in the world.</h1>
+        <p class="sub rise" style="--d:160ms">Nobody tells you how much of
+        it you actually breathe. Alive does — <b id="stnHero">—</b>
+        public monitors across the NCR read the air, and the app counts
+        what your lungs keep on every route, before you take it.</p>
+      </div></div>
+      <div class="hnum" id="hnum" role="status">
+        <div class="hnum-row">
+          <b class="hnum-v" id="hnumV">—</b><span class="u">µg/m³</span>
+          <span class="chip band"><i class="bsq" id="hnumB"></i><span id="hnumW">pm2.5 — the air map, live</span></span>
+        </div>
+        <i class="hnum-s" id="hnumS">reading the live air map…</i>
+      </div>
+      <p class="felt rise" style="--d:200ms" id="hnumT">a day outside in this air — reading…</p>
+      <div class="ctas rise" style="--d:280ms">
+        <a class="cta b" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app <span class="arr">→</span></a>
+        <a class="cta o" href="/city">open the live field</a>
+        <a class="cta g" href="/community">community →</a>
+      </div>
+      <div class="hero-foot"><i class="hnum-s" id="heroLive"></i></div>
+    </div>
   </div>
-  <div class="spark" id="spark" hidden>
-    <svg id="sparkSvg" viewBox="0 0 560 52" preserveAspectRatio="none"
-      role="img" aria-label="the next twelve hours — live forecast curve"></svg>
-    <div class="cap"><span id="sparkL">the next twelve hours</span>
-      <span class="goto"><a href="#fieldSec" id="sparkGo">watch it move on the map ↓</a></span></div>
-  </div>
-  <div class="statusline" id="status" aria-live="polite" data-rv>reading the live air…</div>
 </div></section>
 
-<!-- the instrument — the ambient field made operative: the same
-     surface that was breathing behind the hero is now under your hand.
-     touch a cell, or let it price a real trip; the day-strip deck
-     scrubs the next twelve served hours. -->
-<section class="field" id="fieldSec"><div class="col-wide">
-  <div class="field-lead" data-rv>
-    <h2 class="lead">The field, in your hands.</h2>
-    <p class="sub2">every cell filled in from live instruments —
-    touch one, or watch the engine price a real trip around the dirty air</p>
+<!-- the day's arithmetic — the same number, written as the sum your
+     lungs do; provenance sits under it as one quiet line -->
+<section><div class="col">
+  <div class="card" data-rv>
+    <div class="lbl2">the day's arithmetic</div>
+    <h2 class="lead">A day outside, written as a sum.</h2>
+    <div class="eq" id="eq" hidden>
+      <div class="term"><div class="tv"><b id="eqConc">—</b><span class="tu">µg/m³</span></div>
+        <div class="tl">in the air · the ncr-wide mean</div></div>
+      <span class="op">×</span>
+      <div class="term mid"><div class="tv">14.4<span class="tu">m³/day</span></div>
+        <div class="tl">the air a pair of lungs moves</div></div>
+      <span class="op">=</span>
+      <div class="term mid"><div class="tv"><em id="eqDose">—</em><span class="tu">µg</span></div>
+        <div class="tl">inhaled in a day · what you keep</div></div>
+      <span class="op">≈</span>
+      <div class="term mid"><div class="tv"><em id="eqCig">—</em><span class="tu">cigarettes</span></div>
+        <div class="tl">the same day, felt</div></div>
+    </div>
+    <p class="basis">the translation: a day breathing <b>22 µg/m³</b> is
+    about one cigarette (berkeley earth). every figure on this page is
+    live or disclosed.</p>
+    <div class="statusline" id="status" aria-live="polite">reading the live air…</div>
   </div>
-  <div class="field-sec">
+</div></section>
+
+<!-- the instrument — the live field, operative. touch a cell, or let
+     the engine price a real trip; the deck scrubs the served forecast -->
+<section><div class="col">
+  <div class="card fieldcard" id="fieldSec" data-rv>
+    <div class="field-lead">
+      <div><div class="lbl2">the live field</div>
+      <h2 class="lead">The map the app reads.</h2></div>
+      <p class="sub2">every cell filled in from live instruments. touch one,
+      or watch the engine price a real trip around the dirty air</p>
+    </div>
     <div class="field-head">
       <span class="lbl"><span id="fieldLbl">pm2.5 — <b>the air map, this hour</b></span></span>
       <span class="psel" id="msel" role="group" aria-label="tool"></span>
       <span class="psel" id="psel" role="group" aria-label="pollutant"></span>
-      <span class="lbl"><i class="livedot" id="fieldDot"></i><span id="fieldAge">—</span></span>
+      <span class="lbl"><i class="livedot" id="fieldDot"></i><b id="fieldAge">—</b></span>
     </div>
     <div class="fstage">
       <div class="fglow" aria-hidden="true"></div>
@@ -832,12 +792,12 @@ h1.lede em{font-style:normal;color:var(--ink2)}
     <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
     <noscript>
       <style>
-        #status,.field-head,.fstage,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum,#heroLive,#fieldair{display:none}
+        #status,.field-head,.fstage,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum,#heroLive,#fieldair,#storyCard,#sparkCard{display:none}
       </style>
       <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
         letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);
         line-height:1.9">
-        the live maps, the district map, and today's dose figure need
+        the live maps, the district map, and today's figure need
         javascript — everything else on this page does not.</p>
     </noscript>
     <div class="field-cap">
@@ -859,54 +819,100 @@ h1.lede em{font-style:normal;color:var(--ink2)}
   </div>
 </div></section>
 
-<!-- the chooser — the same field, asked to pick on the shipped app:
-     three real frames off the ios build, pulled through the gate by
-     the scroll itself. the verdict pill is the app's own voice,
-     quoted once in page type — a pull-quote of real UI text, never a
-     fake render. -->
-<section class="choose"><div class="col">
-  <div class="choose-head" data-rv>
-    <h2 class="lead">The same field, asked to choose.</h2>
-    <span class="vpill"><i class="vmark" aria-hidden="true">∅</i>the cleanest way there</span>
+<!-- the story card — why today's air is like this, in felt words with
+     a disclosed age. absent rather than guessed. -->
+<section><div class="col">
+  <div class="card" id="storyCard" hidden data-rv>
+    <div class="lbl2"><i class="livedot" id="storyDot"></i>why it's like this</div>
+    <p class="story-line" id="whyBig"></p>
+    <div class="story-sub" id="whySub"></div>
   </div>
-  <figure class="film-run" id="filmRun">
-    <div class="film-stick">
-      <div class="film-gate">
-        <div class="film-track" id="filmTrack">
-          <div class="phone"><picture>
-            <source type="image/webp" srcset="/ios-choose-priced.webp 720w">
-            <img src="/ios-choose-priced.png" width="720" height="1566"
-              loading="lazy" fetchpriority="low" decoding="async"
-              alt="the app on iphone — every way to connaught place priced with its dose: on foot, car, bike, each carrying its µg">
-          </picture></div>
-          <div class="phone"><picture>
-            <source type="image/webp" srcset="/ios-choose-verdict.webp 720w">
-            <img src="/ios-choose-verdict.png" width="720" height="1566"
-              loading="lazy" fetchpriority="low" decoding="async"
-              alt="the app on iphone — the verdict pill pinned on the map over india gate: leave 13:30, breathe ~11% less">
-          </picture></div>
-          <div class="phone"><picture>
-            <source type="image/webp" srcset="/ios-choose-bold.webp 720w">
-            <img src="/ios-choose-bold.png" width="720" height="1566"
-              loading="lazy" fetchpriority="low" decoding="async"
-              alt="the app on iphone — the cleanest way gone bold on the map while the rest fade">
-          </picture></div>
-        </div>
-      </div>
-      <div class="film-caps" id="filmCaps">
-        <span class="fcap on" id="fcap0">every way, priced</span>
-        <span class="fcap" id="fcap1">the verdict pins itself</span>
-        <span class="fcap" id="fcap2">the cleanest goes bold</span>
-      </div>
-    </div>
-  </figure>
 </div></section>
 
-<!-- the mechanics — how a breath becomes a number, then the privacy
-     story as design: the ledger kept on-device, shared only at k≥3. -->
-<section class="mech"><div class="col"><div class="mech-grid">
-  <div>
-    <h2 class="lead" data-rv>How a breath becomes a number.</h2>
+<!-- the forecast card — the next twelve hours, served not smoothed -->
+<section><div class="col">
+  <div class="card" id="sparkCard" hidden data-rv>
+    <div class="lbl2">forecast</div>
+    <h2 class="lead">The next twelve hours.</h2>
+    <div class="spark" id="spark" hidden>
+      <svg id="sparkSvg" viewBox="0 0 560 52" preserveAspectRatio="none"
+        role="img" aria-label="the next twelve hours — live forecast curve"></svg>
+      <div class="cap"><span id="sparkL">the next twelve hours</span>
+        <span class="goto"><a href="#fieldSec" id="sparkGo">watch it move on the map ↓</a></span></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- the city card — the archive's day and every district's live read -->
+<section><div class="col">
+  <div class="card" data-rv>
+    <div class="lbl2">the record</div>
+    <h2 class="lead">The city, kept.</h2>
+    <div class="day-sec" id="daySec" hidden>
+      <div class="day-head">
+        <span class="lbl">the day, recorded — <b id="typMonth">a typical october, hour by hour</b></span>
+        <span class="lbl" id="dayNote">—</span>
+      </div>
+      <div class="daybars" id="daybars"
+        role="img" aria-label="typical october day at connaught place, hour by hour — decade of records"></div>
+      <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
+      <div class="day-note" id="dayWhy"></div>
+    </div>
+    <div class="dist-sec">
+      <div class="dist-head">
+        <span class="lbl">the districts — <b><span id="distN">—</span> real boundaries, each filled live</b></span>
+        <span class="hint">tap a boundary · worst first</span>
+      </div>
+      <div class="distwrap">
+        <div class="dscroll" id="dscroll"></div>
+        <div class="fpop dtpop" id="dtpop" hidden></div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- the app card — the shipped screens in slim frames -->
+<section><div class="col">
+  <div class="card" data-rv>
+    <div class="choose-head">
+      <div><div class="lbl2">the app</div>
+      <h2 class="lead">Every way there, priced by your lungs.</h2></div>
+      <span class="vpill"><i class="vmark" aria-hidden="true">∅</i>the cleanest way there</span>
+    </div>
+    <div class="prail">
+      <figure class="pshot"><div class="phone"><picture>
+        <source type="image/webp" srcset="/ios-dose.webp 720w">
+        <img src="/ios-dose.png" width="720" height="1566" decoding="async" loading="lazy" fetchpriority="low"
+          alt="the app on iphone: you've breathed 14 µg today — 7% of your daily budget, good band — with the day's least-bad hours below">
+      </picture></div>
+      <figcaption><b>the ledger</b>what today added to your lungs, and when the day runs lighter</figcaption></figure>
+      <figure class="pshot"><div class="phone"><picture>
+        <source type="image/webp" srcset="/ios-choose-priced.webp 720w">
+        <img src="/ios-choose-priced.png" width="720" height="1566" loading="lazy" fetchpriority="low" decoding="async"
+          alt="the app on iphone — every way to connaught place priced with what you'd breathe: on foot, car, bike">
+      </picture></div>
+      <figcaption><b>every way, priced</b>each route carries what it costs your lungs</figcaption></figure>
+      <figure class="pshot"><div class="phone"><picture>
+        <source type="image/webp" srcset="/ios-choose-verdict.webp 720w">
+        <img src="/ios-choose-verdict.png" width="720" height="1566" loading="lazy" fetchpriority="low" decoding="async"
+          alt="the app on iphone — the verdict pill pinned on the map over india gate: leave 13:30, breathe ~11% less">
+      </picture></div>
+      <figcaption><b>the verdict</b>leave at the light slot and keep less of the day</figcaption></figure>
+      <figure class="pshot"><div class="phone"><picture>
+        <source type="image/webp" srcset="/ios-choose-bold.webp 720w">
+        <img src="/ios-choose-bold.png" width="720" height="1566" loading="lazy" fetchpriority="low" decoding="async"
+          alt="the app on iphone — the cleanest way gone bold on the map while the rest fade">
+      </picture></div>
+      <figcaption><b>the cleanest way</b>one route goes bold; the rest stay honest</figcaption></figure>
+    </div>
+  </div>
+</div></section>
+
+<!-- the mechanics card — how the page knows, and what leaves the phone -->
+<section><div class="col">
+  <div class="card" data-rv>
+    <div class="lbl2">how it knows</div>
+    <h2 class="lead">How a breath becomes a number.</h2>
     <div class="steps">
       <div class="step"><span class="n">01</span><span class="t">measure</span>
         <p class="d">WAQI and DPCC monitors across the NCR report on
@@ -919,20 +925,19 @@ h1.lede em{font-style:normal;color:var(--ink2)}
         error band. We hid 3,550 real station readings and asked the
         map to guess them — 95.2% landed inside that band.
         <a href="https://github.com/<owner>/Delhi-Air-108/blob/base/v2/server/data/field_validation.md">the method ↗</a></p></div>
-      <div class="step"><span class="n">03</span><span class="t">dose</span>
-        <p class="d">The dust in the air × how hard you're breathing ×
-        the minutes you're out — added up along the road. A C++ engine
-        priced <b><span id="pricedcount2">—</span>&nbsp;million</b> road
-        segments on it to rank routes; the app runs the same sum over
-        your trips, on-device.</p></div>
+      <div class="step"><span class="n">03</span><span class="t">keep</span>
+        <p class="d">The air on the route × how hard you're breathing ×
+        the minutes you're out, added up along the road on your phone.
+        The engine priced <b><span id="pricedcount2">—</span>&nbsp;million</b>
+        road segments under this hour's map to rank routes.</p></div>
     </div>
     <p class="why" data-rv>Routing by breath is the proof the map can
     decide — the engine priced <b><span id="pricedcount">—</span>&nbsp;million</b>
     of <b><span id="edgecount">—</span>&nbsp;million</b> road segments under
     this hour's map.</p>
     <div class="pledge" data-rv>
-      <h3>The ledger stays yours.</h3>
-      <div class="pl"><span class="pl-t">your dose</span>
+      <h3>What leaves your phone.</h3>
+      <div class="pl"><span class="pl-t">what you breathed</span>
         <span class="pl-d">counted on your phone, kept on your phone</span></div>
       <div class="pl"><span class="pl-t">a shared trip</span>
         <span class="pl-d">joins a shared street only where three or more phones cross it — below that, it never appears at all</span></div>
@@ -940,60 +945,45 @@ h1.lede em{font-style:normal;color:var(--ink2)}
         <span class="pl-d">no accounts, no profiles — aggregates or nothing</span></div>
     </div>
   </div>
-  <figure class="shot" data-rv>
-    <div class="phone"><picture>
-      <source type="image/webp" srcset="/ios-dose.webp 720w">
-      <img src="/ios-dose.png" width="720" height="1566" decoding="async" loading="lazy" fetchpriority="low"
-        alt="the app on iphone: you've breathed 14 µg today — 7% of your daily budget, good band — with the day's least-bad hours below">
-    </picture></div>
-    <figcaption>the app on ios, live — the real dose ledger</figcaption>
-  </figure>
-</div></div></section>
+</div></section>
 
-<!-- the city, recorded — the archive strip and the district rail.
-     the live instrument moved up; what remains is the memory of it:
-     a typical october hour by hour, and every district's live read. -->
-<section class="city"><div class="col">
-  <h2 class="lead" data-rv>The city, kept.</h2>
-  <div class="day-sec" id="daySec" hidden>
-    <div class="day-head">
-      <span class="lbl">the day, recorded — <b id="typMonth">a typical october, hour by hour</b></span>
-      <span class="lbl" id="dayNote">—</span>
+<!-- the get-app card — the premium black block -->
+<section><div class="col">
+  <div class="card blk" data-rv>
+    <div class="lbl2">android & ios · free</div>
+    <h2 class="lead">Get the app.</h2>
+    <p class="bsub">the field knows what Delhi breathed —
+    <b>the app knows what you breathed.</b></p>
+    <div class="ctas">
+      <a class="cta w" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app <span class="arr">→</span></a>
     </div>
-    <div class="daybars" id="daybars"
-      role="img" aria-label="typical october day at connaught place, hour by hour — decade of records"></div>
-    <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
-    <div class="day-note" id="dayWhy"></div>
-  </div>
-
-  <div class="dist-sec">
-    <div class="dist-head">
-      <span class="lbl">the districts — <b><span id="distN">—</span> real boundaries, each filled live</b></span>
-      <span class="hint">tap a boundary · worst first</span>
-    </div>
-    <div class="distwrap">
-      <div class="dscroll" id="dscroll"></div>
-      <div class="fpop dtpop" id="dtpop" hidden></div>
-    </div>
+    <p class="bnote">no accounts · no profiles · group counts of three or more, or nothing</p>
   </div>
 </div></section>
 
-<!-- the close — the felt line, then the two doors as quiet text links. -->
-<section class="close"><div class="col">
-  <p class="lead" data-rv>The field knows what Delhi breathed —<br>
-  the app knows what you breathed.</p>
-  <div class="links" data-rv>
-    <a class="go" href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app — android &amp; ios builds<span class="arr">→</span></a>
-    <a class="go" href="/city">open the live field<span class="arr">→</span></a>
-    <a class="go dim" href="/community">community — group counts only<span class="arr">→</span></a>
+<!-- the doors -->
+<section><div class="col">
+  <div class="doors" data-rv>
+    <a class="door card" href="/city"><span class="db"><b>the live field</b><i>every cell and every district, open</i></span><span class="darr">→</span></a>
+    <a class="door card" href="/community"><span class="db"><b>community</b><i>group counts only, never one person</i></span><span class="darr">→</span></a>
   </div>
 </div></section>
 
-<footer class="foot"><div class="foot-in">
-  <span>alive — delhi ncr</span>
-  <span id="buildTag">—</span>
-  <span>group counts only · never one person · no profiles</span>
-</div></footer>
+</main>
+
+<footer class="foot">
+  <div class="fgiant" aria-hidden="true">ALIVE</div>
+  <div class="foot-in">
+    <span>alive · delhi ncr</span>
+    <span id="buildTag">—</span>
+    <nav>
+      <a href="https://github.com/<owner>/Delhi-Air-108/releases" rel="noopener">get the app</a>
+      <a href="/city">the field</a>
+      <a href="/community">community</a>
+    </nav>
+    <span>group counts only · never one person</span>
+  </div>
+</footer>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -1039,7 +1029,7 @@ const BBOX={w:76.80,e:77.90,s:28.20,n:28.95};
 const ASP=0.879;   /* cos(28.6°) — lon-deg vs lat-deg on the ground */
 const CELLS=34;
 let MEDIAN=null,PARAM='pm2_5',MODE='inspect';
-let CITY_MEAN=null,HNUM_DONE=false,FIELD_AGE_TXT=null;
+let CITY_MEAN=null,HNUM_DONE=false,FIELD_AGE_TXT=null,HNUM_CIGHI=null;
 let FIELD_AGE_S=null,FIELD_AGE_AT=0,FIELD_STALE=false,
     HL_STN=0,HL_WIND=null;
 let tlSync=()=>{};   /* bound by the scroll furniture below */
@@ -1603,7 +1593,7 @@ function capLive(){
   const spec=SPECS[PARAM];
   if(!LIVE_CAP.n)return;
   $('capLeft').innerHTML=
-    `The air map the dosimeter reads — ${fmt(LIVE_CAP.n)} cells, `+
+    `The air map the app reads — ${fmt(LIVE_CAP.n)} cells, `+
     `${F1(LIVE_CAP.lo)}–${F1(LIVE_CAP.hi)} ${spec.unit}`+
     `${LIVE_CAP.derived?` · ${esc(LIVE_CAP.derived)}`:''} `+
     `· cell fade = distance to the nearest station · the same surface the `+
@@ -2108,6 +2098,7 @@ function sparkFill(hrs){
     `the next ${vs.length} hours — live forecast · <b>${F1(lo)}–${F1(hi)}</b>`+
     ` <span style="text-transform:none">µg/m³</span>`;
   el.hidden=false;
+  const sc=$('sparkCard');if(sc)sc.hidden=false;
   /* the curve draws itself once, on entry */
   if(RM)el.classList.add('dr');
   else{const io=new IntersectionObserver(es=>{
@@ -2123,10 +2114,16 @@ function sparkFill(hrs){
    cadence must carry its age like every other number does */
 const windAge=w=>w&&w.age_s>900?` · ${Math.round(w.age_s/60)}m old`:'';
 function paintHeroLive(){
-  const el=$('heroLive');if(!el)return;
-  el.innerHTML=(HL_STN>0?`<b>${HL_STN}</b> stations live · `:'')+
+  const el=$('heroLive');
+  if(el)el.innerHTML=(HL_STN>0?`<b>${HL_STN}</b> stations live · `:'')+
     (FIELD_AGE_TXT?`map <b>${FIELD_AGE_TXT}</b>`:'')+
     (HL_WIND&&HL_WIND.speed_kmh?` · wind <b>${Math.round(HL_WIND.speed_kmh)} km/h</b>${windAge(HL_WIND)}`:'');
+  const hs=$('hnumS');
+  if(hs&&HNUM_DONE){
+    hs.innerHTML=`read across delhi ncr`+
+      (FIELD_AGE_TXT?` · map <b>${FIELD_AGE_TXT}</b>`:'')+
+      (HNUM_CIGHI!=null?` · worst ≈${F1(HNUM_CIGHI)} cigarettes`:'');
+  }
 }
 function paintToplive(){
   const tl=$('toplive');
@@ -2144,7 +2141,7 @@ async function heroCity(){
     const d=await api('/v2/city');
     const b=d.breath||{};
     const cig=(b.cigarettes||{}).mid, ug=(b.day_inhaled_ug||{}).mid;
-    /* the hero numeral is the field mean itself — the dosimeter's own
+    /* the hero numeral is the field mean itself — the app's own
        reading (µg-first framing; cigarettes stay a qualifier, never the
        headline). the zone washes to the day's live band, the rule under
        the readout breathes in band ink, the small square keeps the true
@@ -2182,17 +2179,16 @@ async function heroCity(){
       /* the felt line — the lead's translation, cigarettes as the
          qualifier, never the figure */
       if(cig!=null&&cig>0){
-        $('hnumT').innerHTML=`if you breathed it all day ≈`
+        $('hnumT').innerHTML=`a day outside in this air ≈`
           +` <b>${F1(cig)} cigarettes</b>`;
       }else{
-        $('hnumT').innerHTML=`if you breathed it all day`
-          +`${ug!=null?` ≈ <b>${fmt(ug)} µg</b> inhaled`:''}`;
+        $('hnumT').innerHTML=`a day outside in this air`
+          +`${ug!=null?` adds ≈ <b>${fmt(ug)} µg</b> to your lungs`:''}`;
       }
-      /* the basis line uppercases — µ must opt out or µg becomes "mg" */
-      const noT='<span style="text-transform:none">µg/m³</span>';
-      $('hnumS').innerHTML=`live · the ncr-wide average`
-        +`${(b.cigarettes||{}).hi!=null?` · worst ≈${F1(b.cigarettes.hi)} cigarettes` :''}`
-        +` · a day at 22 ${noT} ≈ 1 cigarette`;
+      /* the read-across line ages with the map — painted on every
+         /health poll and the 30 s ticker, like the status strip */
+      HNUM_CIGHI=(b.cigarettes||{}).hi;
+      paintHeroLive();
     }else{
       $('hnumV').textContent='—';
       $('hnumW').textContent='pm2.5 — the air map';
@@ -2291,10 +2287,12 @@ async function whyTonight(){
     const sa=d.story_age_s;
     const age=sa==null?''
       :` · updated ${sa<90?'just now':Math.round(sa/60)+' min ago'}`;
-    $('whyLine').innerHTML=
-      `why now — <b>${ln}</b>${nd?` · ${nd} cause${nd>1?'s':''} seen`:' '
-      }${age} · <a href="/v2/why?lat=28.6315&lon=77.2167">the evidence ↗</a>`;
-    $('whyLine').hidden=false;
+    $('whyBig').textContent=ln;
+    $('whySub').innerHTML=
+      (d.cause_note?`<span class="story-cause">${esc(d.cause_note)}</span>`:'')+
+      `<span class="story-meta">${nd?`${nd} cause${nd>1?'s':''} seen`:'a live read'}${age} · `+
+      `<a href="/v2/why?lat=28.6315&lon=77.2167">the evidence ↗</a></span>`;
+    $('storyCard').hidden=false;
   }catch(e){/* hidden — the explainer had nothing honest to say */}
 }
 
@@ -2508,27 +2506,6 @@ async function status(){
           `translateY(${Math.max(-24,Math.min(24,off*-34))}px)`}
     })};
   tlSync=on;
-  addEventListener('scroll',on,{passive:true});
-  addEventListener('resize',on);on();
-})();
-
-/* the film gate — scroll cranks the strip through its three real
-   frames, the caption beat changing under each. gated mode needs JS +
-   motion; otherwise it stays the plain static strip, same markup. */
-(function(){
-  const run=$('filmRun'),gate=document.querySelector('.film-gate'),
-        track=$('filmTrack'),caps=[...document.querySelectorAll('.fcap')];
-  if(!run||!gate||!track||RM)return;
-  run.classList.add('gated');
-  let tick=false;
-  const on=()=>{if(tick)return;tick=true;
-    requestAnimationFrame(()=>{tick=false;
-      const top=run.offsetTop,h=run.offsetHeight,vh=innerHeight;
-      const p=Math.max(0,Math.min(1,(scrollY-top)/(h-vh||1)));
-      const w=gate.clientWidth;
-      track.style.transform=`translate3d(${(-p*2*w).toFixed(1)}px,0,0)`;
-      const ci=Math.min(2,Math.floor(p*2.999));
-      caps.forEach((c,i)=>c.classList.toggle('on',i===ci))})};
   addEventListener('scroll',on,{passive:true});
   addEventListener('resize',on);on();
 })();
