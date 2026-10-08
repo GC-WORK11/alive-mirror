@@ -132,129 +132,231 @@ _COMPOUND_STOP = frozenset((
 # "near me" style anchors — resolved to the caller's own lat/lon
 _ME_TOKENS = frozenset(("me", "mere", "yahan", "here", "pas", "paas"))
 
+# anchor kinds that mean 'a container place' — locality/sector/area —
+# not one named POI. Under a strong name hit a compound may only ride
+# a container anchor ('school sector 62 noida' anchors on Sector 62);
+# a named-POI anchor means the whole query was a name. A locality also
+# covers a wider sweep than a street: a sector's own rows sit at its
+# edges, so the kind-scan radius loosens for these.
+_AREA_KINDS = frozenset((
+    "locality", "macrohood", "neighborhood", "neighbourhood", "suburb",
+    "sector", "district", "subdistrict", "administrative", "place",
+    "area", "block", "ward", "colony", "village", "hamlet", "town",
+    "enclave", "extension", "residential", "quarter", "city",
+    "borough", "municipality", "estate", "tehsil", "county",
+    "gated_community", "housing",
+))
+_COMPOUND_AREA_MAX_M = 2600.0
+
 # kind phrase -> cooked category set (entries_from_gazetteer kinds).
 # Multi-word forms ("petrol pump", "metro station") win before their
 # single tokens, so "bus stand" doesn't read as plain "bus" + leftover.
 _KIND_PHRASES = {
-    ("petrol", "pump"): ("fuel",), ("gas", "station"): ("fuel",),
-    ("filling", "station"): ("fuel",), ("charging", "station"):
-    ("charging_station", "charge_point"),
+    ("petrol", "pump"): ("fuel", "gas_station", "fueling_station"),
+    ("gas", "station"): ("fuel", "gas_station", "fueling_station"),
+    ("filling", "station"): ("fuel", "gas_station", "fueling_station"),
+    ("charging", "station"): ("charging_station", "charge_point",
+                             "ev_charging_station"),
     ("metro", "station"): ("metro", "station", "train_station",
-                           "subway_entrance", "platform", "stop"),
+                           "subway_entrance", "platform", "stop",
+                           "public_transit_facility_or_service"),
     ("railway", "station"): ("train_station", "station",
                              "railway:station", "rail", "halt",
-                             "platform"),
+                             "platform", "rail_facility_or_service",
+                             "public_transit_facility_or_service"),
     ("train", "station"): ("train_station", "station",
-                           "railway:station", "rail", "halt", "platform"),
-    ("rail", "station"): ("train_station", "station", "rail", "halt"),
-    ("police", "station"): ("police", "policeoutpost"),
+                           "railway:station", "rail", "halt", "platform",
+                           "rail_facility_or_service",
+                           "public_transit_facility_or_service"),
+    ("rail", "station"): ("train_station", "station", "rail", "halt",
+                         "rail_facility_or_service"),
+    ("police", "station"): ("police", "policeoutpost", "police_station"),
     ("bus", "stop"): ("bus_stop", "platform", "stop", "stop_position",
-                      "public_transport:platform", "amenity:bus_station"),
+                      "public_transport:platform", "amenity:bus_station",
+                      "public_transit_facility_or_service"),
     ("bus", "stand"): ("bus_station", "bus_stop", "platform", "stop",
-                      "amenity:bus_station"),
+                      "amenity:bus_station",
+                      "public_transit_facility_or_service",
+                      "travel_and_transportation"),
     ("bus", "station"): ("bus_station", "bus_stop", "platform", "stop",
-                        "amenity:bus_station"),
+                        "amenity:bus_station",
+                        "public_transit_facility_or_service",
+                        "travel_and_transportation"),
     ("bus", "depot"): ("bus_station", "bus_depot", "bus_stop",
-                      "amenity:bus_station", "depot", "platform", "stop"),
+                      "amenity:bus_station", "depot", "platform", "stop",
+                      "public_transit_facility_or_service",
+                      "travel_and_transportation"),
     ("bus", "terminal"): ("bus_station", "bus_depot", "bus_stop",
-                         "amenity:bus_station", "depot", "platform"),
+                         "amenity:bus_station", "depot", "platform",
+                         "public_transit_facility_or_service",
+                         "travel_and_transportation"),
     ("bus", "terminus"): ("bus_station", "bus_depot", "amenity:bus_station",
-                         "depot", "platform"),
+                         "depot", "platform",
+                         "public_transit_facility_or_service",
+                         "travel_and_transportation"),
     ("depot",): ("bus_station", "bus_depot", "depot",
-                "amenity:bus_station"),
+                "amenity:bus_station",
+                "public_transit_facility_or_service"),
     ("terminus",): ("bus_station", "bus_depot", "depot",
-                   "amenity:bus_station", "train_station"),
+                   "amenity:bus_station", "train_station",
+                   "public_transit_facility_or_service"),
     ("isbt",): ("bus_station", "bus_stop", "platform",
-               "amenity:bus_station"),
-    ("adda",): ("bus_station", "bus_stop", "amenity:bus_station"),
+               "amenity:bus_station",
+               "public_transit_facility_or_service"),
+    ("adda",): ("bus_station", "bus_stop", "amenity:bus_station",
+               "public_transit_facility_or_service"),
     ("post", "office"): ("post_office", "post_depot", "post_box"),
     ("fire", "station"): ("fire_station",),
-    ("guest", "house"): ("guest_house", "tourism:guest_house", "hostel"),
+    ("guest", "house"): ("guest_house", "tourism:guest_house", "hostel",
+                        "lodging", "bed_and_breakfast", "private_lodging"),
     ("ice", "cream"): ("ice_cream",),
     ("swimming", "pool"): ("swimming_pool", "swimming_area"),
-    ("community", "centre"): ("community_centre", "social_centre"),
-    ("community", "center"): ("community_centre", "social_centre"),
-    ("movie", "theater"): ("cinema",),
-    ("nursing", "home"): ("hospital", "nursing_home"),
-    ("medical", "store"): ("pharmacy", "chemist", "medical_supply"),
+    ("community", "centre"): ("community_centre", "social_centre",
+                             "community_center", "civic_center"),
+    ("community", "center"): ("community_centre", "social_centre",
+                             "community_center", "civic_center"),
+    ("movie", "theater"): ("cinema", "movie_theater"),
+    ("nursing", "home"): ("hospital", "nursing_home",
+                         "specialized_health_care",
+                         "senior_living_facility"),
+    ("medical", "store"): ("pharmacy", "chemist", "medical_supply",
+                           "pharmacy_and_drug_store"),
     ("car", "wash"): ("car_wash",),
     ("shopping", "mall"): ("shopping_mall", "mall", "shop:mall",
-                           "shopping_centre", "department_store"),
+                           "shopping_centre", "department_store",
+                           "warehouse_club_store", "superstore"),
     ("taxi", "stand"): ("taxi",),
-    ("petrol",): ("fuel",),
-    ("sports", "complex"): ("stadium_arena", "stadium", "sports_centre"),
-    ("sports", "centre"): ("sports_centre", "stadium_arena"),
+    ("petrol",): ("fuel", "gas_station", "fueling_station"),
+    ("sports", "complex"): ("stadium_arena", "stadium", "sports_centre",
+                           "sport_or_fitness_facility",
+                           "sports_and_recreation",
+                           "sport_or_recreation_club", "sport_court",
+                           "sport_field", "fitness_studio"),
+    ("sports", "centre"): ("sports_centre", "stadium_arena",
+                          "sport_or_fitness_facility",
+                          "sports_and_recreation",
+                          "sport_or_recreation_club", "sport_court",
+                          "sport_field", "fitness_studio"),
     ("golf", "course"): ("golf_course",),
     ("atm",): ("atm",),
-    ("bank",): ("bank",),
+    ("bank",): ("bank", "bank_or_credit_union", "financial_service"),
     ("hospital",): ("hospital", "specialty_hospital", "nursing_home",
-                   "amenity:hospital"),
+                   "amenity:hospital", "specialized_health_care",
+                   "health_care", "medical_service",
+                   "specialized_medical_facility",
+                   "emergency_or_urgent_care_facility",
+                   "emergency_department",
+                   "primary_care_or_general_clinic", "walk_in_clinic"),
     ("aspatal",): ("hospital",),
     ("clinic",): ("clinic", "dental_clinic", "outpatient_care_facility",
-                  "vision_or_eye_care_clinic", "healthcare"),
-    ("doctor",): ("doctors", "doctor", "clinic"),
+                  "vision_or_eye_care_clinic", "healthcare",
+                  "specialized_health_care", "health_care",
+                  "medical_service", "primary_care_or_general_clinic",
+                  "walk_in_clinic", "pediatric_clinic",
+                  "behavioral_or_mental_health_clinic",
+                  "physical_medicine_and_rehabilitation",
+                  "complementary_and_alternative_medicine",
+                  "diagnostics_imaging_or_lab_service",
+                  "reproductive_perinatal_and_womens_care", "surgery",
+                  "specialized_medical_facility"),
+    ("doctor",): ("doctors", "doctor", "clinic",
+                  "specialized_health_care", "health_care",
+                  "medical_service", "primary_care_or_general_clinic",
+                  "complementary_and_alternative_medicine"),
     ("dentist",): ("dentist", "dental_clinic"),
-    ("pharmacy",): ("pharmacy", "chemist", "medical_supply"),
-    ("chemist",): ("pharmacy", "chemist"),
+    ("pharmacy",): ("pharmacy", "chemist", "medical_supply",
+                    "pharmacy_and_drug_store"),
+    ("chemist",): ("pharmacy", "chemist", "pharmacy_and_drug_store"),
     ("school",): ("school", "prep_school", "kindergarten",
                   "educational_institution", "language_school",
                   "music_school", "driving_school", "dancing_school",
                   "specialty_school", "amenity:school",
-                  "building:school"),
+                  "building:school", "place_of_learning", "preschool",
+                  "elementary_school", "middle_school", "high_school",
+                  "education", "educational_service",
+                  "educational_facility", "tutoring_service",
+                  "academy"),
     ("college",): ("college", "college_university",
                    "educational_institution", "amenity:college",
-                   "building:college"),
+                   "building:college", "place_of_learning",
+                   "educational_facility", "academy",
+                   "educational_service"),
     ("university",): ("university", "college_university",
                       "educational_institution", "amenity:university",
-                      "building:university"),
-    ("metro",): ("metro", "subway", "subway_entrance"),
+                      "building:university", "place_of_learning",
+                      "educational_facility", "academy"),
+    ("metro",): ("metro", "subway", "subway_entrance",
+                 "public_transit_facility_or_service"),
     ("station",): ("station", "train_station", "metro",
-                   "railway:station", "halt"),
+                   "railway:station", "halt",
+                   "rail_facility_or_service",
+                   "public_transit_facility_or_service"),
     ("airport",): ("airport", "aerodrome", "terminal", "helipad",
-                   "heliport"),
-    ("police",): ("police", "policeoutpost"),
+                   "heliport", "air_transport_facility_or_service"),
+    ("police",): ("police", "policeoutpost", "police_station"),
     ("thana",): ("police", "policeoutpost"),
     ("parking",): ("parking", "parking_space", "parking_entrance",
                   "motorcycle_parking", "bicycle_parking"),
     ("restaurant",): ("restaurant", "fast_food", "food_court",
-                      "canteen"),
-    ("dhaba",): ("restaurant", "fast_food"),
+                      "canteen", "casual_eatery",
+                      "fast_food_restaurant", "food_service",
+                      "food_and_drink", "food_truck_stand"),
+    ("dhaba",): ("restaurant", "fast_food", "casual_eatery"),
     ("hotel",): ("hotel", "guest_house", "hostel", "motel", "resort",
-                 "tourism:hotel", "tourism:guest_house"),
+                 "tourism:hotel", "tourism:guest_house", "lodging",
+                 "bed_and_breakfast", "private_lodging", "inn"),
     ("hostel",): ("hostel", "dormitory", "student_accommodation",
-                  "student_accomodation"),
-    ("dharamshala",): ("guest_house", "hostel"),
-    ("cafe",): ("cafe", "coffee", "internet_cafe"),
-    ("cinema",): ("cinema", "theatre"),
-    ("movie",): ("cinema", "theatre"),
-    ("multiplex",): ("cinema",),
-    ("theatre",): ("theatre", "cinema", "arts_centre"),
+                  "student_accomodation", "lodging", "private_lodging"),
+    ("dharamshala",): ("guest_house", "hostel", "lodging"),
+    ("cafe",): ("cafe", "coffee", "internet_cafe", "coffee_shop",
+                "smoothie_juice_bar", "non_alcoholic_beverage_venue"),
+    ("cinema",): ("cinema", "theatre", "movie_theater"),
+    ("movie",): ("cinema", "theatre", "movie_theater"),
+    ("multiplex",): ("cinema", "movie_theater"),
+    ("theatre",): ("theatre", "cinema", "arts_centre",
+                  "movie_theater", "theatre_venue",
+                  "performing_arts_venue"),
     ("park",): ("park", "garden", "playground", "recreation_ground",
-                "dog_park", "leisure:park", "national_park"),
+                "dog_park", "leisure:park", "national_park",
+                "nature_reserve", "sport_field"),
     ("playground",): ("playground", "pitch", "park"),
     ("gym",): ("gym", "fitness_centre", "sports_centre",
                "fitness_station", "leisure:fitness_centre",
-               "leisure:sports_centre"),
-    ("gymnasium",): ("gym", "fitness_centre"),
+               "leisure:sports_centre", "sport_or_fitness_facility",
+               "fitness_studio", "sports_and_recreation"),
+    ("gymnasium",): ("gym", "fitness_centre", "sport_or_fitness_facility",
+                    "fitness_studio"),
     ("stadium",): ("stadium_arena", "stadium", "sports_centre",
-                   "leisure:stadium"),
+                   "leisure:stadium", "sport_or_fitness_facility",
+                   "sport_court", "sport_field",
+                   "sports_and_recreation"),
     ("library",): ("library", "public_bookcase"),
-    ("market",): ("marketplace", "market", "greengrocer"),
+    ("market",): ("marketplace", "market", "greengrocer",
+                  "farmers_market"),
     ("mandi",): ("marketplace", "market", "greengrocer"),
-    ("bazaar",): ("marketplace", "market", "convenience"),
+    ("bazaar",): ("marketplace", "market", "convenience",
+                  "farmers_market"),
     ("mall",): ("shopping_mall", "mall", "shop:mall", "shopping_centre",
-                "department_store"),
+                "department_store", "warehouse_club_store", "superstore"),
     ("shop",): ("shop", "convenience", "supermarket", "store",
-                "variety_store", "general", "retail"),
+                "variety_store", "general", "retail",
+                "convenience_store", "specialty_store", "shopping",
+                "discount_store", "second_hand_store"),
     ("store",): ("store", "shop", "convenience", "supermarket",
-                 "variety_store", "general"),
+                 "variety_store", "general", "convenience_store",
+                 "specialty_store", "shopping", "discount_store"),
     ("grocery",): ("supermarket", "convenience", "grocery",
                    "greengrocer", "shop:supermarket",
-                   "shop:convenience"),
-    ("kirana",): ("convenience", "grocery", "general", "supermarket"),
-    ("supermarket",): ("supermarket", "shop:supermarket", "convenience"),
-    ("gymkhana",): ("club", "sports_centre"),
-    ("club",): ("club", "social_club", "sports_centre"),
+                   "shop:convenience", "food_and_beverage_store",
+                   "convenience_store", "warehouse_club_store"),
+    ("kirana",): ("convenience", "grocery", "general", "supermarket",
+                  "convenience_store", "food_and_beverage_store"),
+    ("supermarket",): ("supermarket", "shop:supermarket", "convenience",
+                      "food_and_beverage_store", "convenience_store",
+                      "warehouse_club_store", "superstore"),
+    ("gymkhana",): ("club", "sports_centre", "sport_or_recreation_club"),
+    ("club",): ("club", "social_club", "sports_centre",
+                "sport_or_recreation_club"),
     ("temple",): ("temple", "hindu_place_of_worship", "place_of_worship",
                   "building:temple", "amenity:place_of_worship",
                   "shrine", "wayside_shrine"),
@@ -269,33 +371,44 @@ _KIND_PHRASES = {
                   "place_of_worship"),
     ("gurudwara",): ("place_of_worship", "amenity:place_of_worship"),
     ("gurdwara",): ("place_of_worship", "amenity:place_of_worship"),
-    ("bar",): ("bar", "pub", "nightclub", "lounge"),
-    ("pub",): ("pub", "bar", "nightclub"),
-    ("theka",): ("bar", "pub", "alcohol", "wine"),
+    ("bar",): ("bar", "pub", "nightclub", "lounge",
+               "alcoholic_beverage_venue", "dance_club",
+               "nightlife_venue", "brewery", "distillery", "winery"),
+    ("pub",): ("pub", "bar", "nightclub", "alcoholic_beverage_venue",
+               "dance_club", "nightlife_venue", "brewery"),
+    ("theka",): ("bar", "pub", "alcohol", "wine",
+                "alcoholic_beverage_venue"),
     ("bakery",): ("bakery", "pastry", "confectionery"),
     ("sweets",): ("sweets", "confectionery", "pastry", "sweet",
                   "sweets_shop"),
     ("mithai",): ("sweets", "confectionery", "sweet"),
     ("court",): ("courthouse",),
     ("kachahri",): ("courthouse",),
-    ("vet",): ("veterinary",),
-    ("veterinary",): ("veterinary",),
+    ("vet",): ("veterinary", "animal_or_pet_service"),
+    ("veterinary",): ("veterinary", "animal_or_pet_service"),
     ("taxi",): ("taxi",),
     ("cab",): ("taxi",),
     ("graveyard",): ("grave_yard", "cemetery"),
     ("cemetery",): ("cemetery", "grave_yard"),
     ("smashan",): ("crematorium", "cemetery"),
-    ("salon",): ("hairdresser", "beauty"),
-    ("parlour",): ("beauty", "hairdresser"),
-    ("parlor",): ("beauty", "hairdresser"),
-    ("barber",): ("hairdresser",),
+    ("salon",): ("hairdresser", "beauty", "personal_or_beauty_service",
+                 "personal_care_and_beauty_store"),
+    ("parlour",): ("beauty", "hairdresser", "personal_or_beauty_service",
+                   "personal_care_and_beauty_store"),
+    ("parlor",): ("beauty", "hairdresser", "personal_or_beauty_service",
+                  "personal_care_and_beauty_store"),
+    ("barber",): ("hairdresser", "personal_or_beauty_service"),
     ("tailor",): ("tailor",),
-    ("electrician",): ("electrician",),
-    ("plumber",): ("plumber",),
+    ("electrician",): ("electrician", "home_service"),
+    ("plumber",): ("plumber", "home_service"),
     ("gym", "wear"): ("gym_wear",),
-    ("pet", "shop"): ("pet",),
-    ("computer",): ("computer", "electronics", "electronics_repair"),
-    ("mobile", "shop"): ("mobile_phone", "mobile_phone_accessories"),
+    ("pet", "shop"): ("pet", "animal_and_pet_store",
+                     "animal_or_pet_service"),
+    ("computer",): ("computer", "electronics", "electronics_repair",
+                    "electronics_store", "telecommunications_service"),
+    ("mobile", "shop"): ("mobile_phone", "mobile_phone_accessories",
+                        "electronics_store",
+                        "telecommunications_service"),
 }
 
 # kinds compound hits rank by anchor distance within this radius
@@ -498,7 +611,22 @@ def _anchor_extent(anchor):
     return ds[int(len(ds) * 0.8)] if len(ds) >= 3 else 0.0
 
 
-def _subplace(toks, lat, lon, limit, hits=None):
+def _unit_leading(rows, want):
+    """rows whose display LEADS with the asked unit atoms — 'Beta 2'
+    counts for 'beta 2 …', 'Sector Beta 2, Greater Noida' does not.
+    Under a strong name hit only a unit-leading row may displace it:
+    the user typed the unit verbatim, so the answer leads with it."""
+    lead = " ".join(want)
+    pref = lead + " "
+    out = []
+    for r in rows:
+        dn = " ".join(alive_core_ref.normalize(r.get("display") or ""))
+        if dn == lead or dn.startswith(pref):
+            out.append(r)
+    return out
+
+
+def _subplace(toks, lat, lon, limit, hits=None, strict=False):
     """'<letter/number> <designator> <place>' — 'pocket b sarita
     vihar', 'h block sector 62 noida', 'a 43 defence colony'. The place
     phrase resolves as the anchor; a row inside its radius whose
@@ -506,7 +634,12 @@ def _subplace(toks, lat, lon, limit, hits=None):
     user meant. When the anchor's own display already carries them
     ('Beta 2' for 'beta 2 greater noida') the anchor is the answer.
     When nothing declares them, the locality is the honest answer —
-    never a same-numbered unit in a different colony."""
+    never a same-numbered unit in a different colony.
+
+    `strict` = the name path already answered strongly; then only a
+    unit-LEADING row may displace it ('Beta 2' not 'Sector Beta 2,
+    Greater Noida' — a lodging POI that merely contains the atoms) and
+    there is no bare area fallback — the name hits stand."""
     base = [t for t in toks
             if t not in _COMPOUND_STOP and t not in _DESIG_FILLER]
     struct = [t for t in base if t in _SUBPLACE_STRUCT]
@@ -577,9 +710,14 @@ def _subplace(toks, lat, lon, limit, hits=None):
                 return [_area_row(anchor)]  # the anchor IS the sub-place
         # 'inside the named place' — a locality's pockets sit close, a
         # city's sectors sit km out; scale the membership radius to the
-        # anchor's measured extent, never beyond the metro ceiling
+        # anchor's measured extent, never beyond the metro ceiling. A
+        # locality/area anchor's floor is the wider sweep — a sector's
+        # own rows sit at its edges
+        floor = (_COMPOUND_AREA_MAX_M
+                 if (anchor.get("category") or "") in _AREA_KINDS
+                 else _COMPOUND_MAX_M)
         radius = min(_SUBPLACE_HIT_MAX_M,
-                     max(_COMPOUND_MAX_M, _anchor_extent(anchor) * 1.5))
+                     max(floor, _anchor_extent(anchor) * 1.5))
         # a name-path row that already carries the unit and sits inside
         # the anchor's urban area IS the real sub-place — promote it
         # ahead of same-named units elsewhere ('Pocket B' in Jasola
@@ -619,6 +757,8 @@ def _subplace(toks, lat, lon, limit, hits=None):
                 subplace=True))
             if len(cand) >= limit:
                 break
+        if strict:
+            cand = _unit_leading(cand, want)
         if cand:
             return cand
         out = []
@@ -645,27 +785,35 @@ def _subplace(toks, lat, lon, limit, hits=None):
                                  subplace=True))
             if len(out) >= limit:
                 break
+        if strict:
+            out = _unit_leading(out, want)
         return out
 
     # first anchor whose area actually holds the unit wins; when no
     # candidate does, the top anchor itself is the honest area answer.
     # 3 candidates max — each resolve() is a spatial scan, and deeper
-    # ambiguity is a wrong anchor more often than a hidden right one
+    # ambiguity is a wrong anchor more often than a hidden right one.
+    # Under a strong name hit there is no area fallback: the name
+    # answer stands ('beta 2' keeps 'Beta 2', not a random sector row)
     rows = []
     for anchor in anchors[:3]:
         rows = resolve(anchor)
         if rows:
             break
-    return rows or [_area_row(anchors[0])]
+    return rows or ([] if strict else [_area_row(anchors[0])])
 
 
 def _compound(q, weak: bool, lat, lon, limit, hits=None):
     """kind+place compound rows, or [] when nothing honest resolves.
 
-    `weak` = the plain name-match came back empty or partial; only then
-    do we reinterpret the query as kind + anchor."""
-    if not weak:
-        return []
+    `weak` = the plain name-match came back empty or partial; then the
+    query freely re-reads as kind + anchor. A strong name hit narrows
+    the reading: compound still fires, but only when the anchor is a
+    CONTAINER (locality/sector/area-kind) or the caller's own position
+    — 'school sector 62 noida' anchors on Sector 62 and its schools
+    lead; 'school of planning and architecture' anchors on a named
+    building, the name answer stands."""
+    strict = not weak
     toks = alive_core_ref.normalize(q)
     if len(toks) < 2:
         return []
@@ -682,7 +830,7 @@ def _compound(q, weak: bool, lat, lon, limit, hits=None):
     if kinds is None:
         # no kind noun — maybe a sub-place unit (block/pocket/house no.)
         # inside a named place
-        return _subplace(toks, lat, lon, limit, hits)
+        return _subplace(toks, lat, lon, limit, hits, strict=strict)
     rest = [t for j, t in enumerate(toks)
             if not (kspan[0] <= j < kspan[1])]
     kind_words = set(toks[kspan[0]:kspan[1]])
@@ -721,11 +869,23 @@ def _compound(q, weak: bool, lat, lon, limit, hits=None):
         if anchor is None:
             return []
 
+    # a strong name hit narrows the reading: the compound only rides a
+    # container anchor (or the caller's own position) — a named-POI
+    # anchor means the whole query was a name, not a kind ask
+    if strict and anchor.get("display") != "your location" \
+            and (anchor.get("category") or "") not in _AREA_KINDS:
+        return []
+
     out = []
     # scan deep enough that dense localities can't starve a rarer kind —
-    # Dwarka alone has ~1k rows inside the radius
+    # Dwarka alone has ~1k rows inside the radius. A locality anchor
+    # sweeps wider than a street — the sector's own rows sit at its
+    # edges ('pappu bakery' ~2 km out still answers 'bakery shahdara')
+    max_m = (_COMPOUND_AREA_MAX_M
+             if (anchor.get("category") or "") in _AREA_KINDS
+             else _COMPOUND_MAX_M)
     for e, d in nearest(anchor["lat"], anchor["lon"],
-                        max_m=_COMPOUND_MAX_M, limit=4096):
+                        max_m=max_m, limit=4096):
         # kind match is corpus-kind OR, for a single-word kind, a display
         # token equal to the kind word — "The indian gym" carries kind
         # 'named', not a gym code, but its own name honestly declares it.
@@ -746,7 +906,7 @@ def _compound(q, weak: bool, lat, lon, limit, hits=None):
         return out
     # kind path found nothing in the radius — the query may still carry
     # a sub-place shape ("school block h sector 62")
-    return _subplace(toks, lat, lon, limit, hits)
+    return _subplace(toks, lat, lon, limit, hits, strict=strict)
 
 
 # transit accessories named after a landmark ('AIIMS' platform,

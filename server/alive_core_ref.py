@@ -318,7 +318,11 @@ def entries_from_gazetteer(path: Optional[str] = None,
                     "pid": f"cor:{e.get('id')}",
                     "display": e["display"],
                     "aliases": list(e.get("aliases") or []),
-                    "category": e.get("category") or "place",
+                    # overture rows cook to their basic category — the
+                    # same prefix-strip the mobile gazetteer ships with,
+                    # so kinds/kind-phrases cover them
+                    "category": (e.get("category") or "place").removeprefix(
+                        "overture:"),
                     "lat": float(e["lat"]),
                     "lon": float(e["lon"]),
                     "popularity": _norm_popularity(

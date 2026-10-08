@@ -69,6 +69,24 @@ const CASES = [
   ["bakery near hanuman mandir", null],
   ["atm near karol bagh", null],
   ["chemist near seelampur", null],
+  // — scorer-prior lane: 15 more real Delhi queries
+  ["sarojini nagar market", "sarojini"],
+  ["gurudwara bangla sahib", "bangla"],
+  ["select citywalk", "citywalk"],
+  ["atm near cp", null],
+  ["school sector 62 noida", null],
+  ["beta 2", "beta"],
+  ["alpha 1 greater noida", "alpha"],
+  ["chandi chowk", "chandni"],     // typo query — canonical must beat
+                                  // Overture's 'Chandini Chowk' rows
+  ["chandini chowk", "chandini"], // exact misspelling — canonical first,
+                                  // the shop below it
+  ["hauz khas", "hauz"],
+  ["khan market", "khan"],
+  ["lajpat nagar", "lajpat"],
+  ["majnu ka tila", "majnu"],
+  ["sarai kale khan", "sarai"],
+  ["lotus temple", "lotus"],
 ];
 
 let hits = 0, subs = 0, misses = 0;

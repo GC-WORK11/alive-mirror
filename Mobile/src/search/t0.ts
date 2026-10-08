@@ -346,6 +346,10 @@ let GEO: Map<string, number[]> | null = null;      // all rows by geo cell
 
 const MAX_PREFIX = 8;   // longest indexed prefix per token
 const PREFIX_CAP = 80;  // max ids kept per prefix (heaviest first)
+/* gazetteer w-tier of canonical rows (locality/station/landmark corpus
+   entries run 7-11; Overture's flat POI import runs ~4-6) — the
+   authority bar for the misspelling-rescue in matchStage. */
+const AUTH_W = 7;
 const GEO_CELL = 0.002; // ~221 m lat / ~196 m lon at 28.6°N
 
 /* Type ordering (owner's ranking rule): a street/address row beats a
@@ -386,6 +390,18 @@ const AREA_KINDS = new Set([
   "hamlet", "district", "subdistrict", "quarter", "macrohood",
   "administrative", "sector", "block", "place", "town", "city",
   "colony", "estate",
+]);
+/* kinds whose short name can BE the place the query leads with — the
+   leading-prefix tier in matchStage only fires for these (or a heavy
+   row): 'Beta 2' (residential sector) may outrank a lodging POI
+   carrying the same atoms, but a stub shop ('Dominos') must not bury
+   a fuller coverage row that carries the area token too ('Domino's
+   Pizza | Vikaspuri'). 'residential' sits outside AREA_KINDS on
+   purpose: there it would pose as a locality anchor for subtitles;
+   here it only permits the lead-prefix score. */
+const LEAD_AREA = new Set([
+  ...AREA_KINDS, "residential", "gated_community", "enclave",
+  "extension", "ward", "borough", "municipality",
 ]);
 
 /* The folded index ships PREBUILT AND CHUNKED (assets/t0-index/: a tiny
@@ -819,7 +835,7 @@ const subtitleFor = (e: Entry): string => {
  * skeleton postings → per-entry best match tier. */
 function matchStage(
   p: Parsed, bias: LatLon | null | undefined, cap: number,
-): { s: number; e: Entry }[] {
+): { s: number; e: Entry; i: number }[] {
   const entries = ENTRIES!, prefix = PREFIX!, fprefix = FPREFIX!, fskel = FSKEL!;
   const head = p.toks.join(" ");
   const cand = new Set<number>();
@@ -847,17 +863,27 @@ function matchStage(
     if (sk.length >= 2) for (const id of fskel.get(sk.slice(0, MAX_PREFIX)) ?? []) cand.add(id);
   }
 
-  const scored: { s: number; e: Entry }[] = [];
+  const scored: { s: number; e: Entry; i: number }[] = [];
   for (const id of cand) {
     const e = entries[id];
     let m = 0;
     if (head && e.nrm.startsWith(head)) m = 100;
     else if (p.toks.every((qt) => e.toks.some((nt) => nt.startsWith(qt)))) m = 75;
-    else if (p.folds.length && p.folds.every((qt) => e.ftoks.some((nt) => nt.startsWith(qt)))) m = 62;
+    else if (e.toks.length < p.toks.length && head.startsWith(`${e.nrm} `)
+             && (LEAD_AREA.has(e.c) || e.w >= AUTH_W)) {
+      // the row IS the named thing and the query's tail is context —
+      // 'beta 2 greater noida' asks for the Beta 2 sector row, not a
+      // lodging POI that merely contains the atoms. Ranked under
+      // exact-prefix, coverage-scaled so longer leads beat stubs.
+      // Area-kinds/heavy rows only: a light stub winning here would
+      // skip the fuzzy pass that a real fuller match ('Domino's Pizza
+      // | Vikaspuri') depends on.
+      m = 70 + Math.round(15 * (e.toks.length / p.toks.length));
+    } else if (p.folds.length && p.folds.every((qt) => e.ftoks.some((nt) => nt.startsWith(qt)))) m = 62;
     else if (head && (e.nrm.includes(` ${head}`) || e.nrm.includes(head))) m = 50;
     else if (p.folds.length === 1 && e.fskel.startsWith(fold(p.toks[0]))) m = 58;
     else continue;
-    scored.push({ s: m + weight(e), e });
+    scored.push({ s: m + weight(e), e, i: id });
   }
 
   /* fuzzy stage — only when nothing matched. Typos, not guesses: every
@@ -880,8 +906,56 @@ function matchStage(
         sum += bd;
       }
       if (failed) continue;
-      scored.push({ s: 55 - sum * 8 + weight(e), e });
+      scored.push({ s: 55 - sum * 8 + weight(e), e, i });
       if (scored.length > 400) break;
+    }
+  }
+
+  /* authority prior — a low-confidence row that matched only because
+     the query fuzzed toward its own (misspelled) name must not bury the
+     canonical place behind it: a heavier row sharing the row's fused
+     name-skeleton and still satisfying the query tokens IS the real
+     answer. 'chandi chowk' resolves 'Chandni Chowk' above Overture's
+     'Chandini Chowk' shop — the misspelling stays listed, demoted.
+     The heavy sibling takes the weak row's own slot, never higher. */
+  if (scored.length && p.folds.length) {
+    const promoted = new Map<number, number>();
+    for (const r of scored) {
+      if (r.e.w >= AUTH_W) continue;   // already authoritative
+      for (const id of fskel.get(r.e.fskel.slice(0, MAX_PREFIX)) ?? []) {
+        const e = entries[id];
+        if (e.w < AUTH_W || e.fskel !== r.e.fskel) continue;
+        /* same fused skeleton is still not enough: 'Khanna Market' and
+           'Khan Market' share it but are different real places. Require
+           a true near-spelling — same token count, each token within
+           DL 1 ('chandini'->'chandni' passes, 'khanna'->'khan' does not). */
+        if (e.toks.length !== r.e.toks.length
+            || !r.e.toks.every((t, k) => dlDist(t, e.toks[k], 1) <= 1)) continue;
+        let ok = true;
+        for (const qf of p.folds) {
+          let bd = 3;
+          for (const ft of e.ftoks) {
+            if (Math.abs(ft.length - qf.length) > 2) continue;
+            const d = dlDist(qf, ft, 2);
+            if (d < bd) bd = d;
+            if (bd === 0) break;
+          }
+          if (bd > 2) { ok = false; break; }
+        }
+        if (!ok) break;
+        const cur = promoted.get(id);
+        if (cur === undefined || r.s > cur) promoted.set(id, r.s);
+      }
+    }
+    const seen = new Set(scored.map((r) => r.i));
+    for (const [id, s] of promoted) {
+      if (seen.has(id)) {
+        // scored but outranked by the misspelling — lift to its slot
+        const own = scored.find((r) => r.i === id);
+        if (own && own.s < s + 0.5) own.s = s + 0.5;
+      } else {
+        scored.push({ s: s + 0.5, e: entries[id], i: id });
+      }
     }
   }
 
@@ -1186,15 +1260,29 @@ export function query(q: string, userLoc?: LatLon | null, limit = 8): PlaceResul
   const out: PlaceResult[] = [];
   const seenExact = new Set<string>();
   const seenName: { nrm: string; lat: number; lon: number }[] = [];
+  const outWt: number[] = [];   // parallel to out — the kept row's authority
   const push = (r: PlaceResult, e?: Entry) => {
     if (out.length >= limit) return;
     const nrm = e ? e.nrm : normalize(r.name);
     const key = `${nrm}|${r.lat.toFixed(3)}|${r.lon.toFixed(3)}`;
     if (seenExact.has(key)) return;
-    if (seenName.some((s) => s.nrm === nrm && Math.hypot((s.lat - r.lat) * 110.6, (s.lon - r.lon) * 99.4) * 1000 < 400)) return;
+    const di = seenName.findIndex((s) => s.nrm === nrm
+      && Math.hypot((s.lat - r.lat) * 110.6, (s.lon - r.lon) * 99.4) * 1000 < 400);
+    if (di >= 0) {
+      /* dedupe prefers authoritative — a heavier same-name row
+         replaces a weak first-seen one at its own slot */
+      const w = e ? e.wt : -1;
+      if (w > outWt[di]) {
+        out[di] = r;
+        outWt[di] = w;
+        seenName[di] = { nrm, lat: r.lat, lon: r.lon };
+      }
+      return;
+    }
     seenExact.add(key);
     seenName.push({ nrm, lat: r.lat, lon: r.lon });
     out.push(r);
+    outWt.push(e ? e.wt : -1);
   };
 
   for (const r of unitRows) push(r);
