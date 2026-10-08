@@ -1,0 +1,51 @@
+# android-coldsoak representative logcat excerpts (release APK, com.anonymous.app, base/v2@9a0799a)
+
+## 1. Cycle markers (cycle boundaries are attributable in every dump)
+10-08 01:01:20.378  7360  7360 I CYCLE   : ### phaseA CYCLE 15 LAUNCH ###
+10-08 01:02:08.048  7543  7543 I CYCLE   : ### phaseA CYCLE 15 ORACLE ###
+
+## 2. Warm-window app activity, phaseA cycle 15 t+15..35s (no FATAL/SIGSEGV anywhere in 53 launch dumps)
+5329:10-08 00:45:17.590   579   579 I notification_cancel_all: [1000,579,com.anonymous.app,0,0,0,5,NULL]
+5334:10-08 00:45:17.677   579  1612 I wm_create_activity: [0,92334611,8,com.anonymous.app/.MainActivity,NULL,NULL,NULL,268435456]
+5342:10-08 00:45:17.730   579  2392 I am_proc_start: [0,4266,10209,com.anonymous.app,next-top-activity,{com.anonymous.app/com.anonymous.app.MainActivity}]
+5343:10-08 00:45:17.730   579  2392 I am_proc_bound: [0,4266,com.anonymous.app]
+5348:10-08 00:45:17.735   579  2392 I wm_restart_activity: [0,92334611,8,com.anonymous.app/.MainActivity]
+5349:10-08 00:45:17.737   579  2392 I wm_set_resumed_activity: [0,com.anonymous.app/.MainActivity,realStartActivityLocked - onActivityStateChanged]
+5353:10-08 00:45:17.942  4266  4266 I wm_on_create_called: [92334611,com.anonymous.app.MainActivity,performCreate,24]
+5354:10-08 00:45:17.943  4266  4266 I wm_on_start_called: [92334611,com.anonymous.app.MainActivity,handleStartActivity,1]
+5355:10-08 00:45:17.944  4266  4266 I wm_on_resume_called: [92334611,com.anonymous.app.MainActivity,RESUME_ACTIVITY,0]
+5356:10-08 00:45:17.950  4266  4266 I wm_on_top_resumed_gained_called: [92334611,com.anonymous.app.MainActivity,topStateChangedWhenResumed]
+5357:10-08 00:45:17.954   579   603 I input_focus: [Focus request e49587c com.anonymous.app/com.anonymous.app.MainActivity,reason=UpdateInputWindows]
+5366:10-08 00:45:18.271   579   599 I sysui_multi_action: [319,578,321,489,322,680,325,339,757,761,758,7,759,1,806,com.anonymous.app,871,com.anonymous.app.MainActivity,904,com.android.shell,905,0,945,142,1320,4,1321,4]
+5367:10-08 00:45:18.278   579   599 I wm_activity_launch_time: [0,92334611,com.anonymous.app/.MainActivity,680]
+5381:10-08 00:45:18.369   579   689 I input_focus: [Focus entering e49587c com.anonymous.app/com.anonymous.app.MainActivity (server),reason=Window became focusable. Previous reason: NOT_VISIBLE]
+5402:10-08 00:45:19.179  4266  4363 I dvm_lock_sample: [com.anonymous.app,0,OkHttp http://65.2.28.40/...,381,WebViewFactory.java,336,android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider(),-,270,android.content.pm.PackageInfo android.webkit.WebViewFactory.getLoadedPackageInfo(),76]
+5496:10-08 00:46:20.834   579  2392 I sysui_multi_action: [757,1243,758,4,806,com.anonymous.app,1241,android.permission.ACCESS_FINE_LOCATION]
+5508:10-08 00:46:47.390   579  1127 I sysui_multi_action: [757,1243,758,4,806,com.anonymous.app,1241,android.permission.POST_NOTIFICATIONS]
+5514:10-08 00:47:05.560   579   689 I input_interaction: Interaction with: e49587c com.anonymous.app/com.anonymous.app.MainActivity (server), [Gesture Monitor] swipe-up (server), [Gesture Monitor] edge-swipe (server), PointerEventDispatcher0 (server), 
+5517:10-08 00:47:05.730   579   656 I wm_pause_activity: [0,92334611,com.anonymous.app/.MainActivity,userLeaving=true,resumeTopActivity]
+5518:10-08 00:47:05.739  4266  4266 I wm_on_top_resumed_lost_called: [92334611,com.anonymous.app.MainActivity,topStateChangedWhenResumed]
+5520:10-08 00:47:05.760  4266  4266 I wm_on_paused_called: [92334611,com.anonymous.app.MainActivity,performPause,3]
+5527:10-08 00:47:05.788   579   689 I input_focus: [Focus leaving e49587c com.anonymous.app/com.anonymous.app.MainActivity (server),reason=Waiting for window because NO_WINDOW]
+5534:10-08 00:47:06.020   579   599 I sysui_multi_action: [319,315,322,313,325,447,757,761,758,8,759,2,806,com.google.android.permissioncontroller,871,com.android.permissioncontroller.permission.ui.GrantPermissionsActivity,904,com.anonymous.app,905,0,1320,4,1321,2]
+5536:10-08 00:47:06.020   968   968 I snet_event_log: [individual_permissions_requested,10209,com.anonymous.app:com.anonymous.app:;android.permission.ACCESS_COARSE_LOCATION|true|768;android.permission.ACCESS_FINE_LOCATION|true|768]
+5543:10-08 00:47:06.028   579  1606 I wm_set_resumed_activity: [0,com.anonymous.app/.MainActivity,resumeTopActivity - onActivityStateChanged]
+
+## 3. Only FATAL EXCEPTIONs seen all run = the uiautomator probe crashing itself (UiAutomationService already registered) — RIG ARTIFACT, not the app
+10-08 01:43:03.937 16553 16553 E AndroidRuntime: FATAL EXCEPTION: main
+10-08 01:43:03.937 16553 16553 E AndroidRuntime: PID: 16553
+10-08 01:43:03.937 16553 16553 E AndroidRuntime: java.lang.IllegalStateException: UiAutomationService android.accessibilityservice.IAccessibilityServiceClient$Stub$Proxy@ca46025already registered!
+10-08 01:43:03.937 16553 16553 E AndroidRuntime: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3250)
+10-08 01:43:03.937 16553 16553 E AndroidRuntime: 	at android.os.Parcel.createException(Parcel.java:3226)
+--
+
+## 4. App-owned warning observed: NativeAnimatedNodesManager (E-level, handled, sheet keeps animating)
+10-08 01:43:04.322 16452 16452 E unknown:NativeAnimatedNodesManager: Native animation workaround, frame lost as result of race condition
+10-08 01:43:04.322 16452 16452 E unknown:NativeAnimatedNodesManager: com.facebook.react.bridge.JSApplicationCausedNativeException: Illegal node ID set as an input for Animated.multiply node
+10-08 01:43:04.322 16452 16452 E unknown:NativeAnimatedNodesManager: 	at com.facebook.react.animated.MultiplicationAnimatedNode.update$ReactAndroid_release(MultiplicationAnimatedNode.kt:41)
+10-08 01:43:04.322 16452 16452 E unknown:NativeAnimatedNodesManager: 	at com.facebook.react.animated.NativeAnimatedNodesManager.updateNodes(NativeAnimatedNodesManager.kt:704)
+10-08 01:43:04.322 16452 16452 E unknown:NativeAnimatedNodesManager: 	at com.facebook.react.animated.NativeAnimatedNodesManager.runUpdates(NativeAnimatedNodesManager.kt:584)
+
+## 5. Boot-totals: dumpsys activity lastanr
+ACTIVITY MANAGER LAST ANR (dumpsys activity lastanr)
+  <no ANR has occurred since boot>
