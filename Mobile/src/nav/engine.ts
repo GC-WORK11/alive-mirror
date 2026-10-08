@@ -244,6 +244,9 @@ export function useNavEngine(opts: NavEngineOpts) {
     eta0Ref.current = r.eta_s ?? r.duration_s ?? eta0Ref.current;
     cuesRef.current.load(r.steps);
     setNavGeom(r.geometry ?? null);   // reroutes land here too — the painted road follows the new path
+    setNavStrip(null);                // the OLD strip must not band the NEW geometry while its own strip re-pulls
+    navAlongShownRef.current = 0;
+    setNavAlongM(0);
   }, []);
 
   const refreshStrip = useCallback(async (routeId: string) => {
