@@ -137,9 +137,20 @@ def _tag_match(rows: list, qn: str) -> None:
         r["match"] = _MATCH_NAMES[cls]
 
 
+_ADMIN_KINDS = ("district", "administrative")
+
+# an admin-area row names the place it contains — same name within the
+# loose bound is the container, not a second place (the gazetteer
+# 'Connaught Place' district centroid sits 117 m off the macrohood).
+# Mirrors the client's sameNamedPlace (Mobile/src/search/client.ts) and
+# Gazetteer._collapse_same_named.
+_ADMIN_DEDUPE_RADIUS_M = 400.0
+
+
 def _merge(t1: list, t2: list, qn: str, blat: float, blon: float) -> list:
-    """Dedupe on normalized name within 75 m; rank by match class then
-    distance. Sources merge honestly: a place found by both tiers says so."""
+    """Dedupe on normalized name within 75 m (400 m when either row is an
+    admin-area kind); rank by match class then distance. Sources merge
+    honestly: a place found by both tiers says so."""
     merged: list = []
     for r in t1 + t2:
         r.setdefault("sources", [r.get("source", "?")])
@@ -150,17 +161,34 @@ def _merge(t1: list, t2: list, qn: str, blat: float, blon: float) -> list:
         for e in merged:
             if normalize(e.get("name") or "") != key:
                 continue
-            if _hav_m(e["lat"], e["lon"], r["lat"], r["lon"]) <= DEDUPE_RADIUS_M:
+            dd = _hav_m(e["lat"], e["lon"], r["lat"], r["lon"])
+            if (dd <= DEDUPE_RADIUS_M
+                    or (dd <= _ADMIN_DEDUPE_RADIUS_M
+                        and (e.get("kind") in _ADMIN_KINDS
+                             or r.get("kind") in _ADMIN_KINDS))):
                 dup = e
                 break
         if dup is not None:
-            dup["sources"] = list(dict.fromkeys(
-                dup["sources"] + r["sources"]))
-            if r.get("id") and not dup.get("id"):
-                dup["id"] = r["id"]
-            if r["match_rank"] < dup["match_rank"]:
-                dup["match_rank"] = r["match_rank"]
-                dup["match"] = r["match"]
+            srcs = list(dict.fromkeys(dup["sources"] + r["sources"]))
+            if (dup.get("kind") in _ADMIN_KINDS
+                    and r.get("kind") not in _ADMIN_KINDS):
+                # the admin container yields its slot to the actionable
+                # place row — keep the merged sources + best match rank
+                rank = min(dup["match_rank"], r["match_rank"])
+                match = r["match"] if r["match_rank"] <= dup["match_rank"] \
+                    else dup["match"]
+                rid = r.get("id") or dup.get("id")
+                dup.clear()
+                dup.update(r)
+                dup["sources"], dup["match_rank"], dup["match"], dup["id"] = \
+                    srcs, rank, match, rid
+            else:
+                dup["sources"] = srcs
+                if r.get("id") and not dup.get("id"):
+                    dup["id"] = r["id"]
+                if r["match_rank"] < dup["match_rank"]:
+                    dup["match_rank"] = r["match_rank"]
+                    dup["match"] = r["match"]
         else:
             merged.append(r)
     merged.sort(key=lambda r: (r.get("match_rank", 3),

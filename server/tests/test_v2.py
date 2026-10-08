@@ -140,6 +140,33 @@ def test_merge_dedupes_name_within_75m():
     assert sorted(out[0]["sources"]) == ["t1", "t2"]
 
 
+def test_merge_collapses_admin_container_beyond_75m():
+    # the gazetteer 'Connaught Place' district centroid sits 117 m off the
+    # macrohood — a container row, not a second place (deploy-8: the wire
+    # served both while the app collapsed them client-side only)
+    t1 = [{"name": "Connaught Place", "kind": "district",
+           "lat": 28.6315, "lon": 77.2167, "match": "exact-prefix",
+           "match_rank": 0, "sources": ["t1"], "distance_m": 2346},
+          {"name": "Connaught Place", "kind": "macrohood",
+           "lat": 28.6324, "lon": 77.2178, "match": "exact-prefix",
+           "match_rank": 0, "sources": ["t1"], "distance_m": 2230}]
+    out = v2search._merge(t1, [], "connaught place", *CP)
+    assert len(out) == 1
+    assert out[0]["kind"] == "macrohood"  # admin row yields to the place row
+
+
+def test_merge_keeps_same_name_neighbours():
+    # two real same-name rows stay — the Connaught Lanes are ~600 m apart
+    t1 = [{"name": "Connaught Lane", "kind": "residential",
+           "lat": 28.6315, "lon": 77.2167,
+           "match_rank": 0, "sources": ["t1"], "distance_m": 2025},
+          {"name": "Connaught Lane", "kind": "residential",
+           "lat": 28.6300, "lon": 77.2115,
+           "match_rank": 0, "sources": ["t1"], "distance_m": 2379}]
+    out = v2search._merge(t1, [], "connaught lane", *CP)
+    assert len(out) == 2
+
+
 # --- place / reverse ----------------------------------------------------------
 def test_place_gazetteer_and_amazon():
     r = client.get("/v2/place/gaz:0")
