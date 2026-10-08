@@ -1442,6 +1442,11 @@ const NavSession = React.memo(function NavSession({
       fieldAgeMin: nav.fieldAgeMin,
       donated: summary.donated,
       endedEarly: summary.endedEarly,
+      /* sub-gap pauses don't earn a receipt line — the FIX_GAP_S
+         floor (45 s) is where the meters admitted they couldn't see */
+      pausedMin: summary.pausedS >= 45
+        ? Math.max(1, Math.round(summary.pausedS / 60))
+        : null,
     };
     return (
       /* Done tears down the whole nav session in one commit; deferring it

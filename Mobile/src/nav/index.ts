@@ -39,7 +39,7 @@
  */
 export { useNavEngine } from "./engine";
 export type { NavEngine, NavEngineOpts, NavRoute, NavSummary, NextStep } from "./engine";
-export { LiveCounters, ME_VE, COLD_UPLIFT } from "./counters";
+export { LiveCounters, ME_VE, COLD_UPLIFT, REST_VE_LPM } from "./counters";
 export {
   ArrivalTracker, flattenCoords, havM, OffRouteTracker, polylineLengthM,
   snapToPolyline, ARRIVE_FIXES, ARRIVE_M, OFF_ROUTE_FIXES, OFF_ROUTE_M,

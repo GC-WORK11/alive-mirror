@@ -43,6 +43,8 @@ export type NavView = {
     modifier?: string | null;               // e.g. "slight left"
   } | null;
   snapped?: [number, number] | null;
+  gapActive?: boolean;    // fixes gone right now — meters paused pill
+  pausedS?: number;       // cumulative paused seconds → meta suffix
 };
 
 /* arrival wall-time in the app's one clock convention — 12h,
@@ -238,12 +240,19 @@ function NavChromeInner({
     ? Math.min(1, Math.max(0, nav.progress)) : null;
   const mode = option.mode || option.vehicle;
 
+  /* fix-gap bookkeeping: the meta row discloses accumulated pause
+     ("· paused ~4 min") — parked/backgrounded minutes must not read
+     as riding minutes in the one line a user glances at */
+  const pausedMin = nav?.pausedS != null && nav.pausedS >= 45
+    ? Math.max(1, Math.round(nav.pausedS / 60))
+    : null;
   const meta = nav
     ? `${t(leftIsKm(leftM) ? "nav_left" : "nav_left_m", lang,
         leftIsKm(leftM)
           ? { min, km: kmNum(leftM) }
           : { min, m: leftMNum(leftM) })}
       · ${t("arriveAt", lang, { t: clock(nav.etaS, lang) })}`
+      + (pausedMin != null ? ` · ${t("navPausedMin", lang, { n: pausedMin })}` : "")
     : `${Math.round(option.duration_min)} ${t("minUnit", lang)} · ${option.distance_km ?? 0} ${t("unitsKm", lang)} · ${t("arriveAt", lang, { t: clock(option.duration_min * 60, lang) })}`;
 
   /* instruction swap: only the sentence/arrow change earns motion — the
@@ -367,6 +376,20 @@ function NavChromeInner({
         <View style={[s.pill, { top: insets.top + 92 }]}>
           <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
             {t("navNoGps", lang)}
+          </Text>
+        </View>
+      )}
+      {/* position stream lost mid-trip — we DID see the ride once
+          (snapped set), then the fixes stopped: parked, pocketed, or
+          GNSS dead. The pill names what the counters are doing — the
+          ride's meters paused, the air count keeps going — instead of
+          silently minting parked minutes at the last driving speed
+          (nav-gap-fix; never-locked trips stay with navNoGps above) */}
+      {nav?.gapActive && nav.snapped && !nav.offRoute && !nav.outsideField
+        && nav.stripOk !== false && (
+        <View style={[s.pill, { top: insets.top + 92 }]}>
+          <Text {...DYNAMIC_TYPE} style={[s.pillTxt, { fontFamily: fam(lang, "med") }]}>
+            {t("navPaused", lang)}
           </Text>
         </View>
       )}

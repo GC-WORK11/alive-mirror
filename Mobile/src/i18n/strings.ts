@@ -70,6 +70,12 @@ const en = {
   /* no position fixes yet — the counters' honesty line: dose still counts,
      at the air where the trip started (lifecycle-drive) */
   navNoGps: "no location — counting the air where you started",
+  /* position stream lost mid-trip (parked / pocketed / GNSS dead):
+     the ride's meters paused, the air count kept going (nav-gap-fix) */
+  navPaused: "ride meters paused — still counting the air",
+  /* instrument-cluster meta suffix: accumulated paused minutes in the
+     same glanceable line as "8 min · 6.1 km left" */
+  navPausedMin: "paused ~{n} min",
   /* bell tapped with OS notifications denied — the row's honest answer */
   notifDenied: "notifications are off — tap to open Settings",
   /* scheduleDeparture refused: the best window sits deep inside quiet
@@ -569,6 +575,9 @@ const en = {
   receipt_donated: "added anonymously to Delhi's air map",
   receipt_queued: "saved — will send when back online",
   receipt_private: "kept on this phone only",
+  /* fix-gap disclosure on the receipt: parked/backgrounded minutes
+     paused the ride's meters — they must not read as riding minutes */
+  receiptPaused: "ride meters paused ~{n} min — the air count kept going",
   receipt_noDose: "no smoke estimate for this trip",
   receipt_lessVsWorst: "about {n}× less smoke than the smokiest option",
   receipt_putOutNone: "your ride put out nothing — no exhaust",
@@ -1250,6 +1259,8 @@ const hi: Record<StringKey, string> = {
   viaStreets: "{streets} होते हुए",
   findingNewWay: "नया रास्ता ढूँढ रहे हैं…",
   navNoGps: "लोकेशन नहीं — जहाँ से चले थे वहीं की हवा गिन रहे हैं",
+  navPaused: "सवारी के मीटर रुके — हवा गिनना जारी है",
+  navPausedMin: "~{n} मिनट रुके थे",
   notifDenied: "नोटिफ़िकेशन बंद हैं — Settings खोलने के लिए टैप करें",
   notifTooLate: "सबसे साफ़ समय शांत-समय में आता है — पिंग नहीं भेजा",
   youreHere: "आप पहुँच गए।",
@@ -1660,6 +1671,7 @@ const hi: Record<StringKey, string> = {
   receipt_donated: "दिल्ली के हवा-नक्शे में गुमनाम रूप से जुड़ा",
   receipt_queued: "सेव हो गया — नेटवर्क लौटने पर भेजा जाएगा",
   receipt_private: "सिर्फ़ इस फ़ोन पर रखा गया",
+  receiptPaused: "सवारी के मीटर ~{n} मिनट रुके — हवा गिनना चलता रहा",
   receipt_noDose: "इस यात्रा के लिए धुएँ का अंदाज़ा नहीं",
   receipt_lessVsWorst: "सबसे धुआँदार विकल्प से ~{n}× कम धुआँ",
   receipt_putOutNone: "आपकी गाड़ी ने कुछ नहीं छोड़ा — बिल्कुल धुआँ नहीं",

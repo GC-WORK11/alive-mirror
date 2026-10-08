@@ -19,6 +19,7 @@ import type { EmissionsBreakdown } from "../components/shell/types";
 import { postJson, postReroute } from "../api/reroute";
 import { enqueueTripDonation, outboxGeneration } from "../offline/queue";
 import { LiveCounters } from "./counters";
+import { classifyGap, jumpCreditM } from "./gap";
 import {
   ARRIVE_M, ArrivalTracker, flattenCoords, havM, OFF_ROUTE_M, OffRouteTracker,
   polylineLengthM, snapToPolyline, type LonLat,
@@ -84,6 +85,10 @@ export type NavSummary = {
   /** false when the rider ended the trip manually ("End") before the
       proximity detector fired — the receipt must not claim arrival */
   endedEarly: boolean;
+  /** seconds the ride's meters stood paused over fix-gaps — the
+      receipt discloses it instead of letting dose/distance read as
+      though every minute was riding */
+  pausedS: number;
 };
 
 export type NavEngineOpts = {
@@ -169,6 +174,10 @@ export function useNavEngine(opts: NavEngineOpts) {
   const [stripOk, setStripOk] = useState(true);
   const [fieldAgeMin, setFieldAgeMin] = useState<number | null>(null);
   const [summary, setSummary] = useState<NavSummary | null>(null);
+  /* fix-gap bookkeeping — gapActive flips the "meters paused" pill,
+     pausedS feeds the meta suffix + the receipt's disclosure line */
+  const [gapActive, setGapActive] = useState(false);
+  const [pausedS, setPausedS] = useState(0);
 
   // --- mutable session state (refs: survive renders, drive the loops)
   const subRef = useRef<Location.LocationSubscription | null>(null);
@@ -194,6 +203,8 @@ export function useNavEngine(opts: NavEngineOpts) {
   const trajRef = useRef<{ lat: number; lon: number; ts: number }[]>([]);
   const rerouteAtRef = useRef(0);    // cooldown clock
   const reroutingRef = useRef(false);
+  const pausedSRef = useRef(0);      // cumulative gap seconds
+  const gapActiveRef = useRef(false); // last tick's gap state (flips only)
   const arrivedRef = useRef(false);
   const runningRef = useRef(false);
   const startTsRef = useRef(0);
@@ -321,9 +332,13 @@ export function useNavEngine(opts: NavEngineOpts) {
       pm25G: { ...c.pm25G },
       donated: false,
       endedEarly: !completed,
+      pausedS: Math.round(pausedSRef.current),
     };
     (async () => {
-      if (shareEnabled && trajRef.current.length > 1) {
+      /* distance_km < 0.1 is the server's own MIN_TRIP_KM gate — a
+         sub-100 m trip gets 422'd there, and queueing it would pin a
+         "will send" promise on the receipt that can only ever fail. */
+      if (shareEnabled && trajRef.current.length > 1 && s.distanceKm >= 0.1) {
         s.donated = await donate(s);
       }
       setSummary(s);
@@ -371,7 +386,16 @@ export function useNavEngine(opts: NavEngineOpts) {
       // monotone odometer: jitter never rewinds the strip position
       const adv = Math.max(0, snap.alongM - alongRef.current);
       alongRef.current += adv;
-      pendMRef.current += adv;
+      /* the nav position always follows the fix — but the ledger only
+         credits what a vehicle could physically cover since the last
+         fix. A resume-fix landing km ahead after a long dead stretch
+         credits real riding (cap scales with the gap); a teleport in
+         seconds drops the impossible part instead of minting distance
+         the trip never drove. */
+      const fixDtS = lastFixRef.current
+        ? Math.max(0.5, (now - lastFixRef.current.ts) / 1000)
+        : 1;
+      pendMRef.current += jumpCreditM(adv, fixDtS);
       // puck marker updates ride the camera gate below — one native commit
       // per fix batch instead of two interleaved churns (SIGSEGV class)
 
@@ -488,8 +512,28 @@ export function useNavEngine(opts: NavEngineOpts) {
     const nowMs = Date.now();
     const realDt = Math.max(0.2, (nowMs - (tickDtRef.current || nowMs - 1000)) / 1000);
     tickDtRef.current = nowMs;
+    /* gap detection — two shapes of the same truth, "the position
+       stream stopped":
+         · realDt ≫ 1 s — the ticker itself slept (AppState pause on
+           background); the whole catch-up interval was invisible.
+         · lastFix older than FIX_GAP_S — the ticker ran but fixes
+           stopped (parked with the screen on, GNSS dead, the 5 m
+           distance filter swallowing a standstill).
+       A traffic stop only reaches this line when fixes truly stop —
+       stop-and-go with fixes flowing keeps counting, its exposure is
+       real route air. */
+    const fixAgeS = lastFixRef.current
+      ? (nowMs - lastFixRef.current.ts) / 1000
+      : null; // no fix yet — the trip can't see itself either
+    const gap = classifyGap(realDt, fixAgeS);
+    if (gap) pausedSRef.current += realDt;
+    if (gap !== gapActiveRef.current) {
+      gapActiveRef.current = gap;
+      setGapActive(gap);
+    }
+    setPausedS(pausedSRef.current);
     c.tick(realDt, speedRef.current, pendMRef.current,
-      conc, strip?.emissions_curve ?? null, mode);
+      conc, strip?.emissions_curve ?? null, mode, gap);
     pendMRef.current = 0;
 
     const len = routeLenRef.current;
@@ -517,6 +561,10 @@ export function useNavEngine(opts: NavEngineOpts) {
     pendMRef.current = 0;
     trajRef.current = [];
     lastFixRef.current = null;
+    pausedSRef.current = 0;
+    gapActiveRef.current = false;
+    setGapActive(false);
+    setPausedS(0);
     startTsRef.current = Date.now();
     tickDtRef.current = Date.now();
     loadRoute(r, flattenCoords(r.geometry ?? r.route_geojson));
@@ -584,6 +632,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     progress, distRemainingM, etaS,
     offRoute, arrived, snapped, nextStep,
     stripOk, fieldAgeMin, summary, outsideField,
+    gapActive, pausedS,
   };
 }
 

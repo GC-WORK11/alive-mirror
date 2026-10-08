@@ -16,6 +16,7 @@ import {
   LiveCounters,
   ME_VE,
   PM_IDLE_SHARE,
+  REST_VE_LPM,
 } from "./counters";
 import type { EmissionCurve } from "./strip";
 
@@ -160,13 +161,15 @@ describe("vehicle emissions (co2_g_km / pm25_g_km curve)", () => {
     };
     // Scripted trajectory: 4 × 1 km legs, each a 1 s tick at 10 m/s.
     // km is measured AFTER the leg lands (travelledM += ddM first).
+    // Per nav-gap-fix each measured km emits its per-km factor (ef·ddKm
+    // ≥ ef·v·dt/1000): a 1 km leg lands 100 g × its cold factor.
     for (let i = 0; i < 4; i++) c.tick(1, 10, 1000, CONC, curve, "car");
     const cold = (km: number) =>
       1 + COLD_UPLIFT * Math.max(0, 1 - km / 4);
     const expected =
-      1 * (cold(1) + cold(2) + cold(3) + cold(4)); // rate = 1 g/s · dt 1
+      100 * (cold(1) + cold(2) + cold(3) + cold(4)); // 100 g/km × cold
     closeTo(cold(1), 1 + 0.35 * 0.75);
-    closeTo(expected, 4.525);
+    closeTo(expected, 452.5);
     closeTo(c.co2G.lo, expected);
     closeTo(c.co2G.mid, expected); // lo == hi band
     closeTo(c.travelledM, 4000);
@@ -179,7 +182,7 @@ describe("vehicle emissions (co2_g_km / pm25_g_km curve)", () => {
   it("no uplift when cold_start_km is 0/absent", () => {
     const c = new LiveCounters();
     c.tick(1, 10, 1000, CONC, CAR, "car");
-    closeTo(c.co2G.lo, 1); // cold factor == 1
+    closeTo(c.co2G.lo, 100); // 1 measured km × 100 g/km, cold factor == 1
   });
 
   it("negative ddM is clamped (odometer never rewinds)", () => {
@@ -244,5 +247,95 @@ describe("accumulator behaviour", () => {
     assert.equal(c.co2G.lo, 0);
     assert.equal(c.pm25G.hi, 0);
     assert.equal(c.travelledM, 0);
+  });
+});
+
+describe("fix-gap honesty (nav-gap-fix)", () => {
+  /* curve WITH an idle floor: the whole point is that a gap mints
+     neither the drive term nor the idle term — the old code let a
+     276 s catch-up tick mint 153 g of CO2 at the stale driving speed */
+  const CAR: EmissionCurve = {
+    mode: "car",
+    co2_g_km: { lo: 100, hi: 200 },
+    pm25_g_km: { lo: 5, hi: 10 },
+    idle_g_s: 2,
+    occupancy: 1,
+    cold_start_km: 0,
+  };
+
+  it("gap tick: dose accrues at rest ventilation, not effort VE", () => {
+    const c = new LiveCounters();
+    c.tick(1, 0, 0, CONC, CAR, "cycle", /* gap */ true);
+    // cycle VE 22 L/min → parked = rest floor; ME unchanged (still roadside)
+    closeTo(c.doseUg.mid, 100 * 1.1 * (REST_VE_LPM / 60000));
+    const d = new LiveCounters();
+    d.tick(1, 0, 0, CONC, CAR, "car", true);
+    // car VE is already rest-level → gap changes nothing on the dose edge
+    closeTo(d.doseUg.mid, 100 * 0.55 * (10 / 60000));
+  });
+
+  it("gap tick: emissions pause — the lifecycle-drive case mints nothing", () => {
+    const c = new LiveCounters();
+    c.tick(276, 8, 0, CONC, CAR, "car", true); // 4.6 min at a stale 8 m/s
+    assert.equal(c.co2G.lo, 0);
+    assert.equal(c.co2G.hi, 0);
+    assert.equal(c.pm25G.hi, 0);
+    assert.equal(c.travelledM, 0);
+    // the air kept hitting — dose accrued for the whole gap
+    assert.ok(c.doseUg.mid > 0);
+  });
+
+  it("gap tick: pending measured distance counts, emissions still pause", () => {
+    const c = new LiveCounters();
+    c.tick(60, 0, 500, CONC, CAR, "car", true);
+    assert.equal(c.travelledM, 500); // the odometer keeps real metres
+    assert.equal(c.co2G.lo, 0);
+    assert.equal(c.pm25G.lo, 0);
+  });
+
+  it("stop-and-go is NOT a gap: idle floor keeps emitting while fixes flow", () => {
+    const c = new LiveCounters();
+    for (let i = 0; i < 50; i++) c.tick(1, 0, 0, CONC, CAR, "car");
+    closeTo(c.co2G.lo, 2 * 50); // engine-idle at the light is real
+  });
+
+  it("lost-fix jump: credited km lands in one tick at its per-km factor", () => {
+    const c = new LiveCounters();
+    // a resume-fix's credited 2 km arriving in ONE tick: the old rate
+    // form emitted only ef·45/1000 ≈ 45 m worth — the measured distance
+    // must carry its own per-km emission.
+    c.tick(1, 0, 2000, CONC, CAR, "car");
+    closeTo(c.co2G.lo, 100 * 2);   // ef lo 100 g/km × 2 km
+    closeTo(c.co2G.hi, 200 * 2);
+    closeTo(c.travelledM, 2000);
+  });
+
+  it("GNSS speed without snap progress still emits the v·dt term", () => {
+    const c = new LiveCounters();
+    c.tick(1, 30, 0, CONC, CAR, "car"); // moving by speed, no measured km
+    // max(idle·1s=2, 100·30·1/1000=3) → the speed term wins as before
+    closeTo(c.co2G.lo, 3);
+  });
+
+  it("shared mode after a gap: credited km still emits per passenger-km", () => {
+    const c = new LiveCounters();
+    const metro: EmissionCurve = {
+      mode: "metro",
+      co2_g_pkm: { lo: 40, hi: 40 },
+    };
+    c.tick(120, 0, 0, CONC, metro, "metro", true); // ride hidden 2 min → 0
+    assert.equal(c.co2G.lo, 0);
+    c.tick(1, 0, 2000, CONC, metro, "metro");      // resume: 2 km leg lands
+    closeTo(c.co2G.lo, 80);
+  });
+
+  it("gap then resume: paused interval mints nothing, riding counts", () => {
+    const c = new LiveCounters();
+    for (let i = 0; i < 10; i++) c.tick(1, 10, 10, CONC, CAR, "car");
+    c.tick(300, 10, 0, CONC, CAR, "car", true); // the 5-min park
+    for (let i = 0; i < 10; i++) c.tick(1, 10, 10, CONC, CAR, "car");
+    // per riding tick: max(idle 2, 100·10/1000=1) = 2 g → 20 ticks = 40 g
+    closeTo(c.co2G.lo, 40);
+    closeTo(c.travelledM, 200);
   });
 });

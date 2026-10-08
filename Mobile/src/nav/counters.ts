@@ -34,6 +34,13 @@ export const ME_VE: Record<string, { me: number; veLpm: number }> = {
 };
 const ME_VE_DEFAULT = { me: 1.0, veLpm: 10.0 };
 
+/** Seated-rest ventilation — the dose profile while a fix-gap says
+ *  "we can't see the ride" (backgrounded, parked, GNSS dead). You
+ *  kept breathing the air where you stopped, so dose keeps counting,
+ *  but not at an effort rate: a parked cyclist isn't working at
+ *  22 L/min. Modes already at/below rest keep their VE. */
+export const REST_VE_LPM = 10.0;
+
 /** Cold-start uplift tapers linearly from (1+COLD_UPLIFT) at km 0 to
  *  1.0 at cold_start_km. Magnitude is an est. inside the class band —
  *  server only ships the distance param (strip.py _emission_curve). */
@@ -67,7 +74,12 @@ export class LiveCounters {
 
   /** One tick. dtS measured (never assumed), speed in m/s, ddM the
    *  along-route distance covered since last tick (≥0), conc the strip
-   *  band at the snapped position. */
+   *  band at the snapped position. `gap` marks a tick whose interval
+   *  had no position stream behind it (engine.ts FIX_GAP_S): dose
+   *  accrues at rest ventilation — the air kept hitting — while the
+   *  ride's emissions pause. Minting drive-rate CO2 for a minutes-long
+   *  gap at the last observed speed was the lifecycle-drive bug
+   *  (19 g → 172 g across one 4.6 min park). */
   tick(
     dtS: number,
     speedMps: number,
@@ -75,10 +87,11 @@ export class LiveCounters {
     conc: ConcBand,
     curve: EmissionCurve | null | undefined,
     mode: string,
+    gap = false,
   ): void {
     if (!(dtS > 0)) return;
     const { me, veLpm } = ME_VE[mode] ?? ME_VE_DEFAULT;
-    const veM3s = veLpm / 60000; // L/min → m³/s
+    const veM3s = (gap ? Math.min(veLpm, REST_VE_LPM) : veLpm) / 60000; // L/min → m³/s
     // breath — each edge independently; null C edge stays put
     const cMid = conc.mid ?? conc.lo ?? conc.hi; // last-resort edge fill
     const add = (c: number | null, fb: number | null) =>
@@ -108,7 +121,10 @@ export class LiveCounters {
       : Math.max(0, vDerived));
     this.travelledM += Math.max(0, ddM);
     const km = this.travelledM / 1000;
-    if (!curve) return;
+    /* gap → the odometer still takes real measured distance, but the
+       exhaust ledger pauses: whether the engine idled, ran, or was off
+       is unknowable without fixes, so nothing is minted. */
+    if (!curve || gap) return;
 
     if (curve.co2_g_pkm) {
       // shared mode: per passenger-km, no idle/cold (doc 06 §2)
@@ -128,20 +144,25 @@ export class LiveCounters {
     const occ = curve.occupancy && curve.occupancy > 0 ? curve.occupancy : 1;
     const idle = curve.idle_g_s ?? 0;
 
-    // rate = max(idle floor, ef·v/1000) — moving add emits ≥ standing
-    const rate = (efPerKm: number) =>
-      Math.max(idle, (efPerKm * v) / 1000) * cold;
+    /* per-tick moving add = ef × max(measured km, speed-implied km).
+       The two terms agree on a normal tick (ddM ≈ v·dt); the ddKm
+       term is what makes a lost-fix JUMP honest: engine caps credited
+       distance at a plausible speed over the fix-gap, and that
+       credited km lands in ONE tick — emitting only v·dt for it would
+       count ~45 m of a real 2 km leg. When snaps can't measure (GNSS
+       speed but no strip progress) the v·dt term covers it as before.
+       Idle floor unchanged: standing time still emits idle_g_s. */
+    const moveAdd = (efPerKm: number, idleRate: number) =>
+      Math.max(idleRate * dtS, efPerKm * Math.max(ddKm, (v * dtS) / 1000)) * cold;
     if (curve.co2_g_km) {
-      this.co2G.lo += (rate(curve.co2_g_km.lo) * dtS) / occ;
-      this.co2G.hi += (rate(curve.co2_g_km.hi) * dtS) / occ;
+      this.co2G.lo += moveAdd(curve.co2_g_km.lo, idle) / occ;
+      this.co2G.hi += moveAdd(curve.co2_g_km.hi, idle) / occ;
       this.co2G.mid = (this.co2G.lo + this.co2G.hi) / 2;
     }
     if (curve.pm25_g_km) {
       const pmIdle = idle * PM_IDLE_SHARE;
-      const ratePm = (efPerKm: number) =>
-        Math.max(pmIdle, (efPerKm * v) / 1000) * cold;
-      this.pm25G.lo += (ratePm(curve.pm25_g_km.lo) * dtS) / occ;
-      this.pm25G.hi += (ratePm(curve.pm25_g_km.hi) * dtS) / occ;
+      this.pm25G.lo += moveAdd(curve.pm25_g_km.lo, pmIdle) / occ;
+      this.pm25G.hi += moveAdd(curve.pm25_g_km.hi, pmIdle) / occ;
       this.pm25G.mid = (this.pm25G.lo + this.pm25G.hi) / 2;
     }
   }

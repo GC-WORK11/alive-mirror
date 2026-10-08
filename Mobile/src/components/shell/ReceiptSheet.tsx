@@ -74,6 +74,10 @@ export type ReceiptData = {
   /** true when the rider ended the trip manually before reaching the
       destination — the header must not claim "You're here" */
   endedEarly?: boolean;
+  /** minutes the ride's meters stood paused over fix-gaps (parked /
+      backgrounded / GNSS dead) — disclosed in provenance so parked
+      minutes never read as riding minutes (nav-gap-fix) */
+  pausedMin?: number | null;
 };
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -430,6 +434,9 @@ function ReceiptSheetInner({
           {[
             data.fieldAgeMin != null
               ? t("updatedMinAgo", lang, { n: Math.max(0, Math.round(data.fieldAgeMin)) })
+              : null,
+            data.pausedMin != null
+              ? t("receiptPaused", lang, { n: data.pausedMin })
               : null,
             data.donated === "sent"
               ? t("receipt_donated", lang)
