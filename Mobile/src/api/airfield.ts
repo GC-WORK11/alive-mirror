@@ -40,9 +40,13 @@ export const airFieldEpoch = (fc: GeoJSON.FeatureCollection): number | null => {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 };
 
-const fieldAgeFromEpoch = (fc: GeoJSON.FeatureCollection): number | null => {
+export const airFieldAgeS = (
+  fc: GeoJSON.FeatureCollection | null,
+  now = Date.now(),
+): number | null => {
+  if (!fc) return null;
   const v = airFieldEpoch(fc);
-  return v == null ? null : Math.max(0, Date.now() / 1000 - v);
+  return v == null ? null : Math.max(0, now / 1000 - v);
 };
 
 export async function fetchAirField(cells: number = FIELD_GRID_CELLS) {
@@ -55,7 +59,7 @@ export async function fetchAirField(cells: number = FIELD_GRID_CELLS) {
       const fc = (await fetchJson(url, 15000)) as GeoJSON.FeatureCollection;
       return {
         fc,
-        fieldAgeS: fieldAgeFromEpoch(fc),
+        fieldAgeS: airFieldAgeS(fc),
         basis:
           ((fc as { properties?: { basis?: unknown } }).properties?.basis as
             | string

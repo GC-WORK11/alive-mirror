@@ -102,7 +102,8 @@ registerHooks({
       return {
         format: "module",
         shortCircuit: true,
-        source: "export const afterFirstFrame = () => Promise.resolve();",
+        source: "export const afterFirstFrame = () => Promise.resolve();" +
+          "export const msSinceInput = () => Infinity;",
       };
     }
     if (url === "storetest:react-native") {

@@ -12,7 +12,17 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sampleFieldAt } from "./airfield";
+import { sampleFieldAt, airFieldAgeS } from "./airfield";
+
+test("map age follows its painted grid epoch, not a newer home or plan read", () => {
+  const now = Date.UTC(2026, 9, 8, 10);
+  const grid = { type: "FeatureCollection", features: [],
+    properties: { cell_epoch: [now / 1000 - 960, 0] } } as GeoJSON.FeatureCollection;
+  assert.equal(airFieldAgeS(grid, now), 960);
+  assert.equal(airFieldAgeS(grid, now + 60000), 1020);
+  assert.equal(airFieldAgeS(null, now), null);
+  assert.equal(airFieldAgeS({ type: "FeatureCollection", features: [] }, now), null);
+});
 
 /* a two-cell strip: [10,0]–[20,10] and [20,0]–[30,10] — the second
    deliberately hole-less for the edge case; the "hole" region is just

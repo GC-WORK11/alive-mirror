@@ -44,7 +44,7 @@ import { CorridorLayer } from "./src/components/CorridorLayer";
 import { AirFieldLayer, type AirStation } from "./src/components/AirFieldLayer";
 import { AirMapCard } from "./src/components/AirMapCard";
 import { TapPin, TapReadout, type TapRead } from "./src/components/TapReadout";
-import { fetchAirField, airFieldEpoch, sampleFieldAt } from "./src/api/airfield";
+import { fetchAirField, airFieldEpoch, airFieldAgeS, sampleFieldAt } from "./src/api/airfield";
 import { SearchBar } from "./src/components/shell/SearchBar";
 import { SearchScreen, type SearchSelection } from "./src/screens/SearchScreen";
 import { VehicleSheet } from "./src/screens/VehicleSheet";
@@ -54,7 +54,7 @@ import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen, type SharingChoice } from "./src/screens/OnboardingScreen";
 import { loadWelcomeSeen, markWelcomeSeen } from "./src/store/welcome";
 import { HomeScreen, DayPeek, useDayData, type AmbientMeta } from "./src/screens/HomeScreen";
-import { recordSample, setCheckin } from "./src/store/daylog";
+import { personalAmbientSample, recordSample, setCheckin } from "./src/store/daylog";
 import { loadConsent, saveConsent } from "./src/store/consent";
 import { loadTourSeen, markTourSeen } from "./src/store/tour";
 import { CoachTour } from "./src/components/shell/CoachTour";
@@ -619,8 +619,8 @@ function AppInner() {
        it still waited behind consent. It lives in the introSeen-gated
        effect below instead. */
     /* the /aqi poll does two jobs now: the freshness chip's field block,
-       AND the dosimeter's foreground ambient sample — each read lands in
-       daylog.json (on-device only; the dedupe keeps the file sparse). The
+       AND eligible personal foreground samples — only fresh GPS/field
+       reads land in daylog.json (on-device only; dedupe keeps it sparse). The
        read happens at the user's own position when the OS has one; the
        Delhi centroid is the fallback the chip has always used. */
     const aqiPoll = (freshGps = true) => {
@@ -689,10 +689,16 @@ function AppInner() {
           /* same value → no re-render — the 60 s poll usually repeats
              the same ambient sample until the field ticks */
           setAmbientUg((prev) => (prev === amb ? prev : amb));
-          if (amb != null || bz != null) {
+          const sample = personalAmbientSample(
+            pos && inNcr(lat, lon) && j?.beyond_field_edge !== true
+              ? { lat, lon, ts: pos.timestamp } : null,
+            { amb: typeof j?.pm25_ambient === "number" ? j.pm25_ambient : null,
+              bz, fieldAgeS: nf?.age_s ?? null },
+          );
+          if (sample) {
             /* only re-render the dosimeter surfaces when a sample actually
                lands — the dedupe drops most 60 s polls (~8 min cadence) */
-            if (await recordSample({ ts: Date.now(), lat, lon, amb: amb ?? bz!, bz })) {
+            if (await recordSample(sample)) {
               /* perf-probe: the dose surface re-assembles on this bump —
                  frames during the re-assemble are the reload-flash test */
               jank("dose.tick", 1200); mark("dose.tick");
@@ -949,6 +955,7 @@ function AppInner() {
     const iv = setInterval(() => setAgeTick((n) => n + 1), 30000);
     return () => clearInterval(iv);
   }, []);
+  const paintedFieldAgeS = useMemo(() => airFieldAgeS(fieldGeo), [fieldGeo, ageTick]);
   const mapField: FieldStatus | null = useMemo(() => planField ?? (aqiField
     ? { ...aqiField.data,
         age_s: aqiField.data.age_s == null
@@ -1357,8 +1364,8 @@ function AppInner() {
             <View style={[s.airCardWrap, { top: insets.top + 10 }]} pointerEvents="none">
               <AirMapCard lang={lang}
                 stations={fieldStations?.length ?? null}
-                fieldAgeS={mapField?.age_s ?? null}
-                stale={mapField?.stale}
+                fieldAgeS={paintedFieldAgeS}
+                stale={paintedFieldAgeS != null && paintedFieldAgeS > 15 * 60}
                 hasField={!!fieldGeo?.features?.length} />
             </View>
           )}

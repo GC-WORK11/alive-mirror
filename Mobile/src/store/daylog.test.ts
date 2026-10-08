@@ -20,6 +20,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   reconstructDay,
+  personalAmbientSample,
   recordSample,
   allSamples,
   dayKey,
@@ -31,6 +32,43 @@ import { purgeJsonDoc } from "./safefile";
 import type { Trip } from "./ledger";
 
 const VE_M3H = 0.6; // VE_REST_M3H — seated/resting 10 L/min
+
+describe("personal foreground sample eligibility", () => {
+  const now = new Date(2026, 9, 8, 12).getTime();
+  const fix = { lat: 28.6315, lon: 77.2167, ts: now - 1000 };
+  const read = { amb: 68.7, bz: 86.6, fieldAgeS: 381 };
+
+  it("never counts the city fallback without a location fix", () => {
+    assert.equal(personalAmbientSample(null, read, now), null);
+  });
+
+  it("rejects stale, future or invalid location fixes", () => {
+    for (const ts of [now - 900001, now + 1, NaN]) {
+      assert.equal(personalAmbientSample({ ...fix, ts }, read, now), null);
+    }
+    assert.equal(personalAmbientSample({ ...fix, lat: NaN }, read, now), null);
+  });
+
+  it("does not turn stale or unstamped field values into current personal reads", () => {
+    for (const fieldAgeS of [901, null, NaN, -1]) {
+      assert.equal(personalAmbientSample(fix, { ...read, fieldAgeS }, now), null);
+    }
+  });
+
+  it("does not substitute breathing-zone estimates for missing ambient data", () => {
+    assert.equal(personalAmbientSample(fix, { ...read, amb: null }, now), null);
+    assert.equal(personalAmbientSample(fix, { ...read, amb: NaN }, now), null);
+  });
+
+  it("preserves eligible measured/derived values, coordinates and nullable breathing-zone data", () => {
+    assert.deepEqual(personalAmbientSample(fix, read, now), {
+      ts: now, lat: fix.lat, lon: fix.lon, amb: read.amb, bz: read.bz,
+    });
+    assert.deepEqual(personalAmbientSample(fix, { ...read, bz: null }, now), {
+      ts: now, lat: fix.lat, lon: fix.lon, amb: read.amb, bz: null,
+    });
+  });
+});
 
 /* local-time construction keeps the fixture tz-agnostic — every boundary
    derives from the same Date getters reconstructDay uses */

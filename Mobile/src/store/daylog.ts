@@ -32,6 +32,21 @@ export type AmbientSample = {
   bz: number | null;
 };
 
+/** City fallback and old fixes/fields may inform a labelled card, not a personal log. */
+export function personalAmbientSample(
+  fix: { lat: number; lon: number; ts: number } | null,
+  read: { amb: number | null; bz: number | null; fieldAgeS: number | null },
+  now = Date.now(),
+): AmbientSample | null {
+  if (!fix || !Number.isFinite(fix.lat) || !Number.isFinite(fix.lon)
+      || !Number.isFinite(fix.ts) || fix.ts > now || now - fix.ts > 15 * 60 * 1000
+      || read.fieldAgeS == null || !Number.isFinite(read.fieldAgeS)
+      || read.fieldAgeS < 0 || read.fieldAgeS > 15 * 60
+      || read.amb == null || !Number.isFinite(read.amb) || read.amb < 0) return null;
+  return { ts: now, lat: fix.lat, lon: fix.lon, amb: read.amb,
+    bz: read.bz != null && Number.isFinite(read.bz) && read.bz >= 0 ? read.bz : null };
+}
+
 /** One daily check-in — 0 fine · 1 meh · 2 rough, per facet. */
 export type Checkin = { ts: number; breath: number; eyes: number; energy: number };
 
