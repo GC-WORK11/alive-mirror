@@ -32,7 +32,7 @@
  *  restriction.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -103,6 +103,7 @@ import { PROFILE_BUDGET_UG, WHO_DAILY_UG, type ShellSettings } from "../componen
 import { fetchCity } from "../api/city";
 import { causeNote, type CauseNoteFields } from "../store/events-core";
 import { CheckinSheet } from "../components/shell/CheckinSheet";
+import { TourTarget, useMeasureTarget, useTourScroller, tourScrolled } from "../components/shell/CoachTour";
 import { BandScale } from "../components/BandScale";
 import { HourArc } from "../components/shell/HourArc";
 import { WeekStrip, type WeekDay } from "../components/shell/WeekStrip";
@@ -998,6 +999,9 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
   fieldStale?: boolean | null;
 }) {
   bump("home.HeroBlock");
+  /* tour target — the sparse day's "counting up" row is the ledger's
+     first-run shape (the real DayCard mounts only once a day counts) */
+  const { node: ledgerNode, onLayout: ledgerLayout } = useMeasureTarget("heroLedger");
   if (!data) {
     /* skeleton — blocks morph to content when the disk read lands */
     return (
@@ -1135,8 +1139,10 @@ function HeroBlockInner({ data, budgetUg, ambientUg, ambientMeta, fieldAgeS, fie
       )}
       {!counted && (
         /* progress to the first counted day — the same gate the personal
-           number answers to, filling as the phone logs real reads */
-        <View style={ss.sparseProgRow}>
+           number answers to, filling as the phone logs real reads.
+           The tour's ledger stop points here on a fresh install. */
+        <View ref={ledgerNode} onLayout={ledgerLayout}
+          style={ss.sparseProgRow}>
           {Array.from({ length: THIN_SAMPLE_MIN }).map((_, i) => (
             <View key={i} style={[ss.progSeg, {
               backgroundColor: i < rec.samplesToday ? ink : V2T.surface3,
@@ -1235,6 +1241,8 @@ function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
   onMap: () => void; onCity: () => void; onTrips: () => void;
 }) {
   bump("home.DoorRow");
+  /* tour target — the "Air map" row gets its own spotlight */
+  const { node: mapNode, onLayout: mapLayout } = useMeasureTarget("doorMap");
   const doors: { key: StringKey; glyph: Glyph; fn: () => void }[] = [
     { key: "homeLinkMap", glyph: "explore", fn: onMap },
     { key: "homeLinkCity", glyph: "city", fn: onCity },
@@ -1245,7 +1253,9 @@ function DoorRowInner({ lang, ambientUg, onMap, onCity, onTrips }: {
       {doors.map((d, i) => (
         <React.Fragment key={d.key}>
           {i > 0 && <View style={ss.doorListSep} />}
-          <Pressable onPress={() => { tap(); d.fn(); }}
+          <Pressable ref={d.key === "homeLinkMap" ? mapNode : undefined}
+            onLayout={d.key === "homeLinkMap" ? mapLayout : undefined}
+            onPress={() => { tap(); d.fn(); }}
             accessibilityRole="button" accessibilityLabel={t(d.key, lang)}
             style={({ pressed }) => [
               ss.doorListRow,
@@ -1381,6 +1391,10 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
      day key; null = closed) */
   const [weekDay, setWeekDay] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  /* the coach tour's scroller — the scroll view registers itself so a
+     stop can pull its target into the viewport; offsets feed liveRect */
+  const scrollRef = useRef<ScrollView>(null);
+  useTourScroller(scrollRef);
   /* the air is the canvas (docs/20): the whole screen breathes today's
      outside band as a whisper at the top, settling to paper — the
      environment itself is the data, cards float in paper on it */
@@ -1397,12 +1411,18 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
           and off the scroll/elevation touch-dispatch path that ate
           taps on Android (apk-verify-v8). */}
       <View style={[ss.ctaBar, { paddingBottom: 10 }]}>
-        <TravelCta lang={lang} onGo={onGo} />
+        <TourTarget id="cta">
+          <TravelCta lang={lang} onGo={onGo} />
+        </TourTarget>
       </View>
-      <ScrollView style={ss.flex}
+      <ScrollView ref={scrollRef} style={ss.flex}
         /* perf-probe: rAF frames through each drag — the gfxinfo-style
            jank% for the home scroll is these jank reports. */
         onScrollBeginDrag={() => jank("scroll.home", 1200)}
+        /* the tour's spotlight tracks the drag — offset ticks re-derive
+           every hole's window position (throttled; cost is a map write) */
+        onScroll={(e) => tourScrolled(e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={48}
         /* the audit's occlusion complaint was measured against a ~62 px
            bottom overlay; the CTA is a top header row now, but the 12 px
            bottom pad still sat the last card inside the home-indicator
@@ -1420,8 +1440,10 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
             arrive staggered below. The ONE primary CTA stays out of
             this scroll — it is the fixed header row above. */}
         <FadeIn delay={0}>
-          <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg}
-            ambientMeta={ambientMeta} fieldAgeS={fieldAgeS} fieldStale={fieldStale} lang={lang} />
+          <TourTarget id="hero">
+            <HeroBlock data={data} budgetUg={budget} ambientUg={ambientUg}
+              ambientMeta={ambientMeta} fieldAgeS={fieldAgeS} fieldStale={fieldStale} lang={lang} />
+          </TourTarget>
         </FadeIn>
         <FadeIn delay={70}>
           <IncidentsCard lang={lang} />
@@ -1434,12 +1456,16 @@ function HomeSheetInner({ data, lang, settings, ambientUg, ambientMeta, fieldAge
         </FadeIn>
         {data && !data.rec.thin && (
           <FadeIn delay={170}>
-            <DayCard rec={data.rec} budgetUg={budget} lang={lang} />
+            <TourTarget id="day">
+              <DayCard rec={data.rec} budgetUg={budget} lang={lang} />
+            </TourTarget>
           </FadeIn>
         )}
         {data && (
           <FadeIn delay={190}>
-            <WeekStrip week={data.week} budgetUg={budget} lang={lang} onOpen={setWeekDay} />
+            <TourTarget id="week">
+              <WeekStrip week={data.week} budgetUg={budget} lang={lang} onOpen={setWeekDay} />
+            </TourTarget>
           </FadeIn>
         )}
         <FadeIn delay={210}>

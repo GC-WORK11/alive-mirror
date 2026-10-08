@@ -817,6 +817,17 @@ const en = {
   incidentsTitle: "in Delhi's air right now",
   /* design-v4 hero — one number, one felt word, one reference */
   homeAirNowLead: "the air around you",
+  /* first-run coach tour — one caption per spotlighted piece (titles
+     reuse the surface's own keys: homeAirNowLead/dayTitle/homeLinkMap/
+     searchPlaceholder/weekTitle) */
+  tourAmbient: "live smoke at your spot, right now — the number proves itself below",
+  tourLedger: "your day builds here — every real read adds to the count",
+  tourMap: "the smoke painted over all of Delhi — tap to open the live map",
+  tourGo: "pick a place, get the least-smoky way there",
+  tourWeek: "seven days stack up here as they count — tap for the calendar",
+  tourSkip: "skip",
+  tourNext: "next",
+  tourDone: "got it",
   refWhoOver: "{x}× the WHO daily limit",
   refWhoUnder: "within the WHO daily limit",
   refBudget: "{p}% of your daily limit",
@@ -1858,6 +1869,14 @@ const hi: Record<StringKey, string> = {
   homeLinkTrips: "यात्राएँ",
   incidentsTitle: "दिल्ली की हवा में अभी",
   homeAirNowLead: "आपके आसपास की हवा",
+  tourAmbient: "इस वक़्त आपकी जगह का धुआँ — नीचे अंक अपना सबूत दिखाता है",
+  tourLedger: "आपका दिन यहाँ जुड़ता है — हर असली रीडिंग गिनती में जुड़ती है",
+  tourMap: "पूरी दिल्ली पर चढ़ा धुआँ — लाइव नक्शा खोलने के लिए टैप कीजिए",
+  tourGo: "जगह चुनिए, वहाँ का सबसे हल्का रास्ता पाइए",
+  tourWeek: "गिनते हुए दिन यहाँ सात-सात जुड़ते हैं — कैलेंडर के लिए टैप",
+  tourSkip: "छोड़ें",
+  tourNext: "आगे",
+  tourDone: "समझ गया",
   refWhoOver: "WHO की दैनिक सीमा का {x}×",
   refWhoUnder: "WHO की दैनिक सीमा के भीतर",
   refBudget: "आपकी दैनिक सीमा का {p}%",

@@ -55,6 +55,8 @@ import { loadWelcomeSeen, markWelcomeSeen } from "./src/store/welcome";
 import { HomeScreen, DayPeek, useDayData, type AmbientMeta } from "./src/screens/HomeScreen";
 import { recordSample, setCheckin } from "./src/store/daylog";
 import { loadConsent, saveConsent } from "./src/store/consent";
+import { loadTourSeen, markTourSeen } from "./src/store/tour";
+import { CoachTour } from "./src/components/shell/CoachTour";
 import { contributorId } from "./src/community";
 import { CompareSheet } from "./src/components/shell/CompareSheet";
 import { NavChrome } from "./src/components/shell/NavChrome";
@@ -488,6 +490,11 @@ function AppInner() {
      (home-truth: a number you can't verify reads as a wrong number). */
   const [ambientMeta, setAmbientMeta] = useState<AmbientMeta | null>(null);
   const [introSeen, setIntroSeen] = useHeldState<boolean | null>(null);
+  /* coach_tour_seen_v1 — the first-run spotlight walk. Mounts once
+     after onboarding while the live home keeps painting under it;
+     a null stays null until its file read lands (no tour flashes on a
+     repeat launch between consent load and tour load). */
+  const [tourSeen, setTourSeen] = useHeldState<boolean | null>(null);
   /* welcome_seen_v1 — the first-breath cinematic is retired (owner:
      "slop I never asked for"); the flag file still writes once per
      install below so its lifecycle stays consistent. */
@@ -667,6 +674,7 @@ function AppInner() {
     aqiPollRef.current = () => aqiPoll(true);
     // first-run gate is the consent record now (supersedes intro_seen.txt)
     loadConsent().then((c) => setIntroSeen(c.seen)).catch(() => setIntroSeen(false));
+    loadTourSeen().then(setTourSeen).catch(() => setTourSeen(false));
     /* the welcome film is gone — the flag still lands once per install
        so the file's semantics (welcome_seen_v1.json exists ⇔ this
        install ran its first-open flow) hold for anything reading it */
@@ -1446,6 +1454,15 @@ function AppInner() {
 
       <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
         ambientUg={ambientUg} onDone={onOnboardDone} />
+      {/* the first-run coach tour — mounts once after onboarding while
+          the live home paints under it (scrim is touch-transparent; only
+          the caption card takes presses). Any nav-away (a door tap, the
+          map opening) unmounts it — presented is presented. */}
+      {tourSeen === false && introSeen === true && homeOpen
+        && !sidebarOpen && !settingsOpen && !ledgerOpen && !delhiOpen
+        && !layersOpen && !vehicleOpen && (
+        <CoachTour lang={lang} onDone={() => setTourSeen(true)} />
+      )}
 
 
     </View>
