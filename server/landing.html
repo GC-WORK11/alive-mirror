@@ -1527,7 +1527,11 @@ function drawPin(ctx,pt,ch){
    click. pm2.5-only (the horizon is a pm2.5 model); another param
    disengages the layer and hands the canvas back to the live field. */
 const TL={playing:false,h:0,timer:null,seq:0,ok:false,frame:null,
-          cache:{},pending:{}};        /* cache[h]: feats | null(failed) */
+          cache:{},pending:{},epoch:null,touched:0};
+                                        /* cache[h]: feats | null(failed);
+           epoch = the served [forecast_at, field_at, obs] stamp of the
+           frames in cache; touched = wall-clock of the last pull — the
+           pair that decides when a cached surface has to be re-asked */
 const TL_MAX=11,TL_MS=1500;
 const viewFeats=()=>TL.frame||FEATS;
 const tlClock=h=>new Date(Date.now()+h*36e5)
@@ -1544,10 +1548,28 @@ async function tlFetch(h){
   if(TL.pending[h])return TL.pending[h];
   TL.pending[h]=api(`/grid?cells=${CELLS}&param=pm2_5&h=${h}`)
     .then(g=>{const f=(g&&g.features)||[];
+      const ep=g&&g.properties&&g.properties.cell_epoch;
+      if(ep)TL.epoch=ep;
+      TL.touched=Date.now();
       TL.cache[h]=f.length?f:null;return TL.cache[h]})
     .catch(()=>{TL.cache[h]=null;return null})
     .finally(()=>{delete TL.pending[h]});
   return TL.pending[h];
+}
+/* the frames are a served surface, not a session fixture — when the
+   live poll sees the field rebuild (its cell_epoch[0] moves past the
+   field stamp the horizon frames were fetched under, epoch[1]), or the
+   frames simply outlive one field cadence (900 s — the floor every
+   served layer claims against), the cached set is dropped and only the
+   hour on screen re-pulls; the rest go back to lazy fetch-on-touch.
+   A re-pull re-asks /grid for the current epoch — never a fake timer
+   and never newer than the source. */
+function tlInvalidate(){
+  TL.cache={};TL.seq++;            /* seq kills in-flight scrub paints */
+  if(TL.frame){const h=TL.h;TL.frame=null;tlShow(h)}
+}
+function tlAged(){
+  if(TL.touched&&Date.now()-TL.touched>900e3)tlInvalidate()
 }
 function tlCap(){                        /* caption owns the frame shown */
   const vals=(TL.frame||[]).map(f=>{const p=f.properties||{};
@@ -1617,7 +1639,8 @@ async function tlInit(){
   $('tlRange').addEventListener('input',()=>{tlSetHour(+$('tlRange').value);tlShow(TL.h)});
   $('tlNow').addEventListener('click',tlReset);
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden&&TL.playing)tlPause()});
+    if(document.hidden&&TL.playing)tlPause();
+    else if(!document.hidden)tlAged()});   /* re-entry = a freshness check */
   const idle=window.requestIdleCallback||(f=>setTimeout(f,400));
   idle(()=>{tlFetch(1).then(()=>tlFetch(2)).then(()=>tlFetch(3))});
 }
@@ -1676,6 +1699,9 @@ async function paint(){
     $('confSplit').textContent=
       `${hi} measured · ${med} estimated between stations · ${lo} thin`;
     const ep=g.properties&&g.properties.cell_epoch;
+    /* a fresh field epoch re-anchors the horizon surface too — the
+       timeline frames fetched under the previous build are stale now */
+    if(ep&&TL.epoch&&ep[0]!==TL.epoch[1])tlInvalidate();
     /* IST like the other pages' stamps — a viewer on any other clock
        sees the field's own build minute, not a stale local time */
     if(ep)$('fieldAge').textContent=
@@ -2142,11 +2168,14 @@ function sparkFill(hrs){
    field's age from /health (status); either may answer first */
 /* the hero's foot line — the same provenance the status strip reads,
    kept small so the numeral stays the object */
+/* wind expires ~31 min server-side — a met vector past the field's own
+   cadence must carry its age like every other number does */
+const windAge=w=>w&&w.age_s>900?` · ${Math.round(w.age_s/60)}m old`:'';
 function paintHeroLive(){
   const el=$('heroLive');if(!el)return;
   el.innerHTML=(HL_STN>0?`<b>${HL_STN}</b> stations live · `:'')+
     (FIELD_AGE_TXT?`map <b>${FIELD_AGE_TXT}</b>`:'')+
-    (HL_WIND&&HL_WIND.speed_kmh?` · wind <b>${Math.round(HL_WIND.speed_kmh)} km/h</b>`:'');
+    (HL_WIND&&HL_WIND.speed_kmh?` · wind <b>${Math.round(HL_WIND.speed_kmh)} km/h</b>${windAge(HL_WIND)}`:'');
 }
 function paintToplive(){
   const tl=$('toplive');
@@ -2231,6 +2260,29 @@ async function heroCity(){
     $('hnumS').textContent='the map below still reads live';
   }
 }
+/* the climatology curve is recorded history — it never changes within
+   a page's life, so it renders from one fetch. But the "now" bar is a
+   clock fact: a page left open across an hour boundary used to keep
+   the marker frozen on the open-time hour. dayTick re-marks it from
+   wall-clock on the 120 s beat — no refetch for a static curve. */
+let DAY_HRS=null;
+const dayBarsHtml=(hrs,mx,now)=>hrs.map((v,i)=>{
+  /* every hour wears its own band — a wash of the hue for plain
+     hours, the hue's ink register on the live one; the strip reads
+     as the city's day, not a chart of bars */
+  const bx=bandHex(bandIdx(v,SPECS.pm2_5.breaks));
+  const vars=i===now
+    ?`--dbw:${washHex(bx,.74)};--dbn:${inkHex(bx,.1)}`
+    :`--dbw:${washHex(bx,.74)}`;
+  return `<span class="db${i===now?' now':''}" style="height:${Math.max(2,v/mx*100)}%;${vars};--i:${i}"
+    title="${String(i).padStart(2,'0')}:00 ist — typical ~${Math.round(v)} µg/m³"></span>`}).join('');
+function dayTick(){
+  if(!DAY_HRS)return;
+  const h=+new Date().toLocaleString('en-IN',
+    {timeZone:'Asia/Kolkata',hour:'numeric',hour12:false,hourCycle:'h23'});
+  if(h>=0&&h<DAY_HRS.hrs.length)$('daybars').innerHTML=
+    dayBarsHtml(DAY_HRS.hrs,DAY_HRS.mx,h);
+}
 async function dayStrip(){
   try{
     /* connaught place — the city's own coordinate anchor */
@@ -2238,16 +2290,8 @@ async function dayStrip(){
     const hrs=(d.hours_ist||[]).filter(v=>v!=null);
     if(hrs.length<2)return;
     const mx=Math.max(...hrs),now=d.hour_now_ist;
-    /* every hour wears its own band — a wash of the hue for plain
-       hours, the hue's ink register on the live one; the strip reads
-       as the city's day, not a chart of bars */
-    $('daybars').innerHTML=hrs.map((v,i)=>{
-      const bx=bandHex(bandIdx(v,SPECS.pm2_5.breaks));
-      const vars=i===now
-        ?`--dbw:${washHex(bx,.74)};--dbn:${inkHex(bx,.1)}`
-        :`--dbw:${washHex(bx,.74)}`;
-      return `<span class="db${i===now?' now':''}" style="height:${Math.max(2,v/mx*100)}%;${vars};--i:${i}"
-        title="${String(i).padStart(2,'0')}:00 ist — typical ~${Math.round(v)} µg/m³"></span>`}).join('');
+    DAY_HRS={hrs,mx};
+    $('daybars').innerHTML=dayBarsHtml(hrs,mx,now);
     /* the archive grows in bar by bar once it reaches view */
     const db=$('daybars');
     if(RM)db.classList.add('in');
@@ -2454,7 +2498,7 @@ async function status(){
       `<span><b>${stn}</b> stations live</span>`+
       `<span id="stAge">map <b class="ok">${h.field_stale?'stale':age+' fresh'}</b></span>`+
       (MEDIAN!=null?`<span>${PARAM==='pm2_5'?'usual':SPECS[PARAM].title+' usual'} <b>${Math.round(MEDIAN)}</b> <span style="text-transform:none">${SPECS[PARAM].unit}</span></span>`:'')+
-      (wind.speed_kmh?`<span>wind <b>${Math.round(wind.speed_kmh)} km/h</b></span>`:'')+
+      (wind.speed_kmh?`<span>wind <b>${Math.round(wind.speed_kmh)} km/h</b>${windAge(wind)}</span>`:'')+
       `<span><b>${ptxt}</b> road segments priced</span>`;
     if(h.build_sha)$('buildTag').textContent='build '+h.build_sha.slice(0,8);
   }catch(e){
@@ -2606,7 +2650,7 @@ let rsz=null;window.addEventListener('resize',()=>{
     cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
     CELLS_DIRTY=true;MID_DIRTY=true;drawScene();
   },160)});
-setInterval(()=>{paint();status();loadDistricts();heroCity();skillLine();whyTonight()},120000);
+setInterval(()=>{paint();status();loadDistricts();heroCity();skillLine();whyTonight();tlAged();dayTick()},120000);
 /* the map's freshness ticks over every 30 s — the age figure lives in
    three surfaces (status line, hero foot, top-strip) and ages between
    /health polls */

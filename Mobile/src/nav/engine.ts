@@ -38,6 +38,10 @@ const WATCH_OPTS: Location.LocationOptions = {
 };
 const REROUTE_COOLDOWN_MS = 15000;
 const MAX_TRAJ = 4900; // under server's 5000-point guard (trip.py)
+/* the strip is a serve-time snapshot of the live field — re-pulled
+   inside the field's own cadence so a long ride never integrates a
+   launch-hour read (route_ids live 1 h server-side) */
+const STRIP_REFRESH_MS = 10 * 60 * 1000;
 
 export type NavRoute = {
   route_id: string;
@@ -172,7 +176,10 @@ export function useNavEngine(opts: NavEngineOpts) {
   const [progress, setProgress] = useState(0);
   const [nextStep, setNextStep] = useState<NextStep | null>(null);
   const [stripOk, setStripOk] = useState(true);
-  const [fieldAgeMin, setFieldAgeMin] = useState<number | null>(null);
+  /* the strip's serve-time field age + when it was fetched — the
+     receipt derives 'updated N min ago' at render so it counts the
+     trip's own elapsed, not just the fetch-time figure */
+  const [stripAge, setStripAge] = useState<{ ageMin: number; at: number } | null>(null);
   const [summary, setSummary] = useState<NavSummary | null>(null);
   /* fix-gap bookkeeping — gapActive flips the "meters paused" pill,
      pausedS feeds the meta suffix + the receipt's disclosure line */
@@ -203,6 +210,9 @@ export function useNavEngine(opts: NavEngineOpts) {
   const trajRef = useRef<{ lat: number; lon: number; ts: number }[]>([]);
   const rerouteAtRef = useRef(0);    // cooldown clock
   const reroutingRef = useRef(false);
+  const stripSeqRef = useRef(0);       // latest strip fetch wins
+  const stripBusyRef = useRef<string | null>(null); // route_id in flight
+  const stripFetchedAtRef = useRef(0); // attempt clock for the re-pull
   const pausedSRef = useRef(0);      // cumulative gap seconds
   const gapActiveRef = useRef(false); // last tick's gap state (flips only)
   const arrivedRef = useRef(false);
@@ -226,17 +236,32 @@ export function useNavEngine(opts: NavEngineOpts) {
   }, []);
 
   const refreshStrip = useCallback(async (routeId: string) => {
+    /* same-id doubles (start + the periodic re-pull racing) share the
+       fetch; a different route_id — the reroute path — always proceeds
+       and wins by seq when it lands */
+    if (stripBusyRef.current === routeId) return;
+    stripBusyRef.current = routeId;
+    stripFetchedAtRef.current = Date.now();
+    const seq = ++stripSeqRef.current;
     try {
       const s = await fetchStrip(routeId, api);
+      if (seq !== stripSeqRef.current) return; // a newer route owns the strip
       stripRef.current = s;
       cumRef.current = stripCumM(s.samples);
       const age = s.field?.age_min;
-      setFieldAgeMin(typeof age === "number" ? age : null);
       setStripOk(true);
+      setStripAge(typeof age === "number"
+        ? { ageMin: age, at: Date.now() } : null);
     } catch {
-      stripRef.current = null;
-      cumRef.current = [];
-      setStripOk(false); // honest: counters stop accruing dose
+      /* a failed RE-pull keeps the last strip — it still mirrors the
+         field's epoch and the receipt discloses its true age. Only a
+         never-loaded strip freezes the dose counter (stripOk=false). */
+      if (seq === stripSeqRef.current && !stripRef.current) {
+        cumRef.current = [];
+        setStripOk(false);
+      }
+    } finally {
+      if (stripBusyRef.current === routeId) stripBusyRef.current = null;
     }
   }, [api]);
 
@@ -512,6 +537,13 @@ export function useNavEngine(opts: NavEngineOpts) {
     const nowMs = Date.now();
     const realDt = Math.max(0.2, (nowMs - (tickDtRef.current || nowMs - 1000)) / 1000);
     tickDtRef.current = nowMs;
+    /* the field the strip was sampled against rebuilds on its own
+       cadence — a ride that outlives it re-samples rather than
+       accruing dose on a frozen launch-time read */
+    const rid = routeRef.current?.route_id;
+    if (rid && nowMs - stripFetchedAtRef.current > STRIP_REFRESH_MS) {
+      void refreshStrip(rid);
+    }
     /* gap detection — two shapes of the same truth, "the position
        stream stopped":
          · realDt ≫ 1 s — the ticker itself slept (AppState pause on
@@ -546,7 +578,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     setDistRemainingM(rem);
     setEtaS(rem / v);
     setProgress(len > 0 ? Math.min(1, alongRef.current / len) : 0);
-  }, []);
+  }, [refreshStrip]);
 
   const start = useCallback(async () => {
     if (runningRef.current) return;
@@ -574,6 +606,10 @@ export function useNavEngine(opts: NavEngineOpts) {
     setOffRoute(false);
     setSummary(null);
 
+    stripRef.current = null;      // no cross-trip strip bleed — the
+    cumRef.current = [];          // dose counter waits for THIS route's
+    setStripAge(null);            // own serve instead of integrating on
+    setStripOk(true);             // the last trip's stale snapshot
     void refreshStrip(r.route_id); // strip failure is non-fatal
     try {
       const perm = await Location.getForegroundPermissionsAsync();
@@ -631,7 +667,7 @@ export function useNavEngine(opts: NavEngineOpts) {
     dose, co2, pm25,
     progress, distRemainingM, etaS,
     offRoute, arrived, snapped, nextStep,
-    stripOk, fieldAgeMin, summary, outsideField,
+    stripOk, stripAge, summary, outsideField,
     gapActive, pausedS,
   };
 }

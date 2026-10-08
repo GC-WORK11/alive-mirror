@@ -444,6 +444,22 @@ function AppInner() {
   const [fires, setFires] = useState<GeoJSON.FeatureCollection | null>(null);
   const [spots, setSpots] = useState<GeoJSON.FeatureCollection | null>(null);
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ fires: false, spots: false, corridors: false });
+  /* overlays used to fetch once per app session (freshness-fix F2) —
+     a layer left on for hours animated launch-time data. Each pull
+     stamps its clock; the 60 s reports poll re-pulls any enabled
+     overlay whose data crossed the field's own 15-min cadence. */
+  const firesAtRef = useRef(0);
+  const communityAtRef = useRef(0);
+  const layersRef = useRef(layers);
+  useEffect(() => { layersRef.current = layers; }, [layers]);
+  const pullFires = useCallback(() =>
+    fetchJson(`${API}/fires`)
+      .then((f) => { setFires(f); firesAtRef.current = Date.now(); })
+      .catch(() => { /* keep last-good dots — feed carries its own age */ }), []);
+  const pullCommunity = useCallback(() =>
+    fetchJson(`${API}/community`)
+      .then((c) => { setCommunity(c); communityAtRef.current = Date.now(); })
+      .catch(() => {}), [setCommunity]);
   /* overlay mount/unmount flags — every setter commits inside a
      draw-hold so the map's pump is throttled before the sheet it
      precedes lands (drawHold.ts; plain useState for data, useHeldState
@@ -556,6 +572,11 @@ function AppInner() {
        mid-draw (the upstream iOS-sim SIGSEGV class). */
     const poll = () => fetchJson(`${API}/reports`).then((r) => {
       setReportSlots((prev) => reconcileReportSlots(prev, r));
+      /* enabled overlays re-read their feeds inside the field cadence —
+         the pins layer rides this same 60 s beat (F2) */
+      const L = layersRef.current;
+      if (L.fires && Date.now() - firesAtRef.current > 15 * 60 * 1000) pullFires();
+      if (L.corridors && Date.now() - communityAtRef.current > 15 * 60 * 1000) pullCommunity();
     }).catch(() => {});
     poll();
     const iv = setInterval(poll, 60000);
@@ -903,10 +924,12 @@ function AppInner() {
   const toggleLayer = useCallback((k: LayerKey, v: boolean) => {
     setLayers((l) => ({ ...l, [k]: v }));
     if (!v) return;                                     // lazy: fetch on first enable
-    if (k === "fires" && !fires) fetchJson(`${API}/fires`).then(setFires).catch(() => {});
+    /* re-enable also re-reads — a layer toggled back on after its data
+       crossed the field cadence doesn't revive launch-time dots */
+    if (k === "fires" && (!fires || Date.now() - firesAtRef.current > 15 * 60 * 1000)) pullFires();
     if (k === "spots" && !spots) fetchJson(`${API}/blackspots`).then(setSpots).catch(() => {});
-    if (k === "corridors" && !community) fetchJson(`${API}/community`).then(setCommunity).catch(() => {});
-  }, [fires, spots, community, setCommunity]);
+    if (k === "corridors" && (!community || Date.now() - communityAtRef.current > 15 * 60 * 1000)) pullCommunity();
+  }, [fires, spots, community, pullFires, pullCommunity]);
   /* hooks before any early return — the dosimeter hook must run on the
      font-gate frame too or the hook order flips when fonts land */
   const dayPos = userPos ?? { lat: DELHI[1], lon: DELHI[0] };
@@ -1669,7 +1692,11 @@ const NavSession = React.memo(function NavSession({
       alt: altEmit
         ? { label: modeLabel(altEmit.mode, altEmit.label, lang), co2KgMid: altEmit.emissions?.co2_kg?.mid ?? null }
         : null,
-      fieldAgeMin: nav.fieldAgeMin,
+      /* true age at render — the strip's serve-time field age plus the
+         trip's own elapsed since that serve landed (freshness-fix F3) */
+      fieldAgeMin: nav.stripAge
+        ? nav.stripAge.ageMin + (Date.now() - nav.stripAge.at) / 60000
+        : null,
       donated: summary.donated,
       endedEarly: summary.endedEarly,
       /* sub-gap pauses don't earn a receipt line — the FIX_GAP_S

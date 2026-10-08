@@ -29,7 +29,11 @@
  *     arrived, snapped,         // snapped = [lon,lat] puck position
  *     nextStep,                 // {instruction, distM} or null
  *     stripOk,                  // false when /v2/strip failed (no fake data)
- *     fieldAgeMin, summary,     // field freshness + NavSummary post-arrival
+ *     stripAge,                 // {ageMin, at} — strip's serve-time field
+ *                               // age + fetch stamp; receipt derives the
+ *                               // printed age at render so it counts the
+ *                               // trip's own elapsed
+ *     summary,                  // NavSummary post-arrival
  *   };
  *
  * The engine owns its location watcher (1 s / 5 m, BestForNavigation) and

@@ -803,7 +803,11 @@ function cpcbOf(pm){
    played or scrubbed it re-tints from that hour's grid while district
    fills keep reading live. a failed hour is skipped, never faked. */
 const TL={active:false,playing:false,h:0,timer:null,seq:0,
-          cache:{},pending:{}};          /* cache[h]: feats | null(failed) */
+          cache:{},pending:{},epoch:null,touched:0};
+                                      /* cache[h]: feats | null(failed);
+         epoch = the served [forecast_at, field_at, obs] stamp of the
+         cached frames; touched = wall-clock of the last pull — the pair
+         that decides when cached frames have to be re-asked */
 const TL_MAX=11,TL_MS=1500;
 const tlUI={};
 const MTAG=document.querySelector('.m-tag'),MTAG0=MTAG.innerHTML;
@@ -829,10 +833,27 @@ async function tlFetch(h){
     {signal:AbortSignal.timeout(12000)})
     .then(r=>{if(!r.ok)throw r.status;return r.json()})
     .then(g=>{const f=(g&&g.features)||[];
+      const ep=g&&g.properties&&g.properties.cell_epoch;
+      if(ep)TL.epoch=ep;
+      TL.touched=Date.now();
       TL.cache[h]=f.length?f:null;return TL.cache[h]})
     .catch(()=>{TL.cache[h]=null;return null})
     .finally(()=>{delete TL.pending[h]});
   return TL.pending[h];
+}
+/* the frames are a served surface, not a session fixture — when load()
+   sees the field rebuild (its cell_epoch[0] moves past the field stamp
+   the horizon frames were fetched under, epoch[1]), or the frames
+   outlive one field cadence (900 s — the floor every served layer
+   claims against), the cached set is dropped and only the hour on
+   screen re-pulls; the rest go back to lazy fetch-on-touch. A re-pull
+   re-asks /grid for the current epoch — never a fake timer. */
+function tlInvalidate(){
+  TL.cache={};TL.seq++;            // seq kills in-flight scrub paints
+  if(TL.active){const h=TL.h;tlShow(h)}
+}
+function tlAged(){
+  if(TL.touched&&Date.now()-TL.touched>900e3)tlInvalidate()
 }
 /* paint hour h's real frame; while it flies the caption says so — a
    missing or failed frame never produces an interpolated stand-in */
@@ -900,7 +921,8 @@ async function tlInit(){
   tlUI.range.addEventListener('input',()=>{tlSetHour(+tlUI.range.value);tlShow(TL.h)});
   tlUI.now.addEventListener('click',tlReset);
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden&&TL.playing)tlPause()});
+    if(document.hidden&&TL.playing)tlPause();
+    else if(!document.hidden)tlAged()});   // re-entry = a freshness check
   /* h+1…h+3 drift in on idle; deeper hours wait for first play */
   const idle=window.requestIdleCallback||(f=>setTimeout(f,400));
   idle(()=>{tlFetch(1).then(()=>tlFetch(2)).then(()=>tlFetch(3))});
@@ -1525,9 +1547,15 @@ async function load(){
     rcLoad();    /* the recorded archive strip — same rule */
     if(!g&&!a&&!cy&&!dd)throw new Error('all feeds down');
     if(g&&g.features){FEAT_CELLS=g.features;
+      /* a fresh field epoch re-anchors the horizon surface too — the
+         timeline frames fetched under the previous build are stale now */
+      const ep=g.properties&&g.properties.cell_epoch;
+      if(ep&&TL.epoch&&ep[0]!==TL.epoch[1])tlInvalidate();
+      else tlAged();
       if(!TL.active&&!RC.active)paintCells(g.features)}   /* a forecast or
         recorded frame stays put through live refreshes — the '← now' /
         '← live' link hands the layer back */
+    else tlAged()
     if(dd)paintDistricts(dd.districts||[]);
     a=a||{};
     /* the causal read — one honest line under the hero, straight from
@@ -1569,8 +1597,12 @@ async function load(){
       ?`${a.field.source||'—'} · ${a.field.samples??'?'} points fitted · ${a.field.station_readings??'?'} live stations · gap-filling ${a.field.kriging==='on'?'on':'off'}`
       :(cy?'shared-trips numbers live · station feed unreachable — retrying'
         :'station feed unreachable — retrying'));
+    /* wind expires ~31 min server-side — the tag carries its age the
+       same way 'map rebuilt N min ago' does once it outlives the
+       field's own cadence */
     setTxt('windtag',windNow
-      ?`wind ${Math.round(windNow.speed_kmh)} km/h · blowing from the ${compass(windNow.from_deg)}`
+      ?`wind ${Math.round(windNow.speed_kmh)} km/h · blowing from the ${compass(windNow.from_deg)}`+
+       (windNow.age_s>900?` · ${Math.round(windNow.age_s/60)}m old`:'')
       :'wind —');
     if(!cy){   /* the ledger/corridor numbers all ride /v2/city */
       document.getElementById('corridors').innerHTML=
@@ -1683,8 +1715,15 @@ async function load(){
         ?`showing ${nCorr} of ${nPub} stretches — the heaviest and lightest ends by dose`
         :(nCorr?`every stretch with ≥3 phones, dose-sorted`:'');}
     setTxt('stamp','updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})+' ist');
-    /* cadence from the field itself — refresh_in_s rides /v2/city */
-    const rs=(ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000;
+    /* cadence from the field itself — refresh_in_s rides /v2/city, but
+       the donation counters (dose/km/trips today) don't wait for a
+       field rebuild: they move the moment a trip lands. A full 15-min
+       sleep let them lag the page's own 15-min law, so the wait caps
+       at 10 min — the field cadence still sets the floor, nothing here
+       claims newer than its source. */
+    const rs=Math.min(
+      (ad.refresh_in_s&&ad.refresh_in_s>=30)?ad.refresh_in_s*1000:60000,
+      600000);
     if(rs!==refreshMs){refreshMs=rs;schedule()}
   }catch(e){setTxt('stamp','reconnecting…');setTxt('src','feeds unreachable — retrying');
     console.error('city load',e)}

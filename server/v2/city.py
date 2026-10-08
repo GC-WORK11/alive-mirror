@@ -59,7 +59,11 @@ try:  # field cadence — airfield keeps samples for 15 min between refreshes
     from airfield import CACHE_TTL as _FIELD_TTL
 except Exception:  # pragma: no cover - airfield always ships together
     _FIELD_TTL = 900.0
-STALE_S = 2 * _FIELD_TTL  # one missed refresh still reads live; beyond = stale
+# the 15-min rule, applied to the badge itself: a field that just
+# missed its own refresh cadence reads stale until the build lands —
+# a brief honest flutter per cycle over a 'live' claim that could
+# stretch to 30 min
+STALE_S = _FIELD_TTL
 
 
 # ---------------------------------------------------------------- lattice

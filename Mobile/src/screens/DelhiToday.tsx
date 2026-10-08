@@ -8,7 +8,7 @@
 // SearchScreen: <DelhiToday visible onClose lang showCig /> — the sheet
 // mounts only while visible, so every open is a fresh fetch.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   BackHandler,
@@ -241,29 +241,49 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
     setWhyOpen((o) => !o);
   };
 
-  /* fetch on mount / retry — aborted on close and between retries;
+  /* fetch on mount / retry AND every 60 s while the sheet stays open —
+     these are live feeds, not a photograph of open-time (freshness-fix
+     F4). Aborted on close and between retries; a poll blip only kills
+     the sheet when there is no data yet, never mid-view.
      moves is best-effort: a failure just leaves the card absent */
+  const hasData = useRef(false);
+  const [fetchedAt, setFetchedAt] = useState(0);
+  /* wall-clock for the age chip — effects own the impure clock read,
+     render just reads state; ticks every 30 s while the sheet is open
+     so 'updated N min' counts the sit, not just the serve-time figure */
+  const [nowMs, setNowMs] = useState(0);
   useEffect(() => {
     const ctrl = new AbortController();
-    fetchCity(ctrl.signal)
-      .then(setData)
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setFailed(true);
-      });
-    fetchCityMoves(ctrl.signal).then(setMoves).catch(() => {});
+    const pull = () => {
+      fetchCity(ctrl.signal)
+        .then((d) => { hasData.current = true; setData(d); setFetchedAt(Date.now()); })
+        .catch((err: unknown) => {
+          if (err instanceof Error && err.name === "AbortError") return;
+          if (!hasData.current) setFailed(true);
+        });
+      fetchCityMoves(ctrl.signal).then(setMoves).catch(() => {});
+    };
+    pull();
+    const iv = setInterval(pull, 60000);
+    const ageIv = setInterval(() => setNowMs(Date.now()), 30000);
     loadTrips()
       .then((ts) => { if (!ctrl.signal.aborted) setOwn(ts.length); })
       .catch(() => { if (!ctrl.signal.aborted) setOwn(0); });
-    return () => ctrl.abort();
+    return () => { clearInterval(iv); clearInterval(ageIv); ctrl.abort(); };
   }, [nonce]);
 
   const cig = data?.breath?.cigarettes ?? null;
   /* the same hero figure in µg — the surface unit while show_cig is off */
   const inhaled = data?.breath?.day_inhaled_ug ?? null;
   const pm = data?.breath?.pm25_ugm3 ?? null;
-  const ageMin = data?.freshness?.age_min ?? null;
-  const stale = data?.freshness?.label === "stale";
+  /* the printed age counts serve-age + the sheet's own sit — a sheet
+     open across a field rebuild must not keep claiming the open-time
+     figure; past one field cadence the chip flips to 'stale' itself */
+  const ageMin = data?.freshness?.age_min == null ? null
+    : data.freshness.age_min
+      + (fetchedAt && nowMs ? Math.max(0, (nowMs - fetchedAt) / 60000) : 0);
+  const stale = data?.freshness?.label === "stale"
+    || (ageMin != null && ageMin > 15);
   const offline = data ? stationsOffline(data) : false;
   const corridors = data?.corridors ?? [];
   const day = data ? latestDay(data) : null;
@@ -438,7 +458,7 @@ function DelhiSheetInner({ onClose, lang, showCig }: { onClose: () => void; lang
                 <Chip
                   icon="clock"
                   label={t("updatedMinAgo", lang, {
-                    n: Math.max(1, ageMin),
+                    n: Math.max(1, Math.round(ageMin)),
                   })}
                   lang={lang}
                 />

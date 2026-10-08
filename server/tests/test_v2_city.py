@@ -202,6 +202,10 @@ def test_breath_none_when_field_empty():
 def test_freshness_labels():
     assert v2city._freshness(60)["label"] == "live"
     assert v2city._freshness(60)["age_min"] == 1
+    # the badge's own 15-min rule: one field cadence (900 s) is the
+    # live/stale boundary, not two
+    assert v2city._freshness(v2city.STALE_S)["label"] == "live"
+    assert v2city._freshness(v2city.STALE_S + 1)["label"] == "stale"
     assert v2city._freshness(7201)["label"] == "stale"
     assert v2city._freshness(None)["label"] == "unknown"
     FIELD._fetched_at = time.time() - 4000  # > 2 x 15 min cadence
