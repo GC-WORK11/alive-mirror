@@ -641,6 +641,11 @@ function AppInner() {
      gap — POST /v2/trip only runs on trip arrival, gated by
      settings.share, which this sheet itself writes. */
   const [gateReady, setGateReady] = useHeldState(false);
+  /* whether the OS location ask may fire when introSeen flips — true on
+     the returning-user boot path (consent is already on disk); the
+     onboarding permission page's "not now" writes false so declining
+     there stays a real decline */
+  const [locAskOk, setLocAskOk] = useState(true);
   useEffect(() => {
     if (gateReady || introSeen !== false) return;
     const t = setTimeout(() => setGateReady(true), ambientUg != null ? 4000 : 9000);
@@ -656,7 +661,7 @@ function AppInner() {
   const aqiPollRef = useRef<(() => void) | null>(null);
   const didAskLoc = useRef(false);
   useEffect(() => {
-    if (introSeen !== true || didAskLoc.current) return;
+    if (introSeen !== true || didAskLoc.current || !locAskOk) return;
     didAskLoc.current = true;
     let cancelled = false;
     void (async () => {
@@ -677,7 +682,7 @@ function AppInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [introSeen, setFrom, settings.lang]);
+  }, [introSeen, locAskOk, setFrom, settings.lang]);
 
   /* the layers sheet is idle-phase chrome — leaving idle (search, compare,
      nav) must close it or it bleeds through stacked behind the next surface
@@ -1056,8 +1061,9 @@ function AppInner() {
     setVehicleOpen(false);
     setWizArmed(false);
   }, []);
-  const onOnboardDone = useCallback(({ sharing }: { sharing: SharingChoice }) => {
+  const onOnboardDone = useCallback(({ sharing, askLocation }: { sharing: SharingChoice; askLocation: boolean }) => {
     patchSettings({ share: sharing === "on" });
+    setLocAskOk(askLocation);
     setIntroSeen(true);
   }, [patchSettings]);
 
@@ -1295,7 +1301,7 @@ function AppInner() {
         onClose={onVehicleClose} />
 
       <OnboardingScreen visible={introSeen === false && gateReady} lang={lang}
-        onDone={onOnboardDone} />
+        ambientUg={ambientUg} onDone={onOnboardDone} />
 
 
     </View>

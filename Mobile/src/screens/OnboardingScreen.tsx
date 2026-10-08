@@ -1,24 +1,38 @@
 // First-run flow + consent gate (docs/plan/onboarding.md, doc 07 §3).
-// Three pages, tap-next: what ALive does — the trip arc "see the smoke
-// before you go · dose while you travel · a receipt when you arrive" told
-// in the product's own strings — then why sharing helps (anonymous,
-// aggregate, k≥3, stated plainly), then the sharing choice itself: two
-// equal-size buttons, neither pre-picked.
+// Three beats + the choice + the permission ask, tap-next:
 //
-// Skip is persistent on every page. Decision (docs/plan/onboarding.md):
-// skip completes the flow with sharing ON — doc 07 §3 / doc 02 §7 make
-// sharing the documented default, and Settings shows the state in one
-// line with one tap to undo. The disclosure travels with the button —
-// the "skipping counts as sharing on" line renders on EVERY page, so a
-// page-0/1 skipper sees the consequence before tapping it.
+//   1. the air right now — the boot /aqi read's real ambient number,
+//      band-inked (the ambient beat the app already plays, carried INTO
+//      the sheet instead of flashing under it). No number when there's
+//      no read — a fetched number is honest, a canned one is not.
+//   2. the trip arc in one idea — "every Delhi trip has an air price":
+//      see it before you go, counted while you ride, receipt when you
+//      arrive. Three one-line rows, not a card lecture.
+//   3. nothing personal leaves this phone — the k≥3 card is the proof.
+//   4. the sharing choice — two equal-size buttons, neither pre-picked.
+//   5. the location ask — the plain-words reason sits next to the button
+//      that fires the OS dialog, not three screens behind it. "not now"
+//      is a real decline: the OS ask stays quiet (the nav engine re-asks
+//      when the user actually needs position).
 //
-// Mount only while `visible` so each open starts at page 1 fresh.
+// Skip is persistent on every page the choice hasn't been answered on
+// (beats + consent). Decision (docs/plan/onboarding.md): skip completes
+// the flow with sharing ON — doc 07 §3 / doc 02 §7 make sharing the
+// documented default, and Settings shows the state in one line with one
+// tap to undo. The disclosure travels with the button — the "skipping
+// counts as sharing on" line renders on every page skip exists on, so a
+// page-0/1 skipper sees the consequence before tapping it. A skip still
+// fires the OS location dialog (the system's own ask — skipping the tour
+// is not declining position). On the permission page itself there is no
+// skip: sharing is already answered there, and its two buttons (turn on
+// location / not now) ARE the whole choice.
 //
-// ── strings — all copy is real t() keys; page 1 deliberately re-uses
-// product strings (the search bar, the live counter, the receipt)
-// instead of paraphrasing. onb_kLabel carries the k-card sentence minus
-// the big "3+" numeral beside it; onb_pageOf is the reader's label for
-// the otherwise-decorative dots.
+// Consent persists the moment it's tapped — quitting on the permission
+// page after answering must not replay the tour (consent is the required
+// gate; the permission primer is not). `onDone({ sharing, askLocation })`
+// reports both so the shell knows whether the OS dialog may fire.
+//
+// Mount only while `visible` so each open starts at beat 1 fresh.
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -33,8 +47,11 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fam, famSerif, NUM, V2Radius, V2T, V2Tint, V2Type } from "../theme";
-import { t, type Lang } from "../i18n/strings";
+import {
+  bandIdx, bandInkIdx,
+  fam, famSerif, NUM, V2Radius, V2T, V2Tint, V2Type,
+} from "../theme";
+import { t, type Lang, type StringKey } from "../i18n/strings";
 import { Icon, type Glyph } from "../icons";
 import { saveConsent, type SharingChoice } from "../store/consent";
 import { DYNAMIC_TYPE, MIN_TOUCH, slop, useReduceMotion } from "../a11y";
@@ -43,11 +60,17 @@ import { jank } from "../perf";
 
 export type { SharingChoice } from "../store/consent";
 
-const PAGE_COUNT = 3;
+const PAGE_COUNT = 5;
+/** the consent step — past it, forward swipe is dead (the choice needs
+ *  a tap, not a drift) and the footer Next steps aside for the page's
+ *  own buttons */
+const STEP_CHOICE = 3;
 
-/** Journey row 1's mode strip — the compare sheet's real mode set,
- *  "every way there" made visible. */
-const MODE_STRIP: Glyph[] = ["walk", "bike", "auto", "car", "bus", "metro"];
+/** CPCB band index → the band word ("good" … "severe") under the number. */
+const BAND_KEYS: StringKey[] = [
+  "band_good", "band_satisfactory", "band_moderate",
+  "band_poor", "band_veryPoor", "band_severe",
+];
 
 /* ---------- small pieces ---------- */
 
@@ -68,66 +91,21 @@ function Dots({ active, lang }: { active: number; lang: Lang }) {
   );
 }
 
-/** One plain-words fact on the why-sharing page. */
-function Fact({ lang, children }: { lang: Lang; children: string }) {
-  return (
-    <View style={ss.fact}>
-      <View style={ss.factDot} />
-      <Text {...DYNAMIC_TYPE} style={[ss.factTxt, { fontFamily: fam(lang, "reg") }]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
-
-/** One stage of the trip arc — a tinted card + the product's own strings
- *  (the register's card stack: one idea each, the icon's own colour). */
-function JourneyRow({
-  lang,
-  icon,
-  iconColor = V2T.text2,
-  kicker,
-  title,
-  subs,
-  children,
+/** One arc line — icon well + a single phrase. The trip's before /
+ *  during / after rhythm at word-count, not card-count. */
+function ArcLine({
+  lang, icon, iconColor = V2T.text2, children,
 }: {
-  lang: Lang;
-  icon: Glyph;
-  iconColor?: string;
-  /** the stage's tint well — colour is the row's identity, not decoration */
-  well?: { wash: string; ink: string };
-  kicker?: string;
-  title: string;
-  subs?: string[];
-  children?: React.ReactNode;
+  lang: Lang; icon: Glyph; iconColor?: string; children: string;
 }) {
   return (
-    /* one surface for every stage — the stage is told by its words,
-       not a tint per row */
-    <View style={[ss.jRow, { backgroundColor: V2T.surface }]}>
-      <View style={ss.jIcon}>
-        <Icon name={icon} color={iconColor} size={22} filled />
+    <View style={ss.arcRow}>
+      <View style={ss.arcIcon}>
+        <Icon name={icon} color={iconColor} size={18} filled />
       </View>
-      <View style={ss.jText}>
-        {kicker ? (
-          <Text {...DYNAMIC_TYPE} style={[ss.jKicker, { fontFamily: fam(lang, "semi") }]}>
-            {kicker}
-          </Text>
-        ) : null}
-        <Text {...DYNAMIC_TYPE} style={[ss.jTitle, { fontFamily: famSerif(lang, "med") }]}>
-          {title}
-        </Text>
-        {subs?.map((s) => (
-          <Text
-            key={s}
-            {...DYNAMIC_TYPE}
-            style={[ss.jSub, { fontFamily: fam(lang, "reg") }]}
-          >
-            {s}
-          </Text>
-        ))}
+      <Text {...DYNAMIC_TYPE} style={[ss.arcTxt, { fontFamily: fam(lang, "reg") }]}>
         {children}
-      </View>
+      </Text>
     </View>
   );
 }
@@ -136,12 +114,20 @@ function JourneyRow({
 
 function OnboardingSheet({
   lang,
+  ambientUg,
   onDone,
 }: {
   lang: Lang;
-  onDone: (r: { sharing: SharingChoice }) => void;
+  /** the boot /aqi ambient read — live, so a field tick mid-tour just
+   *  updates the number. null on an offline cold open: no fake number. */
+  ambientUg: number | null;
+  onDone: (r: { sharing: SharingChoice; askLocation: boolean }) => void;
 }) {
   const [step, setStep] = useState(0);
+  /* the consent answer is written the moment it's tapped (see header) —
+   *  null until the choice page answers; skip before it lands the
+   *  documented "on" default */
+  const [sharing, setSharing] = useState<SharingChoice | null>(null);
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
 
@@ -167,26 +153,38 @@ function OnboardingSheet({
   // animated-props detach path (same guard as ui.tsx Sheet)
   const rise = useMemo(() => anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }), [anim]);
 
-  /** Every exit path lands here — persists the answer, then reports it. */
-  const finish = (sharing: SharingChoice) => {
-    saveConsent({ seen: true, sharing, ts: Date.now() }).catch(() => {});
-    onDone({ sharing });
+  /** Every exit path lands here — persists a still-unanswered choice
+   *  (skip → "on", the documented default), then reports both answers. */
+  const finish = (askLocation: boolean) => {
+    const s = sharing ?? "on";
+    if (!sharing) saveConsent({ seen: true, sharing: s, ts: Date.now() }).catch(() => {});
+    onDone({ sharing: s, askLocation });
   };
 
-  // Skip → sharing on (doc 07 §3 default; see header note + onboarding.md).
-  const skip = () => finish("on");
+  /** The consent tap — writes the record immediately, then the
+   *  permission page. */
+  const answer = (s: SharingChoice) => {
+    confirm();
+    setSharing(s);
+    saveConsent({ seen: true, sharing: s, ts: Date.now() }).catch(() => {});
+    setStep(STEP_CHOICE + 1);
+  };
 
   /* the dots read as a pager — make the swipe real: horizontal-dominant
      pans flip pages, vertical scroll passes through untouched
-     (Android forensic find) */
+     (Android forensic find). Forward stops at the choice — swiping past
+     consent would answer a question nobody was asked. */
   const swipe = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_e, g) =>
       Math.abs(g.dx) > 28 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
     onPanResponderRelease: (_e, g) => {
-      if (g.dx < -48 && step < PAGE_COUNT - 1) setStep(step + 1);
+      if (g.dx < -48 && step < STEP_CHOICE) setStep(step + 1);
       else if (g.dx > 48 && step > 0) setStep(step - 1);
     },
   }), [step]);
+
+  const airIdx = bandIdx(ambientUg ?? null);
+  const airInk = airIdx != null ? bandInkIdx(airIdx) : V2T.text;
 
   return (
     <View {...swipe.panHandlers}
@@ -200,17 +198,19 @@ function OnboardingSheet({
           ALIVE
         </Text>
         <View style={{ flex: 1 }} />
-        <Pressable
-          onPress={() => { tick(); skip(); }}
-          hitSlop={slop(10)}
-          accessibilityRole="button"
-          accessibilityLabel={t("onb_skip", lang)}
-          style={({ pressed }) => [ss.skipBtn, pressed && { opacity: 0.6 }]}
-        >
-          <Text {...DYNAMIC_TYPE} style={[ss.skipTxt, { fontFamily: fam(lang, "med") }]}>
-            {t("onb_skip", lang)}
-          </Text>
-        </Pressable>
+        {step <= STEP_CHOICE && (
+          <Pressable
+            onPress={() => { tick(); finish(true); }}
+            hitSlop={slop(10)}
+            accessibilityRole="button"
+            accessibilityLabel={t("onb_skip", lang)}
+            style={({ pressed }) => [ss.skipBtn, pressed && { opacity: 0.6 }]}
+          >
+            <Text {...DYNAMIC_TYPE} style={[ss.skipTxt, { fontFamily: fam(lang, "med") }]}>
+              {t("onb_skip", lang)}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <ScrollView
@@ -221,9 +221,60 @@ function OnboardingSheet({
         <Animated.View style={{ opacity: anim, transform: [{ translateY: rise }] }}>
           {step === 0 && (
             <View>
-              {/* p1 — what the app does, in the product's own words:
-                  search → live counter → receipt. The onb_arc* kickers
-                  carry the before/during/after beat over each row. */}
+              {/* beat 1 — the air right now. The number IS the page:
+                  the boot /aqi read carried into the sheet, band-inked.
+                  No read → the statement carries the page alone. */}
+              <Text
+                {...DYNAMIC_TYPE}
+                style={[ss.eyebrow, { fontFamily: fam(lang, "med") }]}
+              >
+                {t("onb_airKicker", lang)}
+              </Text>
+              {ambientUg != null ? (
+                <View
+                  style={ss.airRow}
+                  accessible
+                  accessibilityRole="text"
+                  accessibilityLabel={t("peekAmbient", lang, { n: Math.round(ambientUg) })}
+                >
+                  <Text
+                    {...DYNAMIC_TYPE}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                    style={[ss.airNum, NUM, { fontFamily: famSerif(lang, "light"), color: airInk }]}
+                  >
+                    ~{Math.round(ambientUg)}
+                  </Text>
+                  <View style={ss.airMeta}>
+                    <Text {...DYNAMIC_TYPE} style={[ss.airUnit, { fontFamily: fam(lang, "med"), color: airInk }]}>
+                      µg/m³
+                    </Text>
+                    {airIdx != null && (
+                      <Text {...DYNAMIC_TYPE} style={[ss.airBand, { fontFamily: fam(lang, "med"), color: airInk }]}>
+                        {t(BAND_KEYS[airIdx], lang)}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ) : null}
+              <Text
+                {...DYNAMIC_TYPE}
+                accessibilityRole="header"
+                style={[
+                  ambientUg != null ? ss.airLine : ss.hero,
+                  { fontFamily: ambientUg != null ? fam(lang, "reg") : famSerif(lang, "semi") },
+                ]}
+              >
+                {t("onb_airLine", lang)}
+              </Text>
+            </View>
+          )}
+
+          {step === 1 && (
+            <View>
+              {/* beat 2 — one idea, the trip's own rhythm:
+                  before / during / after, one line each */}
               <Text
                 {...DYNAMIC_TYPE}
                 accessibilityRole="header"
@@ -231,70 +282,29 @@ function OnboardingSheet({
               >
                 {t("onb_whatTitle", lang)}
               </Text>
-              <Text {...DYNAMIC_TYPE} style={[ss.lead, { fontFamily: fam(lang, "reg") }]}>
-                {t("onb_whatBody", lang)}
-              </Text>
-              <View style={ss.journey}>
-                {/* before you go — the search bar + "every way there" modes */}
-                <JourneyRow
-                  lang={lang}
-                  icon="search"
-                  well={V2Tint.forest}
-                  kicker={t("onb_arcBefore", lang)}
-                  title={t("searchPlaceholder", lang)}
-                  subs={[t("checkingRoutes", lang)]}
-                >
-                  <View style={ss.modeRow}>
-                    {MODE_STRIP.map((g) => (
-                      <Icon key={g} name={g} color={V2T.text3} size={17} />
-                    ))}
-                  </View>
-                </JourneyRow>
-                {/* while you travel — the live dose counter, as in nav.
-                    The dust glyph is the default breathe icon; the
-                    cigarette only returns with show_cig on — onboarding
-                    always reads the default surface. */}
-                <JourneyRow
-                  lang={lang}
-                  icon="dust"
-                  well={V2Tint.sand}
-                  iconColor={V2T.breath1}
-                  kicker={t("onb_arcDuring", lang)}
-                  title={t("nav_breathe", lang)}
-                  subs={[t("onboard_breatheSub", lang)]}
-                />
-                {/* when you arrive — the receipt's two real lines */}
-                <JourneyRow
-                  lang={lang}
-                  icon="flag"
-                  well={V2Tint.forest}
-                  kicker={t("onb_arcAfter", lang)}
-                  title={t("youreHere", lang)}
-                  subs={[
-                    t("onboard_receiptSub1", lang),
-                    t("onboard_receiptSub2", lang),
-                  ]}
-                />
+              <View style={ss.arc}>
+                <ArcLine lang={lang} icon="search">{t("onb_arcLineSearch", lang)}</ArcLine>
+                <ArcLine lang={lang} icon="dust" iconColor={V2T.breath1}>{t("onb_arcLineDose", lang)}</ArcLine>
+                <ArcLine lang={lang} icon="flag">{t("onb_arcLineReceipt", lang)}</ArcLine>
               </View>
             </View>
           )}
 
-          {step === 1 && (
+          {step === 2 && (
             <View>
-              {/* p2 — why sharing helps: anonymous, aggregate, k≥3, honest */}
+              {/* beat 3 — the phone does the counting; the k-threshold
+                  card is the mechanism that keeps any one person
+                  invisible, so it stays as the proof */}
               <Text
                 {...DYNAMIC_TYPE}
                 accessibilityRole="header"
                 style={[ss.hero, { fontFamily: famSerif(lang, "semi") }]}
               >
-                {t("onb_privacyTitle", lang)}
+                {t("onb_phoneTitle", lang)}
               </Text>
               <Text {...DYNAMIC_TYPE} style={[ss.lead, { fontFamily: fam(lang, "reg") }]}>
-                {t("settingsShareExplain", lang)}
+                {t("onb_phoneBody", lang)}
               </Text>
-              {/* the k-threshold — the mechanism that keeps any one person
-                  invisible. Big numeral carries the claim, label explains it
-                  (onb_kLabel: the settingsStoreK sentence minus its inline 3+). */}
               <View style={ss.kCard}>
                 <Text
                   {...DYNAMIC_TYPE}
@@ -306,17 +316,12 @@ function OnboardingSheet({
                   {t("onb_kLabel", lang)}
                 </Text>
               </View>
-              <View style={ss.facts}>
-                <Fact lang={lang}>{t("onb_privacyNoAccount", lang)}</Fact>
-                <Fact lang={lang}>{t("settingsStoreTrim", lang)}</Fact>
-                <Fact lang={lang}>{t("onb_privacyLocation", lang)}</Fact>
-              </View>
             </View>
           )}
 
-          {step === 2 && (
+          {step === STEP_CHOICE && (
             <View>
-              {/* p3 — the choice: two equal-size answers, neither pre-picked */}
+              {/* the choice — two equal-size answers, neither pre-picked */}
               <Text
                 {...DYNAMIC_TYPE}
                 accessibilityRole="header"
@@ -329,7 +334,7 @@ function OnboardingSheet({
               </Text>
               <View style={ss.choiceCol}>
                 <Pressable
-                  onPress={() => { confirm(); finish("on"); }}
+                  onPress={() => answer("on")}
                   accessibilityRole="button"
                   accessibilityLabel={`${t("consent_shareBtn", lang)} — ${t("consent_shareSub", lang)}`}
                   style={({ pressed }) => [
@@ -352,7 +357,7 @@ function OnboardingSheet({
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => { confirm(); finish("off"); }}
+                  onPress={() => answer("off")}
                   accessibilityRole="button"
                   accessibilityLabel={`${t("consent_keepBtn", lang)} — ${t("consent_keepSub", lang)}`}
                   style={({ pressed }) => [
@@ -378,23 +383,78 @@ function OnboardingSheet({
             </View>
           )}
 
+          {step === STEP_CHOICE + 1 && (
+            <View>
+              {/* the location ask — the reason sits on the button that
+                  fires the OS dialog; "not now" is a real decline */}
+              <Text
+                {...DYNAMIC_TYPE}
+                accessibilityRole="header"
+                style={[ss.hero, { fontFamily: famSerif(lang, "semi") }]}
+              >
+                {t("onb_locTitle", lang)}
+              </Text>
+              <Text {...DYNAMIC_TYPE} style={[ss.lead, { fontFamily: fam(lang, "reg") }]}>
+                {t("onb_locBody", lang)}
+              </Text>
+              <View style={ss.choiceCol}>
+                <Pressable
+                  onPress={() => { confirm(); finish(true); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("onb_locBtn", lang)}
+                  style={({ pressed }) => [
+                    ss.choiceBtn,
+                    ss.locBtn,
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <View style={ss.locBtnRow}>
+                    <Icon name="locate" color={V2T.bg} size={18} filled />
+                    <Text
+                      {...DYNAMIC_TYPE}
+                      style={[ss.choiceShareTxt, { fontFamily: fam(lang, "semi") }]}
+                    >
+                      {t("onb_locBtn", lang)}
+                    </Text>
+                  </View>
+                </Pressable>
+                <Pressable
+                  onPress={() => { tick(); finish(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("onb_locLater", lang)}
+                  style={({ pressed }) => [ss.locLaterBtn, pressed && { opacity: 0.6 }]}
+                >
+                  <Text
+                    {...DYNAMIC_TYPE}
+                    style={[ss.locLaterTxt, { fontFamily: fam(lang, "med") }]}
+                  >
+                    {t("onb_locLater", lang)}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
         </Animated.View>
       </ScrollView>
 
       {/* the skip disclosure travels with the button — visible on every
-          page, not only the choice page it qualifies. It sits OUTSIDE
-          the scroll: inside it, a page whose content overflows rendered
-          the line half-clipped at the viewport edge (component-audit
-          #2) — for a consent line, "present" means visible without
-          scrolling. */}
-      <Text {...DYNAMIC_TYPE} style={[ss.footnote, { fontFamily: fam(lang, "reg") }]}>
-        {t("consent_footnote", lang)}
-      </Text>
+          page skip exists on, not only the choice page it qualifies. It
+          sits OUTSIDE the scroll: inside it, a page whose content
+          overflows rendered the line half-clipped at the viewport edge
+          (component-audit #2) — for a consent line, "present" means
+          visible without scrolling. */}
+      {step <= STEP_CHOICE && (
+        <Text {...DYNAMIC_TYPE} style={[ss.footnote, { fontFamily: fam(lang, "reg") }]}>
+          {t("consent_footnote", lang)}
+        </Text>
+      )}
 
-      {/* footer: dots + next (the choice page answers via its own buttons) */}
+      {/* footer: dots + next (choice + permission answer via their own
+          buttons — a footer Next would fake a third option) */}
       <View style={ss.footer}>
         <Dots active={step} lang={lang} />
-        {step < PAGE_COUNT - 1 ? (
+        {step < STEP_CHOICE ? (
           <Pressable
             onPress={() => { tick(); setStep(step + 1); }}
             accessibilityRole="button"
@@ -419,11 +479,13 @@ function OnboardingSheet({
 function OnboardingScreenInner({
   visible,
   lang = "en",
+  ambientUg = null,
   onDone,
 }: {
   visible: boolean;
   lang?: Lang;
-  onDone: (r: { sharing: SharingChoice }) => void;
+  ambientUg?: number | null;
+  onDone: (r: { sharing: SharingChoice; askLocation: boolean }) => void;
 }) {
   /* hardware back stays inert — leaving needs an explicit answer or Skip
      (the old Modal's onRequestClose swallowed it; the overlay needs a
@@ -440,7 +502,7 @@ function OnboardingScreenInner({
   if (!visible) return null;
   return (
     <View style={ss.backdrop}>
-      <OnboardingSheet lang={lang} onDone={onDone} />
+      <OnboardingSheet lang={lang} ambientUg={ambientUg} onDone={onDone} />
     </View>
   );
 }
@@ -496,42 +558,56 @@ const ss = StyleSheet.create({
     lineHeight: 23,
   },
 
-  // p1 — the trip arc as a stack of tinted cards, one beat each
-  journey: {
-    marginTop: 30,
-    gap: 12,
+  // beat 1 — the ambient number owns the page. Ultra-light Satoshi
+  // numeral band-inked (colour means the air, never decoration); unit +
+  // band word sit in its margin, not beside it as equals.
+  eyebrow: {
+    fontSize: V2Type.label,
+    color: V2T.text3,
+    letterSpacing: 1.2,
+    marginBottom: 18,
   },
-  jRow: {
+  airRow: {
     flexDirection: "row",
+    alignItems: "flex-end",
     gap: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: V2Radius.card,
   },
-  jIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+  airNum: {
+    fontSize: 96,
+    lineHeight: 100,
+    letterSpacing: -3,
+    flexShrink: 1,
+  },
+  airMeta: { paddingBottom: 14, gap: 2 },
+  airUnit: { fontSize: V2Type.body, letterSpacing: 0.4 },
+  airBand: { fontSize: V2Type.label },
+  airLine: {
+    fontSize: V2Type.title,
+    color: V2T.text,
+    marginTop: 26,
+    lineHeight: 31,
+    maxWidth: 300,
+  },
+
+  // beat 2 — the trip arc as three one-line rows, no cards
+  arc: { marginTop: 34, gap: 22 },
+  arcRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  arcIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: V2T.surface2,
     alignItems: "center",
     justifyContent: "center",
   },
-  jText: { flex: 1, gap: 4, paddingTop: 2 },
-  /* the before/during/after beat — a small warm label, not a mono eyebrow */
-  jKicker: {
-    fontSize: V2Type.label,
-    color: V2T.text2,
-    marginBottom: 1,
-  },
-  jTitle: { fontSize: V2Type.body, color: V2T.text },
-  jSub: { fontSize: V2Type.label, color: V2T.text2, lineHeight: 19 },
-  modeRow: { flexDirection: "row", gap: 12, marginTop: 8 },
+  arcTxt: { flex: 1, fontSize: V2Type.body, color: V2T.text, lineHeight: 23 },
 
-  // p2 — the k-threshold stat card + fact list
+  // beat 3 — the k-threshold stat card stays the proof
   kCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 18,
-    marginTop: 26,
+    marginTop: 30,
     backgroundColor: V2Tint.forest.wash,
     borderRadius: V2Radius.card,
     paddingVertical: 22,
@@ -539,22 +615,11 @@ const ss = StyleSheet.create({
   },
   kNum: { fontSize: V2Type.hero + 8, color: V2Tint.forest.ink },
   kLabel: { flex: 1, fontSize: V2Type.secondary, color: V2Tint.forest.ink, lineHeight: 20 },
-  facts: { marginTop: 24, gap: 13 },
-  fact: { flexDirection: "row", alignItems: "flex-start" },
-  factDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: V2T.text3,
-    marginTop: 8,
-    marginRight: 12,
-  },
-  factTxt: { flex: 1, fontSize: V2Type.secondary, color: V2T.text2, lineHeight: 22 },
 
-  // p3 — equal-size choice buttons. Share fills ink with light text
-  // (V2T.bg on ink ≫ 7:1); keep is
-  // a solid surface button, not a ghosted link. Equal weight, no nudge.
-  choiceCol: { gap: 12, marginTop: 28 },
+  // the choice — equal-size buttons. Share fills ink with light text
+  // (V2T.bg on ink ≫ 7:1); keep is a solid surface button, not a ghosted
+  // link. Equal weight, no nudge.
+  choiceCol: { gap: 12, marginTop: 30 },
   choiceBtn: {
     borderRadius: V2Radius.card,
     paddingVertical: 20,
@@ -571,6 +636,19 @@ const ss = StyleSheet.create({
   choiceShareSub: { fontSize: V2Type.label, color: V2T.bg },
   choiceKeepTxt: { fontSize: V2Type.body, color: V2T.text },
   choiceKeepSub: { fontSize: V2Type.label, color: V2T.text2 },
+
+  // the permission ask — the CTA carries the verb the OS dialog repeats;
+  // "not now" is the quiet, honest decline beside it
+  locBtn: { backgroundColor: V2T.text, minHeight: 64 },
+  locBtnRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  locLaterBtn: {
+    minHeight: MIN_TOUCH,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+  },
+  locLaterTxt: { fontSize: V2Type.secondary, color: V2T.text2 },
+
   footnote: {
     fontSize: V2Type.label,
     color: V2T.text3,
