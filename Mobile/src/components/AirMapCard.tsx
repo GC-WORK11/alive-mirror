@@ -15,11 +15,14 @@
  */
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { fam, famMonoText, NUM, V2Elev, V2Radius, V2T, V2Type } from "../theme";
+import { bandFieldIdx, fam, famMonoText, NUM, V2Elev, V2Radius, V2T, V2Type } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { t, type Lang } from "../i18n/strings";
 
-const BAND_HEX = [V2T.band0, V2T.band1, V2T.band2, V2T.band3, V2T.band4, V2T.band5];
+/* the swatches wear the field's real on-map tone — each band at its
+   painted alpha over the basemap land (bandFieldIdx), not the raw
+   chips, so the legend honestly previews what's lying on the streets */
+const BAND_HEX = [0, 1, 2, 3, 4, 5].map(bandFieldIdx);
 
 export function AirMapCard({
   lang,

@@ -150,6 +150,11 @@ export const bandEdgeIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i
 /** band deepened ~20% toward ink — band-coloured text that reads on the
  *  warm base (was 15% — too close to a tint at caption sizes) */
 export const bandInkIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#16181D", 0.20);
+/** the air field's on-map tone — the band at its painted hi-confidence
+ *  alpha (.32) composited over the basemap's urban land (#EDEAE3): what
+ *  a field cell literally reads as, so the air-map legend swatches the
+ *  tone you see on the streets, not the raw band chip */
+export const bandFieldIdx = (i: number) => hexMix(BANDS[Math.max(0, Math.min(5, i))], "#EDEAE3", 0.68);
 
 // ── type ──────────────────────────────────────────────────────────────────
 // The register's ramp: 11/13/17/22/30/44 — eyebrow micro → hero display.
