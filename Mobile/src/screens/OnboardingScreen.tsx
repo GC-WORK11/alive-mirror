@@ -210,7 +210,7 @@ function OnboardingSheet({
       <View style={ss.topRow}>
         {/* brand logotype — proper noun, same in en+hi; not a t() key */}
         <Text {...DYNAMIC_TYPE} style={[ss.wordmark, { fontFamily: famSerif(lang, "semi") }]}>
-          ALIVE
+          Alive
         </Text>
         <View style={{ flex: 1 }} />
         {step <= STEP_CHOICE && (

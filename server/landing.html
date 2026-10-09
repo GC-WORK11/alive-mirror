@@ -242,22 +242,6 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   color:var(--ink2);max-width:56ch;margin-top:12px}
 .story .d b{color:var(--ink);font-weight:700}
 #stAge{font-family:var(--mono);font-size:10px;color:var(--ink3)}
-.spark{margin-top:8px}
-.spark svg{display:block;width:100%;height:auto}
-.day-sec{display:grid;grid-template-columns:1fr 1fr;gap:28px;
-  margin-top:8px}
-.day-sec .dbars{display:flex;align-items:flex-end;gap:6px;height:120px;
-  margin-top:14px}
-.day-sec .dbar{flex:1;border-radius:2px 2px 0 0;
-  background:var(--bhex,var(--surf3));min-height:4px}
-.dchip{display:inline-flex;align-items:center;gap:10px;margin:4px 8px 0 0;
-  font-family:var(--mono);font-size:10px;color:var(--ink2);
-  border:1px solid var(--line);border-radius:100px;padding:7px 12px}
-.dchip svg{width:34px;height:34px;flex:none}
-.dchip b{color:var(--ink);font-weight:500}
-.dscroll{display:flex;gap:6px;overflow-x:auto;padding:6px 0;
-  scrollbar-width:none}
-.dscroll::-webkit-scrollbar{display:none}
 .dcell{flex:0 0 auto;min-width:54px;border:1px solid var(--line);
   border-radius:3px;padding:8px 10px;background:none;cursor:pointer;
   font-family:var(--mono);font-size:10px;color:var(--ink2);
@@ -266,14 +250,6 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 .dcell.on{border-color:var(--ink);color:var(--ink)}
 .dcell .v{display:block;font-size:15px;font-weight:500;color:var(--ink);
   font-family:var(--sans)}
-.dist-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
-  margin-top:34px}
-.distwrap{margin-top:14px;position:relative}
-#dtpop{position:absolute;z-index:4;pointer-events:none;
-  background:#16181d;color:#f2f2ec;border-radius:4px;padding:7px 10px;
-  font-family:var(--mono);font-size:10px;line-height:1.7;
-  max-width:230px}
-@media(max-width:860px){.day-sec{grid-template-columns:1fr}}
 
 /* ---------- the feature story — numbered, one screen each ---------- */
 .feat{display:grid;grid-template-columns:minmax(0,300px) 1fr;
@@ -406,36 +382,6 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 .story-cause{display:inline-block;font-family:var(--mono);font-size:10px;
   color:var(--ink2);margin:14px 14px 0 0;border:1px solid var(--line2);
   border-radius:3px;padding:5px 10px}
-.spark .cap{display:flex;justify-content:space-between;gap:14px;
-  margin-top:12px;font-family:var(--mono);font-size:10px;color:var(--ink3)}
-.spark .cap a{color:var(--ink2)}
-.day-head{display:flex;justify-content:space-between;gap:12px;
-  font-family:var(--mono);font-size:10px;color:var(--ink3);flex-wrap:wrap}
-.day-head b{color:var(--ink);font-weight:500}
-.daybars{display:flex;align-items:flex-end;gap:2px;height:110px;
-  margin-top:16px}
-.daybars .db{flex:1;min-width:3px;border-radius:2px 2px 0 0;
-  background:var(--bhex,var(--surf3))}
-.daybars .db.now{outline:1.5px solid var(--ink);outline-offset:1px}
-.dayticks{display:flex;justify-content:space-between;margin-top:8px;
-  font-family:var(--mono);font-size:10px;color:var(--ink4)}
-.dist-sec{margin-top:36px;border-top:1px solid var(--line);padding-top:22px}
-.dist-head .lbl{font-family:var(--mono);font-size:10px;color:var(--ink3)}
-.dist-head .lbl b{color:var(--ink);font-weight:500}
-.dist-head .hint{margin-left:auto;font-family:var(--mono);font-size:10px;
-  color:var(--ink4)}
-.dchip{align-items:baseline;gap:8px;border-radius:3px;padding:9px 11px;
-  border:1px solid var(--line);background:none;cursor:pointer;
-  font-family:var(--mono);font-size:10px;color:var(--ink2);
-  text-align:left;display:inline-flex}
-.dchip:hover{border-color:var(--ink2)}
-.dchip[aria-pressed="true"]{border-color:var(--ink);background:var(--surf)}
-.dchip .dn{color:var(--ink);font-weight:500;font-size:11px}
-.dchip .ds{color:var(--ink4)}
-.dchip .daqi,.dtpop .daqi{display:inline-block;border-radius:2px;
-  padding:1px 6px;margin-top:6px;color:#fff;font-size:9px}
-.dchip .db{display:inline-block;width:8px;height:8px;border-radius:2px;
-  margin-right:2px}
 .lrow{display:grid;grid-template-columns:10px minmax(90px,150px) 1fr auto;
   gap:10px;align-items:baseline;padding:9px 0;
   border-bottom:1px solid var(--line);cursor:pointer}
@@ -463,7 +409,6 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 .p-conf{color:rgba(242,242,236,.62);margin-top:4px}
 .p-sub{color:rgba(242,242,236,.62);margin-top:2px}
 .p-cut{width:30px;height:30px;display:block;margin-bottom:6px}
-.nowdot{fill:#16181d;stroke:#fbfbfa;stroke-width:1.4}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;
   clip:rect(0 0 0 0);white-space:nowrap}
 .chip{border-radius:3px}
@@ -562,55 +507,11 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 .feat .pshot{margin:0}
 .feat{align-items:center}
 
-/* --- districts: chips -> ruled leaderboard (frontiercode rows) --- */
-.dscroll{flex-direction:column;gap:0;overflow:visible;counter-reset:dr}
-.dscroll::-webkit-scrollbar{display:none}
-.dchip{display:grid;grid-template-columns:22px 40px 1fr auto;
-  align-items:center;gap:14px;width:100%;border:0;
-  border-bottom:1px solid var(--line);border-radius:0;
-  padding:10px 2px;text-align:left;cursor:pointer}
-.dchip:first-child{border-top:1px solid var(--line)}
-.dchip::before{counter-increment:dr;content:counter(dr);
-  font-family:var(--mono);font-size:10px;color:var(--ink4)}
-.dchip .p-cut{width:34px;height:34px;display:block;margin:0}
-.dchip .daqi{justify-self:end;margin:0;white-space:nowrap;
-  font-size:10px;padding:2px 8px;border-radius:2px}
-.dchip>span{display:flex;flex-direction:column;gap:1px;min-width:0}
-.dchip .dn{font-family:var(--serif);font-size:14.5px;color:var(--ink)}
-.dchip .ds{font-family:var(--mono);font-size:10px;color:var(--ink3)}
-.dchip:hover{background:rgba(22,24,29,.03)}
-.dchip[aria-pressed="true"]{background:rgba(22,24,29,.045)}
-.dchip .db{display:none}
-.distwrap{margin-top:8px}
-
 /* --- tighter section rhythm (cognition packs more per screen) --- */
 .col{padding-top:clamp(34px,5.4vw,72px);padding-bottom:clamp(34px,5.4vw,72px)}
 .feat{gap:clamp(24px,4vw,60px)}
 
-/* ================= v15 — shorter page, same register =================
-   the page read as one marathon; break it into tighter vertical
-   components: districts as a 3-col ruled table, smaller product
-   shots, slimmer section padding everywhere */
-@media(min-width:1024px){
-  .dscroll{display:grid;grid-template-columns:repeat(3,1fr);
-    grid-auto-flow:column;grid-template-rows:repeat(10,auto);
-    column-gap:34px;border-top:1px solid var(--line)}
-  .dscroll>div{grid-column:1/-1}
-  .dchip{grid-template-columns:20px 1fr auto;gap:10px;padding:8px 0;
-    border-bottom:1px solid var(--line)}
-  .dchip:first-child{border-top:0}
-  .dchip>svg{display:none}
-  .dchip .dn{font-size:13.5px}
-  .dchip .da{display:flex;align-items:baseline;gap:4px;margin:0;
-    font-family:var(--mono);font-size:12px;color:var(--ink);
-    white-space:nowrap}
-  .dchip .da i{display:inline;font-style:normal;font-size:10px;
-    color:var(--ink3)}
-}
-@media(min-width:1024px){.dchip:first-child{border-top:0}}
-
-/* --- v16: own sections for districts + pledge; kill the last chip-box */
-.dist-sec{margin-top:22px;border-top:0;padding-top:0}
+/* --- v16: the pledge stands on its own; the last chip-box is gone --- */
 .pledge{margin-top:22px;border-top:0}
 .story-cause{border:0;border-radius:0;padding:0}
 
@@ -705,21 +606,35 @@ section.stage{background:#141512;position:relative;overflow:hidden}
 .stage .reel-ch button:hover{color:rgba(247,246,245,.8);
   border-color:rgba(247,246,245,.5)}
 .stage .reel-ch button.on{color:#f7f6f5;border-color:rgba(247,246,245,.9)}
-/* what it does — the four things, ruled lines on ink */
-.does{margin-top:60px;border-top:1px solid rgba(247,246,245,.16)}
-.does .do{display:grid;grid-template-columns:44px minmax(150px,250px) 1fr;
-  gap:18px;align-items:baseline;padding:15px 0;
-  border-bottom:1px solid rgba(247,246,245,.16)}
-.does .dn{font-family:var(--mono);font-size:10px;
-  color:rgba(247,246,245,.38)}
-.does .dt{font-family:var(--serif);font-size:15.5px;color:#f7f6f5}
-.does .dd{font-family:var(--serif);font-size:13.5px;line-height:1.55;
-  color:rgba(247,246,245,.55)}
+/* the ads — a use-case beat: label, one line, two raw screens tilted
+   on paper like a printed spread. no device frames, no cards */
+.beat{padding:108px 0 100px;border-top:1px solid var(--line)}
+.beat .fp{margin-top:14px;max-width:560px}
+.beat-pair{display:flex;justify-content:center;align-items:flex-end;
+  margin-top:56px}
+.beat-pair figure{margin:0}
+.bshot{width:min(244px,42vw)}
+.bshot.b{width:min(258px,44vw)}
+.bshot.a{transform:rotate(-4.5deg) translateY(16px);
+  margin-right:-46px;z-index:1}
+.bshot.b{transform:rotate(3.5deg) translateY(-8px);z-index:2}
+.beat.flip .bshot.a{transform:rotate(4.5deg) translateY(16px);
+  margin-right:0;margin-left:-46px;order:2}
+.beat.flip .bshot.b{transform:rotate(-3.5deg) translateY(-8px);order:1}
+.bshot img{display:block;width:100%;height:auto;border-radius:9px;
+  border:1px solid var(--line);background:#f5f3ec;
+  box-shadow:0 46px 92px -42px rgba(22,24,29,.34)}
+.beat-tag{margin-top:30px;text-align:center;font-family:var(--mono);
+  font-size:10px;letter-spacing:.02em;color:var(--ink4)}
+@media(max-width:640px){
+  .beat{padding:78px 0 72px}
+  .bshot{width:45vw}
+  .bshot.b{width:47vw}
+  .bshot.a{margin-right:-30px}
+  .beat.flip .bshot.a{margin-left:-30px}}
 @media(max-width:700px){
   .duo-side{display:none}
-  .duo-main{width:min(280px,86vw)}
-  .does .do{grid-template-columns:30px 1fr;row-gap:3px}
-  .does .dd{grid-column:2}}
+  .duo-main{width:min(280px,86vw)}}
 </style>
 
 </head><body>
@@ -736,11 +651,14 @@ section.stage{background:#141512;position:relative;overflow:hidden}
     <span class="alab">the page</span>
     <a href="#secNow"><i class="rn">001</i><span>right now</span></a>
     <a href="#secDemo"><i class="rn">002</i><span>the app</span></a>
-    <a href="#secField"><i class="rn">003</i><span>the map</span></a>
-    <a href="#secRecord"><i class="rn">004</i><span>the record</span></a>
-    <a href="#secDistricts"><i class="rn">005</i><span>the districts</span></a>
-    <a href="#secHow"><i class="rn">006</i><span>how it knows</span></a>
-    <a href="#secPromise"><i class="rn">007</i><span>the promise</span></a>
+    <a href="#secLive"><i class="rn">003</i><span>living in it</span></a>
+    <a href="#secCross"><i class="rn">004</i><span>crossing it</span></a>
+    <a href="#secStay"><i class="rn">005</i><span>staying over</span></a>
+    <a href="#secOut"><i class="rn">006</i><span>stepping out</span></a>
+    <a href="#secWeek"><i class="rn">007</i><span>the week</span></a>
+    <a href="#secField"><i class="rn">008</i><span>the map</span></a>
+    <a href="#secHow"><i class="rn">009</i><span>how it knows</span></a>
+    <a href="#secPromise"><i class="rn">010</i><span>the promise</span></a>
     <i class="mark" aria-hidden="true"></i>
   </nav>
   <span id="toplive" aria-hidden="true"></span>
@@ -827,9 +745,8 @@ section.stage{background:#141512;position:relative;overflow:hidden}
     the city easing overhead, the day's count, the sheets that keep it.</p>
     <div class="duo" data-rv>
       <figure class="duo-side dl"><div class="phone"><picture>
-        <source type="image/webp" srcset="/ios-dose.webp 720w">
-        <img src="/ios-dose.png" width="720" height="1566" decoding="async" loading="lazy"
-          alt="the home — you've breathed today, counted in µg against your daily limit">
+        <img src="/ios-feat-airmap.webp" width="662" height="1440" decoding="async" loading="lazy"
+          alt="the air map over delhi — the field the app reads, on ios">
       </picture></div></figure>
       <figure class="duo-main">
         <video src="/app-walkthrough.mp4" poster="/app-walkthrough-poster.webp"
@@ -838,8 +755,8 @@ section.stage{background:#141512;position:relative;overflow:hidden}
           aria-label="the Alive app running — the live home number, the day's count, and the sheets that keep it"></video>
       </figure>
       <figure class="duo-side dr"><div class="phone"><picture>
-        <img src="/ios-feat-stays-c.webp" width="662" height="1354" decoding="async" loading="lazy"
-          alt="stays near lodhi garden — hotels ranked by the air around them">
+        <img src="/app-airmap.webp" width="708" height="1573" decoding="async" loading="lazy"
+          alt="the same air map on android — the field the app reads">
       </picture></div></figure>
     </div>
     <div class="reel-ch" id="reelCh">
@@ -847,22 +764,91 @@ section.stage{background:#141512;position:relative;overflow:hidden}
       <button type="button" data-t="11.5">the day's count</button>
       <button type="button" data-t="26">the sheets</button>
     </div>
-    <div class="does">
-      <div class="do"><span class="dn">01</span>
-        <span class="dt">know the air where you stand</span>
-        <span class="dd">the screen counts what you already breathed — against the day's budget, in plain µg.</span></div>
-      <div class="do"><span class="dn">02</span>
-        <span class="dt">every route, priced in lungs</span>
-        <span class="dd">metro, car, bike, on foot — each way carries what it makes you breathe, before you take it.</span></div>
-      <div class="do"><span class="dn">03</span>
-        <span class="dt">sleep where the air is kindest</span>
-        <span class="dd">stays ranked by the air around them — pick the room that costs your lungs least.</span></div>
-      <div class="do"><span class="dn">04</span>
-        <span class="dt">go out when the air lets up</span>
-        <span class="dd">the day's curve read hour by hour — the least-bad window to step out, before you step out.</span></div>
-    </div>
   </div>
 </section>
+
+<!-- the ads — one beat per use-case, each a pair of real screens:
+     ios and android, raw captures tilted on paper. no frames, no
+     boxes, no captions that grovel — the screen is the argument -->
+<section id="secLive" class="beat"><div class="col">
+  <div class="lbl2">living in it</div>
+  <h2 class="lead">The air you already breathed, counted.</h2>
+  <p class="fp">the home keeps the day's count — against the limit
+  your lungs actually have, in µg you can check.</p>
+  <div class="beat-pair" data-rv>
+    <figure class="bshot a"><img src="/ios-dose.webp" width="720" height="1566"
+      decoding="async" loading="lazy"
+      alt="ios — the home: today's breath counted against the daily limit"></figure>
+    <figure class="bshot b"><img src="/android-home.webp" width="1080" height="2400"
+      decoding="async" loading="lazy"
+      alt="android — good morning: the air around you, read near connaught place"></figure>
+  </div>
+  <div class="beat-tag">ios · android — the same air</div>
+</div></section>
+
+<section id="secCross" class="beat flip"><div class="col">
+  <div class="lbl2">travelling through it</div>
+  <h2 class="lead">Every way across, priced in what you'd breathe.</h2>
+  <p class="fp">from and to — metro, car, bike, on foot — take the
+  lightest, not just the fastest.</p>
+  <div class="beat-pair" data-rv>
+    <figure class="bshot a"><img src="/ios-choose-bold.webp" width="662" height="1440"
+      decoding="async" loading="lazy"
+      alt="ios — three ways across hauz khas, each priced in µg inhaled"></figure>
+    <figure class="bshot b"><img src="/app-choose-settle.webp" width="708" height="1573"
+      decoding="async" loading="lazy"
+      alt="android — the settled route: depart times, dose band, start"></figure>
+  </div>
+  <div class="beat-tag">ios · android — the same engine</div>
+</div></section>
+
+<section id="secStay" class="beat"><div class="col">
+  <div class="lbl2">staying over</div>
+  <h2 class="lead">The room with the kindest air wins.</h2>
+  <p class="fp">stays near you, ranked by the next day's air at that
+  address — pick the one your lungs thank you for.</p>
+  <div class="beat-pair" data-rv>
+    <figure class="bshot a"><img src="/ios-feat-stays-c.webp" width="662" height="1354"
+      decoding="async" loading="lazy"
+      alt="ios — stays near lodhi garden, ranked by the air around each"></figure>
+    <figure class="bshot b"><img src="/android-stays.webp" width="1080" height="2400"
+      decoding="async" loading="lazy"
+      alt="android — where to stay: hotels with their next-24h air"></figure>
+  </div>
+  <div class="beat-tag">ios · android — the same ranking</div>
+</div></section>
+
+<section id="secOut" class="beat flip"><div class="col">
+  <div class="lbl2">stepping out</div>
+  <h2 class="lead">The day has a clean window. Alive knows it.</h2>
+  <p class="fp">the next twenty-four hours read hour by hour — the
+  least-bad window, before you step into it.</p>
+  <div class="beat-pair" data-rv>
+    <figure class="bshot a"><img src="/ios-feat-playtime-c.webp" width="662" height="1354"
+      decoding="async" loading="lazy"
+      alt="ios — when to go out: the day's least-bad hours"></figure>
+    <figure class="bshot b"><img src="/android-playtime.webp" width="1080" height="2400"
+      decoding="async" loading="lazy"
+      alt="android — the least-bad window, read off the hourly bars"></figure>
+  </div>
+  <div class="beat-tag">ios · android — the same forecast</div>
+</div></section>
+
+<section id="secWeek" class="beat"><div class="col">
+  <div class="lbl2">the week you kept</div>
+  <h2 class="lead">Every trip, remembered.</h2>
+  <p class="fp">the week, the saved places, the trips — your air,
+  kept on your phone and nowhere else.</p>
+  <div class="beat-pair" data-rv>
+    <figure class="bshot a"><img src="/ios-feat-week.webp" width="662" height="1440"
+      decoding="async" loading="lazy"
+      alt="ios — the week: seven days of what you breathed"></figure>
+    <figure class="bshot b"><img src="/android-week.webp" width="1080" height="2400"
+      decoding="async" loading="lazy"
+      alt="android — the drawer: today, this week, saved places, trips"></figure>
+  </div>
+  <div class="beat-tag">ios · android — the same memory</div>
+</div></section>
 
 <!-- the instrument — the live field, operative. touch a cell, or let
      the engine price a real trip; the deck scrubs the served forecast -->
@@ -907,7 +893,7 @@ section.stage{background:#141512;position:relative;overflow:hidden}
     <div class="kbhint" id="kbhint" hidden>↑ ↓ ← → move · enter reads · esc cancels</div>
     <noscript>
       <style>
-        #status,.field-head,.fstage,.field-cap,.trow,.kbhint,.dist-head,.distwrap,.day-sec,.hnum,#heroLive,#fieldair,#storyCard,#sparkCard{display:none}
+        #status,.field-head,.fstage,.field-cap,.trow,.kbhint,.hnum,#heroLive,#fieldair,#storyCard{display:none}
       </style>
       <p style="margin-top:14px;font-family:var(--mono);font-size:11px;
         letter-spacing:.01em;color:var(--ink3);
@@ -938,54 +924,6 @@ section.stage{background:#141512;position:relative;overflow:hidden}
     <div class="lbl2"><i class="livedot" id="storyDot"></i>why it's like this</div>
     <p class="story-line" id="whyBig"></p>
     <div class="story-sub" id="whySub"></div>
-  </div>
-</div></section>
-
-<!-- the city card — the archive's day, the forecast, and the honest
-     journal of what the page itself is doing; one stop -->
-<section id="secRecord"><div class="col">
-  <div class="card" data-rv>
-    <div class="lbl2">the record</div>
-    <h2 class="lead">The city, kept — and the hours ahead.</h2>
-    <div class="day-sec" id="daySec" hidden>
-      <div class="day-head">
-        <span class="lbl">the day, recorded — <b id="typMonth">hour by hour, from the archive</b></span>
-        <span class="lbl" id="dayNote">—</span>
-      </div>
-      <div class="daybars" id="daybars"
-        role="img" aria-label="a typical day at connaught place, hour by hour — recorded history"></div>
-      <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
-      <div class="day-note" id="dayWhy"></div>
-    </div>
-  </div>
-  <!-- forecast — served, not smoothed; same stop as the record it
-       extends -->
-  <div class="card" id="sparkCard" hidden data-rv style="margin-top:34px">
-    <div class="lbl2">forecast</div>
-    <div class="spark" id="spark" hidden>
-      <svg id="sparkSvg" viewBox="0 0 560 52" preserveAspectRatio="none"
-        role="img" aria-label="the next twelve hours — live forecast curve"></svg>
-      <div class="cap"><span id="sparkL">the next twelve hours</span>
-        <span class="goto"><a href="#fieldSec" id="sparkGo">watch it move on the map ↑</a></span></div>
-    </div>
-  </div>
-</div></section>
-
-<!-- the district table — every boundary, worst first -->
-<section id="secDistricts"><div class="col">
-  <div class="card" data-rv>
-    <div class="lbl2">the districts</div>
-    <h2 class="lead">Where the air sits heaviest.</h2>
-    <div class="dist-sec">
-      <div class="dist-head">
-        <span class="lbl"><b><span id="distN">—</span> real boundaries, each filled live</b></span>
-        <span class="hint">tap a boundary · worst first</span>
-      </div>
-      <div class="distwrap">
-        <div class="dscroll" id="dscroll"></div>
-        <div class="fpop dtpop" id="dtpop" hidden></div>
-      </div>
-    </div>
   </div>
 </div></section>
 
@@ -1045,10 +983,12 @@ section.stage{background:#141512;position:relative;overflow:hidden}
         <a href="#secDemo">the app</a>
         <a href="#secField">the map</a>
       </div>
-      <div class="fcol"><div class="fh">the page</div>
-        <a href="#secRecord">the record</a>
-        <a href="#secDistricts">the districts</a>
-        <a href="#secHow">how it knows</a>
+      <div class="fcol"><div class="fh">the ads</div>
+        <a href="#secLive">living in it</a>
+        <a href="#secCross">travelling through it</a>
+        <a href="#secStay">staying over</a>
+        <a href="#secOut">stepping out</a>
+        <a href="#secWeek">the week</a>
       </div>
       <div class="fcol"><div class="fh">the promise</div>
         <a href="#secPromise">counted on your phone, kept on your phone</a>
@@ -1170,30 +1110,6 @@ function inDistrict(lon,lat){
   return null;
 }
 
-/* --- district boundary silhouettes (same normalisation as the console) --- */
-const CUT={};
-function cutPath(feat){
-  const g=feat&&feat.geometry;if(!g)return null;
-  const rings=g.type==='Polygon'?[g.coordinates[0]]
-    :g.type==='MultiPolygon'?g.coordinates.map(p=>p[0]):[];
-  if(!rings.length)return null;
-  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-  for(const r of rings)for(const c of r){
-    x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);
-    y0=Math.min(y0,c[1]);y1=Math.max(y1,c[1])}
-  const w=(x1-x0)*ASP,h=(y1-y0);
-  if(w<=0||h<=0)return null;
-  const pad=3,S=(64-2*pad)/Math.max(w,h);
-  const mx=x=>((x-x0)*ASP*S+pad).toFixed(1);
-  const my=y=>((y1-y)*S+pad).toFixed(1);
-  return rings.map(r=>
-    'M'+r.map(c=>mx(c[0])+','+my(c[1])).join('L')+'Z').join(' ');
-}
-function chipInk(hex){
-  const m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#16181d';
-  const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
-  return (0.299*r+0.587*g+0.114*b)/255>0.6?'#16181d':'#fff';
-}
 /* band → pastel tile surface: wash the hue toward white (never alpha),
    the same rule register-card's bandWashIdx applies */
 function washHex(hex,t){
@@ -1927,7 +1843,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     $('fpop').hidden=true;INS=null;
     PT_A=PT_B=null;ROUTE=null;$('routeline').textContent='';$('departline').textContent='';$('ladder').textContent='';
-    drawScene();dtHide();
+    drawScene();
   }
 });
 document.addEventListener('click',e=>{
@@ -2157,37 +2073,6 @@ function countTo(el,target,dur){
 function countIn(el,target){
   countTo(el,target,HNUM_DONE?520:950);HNUM_DONE=true;
 }
-/* the next-twelve curve — drawn from the same /v2/city payload's
-   next_hours, a real served forecast, nothing interpolated. */
-function sparkFill(hrs){
-  const el=$('spark');if(!el)return;
-  const vs=(hrs||[]).map(h=>h&&h.pm25).filter(v=>v!=null);
-  if(vs.length<4)return;
-  const lo=Math.min(...vs),hi=Math.max(...vs);
-  const W=560,H=52,pad=4,base=H-8;
-  const sx=i=>pad+i*(W-2*pad)/(vs.length-1);
-  const sy=v=>hi>lo?5+(hi-v)/(hi-lo)*(base-10):base/2;
-  const pts=vs.map((v,i)=>sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ');
-  const c=bandCol(vs[0],SPECS.pm2_5.breaks);
-  $('sparkSvg').innerHTML=
-    `<line x1="${pad}" y1="${base}" x2="${W-pad}" y2="${base}" stroke="var(--line2)" stroke-width="1"/>`+
-    `<polygon class="fill" points="${pad},${base} ${pts} ${sx(vs.length-1).toFixed(1)},${base}"`+
-      ` fill="rgba(${c[0]},${c[1]},${c[2]},.13)"/>`+
-    `<polyline class="curve" pathLength="1" points="${pts}" fill="none" stroke="var(--ink)" stroke-width="1.2"`+
-      ` stroke-linejoin="round" stroke-linecap="round"/>`+
-    `<circle class="nowdot" cx="${sx(0).toFixed(1)}" cy="${sy(vs[0]).toFixed(1)}" r="2.7"`+
-      ` fill="rgb(${c[0]},${c[1]},${c[2]})" stroke="var(--ink)" stroke-width="1"/>`;
-  $('sparkL').innerHTML=
-    `the next ${vs.length} hours — live forecast · <b>${F1(lo)}–${F1(hi)}</b>`+
-    ` <span style="text-transform:none">µg/m³</span>`;
-  el.hidden=false;
-  const sc=$('sparkCard');if(sc)sc.hidden=false;
-  /* the curve draws itself once, on entry */
-  if(RM)el.classList.add('dr');
-  else{const io=new IntersectionObserver(es=>{
-    if(es[0].isIntersecting){el.classList.add('dr');io.disconnect()}},
-    {threshold:.45});io.observe(el)}
-}
 /* the live read that follows you past the proof zone — filled once
    BOTH halves are known: the mean from /v2/city (heroCity) and the
    field's age from /health (status); either may answer first */
@@ -2257,7 +2142,6 @@ async function heroCity(){
         $('eqCig').textContent=F1(cig);
         $('eq').hidden=false;
       }
-      sparkFill(d.next_hours);
       paintToplive();
       /* the felt line — the lead's translation, cigarettes as the
          qualifier, never the figure */
@@ -2278,70 +2162,11 @@ async function heroCity(){
       $('hnumT').textContent='the breath figure came back empty — no fake number shown';
       $('hnumS').textContent='the map below still reads live';
     }
-    const t=d.typical||{};
-    /* the archive's basis month is served, not guessed — the label
-       follows the payload so it never sits a month stale */
-    if(t.month>=1&&t.month<=12){
-      TYP_MONTH=new Date(2000,t.month-1,1)
-        .toLocaleString('en-IN',{month:'long'}).toLowerCase();
-      $('typMonth').textContent=`a typical ${TYP_MONTH}, hour by hour`;
-      $('daybars').setAttribute('aria-label',
-        `typical ${TYP_MONTH} day at connaught place, hour by hour — decade of records`);
-    }
-    if(t.vs_now_pct!=null){
-      const pc=Math.round(t.vs_now_pct);
-      $('dayNote').textContent=
-        `now — live air ${pc>0?'+':''}${pc}% vs the typical hour`;
-    }
   }catch(e){
     $('hnumV').textContent='—';
     $('hnumT').textContent='the breath figure is unreachable — the page retries it';
     $('hnumS').textContent='the map below still reads live';
   }
-}
-/* the climatology curve is recorded history — it never changes within
-   a page's life, so it renders from one fetch. But the "now" bar is a
-   clock fact: a page left open across an hour boundary used to keep
-   the marker frozen on the open-time hour. dayTick re-marks it from
-   wall-clock on the 120 s beat — no refetch for a static curve. */
-let DAY_HRS=null,TYP_MONTH=null;
-const dayBarsHtml=(hrs,mx,now)=>hrs.map((v,i)=>{
-  /* every hour wears its own band — a wash of the hue for plain
-     hours, the hue's ink register on the live one; the strip reads
-     as the city's day, not a chart of bars */
-  const bx=bandHex(bandIdx(v,SPECS.pm2_5.breaks));
-  const vars=i===now
-    ?`--dbw:${washHex(bx,.74)};--dbn:${inkHex(bx,.1)}`
-    :`--dbw:${washHex(bx,.74)}`;
-  return `<span class="db${i===now?' now':''}" style="height:${Math.max(2,v/mx*100)}%;${vars};--i:${i}"
-    title="${String(i).padStart(2,'0')}:00 ist — typical ~${Math.round(v)} µg/m³"></span>`}).join('');
-function dayTick(){
-  if(!DAY_HRS)return;
-  const h=+new Date().toLocaleString('en-IN',
-    {timeZone:'Asia/Kolkata',hour:'numeric',hour12:false,hourCycle:'h23'});
-  if(h>=0&&h<DAY_HRS.hrs.length)$('daybars').innerHTML=
-    dayBarsHtml(DAY_HRS.hrs,DAY_HRS.mx,h);
-}
-async function dayStrip(){
-  try{
-    /* connaught place — the city's own coordinate anchor */
-    const d=await api('/today?lat=28.6139&lon=77.2090');
-    const hrs=(d.hours_ist||[]).filter(v=>v!=null);
-    if(hrs.length<2)return;
-    const mx=Math.max(...hrs),now=d.hour_now_ist;
-    DAY_HRS={hrs,mx};
-    $('daybars').innerHTML=dayBarsHtml(hrs,mx,now);
-    /* the archive grows in bar by bar once it reaches view */
-    const db=$('daybars');
-    if(RM)db.classList.add('in');
-    else{const io=new IntersectionObserver(es=>{
-      if(es[0].isIntersecting){db.classList.add('in');io.disconnect()}},
-      {threshold:.3});io.observe(db)}
-    $('dayWhy').innerHTML=
-      `typical = the archive's middle value for this hour${TYP_MONTH?' — '+TYP_MONTH:''} · ist ·
-      connaught place · <b>recorded history</b>, not a forecast`;
-    $('daySec').hidden=false;
-  }catch(e){/* the strip stays hidden — honest absence, no fake curve */}
 }
 /* the model grades itself — one honest line, only when /v2/skill has
    enough real forecast-vs-recorded pairs to stand behind a number.
@@ -2379,120 +2204,6 @@ async function whyTonight(){
   }catch(e){/* hidden — the explainer had nothing honest to say */}
 }
 
-/* --- district chips ------------------------------------------------------ */
-let DIST=[],DT_PIN=null,DT_GRID12=null,DT_GRID12_OK=null;
-function distMean(feats,feat){
-  const g=feat&&feat.geometry;if(!g)return null;
-  const polys=g.type==='Polygon'?[g.coordinates]
-    :g.type==='MultiPolygon'?g.coordinates:[];
-  let s=0,n=0;
-  for(const ft of feats){
-    const ring=ft.geometry&&ft.geometry.coordinates&&ft.geometry.coordinates[0];
-    if(!ring||ring.length<3)continue;
-    const v=(ft.properties||{}).pm25;if(v==null)continue;
-    const [clon,clat]=cellCenter(ft);
-    for(const poly of polys){
-      if(!(poly[0]&&pip(clon,clat,poly[0])))continue;
-      let hole=false;
-      for(let h=1;h<poly.length;h++)if(pip(clon,clat,poly[h])){hole=true;break}
-      if(!hole){s+=v;n++}
-      break;
-    }
-  }
-  return n?s/n:null;
-}
-async function dtTrend(d){
-  if(DT_GRID12_OK===null){
-    try{const g=await api('/grid?cells=40&param=pm2_5&h=12');
-      DT_GRID12=(g&&g.features)||[];DT_GRID12_OK=DT_GRID12.length>0}
-    catch(e){DT_GRID12=[];DT_GRID12_OK=false}
-  }
-  if(!DT_GRID12_OK)return '+12h — forecast n/a';
-  const feat=GJ.find(f=>f.properties&&f.properties.name===d.name);
-  const m=feat&&distMean(DT_GRID12,feat);
-  if(m==null)return '+12h — outside forecast coverage';
-  const base=d.pm25;
-  if(base==null||base<1e-9)return `+12h → ${F1(m)} µg/m³`;
-  const pc=Math.round((m-base)/base*100);
-  return Math.abs(pc)<3
-    ?`+12h → ${F1(m)} µg/m³ · flat`
-    :`+12h → ${F1(m)} µg/m³ · ${pc>0?'+':''}${pc}%`;
-}
-function paintDChips(){
-  const el=$('dscroll');
-  /* the strip mounts once, chips rising in turn — later live updates
-     swap values in place, no re-entrance */
-  const first=!el.dataset.seen;el.dataset.seen='1';
-  if(!DIST.length){el.innerHTML=
-    '<div style="padding:14px 4px;font-family:var(--mono);font-size:11px;letter-spacing:.01em;color:var(--ink4);">district feed resting — chips fill when /v2/districts answers</div>';
-    return}
-  const rows=[...DIST].sort((a,b)=>(b.aqi??-1)-(a.aqi??-1));
-  el.innerHTML=rows.map((d,i)=>{
-    const na=d.pm25==null&&d.aqi==null;
-    const cut=CUT[d.name];
-    const cw=!na&&d.color?washHex(d.color,0.82):null;
-    return `<button class="dchip" data-name="${esc(d.name)}"
-      style="${cw?`--cw:${cw};`:''}${first?`animation:chipin .45s cubic-bezier(.16,.6,.24,1) both;animation-delay:${Math.min(i,14)*26}ms`:''}"
-      aria-pressed="${DT_PIN&&DT_PIN.name===d.name?'true':'false'}"
-      aria-label="${esc(d.name)}${d.aqi!=null?', aqi '+d.aqi:''}">
-      ${cut?`<svg viewBox="0 0 64 64" aria-hidden="true"><path d="${cut}" fill="${na?'#a6acb8':d.color}" fill-opacity="${na?'0.10':'0.85'}" stroke="#16181d" stroke-width="1.4" stroke-linejoin="round"/></svg>`:''}
-      <span><span class="dn">${esc(d.name)}</span><br>
-      <span class="ds">${d.level==='osm_admin_5'?esc(d.parent||'delhi'):esc(d.state||'')}</span></span>
-      <span class="da">${na?'—':d.aqi}<i> aqi</i></span>
-    </button>`;
-  }).join('');
-}
-function dtHide(){const p=$('dtpop');if(p)p.hidden=true;
-  if(DT_PIN){const t=$('dscroll').querySelector(
-    `[data-name="${CSS.escape(DT_PIN.name)}"]`);
-    if(t)t.setAttribute('aria-pressed','false')}
-  DT_PIN=null}
-async function dtShow(chip){
-  const name=chip.dataset.name;
-  const d=DIST.find(r=>r.name===name);
-  const wrap=$('dscroll').parentElement,pop=$('dtpop');
-  if(!d||!wrap||!pop)return;
-  DT_PIN={name};
-  wrap.querySelectorAll('.dchip[aria-pressed="true"]').forEach(t=>
-    t.setAttribute('aria-pressed','false'));
-  chip.setAttribute('aria-pressed','true');
-  const r=chip.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
-  pop.style.left=Math.min(Math.max(4,r.left-wr.left),Math.max(4,wr.width-256))+'px';
-  const c=d.color||'#6e7278';
-  const na=d.pm25==null&&d.aqi==null;
-  const level=d.level==='osm_admin_5'
-    ?`sub-area · ${d.parent||'delhi nct'}`:`district · ${d.state||'—'}`;
-  const basis=d.confidence==='sparse'
-    ?`centre-point read — ${d.cells_covered||0} covered cell${(d.cells_covered||0)===1?'':'s'}`
-    :d.cells_covered?`average of ${d.cells_covered} covered cells`:'no covered cells';
-  const pcut=CUT[name];
-  pop.innerHTML=`${pcut?`<svg class="p-cut" viewBox="0 0 64 64" aria-hidden="true"><path d="${pcut}" fill="${c}" fill-opacity="${na?0.10:0.85}" stroke="#16181d" stroke-width="1.6" stroke-linejoin="round"/></svg>`:''}
-    <div class="p-name">${esc(d.name)}</div>
-    <div class="p-sub">${esc(level)}</div>
-    <div class="p-v">${na
-      ?'<b>—</b> no map data'
-      :`<b>${d.pm25==null?'—':F1(d.pm25)}</b> µg/m³ <span class="daqi" style="background:${c};color:${chipInk(c)}">aqi ${d.aqi} · ${esc((d.category||'').toLowerCase())}</span>`}
-    </div>
-    <div class="p-conf">${na
-      ?'outside the measured map'
-      :esc(basis)+(d.partial_field_coverage?' · partial coverage':'')}
-      ${na?'':'<br><span id="dttrend">trend — computing the +12h read…</span>'}</div>`;
-  pop.hidden=false;
-  pop.style.top=Math.max(6,r.bottom-wr.top+6)+'px';
-  if(pop.offsetTop+pop.offsetHeight>wrap.offsetHeight)
-    pop.style.top=Math.max(6,r.top-wr.top-pop.offsetHeight-6)+'px';
-  if(!na){const nm=name;dtTrend(d).then(t=>{
-    const el=$('dttrend');
-    if(el&&!pop.hidden&&DT_PIN&&DT_PIN.name===nm)el.textContent=t})}
-}
-$('dscroll').addEventListener('click',e=>{
-  const c=e.target.closest('.dchip');
-  if(c){e.stopPropagation();
-    if(DT_PIN&&DT_PIN.name===c.dataset.name)dtHide();else dtShow(c)}
-});
-document.addEventListener('click',e=>{
-  if(!e.target.closest('.dchip')&&!e.target.closest('#dtpop'))dtHide()});
-
 /* --- geo + status -------------------------------------------------------- */
 Promise.all([
   fetch('/ncr.geojson',{signal:AbortSignal.timeout(12000)})
@@ -2501,20 +2212,8 @@ Promise.all([
     .then(r=>r.ok?r.json():null).catch(()=>null)
 ]).then(([a,b])=>{
   GJ=[...((a&&a.features)||[]),...((b&&b.features)||[])];
-  for(const f of GJ){
-    const n=f.properties&&f.properties.name;
-    if(n&&!CUT[n]){const p=cutPath(f);if(p)CUT[n]=p}
-  }
-  if(DIST.length)paintDChips();
   MID_DIRTY=true;drawScene();
 });
-async function loadDistricts(){
-  try{const d=await api('/v2/districts');DIST=(d.districts||d)||[];
-    if(Array.isArray(DIST)){$('distN').textContent=DIST.length;paintDChips()}}
-  catch(e){/* unreachable → say so: paintDChips renders the resting
-               line when DIST is still empty */
-    if(!DIST.length)paintDChips()}
-}
 async function status(){
   try{
     const h=await api('/health');
@@ -2647,8 +2346,8 @@ renderPills();paint();status();heroCity();
    first wave keeps its connections for the number, the map and its
    boundaries instead of eleven requests competing for six slots */
 const idle=(window.requestIdleCallback||(f=>setTimeout(f,400)));
-idle(()=>{loadDistricts();tlInit()},{timeout:1500});
-idle(()=>{dayStrip();skillLine();whyTonight()},{timeout:2000});
+idle(()=>{tlInit()},{timeout:1500});
+idle(()=>{skillLine();whyTonight()},{timeout:2000});
 let rsz=null;window.addEventListener('resize',()=>{
   clearTimeout(rsz);rsz=setTimeout(()=>{
     const cv=$('raster'),w=cv.parentElement.clientWidth||896,
@@ -2658,7 +2357,7 @@ let rsz=null;window.addEventListener('resize',()=>{
     cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
     CELLS_DIRTY=true;MID_DIRTY=true;drawScene();
   },160)});
-setInterval(()=>{paint();status();loadDistricts();heroCity();skillLine();whyTonight();tlAged();dayTick()},120000);
+setInterval(()=>{paint();status();heroCity();skillLine();whyTonight();tlAged()},120000);
 /* the map's freshness ticks over every 30 s — the age figure lives in
    three surfaces (status line, hero foot, top-strip) and ages between
    /health polls */

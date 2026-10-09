@@ -39,8 +39,7 @@
   /* ---------- masthead ---------- */
   .mast{display:flex;align-items:baseline;justify-content:space-between;
         padding:20px clamp(16px,4vw,40px);border-bottom:1px solid var(--line);
-        position:sticky;top:0;background:rgba(251,251,250,.88);
-        -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:20}
+        position:sticky;top:0;background:var(--paper);z-index:20}
   .mark{font-family:var(--sans);font-size:16px;letter-spacing:-.025em;
         font-weight:800;color:var(--ink);text-decoration:none}
   .mark b{color:var(--sage);font-weight:800}
@@ -91,7 +90,7 @@
   .htoday .ht .hchip{display:inline-block;margin-bottom:9px;
           font-family:var(--mono);font-size:11px;letter-spacing:.01em;
           color:var(--hi,var(--ink3));
-          background:rgba(255,255,255,.65);border-radius:6px;padding:3px 8px}
+          background:rgba(255,255,255,.65);border-radius:3px;padding:3px 8px}
   .htoday .ht i{display:block;margin-top:8px;font-style:normal;
           font-family:var(--mono);font-size:11px;letter-spacing:.01em;
           color:var(--ink3);line-height:1.85}
@@ -109,7 +108,7 @@
   .whyline .wtag{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
                  font-weight:600;color:var(--ink);flex:none;
                  background:var(--surface);border:1.5px solid var(--ink);
-                 border-radius:100px;padding:4px 10px}
+                 border-radius:3px;padding:4px 10px}
   .whyline[hidden]{display:none}
   .whyline .wtxt em{font-style:normal;color:var(--ink);font-weight:500}
 
@@ -156,15 +155,14 @@
   .chips{display:flex;gap:6px;flex-wrap:wrap;max-width:min(560px,80%)}
   .chip{display:flex;align-items:center;gap:6px;font-family:var(--mono);
         font-size:11px;letter-spacing:.01em;color:var(--ink2);
-        background:var(--surface2);
-        border-radius:999px;padding:4px 11px 4px 8px;
-        box-shadow:0 1px 2px rgba(22,24,29,.06)}
+        background:var(--surface2);border:1px solid var(--line2);
+        border-radius:3px;padding:4px 11px 4px 8px}
   .chip i{width:9px;height:9px;flex:none;border-radius:2px}
   .m-src{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
          color:var(--ink3);text-align:right;
          line-height:1.9;background:var(--surface2);
-         border-radius:999px;padding:4px 11px;
-         box-shadow:0 1px 2px rgba(22,24,29,.06)}
+         border:1px solid var(--line2);
+         border-radius:3px;padding:4px 11px}
   .m-src b{color:var(--ink2);font-weight:400}
   /* the one-line gloss that makes the band numbers legible — same
      register as the control-row notes */
@@ -185,7 +183,7 @@
   .tl button{font-family:inherit;font-size:inherit;letter-spacing:.01em;
       color:var(--ink2);
       background:var(--surface2);border:1.5px solid var(--ink);
-      border-radius:100px;padding:6px 14px;cursor:pointer}
+      border-radius:3px;padding:6px 14px;cursor:pointer}
   .tl button:hover{color:var(--ink)}
   .tl button:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
   .tl-range{flex:1;min-width:110px;max-width:320px;-webkit-appearance:none;
@@ -207,12 +205,12 @@
   .tl-now{white-space:nowrap}
   .tl-note{flex-basis:100%;font-size:11px;letter-spacing:.01em;
       color:var(--ink4)}
-  /* where can your lungs go? — same control row, text-link pills for
+  /* where can your lungs go? — same control row, text-link chips for
      mode/budget presets; the caption carries the honest counts */
   .rch-pills{display:inline-flex;gap:6px}
+  /* selection reads as the register's white card + ink hairline — no lift */
   .rch-pills button.on,
-  #rchArm[aria-pressed="true"]{background:var(--surface);color:var(--ink);
-      box-shadow:0 1px 3px rgba(22,24,29,.12)}
+  #rchArm[aria-pressed="true"]{background:var(--surface);color:var(--ink)}
 
   /* what happened — the recorded archive strip. one square per ist
      hour: recorded = its mean band tile (clickable, replays the stored
@@ -247,9 +245,9 @@
           gap:8px;margin-top:9px}
   .day{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
        padding:10px 12px 9px;background:var(--dw,var(--surface2));
-       border:1.5px solid var(--de,var(--line2));border-radius:14px;font-family:var(--mono);
+       border:1.5px solid var(--de,var(--line2));border-radius:4px;font-family:var(--mono);
        font-size:11px;text-align:left;cursor:pointer;color:var(--ink3);
-       box-shadow:0 8px 20px -10px rgba(22,24,29,.14);position:relative;
+       position:relative;
        transition:transform .2s cubic-bezier(.22,1,.36,1)}
   /* the breathing edge — a 4.4s sine opacity loop on a 1.5px band-ink
      ring. it lives on the today card now (the page's one ambient
@@ -304,7 +302,7 @@
   .detail .d-aqi small{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
                        color:var(--ink3);}
   .detail .d-cat{display:inline-block;margin-top:6px;padding:3px 9px;
-                 border-radius:6px;font-family:var(--mono);font-size:11px;
+                 border-radius:3px;font-family:var(--mono);font-size:11px;
                  letter-spacing:.01em;color:#fff}
   .detail .d-pm{margin-top:8px;font-family:var(--mono);font-size:11px;
                 color:var(--ink2);line-height:1.8}
@@ -328,7 +326,7 @@
              font-family:var(--mono);font-size:11px;letter-spacing:.01em;
              color:var(--ink3)}
   .ticker-in span{background:var(--surface2);
-             border-radius:999px;padding:6px 12px;color:var(--ink2)}
+             border-radius:3px;padding:6px 12px;color:var(--ink2)}
   .ticker-in i{display:none}
   .ticker-in b{color:var(--ink);font-weight:600;text-transform:none}
 
@@ -359,7 +357,7 @@
   .stat .k{display:inline-block;font-family:var(--mono);font-size:11px;
            letter-spacing:.01em;line-height:1.6;
            color:var(--ink2);background:var(--surface2);
-           border-radius:6px;padding:3px 8px;margin-right:auto}
+           border-radius:3px;padding:3px 8px;margin-right:auto}
   .stat .v{font-family:var(--sans);font-size:clamp(32px,3.2vw,42px);font-weight:800;
            letter-spacing:-.035em;margin-top:auto;padding-top:14px;line-height:1}
   .stat .v small{font-family:var(--mono);font-size:11px;color:var(--ink3);
@@ -391,10 +389,10 @@
   td.num{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
   td .modep{display:inline-block;font-family:var(--mono);font-size:11px;
             letter-spacing:.01em;padding:3px 9px;
-            border-radius:6px;
+            border-radius:3px;
             background:var(--surface2);color:var(--ink2)}
   .dose-chip{display:inline-block;min-width:64px;text-align:right;padding:3px 10px;
-             font-size:12px;font-variant-numeric:tabular-nums;border-radius:6px;
+             font-size:12px;font-variant-numeric:tabular-nums;border-radius:3px;
              background:var(--surface2);color:var(--ink)}
   .scrollx{overflow-x:auto}
   .card2{border:1.5px solid var(--ink);border-radius:20px;
@@ -422,7 +420,7 @@
   .foot-r a:hover{color:#F2F2EC;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px}
   @media(max-width:700px){footer{grid-template-columns:1fr}.foot-r{text-align:left}}
 
-  /* phones: thumb-sized hits — text pills keep their look, the box grows;
+  /* phones: thumb-sized hits — text chips keep their look, the box grows;
      the hairline scrubber gets a taller grab strip and a bigger thumb.
      sits at the end of the sheet so it beats the desktop rules it widens */
   @media(max-width:640px){
@@ -542,7 +540,7 @@
       <div class="stat">
         <div class="k">breaths taken on shared trips</div>
         <div class="v"><span id="breaths">—</span></div>
-        <div class="d">how many breaths today's shared trips add up to — dust inhaled ÷ dust in the air ÷ half a litre a breath · <b>an estimate, updates each refresh</b></div>
+        <div class="d">how many breaths today's shared trips add up to — dust inhaled ÷ dust in the air ÷ a breath size we assume (half a litre) · <b>an estimate — breath size is the guess, the rest is measured · updates each refresh</b></div>
       </div>
       <div class="stat">
         <div class="k">fine dust inhaled on shared trips</div>
@@ -947,7 +945,7 @@ async function tlInit(){
    the flip — recorded vs model: when an hour's payload carries a
    'model' block (source 'archive' = the /grid horizon the api served,
    stored at capture; 'held-run' = the run still in memory, raw model)
-   the recorded·model·δ pills appear for it. coverage.with_model on the
+   the recorded·model·δ chips appear for it. coverage.with_model on the
    wire is exactly the trigger — the row lights up as snapshots land. */
 const RC={active:false,playing:false,h:null,timer:null,seq:0,
           data:null,basis:'rec'};
@@ -970,7 +968,7 @@ function rcIdleNote(){
     :n<3
       ?`the air map, saved every hour — ${n} hour${n>1?'s':''} on record today · recording since ${since||'—'} · a square is one hour`
       :`the air map, saved every hour — ${n} hours saved today · tap a square to see it`+
-       `${wm?` · ${wm} also carry what the model called for them — flip with the pills`:''}`;
+       `${wm?` · ${wm} also carry what the model called for them — flip with the chips`:''}`;
 }
 function rcRender(){
   const d=RC.data,hours=(d&&d.hours)||[];
@@ -1162,7 +1160,7 @@ function rcInit(){
 /* ---------- where can your lungs go? — dose-budget reach ---------------
    a tap solves /v2/reach's bounded dijkstra on the server and paints
    exactly the edge set it settled — thin ink lines on real road
-   geometry, never a smoothed blob. mode/budget pills re-solve the same
+   geometry, never a smoothed blob. mode/budget chips re-solve the same
    origin; the caption carries the honest counts. when the endpoint
    can't answer, the row hides instead of hanging a dead control. */
 const RCH={armed:false,mode:'walk',budget:50,origin:null,layer:null,seq:0,paintSeq:0};

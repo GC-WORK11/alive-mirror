@@ -2026,6 +2026,13 @@ app.get("/app-walkthrough.mp4")(
 app.get("/app-walkthrough-poster.webp")(
     _ios_shot_route("app-walkthrough-poster.webp", "image/webp"))
 
+# the android captures (safearea lane, 1080×2400) — webp-only, sit beside
+# the ios frames in the landing's use-case beats: same screens, both phones.
+for _name in ("android-home", "android-stays", "android-playtime",
+              "android-week", "android-airmap"):
+    app.get(f"/{_name}.webp")(_ios_shot_route(f"{_name}.webp",
+                                             "image/webp"))
+
 
 @app.get("/hero-haze.webp")
 async def hero_haze_webp():

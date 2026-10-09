@@ -181,7 +181,12 @@ const whyCompass = (deg: number | null | undefined): StringKey => {
 };
 const whyBitKey = (d: { kind: string; direction?: string }): StringKey | null => {
   if (d.kind === "trend")
-    return d.direction === "falling" ? "whyBit_trendFalling" : "whyBit_trendRising";
+    /* direction missing must NOT imply rising — a serve that ships a
+       falling city mean without the flag used to print "levels still
+       climbing" (the wire why.line carries the right word; null passes
+       the driver through raw instead of inventing a direction) */
+    return d.direction === "rising" ? "whyBit_trendRising"
+      : d.direction === "falling" ? "whyBit_trendFalling" : null;
   if (d.kind === "stubble_smoke") return "whyBit_stubble";
   if (d.kind === "stagnation") return "whyBit_stagnation";
   return null; // unknown kinds pass through raw, as the server does
@@ -199,12 +204,19 @@ function whyLine(
   const drivers = why.drivers ?? [];
   if (!drivers.length) return why.line ?? "";
   const dir = t(whyCompass(wind?.from_deg), lang);
-  const parts = drivers.slice(0, 2).map((d) => {
+  const head = drivers.slice(0, 2);
+  const parts = head.map((d) => {
     const k = whyBitKey(d);
     if (k === "whyBit_stubble") return t(k, lang, { dir });
     return k ? t(k, lang) : null;
-  }).filter((p): p is string => p != null);
-  return parts.length ? parts.join(t("whyJoin", lang)) : (why.line ?? "");
+  });
+  /* any driver that didn't map (e.g. trend with no `direction`) → take the
+     server's own composite line rather than silently dropping a fact or,
+     worse, asserting a direction the serve never sent */
+  if (parts.length < head.length || parts.some((p) => p == null)) {
+    return why.line ?? "";
+  }
+  return (parts as string[]).join(t("whyJoin", lang));
 }
 
 /* The cause_note — the parali/news line under the hero. BOTH languages
