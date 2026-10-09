@@ -25,16 +25,22 @@ REQUIRED = [
     "bandCol",
     "/grid",
     "/health",
-    "/city",
-    "/community",
+    "/v2/city",
     "/ios-dose.webp",
+    "/android-home.webp",       # v19: the ads pair ios + android captures
+    "/app-walkthrough.mp4",     # v18: the real build, running
+    "/boot-haze.mp4",           # v18: the haze boot loop
     "hero-img",        # v11: full-bleed photograph hero, no card
     "statusline",
     "confSplit",
     "fieldAge",
     "buildTag",
     "Delhi's air, counted.",  # v13 hero headline (copy law)
-    "priced in lungs",          # v13: the feature story beat
+    'id="secLive"',      # v19: the five use-case ads
+    'id="secCross"',
+    'id="secStay"',
+    'id="secOut"',
+    'id="secWeek"',
 ]
 # owner-vetoed elements + placeholder guards
 FORBIDDEN = [
@@ -52,6 +58,10 @@ LANDING_FORBIDDEN = FORBIDDEN + [
     "/admin",  # owner: "admin is personal — nothing admin on the marketing page"
     "github.com",  # v12 owner law: no repo/release links on the landing
     "get the app",  # v12: launch ships no public download ask
+    'href="/city"',       # v19 teaser law: zero links to live surfaces
+    'href="/community"',
+    "border-radius:100px",  # v19: the teaser is capsule-free (community's
+                           # own register pass is a separate lane)
 ]
 
 
