@@ -575,6 +575,11 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 }
 @media(min-width:1024px){.dchip:first-child{border-top:0}}
 
+/* --- v16: own sections for districts + pledge; kill the last chip-box */
+.dist-sec{margin-top:22px;border-top:0;padding-top:0}
+.pledge{margin-top:22px;border-top:0}
+.story-cause{border:0;border-radius:0;padding:0}
+
 .col{padding-top:clamp(24px,4vw,52px);padding-bottom:clamp(24px,4vw,52px)}
 .phone{max-width:min(292px,100%)}
 .eq{margin-top:22px}
@@ -692,14 +697,14 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 <section><div class="col">
   <div class="feat" data-rv>
     <figure class="pshot feat-shot"><div class="phone"><picture>
-      <img src="/ios-feat-trips.webp" width="662" height="1440" decoding="async" loading="lazy"
-        alt="the trips ledger — ≈3.1 µg breathed today, the last 7 days honestly ranged">
+      <img src="/ios-feat-stays.webp" width="662" height="1440" decoding="async" loading="lazy"
+        alt="stays near lodhi garden — hotels ranked by the air around them">
     </picture></div></figure>
     <div class="feat-t">
-      <div class="lbl2">the ledger</div>
-      <h2 class="lead">The day it adds up to.</h2>
-      <p class="fp">every trip counted on your phone — honestly
-      ranged, never named, never sent anywhere.</p>
+      <div class="lbl2">the stay</div>
+      <h2 class="lead">Sleep where the air is kindest.</h2>
+      <p class="fp">hotels near you, ranked by the air around them —
+      pick the room that costs your lungs least.</p>
     </div>
   </div>
 </div></section>
@@ -707,14 +712,14 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 <section><div class="col">
   <div class="feat flip" data-rv>
     <figure class="pshot feat-shot"><div class="phone"><picture>
-      <img src="/ios-feat-week.webp" width="662" height="1440" decoding="async" loading="lazy"
-        alt="your week in air — ≈839 µg this week, day by day">
+      <img src="/ios-feat-playtime.webp" width="662" height="1440" decoding="async" loading="lazy"
+        alt="when to go out — the least-bad window 13:30–17:30, hour by hour">
     </picture></div></figure>
     <div class="feat-t">
-      <div class="lbl2">the week</div>
-      <h2 class="lead">Your week, in air.</h2>
-      <p class="fp">day by day, what accumulated — the shape of a
-      delhi week, not just the shape of today.</p>
+      <div class="lbl2">the hour</div>
+      <h2 class="lead">Go out when the air lets up.</h2>
+      <p class="fp">the day's curve read hour by hour — the least-bad
+      window to step out, before you step out.</p>
     </div>
   </div>
 </div></section>
@@ -855,9 +860,17 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
       <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
       <div class="day-note" id="dayWhy"></div>
     </div>
+  </div>
+</div></section>
+
+<!-- the district table — every boundary, worst first -->
+<section><div class="col">
+  <div class="card" data-rv>
+    <div class="lbl2">the districts</div>
+    <h2 class="lead">Where the air sits heaviest.</h2>
     <div class="dist-sec">
       <div class="dist-head">
-        <span class="lbl">the districts — <b><span id="distN">—</span> real boundaries, each filled live</b></span>
+        <span class="lbl"><b><span id="distN">—</span> real boundaries, each filled live</b></span>
         <span class="hint">tap a boundary · worst first</span>
       </div>
       <div class="distwrap">
@@ -894,8 +907,15 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
     decide — the engine priced <b><span id="pricedcount">—</span>&nbsp;million</b>
     of <b><span id="edgecount">—</span>&nbsp;million</b> road segments under
     this hour's map.</p>
+  </div>
+</div></section>
+
+<!-- the pledge — what never leaves the phone -->
+<section><div class="col">
+  <div class="card" data-rv>
+    <div class="lbl2">what leaves your phone</div>
+    <h2 class="lead">Counted on your phone. Kept on your phone.</h2>
     <div class="pledge" data-rv>
-      <h3>What leaves your phone.</h3>
       <div class="pl"><span class="pl-t">what you breathed</span>
         <span class="pl-d">counted on your phone, kept on your phone</span></div>
       <div class="pl"><span class="pl-t">a shared trip</span>
