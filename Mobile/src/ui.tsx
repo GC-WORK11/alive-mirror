@@ -160,7 +160,11 @@ export function Quiet({ glyph, title, sub, lang = "en" }: {
 }
 
 /** Bottom sheet — grabber + optional X. Milk pane: translucent white +
- *  sheen top edge + a real shadow lift; the map ghosts through the frost. */
+ *  sheen top edge + a real shadow lift; the map ghosts through the frost.
+ *  Self-anchored: an absolute bottom-detent overlay — callers mount it
+ *  bare, no per-screen wrapper. The top detent can never reach the
+ *  status bar: maxHeight is capped at (window − insets.top), the same
+ *  contract every flat surface keeps with paddingTop: insets.top. */
 export function Sheet({
   detent = "peek", onClose, children, style, lang = "en",
 }: {
@@ -233,7 +237,11 @@ export function Sheet({
   return (
     <Animated.View
       style={[us.sheet, {
-        maxHeight: Math.max(96, h),
+        /* bottom-anchored + capped at (window − top inset): the head can
+           never sit under the clock — bare-mounted sheets used to lay out
+           in root's column flow at the TOP of the screen, heads inside
+           the status-bar inset (the owner's Android overlap report). */
+        maxHeight: Math.min(Math.max(96, h), Math.max(96, WIN_H() - insets.top)),
         // gesture-nav pill / home indicator must never sit on sheet content
         paddingBottom: insets.bottom,
         transform: [{ translateY: slide }],
@@ -385,11 +393,30 @@ export function EndpointPin({ kind }: { kind: "origin" | "dest" }) {
   );
 }
 
+/** Visible "‹ back" pill — the labelled exit a surface's head column
+ *  carries so there is always an obvious way back; the sheet's grabber
+ *  drag + corner X stay the quiet secondary. Mirrors the sibling-door
+ *  register: hairline edge, accent-ink word. */
+export function BackChip({ onPress, label, lang = "en" }: {
+  onPress: () => void; label?: string; lang?: Lang;
+}) {
+  return (
+    <Pressable onPress={onPress} hitSlop={10}
+      accessibilityRole="button" accessibilityLabel={label ?? t("a11yBack", lang)}
+      style={({ pressed }) => [us.backChip, pressed && { opacity: 0.55 }]}>
+      <Icon name="back" color={V2T.accentInk} size={12} />
+      <Text {...DYNAMIC_TYPE} style={[us.backChipTxt, { fontFamily: fam(lang, "med") }]} numberOfLines={1}>
+        {label ?? t("a11yBack", lang)}
+      </Text>
+    </Pressable>
+  );
+}
+
 /** Round floating map control — one shadow level (doc 03 §elevation). */
 export function MapButton({
   glyph, onPress, active, label, filled,
 }: {
-  glyph: "locate" | "layers"; onPress: () => void; active?: boolean;
+  glyph: "locate" | "layers" | "home"; onPress: () => void; active?: boolean;
   label?: string; filled?: boolean;
 }) {
   return (
@@ -428,7 +455,14 @@ export function AlertBanner({ text, onClose, lang = "en", severity = "info" }: {
 
 const us = StyleSheet.create({
   sheet: {
+    /* the sheet owns its seat — an absolute bottom-detent overlay, no
+       wrapper required. Android dispatches sibling touches by elevation
+       before mount order, so it rides 30 with the app's other modal
+       sheets (above the home pane's 24 and the offline pill's 26, even
+       while home is mid fade-out); iOS ignores elevation. */
+    position: "absolute", bottom: 0, left: 0, right: 0,
     ...V2Elev.sheet,
+    elevation: 30,
     backgroundColor: V2T.glass, borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,
     borderCurve: "continuous",
     overflow: "hidden",
@@ -441,6 +475,17 @@ const us = StyleSheet.create({
   sheetX: { position: "absolute", right: 14, top: 4, padding: 4 },
   /* entry gate — invisible, swallows touches until the spring settles */
   enterVeil: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+
+  /* the labelled way back — hairline pill, accent-ink word, same
+     register as the explore head's sibling door */
+  backChip: {
+    alignSelf: "flex-start", flexDirection: "row", alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 999, borderWidth: StyleSheet.hairlineWidth,
+    borderColor: V2T.ink10,
+  },
+  backChipTxt: { fontSize: 12.5, color: V2T.accentInk },
 
   /* rows in the sheet's 16px rhythm — inner frost tiles on the milk pane */
   modeRow: {

@@ -71,6 +71,7 @@ export function StaysSheet({ anchor, lang, onModeChange, onPin, onClose }: Props
         disclosure={nowOnly ? undefined : t("staysDisclosure", lang)}
         siblingLabel={t("explorePlayTitle", lang)}
         onSibling={() => onModeChange("playtime")}
+        onClose={onClose}
       />
       <StaysBody data={data} failed={failed} nowOnly={nowOnly}
         lang={lang} onPin={onPin} />

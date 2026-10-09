@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { V2T, fam, famSerif } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon, type Glyph } from "../../icons";
+import { BackChip } from "../../ui";
 import { t, type Lang } from "../../i18n/strings";
 
 /** day word for the rolling horizon — 'today' / 'tomorrow' /
@@ -32,7 +33,7 @@ export function windowWords(w: {
     : `${d0} ${start} – ${d1} ${end}`;
 }
 
-export function ExploreHead({ lang, glyph, title, sub, disclosure, siblingLabel, onSibling }: {
+export function ExploreHead({ lang, glyph, title, sub, disclosure, siblingLabel, onSibling, onClose }: {
   lang: Lang;
   glyph: Glyph;
   title: string;
@@ -40,6 +41,7 @@ export function ExploreHead({ lang, glyph, title, sub, disclosure, siblingLabel,
   disclosure?: string;
   siblingLabel: string;
   onSibling: () => void;
+  onClose: () => void;
 }) {
   return (
     <View style={hs.head}>
@@ -57,24 +59,28 @@ export function ExploreHead({ lang, glyph, title, sub, disclosure, siblingLabel,
           <Text {...DYNAMIC_TYPE} style={[hs.disc, { fontFamily: fam(lang, "reg") }]}
             numberOfLines={2}>{disclosure}</Text>
         ) : null}
-        {/* the sibling surface is one tap away — same anchor, other ask.
-            Inside the head's text column: the sheet's top-right corner
-            sits under the iOS status-bar battery cluster at this detent
-            (taps there never arrive — found on sim). */}
-        <Pressable
-          onPress={onSibling}
-          accessibilityRole="button"
-          accessibilityLabel={siblingLabel}
-          style={({ pressed }) => [hs.sibling, pressed && { opacity: 0.55 }]}
-          hitSlop={10}
-        >
-          <Text {...DYNAMIC_TYPE}
-            style={[hs.siblingTxt, { fontFamily: fam(lang, "med") }]}
-            numberOfLines={1}>
-            {siblingLabel}
-          </Text>
-          <Icon name="navigate" color={V2T.accentInk} size={11} />
-        </Pressable>
+        {/* the doors, inside the head's text column — 'back' is the
+            labelled exit (the grabber drag + corner X stay secondary),
+            the sibling surface is one tap away at the same anchor.
+            Controls live here, never the top-right dead zone where the
+            status-bar cluster sits. */}
+        <View style={hs.doorRow}>
+          <BackChip onPress={onClose} lang={lang} />
+          <Pressable
+            onPress={onSibling}
+            accessibilityRole="button"
+            accessibilityLabel={siblingLabel}
+            style={({ pressed }) => [hs.sibling, pressed && { opacity: 0.55 }]}
+            hitSlop={10}
+          >
+            <Text {...DYNAMIC_TYPE}
+              style={[hs.siblingTxt, { fontFamily: fam(lang, "med") }]}
+              numberOfLines={1}>
+              {siblingLabel}
+            </Text>
+            <Icon name="navigate" color={V2T.accentInk} size={11} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -113,12 +119,16 @@ const hs = StyleSheet.create({
   title: { fontSize: 20, color: V2T.text, letterSpacing: -0.3 },
   sub: { fontSize: 12.5, color: V2T.text3, marginTop: 1 },
   disc: { fontSize: 11, color: V2T.text4, marginTop: 4, lineHeight: 15 },
+  doorRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginTop: 8, marginBottom: 2,
+  },
   sibling: {
     alignSelf: "flex-start", flexDirection: "row", alignItems: "center",
     gap: 5,
     paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 999, borderWidth: StyleSheet.hairlineWidth,
-    borderColor: V2T.ink10, marginTop: 8, marginBottom: 2,
+    borderColor: V2T.ink10,
   },
   siblingTxt: { fontSize: 12.5, color: V2T.accentInk },
   honestWrap: { paddingVertical: 30, alignItems: "center" },

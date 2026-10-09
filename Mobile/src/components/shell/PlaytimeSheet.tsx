@@ -61,6 +61,7 @@ export function PlaytimeSheet({ anchor, lang, onModeChange, onClose }: Props) {
         disclosure={t("playDisclosure", lang)}
         siblingLabel={t("staysTitle", lang)}
         onSibling={() => onModeChange("stays")}
+        onClose={onClose}
       />
       <PlaytimeBody data={data} failed={failed} lang={lang} />
     </Sheet>

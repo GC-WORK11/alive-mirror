@@ -26,7 +26,7 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { V2Elev, V2Radius, V2T, V2Type, bandIdx, cigOf, fam } from "./src/theme";
 import { DYNAMIC_TYPE } from "./src/a11y";
-import { EndpointPin } from "./src/ui";
+import { EndpointPin, MapButton } from "./src/ui";
 import { Icon } from "./src/icons";
 import type { Place, Step, V2Option } from "./src/components/shell/types";
 import {
@@ -1592,6 +1592,17 @@ function AppInner() {
                 hasField={!!fieldGeo?.features?.length} />
             </View>
           )}
+          {/* the way back ON to home — the air map is a door OFF the
+              dosimeter, so its exit is a door back: a quiet round home
+              button in the same chrome grammar as locate/layers. Parked
+              top-right below the inset (the card owns the left lane,
+              the map compass sits below at +76). */}
+          {!homeOpen && (
+            <View style={[s.mapHomeWrap, { top: insets.top + 10 }]}>
+              <MapButton glyph="home" onPress={() => setHomeOpen(true)}
+                label={t("home", lang)} />
+            </View>
+          )}
           <View style={[s.locateWrap, { bottom: insets.bottom + 16 }]}>
             <LocateButton active={follow} onPress={onLocate} lang={lang} />
           </View>
@@ -1676,6 +1687,7 @@ function AppInner() {
           fieldAgeS={planField?.age_s}
           fromName={from?.name ?? null} toName={to?.name ?? null}
           onEditRoute={(w) => { invalidatePicks(); setEditWhich(w); setPhase("search"); }}
+          onBack={() => { invalidatePicks(); setPhase("search"); }}
           showCig={settings.show_cig} />
       )}
       {phase === "nav" && sel && (
@@ -2018,6 +2030,9 @@ const s = StyleSheet.create({
   pillWrap: { position: "absolute", left: 16, right: 16 },
   /* the air map's legend — narrow, left-anchored, tap-through */
   airCardWrap: { position: "absolute", left: 16, right: 96, alignItems: "flex-start" },
+  /* the air map's home exit — the free top-right corner (card ends at
+     right:96, the compass starts at +76) */
+  mapHomeWrap: { position: "absolute", right: 12 },
   locateWrap: { position: "absolute", right: 14 },
   layersWrap: { position: "absolute", left: 14 },
   offlineWrap: {

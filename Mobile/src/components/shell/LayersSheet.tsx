@@ -31,8 +31,11 @@ function LayersSheetInner({
   lang: Lang;
 }) {
   if (!visible) return null;
+  /* Sheet self-anchors (absolute bottom detent, elevation 30 — beats the home
+     pane's 24 on Android) so this mounts bare: no wrapper that would collapse
+     to zero height and dead-zone the sheet's own taps on iOS */
   return (
-    <View style={s.wrap}>
+    <>
       {/* glass-on-glass: this sheet floats over the day card's own glass
           pane, so two 91% whites stack and the card text ghosts through
           (android audit #7) — a near-solid fill keeps rows legible while
@@ -59,17 +62,13 @@ function LayersSheetInner({
           <Text {...DYNAMIC_TYPE} style={[s.rowLabel, { fontFamily: fam(lang, "med") }]}>{t("aboutMap", lang)}</Text>
         </Pressable>
       </Sheet>
-    </View>
+    </>
   );
 }
 
 export const LayersSheet = React.memo(LayersSheetInner);
 
 const s = StyleSheet.create({
-  /* elevation must beat HomeScreen's 24 — Android dispatches sibling touches
-     by z before mount order, so the still-mounted home scroll swallowed this
-     sheet's drags. iOS ignores it. */
-  wrap: { position: "absolute", bottom: 0, left: 0, right: 0, elevation: 30 },
   title: {
     fontSize: V2Type.secondary, color: V2T.text,
     paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8,

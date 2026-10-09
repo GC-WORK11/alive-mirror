@@ -28,7 +28,7 @@ import { ActivityIndicator, Animated, Linking, Pressable, ScrollView, StyleSheet
 import { NUM, V2Elev, V2Radius, V2T, V2Type, bandColor, doseColor, fam, famMono, famMonoText } from "../../theme";
 import { DYNAMIC_TYPE, useReduceMotion } from "../../a11y";
 import { Icon, vehicleGlyph, type Glyph } from "../../icons";
-import { CountUp, Sheet } from "../../ui";
+import { BackChip, CountUp, Sheet } from "../../ui";
 import { PressSpring } from "../PressSpring";
 import { approx, clockLabel, doseUgRound, modeLabel, t, type Lang, type StringKey } from "../../i18n/strings";
 
@@ -680,7 +680,7 @@ function CompareSheetInner({
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
   showCig = false, refining = false, degraded,
-  fromName = null, toName = null, onEditRoute,
+  fromName = null, toName = null, onEditRoute, onBack,
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
@@ -721,6 +721,9 @@ function CompareSheetInner({
   fromName?: string | null;
   toName?: string | null;
   onEditRoute?: (w: "to" | "from") => void;
+  /** labelled way back — reopens the search this plan answered for
+      (the corner X stays the dismiss-to-home secondary) */
+  onBack?: () => void;
 }) {
   bump("shell.Compare");
   /* perf: options landing while mounted = the chooser's first real rows —
@@ -781,9 +784,20 @@ function CompareSheetInner({
     </PressSpring>
   );
 
+  /* Sheet self-anchors (absolute bottom detent, elevation 30) so this mounts
+     bare: the old bottom:0 wrapper collapsed to zero height once Sheet became
+     absolute itself, which on iOS dead-zones every tap above the strip */
   return (
-    <View style={s.wrap}>
+    <>
       <Sheet detent="half" onClose={onClose} lang={lang}>
+        {/* the labelled exit — 'back' reopens the search that priced
+            this trip; sits over every state so the way back never
+            hides behind a spinner or an error */}
+        {onBack ? (
+          <View style={s.backRow}>
+            <BackChip onPress={onBack} lang={lang} />
+          </View>
+        ) : null}
         {/* the From → To pair this plan answers for — sits over every
             state (finding / error / options) so the trip being priced is
             never ambiguous; each half reopens search armed on its slot */}
@@ -1038,14 +1052,13 @@ function CompareSheetInner({
           onClose={() => setVehOpen(false)}
         />
       )}
-    </View>
+    </>
   );
 }
 
 export const CompareSheet = React.memo(CompareSheetInner);
 
 const s = StyleSheet.create({
-  wrap: { position: "absolute", bottom: 0, left: 0, right: 0 },
 
   /* ---- list ---- */
   scroll: { flexShrink: 1, flexGrow: 0 },
@@ -1055,6 +1068,7 @@ const s = StyleSheet.create({
   scrollContent: { paddingBottom: 22 },
   /* From → To pair over the sheet head — hairline-separated, quiet;
      each half is a tap-target back into that slot's search */
+  backRow: { flexDirection: "row", marginHorizontal: 14, marginTop: 2 },
   tripRow: {
     flexDirection: "row", alignItems: "center", gap: 8,
     marginHorizontal: 14, marginTop: 8, marginBottom: 2,

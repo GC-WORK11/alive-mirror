@@ -23,7 +23,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { V2Radius, V2T, bandColor, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { Icon } from "../../icons";
-import { Sheet } from "../../ui";
+import { BackChip, Sheet } from "../../ui";
 import { PressSpring } from "../PressSpring";
 import { mark } from "../../perf";
 import { localizeKind, t, type Lang } from "../../i18n/strings";
@@ -76,6 +76,11 @@ export function PlaceSheet({
             <Text {...DYNAMIC_TYPE} style={[s.sub, { fontFamily: fam(lang, "reg") }]}
               numberOfLines={1}>{localizeKind(place.subtitle, lang)}</Text>
           ) : null}
+          {/* the labelled way back lives inside the head's text column —
+              the grabber drag + corner X stay the quiet secondary */}
+          <View style={s.backRow}>
+            <BackChip onPress={onClose} lang={lang} />
+          </View>
         </View>
       </View>
 
@@ -134,6 +139,7 @@ const s = StyleSheet.create({
     backgroundColor: V2T.surface3, borderRadius: V2Radius.row,
   },
   substTxt: { flex: 1, fontSize: 12.5, color: V2T.text2, lineHeight: 17 },
+  backRow: { flexDirection: "row", marginTop: 10 },
   airRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
   airDot: { width: 9, height: 9, borderRadius: 4.5 },
   airTxt: { fontSize: 13, color: V2T.text2 },
