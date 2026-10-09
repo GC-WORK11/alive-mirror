@@ -7,15 +7,14 @@
 - `/v2/playtime?near=LAT,LON` — rolling 24h curve → best/worst windows + sparse flags
 - `/grid /v2/city /v2/plan /city /community` — all 200
 
-## APK — install THIS one (v7, 90bc055 — every feature + every fix + air-gate)
-- arm64 release: alive-90bc055-arm64.apk 108.3MB sha c6282daf…76fe3
-  https://app.devin.ai/attachments/9af3be9a-b067-48e1-adc5-7aaa1670b7e9/alive-90bc055-arm64.apk
-- universal (x86 emulators too): alive-90bc055-universal.apk 188.9MB sha 77654098…
-  https://app.devin.ai/attachments/b3773c76-a29a-41a0-b222-26b987429306/alive-90bc055-universal.apk
-- v7 = v6 (e2e-residual) + air-gate: plain basemap everywhere, PM2.5 field paints only on air intent; boot smoke all-pass on KVM AVD (cold 1563ms, zero crashes)
-- universal x86 fallback (v5, 270be81): 189.3MB sha 3ac840ac…0aba
-  https://app.devin.ai/attachments/bd4aa94a-ed39-4835-af53-02c5ac91a0f2/alive-270be81-universal.apk
-- (v5 arm64 superseded — was missing the 5 residual fixes)
+## APK — install THIS one (v9, ef758f9 — EVERYTHING incl. safe-area fix)
+- arm64 release: alive-ef758f9-arm64.apk 108.3MB sha ce95c33e…1d06a
+  https://app.devin.ai/attachments/e41e41cc-21bb-4160-b1f2-3128c43c7529/alive-ef758f9-arm64.apk
+- universal (x86 emulators too): alive-ef758f9-universal.apk 188.9MB sha 8bc5f57c…35572
+  https://app.devin.ai/attachments/93fe1f16-b360-4428-887c-868dd2cce6bb/alive-ef758f9-universal.apk
+- v9 = air-gate + From/To journey flow + stays/playtime sheets + splash + air-map restyle + **safe-area fix** (Sheet anchors below status bar; ‹ back chip on every surface — verified PASS full Android E2E, docs/lanes/safearea-e2e.md, 15 shots)
+- KVM light smoke ALL PASS (cold 1867ms); full AVD walk PASS on this exact code
+- (v7/v8 superseded — v7 predates From/To+splash+restyle+safe-area; v8 predates safe-area)
 
 ## Videos
 - 95s X-cut on v7 (all features, air-gate true on camera, fits 2:20): https://app.devin.ai/attachments/af5fda3a-96bc-483e-8447-032426c8728b/x_reel_v7.mp4 — POST THIS ONE; the old 106s cut shows the removed colored routes
