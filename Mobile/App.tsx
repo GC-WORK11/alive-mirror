@@ -62,6 +62,7 @@ import { DelhiToday } from "./src/screens/DelhiToday";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { LedgerScreen } from "./src/screens/LedgerScreen";
 import { OnboardingScreen, type SharingChoice } from "./src/screens/OnboardingScreen";
+import { SplashWordmark } from "./src/components/SplashWordmark";
 import { loadWelcomeSeen, markWelcomeSeen } from "./src/store/welcome";
 import { HomeScreen, DayPeek, useDayData, type AmbientMeta } from "./src/screens/HomeScreen";
 import { personalAmbientSample, recordSample, setCheckin } from "./src/store/daylog";
@@ -578,6 +579,13 @@ function AppInner() {
      (home-truth: a number you can't verify reads as a wrong number). */
   const [ambientMeta, setAmbientMeta] = useState<AmbientMeta | null>(null);
   const [introSeen, setIntroSeen] = useHeldState<boolean | null>(null);
+  /* the launch wordmark — mounts only on the introSeen===false branch
+     (fresh install), over the same paper the native splash showed. A
+     returning user resolves true and never mounts it: straight home,
+     nothing re-animated. Flips false when the crossfade ends; one mount
+     per cold launch is the whole lifecycle. */
+  const [introMark, setIntroMark] = useState(true);
+  const onIntroMarkDone = useCallback(() => setIntroMark(false), []);
   /* coach_tour_seen_v1 — the first-run spotlight walk. Mounts once
      after onboarding while the live home keeps painting under it;
      a null stays null until its file read lands (no tour flashes on a
@@ -1818,6 +1826,11 @@ function AppInner() {
         <CoachTour lang={lang} onDone={onTourDone} />
       )}
 
+      {/* splash lane: sits over the freshly-mounted onboarding — it is the
+          last child so nothing else ever paints above it */}
+      {introSeen === false && introMark && (
+        <SplashWordmark onDone={onIntroMarkDone} />
+      )}
 
     </View>
   );
