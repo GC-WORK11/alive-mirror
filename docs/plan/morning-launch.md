@@ -18,7 +18,7 @@
 - (v5 arm64 superseded — was missing the 5 residual fixes)
 
 ## Videos
-- 106s X-cut (all 4 features, fits 2:20): https://app.devin.ai/attachments/6787bddb-04ee-40fc-9b19-067df5cce60b/alive-x-cut.mp4
+- 95s X-cut on v7 (all features, air-gate true on camera, fits 2:20): https://app.devin.ai/attachments/af5fda3a-96bc-483e-8447-032426c8728b/x_reel_v7.mp4 — POST THIS ONE; the old 106s cut shows the removed colored routes
 - 15min full take: https://app.devin.ai/attachments/1653d8a8-c80d-4bb7-a266-52f0e780da3b/v5.mp4
 - landing v14 89s: https://app.devin.ai/attachments/4ecc601b-c2a1-4ba8-8fb7-2f87b97a113f/landing-v14-final.mp4
 - admin console 61s: https://app.devin.ai/attachments/bc466100-90a0-4c3c-b78b-7198f1110d9b/admin-v2-final.mp4
