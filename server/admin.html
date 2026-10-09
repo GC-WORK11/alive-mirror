@@ -470,7 +470,10 @@ const sparkDraw=(wrapId)=>{const w=$(wrapId);
 
 function renderAir(city,status){
   const stats=(city&&city.pm25_stats)||{};
-  const f=(status&&status.field)||(city&&city.field)||{};
+  /* merge the two field snapshots — api/status's field is authoritative
+     for serving/age/stale, but the native engine reports the station
+     blend only on /v2/city's embedded field (stations_status/src) */
+  const f={...((city&&city.field)||{}),...((status&&status.field)||{})};
   const mean=stats.mean;
   const bi=bandIdx(mean);
   const pmEl=$('pm');
@@ -513,7 +516,7 @@ function renderAir(city,status){
     :f.serving==='none'?'nothing — the field is empty':'—',
     f.serving==='snapshot'
       ?`serving a saved snapshot${f.snapshot_age_s!=null?` · built ${ago(f.snapshot_age_s)} ago`:''} — the live builder is down`
-      :(f.engine?`engine ${esc(f.engine)}`:null),
+      :null,
     f.serving==='none'));
   rows.push(row('wind',
     w.speed_kmh!=null?`${Math.round(w.speed_kmh)} km/h <i>from ${compass(w.from_deg)||'—'}</i>`:'—',
@@ -540,8 +543,8 @@ function renderAir(city,status){
   }else{$('fcWrap').hidden=true}
 }
 
-function renderCoverage(status){
-  const f=(status&&status.field)||{};
+function renderCoverage(status,city){
+  const f={...((city&&city.field)||{}),...((status&&status.field)||{})};
   const arch=(status&&status.archive)||{};
   const fc=(status&&status.forecast)||{};
   const rt=(status&&status.routing)||{loaded:false};
@@ -558,16 +561,19 @@ function renderCoverage(status){
   }
   rows.push(row('model grid',f.samples!=null?`${fmt(f.samples)} samples`:'—',
     f.source?`source ${esc(f.source)}`:null));
-  rows.push(row('kriging',
-    f.kriging==='on'?'on — ordinary kriging'
-    :f.kriging==='idw'?'idw fallback — honest, no krige σ':'—',
-    f.kriging==='idw'?'inverse-distance instead of the full spatial model — the map still answers, it just can\'t say how sure':null,
+  /* plain words for the estimator — the mechanic's name stays in
+     brackets for whoever wants it, never as the headline */
+  rows.push(row('between the stations',
+    f.kriging==='on'?'smoothed by the full spatial model'
+    :f.kriging==='idw'?'simple distance-averaging':'—',
+    f.kriging==='on'?'ordinary kriging under the hood'
+    :f.kriging==='idw'?'the cheaper guess — cells get answers but no honest certainty band':null,
     f.kriging==='idw'));
   rows.push(row('how sure each cell is',
-    f.sigma_coverage==='per-query'?'every query gets its krige σ band'
-    :f.sigma_coverage==='full'?'every served cell carries σ'
-    :(f.sigma_coverage||'').startsWith('partial:')?`σ on ${esc(f.sigma_coverage.slice(8))} of the cells`
-    :f.sigma_coverage==='none'?'no σ — the field answers without an honest band':'—',
+    f.sigma_coverage==='per-query'?'every query gets an honest certainty band'
+    :f.sigma_coverage==='full'?'every served cell carries a certainty band'
+    :(f.sigma_coverage||'').startsWith('partial:')?`a certainty band on ${esc(f.sigma_coverage.slice(8))} of the cells`
+    :f.sigma_coverage==='none'?'no certainty band — the field answers without one':'—',
     null,f.sigma_coverage==='none'));
   const cov=f.coverage||{};
   rows.push(row('the served field',cov.cells!=null?`${fmt(cov.cells)} cells`:'—',
@@ -589,12 +595,12 @@ function renderCoverage(status){
     `${fmt(fc.hours)} hours ahead`,fc.age_s!=null?`refreshed ${ago(fc.age_s)} ago`:null));
   if(rt.loaded)rows.push(row('the route engine',
     rt.edges_priced!=null&&rt.edges!=null
-      ?`${fmt(rt.edges_priced)} of ${fmt(rt.edges)} edges priced`:'loaded',
+      ?`${fmt(rt.edges_priced)} of ${fmt(rt.edges)} streets priced`:'loaded',
     `least-smoke paths priced off the live map`+(rt.reweight_age_s!=null?` · repriced ${ago(rt.reweight_age_s)} ago`:'')));
   $('covRows').innerHTML=rows.join('');
-  $('covNote').innerHTML=`kriged or not, the page says which — a cell the
-    field can't honestly answer is never smoothed into fiction. the
-    archive is delhi's air as recorded history, one snapshot an hour.`;
+  $('covNote').innerHTML=`a cell the field can't honestly answer is never
+    smoothed into fiction — the page says how each number is estimated.
+    the archive is delhi's air as recorded history, one snapshot an hour.`;
 }
 
 function renderUsage(usage,timing,api){
@@ -610,26 +616,33 @@ function renderUsage(usage,timing,api){
   $('bootLine').innerHTML=(up!=null
     ?`counted since boot <b>${hmIST(Date.now()/1000-up)}</b> — the server's own stopwatch, in-process. <b>every counter resets on deploy.</b>`
     :`the server's own stopwatch — in-process counts since boot. <b>every counter resets on deploy.</b>`);
-  /* requests — the registry's real histograms, busiest first */
+  /* requests — the registry's real histograms, busiest first.
+     /health usually tops this board — uptime monitoring pings it
+     constantly; it's real traffic, just not people, and the note says so */
   const routes=(timing&&timing.routes)||[];
   const inflight=timing&&timing.gauges&&timing.gauges.alive_requests_in_flight;
   const rrows=[];
-  rrows.push(row('requests served',req.total!=null?fmt(req.total):fmt(routes.reduce((a,r)=>a+(r.n||0),0)),
-    inflight?`${fmt(inflight)} in flight right now`:null));
+  const healthN=(routes.find(r=>r.path==='/health')||{}).n;
+  const totalN=req.total!=null?req.total:routes.reduce((a,r)=>a+(r.n||0),0);
+  rrows.push(row('requests served',fmt(totalN),
+    (inflight?`${fmt(inflight)} in flight right now · `:'')+
+    (healthN&&totalN?`/health alone is ${fmt(healthN)} — uptime monitors pinging, real but not people`:'')));
   $('reqRows').innerHTML=rrows.join('');
   const shortPath=p=>p&&p.startsWith(M)?p.slice(M.length)||'/':p;
   const top=routes.filter(r=>r.n>0).slice(0,8);
   $('routeRows').innerHTML=top.map((r,i)=>lrow(
     String(i+1).padStart(2,'0'),
     esc(shortPath(r.path)),
-    `${fmt(r.n)} <i>· p90 ≤ ${r.p90_le_ms!=null?fmt(r.p90_le_ms)+'ms':'—'}</i>`)).join('')||
+    `${fmt(r.n)} <i>· ≈${r.mean_ms!=null?fmt(r.mean_ms):'—'}ms each</i>`)).join('')||
     lrow('01','—','nothing has knocked yet');
-  /* journeys sparkline — trips per utc hour, the store's own buckets */
-  const jph=api&&api.journeys_per_hour;
+  /* journeys sparkline — donations per hour over the rolling 24h, the
+     ledger's own buckets (more of the story than today-only) */
+  const jph=(trips.per_hour&&trips.per_hour.length>=2?trips.per_hour:null)
+    ||(api&&api.journeys_per_hour);
   if(jph&&jph.length>=2){
     spark('trSvg',jph,{});
     const tot=jph.reduce((a,b)=>a+(b||0),0);
-    $('trR').innerHTML=`<b>${fmt(tot)}</b> journeys in the window`;
+    $('trR').innerHTML=`<b>${fmt(tot)}</b> ${tot===1?'journey':'journeys'} in the window`;
     sparkDraw('trWrap');
   }else{$('trWrap').hidden=true}
   const urows=[];
@@ -642,10 +655,15 @@ function renderUsage(usage,timing,api){
   urows.push(row('active right now',
     live!=null?fmt(live):'—',
     'phones that shared inside the last half hour'));
+  /* the last 24h answers 'who touched it today' better than the
+     day-boundary counter — a fresh IST/UTC day reads zero by definition */
+  const l24=trips.last_24h;
   const today=trips.today;
-  urows.push(row('today',
-    today?`<b>${fmt(today.trips)}</b> <i>journeys</i>`:'none yet',
-    today?`${fmt1(today.km)} km · ${fmt1(today.dose_ug)} µg breathed`:'the day counter exists — it just hasn\'t heard a trip yet'));
+  urows.push(row('the last 24 hours',
+    l24&&l24.trips!=null?`<b>${fmt(l24.trips)}</b> <i>journeys</i>`:'none',
+    l24&&l24.trips!=null
+      ?`${fmt1(l24.km)} km · ${fmt1(l24.dose_ug)} µg · ${fmt(l24.devices)} phones${today&&today.trips!=null?` · ${fmt(today.trips)} of them since the day turned`:''}`
+      :'the window counter exists — it just hasn\'t heard a trip yet'));
   urows.push(row('every donation ever',
     trips.total?`<b>${fmt(trips.total)}</b> <i>journeys</i>`:'—',
     trips.total?`${fmt1(trips.km)} km · ${fmt1(trips.dose_ug)} µg · ${fmt1(trips.co2_kg_mid)} kg co₂${trips.latest_donation_age_min!=null?` · last one ${ago(trips.latest_donation_age_min*60)} ago`:''}`:null));
@@ -659,28 +677,69 @@ function renderUsage(usage,timing,api){
   urows.push(row('what riders told us',
     rv&&rv.count!=null?`<b>${fmt(rv.count)}</b> <i>reviews</i>`:'—',
     `${rv&&rv.avg!=null?`avg ${fmt1(rv.avg)} ★ · `:''}${hz&&hz.active!=null?fmt(hz.active)+' hazard flags live':''}`||null));
+  /* riders by day — the closest honest answer to 'who used it': trips +
+     distinct phones per day, the ledger's own rollup (thin day-slices
+     are already withheld server-side under the 3-phone rule) */
+  const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const days=(api&&api.contributors)||[];
+  if(days.length){
+    urows.push(`<div class="dr"><span class="dk">riders by day</span>`+
+      `<b class="dv"><i>journeys · phones</i></b></div>`);
+    days.slice(0,5).forEach(d=>{
+      const[y,m,dd]=String(d.day||'').split('-').map(Number);
+      urows.push(lrow('',
+        `${MON[m-1]||''} ${dd||''}`,
+        `${fmt(d.trips)} <i>· ${fmt(d.contributors)} phones</i>`));
+    });
+  }
+  /* the busiest shared street cells — only names that cleared the
+     ≥3-phones-in-72h privacy bar exist here at all */
+  const topC=(api&&api.community&&api.community.top_corridors)||[];
+  if(topC.length){
+    urows.push(`<div class="dr"><span class="dk">busiest shared streets</span>`+
+      `<b class="dv"><i>crossings · phones</i></b></div>`);
+    topC.slice(0,3).forEach(c=>urows.push(lrow('',
+      esc(c.name||'unnamed cell'),
+      `${fmt(c.samples)} <i>· ${fmt(c.devices)} phones</i>`)));
+  }
   $('useRows').innerHTML=urows.join('');
   const supp=api&&api.contributors_suppressed;
   $('useNote').innerHTML=`aggregate-only by construction — nothing here
     can collapse to one person${supp&&supp.day_rows?`; <b>${fmt(supp.day_rows)}</b> day-slice${supp.day_rows>1?'s':''} withheld under the 3-phone rule`:''}.`;
 }
 
-function renderHealth(status,sources,timing){
-  const f=(status&&status.field)||{};
+function renderHealth(status,sources,timing,health){
+  const f={...((health&&health.field)||{}),...((status&&status.field)||{})};
   const src=(sources&&sources.sources)||{};
+  const hs=(health&&health.sources)||{};
   const disk=(status&&status.disk)||{};
   const led=(status&&status.ledger)||{};
   const alarms=[];
   /* every alarm names itself — the count is real conditions, not vibes */
   if(f.serving==='none')alarms.push('the field serves nothing');
-  if(f.stale===true)alarms.push(`field ${ago(f.age_s)} old, past the ${Math.round((f.stale_after_s||2700)/60)}-minute rule`);
-  let staleN=0;
-  for(const[n,s]of Object.entries(src)){if(s&&s.stale===true){staleN++;}}
-  if(staleN)alarms.push(`${staleN} feed${staleN>1?'s':''} stale`);
-  if(disk.low===true)alarms.push(`disk ${fmt1(disk.free_pct)}% free`);
-  if(led.error)alarms.push(`ledger: ${led.error}`);
+  if(f.stale===true)alarms.push(`the map itself is ${ago(f.age_s)} old — past the ${Math.round((f.stale_after_s||2700)/60)}-minute rule`);
+  /* each feed's verdict word is computed once here — the alarm line and
+     the rows below both read it, so they can never disagree */
+  const feedWord={};
+  for(const[n,s]of Object.entries(src)){
+    const st=String(s.status||'').toLowerCase();
+    const word=s.stale===true?'stale'
+      :s.up===false?'down'
+      :st.startsWith('unavailable')||st.startsWith('down')||st.startsWith('error')||st.startsWith('fail')?'down'
+      :st.startsWith('skipped')?'off'
+      :s.status?s.status
+      :s.up===true?'up'
+      :'listening';
+    feedWord[n]=word;
+    if(s&&s.stale===true)
+      alarms.push(`${n} is stale${s.age_s!=null?` — ${ago(s.age_s)} old`:''}`);
+    else if(word==='down')
+      alarms.push(`${n} isn't answering${s&&s.age_s!=null?` — last heard ${ago(s.age_s)} ago`:''}`);
+  }
+  if(disk.low===true)alarms.push(`disk only ${fmt1(disk.free_pct)}% free`);
+  if(led.error)alarms.push(`the ledger: ${led.error}`);
   const lw=(f.load_warnings||[]).length;
-  if(lw)alarms.push(`${lw} load warning${lw>1?'s':''}`);
+  if(lw)alarms.push(`${lw} load warning${lw>1?'s':''} from the model`);
   const al=$('alarm');
   if(alarms.length){
     al.className='alarmline hot';
@@ -689,37 +748,53 @@ function renderHealth(status,sources,timing){
     al.className='alarmline quiet';
     al.innerHTML=`<b>all quiet.</b> nothing is past its alarm rule — every feed inside its own cadence.`;
   }
-  /* the feeds, verbatim — each carries its own state word */
+  /* the feeds — each carries its own verdict, stale beats up.
+     the native engine often reports detail but no status/age; the
+     public /health rollup fills stations/fires/location words */
+  const clean=d=>String(d||'')
+    .replace(/\s*—\s*secrets?\b.*$/i,'')      /* config notes, not analytics */
+    .replace(/\s*\([^)]*\)\s*/g,' ')          /* env-var parentheticals */
+    .replace(/\s{2,}/g,' ').trim();
   const srows=[];
   for(const[name,s]of Object.entries(src)){
-    /* the feed's verdict reads its own status word — 'up' is a probe
-       tri-state (usually null), 'skipped:*' is off by choice, anything
-       unavailable/down/error is brick, everything else is listening */
-    const st=String(s.status||'').toLowerCase();
-    const word=s.up===true?'up':s.up===false?'down'
-      :s.stale===true?'stale'
-      :st.startsWith('unavailable')||st.startsWith('down')||st.startsWith('error')||st.startsWith('fail')?'down'
-      :st.startsWith('skipped')?'off'
-      :'listening';
+    const word=feedWord[name]||'listening';
     const bad=s.stale===true||s.up===false||word==='down';
-    const age=s.age_s!=null?`${ago(s.age_s)} ago`:'—';
-    srows.push(lrow('',`<b>${esc(name)}</b> — ${esc(s.status||s.detail||'')} `,
-      `${esc(word)} <i>· ${age}</i>`,bad));
+    const age=s.age_s!=null?` · ${ago(s.age_s)} ago`:'';
+    /* per-feed texture from /health where the engine is terse */
+    let what=clean(s.status||s.detail||'');
+    if(name==='stations'&&hs.stations){
+      const feeds=hs.stations.feeds||{};
+      const parts=Object.entries(feeds).map(([k,v])=>`${k} ${v==='ok'?'✓':'✗'}`);
+      what=`${fmt(hs.stations.count)} monitors in the blend`+(parts.length?` — ${parts.join(' · ')}`:'');
+    }else if(name==='fires'&&hs.fires&&hs.fires.fires!=null){
+      what=`${fmt(hs.fires.fires)} fires on the map`+(hs.fires.belt_fires!=null?` · ${fmt(hs.fires.belt_fires)} in the belt`:'');
+    }
+    srows.push(lrow('',`<b>${esc(name)}</b> — ${esc(what)}`,
+      `${esc(word)}<i>${age}</i>`,bad));
   }
   $('srcRows').innerHTML=srows.join('');
-  /* errors — the request logger's own counters, per route, since boot */
+  /* errors — the request logger's own counters, per route, since boot.
+     status classes get plain words; route labels get translations for
+     the two every prod box sees: path-scans ('unmatched') and wrong
+     sign-in links */
   const errs=(timing&&timing.errors)||[];
   const bs=(timing&&timing.requests&&timing.requests.by_status)||{};
-  const erows=[];
-  erows.push(row('errors since boot',
-    `<i>4xx</i> ${fmt(bs['4xx']||0)} · <i>5xx</i> ${fmt(bs['5xx']||0)}`,
+  const errows=[];
+  errows.push(row('errors since boot',
+    `turned away ${fmt(bs['4xx']||0)} · server errors ${fmt(bs['5xx']||0)}`,
     errs.length?null:'no route has thrown or refused since boot',
     (bs['5xx']||0)>0));
-  errs.slice(0,5).forEach((e,i)=>erows.push(
-    lrow(String(i+1).padStart(2,'0'),
-      esc(e.route&&e.route.startsWith(M)?e.route.slice(M.length)||'/':e.route),
-      `${fmt(e.n)} <i>${esc(e.class)}</i>`,e.class==='5xx')));
-  $('errRows').innerHTML=erows.join('');
+  const name4route=p=>{
+    const q=p&&p.startsWith(M)?p.slice(M.length)||'/':p;
+    if(q==='unmatched')return 'paths that don\'t exist (scanners, mostly)';
+    if(q==='/in/{secret}')return 'wrong sign-in links';
+    if(q==='/')return '/ (the front page)';
+    return q||'?';
+  };
+  errs.slice(0,5).forEach((e,i)=>errows.push(
+    lrow(String(i+1).padStart(2,'0'),esc(name4route(e.route)),
+      `${fmt(e.n)} <i>${e.class==='5xx'?'server error':'turned away'}</i>`,e.class==='5xx')));
+  $('errRows').innerHTML=errows.join('');
   /* the machine's own vitals */
   const sysrows=[];
   sysrows.push(row('disk',disk.free_pct!=null?`${fmt1(disk.free_pct)}% free`:'—',
@@ -745,7 +820,10 @@ async function tick(){
     M+'/api/usage',M+'/api','/v2/city',
     /* the auth probe — not gated, always fetched; it is how sign-out /
        expiry in another tab (or a token rotation) re-locks this board */
-    M+'/session'];
+    M+'/session',
+    /* the public health rollup — per-feed counts the terse native
+       /api/sources doesn't carry (station feeds, fire tallies) */
+    '/health'];
   const gated=!AUT;
   const isGatedPath=u=>u.startsWith(M+'/api');
   const res=await Promise.allSettled(urls.map(u=>
@@ -756,7 +834,7 @@ async function tick(){
   if(sess&&sess.authenticated===false&&AUT){
     AUT=false;showGate('session ended — sign in again');
   }
-  const data=res.slice(0,6);
+  const data=res.slice(0,6),health=res[7].status==='fulfilled'?res[7].value:null;
   if(data.every(r=>r.status==='rejected')){
     /* keep the last good render on screen — flag its age, never blank it */
     $('liveDot').style.background='var(--brick)';
@@ -770,9 +848,9 @@ async function tick(){
   const val=i=>data[i].status==='fulfilled'?data[i].value:null;
   const status=val(0),sources=val(1),timing=val(2),usage=val(3),api=val(4),city=val(5);
   try{renderAir(city,status)}catch(e){}
-  try{renderCoverage(status)}catch(e){}
+  try{renderCoverage(status,city)}catch(e){}
   try{renderUsage(usage,timing,api)}catch(e){}
-  try{renderHealth(status,sources,timing)}catch(e){}
+  try{renderHealth(status,sources,timing,health)}catch(e){}
   /* the stamp line — when this paint happened and what it cost */
   $('stamp').innerHTML=
     `<span>updated <b>${timeIST(LAST_OK)}</b></span>`+
