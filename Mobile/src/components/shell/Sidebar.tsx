@@ -513,7 +513,7 @@ const SidebarBody = React.memo(function SidebarBody({
               <View key="donate">
                 {menuRow({
                   glyph: "wind", label: t("settingsShareData", lang),
-                  hint: t("shareDataHint", lang), hideChevron: true,
+                  hint: t(settings.share ? "shareDataHint" : "shareDataHintOff", lang), hideChevron: true,
                   onPress: () => onSettings({ share: !settings.share }),
                   trailing: (
                     <Switch value={settings.share}

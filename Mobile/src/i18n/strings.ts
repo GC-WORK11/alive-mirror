@@ -456,6 +456,7 @@ const en = {
      re-explain (two stacked lines saying the same thing twice was
      audit slop #29) */
   shareDataHint: "on — one tap to stop anytime",
+  shareDataHintOff: "off — nothing leaves this phone",
   deleteConfirmTitle: "delete my data?",
   deleteConfirmBody: "your trips, settings and anonymous id are removed from this phone",
   deleteConfirmYes: "delete",
@@ -1719,6 +1720,7 @@ const hi: Record<StringKey, string> = {
   settingsUnitsHint: "सिर्फ़ मीट्रिक",
   morningAlert: "सुबह का हवा-अलर्ट",
   shareDataHint: "चालू — एक टैप से कभी भी बंद",
+  shareDataHintOff: "बंद — कुछ भी इस फ़ोन से बाहर नहीं",
   deleteConfirmTitle: "मेरा डेटा मिटाएँ?",
   deleteConfirmBody: "आपकी यात्राएँ, सेटिंग्स और गुमनाम आईडी इस फ़ोन से हट जाएँगे",
   deleteConfirmYes: "मिटाएँ",
