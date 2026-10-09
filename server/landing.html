@@ -623,41 +623,125 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 .foot .col{padding-top:38px;padding-bottom:38px}
 .foot-in{margin-top:26px}
 
-/* reveal — quiet rise, once */
-[data-rv]{opacity:0;transform:translateY(12px);
+/* reveal — quiet rise, once; hidden only once js arms it (the rv
+   class on body) — a dead script can never strand content invisible */
+body.rv [data-rv]{opacity:0;transform:translateY(12px);
   transition:opacity .7s cubic-bezier(.22,1,.36,1),
              transform .7s cubic-bezier(.22,1,.36,1)}
-[data-rv].rv{opacity:1;transform:none}
+body.rv [data-rv].in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){
-  [data-rv]{opacity:1;transform:none;transition:none}
+  body.rv [data-rv]{opacity:1;transform:none;transition:none}
   .spine .mark,.away a::after{transition:none}
   html{scroll-behavior:auto}}
+
+/* ================= v17 — the boot: a → alive, then the field ======
+   the overlay never touches scroll — it covers, breathes, and leaves.
+   once per session, escapable, absent entirely under reduced-motion */
+#boot{position:fixed;inset:0;z-index:200;background:#111210;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:opacity .5s cubic-bezier(.22,1,.36,1)}
+#boot.out{opacity:0;pointer-events:none}
+#boot .bvid{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover}
+#boot .bwm{position:relative;z-index:1;font-family:var(--sans);
+  font-weight:500;color:#f7f6f5;
+  font-size:clamp(44px,8vw,92px);letter-spacing:-.035em;line-height:1;
+  display:flex;align-items:baseline}
+#boot .bwm .bl{display:inline-block;opacity:0;
+  transform:translateY(.3em);
+  transition:opacity .5s ease,transform .6s cubic-bezier(.22,1,.36,1)}
+#boot .bwm .bl.in{opacity:1;transform:none}
+#boot .bdot{width:.12em;height:.12em;flex:none;margin-left:.08em;
+  align-self:baseline;transform:translateY(-.04em);opacity:0;
+  background:#3a6844;transition:opacity .4s,background .6s}
+#boot .bdot.in{opacity:1}
+#boot .bline{position:absolute;left:0;right:0;bottom:14vh;
+  text-align:center;font-family:var(--mono);font-size:10px;
+  letter-spacing:.02em;color:rgba(247,246,245,.45)}
+#boot .bhint{position:absolute;bottom:26px;left:0;right:0;
+  text-align:center;font-family:var(--mono);font-size:9px;
+  color:rgba(247,246,245,.28)}
+@media(prefers-reduced-motion:reduce){#boot{display:none}}
+
+/* ---------- the demo reel — the real build, running ---------- */
+.phone.reel video{display:block;width:100%;height:auto;
+  border-radius:4px;border:1px solid var(--line2);
+  background:#f5f3ec}
+.reel-ch{display:flex;gap:6px;margin-top:18px;flex-wrap:wrap;
+  justify-content:center}
+.reel-ch button{font-family:var(--mono);font-size:10px;color:var(--ink3);
+  background:none;border:1px solid var(--line);border-radius:3px;
+  padding:6px 10px;cursor:pointer}
+.reel-ch button:hover{border-color:var(--ink2);color:var(--ink2)}
+.reel-ch button.on{color:var(--ink);border-color:var(--ink)}
+
+/* ================= v18 — the demo stage: ink, haze, the real build
+   the boot's own pollution-haze breathes behind the phones; three
+   devices, the reel center-front, stills tilted either side */
+section.stage{background:#141512;position:relative;overflow:hidden}
+.stage-haze{position:absolute;inset:0;pointer-events:none}
+.stage-haze video{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;opacity:.55}
+.stage-haze::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(130% 90% at 50% 115%,
+    rgba(20,21,18,.15),rgba(20,21,18,.88) 72%)}
+.stage .col{position:relative;z-index:1}
+.stage .col::before{color:rgba(247,246,245,.30)!important}
+.stage .lbl2{color:rgba(247,246,245,.45)}
+.stage .lead{color:#f7f6f5}
+.stage .fp{color:rgba(247,246,245,.62)}
+.duo{display:flex;justify-content:center;align-items:flex-end;
+  margin-top:46px}
+.duo figure{margin:0}
+.duo-main{position:relative;z-index:2;width:min(296px,64vw)}
+.duo-side{width:min(228px,42vw);z-index:1}
+.duo-side.dl{transform:rotate(-6deg) translateY(28px);margin-right:-60px}
+.duo-side.dr{transform:rotate(6deg) translateY(28px);margin-left:-60px}
+.duo video,.duo img{display:block;width:100%;height:auto;
+  border-radius:10px;border:1px solid rgba(247,246,245,.20);
+  box-shadow:0 46px 100px -34px rgba(0,0,0,.8)}
+.stage .reel-ch button{color:rgba(247,246,245,.5);
+  border-color:rgba(247,246,245,.24)}
+.stage .reel-ch button:hover{color:rgba(247,246,245,.8);
+  border-color:rgba(247,246,245,.5)}
+.stage .reel-ch button.on{color:#f7f6f5;border-color:rgba(247,246,245,.9)}
+/* what it does — the four things, ruled lines on ink */
+.does{margin-top:60px;border-top:1px solid rgba(247,246,245,.16)}
+.does .do{display:grid;grid-template-columns:44px minmax(150px,250px) 1fr;
+  gap:18px;align-items:baseline;padding:15px 0;
+  border-bottom:1px solid rgba(247,246,245,.16)}
+.does .dn{font-family:var(--mono);font-size:10px;
+  color:rgba(247,246,245,.38)}
+.does .dt{font-family:var(--serif);font-size:15.5px;color:#f7f6f5}
+.does .dd{font-family:var(--serif);font-size:13.5px;line-height:1.55;
+  color:rgba(247,246,245,.55)}
+@media(max-width:700px){
+  .duo-side{display:none}
+  .duo-main{width:min(280px,86vw)}
+  .does .do{grid-template-columns:30px 1fr;row-gap:3px}
+  .does .dd{grid-column:2}}
 </style>
 
 </head><body>
+<div id="boot" role="presentation" aria-hidden="true">
+  <video class="bvid" src="/boot-haze.mp4" muted loop autoplay
+    playsinline preload="auto" aria-hidden="true"></video>
+  <div class="bwm"><span class="bl">A</span><span class="bl">l</span><span class="bl">i</span><span class="bl">v</span><span class="bl">e</span><i class="bdot" id="bootDot"></i></div>
+  <div class="bline" id="bootLine">reading delhi's air</div>
+  <div class="bhint">tap to enter</div>
+</div>
 <header class="top"><div class="top-in">
-  <a class="wm" href="/">alive<i class="wdot" aria-hidden="true"></i></a>
+  <a class="wm" href="/">Alive<i class="wdot" aria-hidden="true"></i></a>
   <nav class="spine" aria-label="on this page">
     <span class="alab">the page</span>
     <a href="#secNow"><i class="rn">001</i><span>right now</span></a>
-    <a href="#secHome"><i class="rn">002</i><span>the home</span></a>
-    <a href="#secChooser"><i class="rn">003</i><span>the chooser</span></a>
-    <a href="#secStay"><i class="rn">004</i><span>the stay</span></a>
-    <a href="#secHour"><i class="rn">005</i><span>the hour</span></a>
-    <a href="#secSum"><i class="rn">006</i><span>the sum</span></a>
-    <a href="#secField"><i class="rn">007</i><span>the map</span></a>
-    <a href="#secRecord"><i class="rn">010</i><span>the record</span></a>
-    <a href="#secDistricts"><i class="rn">011</i><span>the districts</span></a>
-    <a href="#secHow"><i class="rn">012</i><span>how it knows</span></a>
-    <a href="#secPromise"><i class="rn">013</i><span>the promise</span></a>
+    <a href="#secDemo"><i class="rn">002</i><span>the app</span></a>
+    <a href="#secField"><i class="rn">003</i><span>the map</span></a>
+    <a href="#secRecord"><i class="rn">004</i><span>the record</span></a>
+    <a href="#secDistricts"><i class="rn">005</i><span>the districts</span></a>
+    <a href="#secHow"><i class="rn">006</i><span>how it knows</span></a>
+    <a href="#secPromise"><i class="rn">007</i><span>the promise</span></a>
     <i class="mark" aria-hidden="true"></i>
-  </nav>
-  <nav class="away" aria-label="elsewhere">
-    <span class="alab">elsewhere</span>
-    <a href="/">home</a>
-    <a href="/city">the field</a>
-    <a href="/city">delhi</a>
-    <a href="/community">community</a>
   </nav>
   <span id="toplive" aria-hidden="true"></span>
 </div></header>
@@ -696,8 +780,6 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   the live field over the city and shows you what your lungs keep on
   every route, before you take it. The number below is the city's air
   right now; everything on this page is live or disclosed.</p>
-  <div class="btns"><a class="btn solid" href="/city">open the live
-  field</a><a class="btn" href="/community">the community</a></div>
   <div class="lbl2" style="margin-top:34px"><i class="livedot"></i>right now, over delhi ncr</div>
   <div class="hnum" id="hnum" role="status">
     <div class="hnum-row">
@@ -709,98 +791,78 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   <p class="felt" id="hnumT">a day outside in this air — reading…</p>
   <i class="hnum-s" id="heroLive"></i>
   <div class="statusline" id="status" aria-live="polite">reading the live air…</div>
+  <!-- the day's arithmetic, folded into the number it derives from —
+       the same figure written as the sum your lungs do -->
+  <div class="lbl2" style="margin-top:44px">the day's arithmetic</div>
+  <div class="eq" id="eq" hidden>
+    <div class="term"><div class="tv"><b id="eqConc">—</b><span class="tu">µg/m³</span></div>
+      <div class="tl">in the air · the ncr-wide mean</div></div>
+    <span class="op">×</span>
+    <div class="term mid"><div class="tv">14.4<span class="tu">m³/day</span></div>
+      <div class="tl">the air a pair of lungs moves</div></div>
+    <span class="op">=</span>
+    <div class="term mid"><div class="tv"><em id="eqDose">—</em><span class="tu">µg</span></div>
+      <div class="tl">inhaled in a day · what you keep</div></div>
+    <span class="op">≈</span>
+    <div class="term mid"><div class="tv"><em id="eqCig">—</em><span class="tu">cigarettes</span></div>
+      <div class="tl">the same day, felt</div></div>
+  </div>
+  <p class="basis">the translation: a day breathing <b>22 µg/m³</b> is
+  about one cigarette (berkeley earth). every figure on this page is
+  live or disclosed.</p>
 </div></section>
 
-<!-- the feature story — the app's screens, one purpose each,
-     devin.ai register: index, small serif title, one line, the screen -->
-<section id="secHome"><div class="col">
-  <div class="feat" data-rv>
-    <figure class="pshot feat-shot"><div class="phone"><picture>
-      <source type="image/webp" srcset="/ios-dose.webp 720w">
-      <img src="/ios-dose.png" width="720" height="1566" decoding="async" loading="lazy"
-        alt="the app on iphone — you've breathed 14 µg today, good band, 7% of your daily budget">
-    </picture></div></figure>
-    <div class="feat-t">
-      <div class="lbl2">the home</div>
-      <h2 class="lead">Know the air where you stand.</h2>
-      <p class="fp">the screen counts what you already breathed —
-      against the day's budget, in plain µg.</p>
+<!-- the app — one stage: the boot's pollution-haze behind three
+     devices, the reel center-front, the four things it does ruled
+     underneath. marketing theatre, not a dashboard -->
+<section id="secDemo" class="stage">
+  <div class="stage-haze" aria-hidden="true">
+    <video src="/boot-haze.mp4" muted loop autoplay playsinline
+      preload="metadata"></video>
+  </div>
+  <div class="col">
+    <div class="lbl2">the app, running</div>
+    <h2 class="lead">The thing itself, not a mockup.</h2>
+    <p class="fp">a real build on a real phone, on the live field —
+    the city easing overhead, the day's count, the sheets that keep it.</p>
+    <div class="duo" data-rv>
+      <figure class="duo-side dl"><div class="phone"><picture>
+        <source type="image/webp" srcset="/ios-dose.webp 720w">
+        <img src="/ios-dose.png" width="720" height="1566" decoding="async" loading="lazy"
+          alt="the home — you've breathed today, counted in µg against your daily limit">
+      </picture></div></figure>
+      <figure class="duo-main">
+        <video src="/app-walkthrough.mp4" poster="/app-walkthrough-poster.webp"
+          width="720" height="1566" muted loop autoplay playsinline
+          preload="metadata"
+          aria-label="the Alive app running — the live home number, the day's count, and the sheets that keep it"></video>
+      </figure>
+      <figure class="duo-side dr"><div class="phone"><picture>
+        <img src="/ios-feat-stays-c.webp" width="662" height="1354" decoding="async" loading="lazy"
+          alt="stays near lodhi garden — hotels ranked by the air around them">
+      </picture></div></figure>
+    </div>
+    <div class="reel-ch" id="reelCh">
+      <button type="button" data-t="0" class="on">the easing alert</button>
+      <button type="button" data-t="11.5">the day's count</button>
+      <button type="button" data-t="26">the sheets</button>
+    </div>
+    <div class="does">
+      <div class="do"><span class="dn">01</span>
+        <span class="dt">know the air where you stand</span>
+        <span class="dd">the screen counts what you already breathed — against the day's budget, in plain µg.</span></div>
+      <div class="do"><span class="dn">02</span>
+        <span class="dt">every route, priced in lungs</span>
+        <span class="dd">metro, car, bike, on foot — each way carries what it makes you breathe, before you take it.</span></div>
+      <div class="do"><span class="dn">03</span>
+        <span class="dt">sleep where the air is kindest</span>
+        <span class="dd">stays ranked by the air around them — pick the room that costs your lungs least.</span></div>
+      <div class="do"><span class="dn">04</span>
+        <span class="dt">go out when the air lets up</span>
+        <span class="dd">the day's curve read hour by hour — the least-bad window to step out, before you step out.</span></div>
     </div>
   </div>
-</div></section>
-
-<section id="secChooser"><div class="col">
-  <div class="feat flip" data-rv>
-    <figure class="pshot feat-shot"><div class="phone"><picture>
-      <source type="image/webp" srcset="/ios-choose-priced.webp 720w">
-      <img src="/ios-choose-priced.png" width="720" height="1566" decoding="async" loading="lazy"
-        alt="every way to connaught place priced in µg — car, bike, on foot">
-    </picture></div></figure>
-    <div class="feat-t">
-      <div class="lbl2">the chooser</div>
-      <h2 class="lead">Every route, priced in lungs.</h2>
-      <p class="fp">metro, car, bike, on foot — each way carries what
-      it makes you breathe, before you take it.</p>
-    </div>
-  </div>
-</div></section>
-
-<section id="secStay"><div class="col">
-  <div class="feat" data-rv>
-    <figure class="pshot feat-shot"><div class="phone"><picture>
-      <img src="/ios-feat-stays.webp" width="662" height="1440" decoding="async" loading="lazy"
-        alt="stays near lodhi garden — hotels ranked by the air around them">
-    </picture></div></figure>
-    <div class="feat-t">
-      <div class="lbl2">the stay</div>
-      <h2 class="lead">Sleep where the air is kindest.</h2>
-      <p class="fp">hotels near you, ranked by the air around them —
-      pick the room that costs your lungs least.</p>
-    </div>
-  </div>
-</div></section>
-
-<section id="secHour"><div class="col">
-  <div class="feat flip" data-rv>
-    <figure class="pshot feat-shot"><div class="phone"><picture>
-      <img src="/ios-feat-playtime.webp" width="662" height="1440" decoding="async" loading="lazy"
-        alt="when to go out — the least-bad window 13:30–17:30, hour by hour">
-    </picture></div></figure>
-    <div class="feat-t">
-      <div class="lbl2">the hour</div>
-      <h2 class="lead">Go out when the air lets up.</h2>
-      <p class="fp">the day's curve read hour by hour — the least-bad
-      window to step out, before you step out.</p>
-    </div>
-  </div>
-</div></section>
-
-
-
-<!-- the day's arithmetic — the same number, written as the sum your
-     lungs do; provenance sits under it as one quiet line -->
-<section id="secSum"><div class="col">
-  <div class="card" data-rv>
-    <div class="lbl2">the day's arithmetic</div>
-    <h2 class="lead">A day outside, written as a sum.</h2>
-    <div class="eq" id="eq" hidden>
-      <div class="term"><div class="tv"><b id="eqConc">—</b><span class="tu">µg/m³</span></div>
-        <div class="tl">in the air · the ncr-wide mean</div></div>
-      <span class="op">×</span>
-      <div class="term mid"><div class="tv">14.4<span class="tu">m³/day</span></div>
-        <div class="tl">the air a pair of lungs moves</div></div>
-      <span class="op">=</span>
-      <div class="term mid"><div class="tv"><em id="eqDose">—</em><span class="tu">µg</span></div>
-        <div class="tl">inhaled in a day · what you keep</div></div>
-      <span class="op">≈</span>
-      <div class="term mid"><div class="tv"><em id="eqCig">—</em><span class="tu">cigarettes</span></div>
-        <div class="tl">the same day, felt</div></div>
-    </div>
-    <p class="basis">the translation: a day breathing <b>22 µg/m³</b> is
-    about one cigarette (berkeley earth). every figure on this page is
-    live or disclosed.</p>
-  </div>
-</div></section>
+</section>
 
 <!-- the instrument — the live field, operative. touch a cell, or let
      the engine price a real trip; the deck scrubs the served forecast -->
@@ -870,46 +932,41 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
     <div class="depart" id="departline"></div>
     <div class="ladder" id="ladder"></div>
   </div>
-</div></section>
-
-<!-- the story card — why today's air is like this, in felt words with
-     a disclosed age. absent rather than guessed. -->
-<section><div class="col">
-  <div class="card" id="storyCard" hidden data-rv>
+  <!-- the story card — why today's air is like this, inside the map
+       stop it explains; absent rather than guessed -->
+  <div class="card" id="storyCard" hidden data-rv style="margin-top:34px">
     <div class="lbl2"><i class="livedot" id="storyDot"></i>why it's like this</div>
     <p class="story-line" id="whyBig"></p>
     <div class="story-sub" id="whySub"></div>
   </div>
 </div></section>
 
-<!-- the forecast card — the next twelve hours, served not smoothed -->
-<section><div class="col">
-  <div class="card" id="sparkCard" hidden data-rv>
+<!-- the city card — the archive's day, the forecast, and the honest
+     journal of what the page itself is doing; one stop -->
+<section id="secRecord"><div class="col">
+  <div class="card" data-rv>
+    <div class="lbl2">the record</div>
+    <h2 class="lead">The city, kept — and the hours ahead.</h2>
+    <div class="day-sec" id="daySec" hidden>
+      <div class="day-head">
+        <span class="lbl">the day, recorded — <b id="typMonth">hour by hour, from the archive</b></span>
+        <span class="lbl" id="dayNote">—</span>
+      </div>
+      <div class="daybars" id="daybars"
+        role="img" aria-label="a typical day at connaught place, hour by hour — recorded history"></div>
+      <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
+      <div class="day-note" id="dayWhy"></div>
+    </div>
+  </div>
+  <!-- forecast — served, not smoothed; same stop as the record it
+       extends -->
+  <div class="card" id="sparkCard" hidden data-rv style="margin-top:34px">
     <div class="lbl2">forecast</div>
-    <h2 class="lead">The next twelve hours.</h2>
     <div class="spark" id="spark" hidden>
       <svg id="sparkSvg" viewBox="0 0 560 52" preserveAspectRatio="none"
         role="img" aria-label="the next twelve hours — live forecast curve"></svg>
       <div class="cap"><span id="sparkL">the next twelve hours</span>
-        <span class="goto"><a href="#fieldSec" id="sparkGo">watch it move on the map ↓</a></span></div>
-    </div>
-  </div>
-</div></section>
-
-<!-- the city card — the archive's day and every district's live read -->
-<section id="secRecord"><div class="col">
-  <div class="card" data-rv>
-    <div class="lbl2">the record</div>
-    <h2 class="lead">The city, kept.</h2>
-    <div class="day-sec" id="daySec" hidden>
-      <div class="day-head">
-        <span class="lbl">the day, recorded — <b id="typMonth">a typical october, hour by hour</b></span>
-        <span class="lbl" id="dayNote">—</span>
-      </div>
-      <div class="daybars" id="daybars"
-        role="img" aria-label="typical october day at connaught place, hour by hour — decade of records"></div>
-      <div class="dayticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24 ist</span></div>
-      <div class="day-note" id="dayWhy"></div>
+        <span class="goto"><a href="#fieldSec" id="sparkGo">watch it move on the map ↑</a></span></div>
     </div>
   </div>
 </div></section>
@@ -977,52 +1034,33 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   </div>
 </div></section>
 
-<!-- the field journal — what the live data is doing, in small rows -->
-<section><div class="col">
-  <div class="lbl2">the field, honestly</div>
-  <h2 class="lead">What the page is doing while you read it.</h2>
-  <div class="jlist">
-    <div class="jrow"><span class="jw">the map</span><span class="jt">rebuilt every 15 minutes from the monitors</span><span class="js">live</span></div>
-    <div class="jrow"><span class="jw">the fires</span><span class="jt">counted hourly over punjab–haryana, drawn into the why</span><span class="js">live</span></div>
-    <div class="jrow"><span class="jw">the routes</span><span class="jt">every road segment priced under this hour's map</span><span class="js">live</span></div>
-    <div class="jrow"><span class="jw">the record</span><span class="jt">every hour kept — history, not just forecast</span><span class="js">kept</span></div>
-  </div>
-</div></section>
-
-<!-- the doors -->
-<section><div class="col">
-  <div class="doors" data-rv>
-    <a class="door card" href="/city"><span class="db"><b>the live field</b><i>every cell and every district, open</i></span><span class="darr">→</span></a>
-    <a class="door card" href="/community"><span class="db"><b>community</b><i>group counts only, never one person</i></span><span class="darr">→</span></a>
-  </div>
-</div></section>
-
 </main>
 
 <footer class="foot">
   <div class="col">
-    <div class="fgiant" aria-hidden="true">ALIVE</div>
+    <div class="fgiant" aria-hidden="true">Alive</div>
     <div class="fcols">
-      <div class="fcol"><div class="fh">alive</div>
-        <a href="/">home</a>
-        <a href="/city">the live field</a>
-        <a href="/community">community</a>
+      <div class="fcol"><div class="fh">Alive</div>
+        <a href="#secNow">right now</a>
+        <a href="#secDemo">the app</a>
+        <a href="#secField">the map</a>
       </div>
-      <div class="fcol"><div class="fh">the data</div>
-        <a href="/city">every cell and district</a>
-        <a href="/community">group counts, never one person</a>
+      <div class="fcol"><div class="fh">the page</div>
+        <a href="#secRecord">the record</a>
+        <a href="#secDistricts">the districts</a>
+        <a href="#secHow">how it knows</a>
       </div>
       <div class="fcol"><div class="fh">the promise</div>
-        <a href="/">counted on your phone, kept on your phone</a>
-        <a href="/">no accounts, no profiles</a>
+        <a href="#secPromise">counted on your phone, kept on your phone</a>
+        <a href="#secPromise">no accounts, no profiles</a>
       </div>
     </div>
     <div class="foot-in">
-      <span>alive · delhi ncr</span>
+      <span>Alive · delhi ncr</span>
       <span id="buildTag">—</span>
       <nav>
-        <a href="/city">the field</a>
-        <a href="/community">community</a>
+        <a href="#secNow">the number</a>
+        <a href="#secPromise">the promise</a>
       </nav>
     </div>
   </div>
@@ -2300,7 +2338,7 @@ async function dayStrip(){
       if(es[0].isIntersecting){db.classList.add('in');io.disconnect()}},
       {threshold:.3});io.observe(db)}
     $('dayWhy').innerHTML=
-      `typical = the archive's middle value for this hour — ${TYP_MONTH||'october'} · ist ·
+      `typical = the archive's middle value for this hour${TYP_MONTH?' — '+TYP_MONTH:''} · ist ·
       connaught place · <b>recorded history</b>, not a forecast`;
     $('daySec').hidden=false;
   }catch(e){/* the strip stays hidden — honest absence, no fake curve */}
@@ -2520,6 +2558,8 @@ async function status(){
 (function(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   if(!('IntersectionObserver' in window))return;
+  if(location.search.includes('nofx'))return;   /* dev: render flat */
+  document.body.classList.add('rv');
   const io=new IntersectionObserver(es=>{es.forEach(en=>{
     if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}})},
     {threshold:.12,rootMargin:'0px 0px -6% 0px'});
@@ -2629,6 +2669,53 @@ setInterval(()=>{
   const a=$('stAge');if(a)a.innerHTML=`map <b class="ok">${FIELD_AGE_TXT}</b>`;
   paintToplive();paintHeroLive();
 },30000);
+
+/* ---------- the boot — a · alive, then the field beneath ----------
+   never traps: hard ceiling 2.6s, tap/esc skips, once per session,
+   absent under reduced-motion. the dot paints the city's live band —
+   the page is already reading before the curtain lifts. */
+(()=>{const b=$('boot');if(!b)return;
+  let seen=false;try{seen=!!sessionStorage.getItem('aliveBoot')}catch(e){}
+  if(seen||RM||location.search.includes('nofx')){b.remove();return}
+  try{sessionStorage.setItem('aliveBoot','1')}catch(e){}
+  const L=[...b.querySelectorAll('.bl')],dot=$('bootDot'),line=$('bootLine');
+  requestAnimationFrame(()=>L[0]&&L[0].classList.add('in'));
+  setTimeout(()=>L.slice(1).forEach((s,i)=>
+    setTimeout(()=>s.classList.add('in'),i*85)),430);
+  setTimeout(()=>dot&&dot.classList.add('in'),1000);
+  let done=false;
+  const release=()=>{if(done)return;done=true;
+    b.classList.add('out');setTimeout(()=>b.remove(),600);
+    b.removeEventListener('click',release);
+    removeEventListener('keydown',key)};
+  const key=e=>{if(e.key==='Escape'||e.key==='Enter'||e.key===' ')release()};
+  b.addEventListener('click',release);addEventListener('keydown',key);
+  /* the honest beat — whatever the city says, the boot line carries it */
+  api('/v2/city').then(d=>{
+    const mean=d&&d.pm25_stats&&d.pm25_stats.mean;
+    if(mean!=null){const bi=bandIdx(mean,SPECS.pm2_5.breaks);
+      dot.style.background=bandHex(bi);
+      line.textContent=`delhi ncr · ${BAND_NAME[bi]||'live'} right now`}
+    else line.textContent='delhi ncr · live';
+  }).catch(()=>{line.textContent='delhi ncr'});
+  setTimeout(release,2400);
+})();
+
+/* ---------- the demo reel — chapters scrub it, io spares it -------- */
+(()=>{const reel=document.querySelector('.duo-main video');if(!reel)return;
+  const chs=[...document.querySelectorAll('#reelCh button')];
+  chs.forEach(c=>c.addEventListener('click',()=>{
+    reel.currentTime=+c.dataset.t;
+    if(reel.paused)reel.play().catch(()=>{});
+  }));
+  reel.addEventListener('timeupdate',()=>{const t=reel.currentTime;
+    let cur=chs[0];chs.forEach(c=>{if(t>=+c.dataset.t)cur=c});
+    chs.forEach(x=>x.classList.toggle('on',x===cur))});
+  if('IntersectionObserver'in window)
+    new IntersectionObserver(([e])=>{
+      if(e.isIntersecting){if(reel.paused)reel.play().catch(()=>{})}
+      else reel.pause()},{threshold:.2}).observe(reel);
+})();
 </script>
 <div id="srlive" class="sr-only" aria-live="polite"></div>
 </body></html>

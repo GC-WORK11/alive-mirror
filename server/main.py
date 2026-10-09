@@ -2010,10 +2010,21 @@ for _name in ("ios-choose-priced", "ios-choose-verdict",
 
 # the v13 feature story's ledger/week captures ship webp-only, as do
 # the new stays/playtime/air-map frames captured for upcoming sections.
+# the -c crops are the same captures with the status-bar collision cut.
 for _name in ("ios-feat-trips", "ios-feat-week", "ios-feat-stays",
-              "ios-feat-playtime", "ios-feat-airmap"):
+              "ios-feat-playtime", "ios-feat-airmap",
+              "ios-feat-stays-c", "ios-feat-playtime-c"):
     app.get(f"/{_name}.webp")(_ios_shot_route(f"{_name}.webp",
                                              "image/webp"))
+
+# the landing's boot loop and demo reel — a procedural haze field and
+# a real-device walkthrough cut; small, faststart, muted-autoplay safe.
+app.get("/boot-haze.mp4")(
+    _ios_shot_route("boot-haze.mp4", "video/mp4"))
+app.get("/app-walkthrough.mp4")(
+    _ios_shot_route("app-walkthrough.mp4", "video/mp4"))
+app.get("/app-walkthrough-poster.webp")(
+    _ios_shot_route("app-walkthrough-poster.webp", "image/webp"))
 
 
 @app.get("/hero-haze.webp")

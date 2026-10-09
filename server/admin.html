@@ -46,57 +46,59 @@
   a{color:inherit;text-decoration:none}
   a:hover{text-decoration:underline;text-underline-offset:3px}
 
-  /* ==================== the gate — byte-identical ====================
+  /* ==================== the gate — cognition register ====================
      the engine room fails closed: no live session, no board.
-     warm paper, one card, hairlines, mono small-caps. the token goes to
-     the server once (POST to the mount's login endpoint — or the /in/
-     link mints the cookie server-side without this page ever seeing it)
-     and never touches JS again — the session is an HttpOnly cookie, so
-     this page stores no secret a script could steal */
-  #gate{position:fixed;inset:0;z-index:60;background:#FBFBFA;
-        display:flex;align-items:center;justify-content:center;padding:20px}
+     no card, no pill, no shadow — warm paper, one measure, hairlines.
+     the token goes to the server once (POST to the mount's login
+     endpoint — or the /in/ link mints the cookie server-side without
+     this page ever seeing it) and never touches JS again — the session
+     is an HttpOnly cookie, so this page stores no secret a script
+     could steal */
+  #gate{position:fixed;inset:0;z-index:60;background:var(--paper);
+        display:flex;flex-direction:column;padding:0}
   #gate[hidden]{display:none}
-  /* gate card — the a1mobile register: heavy sans wordmark, thick ink
-     border, one solid ink pill. same card, same form, same POST. */
-  .gate-card{width:min(430px,100%);background:var(--surface);
-             border:1.5px solid var(--ink);border-radius:24px;
-             padding:clamp(28px,4vw,44px);
-             box-shadow:0 32px 60px -34px rgba(22,24,29,.32)}
-  .gate-card .mark{font-family:var(--sans);font-weight:800;
-                   font-size:30px;letter-spacing:-.035em;line-height:1.05;
-                   color:var(--ink)}
-  .gate-card .mark i{font-size:.55em;font-weight:600;letter-spacing:-.01em;
-                     color:var(--ink3)}
-  .gate-kick{font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-             color:var(--ink4);margin-top:18px}
-  .gate-line{font-size:15px;line-height:1.65;color:var(--ink2);margin-top:12px;
-             font-weight:500}
-  #gateform{display:flex;gap:10px;margin-top:22px}
+  .gate-top{display:flex;align-items:baseline;padding:20px 22px 0}
+  .gate-top .wm{font-weight:700;font-size:16px;letter-spacing:-.02em;
+    color:#16181d;display:inline-flex;align-items:center}
+  .gate-top .wm .wdot{width:5px;height:5px;margin-left:5px;
+    background:var(--acc)}
+  .gate-top .gside{margin-left:auto;font-family:var(--mono);
+    font-size:10px;color:var(--ink4)}
+  /* the gate body — quiet column, left-aligned, cognition register */
+  .gate-card{margin:auto;width:min(380px,100%);background:none;
+             border:0;border-radius:0;padding:20px;box-shadow:none}
+  .gate-kick{font-family:var(--mono);font-size:10px;letter-spacing:.01em;
+             color:var(--ink4)}
+  .gate-line{font-family:var(--serif);font-size:15px;line-height:1.65;
+             color:var(--ink2);margin-top:14px;font-weight:400}
+  #gateform{display:flex;gap:14px;margin-top:28px;align-items:flex-end}
   #gatetok{flex:1;min-width:0;font-family:var(--mono);font-size:13px;
-           letter-spacing:.01em;padding:12px 14px;color:var(--ink);
-           border:1.5px solid var(--ink);border-radius:12px;
-           background:var(--surface)}
-  #gatetok:focus{outline:none;border-color:var(--ink);
-                 box-shadow:0 0 0 3px rgba(20,24,31,.10)}
-  .gatebtn{padding:12px 24px;border-radius:100px;font-size:12px;
-           font-weight:700;letter-spacing:.01em;
-           border:1.5px solid var(--ink);background:var(--ink);
-           color:#FBFBFA}
-  .gatebtn:hover{background:#1C212B;border-color:#1C212B;color:#FBFBFA}
+           letter-spacing:.01em;padding:9px 0;color:var(--ink);
+           border:0;border-bottom:1px solid var(--ink);
+           border-radius:0;background:none}
+  #gatetok:focus{outline:none;border-bottom:1.5px solid var(--ink);
+                 box-shadow:none}
+  #gatetok::placeholder{color:var(--ink4)}
+  .gatebtn{height:30px;padding:0 14px;border-radius:2px;font-size:13px;
+           font-weight:500;letter-spacing:0;
+           border:1px solid var(--ink);background:var(--ink);
+           color:#FBFBFA;flex:none}
+  .gatebtn:hover{background:#2A2D33;border-color:#2A2D33;color:#FBFBFA}
   .gatebtn:disabled{opacity:.55;cursor:default}
-  .gate-err{min-height:19px;margin-top:12px;font-family:var(--mono);
-            font-size:11px;letter-spacing:.01em;color:var(--brick)}
-  .gate-foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--hair);
-             font-family:var(--mono);font-size:11px;letter-spacing:.01em;
-             color:var(--ink4);line-height:1.9}
-  .gate-foot a{color:var(--ink);text-decoration:none;font-weight:600;
-               border-bottom:1.5px solid var(--ink)}
+  .gate-err{min-height:19px;margin-top:14px;font-family:var(--mono);
+            font-size:10px;letter-spacing:.01em;color:var(--brick)}
+  .gate-foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--hair);
+             font-family:var(--mono);font-size:10px;letter-spacing:.01em;
+             color:var(--ink4);line-height:2}
+  .gate-foot a{color:var(--ink);text-decoration:none;font-weight:500;
+               border-bottom:0;text-decoration:underline;
+               text-underline-offset:3px}
   .tokbtn{font-family:inherit;font-size:inherit;letter-spacing:.01em;
-      padding:5px 15px;cursor:pointer;font-weight:700;
-      border:1.5px solid var(--ink);border-radius:100px;
+      padding:5px 15px;cursor:pointer;font-weight:500;
+      border:1px solid var(--ink);border-radius:2px;
       color:#FBFBFA;background:var(--ink)}
-  .tokbtn:hover{background:#1C212B;border-color:#1C212B}
-  /* ================== end byte-identical gate ================== */
+  .tokbtn:hover{background:#2A2D33;border-color:#2A2D33}
+  /* ===================== end gate ===================== */
 
   /* ---------- the rail — tiny mark + text links, no navbar ---------- */
   .top{padding:20px 22px 0;position:relative;z-index:5}
@@ -259,8 +261,9 @@
      markup byte-identical to the r5 console's (the form, the input and
      the POST contract never changed) -->
 <div id="gate" hidden>
+  <div class="gate-top"><a class="wm" href="/">Alive<i class="wdot"></i></a>
+    <span class="gside">the engine room</span></div>
   <div class="gate-card" role="dialog" aria-label="operator sign in">
-    <div class="mark">ALIVE <i>/ engine room</i></div>
     <div class="gate-kick">operator only</div>
     <p class="gate-line">the engine room shows the machine itself — feeds,
       models, counters. it opens for the operator and nobody else.</p>

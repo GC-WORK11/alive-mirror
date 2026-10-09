@@ -1839,8 +1839,13 @@ def _engine_reweight_inner(eng, F, epoch) -> None:
         sampler = fv.value
         try:
             import alive_core
-            if (isinstance(eng, alive_core.PathEngine)
-                    and isinstance(fv, alive_core.FieldView)):
+            # getattr, not attribute access: a built .so that predates
+            # PathEngine (local dev binary) imports fine but raises
+            # AttributeError here — which ImportError doesn't catch, so
+            # the honest PyPathEngine fallback crashed instead of
+            # pricing off fv.value as the ordinary callable it is.
+            if (isinstance(eng, getattr(alive_core, "PathEngine", ()))
+                    and isinstance(fv, getattr(alive_core, "FieldView", ()))):
                 sampler = fv
         except ImportError:
             pass
@@ -2071,7 +2076,11 @@ def _engine_options(flat, flon, tlat, tlon, vehicle, profile,
     if alts_fn is not None:
         try:
             import alive_core
-            if not isinstance(eng, alive_core.PathEngine):
+            # getattr: a .so built before PathEngine existed (local dev
+            # binary) raises AttributeError here, not ImportError —
+            # uncaught, it killed the whole engine arm (degraded:
+            # ["engine"]) even though PyPathEngine primaries serve.
+            if not isinstance(eng, getattr(alive_core, "PathEngine", ())):
                 alts_fn = None
         except ImportError:
             alts_fn = None
