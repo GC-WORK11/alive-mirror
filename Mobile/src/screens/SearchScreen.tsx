@@ -587,8 +587,43 @@ function SearchSheetInner({
           <Quiet glyph="search" title={t("emptySearchHint", lang)} lang={lang} />
         </View>
       )}
+      {/* the discoverable doors — stays & playtime are answers to
+          asks the user may never type, so the untyped surface carries
+          them in the same quiet row register as the intent rows.
+          nearQuery:null → 'near you' (App resolves a real fix). */}
+      <SectionLabel lang={lang}>{t("exploreHeader", lang)}</SectionLabel>
+      <PlaceRow
+        lang={lang}
+        glyph={<Icon name="hotel" color={V2T.accent} size={20} />}
+        title={t("staysTitle", lang)}
+        subtitle={t("doorStaysSub", lang)}
+        armed={false}
+        onPressIn={() => {}}
+        onPress={() => {
+          if (committing.current) return;
+          committing.current = true;
+          tick();
+          dismissThen(() => onSelect({ type: "explore", mode: "stays", nearQuery: null }));
+        }}
+        onLongPress={() => {}}
+      />
+      <PlaceRow
+        lang={lang}
+        glyph={<Icon name="explore" color={V2T.accent} size={20} />}
+        title={t("explorePlayTitle", lang)}
+        subtitle={t("doorPlaySub", lang)}
+        armed={false}
+        onPressIn={() => {}}
+        onPress={() => {
+          if (committing.current) return;
+          committing.current = true;
+          tick();
+          dismissThen(() => onSelect({ type: "explore", mode: "playtime", nearQuery: null }));
+        }}
+        onLongPress={() => {}}
+      />
     </>
-  ), [hasSaved, hasRecents, store, lang, pick, saveSlot, armedFor, armedRemove, distLabel]);
+  ), [hasSaved, hasRecents, store, lang, pick, saveSlot, armedFor, armedRemove, distLabel, dismissThen, onSelect]);
 
   const resultsEl = useMemo(() => (
     <>

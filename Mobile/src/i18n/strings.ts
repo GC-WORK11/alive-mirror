@@ -1316,6 +1316,21 @@ const en = {
   exploreInDays: "in {n} days",
   exploreWindowChip: "{start}–{end} {day}",
   exploreStayDeltaBase: "vs your air now",
+
+  /* the dedicated stays/playtime components — warm surfaces, still
+     honest numbers only */
+  staysTitle: "where to stay",
+  staysDisclosure: "each number is the next-24 h air at that address",
+  staysWalkMin: "~{n} min walk",
+  staysKmAway: "{n} km away",
+  staysNowBasis: "now",
+  staysPinHint: "tap a stay to pin it on the air map",
+  playDisclosure: "rolling 24 h — now to this time tomorrow",
+  playBestLine: "lightest window — {w} · ~{n} µg",
+  playWorstLine: "heaviest — {w} · ~{n} µg",
+  exploreToday: "today",
+  doorStaysSub: "stays, lightest air first · near you",
+  doorPlaySub: "the next 24 h · near you",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -2402,6 +2417,19 @@ const hi: Record<StringKey, string> = {
   exploreInDays: "{n} दिन में",
   exploreWindowChip: "{start}–{end} {day}",
   exploreStayDeltaBase: "आपकी हवा से तुलना में",
+
+  staysTitle: "कहाँ रुकें",
+  staysDisclosure: "हर संख्या उस पते की अगले-24 घंटे की हवा है",
+  staysWalkMin: "~{n} मिनट पैदल",
+  staysKmAway: "{n} km दूर",
+  staysNowBasis: "अभी",
+  staysPinHint: "किसी जगह पर टैप करें — वह एयर मैप पर पिन हो जाएगी",
+  playDisclosure: "घूमती 24 घंटे — अभी से कल इसी समय तक",
+  playBestLine: "सबसे हल्की खिड़की — {w} · ~{n} µg",
+  playWorstLine: "सबसे भारी — {w} · ~{n} µg",
+  exploreToday: "आज",
+  doorStaysSub: "सबसे हल्की हवा वाली जगहें पहले · आपके पास",
+  doorPlaySub: "अगले 24 घंटे · आपके पास",
 };
 
 export type Lang = "en" | "hi";
