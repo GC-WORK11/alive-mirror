@@ -467,7 +467,7 @@ const en = {
   consent_shareSub: "helps Delhi see its air, street by street",
   consent_keepBtn: "Keep everything on my phone",
   consent_keepSub: "nothing is uploaded — you can turn it on later",
-  consent_footnote: "Skipping counts as sharing on — either way, one tap in Settings undoes it.",
+  consent_footnote: "Skipping keeps everything on this phone — either way, one tap in Settings changes it.",
   howAliveBody: "ALive maps every way to where you're going — metro, car, auto, on foot. For each, it estimates the smoke you'd breathe along the way, from a live street-level air map built from stations, satellites and trips people shared. It also estimates the smoke your ride puts out, from published tests on that kind of ride. Your trips stay anonymous and help the city see its air street by street. Numbers are honest ranges, never fake-exact.",
   // search + compare
   fromLabel: "from",
@@ -1729,7 +1729,7 @@ const hi: Record<StringKey, string> = {
   consent_shareSub: "इससे दिल्ली अपनी हवा सड़क-दर-सड़क देखती है",
   consent_keepBtn: "सब कुछ मेरे फ़ोन पर रखें",
   consent_keepSub: "कुछ अपलोड नहीं होता — बाद में चालू कर सकते हैं",
-  consent_footnote: "स्किप करना यानी साझा-करना चालू — दोनों ही हालत में सेटिंग्स से एक टैप में बदलें।",
+  consent_footnote: "स्किप करना यानी सब कुछ इसी फ़ोन पर — दोनों ही हालत में सेटिंग्स से एक टैप में बदलें।",
   howAliveBody: "ALive आपकी मंज़िल तक के हर रास्ते दिखाता है — मेट्रो, कार, ऑटो, पैदल। हर एक के लिए यह अनुमान लगाता है कि रास्ते में आप कितना धुआँ साँस में लेंगे — स्टेशनों, सैटेलाइट और लोगों की साझा यात्राओं से बने लाइव सड़क-स्तर हवा-नक्शे से। यह यह भी बताता है कि आपकी गाड़ी कितना धुआँ छोड़ती है, उस तरह की गाड़ियों के प्रकाशित माप से। आपकी यात्राएँ गुमनाम रहती हैं और शहर को उसकी हवा सड़क-दर-सड़क दिखाती हैं। संख्याएँ ईमानदार रेंज हैं, नकली-सटीकता नहीं।",
   fromLabel: "शुरुआत",
   /** the two-section where-to entry — 'To' row label */

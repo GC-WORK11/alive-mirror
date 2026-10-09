@@ -17,11 +17,11 @@
 //
 // Skip is persistent on every page the choice hasn't been answered on
 // (beats + consent). Decision (docs/plan/onboarding.md): skip completes
-// the flow with sharing ON — doc 07 §3 / doc 02 §7 make sharing the
-// documented default, and Settings shows the state in one line with one
-// tap to undo. The disclosure travels with the button — the "skipping
-// counts as sharing on" line renders on every page skip exists on, so a
-// page-0/1 skipper sees the consequence before tapping it. A skip still
+// the flow with sharing OFF by default — nobody opts into upload by
+// walking past the question; Settings flips it in one tap. The
+// disclosure travels with the button — the "skipping keeps everything
+// on this phone" line renders on every page skip exists on, so a
+// page-0/1 skipper sees what happens before tapping it. A skip still
 // fires the OS location dialog (the system's own ask — skipping the tour
 // is not declining position). On the permission page itself there is no
 // skip: sharing is already answered there, and its two buttons (turn on
