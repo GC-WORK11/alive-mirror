@@ -21,6 +21,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View,
   type StyleProp, type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { V2Elev, V2Radius, V2T, V2Type, fam } from "../theme";
 import { DYNAMIC_TYPE } from "../a11y";
 import { Icon, type Glyph } from "../icons";
@@ -163,6 +164,7 @@ function Wizard({ lang, current, onDone, onClose }: {
   onDone: (p: VehicleProfile) => void;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   /* before-state: a first open (nothing saved) lands on one honest intro
      — what this is, that it stays on the phone — before any question.
      Editing a saved profile drops straight into the picker. */
@@ -255,7 +257,16 @@ function Wizard({ lang, current, onDone, onClose }: {
   );
 
   return (
-    <Sheet detent="half" onClose={onClose} style={s.sheet} lang={lang}>
+    <Sheet detent="half" onClose={onClose} lang={lang}
+      /* caller maxHeight lands AFTER the sheet's own cap in the style
+         merge — it must carry the safe-area bound itself or the head
+         can reach the status bar. Keep the designed 72% headroom,
+         bounded by the same (window − top inset) contract. */
+      style={[s.sheet, {
+        maxHeight: Math.min(
+          Math.round(Dimensions.get("window").height * 0.72),
+          Math.max(96, Dimensions.get("window").height - insets.top)),
+      }]}>
       {step === "done" ? (
         <View style={s.doneWrap}>
           <Text {...DYNAMIC_TYPE} style={[s.doneTxt, { fontFamily: fam(lang, "med") }]}>{t("vehicleDone", lang)}</Text>
@@ -500,15 +511,13 @@ const s = StyleSheet.create({
   backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: V2T.scrim },
   kav: { flex: 1 },
   /* half-detent (~50% viewport) crops the grouped class grid's last row
-     on first paint — cap at 72% so cycle/walk is fully visible without
-     a full-screen takeover. */
+     on first paint — the 72% headroom cap lives inline at the Sheet call
+     (bounded by the sheet's own window-minus-top-inset contract). Sheet
+     self-anchors, so no position keys here — the bare-mount convention. */
   /* solid paper, not even deep glass: this wizard stacks over the
      compare sheet and its depart strip/bars still ghosted through at
      0.95 — the scrim dims, the pane is opaque. */
-  sheet: { position: "absolute", bottom: 0, left: 0, right: 0,
-           maxHeight: Math.round(Dimensions.get("window").height * 0.72),
-           ...V2Elev.sheet,
-           backgroundColor: V2T.bg },
+  sheet: { ...V2Elev.sheet, backgroundColor: V2T.bg },
   headRow: { flexDirection: "row", alignItems: "center", paddingRight: 20 },
   q: { flex: 1, fontSize: V2Type.body, color: V2T.text, paddingLeft: 20, paddingRight: 8, paddingTop: 4, paddingBottom: 10 },
   dots: { flexDirection: "row", gap: 5, paddingBottom: 8 },

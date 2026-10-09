@@ -6,7 +6,7 @@ import { V2T, V2Type, fam } from "../../theme";
 import { DYNAMIC_TYPE } from "../../a11y";
 import { tick } from "../../haptics";
 import { Icon, type Glyph } from "../../icons";
-import { Sheet } from "../../ui";
+import { BackChip, Sheet } from "../../ui";
 import { t, type Lang } from "../../i18n/strings";
 
 export type LayerKey = "fires" | "spots" | "corridors";
@@ -43,6 +43,12 @@ function LayersSheetInner({
       <Sheet detent="half" onClose={onClose} lang={lang}
         style={{ backgroundColor: "rgba(255,255,255,0.97)" }}>
         <Text {...DYNAMIC_TYPE} style={[s.title, { fontFamily: fam(lang, "semi") }]}>{t("layers", lang)}</Text>
+        {/* the labelled way back, same head-column seat as the other
+            sheets — the grabber drag + corner X stay the quiet
+            secondary */}
+        <View style={s.backRow}>
+          <BackChip onPress={onClose} lang={lang} />
+        </View>
         {ROWS.map((r) => (
           <View key={r.key} style={s.row}>
             <Icon name={r.glyph} color={V2T.text2} size={20} />
@@ -72,6 +78,10 @@ const s = StyleSheet.create({
   title: {
     fontSize: V2Type.secondary, color: V2T.text,
     paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8,
+  },
+  backRow: {
+    flexDirection: "row", paddingHorizontal: 20,
+    marginTop: -2, marginBottom: 4,
   },
   row: {
     flexDirection: "row", alignItems: "center", gap: 14,

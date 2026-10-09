@@ -174,7 +174,10 @@ const en = {
   settingsRateFail: "couldn't send — check your connection and try again",
   settingsGeneral: "Language & display",
   settingsPrivacy: "Privacy & sharing",
-  settingsBriefHint: "one ping each morning with today's cleanest window",
+  /* honesty-sweep: the brief fires ONCE next 6:45 after the toggle arms
+     it (notify.ts scheduleDailyBrief — one-shot DATE trigger, no repeat,
+     no re-arm). "each morning" promised a feature that isn't there */
+  settingsBriefHint: "a ping the next morning with the day's cleanest window",
   settingsClose: "close",
   settingsDataSources: "air: satellite estimate + live stations when they connect",
   settingsDepartRemind: "clean-window pings",
@@ -229,7 +232,10 @@ const en = {
   settingsStoreNoAccount: "no name, no phone, no account — ever",
   settingsStoreOff: "off = nothing is uploaded; your own stats still work on this phone",
   settingsStoreThin: "about one dot per 100 m of road, rounded to ~11 m",
-  settingsStoreToken: "a random id — never linked to you; a new one is made only if you delete your data",
+  /* honesty-sweep: the id ALSO rotates itself every 30 days
+     (community.ts ID_TTL_MS) — "only if you delete" was a claim a
+     reader could falsify */
+  settingsStoreToken: "a random id — never linked to you; it changes itself every ~30 days, or when you delete your data",
   settingsStoreTrim: "trip ends stay hidden — the first and last 300 m are dropped before a trip is stored",
   settingsVehicleLike: "estimates run on this",
   settingsVersion: "Version",
@@ -254,7 +260,7 @@ const en = {
   /* the US AQI tile's reason for existing lives here (audit): it's
      the index people know from other apps — a comparison, not a
      second measurement */
-  citySpeciesNote: "dust & gases — city average in µg/m³, every 15 min · US AQI is the index other air apps quote",
+  citySpeciesNote: "dust & gases — city average in µg/m³, about every 15 min · US AQI is the index other air apps quote",
   cityTypicalLine:
     "{pct}% of this hour's 10-year average ({med} µg/m³)",
   whoRef: "WHO limit {n}",
@@ -365,7 +371,10 @@ const en = {
   notify_departure_title: "lighter air — now",
   notify_departure_body: "same trip, ~{p}% less smoke than the smoky hours",
   notify_brief_title: "delhi's cleanest window today",
-  notify_brief_body: "{win} — air runs {p}% lighter today.",
+  /* the {p}% drop is computed off the /today FORECAST curve
+     (useShellFlow armDailyBrief) — 'expected ~' keeps it a forecast,
+     not a same-day fact */
+  notify_brief_body: "{win} — air expected ~{p}% lighter today.",
   notify_chan_departure: "lighter-air pings",
   notify_chan_brief: "morning air brief",
   notify_chan_events: "air alerts",
@@ -815,10 +824,12 @@ const en = {
      reference, honestly disclosing the WHO anchor + assumed volume
      (72 = WHO annual 5µg/m³ × ~14.4 m³; 216 = 24-h 15µg/m³ × ~14.4 m³;
      130 = 15µg/m³ × ~8.6 m³, a child's smaller lungs). 'you set' only
-     exists once profile_set is true. */
-  budgetQGeneralSugg: "{b} µg — a suggested reference: WHO 24-h fine-dust guide 15 µg/m³ × ~14.4 m³ breathed in a day",
-  budgetQSensitiveSugg: "{b} µg — a suggested reference: WHO annual fine-dust guide 5 µg/m³ × ~14.4 m³ breathed in a day",
-  budgetQChildSugg: "{b} µg — a suggested reference: WHO 24-h guide 15 µg/m³ × ~8.6 m³, a child's smaller lungs",
+     exists once profile_set is true. The volume is a declared constant
+     (server v2/city.py DAY_M3 ≈14.4; child ≈60% of it) — the copy names
+     it our assumption so it never sits in the equation as a fact. */
+  budgetQGeneralSugg: "{b} µg — a suggested reference: WHO 24-h fine-dust guide 15 µg/m³ × ~14.4 m³ of air a day — the volume is our assumption, not WHO's",
+  budgetQSensitiveSugg: "{b} µg — a suggested reference: WHO annual fine-dust guide 5 µg/m³ × ~14.4 m³ of air a day — the volume is our assumption, not WHO's",
+  budgetQChildSugg: "{b} µg — a suggested reference: WHO 24-h guide 15 µg/m³ × ~8.6 m³ of air a day — our assumed volume for a child",
   profileGeneral: "general",
   profileSensitive: "sensitive",
   profileChild: "child",
@@ -1496,7 +1507,7 @@ const hi: Record<StringKey, string> = {
   cityNoField: "अभी हवा की लाइव रीडिंग नहीं",
   cityStale: "पुराना डेटा — फिर जुड़ रहा है",
   citySpeciesTitle: "हवा में और क्या-क्या है",
-  citySpeciesNote: "धूल और गैसें — शहर का औसत µg/m³ में, हर 15 मिनट में ताज़ा · US AQI वही नंबर है जो बाकी ऐप दिखाते हैं",
+  citySpeciesNote: "धूल और गैसें — शहर का औसत µg/m³ में, हर ~15 मिनट में ताज़ा · US AQI वही नंबर है जो बाकी ऐप दिखाते हैं",
   cityTypicalLine:
     "इस समय के 10-वर्ष औसत {med} µg/m³ का {pct}%",
   whoRef: "WHO सीमा {n}",
@@ -1558,7 +1569,7 @@ const hi: Record<StringKey, string> = {
   settingsAbout: "ऐप के बारे में",
   settingsGeneral: "भाषा और डिस्प्ले",
   settingsPrivacy: "निजता और शेयरिंग",
-  settingsBriefHint: "हर सुबह एक पिंग — आज की सबसे साफ़ घड़ी",
+  settingsBriefHint: "अगली सुबह एक पिंग — दिन की सबसे साफ़ घड़ी",
   settingsClose: "बंद करें",
   settingsDataSources: "हवा: सैटेलाइट से अंदाज़ा + जुड़े हुए लाइव स्टेशन",
   settingsDepartRemind: "साफ़-समय सूचनाएँ",
@@ -1597,7 +1608,7 @@ const hi: Record<StringKey, string> = {
   settingsStoreNoAccount: "न नाम, न फ़ोन, न अकाउंट — कभी नहीं",
   settingsStoreOff: "बंद = कुछ भी अपलोड नहीं होता; आपके अपने आँकड़े इसी फ़ोन पर चलते रहते हैं",
   settingsStoreThin: "करीब हर 100 मी सड़क पर एक पॉइंट, ~11 मी तक गोल करके",
-  settingsStoreToken: "एक बेनेमी आईडी — आपसे कभी नहीं जुड़ती; डेटा मिटाने पर ही नई बनती है",
+  settingsStoreToken: "एक बेनेमी आईडी — आपसे कभी नहीं जुड़ती; हर ~30 दिन में ख़ुद बदल जाती है, या डेटा मिटाने पर",
   settingsStoreTrim: "यात्रा के सिरे छिपे रहते हैं — पहले और आख़िरी 300 मी स्टोर होने से पहले कट जाते हैं",
   settingsVehicleLike: "अनुमान इसी से लगते हैं",
   settingsVersion: "वर्ज़न",
@@ -1616,7 +1627,7 @@ const hi: Record<StringKey, string> = {
   notify_departure_title: "हल्की हवा — अब",
   notify_departure_body: "यही यात्रा — धुआँदार घंटों से ~{p}% कम धुआँ",
   notify_brief_title: "आज दिल्ली की सबसे साफ़ घड़ी",
-  notify_brief_body: "{win} — हवा {p}% हल्की रहेगी।",
+  notify_brief_body: "{win} — आज हवा ~{p}% हल्की रहने का अंदाज़ा।",
   notify_chan_departure: "हल्की-हवा सूचनाएँ",
   notify_chan_brief: "सुबह की हवा-जानकारी",
   notify_chan_events: "हवा के अलर्ट",
@@ -1990,9 +2001,11 @@ const hi: Record<StringKey, string> = {
   budgetOver: "आज आपकी {p} सीमा से {o} µg ज़्यादा",
   budgetOverSugg: "आज सुझाई {p} सीमा से {o} µg ज़्यादा",
   budgetProfileQ: "{b} µg — एक दिन में साँस में लेने की बारीक धूल की आपकी हद; आपकी ख़ुद की लकीर, कोई डॉक्टरी नियम नहीं",
-  budgetQGeneralSugg: "{b} µg — एक सुझाई सीमा: WHO 24-घंटे बारीक-धूल मानदंड 15 µg/m³ × एक दिन की ~14.4 m³ साँस",
-  budgetQSensitiveSugg: "{b} µg — एक सुझाई सीमा: WHO वार्षिक बारीक-धूल मानदंड 5 µg/m³ × एक दिन की ~14.4 m³ साँस",
-  budgetQChildSugg: "{b} µg — एक सुझाई सीमा: WHO 24-घंटे मानदंड 15 µg/m³ × ~8.6 m³, बच्चे की छोटी साँस",
+  /* en block carries the F7 note — the tail names the breathed volume
+     हमारा अंदाज़ा (our assumption), never WHO's figure */
+  budgetQGeneralSugg: "{b} µg — एक सुझाई सीमा: WHO 24-घंटे बारीक-धूल मानदंड 15 µg/m³ × दिन की ~14.4 m³ हवा — साँस-मात्रा हमारा अंदाज़ा है, WHO का नहीं",
+  budgetQSensitiveSugg: "{b} µg — एक सुझाई सीमा: WHO वार्षिक बारीक-धूल मानदंड 5 µg/m³ × दिन की ~14.4 m³ हवा — साँस-मात्रा हमारा अंदाज़ा है, WHO का नहीं",
+  budgetQChildSugg: "{b} µg — एक सुझाई सीमा: WHO 24-घंटे मानदंड 15 µg/m³ × दिन की ~8.6 m³ हवा — बच्चे की साँस-मात्रा हमारा अंदाज़ा है",
   profileGeneral: "सामान्य",
   profileSensitive: "संवेदनशील",
   profileChild: "बच्चा",

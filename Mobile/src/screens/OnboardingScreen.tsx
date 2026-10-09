@@ -126,7 +126,7 @@ function OnboardingSheet({
   const [step, setStep] = useState(0);
   /* the consent answer is written the moment it's tapped (see header) —
    *  null until the choice page answers; skip before it lands the
-   *  documented "on" default */
+   *  "off" default — an unanswered question never enables sharing */
   const [sharing, setSharing] = useState<SharingChoice | null>(null);
   /* exit takes a beat — onDone's flags commit through the draw-hold
      (bounded, but not instant). Without a busy latch the buttons sat
@@ -161,9 +161,10 @@ function OnboardingSheet({
   const rise = useMemo(() => anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }), [anim]);
 
   /** Every exit path lands here — persists a still-unanswered choice
-   *  (skip → "on", the documented default), then reports both answers. */
+   *  (skip → "off", private by default — nobody opts into sharing by
+   *  walking past the question), then reports both answers. */
   const finish = (askLocation: boolean) => {
-    const s = sharing ?? "on";
+    const s = sharing ?? "off";
     if (!sharing) saveConsent({ seen: true, sharing: s, ts: Date.now() }).catch(() => {});
     onDone({ sharing: s, askLocation });
   };

@@ -1,11 +1,4 @@
 pluginManagement {
-  repositories {
-    // Google mirror of Maven Central first: repo.maven.apache.org rate-limits (429)
-    maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
-    google()
-    gradlePluginPortal()
-    mavenCentral()
-  }
   def reactNativeGradlePlugin = new File(
     providers.exec {
       workingDir(rootDir)
@@ -38,7 +31,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
-rootProject.name = 'app'
+rootProject.name = 'Alive'
 
 expoAutolinking.useExpoVersionCatalog()
 

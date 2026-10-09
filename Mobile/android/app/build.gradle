@@ -58,6 +58,7 @@ react {
     //
     //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
     // hermesFlags = ["-O", "-output-source-map"]
+    hermesFlags = ["-O", "-fstrip-function-names", "-g0"]
 
     /* Autolinking */
     autolinkLibrariesWithApp()
@@ -96,6 +97,10 @@ android {
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        ndk {
+            abiFilters(*(findProperty('reactNativeArchitectures') ?: 'arm64-v8a').split(','))
+        }
     }
     signingConfigs {
         debug {

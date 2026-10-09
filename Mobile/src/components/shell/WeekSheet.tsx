@@ -28,6 +28,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Animated,
+  Dimensions,
   LayoutAnimation,
   Pressable,
   ScrollView,
@@ -126,6 +127,13 @@ function WeekSheetInner({ day, week, outlook, budgetUg, profileSet, lang, onClos
         accessible={false} />
       <Animated.View style={[ws.sheet, {
         paddingBottom: insets.bottom + 16,
+        /* the Sheet contract, inline: the pane's top edge can never
+           reach the status bar — cap at (window − top inset) under the
+           designed 88% bound (a bare percentage alone answers the
+           parent, not the inset). */
+        maxHeight: Math.min(
+          Math.round(Dimensions.get("window").height * 0.88),
+          Math.max(96, Dimensions.get("window").height - insets.top)),
         opacity: enter, transform: [{ translateY: enterTy }],
       }]}>
         {/* grab handle — the sheet's own affordance */}
@@ -339,7 +347,6 @@ const ws = StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(59,52,35,0.28)" },
   sheet: {
     position: "absolute", left: 0, right: 0, bottom: 0,
-    maxHeight: "88%",
     ...V2Elev.sheet,
     backgroundColor: V2T.surface,
     borderTopLeftRadius: V2Radius.sheet, borderTopRightRadius: V2Radius.sheet,

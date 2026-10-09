@@ -31,7 +31,7 @@
  *
  */
 import React, { useEffect, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CIG_UG, NUM, V2Elev, V2Radius, V2T, V2Type, cigOf, fam, famMonoText, famSerif } from "../../theme";
 import { Icon, vehicleGlyph } from "../../icons";
 import { approx, doseUgRound, smokeFraction, t, type Lang } from "../../i18n/strings";
@@ -256,12 +256,23 @@ function ReceiptSheetInner({
     : null;
   const scaleA11y = [breathedTxt, ratioTxt, cigTxt].filter(Boolean).join(". ");
 
+  /* bottom-anchored card — without a top cap a tall readout (small
+     screen, large Dynamic Type) grows UPWARD off the anchor and slides
+     the "You're here" head under the status bar: the same overlap class
+     the Sheet primitive caps. Bound at (window − top inset − its own
+     bottom seat) and let the body scroll inside it. */
+  const sheetBottom = insets.bottom + 14;
   return (
     <Animated.View style={[s.sheet, {
-      bottom: insets.bottom + 14,
+      bottom: sheetBottom,
+      maxHeight: Math.max(96,
+        Dimensions.get("window").height - insets.top - sheetBottom),
       opacity: enter,
       transform: [{ translateY: enterTy }],
     }]}>
+      {/* shrink-to-cap scroll — same flexGrow:0/flexShrink:1 convention
+          as the stays/playtime lists inside Sheet */}
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
       {/* ── header: arrival + mode chip ── */}
       <View style={s.head}>
         <Text style={[s.title, { fontFamily: famSerif(lang, "semi") }]} {...DYNAMIC_TYPE}>
@@ -497,6 +508,7 @@ function ReceiptSheetInner({
           ) : null}
         </View>
       )}
+      </ScrollView>
     </Animated.View>
   );
 }
@@ -513,6 +525,10 @@ const s = StyleSheet.create({
     ...V2Elev.pop,
     padding: 18, paddingBottom: 14,
   },
+  /* the sheet's maxHeight is the only bound — flex:1 would size the
+     ScrollView off an undefined parent and collapse it (same reason
+     compare/stays lists use grow:0/shrink:1) */
+  scroll: { flexShrink: 1, flexGrow: 0 },
 
   /* header */
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
