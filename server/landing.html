@@ -37,7 +37,7 @@
   --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,"Cascadia Mono",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 ::selection{background:#dfe7da}
@@ -50,11 +50,16 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 .top{position:absolute;top:0;left:0;right:0;z-index:5;
   padding:20px 22px 0}
 .top-in{display:flex;align-items:baseline;gap:26px}
-.wm{font-family:var(--sans);font-weight:600;font-size:15px;
-  letter-spacing:-.01em;color:#16181d}
-.top nav{display:flex;gap:18px}
-.top nav a{font-size:13px;color:rgba(22,24,29,.62)}
-.top nav a:hover{color:#16181d}
+.wm{font-family:var(--sans);font-weight:700;font-size:16px;
+  letter-spacing:-.02em;color:#16181d;display:inline-flex;
+  align-items:center}
+.wm .wdot{width:5px;height:5px;margin-left:5px;flex:none;
+  background:var(--bhex,var(--acc))}
+.spine{display:none}
+.alab{display:none}
+.away{display:flex;gap:18px}
+.away a{font-size:13px;color:rgba(22,24,29,.62)}
+.away a:hover{color:#16181d}
 #toplive{margin-left:auto;font-family:var(--mono);font-size:10px;
   color:rgba(22,24,29,.55)}
 #toplive:empty{display:none}
@@ -64,7 +69,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 @media(max-width:640px){
   .top{padding:14px 16px 0}
   .top-in{gap:16px}
-  .top nav{gap:14px}
+  .away{gap:14px}
   #toplive{display:none}}
 
 /* ---------- the hero — one full-bleed nature photograph ---------- */
@@ -479,16 +484,45 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
    rail nav on the left, grotesque headlines, serif prose, raw
    product shots (no bezel), districts as a ruled leaderboard */
 
-/* --- left rail (desktop) / top-left stack (phone) --- */
+/* --- left rail: the page's spine — a hairline track, each section a
+   numbered stop; the stop crossing the reading line takes the mark --- */
 @media(min-width:1024px){
-  .top{position:fixed;top:0;left:0;bottom:auto;right:auto;z-index:6;
-    width:216px;padding:26px 0 0 26px;background:none}
-  .top-in{flex-direction:column;align-items:flex-start;gap:22px}
-  .top nav{flex-direction:column;gap:9px;align-items:flex-start}
-  .top nav a{font-size:13.5px}
-  .top nav a.cur{color:var(--ink);border-left:2px solid var(--acc);
-    padding-left:7px;margin-left:-9px}
-  #toplive{margin-left:0;margin-top:6px}
+  .top{position:fixed;top:0;left:0;bottom:0;right:auto;z-index:6;
+    width:216px;padding:36px 0 28px 30px;background:none;
+    overflow-y:auto;overscroll-behavior:contain}
+  .top-in{flex-direction:column;align-items:flex-start;gap:0}
+  .wm{order:1;font-size:17px}
+  #toplive{order:2;margin:10px 0 0;line-height:1.55}
+  .spine{order:3;display:block;position:relative;align-self:stretch;
+    margin-top:36px}
+  .spine::before{content:'';position:absolute;left:0;top:26px;
+    bottom:5px;width:1px;background:var(--line2)}
+  .spine .alab{display:block;margin-bottom:12px}
+  .alab{font-family:var(--mono);font-size:9px;letter-spacing:.04em;
+    color:var(--ink4)}
+  .spine a{display:flex;align-items:baseline;position:relative;
+    padding:7.5px 0 7.5px 14px;font-size:13px;letter-spacing:.004em;
+    color:var(--ink3);text-decoration:none}
+  .spine a .rn{width:23px;flex:none;font-family:var(--mono);
+    font-size:9px;color:var(--ink4)}
+  .spine a:hover{color:var(--ink)}
+  .spine a.cur{color:var(--ink)}
+  .spine a.cur .rn{color:var(--ink2)}
+  .spine .mark{position:absolute;left:-3px;top:0;width:7px;height:7px;
+    background:var(--ink);opacity:0;
+    transition:transform .32s cubic-bezier(.22,1,.36,1),opacity .22s}
+  .spine .mark.on{opacity:1}
+  .away{order:4;flex-direction:column;align-items:flex-start;gap:1px;
+    align-self:stretch;margin-top:30px;padding-top:18px;
+    border-top:1px solid var(--line)}
+  .away .alab{display:block;margin-bottom:8px}
+  .away a{display:flex;align-items:baseline;padding:4.5px 0;
+    font-size:12.5px;color:var(--ink3)}
+  .away a::after{content:'→';margin-left:7px;font-size:11px;
+    color:var(--ink4);transition:transform .2s,color .2s}
+  .away a:hover{color:var(--ink)}
+  .away a:hover::after{transform:translateX(2px);color:var(--ink2)}
+  .away a[href="/"]{display:none}
   .stack{margin-left:216px}
   .stack>section:not(.open):not(.noidx) .col{padding-left:58px;
     max-width:960px;margin:0}
@@ -596,14 +630,31 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 [data-rv].rv{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){
   [data-rv]{opacity:1;transform:none;transition:none}
+  .spine .mark,.away a::after{transition:none}
   html{scroll-behavior:auto}}
 </style>
 
 </head><body>
 <header class="top"><div class="top-in">
-  <a class="wm" href="/">alive</a>
-  <nav>
-    <a class="cur" href="/">home</a>
+  <a class="wm" href="/">alive<i class="wdot" aria-hidden="true"></i></a>
+  <nav class="spine" aria-label="on this page">
+    <span class="alab">the page</span>
+    <a href="#secNow"><i class="rn">001</i><span>right now</span></a>
+    <a href="#secHome"><i class="rn">002</i><span>the home</span></a>
+    <a href="#secChooser"><i class="rn">003</i><span>the chooser</span></a>
+    <a href="#secStay"><i class="rn">004</i><span>the stay</span></a>
+    <a href="#secHour"><i class="rn">005</i><span>the hour</span></a>
+    <a href="#secSum"><i class="rn">006</i><span>the sum</span></a>
+    <a href="#secField"><i class="rn">007</i><span>the map</span></a>
+    <a href="#secRecord"><i class="rn">010</i><span>the record</span></a>
+    <a href="#secDistricts"><i class="rn">011</i><span>the districts</span></a>
+    <a href="#secHow"><i class="rn">012</i><span>how it knows</span></a>
+    <a href="#secPromise"><i class="rn">013</i><span>the promise</span></a>
+    <i class="mark" aria-hidden="true"></i>
+  </nav>
+  <nav class="away" aria-label="elsewhere">
+    <span class="alab">elsewhere</span>
+    <a href="/">home</a>
     <a href="/city">the field</a>
     <a href="/city">delhi</a>
     <a href="/community">community</a>
@@ -637,7 +688,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 <!-- the live number, unboxed: plain text lines, hairline rules
      (unnumbered — it reads as the hero's continuation; the feature
      story carries indices 01-04) -->
-<section><div class="col">
+<section id="secNow"><div class="col">
   <h2 class="lead">Alive reads the air over Delhi — and counts what it
   does to you.</h2>
   <p class="prose">Delhi's air is the worst in the world, and nobody
@@ -662,7 +713,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 
 <!-- the feature story — the app's screens, one purpose each,
      devin.ai register: index, small serif title, one line, the screen -->
-<section><div class="col">
+<section id="secHome"><div class="col">
   <div class="feat" data-rv>
     <figure class="pshot feat-shot"><div class="phone"><picture>
       <source type="image/webp" srcset="/ios-dose.webp 720w">
@@ -678,7 +729,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   </div>
 </div></section>
 
-<section><div class="col">
+<section id="secChooser"><div class="col">
   <div class="feat flip" data-rv>
     <figure class="pshot feat-shot"><div class="phone"><picture>
       <source type="image/webp" srcset="/ios-choose-priced.webp 720w">
@@ -694,7 +745,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   </div>
 </div></section>
 
-<section><div class="col">
+<section id="secStay"><div class="col">
   <div class="feat" data-rv>
     <figure class="pshot feat-shot"><div class="phone"><picture>
       <img src="/ios-feat-stays.webp" width="662" height="1440" decoding="async" loading="lazy"
@@ -709,7 +760,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
   </div>
 </div></section>
 
-<section><div class="col">
+<section id="secHour"><div class="col">
   <div class="feat flip" data-rv>
     <figure class="pshot feat-shot"><div class="phone"><picture>
       <img src="/ios-feat-playtime.webp" width="662" height="1440" decoding="async" loading="lazy"
@@ -728,7 +779,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 
 <!-- the day's arithmetic — the same number, written as the sum your
      lungs do; provenance sits under it as one quiet line -->
-<section><div class="col">
+<section id="secSum"><div class="col">
   <div class="card" data-rv>
     <div class="lbl2">the day's arithmetic</div>
     <h2 class="lead">A day outside, written as a sum.</h2>
@@ -753,7 +804,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 
 <!-- the instrument — the live field, operative. touch a cell, or let
      the engine price a real trip; the deck scrubs the served forecast -->
-<section><div class="col">
+<section id="secField"><div class="col">
   <div class="card fieldcard" id="fieldSec" data-rv>
     <div class="field-lead">
       <div><div class="lbl2">the live field</div>
@@ -846,7 +897,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 </div></section>
 
 <!-- the city card — the archive's day and every district's live read -->
-<section><div class="col">
+<section id="secRecord"><div class="col">
   <div class="card" data-rv>
     <div class="lbl2">the record</div>
     <h2 class="lead">The city, kept.</h2>
@@ -864,7 +915,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 </div></section>
 
 <!-- the district table — every boundary, worst first -->
-<section><div class="col">
+<section id="secDistricts"><div class="col">
   <div class="card" data-rv>
     <div class="lbl2">the districts</div>
     <h2 class="lead">Where the air sits heaviest.</h2>
@@ -882,7 +933,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 </div></section>
 
 <!-- the mechanics card — how the page knows, and what leaves the phone -->
-<section><div class="col">
+<section id="secHow"><div class="col">
   <div class="card" data-rv>
     <div class="lbl2">how it knows</div>
     <h2 class="lead">How a breath becomes a number.</h2>
@@ -911,7 +962,7 @@ button:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 </div></section>
 
 <!-- the pledge — what never leaves the phone -->
-<section><div class="col">
+<section id="secPromise"><div class="col">
   <div class="card" data-rv>
     <div class="lbl2">what leaves your phone</div>
     <h2 class="lead">Counted on your phone. Kept on your phone.</h2>
@@ -2502,6 +2553,53 @@ async function status(){
   tlSync=on;
   addEventListener('scroll',on,{passive:true});
   addEventListener('resize',on);on();
+})();
+
+/* the rail is the page's spine — each stop reads its number from the
+   section's own margin index (so the two can never disagree), and the
+   stop crossing the reading line carries the mark; through the gaps
+   between sections the last mark holds */
+(function(){
+  const nav=document.querySelector('.spine');if(!nav)return;
+  const mark=nav.querySelector('.mark');
+  const links=[...nav.querySelectorAll('a')];
+  const pairs=links.map(a=>{
+    const sec=document.getElementById(a.hash.slice(1));
+    return sec?{a,sec}:null}).filter(Boolean);
+  if(!pairs.length)return;
+  /* the stop's number = the section's own margin index — the css
+     counter increments over every displayed non-.open/.noidx
+     section in dom order; mirror it exactly (getComputedStyle
+     can't resolve counters) */
+  const num=()=>{
+    const secs=[...document.querySelectorAll(
+      '.stack>section:not(.open):not(.noidx)')]
+      .filter(s=>s.offsetParent!==null);
+    pairs.forEach(({a,sec})=>{
+      const i=a.querySelector('.rn');if(!i)return;
+      const n=secs.indexOf(sec)+1;
+      i.textContent=n>0?String(n).padStart(3,'0'):''})};
+  num();addEventListener('load',num);
+  const seen=new Set();let curA=null;
+  const place=()=>{
+    let first=null;
+    for(const {a,sec} of pairs){if(seen.has(sec)){first=a;break}}
+    if(first===null||first===curA)return;curA=first;
+    links.forEach(a=>{const on=a===first;
+      a.classList.toggle('cur',on);
+      if(on)a.setAttribute('aria-current','location');
+      else a.removeAttribute('aria-current')});
+    if(mark){mark.classList.add('on');
+      mark.style.transform='translateY('+Math.round(
+        first.offsetTop+first.offsetHeight/2-3.5)+'px)'}
+  };
+  if(!('IntersectionObserver' in window))return;
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{
+    if(en.isIntersecting)seen.add(en.target);
+    else seen.delete(en.target)});place()},
+    {rootMargin:'-34% 0px -56% 0px'});
+  pairs.forEach(({sec})=>io.observe(sec));
+  addEventListener('resize',place);
 })();
 
 renderPills();paint();status();heroCity();
