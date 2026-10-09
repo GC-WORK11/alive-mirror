@@ -215,6 +215,20 @@ export function Sheet({
     jank("enter.sheet");
     Animated.spring(anim, { toValue: 1, damping: 22, stiffness: 220, useNativeDriver: false })
       .start(() => setSettled(true));
+    /* the spring callback is advisory, not a gate: on the virtualized-GPU
+       sim the JS driver ticks at multi-hundred-ms intervals inside a
+       draw-hold and the spring oscillates around toValue without ever
+       hitting rest thresholds — .start's callback never fires and the
+       veil eats every touch on the sheet forever (compare sheet went
+       dead-tap on sim: X, nudge, footer all hit nothing). The enter is
+       designed at ~0.4 s; settle on its own clock — whichever lands
+       first wins. */
+    const t = setTimeout(() => {
+      setSettled(true);
+      anim.stopAnimation();
+      anim.setValue(1);
+    }, 600);
+    return () => clearTimeout(t);
   }, [anim]);
   return (
     <Animated.View

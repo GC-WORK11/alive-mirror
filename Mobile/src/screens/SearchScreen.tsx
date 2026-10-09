@@ -237,6 +237,9 @@ function SearchSheetInner({
   mode = "to",
   notice = null,
   pickDone,
+  fromLabel = null,
+  toLabel = null,
+  onModeChange,
 }: {
   onSelect: (sel: SearchSelection) => void;
   onClose: () => void;
@@ -251,6 +254,13 @@ function SearchSheetInner({
   /** bumps when the shell's pick chain settles — the sheet unlatches its
       rows then (a failed pick leaves it mounted and must tap again). */
   pickDone?: number;
+  /** the two-section where-to entry (owner: 'there must be two sections
+      From and To — how come you guess from where I have to go'): the
+      From row shows the live-fix label ('you'), the To row the picked
+      destination; tapping either arms that slot for the input below. */
+  fromLabel?: string | null;
+  toLabel?: string | null;
+  onModeChange?: (w: "to" | "from") => void;
 }) {
   const [q, setQ] = useState("");
   /* the row list renders off the deferred query — a keystroke's urgent
@@ -704,6 +714,42 @@ function SearchSheetInner({
 
   return (
     <View style={[ss.root, { marginTop: insets.top + 8 }]}>
+      {/* From / To — the two editable sections the where-to flow opens
+          with. From defaults to the real live fix ('Your location');
+          both tap to arm the matching slot for the search below. */}
+      <View style={ss.routeCard}>
+        <Pressable
+          onPress={() => { tick(); onModeChange?.("from"); }}
+          accessibilityRole="button"
+          accessibilityLabel={`${t("fromLabel", lang)}: ${fromLabel ?? t("searchFromPlaceholder", lang)}`}
+          style={({ pressed }) => [ss.routeRow, mode === "from" && ss.routeRowOn, pressed && { opacity: 0.6 }]}
+        >
+          <View style={ss.routeDot} />
+          <Text {...DYNAMIC_TYPE} style={[ss.routeKey, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+            {t("fromLabel", lang)}
+          </Text>
+          <Text {...DYNAMIC_TYPE} numberOfLines={1}
+            style={[ss.routeVal, { fontFamily: fam(lang, "med") }, !fromLabel && { color: V2T.text3, fontFamily: fam(lang, "reg") }]}>
+            {fromLabel ?? t("searchFromPlaceholder", lang)}
+          </Text>
+        </Pressable>
+        <View style={ss.routeHair} />
+        <Pressable
+          onPress={() => { tick(); onModeChange?.("to"); }}
+          accessibilityRole="button"
+          accessibilityLabel={`${t("fieldTo", lang)}: ${toLabel ?? t("searchPlaceholder", lang)}`}
+          style={({ pressed }) => [ss.routeRow, mode === "to" && ss.routeRowOn, pressed && { opacity: 0.6 }]}
+        >
+          <View style={[ss.routeDot, ss.routeDotTo]} />
+          <Text {...DYNAMIC_TYPE} style={[ss.routeKey, { fontFamily: fam(lang, "reg") }]} numberOfLines={1}>
+            {t("fieldTo", lang)}
+          </Text>
+          <Text {...DYNAMIC_TYPE} numberOfLines={1}
+            style={[ss.routeVal, { fontFamily: fam(lang, "med") }, !toLabel && { color: V2T.text3, fontFamily: fam(lang, "reg") }]}>
+            {toLabel ?? t("searchPlaceholder", lang)}
+          </Text>
+        </Pressable>
+      </View>
       {/* search bar — pill 999 (doc 03) */}
       <View style={ss.bar}>
         <Pressable
@@ -819,6 +865,9 @@ function SearchScreenInner({
   mode,
   notice,
   pickDone,
+  fromLabel,
+  toLabel,
+  onModeChange,
 }: {
   visible: boolean;
   onSelect: (sel: SearchSelection) => void;
@@ -828,6 +877,10 @@ function SearchScreenInner({
   mode?: "to" | "from";
   notice?: string | null;
   pickDone?: number;
+  /** where-to two-section card labels (see SearchSheetInner) */
+  fromLabel?: string | null;
+  toLabel?: string | null;
+  onModeChange?: (w: "to" | "from") => void;
 }) {
   bump("scr.Search");
   /* Android hardware back must close the sheet — Modal used to provide this;
@@ -848,12 +901,19 @@ function SearchScreenInner({
   const [enter] = useState(() => new Animated.Value(0));
   const [enterTy] = useState(() => enter.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }));
   useEffect(() => {
-    if (visible) {
-      enter.setValue(0);
-      mark("search.open");
-      jank("enter.search");
-      Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
-    }
+    if (!visible) return;
+    enter.setValue(0);
+    mark("search.open");
+    jank("enter.search");
+    Animated.spring(enter, { toValue: 1, damping: 24, stiffness: 240, useNativeDriver: false }).start();
+    /* a JS-driven spring on the virtualized-GPU sim can oscillate around
+       toValue for tens of seconds when RAF ticks gap during a map
+       draw-hold — this value drives the whole sheet's opacity, so the
+       sheet sits ghosted over the map until it converges (observed live
+       at ~0.5 alpha, 30 s+). Enter is designed ~0.4 s; hard-settle on
+       its own clock so a starved spring can't strand the surface. */
+    const t = setTimeout(() => { enter.stopAnimation(); enter.setValue(1); }, 600);
+    return () => clearTimeout(t);
   }, [visible, enter]);
 
   /* plain absolute overlay — every other sheet in the app renders this way.
@@ -873,6 +933,9 @@ function SearchScreenInner({
           mode={mode}
           notice={notice}
           pickDone={pickDone}
+          fromLabel={fromLabel}
+          toLabel={toLabel}
+          onModeChange={onModeChange}
         />
       </Animated.View>
     </View>
@@ -897,12 +960,41 @@ const ss = StyleSheet.create({
     ...V2Elev.sheet,
     overflow: "hidden",
   },
+  /* the From/To entry card — two tap-to-edit rows over one surface2
+     card; the armed slot carries the accent left-edge so the input
+     below reads as editing THAT row, never an ambiguous field */
+  routeCard: {
+    marginHorizontal: 14,
+    marginTop: 12,
+    backgroundColor: V2T.surface2,
+    borderRadius: V2Radius.row,
+    overflow: "hidden",
+  },
+  routeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 48,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  routeRowOn: { backgroundColor: V2T.accentTint },
+  routeDot: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: V2T.accent,
+  },
+  routeDotTo: {
+    backgroundColor: "transparent",
+    borderWidth: 2, borderColor: V2T.text3,
+  },
+  routeKey: { width: 34, fontSize: V2Type.label, color: V2T.text3 },
+  routeVal: { flex: 1, fontSize: V2Type.body, color: V2T.text },
+  routeHair: { height: StyleSheet.hairlineWidth, backgroundColor: V2T.hairline, marginLeft: 32 },
   bar: {
     flexDirection: "row",
     alignItems: "center",
     height: 56,
     marginHorizontal: 14,
-    marginTop: 12,
+    marginTop: 8,
     marginBottom: 8,
     paddingHorizontal: 12,
     backgroundColor: V2T.surface2,

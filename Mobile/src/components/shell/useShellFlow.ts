@@ -210,7 +210,8 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
 
   /* search itself lives in src/screens/SearchScreen (S2: T0 on-device +
      cancellable server tiers); this hook owns the phases around it. */
-  const pick = useCallback(async (p: Place, which?: Which, meta?: PlaceHint | null) => {
+  const pick = useCallback(async (p: Place, which?: Which, meta?: PlaceHint | null,
+    opts?: { direct?: boolean }) => {
     const seq = ++pickSeq.current;
     Keyboard.dismiss();
     /* the confirm path can stall for seconds (an unbounded GNSS fix used
@@ -245,6 +246,24 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
         setEditWhich("to");
         return;
       }
+      /* FROM+TO direct (owner: 'From/To → finding the purest route'):
+         when the where-to entry already holds a real origin a typed
+         destination commits straight to the plan — no settle sheet in
+         between (the 'little glitchy' double-sheet the owner flagged).
+         Without an origin the settle grammar still stands so
+         goDirections can resolve/fix-fail honestly. */
+      if (opts?.direct && from) {
+        const d = havM(from.lat, from.lon, p.lat, p.lon);
+        if (d < 50) {
+          setLocNotice(t("pickTooClose", lang, { n: Math.max(10, Math.round(d)) }));
+          return;
+        }
+        setPlace(null);
+        setTo(p);
+        setLocNotice(null);
+        if (phaseRef.current !== "nav") setPhase("compare");
+        return;
+      }
       /* SETTLE before routing (the Google register the owner timed:
          tap → camera flies to the pin + a place sheet; Directions is
          what commits to a trip). The origin resolve + the too-close
@@ -266,7 +285,24 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
          nothing (the newer pick still owns the latch) */
       if (seq === pickSeq.current) setPickDone((n) => n + 1);
     }
-  }, [editWhich, to, place, lang, setPhase]);
+  }, [editWhich, to, place, from, lang, setPhase]);
+
+  /* the From row defaults to the live position: when the where-to sheet
+     opens with no origin yet, resolve a REAL fix and label it honestly
+     (fresh GNSS = 'Your location'; last-known = near-locality/age —
+     fixName's rules, never a fabricated point). A failed fix leaves
+     'from' empty and the row asks to be set — the plan path then still
+     resolves through goDirections' own honest branch. */
+  useEffect(() => {
+    if (phase !== "search" || from) return;
+    let cancelled = false;
+    posNowDetailed().then((fix) => {
+      if (cancelled || phaseRef.current !== "search" || !fix) return;
+      const c = fix.pos.coords;
+      setFrom((prev) => prev ?? { name: fixName(fix, lang), subtitle: "", lat: c.latitude, lon: c.longitude });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [phase, from, lang]);
 
   /* the settle beat's single camera move: fly to the pin as the place
      sheet rises (Google: tap a row → the camera settles on it). The
@@ -544,14 +580,24 @@ export function useShellFlow(camRef: RefObject<CameraRef | null>, shareEnabled: 
     Keyboard.dismiss();
     const pos = await posNow();
     setFollow(!!(pos && inNcr(pos.coords.latitude, pos.coords.longitude)));
+    /* street-level Google-Maps entry (owner: 'maps zoomed like Google
+       Maps your live stuff'): ease into ~z16.6 pitched 55° already
+       facing the route's own opening heading — the follow camera then
+       keeps course-bearing at z16–16.8 per fix (engine.ts). */
+    const pts = flattenCoords(o.geometry);
+    const bearing = pts.length >= 2
+      ? (Math.atan2(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]) * 180) / Math.PI
+      : 0;
     /* the sheet-unmount and the camera commits must not land in the same
        frame — back-to-back render commits are the residual-SIGSEGV trigger
        class on the virtualized-GPU iOS sim (ci15 telemetry). Defer the
        camera work a beat so the close commit lands alone. */
     setTimeout(() => {
       whenMapDrawFree(() => {
-        camRef.current?.flyTo({ center: [from.lon, from.lat], zoom: 15.5, duration: camDur(700) });
-        camRef.current?.setStop({ pitch: 55, duration: camDur(800) });
+        camRef.current?.easeTo({
+          center: [from.lon, from.lat], zoom: 16.6, pitch: 55,
+          bearing, duration: camDur(900), easing: "linear",
+        });
       });
     }, 80);
   }, [options, selected, from, to, camRef, setPhase]);

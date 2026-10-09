@@ -28,6 +28,8 @@ const en = {
   shareTripBody: "my trip {from} → {to}: I breathed about {dose} of smoke and my ride put out {co2} — estimated on Alive",
   outsideDelhi: "outside Delhi — no smoke estimate here",
   start: "Start",
+  /** the journey CTA — owner's plain words, 'start journey' */
+  startJourney: "start journey",
   end: "End",
   lightestOnBoth: "lightest on both",
   lightestForYou: "lightest for you",
@@ -460,12 +462,14 @@ const en = {
   howAliveBody: "ALive maps every way to where you're going — metro, car, auto, on foot. For each, it estimates the smoke you'd breathe along the way, from a live street-level air map built from stations, satellites and trips people shared. It also estimates the smoke your ride puts out, from published tests on that kind of ride. Your trips stay anonymous and help the city see its air street by street. Numbers are honest ranges, never fake-exact.",
   // search + compare
   fromLabel: "from",
+  /** the two-section where-to entry — 'To' row label (From = fromLabel) */
+  fieldTo: "To",
   changeLabel: "change",
   editingLabel: "editing",
   fromHint: "type to change where you start from",
   noResults: "nothing found — try a bigger name",
   searchingLabel: "searching",
-  checkingRoutes: "checking every way there…",
+  checkingRoutes: "finding the purest route for you…",
   compare_refining: "least smoky roads first · adding metro, bus and more…",
   /* planner arms lost to timeout — the option set is real but INCOMPLETE;
      the sheet says which kind of route is missing, never pretends all */
@@ -1368,6 +1372,8 @@ const hi: Record<StringKey, string> = {
   shareTripBody: "मेरी यात्रा {from} → {to}: मैंने करीब {dose} धुआँ साँस में लिया और गाड़ी ने {co2} छोड़ा — Alive पर अनुमानित",
   outsideDelhi: "दिल्ली से बाहर — धुएँ का अंदाज़ा नहीं मिलेगा",
   start: "शुरू करें",
+  /** the journey CTA — owner's plain words */
+  startJourney: "यात्रा शुरू करें",
   end: "खत्म करें",
   lightestOnBoth: "दोनों में सबसे हल्का",
   lightestForYou: "आपके लिए सबसे हल्का",
@@ -1715,12 +1721,14 @@ const hi: Record<StringKey, string> = {
   consent_footnote: "स्किप करना यानी साझा-करना चालू — दोनों ही हालत में सेटिंग्स से एक टैप में बदलें।",
   howAliveBody: "ALive आपकी मंज़िल तक के हर रास्ते दिखाता है — मेट्रो, कार, ऑटो, पैदल। हर एक के लिए यह अनुमान लगाता है कि रास्ते में आप कितना धुआँ साँस में लेंगे — स्टेशनों, सैटेलाइट और लोगों की साझा यात्राओं से बने लाइव सड़क-स्तर हवा-नक्शे से। यह यह भी बताता है कि आपकी गाड़ी कितना धुआँ छोड़ती है, उस तरह की गाड़ियों के प्रकाशित माप से। आपकी यात्राएँ गुमनाम रहती हैं और शहर को उसकी हवा सड़क-दर-सड़क दिखाती हैं। संख्याएँ ईमानदार रेंज हैं, नकली-सटीकता नहीं।",
   fromLabel: "शुरुआत",
+  /** the two-section where-to entry — 'To' row label */
+  fieldTo: "मंज़िल",
   changeLabel: "बदलें",
   editingLabel: "बदल रहे हैं",
   fromHint: "शुरुआत की जगह बदलने के लिए लिखें",
   noResults: "कुछ नहीं मिला — बड़ा नाम लिखकर देखें",
   searchingLabel: "खोज रहे हैं",
-  checkingRoutes: "हर रास्ता जाँच रहे हैं…",
+  checkingRoutes: "आपके लिए सबसे साफ़ रास्ता खोज रहे हैं…",
   compare_refining: "पहले सबसे कम धुएँ वाली सड़कें · मेट्रो, बस वग़ैरह जोड़ रहे हैं…",
   degradedEngine: "सबसे कम धुएँ वाले रास्ते अभी नहीं मिल रहे — जो लाइव है वही दिखा रहे हैं",
   degradedTransit: "मेट्रो और बस के विकल्प अभी नहीं मिल रहे",

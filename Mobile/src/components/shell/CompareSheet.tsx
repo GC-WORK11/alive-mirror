@@ -518,6 +518,11 @@ function OptionCard({ o, i, selected, worstIn, minDose, lightestWord, showYours,
          native anim graph like every other in-sheet spring. */
       useNativeDriver: false,
     }).start();
+    /* starved-RAF springs oscillate without converging on the sim —
+       hard-settle the wash on its design clock so it can't hang at
+       partial alpha (same class as the Sheet enterVeil dead-tap fix) */
+    const t = setTimeout(() => { selV.stopAnimation(); selV.setValue(selected ? 1 : 0); }, 700);
+    return () => clearTimeout(t);
   }, [selected, selV, reduce]);
   const d = o.dose;
   /* the honest band — a missing end reads as "{lo}+"/"up to {hi}",
@@ -675,6 +680,7 @@ function CompareSheetInner({
   loading, steps, stepsOpen, onToggleSteps, onStart, onClose, lang,
   planError = null, onRetry, vehicle, onVehiclePress, onVehicleChange, fieldAgeS,
   showCig = false, refining = false, degraded,
+  fromName = null, toName = null, onEditRoute,
 }: {
   options: V2Option[]; selected: number; onSelect: (i: number) => void;
   depart: Depart; notified: boolean; onRemind: () => void;
@@ -709,6 +715,12 @@ function CompareSheetInner({
   onVehicleChange?: (p: VehicleProfile) => void;
   /** field.age_s from the /v2/plan payload, for the details expander */
   fieldAgeS?: number | null;
+  /** the committed From/To pair rendered over the sheet head — both
+      halves tap back into search armed on that slot (owner: no more
+      silently-guessed origin, the pair stays visible + editable here) */
+  fromName?: string | null;
+  toName?: string | null;
+  onEditRoute?: (w: "to" | "from") => void;
 }) {
   bump("shell.Compare");
   /* perf: options landing while mounted = the chooser's first real rows —
@@ -772,6 +784,30 @@ function CompareSheetInner({
   return (
     <View style={s.wrap}>
       <Sheet detent="half" onClose={onClose} lang={lang}>
+        {/* the From → To pair this plan answers for — sits over every
+            state (finding / error / options) so the trip being priced is
+            never ambiguous; each half reopens search armed on its slot */}
+        {fromName || toName ? (
+          <View style={s.tripRow}>
+            <Pressable onPress={() => { tick(); onEditRoute?.("from"); }} accessibilityRole="button"
+              style={({ pressed }) => [s.tripHalf, pressed && { opacity: 0.6 }]}>
+              <View style={s.tripDot} />
+              <Text {...DYNAMIC_TYPE} numberOfLines={1}
+                style={[s.tripTxt, { fontFamily: fam(lang, "med") }, !fromName && { color: V2T.text3, fontFamily: fam(lang, "reg") }]}>
+                {fromName ?? t("searchFromPlaceholder", lang)}
+              </Text>
+            </Pressable>
+            <Text style={[s.tripArrow, { fontFamily: fam(lang, "reg") }]}>→</Text>
+            <Pressable onPress={() => { tick(); onEditRoute?.("to"); }} accessibilityRole="button"
+              style={({ pressed }) => [s.tripHalf, pressed && { opacity: 0.6 }]}>
+              <View style={[s.tripDot, s.tripDotTo]} />
+              <Text {...DYNAMIC_TYPE} numberOfLines={1}
+                style={[s.tripTxt, { fontFamily: fam(lang, "med") }, !toName && { color: V2T.text3, fontFamily: fam(lang, "reg") }]}>
+                {toName ?? t("searchPlaceholder", lang)}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
         {loading ? (
           <View style={s.stateWrap}>
             <ActivityIndicator size="small" color={V2T.accent} />
@@ -823,7 +859,6 @@ function CompareSheetInner({
           <>
             <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}
               showsVerticalScrollIndicator={false}>
-              {chip}
               {(() => {
                 const missing = (degraded ?? []).filter((a) => {
                   const det = ARM_PRESENT[a];
@@ -953,6 +988,11 @@ function CompareSheetInner({
                 </Text>
               )}
             </ScrollView>
+            {/* vehicle select sits pinned ABOVE the Start CTA (owner:
+                'before start journey select vehicle') — switching it
+                re-runs /v2/plan with the new profile and the rows
+                re-price live */}
+            {chip}
             {sel && (
               <View style={s.footer}>
                 <PressSpring><Pressable onPress={() => { tick(); onToggleSteps(); }}
@@ -965,7 +1005,7 @@ function CompareSheetInner({
                 <PressSpring><Pressable onPress={() => { confirm(); onStart(); }}
                   style={s.goBtn}
                   accessibilityRole="button">
-                  <Text {...DYNAMIC_TYPE} style={[s.goBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("start", lang)}</Text>
+                  <Text {...DYNAMIC_TYPE} style={[s.goBtnTxt, { fontFamily: fam(lang, "semi") }]}>{t("startJourney", lang)}</Text>
                 </Pressable></PressSpring>
               </View>
             )}
@@ -1013,6 +1053,19 @@ const s = StyleSheet.create({
      clearance that strip lands inside the footer's hit zone and taps meant
      for "how we got this" fire Start instead (Android forensic find) */
   scrollContent: { paddingBottom: 22 },
+  /* From → To pair over the sheet head — hairline-separated, quiet;
+     each half is a tap-target back into that slot's search */
+  tripRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginHorizontal: 14, marginTop: 8, marginBottom: 2,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: V2T.hairline,
+  },
+  tripHalf: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, maxWidth: "46%" },
+  tripDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: V2T.accent },
+  tripDotTo: { backgroundColor: "transparent", borderWidth: 2, borderColor: V2T.text3 },
+  tripTxt: { fontSize: V2Type.label, color: V2T.text, flexShrink: 1 },
+  tripArrow: { fontSize: V2Type.label, color: V2T.text3 },
   vehChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginHorizontal: 14, marginTop: 4, marginBottom: 2, minHeight: 34,

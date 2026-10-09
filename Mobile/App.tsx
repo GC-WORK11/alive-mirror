@@ -1322,7 +1322,11 @@ function AppInner() {
       pick({ name: sel.place.name, subtitle: sel.place.subtitle ?? "",
         lat: sel.place.lat, lon: sel.place.lon }, undefined,
         { match: sel.place.match, anchor: sel.place.anchor,
-          compound: sel.place.compound, kind: sel.place.kind });
+          compound: sel.place.compound, kind: sel.place.kind },
+        /* From+To already both real → commit straight to the plan
+           ('From/To → finding the purest route'), skipping the settle
+           sheet; with no origin yet the preview grammar still stands */
+        { direct: true });
       return;
     }
     if (sel.type === "choose_on_map") {
@@ -1547,7 +1551,7 @@ function AppInner() {
       {phase === "compare" && (
         <View style={[s.pillWrap, { top: insets.top + 10 }]}>
           <SearchBar
-            label={to ? to.name : undefined}
+            label={to ? (from ? `${from.name} → ${to.name}` : to.name) : undefined}
             lang={lang}
             onMenu={openSidebar}
             onPress={openSearch}
@@ -1561,6 +1565,9 @@ function AppInner() {
         mode={editWhich}
         notice={locNotice}
         pickDone={pickDone}
+        fromLabel={from?.name ?? null}
+        toLabel={to?.name ?? null}
+        onModeChange={setEditWhich}
         onClose={onSearchClose}
         onSelect={onSearchSelect} />
       {phase === "idle" && (
@@ -1659,6 +1666,8 @@ function AppInner() {
           onVehicleChange={applyVehicle}
           planError={planError} onRetry={retryPlan} degraded={planDegraded}
           fieldAgeS={planField?.age_s}
+          fromName={from?.name ?? null} toName={to?.name ?? null}
+          onEditRoute={(w) => { invalidatePicks(); setEditWhich(w); setPhase("search"); }}
           showCig={settings.show_cig} />
       )}
       {phase === "nav" && sel && (
