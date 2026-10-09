@@ -746,7 +746,7 @@ const en = {
      + series (decisions[].label tells us which grammar the server
      picked). Mirrors server/v2/day.py:_decisions so wire English never
      reaches the hi UI. */
-  moveDec_cleanWindow: "{w} hours {win} — around {c} µg/m³, against {m} across the day",
+  moveDec_cleanWindow: "{w} stretch {win} — around {c} µg/m³, against {m} across the day",
   moveDec_noClean: "no clean hours left today — the lightest is {n} µg/m³",
   moveDec_short: "only ~{n}h of today left on the card — {b} throughout",
   /* the served horizon is short, not the day: at 11 AM a 2-hour serve
@@ -1937,7 +1937,7 @@ const hi: Record<StringKey, string> = {
   dayOutsideDelhi: "दिल्ली से बाहर — यहाँ धुएँ का नक्शा नहीं पहुँचता",
   /* move कार्ड की पहली फ़ैसला-पंक्ति — server/v2/day.py:_decisions की
      वही व्याकरण, served windows + series से rebuild */
-  moveDec_cleanWindow: "{w} घड़ी {win} (औसत {c} बनाम दिन {m} µg/m³)",
+  moveDec_cleanWindow: "सबसे साफ़ दौरान {win} (औसत {c} बनाम दिन {m} µg/m³)",
   moveDec_noClean: "आज साफ़ घड़ी नहीं बची — सबसे हल्की हवा {n} µg/m³",
   moveDec_short: "आज के कार्ड में सिर्फ़ ~{n} घंटे — हर घड़ी {b} हवा",
   moveDec_cardShort: "अगले ~{n} घंटे {b} — आज का बाक़ी कार्ड अभी नहीं आया",
